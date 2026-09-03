@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.Block
 import com.jessica.core.modules.BlockManager
+import com.jessica.core.modules.BlockStorage
 
 class MainActivity : ComponentActivity() {
 
@@ -27,9 +28,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun JessicaScreen() {
 
-    val blockManager = remember {
-        BlockManager()
-    }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+val storage = remember {
+    BlockStorage(context)
+}
+
+val blockManager = remember {
+    BlockManager()
+}
 
     var message by remember {
         mutableStateOf(
@@ -110,8 +117,10 @@ fun JessicaScreen() {
 
                     blockManager.addBlock(newBlock)
 
-                    blocks =
-                        blockManager.getBlocks()
+blocks =
+    blockManager.getBlocks()
+
+storage.saveBlocks(blocks)
 
 
                     message =
