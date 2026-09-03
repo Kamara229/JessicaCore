@@ -38,6 +38,16 @@ val blockManager = remember {
     BlockManager()
 }
 
+storage.loadBlocks().forEach {
+    blockManager.addBlock(it)
+}
+
+var blocks by remember {
+    mutableStateOf(
+        storage.loadBlocks()
+    )
+}
+
     var message by remember {
         mutableStateOf(
             "Jessica Core v0.1 запущена"
