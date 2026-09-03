@@ -8,6 +8,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.jessica.core.modules.Block
+import com.jessica.core.modules.BlockManager
 
 class MainActivity : ComponentActivity() {
 
@@ -20,9 +22,14 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JessicaScreen() {
+
+    val blockManager = remember {
+        BlockManager()
+    }
 
     var message by remember {
         mutableStateOf(
@@ -30,17 +37,27 @@ fun JessicaScreen() {
         )
     }
 
+    var blocks by remember {
+        mutableStateOf(
+            blockManager.getBlocks()
+        )
+    }
+
+
     Scaffold(
 
         topBar = {
+
             TopAppBar(
                 title = {
                     Text("Jessica Core")
                 }
             )
+
         }
 
     ) { padding ->
+
 
         Column(
             modifier = Modifier
@@ -48,25 +65,70 @@ fun JessicaScreen() {
                 .padding(20.dp)
         ) {
 
+
             Text(
                 text = message
             )
+
 
             Spacer(
                 modifier = Modifier.height(20.dp)
             )
 
-            Button(
-                onClick = {
-                    message =
-                        "Ожидание подключения блоков..."
-                }
-            ) {
+
+            Text(
+                text = "Установленные блоки:"
+            )
+
+
+            blocks.forEach {
 
                 Text(
-                    "Добавить блок"
+                    text =
+                    "${it.name} v${it.version} (${it.status})"
                 )
+
             }
+
+
+            Spacer(
+                modifier = Modifier.height(20.dp)
+            )
+
+
+            Button(
+
+                onClick = {
+
+                    val newBlock =
+                        Block(
+                            name = "Basic Analysis",
+                            version = "0.1",
+                            status = "ACTIVE"
+                        )
+
+
+                    blockManager.addBlock(newBlock)
+
+                    blocks =
+                        blockManager.getBlocks()
+
+
+                    message =
+                        "Добавлен новый блок"
+
+                }
+
+            ){
+
+                Text(
+                    "+ Добавить блок"
+                )
+
+            }
+
         }
+
     }
+
 }
