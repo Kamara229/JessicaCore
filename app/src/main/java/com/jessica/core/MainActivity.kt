@@ -3,8 +3,11 @@ package com.jessica.core
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
 class MainActivity : ComponentActivity() {
 
@@ -12,14 +15,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-
             JessicaScreen()
-
         }
     }
 }
 
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JessicaScreen() {
 
@@ -29,56 +30,43 @@ fun JessicaScreen() {
         )
     }
 
-
     Scaffold(
 
         topBar = {
-
             TopAppBar(
                 title = {
                     Text("Jessica Core")
                 }
             )
-
         }
 
-    ){ padding ->
-
+    ) { padding ->
 
         Column(
-            modifier = androidx.compose.ui.Modifier
+            modifier = Modifier
                 .padding(padding)
                 .padding(20.dp)
-        ){
+        ) {
 
             Text(
                 text = message
             )
 
-
             Spacer(
-                androidx.compose.ui.unit.dp
-                    .let { androidx.compose.ui.Modifier.padding(it) }
+                modifier = Modifier.height(20.dp)
             )
-
 
             Button(
                 onClick = {
-
                     message =
-                    "Ожидание подключения блоков..."
-
+                        "Ожидание подключения блоков..."
                 }
-            ){
+            ) {
 
                 Text(
                     "Добавить блок"
                 )
-
             }
-
         }
-
     }
-
 }
