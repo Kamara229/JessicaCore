@@ -38,20 +38,23 @@ val blockManager = remember {
     BlockManager()
 }
 
+
+var blocks by remember {
+    mutableStateOf(
+        emptyList<Block>()
+    )
+}
+
+
 LaunchedEffect(Unit) {
 
     storage.loadBlocks().forEach {
         blockManager.addBlock(it)
     }
 
-}
+    blocks = blockManager.getBlocks()
 
-var blocks by remember {
-    mutableStateOf(
-        blockManager.getBlocks()
-    )
 }
-
     var message by remember {
         mutableStateOf(
             "Jessica Core v0.1 запущена"
