@@ -38,13 +38,17 @@ val blockManager = remember {
     BlockManager()
 }
 
-storage.loadBlocks().forEach {
-    blockManager.addBlock(it)
+LaunchedEffect(Unit) {
+
+    storage.loadBlocks().forEach {
+        blockManager.addBlock(it)
+    }
+
 }
 
 var blocks by remember {
     mutableStateOf(
-        storage.loadBlocks()
+        blockManager.getBlocks()
     )
 }
 
@@ -53,13 +57,6 @@ var blocks by remember {
             "Jessica Core v0.1 запущена"
         )
     }
-
-    var blocks by remember {
-        mutableStateOf(
-            blockManager.getBlocks()
-        )
-    }
-
 
     Scaffold(
 
