@@ -38,7 +38,6 @@ class MainActivity : ComponentActivity() {
 }
 
 
-
 fun readBlockFromFile(
     context: Context,
     uri: Uri
@@ -60,10 +59,39 @@ fun readBlockFromFile(
             JSONObject(text)
 
 
+        val capabilitiesJson =
+            json.optJSONArray("capabilities")
+
+
+        val capabilities =
+            mutableListOf<String>()
+
+
+        if (capabilitiesJson != null) {
+
+            for (i in 0 until capabilitiesJson.length()) {
+
+                capabilities.add(
+                    capabilitiesJson.getString(i)
+                )
+
+            }
+
+        }
+
+
         Block(
 
+            id =
+                json.optString(
+                    "id",
+                    ""
+                ),
+
             name =
-                json.getString("name"),
+                json.getString(
+                    "name"
+                ),
 
             version =
                 json.optString(
@@ -71,11 +99,32 @@ fun readBlockFromFile(
                     "0.1"
                 ),
 
+            author =
+                json.optString(
+                    "author",
+                    "Unknown"
+                ),
+
+            type =
+                json.optString(
+                    "type",
+                    "unknown"
+                ),
+
             status =
                 json.optString(
                     "status",
                     "ACTIVE"
-                )
+                ),
+
+            description =
+                json.optString(
+                    "description",
+                    ""
+                ),
+
+            capabilities =
+                capabilities
 
         )
 
@@ -86,9 +135,6 @@ fun readBlockFromFile(
     }
 
 }
-
-
-
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -115,7 +161,6 @@ fun JessicaScreen() {
         remember {
             BlockManager()
         }
-
 
 
     var blocks by remember {
@@ -150,7 +195,6 @@ fun JessicaScreen() {
     }
 
 
-
     LaunchedEffect(Unit) {
 
         val savedBlocks =
@@ -182,9 +226,6 @@ fun JessicaScreen() {
     }
 
 
-
-
-
     val blockPicker =
 
         rememberLauncherForActivityResult(
@@ -193,7 +234,6 @@ fun JessicaScreen() {
                 ActivityResultContracts.OpenDocument()
 
         ) { uri ->
-
 
             if (uri != null) {
 
@@ -206,11 +246,15 @@ fun JessicaScreen() {
 
                 if (block != null) {
 
-                    if (
-                        !blockManager
+                    val alreadyInstalled =
+                        blockManager
                             .getBlocks()
-                            .contains(block)
-                    ) {
+                            .any {
+                                it.id == block.id
+                            }
+
+
+                    if (!alreadyInstalled) {
 
                         blockManager.addBlock(
                             block
@@ -248,9 +292,6 @@ fun JessicaScreen() {
             }
 
         }
-
-
-
 
 
     Scaffold(
@@ -306,10 +347,8 @@ fun JessicaScreen() {
 
 
                 Spacer(
-
                     modifier =
                         Modifier.width(10.dp)
-
                 )
 
 
@@ -333,14 +372,10 @@ fun JessicaScreen() {
             }
 
 
-
             Spacer(
-
                 modifier =
                     Modifier.height(20.dp)
-
             )
-
 
 
             when {
@@ -408,10 +443,8 @@ fun JessicaScreen() {
 
 
                     Spacer(
-
                         modifier =
                             Modifier.height(20.dp)
-
                     )
 
 
@@ -421,10 +454,8 @@ fun JessicaScreen() {
 
 
                     Spacer(
-
                         modifier =
                             Modifier.height(20.dp)
-
                     )
 
 
