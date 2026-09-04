@@ -13,16 +13,14 @@ import com.jessica.core.modules.TestReport
 
 @Composable
 fun ReportScreen(
-    reportStorage: ReportStorage
+    reportStorage: ReportStorage,
+    onBack: () -> Unit
 ) {
 
-
     var reports by remember {
-
         mutableStateOf(
             emptyList<TestReport>()
         )
-
     }
 
 
@@ -34,147 +32,140 @@ fun ReportScreen(
     }
 
 
-
-    Column(
+    LazyColumn(
 
         modifier =
-        Modifier
-            .fillMaxSize()
+            Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+
+        verticalArrangement =
+            Arrangement.spacedBy(10.dp)
 
     ) {
 
 
-        Text(
+        item {
 
-            text = "История тестирования",
+            Button(
 
-            style =
-            MaterialTheme.typography.titleLarge,
-
-            modifier =
-            Modifier
-                .padding(20.dp)
-
-        )
-
-
-        if (reports.isEmpty()) {
-
-
-            Text(
-
-                text = "Отчётов пока нет",
-
-                modifier =
-                Modifier
-                    .padding(20.dp)
-
-            )
-
-
-        } else {
-
-
-            LazyColumn(
-
-                modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp),
-
-                verticalArrangement =
-                Arrangement.spacedBy(10.dp)
+                onClick = {
+                    onBack()
+                }
 
             ) {
 
-
-                items(reports) { report ->
-
-
-                    Card(
-
-                        modifier =
-                        Modifier
-                            .fillMaxWidth()
-
-                    ) {
-
-
-                        Column(
-
-                            modifier =
-                            Modifier
-                                .padding(15.dp)
-
-                        ) {
-
-
-                            Text(
-
-                                text =
-                                report.blockName,
-
-                                style =
-                                MaterialTheme.typography.titleMedium
-
-                            )
-
-
-                            Spacer(
-
-                                modifier =
-                                Modifier.height(5.dp)
-
-                            )
-
-
-                            Text(
-
-                                text =
-                                "Дата: ${report.date}"
-
-                            )
-
-
-                            Spacer(
-
-                                modifier =
-                                Modifier.height(5.dp)
-
-                            )
-
-
-                            Text(
-
-                                text =
-                                "Результат:"
-
-                            )
-
-
-                            Text(
-
-                                text =
-                                report.result
-
-                            )
-
-
-                        }
-
-                    }
-
-
-                }
-
+                Text("Назад")
 
             }
-
 
         }
 
 
-    }
+        item {
 
+            Spacer(
+                modifier = Modifier.height(10.dp)
+            )
+
+
+            Text(
+
+                text = "История тестирования",
+
+                style =
+                    MaterialTheme.typography.titleLarge
+
+            )
+
+        }
+
+
+        if (reports.isEmpty()) {
+
+            item {
+
+                Text(
+                    "Отчётов пока нет"
+                )
+
+            }
+
+        } else {
+
+
+            items(reports) { report ->
+
+
+                Card(
+
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+
+                ) {
+
+
+                    Column(
+
+                        modifier =
+                            Modifier
+                                .padding(15.dp)
+
+                    ) {
+
+
+                        Text(
+
+                            text = report.blockName,
+
+                            style =
+                                MaterialTheme.typography.titleMedium
+
+                        )
+
+
+                        Spacer(
+                            modifier = Modifier.height(5.dp)
+                        )
+
+
+                        Text(
+                            text = "Дата: ${report.date}"
+                        )
+
+
+                        Spacer(
+                            modifier = Modifier.height(5.dp)
+                        )
+
+
+                        Text(
+                            text = "Результат:"
+                        )
+
+
+                        Text(
+                            text = report.result
+                        )
+
+                    }
+
+                }
+
+            }
+
+        }
+
+
+        item {
+
+            Spacer(
+                modifier = Modifier.height(30.dp)
+            )
+
+        }
+
+    }
 
 }
