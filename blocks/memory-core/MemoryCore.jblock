@@ -1,0 +1,16 @@
+{
+  "id": "memory-core",
+  "name": "Memory Core",
+  "version": "0.1",
+  "author": "Jessica Core",
+  "type": "system",
+  "status": "ACTIVE",
+  "description": "Хранение памяти, событий и истории действий Jessica Core",
+  "capabilities": [
+    "save_memory",
+    "load_memory",
+    "save_events",
+    "load_events",
+    "action_history"
+  ]
+}
