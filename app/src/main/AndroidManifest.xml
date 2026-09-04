@@ -3,8 +3,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
-        android:theme="@style/Theme.AppCompat.Light"
-        android:label="Jessica Core">
+        android:label="Jessica Core"
+        android:theme="@style/Theme.Jessica">
 
         <activity
             android:name=".MainActivity"
