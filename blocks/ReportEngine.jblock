@@ -1,0 +1,15 @@
+{
+  "id": "report-engine",
+  "name": "Report Engine",
+  "version": "0.1",
+  "author": "Jessica Core",
+  "type": "system",
+  "status": "ACTIVE",
+  "description": "Создание и управление отчётами Jessica Core",
+  "capabilities": [
+    "create_reports",
+    "save_reports",
+    "load_reports",
+    "analyze_results"
+  ]
+}
