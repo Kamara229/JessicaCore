@@ -193,7 +193,7 @@ var showBlocks by remember {
 
             }
 
-        ){
+                ){
 
             Text(
                 "+ Добавить блок"
@@ -203,4 +203,6 @@ var showBlocks by remember {
 
     }
 
- }
+}
+
+    }
