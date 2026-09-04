@@ -5,89 +5,137 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.jessica.core.modules.Block
 import com.jessica.core.modules.BlockManager
+import com.jessica.core.modules.BlockTester
+import com.jessica.core.modules.ReportStorage
+import com.jessica.core.modules.TestReport
+import java.text.SimpleDateFormat
+import java.util.Date
 
 
 @Composable
 fun BlockScreen(
     blockManager: BlockManager,
+    reportStorage: ReportStorage,
     onUpdate: () -> Unit
 ) {
 
-    val blocks = blockManager.getBlocks()
 
-    var testResult by remember {
+    val blocks =
+        blockManager.getBlocks()
+
+
+    var testMessage by remember {
         mutableStateOf("")
     }
 
-    var testedBlockName by remember {
-        mutableStateOf("")
+
+    var reports by remember {
+        mutableStateOf(
+            reportStorage.loadReports()
+        )
     }
+
 
 
     Column(
-        modifier = Modifier
+
+        modifier =
+        Modifier
             .padding(20.dp)
+
     ) {
 
 
+
         Text(
+
             text = "Менеджер блоков",
-            style = MaterialTheme.typography.titleLarge
+
+            style =
+            MaterialTheme.typography.titleLarge
+
         )
+
 
 
         Spacer(
-            modifier = Modifier.height(20.dp)
+
+            modifier =
+            Modifier.height(20.dp)
+
         )
 
 
+
         if (blocks.isEmpty()) {
+
 
             Text(
                 "Нет установленных блоков"
             )
 
+
         }
+
+
 
 
         blocks.forEach { block ->
 
 
+
             Card(
 
-                modifier = Modifier
+                modifier =
+                Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 5.dp)
+                    .padding(5.dp)
 
             ) {
 
+
+
                 Column(
-                    modifier = Modifier
-                        .padding(15.dp)
+
+                    modifier =
+                    Modifier.padding(15.dp)
+
                 ) {
 
 
+
                     Text(
-                        text = block.name,
-                        style = MaterialTheme.typography.titleMedium
+
+                        text =
+                        block.name,
+
+                        style =
+                        MaterialTheme.typography.titleMedium
+
                     )
 
 
+
                     Text(
-                        text = "Версия: ${block.version}"
+                        "Версия: ${block.version}"
                     )
 
 
+
                     Text(
-                        text = "Статус: ${block.status}"
+                        "Статус: ${block.status}"
                     )
+
 
 
                     Spacer(
-                        modifier = Modifier.height(10.dp)
+
+                        modifier =
+                        Modifier.height(10.dp)
+
                     )
+
 
 
                     Row {
@@ -97,171 +145,164 @@ fun BlockScreen(
 
                             onClick = {
 
-                                testedBlockName = block.name
 
-                                testResult = testBlock(
-                                    block = block,
-                                    blockManager = blockManager
-                                )
+                                val tester =
+                                    BlockTester()
+
+
+
+                                val result =
+                                    tester.test(
+                                        block,
+                                        blockManager
+                                    )
+
+
+
+                                val report =
+                                    TestReport(
+
+                                        blockName =
+                                        block.name,
+
+
+                                        date =
+                                        SimpleDateFormat(
+                                            "dd.MM.yyyy HH:mm"
+                                        ).format(
+                                            Date()
+                                        ),
+
+
+                                        result =
+                                        result.report
+
+                                    )
+
+
+
+                                reports =
+                                    reports + report
+
+
+
+                                reportStorage
+                                    .saveReports(
+                                        reports
+                                    )
+
+
+
+                                testMessage =
+                                    "Тест завершён: ${block.name}"
+
+
 
                             }
 
                         ) {
 
+
                             Text(
                                 "Тест"
                             )
 
+
                         }
 
 
+
                         Spacer(
-                            modifier = Modifier.width(10.dp)
+
+                            modifier =
+                            Modifier.width(10.dp)
+
                         )
+
 
 
                         Button(
 
                             onClick = {
 
-                                blockManager.removeBlock(block)
+
+                                blockManager
+                                    .removeBlock(block)
+
+
 
                                 onUpdate()
 
-                                if (testedBlockName == block.name) {
-                                    testedBlockName = ""
-                                    testResult = ""
-                                }
+
+
+                                testMessage =
+                                    "Блок удалён"
+
+
 
                             }
 
                         ) {
 
+
                             Text(
                                 "Удалить"
                             )
 
+
                         }
 
+
+
                     }
 
 
-                    if (
-                        testedBlockName == block.name &&
-                        testResult.isNotEmpty()
-                    ) {
-
-
-                        Spacer(
-                            modifier = Modifier.height(15.dp)
-                        )
-
-
-                        HorizontalDivider()
-
-
-                        Spacer(
-                            modifier = Modifier.height(10.dp)
-                        )
-
-
-                        Text(
-                            text = testResult
-                        )
-
-                    }
 
                 }
 
+
             }
+
+
 
         }
 
-    }
-
-}
 
 
-fun testBlock(
-    block: Block,
-    blockManager: BlockManager
-): String {
+        if(testMessage.isNotEmpty()) {
 
 
-    val nameOk =
-        block.name.isNotBlank()
+            Spacer(
+
+                modifier =
+                Modifier.height(20.dp)
+
+            )
 
 
-    val versionOk =
-        block.version.isNotBlank()
+            HorizontalDivider()
 
 
-    val statusOk =
-        block.status == "ACTIVE"
+
+            Spacer(
+
+                modifier =
+                Modifier.height(10.dp)
+
+            )
 
 
-    val registeredOk =
-        blockManager
-            .getBlocks()
-            .contains(block)
+            Text(
+                testMessage
+            )
 
 
-    val allOk =
-        nameOk &&
-        versionOk &&
-        statusOk &&
-        registeredOk
+        }
 
 
-    return buildString {
-
-
-        appendLine(
-            if (allOk)
-                "PASS"
-            else
-                "FAIL"
-        )
-
-
-        appendLine()
-
-
-        appendLine(
-            "Имя: " +
-                if (nameOk)
-                    "OK"
-                else
-                    "ERROR"
-        )
-
-
-        appendLine(
-            "Версия: " +
-                if (versionOk)
-                    "OK"
-                else
-                    "ERROR"
-        )
-
-
-        appendLine(
-            "Статус: " +
-                if (statusOk)
-                    "OK"
-                else
-                    "ERROR"
-        )
-
-
-        appendLine(
-            "Регистрация: " +
-                if (registeredOk)
-                    "OK"
-                else
-                    "ERROR"
-        )
 
     }
+
+
 
 }
