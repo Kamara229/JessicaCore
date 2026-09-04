@@ -31,9 +31,9 @@ fun JessicaScreen() {
 
     val context = androidx.compose.ui.platform.LocalContext.current
 
-val storage = remember {
-    BlockStorage(context)
-}
+    val storage = remember {
+        BlockStorage(context)
+    }
 
 val blockManager = remember {
     BlockManager()
