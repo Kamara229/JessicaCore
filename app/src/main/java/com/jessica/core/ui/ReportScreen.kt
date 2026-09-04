@@ -1,6 +1,8 @@
 package com.jessica.core.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -37,7 +39,7 @@ fun ReportScreen(
 
         modifier =
         Modifier
-            .padding(20.dp)
+            .fillMaxSize()
 
     ) {
 
@@ -47,80 +49,124 @@ fun ReportScreen(
             text = "История тестирования",
 
             style =
-            MaterialTheme.typography.titleLarge
-
-        )
-
-
-        Spacer(
+            MaterialTheme.typography.titleLarge,
 
             modifier =
-            Modifier.height(20.dp)
+            Modifier
+                .padding(20.dp)
 
         )
-
 
 
         if (reports.isEmpty()) {
 
 
             Text(
-                "Отчётов пока нет"
-            )
 
-
-        }
-
-
-
-        reports.forEach { report ->
-
-
-            Card(
+                text = "Отчётов пока нет",
 
                 modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .padding(5.dp)
+                    .padding(20.dp)
+
+            )
+
+
+        } else {
+
+
+            LazyColumn(
+
+                modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp),
+
+                verticalArrangement =
+                Arrangement.spacedBy(10.dp)
 
             ) {
 
 
-                Column(
-
-                    modifier =
-                    Modifier.padding(15.dp)
-
-                ) {
+                items(reports) { report ->
 
 
-                    Text(
+                    Card(
 
-                        text =
-                        report.blockName,
+                        modifier =
+                        Modifier
+                            .fillMaxWidth()
 
-                        style =
-                        MaterialTheme.typography.titleMedium
-
-                    )
+                    ) {
 
 
-                    Text(
-                        "Дата: ${report.date}"
-                    )
+                        Column(
+
+                            modifier =
+                            Modifier
+                                .padding(15.dp)
+
+                        ) {
 
 
-                    Text(
-                        "Результат:"
-                    )
+                            Text(
+
+                                text =
+                                report.blockName,
+
+                                style =
+                                MaterialTheme.typography.titleMedium
+
+                            )
 
 
-                    Text(
-                        report.result
-                    )
+                            Spacer(
+
+                                modifier =
+                                Modifier.height(5.dp)
+
+                            )
+
+
+                            Text(
+
+                                text =
+                                "Дата: ${report.date}"
+
+                            )
+
+
+                            Spacer(
+
+                                modifier =
+                                Modifier.height(5.dp)
+
+                            )
+
+
+                            Text(
+
+                                text =
+                                "Результат:"
+
+                            )
+
+
+                            Text(
+
+                                text =
+                                report.result
+
+                            )
+
+
+                        }
+
+                    }
 
 
                 }
+
 
             }
 
