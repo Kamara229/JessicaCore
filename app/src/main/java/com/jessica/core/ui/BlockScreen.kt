@@ -17,7 +17,8 @@ import java.util.Date
 fun BlockScreen(
     blockManager: BlockManager,
     reportStorage: ReportStorage,
-    onUpdate: () -> Unit
+    onUpdate: () -> Unit,
+    onBack: () -> Unit
 ) {
 
 
@@ -26,14 +27,18 @@ fun BlockScreen(
 
 
     var testMessage by remember {
+
         mutableStateOf("")
+
     }
 
 
     var reports by remember {
+
         mutableStateOf(
             reportStorage.loadReports()
         )
+
     }
 
 
@@ -42,9 +47,35 @@ fun BlockScreen(
 
         modifier =
         Modifier
+            .fillMaxSize()
             .padding(20.dp)
 
     ) {
+
+
+        Button(
+
+            onClick = {
+
+                onBack()
+
+            }
+
+        ) {
+
+            Text(
+                "Назад"
+            )
+
+        }
+
+
+        Spacer(
+
+            modifier =
+            Modifier.height(20.dp)
+
+        )
 
 
 
@@ -80,7 +111,6 @@ fun BlockScreen(
 
 
 
-
         blocks.forEach { block ->
 
 
@@ -90,7 +120,7 @@ fun BlockScreen(
                 modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(5.dp)
+                    .padding(vertical = 5.dp)
 
             ) {
 
@@ -99,7 +129,8 @@ fun BlockScreen(
                 Column(
 
                     modifier =
-                    Modifier.padding(15.dp)
+                    Modifier
+                        .padding(15.dp)
 
                 ) {
 
@@ -186,16 +217,14 @@ fun BlockScreen(
 
 
 
-                                reportStorage
-                                    .saveReports(
-                                        reports
-                                    )
+                                reportStorage.saveReports(
+                                    reports
+                                )
 
 
 
                                 testMessage =
                                     "Тест завершён: ${block.name}"
-
 
 
                             }
@@ -206,7 +235,6 @@ fun BlockScreen(
                             Text(
                                 "Тест"
                             )
-
 
                         }
 
@@ -226,18 +254,16 @@ fun BlockScreen(
                             onClick = {
 
 
-                                blockManager
-                                    .removeBlock(block)
-
+                                blockManager.removeBlock(
+                                    block
+                                )
 
 
                                 onUpdate()
 
 
-
                                 testMessage =
                                     "Блок удалён"
-
 
 
                             }
@@ -249,13 +275,10 @@ fun BlockScreen(
                                 "Удалить"
                             )
 
-
                         }
 
 
-
                     }
-
 
 
                 }
@@ -264,12 +287,11 @@ fun BlockScreen(
             }
 
 
-
         }
 
 
 
-        if(testMessage.isNotEmpty()) {
+        if (testMessage.isNotEmpty()) {
 
 
             Spacer(
@@ -300,9 +322,7 @@ fun BlockScreen(
         }
 
 
-
     }
-
 
 
 }
