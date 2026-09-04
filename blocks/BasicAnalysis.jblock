@@ -1,0 +1,14 @@
+{
+  "id": "basic-analysis",
+  "name": "Basic Analysis",
+  "version": "0.1",
+  "author": "Jessica Core",
+  "type": "analysis",
+  "status": "ACTIVE",
+  "description": "Базовый блок анализа состояния Jessica Core",
+  "capabilities": [
+    "system_check",
+    "block_analysis",
+    "report_generation"
+  ]
+}
