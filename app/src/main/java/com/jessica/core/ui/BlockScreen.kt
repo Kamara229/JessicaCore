@@ -1,6 +1,8 @@
 package com.jessica.core.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -21,131 +23,89 @@ fun BlockScreen(
     onBack: () -> Unit
 ) {
 
-
-    val blocks =
-        blockManager.getBlocks()
-
+    val blocks = blockManager.getBlocks()
 
     var testMessage by remember {
-
         mutableStateOf("")
-
     }
 
-
     var reports by remember {
-
         mutableStateOf(
             reportStorage.loadReports()
         )
-
     }
 
 
-
-    Column(
-
-        modifier =
-        Modifier
+    LazyColumn(
+        modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp)
+            .padding(20.dp),
 
+        verticalArrangement =
+            Arrangement.spacedBy(10.dp)
     ) {
 
 
-        Button(
+        item {
 
-            onClick = {
-
-                onBack()
-
+            Button(
+                onClick = {
+                    onBack()
+                }
+            ) {
+                Text("Назад")
             }
-
-        ) {
-
-            Text(
-                "Назад"
-            )
 
         }
 
 
-        Spacer(
+        item {
 
-            modifier =
-            Modifier.height(20.dp)
-
-        )
-
+            Spacer(
+                modifier = Modifier.height(10.dp)
+            )
 
 
-        Text(
+            Text(
+                text = "Менеджер блоков",
+                style = MaterialTheme.typography.titleLarge
+            )
 
-            text = "Менеджер блоков",
-
-            style =
-            MaterialTheme.typography.titleLarge
-
-        )
-
-
-
-        Spacer(
-
-            modifier =
-            Modifier.height(20.dp)
-
-        )
-
+        }
 
 
         if (blocks.isEmpty()) {
 
+            item {
 
-            Text(
-                "Нет установленных блоков"
-            )
+                Text(
+                    "Нет установленных блоков"
+                )
 
+            }
 
         }
 
 
-
-        blocks.forEach { block ->
-
+        items(blocks) { block ->
 
 
             Card(
-
-                modifier =
-                Modifier
+                modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 5.dp)
-
             ) {
 
 
-
                 Column(
-
-                    modifier =
-                    Modifier
+                    modifier = Modifier
                         .padding(15.dp)
-
                 ) {
 
 
-
                     Text(
-
-                        text =
-                        block.name,
-
-                        style =
-                        MaterialTheme.typography.titleMedium
-
+                        text = block.name,
+                        style = MaterialTheme.typography.titleMedium
                     )
-
 
 
                     Text(
@@ -153,33 +113,24 @@ fun BlockScreen(
                     )
 
 
-
                     Text(
                         "Статус: ${block.status}"
                     )
 
 
-
                     Spacer(
-
-                        modifier =
-                        Modifier.height(10.dp)
-
+                        modifier = Modifier.height(10.dp)
                     )
-
 
 
                     Row {
 
 
                         Button(
-
                             onClick = {
-
 
                                 val tester =
                                     BlockTester()
-
 
 
                                 val result =
@@ -189,32 +140,26 @@ fun BlockScreen(
                                     )
 
 
-
                                 val report =
                                     TestReport(
 
                                         blockName =
-                                        block.name,
-
+                                            block.name,
 
                                         date =
-                                        SimpleDateFormat(
-                                            "dd.MM.yyyy HH:mm"
-                                        ).format(
-                                            Date()
-                                        ),
-
+                                            SimpleDateFormat(
+                                                "dd.MM.yyyy HH:mm"
+                                            ).format(
+                                                Date()
+                                            ),
 
                                         result =
-                                        result.report
-
+                                            result.report
                                     )
-
 
 
                                 reports =
                                     reports + report
-
 
 
                                 reportStorage.saveReports(
@@ -222,107 +167,84 @@ fun BlockScreen(
                                 )
 
 
-
                                 testMessage =
                                     "Тест завершён: ${block.name}"
 
-
                             }
-
                         ) {
 
-
-                            Text(
-                                "Тест"
-                            )
+                            Text("Тест")
 
                         }
 
 
-
                         Spacer(
-
-                            modifier =
-                            Modifier.width(10.dp)
-
+                            modifier = Modifier.width(10.dp)
                         )
 
 
-
                         Button(
-
                             onClick = {
-
 
                                 blockManager.removeBlock(
                                     block
                                 )
 
-
                                 onUpdate()
-
 
                                 testMessage =
                                     "Блок удалён"
 
-
                             }
-
                         ) {
 
-
-                            Text(
-                                "Удалить"
-                            )
+                            Text("Удалить")
 
                         }
 
-
                     }
-
 
                 }
 
-
             }
 
-
         }
-
 
 
         if (testMessage.isNotEmpty()) {
 
+            item {
 
-            Spacer(
-
-                modifier =
-                Modifier.height(20.dp)
-
-            )
+                Spacer(
+                    modifier = Modifier.height(10.dp)
+                )
 
 
-            HorizontalDivider()
+                HorizontalDivider()
 
 
-
-            Spacer(
-
-                modifier =
-                Modifier.height(10.dp)
-
-            )
+                Spacer(
+                    modifier = Modifier.height(10.dp)
+                )
 
 
-            Text(
-                testMessage
-            )
+                Text(
+                    testMessage
+                )
 
+            }
 
         }
 
 
-    }
+        item {
 
+            Spacer(
+                modifier = Modifier.height(30.dp)
+            )
+
+        }
+
+    }
 
 }
