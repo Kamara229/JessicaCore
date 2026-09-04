@@ -86,7 +86,6 @@ var showBlocks by remember {
 
 
         Column(
-        Column(
     modifier = Modifier
         .padding(padding)
         .padding(20.dp)
@@ -204,4 +203,4 @@ var showBlocks by remember {
 
     }
 
-        }
+ }
