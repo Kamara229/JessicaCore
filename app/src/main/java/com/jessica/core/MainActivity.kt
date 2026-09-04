@@ -457,9 +457,9 @@ fun JessicaScreen() {
 
 
                     BlockScreen(
+    blockManager = blockManager,
 
-                        blockManager =
-                        blockManager,
+    reportStorage = reportStorage,
 
 
                         onUpdate = {
