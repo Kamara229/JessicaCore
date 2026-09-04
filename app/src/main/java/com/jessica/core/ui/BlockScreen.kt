@@ -13,6 +13,7 @@ import com.jessica.core.modules.ReportStorage
 import com.jessica.core.modules.TestReport
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 
 
 @Composable
@@ -23,11 +24,16 @@ fun BlockScreen(
     onBack: () -> Unit
 ) {
 
-    val blocks = blockManager.getBlocks()
+    val blocks =
+        blockManager
+            .getBlocks()
+            .toList()
+
 
     var testMessage by remember {
         mutableStateOf("")
     }
+
 
     var reports by remember {
         mutableStateOf(
@@ -37,9 +43,10 @@ fun BlockScreen(
 
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(20.dp),
 
         verticalArrangement =
             Arrangement.spacedBy(10.dp)
@@ -49,9 +56,7 @@ fun BlockScreen(
         item {
 
             Button(
-                onClick = {
-                    onBack()
-                }
+                onClick = onBack
             ) {
                 Text("Назад")
             }
@@ -62,13 +67,25 @@ fun BlockScreen(
         item {
 
             Spacer(
-                modifier = Modifier.height(10.dp)
+                modifier =
+                    Modifier.height(5.dp)
             )
 
 
             Text(
                 text = "Менеджер блоков",
-                style = MaterialTheme.typography.titleLarge
+                style =
+                    MaterialTheme.typography.titleLarge
+            )
+
+        }
+
+
+        item {
+
+            Text(
+                text =
+                    "Установлено блоков: ${blocks.size}"
             )
 
         }
@@ -79,7 +96,8 @@ fun BlockScreen(
             item {
 
                 Text(
-                    "Нет установленных блоков"
+                    text =
+                        "Нет установленных блоков"
                 )
 
             }
@@ -87,39 +105,130 @@ fun BlockScreen(
         }
 
 
-        items(blocks) { block ->
+        items(
+            items = blocks,
+            key = { block ->
+                block.id.ifBlank {
+                    block.name
+                }
+            }
+        ) { block ->
 
 
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
             ) {
 
 
                 Column(
-                    modifier = Modifier
-                        .padding(15.dp)
+                    modifier =
+                        Modifier
+                            .padding(15.dp)
                 ) {
 
 
                     Text(
                         text = block.name,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-
-
-                    Text(
-                        "Версия: ${block.version}"
-                    )
-
-
-                    Text(
-                        "Статус: ${block.status}"
+                        style =
+                            MaterialTheme.typography.titleMedium
                     )
 
 
                     Spacer(
-                        modifier = Modifier.height(10.dp)
+                        modifier =
+                            Modifier.height(6.dp)
+                    )
+
+
+                    Text(
+                        text =
+                            "ID: ${block.id}"
+                    )
+
+
+                    Text(
+                        text =
+                            "Версия: ${block.version}"
+                    )
+
+
+                    Text(
+                        text =
+                            "Автор: ${block.author}"
+                    )
+
+
+                    Text(
+                        text =
+                            "Тип: ${block.type}"
+                    )
+
+
+                    Text(
+                        text =
+                            "Статус: ${block.status}"
+                    )
+
+
+                    if (
+                        block.description.isNotBlank()
+                    ) {
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(8.dp)
+                        )
+
+
+                        Text(
+                            text =
+                                block.description
+                        )
+
+                    }
+
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(10.dp)
+                    )
+
+
+                    Text(
+                        text = "Возможности:",
+                        style =
+                            MaterialTheme.typography.labelLarge
+                    )
+
+
+                    if (
+                        block.capabilities.isEmpty()
+                    ) {
+
+                        Text(
+                            text =
+                                "Нет заявленных возможностей"
+                        )
+
+                    } else {
+
+                        block.capabilities.forEach { capability ->
+
+                            Text(
+                                text =
+                                    "• $capability"
+                            )
+
+                        }
+
+                    }
+
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(15.dp)
                     )
 
 
@@ -148,7 +257,8 @@ fun BlockScreen(
 
                                         date =
                                             SimpleDateFormat(
-                                                "dd.MM.yyyy HH:mm"
+                                                "dd.MM.yyyy HH:mm",
+                                                Locale.getDefault()
                                             ).format(
                                                 Date()
                                             ),
@@ -179,7 +289,8 @@ fun BlockScreen(
 
 
                         Spacer(
-                            modifier = Modifier.width(10.dp)
+                            modifier =
+                                Modifier.width(10.dp)
                         )
 
 
@@ -190,10 +301,12 @@ fun BlockScreen(
                                     block
                                 )
 
+
                                 onUpdate()
 
+
                                 testMessage =
-                                    "Блок удалён"
+                                    "Блок ${block.name} удалён"
 
                             }
                         ) {
@@ -211,12 +324,15 @@ fun BlockScreen(
         }
 
 
-        if (testMessage.isNotEmpty()) {
+        if (
+            testMessage.isNotEmpty()
+        ) {
 
             item {
 
                 Spacer(
-                    modifier = Modifier.height(10.dp)
+                    modifier =
+                        Modifier.height(10.dp)
                 )
 
 
@@ -224,12 +340,13 @@ fun BlockScreen(
 
 
                 Spacer(
-                    modifier = Modifier.height(10.dp)
+                    modifier =
+                        Modifier.height(10.dp)
                 )
 
 
                 Text(
-                    testMessage
+                    text = testMessage
                 )
 
             }
@@ -240,7 +357,8 @@ fun BlockScreen(
         item {
 
             Spacer(
-                modifier = Modifier.height(30.dp)
+                modifier =
+                    Modifier.height(30.dp)
             )
 
         }
