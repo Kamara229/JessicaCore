@@ -4,61 +4,126 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 
+
 class BlockStorage(
     private val context: Context
 ) {
 
-    private val prefs =
-        context.getSharedPreferences(
-            "jessica_blocks",
-            Context.MODE_PRIVATE
-        )
+    private val fileName =
+        "jessica_blocks.json"
 
 
     fun saveBlocks(
         blocks: List<Block>
     ) {
 
-        val array = JSONArray()
+        val array =
+            JSONArray()
 
-        blocks.forEach {
 
-            val obj = JSONObject()
+        blocks.forEach { block ->
 
-            obj.put("name", it.name)
-            obj.put("version", it.version)
-            obj.put("status", it.status)
+            val obj =
+                JSONObject()
 
-            array.put(obj)
+
+            obj.put(
+                "id",
+                block.id
+            )
+
+            obj.put(
+                "name",
+                block.name
+            )
+
+            obj.put(
+                "version",
+                block.version
+            )
+
+            obj.put(
+                "author",
+                block.author
+            )
+
+            obj.put(
+                "type",
+                block.type
+            )
+
+            obj.put(
+                "status",
+                block.status
+            )
+
+            obj.put(
+                "description",
+                block.description
+            )
+
+
+            val capabilitiesArray =
+                JSONArray()
+
+
+            block.capabilities.forEach { capability ->
+
+                capabilitiesArray.put(
+                    capability
+                )
+
+            }
+
+
+            obj.put(
+                "capabilities",
+                capabilitiesArray
+            )
+
+
+            array.put(
+                obj
+            )
+
         }
 
 
-        prefs.edit()
-            .putString(
-                "blocks",
-                array.toString()
+        context.openFileOutput(
+            fileName,
+            Context.MODE_PRIVATE
+        ).use { output ->
+
+            output.write(
+                array
+                    .toString()
+                    .toByteArray()
             )
-            .apply()
+
+        }
+
     }
 
 
     fun loadBlocks(): List<Block> {
 
-        val result =
-            mutableListOf<Block>()
+        return try {
 
+            val text =
+                context
+                    .openFileInput(fileName)
+                    .bufferedReader()
+                    .use {
+                        it.readText()
+                    }
 
-        val data =
-            prefs.getString(
-                "blocks",
-                null
-            )
-
-
-        if (data != null) {
 
             val array =
-                JSONArray(data)
+                JSONArray(text)
+
+
+            val blocks =
+                mutableListOf<Block>()
 
 
             for (i in 0 until array.length()) {
@@ -67,24 +132,100 @@ class BlockStorage(
                     array.getJSONObject(i)
 
 
-                result.add(
+                val capabilities =
+                    mutableListOf<String>()
 
-                    Block(
-                        name =
-                        obj.getString("name"),
 
-                        version =
-                        obj.getString("version"),
-
-                        status =
-                        obj.getString("status")
+                val capabilitiesArray =
+                    obj.optJSONArray(
+                        "capabilities"
                     )
 
+
+                if (capabilitiesArray != null) {
+
+                    for (
+                        capabilityIndex
+                        in 0 until capabilitiesArray.length()
+                    ) {
+
+                        capabilities.add(
+                            capabilitiesArray.getString(
+                                capabilityIndex
+                            )
+                        )
+
+                    }
+
+                }
+
+
+                val block =
+                    Block(
+
+                        id =
+                            obj.optString(
+                                "id",
+                                ""
+                            ),
+
+                        name =
+                            obj.optString(
+                                "name",
+                                "Unknown"
+                            ),
+
+                        version =
+                            obj.optString(
+                                "version",
+                                "0.1"
+                            ),
+
+                        author =
+                            obj.optString(
+                                "author",
+                                "Unknown"
+                            ),
+
+                        type =
+                            obj.optString(
+                                "type",
+                                "unknown"
+                            ),
+
+                        status =
+                            obj.optString(
+                                "status",
+                                "ACTIVE"
+                            ),
+
+                        description =
+                            obj.optString(
+                                "description",
+                                ""
+                            ),
+
+                        capabilities =
+                            capabilities
+
+                    )
+
+
+                blocks.add(
+                    block
                 )
+
             }
+
+
+            blocks
+
+        } catch (e: Exception) {
+
+            emptyList()
+
         }
 
-
-        return result
     }
+
 }
