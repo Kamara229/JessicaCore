@@ -49,14 +49,11 @@ fun readBlockFromFile(
 
 
         val text =
-
             context.contentResolver
                 .openInputStream(uri)
                 ?.bufferedReader()
                 ?.use {
-
                     it.readText()
-
                 }
                 ?: return null
 
@@ -113,27 +110,21 @@ fun JessicaScreen() {
 
     val storage =
         remember {
-
             BlockStorage(context)
-
         }
 
 
 
     val reportStorage =
         remember {
-
             ReportStorage(context)
-
         }
 
 
 
     val blockManager =
         remember {
-
             BlockManager()
-
         }
 
 
@@ -142,11 +133,9 @@ fun JessicaScreen() {
 
     var blocks by remember {
 
-
         mutableStateOf(
             emptyList<Block>()
         )
-
 
     }
 
@@ -156,11 +145,9 @@ fun JessicaScreen() {
 
     var message by remember {
 
-
         mutableStateOf(
             "Jessica Core v0.1 запущена"
         )
-
 
     }
 
@@ -170,9 +157,7 @@ fun JessicaScreen() {
 
     var showBlocks by remember {
 
-
         mutableStateOf(false)
-
 
     }
 
@@ -182,11 +167,10 @@ fun JessicaScreen() {
 
     var showReports by remember {
 
-
         mutableStateOf(false)
 
-
     }
+
 
 
 
@@ -209,12 +193,9 @@ fun JessicaScreen() {
                     .contains(it)
             ) {
 
-
                 blockManager.addBlock(it)
 
-
             }
-
 
         }
 
@@ -224,7 +205,6 @@ fun JessicaScreen() {
             blockManager
                 .getBlocks()
                 .toList()
-
 
 
     }
@@ -250,7 +230,6 @@ fun JessicaScreen() {
 
 
                 val block =
-
                     readBlockFromFile(
                         context,
                         uri
@@ -259,7 +238,6 @@ fun JessicaScreen() {
 
 
                 if (block != null) {
-
 
 
                     if (
@@ -274,7 +252,6 @@ fun JessicaScreen() {
 
 
                         blocks =
-
                             blockManager
                                 .getBlocks()
                                 .toList()
@@ -289,13 +266,11 @@ fun JessicaScreen() {
                             "Блок ${block.name} установлен"
 
 
-
                     } else {
 
 
                         message =
                             "Блок уже установлен"
-
 
                     }
 
@@ -308,13 +283,10 @@ fun JessicaScreen() {
                         "Ошибка чтения блока"
 
 
-
                 }
 
 
-
             }
-
 
 
         }
@@ -327,9 +299,7 @@ fun JessicaScreen() {
 
     Scaffold(
 
-
         topBar = {
-
 
             TopAppBar(
 
@@ -343,9 +313,7 @@ fun JessicaScreen() {
 
             )
 
-
         }
-
 
 
     ) { padding ->
@@ -353,17 +321,13 @@ fun JessicaScreen() {
 
 
 
-
         Column(
 
-
             modifier =
-
-                Modifier
-                    .padding(padding)
-                    .padding(20.dp)
-
-
+            Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .padding(20.dp)
 
         ) {
 
@@ -372,26 +336,20 @@ fun JessicaScreen() {
             Row {
 
 
-
                 Button(
 
                     onClick = {
 
-
                         showBlocks = true
-
                         showReports = false
-
 
                     }
 
                 ) {
 
-
                     Text(
                         "Блоки"
                     )
-
 
                 }
 
@@ -410,28 +368,21 @@ fun JessicaScreen() {
 
                     onClick = {
 
-
                         showReports = true
-
                         showBlocks = false
-
 
                     }
 
                 ) {
 
-
                     Text(
                         "Отчёты"
                     )
 
-
                 }
 
 
-
             }
-
 
 
 
@@ -449,7 +400,9 @@ fun JessicaScreen() {
 
 
 
+
             when {
+
 
 
                 showBlocks -> {
@@ -457,24 +410,35 @@ fun JessicaScreen() {
 
 
                     BlockScreen(
-    blockManager = blockManager,
 
-    reportStorage = reportStorage,
+                        blockManager =
+                        blockManager,
+
+
+                        reportStorage =
+                        reportStorage,
 
 
                         onUpdate = {
 
 
                             blocks =
-
                                 blockManager
                                     .getBlocks()
                                     .toList()
 
 
 
-                            storage
-                                .saveBlocks(blocks)
+                            storage.saveBlocks(blocks)
+
+
+                        },
+
+
+                        onBack = {
+
+
+                            showBlocks = false
 
 
                         }
@@ -483,8 +447,8 @@ fun JessicaScreen() {
                     )
 
 
-
                 }
+
 
 
 
@@ -509,9 +473,8 @@ fun JessicaScreen() {
 
 
 
+
                 else -> {
-
-
 
 
                     Text(
@@ -530,7 +493,9 @@ fun JessicaScreen() {
 
 
                     Text(
+
                         "Установлено блоков: ${blocks.size}"
+
                     )
 
 
@@ -545,7 +510,6 @@ fun JessicaScreen() {
 
 
                     Button(
-
 
                         onClick = {
 
@@ -562,7 +526,6 @@ fun JessicaScreen() {
 
                         }
 
-
                     ) {
 
 
@@ -574,7 +537,6 @@ fun JessicaScreen() {
                     }
 
 
-
                 }
 
 
@@ -583,16 +545,11 @@ fun JessicaScreen() {
 
 
 
-
         }
 
 
 
-
-
     }
-
-
 
 
 }
