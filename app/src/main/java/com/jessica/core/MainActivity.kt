@@ -131,12 +131,22 @@ LaunchedEffect(Unit) {
                         )
 
 
-                    blockManager.addBlock(newBlock)
+                    if (!blockManager.getBlocks().contains(newBlock)) {
 
-blocks =
-    blockManager.getBlocks()
+    blockManager.addBlock(newBlock)
 
-storage.saveBlocks(blocks)
+    blocks =
+        blockManager.getBlocks()
+
+    storage.saveBlocks(blocks)
+
+    message = "Добавлен новый блок"
+
+} else {
+
+    message = "Такой блок уже установлен"
+
+}
 
 
                     message =
