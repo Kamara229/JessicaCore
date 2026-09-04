@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.BlockManager
 import com.jessica.core.modules.BlockTester
+import com.jessica.core.modules.CapabilityEngine
 import com.jessica.core.modules.ReportStorage
 import com.jessica.core.modules.TestReport
 import java.text.SimpleDateFormat
@@ -30,7 +31,7 @@ fun BlockScreen(
             .toList()
 
 
-    var testMessage by remember {
+    var message by remember {
         mutableStateOf("")
     }
 
@@ -66,12 +67,6 @@ fun BlockScreen(
 
         item {
 
-            Spacer(
-                modifier =
-                    Modifier.height(5.dp)
-            )
-
-
             Text(
                 text = "Менеджер блоков",
                 style =
@@ -96,8 +91,7 @@ fun BlockScreen(
             item {
 
                 Text(
-                    text =
-                        "Нет установленных блоков"
+                    "Нет установленных блоков"
                 )
 
             }
@@ -143,32 +137,27 @@ fun BlockScreen(
 
 
                     Text(
-                        text =
-                            "ID: ${block.id}"
+                        "ID: ${block.id}"
                     )
 
 
                     Text(
-                        text =
-                            "Версия: ${block.version}"
+                        "Версия: ${block.version}"
                     )
 
 
                     Text(
-                        text =
-                            "Автор: ${block.author}"
+                        "Автор: ${block.author}"
                     )
 
 
                     Text(
-                        text =
-                            "Тип: ${block.type}"
+                        "Тип: ${block.type}"
                     )
 
 
                     Text(
-                        text =
-                            "Статус: ${block.status}"
+                        "Статус: ${block.status}"
                     )
 
 
@@ -183,8 +172,7 @@ fun BlockScreen(
 
 
                         Text(
-                            text =
-                                block.description
+                            block.description
                         )
 
                     }
@@ -208,8 +196,7 @@ fun BlockScreen(
                     ) {
 
                         Text(
-                            text =
-                                "Нет заявленных возможностей"
+                            "Нет заявленных возможностей"
                         )
 
                     } else {
@@ -217,8 +204,7 @@ fun BlockScreen(
                         block.capabilities.forEach { capability ->
 
                             Text(
-                                text =
-                                    "• $capability"
+                                "• $capability"
                             )
 
                         }
@@ -232,7 +218,73 @@ fun BlockScreen(
                     )
 
 
-                    Row {
+                    Row(
+                        modifier =
+                            Modifier.fillMaxWidth()
+                    ) {
+
+
+                        Button(
+                            onClick = {
+
+                                val engine =
+                                    CapabilityEngine()
+
+
+                                val resultText =
+                                    buildString {
+
+                                        appendLine(
+                                            "Запуск: ${block.name}"
+                                        )
+
+                                        appendLine()
+
+
+                                        block.capabilities.forEach { capability ->
+
+                                            val result =
+                                                engine.execute(
+                                                    capability
+                                                )
+
+
+                                            appendLine(
+                                                if (result.success)
+                                                    "✅ $capability"
+                                                else
+                                                    "❌ $capability"
+                                            )
+
+
+                                            appendLine(
+                                                result.message
+                                            )
+
+                                            appendLine()
+
+                                        }
+
+                                    }
+
+
+                                message =
+                                    resultText
+
+                            }
+                        ) {
+
+                            Text(
+                                "Запустить"
+                            )
+
+                        }
+
+
+                        Spacer(
+                            modifier =
+                                Modifier.width(8.dp)
+                        )
 
 
                         Button(
@@ -265,6 +317,7 @@ fun BlockScreen(
 
                                         result =
                                             result.report
+
                                     )
 
 
@@ -277,43 +330,47 @@ fun BlockScreen(
                                 )
 
 
-                                testMessage =
+                                message =
                                     "Тест завершён: ${block.name}"
 
                             }
                         ) {
 
-                            Text("Тест")
+                            Text(
+                                "Тест"
+                            )
 
                         }
 
+                    }
 
-                        Spacer(
-                            modifier =
-                                Modifier.width(10.dp)
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(8.dp)
+                    )
+
+
+                    Button(
+                        onClick = {
+
+                            blockManager.removeBlock(
+                                block
+                            )
+
+
+                            onUpdate()
+
+
+                            message =
+                                "Блок ${block.name} удалён"
+
+                        }
+                    ) {
+
+                        Text(
+                            "Удалить"
                         )
-
-
-                        Button(
-                            onClick = {
-
-                                blockManager.removeBlock(
-                                    block
-                                )
-
-
-                                onUpdate()
-
-
-                                testMessage =
-                                    "Блок ${block.name} удалён"
-
-                            }
-                        ) {
-
-                            Text("Удалить")
-
-                        }
 
                     }
 
@@ -325,7 +382,7 @@ fun BlockScreen(
 
 
         if (
-            testMessage.isNotEmpty()
+            message.isNotEmpty()
         ) {
 
             item {
@@ -346,7 +403,7 @@ fun BlockScreen(
 
 
                 Text(
-                    text = testMessage
+                    text = message
                 )
 
             }
