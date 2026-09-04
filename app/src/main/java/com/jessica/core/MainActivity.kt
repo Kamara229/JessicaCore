@@ -67,7 +67,9 @@ LaunchedEffect(Unit) {
             "Jessica Core v0.1 запущена"
         )
     }
-
+var showBlocks by remember {
+    mutableStateOf(false)
+}
     Scaffold(
 
         topBar = {
