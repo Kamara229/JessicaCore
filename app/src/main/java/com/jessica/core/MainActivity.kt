@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.Block
 import com.jessica.core.modules.BlockManager
 import com.jessica.core.modules.BlockStorage
+import com.jessica.core.ui.BlockScreen
 
 class MainActivity : ComponentActivity() {
 
