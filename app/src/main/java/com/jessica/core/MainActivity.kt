@@ -86,87 +86,122 @@ var showBlocks by remember {
 
 
         Column(
-            modifier = Modifier
-                .padding(padding)
-                .padding(20.dp)
-        ) {
+        Column(
+    modifier = Modifier
+        .padding(padding)
+        .padding(20.dp)
+) {
 
 
-            Text(
-                text = message
-            )
+    Button(
+        onClick = {
+            showBlocks = !showBlocks
+        }
+    ) {
+
+        Text(
+            if (showBlocks)
+                "Назад"
+            else
+                "Блоки"
+        )
+
+    }
 
 
-            Spacer(
-                modifier = Modifier.height(20.dp)
-            )
+    Spacer(
+        modifier = Modifier.height(20.dp)
+    )
 
 
-            Text(
-                text = "Установленные блоки:"
-            )
+    if (showBlocks) {
 
+        BlockScreen(
+            blockManager = blockManager,
+            onUpdate = {
 
-            blocks.forEach {
+                blocks =
+                    blockManager.getBlocks()
 
-                Text(
-                    text =
-                    "${it.name} v${it.version} (${it.status})"
-                )
+                storage.saveBlocks(blocks)
 
             }
+        )
+
+    } else {
 
 
-            Spacer(
-                modifier = Modifier.height(20.dp)
+        Text(
+            text = message
+        )
+
+
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
+
+
+        Text(
+            text = "Установленные блоки:"
+        )
+
+
+        blocks.forEach {
+
+            Text(
+                text =
+                "${it.name} v${it.version} (${it.status})"
             )
 
-
-            Button(
-
-                onClick = {
-
-                    val newBlock =
-                        Block(
-                            name = "Basic Analysis",
-                            version = "0.1",
-                            status = "ACTIVE"
-                        )
+        }
 
 
-                    if (!blockManager.getBlocks().contains(newBlock)) {
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
 
-    blockManager.addBlock(newBlock)
 
-    blocks =
-        blockManager.getBlocks()
+        Button(
 
-    storage.saveBlocks(blocks)
+            onClick = {
 
-    message = "Добавлен новый блок"
+                val newBlock =
+                    Block(
+                        name = "Basic Analysis",
+                        version = "0.1",
+                        status = "ACTIVE"
+                    )
 
-} else {
 
-    message = "Такой блок уже установлен"
+                if (!blockManager.getBlocks().contains(newBlock)) {
 
-}
+                    blockManager.addBlock(newBlock)
 
+                    blocks =
+                        blockManager.getBlocks()
+
+                    storage.saveBlocks(blocks)
 
                     message =
                         "Добавлен новый блок"
 
+                } else {
+
+                    message =
+                        "Такой блок уже установлен"
+
                 }
 
-            ){
-
-                Text(
-                    "+ Добавить блок"
-                )
-
             }
+
+        ){
+
+            Text(
+                "+ Добавить блок"
+            )
 
         }
 
     }
 
-}
+        }
