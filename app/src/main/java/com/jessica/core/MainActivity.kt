@@ -48,8 +48,14 @@ var blocks by remember {
 
 LaunchedEffect(Unit) {
 
-    storage.loadBlocks().forEach {
-        blockManager.addBlock(it)
+    val savedBlocks = storage.loadBlocks()
+
+    savedBlocks.forEach {
+
+        if (!blockManager.getBlocks().contains(it)) {
+            blockManager.addBlock(it)
+        }
+
     }
 
     blocks = blockManager.getBlocks()
