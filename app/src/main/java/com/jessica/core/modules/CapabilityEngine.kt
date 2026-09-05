@@ -26,9 +26,18 @@ class CapabilityEngine(
         TaskExecutor(context)
 
 
+    /*
+     * Обычный запуск возможностей.
+     *
+     * Используется существующими блоками:
+     * Basic Analysis
+     * Block Manager
+     * Report Engine
+     * Memory Core
+     * Task Solver
+     */
     fun execute(
-        capability: String,
-        taskId: Long? = null
+        capability: String
     ): CapabilityResult {
 
         return when (capability) {
@@ -291,7 +300,9 @@ class CapabilityEngine(
                     val history =
                         buildString {
 
-                            appendLine("Последние действия:")
+                            appendLine(
+                                "Последние действия:"
+                            )
 
                             events.forEach { event ->
 
@@ -330,7 +341,8 @@ class CapabilityEngine(
 
                 CapabilityResult(
                     success = true,
-                    message = "Создана задача ${task.id}: ${task.text}"
+                    message =
+                        "Создана задача ${task.id}: ${task.text}"
                 )
 
             }
@@ -356,98 +368,20 @@ class CapabilityEngine(
             }
 
 
+            /*
+             * solve_task требует конкретную задачу
+             * и асинхронный AI Engine.
+             *
+             * Поэтому обычный запуск блока
+             * задачу не выполняет.
+             */
             "solve_task" -> {
 
-                if (taskId == null) {
-
-                    CapabilityResult(
-                        success = false,
-                        message = "Не указан ID задачи"
-                    )
-
-                } else {
-
-                    val task =
-                        taskStorage
-                            .loadTasks()
-                            .find {
-                                it.id == taskId
-                            }
-
-
-                    if (task == null) {
-
-                        eventStorage.saveEvent(
-                            type = "error",
-                            message = "Задача $taskId не найдена"
-                        )
-
-
-                        CapabilityResult(
-                            success = false,
-                            message = "Задача $taskId не найдена"
-                        )
-
-                    } else if (task.status == "COMPLETED") {
-
-                        CapabilityResult(
-                            success = false,
-                            message = "Задача уже обработана"
-                        )
-
-                    } else {
-
-                        val executionResult =
-                            taskExecutor.execute(
-                                task
-                            )
-
-
-                        if (executionResult.success) {
-
-                            taskStorage.updateTask(
-                                taskId = task.id,
-                                status = "COMPLETED",
-                                result = executionResult.result
-                            )
-
-
-                            eventStorage.saveEvent(
-                                type = "task",
-                                message = "Обработана задача ${task.id}"
-                            )
-
-
-                            CapabilityResult(
-                                success = true,
-                                message = executionResult.result
-                            )
-
-                        } else {
-
-                            taskStorage.updateTask(
-                                taskId = task.id,
-                                status = "FAILED",
-                                result = executionResult.result
-                            )
-
-
-                            eventStorage.saveEvent(
-                                type = "error",
-                                message = "Ошибка выполнения задачи ${task.id}"
-                            )
-
-
-                            CapabilityResult(
-                                success = false,
-                                message = executionResult.result
-                            )
-
-                        }
-
-                    }
-
-                }
+                CapabilityResult(
+                    success = false,
+                    message =
+                        "Для выполнения solve_task необходимо выбрать задачу"
+                )
 
             }
 
@@ -473,7 +407,9 @@ class CapabilityEngine(
                     val history =
                         buildString {
 
-                            appendLine("Последние задачи:")
+                            appendLine(
+                                "Последние задачи:"
+                            )
 
                             tasks.forEach { task ->
 
@@ -500,15 +436,195 @@ class CapabilityEngine(
 
                 eventStorage.saveEvent(
                     type = "error",
-                    message = "Неизвестная возможность: $capability"
+                    message =
+                        "Неизвестная возможность: $capability"
                 )
 
                 CapabilityResult(
                     success = false,
-                    message = "Неизвестная возможность: $capability"
+                    message =
+                        "Неизвестная возможность: $capability"
                 )
 
             }
+
+        }
+
+    }
+
+
+    /*
+     * Асинхронный запуск возможности,
+     * связанной с конкретной задачей.
+     */
+    suspend fun execute(
+        capability: String,
+        taskId: Long
+    ): CapabilityResult {
+
+        return when (capability) {
+
+
+            "solve_task" -> {
+
+                solveTask(
+                    taskId
+                )
+
+            }
+
+
+            else -> {
+
+                execute(
+                    capability
+                )
+
+            }
+
+        }
+
+    }
+
+
+    /*
+     * Выполнение конкретной задачи.
+     */
+    private suspend fun solveTask(
+        taskId: Long
+    ): CapabilityResult {
+
+        val task =
+            taskStorage
+                .loadTasks()
+                .find {
+                    it.id == taskId
+                }
+
+
+        if (task == null) {
+
+            eventStorage.saveEvent(
+                type = "error",
+                message =
+                    "Задача $taskId не найдена"
+            )
+
+
+            return CapabilityResult(
+                success = false,
+                message =
+                    "Задача $taskId не найдена"
+            )
+
+        }
+
+
+        if (task.status == "COMPLETED") {
+
+            return CapabilityResult(
+                success = false,
+                message =
+                    "Задача уже выполнена"
+            )
+
+        }
+
+
+        taskStorage.updateTask(
+            taskId = task.id,
+            status = "PROCESSING",
+            result = ""
+        )
+
+
+        eventStorage.saveEvent(
+            type = "task",
+            message =
+                "Начато выполнение задачи ${task.id}"
+        )
+
+
+        return try {
+
+            val executionResult =
+                taskExecutor.execute(
+                    task
+                )
+
+
+            if (executionResult.success) {
+
+                taskStorage.updateTask(
+                    taskId = task.id,
+                    status = "COMPLETED",
+                    result = executionResult.result
+                )
+
+
+                eventStorage.saveEvent(
+                    type = "task",
+                    message =
+                        "Завершена задача ${task.id}"
+                )
+
+
+                CapabilityResult(
+                    success = true,
+                    message =
+                        executionResult.result
+                )
+
+            } else {
+
+                taskStorage.updateTask(
+                    taskId = task.id,
+                    status = "FAILED",
+                    result = executionResult.result
+                )
+
+
+                eventStorage.saveEvent(
+                    type = "error",
+                    message =
+                        "Ошибка выполнения задачи ${task.id}"
+                )
+
+
+                CapabilityResult(
+                    success = false,
+                    message =
+                        executionResult.result
+                )
+
+            }
+
+        } catch (e: Exception) {
+
+            val errorMessage =
+                e.message
+                    ?: "Неизвестная ошибка выполнения задачи"
+
+
+            taskStorage.updateTask(
+                taskId = task.id,
+                status = "FAILED",
+                result = errorMessage
+            )
+
+
+            eventStorage.saveEvent(
+                type = "error",
+                message =
+                    "Ошибка задачи ${task.id}: $errorMessage"
+            )
+
+
+            CapabilityResult(
+                success = false,
+                message =
+                    "Ошибка выполнения задачи: $errorMessage"
+            )
 
         }
 
