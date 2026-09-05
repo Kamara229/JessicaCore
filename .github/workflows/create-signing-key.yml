@@ -1,0 +1,51 @@
+name: Create Jessica Signing Key
+
+on:
+  workflow_dispatch:
+    inputs:
+      password:
+        description: "Signing password"
+        required: true
+        type: string
+
+jobs:
+  create-key:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Generate keystore
+        env:
+          SIGNING_PASSWORD: ${{ inputs.password }}
+        run: |
+          keytool -genkeypair \
+            -v \
+            -storetype PKCS12 \
+            -keystore jessica-release.keystore \
+            -alias jessica \
+            -keyalg RSA \
+            -keysize 4096 \
+            -validity 10000 \
+            -storepass "$SIGNING_PASSWORD" \
+            -keypass "$SIGNING_PASSWORD" \
+            -dname "CN=Jessica Core, O=Jessica Core"
+
+      - name: Verify keystore
+        env:
+          SIGNING_PASSWORD: ${{ inputs.password }}
+        run: |
+          keytool -list \
+            -keystore jessica-release.keystore \
+            -storepass "$SIGNING_PASSWORD" \
+            -alias jessica
+
+      - name: Encode keystore
+        run: |
+          base64 -w 0 jessica-release.keystore > keystore-base64.txt
+
+      - name: Upload signing key
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jessica-Signing-Key
+          path: keystore-base64.txt
+          retention-days: 1
