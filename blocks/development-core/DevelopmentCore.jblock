@@ -1,0 +1,20 @@
+{
+  "id": "development-core",
+  "name": "Development Core",
+  "version": "0.1",
+  "author": "Jessica Core",
+  "type": "system",
+  "status": "ACTIVE",
+  "description": "Анализ опыта Jessica Core, оценка результатов, выбор стратегий и накопление данных для развития системы",
+  "capabilities": [
+    "save_experience",
+    "load_experience",
+    "evaluate_result",
+    "analyze_failures",
+    "select_strategy",
+    "update_strategy",
+    "track_tool_success",
+    "discover_skill",
+    "propose_improvement"
+  ]
+}
