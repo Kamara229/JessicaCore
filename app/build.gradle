@@ -4,9 +4,15 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.compose'
 }
 
+
+def jessicaAppToken =
+        System.getenv("JESSICA_APP_TOKEN") ?: ""
+
+
 android {
     namespace 'com.jessica.core'
     compileSdk 35
+
 
     defaultConfig {
         applicationId "com.jessica.core"
@@ -14,7 +20,14 @@ android {
         targetSdk 35
         versionCode 1
         versionName "0.1"
+
+        buildConfigField(
+                "String",
+                "JESSICA_APP_TOKEN",
+                "\"${jessicaAppToken}\""
+        )
     }
+
 
     buildTypes {
         release {
@@ -22,25 +35,29 @@ android {
         }
     }
 
+
     buildFeatures {
         compose true
+        buildConfig true
     }
+
 
     composeOptions {
         kotlinCompilerExtensionVersion '1.5.15'
     }
 
-    // ДОБАВИТЬ ЭТО
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    // И ЭТО
+
     kotlinOptions {
         jvmTarget = "17"
     }
 }
+
 
 dependencies {
 
