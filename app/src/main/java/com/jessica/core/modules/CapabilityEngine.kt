@@ -22,6 +22,9 @@ class CapabilityEngine(
     private val taskStorage =
         TaskStorage(context)
 
+    private val taskExecutor =
+        TaskExecutor(context)
+
 
     fun execute(
         capability: String,
@@ -394,28 +397,53 @@ class CapabilityEngine(
 
                     } else {
 
-                        val result =
-                            "Задача принята Task Solver. " +
-                            "ИИ-решение пока не подключено."
+                        val executionResult =
+                            taskExecutor.execute(
+                                task
+                            )
 
 
-                        taskStorage.updateTask(
-                            taskId = task.id,
-                            status = "COMPLETED",
-                            result = result
-                        )
+                        if (executionResult.success) {
+
+                            taskStorage.updateTask(
+                                taskId = task.id,
+                                status = "COMPLETED",
+                                result = executionResult.result
+                            )
 
 
-                        eventStorage.saveEvent(
-                            type = "task",
-                            message = "Обработана задача ${task.id}"
-                        )
+                            eventStorage.saveEvent(
+                                type = "task",
+                                message = "Обработана задача ${task.id}"
+                            )
 
 
-                        CapabilityResult(
-                            success = true,
-                            message = "Задача ${task.id} обработана"
-                        )
+                            CapabilityResult(
+                                success = true,
+                                message = executionResult.result
+                            )
+
+                        } else {
+
+                            taskStorage.updateTask(
+                                taskId = task.id,
+                                status = "FAILED",
+                                result = executionResult.result
+                            )
+
+
+                            eventStorage.saveEvent(
+                                type = "error",
+                                message = "Ошибка выполнения задачи ${task.id}"
+                            )
+
+
+                            CapabilityResult(
+                                success = false,
+                                message = executionResult.result
+                            )
+
+                        }
 
                     }
 
