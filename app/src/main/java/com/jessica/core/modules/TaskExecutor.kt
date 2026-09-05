@@ -16,8 +16,11 @@ class TaskExecutor(
     private val eventStorage =
         EventStorage(context)
 
+    private val aiEngine: AIEngine =
+        JessicaAIEngine()
 
-    fun execute(
+
+    suspend fun execute(
         task: JessicaTask
     ): TaskExecutionResult {
 
@@ -37,10 +40,27 @@ class TaskExecutor(
         )
 
 
-        val result =
-            solveLocally(
+        val aiResult =
+            aiEngine.solve(
                 task.text
             )
+
+
+        if (!aiResult.success) {
+
+            eventStorage.saveEvent(
+                type = "error",
+                message =
+                    "Ошибка AI Engine при выполнении задачи ${task.id}"
+            )
+
+
+            return TaskExecutionResult(
+                success = false,
+                result = aiResult.text
+            )
+
+        }
 
 
         eventStorage.saveEvent(
@@ -51,35 +71,8 @@ class TaskExecutor(
 
         return TaskExecutionResult(
             success = true,
-            result = result
+            result = aiResult.text
         )
-
-    }
-
-
-    private fun solveLocally(
-        taskText: String
-    ): String {
-
-        return buildString {
-
-            appendLine(
-                "Task Executor получил задачу:"
-            )
-
-            appendLine()
-
-            appendLine(
-                taskText
-            )
-
-            appendLine()
-
-            append(
-                "Для полноценного решения задачи требуется подключение AI Engine."
-            )
-
-        }
 
     }
 
