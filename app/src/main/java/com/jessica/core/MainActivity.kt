@@ -21,6 +21,7 @@ import com.jessica.core.modules.ReportStorage
 import com.jessica.core.ui.BlockScreen
 import com.jessica.core.ui.MemoryScreen
 import com.jessica.core.ui.ReportScreen
+import com.jessica.core.ui.TaskScreen
 import org.json.JSONObject
 
 
@@ -46,7 +47,8 @@ enum class JessicaPage {
     HOME,
     BLOCKS,
     REPORTS,
-    MEMORY
+    MEMORY,
+    TASKS
 
 }
 
@@ -383,6 +385,13 @@ fun JessicaScreen() {
 
                         },
 
+                        onTasks = {
+
+                            currentPage =
+                                JessicaPage.TASKS
+
+                        },
+
                         onAddBlock = {
 
                             blockPicker.launch(
@@ -471,6 +480,22 @@ fun JessicaScreen() {
 
                 }
 
+
+                JessicaPage.TASKS -> {
+
+                    TaskScreen(
+
+                        onBack = {
+
+                            currentPage =
+                                JessicaPage.HOME
+
+                        }
+
+                    )
+
+                }
+
             }
 
         }
@@ -487,6 +512,7 @@ fun HomeScreen(
     onBlocks: () -> Unit,
     onReports: () -> Unit,
     onMemory: () -> Unit,
+    onTasks: () -> Unit,
     onAddBlock: () -> Unit
 ) {
 
@@ -576,6 +602,23 @@ fun HomeScreen(
 
                 Text(
                     "Память"
+                )
+
+            }
+
+        }
+
+
+        item {
+
+            Button(
+                onClick = onTasks,
+                modifier =
+                    Modifier.fillMaxWidth()
+            ) {
+
+                Text(
+                    "Задачи"
                 )
 
             }
