@@ -18,12 +18,8 @@ app.use(
 
 
 /*
- * Создаём клиент OpenAI только если
- * ключ действительно настроен.
- *
- * Благодаря этому backend сможет
- * запуститься и показать /api/health
- * даже до добавления API-ключа.
+ * Клиент OpenAI создаётся только
+ * если API-ключ настроен.
  */
 const openai =
     process.env.OPENAI_API_KEY
@@ -32,6 +28,16 @@ const openai =
                 process.env.OPENAI_API_KEY
         })
         : null;
+
+
+/*
+ * Секретный токен Jessica.
+ *
+ * Он хранится только в переменных
+ * окружения Render.
+ */
+const jessicaToken =
+    process.env.JESSICA_APP_TOKEN || "";
 
 
 /*
@@ -52,7 +58,10 @@ app.get(
 
 
 /*
- * Проверка состояния сервера.
+ * Проверка состояния backend.
+ *
+ * Здесь специально НЕ показываем
+ * само значение секретных ключей.
  */
 app.get(
     "/api/health",
@@ -63,7 +72,9 @@ app.get(
             service: "Jessica Backend",
             status: "ok",
             aiConfigured:
-                openai !== null
+                openai !== null,
+            appAuthConfigured:
+                jessicaToken.length > 0
         });
 
     }
@@ -78,6 +89,54 @@ app.post(
     async (req, res) => {
 
         try {
+
+            /*
+             * Проверяем, что секретный
+             * токен вообще настроен
+             * на сервере.
+             */
+            if (!jessicaToken) {
+
+                return res
+                    .status(503)
+                    .json({
+                        success: false,
+                        text:
+                            "Авторизация Jessica не настроена на сервере"
+                    });
+
+            }
+
+
+            /*
+             * Получаем токен,
+             * присланный Android-приложением.
+             */
+            const appToken =
+                req.get(
+                    "X-Jessica-Token"
+                ) || "";
+
+
+            /*
+             * Не разрешаем доступ
+             * без правильного токена.
+             */
+            if (
+                appToken !==
+                jessicaToken
+            ) {
+
+                return res
+                    .status(401)
+                    .json({
+                        success: false,
+                        text:
+                            "Неавторизованный запрос"
+                    });
+
+            }
+
 
             const task =
                 typeof req.body?.task === "string"
@@ -94,14 +153,16 @@ app.post(
                     .status(400)
                     .json({
                         success: false,
-                        text: "Задача не указана"
+                        text:
+                            "Задача не указана"
                     });
 
             }
 
 
             /*
-             * Проверяем наличие API-ключа.
+             * Проверяем наличие
+             * OpenAI API-ключа.
              */
             if (!openai) {
 
@@ -110,7 +171,7 @@ app.post(
                     .json({
                         success: false,
                         text:
-                            "AI Engine не настроен: отсутствует OPENAI_API_KEY"
+                            "AI Engine не настроен"
                     });
 
             }
@@ -160,7 +221,7 @@ app.post(
 
 
             /*
-             * Возвращаем результат Android-приложению.
+             * Возвращаем ответ Jessica.
              */
             return res.json({
                 success: true,
@@ -175,18 +236,16 @@ app.post(
             );
 
 
-            const errorMessage =
-                error instanceof Error
-                    ? error.message
-                    : "Неизвестная ошибка";
-
-
+            /*
+             * Наружу не отдаём
+             * подробности внутренней ошибки.
+             */
             return res
                 .status(500)
                 .json({
                     success: false,
                     text:
-                        `Ошибка AI: ${errorMessage}`
+                        "Внутренняя ошибка AI-сервера"
                 });
 
         }
@@ -197,7 +256,6 @@ app.post(
 
 /*
  * Render автоматически передаёт PORT.
- * Локально используется порт 3000.
  */
 const port =
     Number(
@@ -206,8 +264,7 @@ const port =
 
 
 /*
- * 0.0.0.0 нужен для нормальной
- * работы Web Service на Render.
+ * 0.0.0.0 нужен для Render.
  */
 app.listen(
     port,
