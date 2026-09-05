@@ -1,0 +1,15 @@
+{
+  "id": "task-solver",
+  "name": "Task Solver",
+  "version": "0.1",
+  "author": "Jessica Core",
+  "type": "system",
+  "status": "ACTIVE",
+  "description": "Приём, обработка и хранение задач Jessica Core",
+  "capabilities": [
+    "create_task",
+    "list_tasks",
+    "solve_task",
+    "task_history"
+  ]
+}
