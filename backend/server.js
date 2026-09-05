@@ -17,12 +17,26 @@ app.use(
 );
 
 
+/*
+ * Создаём клиент OpenAI только если
+ * ключ действительно настроен.
+ *
+ * Благодаря этому backend сможет
+ * запуститься и показать /api/health
+ * даже до добавления API-ключа.
+ */
 const openai =
-    new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY
-    });
+    process.env.OPENAI_API_KEY
+        ? new OpenAI({
+            apiKey:
+                process.env.OPENAI_API_KEY
+        })
+        : null;
 
 
+/*
+ * Главная страница backend.
+ */
 app.get(
     "/",
     (req, res) => {
@@ -37,19 +51,28 @@ app.get(
 );
 
 
+/*
+ * Проверка состояния сервера.
+ */
 app.get(
     "/api/health",
     (req, res) => {
 
         res.json({
             success: true,
-            status: "ok"
+            service: "Jessica Backend",
+            status: "ok",
+            aiConfigured:
+                openai !== null
         });
 
     }
 );
 
 
+/*
+ * Выполнение задачи Jessica.
+ */
 app.post(
     "/api/solve",
     async (req, res) => {
@@ -57,9 +80,14 @@ app.post(
         try {
 
             const task =
-                req.body?.task?.trim();
+                typeof req.body?.task === "string"
+                    ? req.body.task.trim()
+                    : "";
 
 
+            /*
+             * Проверяем текст задачи.
+             */
             if (!task) {
 
                 return res
@@ -72,44 +100,50 @@ app.post(
             }
 
 
-            if (!process.env.OPENAI_API_KEY) {
+            /*
+             * Проверяем наличие API-ключа.
+             */
+            if (!openai) {
 
                 return res
-                    .status(500)
+                    .status(503)
                     .json({
                         success: false,
-                        text: "OPENAI_API_KEY не настроен на сервере"
+                        text:
+                            "AI Engine не настроен: отсутствует OPENAI_API_KEY"
                     });
 
             }
 
 
+            /*
+             * Отправляем задачу модели.
+             */
             const response =
                 await openai.responses.create({
 
                     model:
-                        "gpt-5.6",
+                        "gpt-5.6-sol",
 
-                    input: [
-                        {
-                            role: "system",
-                            content:
-                                "Ты являешься AI-ядром системы Jessica Core. " +
-                                "Выполняй задачу пользователя точно и полезно. " +
-                                "Отвечай на языке задачи."
-                        },
-                        {
-                            role: "user",
-                            content:
-                                task
-                        }
-                    ]
+                    instructions:
+                        "Ты являешься AI-ядром системы Jessica Core. " +
+                        "Выполняй задачу пользователя точно, полезно и по существу. " +
+                        "Отвечай на языке, на котором сформулирована задача. " +
+                        "Не утверждай, что выполнил действия во внешних системах, " +
+                        "если фактически у тебя нет соответствующего инструмента.",
+
+                    input:
+                        task
 
                 });
 
 
+            /*
+             * Берём итоговый текст ответа.
+             */
             const answer =
-                response.output_text?.trim();
+                response.output_text
+                    ?.trim();
 
 
             if (!answer) {
@@ -118,12 +152,16 @@ app.post(
                     .status(502)
                     .json({
                         success: false,
-                        text: "Модель вернула пустой ответ"
+                        text:
+                            "Модель вернула пустой ответ"
                     });
 
             }
 
 
+            /*
+             * Возвращаем результат Android-приложению.
+             */
             return res.json({
                 success: true,
                 text: answer
@@ -137,14 +175,18 @@ app.post(
             );
 
 
+            const errorMessage =
+                error instanceof Error
+                    ? error.message
+                    : "Неизвестная ошибка";
+
+
             return res
                 .status(500)
                 .json({
                     success: false,
                     text:
-                        error?.message
-                            ? `Ошибка AI: ${error.message}`
-                            : "Неизвестная ошибка AI"
+                        `Ошибка AI: ${errorMessage}`
                 });
 
         }
@@ -153,12 +195,23 @@ app.post(
 );
 
 
+/*
+ * Render автоматически передаёт PORT.
+ * Локально используется порт 3000.
+ */
 const port =
-    process.env.PORT || 3000;
+    Number(
+        process.env.PORT
+    ) || 3000;
 
 
+/*
+ * 0.0.0.0 нужен для нормальной
+ * работы Web Service на Render.
+ */
 app.listen(
     port,
+    "0.0.0.0",
     () => {
 
         console.log(
