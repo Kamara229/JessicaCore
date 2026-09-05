@@ -11,16 +11,8 @@ class JessicaAIEngine : AIEngine {
 
     companion object {
 
-        /*
-         * Позже здесь будет настоящий адрес
-         * backend Jessica.
-         *
-         * Например:
-         *
-         * https://jessica.example.com/api/solve
-         */
         private const val BACKEND_URL =
-            "https://YOUR_BACKEND_URL/api/solve"
+            "https://jessicacore.onrender.com/api/solve"
 
     }
 
@@ -89,11 +81,11 @@ class JessicaAIEngine : AIEngine {
 
 
             connection.connectTimeout =
-                15_000
+                30_000
 
 
             connection.readTimeout =
-                60_000
+                120_000
 
 
             connection.doOutput =
@@ -215,9 +207,7 @@ class JessicaAIEngine : AIEngine {
                 )
 
 
-            if (
-                !success
-            ) {
+            if (!success) {
 
                 return AIResult(
                     success = false,
@@ -225,18 +215,20 @@ class JessicaAIEngine : AIEngine {
                         if (
                             text.isNotBlank()
                         ) {
+
                             text
+
                         } else {
+
                             "AI сервер вернул ошибку"
+
                         }
                 )
 
             }
 
 
-            if (
-                text.isBlank()
-            ) {
+            if (text.isBlank()) {
 
                 return AIResult(
                     success = false,
