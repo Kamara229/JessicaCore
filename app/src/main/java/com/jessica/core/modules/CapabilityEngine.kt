@@ -1,5 +1,7 @@
 package com.jessica.core.modules
 
+import android.content.Context
+
 
 data class CapabilityResult(
     val success: Boolean,
@@ -7,13 +9,17 @@ data class CapabilityResult(
 )
 
 
-class CapabilityEngine {
+class CapabilityEngine(
+    context: Context
+) {
+
+    private val memoryStorage =
+        MemoryStorage(context)
 
 
     fun execute(
         capability: String
     ): CapabilityResult {
-
 
         return when (capability) {
 
@@ -120,9 +126,16 @@ class CapabilityEngine {
 
             "save_memory" -> {
 
+                memoryStorage.saveMemory(
+                    key = "memory_core_test",
+                    value = "Memory Core работает"
+                )
+
+
                 CapabilityResult(
                     success = true,
-                    message = "Сохранение памяти доступно"
+                    message =
+                        "Память сохранена: memory_core_test"
                 )
 
             }
@@ -130,10 +143,29 @@ class CapabilityEngine {
 
             "load_memory" -> {
 
-                CapabilityResult(
-                    success = true,
-                    message = "Загрузка памяти доступна"
-                )
+                val memory =
+                    memoryStorage.getMemory(
+                        "memory_core_test"
+                    )
+
+
+                if (memory != null) {
+
+                    CapabilityResult(
+                        success = true,
+                        message =
+                            "Память загружена: ${memory.value}"
+                    )
+
+                } else {
+
+                    CapabilityResult(
+                        success = false,
+                        message =
+                            "Запись memory_core_test не найдена"
+                    )
+
+                }
 
             }
 
@@ -142,7 +174,7 @@ class CapabilityEngine {
 
                 CapabilityResult(
                     success = true,
-                    message = "Сохранение событий доступно"
+                    message = "Сохранение событий пока не реализовано"
                 )
 
             }
@@ -152,7 +184,7 @@ class CapabilityEngine {
 
                 CapabilityResult(
                     success = true,
-                    message = "Загрузка событий доступна"
+                    message = "Загрузка событий пока не реализована"
                 )
 
             }
@@ -162,7 +194,7 @@ class CapabilityEngine {
 
                 CapabilityResult(
                     success = true,
-                    message = "История действий доступна"
+                    message = "История действий пока не реализована"
                 )
 
             }
@@ -172,7 +204,8 @@ class CapabilityEngine {
 
                 CapabilityResult(
                     success = false,
-                    message = "Неизвестная возможность: $capability"
+                    message =
+                        "Неизвестная возможность: $capability"
                 )
 
             }
