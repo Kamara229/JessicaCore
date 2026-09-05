@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.jessica.core.modules.CapabilityEngine
 import com.jessica.core.modules.EventStorage
 import com.jessica.core.modules.JessicaTask
 import com.jessica.core.modules.TaskStorage
@@ -34,6 +35,12 @@ fun TaskScreen(
     val eventStorage =
         remember {
             EventStorage(context)
+        }
+
+
+    val capabilityEngine =
+        remember {
+            CapabilityEngine(context)
         }
 
 
@@ -236,12 +243,15 @@ fun TaskScreen(
                     Modifier.height(10.dp)
             )
 
+
             HorizontalDivider()
+
 
             Spacer(
                 modifier =
                     Modifier.height(10.dp)
             )
+
 
             Text(
                 text = "История задач",
@@ -283,48 +293,14 @@ fun TaskScreen(
 
                     onSolve = {
 
-                        /*
-                         * На текущем этапе реального ИИ
-                         * здесь ещё нет.
-                         *
-                         * Проверяем сам механизм:
-                         * задача принимается,
-                         * меняет статус
-                         * и получает результат.
-                         */
-
                         val result =
-                            "Задача принята Task Solver. " +
-                            "ИИ-решение будет подключено на следующем этапе."
-
-
-                        taskStorage.updateTask(
-
-                            taskId =
-                                task.id,
-
-                            status =
-                                "COMPLETED",
-
-                            result =
-                                result
-
-                        )
-
-
-                        eventStorage.saveEvent(
-
-                            type =
-                                "task",
-
-                            message =
-                                "Обработана задача ${task.id}"
-
-                        )
+                            capabilityEngine.execute(
+                                "solve_task"
+                            )
 
 
                         message =
-                            "Задача обработана"
+                            result.message
 
 
                         refreshTasks()
@@ -403,6 +379,7 @@ private fun TaskCard(
             Text(
                 text =
                     task.text,
+
                 style =
                     MaterialTheme.typography.titleMedium
             )
@@ -450,6 +427,7 @@ private fun TaskCard(
                 Text(
                     text =
                         "Результат:",
+
                     style =
                         MaterialTheme.typography.labelLarge
                 )
