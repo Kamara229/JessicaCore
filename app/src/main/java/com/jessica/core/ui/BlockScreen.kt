@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import com.jessica.core.modules.BlockManager
 import com.jessica.core.modules.BlockTester
 import com.jessica.core.modules.CapabilityEngine
@@ -24,6 +25,10 @@ fun BlockScreen(
     onUpdate: () -> Unit,
     onBack: () -> Unit
 ) {
+
+    val context =
+        LocalContext.current
+
 
     val blocks =
         blockManager
@@ -102,9 +107,11 @@ fun BlockScreen(
         items(
             items = blocks,
             key = { block ->
+
                 block.id.ifBlank {
                     block.name
                 }
+
             }
         ) { block ->
 
@@ -228,7 +235,9 @@ fun BlockScreen(
                             onClick = {
 
                                 val engine =
-                                    CapabilityEngine()
+                                    CapabilityEngine(
+                                        context
+                                    )
 
 
                                 val resultText =
@@ -241,27 +250,40 @@ fun BlockScreen(
                                         appendLine()
 
 
-                                        block.capabilities.forEach { capability ->
+                                        if (
+                                            block.capabilities.isEmpty()
+                                        ) {
 
-                                            val result =
-                                                engine.execute(
-                                                    capability
+                                            appendLine(
+                                                "У блока нет возможностей для запуска"
+                                            )
+
+                                        } else {
+
+                                            block.capabilities.forEach { capability ->
+
+                                                val result =
+                                                    engine.execute(
+                                                        capability
+                                                    )
+
+
+                                                appendLine(
+                                                    if (result.success)
+                                                        "✅ $capability"
+                                                    else
+                                                        "❌ $capability"
                                                 )
 
 
-                                            appendLine(
-                                                if (result.success)
-                                                    "✅ $capability"
-                                                else
-                                                    "❌ $capability"
-                                            )
+                                                appendLine(
+                                                    result.message
+                                                )
 
 
-                                            appendLine(
-                                                result.message
-                                            )
+                                                appendLine()
 
-                                            appendLine()
+                                            }
 
                                         }
 
