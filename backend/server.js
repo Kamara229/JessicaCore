@@ -18,8 +18,8 @@ app.use(
 
 
 /*
- * Клиент OpenAI создаётся только
- * если API-ключ настроен.
+ * OpenAI.
+ * Используется как резервный AI-движок.
  */
 const openai =
     process.env.OPENAI_API_KEY
@@ -31,10 +31,404 @@ const openai =
 
 
 /*
- * Секретный токен Jessica.
+ * Токен Android-приложения Jessica.
  */
 const jessicaToken =
     process.env.JESSICA_APP_TOKEN || "";
+
+
+/*
+ * TinyFish API.
+ */
+const tinyFishApiKey =
+    process.env.TINYFISH_API_KEY || "";
+
+
+const tinyFishSearchUrl =
+    "https://api.search.tinyfish.ai";
+
+
+const tinyFishFetchUrl =
+    "https://api.fetch.tinyfish.ai";
+
+
+/*
+ * Проверка авторизации Jessica.
+ */
+function checkJessicaAuthorization(req) {
+
+    if (!jessicaToken) {
+
+        return {
+            success: false,
+            status: 503,
+            text:
+                "Авторизация Jessica не настроена на сервере"
+        };
+
+    }
+
+
+    const appToken =
+        req.get(
+            "X-Jessica-Token"
+        ) || "";
+
+
+    if (
+        appToken !==
+        jessicaToken
+    ) {
+
+        return {
+            success: false,
+            status: 401,
+            text:
+                "Неавторизованный запрос"
+        };
+
+    }
+
+
+    return {
+        success: true
+    };
+
+}
+
+
+/*
+ * Бесплатный интернет-поиск TinyFish.
+ */
+async function searchWeb(
+    query
+) {
+
+    if (!tinyFishApiKey) {
+
+        return {
+            success: false,
+            text:
+                "TinyFish Search не настроен",
+            results: []
+        };
+
+    }
+
+
+    try {
+
+        const url =
+            new URL(
+                tinyFishSearchUrl
+            );
+
+
+        url.searchParams.set(
+            "query",
+            query
+        );
+
+
+        const response =
+            await fetch(
+                url,
+                {
+                    method: "GET",
+
+                    headers: {
+                        "X-API-Key":
+                            tinyFishApiKey
+                    },
+
+                    signal:
+                        AbortSignal.timeout(
+                            30000
+                        )
+                }
+            );
+
+
+        const rawText =
+            await response.text();
+
+
+        if (!response.ok) {
+
+            console.error(
+                "TinyFish Search error:",
+                response.status,
+                rawText
+            );
+
+
+            return {
+                success: false,
+                text:
+                    `Ошибка TinyFish Search: HTTP ${response.status}`,
+                results: []
+            };
+
+        }
+
+
+        let data;
+
+
+        try {
+
+            data =
+                JSON.parse(
+                    rawText
+                );
+
+        } catch {
+
+            return {
+                success: false,
+                text:
+                    "TinyFish Search вернул некорректный ответ",
+                results: []
+            };
+
+        }
+
+
+        const results =
+            Array.isArray(
+                data.results
+            )
+                ? data.results
+                : [];
+
+
+        return {
+            success: true,
+            text:
+                `Найдено результатов: ${results.length}`,
+            results
+        };
+
+
+    } catch (error) {
+
+        console.error(
+            "TinyFish Search exception:",
+            error
+        );
+
+
+        return {
+            success: false,
+            text:
+                "Не удалось выполнить интернет-поиск",
+            results: []
+        };
+
+    }
+
+}
+
+
+/*
+ * Бесплатное чтение страницы TinyFish Fetch.
+ */
+async function fetchWebPage(
+    url
+) {
+
+    if (!tinyFishApiKey) {
+
+        return {
+            success: false,
+            text:
+                "TinyFish Fetch не настроен"
+        };
+
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                tinyFishFetchUrl,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "X-API-Key":
+                            tinyFishApiKey,
+
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+                            urls: [
+                                url
+                            ],
+                            format:
+                                "markdown"
+                        }),
+
+                    signal:
+                        AbortSignal.timeout(
+                            45000
+                        )
+                }
+            );
+
+
+        const rawText =
+            await response.text();
+
+
+        if (!response.ok) {
+
+            console.error(
+                "TinyFish Fetch error:",
+                response.status,
+                rawText
+            );
+
+
+            return {
+                success: false,
+                text:
+                    `Ошибка TinyFish Fetch: HTTP ${response.status}`
+            };
+
+        }
+
+
+        let data;
+
+
+        try {
+
+            data =
+                JSON.parse(
+                    rawText
+                );
+
+        } catch {
+
+            return {
+                success: false,
+                text:
+                    "TinyFish Fetch вернул некорректный ответ"
+            };
+
+        }
+
+
+        const result =
+            Array.isArray(
+                data.results
+            )
+                ? data.results[0]
+                : null;
+
+
+        if (!result) {
+
+            return {
+                success: false,
+                text:
+                    "TinyFish не смог получить содержимое страницы"
+            };
+
+        }
+
+
+        return {
+            success: true,
+            title:
+                result.title || "",
+            url:
+                result.url || url,
+            text:
+                result.text || ""
+        };
+
+
+    } catch (error) {
+
+        console.error(
+            "TinyFish Fetch exception:",
+            error
+        );
+
+
+        return {
+            success: false,
+            text:
+                "Не удалось загрузить страницу"
+        };
+
+    }
+
+}
+
+
+/*
+ * Формирование читаемого результата поиска.
+ */
+function formatSearchResults(
+    results
+) {
+
+    if (
+        !results ||
+        results.length === 0
+    ) {
+
+        return "Ничего не найдено.";
+
+    }
+
+
+    return results
+        .slice(
+            0,
+            10
+        )
+        .map(
+            (
+                item,
+                index
+            ) => {
+
+                const title =
+                    item.title ||
+                    "Без названия";
+
+
+                const snippet =
+                    item.snippet ||
+                    "";
+
+
+                const url =
+                    item.url ||
+                    "";
+
+
+                return (
+                    `${index + 1}. ${title}\n` +
+                    `${snippet}\n` +
+                    `${url}`
+                );
+
+            }
+        )
+        .join(
+            "\n\n"
+        );
+
+}
 
 
 /*
@@ -46,8 +440,10 @@ app.get(
 
         res.json({
             success: true,
-            service: "Jessica Backend",
-            status: "online"
+            service:
+                "Jessica Backend",
+            status:
+                "online"
         });
 
     }
@@ -63,12 +459,19 @@ app.get(
 
         res.json({
             success: true,
-            service: "Jessica Backend",
-            status: "ok",
+            service:
+                "Jessica Backend",
+            status:
+                "ok",
+
             aiConfigured:
                 openai !== null,
+
             appAuthConfigured:
-                jessicaToken.length > 0
+                jessicaToken.length > 0,
+
+            tinyFishConfigured:
+                tinyFishApiKey.length > 0
         });
 
     }
@@ -76,7 +479,171 @@ app.get(
 
 
 /*
+ * Отдельный endpoint интернет-поиска.
+ *
+ * Пока нужен для тестирования.
+ * Позже Jessica будет вызывать его
+ * самостоятельно через Planner.
+ */
+app.post(
+    "/api/search",
+    async (req, res) => {
+
+        const auth =
+            checkJessicaAuthorization(
+                req
+            );
+
+
+        if (!auth.success) {
+
+            return res
+                .status(
+                    auth.status
+                )
+                .json({
+                    success: false,
+                    text:
+                        auth.text
+                });
+
+        }
+
+
+        const query =
+            typeof req.body?.query ===
+            "string"
+                ? req.body.query.trim()
+                : "";
+
+
+        if (!query) {
+
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    text:
+                        "Поисковый запрос не указан"
+                });
+
+        }
+
+
+        const result =
+            await searchWeb(
+                query
+            );
+
+
+        if (!result.success) {
+
+            return res
+                .status(502)
+                .json(result);
+
+        }
+
+
+        return res.json({
+            success: true,
+            query,
+            text:
+                formatSearchResults(
+                    result.results
+                ),
+            results:
+                result.results
+        });
+
+    }
+);
+
+
+/*
+ * Endpoint чтения интернет-страницы.
+ */
+app.post(
+    "/api/fetch",
+    async (req, res) => {
+
+        const auth =
+            checkJessicaAuthorization(
+                req
+            );
+
+
+        if (!auth.success) {
+
+            return res
+                .status(
+                    auth.status
+                )
+                .json({
+                    success: false,
+                    text:
+                        auth.text
+                });
+
+        }
+
+
+        const url =
+            typeof req.body?.url ===
+            "string"
+                ? req.body.url.trim()
+                : "";
+
+
+        if (!url) {
+
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    text:
+                        "URL не указан"
+                });
+
+        }
+
+
+        const result =
+            await fetchWebPage(
+                url
+            );
+
+
+        if (!result.success) {
+
+            return res
+                .status(502)
+                .json(result);
+
+        }
+
+
+        return res.json(result);
+
+    }
+);
+
+
+/*
  * Выполнение задачи Jessica.
+ *
+ * Пока сохраняем существующее
+ * поведение через OpenAI.
+ *
+ * На следующем этапе сюда
+ * добавим Planner:
+ *
+ * Jessica
+ * → свои возможности
+ * → память
+ * → TinyFish
+ * → бесплатный AI
+ * → OpenAI только при необходимости.
  */
 app.post(
     "/api/solve",
@@ -84,64 +651,34 @@ app.post(
 
         try {
 
-            /*
-             * Проверяем наличие
-             * серверного токена Jessica.
-             */
-            if (!jessicaToken) {
+            const auth =
+                checkJessicaAuthorization(
+                    req
+                );
+
+
+            if (!auth.success) {
 
                 return res
-                    .status(503)
+                    .status(
+                        auth.status
+                    )
                     .json({
                         success: false,
                         text:
-                            "Авторизация Jessica не настроена на сервере"
+                            auth.text
                     });
 
             }
 
 
-            /*
-             * Получаем токен
-             * от Android-приложения.
-             */
-            const appToken =
-                req.get(
-                    "X-Jessica-Token"
-                ) || "";
-
-
-            /*
-             * Проверяем авторизацию Jessica.
-             */
-            if (
-                appToken !==
-                jessicaToken
-            ) {
-
-                return res
-                    .status(401)
-                    .json({
-                        success: false,
-                        text:
-                            "Неавторизованный запрос"
-                    });
-
-            }
-
-
-            /*
-             * Получаем текст задачи.
-             */
             const task =
-                typeof req.body?.task === "string"
+                typeof req.body?.task ===
+                "string"
                     ? req.body.task.trim()
                     : "";
 
 
-            /*
-             * Проверяем текст задачи.
-             */
             if (!task) {
 
                 return res
@@ -156,7 +693,8 @@ app.post(
 
 
             /*
-             * Проверяем наличие OpenAI API.
+             * Пока OpenAI остаётся
+             * резервным AI Engine.
              */
             if (!openai) {
 
@@ -171,9 +709,6 @@ app.post(
             }
 
 
-            /*
-             * Отправляем задачу OpenAI.
-             */
             const response =
                 await openai.responses.create({
 
@@ -181,7 +716,7 @@ app.post(
                         "gpt-5.6-sol",
 
                     instructions:
-                        "Ты являешься AI-ядром системы Jessica Core. " +
+                        "Ты являешься резервным AI-ядром системы Jessica Core. " +
                         "Выполняй задачу пользователя точно, полезно и по существу. " +
                         "Отвечай на языке, на котором сформулирована задача. " +
                         "Не утверждай, что выполнил действия во внешних системах, " +
@@ -193,9 +728,6 @@ app.post(
                 });
 
 
-            /*
-             * Получаем итоговый ответ.
-             */
             const answer =
                 response.output_text
                     ?.trim();
@@ -214,12 +746,12 @@ app.post(
             }
 
 
-            /*
-             * Возвращаем результат Jessica.
-             */
             return res.json({
                 success: true,
-                text: answer
+                source:
+                    "openai",
+                text:
+                    answer
             });
 
 
@@ -231,16 +763,10 @@ app.post(
             );
 
 
-            /*
-             * HTTP-статус ошибки OpenAI SDK.
-             */
             const status =
                 error?.status;
 
 
-            /*
-             * Нет кредитов / превышен лимит.
-             */
             if (status === 429) {
 
                 return res
@@ -254,9 +780,6 @@ app.post(
             }
 
 
-            /*
-             * Проблема с OpenAI API-ключом.
-             */
             if (status === 401) {
 
                 return res
@@ -270,10 +793,6 @@ app.post(
             }
 
 
-            /*
-             * Доступ к модели запрещён
-             * или недостаточно прав.
-             */
             if (status === 403) {
 
                 return res
@@ -287,9 +806,6 @@ app.post(
             }
 
 
-            /*
-             * Сервер OpenAI временно недоступен.
-             */
             if (
                 status === 500 ||
                 status === 502 ||
@@ -308,10 +824,6 @@ app.post(
             }
 
 
-            /*
-             * Остальные ошибки наружу
-             * не раскрываем.
-             */
             return res
                 .status(500)
                 .json({
