@@ -1,0 +1,50 @@
+name: Create Jessica Signing Key
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-key:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate passwords
+        id: passwords
+        run: |
+          STORE_PASSWORD=$(openssl rand -hex 24)
+          KEY_PASSWORD=$(openssl rand -hex 24)
+
+          echo "store_password=$STORE_PASSWORD" >> "$GITHUB_OUTPUT"
+          echo "key_password=$KEY_PASSWORD" >> "$GITHUB_OUTPUT"
+
+      - name: Generate keystore
+        run: |
+          keytool -genkeypair \
+            -v \
+            -keystore jessica-release.keystore \
+            -alias jessica \
+            -keyalg RSA \
+            -keysize 4096 \
+            -validity 10000 \
+            -storepass "${{ steps.passwords.outputs.store_password }}" \
+            -keypass "${{ steps.passwords.outputs.key_password }}" \
+            -dname "CN=Jessica Core, O=Jessica Core, C=RU"
+
+      - name: Encode keystore
+        run: |
+          base64 -w 0 jessica-release.keystore > keystore-base64.txt
+
+      - name: Create credentials file
+        run: |
+          echo "KEYSTORE_ALIAS=jessica" > signing-info.txt
+          echo "KEYSTORE_PASSWORD=${{ steps.passwords.outputs.store_password }}" >> signing-info.txt
+          echo "KEY_PASSWORD=${{ steps.passwords.outputs.key_password }}" >> signing-info.txt
+
+      - name: Upload keystore
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jessica-Signing-Key
+          path: |
+            keystore-base64.txt
+            signing-info.txt
+          retention-days: 1
