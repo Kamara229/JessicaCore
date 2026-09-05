@@ -16,6 +16,9 @@ class CapabilityEngine(
     private val memoryStorage =
         MemoryStorage(context)
 
+    private val eventStorage =
+        EventStorage(context)
+
 
     fun execute(
         capability: String
@@ -25,6 +28,11 @@ class CapabilityEngine(
 
 
             "system_check" -> {
+
+                eventStorage.saveEvent(
+                    type = "system",
+                    message = "Выполнена системная проверка"
+                )
 
                 CapabilityResult(
                     success = true,
@@ -36,6 +44,11 @@ class CapabilityEngine(
 
             "block_analysis" -> {
 
+                eventStorage.saveEvent(
+                    type = "analysis",
+                    message = "Выполнен анализ блоков"
+                )
+
                 CapabilityResult(
                     success = true,
                     message = "Анализ блоков выполнен"
@@ -45,6 +58,11 @@ class CapabilityEngine(
 
 
             "report_generation" -> {
+
+                eventStorage.saveEvent(
+                    type = "report",
+                    message = "Сформирован отчёт"
+                )
 
                 CapabilityResult(
                     success = true,
@@ -56,6 +74,11 @@ class CapabilityEngine(
 
             "list_blocks" -> {
 
+                eventStorage.saveEvent(
+                    type = "blocks",
+                    message = "Запрошен список блоков"
+                )
+
                 CapabilityResult(
                     success = true,
                     message = "Получен список блоков"
@@ -65,6 +88,11 @@ class CapabilityEngine(
 
 
             "check_status" -> {
+
+                eventStorage.saveEvent(
+                    type = "system",
+                    message = "Проверен статус системы"
+                )
 
                 CapabilityResult(
                     success = true,
@@ -76,6 +104,11 @@ class CapabilityEngine(
 
             "manage_blocks" -> {
 
+                eventStorage.saveEvent(
+                    type = "blocks",
+                    message = "Запрошено управление блоками"
+                )
+
                 CapabilityResult(
                     success = true,
                     message = "Управление блоками доступно"
@@ -85,6 +118,11 @@ class CapabilityEngine(
 
 
             "create_reports" -> {
+
+                eventStorage.saveEvent(
+                    type = "report",
+                    message = "Запрошено создание отчёта"
+                )
 
                 CapabilityResult(
                     success = true,
@@ -96,6 +134,11 @@ class CapabilityEngine(
 
             "save_reports" -> {
 
+                eventStorage.saveEvent(
+                    type = "report",
+                    message = "Запрошено сохранение отчёта"
+                )
+
                 CapabilityResult(
                     success = true,
                     message = "Сохранение отчётов доступно"
@@ -106,6 +149,11 @@ class CapabilityEngine(
 
             "load_reports" -> {
 
+                eventStorage.saveEvent(
+                    type = "report",
+                    message = "Запрошена загрузка отчётов"
+                )
+
                 CapabilityResult(
                     success = true,
                     message = "Загрузка отчётов доступна"
@@ -115,6 +163,11 @@ class CapabilityEngine(
 
 
             "analyze_results" -> {
+
+                eventStorage.saveEvent(
+                    type = "analysis",
+                    message = "Выполнен анализ результатов"
+                )
 
                 CapabilityResult(
                     success = true,
@@ -131,6 +184,10 @@ class CapabilityEngine(
                     value = "Memory Core работает"
                 )
 
+                eventStorage.saveEvent(
+                    type = "memory",
+                    message = "Сохранена запись memory_core_test"
+                )
 
                 CapabilityResult(
                     success = true,
@@ -151,6 +208,11 @@ class CapabilityEngine(
 
                 if (memory != null) {
 
+                    eventStorage.saveEvent(
+                        type = "memory",
+                        message = "Загружена запись memory_core_test"
+                    )
+
                     CapabilityResult(
                         success = true,
                         message =
@@ -158,6 +220,11 @@ class CapabilityEngine(
                     )
 
                 } else {
+
+                    eventStorage.saveEvent(
+                        type = "error",
+                        message = "Запись memory_core_test не найдена"
+                    )
 
                     CapabilityResult(
                         success = false,
@@ -172,9 +239,14 @@ class CapabilityEngine(
 
             "save_events" -> {
 
+                eventStorage.saveEvent(
+                    type = "event",
+                    message = "Тестовое событие Memory Core"
+                )
+
                 CapabilityResult(
                     success = true,
-                    message = "Сохранение событий пока не реализовано"
+                    message = "Событие сохранено"
                 )
 
             }
@@ -182,9 +254,14 @@ class CapabilityEngine(
 
             "load_events" -> {
 
+                val events =
+                    eventStorage.loadEvents()
+
+
                 CapabilityResult(
                     success = true,
-                    message = "Загрузка событий пока не реализована"
+                    message =
+                        "Загружено событий: ${events.size}"
                 )
 
             }
@@ -192,15 +269,56 @@ class CapabilityEngine(
 
             "action_history" -> {
 
-                CapabilityResult(
-                    success = true,
-                    message = "История действий пока не реализована"
-                )
+                val events =
+                    eventStorage
+                        .loadEvents()
+                        .takeLast(10)
+
+
+                if (events.isEmpty()) {
+
+                    CapabilityResult(
+                        success = true,
+                        message = "История действий пока пуста"
+                    )
+
+                } else {
+
+                    val history =
+                        buildString {
+
+                            appendLine(
+                                "Последние действия:"
+                            )
+
+                            events.forEach { event ->
+
+                                appendLine(
+                                    "• ${event.type}: ${event.message}"
+                                )
+
+                            }
+
+                        }
+
+
+                    CapabilityResult(
+                        success = true,
+                        message = history
+                    )
+
+                }
 
             }
 
 
             else -> {
+
+                eventStorage.saveEvent(
+                    type = "error",
+                    message =
+                        "Неизвестная возможность: $capability"
+                )
 
                 CapabilityResult(
                     success = false,
