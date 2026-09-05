@@ -1,55 +1,99 @@
+/*
+ * =========================================================
+ * JESSICA CORE BACKEND
+ * =========================================================
+ *
+ * Главная точка входа backend Jessica.
+ *
+ * Архитектура:
+ *
+ * Android
+ *   ↓
+ * /api/solve
+ *   ↓
+ * Jessica Core
+ *   ↓
+ * Planner
+ *   ↓
+ * TaskRunner
+ *   ↓
+ * Tool Registry
+ *   ↓
+ * Answer Composer
+ *   ↓
+ * Validator
+ *   ↓
+ * Ответ
+ */
+
+
+/*
+ * ВАЖНО:
+ *
+ * dotenv загружаем ДО модулей Jessica,
+ * потому что инструменты читают process.env
+ * во время своей инициализации.
+ */
+import "dotenv/config";
+
 import express from "express";
-import OpenAI from "openai";
-import dotenv from "dotenv";
 
 
-dotenv.config();
+/*
+ * =========================================================
+ * TOOLS INITIALIZATION
+ * =========================================================
+ *
+ * При импорте initTools.js
+ * все инструменты регистрируются
+ * в Tool Registry.
+ */
+import "./tools/initTools.js";
 
 
-const app = express();
+/*
+ * =========================================================
+ * JESSICA CORE
+ * =========================================================
+ */
+
+import {
+    executeJessicaTask
+} from "./core/jessicaCore.js";
+
+
+/*
+ * Прямой доступ к Tool Registry
+ * нужен для служебных API:
+ *
+ * /api/search
+ * /api/fetch
+ * /api/health
+ */
+import {
+    executeTool,
+    getToolCount,
+    listTools
+} from "./tools/toolRegistry.js";
+
+
+/*
+ * =========================================================
+ * EXPRESS
+ * =========================================================
+ */
+
+
+const app =
+    express();
 
 
 app.use(
     express.json({
-        limit: "1mb"
+        limit:
+            "1mb"
     })
 );
-
-
-/*
- * =========================================================
- * AI CLIENTS
- * =========================================================
- */
-
-
-/*
- * OpenAI.
- * Платный резервный AI.
- */
-const openai =
-    process.env.OPENAI_API_KEY
-        ? new OpenAI({
-            apiKey:
-                process.env.OPENAI_API_KEY
-        })
-        : null;
-
-
-/*
- * Groq.
- * Основной бесплатный AI Jessica.
- */
-const groq =
-    process.env.GROQ_API_KEY
-        ? new OpenAI({
-            apiKey:
-                process.env.GROQ_API_KEY,
-
-            baseURL:
-                "https://api.groq.com/openai/v1"
-        })
-        : null;
 
 
 /*
@@ -59,20 +103,14 @@ const groq =
  */
 
 
+const port =
+    Number(
+        process.env.PORT
+    ) || 3000;
+
+
 const jessicaToken =
     process.env.JESSICA_APP_TOKEN || "";
-
-
-const tinyFishApiKey =
-    process.env.TINYFISH_API_KEY || "";
-
-
-const tinyFishSearchUrl =
-    "https://api.search.tinyfish.ai";
-
-
-const tinyFishFetchUrl =
-    "https://api.fetch.tinyfish.ai";
 
 
 /*
@@ -90,7 +128,10 @@ function checkJessicaAuthorization(
 
         return {
             success: false,
-            status: 503,
+
+            status:
+                503,
+
             text:
                 "Авторизация Jessica не настроена на сервере"
         };
@@ -111,7 +152,10 @@ function checkJessicaAuthorization(
 
         return {
             success: false,
-            status: 401,
+
+            status:
+                401,
+
             text:
                 "Неавторизованный запрос"
         };
@@ -128,1161 +172,42 @@ function checkJessicaAuthorization(
 
 /*
  * =========================================================
- * TASK ROUTER
+ * AUTH MIDDLEWARE
  * =========================================================
  */
 
 
-/*
- * Определяем запрос точного времени.
- *
- * Такие задачи НЕ нужно отправлять
- * в интернет-поиск.
- */
-function taskNeedsCurrentTime(
-    task
+function requireJessicaAuthorization(
+    req,
+    res,
+    next
 ) {
 
-    const text =
-        task.toLowerCase();
-
-
-    const timeMarkers = [
-        "который час",
-        "сколько времени",
-        "текущее время",
-        "время сейчас",
-        "сейчас времени",
-        "what time",
-        "current time"
-    ];
-
-
-    return timeMarkers.some(
-        marker =>
-            text.includes(
-                marker
-            )
-    );
-
-}
-
-
-/*
- * Определяем запрос текущей даты.
- */
-function taskNeedsCurrentDate(
-    task
-) {
-
-    const text =
-        task.toLowerCase();
-
-
-    const dateMarkers = [
-        "какое сегодня число",
-        "какая сегодня дата",
-        "дата сегодня",
-        "сегодняшняя дата",
-        "какой сегодня день",
-        "current date",
-        "today's date"
-    ];
-
-
-    return dateMarkers.some(
-        marker =>
-            text.includes(
-                marker
-            )
-    );
-
-}
-
-
-/*
- * Определяем часовой пояс по тексту.
- *
- * Пока это базовый словарь.
- * Его потом можно расширять.
- */
-function detectTimeZone(
-    task
-) {
-
-    const text =
-        task.toLowerCase();
-
-
-    const zones = [
-
-        {
-            markers: [
-                "ростов-на-дону",
-                "ростове-на-дону",
-                "ростове",
-                "москве",
-                "москва",
-                "санкт-петербург",
-                "петербург",
-                "спб",
-                "сочи",
-                "краснодар"
-            ],
-            zone:
-                "Europe/Moscow"
-        },
-
-        {
-            markers: [
-                "калининград"
-            ],
-            zone:
-                "Europe/Kaliningrad"
-        },
-
-        {
-            markers: [
-                "самара"
-            ],
-            zone:
-                "Europe/Samara"
-        },
-
-        {
-            markers: [
-                "екатеринбург",
-                "екб"
-            ],
-            zone:
-                "Asia/Yekaterinburg"
-        },
-
-        {
-            markers: [
-                "омск"
-            ],
-            zone:
-                "Asia/Omsk"
-        },
-
-        {
-            markers: [
-                "новосибирск",
-                "красноярск"
-            ],
-            zone:
-                "Asia/Krasnoyarsk"
-        },
-
-        {
-            markers: [
-                "иркутск"
-            ],
-            zone:
-                "Asia/Irkutsk"
-        },
-
-        {
-            markers: [
-                "якутск"
-            ],
-            zone:
-                "Asia/Yakutsk"
-        },
-
-        {
-            markers: [
-                "владивосток"
-            ],
-            zone:
-                "Asia/Vladivostok"
-        },
-
-        {
-            markers: [
-                "магадан"
-            ],
-            zone:
-                "Asia/Magadan"
-        },
-
-        {
-            markers: [
-                "камчатка",
-                "петропавловск-камчатский"
-            ],
-            zone:
-                "Asia/Kamchatka"
-        },
-
-        {
-            markers: [
-                "лондон"
-            ],
-            zone:
-                "Europe/London"
-        },
-
-        {
-            markers: [
-                "амстердам"
-            ],
-            zone:
-                "Europe/Amsterdam"
-        },
-
-        {
-            markers: [
-                "берлин"
-            ],
-            zone:
-                "Europe/Berlin"
-        },
-
-        {
-            markers: [
-                "париж"
-            ],
-            zone:
-                "Europe/Paris"
-        },
-
-        {
-            markers: [
-                "нью-йорк",
-                "нью йорк"
-            ],
-            zone:
-                "America/New_York"
-        },
-
-        {
-            markers: [
-                "лос-анджелес",
-                "лос анджелес"
-            ],
-            zone:
-                "America/Los_Angeles"
-        },
-
-        {
-            markers: [
-                "дубай"
-            ],
-            zone:
-                "Asia/Dubai"
-        },
-
-        {
-            markers: [
-                "токио"
-            ],
-            zone:
-                "Asia/Tokyo"
-        }
-
-    ];
-
-
-    for (
-        const item
-        of zones
-    ) {
-
-        if (
-            item.markers.some(
-                marker =>
-                    text.includes(
-                        marker
-                    )
-            )
-        ) {
-
-            return item.zone;
-
-        }
-
-    }
-
-
-    /*
-     * Jessica сейчас используется
-     * преимущественно в московском часовом поясе.
-     *
-     * Для запроса без города используем UTC,
-     * чтобы не выдавать ложное локальное время.
-     */
-    return null;
-
-}
-
-
-/*
- * Решение задачи времени без AI и веба.
- */
-function solveCurrentTime(
-    task
-) {
-
-    const timeZone =
-        detectTimeZone(
-            task
+    const auth =
+        checkJessicaAuthorization(
+            req
         );
 
 
-    if (!timeZone) {
+    if (!auth.success) {
 
-        return {
-            success: false,
-            text:
-                "Не удалось определить город или часовой пояс."
-        };
-
-    }
-
-
-    try {
-
-        const now =
-            new Date();
-
-
-        const time =
-            new Intl.DateTimeFormat(
-                "ru-RU",
-                {
-                    timeZone,
-                    hour:
-                        "2-digit",
-                    minute:
-                        "2-digit",
-                    second:
-                        "2-digit",
-                    hour12:
-                        false
-                }
-            ).format(
-                now
-            );
-
-
-        const date =
-            new Intl.DateTimeFormat(
-                "ru-RU",
-                {
-                    timeZone,
-                    day:
-                        "2-digit",
-                    month:
-                        "long",
-                    year:
-                        "numeric"
-                }
-            ).format(
-                now
-            );
-
-
-        return {
-            success: true,
-            text:
-                `Сейчас ${time}. Дата: ${date}.`,
-            timeZone
-        };
-
-
-    } catch (error) {
-
-        console.error(
-            "Time tool error:",
-            error
-        );
-
-
-        return {
-            success: false,
-            text:
-                "Не удалось определить текущее время."
-        };
-
-    }
-
-}
-
-
-/*
- * Решение задачи даты без AI и веба.
- */
-function solveCurrentDate(
-    task
-) {
-
-    const timeZone =
-        detectTimeZone(
-            task
-        ) ||
-        "Europe/Moscow";
-
-
-    try {
-
-        const now =
-            new Date();
-
-
-        const date =
-            new Intl.DateTimeFormat(
-                "ru-RU",
-                {
-                    timeZone,
-                    weekday:
-                        "long",
-                    day:
-                        "2-digit",
-                    month:
-                        "long",
-                    year:
-                        "numeric"
-                }
-            ).format(
-                now
-            );
-
-
-        return {
-            success: true,
-            text:
-                `Сегодня ${date}.`,
-            timeZone
-        };
-
-
-    } catch (error) {
-
-        console.error(
-            "Date tool error:",
-            error
-        );
-
-
-        return {
-            success: false,
-            text:
-                "Не удалось определить текущую дату."
-        };
-
-    }
-
-}
-
-
-/*
- * Определяем необходимость свежих
- * данных из интернета.
- */
-function taskNeedsInternet(
-    task
-) {
-
-    /*
-     * Время и дата имеют собственные инструменты.
-     */
-    if (
-        taskNeedsCurrentTime(
-            task
-        ) ||
-        taskNeedsCurrentDate(
-            task
-        )
-    ) {
-
-        return false;
-
-    }
-
-
-    const text =
-        task.toLowerCase();
-
-
-    const markers = [
-
-        "сегодня",
-        "сейчас",
-        "актуальн",
-        "последн",
-        "свеж",
-        "новост",
-
-        "найди",
-        "найти",
-        "поищи",
-        "поиск",
-
-        "в интернете",
-        "на сайте",
-        "сайт",
-
-        "цена",
-        "стоимость",
-        "сколько стоит",
-
-        "курс валют",
-        "курс доллара",
-        "курс евро",
-
-        "погода",
-        "температура",
-        "осадки",
-
-        "расписание",
-        "рейс",
-        "поезд",
-        "самолет",
-
-        "где купить",
-        "в наличии",
-
-        "latest",
-        "today",
-        "current",
-        "news",
-        "search",
-        "find online",
-        "website"
-
-    ];
-
-
-    return markers.some(
-        marker =>
-            text.includes(
-                marker
+        return res
+            .status(
+                auth.status
             )
-    );
+            .json({
 
-}
-
-
-/*
- * =========================================================
- * TINYFISH SEARCH
- * =========================================================
- */
-
-
-async function searchWeb(
-    query
-) {
-
-    if (!tinyFishApiKey) {
-
-        return {
-            success: false,
-            text:
-                "TinyFish Search не настроен",
-            results: []
-        };
-
-    }
-
-
-    try {
-
-        const url =
-            new URL(
-                tinyFishSearchUrl
-            );
-
-
-        url.searchParams.set(
-            "query",
-            query
-        );
-
-
-        const response =
-            await fetch(
-                url,
-                {
-                    method:
-                        "GET",
-
-                    headers: {
-                        "X-API-Key":
-                            tinyFishApiKey
-                    },
-
-                    signal:
-                        AbortSignal.timeout(
-                            30000
-                        )
-                }
-            );
-
-
-        const rawText =
-            await response.text();
-
-
-        if (!response.ok) {
-
-            console.error(
-                "TinyFish Search error:",
-                response.status,
-                rawText
-            );
-
-
-            return {
                 success: false,
+
                 text:
-                    `Ошибка TinyFish Search: HTTP ${response.status}`,
-                results: []
-            };
-
-        }
-
-
-        let data;
-
-
-        try {
-
-            data =
-                JSON.parse(
-                    rawText
-                );
-
-        } catch {
-
-            return {
-                success: false,
-                text:
-                    "TinyFish Search вернул некорректный ответ",
-                results: []
-            };
-
-        }
-
-
-        const results =
-            Array.isArray(
-                data.results
-            )
-                ? data.results
-                : [];
-
-
-        return {
-            success: true,
-            text:
-                `Найдено результатов: ${results.length}`,
-            results
-        };
-
-
-    } catch (error) {
-
-        console.error(
-            "TinyFish Search exception:",
-            error
-        );
-
-
-        return {
-            success: false,
-            text:
-                "Не удалось выполнить интернет-поиск",
-            results: []
-        };
-
-    }
-
-}
-
-
-/*
- * =========================================================
- * TINYFISH FETCH
- * =========================================================
- */
-
-
-async function fetchWebPage(
-    url
-) {
-
-    if (!tinyFishApiKey) {
-
-        return {
-            success: false,
-            text:
-                "TinyFish Fetch не настроен"
-        };
-
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                tinyFishFetchUrl,
-                {
-                    method:
-                        "POST",
-
-                    headers: {
-
-                        "X-API-Key":
-                            tinyFishApiKey,
-
-                        "Content-Type":
-                            "application/json"
-
-                    },
-
-                    body:
-                        JSON.stringify({
-
-                            urls: [
-                                url
-                            ],
-
-                            format:
-                                "markdown"
-
-                        }),
-
-                    signal:
-                        AbortSignal.timeout(
-                            45000
-                        )
-                }
-            );
-
-
-        const rawText =
-            await response.text();
-
-
-        if (!response.ok) {
-
-            console.error(
-                "TinyFish Fetch error:",
-                response.status,
-                rawText
-            );
-
-
-            return {
-                success: false,
-                text:
-                    `Ошибка TinyFish Fetch: HTTP ${response.status}`
-            };
-
-        }
-
-
-        let data;
-
-
-        try {
-
-            data =
-                JSON.parse(
-                    rawText
-                );
-
-        } catch {
-
-            return {
-                success: false,
-                text:
-                    "TinyFish Fetch вернул некорректный ответ"
-            };
-
-        }
-
-
-        const result =
-            Array.isArray(
-                data.results
-            )
-                ? data.results[0]
-                : null;
-
-
-        if (!result) {
-
-            return {
-                success: false,
-                text:
-                    "TinyFish не смог получить содержимое страницы"
-            };
-
-        }
-
-
-        return {
-            success: true,
-
-            title:
-                result.title || "",
-
-            url:
-                result.url || url,
-
-            text:
-                result.text || ""
-        };
-
-
-    } catch (error) {
-
-        console.error(
-            "TinyFish Fetch exception:",
-            error
-        );
-
-
-        return {
-            success: false,
-            text:
-                "Не удалось загрузить страницу"
-        };
-
-    }
-
-}
-
-
-/*
- * =========================================================
- * SEARCH FORMATTING
- * =========================================================
- */
-
-
-function formatSearchResults(
-    results
-) {
-
-    if (
-        !results ||
-        results.length === 0
-    ) {
-
-        return "";
-
-    }
-
-
-    return results
-        .slice(
-            0,
-            8
-        )
-        .map(
-            (
-                item,
-                index
-            ) => {
-
-                const title =
-                    item.title ||
-                    "Без названия";
-
-
-                const snippet =
-                    item.snippet ||
-                    item.description ||
-                    "";
-
-
-                const url =
-                    item.url ||
-                    "";
-
-
-                return (
-                    `[Источник ${index + 1}]\n` +
-                    `Название: ${title}\n` +
-                    `Фрагмент: ${snippet}\n` +
-                    `URL: ${url}`
-                );
-
-            }
-        )
-        .join(
-            "\n\n"
-        );
-
-}
-
-
-/*
- * =========================================================
- * GROQ
- * =========================================================
- */
-
-
-async function solveWithGroq(
-    task,
-    webContext = ""
-) {
-
-    if (!groq) {
-
-        return {
-            success: false,
-            text:
-                "Groq не настроен"
-        };
-
-    }
-
-
-    try {
-
-        let input =
-            task;
-
-
-        if (webContext) {
-
-            input =
-                (
-                    `ЗАДАЧА ПОЛЬЗОВАТЕЛЯ:\n` +
-                    `${task}\n\n` +
-
-                    `РЕЗУЛЬТАТЫ ИНТЕРНЕТ-ПОИСКА:\n` +
-                    `${webContext}\n\n` +
-
-                    `Используй эти данные для ответа. ` +
-                    `Оценивай актуальность и непротиворечивость источников. ` +
-                    `Не придумывай отсутствующие сведения. ` +
-                    `Если данные противоречат друг другу, не выбирай случайное значение. ` +
-                    `Объясни неопределённость кратко.`
-                );
-
-        }
-
-
-        const response =
-            await groq.responses.create({
-
-                model:
-                    "openai/gpt-oss-20b",
-
-                instructions:
-                    (
-                        "Ты — основной AI-движок системы Jessica Core. " +
-
-                        "Твоя задача — давать пользователю готовый полезный ответ, " +
-                        "а не описывать процесс рассуждений. " +
-
-                        "Отвечай на языке пользователя. " +
-
-                        "Не используй Markdown-таблицы с символами |, " +
-                        "потому что Android-интерфейс Jessica пока не отображает их корректно. " +
-
-                        "Для простого вопроса отвечай кратко. " +
-                        "Для сложной задачи можешь отвечать подробно. " +
-
-                        "Если Jessica передала результаты интернет-поиска, " +
-                        "используй их только как источники данных. " +
-
-                        "Не перечисляй все найденные источники без необходимости. " +
-                        "Сначала дай пользователю прямой ответ. " +
-
-                        "Не утверждай, что выполнила действие во внешней системе, " +
-                        "если оно фактически не было выполнено. " +
-
-                        "Не выдумывай актуальные факты. " +
-
-                        "Если информации недостаточно, прямо скажи об этом."
-                    ),
-
-                input,
-
-                reasoning: {
-                    effort:
-                        "medium"
-                }
+                    auth.text
 
             });
 
-
-        const answer =
-            response.output_text
-                ?.trim();
-
-
-        if (!answer) {
-
-            return {
-                success: false,
-                text:
-                    "Groq вернул пустой ответ"
-            };
-
-        }
-
-
-        return {
-            success: true,
-            text:
-                answer
-        };
-
-
-    } catch (error) {
-
-        console.error(
-            "Groq error:",
-            error
-        );
-
-
-        return {
-            success: false,
-
-            status:
-                error?.status || 0,
-
-            text:
-                "Groq не смог выполнить задачу"
-        };
-
-    }
-
-}
-
-
-/*
- * =========================================================
- * OPENAI FALLBACK
- * =========================================================
- */
-
-
-async function solveWithOpenAI(
-    task,
-    webContext = ""
-) {
-
-    if (!openai) {
-
-        return {
-            success: false,
-            text:
-                "OpenAI не настроен"
-        };
-
     }
 
 
-    try {
-
-        let input =
-            task;
-
-
-        if (webContext) {
-
-            input =
-                (
-                    `ЗАДАЧА ПОЛЬЗОВАТЕЛЯ:\n` +
-                    `${task}\n\n` +
-
-                    `РЕЗУЛЬТАТЫ ИНТЕРНЕТ-ПОИСКА:\n` +
-                    `${webContext}`
-                );
-
-        }
-
-
-        const response =
-            await openai.responses.create({
-
-                model:
-                    "gpt-5.6-sol",
-
-                instructions:
-                    (
-                        "Ты — резервный AI-движок Jessica Core. " +
-                        "Дай готовый точный ответ на языке пользователя. " +
-                        "Не используй Markdown-таблицы. " +
-                        "Не выдумывай данные. " +
-                        "Не утверждай, что выполнила внешнее действие, " +
-                        "если оно фактически не выполнялось."
-                    ),
-
-                input
-
-            });
-
-
-        const answer =
-            response.output_text
-                ?.trim();
-
-
-        if (!answer) {
-
-            return {
-                success: false,
-                text:
-                    "OpenAI вернул пустой ответ"
-            };
-
-        }
-
-
-        return {
-            success: true,
-            text:
-                answer
-        };
-
-
-    } catch (error) {
-
-        console.error(
-            "OpenAI error:",
-            error
-        );
-
-
-        if (
-            error?.status === 429
-        ) {
-
-            return {
-                success: false,
-                status: 429,
-                text:
-                    "Баланс OpenAI API исчерпан."
-            };
-
-        }
-
-
-        return {
-            success: false,
-
-            status:
-                error?.status || 0,
-
-            text:
-                "OpenAI не смог выполнить задачу"
-        };
-
-    }
+    next();
 
 }
 
@@ -1306,10 +231,13 @@ app.get(
             success: true,
 
             service:
-                "Jessica Backend",
+                "Jessica Core",
+
+            version:
+                "1.0",
 
             status:
-                "online"
+                "running"
 
         });
 
@@ -1321,6 +249,12 @@ app.get(
  * =========================================================
  * HEALTH
  * =========================================================
+ *
+ * Здесь специально НЕ выводятся
+ * значения API-ключей.
+ *
+ * Показывается только:
+ * настроен сервис или нет.
  */
 
 
@@ -1331,30 +265,59 @@ app.get(
         res
     ) => {
 
+        const tools =
+            listTools();
+
+
         res.json({
 
             success: true,
 
             service:
-                "Jessica Backend",
+                "Jessica Core",
 
-            status:
-                "ok",
+            version:
+                "1.0",
 
-            appAuthConfigured:
-                jessicaToken.length > 0,
+            architecture:
+                "planner-runner-tools-composer-validator",
 
-            tinyFishConfigured:
-                tinyFishApiKey.length > 0,
+            configured: {
 
-            groqConfigured:
-                groq !== null,
+                appToken:
+                    Boolean(
+                        process.env.JESSICA_APP_TOKEN
+                    ),
 
-            openAIConfigured:
-                openai !== null,
+                groq:
+                    Boolean(
+                        process.env.GROQ_API_KEY
+                    ),
 
-            routerVersion:
-                "0.2"
+                tinyFish:
+                    Boolean(
+                        process.env.TINYFISH_API_KEY
+                    ),
+
+                openAI:
+                    Boolean(
+                        process.env.OPENAI_API_KEY
+                    )
+
+            },
+
+            tools: {
+
+                count:
+                    getToolCount(),
+
+                registered:
+                    tools.map(
+                        tool =>
+                            tool.name
+                    )
+
+            }
 
         });
 
@@ -1364,197 +327,23 @@ app.get(
 
 /*
  * =========================================================
- * SEARCH
+ * DIRECT SEARCH API
  * =========================================================
+ *
+ * Сохраняем старый endpoint,
+ * чтобы ничего не сломать.
+ *
+ * Но теперь он НЕ содержит
+ * собственную реализацию TinyFish.
+ *
+ * Он использует Tool Registry.
  */
 
 
 app.post(
     "/api/search",
-    async (
-        req,
-        res
-    ) => {
+    requireJessicaAuthorization,
 
-        const auth =
-            checkJessicaAuthorization(
-                req
-            );
-
-
-        if (!auth.success) {
-
-            return res
-                .status(
-                    auth.status
-                )
-                .json({
-
-                    success: false,
-
-                    text:
-                        auth.text
-
-                });
-
-        }
-
-
-        const query =
-            typeof req.body?.query ===
-            "string"
-                ? req.body.query.trim()
-                : "";
-
-
-        if (!query) {
-
-            return res
-                .status(400)
-                .json({
-
-                    success: false,
-
-                    text:
-                        "Поисковый запрос не указан"
-
-                });
-
-        }
-
-
-        const result =
-            await searchWeb(
-                query
-            );
-
-
-        if (!result.success) {
-
-            return res
-                .status(502)
-                .json(
-                    result
-                );
-
-        }
-
-
-        return res.json({
-
-            success: true,
-
-            query,
-
-            text:
-                formatSearchResults(
-                    result.results
-                ),
-
-            results:
-                result.results
-
-        });
-
-    }
-);
-
-
-/*
- * =========================================================
- * FETCH
- * =========================================================
- */
-
-
-app.post(
-    "/api/fetch",
-    async (
-        req,
-        res
-    ) => {
-
-        const auth =
-            checkJessicaAuthorization(
-                req
-            );
-
-
-        if (!auth.success) {
-
-            return res
-                .status(
-                    auth.status
-                )
-                .json({
-
-                    success: false,
-
-                    text:
-                        auth.text
-
-                });
-
-        }
-
-
-        const url =
-            typeof req.body?.url ===
-            "string"
-                ? req.body.url.trim()
-                : "";
-
-
-        if (!url) {
-
-            return res
-                .status(400)
-                .json({
-
-                    success: false,
-
-                    text:
-                        "URL не указан"
-
-                });
-
-        }
-
-
-        const result =
-            await fetchWebPage(
-                url
-            );
-
-
-        if (!result.success) {
-
-            return res
-                .status(502)
-                .json(
-                    result
-                );
-
-        }
-
-
-        return res.json(
-            result
-        );
-
-    }
-);
-
-
-/*
- * =========================================================
- * SOLVE
- * =========================================================
- */
-
-
-app.post(
-    "/api/solve",
     async (
         req,
         res
@@ -1562,33 +351,204 @@ app.post(
 
         try {
 
-            const auth =
-                checkJessicaAuthorization(
-                    req
-                );
+            const query =
+                typeof req.body?.query === "string"
+                    ? req.body.query.trim()
+                    : "";
 
 
-            if (!auth.success) {
+            if (!query) {
 
                 return res
                     .status(
-                        auth.status
+                        400
                     )
                     .json({
 
                         success: false,
 
                         text:
-                            auth.text
+                            "Не указан поисковый запрос"
 
                     });
 
             }
 
 
+            const result =
+                await executeTool(
+                    "web_search",
+                    {
+                        query
+                    }
+                );
+
+
+            return res
+                .status(
+                    result.success
+                        ? 200
+                        : 502
+                )
+                .json(
+                    result
+                );
+
+
+        } catch (error) {
+
+            console.error(
+                "/api/search error:",
+                error
+            );
+
+
+            return res
+                .status(
+                    500
+                )
+                .json({
+
+                    success: false,
+
+                    text:
+                        "Внутренняя ошибка интернет-поиска"
+
+                });
+
+        }
+
+    }
+);
+
+
+/*
+ * =========================================================
+ * DIRECT FETCH API
+ * =========================================================
+ *
+ * Аналогично /api/search:
+ * endpoint сохраняется,
+ * но реальная работа выполняется
+ * зарегистрированным инструментом.
+ */
+
+
+app.post(
+    "/api/fetch",
+    requireJessicaAuthorization,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const url =
+                typeof req.body?.url === "string"
+                    ? req.body.url.trim()
+                    : "";
+
+
+            if (!url) {
+
+                return res
+                    .status(
+                        400
+                    )
+                    .json({
+
+                        success: false,
+
+                        text:
+                            "Не указан URL"
+
+                    });
+
+            }
+
+
+            const result =
+                await executeTool(
+                    "web_fetch",
+                    {
+                        url
+                    }
+                );
+
+
+            return res
+                .status(
+                    result.success
+                        ? 200
+                        : 502
+                )
+                .json(
+                    result
+                );
+
+
+        } catch (error) {
+
+            console.error(
+                "/api/fetch error:",
+                error
+            );
+
+
+            return res
+                .status(
+                    500
+                )
+                .json({
+
+                    success: false,
+
+                    text:
+                        "Внутренняя ошибка загрузки страницы"
+
+                });
+
+        }
+
+    }
+);
+
+
+/*
+ * =========================================================
+ * JESSICA SOLVE API
+ * =========================================================
+ *
+ * Это теперь ГЛАВНАЯ точка новой архитектуры.
+ *
+ * Здесь больше НЕТ:
+ *
+ * taskNeedsInternet()
+ * taskNeedsCurrentTime()
+ * detectTimeZone()
+ * словарей городов
+ * ручного выбора инструмента
+ * ручного маршрута Groq → TinyFish
+ *
+ * Всё решает Jessica Core.
+ */
+
+
+app.post(
+    "/api/solve",
+    requireJessicaAuthorization,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
             const task =
-                typeof req.body?.task ===
-                "string"
+                typeof req.body?.task === "string"
                     ? req.body.task.trim()
                     : "";
 
@@ -1596,7 +556,9 @@ app.post(
             if (!task) {
 
                 return res
-                    .status(400)
+                    .status(
+                        400
+                    )
                     .json({
 
                         success: false,
@@ -1610,274 +572,163 @@ app.post(
 
 
             /*
-             * =================================================
-             * 1. DIRECT TOOLS
-             * =================================================
+             * Ограничение защищает backend
+             * от случайной отправки огромных данных.
              *
-             * Сначала Jessica пытается решить задачу
-             * собственным специализированным инструментом.
+             * Позже большие документы будут
+             * обрабатываться отдельными инструментами.
              */
-
-
             if (
-                taskNeedsCurrentTime(
-                    task
-                )
+                task.length >
+                20000
             ) {
 
-                const timeResult =
-                    solveCurrentTime(
-                        task
-                    );
+                return res
+                    .status(
+                        413
+                    )
+                    .json({
 
-
-                if (
-                    timeResult.success
-                ) {
-
-                    return res.json({
-
-                        success: true,
+                        success: false,
 
                         text:
-                            timeResult.text,
-
-                        engine:
-                            "jessica-time",
-
-                        webUsed:
-                            false,
-
-                        paidAIUsed:
-                            false
+                            "Задача слишком большого объёма"
 
                     });
 
-                }
-
             }
 
 
-            if (
-                taskNeedsCurrentDate(
-                    task
-                )
-            ) {
-
-                const dateResult =
-                    solveCurrentDate(
-                        task
-                    );
-
-
-                if (
-                    dateResult.success
-                ) {
-
-                    return res.json({
-
-                        success: true,
-
-                        text:
-                            dateResult.text,
-
-                        engine:
-                            "jessica-date",
-
-                        webUsed:
-                            false,
-
-                        paidAIUsed:
-                            false
-
-                    });
-
-                }
-
-            }
+            console.log(
+                "Jessica task:",
+                task
+            );
 
 
             /*
              * =================================================
-             * 2. ROUTING
+             * НОВОЕ ЯДРО
              * =================================================
              */
 
 
-            const needsInternet =
-                taskNeedsInternet(
+            const result =
+                await executeJessicaTask(
                     task
                 );
 
 
-            let webContext = "";
-
-
-            let webUsed =
-                false;
-
-
             /*
-             * =================================================
-             * 3. FREE WEB
-             * =================================================
+             * Пользовательское уточнение —
+             * это не внутренняя ошибка сервера.
              */
-
-
             if (
-                needsInternet &&
-                tinyFishApiKey
+                result.needsClarification === true
             ) {
 
-                const searchResult =
-                    await searchWeb(
-                        task
+                return res
+                    .status(
+                        200
+                    )
+                    .json(
+                        result
                     );
 
-
-                if (
-                    searchResult.success &&
-                    searchResult.results.length > 0
-                ) {
-
-                    webContext =
-                        formatSearchResults(
-                            searchResult.results
-                        );
-
-
-                    webUsed =
-                        true;
-
-                }
-
             }
 
 
             /*
-             * =================================================
-             * 4. FREE AI
-             * =================================================
+             * Jessica смогла выполнить задачу.
              */
-
-
-            const groqResult =
-                await solveWithGroq(
-                    task,
-                    webContext
-                );
-
-
             if (
-                groqResult.success
+                result.success === true
             ) {
 
-                return res.json({
-
-                    success: true,
-
-                    text:
-                        groqResult.text,
-
-                    engine:
-                        "groq",
-
-                    webUsed,
-
-                    paidAIUsed:
-                        false
-
-                });
+                return res
+                    .status(
+                        200
+                    )
+                    .json(
+                        result
+                    );
 
             }
 
 
             /*
-             * =================================================
-             * 5. PAID AI FALLBACK
-             * =================================================
+             * Ошибка выполнения Jessica.
              *
-             * OpenAI вызывается только тогда,
-             * когда Groq действительно не смог
-             * выполнить задачу.
-             */
-
-
-            const openAIResult =
-                await solveWithOpenAI(
-                    task,
-                    webContext
-                );
-
-
-            if (
-                openAIResult.success
-            ) {
-
-                return res.json({
-
-                    success: true,
-
-                    text:
-                        openAIResult.text,
-
-                    engine:
-                        "openai",
-
-                    webUsed,
-
-                    paidAIUsed:
-                        true
-
-                });
-
-            }
-
-
-            /*
-             * Все способы исчерпаны.
+             * Пока возвращаем 200,
+             * потому что Android-клиент уже умеет
+             * ориентироваться на поле success.
+             *
+             * Это позволяет не ломать
+             * существующий JessicaAIEngine.kt.
              */
             return res
-                .status(502)
-                .json({
-
-                    success: false,
-
-                    text:
-                        (
-                            "Jessica не смогла выполнить задачу. " +
-                            `Groq: ${groqResult.text} ` +
-                            `OpenAI: ${openAIResult.text}`
-                        ),
-
-                    webUsed,
-
-                    paidAIUsed:
-                        false
-
-                });
+                .status(
+                    200
+                )
+                .json(
+                    result
+                );
 
 
         } catch (error) {
 
             console.error(
-                "Solve endpoint error:",
+                "/api/solve error:",
                 error
             );
 
 
             return res
-                .status(500)
+                .status(
+                    500
+                )
                 .json({
 
                     success: false,
 
+                    stage:
+                        "server",
+
                     text:
-                        "Внутренняя ошибка Jessica Backend"
+                        "Внутренняя ошибка Jessica Core"
 
                 });
 
         }
+
+    }
+);
+
+
+/*
+ * =========================================================
+ * 404
+ * =========================================================
+ */
+
+
+app.use(
+    (
+        req,
+        res
+    ) => {
+
+        res
+            .status(
+                404
+            )
+            .json({
+
+                success: false,
+
+                text:
+                    "Endpoint не найден"
+
+            });
 
     }
 );
@@ -1890,16 +741,26 @@ app.post(
  */
 
 
-const port =
-    process.env.PORT || 3000;
-
-
 app.listen(
     port,
     () => {
 
+        const tools =
+            listTools()
+                .map(
+                    tool =>
+                        tool.name
+                );
+
+
         console.log(
-            `Jessica Backend started on port ${port}`
+            `Jessica Core started on port ${port}`
+        );
+
+
+        console.log(
+            `Jessica tools (${tools.length}):`,
+            tools.join(", ")
         );
 
     }
