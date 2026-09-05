@@ -19,7 +19,7 @@ app.use(
 
 /*
  * OpenAI.
- * Используется как резервный AI-движок.
+ * Платный резервный AI.
  */
 const openai =
     process.env.OPENAI_API_KEY
@@ -31,14 +31,33 @@ const openai =
 
 
 /*
- * Токен Android-приложения Jessica.
+ * Groq.
+ * Основной бесплатный AI Jessica.
+ *
+ * Groq совместим с OpenAI Responses API.
+ */
+const groq =
+    process.env.GROQ_API_KEY
+        ? new OpenAI({
+            apiKey:
+                process.env.GROQ_API_KEY,
+
+            baseURL:
+                "https://api.groq.com/openai/v1"
+        })
+        : null;
+
+
+/*
+ * Авторизация Android-приложения.
  */
 const jessicaToken =
     process.env.JESSICA_APP_TOKEN || "";
 
 
 /*
- * TinyFish API.
+ * TinyFish.
+ * Бесплатный интернет-поиск.
  */
 const tinyFishApiKey =
     process.env.TINYFISH_API_KEY || "";
@@ -53,9 +72,15 @@ const tinyFishFetchUrl =
 
 
 /*
- * Проверка авторизации Jessica.
+ * =========================================================
+ * AUTH
+ * =========================================================
  */
-function checkJessicaAuthorization(req) {
+
+
+function checkJessicaAuthorization(
+    req
+) {
 
     if (!jessicaToken) {
 
@@ -98,8 +123,78 @@ function checkJessicaAuthorization(req) {
 
 
 /*
- * Бесплатный интернет-поиск TinyFish.
+ * =========================================================
+ * INTERNET DETECTION
+ * =========================================================
  */
+
+
+/*
+ * Простая первая версия определения,
+ * нужны ли задаче свежие данные из интернета.
+ *
+ * Позже это решение будет принимать
+ * Planner / Development Core.
+ */
+function taskNeedsInternet(
+    task
+) {
+
+    const text =
+        task.toLowerCase();
+
+
+    const markers = [
+
+        "сегодня",
+        "сейчас",
+        "актуальн",
+        "последн",
+        "новост",
+        "найди",
+        "найти",
+        "поиск",
+        "поищи",
+        "интернет",
+        "в интернете",
+        "на сайте",
+        "сайт",
+        "цена",
+        "стоимость",
+        "курс",
+        "погода",
+        "расписание",
+        "где купить",
+        "в наличии",
+        "2026",
+        "latest",
+        "today",
+        "current",
+        "news",
+        "search",
+        "find online",
+        "website"
+
+    ];
+
+
+    return markers.some(
+        marker =>
+            text.includes(
+                marker
+            )
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * TINYFISH SEARCH
+ * =========================================================
+ */
+
+
 async function searchWeb(
     query
 ) {
@@ -134,7 +229,8 @@ async function searchWeb(
             await fetch(
                 url,
                 {
-                    method: "GET",
+                    method:
+                        "GET",
 
                     headers: {
                         "X-API-Key":
@@ -231,8 +327,12 @@ async function searchWeb(
 
 
 /*
- * Бесплатное чтение страницы TinyFish Fetch.
+ * =========================================================
+ * TINYFISH FETCH
+ * =========================================================
  */
+
+
 async function fetchWebPage(
     url
 ) {
@@ -254,23 +354,29 @@ async function fetchWebPage(
             await fetch(
                 tinyFishFetchUrl,
                 {
-                    method: "POST",
+                    method:
+                        "POST",
 
                     headers: {
+
                         "X-API-Key":
                             tinyFishApiKey,
 
                         "Content-Type":
                             "application/json"
+
                     },
 
                     body:
                         JSON.stringify({
+
                             urls: [
                                 url
                             ],
+
                             format:
                                 "markdown"
+
                         }),
 
                     signal:
@@ -345,10 +451,13 @@ async function fetchWebPage(
 
         return {
             success: true,
+
             title:
                 result.title || "",
+
             url:
                 result.url || url,
+
             text:
                 result.text || ""
         };
@@ -374,8 +483,12 @@ async function fetchWebPage(
 
 
 /*
- * Формирование читаемого результата поиска.
+ * =========================================================
+ * SEARCH FORMATTING
+ * =========================================================
  */
+
+
 function formatSearchResults(
     results
 ) {
@@ -385,7 +498,7 @@ function formatSearchResults(
         results.length === 0
     ) {
 
-        return "Ничего не найдено.";
+        return "";
 
     }
 
@@ -393,7 +506,7 @@ function formatSearchResults(
     return results
         .slice(
             0,
-            10
+            8
         )
         .map(
             (
@@ -408,6 +521,7 @@ function formatSearchResults(
 
                 const snippet =
                     item.snippet ||
+                    item.description ||
                     "";
 
 
@@ -417,9 +531,10 @@ function formatSearchResults(
 
 
                 return (
-                    `${index + 1}. ${title}\n` +
-                    `${snippet}\n` +
-                    `${url}`
+                    `[Источник ${index + 1}]\n` +
+                    `Название: ${title}\n` +
+                    `Фрагмент: ${snippet}\n` +
+                    `URL: ${url}`
                 );
 
             }
@@ -432,18 +547,271 @@ function formatSearchResults(
 
 
 /*
- * Главная страница backend.
+ * =========================================================
+ * GROQ
+ * =========================================================
  */
+
+
+async function solveWithGroq(
+    task,
+    webContext = ""
+) {
+
+    if (!groq) {
+
+        return {
+            success: false,
+            text:
+                "Groq не настроен"
+        };
+
+    }
+
+
+    try {
+
+        let input =
+            task;
+
+
+        if (webContext) {
+
+            input =
+                (
+                    `ЗАДАЧА ПОЛЬЗОВАТЕЛЯ:\n` +
+                    `${task}\n\n` +
+
+                    `ДАННЫЕ ИЗ ИНТЕРНЕТ-ПОИСКА:\n` +
+                    `${webContext}\n\n` +
+
+                    `Используй результаты поиска только как источники данных. ` +
+                    `Не придумывай информацию, которой в них нет. ` +
+                    `Если источники противоречат друг другу, укажи это.`
+                );
+
+        }
+
+
+        const response =
+            await groq.responses.create({
+
+                model:
+                    "openai/gpt-oss-20b",
+
+                instructions:
+                    (
+                        "Ты являешься основным бесплатным AI-движком системы Jessica Core. " +
+                        "Решай задачу самостоятельно, точно и полезно. " +
+                        "Отвечай на языке пользователя. " +
+                        "Используй предоставленные Jessica данные и результаты интернет-поиска. " +
+                        "Не утверждай, что совершила внешнее действие, если фактически оно не было выполнено. " +
+                        "Если информации недостаточно, прямо скажи об этом."
+                    ),
+
+                input,
+
+                reasoning: {
+                    effort:
+                        "medium"
+                }
+
+            });
+
+
+        const answer =
+            response.output_text
+                ?.trim();
+
+
+        if (!answer) {
+
+            return {
+                success: false,
+                text:
+                    "Groq вернул пустой ответ"
+            };
+
+        }
+
+
+        return {
+            success: true,
+            text:
+                answer
+        };
+
+
+    } catch (error) {
+
+        console.error(
+            "Groq error:",
+            error
+        );
+
+
+        return {
+            success: false,
+
+            status:
+                error?.status || 0,
+
+            text:
+                "Groq не смог выполнить задачу"
+        };
+
+    }
+
+}
+
+
+/*
+ * =========================================================
+ * OPENAI FALLBACK
+ * =========================================================
+ */
+
+
+async function solveWithOpenAI(
+    task,
+    webContext = ""
+) {
+
+    if (!openai) {
+
+        return {
+            success: false,
+            text:
+                "OpenAI не настроен"
+        };
+
+    }
+
+
+    try {
+
+        let input =
+            task;
+
+
+        if (webContext) {
+
+            input =
+                (
+                    `ЗАДАЧА ПОЛЬЗОВАТЕЛЯ:\n` +
+                    `${task}\n\n` +
+
+                    `ДАННЫЕ ИЗ ИНТЕРНЕТ-ПОИСКА:\n` +
+                    `${webContext}`
+                );
+
+        }
+
+
+        const response =
+            await openai.responses.create({
+
+                model:
+                    "gpt-5.6-sol",
+
+                instructions:
+                    (
+                        "Ты являешься резервным AI-движком системы Jessica Core. " +
+                        "Используйся только тогда, когда бесплатные возможности Jessica не справились. " +
+                        "Выполняй задачу точно, полезно и по существу. " +
+                        "Отвечай на языке пользователя. " +
+                        "Не утверждай, что совершила внешние действия, если они фактически не выполнялись."
+                    ),
+
+                input
+
+            });
+
+
+        const answer =
+            response.output_text
+                ?.trim();
+
+
+        if (!answer) {
+
+            return {
+                success: false,
+                text:
+                    "OpenAI вернул пустой ответ"
+            };
+
+        }
+
+
+        return {
+            success: true,
+            text:
+                answer
+        };
+
+
+    } catch (error) {
+
+        console.error(
+            "OpenAI error:",
+            error
+        );
+
+
+        if (
+            error?.status === 429
+        ) {
+
+            return {
+                success: false,
+                status: 429,
+                text:
+                    "Баланс OpenAI API исчерпан."
+            };
+
+        }
+
+
+        return {
+            success: false,
+
+            status:
+                error?.status || 0,
+
+            text:
+                "OpenAI не смог выполнить задачу"
+        };
+
+    }
+
+}
+
+
+/*
+ * =========================================================
+ * ROOT
+ * =========================================================
+ */
+
+
 app.get(
     "/",
-    (req, res) => {
+    (
+        req,
+        res
+    ) => {
 
         res.json({
+
             success: true,
+
             service:
                 "Jessica Backend",
+
             status:
                 "online"
+
         });
 
     }
@@ -451,27 +819,41 @@ app.get(
 
 
 /*
- * Проверка состояния backend.
+ * =========================================================
+ * HEALTH
+ * =========================================================
  */
+
+
 app.get(
     "/api/health",
-    (req, res) => {
+    (
+        req,
+        res
+    ) => {
 
         res.json({
+
             success: true,
+
             service:
                 "Jessica Backend",
+
             status:
                 "ok",
-
-            aiConfigured:
-                openai !== null,
 
             appAuthConfigured:
                 jessicaToken.length > 0,
 
             tinyFishConfigured:
-                tinyFishApiKey.length > 0
+                tinyFishApiKey.length > 0,
+
+            groqConfigured:
+                groq !== null,
+
+            openAIConfigured:
+                openai !== null
+
         });
 
     }
@@ -479,15 +861,18 @@ app.get(
 
 
 /*
- * Отдельный endpoint интернет-поиска.
- *
- * Пока нужен для тестирования.
- * Позже Jessica будет вызывать его
- * самостоятельно через Planner.
+ * =========================================================
+ * SEARCH
+ * =========================================================
  */
+
+
 app.post(
     "/api/search",
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         const auth =
             checkJessicaAuthorization(
@@ -502,9 +887,12 @@ app.post(
                     auth.status
                 )
                 .json({
+
                     success: false,
+
                     text:
                         auth.text
+
                 });
 
         }
@@ -522,9 +910,12 @@ app.post(
             return res
                 .status(400)
                 .json({
+
                     success: false,
+
                     text:
                         "Поисковый запрос не указан"
+
                 });
 
         }
@@ -540,20 +931,27 @@ app.post(
 
             return res
                 .status(502)
-                .json(result);
+                .json(
+                    result
+                );
 
         }
 
 
         return res.json({
+
             success: true,
+
             query,
+
             text:
                 formatSearchResults(
                     result.results
                 ),
+
             results:
                 result.results
+
         });
 
     }
@@ -561,11 +959,18 @@ app.post(
 
 
 /*
- * Endpoint чтения интернет-страницы.
+ * =========================================================
+ * FETCH
+ * =========================================================
  */
+
+
 app.post(
     "/api/fetch",
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         const auth =
             checkJessicaAuthorization(
@@ -580,9 +985,12 @@ app.post(
                     auth.status
                 )
                 .json({
+
                     success: false,
+
                     text:
                         auth.text
+
                 });
 
         }
@@ -600,9 +1008,12 @@ app.post(
             return res
                 .status(400)
                 .json({
+
                     success: false,
+
                     text:
                         "URL не указан"
+
                 });
 
         }
@@ -618,36 +1029,34 @@ app.post(
 
             return res
                 .status(502)
-                .json(result);
+                .json(
+                    result
+                );
 
         }
 
 
-        return res.json(result);
+        return res.json(
+            result
+        );
 
     }
 );
 
 
 /*
- * Выполнение задачи Jessica.
- *
- * Пока сохраняем существующее
- * поведение через OpenAI.
- *
- * На следующем этапе сюда
- * добавим Planner:
- *
- * Jessica
- * → свои возможности
- * → память
- * → TinyFish
- * → бесплатный AI
- * → OpenAI только при необходимости.
+ * =========================================================
+ * SOLVE
+ * =========================================================
  */
+
+
 app.post(
     "/api/solve",
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -664,9 +1073,12 @@ app.post(
                         auth.status
                     )
                     .json({
+
                         success: false,
+
                         text:
                             auth.text
+
                     });
 
             }
@@ -684,152 +1096,223 @@ app.post(
                 return res
                     .status(400)
                     .json({
+
                         success: false,
+
                         text:
                             "Задача не указана"
+
                     });
 
             }
 
 
             /*
-             * Пока OpenAI остаётся
-             * резервным AI Engine.
+             * 1.
+             * Определяем, нужен ли интернет.
              */
-            if (!openai) {
-
-                return res
-                    .status(503)
-                    .json({
-                        success: false,
-                        text:
-                            "AI Engine не настроен"
-                    });
-
-            }
+            const needsInternet =
+                taskNeedsInternet(
+                    task
+                );
 
 
-            const response =
-                await openai.responses.create({
+            let webContext = "";
 
-                    model:
-                        "gpt-5.6-sol",
+            let webUsed =
+                false;
 
-                    instructions:
-                        "Ты являешься резервным AI-ядром системы Jessica Core. " +
-                        "Выполняй задачу пользователя точно, полезно и по существу. " +
-                        "Отвечай на языке, на котором сформулирована задача. " +
-                        "Не утверждай, что выполнил действия во внешних системах, " +
-                        "если фактически у тебя нет соответствующего инструмента.",
 
-                    input:
+            /*
+             * 2.
+             * Если нужен интернет —
+             * сначала бесплатный TinyFish.
+             */
+            if (
+                needsInternet &&
+                tinyFishApiKey
+            ) {
+
+                const searchResult =
+                    await searchWeb(
                         task
-
-                });
-
-
-            const answer =
-                response.output_text
-                    ?.trim();
+                    );
 
 
-            if (!answer) {
+                if (
+                    searchResult.success &&
+                    searchResult.results.length > 0
+                ) {
 
-                return res
-                    .status(502)
-                    .json({
-                        success: false,
-                        text:
-                            "Модель вернула пустой ответ"
-                    });
-
-            }
+                    webContext =
+                        formatSearchResults(
+                            searchResult.results
+                        );
 
 
-            return res.json({
-                success: true,
-                source:
-                    "openai",
-                text:
-                    answer
-            });
+                    webUsed =
+                        true;
 
-
-        } catch (error) {
-
-            console.error(
-                "Jessica AI error:",
-                error
-            );
-
-
-            const status =
-                error?.status;
-
-
-            if (status === 429) {
-
-                return res
-                    .status(429)
-                    .json({
-                        success: false,
-                        text:
-                            "Баланс OpenAI API исчерпан. Пополните баланс и повторите задачу."
-                    });
+                }
 
             }
 
 
-            if (status === 401) {
-
-                return res
-                    .status(502)
-                    .json({
-                        success: false,
-                        text:
-                            "Ошибка авторизации OpenAI API"
-                    });
-
-            }
-
-
-            if (status === 403) {
-
-                return res
-                    .status(502)
-                    .json({
-                        success: false,
-                        text:
-                            "OpenAI API не разрешил доступ к выбранной модели"
-                    });
-
-            }
+            /*
+             * 3.
+             * Основной бесплатный AI —
+             * Groq.
+             */
+            const groqResult =
+                await solveWithGroq(
+                    task,
+                    webContext
+                );
 
 
             if (
-                status === 500 ||
-                status === 502 ||
-                status === 503 ||
-                status === 504
+                groqResult.success
+            ) {
+
+                return res.json({
+
+                    success: true,
+
+                    source:
+                        webUsed
+                            ? "tinyfish+groq"
+                            : "groq",
+
+                    internetUsed:
+                        webUsed,
+
+                    openAIUsed:
+                        false,
+
+                    text:
+                        groqResult.text
+
+                });
+
+            }
+
+
+            /*
+             * 4.
+             * Только если Groq не справился —
+             * используем OpenAI.
+             */
+            const openAIResult =
+                await solveWithOpenAI(
+                    task,
+                    webContext
+                );
+
+
+            if (
+                openAIResult.success
+            ) {
+
+                return res.json({
+
+                    success: true,
+
+                    source:
+                        webUsed
+                            ? "tinyfish+openai"
+                            : "openai",
+
+                    internetUsed:
+                        webUsed,
+
+                    openAIUsed:
+                        true,
+
+                    text:
+                        openAIResult.text
+
+                });
+
+            }
+
+
+            /*
+             * 5.
+             * Если бесплатный AI не сработал,
+             * а OpenAI недоступен из-за баланса.
+             */
+            if (
+                openAIResult.status === 429
             ) {
 
                 return res
                     .status(503)
                     .json({
+
                         success: false,
+
+                        source:
+                            "none",
+
+                        internetUsed:
+                            webUsed,
+
+                        openAIUsed:
+                            true,
+
                         text:
-                            "OpenAI временно недоступен. Попробуйте повторить задачу позже."
+                            (
+                                "Jessica не смогла завершить задачу бесплатными средствами. " +
+                                "Резервный OpenAI сейчас недоступен из-за отсутствия API-баланса."
+                            )
+
                     });
 
             }
 
 
+            /*
+             * 6.
+             * Общая ошибка.
+             */
+            return res
+                .status(503)
+                .json({
+
+                    success: false,
+
+                    source:
+                        "none",
+
+                    internetUsed:
+                        webUsed,
+
+                    openAIUsed:
+                        false,
+
+                    text:
+                        "Jessica не смогла выполнить задачу доступными AI-движками."
+
+                });
+
+
+        } catch (error) {
+
+            console.error(
+                "Jessica solve error:",
+                error
+            );
+
+
             return res
                 .status(500)
                 .json({
+
                     success: false,
+
                     text:
-                        "Внутренняя ошибка AI-сервера"
+                        "Внутренняя ошибка Jessica Backend"
+
                 });
 
         }
@@ -839,17 +1322,18 @@ app.post(
 
 
 /*
- * Render автоматически передаёт PORT.
+ * =========================================================
+ * SERVER
+ * =========================================================
  */
+
+
 const port =
     Number(
         process.env.PORT
     ) || 3000;
 
 
-/*
- * 0.0.0.0 нужен для Render.
- */
 app.listen(
     port,
     "0.0.0.0",
