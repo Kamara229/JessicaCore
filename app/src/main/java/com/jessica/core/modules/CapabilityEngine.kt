@@ -19,6 +19,9 @@ class CapabilityEngine(
     private val eventStorage =
         EventStorage(context)
 
+    private val taskStorage =
+        TaskStorage(context)
+
 
     fun execute(
         capability: String
@@ -81,7 +84,7 @@ class CapabilityEngine(
 
                 CapabilityResult(
                     success = true,
-                    message = "Получен список блоков"
+                    message = "Получение списка блоков доступно"
                 )
 
             }
@@ -273,6 +276,7 @@ class CapabilityEngine(
                     eventStorage
                         .loadEvents()
                         .takeLast(10)
+                        .asReversed()
 
 
                 if (events.isEmpty()) {
@@ -305,6 +309,157 @@ class CapabilityEngine(
                     CapabilityResult(
                         success = true,
                         message = history
+                    )
+
+                }
+
+            }
+
+
+            "create_task" -> {
+
+                val task =
+                    taskStorage.createTask(
+                        "Тестовая задача Task Solver"
+                    )
+
+
+                eventStorage.saveEvent(
+                    type = "task",
+                    message =
+                        "Создана задача ${task.id}"
+                )
+
+
+                CapabilityResult(
+                    success = true,
+                    message =
+                        "Создана задача ${task.id}: ${task.text}"
+                )
+
+            }
+
+
+            "list_tasks" -> {
+
+                val tasks =
+                    taskStorage.loadTasks()
+
+
+                eventStorage.saveEvent(
+                    type = "task",
+                    message =
+                        "Запрошен список задач"
+                )
+
+
+                CapabilityResult(
+                    success = true,
+                    message =
+                        "Найдено задач: ${tasks.size}"
+                )
+
+            }
+
+
+            "solve_task" -> {
+
+                val task =
+                    taskStorage
+                        .loadTasks()
+                        .lastOrNull {
+                            it.status == "NEW"
+                        }
+
+
+                if (task == null) {
+
+                    eventStorage.saveEvent(
+                        type = "task",
+                        message =
+                            "Нет новых задач для обработки"
+                    )
+
+
+                    CapabilityResult(
+                        success = false,
+                        message =
+                            "Нет новых задач для обработки"
+                    )
+
+                } else {
+
+                    val result =
+                        "Задача принята Task Solver. " +
+                        "ИИ-решение пока не подключено."
+
+
+                    taskStorage.updateTask(
+                        taskId = task.id,
+                        status = "COMPLETED",
+                        result = result
+                    )
+
+
+                    eventStorage.saveEvent(
+                        type = "task",
+                        message =
+                            "Обработана задача ${task.id}"
+                    )
+
+
+                    CapabilityResult(
+                        success = true,
+                        message =
+                            "Задача ${task.id} обработана"
+                    )
+
+                }
+
+            }
+
+
+            "task_history" -> {
+
+                val tasks =
+                    taskStorage
+                        .loadTasks()
+                        .takeLast(10)
+                        .asReversed()
+
+
+                if (tasks.isEmpty()) {
+
+                    CapabilityResult(
+                        success = true,
+                        message =
+                            "История задач пока пуста"
+                    )
+
+                } else {
+
+                    val history =
+                        buildString {
+
+                            appendLine(
+                                "Последние задачи:"
+                            )
+
+                            tasks.forEach { task ->
+
+                                appendLine(
+                                    "• ${task.status}: ${task.text}"
+                                )
+
+                            }
+
+                        }
+
+
+                    CapabilityResult(
+                        success = true,
+                        message =
+                            history
                     )
 
                 }
