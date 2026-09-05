@@ -16,10 +16,6 @@ jobs:
 
     env:
       JESSICA_APP_TOKEN: ${{ secrets.JESSICA_APP_TOKEN }}
-      JESSICA_KEYSTORE_BASE64: ${{ secrets.JESSICA_KEYSTORE_BASE64 }}
-      JESSICA_KEYSTORE_PASSWORD: ${{ secrets.JESSICA_KEYSTORE_PASSWORD }}
-      JESSICA_KEY_PASSWORD: ${{ secrets.JESSICA_KEY_PASSWORD }}
-      JESSICA_KEY_ALIAS: ${{ secrets.JESSICA_KEY_ALIAS }}
 
 
     steps:
@@ -39,57 +35,23 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
 
-      - name: Check secrets
+      - name: Check Jessica secret
         run: |
           if [ -z "$JESSICA_APP_TOKEN" ]; then
             echo "JESSICA_APP_TOKEN is not configured"
             exit 1
           fi
 
-          if [ -z "$JESSICA_KEYSTORE_BASE64" ]; then
-            echo "JESSICA_KEYSTORE_BASE64 is not configured"
-            exit 1
-          fi
-
-          if [ -z "$JESSICA_KEYSTORE_PASSWORD" ]; then
-            echo "JESSICA_KEYSTORE_PASSWORD is not configured"
-            exit 1
-          fi
-
-          if [ -z "$JESSICA_KEY_PASSWORD" ]; then
-            echo "JESSICA_KEY_PASSWORD is not configured"
-            exit 1
-          fi
-
-          if [ -z "$JESSICA_KEY_ALIAS" ]; then
-            echo "JESSICA_KEY_ALIAS is not configured"
-            exit 1
-          fi
-
-          echo "Jessica secrets are configured"
+          echo "JESSICA_APP_TOKEN is configured"
 
 
-      - name: Restore signing keystore
+      - name: Build APK
         run: |
-          echo "$JESSICA_KEYSTORE_BASE64" | base64 --decode > jessica-release.keystore
-
-
-      - name: Build signed release APK
-        run: |
-          gradle assembleRelease \
-            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/jessica-release.keystore" \
-            -Pandroid.injected.signing.store.password="$JESSICA_KEYSTORE_PASSWORD" \
-            -Pandroid.injected.signing.key.alias="$JESSICA_KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$JESSICA_KEY_PASSWORD"
-
-
-      - name: Rename APK
-        run: |
-          cp app/build/outputs/apk/release/app-release.apk JessicaCore.apk
+          gradle assembleDebug
 
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: JessicaCore
-          path: JessicaCore.apk
+          name: JessicaCore-v0.1
+          path: app/build/outputs/apk/debug/app-debug.apk
