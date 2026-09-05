@@ -1,7 +1,29 @@
 package com.jessica.core.modules
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+
 
 class JessicaAIEngine : AIEngine {
+
+    companion object {
+
+        /*
+         * Позже здесь будет настоящий адрес
+         * backend Jessica.
+         *
+         * Например:
+         *
+         * https://jessica.example.com/api/solve
+         */
+        private const val BACKEND_URL =
+            "https://YOUR_BACKEND_URL/api/solve"
+
+    }
+
 
     override suspend fun solve(
         task: String
@@ -17,12 +39,224 @@ class JessicaAIEngine : AIEngine {
         }
 
 
-        return AIResult(
-            success = false,
-            text =
-                "AI Engine готов. " +
-                "Подключение к серверу Jessica ещё не настроено."
-        )
+        return withContext(
+            Dispatchers.IO
+        ) {
+
+            try {
+
+                sendRequest(
+                    task
+                )
+
+            } catch (e: Exception) {
+
+                AIResult(
+                    success = false,
+                    text =
+                        "Ошибка подключения к AI серверу: ${
+                            e.message
+                                ?: "неизвестная ошибка"
+                        }"
+                )
+
+            }
+
+        }
+
+    }
+
+
+    private fun sendRequest(
+        task: String
+    ): AIResult {
+
+        val url =
+            URL(
+                BACKEND_URL
+            )
+
+
+        val connection =
+            url.openConnection()
+                as HttpURLConnection
+
+
+        try {
+
+            connection.requestMethod =
+                "POST"
+
+
+            connection.connectTimeout =
+                15_000
+
+
+            connection.readTimeout =
+                60_000
+
+
+            connection.doOutput =
+                true
+
+
+            connection.setRequestProperty(
+                "Content-Type",
+                "application/json; charset=UTF-8"
+            )
+
+
+            connection.setRequestProperty(
+                "Accept",
+                "application/json"
+            )
+
+
+            val requestJson =
+                JSONObject().apply {
+
+                    put(
+                        "task",
+                        task
+                    )
+
+                }
+
+
+            connection
+                .outputStream
+                .bufferedWriter(
+                    Charsets.UTF_8
+                )
+                .use { writer ->
+
+                    writer.write(
+                        requestJson.toString()
+                    )
+
+                    writer.flush()
+
+                }
+
+
+            val responseCode =
+                connection.responseCode
+
+
+            val responseText =
+                if (
+                    responseCode in 200..299
+                ) {
+
+                    connection
+                        .inputStream
+                        .bufferedReader(
+                            Charsets.UTF_8
+                        )
+                        .use {
+                            it.readText()
+                        }
+
+                } else {
+
+                    connection
+                        .errorStream
+                        ?.bufferedReader(
+                            Charsets.UTF_8
+                        )
+                        ?.use {
+                            it.readText()
+                        }
+                        ?: ""
+
+                }
+
+
+            if (
+                responseCode !in 200..299
+            ) {
+
+                return AIResult(
+                    success = false,
+                    text =
+                        if (
+                            responseText.isNotBlank()
+                        ) {
+
+                            "Ошибка сервера $responseCode: $responseText"
+
+                        } else {
+
+                            "Ошибка сервера: HTTP $responseCode"
+
+                        }
+                )
+
+            }
+
+
+            val json =
+                JSONObject(
+                    responseText
+                )
+
+
+            val success =
+                json.optBoolean(
+                    "success",
+                    false
+                )
+
+
+            val text =
+                json.optString(
+                    "text",
+                    ""
+                )
+
+
+            if (
+                !success
+            ) {
+
+                return AIResult(
+                    success = false,
+                    text =
+                        if (
+                            text.isNotBlank()
+                        ) {
+                            text
+                        } else {
+                            "AI сервер вернул ошибку"
+                        }
+                )
+
+            }
+
+
+            if (
+                text.isBlank()
+            ) {
+
+                return AIResult(
+                    success = false,
+                    text =
+                        "AI сервер вернул пустой ответ"
+                )
+
+            }
+
+
+            return AIResult(
+                success = true,
+                text = text
+            )
+
+        } finally {
+
+            connection.disconnect()
+
+        }
 
     }
 
