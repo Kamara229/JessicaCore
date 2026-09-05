@@ -1,5 +1,6 @@
 package com.jessica.core.modules
 
+import com.jessica.core.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -26,6 +27,17 @@ class JessicaAIEngine : AIEngine {
             return AIResult(
                 success = false,
                 text = "Задача пустая"
+            )
+
+        }
+
+
+        if (BuildConfig.JESSICA_APP_TOKEN.isBlank()) {
+
+            return AIResult(
+                success = false,
+                text =
+                    "Ошибка конфигурации: JESSICA_APP_TOKEN отсутствует"
             )
 
         }
@@ -104,6 +116,12 @@ class JessicaAIEngine : AIEngine {
             )
 
 
+            connection.setRequestProperty(
+                "X-Jessica-Token",
+                BuildConfig.JESSICA_APP_TOKEN
+            )
+
+
             val requestJson =
                 JSONObject().apply {
 
@@ -168,18 +186,36 @@ class JessicaAIEngine : AIEngine {
                 responseCode !in 200..299
             ) {
 
+                val serverMessage =
+                    try {
+
+                        JSONObject(
+                            responseText
+                        ).optString(
+                            "text",
+                            ""
+                        )
+
+                    } catch (e: Exception) {
+
+                        ""
+
+                    }
+
+
                 return AIResult(
                     success = false,
                     text =
-                        if (
-                            responseText.isNotBlank()
-                        ) {
+                        when {
 
-                            "Ошибка сервера $responseCode: $responseText"
+                            responseCode == 401 ->
+                                "Ошибка авторизации Jessica"
 
-                        } else {
+                            serverMessage.isNotBlank() ->
+                                serverMessage
 
-                            "Ошибка сервера: HTTP $responseCode"
+                            else ->
+                                "Ошибка сервера: HTTP $responseCode"
 
                         }
                 )
