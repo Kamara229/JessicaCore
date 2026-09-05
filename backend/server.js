@@ -6,8 +6,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 
-const app =
-    express();
+const app = express();
 
 
 app.use(
@@ -15,6 +14,13 @@ app.use(
         limit: "1mb"
     })
 );
+
+
+/*
+ * =========================================================
+ * AI CLIENTS
+ * =========================================================
+ */
 
 
 /*
@@ -33,8 +39,6 @@ const openai =
 /*
  * Groq.
  * Основной бесплатный AI Jessica.
- *
- * Groq совместим с OpenAI Responses API.
  */
 const groq =
     process.env.GROQ_API_KEY
@@ -49,16 +53,16 @@ const groq =
 
 
 /*
- * Авторизация Android-приложения.
+ * =========================================================
+ * CONFIG
+ * =========================================================
  */
+
+
 const jessicaToken =
     process.env.JESSICA_APP_TOKEN || "";
 
 
-/*
- * TinyFish.
- * Бесплатный интернет-поиск.
- */
 const tinyFishApiKey =
     process.env.TINYFISH_API_KEY || "";
 
@@ -124,21 +128,479 @@ function checkJessicaAuthorization(
 
 /*
  * =========================================================
- * INTERNET DETECTION
+ * TASK ROUTER
  * =========================================================
  */
 
 
 /*
- * Простая первая версия определения,
- * нужны ли задаче свежие данные из интернета.
+ * Определяем запрос точного времени.
  *
- * Позже это решение будет принимать
- * Planner / Development Core.
+ * Такие задачи НЕ нужно отправлять
+ * в интернет-поиск.
+ */
+function taskNeedsCurrentTime(
+    task
+) {
+
+    const text =
+        task.toLowerCase();
+
+
+    const timeMarkers = [
+        "который час",
+        "сколько времени",
+        "текущее время",
+        "время сейчас",
+        "сейчас времени",
+        "what time",
+        "current time"
+    ];
+
+
+    return timeMarkers.some(
+        marker =>
+            text.includes(
+                marker
+            )
+    );
+
+}
+
+
+/*
+ * Определяем запрос текущей даты.
+ */
+function taskNeedsCurrentDate(
+    task
+) {
+
+    const text =
+        task.toLowerCase();
+
+
+    const dateMarkers = [
+        "какое сегодня число",
+        "какая сегодня дата",
+        "дата сегодня",
+        "сегодняшняя дата",
+        "какой сегодня день",
+        "current date",
+        "today's date"
+    ];
+
+
+    return dateMarkers.some(
+        marker =>
+            text.includes(
+                marker
+            )
+    );
+
+}
+
+
+/*
+ * Определяем часовой пояс по тексту.
+ *
+ * Пока это базовый словарь.
+ * Его потом можно расширять.
+ */
+function detectTimeZone(
+    task
+) {
+
+    const text =
+        task.toLowerCase();
+
+
+    const zones = [
+
+        {
+            markers: [
+                "ростов-на-дону",
+                "ростове-на-дону",
+                "ростове",
+                "москве",
+                "москва",
+                "санкт-петербург",
+                "петербург",
+                "спб",
+                "сочи",
+                "краснодар"
+            ],
+            zone:
+                "Europe/Moscow"
+        },
+
+        {
+            markers: [
+                "калининград"
+            ],
+            zone:
+                "Europe/Kaliningrad"
+        },
+
+        {
+            markers: [
+                "самара"
+            ],
+            zone:
+                "Europe/Samara"
+        },
+
+        {
+            markers: [
+                "екатеринбург",
+                "екб"
+            ],
+            zone:
+                "Asia/Yekaterinburg"
+        },
+
+        {
+            markers: [
+                "омск"
+            ],
+            zone:
+                "Asia/Omsk"
+        },
+
+        {
+            markers: [
+                "новосибирск",
+                "красноярск"
+            ],
+            zone:
+                "Asia/Krasnoyarsk"
+        },
+
+        {
+            markers: [
+                "иркутск"
+            ],
+            zone:
+                "Asia/Irkutsk"
+        },
+
+        {
+            markers: [
+                "якутск"
+            ],
+            zone:
+                "Asia/Yakutsk"
+        },
+
+        {
+            markers: [
+                "владивосток"
+            ],
+            zone:
+                "Asia/Vladivostok"
+        },
+
+        {
+            markers: [
+                "магадан"
+            ],
+            zone:
+                "Asia/Magadan"
+        },
+
+        {
+            markers: [
+                "камчатка",
+                "петропавловск-камчатский"
+            ],
+            zone:
+                "Asia/Kamchatka"
+        },
+
+        {
+            markers: [
+                "лондон"
+            ],
+            zone:
+                "Europe/London"
+        },
+
+        {
+            markers: [
+                "амстердам"
+            ],
+            zone:
+                "Europe/Amsterdam"
+        },
+
+        {
+            markers: [
+                "берлин"
+            ],
+            zone:
+                "Europe/Berlin"
+        },
+
+        {
+            markers: [
+                "париж"
+            ],
+            zone:
+                "Europe/Paris"
+        },
+
+        {
+            markers: [
+                "нью-йорк",
+                "нью йорк"
+            ],
+            zone:
+                "America/New_York"
+        },
+
+        {
+            markers: [
+                "лос-анджелес",
+                "лос анджелес"
+            ],
+            zone:
+                "America/Los_Angeles"
+        },
+
+        {
+            markers: [
+                "дубай"
+            ],
+            zone:
+                "Asia/Dubai"
+        },
+
+        {
+            markers: [
+                "токио"
+            ],
+            zone:
+                "Asia/Tokyo"
+        }
+
+    ];
+
+
+    for (
+        const item
+        of zones
+    ) {
+
+        if (
+            item.markers.some(
+                marker =>
+                    text.includes(
+                        marker
+                    )
+            )
+        ) {
+
+            return item.zone;
+
+        }
+
+    }
+
+
+    /*
+     * Jessica сейчас используется
+     * преимущественно в московском часовом поясе.
+     *
+     * Для запроса без города используем UTC,
+     * чтобы не выдавать ложное локальное время.
+     */
+    return null;
+
+}
+
+
+/*
+ * Решение задачи времени без AI и веба.
+ */
+function solveCurrentTime(
+    task
+) {
+
+    const timeZone =
+        detectTimeZone(
+            task
+        );
+
+
+    if (!timeZone) {
+
+        return {
+            success: false,
+            text:
+                "Не удалось определить город или часовой пояс."
+        };
+
+    }
+
+
+    try {
+
+        const now =
+            new Date();
+
+
+        const time =
+            new Intl.DateTimeFormat(
+                "ru-RU",
+                {
+                    timeZone,
+                    hour:
+                        "2-digit",
+                    minute:
+                        "2-digit",
+                    second:
+                        "2-digit",
+                    hour12:
+                        false
+                }
+            ).format(
+                now
+            );
+
+
+        const date =
+            new Intl.DateTimeFormat(
+                "ru-RU",
+                {
+                    timeZone,
+                    day:
+                        "2-digit",
+                    month:
+                        "long",
+                    year:
+                        "numeric"
+                }
+            ).format(
+                now
+            );
+
+
+        return {
+            success: true,
+            text:
+                `Сейчас ${time}. Дата: ${date}.`,
+            timeZone
+        };
+
+
+    } catch (error) {
+
+        console.error(
+            "Time tool error:",
+            error
+        );
+
+
+        return {
+            success: false,
+            text:
+                "Не удалось определить текущее время."
+        };
+
+    }
+
+}
+
+
+/*
+ * Решение задачи даты без AI и веба.
+ */
+function solveCurrentDate(
+    task
+) {
+
+    const timeZone =
+        detectTimeZone(
+            task
+        ) ||
+        "Europe/Moscow";
+
+
+    try {
+
+        const now =
+            new Date();
+
+
+        const date =
+            new Intl.DateTimeFormat(
+                "ru-RU",
+                {
+                    timeZone,
+                    weekday:
+                        "long",
+                    day:
+                        "2-digit",
+                    month:
+                        "long",
+                    year:
+                        "numeric"
+                }
+            ).format(
+                now
+            );
+
+
+        return {
+            success: true,
+            text:
+                `Сегодня ${date}.`,
+            timeZone
+        };
+
+
+    } catch (error) {
+
+        console.error(
+            "Date tool error:",
+            error
+        );
+
+
+        return {
+            success: false,
+            text:
+                "Не удалось определить текущую дату."
+        };
+
+    }
+
+}
+
+
+/*
+ * Определяем необходимость свежих
+ * данных из интернета.
  */
 function taskNeedsInternet(
     task
 ) {
+
+    /*
+     * Время и дата имеют собственные инструменты.
+     */
+    if (
+        taskNeedsCurrentTime(
+            task
+        ) ||
+        taskNeedsCurrentDate(
+            task
+        )
+    ) {
+
+        return false;
+
+    }
+
 
     const text =
         task.toLowerCase();
@@ -150,23 +612,38 @@ function taskNeedsInternet(
         "сейчас",
         "актуальн",
         "последн",
+        "свеж",
         "новост",
+
         "найди",
         "найти",
-        "поиск",
         "поищи",
-        "интернет",
+        "поиск",
+
         "в интернете",
         "на сайте",
         "сайт",
+
         "цена",
         "стоимость",
-        "курс",
+        "сколько стоит",
+
+        "курс валют",
+        "курс доллара",
+        "курс евро",
+
         "погода",
+        "температура",
+        "осадки",
+
         "расписание",
+        "рейс",
+        "поезд",
+        "самолет",
+
         "где купить",
         "в наличии",
-        "2026",
+
         "latest",
         "today",
         "current",
@@ -582,12 +1059,14 @@ async function solveWithGroq(
                     `ЗАДАЧА ПОЛЬЗОВАТЕЛЯ:\n` +
                     `${task}\n\n` +
 
-                    `ДАННЫЕ ИЗ ИНТЕРНЕТ-ПОИСКА:\n` +
+                    `РЕЗУЛЬТАТЫ ИНТЕРНЕТ-ПОИСКА:\n` +
                     `${webContext}\n\n` +
 
-                    `Используй результаты поиска только как источники данных. ` +
-                    `Не придумывай информацию, которой в них нет. ` +
-                    `Если источники противоречат друг другу, укажи это.`
+                    `Используй эти данные для ответа. ` +
+                    `Оценивай актуальность и непротиворечивость источников. ` +
+                    `Не придумывай отсутствующие сведения. ` +
+                    `Если данные противоречат друг другу, не выбирай случайное значение. ` +
+                    `Объясни неопределённость кратко.`
                 );
 
         }
@@ -601,11 +1080,30 @@ async function solveWithGroq(
 
                 instructions:
                     (
-                        "Ты являешься основным бесплатным AI-движком системы Jessica Core. " +
-                        "Решай задачу самостоятельно, точно и полезно. " +
+                        "Ты — основной AI-движок системы Jessica Core. " +
+
+                        "Твоя задача — давать пользователю готовый полезный ответ, " +
+                        "а не описывать процесс рассуждений. " +
+
                         "Отвечай на языке пользователя. " +
-                        "Используй предоставленные Jessica данные и результаты интернет-поиска. " +
-                        "Не утверждай, что совершила внешнее действие, если фактически оно не было выполнено. " +
+
+                        "Не используй Markdown-таблицы с символами |, " +
+                        "потому что Android-интерфейс Jessica пока не отображает их корректно. " +
+
+                        "Для простого вопроса отвечай кратко. " +
+                        "Для сложной задачи можешь отвечать подробно. " +
+
+                        "Если Jessica передала результаты интернет-поиска, " +
+                        "используй их только как источники данных. " +
+
+                        "Не перечисляй все найденные источники без необходимости. " +
+                        "Сначала дай пользователю прямой ответ. " +
+
+                        "Не утверждай, что выполнила действие во внешней системе, " +
+                        "если оно фактически не было выполнено. " +
+
+                        "Не выдумывай актуальные факты. " +
+
                         "Если информации недостаточно, прямо скажи об этом."
                     ),
 
@@ -701,7 +1199,7 @@ async function solveWithOpenAI(
                     `ЗАДАЧА ПОЛЬЗОВАТЕЛЯ:\n` +
                     `${task}\n\n` +
 
-                    `ДАННЫЕ ИЗ ИНТЕРНЕТ-ПОИСКА:\n` +
+                    `РЕЗУЛЬТАТЫ ИНТЕРНЕТ-ПОИСКА:\n` +
                     `${webContext}`
                 );
 
@@ -716,11 +1214,12 @@ async function solveWithOpenAI(
 
                 instructions:
                     (
-                        "Ты являешься резервным AI-движком системы Jessica Core. " +
-                        "Используйся только тогда, когда бесплатные возможности Jessica не справились. " +
-                        "Выполняй задачу точно, полезно и по существу. " +
-                        "Отвечай на языке пользователя. " +
-                        "Не утверждай, что совершила внешние действия, если они фактически не выполнялись."
+                        "Ты — резервный AI-движок Jessica Core. " +
+                        "Дай готовый точный ответ на языке пользователя. " +
+                        "Не используй Markdown-таблицы. " +
+                        "Не выдумывай данные. " +
+                        "Не утверждай, что выполнила внешнее действие, " +
+                        "если оно фактически не выполнялось."
                     ),
 
                 input
@@ -852,7 +1351,10 @@ app.get(
                 groq !== null,
 
             openAIConfigured:
-                openai !== null
+                openai !== null,
+
+            routerVersion:
+                "0.2"
 
         });
 
@@ -1108,9 +1610,100 @@ app.post(
 
 
             /*
-             * 1.
-             * Определяем, нужен ли интернет.
+             * =================================================
+             * 1. DIRECT TOOLS
+             * =================================================
+             *
+             * Сначала Jessica пытается решить задачу
+             * собственным специализированным инструментом.
              */
+
+
+            if (
+                taskNeedsCurrentTime(
+                    task
+                )
+            ) {
+
+                const timeResult =
+                    solveCurrentTime(
+                        task
+                    );
+
+
+                if (
+                    timeResult.success
+                ) {
+
+                    return res.json({
+
+                        success: true,
+
+                        text:
+                            timeResult.text,
+
+                        engine:
+                            "jessica-time",
+
+                        webUsed:
+                            false,
+
+                        paidAIUsed:
+                            false
+
+                    });
+
+                }
+
+            }
+
+
+            if (
+                taskNeedsCurrentDate(
+                    task
+                )
+            ) {
+
+                const dateResult =
+                    solveCurrentDate(
+                        task
+                    );
+
+
+                if (
+                    dateResult.success
+                ) {
+
+                    return res.json({
+
+                        success: true,
+
+                        text:
+                            dateResult.text,
+
+                        engine:
+                            "jessica-date",
+
+                        webUsed:
+                            false,
+
+                        paidAIUsed:
+                            false
+
+                    });
+
+                }
+
+            }
+
+
+            /*
+             * =================================================
+             * 2. ROUTING
+             * =================================================
+             */
+
+
             const needsInternet =
                 taskNeedsInternet(
                     task
@@ -1119,15 +1712,18 @@ app.post(
 
             let webContext = "";
 
+
             let webUsed =
                 false;
 
 
             /*
-             * 2.
-             * Если нужен интернет —
-             * сначала бесплатный TinyFish.
+             * =================================================
+             * 3. FREE WEB
+             * =================================================
              */
+
+
             if (
                 needsInternet &&
                 tinyFishApiKey
@@ -1159,10 +1755,12 @@ app.post(
 
 
             /*
-             * 3.
-             * Основной бесплатный AI —
-             * Groq.
+             * =================================================
+             * 4. FREE AI
+             * =================================================
              */
+
+
             const groqResult =
                 await solveWithGroq(
                     task,
@@ -1178,19 +1776,16 @@ app.post(
 
                     success: true,
 
-                    source:
-                        webUsed
-                            ? "tinyfish+groq"
-                            : "groq",
-
-                    internetUsed:
-                        webUsed,
-
-                    openAIUsed:
-                        false,
-
                     text:
-                        groqResult.text
+                        groqResult.text,
+
+                    engine:
+                        "groq",
+
+                    webUsed,
+
+                    paidAIUsed:
+                        false
 
                 });
 
@@ -1198,10 +1793,16 @@ app.post(
 
 
             /*
-             * 4.
-             * Только если Groq не справился —
-             * используем OpenAI.
+             * =================================================
+             * 5. PAID AI FALLBACK
+             * =================================================
+             *
+             * OpenAI вызывается только тогда,
+             * когда Groq действительно не смог
+             * выполнить задачу.
              */
+
+
             const openAIResult =
                 await solveWithOpenAI(
                     task,
@@ -1217,19 +1818,16 @@ app.post(
 
                     success: true,
 
-                    source:
-                        webUsed
-                            ? "tinyfish+openai"
-                            : "openai",
-
-                    internetUsed:
-                        webUsed,
-
-                    openAIUsed:
-                        true,
-
                     text:
-                        openAIResult.text
+                        openAIResult.text,
+
+                    engine:
+                        "openai",
+
+                    webUsed,
+
+                    paidAIUsed:
+                        true
 
                 });
 
@@ -1237,61 +1835,25 @@ app.post(
 
 
             /*
-             * 5.
-             * Если бесплатный AI не сработал,
-             * а OpenAI недоступен из-за баланса.
-             */
-            if (
-                openAIResult.status === 429
-            ) {
-
-                return res
-                    .status(503)
-                    .json({
-
-                        success: false,
-
-                        source:
-                            "none",
-
-                        internetUsed:
-                            webUsed,
-
-                        openAIUsed:
-                            true,
-
-                        text:
-                            (
-                                "Jessica не смогла завершить задачу бесплатными средствами. " +
-                                "Резервный OpenAI сейчас недоступен из-за отсутствия API-баланса."
-                            )
-
-                    });
-
-            }
-
-
-            /*
-             * 6.
-             * Общая ошибка.
+             * Все способы исчерпаны.
              */
             return res
-                .status(503)
+                .status(502)
                 .json({
 
                     success: false,
 
-                    source:
-                        "none",
-
-                    internetUsed:
-                        webUsed,
-
-                    openAIUsed:
-                        false,
-
                     text:
-                        "Jessica не смогла выполнить задачу доступными AI-движками."
+                        (
+                            "Jessica не смогла выполнить задачу. " +
+                            `Groq: ${groqResult.text} ` +
+                            `OpenAI: ${openAIResult.text}`
+                        ),
+
+                    webUsed,
+
+                    paidAIUsed:
+                        false
 
                 });
 
@@ -1299,7 +1861,7 @@ app.post(
         } catch (error) {
 
             console.error(
-                "Jessica solve error:",
+                "Solve endpoint error:",
                 error
             );
 
@@ -1323,24 +1885,21 @@ app.post(
 
 /*
  * =========================================================
- * SERVER
+ * START SERVER
  * =========================================================
  */
 
 
 const port =
-    Number(
-        process.env.PORT
-    ) || 3000;
+    process.env.PORT || 3000;
 
 
 app.listen(
     port,
-    "0.0.0.0",
     () => {
 
         console.log(
-            `Jessica Backend запущен на порту ${port}`
+            `Jessica Backend started on port ${port}`
         );
 
     }
