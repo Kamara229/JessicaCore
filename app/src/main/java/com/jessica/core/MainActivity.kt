@@ -8,15 +8,18 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.Block
 import com.jessica.core.modules.BlockManager
 import com.jessica.core.modules.BlockStorage
 import com.jessica.core.modules.ReportStorage
 import com.jessica.core.ui.BlockScreen
+import com.jessica.core.ui.MemoryScreen
 import com.jessica.core.ui.ReportScreen
 import org.json.JSONObject
 
@@ -34,6 +37,16 @@ class MainActivity : ComponentActivity() {
         }
 
     }
+
+}
+
+
+enum class JessicaPage {
+
+    HOME,
+    BLOCKS,
+    REPORTS,
+    MEMORY
 
 }
 
@@ -60,7 +73,9 @@ fun readBlockFromFile(
 
 
         val capabilitiesJson =
-            json.optJSONArray("capabilities")
+            json.optJSONArray(
+                "capabilities"
+            )
 
 
         val capabilities =
@@ -69,7 +84,9 @@ fun readBlockFromFile(
 
         if (capabilitiesJson != null) {
 
-            for (i in 0 until capabilitiesJson.length()) {
+            for (
+                i in 0 until capabilitiesJson.length()
+            ) {
 
                 capabilities.add(
                     capabilitiesJson.getString(i)
@@ -142,10 +159,10 @@ fun readBlockFromFile(
 fun JessicaScreen() {
 
     val context =
-        androidx.compose.ui.platform.LocalContext.current
+        LocalContext.current
 
 
-    val storage =
+    val blockStorage =
         remember {
             BlockStorage(context)
         }
@@ -181,16 +198,11 @@ fun JessicaScreen() {
     }
 
 
-    var showBlocks by remember {
+    var currentPage by remember {
 
-        mutableStateOf(false)
-
-    }
-
-
-    var showReports by remember {
-
-        mutableStateOf(false)
+        mutableStateOf(
+            JessicaPage.HOME
+        )
 
     }
 
@@ -198,16 +210,20 @@ fun JessicaScreen() {
     LaunchedEffect(Unit) {
 
         val savedBlocks =
-            storage.loadBlocks()
+            blockStorage.loadBlocks()
 
 
         savedBlocks.forEach { block ->
 
-            if (
-                !blockManager
+            val alreadyInstalled =
+                blockManager
                     .getBlocks()
-                    .contains(block)
-            ) {
+                    .any {
+                        it.id == block.id
+                    }
+
+
+            if (!alreadyInstalled) {
 
                 blockManager.addBlock(
                     block
@@ -227,7 +243,6 @@ fun JessicaScreen() {
 
 
     val blockPicker =
-
         rememberLauncherForActivityResult(
 
             contract =
@@ -246,39 +261,48 @@ fun JessicaScreen() {
 
                 if (block != null) {
 
-                    val alreadyInstalled =
-                        blockManager
-                            .getBlocks()
-                            .any {
-                                it.id == block.id
-                            }
-
-
-                    if (!alreadyInstalled) {
-
-                        blockManager.addBlock(
-                            block
-                        )
-
-
-                        blocks =
-                            blockManager
-                                .getBlocks()
-                                .toList()
-
-
-                        storage.saveBlocks(
-                            blocks
-                        )
-
+                    if (block.id.isBlank()) {
 
                         message =
-                            "Блок ${block.name} установлен"
+                            "Ошибка: у блока отсутствует ID"
 
                     } else {
 
-                        message =
-                            "Блок уже установлен"
+                        val alreadyInstalled =
+                            blockManager
+                                .getBlocks()
+                                .any {
+                                    it.id == block.id
+                                }
+
+
+                        if (!alreadyInstalled) {
+
+                            blockManager.addBlock(
+                                block
+                            )
+
+
+                            blocks =
+                                blockManager
+                                    .getBlocks()
+                                    .toList()
+
+
+                            blockStorage.saveBlocks(
+                                blocks
+                            )
+
+
+                            message =
+                                "Блок ${block.name} установлен"
+
+                        } else {
+
+                            message =
+                                "Блок ${block.name} уже установлен"
+
+                        }
 
                     }
 
@@ -315,72 +339,69 @@ fun JessicaScreen() {
     ) { padding ->
 
 
-        Column(
+        Box(
 
             modifier =
                 Modifier
                     .padding(padding)
                     .fillMaxSize()
-                    .padding(20.dp)
 
         ) {
 
 
-            Row {
+            when (currentPage) {
 
-                Button(
 
-                    onClick = {
+                JessicaPage.HOME -> {
 
-                        showBlocks = true
-                        showReports = false
+                    HomeScreen(
 
-                    }
+                        message =
+                            message,
 
-                ) {
+                        blockCount =
+                            blocks.size,
 
-                    Text(
-                        "Блоки"
+                        onBlocks = {
+
+                            currentPage =
+                                JessicaPage.BLOCKS
+
+                        },
+
+                        onReports = {
+
+                            currentPage =
+                                JessicaPage.REPORTS
+
+                        },
+
+                        onMemory = {
+
+                            currentPage =
+                                JessicaPage.MEMORY
+
+                        },
+
+                        onAddBlock = {
+
+                            blockPicker.launch(
+
+                                arrayOf(
+                                    "application/json",
+                                    "*/*"
+                                )
+
+                            )
+
+                        }
+
                     )
 
                 }
 
 
-                Spacer(
-                    modifier =
-                        Modifier.width(10.dp)
-                )
-
-
-                Button(
-
-                    onClick = {
-
-                        showReports = true
-                        showBlocks = false
-
-                    }
-
-                ) {
-
-                    Text(
-                        "Отчёты"
-                    )
-
-                }
-
-            }
-
-
-            Spacer(
-                modifier =
-                    Modifier.height(20.dp)
-            )
-
-
-            when {
-
-                showBlocks -> {
+                JessicaPage.BLOCKS -> {
 
                     BlockScreen(
 
@@ -398,7 +419,7 @@ fun JessicaScreen() {
                                     .toList()
 
 
-                            storage.saveBlocks(
+                            blockStorage.saveBlocks(
                                 blocks
                             )
 
@@ -406,8 +427,8 @@ fun JessicaScreen() {
 
                         onBack = {
 
-                            showBlocks = false
-                            showReports = false
+                            currentPage =
+                                JessicaPage.HOME
 
                         }
 
@@ -416,7 +437,7 @@ fun JessicaScreen() {
                 }
 
 
-                showReports -> {
+                JessicaPage.REPORTS -> {
 
                     ReportScreen(
 
@@ -425,8 +446,8 @@ fun JessicaScreen() {
 
                         onBack = {
 
-                            showReports = false
-                            showBlocks = false
+                            currentPage =
+                                JessicaPage.HOME
 
                         }
 
@@ -435,56 +456,166 @@ fun JessicaScreen() {
                 }
 
 
-                else -> {
+                JessicaPage.MEMORY -> {
 
-                    Text(
-                        message
-                    )
+                    MemoryScreen(
 
+                        onBack = {
 
-                    Spacer(
-                        modifier =
-                            Modifier.height(20.dp)
-                    )
-
-
-                    Text(
-                        "Установлено блоков: ${blocks.size}"
-                    )
-
-
-                    Spacer(
-                        modifier =
-                            Modifier.height(20.dp)
-                    )
-
-
-                    Button(
-
-                        onClick = {
-
-                            blockPicker.launch(
-
-                                arrayOf(
-                                    "application/json",
-                                    "*/*"
-                                )
-
-                            )
+                            currentPage =
+                                JessicaPage.HOME
 
                         }
 
-                    ) {
-
-                        Text(
-                            "+ Добавить блок"
-                        )
-
-                    }
+                    )
 
                 }
 
             }
+
+        }
+
+    }
+
+}
+
+
+@Composable
+fun HomeScreen(
+    message: String,
+    blockCount: Int,
+    onBlocks: () -> Unit,
+    onReports: () -> Unit,
+    onMemory: () -> Unit,
+    onAddBlock: () -> Unit
+) {
+
+    LazyColumn(
+
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+
+        verticalArrangement =
+            Arrangement.spacedBy(10.dp)
+
+    ) {
+
+
+        item {
+
+            Text(
+                text = message
+            )
+
+        }
+
+
+        item {
+
+            Text(
+                text =
+                    "Установлено блоков: $blockCount"
+            )
+
+        }
+
+
+        item {
+
+            Spacer(
+                modifier =
+                    Modifier.height(10.dp)
+            )
+
+        }
+
+
+        item {
+
+            Button(
+                onClick = onBlocks,
+                modifier =
+                    Modifier.fillMaxWidth()
+            ) {
+
+                Text(
+                    "Блоки"
+                )
+
+            }
+
+        }
+
+
+        item {
+
+            Button(
+                onClick = onReports,
+                modifier =
+                    Modifier.fillMaxWidth()
+            ) {
+
+                Text(
+                    "Отчёты"
+                )
+
+            }
+
+        }
+
+
+        item {
+
+            Button(
+                onClick = onMemory,
+                modifier =
+                    Modifier.fillMaxWidth()
+            ) {
+
+                Text(
+                    "Память"
+                )
+
+            }
+
+        }
+
+
+        item {
+
+            Spacer(
+                modifier =
+                    Modifier.height(10.dp)
+            )
+
+        }
+
+
+        item {
+
+            Button(
+                onClick = onAddBlock,
+                modifier =
+                    Modifier.fillMaxWidth()
+            ) {
+
+                Text(
+                    "+ Добавить блок"
+                )
+
+            }
+
+        }
+
+
+        item {
+
+            Spacer(
+                modifier =
+                    Modifier.height(30.dp)
+            )
 
         }
 
