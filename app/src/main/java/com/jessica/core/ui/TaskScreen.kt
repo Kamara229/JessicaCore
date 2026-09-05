@@ -184,13 +184,9 @@ fun TaskScreen(
 
 
                         eventStorage.saveEvent(
-
-                            type =
-                                "task",
-
+                            type = "task",
                             message =
                                 "Создана задача ${task.id}"
-
                         )
 
 
@@ -295,7 +291,10 @@ fun TaskScreen(
 
                         val result =
                             capabilityEngine.execute(
-                                "solve_task"
+                                capability =
+                                    "solve_task",
+                                taskId =
+                                    task.id
                             )
 
 
@@ -315,13 +314,9 @@ fun TaskScreen(
 
 
                         eventStorage.saveEvent(
-
-                            type =
-                                "task",
-
+                            type = "task",
                             message =
                                 "Удалена задача ${task.id}"
-
                         )
 
 
