@@ -32,9 +32,6 @@ const openai =
 
 /*
  * Секретный токен Jessica.
- *
- * Он хранится только в переменных
- * окружения Render.
  */
 const jessicaToken =
     process.env.JESSICA_APP_TOKEN || "";
@@ -59,9 +56,6 @@ app.get(
 
 /*
  * Проверка состояния backend.
- *
- * Здесь специально НЕ показываем
- * само значение секретных ключей.
  */
 app.get(
     "/api/health",
@@ -91,9 +85,8 @@ app.post(
         try {
 
             /*
-             * Проверяем, что секретный
-             * токен вообще настроен
-             * на сервере.
+             * Проверяем наличие
+             * серверного токена Jessica.
              */
             if (!jessicaToken) {
 
@@ -109,8 +102,8 @@ app.post(
 
 
             /*
-             * Получаем токен,
-             * присланный Android-приложением.
+             * Получаем токен
+             * от Android-приложения.
              */
             const appToken =
                 req.get(
@@ -119,8 +112,7 @@ app.post(
 
 
             /*
-             * Не разрешаем доступ
-             * без правильного токена.
+             * Проверяем авторизацию Jessica.
              */
             if (
                 appToken !==
@@ -138,6 +130,9 @@ app.post(
             }
 
 
+            /*
+             * Получаем текст задачи.
+             */
             const task =
                 typeof req.body?.task === "string"
                     ? req.body.task.trim()
@@ -161,8 +156,7 @@ app.post(
 
 
             /*
-             * Проверяем наличие
-             * OpenAI API-ключа.
+             * Проверяем наличие OpenAI API.
              */
             if (!openai) {
 
@@ -178,7 +172,7 @@ app.post(
 
 
             /*
-             * Отправляем задачу модели.
+             * Отправляем задачу OpenAI.
              */
             const response =
                 await openai.responses.create({
@@ -200,7 +194,7 @@ app.post(
 
 
             /*
-             * Берём итоговый текст ответа.
+             * Получаем итоговый ответ.
              */
             const answer =
                 response.output_text
@@ -221,12 +215,13 @@ app.post(
 
 
             /*
-             * Возвращаем ответ Jessica.
+             * Возвращаем результат Jessica.
              */
             return res.json({
                 success: true,
                 text: answer
             });
+
 
         } catch (error) {
 
@@ -237,8 +232,85 @@ app.post(
 
 
             /*
-             * Наружу не отдаём
-             * подробности внутренней ошибки.
+             * HTTP-статус ошибки OpenAI SDK.
+             */
+            const status =
+                error?.status;
+
+
+            /*
+             * Нет кредитов / превышен лимит.
+             */
+            if (status === 429) {
+
+                return res
+                    .status(429)
+                    .json({
+                        success: false,
+                        text:
+                            "Баланс OpenAI API исчерпан. Пополните баланс и повторите задачу."
+                    });
+
+            }
+
+
+            /*
+             * Проблема с OpenAI API-ключом.
+             */
+            if (status === 401) {
+
+                return res
+                    .status(502)
+                    .json({
+                        success: false,
+                        text:
+                            "Ошибка авторизации OpenAI API"
+                    });
+
+            }
+
+
+            /*
+             * Доступ к модели запрещён
+             * или недостаточно прав.
+             */
+            if (status === 403) {
+
+                return res
+                    .status(502)
+                    .json({
+                        success: false,
+                        text:
+                            "OpenAI API не разрешил доступ к выбранной модели"
+                    });
+
+            }
+
+
+            /*
+             * Сервер OpenAI временно недоступен.
+             */
+            if (
+                status === 500 ||
+                status === 502 ||
+                status === 503 ||
+                status === 504
+            ) {
+
+                return res
+                    .status(503)
+                    .json({
+                        success: false,
+                        text:
+                            "OpenAI временно недоступен. Попробуйте повторить задачу позже."
+                    });
+
+            }
+
+
+            /*
+             * Остальные ошибки наружу
+             * не раскрываем.
              */
             return res
                 .status(500)
