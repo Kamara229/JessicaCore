@@ -24,7 +24,8 @@ class CapabilityEngine(
 
 
     fun execute(
-        capability: String
+        capability: String,
+        taskId: Long? = null
     ): CapabilityResult {
 
         return when (capability) {
@@ -194,8 +195,7 @@ class CapabilityEngine(
 
                 CapabilityResult(
                     success = true,
-                    message =
-                        "Память сохранена: memory_core_test"
+                    message = "Память сохранена: memory_core_test"
                 )
 
             }
@@ -218,8 +218,7 @@ class CapabilityEngine(
 
                     CapabilityResult(
                         success = true,
-                        message =
-                            "Память загружена: ${memory.value}"
+                        message = "Память загружена: ${memory.value}"
                     )
 
                 } else {
@@ -231,8 +230,7 @@ class CapabilityEngine(
 
                     CapabilityResult(
                         success = false,
-                        message =
-                            "Запись memory_core_test не найдена"
+                        message = "Запись memory_core_test не найдена"
                     )
 
                 }
@@ -263,8 +261,7 @@ class CapabilityEngine(
 
                 CapabilityResult(
                     success = true,
-                    message =
-                        "Загружено событий: ${events.size}"
+                    message = "Загружено событий: ${events.size}"
                 )
 
             }
@@ -291,9 +288,7 @@ class CapabilityEngine(
                     val history =
                         buildString {
 
-                            appendLine(
-                                "Последние действия:"
-                            )
+                            appendLine("Последние действия:")
 
                             events.forEach { event ->
 
@@ -326,15 +321,13 @@ class CapabilityEngine(
 
                 eventStorage.saveEvent(
                     type = "task",
-                    message =
-                        "Создана задача ${task.id}"
+                    message = "Создана задача ${task.id}"
                 )
 
 
                 CapabilityResult(
                     success = true,
-                    message =
-                        "Создана задача ${task.id}: ${task.text}"
+                    message = "Создана задача ${task.id}: ${task.text}"
                 )
 
             }
@@ -348,15 +341,13 @@ class CapabilityEngine(
 
                 eventStorage.saveEvent(
                     type = "task",
-                    message =
-                        "Запрошен список задач"
+                    message = "Запрошен список задач"
                 )
 
 
                 CapabilityResult(
                     success = true,
-                    message =
-                        "Найдено задач: ${tasks.size}"
+                    message = "Найдено задач: ${tasks.size}"
                 )
 
             }
@@ -364,55 +355,69 @@ class CapabilityEngine(
 
             "solve_task" -> {
 
-                val task =
-                    taskStorage
-                        .loadTasks()
-                        .lastOrNull {
-                            it.status == "NEW"
-                        }
-
-
-                if (task == null) {
-
-                    eventStorage.saveEvent(
-                        type = "task",
-                        message =
-                            "Нет новых задач для обработки"
-                    )
-
+                if (taskId == null) {
 
                     CapabilityResult(
                         success = false,
-                        message =
-                            "Нет новых задач для обработки"
+                        message = "Не указан ID задачи"
                     )
 
                 } else {
 
-                    val result =
-                        "Задача принята Task Solver. " +
-                        "ИИ-решение пока не подключено."
+                    val task =
+                        taskStorage
+                            .loadTasks()
+                            .find {
+                                it.id == taskId
+                            }
 
 
-                    taskStorage.updateTask(
-                        taskId = task.id,
-                        status = "COMPLETED",
-                        result = result
-                    )
+                    if (task == null) {
+
+                        eventStorage.saveEvent(
+                            type = "error",
+                            message = "Задача $taskId не найдена"
+                        )
 
 
-                    eventStorage.saveEvent(
-                        type = "task",
-                        message =
-                            "Обработана задача ${task.id}"
-                    )
+                        CapabilityResult(
+                            success = false,
+                            message = "Задача $taskId не найдена"
+                        )
+
+                    } else if (task.status == "COMPLETED") {
+
+                        CapabilityResult(
+                            success = false,
+                            message = "Задача уже обработана"
+                        )
+
+                    } else {
+
+                        val result =
+                            "Задача принята Task Solver. " +
+                            "ИИ-решение пока не подключено."
 
 
-                    CapabilityResult(
-                        success = true,
-                        message =
-                            "Задача ${task.id} обработана"
-                    )
+                        taskStorage.updateTask(
+                            taskId = task.id,
+                            status = "COMPLETED",
+                            result = result
+                        )
+
+
+                        eventStorage.saveEvent(
+                            type = "task",
+                            message = "Обработана задача ${task.id}"
+                        )
+
+
+                        CapabilityResult(
+                            success = true,
+                            message = "Задача ${task.id} обработана"
+                        )
+
+                    }
 
                 }
 
@@ -432,8 +437,7 @@ class CapabilityEngine(
 
                     CapabilityResult(
                         success = true,
-                        message =
-                            "История задач пока пуста"
+                        message = "История задач пока пуста"
                     )
 
                 } else {
@@ -441,9 +445,7 @@ class CapabilityEngine(
                     val history =
                         buildString {
 
-                            appendLine(
-                                "Последние задачи:"
-                            )
+                            appendLine("Последние задачи:")
 
                             tasks.forEach { task ->
 
@@ -458,8 +460,7 @@ class CapabilityEngine(
 
                     CapabilityResult(
                         success = true,
-                        message =
-                            history
+                        message = history
                     )
 
                 }
@@ -471,14 +472,12 @@ class CapabilityEngine(
 
                 eventStorage.saveEvent(
                     type = "error",
-                    message =
-                        "Неизвестная возможность: $capability"
+                    message = "Неизвестная возможность: $capability"
                 )
 
                 CapabilityResult(
                     success = false,
-                    message =
-                        "Неизвестная возможность: $capability"
+                    message = "Неизвестная возможность: $capability"
                 )
 
             }
