@@ -1,5 +1,9 @@
 import OpenAI from "openai";
 
+import {
+    executeAIWithRetry
+} from "../ai/aiRetry.js";
+
 
 /*
  * =========================================================
@@ -13,19 +17,6 @@ import OpenAI from "openai";
  * - реальные результаты инструментов.
  *
  * Он формирует ТОЛЬКО конечный ответ.
- *
- * ВАЖНО:
- *
- * Answer Composer:
- *
- * - НЕ планирует;
- * - НЕ выбирает инструменты;
- * - НЕ вызывает инструменты;
- * - НЕ выполняет интернет-поиск;
- * - НЕ должен повторно решать routing.
- *
- * Все действия к этому моменту уже выполнены
- * Planner + TaskRunner.
  */
 
 
@@ -52,11 +43,24 @@ const groq =
  * =========================================================
  * CONFIG
  * =========================================================
+ *
+ * Раньше было 50000 символов.
+ *
+ * Для текущего TPM Groq это слишком много:
+ * несколько web_fetch могут сделать запрос
+ * слишком тяжёлым.
+ *
+ * 24000 оставляет достаточно фактического
+ * контекста, но заметно уменьшает нагрузку.
  */
 
 
 const MAX_TOOL_CONTEXT =
-    50000;
+    24000;
+
+
+const COMPOSER_MODEL =
+    "openai/gpt-oss-20b";
 
 
 /*
@@ -124,11 +128,6 @@ function formatToolResults(
             );
 
 
-    /*
-     * Защита от слишком большого контекста.
-     *
-     * web_fetch может вернуть крупную страницу.
-     */
     if (
         formatted.length >
         MAX_TOOL_CONTEXT
@@ -154,30 +153,9 @@ function formatToolResults(
  * =========================================================
  * DIRECT TOOL ANSWER
  * =========================================================
- *
- * Некоторые инструменты сами возвращают
- * полноценный конечный ответ.
- *
- * Например current_time.
- *
- * В таком случае дополнительный AI-вызов
- * не нужен.
- *
- *
- * web_search и web_fetch при успехе
- * возвращают text="",
- * поэтому сюда не попадут.
  */
 
 
-/*
- * Инструменты, чей text действительно
- * является готовым пользовательским ответом.
- *
- * Это НЕ маршрутизация задач.
- *
- * Это техническое свойство результата tool.
- */
 const DIRECT_ANSWER_TOOLS =
     new Set([
         "current_time"
@@ -343,9 +321,11 @@ const COMPOSER_INSTRUCTIONS =
 
         "",
 
-        "Пока интерфейс Jessica отображает обычный текст.",
-        "Поэтому не используй Markdown-таблицы.",
-        "Избегай LaTeX и сложной математической разметки.",
+        "Интерфейс Jessica отображает обычный текст.",
+        "Не используй Markdown-разметку.",
+        "Не используй Markdown-таблицы.",
+        "Не используй символы ** для выделения.",
+        "Избегай LaTeX.",
         "Формулы по возможности записывай обычным текстом.",
 
         "",
@@ -354,6 +334,59 @@ const COMPOSER_INSTRUCTIONS =
     ].join(
         "\n"
     );
+
+
+/*
+ * =========================================================
+ * AI REQUEST
+ * =========================================================
+ */
+
+
+async function requestAnswer(
+    input
+) {
+
+    return await executeAIWithRetry(
+        async () => {
+
+            return await groq
+                .chat
+                .completions
+                .create({
+
+                    model:
+                        COMPOSER_MODEL,
+
+                    messages: [
+                        {
+                            role:
+                                "system",
+
+                            content:
+                                COMPOSER_INSTRUCTIONS
+                        },
+                        {
+                            role:
+                                "user",
+
+                            content:
+                                input
+                        }
+                    ],
+
+                    temperature:
+                        0.2
+                });
+
+        },
+        {
+            label:
+                "Answer Composer"
+        }
+    );
+
+}
 
 
 /*
@@ -385,7 +418,8 @@ export async function composeAnswer(
     if (directAnswer) {
 
         return {
-            success: true,
+            success:
+                true,
 
             text:
                 directAnswer,
@@ -407,7 +441,8 @@ export async function composeAnswer(
     if (!groq) {
 
         return {
-            success: false,
+            success:
+                false,
 
             text:
                 "Groq Answer Composer не настроен"
@@ -433,78 +468,23 @@ export async function composeAnswer(
             );
 
 
-        /*
-         * ВАЖНО:
-         *
-         * Используем chat.completions,
-         * а не Responses API.
-         *
-         * Tools сюда вообще НЕ передаются.
-         *
-         * Поэтому Answer Composer
-         * физически отделён от Tool Registry.
-         */
-
-
         const response =
-            await groq.chat.completions.create({
-
-                model:
-                    "openai/gpt-oss-20b",
-
-                messages: [
-                    {
-                        role:
-                            "system",
-
-                        content:
-                            COMPOSER_INSTRUCTIONS
-                    },
-                    {
-                        role:
-                            "user",
-
-                        content:
-                            input
-                    }
-                ],
-
-                temperature:
-                    0.2
-
-            });
-
-
-        const answer =
-            response.choices?.[0]
-                ?.message
-                ?.content
-                ?.trim();
-
-
-        if (!answer) {
-
-            return {
-                success: false,
-
-                text:
-                    "Answer Composer вернул пустой ответ"
-            };
-
-        }
-
-
-        /*
-         * Дополнительная защита:
-         *
-         * Composer не должен возвращать
-         * структурированный tool-call вместо текста.
-         */
+            await requestAnswer(
+                input
+            );
 
 
         const message =
-            response.choices?.[0]
+            response
+                ?.choices
+                ?.[0]
                 ?.message;
+
+
+        /*
+         * Composer не должен возвращать
+         * tool call вместо текста.
+         */
 
 
         if (
@@ -521,7 +501,8 @@ export async function composeAnswer(
 
 
             return {
-                success: false,
+                success:
+                    false,
 
                 text:
                     "Answer Composer попытался выполнить недопустимое действие"
@@ -530,8 +511,28 @@ export async function composeAnswer(
         }
 
 
+        const answer =
+            message
+                ?.content
+                ?.trim();
+
+
+        if (!answer) {
+
+            return {
+                success:
+                    false,
+
+                text:
+                    "Answer Composer вернул пустой ответ"
+            };
+
+        }
+
+
         return {
-            success: true,
+            success:
+                true,
 
             text:
                 answer,
@@ -544,16 +545,20 @@ export async function composeAnswer(
     } catch (error) {
 
         console.error(
-            "Answer Composer error:",
+            "Answer Composer final error:",
             error
         );
 
 
         return {
-            success: false,
+            success:
+                false,
 
             status:
                 error?.status || 0,
+
+            retryable:
+                error?.status === 429,
 
             text:
                 "Не удалось сформировать итоговый ответ"
