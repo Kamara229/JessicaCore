@@ -19,12 +19,26 @@ import {
  * 2. выполняет шаги последовательно;
  * 3. сохраняет результаты;
  * 4. разрешает $from;
- * 5. перед web_fetch может выбрать лучший
- *    источник среди результатов web_search.
+ * 5. перед web_fetch выбирает подходящий
+ *    источник среди результатов web_search;
+ * 6. может сообщить верхнему execution-циклу,
+ *    что текущий маршрут нужно перестроить.
+ *
+ * ВАЖНО:
+ *
+ * TaskRunner сам НЕ делает replan.
+ *
+ * Он только возвращает:
+ *
+ * shouldRetry: true
+ *
+ * когда причина действительно допускает
+ * альтернативный план.
  */
 
 
-const MAX_STEPS = 15;
+const MAX_STEPS =
+    15;
 
 
 /*
@@ -85,6 +99,7 @@ function getValueByPath(
     ) {
 
         return undefined;
+
     }
 
 
@@ -94,6 +109,7 @@ function getValueByPath(
     ) {
 
         return source;
+
     }
 
 
@@ -111,7 +127,10 @@ function getValueByPath(
         source;
 
 
-    for (const part of parts) {
+    for (
+        const part
+        of parts
+    ) {
 
         if (
             current === null ||
@@ -119,6 +138,7 @@ function getValueByPath(
         ) {
 
             return undefined;
+
         }
 
 
@@ -129,15 +149,18 @@ function getValueByPath(
         ) {
 
             return undefined;
+
         }
 
 
         current =
             current[part];
+
     }
 
 
     return current;
+
 }
 
 
@@ -159,6 +182,7 @@ function findStepResult(
     ) {
 
         return null;
+
     }
 
 
@@ -168,6 +192,7 @@ function findStepResult(
                 item.id === stepId
         ) || null
     );
+
 }
 
 
@@ -192,11 +217,16 @@ function resolveReference(
     if (!from) {
 
         return {
-            success: false,
+            success:
+                false,
+
+            stage:
+                "argument-resolution",
 
             text:
                 "В ссылке на предыдущий шаг отсутствует $from"
         };
+
     }
 
 
@@ -210,11 +240,16 @@ function resolveReference(
     if (!source) {
 
         return {
-            success: false,
+            success:
+                false,
+
+            stage:
+                "argument-resolution",
 
             text:
                 `Не найден результат шага ${from}`
         };
+
     }
 
 
@@ -223,11 +258,16 @@ function resolveReference(
     ) {
 
         return {
-            success: false,
+            success:
+                false,
+
+            stage:
+                "argument-resolution",
 
             text:
                 `Шаг ${from} завершился неуспешно`
         };
+
     }
 
 
@@ -249,7 +289,11 @@ function resolveReference(
     ) {
 
         return {
-            success: false,
+            success:
+                false,
+
+            stage:
+                "argument-resolution",
 
             text:
                 (
@@ -257,13 +301,17 @@ function resolveReference(
                     `из шага ${from}`
                 )
         };
+
     }
 
 
     return {
-        success: true,
+        success:
+            true,
+
         value
     };
+
 }
 
 
@@ -286,9 +334,12 @@ function resolveValue(
     ) {
 
         return {
-            success: true,
+            success:
+                true,
+
             value
         };
+
     }
 
 
@@ -301,6 +352,7 @@ function resolveValue(
             value,
             results
         );
+
     }
 
 
@@ -308,10 +360,14 @@ function resolveValue(
         Array.isArray(value)
     ) {
 
-        const resolvedArray = [];
+        const resolvedArray =
+            [];
 
 
-        for (const item of value) {
+        for (
+            const item
+            of value
+        ) {
 
             const resolved =
                 resolveValue(
@@ -325,23 +381,30 @@ function resolveValue(
             ) {
 
                 return resolved;
+
             }
 
 
             resolvedArray.push(
                 resolved.value
             );
+
         }
 
 
         return {
-            success: true,
-            value: resolvedArray
+            success:
+                true,
+
+            value:
+                resolvedArray
         };
+
     }
 
 
-    const resolvedObject = {};
+    const resolvedObject =
+        {};
 
 
     for (
@@ -361,18 +424,24 @@ function resolveValue(
         ) {
 
             return resolved;
+
         }
 
 
         resolvedObject[key] =
             resolved.value;
+
     }
 
 
     return {
-        success: true,
-        value: resolvedObject
+        success:
+            true,
+
+        value:
+            resolvedObject
     };
+
 }
 
 
@@ -381,12 +450,19 @@ function resolveValue(
  * SOURCE SELECTION
  * =========================================================
  *
- * Если web_fetch должен получить URL
- * непосредственно из web_search,
- * не берём results[0] вслепую.
+ * Если web_fetch получает URL из web_search,
+ * Source Selector оценивает найденные варианты.
  *
- * Сначала Source Selector выбирает
- * наиболее подходящий результат.
+ * Он может:
+ *
+ * SELECT
+ * → вернуть URL;
+ *
+ * REJECT
+ * → сообщить, что подходящего источника нет.
+ *
+ * REJECT является основанием для semantic retry,
+ * но сам TaskRunner replan не выполняет.
  */
 
 
@@ -400,6 +476,11 @@ async function resolveFetchSource(
         originalArgs?.url;
 
 
+    /*
+     * URL не является ссылкой на web_search.
+     *
+     * Source Selector здесь не нужен.
+     */
     if (
         !urlReference ||
         typeof urlReference !== "object" ||
@@ -408,6 +489,7 @@ async function resolveFetchSource(
     ) {
 
         return null;
+
     }
 
 
@@ -418,6 +500,10 @@ async function resolveFetchSource(
         );
 
 
+    /*
+     * Предыдущий шаг не является
+     * успешным web_search.
+     */
     if (
         !source ||
         source.success !== true ||
@@ -425,6 +511,7 @@ async function resolveFetchSource(
     ) {
 
         return null;
+
     }
 
 
@@ -432,17 +519,37 @@ async function resolveFetchSource(
         source.data?.results;
 
 
+    /*
+     * Поиск отработал технически,
+     * но не дал вариантов.
+     *
+     * Это не повод выполнять случайный fetch.
+     * Нужен новый поисковый маршрут.
+     */
     if (
-        !Array.isArray(searchResults) ||
+        !Array.isArray(
+            searchResults
+        ) ||
         searchResults.length === 0
     ) {
 
         return {
-            success: false,
+            success:
+                false,
+
+            shouldRetry:
+                true,
+
+            stage:
+                "source-selection",
+
+            failureType:
+                "no-search-results",
 
             text:
-                "Source Selector не получил результатов поиска"
+                "Поиск не вернул подходящих источников"
         };
+
     }
 
 
@@ -453,45 +560,88 @@ async function resolveFetchSource(
         );
 
 
+    /*
+     * =====================================================
+     * SOURCE SELECTOR REJECTED ALL RESULTS
+     * =====================================================
+     */
+
+
     if (
-        !selection.success ||
-        !selection.result?.url
+        selection?.noSuitableSource === true
     ) {
 
         return {
-            success: false,
+            success:
+                false,
+
+            shouldRetry:
+                true,
+
+            stage:
+                "source-selection",
+
+            failureType:
+                "no-suitable-source",
 
             text:
                 selection.reason ||
-                "Не удалось выбрать подходящий источник"
+                "Ни один найденный источник не соответствует требованиям задачи"
         };
+
     }
 
 
-    console.log(
-        "Jessica Source Selector:",
-        JSON.stringify({
-            index:
-                selection.index,
+    /*
+     * =====================================================
+     * OTHER SELECTOR FAILURE
+     * =====================================================
+     */
 
-            title:
-                selection.result.title || "",
 
-            url:
-                selection.result.url,
+    if (
+        selection?.success !== true ||
+        !selection?.result?.url
+    ) {
 
-            reason:
-                selection.reason || ""
-        })
-    );
+        return {
+            success:
+                false,
+
+            shouldRetry:
+                false,
+
+            stage:
+                "source-selection",
+
+            failureType:
+                "source-selector-error",
+
+            text:
+                selection?.reason ||
+                "Не удалось выбрать подходящий источник"
+        };
+
+    }
+
+
+    /*
+     * Source Selector сам пишет подробный лог
+     * SELECT / REJECT.
+     *
+     * Здесь второй одинаковый лог больше
+     * не создаём.
+     */
 
 
     return {
-        success: true,
+        success:
+            true,
 
         url:
             selection.result.url
     };
+
 }
 
 
@@ -510,9 +660,12 @@ async function resolveStepArguments(
 ) {
 
     /*
-     * Для web_fetch сначала пробуем
-     * интеллектуальный выбор источника.
+     * =====================================================
+     * WEB FETCH SOURCE SELECTION
+     * =====================================================
      */
+
+
     if (
         toolName === "web_fetch"
     ) {
@@ -532,15 +685,19 @@ async function resolveStepArguments(
             ) {
 
                 return selectedSource;
+
             }
 
 
             /*
-             * Остальные arguments тоже разрешаем
-             * обычным механизмом $from.
+             * Остальные arguments разрешаются
+             * стандартным механизмом $from.
              *
-             * URL заменяем выбранным Source Selector.
+             * URL заменяем результатом
+             * Source Selector.
              */
+
+
             const argsWithoutUrl = {
                 ...originalArgs
             };
@@ -561,11 +718,13 @@ async function resolveStepArguments(
             ) {
 
                 return rest;
+
             }
 
 
             return {
-                success: true,
+                success:
+                    true,
 
                 value: {
                     ...rest.value,
@@ -574,18 +733,24 @@ async function resolveStepArguments(
                         selectedSource.url
                 }
             };
+
         }
+
     }
 
 
     /*
-     * Все остальные случаи работают
-     * через стандартный $from.
+     * =====================================================
+     * STANDARD ARGUMENT RESOLUTION
+     * =====================================================
      */
+
+
     return resolveValue(
         originalArgs,
         results
     );
+
 }
 
 
@@ -607,10 +772,12 @@ function getStepId(
     ) {
 
         return step.id.trim();
+
     }
 
 
     return `step_${index + 1}`;
+
 }
 
 
@@ -647,21 +814,26 @@ function validateStepIds(
         ) {
 
             return {
-                success: false,
+                success:
+                    false,
 
                 text:
                     `В плане повторяется id шага: ${id}`
             };
+
         }
 
 
         ids.add(id);
+
     }
 
 
     return {
-        success: true
+        success:
+            true
     };
+
 }
 
 
@@ -678,9 +850,9 @@ export async function runPlan(
 ) {
 
     /*
-     * -----------------------------------------------------
+     * =====================================================
      * PLAN VALIDATION
-     * -----------------------------------------------------
+     * =====================================================
      */
 
 
@@ -690,35 +862,49 @@ export async function runPlan(
     ) {
 
         return {
-            success: false,
+            success:
+                false,
+
+            shouldRetry:
+                false,
 
             text:
                 "TaskRunner получил некорректный план",
 
-            results: []
+            results:
+                []
         };
+
     }
 
 
     if (
-        !Array.isArray(plan.steps)
+        !Array.isArray(
+            plan.steps
+        )
     ) {
 
         return {
-            success: false,
+            success:
+                false,
+
+            shouldRetry:
+                false,
 
             text:
                 "В плане отсутствуют шаги",
 
-            results: []
+            results:
+                []
         };
+
     }
 
 
     /*
-     * -----------------------------------------------------
+     * =====================================================
      * NO TOOLS
-     * -----------------------------------------------------
+     * =====================================================
      */
 
 
@@ -727,13 +913,16 @@ export async function runPlan(
     ) {
 
         return {
-            success: true,
+            success:
+                true,
 
             text:
                 "Инструменты не требуются",
 
-            results: []
+            results:
+                []
         };
+
     }
 
 
@@ -742,22 +931,33 @@ export async function runPlan(
     ) {
 
         return {
-            success: false,
+            success:
+                false,
+
+            shouldRetry:
+                false,
 
             text:
                 "План требует инструменты, но не содержит шагов",
 
-            results: []
+            results:
+                []
         };
+
     }
 
 
     if (
-        plan.steps.length > MAX_STEPS
+        plan.steps.length >
+        MAX_STEPS
     ) {
 
         return {
-            success: false,
+            success:
+                false,
+
+            shouldRetry:
+                false,
 
             text:
                 (
@@ -765,8 +965,10 @@ export async function runPlan(
                     `${plan.steps.length}. Максимум: ${MAX_STEPS}.`
                 ),
 
-            results: []
+            results:
+                []
         };
+
     }
 
 
@@ -781,27 +983,38 @@ export async function runPlan(
     ) {
 
         return {
-            success: false,
+            success:
+                false,
+
+            shouldRetry:
+                false,
 
             text:
                 idsValidation.text,
 
-            results: []
+            results:
+                []
         };
+
     }
 
 
     /*
-     * Контекст для Source Selector.
+     * =====================================================
+     * SOURCE SELECTION CONTEXT
+     * =====================================================
      *
-     * Если вызывающий модуль уже передал исходную
-     * задачу — используем её.
+     * Предпочитаем исходную задачу.
      *
-     * Старые вызовы runPlan(plan) тоже продолжат
-     * работать: тогда используем смысл самого плана.
+     * Для старых вызовов runPlan(plan)
+     * сохраняется fallback на смысл плана.
      */
+
+
     const selectionContext =
-        String(task || "").trim() ||
+        String(
+            task || ""
+        ).trim() ||
         [
             plan.intent || "",
             plan.reasoningSummary || "",
@@ -818,7 +1031,8 @@ export async function runPlan(
      */
 
 
-    const results = [];
+    const results =
+        [];
 
 
     for (
@@ -837,7 +1051,11 @@ export async function runPlan(
         ) {
 
             return {
-                success: false,
+                success:
+                    false,
+
+                shouldRetry:
+                    false,
 
                 text:
                     `Некорректный шаг ${index + 1}`,
@@ -847,6 +1065,7 @@ export async function runPlan(
 
                 results
             };
+
         }
 
 
@@ -866,7 +1085,11 @@ export async function runPlan(
         if (!toolName) {
 
             return {
-                success: false,
+                success:
+                    false,
+
+                shouldRetry:
+                    false,
 
                 text:
                     `В шаге ${index + 1} отсутствует tool`,
@@ -876,15 +1099,22 @@ export async function runPlan(
 
                 results
             };
+
         }
 
 
         if (
-            !hasTool(toolName)
+            !hasTool(
+                toolName
+            )
         ) {
 
             return {
-                success: false,
+                success:
+                    false,
+
+                shouldRetry:
+                    false,
 
                 text:
                     `Инструмент ${toolName} не зарегистрирован`,
@@ -894,41 +1124,120 @@ export async function runPlan(
 
                 results
             };
+
         }
 
 
         const originalArgs =
             originalStep.arguments &&
             typeof originalStep.arguments === "object" &&
-            !Array.isArray(originalStep.arguments)
+            !Array.isArray(
+                originalStep.arguments
+            )
                 ? originalStep.arguments
                 : {};
 
 
         /*
-         * -------------------------------------------------
+         * =================================================
          * RESOLVE ARGUMENTS
-         * -------------------------------------------------
+         * =================================================
          */
 
 
-        const resolvedArgsResult =
-            await resolveStepArguments(
-                toolName,
-                originalArgs,
-                results,
-                selectionContext
+        let resolvedArgsResult;
+
+
+        try {
+
+            resolvedArgsResult =
+                await resolveStepArguments(
+                    toolName,
+                    originalArgs,
+                    results,
+                    selectionContext
+                );
+
+        } catch (error) {
+
+            console.error(
+                `TaskRunner argument resolution exception [${stepId}]:`,
+                error
             );
+
+
+            return {
+                success:
+                    false,
+
+                shouldRetry:
+                    false,
+
+                stage:
+                    "argument-resolution",
+
+                failureType:
+                    "argument-resolution-error",
+
+                text:
+                    `Ошибка подготовки аргументов шага ${stepId}`,
+
+                failedStep:
+                    index,
+
+                failedStepId:
+                    stepId,
+
+                results
+            };
+
+        }
+
+
+        /*
+         * =================================================
+         * ARGUMENT / SOURCE FAILURE
+         * =================================================
+         */
 
 
         if (
             !resolvedArgsResult.success
         ) {
 
+            console.warn(
+                "Jessica TaskRunner route failure:",
+                JSON.stringify({
+                    stage:
+                        resolvedArgsResult.stage ||
+                        "argument-resolution",
+
+                    failureType:
+                        resolvedArgsResult.failureType ||
+                        "argument-resolution",
+
+                    shouldRetry:
+                        resolvedArgsResult.shouldRetry === true,
+
+                    reason:
+                        resolvedArgsResult.text || ""
+                })
+            );
+
+
             return {
-                success: false,
+                success:
+                    false,
+
+                shouldRetry:
+                    resolvedArgsResult.shouldRetry === true,
 
                 stage:
+                    resolvedArgsResult.stage ||
+                    "argument-resolution",
+
+                failureType:
+                    resolvedArgsResult.failureType ||
                     "argument-resolution",
 
                 text:
@@ -943,6 +1252,7 @@ export async function runPlan(
 
                 results
             };
+
         }
 
 
@@ -960,9 +1270,9 @@ export async function runPlan(
 
 
         /*
-         * -------------------------------------------------
+         * =================================================
          * EXECUTE TOOL
-         * -------------------------------------------------
+         * =================================================
          */
 
 
@@ -986,7 +1296,17 @@ export async function runPlan(
 
 
             return {
-                success: false,
+                success:
+                    false,
+
+                shouldRetry:
+                    false,
+
+                stage:
+                    "tool",
+
+                failureType:
+                    "tool-exception",
 
                 text:
                     `Ошибка выполнения инструмента ${toolName}`,
@@ -999,6 +1319,7 @@ export async function runPlan(
 
                 results
             };
+
         }
 
 
@@ -1019,13 +1340,15 @@ export async function runPlan(
             );
 
 
-        results.push(result);
+        results.push(
+            result
+        );
 
 
         /*
-         * -------------------------------------------------
+         * =================================================
          * NEEDS CLARIFICATION
-         * -------------------------------------------------
+         * =================================================
          */
 
 
@@ -1034,10 +1357,17 @@ export async function runPlan(
         ) {
 
             return {
-                success: false,
+                success:
+                    false,
+
+                shouldRetry:
+                    false,
 
                 needsClarification:
                     true,
+
+                stage:
+                    "tool",
 
                 text:
                     result.text ||
@@ -1051,13 +1381,14 @@ export async function runPlan(
 
                 results
             };
+
         }
 
 
         /*
-         * -------------------------------------------------
+         * =================================================
          * FAILED TOOL
-         * -------------------------------------------------
+         * =================================================
          */
 
 
@@ -1066,7 +1397,17 @@ export async function runPlan(
         ) {
 
             return {
-                success: false,
+                success:
+                    false,
+
+                shouldRetry:
+                    false,
+
+                stage:
+                    "tool",
+
+                failureType:
+                    "tool-failure",
 
                 text:
                     result.text ||
@@ -1080,6 +1421,7 @@ export async function runPlan(
 
                 results
             };
+
         }
 
     }
@@ -1093,11 +1435,16 @@ export async function runPlan(
 
 
     return {
-        success: true,
+        success:
+            true,
+
+        shouldRetry:
+            false,
 
         text:
             "План выполнен",
 
         results
     };
+
 }
