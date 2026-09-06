@@ -19,6 +19,11 @@ import {
     shouldRetryExecution
 } from "./retryPolicy.js";
 
+import {
+    analyzeRunFailure,
+    buildRunFailureFeedback
+} from "./runFailurePolicy.js";
+
 
 /*
  * =========================================================
@@ -34,8 +39,18 @@ import {
  * → replan
  * → retry
  *
- * Сам первый план не создаёт.
- * Его передаёт subtaskRunner.
+ * ВАЖНО:
+ *
+ * semantic retry теперь может возникнуть
+ * не только после Validator,
+ * но и раньше — на уровне TaskRunner.
+ *
+ * Например:
+ *
+ * web_search
+ * → Source Selector REJECT
+ * → TaskRunner shouldRetry=true
+ * → Replanner
  */
 
 
@@ -64,6 +79,7 @@ function collectUsedTools(
                 item?.tool
         )
         .filter(Boolean);
+
 }
 
 
@@ -75,7 +91,6 @@ function collectUsedTools(
 
 
 function buildCompletedResult(
-    taskText,
     plan,
     taskRunResult,
     answerResult,
@@ -83,7 +98,8 @@ function buildCompletedResult(
 ) {
 
     return {
-        success: true,
+        success:
+            true,
 
         status:
             "COMPLETED",
@@ -109,6 +125,7 @@ function buildCompletedResult(
 
         attempt
     };
+
 }
 
 
@@ -125,11 +142,13 @@ function buildFailure(
     plan,
     taskRunResult,
     attempt,
-    shouldRetry = false
+    shouldRetry = false,
+    failureType = null
 ) {
 
     return {
-        success: false,
+        success:
+            false,
 
         status:
             "FAILED",
@@ -137,6 +156,8 @@ function buildFailure(
         stage,
 
         shouldRetry,
+
+        failureType,
 
         result:
             text,
@@ -148,6 +169,118 @@ function buildFailure(
 
         attempt
     };
+
+}
+
+
+/*
+ * =========================================================
+ * REPLAN
+ * =========================================================
+ *
+ * Единая функция для semantic retry.
+ *
+ * Её можно вызвать:
+ *
+ * - после ошибки маршрута TaskRunner;
+ * - после отклонения Validator.
+ */
+
+
+async function createAlternativePlan(
+    taskText,
+    currentPlan,
+    feedback,
+    taskRunResult,
+    attempt
+) {
+
+    console.log(
+        "Jessica retry requested:",
+        JSON.stringify({
+            attempt,
+
+            stage:
+                feedback?.stage || "",
+
+            failureType:
+                feedback?.failureType || "",
+
+            reason:
+                feedback?.reason || ""
+        })
+    );
+
+
+    let replanResult;
+
+
+    try {
+
+        replanResult =
+            await replanTask(
+                taskText,
+                currentPlan,
+                feedback,
+                taskRunResult
+            );
+
+    } catch (error) {
+
+        console.error(
+            "Jessica Replanner exception:",
+            error
+        );
+
+
+        return {
+            success:
+                false,
+
+            reason:
+                "Не удалось построить альтернативный план"
+        };
+
+    }
+
+
+    if (
+        !replanResult?.success ||
+        !replanResult?.plan
+    ) {
+
+        return {
+            success:
+                false,
+
+            reason:
+                replanResult?.reason ||
+                "Не удалось построить альтернативный план"
+        };
+
+    }
+
+
+    console.log(
+        "Jessica retry plan accepted:",
+        JSON.stringify({
+            nextAttempt:
+                attempt + 1,
+
+            intent:
+                replanResult.plan.intent || ""
+        })
+    );
+
+
+    return {
+        success:
+            true,
+
+        plan:
+            replanResult.plan
+    };
+
 }
 
 
@@ -227,12 +360,34 @@ export async function executePlanCycle(
             taskRunResult;
 
 
+        /*
+         * =================================================
+         * 2. ANALYZE RUN RESULT
+         * =================================================
+         */
+
+
+        const runFailure =
+            analyzeRunFailure(
+                taskRunResult
+            );
+
+
+        /*
+         * =================================================
+         * NEEDS CLARIFICATION
+         * =================================================
+         */
+
+
         if (
-            taskRunResult?.needsClarification === true
+            runFailure.failed === true &&
+            runFailure.needsClarification === true
         ) {
 
             return {
-                success: false,
+                success:
+                    false,
 
                 status:
                     "NEEDS_CLARIFICATION",
@@ -241,17 +396,22 @@ export async function executePlanCycle(
                     true,
 
                 stage:
+                    runFailure.stage ||
                     "tools",
 
+                failureType:
+                    runFailure.failureType ||
+                    "needs-clarification",
+
                 result:
-                    taskRunResult.text ||
+                    runFailure.reason ||
                     "Для выполнения требуется уточнение",
 
                 plan:
                     currentPlan,
 
                 toolResults:
-                    taskRunResult.results || [],
+                    taskRunResult?.results || [],
 
                 attempt
             };
@@ -259,17 +419,124 @@ export async function executePlanCycle(
         }
 
 
+        /*
+         * =================================================
+         * RETRYABLE RUN FAILURE
+         * =================================================
+         *
+         * Например:
+         *
+         * Source Selector отклонил всю выдачу.
+         */
+
+
         if (
-            taskRunResult?.success !== true
+            runFailure.failed === true &&
+            runFailure.shouldRetry === true
+        ) {
+
+            /*
+             * Последняя попытка:
+             * нового Replan уже не будет.
+             */
+
+
+            if (
+                attempt >=
+                MAX_EXECUTION_ATTEMPTS
+            ) {
+
+                return buildFailure(
+                    runFailure.stage ||
+                        "runner",
+
+                    runFailure.reason ||
+                        "Не удалось найти подходящий маршрут выполнения",
+
+                    currentPlan,
+                    taskRunResult,
+                    attempt,
+                    false,
+                    runFailure.failureType
+                );
+
+            }
+
+
+            const feedback =
+                buildRunFailureFeedback(
+                    runFailure
+                );
+
+
+            const alternative =
+                await createAlternativePlan(
+                    taskText,
+                    currentPlan,
+                    feedback,
+                    taskRunResult,
+                    attempt
+                );
+
+
+            if (
+                !alternative.success
+            ) {
+
+                return buildFailure(
+                    "replanner",
+                    alternative.reason,
+                    currentPlan,
+                    taskRunResult,
+                    attempt,
+                    false,
+                    runFailure.failureType
+                );
+
+            }
+
+
+            currentPlan =
+                alternative.plan;
+
+
+            /*
+             * Переходим к следующей итерации.
+             *
+             * Composer и Validator не запускаются,
+             * потому что текущий route уже признан
+             * непригодным.
+             */
+
+
+            continue;
+
+        }
+
+
+        /*
+         * =================================================
+         * NON-RETRYABLE RUN FAILURE
+         * =================================================
+         */
+
+
+        if (
+            runFailure.failed === true
         ) {
 
             return buildFailure(
-                "tools",
-                taskRunResult?.text ||
+                runFailure.stage ||
+                    "tools",
+
+                runFailure.reason ||
                     "Не удалось выполнить план",
+
                 currentPlan,
                 taskRunResult,
-                attempt
+                attempt,
+                false,
+                runFailure.failureType
             );
 
         }
@@ -277,7 +544,7 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * 2. COMPOSE ANSWER
+         * 3. COMPOSE ANSWER
          * =================================================
          */
 
@@ -331,7 +598,7 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * 3. VALIDATE
+         * 4. VALIDATE
          * =================================================
          */
 
@@ -358,12 +625,16 @@ export async function executePlanCycle(
 
 
             /*
-             * Пока сохраняем старое поведение:
-             * если Validator технически сломался,
-             * уже полученный ответ не выбрасываем.
+             * Пока сохраняем существующую политику:
+             *
+             * если сам Validator технически сломался,
+             * уже сформированный ответ не выбрасываем.
              */
+
+
             return {
-                success: true,
+                success:
+                    true,
 
                 status:
                     "COMPLETED",
@@ -400,7 +671,7 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * 4. NEEDS CLARIFICATION
+         * 5. VALIDATOR NEEDS CLARIFICATION
          * =================================================
          */
 
@@ -410,7 +681,8 @@ export async function executePlanCycle(
         ) {
 
             return {
-                success: false,
+                success:
+                    false,
 
                 status:
                     "NEEDS_CLARIFICATION",
@@ -439,7 +711,7 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * 5. VALID
+         * 6. VALID
          * =================================================
          */
 
@@ -449,7 +721,6 @@ export async function executePlanCycle(
         ) {
 
             return buildCompletedResult(
-                taskText,
                 currentPlan,
                 taskRunResult,
                 answerResult,
@@ -461,7 +732,7 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * 6. RETRY POLICY
+         * 7. VALIDATOR RETRY POLICY
          * =================================================
          */
 
@@ -475,12 +746,15 @@ export async function executePlanCycle(
 
             return buildFailure(
                 "validator",
+
                 validation?.reason ||
                     "Результат не прошёл проверку качества",
+
                 currentPlan,
                 taskRunResult,
                 attempt,
-                validation?.shouldRetry === true
+                false,
+                "validation-failure"
             );
 
         }
@@ -488,62 +762,28 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * 7. REPLAN
+         * 8. REPLAN AFTER VALIDATOR
          * =================================================
          */
 
 
-        console.log(
-            "Jessica retry requested:",
-            JSON.stringify({
-                attempt,
-                reason:
-                    validation?.reason || ""
-            })
-        );
-
-
-        let replanResult;
-
-
-        try {
-
-            replanResult =
-                await replanTask(
-                    taskText,
-                    currentPlan,
-                    validation,
-                    taskRunResult
-                );
-
-        } catch (error) {
-
-            console.error(
-                "Jessica Replanner exception:",
-                error
-            );
-
-
-            return buildFailure(
-                "replanner",
-                "Не удалось построить альтернативный план",
+        const alternative =
+            await createAlternativePlan(
+                taskText,
                 currentPlan,
+                validation,
                 taskRunResult,
                 attempt
             );
 
-        }
-
 
         if (
-            !replanResult?.success ||
-            !replanResult?.plan
+            !alternative.success
         ) {
 
             return buildFailure(
                 "replanner",
-                replanResult?.reason ||
-                    "Не удалось построить альтернативный план",
+                alternative.reason,
                 currentPlan,
                 taskRunResult,
                 attempt
@@ -552,38 +792,29 @@ export async function executePlanCycle(
         }
 
 
-        /*
-         * Следующая итерация
-         * выполняет уже новый план.
-         */
         currentPlan =
-            replanResult.plan;
-
-
-        console.log(
-            "Jessica retry plan accepted:",
-            JSON.stringify({
-                nextAttempt:
-                    attempt + 1,
-
-                intent:
-                    currentPlan.intent || ""
-            })
-        );
+            alternative.plan;
 
     }
 
 
     /*
-     * Теоретически сюда не должны попасть,
-     * но оставляем безопасный fallback.
+     * =====================================================
+     * SAFETY FALLBACK
+     * =====================================================
      */
+
+
     return buildFailure(
         "execution",
+
         previousValidation?.reason ||
+            previousRunResult?.text ||
             "Исчерпан лимит попыток выполнения",
+
         currentPlan,
         previousRunResult,
         MAX_EXECUTION_ATTEMPTS
     );
+
 }
