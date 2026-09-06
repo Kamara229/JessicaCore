@@ -5,20 +5,17 @@
  *
  * Общая техническая политика повторов AI-запросов.
  *
- * Используется для временных ошибок:
+ * Повторяем только действительно временные ошибки.
  *
- * - 429 rate limit;
- * - 408 timeout;
- * - 5xx ошибки провайдера;
- * - временные сетевые сбои.
+ * ВАЖНО:
  *
- * Это НЕ semantic retry.
+ * - TPM rate limit с коротким Retry-After → retry;
+ * - timeout / 5xx → retry;
+ * - дневная квота / долгий Retry-After → НЕ retry;
+ * - x-should-retry: false → НЕ retry.
  *
- * Semantic retry:
- * Validator → Replanner.
- *
- * Technical retry:
- * AI provider error → wait → repeat same request.
+ * Semantic retry здесь НЕ выполняется.
+ * Semantic retry = Validator → Replanner.
  */
 
 
@@ -37,8 +34,12 @@ const DEFAULT_RETRY_DELAY_MS =
     1000;
 
 
-const MAX_RETRY_DELAY_MS =
-    10000;
+/*
+ * Не держим пользовательский запрос
+ * десятки минут из-за квоты провайдера.
+ */
+const MAX_IMMEDIATE_RETRY_WAIT_MS =
+    30_000;
 
 
 /*
@@ -53,7 +54,9 @@ export function sleep(
 ) {
 
     const delay =
-        Number.isFinite(milliseconds)
+        Number.isFinite(
+            milliseconds
+        )
             ? Math.max(
                 0,
                 milliseconds
@@ -68,6 +71,57 @@ export function sleep(
                 delay
             )
     );
+
+}
+
+
+/*
+ * =========================================================
+ * HEADER
+ * =========================================================
+ */
+
+
+function getHeader(
+    error,
+    name
+) {
+
+    const headers =
+        error?.headers;
+
+
+    if (!headers) {
+
+        return null;
+
+    }
+
+
+    try {
+
+        if (
+            typeof headers.get === "function"
+        ) {
+
+            return headers.get(
+                name
+            );
+
+        }
+
+
+        return (
+            headers[name] ??
+            headers[name.toLowerCase()] ??
+            null
+        );
+
+    } catch {
+
+        return null;
+
+    }
 
 }
 
@@ -89,9 +143,203 @@ function getErrorStatus(
         );
 
 
-    return Number.isFinite(status)
+    return Number.isFinite(
+        status
+    )
         ? status
         : 0;
+
+}
+
+
+/*
+ * =========================================================
+ * PROVIDER RETRY POLICY
+ * =========================================================
+ */
+
+
+function providerAllowsRetry(
+    error
+) {
+
+    const value =
+        String(
+            getHeader(
+                error,
+                "x-should-retry"
+            ) || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    /*
+     * Провайдер явно запретил повтор.
+     */
+    if (
+        value === "false"
+    ) {
+
+        return false;
+
+    }
+
+
+    return true;
+
+}
+
+
+/*
+ * =========================================================
+ * RETRY-AFTER
+ * =========================================================
+ */
+
+
+function getRetryAfterMilliseconds(
+    error
+) {
+
+    const value =
+        getHeader(
+            error,
+            "retry-after"
+        );
+
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return null;
+
+    }
+
+
+    /*
+     * Retry-After в секундах.
+     */
+
+
+    const seconds =
+        Number(
+            value
+        );
+
+
+    if (
+        Number.isFinite(
+            seconds
+        ) &&
+        seconds >= 0
+    ) {
+
+        return Math.ceil(
+            seconds * 1000
+        );
+
+    }
+
+
+    /*
+     * HTTP также допускает дату.
+     */
+
+
+    const timestamp =
+        Date.parse(
+            String(
+                value
+            )
+        );
+
+
+    if (
+        Number.isFinite(
+            timestamp
+        )
+    ) {
+
+        return Math.max(
+            0,
+            timestamp - Date.now()
+        );
+
+    }
+
+
+    return null;
+
+}
+
+
+/*
+ * =========================================================
+ * LONG-LIVED RATE LIMIT
+ * =========================================================
+ */
+
+
+function isLongRateLimit(
+    error
+) {
+
+    const message =
+        String(
+            error?.message ||
+            error?.error?.message ||
+            ""
+        )
+            .toLowerCase();
+
+
+    /*
+     * Дневные / долгосрочные квоты.
+     */
+
+
+    if (
+        message.includes(
+            "tokens per day"
+        ) ||
+        message.includes(
+            "(tpd)"
+        )
+    ) {
+
+        return true;
+
+    }
+
+
+    const retryAfter =
+        getRetryAfterMilliseconds(
+            error
+        );
+
+
+    /*
+     * Если провайдер просит ждать больше
+     * 30 секунд, не блокируем текущую задачу.
+     */
+
+
+    if (
+        retryAfter !== null &&
+        retryAfter >
+            MAX_IMMEDIATE_RETRY_WAIT_MS
+    ) {
+
+        return true;
+
+    }
+
+
+    return false;
 
 }
 
@@ -107,6 +355,23 @@ export function isRetryableAIError(
     error
 ) {
 
+    /*
+     * Сначала уважаем прямое указание
+     * самого AI-провайдера.
+     */
+
+
+    if (
+        !providerAllowsRetry(
+            error
+        )
+    ) {
+
+        return false;
+
+    }
+
+
     const status =
         getErrorStatus(
             error
@@ -116,9 +381,29 @@ export function isRetryableAIError(
     /*
      * Rate limit.
      */
+
+
     if (
         status === 429
     ) {
+
+        /*
+         * Долгосрочную квоту внутри
+         * пользовательского запроса
+         * повторять бессмысленно.
+         */
+
+
+        if (
+            isLongRateLimit(
+                error
+            )
+        ) {
+
+            return false;
+
+        }
+
 
         return true;
 
@@ -128,6 +413,8 @@ export function isRetryableAIError(
     /*
      * Request timeout.
      */
+
+
     if (
         status === 408
     ) {
@@ -140,6 +427,8 @@ export function isRetryableAIError(
     /*
      * Temporary provider errors.
      */
+
+
     if (
         status >= 500 &&
         status <= 599
@@ -151,8 +440,7 @@ export function isRetryableAIError(
 
 
     /*
-     * Некоторые сетевые ошибки
-     * могут приходить без HTTP status.
+     * Network errors without HTTP status.
      */
 
 
@@ -186,122 +474,6 @@ export function isRetryableAIError(
 
 /*
  * =========================================================
- * RETRY-AFTER
- * =========================================================
- */
-
-
-function getRetryAfterMilliseconds(
-    error
-) {
-
-    const headers =
-        error?.headers;
-
-
-    if (!headers) {
-
-        return null;
-
-    }
-
-
-    let value =
-        null;
-
-
-    try {
-
-        if (
-            typeof headers.get === "function"
-        ) {
-
-            value =
-                headers.get(
-                    "retry-after"
-                );
-
-        } else {
-
-            value =
-                headers["retry-after"] ??
-                headers["Retry-After"];
-
-        }
-
-    } catch {
-
-        value =
-            null;
-
-    }
-
-
-    if (
-        value === null ||
-        value === undefined ||
-        value === ""
-    ) {
-
-        return null;
-
-    }
-
-
-    /*
-     * Обычно Retry-After приходит
-     * в секундах.
-     */
-
-
-    const seconds =
-        Number(
-            value
-        );
-
-
-    if (
-        Number.isFinite(seconds) &&
-        seconds >= 0
-    ) {
-
-        return Math.ceil(
-            seconds * 1000
-        );
-
-    }
-
-
-    /*
-     * Стандарт HTTP также допускает дату.
-     */
-
-
-    const timestamp =
-        Date.parse(
-            String(value)
-        );
-
-
-    if (
-        Number.isFinite(timestamp)
-    ) {
-
-        return Math.max(
-            0,
-            timestamp - Date.now()
-        );
-
-    }
-
-
-    return null;
-
-}
-
-
-/*
- * =========================================================
  * RETRY DELAY
  * =========================================================
  */
@@ -322,14 +494,9 @@ export function getAIRetryDelay(
         retryAfter !== null
     ) {
 
-        /*
-         * Добавляем небольшой запас,
-         * чтобы не повторить запрос
-         * ровно на границе rate limit.
-         */
         return Math.min(
             retryAfter + 250,
-            MAX_RETRY_DELAY_MS
+            MAX_IMMEDIATE_RETRY_WAIT_MS
         );
 
     }
@@ -338,9 +505,9 @@ export function getAIRetryDelay(
     /*
      * Exponential backoff:
      *
-     * attempt 1 → 1 сек
-     * attempt 2 → 2 сек
-     * attempt 3 → 4 сек
+     * attempt 1 → 1 sec
+     * attempt 2 → 2 sec
+     * attempt 3 → 4 sec
      */
 
 
@@ -351,17 +518,14 @@ export function getAIRetryDelay(
         );
 
 
-    const delay =
-        DEFAULT_RETRY_DELAY_MS *
-        Math.pow(
-            2,
-            multiplier
-        );
-
-
     return Math.min(
-        delay,
-        MAX_RETRY_DELAY_MS
+        DEFAULT_RETRY_DELAY_MS *
+            Math.pow(
+                2,
+                multiplier
+            ),
+
+        MAX_IMMEDIATE_RETRY_WAIT_MS
     );
 
 }
@@ -440,14 +604,49 @@ export async function executeAIWithRetry(
             );
 
 
+            /*
+             * =================================================
+             * DO NOT RETRY
+             * =================================================
+             */
+
+
             if (
-                !retryable ||
-                attempt >= maxAttempts
+                !retryable
+            ) {
+
+                console.warn(
+                    `${label}: provider error is not immediately retryable`
+                );
+
+
+                throw error;
+
+            }
+
+
+            /*
+             * =================================================
+             * ATTEMPTS EXHAUSTED
+             * =================================================
+             */
+
+
+            if (
+                attempt >=
+                maxAttempts
             ) {
 
                 throw error;
 
             }
+
+
+            /*
+             * =================================================
+             * WAIT
+             * =================================================
+             */
 
 
             const delay =
@@ -478,4 +677,4 @@ export async function executeAIWithRetry(
         )
     );
 
-    }
+}
