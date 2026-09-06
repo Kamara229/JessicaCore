@@ -11,6 +11,10 @@ import {
 } from "./validator/sourceContentValidator.js";
 
 import {
+    validateClaimEvidence
+} from "./validator/claimEvidenceValidator.js";
+
+import {
     validateWithAI
 } from "./validator/aiResultValidator.js";
 
@@ -56,15 +60,11 @@ export async function validateResult(
 
         const result = {
             success: true,
-
             valid: false,
-
             shouldRetry:
                 basic.shouldRetry === true,
-
             needsClarification:
                 basic.needsClarification === true,
-
             reason:
                 basic.reason || ""
         };
@@ -98,7 +98,6 @@ export async function validateResult(
         JSON.stringify({
             requiredMode:
                 plan?.evidence?.mode || "none",
-
             ...evidence
         })
     );
@@ -110,14 +109,10 @@ export async function validateResult(
 
         const result = {
             success: true,
-
             valid: false,
-
             shouldRetry:
                 evidence.shouldRetry === true,
-
             needsClarification: false,
-
             reason:
                 evidence.reason || ""
         };
@@ -137,10 +132,6 @@ export async function validateResult(
      * =====================================================
      * 3. SOURCE CONTENT QUALITY
      * =====================================================
-     *
-     * Здесь уже проверяем не просто факт fetch,
-     * а действительно ли загруженная страница
-     * содержит данные, нужные для задачи.
      */
 
     const sourceContent =
@@ -164,14 +155,10 @@ export async function validateResult(
 
         const result = {
             success: true,
-
             valid: false,
-
             shouldRetry:
                 sourceContent.shouldRetry === true,
-
             needsClarification: false,
-
             reason:
                 sourceContent.reason || ""
         };
@@ -189,7 +176,57 @@ export async function validateResult(
 
     /*
      * =====================================================
-     * 4. DIRECT TOOL RESULT
+     * 4. CLAIM EVIDENCE
+     * =====================================================
+     *
+     * Проверяем уже конкретные факты
+     * итогового ответа по реальному content.
+     */
+
+    const claimEvidence =
+        await validateClaimEvidence(
+            task,
+            plan,
+            taskRunResult,
+            answerResult
+        );
+
+
+    console.log(
+        "Jessica Validator claims:",
+        JSON.stringify(claimEvidence)
+    );
+
+
+    if (
+        claimEvidence.success === true &&
+        claimEvidence.valid !== true
+    ) {
+
+        const result = {
+            success: true,
+            valid: false,
+            shouldRetry:
+                claimEvidence.shouldRetry === true,
+            needsClarification: false,
+            reason:
+                claimEvidence.reason || ""
+        };
+
+
+        console.log(
+            "Jessica Validator final:",
+            JSON.stringify(result)
+        );
+
+
+        return result;
+    }
+
+
+    /*
+     * =====================================================
+     * 5. DIRECT TOOL RESULT
      * =====================================================
      */
 
@@ -199,13 +236,9 @@ export async function validateResult(
 
         const result = {
             success: true,
-
             valid: true,
-
             shouldRetry: false,
-
             needsClarification: false,
-
             reason:
                 "Ответ получен напрямую от успешно выполненного инструмента"
         };
@@ -223,7 +256,7 @@ export async function validateResult(
 
     /*
      * =====================================================
-     * 5. AI ANSWER VALIDATION
+     * 6. AI ANSWER VALIDATION
      * =====================================================
      */
 
@@ -248,16 +281,12 @@ export async function validateResult(
 
         const result = {
             success: true,
-
             valid:
                 aiValidation.valid === true,
-
             shouldRetry:
                 aiValidation.shouldRetry === true,
-
             needsClarification:
                 aiValidation.needsClarification === true,
-
             reason:
                 aiValidation.reason || ""
         };
@@ -275,19 +304,15 @@ export async function validateResult(
 
     /*
      * =====================================================
-     * 6. AI UNAVAILABLE
+     * 7. AI UNAVAILABLE
      * =====================================================
      */
 
     const result = {
         success: true,
-
         valid: true,
-
         shouldRetry: false,
-
         needsClarification: false,
-
         reason:
             aiValidation.reason ||
             "AI Validator недоступен, технические проверки пройдены"
