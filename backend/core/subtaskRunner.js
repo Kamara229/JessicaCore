@@ -3,16 +3,8 @@ import {
 } from "./planner.js";
 
 import {
-    runPlan
-} from "./taskRunner.js";
-
-import {
-    composeAnswer
-} from "./answerComposer.js";
-
-import {
-    validateResult
-} from "./validator.js";
+    executePlanCycle
+} from "./execution/executionCycle.js";
 
 
 /*
@@ -20,10 +12,28 @@ import {
  * JESSICA SUBTASK RUNNER
  * =========================================================
  *
- * Выполняет одну подзадачу независимо.
+ * Координатор выполнения подзадач.
  *
- * Ошибка одной подзадачи
- * не должна останавливать остальные.
+ * Здесь остаётся только:
+ *
+ * 1. подготовка подзадачи;
+ * 2. создание первого плана;
+ * 3. передача управления Execution Cycle;
+ * 4. последовательный запуск нескольких подзадач;
+ * 5. формирование общей статистики.
+ *
+ *
+ * Детальный цикл:
+ *
+ * run
+ * → compose
+ * → validate
+ * → replan
+ * → retry
+ *
+ * находится в:
+ *
+ * core/execution/executionCycle.js
  */
 
 
@@ -48,6 +58,13 @@ export async function executeSubtask(
             : "";
 
 
+    /*
+     * =====================================================
+     * INPUT VALIDATION
+     * =====================================================
+     */
+
+
     if (!taskText) {
 
         return {
@@ -63,6 +80,9 @@ export async function executeSubtask(
             success:
                 false,
 
+            stage:
+                "input",
+
             result:
                 "Подзадача не содержит текста"
         };
@@ -72,7 +92,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 1. PLAN
+     * 1. CREATE INITIAL PLAN
      * =====================================================
      */
 
@@ -119,7 +139,8 @@ export async function executeSubtask(
 
 
     if (
-        !planResult?.success
+        !planResult?.success ||
+        !planResult?.plan
     ) {
 
         return {
@@ -146,31 +167,40 @@ export async function executeSubtask(
     }
 
 
-    const plan =
-        planResult.plan;
-
-
     /*
      * =====================================================
-     * 2. RUN PLAN
+     * 2. EXECUTION CYCLE
      * =====================================================
+     *
+     * Дальше весь цикл выполняется отдельно:
+     *
+     * plan
+     * → run
+     * → compose
+     * → validate
+     *
+     * Если Validator требует повтор:
+     *
+     * → replan
+     * → retry
      */
 
 
-    let taskRunResult;
+    let executionResult;
 
 
     try {
 
-        taskRunResult =
-            await runPlan(
-                plan
+        executionResult =
+            await executePlanCycle(
+                taskText,
+                planResult.plan
             );
 
     } catch (error) {
 
         console.error(
-            `Subtask ${subtaskId} runner exception:`,
+            `Subtask ${subtaskId} execution cycle exception:`,
             error
         );
 
@@ -189,91 +219,13 @@ export async function executeSubtask(
                 false,
 
             stage:
-                "runner",
+                "execution",
 
             result:
-                "Ошибка выполнения плана",
+                "Непредвиденная ошибка цикла выполнения",
 
-            plan
-        };
-
-    }
-
-
-    /*
-     * Требуется уточнение.
-     */
-
-
-    if (
-        taskRunResult?.needsClarification === true
-    ) {
-
-        return {
-            id:
-                subtaskId,
-
-            text:
-                taskText,
-
-            status:
-                "NEEDS_CLARIFICATION",
-
-            success:
-                false,
-
-            needsClarification:
-                true,
-
-            stage:
-                "tools",
-
-            result:
-                taskRunResult.text ||
-                "Для выполнения требуется уточнение",
-
-            plan,
-
-            toolResults:
-                taskRunResult.results || []
-        };
-
-    }
-
-
-    /*
-     * Ошибка выполнения инструмента.
-     */
-
-
-    if (
-        taskRunResult?.success !== true
-    ) {
-
-        return {
-            id:
-                subtaskId,
-
-            text:
-                taskText,
-
-            status:
-                "FAILED",
-
-            success:
-                false,
-
-            stage:
-                "tools",
-
-            result:
-                taskRunResult?.text ||
-                "Не удалось выполнить подзадачу",
-
-            plan,
-
-            toolResults:
-                taskRunResult?.results || []
+            plan:
+                planResult.plan
         };
 
     }
@@ -281,253 +233,23 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 3. COMPOSE ANSWER
+     * 3. NORMALIZE SUBTASK RESULT
      * =====================================================
-     */
-
-
-    let answerResult;
-
-
-    try {
-
-        answerResult =
-            await composeAnswer(
-                taskText,
-                plan,
-                taskRunResult
-            );
-
-    } catch (error) {
-
-        console.error(
-            `Subtask ${subtaskId} composer exception:`,
-            error
-        );
-
-
-        return {
-            id:
-                subtaskId,
-
-            text:
-                taskText,
-
-            status:
-                "FAILED",
-
-            success:
-                false,
-
-            stage:
-                "composer",
-
-            result:
-                "Не удалось сформировать ответ",
-
-            plan,
-
-            toolResults:
-                taskRunResult.results || []
-        };
-
-    }
-
-
-    if (
-        !answerResult?.success
-    ) {
-
-        return {
-            id:
-                subtaskId,
-
-            text:
-                taskText,
-
-            status:
-                "FAILED",
-
-            success:
-                false,
-
-            stage:
-                "composer",
-
-            result:
-                answerResult?.text ||
-                "Не удалось сформировать ответ",
-
-            plan,
-
-            toolResults:
-                taskRunResult.results || []
-        };
-
-    }
-
-
-    /*
-     * =====================================================
-     * 4. VALIDATE
-     * =====================================================
-     */
-
-
-    let validation;
-
-
-    try {
-
-        validation =
-            await validateResult(
-                taskText,
-                plan,
-                taskRunResult,
-                answerResult
-            );
-
-    } catch (error) {
-
-        console.error(
-            `Subtask ${subtaskId} validator exception:`,
-            error
-        );
-
-
-        /*
-         * Если Validator сломался,
-         * не выбрасываем уже полученный ответ.
-         */
-
-
-        return {
-            id:
-                subtaskId,
-
-            text:
-                taskText,
-
-            status:
-                "COMPLETED",
-
-            success:
-                true,
-
-            validated:
-                false,
-
-            result:
-                answerResult.text,
-
-            answerSource:
-                answerResult.source || "unknown",
-
-            usedTools:
-                Array.isArray(
-                    taskRunResult.results
-                )
-                    ? taskRunResult.results.map(
-                        item =>
-                            item.tool
-                    )
-                    : [],
-
-            plan,
-
-            toolResults:
-                taskRunResult.results || []
-        };
-
-    }
-
-
-    /*
-     * Validator требует уточнение.
-     */
-
-
-    if (
-        validation?.needsClarification === true
-    ) {
-
-        return {
-            id:
-                subtaskId,
-
-            text:
-                taskText,
-
-            status:
-                "NEEDS_CLARIFICATION",
-
-            success:
-                false,
-
-            needsClarification:
-                true,
-
-            stage:
-                "validator",
-
-            result:
-                validation.reason ||
-                "Для выполнения требуется уточнение",
-
-            plan,
-
-            toolResults:
-                taskRunResult.results || []
-        };
-
-    }
-
-
-    /*
-     * Validator не принял ответ.
-     */
-
-
-    if (
-        validation?.valid !== true
-    ) {
-
-        return {
-            id:
-                subtaskId,
-
-            text:
-                taskText,
-
-            status:
-                "FAILED",
-
-            success:
-                false,
-
-            shouldRetry:
-                validation?.shouldRetry === true,
-
-            stage:
-                "validator",
-
-            result:
-                validation?.reason ||
-                "Результат не прошёл проверку качества",
-
-            plan,
-
-            toolResults:
-                taskRunResult.results || []
-        };
-
-    }
-
-
-    /*
-     * =====================================================
-     * SUCCESS
-     * =====================================================
+     *
+     * Execution Cycle уже возвращает:
+     *
+     * status
+     * success
+     * result
+     * plan
+     * toolResults
+     * validated
+     * usedTools
+     * answerSource
+     * attempt
+     *
+     * Здесь только добавляем идентификатор
+     * и исходный текст подзадачи.
      */
 
 
@@ -538,35 +260,7 @@ export async function executeSubtask(
         text:
             taskText,
 
-        status:
-            "COMPLETED",
-
-        success:
-            true,
-
-        validated:
-            true,
-
-        result:
-            answerResult.text,
-
-        answerSource:
-            answerResult.source || "unknown",
-
-        usedTools:
-            Array.isArray(
-                taskRunResult.results
-            )
-                ? taskRunResult.results.map(
-                    item =>
-                        item.tool
-                )
-                : [],
-
-        plan,
-
-        toolResults:
-            taskRunResult.results || []
+        ...executionResult
     };
 
 }
@@ -589,6 +283,13 @@ export async function runSubtasks(
         )
             ? decomposition.subtasks
             : [];
+
+
+    /*
+     * =====================================================
+     * NO SUBTASKS
+     * =====================================================
+     */
 
 
     if (
@@ -626,10 +327,18 @@ export async function runSubtasks(
 
 
     /*
-     * Пока выполняем последовательно.
+     * =====================================================
+     * SEQUENTIAL EXECUTION
+     * =====================================================
      *
-     * Это уменьшает нагрузку на Groq
-     * и упрощает отладку.
+     * Пока запускаем подзадачи последовательно.
+     *
+     * Причины:
+     *
+     * - меньше нагрузка на Groq;
+     * - проще контролировать rate limits;
+     * - проще читать логи;
+     * - retry одной подзадачи не мешает другим.
      */
 
 
@@ -639,8 +348,8 @@ export async function runSubtasks(
     ) {
 
         console.log(
-            `Jessica subtask ${subtask.id}:`,
-            subtask.text
+            `Jessica subtask ${subtask?.id}:`,
+            subtask?.text
         );
 
 
@@ -659,23 +368,32 @@ export async function runSubtasks(
         } catch (error) {
 
             console.error(
-                `Unhandled subtask error ${subtask.id}:`,
+                `Unhandled subtask error ${subtask?.id}:`,
                 error
             );
 
 
+            /*
+             * Ошибка одной подзадачи
+             * не останавливает остальные.
+             */
+
+
             results.push({
                 id:
-                    subtask.id,
+                    subtask?.id ?? null,
 
                 text:
-                    subtask.text,
+                    subtask?.text || "",
 
                 status:
                     "FAILED",
 
                 success:
                     false,
+
+                stage:
+                    "subtask",
 
                 result:
                     "Непредвиденная ошибка выполнения подзадачи"
@@ -733,4 +451,4 @@ export async function runSubtasks(
         results
     };
 
-}
+        }
