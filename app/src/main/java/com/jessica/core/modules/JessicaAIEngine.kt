@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
 
 
@@ -14,6 +15,31 @@ class JessicaAIEngine : AIEngine {
 
         private const val BACKEND_URL =
             "https://jessicacore.onrender.com/api/solve"
+
+
+        /*
+         * Время на установку соединения.
+         */
+        private const val CONNECT_TIMEOUT_MS =
+            45_000
+
+
+        /*
+         * Максимальное ожидание выполнения задачи.
+         *
+         * Сложная задача Jessica может пройти:
+         *
+         * Planner
+         * → Tools
+         * → Composer
+         * → Validator
+         * → Replanner
+         * → повторное выполнение
+         *
+         * Поэтому 120 секунд уже недостаточно.
+         */
+        private const val READ_TIMEOUT_MS =
+            360_000
 
     }
 
@@ -51,6 +77,14 @@ class JessicaAIEngine : AIEngine {
 
                 sendRequest(
                     task
+                )
+
+            } catch (e: SocketTimeoutException) {
+
+                AIResult(
+                    success = false,
+                    text =
+                        "Jessica не успела завершить задачу за отведённое время"
                 )
 
             } catch (e: Exception) {
@@ -93,11 +127,11 @@ class JessicaAIEngine : AIEngine {
 
 
             connection.connectTimeout =
-                30_000
+                CONNECT_TIMEOUT_MS
 
 
             connection.readTimeout =
-                120_000
+                READ_TIMEOUT_MS
 
 
             connection.doOutput =
