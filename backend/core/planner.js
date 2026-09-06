@@ -10,16 +10,36 @@ import {
  * JESSICA TASK PLANNER
  * =========================================================
  *
+ * Planner:
+ *
+ * 1. понимает цель пользователя;
+ * 2. определяет, нужны ли инструменты;
+ * 3. выбирает только реально зарегистрированные tools;
+ * 4. строит план.
+ *
  * Planner НЕ решает задачу пользователя.
  *
- * Его задача:
  *
- * 1. понять намерение;
- * 2. определить, нужны ли инструменты;
- * 3. выбрать инструменты;
- * 4. сформировать последовательность шагов.
+ * ВАЖНО:
  *
- * Список инструментов берётся из Tool Registry.
+ * Инструменты нужны не каждой задаче.
+ *
+ * Если задача может быть решена самим AI
+ * без получения внешних данных
+ * и без выполнения внешнего действия:
+ *
+ * requiresTools = false
+ * steps = []
+ *
+ * После этого задача будет решена
+ * Answer Composer.
+ */
+
+
+/*
+ * =========================================================
+ * AI CLIENT
+ * =========================================================
  */
 
 
@@ -33,6 +53,43 @@ const groq =
                 "https://api.groq.com/openai/v1"
         })
         : null;
+
+
+/*
+ * =========================================================
+ * CONFIG
+ * =========================================================
+ */
+
+
+const MAX_ATTEMPTS =
+    3;
+
+
+const RETRY_DELAY_MS =
+    1200;
+
+
+/*
+ * =========================================================
+ * HELPERS
+ * =========================================================
+ */
+
+
+function sleep(
+    milliseconds
+) {
+
+    return new Promise(
+        resolve =>
+            setTimeout(
+                resolve,
+                milliseconds
+            )
+    );
+
+}
 
 
 /*
@@ -52,7 +109,10 @@ function buildToolsDescription() {
         tools.length === 0
     ) {
 
-        return "Инструменты пока не зарегистрированы.";
+        return (
+            "Сейчас зарегистрированных инструментов нет. " +
+            "Ты можешь создать только план без инструментов."
+        );
 
     }
 
@@ -61,7 +121,16 @@ function buildToolsDescription() {
         .map(
             tool =>
                 JSON.stringify(
-                    tool,
+                    {
+                        name:
+                            tool.name,
+
+                        description:
+                            tool.description,
+
+                        arguments:
+                            tool.arguments || {}
+                    },
                     null,
                     2
                 )
@@ -84,16 +153,129 @@ function cleanJsonText(
     text
 ) {
 
-    return text
-        .replace(
-            /```json/gi,
-            ""
+    if (
+        typeof text !== "string"
+    ) {
+
+        return "";
+
+    }
+
+
+    let cleaned =
+        text
+            .replace(
+                /```json/gi,
+                ""
+            )
+            .replace(
+                /```/g,
+                ""
+            )
+            .trim();
+
+
+    /*
+     * Если модель случайно добавила текст
+     * до или после JSON, пытаемся извлечь
+     * первый JSON-объект.
+     */
+    const firstBrace =
+        cleaned.indexOf(
+            "{"
+        );
+
+
+    const lastBrace =
+        cleaned.lastIndexOf(
+            "}"
+        );
+
+
+    if (
+        firstBrace >= 0 &&
+        lastBrace >
+        firstBrace
+    ) {
+
+        cleaned =
+            cleaned.slice(
+                firstBrace,
+                lastBrace + 1
+            );
+
+    }
+
+
+    return cleaned;
+
+}
+
+
+/*
+ * =========================================================
+ * NORMALIZE PLAN
+ * =========================================================
+ */
+
+
+function normalizePlan(
+    rawPlan
+) {
+
+    if (
+        !rawPlan ||
+        typeof rawPlan !== "object" ||
+        Array.isArray(
+            rawPlan
         )
-        .replace(
-            /```/g,
-            ""
-        )
-        .trim();
+    ) {
+
+        return null;
+
+    }
+
+
+    const plan = {
+        intent:
+            typeof rawPlan.intent === "string"
+                ? rawPlan.intent.trim()
+                : "",
+
+        requiresTools:
+            rawPlan.requiresTools,
+
+        reasoningSummary:
+            typeof rawPlan.reasoningSummary === "string"
+                ? rawPlan.reasoningSummary.trim()
+                : "",
+
+        steps:
+            Array.isArray(
+                rawPlan.steps
+            )
+                ? rawPlan.steps
+                : []
+    };
+
+
+    /*
+     * Нормальный сценарий без инструментов.
+     *
+     * Даже если модель случайно не вернула
+     * поле steps, оно становится [].
+     */
+    if (
+        plan.requiresTools === false
+    ) {
+
+        plan.steps =
+            [];
+
+    }
+
+
+    return plan;
 
 }
 
@@ -116,6 +298,7 @@ function validatePlan(
 
         return {
             success: false,
+
             text:
                 "План должен быть объектом"
         };
@@ -124,13 +307,13 @@ function validatePlan(
 
 
     if (
-        typeof plan.intent !==
-        "string" ||
+        typeof plan.intent !== "string" ||
         !plan.intent.trim()
     ) {
 
         return {
             success: false,
+
             text:
                 "В плане отсутствует intent"
         };
@@ -145,6 +328,7 @@ function validatePlan(
 
         return {
             success: false,
+
             text:
                 "В плане отсутствует requiresTools"
         };
@@ -160,6 +344,7 @@ function validatePlan(
 
         return {
             success: false,
+
             text:
                 "В плане отсутствует steps"
         };
@@ -168,48 +353,65 @@ function validatePlan(
 
 
     /*
-     * Если инструменты не нужны,
-     * шагов быть не должно.
+     * =====================================================
+     * NO TOOLS
+     * =====================================================
      */
+
+
     if (
-        !plan.requiresTools &&
-        plan.steps.length > 0
+        plan.requiresTools === false
     ) {
 
+        if (
+            plan.steps.length !== 0
+        ) {
+
+            return {
+                success: false,
+
+                text:
+                    "При requiresTools=false список steps должен быть пустым"
+            };
+
+        }
+
+
         return {
-            success: false,
-            text:
-                "Planner указал steps при requiresTools=false"
+            success: true
         };
 
     }
 
 
     /*
-     * Если инструменты нужны,
-     * должен быть хотя бы один шаг.
+     * =====================================================
+     * TOOLS REQUIRED
+     * =====================================================
      */
+
+
     if (
-        plan.requiresTools &&
         plan.steps.length === 0
     ) {
 
         return {
             success: false,
+
             text:
-                "Planner не указал шаги для инструментальной задачи"
+                "Planner указал requiresTools=true, но не создал шаги"
         };
 
     }
 
 
-    const tools =
+    const registeredTools =
         listTools();
 
 
     const toolNames =
         new Set(
-            tools.map(
+            registeredTools.map(
                 tool =>
                     tool.name
             )
@@ -228,11 +430,15 @@ function validatePlan(
 
         if (
             !step ||
-            typeof step !== "object"
+            typeof step !== "object" ||
+            Array.isArray(
+                step
+            )
         ) {
 
             return {
                 success: false,
+
                 text:
                     `Некорректный шаг ${index + 1}`
             };
@@ -240,14 +446,17 @@ function validatePlan(
         }
 
 
-        if (
-            typeof step.tool !==
-            "string" ||
-            !step.tool.trim()
-        ) {
+        const toolName =
+            typeof step.tool === "string"
+                ? step.tool.trim()
+                : "";
+
+
+        if (!toolName) {
 
             return {
                 success: false,
+
                 text:
                     `В шаге ${index + 1} отсутствует tool`
             };
@@ -256,43 +465,50 @@ function validatePlan(
 
 
         /*
-         * Planner не имеет права придумать
-         * инструмент, которого нет в Registry.
+         * Planner не может придумать
+         * несуществующий инструмент.
          */
         if (
             !toolNames.has(
-                step.tool
+                toolName
             )
         ) {
 
             return {
                 success: false,
+
                 text:
-                    `Planner выбрал неизвестный инструмент: ${step.tool}`
+                    `Planner выбрал неизвестный инструмент: ${toolName}`
             };
 
         }
+
+
+        step.tool =
+            toolName;
 
 
         if (
             step.arguments === undefined
         ) {
 
-            step.arguments = {};
+            step.arguments =
+                {};
 
         }
 
 
         if (
+            !step.arguments ||
             typeof step.arguments !== "object" ||
             Array.isArray(
                 step.arguments
-            ) ||
-            step.arguments === null
+            )
         ) {
 
             return {
                 success: false,
+
                 text:
                     `Некорректные arguments в шаге ${index + 1}`
             };
@@ -311,6 +527,305 @@ function validatePlan(
 
 /*
  * =========================================================
+ * SHOULD RETRY AI ERROR
+ * =========================================================
+ */
+
+
+function shouldRetryError(
+    error
+) {
+
+    const status =
+        Number(
+            error?.status || 0
+        );
+
+
+    /*
+     * Rate limit.
+     */
+    if (
+        status === 429
+    ) {
+
+        return true;
+
+    }
+
+
+    /*
+     * Временные ошибки AI-сервиса.
+     */
+    if (
+        status >= 500 &&
+        status <= 599
+    ) {
+
+        return true;
+
+    }
+
+
+    const message =
+        String(
+            error?.message || ""
+        ).toLowerCase();
+
+
+    return (
+        message.includes(
+            "timeout"
+        ) ||
+        message.includes(
+            "timed out"
+        ) ||
+        message.includes(
+            "connection"
+        ) ||
+        message.includes(
+            "network"
+        )
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * ONE PLANNER ATTEMPT
+ * =========================================================
+ */
+
+
+async function requestPlan(
+    task,
+    toolsDescription,
+    attempt
+) {
+
+    const response =
+        await groq.responses.create({
+
+            model:
+                "openai/gpt-oss-20b",
+
+            instructions:
+                (
+                    "Ты — Planner системы Jessica Core. " +
+
+                    "Ты НЕ отвечаешь пользователю и НЕ решаешь его задачу. " +
+
+                    "Тебе нужно только определить способ выполнения задачи. " +
+
+                    "Сначала реши, нужны ли вообще внешние инструменты. " +
+
+                    "Инструмент нужен только тогда, когда для выполнения задачи " +
+                    "необходимо получить внешние или актуальные данные, " +
+                    "прочитать внешний ресурс либо выполнить действие через доступный инструмент. " +
+
+                    "Если задача может быть выполнена интеллектуально самой AI-моделью " +
+                    "на основании текста пользователя и общих знаний, " +
+                    "НЕ выбирай инструмент только ради того, чтобы выбрать инструмент. " +
+
+                    "В таком случае обязательно установи requiresTools=false " +
+                    "и верни steps=[]. " +
+
+                    "Это нормальный и полноценный план. " +
+
+                    "Если для решения действительно нужны инструменты, " +
+                    "установи requiresTools=true и выбери только инструменты " +
+                    "из списка ДОСТУПНЫЕ ИНСТРУМЕНТЫ. " +
+
+                    "Никогда не придумывай инструмент, которого нет в списке. " +
+
+                    "Если подходящего инструмента нет, " +
+                    "не подменяй его другим неподходящим инструментом. " +
+
+                    "Если задача требует актуальной информации " +
+                    "и имеется подходящий инструмент получения такой информации, " +
+                    "используй его вместо памяти модели. " +
+
+                    "Если требуется несколько инструментальных действий, " +
+                    "создай несколько последовательных шагов. " +
+
+                    "Не разбивай обычную интеллектуальную работу AI " +
+                    "на фиктивные tool-шаги. " +
+
+                    "Аргументы инструментов сохраняй максимально близко " +
+                    "к исходной формулировке пользователя. " +
+
+                    "Например географическое название передавай как географическое название, " +
+                    "не преобразовывай его самостоятельно в технические идентификаторы, " +
+                    "если это должен сделать сам инструмент. " +
+
+                    "reasoningSummary — только короткое описание выбранного маршрута. " +
+                    "Не раскрывай скрытые рассуждения. " +
+
+                    "Ответ должен содержать ТОЛЬКО один валидный JSON-объект. " +
+                    "Без markdown, комментариев и текста вокруг JSON. " +
+
+                    "Формат для задачи БЕЗ инструментов: " +
+
+                    JSON.stringify({
+                        intent:
+                            "краткий идентификатор намерения",
+                        requiresTools:
+                            false,
+                        reasoningSummary:
+                            "задача может быть выполнена AI без внешних инструментов",
+                        steps:
+                            []
+                    }) +
+
+                    " Формат для задачи С инструментами: " +
+
+                    JSON.stringify({
+                        intent:
+                            "краткий идентификатор намерения",
+                        requiresTools:
+                            true,
+                        reasoningSummary:
+                            "краткое описание маршрута",
+                        steps: [
+                            {
+                                tool:
+                                    "точное имя зарегистрированного инструмента",
+                                arguments:
+                                    {}
+                            }
+                        ]
+                    })
+                ),
+
+            input:
+                (
+                    `ПОПЫТКА PLANNER: ${attempt}\n\n` +
+
+                    `ДОСТУПНЫЕ ИНСТРУМЕНТЫ:\n` +
+                    `${toolsDescription}\n\n` +
+
+                    `ЗАДАЧА ПОЛЬЗОВАТЕЛЯ:\n` +
+                    `${task}`
+                ),
+
+            /*
+             * Planner не должен долго рассуждать.
+             * Его задача — маршрутизация.
+             */
+            reasoning: {
+                effort:
+                    "low"
+            }
+
+        });
+
+
+    const raw =
+        response.output_text
+            ?.trim();
+
+
+    if (!raw) {
+
+        return {
+            success: false,
+
+            retryable:
+                true,
+
+            text:
+                "Planner вернул пустой ответ"
+        };
+
+    }
+
+
+    let parsed;
+
+
+    try {
+
+        parsed =
+            JSON.parse(
+                cleanJsonText(
+                    raw
+                )
+            );
+
+    } catch (error) {
+
+        console.error(
+            "Planner invalid JSON:",
+            raw
+        );
+
+
+        return {
+            success: false,
+
+            retryable:
+                true,
+
+            text:
+                "Planner вернул некорректный JSON"
+        };
+
+    }
+
+
+    const plan =
+        normalizePlan(
+            parsed
+        );
+
+
+    const validation =
+        validatePlan(
+            plan
+        );
+
+
+    if (
+        !validation.success
+    ) {
+
+        console.error(
+            "Planner validation error:",
+            validation.text,
+            plan
+        );
+
+
+        /*
+         * Даём модели возможность
+         * исправить собственный план
+         * следующей попыткой.
+         */
+        return {
+            success: false,
+
+            retryable:
+                true,
+
+            text:
+                validation.text
+        };
+
+    }
+
+
+    return {
+        success: true,
+
+        plan
+    };
+
+}
+
+
+/*
+ * =========================================================
  * CREATE PLAN
  * =========================================================
  */
@@ -320,13 +835,17 @@ export async function createPlan(
     task
 ) {
 
-    if (
-        typeof task !== "string" ||
-        !task.trim()
-    ) {
+    const normalizedTask =
+        typeof task === "string"
+            ? task.trim()
+            : "";
+
+
+    if (!normalizedTask) {
 
         return {
             success: false,
+
             text:
                 "Planner получил пустую задачу"
         };
@@ -338,6 +857,7 @@ export async function createPlan(
 
         return {
             success: false,
+
             text:
                 "Groq Planner не настроен"
         };
@@ -345,195 +865,113 @@ export async function createPlan(
     }
 
 
-    try {
-
-        const toolsDescription =
-            buildToolsDescription();
+    const toolsDescription =
+        buildToolsDescription();
 
 
-        const response =
-            await groq.responses.create({
-
-                model:
-                    "openai/gpt-oss-20b",
-
-                instructions:
-                    (
-                        "Ты — Planner системы Jessica Core. " +
-
-                        "Ты НЕ отвечаешь пользователю. " +
-                        "Ты НЕ должен решать задачу самостоятельно. " +
-
-                        "Твоя работа — понять намерение пользователя " +
-                        "и создать план выполнения задачи. " +
-
-                        "Ты можешь выбирать ТОЛЬКО инструменты, " +
-                        "которые перечислены в разделе ДОСТУПНЫЕ ИНСТРУМЕНТЫ. " +
-
-                        "Никогда не придумывай название нового инструмента. " +
-
-                        "Если задача не требует внешних или специализированных инструментов, " +
-                        "установи requiresTools=false и верни пустой steps. " +
-
-                        "Если пользователь спрашивает актуальную информацию, " +
-                        "не пытайся ответить на неё из памяти модели, " +
-                        "если для неё имеется подходящий инструмент. " +
-
-                        "Если задача требует нескольких действий, " +
-                        "создай несколько последовательных шагов. " +
-
-                        "Сохраняй значения аргументов максимально близко " +
-                        "к формулировке пользователя. " +
-
-                        "Например, если пользователь написал «в Дубае», " +
-                        "не пытайся самостоятельно преобразовывать это в timezone. " +
-                        "Передай location инструменту как географическое значение. " +
-
-                        "reasoningSummary должен содержать только краткое описание маршрута, " +
-                        "а не скрытые рассуждения. " +
-
-                        "Возвращай ТОЛЬКО валидный JSON. " +
-                        "Никакого markdown и никакого дополнительного текста. " +
-
-                        "Формат ответа: " +
-
-                        JSON.stringify({
-
-                            intent:
-                                "краткий идентификатор намерения",
-
-                            requiresTools:
-                                true,
-
-                            reasoningSummary:
-                                "краткое описание выбранного маршрута",
-
-                            steps: [
-
-                                {
-                                    tool:
-                                        "имя зарегистрированного инструмента",
-
-                                    arguments: {}
-                                }
-
-                            ]
-
-                        })
-                    ),
-
-                input:
-                    (
-                        `ДОСТУПНЫЕ ИНСТРУМЕНТЫ:\n` +
-                        `${toolsDescription}\n\n` +
-
-                        `ЗАДАЧА ПОЛЬЗОВАТЕЛЯ:\n` +
-                        `${task}`
-                    ),
-
-                reasoning: {
-                    effort:
-                        "medium"
-                }
-
-            });
+    let lastErrorText =
+        "Planner не смог проанализировать задачу";
 
 
-        const raw =
-            response.output_text
-                ?.trim();
-
-
-        if (!raw) {
-
-            return {
-                success: false,
-                text:
-                    "Planner вернул пустой ответ"
-            };
-
-        }
-
-
-        let plan;
-
+    for (
+        let attempt = 1;
+        attempt <= MAX_ATTEMPTS;
+        attempt++
+    ) {
 
         try {
 
-            plan =
-                JSON.parse(
-                    cleanJsonText(
-                        raw
+            console.log(
+                `Jessica Planner attempt ${attempt}/${MAX_ATTEMPTS}`
+            );
+
+
+            const result =
+                await requestPlan(
+                    normalizedTask,
+                    toolsDescription,
+                    attempt
+                );
+
+
+            if (
+                result.success
+            ) {
+
+                console.log(
+                    "Jessica Planner plan:",
+                    JSON.stringify(
+                        result.plan
                     )
                 );
 
-        } catch {
+
+                return result;
+
+            }
+
+
+            lastErrorText =
+                result.text ||
+                lastErrorText;
+
+
+            if (
+                result.retryable !== true ||
+                attempt === MAX_ATTEMPTS
+            ) {
+
+                break;
+
+            }
+
+
+        } catch (error) {
 
             console.error(
-                "Planner invalid JSON:",
-                raw
+                `Planner attempt ${attempt} error:`,
+                error
             );
 
 
-            return {
-                success: false,
-                text:
-                    "Planner вернул некорректный JSON"
-            };
+            lastErrorText =
+                error?.message
+                    ? `Planner AI error: ${error.message}`
+                    : "Planner не смог проанализировать задачу";
+
+
+            if (
+                attempt === MAX_ATTEMPTS ||
+                !shouldRetryError(
+                    error
+                )
+            ) {
+
+                break;
+
+            }
 
         }
 
 
-        const validation =
-            validatePlan(
-                plan
-            );
-
-
-        if (
-            !validation.success
-        ) {
-
-            console.error(
-                "Planner validation error:",
-                validation.text,
-                plan
-            );
-
-
-            return {
-                success: false,
-                text:
-                    validation.text
-            };
-
-        }
-
-
-        return {
-            success: true,
-            plan
-        };
-
-
-    } catch (error) {
-
-        console.error(
-            "Planner error:",
-            error
+        /*
+         * Небольшая пауза перед повтором,
+         * чтобы не ударяться сразу
+         * в тот же rate limit / временный сбой.
+         */
+        await sleep(
+            RETRY_DELAY_MS *
+            attempt
         );
 
-
-        return {
-            success: false,
-
-            status:
-                error?.status || 0,
-
-            text:
-                "Planner не смог проанализировать задачу"
-        };
-
     }
+
+
+    return {
+        success: false,
+
+        text:
+            lastErrorText
+    };
 
 }
