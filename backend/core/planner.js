@@ -12,25 +12,24 @@ import {
  *
  * Planner:
  *
- * 1. понимает цель пользователя;
- * 2. определяет, нужны ли инструменты;
- * 3. выбирает только зарегистрированные tools;
- * 4. создаёт один или несколько шагов;
- * 5. может передавать результаты предыдущих шагов
- *    следующим шагам через ссылки:
+ * - понимает цель задачи;
+ * - решает, нужны ли инструменты;
+ * - выбирает только зарегистрированные инструменты;
+ * - строит многошаговый план;
+ * - умеет передавать результаты между шагами через:
  *
  * {
- *     "$from": "search",
- *     "path": "data.results.0.url"
+ *   "$from": "search",
+ *   "path": "data.results.0.url"
  * }
  *
- * Planner НЕ решает задачу пользователя.
+ * Planner сам задачу НЕ решает.
  */
 
 
 /*
  * =========================================================
- * AI CLIENT
+ * AI
  * =========================================================
  */
 
@@ -54,16 +53,9 @@ const groq =
  */
 
 
-const MAX_ATTEMPTS =
-    3;
-
-
-const MAX_STEPS =
-    15;
-
-
-const RETRY_DELAY_MS =
-    1200;
+const MAX_ATTEMPTS = 3;
+const MAX_STEPS = 15;
+const RETRY_DELAY_MS = 1200;
 
 
 /*
@@ -74,25 +66,18 @@ const RETRY_DELAY_MS =
 
 
 function sleep(
-    milliseconds
+    ms
 ) {
 
     return new Promise(
         resolve =>
             setTimeout(
                 resolve,
-                milliseconds
+                ms
             )
     );
 
 }
-
-
-/*
- * =========================================================
- * TOOLS DESCRIPTION
- * =========================================================
- */
 
 
 function buildToolsDescription() {
@@ -105,44 +90,29 @@ function buildToolsDescription() {
         tools.length === 0
     ) {
 
-        return (
-            "Сейчас зарегистрированных инструментов нет. " +
-            "Можно создать только план без инструментов."
-        );
+        return "Зарегистрированных инструментов нет.";
 
     }
 
 
-    return tools
-        .map(
-            tool =>
-                JSON.stringify(
-                    {
-                        name:
-                            tool.name,
+    return JSON.stringify(
+        tools.map(
+            tool => ({
+                name:
+                    tool.name,
 
-                        description:
-                            tool.description,
+                description:
+                    tool.description,
 
-                        arguments:
-                            tool.arguments || {}
-                    },
-                    null,
-                    2
-                )
-        )
-        .join(
-            "\n\n"
-        );
+                arguments:
+                    tool.arguments || {}
+            })
+        ),
+        null,
+        2
+    );
 
 }
-
-
-/*
- * =========================================================
- * JSON CLEANUP
- * =========================================================
- */
 
 
 function cleanJsonText(
@@ -171,28 +141,27 @@ function cleanJsonText(
             .trim();
 
 
-    const firstBrace =
+    const start =
         cleaned.indexOf(
             "{"
         );
 
 
-    const lastBrace =
+    const end =
         cleaned.lastIndexOf(
             "}"
         );
 
 
     if (
-        firstBrace >= 0 &&
-        lastBrace >
-        firstBrace
+        start >= 0 &&
+        end > start
     ) {
 
         cleaned =
             cleaned.slice(
-                firstBrace,
-                lastBrace + 1
+                start,
+                end + 1
             );
 
     }
@@ -211,14 +180,14 @@ function cleanJsonText(
 
 
 function normalizePlan(
-    rawPlan
+    raw
 ) {
 
     if (
-        !rawPlan ||
-        typeof rawPlan !== "object" ||
+        !raw ||
+        typeof raw !== "object" ||
         Array.isArray(
-            rawPlan
+            raw
         )
     ) {
 
@@ -227,93 +196,64 @@ function normalizePlan(
     }
 
 
-    const plan = {
-
-        intent:
-            typeof rawPlan.intent === "string"
-                ? rawPlan.intent.trim()
-                : "",
-
-        requiresTools:
-            rawPlan.requiresTools,
-
-        reasoningSummary:
-            typeof rawPlan.reasoningSummary === "string"
-                ? rawPlan.reasoningSummary.trim()
-                : "",
-
-        steps:
-            Array.isArray(
-                rawPlan.steps
-            )
-                ? rawPlan.steps
-                : []
-
-    };
+    const requiresTools =
+        raw.requiresTools;
 
 
-    if (
-        plan.requiresTools === false
-    ) {
-
-        plan.steps =
-            [];
-
-    }
+    const rawSteps =
+        Array.isArray(
+            raw.steps
+        )
+            ? raw.steps
+            : [];
 
 
-    /*
-     * Нормализуем шаги.
-     */
-    plan.steps =
-        plan.steps.map(
-            (
-                step,
-                index
-            ) => {
-
-                if (
-                    !step ||
-                    typeof step !== "object" ||
-                    Array.isArray(
-                        step
-                    )
-                ) {
-
-                    return step;
-
-                }
-
-
-                return {
-
+    const steps =
+        requiresTools === false
+            ? []
+            : rawSteps.map(
+                (
+                    step,
+                    index
+                ) => ({
                     id:
-                        typeof step.id === "string" &&
+                        typeof step?.id === "string" &&
                         step.id.trim()
                             ? step.id.trim()
                             : `step_${index + 1}`,
 
                     tool:
-                        typeof step.tool === "string"
+                        typeof step?.tool === "string"
                             ? step.tool.trim()
                             : "",
 
                     arguments:
-                        step.arguments &&
+                        step?.arguments &&
                         typeof step.arguments === "object" &&
                         !Array.isArray(
                             step.arguments
                         )
                             ? step.arguments
                             : {}
-
-                };
-
-            }
-        );
+                })
+            );
 
 
-    return plan;
+    return {
+        intent:
+            typeof raw.intent === "string"
+                ? raw.intent.trim()
+                : "",
+
+        requiresTools,
+
+        reasoningSummary:
+            typeof raw.reasoningSummary === "string"
+                ? raw.reasoningSummary.trim()
+                : "",
+
+        steps
+    };
 
 }
 
@@ -322,22 +262,12 @@ function normalizePlan(
  * =========================================================
  * REFERENCE VALIDATION
  * =========================================================
- *
- * Проверяет все конструкции:
- *
- * {
- *     "$from": "search",
- *     "path": "data.results.0.url"
- * }
- *
- * Ссылка может вести ТОЛЬКО
- * на уже предыдущий шаг.
  */
 
 
 function validateReferences(
     value,
-    availableStepIds
+    previousStepIds
 ) {
 
     if (
@@ -354,12 +284,8 @@ function validateReferences(
 
 
     /*
-     * -----------------------------------------------------
-     * REFERENCE
-     * -----------------------------------------------------
+     * Ссылка на предыдущий шаг.
      */
-
-
     if (
         !Array.isArray(
             value
@@ -370,27 +296,26 @@ function validateReferences(
         )
     ) {
 
-        if (
-            typeof value.$from !== "string" ||
-            !value.$from.trim()
-        ) {
+        const from =
+            typeof value.$from === "string"
+                ? value.$from.trim()
+                : "";
+
+
+        if (!from) {
 
             return {
                 success: false,
 
                 text:
-                    "Ссылка на предыдущий шаг содержит некорректный $from"
+                    "Некорректный $from"
             };
 
         }
 
 
-        const from =
-            value.$from.trim();
-
-
         if (
-            !availableStepIds.has(
+            !previousStepIds.has(
                 from
             )
         ) {
@@ -399,7 +324,7 @@ function validateReferences(
                 success: false,
 
                 text:
-                    `Ссылка $from=${from} ведёт на неизвестный или будущий шаг`
+                    `Ссылка ведёт на неизвестный или будущий шаг: ${from}`
             };
 
         }
@@ -417,7 +342,7 @@ function validateReferences(
                 success: false,
 
                 text:
-                    `Некорректный path для ссылки на шаг ${from}`
+                    `Некорректный path для шага ${from}`
             };
 
         }
@@ -428,13 +353,6 @@ function validateReferences(
         };
 
     }
-
-
-    /*
-     * -----------------------------------------------------
-     * ARRAY
-     * -----------------------------------------------------
-     */
 
 
     if (
@@ -451,7 +369,7 @@ function validateReferences(
             const validation =
                 validateReferences(
                     item,
-                    availableStepIds
+                    previousStepIds
                 );
 
 
@@ -473,13 +391,6 @@ function validateReferences(
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * OBJECT
-     * -----------------------------------------------------
-     */
-
-
     for (
         const item
         of Object.values(
@@ -490,7 +401,7 @@ function validateReferences(
         const validation =
             validateReferences(
                 item,
-                availableStepIds
+                previousStepIds
             );
 
 
@@ -523,16 +434,13 @@ function validatePlan(
     plan
 ) {
 
-    if (
-        !plan ||
-        typeof plan !== "object"
-    ) {
+    if (!plan) {
 
         return {
             success: false,
 
             text:
-                "План должен быть объектом"
+                "Некорректный план"
         };
 
     }
@@ -540,7 +448,7 @@ function validatePlan(
 
     if (
         typeof plan.intent !== "string" ||
-        !plan.intent.trim()
+        !plan.intent
     ) {
 
         return {
@@ -585,12 +493,8 @@ function validatePlan(
 
 
     /*
-     * =====================================================
-     * NO TOOLS
-     * =====================================================
+     * Задача без инструментов.
      */
-
-
     if (
         plan.requiresTools === false
     ) {
@@ -603,7 +507,7 @@ function validatePlan(
                 success: false,
 
                 text:
-                    "При requiresTools=false список steps должен быть пустым"
+                    "При requiresTools=false steps должен быть пустым"
             };
 
         }
@@ -617,12 +521,8 @@ function validatePlan(
 
 
     /*
-     * =====================================================
-     * TOOLS REQUIRED
-     * =====================================================
+     * Инструменты нужны.
      */
-
-
     if (
         plan.steps.length === 0
     ) {
@@ -631,7 +531,7 @@ function validatePlan(
             success: false,
 
             text:
-                "Planner указал requiresTools=true, но не создал шаги"
+                "Planner не создал инструментальные шаги"
         };
 
     }
@@ -646,79 +546,49 @@ function validatePlan(
             success: false,
 
             text:
-                `Planner создал слишком много шагов: ${plan.steps.length}`
+                `Слишком много шагов: ${plan.steps.length}`
         };
 
     }
 
 
-    const registeredTools =
-        listTools();
-
-
-    const toolNames =
+    const registeredToolNames =
         new Set(
-            registeredTools.map(
+            listTools().map(
                 tool =>
                     tool.name
             )
         );
 
 
-    const allStepIds =
+    const allIds =
         new Set();
 
 
     /*
-     * Сначала проверяем уникальность ID.
+     * Сначала уникальность ID.
      */
-
-
     for (
-        let index = 0;
-        index < plan.steps.length;
-        index++
+        const step
+        of plan.steps
     ) {
 
-        const step =
-            plan.steps[index];
-
-
         if (
-            !step ||
-            typeof step !== "object" ||
-            Array.isArray(
-                step
-            )
+            !step.id
         ) {
 
             return {
                 success: false,
 
                 text:
-                    `Некорректный шаг ${index + 1}`
+                    "У шага отсутствует id"
             };
 
         }
 
 
         if (
-            typeof step.id !== "string" ||
-            !step.id.trim()
-        ) {
-
-            return {
-                success: false,
-
-                text:
-                    `В шаге ${index + 1} отсутствует id`
-            };
-
-        }
-
-
-        if (
-            allStepIds.has(
+            allIds.has(
                 step.id
             )
         ) {
@@ -727,13 +597,13 @@ function validatePlan(
                 success: false,
 
                 text:
-                    `Повторяющийся id шага: ${step.id}`
+                    `Повторяется id шага: ${step.id}`
             };
 
         }
 
 
-        allStepIds.add(
+        allIds.add(
             step.id
         );
 
@@ -741,11 +611,8 @@ function validatePlan(
 
 
     /*
-     * Теперь проверяем каждый шаг
-     * и зависимости по порядку.
+     * Потом инструменты и зависимости.
      */
-
-
     const previousStepIds =
         new Set();
 
@@ -761,22 +628,7 @@ function validatePlan(
 
 
         if (
-            typeof step.tool !== "string" ||
-            !step.tool.trim()
-        ) {
-
-            return {
-                success: false,
-
-                text:
-                    `В шаге ${index + 1} отсутствует tool`
-            };
-
-        }
-
-
-        if (
-            !toolNames.has(
+            !registeredToolNames.has(
                 step.tool
             )
         ) {
@@ -785,36 +637,10 @@ function validatePlan(
                 success: false,
 
                 text:
-                    `Planner выбрал неизвестный инструмент: ${step.tool}`
+                    `Неизвестный инструмент: ${step.tool}`
             };
 
         }
-
-
-        if (
-            !step.arguments ||
-            typeof step.arguments !== "object" ||
-            Array.isArray(
-                step.arguments
-            )
-        ) {
-
-            return {
-                success: false,
-
-                text:
-                    `Некорректные arguments в шаге ${index + 1}`
-            };
-
-        }
-
-
-        /*
-         * Проверяем ссылки.
-         *
-         * Здесь доступны только уже выполненные
-         * предыдущие шаги.
-         */
 
 
         const referenceValidation =
@@ -833,7 +659,7 @@ function validatePlan(
 
                 text:
                     (
-                        `Ошибка зависимостей в шаге ${step.id}: ` +
+                        `Ошибка зависимостей шага ${step.id}: ` +
                         `${referenceValidation.text}`
                     )
             };
@@ -857,7 +683,7 @@ function validatePlan(
 
 /*
  * =========================================================
- * SHOULD RETRY AI ERROR
+ * RETRY CHECK
  * =========================================================
  */
 
@@ -873,17 +699,8 @@ function shouldRetryError(
 
 
     if (
-        status === 429
-    ) {
-
-        return true;
-
-    }
-
-
-    if (
-        status >= 500 &&
-        status <= 599
+        status === 429 ||
+        status >= 500
     ) {
 
         return true;
@@ -902,13 +719,10 @@ function shouldRetryError(
             "timeout"
         ) ||
         message.includes(
-            "timed out"
+            "network"
         ) ||
         message.includes(
             "connection"
-        ) ||
-        message.includes(
-            "network"
         )
     );
 
@@ -917,16 +731,74 @@ function shouldRetryError(
 
 /*
  * =========================================================
- * ONE PLANNER ATTEMPT
+ * REQUEST PLAN
  * =========================================================
  */
 
 
 async function requestPlan(
     task,
-    toolsDescription,
-    attempt
+    toolsDescription
 ) {
+
+    const examplePlan = {
+        intent:
+            "find_and_read_source",
+
+        requiresTools:
+            true,
+
+        reasoningSummary:
+            "Сначала найти страницу, затем открыть найденный источник.",
+
+        steps: [
+            {
+                id:
+                    "search",
+
+                tool:
+                    "web_search",
+
+                arguments: {
+                    query:
+                        "официальный источник с нужной информацией"
+                }
+            },
+            {
+                id:
+                    "fetch",
+
+                tool:
+                    "web_fetch",
+
+                arguments: {
+                    url: {
+                        $from:
+                            "search",
+
+                        path:
+                            "data.results.0.url"
+                    }
+                }
+            }
+        ]
+    };
+
+
+    const noToolsExample = {
+        intent:
+            "intellectual_task",
+
+        requiresTools:
+            false,
+
+        reasoningSummary:
+            "Внешние инструменты не требуются.",
+
+        steps:
+            []
+    };
+
 
     const response =
         await groq.responses.create({
@@ -935,117 +807,56 @@ async function requestPlan(
                 "openai/gpt-oss-20b",
 
             instructions:
-                (
-                    "Ты — Planner системы Jessica Core. " +
-
-                    "Ты НЕ отвечаешь пользователю и НЕ решаешь задачу. " +
-
-                    "Твоя задача — построить исполняемый план. " +
-
-                    "Сначала определи, нужны ли вообще инструменты. " +
-
-                    "Если задача может быть выполнена AI самостоятельно " +
-                    "без получения внешних актуальных данных и без внешнего действия, " +
-                    "верни requiresTools=false и steps=[]. " +
-
-                    "Если нужны инструменты, используй ТОЛЬКО инструменты " +
-                    "из раздела ДОСТУПНЫЕ ИНСТРУМЕНТЫ. " +
-
-                    "Никогда не придумывай инструменты. " +
-
-                    "Каждый инструментальный шаг должен иметь уникальный id. " +
-
-                    "Если следующему шагу нужен результат предыдущего, " +
-                    "НЕ пытайся заранее придумать значение. " +
-
-                    "Вместо этого используй ссылку на результат предыдущего шага. " +
-
-                    "Формат ссылки: " +
-
-                    JSON.stringify({
-                        $from:
-                            "id_предыдущего_шага",
-                        path:
-                            "путь.к.значению"
-                    }) +
-
-                    ". " +
-
-                    "Например поиск страницы и последующее чтение страницы: " +
-
-                    JSON.stringify({
-                        intent:
-                            "найти и прочитать источник",
-                        requiresTools:
-                            true,
-                        reasoningSummary:
-                            "сначала найти источник, затем открыть найденную страницу",
-                        steps: [
-                            {
-                                id:
-                                    "search",
-                                tool:
-                                    "web_search",
-                                arguments: {
-                                    query:
-                                        "официальный сайт NASA актуальные миссии"
-                                }
-                            },
-                            {
-                                id:
-                                    "fetch",
-                                tool:
-                                    "web_fetch",
-                                arguments: {
-                                    url: {
-                                        $from:
-                                            "search",
-                                        path:
-                                            "data.results.0.url"
-                                    }
-                                }
-                            }
-                        ]
-                    }) +
-
-                    ". " +
-
-                    "Ссылка $from может вести ТОЛЬКО на предыдущий шаг. " +
-
-                    "Нельзя ссылаться на будущий шаг. " +
-
-                    "Нельзя использовать URL-заглушки вроде example.com, " +
-                    "если реальный URL должен быть получен предыдущим инструментом. " +
-
-                    "Если для ответа достаточно результатов web_search, " +
-                    "не добавляй web_fetch без необходимости. " +
-
-                    "Если пользователь прямо просит проверить информацию " +
-                    "по самому сайту, официальному источнику, документу или странице, " +
-                    "и URL заранее неизвестен, разумный маршрут может быть: " +
-                    "web_search → web_fetch. " +
-
-                    "Не используй специальные правила для конкретных сайтов, городов, " +
-                    "тем или формулировок. Выбирай маршрут по смыслу задачи. " +
-
-                    "Аргументы инструментов сохраняй максимально близко " +
-                    "к смыслу запроса пользователя. " +
-
-                    "reasoningSummary должен быть коротким описанием маршрута, " +
-                    "а не скрытыми рассуждениями. " +
-
-                    "Верни ТОЛЬКО один валидный JSON-объект. " +
-                    "Без markdown и дополнительного текста."
+                [
+                    "Ты Planner системы Jessica Core.",
+                    "Ты не отвечаешь пользователю и не решаешь задачу.",
+                    "Ты создаёшь только исполняемый план.",
+                    "",
+                    "Если внешние данные или действия не нужны:",
+                    "requiresTools=false и steps=[].",
+                    "",
+                    "Если нужны инструменты:",
+                    "используй только инструменты из списка.",
+                    "Не придумывай инструменты.",
+                    "",
+                    "Каждый инструментальный шаг имеет уникальный id.",
+                    "",
+                    "Если следующему шагу нужен результат предыдущего,",
+                    "используй объект:",
+                    '{"$from":"id_шага","path":"data.path"}',
+                    "",
+                    "Ссылка может вести только на предыдущий шаг.",
+                    "",
+                    "Если URL заранее неизвестен, не придумывай его.",
+                    "Сначала получи URL поиском, затем передай его через $from.",
+                    "",
+                    "Если достаточно поисковых результатов, web_fetch не обязателен.",
+                    "Если пользователь просит проверить сам сайт, страницу, документ",
+                    "или официальный источник, может понадобиться search → fetch.",
+                    "",
+                    "Не используй правила под конкретные города, сайты или темы.",
+                    "Выбирай маршрут по смыслу задачи.",
+                    "",
+                    "Верни только JSON без markdown.",
+                    "",
+                    "Пример плана без инструментов:",
+                    JSON.stringify(
+                        noToolsExample
+                    ),
+                    "",
+                    "Пример зависимого плана:",
+                    JSON.stringify(
+                        examplePlan
+                    )
+                ].join(
+                    "\n"
                 ),
 
             input:
                 (
-                    `ПОПЫТКА PLANNER: ${attempt}\n\n` +
-
                     `ДОСТУПНЫЕ ИНСТРУМЕНТЫ:\n` +
                     `${toolsDescription}\n\n` +
-
-                    `ЗАДАЧА ПОЛЬЗОВАТЕЛЯ:\n` +
+                    `ЗАДАЧА:\n` +
                     `${task}`
                 ),
 
@@ -1071,4 +882,233 @@ async function requestPlan(
                 true,
 
             text:
-                "Planner вернул
+                "Planner вернул пустой ответ"
+        };
+
+    }
+
+
+    let parsed;
+
+
+    try {
+
+        parsed =
+            JSON.parse(
+                cleanJsonText(
+                    raw
+                )
+            );
+
+    } catch {
+
+        console.error(
+            "Planner invalid JSON:",
+            raw
+        );
+
+
+        return {
+            success: false,
+
+            retryable:
+                true,
+
+            text:
+                "Planner вернул некорректный JSON"
+        };
+
+    }
+
+
+    const plan =
+        normalizePlan(
+            parsed
+        );
+
+
+    const validation =
+        validatePlan(
+            plan
+        );
+
+
+    if (
+        !validation.success
+    ) {
+
+        console.error(
+            "Planner validation failed:",
+            validation.text,
+            JSON.stringify(
+                plan
+            )
+        );
+
+
+        return {
+            success: false,
+
+            retryable:
+                true,
+
+            text:
+                validation.text
+        };
+
+    }
+
+
+    return {
+        success: true,
+
+        plan
+    };
+
+}
+
+
+/*
+ * =========================================================
+ * CREATE PLAN
+ * =========================================================
+ */
+
+
+export async function createPlan(
+    task
+) {
+
+    const normalizedTask =
+        typeof task === "string"
+            ? task.trim()
+            : "";
+
+
+    if (!normalizedTask) {
+
+        return {
+            success: false,
+
+            text:
+                "Planner получил пустую задачу"
+        };
+
+    }
+
+
+    if (!groq) {
+
+        return {
+            success: false,
+
+            text:
+                "Groq Planner не настроен"
+        };
+
+    }
+
+
+    const toolsDescription =
+        buildToolsDescription();
+
+
+    let lastError =
+        "Planner не смог проанализировать задачу";
+
+
+    for (
+        let attempt = 1;
+        attempt <= MAX_ATTEMPTS;
+        attempt++
+    ) {
+
+        try {
+
+            console.log(
+                `Jessica Planner attempt ${attempt}/${MAX_ATTEMPTS}`
+            );
+
+
+            const result =
+                await requestPlan(
+                    normalizedTask,
+                    toolsDescription
+                );
+
+
+            if (
+                result.success
+            ) {
+
+                console.log(
+                    "Jessica Planner plan:",
+                    JSON.stringify(
+                        result.plan
+                    )
+                );
+
+
+                return result;
+
+            }
+
+
+            lastError =
+                result.text ||
+                lastError;
+
+
+            if (
+                result.retryable !== true ||
+                attempt === MAX_ATTEMPTS
+            ) {
+
+                break;
+
+            }
+
+
+        } catch (error) {
+
+            console.error(
+                `Planner attempt ${attempt} error:`,
+                error
+            );
+
+
+            lastError =
+                error?.message ||
+                lastError;
+
+
+            if (
+                attempt === MAX_ATTEMPTS ||
+                !shouldRetryError(
+                    error
+                )
+            ) {
+
+                break;
+
+            }
+
+        }
+
+
+        await sleep(
+            RETRY_DELAY_MS *
+            attempt
+        );
+
+    }
+
+
+    return {
+        success: false,
+
+        text:
+            lastError
+    };
+
+                    }
