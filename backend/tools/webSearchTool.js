@@ -12,8 +12,22 @@ import {
  *
  * Использует TinyFish Search.
  *
- * Planner решает, КОГДА нужен поиск.
- * Этот инструмент только выполняет его.
+ * ВАЖНО:
+ *
+ * web_search НЕ формирует конечный ответ пользователю.
+ *
+ * Он только получает поисковые данные,
+ * которые затем анализирует Answer Composer.
+ *
+ * Поэтому успешный результат хранится
+ * в data.results, а text остаётся пустым.
+ */
+
+
+/*
+ * =========================================================
+ * CONFIG
+ * =========================================================
  */
 
 
@@ -25,9 +39,13 @@ const tinyFishSearchUrl =
     "https://api.search.tinyfish.ai";
 
 
+const MAX_RESULTS =
+    8;
+
+
 /*
  * =========================================================
- * NORMALIZE RESULT
+ * NORMALIZE SEARCH RESULT
  * =========================================================
  */
 
@@ -36,27 +54,53 @@ function normalizeSearchResult(
     item
 ) {
 
+    if (
+        !item ||
+        typeof item !== "object"
+    ) {
+
+        return null;
+
+    }
+
+
+    const title =
+        typeof item.title === "string"
+            ? item.title.trim()
+            : "";
+
+
+    const url =
+        typeof item.url === "string"
+            ? item.url.trim()
+            : "";
+
+
+    const snippet =
+        typeof item.snippet === "string"
+            ? item.snippet.trim()
+            : (
+                typeof item.description === "string"
+                    ? item.description.trim()
+                    : ""
+            );
+
+
+    if (
+        !title &&
+        !url &&
+        !snippet
+    ) {
+
+        return null;
+
+    }
+
+
     return {
-
-        title:
-            typeof item?.title === "string"
-                ? item.title
-                : "",
-
-        url:
-            typeof item?.url === "string"
-                ? item.url
-                : "",
-
-        snippet:
-            typeof item?.snippet === "string"
-                ? item.snippet
-                : (
-                    typeof item?.description === "string"
-                        ? item.description
-                        : ""
-                )
-
+        title,
+        url,
+        snippet
     };
 
 }
@@ -64,7 +108,7 @@ function normalizeSearchResult(
 
 /*
  * =========================================================
- * SEARCH
+ * EXECUTE WEB SEARCH
  * =========================================================
  */
 
@@ -79,15 +123,26 @@ async function executeWebSearch(
             : "";
 
 
+    /*
+     * -----------------------------------------------------
+     * INPUT VALIDATION
+     * -----------------------------------------------------
+     */
+
+
     if (!query) {
 
         return {
             success: false,
 
-            needsClarification: true,
+            needsClarification:
+                true,
 
             text:
-                "Не указан поисковый запрос."
+                "Не указан поисковый запрос.",
+
+            data:
+                null
         };
 
     }
@@ -99,21 +154,31 @@ async function executeWebSearch(
             success: false,
 
             text:
-                "Интернет-поиск Jessica не настроен."
+                "Интернет-поиск Jessica не настроен.",
+
+            data:
+                null
         };
 
     }
 
 
+    /*
+     * -----------------------------------------------------
+     * REQUEST
+     * -----------------------------------------------------
+     */
+
+
     try {
 
-        const url =
+        const requestUrl =
             new URL(
                 tinyFishSearchUrl
             );
 
 
-        url.searchParams.set(
+        requestUrl.searchParams.set(
             "query",
             query
         );
@@ -121,7 +186,7 @@ async function executeWebSearch(
 
         const response =
             await fetch(
-                url,
+                requestUrl,
                 {
                     method:
                         "GET",
@@ -143,6 +208,13 @@ async function executeWebSearch(
             await response.text();
 
 
+        /*
+         * -------------------------------------------------
+         * HTTP ERROR
+         * -------------------------------------------------
+         */
+
+
         if (!response.ok) {
 
             console.error(
@@ -156,10 +228,20 @@ async function executeWebSearch(
                 success: false,
 
                 text:
-                    `Интернет-поиск завершился ошибкой HTTP ${response.status}.`
+                    `Интернет-поиск завершился ошибкой HTTP ${response.status}.`,
+
+                data:
+                    null
             };
 
         }
+
+
+        /*
+         * -------------------------------------------------
+         * PARSE JSON
+         * -------------------------------------------------
+         */
 
 
         let data;
@@ -172,10 +254,10 @@ async function executeWebSearch(
                     rawText
                 );
 
-        } catch {
+        } catch (error) {
 
             console.error(
-                "TinyFish invalid JSON:",
+                "TinyFish Search invalid JSON:",
                 rawText
             );
 
@@ -184,15 +266,25 @@ async function executeWebSearch(
                 success: false,
 
                 text:
-                    "Интернет-поиск вернул некорректные данные."
+                    "Интернет-поиск вернул некорректные данные.",
+
+                data:
+                    null
             };
 
         }
 
 
+        /*
+         * -------------------------------------------------
+         * NORMALIZE RESULTS
+         * -------------------------------------------------
+         */
+
+
         const rawResults =
             Array.isArray(
-                data.results
+                data?.results
             )
                 ? data.results
                 : [];
@@ -205,14 +297,19 @@ async function executeWebSearch(
                 )
                 .filter(
                     item =>
-                        item.title ||
-                        item.url ||
-                        item.snippet
+                        item !== null
                 )
                 .slice(
                     0,
-                    8
+                    MAX_RESULTS
                 );
+
+
+        /*
+         * -------------------------------------------------
+         * NOTHING FOUND
+         * -------------------------------------------------
+         */
 
 
         if (
@@ -227,21 +324,44 @@ async function executeWebSearch(
 
                 data: {
                     query,
-                    results: []
+                    resultCount:
+                        0,
+                    results:
+                        []
                 }
             };
 
         }
 
 
+        /*
+         * -------------------------------------------------
+         * SUCCESS
+         * -------------------------------------------------
+         *
+         * ВАЖНО:
+         *
+         * text специально пустой.
+         *
+         * Это НЕ готовый пользовательский ответ.
+         *
+         * Answer Composer должен изучить data.results
+         * и самостоятельно сформировать нормальный ответ.
+         */
+
+
         return {
             success: true,
 
             text:
-                `Найдено результатов: ${results.length}.`,
+                "",
 
             data: {
                 query,
+
+                resultCount:
+                    results.length,
+
                 results
             }
         };
@@ -250,16 +370,40 @@ async function executeWebSearch(
     } catch (error) {
 
         console.error(
-            "Web Search Tool error:",
+            "Web Search Tool exception:",
             error
         );
+
+
+        /*
+         * AbortSignal.timeout()
+         */
+        if (
+            error?.name ===
+            "TimeoutError"
+        ) {
+
+            return {
+                success: false,
+
+                text:
+                    "Интернет-поиск превысил допустимое время ожидания.",
+
+                data:
+                    null
+            };
+
+        }
 
 
         return {
             success: false,
 
             text:
-                "Jessica не смогла выполнить интернет-поиск."
+                "Jessica не смогла выполнить интернет-поиск.",
+
+            data:
+                null
         };
 
     }
@@ -281,18 +425,23 @@ registerTool({
 
     description:
         (
-            "Ищет актуальную информацию в интернете. " +
-            "Используй для новостей, погоды, цен, расписаний, " +
-            "текущих событий, актуального состояния объектов, " +
-            "поиска сайтов и другой информации, которая может изменяться."
+            "Выполняет поиск актуальной информации в интернете " +
+            "и возвращает результаты поиска для дальнейшего анализа Jessica. " +
+
+            "Используй, когда для решения задачи требуются свежие, " +
+            "изменяющиеся или внешние данные, которых нельзя надёжно получить " +
+            "только из знаний AI. " +
+
+            "Инструмент не формирует конечный ответ пользователю."
         ),
 
     arguments: {
 
         query:
             (
-                "Самостоятельный поисковый запрос. " +
-                "Он должен содержать всю информацию, необходимую для поиска."
+                "Полноценный самостоятельный поисковый запрос, " +
+                "содержащий необходимые названия, условия, даты " +
+                "и другие важные сведения из задачи пользователя."
             )
 
     },
