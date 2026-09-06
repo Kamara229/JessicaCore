@@ -3,6 +3,10 @@ import {
     hasTool
 } from "../tools/toolRegistry.js";
 
+import {
+    selectSource
+} from "./sourceSelector.js";
+
 
 /*
  * =========================================================
@@ -11,50 +15,16 @@ import {
  *
  * TaskRunner:
  *
- * 1. получает план от Planner;
+ * 1. получает план;
  * 2. выполняет шаги последовательно;
- * 3. сохраняет результат каждого шага;
- * 4. позволяет следующим шагам использовать
- *    результаты предыдущих шагов.
- *
- *
- * Пример:
- *
- * {
- *   "id": "search",
- *   "tool": "web_search",
- *   "arguments": {
- *     "query": "NASA current missions"
- *   }
- * }
- *
- * затем:
- *
- * {
- *   "id": "page",
- *   "tool": "web_fetch",
- *   "arguments": {
- *     "url": {
- *       "$from": "search",
- *       "path": "data.results.0.url"
- *     }
- *   }
- * }
- *
- * TaskRunner сам подставит URL,
- * полученный от первого шага.
+ * 3. сохраняет результаты;
+ * 4. разрешает $from;
+ * 5. перед web_fetch может выбрать лучший
+ *    источник среди результатов web_search.
  */
 
 
-/*
- * =========================================================
- * CONFIG
- * =========================================================
- */
-
-
-const MAX_STEPS =
-    15;
+const MAX_STEPS = 15;
 
 
 /*
@@ -70,7 +40,6 @@ function normalizeStepResult(
 ) {
 
     return {
-
         id:
             step.id || null,
 
@@ -93,7 +62,6 @@ function normalizeStepResult(
 
         needsClarification:
             result?.needsClarification === true
-
     };
 
 }
@@ -103,12 +71,6 @@ function normalizeStepResult(
  * =========================================================
  * READ OBJECT PATH
  * =========================================================
- *
- * Получает значение:
- *
- * data.results.0.url
- *
- * из объекта результата шага.
  */
 
 
@@ -123,7 +85,6 @@ function getValueByPath(
     ) {
 
         return undefined;
-
     }
 
 
@@ -133,32 +94,24 @@ function getValueByPath(
     ) {
 
         return source;
-
     }
 
 
     const parts =
         path
-            .split(
-                "."
-            )
+            .split(".")
             .map(
                 part =>
                     part.trim()
             )
-            .filter(
-                Boolean
-            );
+            .filter(Boolean);
 
 
     let current =
         source;
 
 
-    for (
-        const part
-        of parts
-    ) {
+    for (const part of parts) {
 
         if (
             current === null ||
@@ -166,13 +119,9 @@ function getValueByPath(
         ) {
 
             return undefined;
-
         }
 
 
-        /*
-         * Защита от опасных prototype paths.
-         */
         if (
             part === "__proto__" ||
             part === "prototype" ||
@@ -180,18 +129,15 @@ function getValueByPath(
         ) {
 
             return undefined;
-
         }
 
 
         current =
             current[part];
-
     }
 
 
     return current;
-
 }
 
 
@@ -213,16 +159,15 @@ function findStepResult(
     ) {
 
         return null;
-
     }
 
 
-    return results.find(
-        item =>
-            item.id ===
-            stepId
-    ) || null;
-
+    return (
+        results.find(
+            item =>
+                item.id === stepId
+        ) || null
+    );
 }
 
 
@@ -230,13 +175,6 @@ function findStepResult(
  * =========================================================
  * RESOLVE REFERENCE
  * =========================================================
- *
- * Поддерживаем:
- *
- * {
- *   "$from": "search",
- *   "path": "data.results.0.url"
- * }
  */
 
 
@@ -259,7 +197,6 @@ function resolveReference(
             text:
                 "В ссылке на предыдущий шаг отсутствует $from"
         };
-
     }
 
 
@@ -278,7 +215,6 @@ function resolveReference(
             text:
                 `Не найден результат шага ${from}`
         };
-
     }
 
 
@@ -292,7 +228,6 @@ function resolveReference(
             text:
                 `Шаг ${from} завершился неуспешно`
         };
-
     }
 
 
@@ -322,16 +257,13 @@ function resolveReference(
                     `из шага ${from}`
                 )
         };
-
     }
 
 
     return {
         success: true,
-
         value
     };
-
 }
 
 
@@ -339,12 +271,6 @@ function resolveReference(
  * =========================================================
  * RESOLVE VALUE
  * =========================================================
- *
- * Рекурсивно обрабатывает аргументы.
- *
- * Это позволяет использовать ссылки
- * не только непосредственно в arguments.url,
- * но и внутри вложенных объектов и массивов.
  */
 
 
@@ -353,9 +279,6 @@ function resolveValue(
     results
 ) {
 
-    /*
-     * Простые значения.
-     */
     if (
         value === null ||
         value === undefined ||
@@ -364,20 +287,13 @@ function resolveValue(
 
         return {
             success: true,
-
             value
         };
-
     }
 
 
-    /*
-     * Ссылка на предыдущий шаг.
-     */
     if (
-        !Array.isArray(
-            value
-        ) &&
+        !Array.isArray(value) &&
         typeof value.$from === "string"
     ) {
 
@@ -385,27 +301,17 @@ function resolveValue(
             value,
             results
         );
-
     }
 
 
-    /*
-     * Массив.
-     */
     if (
-        Array.isArray(
-            value
-        )
+        Array.isArray(value)
     ) {
 
-        const resolvedArray =
-            [];
+        const resolvedArray = [];
 
 
-        for (
-            const item
-            of value
-        ) {
+        for (const item of value) {
 
             const resolved =
                 resolveValue(
@@ -419,42 +325,28 @@ function resolveValue(
             ) {
 
                 return resolved;
-
             }
 
 
             resolvedArray.push(
                 resolved.value
             );
-
         }
 
 
         return {
             success: true,
-
-            value:
-                resolvedArray
+            value: resolvedArray
         };
-
     }
 
 
-    /*
-     * Обычный объект.
-     */
-    const resolvedObject =
-        {};
+    const resolvedObject = {};
 
 
     for (
-        const [
-            key,
-            item
-        ]
-        of Object.entries(
-            value
-        )
+        const [key, item]
+        of Object.entries(value)
     ) {
 
         const resolved =
@@ -469,23 +361,231 @@ function resolveValue(
         ) {
 
             return resolved;
-
         }
 
 
         resolvedObject[key] =
             resolved.value;
-
     }
 
 
     return {
         success: true,
-
-        value:
-            resolvedObject
+        value: resolvedObject
     };
+}
 
+
+/*
+ * =========================================================
+ * SOURCE SELECTION
+ * =========================================================
+ *
+ * Если web_fetch должен получить URL
+ * непосредственно из web_search,
+ * не берём results[0] вслепую.
+ *
+ * Сначала Source Selector выбирает
+ * наиболее подходящий результат.
+ */
+
+
+async function resolveFetchSource(
+    originalArgs,
+    results,
+    selectionContext
+) {
+
+    const urlReference =
+        originalArgs?.url;
+
+
+    if (
+        !urlReference ||
+        typeof urlReference !== "object" ||
+        Array.isArray(urlReference) ||
+        typeof urlReference.$from !== "string"
+    ) {
+
+        return null;
+    }
+
+
+    const source =
+        findStepResult(
+            urlReference.$from.trim(),
+            results
+        );
+
+
+    if (
+        !source ||
+        source.success !== true ||
+        source.tool !== "web_search"
+    ) {
+
+        return null;
+    }
+
+
+    const searchResults =
+        source.data?.results;
+
+
+    if (
+        !Array.isArray(searchResults) ||
+        searchResults.length === 0
+    ) {
+
+        return {
+            success: false,
+
+            text:
+                "Source Selector не получил результатов поиска"
+        };
+    }
+
+
+    const selection =
+        await selectSource(
+            selectionContext,
+            searchResults
+        );
+
+
+    if (
+        !selection.success ||
+        !selection.result?.url
+    ) {
+
+        return {
+            success: false,
+
+            text:
+                selection.reason ||
+                "Не удалось выбрать подходящий источник"
+        };
+    }
+
+
+    console.log(
+        "Jessica Source Selector:",
+        JSON.stringify({
+            index:
+                selection.index,
+
+            title:
+                selection.result.title || "",
+
+            url:
+                selection.result.url,
+
+            reason:
+                selection.reason || ""
+        })
+    );
+
+
+    return {
+        success: true,
+
+        url:
+            selection.result.url
+    };
+}
+
+
+/*
+ * =========================================================
+ * RESOLVE STEP ARGUMENTS
+ * =========================================================
+ */
+
+
+async function resolveStepArguments(
+    toolName,
+    originalArgs,
+    results,
+    selectionContext
+) {
+
+    /*
+     * Для web_fetch сначала пробуем
+     * интеллектуальный выбор источника.
+     */
+    if (
+        toolName === "web_fetch"
+    ) {
+
+        const selectedSource =
+            await resolveFetchSource(
+                originalArgs,
+                results,
+                selectionContext
+            );
+
+
+        if (selectedSource) {
+
+            if (
+                !selectedSource.success
+            ) {
+
+                return selectedSource;
+            }
+
+
+            /*
+             * Остальные arguments тоже разрешаем
+             * обычным механизмом $from.
+             *
+             * URL заменяем выбранным Source Selector.
+             */
+            const argsWithoutUrl = {
+                ...originalArgs
+            };
+
+
+            delete argsWithoutUrl.url;
+
+
+            const rest =
+                resolveValue(
+                    argsWithoutUrl,
+                    results
+                );
+
+
+            if (
+                !rest.success
+            ) {
+
+                return rest;
+            }
+
+
+            return {
+                success: true,
+
+                value: {
+                    ...rest.value,
+
+                    url:
+                        selectedSource.url
+                }
+            };
+        }
+    }
+
+
+    /*
+     * Все остальные случаи работают
+     * через стандартный $from.
+     */
+    return resolveValue(
+        originalArgs,
+        results
+    );
 }
 
 
@@ -507,16 +607,10 @@ function getStepId(
     ) {
 
         return step.id.trim();
-
     }
 
 
-    /*
-     * Старые планы без id
-     * продолжают работать.
-     */
     return `step_${index + 1}`;
-
 }
 
 
@@ -549,9 +643,7 @@ function validateStepIds(
 
 
         if (
-            ids.has(
-                id
-            )
+            ids.has(id)
         ) {
 
             return {
@@ -560,21 +652,16 @@ function validateStepIds(
                 text:
                     `В плане повторяется id шага: ${id}`
             };
-
         }
 
 
-        ids.add(
-            id
-        );
-
+        ids.add(id);
     }
 
 
     return {
         success: true
     };
-
 }
 
 
@@ -586,7 +673,8 @@ function validateStepIds(
 
 
 export async function runPlan(
-    plan
+    plan,
+    task = ""
 ) {
 
     /*
@@ -607,17 +695,13 @@ export async function runPlan(
             text:
                 "TaskRunner получил некорректный план",
 
-            results:
-                []
+            results: []
         };
-
     }
 
 
     if (
-        !Array.isArray(
-            plan.steps
-        )
+        !Array.isArray(plan.steps)
     ) {
 
         return {
@@ -626,10 +710,8 @@ export async function runPlan(
             text:
                 "В плане отсутствуют шаги",
 
-            results:
-                []
+            results: []
         };
-
     }
 
 
@@ -650,10 +732,8 @@ export async function runPlan(
             text:
                 "Инструменты не требуются",
 
-            results:
-                []
+            results: []
         };
-
     }
 
 
@@ -667,16 +747,13 @@ export async function runPlan(
             text:
                 "План требует инструменты, но не содержит шагов",
 
-            results:
-                []
+            results: []
         };
-
     }
 
 
     if (
-        plan.steps.length >
-        MAX_STEPS
+        plan.steps.length > MAX_STEPS
     ) {
 
         return {
@@ -688,10 +765,8 @@ export async function runPlan(
                     `${plan.steps.length}. Максимум: ${MAX_STEPS}.`
                 ),
 
-            results:
-                []
+            results: []
         };
-
     }
 
 
@@ -711,11 +786,29 @@ export async function runPlan(
             text:
                 idsValidation.text,
 
-            results:
-                []
+            results: []
         };
-
     }
+
+
+    /*
+     * Контекст для Source Selector.
+     *
+     * Если вызывающий модуль уже передал исходную
+     * задачу — используем её.
+     *
+     * Старые вызовы runPlan(plan) тоже продолжат
+     * работать: тогда используем смысл самого плана.
+     */
+    const selectionContext =
+        String(task || "").trim() ||
+        [
+            plan.intent || "",
+            plan.reasoningSummary || "",
+            plan.evidence?.reason || ""
+        ]
+            .filter(Boolean)
+            .join("\n");
 
 
     /*
@@ -725,8 +818,7 @@ export async function runPlan(
      */
 
 
-    const results =
-        [];
+    const results = [];
 
 
     for (
@@ -755,7 +847,6 @@ export async function runPlan(
 
                 results
             };
-
         }
 
 
@@ -785,18 +876,11 @@ export async function runPlan(
 
                 results
             };
-
         }
 
 
-        /*
-         * Runner повторно проверяет Registry,
-         * даже если Planner уже сделал это.
-         */
         if (
-            !hasTool(
-                toolName
-            )
+            !hasTool(toolName)
         ) {
 
             return {
@@ -810,16 +894,13 @@ export async function runPlan(
 
                 results
             };
-
         }
 
 
         const originalArgs =
             originalStep.arguments &&
             typeof originalStep.arguments === "object" &&
-            !Array.isArray(
-                originalStep.arguments
-            )
+            !Array.isArray(originalStep.arguments)
                 ? originalStep.arguments
                 : {};
 
@@ -828,16 +909,15 @@ export async function runPlan(
          * -------------------------------------------------
          * RESOLVE ARGUMENTS
          * -------------------------------------------------
-         *
-         * Здесь происходит главное:
-         * подстановка данных из предыдущих шагов.
          */
 
 
         const resolvedArgsResult =
-            resolveValue(
+            await resolveStepArguments(
+                toolName,
                 originalArgs,
-                results
+                results,
+                selectionContext
             );
 
 
@@ -863,7 +943,6 @@ export async function runPlan(
 
                 results
             };
-
         }
 
 
@@ -920,7 +999,6 @@ export async function runPlan(
 
                 results
             };
-
         }
 
 
@@ -936,13 +1014,12 @@ export async function runPlan(
                     arguments:
                         resolvedArgs
                 },
+
                 rawResult
             );
 
 
-        results.push(
-            result
-        );
+        results.push(result);
 
 
         /*
@@ -974,7 +1051,6 @@ export async function runPlan(
 
                 results
             };
-
         }
 
 
@@ -1004,7 +1080,6 @@ export async function runPlan(
 
                 results
             };
-
         }
 
     }
@@ -1025,5 +1100,4 @@ export async function runPlan(
 
         results
     };
-
-            }
+}
