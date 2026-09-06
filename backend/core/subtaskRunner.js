@@ -22,10 +22,8 @@ import {
  *
  * Выполняет одну подзадачу независимо.
  *
- * Главное отличие от общего Jessica Core:
- *
- * ошибка одной подзадачи НЕ должна
- * останавливать выполнение остальных.
+ * Ошибка одной подзадачи
+ * не должна останавливать остальные.
  */
 
 
@@ -53,7 +51,6 @@ export async function executeSubtask(
     if (!taskText) {
 
         return {
-
             id:
                 subtaskId,
 
@@ -68,16 +65,15 @@ export async function executeSubtask(
 
             result:
                 "Подзадача не содержит текста"
-
         };
 
     }
 
 
     /*
-     * -----------------------------------------------------
+     * =====================================================
      * 1. PLAN
-     * -----------------------------------------------------
+     * =====================================================
      */
 
 
@@ -100,7 +96,6 @@ export async function executeSubtask(
 
 
         return {
-
             id:
                 subtaskId,
 
@@ -118,7 +113,6 @@ export async function executeSubtask(
 
             result:
                 "Не удалось построить план"
-
         };
 
     }
@@ -129,7 +123,6 @@ export async function executeSubtask(
     ) {
 
         return {
-
             id:
                 subtaskId,
 
@@ -148,7 +141,6 @@ export async function executeSubtask(
             result:
                 planResult?.text ||
                 "Не удалось построить план"
-
         };
 
     }
@@ -159,9 +151,9 @@ export async function executeSubtask(
 
 
     /*
-     * -----------------------------------------------------
+     * =====================================================
      * 2. RUN PLAN
-     * -----------------------------------------------------
+     * =====================================================
      */
 
 
@@ -184,7 +176,6 @@ export async function executeSubtask(
 
 
         return {
-
             id:
                 subtaskId,
 
@@ -204,21 +195,21 @@ export async function executeSubtask(
                 "Ошибка выполнения плана",
 
             plan
-
         };
 
     }
 
 
     /*
-     * Нужна дополнительная информация от пользователя.
+     * Требуется уточнение.
      */
+
+
     if (
         taskRunResult?.needsClarification === true
     ) {
 
         return {
-
             id:
                 subtaskId,
 
@@ -234,6 +225,9 @@ export async function executeSubtask(
             needsClarification:
                 true,
 
+            stage:
+                "tools",
+
             result:
                 taskRunResult.text ||
                 "Для выполнения требуется уточнение",
@@ -242,7 +236,6 @@ export async function executeSubtask(
 
             toolResults:
                 taskRunResult.results || []
-
         };
 
     }
@@ -251,12 +244,13 @@ export async function executeSubtask(
     /*
      * Ошибка выполнения инструмента.
      */
+
+
     if (
         taskRunResult?.success !== true
     ) {
 
         return {
-
             id:
                 subtaskId,
 
@@ -280,16 +274,15 @@ export async function executeSubtask(
 
             toolResults:
                 taskRunResult?.results || []
-
         };
 
     }
 
 
     /*
-     * -----------------------------------------------------
+     * =====================================================
      * 3. COMPOSE ANSWER
-     * -----------------------------------------------------
+     * =====================================================
      */
 
 
@@ -314,7 +307,6 @@ export async function executeSubtask(
 
 
         return {
-
             id:
                 subtaskId,
 
@@ -337,7 +329,6 @@ export async function executeSubtask(
 
             toolResults:
                 taskRunResult.results || []
-
         };
 
     }
@@ -348,7 +339,6 @@ export async function executeSubtask(
     ) {
 
         return {
-
             id:
                 subtaskId,
 
@@ -372,16 +362,15 @@ export async function executeSubtask(
 
             toolResults:
                 taskRunResult.results || []
-
         };
 
     }
 
 
     /*
-     * -----------------------------------------------------
+     * =====================================================
      * 4. VALIDATE
-     * -----------------------------------------------------
+     * =====================================================
      */
 
 
@@ -407,11 +396,12 @@ export async function executeSubtask(
 
 
         /*
-         * Validator не должен уничтожать
-         * уже полученный хороший ответ.
+         * Если Validator сломался,
+         * не выбрасываем уже полученный ответ.
          */
-        return {
 
+
+        return {
             id:
                 subtaskId,
 
@@ -430,14 +420,31 @@ export async function executeSubtask(
             result:
                 answerResult.text,
 
+            answerSource:
+                answerResult.source || "unknown",
+
+            usedTools:
+                Array.isArray(
+                    taskRunResult.results
+                )
+                    ? taskRunResult.results.map(
+                        item =>
+                            item.tool
+                    )
+                    : [],
+
             plan,
 
             toolResults:
                 taskRunResult.results || []
-
         };
 
     }
+
+
+    /*
+     * Validator требует уточнение.
+     */
 
 
     if (
@@ -445,7 +452,6 @@ export async function executeSubtask(
     ) {
 
         return {
-
             id:
                 subtaskId,
 
@@ -461,6 +467,9 @@ export async function executeSubtask(
             needsClarification:
                 true,
 
+            stage:
+                "validator",
+
             result:
                 validation.reason ||
                 "Для выполнения требуется уточнение",
@@ -469,24 +478,21 @@ export async function executeSubtask(
 
             toolResults:
                 taskRunResult.results || []
-
         };
 
     }
 
 
     /*
-     * Validator считает результат ненадёжным.
-     *
-     * Пока не делаем retry автоматически.
-     * Это появится позже через Replanner.
+     * Validator не принял ответ.
      */
+
+
     if (
         validation?.valid !== true
     ) {
 
         return {
-
             id:
                 subtaskId,
 
@@ -513,21 +519,19 @@ export async function executeSubtask(
 
             toolResults:
                 taskRunResult.results || []
-
         };
 
     }
 
 
     /*
-     * -----------------------------------------------------
+     * =====================================================
      * SUCCESS
-     * -----------------------------------------------------
+     * =====================================================
      */
 
 
     return {
-
         id:
             subtaskId,
 
@@ -563,7 +567,6 @@ export async function executeSubtask(
 
         toolResults:
             taskRunResult.results || []
-
     };
 
 }
@@ -593,16 +596,26 @@ export async function runSubtasks(
     ) {
 
         return {
-
             success:
                 false,
 
             text:
                 "Нет подзадач для выполнения",
 
+            total:
+                0,
+
+            completed:
+                0,
+
+            needsClarification:
+                0,
+
+            failed:
+                0,
+
             results:
                 []
-
         };
 
     }
@@ -615,14 +628,11 @@ export async function runSubtasks(
     /*
      * Пока выполняем последовательно.
      *
-     * Это безопаснее для первой версии:
-     * - меньше нагрузки на Groq;
-     * - меньше запросов одновременно;
-     * - проще отлаживать.
-     *
-     * Позже независимые задачи
-     * можно будет запускать параллельно.
+     * Это уменьшает нагрузку на Groq
+     * и упрощает отладку.
      */
+
+
     for (
         const subtask
         of subtasks
@@ -655,6 +665,72 @@ export async function runSubtasks(
 
 
             results.push({
-
                 id:
-                    sub
+                    subtask.id,
+
+                text:
+                    subtask.text,
+
+                status:
+                    "FAILED",
+
+                success:
+                    false,
+
+                result:
+                    "Непредвиденная ошибка выполнения подзадачи"
+            });
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
+     * SUMMARY
+     * =====================================================
+     */
+
+
+    const completed =
+        results.filter(
+            item =>
+                item.status ===
+                "COMPLETED"
+        ).length;
+
+
+    const needsClarification =
+        results.filter(
+            item =>
+                item.status ===
+                "NEEDS_CLARIFICATION"
+        ).length;
+
+
+    const failed =
+        results.filter(
+            item =>
+                item.status ===
+                "FAILED"
+        ).length;
+
+
+    return {
+        success:
+            completed > 0,
+
+        total:
+            results.length,
+
+        completed,
+
+        needsClarification,
+
+        failed,
+
+        results
+    };
+
+}
