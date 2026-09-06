@@ -12,8 +12,24 @@ import {
  *
  * Использует TinyFish Fetch.
  *
- * Planner решает, когда нужно открыть страницу.
- * Этот инструмент только получает её содержимое.
+ * ВАЖНО:
+ *
+ * web_fetch НЕ формирует конечный ответ пользователю.
+ *
+ * Он только возвращает содержимое страницы,
+ * которое затем анализирует Jessica.
+ *
+ * Поэтому при успехе:
+ *
+ * text = ""
+ * data = содержимое страницы
+ */
+
+
+/*
+ * =========================================================
+ * CONFIG
+ * =========================================================
  */
 
 
@@ -23,6 +39,61 @@ const tinyFishApiKey =
 
 const tinyFishFetchUrl =
     "https://api.fetch.tinyfish.ai";
+
+
+const MAX_CHARACTERS =
+    30000;
+
+
+/*
+ * =========================================================
+ * URL VALIDATION
+ * =========================================================
+ */
+
+
+function normalizeHttpUrl(
+    value
+) {
+
+    if (
+        typeof value !== "string" ||
+        !value.trim()
+    ) {
+
+        return null;
+
+    }
+
+
+    try {
+
+        const url =
+            new URL(
+                value.trim()
+            );
+
+
+        if (
+            url.protocol !== "http:" &&
+            url.protocol !== "https:"
+        ) {
+
+            return null;
+
+        }
+
+
+        return url.toString();
+
+
+    } catch {
+
+        return null;
+
+    }
+
+}
 
 
 /*
@@ -36,10 +107,41 @@ async function executeWebFetch(
     args
 ) {
 
-    const pageUrl =
+    const rawUrl =
         typeof args?.url === "string"
             ? args.url.trim()
             : "";
+
+
+    /*
+     * -----------------------------------------------------
+     * INPUT VALIDATION
+     * -----------------------------------------------------
+     */
+
+
+    if (!rawUrl) {
+
+        return {
+            success: false,
+
+            needsClarification:
+                true,
+
+            text:
+                "Не указан адрес страницы.",
+
+            data:
+                null
+        };
+
+    }
+
+
+    const pageUrl =
+        normalizeHttpUrl(
+            rawUrl
+        );
 
 
     if (!pageUrl) {
@@ -47,51 +149,11 @@ async function executeWebFetch(
         return {
             success: false,
 
-            needsClarification: true,
-
             text:
-                "Не указан адрес страницы."
-        };
+                "Указан некорректный HTTP или HTTPS адрес страницы.",
 
-    }
-
-
-    /*
-     * Проверяем URL до отправки
-     * запроса во внешний сервис.
-     */
-    let normalizedUrl;
-
-
-    try {
-
-        normalizedUrl =
-            new URL(
-                pageUrl
-            );
-
-
-        if (
-            normalizedUrl.protocol !== "http:" &&
-            normalizedUrl.protocol !== "https:"
-        ) {
-
-            return {
-                success: false,
-
-                text:
-                    "Jessica может открывать только HTTP и HTTPS страницы."
-            };
-
-        }
-
-    } catch {
-
-        return {
-            success: false,
-
-            text:
-                "Указан некорректный адрес страницы."
+            data:
+                null
         };
 
     }
@@ -103,10 +165,20 @@ async function executeWebFetch(
             success: false,
 
             text:
-                "Загрузка веб-страниц Jessica не настроена."
+                "Загрузка веб-страниц Jessica не настроена.",
+
+            data:
+                null
         };
 
     }
+
+
+    /*
+     * -----------------------------------------------------
+     * REQUEST
+     * -----------------------------------------------------
+     */
 
 
     try {
@@ -132,7 +204,7 @@ async function executeWebFetch(
                         JSON.stringify({
 
                             urls: [
-                                normalizedUrl.toString()
+                                pageUrl
                             ],
 
                             format:
@@ -152,6 +224,13 @@ async function executeWebFetch(
             await response.text();
 
 
+        /*
+         * -------------------------------------------------
+         * HTTP ERROR
+         * -------------------------------------------------
+         */
+
+
         if (!response.ok) {
 
             console.error(
@@ -165,10 +244,20 @@ async function executeWebFetch(
                 success: false,
 
                 text:
-                    `Не удалось загрузить страницу: HTTP ${response.status}.`
+                    `Не удалось загрузить страницу: HTTP ${response.status}.`,
+
+                data:
+                    null
             };
 
         }
+
+
+        /*
+         * -------------------------------------------------
+         * PARSE RESPONSE
+         * -------------------------------------------------
+         */
 
 
         let data;
@@ -193,7 +282,10 @@ async function executeWebFetch(
                 success: false,
 
                 text:
-                    "Сервис загрузки страницы вернул некорректные данные."
+                    "Сервис загрузки страницы вернул некорректные данные.",
+
+                data:
+                    null
             };
 
         }
@@ -201,7 +293,7 @@ async function executeWebFetch(
 
         const result =
             Array.isArray(
-                data.results
+                data?.results
             )
                 ? data.results[0]
                 : null;
@@ -213,10 +305,20 @@ async function executeWebFetch(
                 success: false,
 
                 text:
-                    "Не удалось получить содержимое страницы."
+                    "Не удалось получить содержимое страницы.",
+
+                data:
+                    null
             };
 
         }
+
+
+        /*
+         * -------------------------------------------------
+         * CONTENT
+         * -------------------------------------------------
+         */
 
 
         const content =
@@ -231,62 +333,71 @@ async function executeWebFetch(
                 success: false,
 
                 text:
-                    "Страница загружена, но её содержимое получить не удалось."
+                    "Страница загружена, но её содержимое получить не удалось.",
+
+                data:
+                    null
             };
 
         }
 
 
-        /*
-         * Ограничиваем объём результата,
-         * чтобы случайно не отправить огромную
-         * страницу дальше по цепочке Jessica.
-         *
-         * Позже добавим нормальную работу
-         * с большими документами и чанками.
-         */
-        const maxCharacters =
-            30000;
-
-
         const truncated =
             content.length >
-            maxCharacters;
+            MAX_CHARACTERS;
 
 
         const finalContent =
             truncated
                 ? content.slice(
                     0,
-                    maxCharacters
+                    MAX_CHARACTERS
                 )
                 : content;
+
+
+        /*
+         * -------------------------------------------------
+         * SUCCESS
+         * -------------------------------------------------
+         *
+         * text специально пустой.
+         *
+         * Содержимое страницы —
+         * это данные для дальнейшего анализа,
+         * а не готовый ответ пользователю.
+         */
 
 
         return {
             success: true,
 
             text:
-                truncated
-                    ? "Страница загружена. Содержимое было сокращено из-за большого объёма."
-                    : "Страница успешно загружена.",
+                "",
 
             data: {
 
                 title:
                     typeof result.title === "string"
-                        ? result.title
+                        ? result.title.trim()
                         : "",
 
                 url:
-                    typeof result.url === "string"
-                        ? result.url
-                        : normalizedUrl.toString(),
+                    typeof result.url === "string" &&
+                    result.url.trim()
+                        ? result.url.trim()
+                        : pageUrl,
 
                 content:
                     finalContent,
 
-                truncated
+                truncated,
+
+                originalLength:
+                    content.length,
+
+                returnedLength:
+                    finalContent.length
 
             }
         };
@@ -295,16 +406,37 @@ async function executeWebFetch(
     } catch (error) {
 
         console.error(
-            "Web Fetch Tool error:",
+            "Web Fetch Tool exception:",
             error
         );
+
+
+        if (
+            error?.name ===
+            "TimeoutError"
+        ) {
+
+            return {
+                success: false,
+
+                text:
+                    "Загрузка страницы превысила допустимое время ожидания.",
+
+                data:
+                    null
+            };
+
+        }
 
 
         return {
             success: false,
 
             text:
-                "Jessica не смогла загрузить веб-страницу."
+                "Jessica не смогла загрузить веб-страницу.",
+
+            data:
+                null
         };
 
     }
@@ -326,15 +458,23 @@ registerTool({
 
     description:
         (
-            "Открывает конкретную веб-страницу и получает её содержимое. " +
-            "Используй, когда известен URL и для решения задачи нужно " +
-            "прочитать саму страницу, а не только результаты поиска."
+            "Открывает конкретную HTTP или HTTPS страницу " +
+            "и возвращает её содержимое для дальнейшего анализа Jessica. " +
+
+            "Используй, когда URL уже известен и для решения задачи " +
+            "нужно прочитать сам источник, проверить детали " +
+            "или получить данные, которых недостаточно в поисковом результате. " +
+
+            "Инструмент не формирует конечный ответ пользователю."
         ),
 
     arguments: {
 
         url:
-            "Полный HTTP или HTTPS адрес страницы."
+            (
+                "Полный HTTP или HTTPS адрес страницы, " +
+                "которую необходимо открыть."
+            )
 
     },
 
