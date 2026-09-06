@@ -17,10 +17,6 @@ import {
  * =========================================================
  *
  * Главный координатор проверки результата.
- *
- * Детальная логика вынесена в:
- *
- * core/validator/
  */
 
 
@@ -33,10 +29,9 @@ export async function validateResult(
 
     /*
      * =====================================================
-     * 1. BASIC VALIDATION
+     * 1. BASIC
      * =====================================================
      */
-
 
     const basic =
         validateBasicResult(
@@ -45,11 +40,17 @@ export async function validateResult(
         );
 
 
+    console.log(
+        "Jessica Validator basic:",
+        JSON.stringify(basic)
+    );
+
+
     if (
         basic.valid !== true
     ) {
 
-        return {
+        const result = {
             success: true,
 
             valid: false,
@@ -64,18 +65,22 @@ export async function validateResult(
                 basic.reason || ""
         };
 
+
+        console.log(
+            "Jessica Validator final:",
+            JSON.stringify(result)
+        );
+
+
+        return result;
     }
 
 
     /*
      * =====================================================
-     * 2. EVIDENCE VALIDATION
+     * 2. EVIDENCE
      * =====================================================
-     *
-     * Проверяем, что Planner не просто запросил
-     * доказательства, а TaskRunner реально их получил.
      */
-
 
     const evidence =
         validateEvidenceResult(
@@ -84,11 +89,22 @@ export async function validateResult(
         );
 
 
+    console.log(
+        "Jessica Validator evidence:",
+        JSON.stringify({
+            requiredMode:
+                plan?.evidence?.mode || "none",
+
+            ...evidence
+        })
+    );
+
+
     if (
         evidence.valid !== true
     ) {
 
-        return {
+        const result = {
             success: true,
 
             valid: false,
@@ -102,6 +118,14 @@ export async function validateResult(
                 evidence.reason || ""
         };
 
+
+        console.log(
+            "Jessica Validator final:",
+            JSON.stringify(result)
+        );
+
+
+        return result;
     }
 
 
@@ -109,20 +133,13 @@ export async function validateResult(
      * =====================================================
      * 3. DIRECT TOOL RESULT
      * =====================================================
-     *
-     * Если ответ сформирован непосредственно
-     * успешным инструментом, дополнительная AI-проверка
-     * пока не обязательна.
-     *
-     * Например current_time.
      */
-
 
     if (
         answerResult?.source === "tool"
     ) {
 
-        return {
+        const result = {
             success: true,
 
             valid: true,
@@ -135,15 +152,22 @@ export async function validateResult(
                 "Ответ получен напрямую от успешно выполненного инструмента"
         };
 
+
+        console.log(
+            "Jessica Validator final:",
+            JSON.stringify(result)
+        );
+
+
+        return result;
     }
 
 
     /*
      * =====================================================
-     * 4. AI SEMANTIC VALIDATION
+     * 4. AI VALIDATION
      * =====================================================
      */
-
 
     const aiValidation =
         await validateWithAI(
@@ -154,17 +178,17 @@ export async function validateResult(
         );
 
 
-    /*
-     * Если AI Validator успешно отработал,
-     * используем его решение.
-     */
+    console.log(
+        "Jessica Validator AI:",
+        JSON.stringify(aiValidation)
+    );
 
 
     if (
         aiValidation.success === true
     ) {
 
-        return {
+        const result = {
             success: true,
 
             valid:
@@ -180,26 +204,24 @@ export async function validateResult(
                 aiValidation.reason || ""
         };
 
+
+        console.log(
+            "Jessica Validator final:",
+            JSON.stringify(result)
+        );
+
+
+        return result;
     }
 
 
     /*
      * =====================================================
-     * 5. AI VALIDATOR UNAVAILABLE
+     * 5. AI UNAVAILABLE
      * =====================================================
-     *
-     * Пока не блокируем ответ только из-за временной
-     * недоступности AI Validator, если:
-     *
-     * - базовая проверка прошла;
-     * - evidence реально получено.
-     *
-     * Позже в Jessica 4.0 здесь появится более строгая
-     * политика и автоматическое перепланирование.
      */
 
-
-    return {
+    const result = {
         success: true,
 
         valid: true,
@@ -213,4 +235,12 @@ export async function validateResult(
             "AI Validator недоступен, техническая проверка пройдена"
     };
 
+
+    console.log(
+        "Jessica Validator final:",
+        JSON.stringify(result)
+    );
+
+
+    return result;
 }
