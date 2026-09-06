@@ -7,6 +7,10 @@ import {
 } from "./validator/evidenceResultValidator.js";
 
 import {
+    validateSourceContent
+} from "./validator/sourceContentValidator.js";
+
+import {
     validateWithAI
 } from "./validator/aiResultValidator.js";
 
@@ -78,7 +82,7 @@ export async function validateResult(
 
     /*
      * =====================================================
-     * 2. EVIDENCE
+     * 2. EVIDENCE EXISTS
      * =====================================================
      */
 
@@ -131,7 +135,61 @@ export async function validateResult(
 
     /*
      * =====================================================
-     * 3. DIRECT TOOL RESULT
+     * 3. SOURCE CONTENT QUALITY
+     * =====================================================
+     *
+     * Здесь уже проверяем не просто факт fetch,
+     * а действительно ли загруженная страница
+     * содержит данные, нужные для задачи.
+     */
+
+    const sourceContent =
+        await validateSourceContent(
+            task,
+            plan,
+            taskRunResult
+        );
+
+
+    console.log(
+        "Jessica Validator source content:",
+        JSON.stringify(sourceContent)
+    );
+
+
+    if (
+        sourceContent.success === true &&
+        sourceContent.valid !== true
+    ) {
+
+        const result = {
+            success: true,
+
+            valid: false,
+
+            shouldRetry:
+                sourceContent.shouldRetry === true,
+
+            needsClarification: false,
+
+            reason:
+                sourceContent.reason || ""
+        };
+
+
+        console.log(
+            "Jessica Validator final:",
+            JSON.stringify(result)
+        );
+
+
+        return result;
+    }
+
+
+    /*
+     * =====================================================
+     * 4. DIRECT TOOL RESULT
      * =====================================================
      */
 
@@ -165,7 +223,7 @@ export async function validateResult(
 
     /*
      * =====================================================
-     * 4. AI VALIDATION
+     * 5. AI ANSWER VALIDATION
      * =====================================================
      */
 
@@ -217,7 +275,7 @@ export async function validateResult(
 
     /*
      * =====================================================
-     * 5. AI UNAVAILABLE
+     * 6. AI UNAVAILABLE
      * =====================================================
      */
 
@@ -232,7 +290,7 @@ export async function validateResult(
 
         reason:
             aiValidation.reason ||
-            "AI Validator недоступен, техническая проверка пройдена"
+            "AI Validator недоступен, технические проверки пройдены"
     };
 
 
