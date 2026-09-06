@@ -12,18 +12,13 @@ import {
  *
  * Planner:
  *
- * - понимает цель задачи;
- * - решает, нужны ли инструменты;
- * - выбирает только зарегистрированные инструменты;
- * - строит многошаговый план;
- * - умеет передавать результаты между шагами через:
+ * 1. понимает цель;
+ * 2. определяет, нужны ли инструменты;
+ * 3. определяет требуемый уровень доказательств;
+ * 4. создаёт исполняемый план;
+ * 5. связывает шаги через $from.
  *
- * {
- *   "$from": "search",
- *   "path": "data.results.0.url"
- * }
- *
- * Planner сам задачу НЕ решает.
+ * Planner НЕ отвечает пользователю.
  */
 
 
@@ -58,13 +53,6 @@ const MAX_STEPS = 15;
 const RETRY_DELAY_MS = 1200;
 
 
-/*
- * =========================================================
- * HELPERS
- * =========================================================
- */
-
-
 function sleep(
     ms
 ) {
@@ -80,23 +68,17 @@ function sleep(
 }
 
 
+/*
+ * =========================================================
+ * TOOLS
+ * =========================================================
+ */
+
+
 function buildToolsDescription() {
 
-    const tools =
-        listTools();
-
-
-    if (
-        tools.length === 0
-    ) {
-
-        return "Зарегистрированных инструментов нет.";
-
-    }
-
-
     return JSON.stringify(
-        tools.map(
+        listTools().map(
             tool => ({
                 name:
                     tool.name,
@@ -113,6 +95,13 @@ function buildToolsDescription() {
     );
 
 }
+
+
+/*
+ * =========================================================
+ * JSON CLEANUP
+ * =========================================================
+ */
 
 
 function cleanJsonText(
@@ -174,6 +163,45 @@ function cleanJsonText(
 
 /*
  * =========================================================
+ * NORMALIZE EVIDENCE
+ * =========================================================
+ */
+
+
+function normalizeEvidence(
+    raw
+) {
+
+    const allowedModes =
+        new Set([
+            "none",
+            "search_results",
+            "source_content"
+        ]);
+
+
+    const mode =
+        allowedModes.has(
+            raw?.mode
+        )
+            ? raw.mode
+            : "none";
+
+
+    return {
+        mode,
+
+        reason:
+            typeof raw?.reason === "string"
+                ? raw.reason.trim()
+                : ""
+    };
+
+}
+
+
+/*
+ * =========================================================
  * NORMALIZE PLAN
  * =========================================================
  */
@@ -200,42 +228,40 @@ function normalizePlan(
         raw.requiresTools;
 
 
-    const rawSteps =
-        Array.isArray(
-            raw.steps
-        )
-            ? raw.steps
-            : [];
-
-
     const steps =
         requiresTools === false
             ? []
-            : rawSteps.map(
-                (
-                    step,
-                    index
-                ) => ({
-                    id:
-                        typeof step?.id === "string" &&
-                        step.id.trim()
-                            ? step.id.trim()
-                            : `step_${index + 1}`,
+            : (
+                Array.isArray(
+                    raw.steps
+                )
+                    ? raw.steps.map(
+                        (
+                            step,
+                            index
+                        ) => ({
+                            id:
+                                typeof step?.id === "string" &&
+                                step.id.trim()
+                                    ? step.id.trim()
+                                    : `step_${index + 1}`,
 
-                    tool:
-                        typeof step?.tool === "string"
-                            ? step.tool.trim()
-                            : "",
+                            tool:
+                                typeof step?.tool === "string"
+                                    ? step.tool.trim()
+                                    : "",
 
-                    arguments:
-                        step?.arguments &&
-                        typeof step.arguments === "object" &&
-                        !Array.isArray(
-                            step.arguments
-                        )
-                            ? step.arguments
-                            : {}
-                })
+                            arguments:
+                                step?.arguments &&
+                                typeof step.arguments === "object" &&
+                                !Array.isArray(
+                                    step.arguments
+                                )
+                                    ? step.arguments
+                                    : {}
+                        })
+                    )
+                    : []
             );
 
 
@@ -252,6 +278,11 @@ function normalizePlan(
                 ? raw.reasoningSummary.trim()
                 : "",
 
+        evidence:
+            normalizeEvidence(
+                raw.evidence
+            ),
+
         steps
     };
 
@@ -260,7 +291,7 @@ function normalizePlan(
 
 /*
  * =========================================================
- * REFERENCE VALIDATION
+ * REFERENCES
  * =========================================================
  */
 
@@ -283,9 +314,6 @@ function validateReferences(
     }
 
 
-    /*
-     * Ссылка на предыдущий шаг.
-     */
     if (
         !Array.isArray(
             value
@@ -446,10 +474,7 @@ function validatePlan(
     }
 
 
-    if (
-        typeof plan.intent !== "string" ||
-        !plan.intent
-    ) {
+    if (!plan.intent) {
 
         return {
             success: false,
@@ -477,8 +502,31 @@ function validatePlan(
 
 
     if (
-        !Array.isArray(
-            plan.steps
+        !plan.evidence ||
+        typeof plan.evidence !== "object"
+    ) {
+
+        return {
+            success: false,
+
+            text:
+                "В плане отсутствует evidence"
+        };
+
+    }
+
+
+    const allowedEvidenceModes =
+        new Set([
+            "none",
+            "search_results",
+            "source_content"
+        ]);
+
+
+    if (
+        !allowedEvidenceModes.has(
+            plan.evidence.mode
         )
     ) {
 
@@ -486,14 +534,14 @@ function validatePlan(
             success: false,
 
             text:
-                "В плане отсутствует steps"
+                `Некорректный evidence.mode: ${plan.evidence.mode}`
         };
 
     }
 
 
     /*
-     * Задача без инструментов.
+     * Без инструментов.
      */
     if (
         plan.requiresTools === false
@@ -513,6 +561,21 @@ function validatePlan(
         }
 
 
+        if (
+            plan.evidence.mode !==
+            "none"
+        ) {
+
+            return {
+                success: false,
+
+                text:
+                    "Задача без инструментов не может требовать внешние доказательства"
+            };
+
+        }
+
+
         return {
             success: true
         };
@@ -521,7 +584,7 @@ function validatePlan(
 
 
     /*
-     * Инструменты нужны.
+     * С инструментами.
      */
     if (
         plan.steps.length === 0
@@ -531,7 +594,7 @@ function validatePlan(
             success: false,
 
             text:
-                "Planner не создал инструментальные шаги"
+                "Planner не создал шаги"
         };
 
     }
@@ -552,7 +615,7 @@ function validatePlan(
     }
 
 
-    const registeredToolNames =
+    const registeredTools =
         new Set(
             listTools().map(
                 tool =>
@@ -565,9 +628,6 @@ function validatePlan(
         new Set();
 
 
-    /*
-     * Сначала уникальность ID.
-     */
     for (
         const step
         of plan.steps
@@ -610,25 +670,17 @@ function validatePlan(
     }
 
 
-    /*
-     * Потом инструменты и зависимости.
-     */
-    const previousStepIds =
+    const previousIds =
         new Set();
 
 
     for (
-        let index = 0;
-        index < plan.steps.length;
-        index++
+        const step
+        of plan.steps
     ) {
 
-        const step =
-            plan.steps[index];
-
-
         if (
-            !registeredToolNames.has(
+            !registeredTools.has(
                 step.tool
             )
         ) {
@@ -643,33 +695,96 @@ function validatePlan(
         }
 
 
-        const referenceValidation =
+        const references =
             validateReferences(
                 step.arguments,
-                previousStepIds
+                previousIds
             );
 
 
         if (
-            !referenceValidation.success
+            !references.success
         ) {
 
             return {
                 success: false,
 
                 text:
-                    (
-                        `Ошибка зависимостей шага ${step.id}: ` +
-                        `${referenceValidation.text}`
-                    )
+                    `Ошибка зависимостей шага ${step.id}: ${references.text}`
             };
 
         }
 
 
-        previousStepIds.add(
+        previousIds.add(
             step.id
         );
+
+    }
+
+
+    /*
+     * =====================================================
+     * EVIDENCE CONSISTENCY
+     * =====================================================
+     */
+
+
+    const usedTools =
+        new Set(
+            plan.steps.map(
+                step =>
+                    step.tool
+            )
+        );
+
+
+    /*
+     * Если требуется содержимое источника,
+     * plan обязан реально включать web_fetch.
+     */
+    if (
+        plan.evidence.mode ===
+        "source_content" &&
+        !usedTools.has(
+            "web_fetch"
+        )
+    ) {
+
+        return {
+            success: false,
+
+            text:
+                (
+                    "План требует evidence=source_content, " +
+                    "но не содержит web_fetch"
+                )
+        };
+
+    }
+
+
+    /*
+     * Если нужны результаты поиска,
+     * должен быть web_search.
+     */
+    if (
+        plan.evidence.mode ===
+        "search_results" &&
+        !usedTools.has(
+            "web_search"
+        )
+    ) {
+
+        return {
+            success: false,
+
+            text:
+                (
+                    "План требует evidence=search_results, " +
+                    "но не содержит web_search"
+                )
+        };
 
     }
 
@@ -683,7 +798,7 @@ function validatePlan(
 
 /*
  * =========================================================
- * RETRY CHECK
+ * RETRY
  * =========================================================
  */
 
@@ -741,65 +856,6 @@ async function requestPlan(
     toolsDescription
 ) {
 
-    const examplePlan = {
-        intent:
-            "find_and_read_source",
-
-        requiresTools:
-            true,
-
-        reasoningSummary:
-            "Сначала найти страницу, затем открыть найденный источник.",
-
-        steps: [
-            {
-                id:
-                    "search",
-
-                tool:
-                    "web_search",
-
-                arguments: {
-                    query:
-                        "официальный источник с нужной информацией"
-                }
-            },
-            {
-                id:
-                    "fetch",
-
-                tool:
-                    "web_fetch",
-
-                arguments: {
-                    url: {
-                        $from:
-                            "search",
-
-                        path:
-                            "data.results.0.url"
-                    }
-                }
-            }
-        ]
-    };
-
-
-    const noToolsExample = {
-        intent:
-            "intellectual_task",
-
-        requiresTools:
-            false,
-
-        reasoningSummary:
-            "Внешние инструменты не требуются.",
-
-        steps:
-            []
-    };
-
-
     const response =
         await groq.responses.create({
 
@@ -809,44 +865,100 @@ async function requestPlan(
             instructions:
                 [
                     "Ты Planner системы Jessica Core.",
-                    "Ты не отвечаешь пользователю и не решаешь задачу.",
+                    "Ты не отвечаешь пользователю.",
                     "Ты создаёшь только исполняемый план.",
                     "",
-                    "Если внешние данные или действия не нужны:",
-                    "requiresTools=false и steps=[].",
+                    "Определи requiresTools.",
                     "",
-                    "Если нужны инструменты:",
-                    "используй только инструменты из списка.",
+                    "Также обязательно определи evidence.mode:",
+                    "",
+                    "none — внешние доказательства не нужны.",
+                    "",
+                    "search_results — достаточно результатов интернет-поиска.",
+                    "",
+                    "source_content — обязательно нужно прочитать содержимое конкретного источника, страницы, сайта или документа.",
+                    "",
+                    "Если пользователь просит узнать что-то по самому сайту,",
+                    "по документу, по странице, по официальному источнику",
+                    "или проверить содержимое источника,",
+                    "используй evidence.mode=source_content.",
+                    "",
+                    "Если достаточно поисковой выдачи,",
+                    "используй evidence.mode=search_results.",
+                    "",
+                    "Если внешние данные вообще не нужны,",
+                    "requiresTools=false, evidence.mode=none, steps=[].",
+                    "",
+                    "Если evidence.mode=source_content,",
+                    "в плане обязательно должен присутствовать web_fetch.",
+                    "",
+                    "Если URL заранее неизвестен:",
+                    "сначала web_search, затем web_fetch через $from.",
+                    "",
+                    "Формат зависимости:",
+                    '{"$from":"search","path":"data.results.0.url"}',
+                    "",
+                    "Используй только зарегистрированные инструменты.",
+                    "Не придумывай URL.",
                     "Не придумывай инструменты.",
                     "",
-                    "Каждый инструментальный шаг имеет уникальный id.",
+                    "Каждый шаг имеет уникальный id.",
                     "",
-                    "Если следующему шагу нужен результат предыдущего,",
-                    "используй объект:",
-                    '{"$from":"id_шага","path":"data.path"}',
+                    "Верни только JSON.",
                     "",
-                    "Ссылка может вести только на предыдущий шаг.",
-                    "",
-                    "Если URL заранее неизвестен, не придумывай его.",
-                    "Сначала получи URL поиском, затем передай его через $from.",
-                    "",
-                    "Если достаточно поисковых результатов, web_fetch не обязателен.",
-                    "Если пользователь просит проверить сам сайт, страницу, документ",
-                    "или официальный источник, может понадобиться search → fetch.",
-                    "",
-                    "Не используй правила под конкретные города, сайты или темы.",
-                    "Выбирай маршрут по смыслу задачи.",
-                    "",
-                    "Верни только JSON без markdown.",
-                    "",
-                    "Пример плана без инструментов:",
+                    "Структура:",
                     JSON.stringify(
-                        noToolsExample
-                    ),
-                    "",
-                    "Пример зависимого плана:",
-                    JSON.stringify(
-                        examplePlan
+                        {
+                            intent:
+                                "intent_name",
+
+                            requiresTools:
+                                true,
+
+                            reasoningSummary:
+                                "краткий маршрут",
+
+                            evidence: {
+                                mode:
+                                    "source_content",
+
+                                reason:
+                                    "почему нужен такой уровень подтверждения"
+                            },
+
+                            steps: [
+                                {
+                                    id:
+                                        "search",
+
+                                    tool:
+                                        "web_search",
+
+                                    arguments: {
+                                        query:
+                                            "поисковый запрос"
+                                    }
+                                },
+
+                                {
+                                    id:
+                                        "fetch",
+
+                                    tool:
+                                        "web_fetch",
+
+                                    arguments: {
+                                        url: {
+                                            $from:
+                                                "search",
+
+                                            path:
+                                                "data.results.0.url"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
                     )
                 ].join(
                     "\n"
@@ -856,6 +968,7 @@ async function requestPlan(
                 (
                     `ДОСТУПНЫЕ ИНСТРУМЕНТЫ:\n` +
                     `${toolsDescription}\n\n` +
+
                     `ЗАДАЧА:\n` +
                     `${task}`
                 ),
@@ -999,116 +1112,4 @@ export async function createPlan(
 
     if (!groq) {
 
-        return {
-            success: false,
-
-            text:
-                "Groq Planner не настроен"
-        };
-
-    }
-
-
-    const toolsDescription =
-        buildToolsDescription();
-
-
-    let lastError =
-        "Planner не смог проанализировать задачу";
-
-
-    for (
-        let attempt = 1;
-        attempt <= MAX_ATTEMPTS;
-        attempt++
-    ) {
-
-        try {
-
-            console.log(
-                `Jessica Planner attempt ${attempt}/${MAX_ATTEMPTS}`
-            );
-
-
-            const result =
-                await requestPlan(
-                    normalizedTask,
-                    toolsDescription
-                );
-
-
-            if (
-                result.success
-            ) {
-
-                console.log(
-                    "Jessica Planner plan:",
-                    JSON.stringify(
-                        result.plan
-                    )
-                );
-
-
-                return result;
-
-            }
-
-
-            lastError =
-                result.text ||
-                lastError;
-
-
-            if (
-                result.retryable !== true ||
-                attempt === MAX_ATTEMPTS
-            ) {
-
-                break;
-
-            }
-
-
-        } catch (error) {
-
-            console.error(
-                `Planner attempt ${attempt} error:`,
-                error
-            );
-
-
-            lastError =
-                error?.message ||
-                lastError;
-
-
-            if (
-                attempt === MAX_ATTEMPTS ||
-                !shouldRetryError(
-                    error
-                )
-            ) {
-
-                break;
-
-            }
-
-        }
-
-
-        await sleep(
-            RETRY_DELAY_MS *
-            attempt
-        );
-
-    }
-
-
-    return {
-        success: false,
-
-        text:
-            lastError
-    };
-
-                    }
+    
