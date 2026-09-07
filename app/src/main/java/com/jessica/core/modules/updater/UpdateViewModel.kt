@@ -1,32 +1,48 @@
 package com.jessica.core.modules.updater
 
+
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.StateFlow
+
 
 
 class UpdateViewModel : ViewModel() {
 
 
-    private val manager =
+    private val updateManager =
         UpdateManager()
 
 
+
     val state: StateFlow<UpdateState> =
-        manager.state
+        updateManager.state
 
 
 
     fun checkUpdate() {
 
-        manager.checkForUpdates()
+        updateManager
+            .checkForUpdates()
 
     }
+
 
 
     fun startUpdate() {
 
-        manager.startUpdate()
+        updateManager
+            .startUpdate()
 
     }
+
+
+
+    fun reset() {
+
+        updateManager
+            .reset()
+
+    }
+
 
 }
