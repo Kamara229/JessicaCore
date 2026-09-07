@@ -1,7 +1,9 @@
 package com.jessica.core.ui.chat
 
+
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 
 /*
@@ -11,35 +13,38 @@ import androidx.lifecycle.viewmodel.compose.viewModel
  *
  * Navigation layer.
  *
- * Не содержит UI.
- * Не содержит бизнес-логику.
+ * Отвечает только за связь:
  *
- * Только связывает:
+ * ChatViewModel → ChatScreen
  *
- * ViewModel ↔ Screen
+ * Не содержит:
+ * - UI логику
+ * - бизнес логику
+ * - работу с памятью
+ * - работу с блоками
  *
+ * =========================================================
  */
 
 
 @Composable
 fun ChatRoute(
+
+    viewModel: ChatViewModel,
+
     onBack: () -> Unit
+
 ) {
 
 
-    val viewModel:
-            ChatViewModel =
-        viewModel()
+    val state by
+        viewModel.state.collectAsState()
 
-
-    val state =
-        viewModel.state
 
 
     ChatScreen(
 
-        state =
-            state.value,
+        state = state,
 
 
         onInputChange = {
@@ -58,8 +63,11 @@ fun ChatRoute(
         },
 
 
-        onBack =
-            onBack
+        onBack = {
+
+            onBack()
+
+        }
 
     )
 
