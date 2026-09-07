@@ -1,33 +1,31 @@
 package com.jessica.core.ui.chat
 
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
-
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Text
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 
-import androidx.compose.ui.platform.LocalClipboardManager
-
-import androidx.compose.ui.text.AnnotatedString
-
-import com.jessica.core.modules.chat.ChatMessage
-
+import androidx.compose.ui.res.painterResource
 
 
 @Composable
 fun MessageActions(
 
-    message: ChatMessage
+    onCopy: () -> Unit
 
 ) {
 
 
-    val clipboard =
-        LocalClipboardManager.current
+    val expanded =
+        remember {
+            mutableStateOf(false)
+        }
 
 
 
@@ -35,36 +33,62 @@ fun MessageActions(
 
         onClick = {
 
-
-            clipboard.setText(
-
-                AnnotatedString(
-
-                    message.text
-
-                )
-
-            )
-
+            expanded.value =
+                true
 
         }
 
     ) {
 
 
-        Icon(
-
-            imageVector =
-                Icons.Default.ContentCopy,
-
-
-            contentDescription =
-                "Копировать"
-
+        Text(
+            "⋮"
         )
 
 
     }
 
+
+
+    DropdownMenu(
+
+        expanded =
+            expanded.value,
+
+
+        onDismissRequest = {
+
+            expanded.value =
+                false
+
+        }
+
+    ) {
+
+
+        DropdownMenuItem(
+
+            text = {
+
+                Text(
+                    "Копировать"
+                )
+
+            },
+
+
+            onClick = {
+
+                expanded.value =
+                    false
+
+                onCopy()
+
+            }
+
+        )
+
+
+    }
 
 }
