@@ -11,17 +11,25 @@ sealed class UpdateState {
 
 
     data class Downloading(
+
         val progress: Int
+
     ) : UpdateState()
+
 
 
     data class Completed(
+
         val version: String
+
     ) : UpdateState()
 
 
+
     data class Error(
+
         val message: String
+
     ) : UpdateState()
 
 }
