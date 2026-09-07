@@ -29,17 +29,17 @@ class UpdateManager {
 
 
         /*
-         * Пока заглушка.
+         * Сейчас тестовый режим.
          *
-         * Позже здесь будет:
+         * В будущем:
          *
          * Android
-         *    |
-         *    ↓
+         *     |
+         *     ↓
          * Render API
-         *    |
-         *    ↓
-         * Проверка версии
+         *     |
+         *     ↓
+         * Проверка версии Jessica
          *
          */
 
@@ -51,18 +51,35 @@ class UpdateManager {
     fun startUpdate() {
 
 
-        /*
-         * Пока демонстрация процесса.
-         *
-         * Реальная загрузка будет позже.
-         */
-
-
         _state.value =
             UpdateState.Downloading(
                 progress = 0
             )
 
+
+        /*
+         * Позже здесь будет:
+         *
+         * 1. Получение ссылки на обновление
+         * 2. Загрузка файла
+         * 3. Передача прогресса
+         * 4. Проверка целостности
+         */
+
+
+    }
+
+
+
+    fun updateProgress(
+        progress: Int
+    ) {
+
+
+        _state.value =
+            UpdateState.Downloading(
+                progress
+            )
 
     }
 
@@ -82,7 +99,7 @@ class UpdateManager {
 
 
 
-    fun error(
+    fun fail(
         message: String
     ) {
 
@@ -94,6 +111,15 @@ class UpdateManager {
 
     }
 
+
+
+    fun reset() {
+
+
+        _state.value =
+            UpdateState.Idle
+
+    }
 
 
 }
