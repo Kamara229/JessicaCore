@@ -1,32 +1,25 @@
 package com.jessica.core.ui.chat
 
+
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.jessica.core.modules.chat.ChatMessage
-import com.jessica.core.modules.chat.ChatMessageRole
-import com.jessica.core.modules.chat.ChatState
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
-import java.util.UUID
+import kotlinx.coroutines.flow.asStateFlow
+import com.jessica.core.modules.chat.ChatMessage
 
 
-/*
- * =========================================================
- * JESSICA CHAT VIEW MODEL
- * =========================================================
- *
- * Посредник между UI и AI Engine.
- *
- * UI ничего не знает:
- *
- * - откуда приходит ответ;
- * - сколько времени выполняется задача;
- * - какие модули используются.
- *
- * Это будет подключено к JessicaAIEngine позже.
- */
+
+data class ChatState(
+
+    val messages: List<ChatMessage> = emptyList(),
+
+    val input: TextFieldValue = TextFieldValue(),
+
+    val isRunning: Boolean = false
+
+)
+
 
 
 class ChatViewModel : ViewModel() {
@@ -34,89 +27,53 @@ class ChatViewModel : ViewModel() {
 
     private val _state =
         MutableStateFlow(
-            ChatState(
-                messages =
-                    listOf(
-                        ChatMessage(
-                            id =
-                                UUID.randomUUID()
-                                    .toString(),
-
-                            role =
-                                ChatMessageRole.SYSTEM,
-
-                            text =
-                                "Jessica Core v0.1 готова к работе"
-                        )
-                    )
-            )
+            ChatState()
         )
 
 
-    val state:
-            StateFlow<ChatState> =
-        _state
+    val state: StateFlow<ChatState> =
+        _state.asStateFlow()
 
-
-
-    /*
-     * =====================================================
-     * INPUT
-     * =====================================================
-     */
 
 
     fun updateInput(
-        text: String
+        value: TextFieldValue
     ) {
+
 
         _state.value =
             _state.value.copy(
-                inputText = text
+
+                input = value
+
             )
+
 
     }
 
 
 
-    /*
-     * =====================================================
-     * SEND
-     * =====================================================
-     */
-
-
     fun sendMessage() {
 
+
         val text =
-            _state.value.inputText
-                .trim()
+            _state.value.input.text
 
 
-        if (
-            text.isBlank() ||
-            _state.value.isRunning
-        ) {
-
+        if (text.isBlank())
             return
 
-        }
 
 
-        val userMessage =
+        val message =
             ChatMessage(
 
-                id =
-                    UUID.randomUUID()
-                        .toString(),
+                text = text,
 
-                role =
-                    ChatMessageRole.USER,
-
-                text =
-                    text
+                isUser = true
 
             )
+
 
 
         _state.value =
@@ -124,82 +81,17 @@ class ChatViewModel : ViewModel() {
 
                 messages =
                     _state.value.messages +
-                            userMessage,
+                            message,
 
-                inputText =
-                    ""
+
+                input =
+                    TextFieldValue()
 
             )
 
 
-        executeTask(
-            text
-        )
-
     }
 
 
-
-    /*
-     * =====================================================
-     * EXECUTION
-     * =====================================================
-     *
-     * Временно имитация.
-     *
-     * Следующим шагом сюда подключим
-     * настоящий JessicaAIEngine.
-     */
-
-
-    private fun executeTask(
-        task: String
-    ) {
-
-        viewModelScope.launch {
-
-
-            _state.value =
-                _state.value.copy(
-                    isRunning = true
-                )
-
-
-            delay(
-                800
-            )
-
-
-            val answer =
-                ChatMessage(
-
-                    id =
-                        UUID.randomUUID()
-                            .toString(),
-
-                    role =
-                        ChatMessageRole.JESSICA,
-
-                    text =
-                        "Получила задачу:\n\n$task\n\nAI Engine будет подключён на следующем этапе."
-
-                )
-
-
-            _state.value =
-                _state.value.copy(
-
-                    messages =
-                        _state.value.messages +
-                                answer,
-
-                    isRunning =
-                        false
-
-                )
-
-        }
-
-    }
 
 }
