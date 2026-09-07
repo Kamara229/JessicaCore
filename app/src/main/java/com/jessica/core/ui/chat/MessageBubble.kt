@@ -17,6 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.chat.ChatMessage
 import com.jessica.core.modules.chat.ChatMessageRole
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 
 /*
@@ -24,22 +27,30 @@ import com.jessica.core.modules.chat.ChatMessageRole
  * JESSICA MESSAGE BUBBLE
  * =========================================================
  *
- * Отображает одно сообщение диалога.
+ * Одно сообщение чата.
  *
- * Главное на этом этапе:
+ * Отвечает только за UI:
  *
- * - текст можно выделять;
- * - текст можно копировать системным меню Android;
- * - пользователь и Jessica визуально разделены;
- * - компонент не содержит логики отправки сообщений.
+ * - отображение текста;
+ * - выделение/копирование;
+ * - визуальное разделение USER/JESSICA;
+ * - время сообщения;
+ * - действия сообщения через callbacks.
+ *
  */
 
 
 @Composable
 fun MessageBubble(
+
     message: ChatMessage,
+
+    onRetry: ((ChatMessage) -> Unit)? = null,
+
     modifier: Modifier = Modifier
+
 ) {
+
 
     val isUser =
         message.role == ChatMessageRole.USER
@@ -58,20 +69,25 @@ fun MessageBubble(
 
             CardDefaults.cardColors(
                 containerColor =
-                    MaterialTheme.colorScheme.primaryContainer
+                    MaterialTheme
+                        .colorScheme
+                        .primaryContainer
             )
 
         } else {
 
             CardDefaults.cardColors(
                 containerColor =
-                    MaterialTheme.colorScheme.surfaceVariant
+                    MaterialTheme
+                        .colorScheme
+                        .surfaceVariant
             )
 
         }
 
 
     Column(
+
         modifier =
             modifier
                 .fillMaxWidth()
@@ -81,9 +97,12 @@ fun MessageBubble(
 
         horizontalAlignment =
             horizontalAlignment
+
     ) {
 
+
         Row(
+
             modifier =
                 Modifier.fillMaxWidth(),
 
@@ -93,34 +112,47 @@ fun MessageBubble(
                 } else {
                     Arrangement.Start
                 }
+
         ) {
 
+
             Box(
+
                 modifier =
                     Modifier.fillMaxWidth(
                         fraction = 0.88f
                     )
+
             ) {
 
+
                 Card(
+
                     colors =
                         cardColors
+
                 ) {
 
+
                     Column(
+
                         modifier =
                             Modifier.padding(
                                 horizontal = 14.dp,
                                 vertical = 10.dp
                             )
+
                     ) {
+
 
                         if (
                             message.role ==
                             ChatMessageRole.JESSICA
                         ) {
 
+
                             Text(
+
                                 text =
                                     "Jessica",
 
@@ -133,21 +165,28 @@ fun MessageBubble(
                                     Modifier.padding(
                                         bottom = 4.dp
                                     )
+
                             )
 
                         }
 
 
                         /*
-                         * SelectionContainer —
-                         * ключевой элемент.
+                         * Текст сообщения.
                          *
-                         * Долгое нажатие на текст
-                         * открывает стандартное выделение Android.
+                         * Оставляем SelectionContainer.
+                         * Это даёт:
+                         *
+                         * - долгое нажатие;
+                         * - выделение;
+                         * - копирование.
                          */
+
                         SelectionContainer {
 
+
                             Text(
+
                                 text =
                                     message.text,
 
@@ -157,18 +196,69 @@ fun MessageBubble(
                                         .bodyLarge,
 
                                 color =
-                                    if (message.isError) {
+                                    if (
+                                        message.isError
+                                    ) {
+
                                         MaterialTheme
                                             .colorScheme
                                             .error
+
                                     } else {
+
                                         MaterialTheme
                                             .colorScheme
                                             .onSurface
+
                                     }
+
                             )
 
+
                         }
+
+
+                        Spacer(
+                            modifier =
+                                Modifier
+                                    .padding(
+                                        top = 6.dp
+                                    )
+                        )
+
+
+                        Text(
+
+                            text =
+                                formatMessageTime(
+                                    message.time
+                                ),
+
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .labelSmall,
+
+                            color =
+                                MaterialTheme
+                                    .colorScheme
+                                    .onSurfaceVariant
+
+                        )
+
+
+                        /*
+                         * Место под действия.
+                         *
+                         * Пока пустое.
+                         *
+                         * Следующим шагом добавим:
+                         *
+                         * 📋 копировать
+                         * ↻ повторить
+                         *
+                         */
+
 
                     }
 
@@ -179,5 +269,33 @@ fun MessageBubble(
         }
 
     }
+
+}
+
+
+
+/*
+ * Формат времени сообщения
+ */
+
+private fun formatMessageTime(
+    time: Long
+): String {
+
+
+    if (time <= 0) {
+
+        return ""
+
+    }
+
+
+    return SimpleDateFormat(
+        "HH:mm",
+        Locale.getDefault()
+    )
+        .format(
+            Date(time)
+        )
 
 }
