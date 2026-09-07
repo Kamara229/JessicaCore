@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -22,28 +23,12 @@ import java.util.Date
 import java.util.Locale
 
 
-/*
- * =========================================================
- * JESSICA MESSAGE BUBBLE
- * =========================================================
- *
- * Одно сообщение чата.
- *
- * Отвечает только за UI:
- *
- * - отображение текста;
- * - выделение/копирование;
- * - визуальное разделение USER/JESSICA;
- * - время сообщения;
- * - действия сообщения через callbacks.
- *
- */
-
-
 @Composable
 fun MessageBubble(
 
     message: ChatMessage,
+
+    onCopy: ((String) -> Unit)? = null,
 
     onRetry: ((ChatMessage) -> Unit)? = null,
 
@@ -56,7 +41,7 @@ fun MessageBubble(
         message.role == ChatMessageRole.USER
 
 
-    val horizontalAlignment =
+    val alignment =
         if (isUser) {
             Alignment.End
         } else {
@@ -64,7 +49,7 @@ fun MessageBubble(
         }
 
 
-    val cardColors =
+    val colors =
         if (isUser) {
 
             CardDefaults.cardColors(
@@ -96,7 +81,7 @@ fun MessageBubble(
                 ),
 
         horizontalAlignment =
-            horizontalAlignment
+            alignment
 
     ) {
 
@@ -120,7 +105,7 @@ fun MessageBubble(
 
                 modifier =
                     Modifier.fillMaxWidth(
-                        fraction = 0.88f
+                        0.88f
                     )
 
             ) {
@@ -129,7 +114,7 @@ fun MessageBubble(
                 Card(
 
                     colors =
-                        cardColors
+                        colors
 
                 ) {
 
@@ -145,16 +130,11 @@ fun MessageBubble(
                     ) {
 
 
-                        if (
-                            message.role ==
-                            ChatMessageRole.JESSICA
-                        ) {
-
+                        if (!isUser) {
 
                             Text(
 
-                                text =
-                                    "Jessica",
+                                text = "Jessica",
 
                                 style =
                                     MaterialTheme
@@ -171,17 +151,6 @@ fun MessageBubble(
                         }
 
 
-                        /*
-                         * Текст сообщения.
-                         *
-                         * Оставляем SelectionContainer.
-                         * Это даёт:
-                         *
-                         * - долгое нажатие;
-                         * - выделение;
-                         * - копирование.
-                         */
-
                         SelectionContainer {
 
 
@@ -196,9 +165,7 @@ fun MessageBubble(
                                         .bodyLarge,
 
                                 color =
-                                    if (
-                                        message.isError
-                                    ) {
+                                    if (message.isError) {
 
                                         MaterialTheme
                                             .colorScheme
@@ -214,16 +181,14 @@ fun MessageBubble(
 
                             )
 
-
                         }
 
 
                         Spacer(
                             modifier =
-                                Modifier
-                                    .padding(
-                                        top = 6.dp
-                                    )
+                                Modifier.padding(
+                                    top = 6.dp
+                                )
                         )
 
 
@@ -247,17 +212,23 @@ fun MessageBubble(
                         )
 
 
-                        /*
-                         * Место под действия.
-                         *
-                         * Пока пустое.
-                         *
-                         * Следующим шагом добавим:
-                         *
-                         * 📋 копировать
-                         * ↻ повторить
-                         *
-                         */
+                        MessageActions(
+
+                            message = message,
+
+                            onCopy = {
+
+                                onCopy?.invoke(it)
+
+                            },
+
+                            onRetry = {
+
+                                onRetry?.invoke(it)
+
+                            }
+
+                        )
 
 
                     }
@@ -274,19 +245,12 @@ fun MessageBubble(
 
 
 
-/*
- * Формат времени сообщения
- */
-
 private fun formatMessageTime(
     time: Long
 ): String {
 
-
     if (time <= 0) {
-
         return ""
-
     }
 
 
