@@ -1,16 +1,19 @@
 package com.jessica.core.ui.update
 
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.updater.UpdateState
+
 
 
 @Composable
@@ -28,7 +31,10 @@ fun UpdateCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(
+                    horizontal = 16.dp,
+                    vertical = 8.dp
+                )
 
     ) {
 
@@ -36,14 +42,16 @@ fun UpdateCard(
         Column(
 
             modifier =
-                Modifier.padding(16.dp)
+                Modifier.padding(
+                    16.dp
+                )
 
         ) {
 
 
             Text(
 
-                text = "Jessica Core",
+                text = "Обновление Jessica",
 
                 style =
                     MaterialTheme
@@ -53,24 +61,39 @@ fun UpdateCard(
             )
 
 
+
             Text(
 
                 text =
                     when(state) {
 
+
                         UpdateState.Idle ->
-                            "Версия v0.1"
+
+                            "Проверить наличие новой версии"
+
+
 
                         UpdateState.Checking ->
+
                             "Проверяю обновления..."
 
+
+
                         is UpdateState.Downloading ->
+
                             "Загрузка: ${state.progress}%"
 
+
+
                         is UpdateState.Completed ->
-                            "Обновлено до ${state.version}"
+
+                            "Обновление завершено: ${state.version}"
+
+
 
                         is UpdateState.Error ->
+
                             "Ошибка: ${state.message}"
 
                     }
@@ -78,15 +101,49 @@ fun UpdateCard(
             )
 
 
+
+            if (
+                state is UpdateState.Downloading
+            ) {
+
+
+                LinearProgressIndicator(
+
+                    progress =
+                        state.progress / 100f,
+
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                top = 8.dp
+                            )
+
+                )
+
+            }
+
+
+
             Button(
 
-                onClick =
-                    onUpdateClick
+                onClick = onUpdateClick,
+
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            top = 12.dp
+                        )
 
             ) {
 
+
                 Text(
-                    text = "Обновить Jessica"
+
+                    text =
+                        "🔄 Обновить Jessica"
+
                 )
 
             }
