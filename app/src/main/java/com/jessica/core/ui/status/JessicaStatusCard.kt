@@ -1,5 +1,6 @@
 package com.jessica.core.ui.status
 
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -9,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+
 
 
 @Composable
@@ -26,7 +28,10 @@ fun JessicaStatusCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(
+                    horizontal = 16.dp,
+                    vertical = 8.dp
+                )
 
     ) {
 
@@ -34,7 +39,9 @@ fun JessicaStatusCard(
         Column(
 
             modifier =
-                Modifier.padding(16.dp)
+                Modifier.padding(
+                    16.dp
+                )
 
         ) {
 
@@ -46,18 +53,34 @@ fun JessicaStatusCard(
                 style =
                     MaterialTheme
                         .typography
-                        .titleMedium
+                        .titleLarge
 
             )
 
 
             Text(
-                text = "Версия: $version"
+
+                text =
+                    "Версия: $version",
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodyMedium
+
             )
 
 
             Text(
-                text = "Статус: $status"
+
+                text =
+                    "Статус: $status",
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodyMedium
+
             )
 
 
