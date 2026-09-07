@@ -1,21 +1,24 @@
 package com.jessica.core.ui.chat
 
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.jessica.core.modules.chat.ChatMessage
-import com.jessica.core.modules.chat.ChatState
+
 
 
 /*
@@ -23,19 +26,20 @@ import com.jessica.core.modules.chat.ChatState
  * JESSICA CHAT SCREEN
  * =========================================================
  *
- * Главный экран общения с Jessica.
+ * UI слой.
  *
- * Сейчас отвечает только за UI:
+ * Не содержит:
+ * - ViewModel
+ * - бизнес логику
+ * - навигацию
  *
- * - список сообщений;
- * - прокрутку;
- * - поле ввода;
- * - отображение состояния.
+ * Только отображает состояние.
  *
- * Логика AI подключится позже.
+ * =========================================================
  */
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
 
@@ -45,183 +49,144 @@ fun ChatScreen(
 
     onSend: () -> Unit,
 
-    modifier: Modifier = Modifier
+    onBack: () -> Unit
 
 ) {
 
 
-    val listState =
-        rememberLazyListState()
+    Scaffold(
 
+        topBar = {
 
-    /*
-     * Автоматически прокручиваем вниз
-     * при появлении нового сообщения.
-     */
+            TopAppBar(
 
-    LaunchedEffect(
-        state.messages.size
-    ) {
+                title = {
 
-        if (
-            state.messages.isNotEmpty()
-        ) {
+                    Text(
+                        "Jessica Chat"
+                    )
 
-            listState.animateScrollToItem(
-                state.messages.size - 1
+                },
+
+                navigationIcon = {
+
+                    Button(
+                        onClick = onBack
+                    ) {
+
+                        Text(
+                            "Назад"
+                        )
+
+                    }
+
+                }
+
             )
 
         }
 
-    }
+
+    ) { padding ->
 
 
-    Column(
-
-        modifier =
-            modifier
-                .fillMaxSize(),
-
-    ) {
-
-
-        /*
-         * =================================================
-         * MESSAGE LIST
-         * =================================================
-         */
-
-
-        LazyColumn(
+        Column(
 
             modifier =
                 Modifier
-                    .weight(1f)
-                    .padding(
-                        horizontal = 12.dp
-                    ),
-
-            state =
-                listState,
-
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    4.dp
-                )
+                    .padding(padding)
+                    .fillMaxSize()
 
         ) {
 
 
-            items(
-                state.messages,
-                key = {
-                    it.id
-                }
-            ) { message ->
 
-
-                MessageBubble(
-
-                    message =
-                        message
-
-                )
-
-            }
-
-
-            if (
-                state.messages.isEmpty()
-            ) {
-
-                item {
-
-                    Text(
-
-                        text =
-                            "Jessica Core готова к работе",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodyLarge,
-
-                        modifier =
-                            Modifier.padding(
-                                20.dp
-                            )
-
-                    )
-
-                }
-
-            }
-
-
-        }
-
-
-        /*
-         * =================================================
-         * ERROR
-         * =================================================
-         */
-
-
-        state.error?.let { error ->
-
-            Text(
-
-                text =
-                    error,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .error,
+            LazyColumn(
 
                 modifier =
-                    Modifier.padding(
-                        12.dp
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(12.dp),
+
+                verticalArrangement =
+                    Arrangement.spacedBy(8.dp)
+
+            ) {
+
+
+                items(
+
+                    state.messages
+
+                ) { message ->
+
+
+                    MessageBubble(
+
+                        message = message
+
                     )
 
-            )
 
-        }
-
-
-        /*
-         * =================================================
-         * INPUT
-         * =================================================
-         */
+                }
 
 
-        ChatInput(
+            }
 
-            value =
-                androidx.compose.ui.text.input
-                    .TextFieldValue(
-                        state.inputText
-                    ),
 
-            onValueChange = {
 
-                onInputChange(
-                    it.text
+            Row(
+
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+
+                horizontalArrangement =
+                    Arrangement.spacedBy(8.dp)
+
+            ) {
+
+
+
+                ChatInput(
+
+                    value =
+                        state.input,
+
+                    onValueChange =
+                        onInputChange,
+
+                    modifier =
+                        Modifier.weight(1f)
+
                 )
 
-            },
 
-            onSend =
-                onSend,
 
-            isRunning =
-                state.isRunning
+                Button(
 
-        )
+                    onClick = onSend
+
+                ) {
+
+
+                    Text(
+                        "Отправить"
+                    )
+
+
+                }
+
+
+            }
+
+
+        }
 
 
     }
+
 
 }
