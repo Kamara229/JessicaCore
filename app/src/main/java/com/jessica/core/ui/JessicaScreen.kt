@@ -1,6 +1,9 @@
 package com.jessica.core.ui
 
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -12,28 +15,23 @@ import androidx.compose.material3.TopAppBar
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 
-import androidx.lifecycle.viewmodel.compose.viewModel
-
-import androidx.compose.runtime.collectAsState
-
 import com.jessica.core.core.JessicaController
+
 import com.jessica.core.navigation.JessicaNavigator
 import com.jessica.core.navigation.JessicaPage
 
 import com.jessica.core.modules.blocks.BlockFileLoader
-
 import com.jessica.core.modules.updater.UpdateViewModel
 
 import com.jessica.core.ui.home.HomeScreen
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,7 +65,11 @@ fun JessicaScreen() {
 
 
     val updateViewModel =
-        viewModel<UpdateViewModel>()
+        remember {
+
+            UpdateViewModel()
+
+        }
 
 
 
@@ -79,7 +81,9 @@ fun JessicaScreen() {
 
     LaunchedEffect(Unit) {
 
+
         controller.loadBlocks()
+
 
     }
 
@@ -160,7 +164,6 @@ fun JessicaScreen() {
         ) {
 
 
-
             when (
 
                 navigator.currentPage.value
@@ -188,44 +191,54 @@ fun JessicaScreen() {
 
                         onUpdate = {
 
+
                             updateViewModel
                                 .checkUpdate()
+
 
                         },
 
 
                         onBlocks = {
 
+
                             navigator.navigateTo(
                                 JessicaPage.BLOCKS
                             )
+
 
                         },
 
 
                         onReports = {
 
+
                             navigator.navigateTo(
                                 JessicaPage.REPORTS
                             )
+
 
                         },
 
 
                         onMemory = {
 
+
                             navigator.navigateTo(
                                 JessicaPage.MEMORY
                             )
+
 
                         },
 
 
                         onTasks = {
 
+
                             navigator.navigateTo(
                                 JessicaPage.TASKS
                             )
+
 
                         },
 
@@ -268,15 +281,18 @@ fun JessicaScreen() {
 
                         onUpdate = {
 
-                            controller
-                                .loadBlocks()
+
+                            controller.loadBlocks()
+
 
                         },
 
 
                         onBack = {
 
+
                             navigator.backHome()
+
 
                         }
 
@@ -299,7 +315,9 @@ fun JessicaScreen() {
 
                         onBack = {
 
+
                             navigator.backHome()
+
 
                         }
 
@@ -318,7 +336,9 @@ fun JessicaScreen() {
 
                         onBack = {
 
+
                             navigator.backHome()
+
 
                         }
 
@@ -336,7 +356,9 @@ fun JessicaScreen() {
 
                         onBack = {
 
+
                             navigator.backHome()
+
 
                         }
 
