@@ -2,41 +2,17 @@ package com.jessica.core.ui.chat
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.Text
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.chat.ChatMessage
-
-
-/*
- * =========================================================
- * JESSICA MESSAGE ACTIONS
- * =========================================================
- *
- * Действия над сообщением.
- *
- * Сейчас:
- *
- * - копировать текст;
- * - повторить запрос.
- *
- * В дальнейшем:
- *
- * - память;
- * - блоки;
- * - экспорт;
- * - источники.
- *
- */
+import com.jessica.core.modules.chat.ChatMessageRole
 
 
 @Composable
@@ -46,9 +22,7 @@ fun MessageActions(
 
     onCopy: (String) -> Unit,
 
-    onRetry: ((ChatMessage) -> Unit)? = null,
-
-    modifier: Modifier = Modifier
+    onRetry: (ChatMessage) -> Unit
 
 ) {
 
@@ -56,29 +30,23 @@ fun MessageActions(
     Row(
 
         modifier =
-            modifier,
+            Modifier
+                .padding(
+                    top = 4.dp
+                ),
 
         horizontalArrangement =
-            Arrangement.Start,
-
-        verticalAlignment =
-            Alignment.CenterVertically
+            Arrangement.End
 
     ) {
 
 
-        /*
-         * Копирование текста
-         */
-
         IconButton(
 
             onClick = {
-
                 onCopy(
                     message.text
                 )
-
             }
 
         ) {
@@ -89,12 +57,7 @@ fun MessageActions(
                     Icons.Default.ContentCopy,
 
                 contentDescription =
-                    "Копировать",
-
-                tint =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant
+                    "Копировать"
 
             )
 
@@ -102,26 +65,18 @@ fun MessageActions(
 
 
 
-        /*
-         * Повторить запрос
-         *
-         * Пока подключаем только если
-         * callback передан.
-         */
-
         if (
-            onRetry != null
+            message.role ==
+            ChatMessageRole.JESSICA
         ) {
 
 
             IconButton(
 
                 onClick = {
-
                     onRetry(
                         message
                     )
-
                 }
 
             ) {
@@ -132,20 +87,13 @@ fun MessageActions(
                         Icons.Default.Refresh,
 
                     contentDescription =
-                        "Повторить",
-
-                    tint =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant
+                        "Повторить"
 
                 )
 
             }
 
-
         }
-
 
     }
 
