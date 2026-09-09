@@ -26,6 +26,26 @@ import java.util.Locale
 
 
 
+/*
+ * =========================================================
+ * JESSICA MESSAGE BUBBLE
+ * =========================================================
+ *
+ * Отображение одного сообщения.
+ *
+ * Отвечает только за UI.
+ *
+ * Возможности:
+ *
+ * - сообщение пользователя;
+ * - ответ Jessica;
+ * - выделение текста;
+ * - действия сообщения.
+ *
+ * =========================================================
+ */
+
+
 @Composable
 fun MessageBubble(
 
@@ -61,15 +81,10 @@ fun MessageBubble(
                 Modifier.fillMaxWidth(),
 
             horizontalArrangement =
-                if (isUser) {
-
+                if (isUser)
                     Arrangement.End
-
-                } else {
-
+                else
                     Arrangement.Start
-
-                }
 
         ) {
 
@@ -87,19 +102,14 @@ fun MessageBubble(
                         .large,
 
                 color =
-                    if (isUser) {
-
+                    if (isUser)
                         MaterialTheme
                             .colorScheme
                             .primaryContainer
-
-                    } else {
-
+                    else
                         MaterialTheme
                             .colorScheme
                             .surfaceVariant
-
-                    }
 
             ) {
 
@@ -116,11 +126,9 @@ fun MessageBubble(
 
                     if (!isUser) {
 
-
                         Text(
 
-                            text =
-                                "Jessica",
+                            text = "Jessica",
 
                             style =
                                 MaterialTheme
@@ -178,9 +186,21 @@ fun MessageBubble(
 
                         message = message,
 
-                        onCopy = onCopy,
+                        onCopy = {
 
-                        onRetry = onRetry
+                            onCopy(
+                                message.text
+                            )
+
+                        },
+
+                        onRetry = {
+
+                            onRetry(
+                                message
+                            )
+
+                        }
 
                     )
 
