@@ -1,40 +1,34 @@
 package com.jessica.core.ui.chat
 
 
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 
-import androidx.compose.ui.res.painterResource
+import com.jessica.core.modules.chat.ChatMessage
+
 
 
 @Composable
 fun MessageActions(
 
-    onCopy: () -> Unit
+    message: ChatMessage,
+
+    onCopy: (String) -> Unit,
+
+    onRetry: (ChatMessage) -> Unit
 
 ) {
 
 
-    val expanded =
-        remember {
-            mutableStateOf(false)
-        }
-
-
-
-    IconButton(
+    TextButton(
 
         onClick = {
 
-            expanded.value =
-                true
+            onCopy(
+                message.text
+            )
 
         }
 
@@ -42,7 +36,7 @@ fun MessageActions(
 
 
         Text(
-            "⋮"
+            "📋"
         )
 
 
@@ -50,45 +44,31 @@ fun MessageActions(
 
 
 
-    DropdownMenu(
-
-        expanded =
-            expanded.value,
+    if (!message.isUser) {
 
 
-        onDismissRequest = {
-
-            expanded.value =
-                false
-
-        }
-
-    ) {
-
-
-        DropdownMenuItem(
-
-            text = {
-
-                Text(
-                    "Копировать"
-                )
-
-            },
-
+        TextButton(
 
             onClick = {
 
-                expanded.value =
-                    false
-
-                onCopy()
+                onRetry(
+                    message
+                )
 
             }
 
-        )
+        ) {
+
+
+            Text(
+                "🔄"
+            )
+
+
+        }
 
 
     }
+
 
 }
