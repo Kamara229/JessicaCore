@@ -29,20 +29,9 @@ import androidx.compose.ui.unit.dp
  * JESSICA CHAT SCREEN
  * =========================================================
  *
- * Основной UI экрана чата.
+ * UI экрана чата.
  *
  * Только отображение.
- *
- * Не содержит:
- * - бизнес-логики
- * - обработчиков сообщений
- * - работы с сетью
- *
- * Использует:
- *
- * - MessageBubble
- * - ThinkingIndicator
- * - ChatInput
  *
  * =========================================================
  */
@@ -81,10 +70,7 @@ fun ChatScreen(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(
-                        horizontal = 12.dp,
-                        vertical = 8.dp
-                    )
+                    .padding(12.dp)
 
         ) {
 
@@ -99,7 +85,6 @@ fun ChatScreen(
                 Text(
                     text = "Назад"
                 )
-
 
             }
 
@@ -121,18 +106,13 @@ fun ChatScreen(
                 style =
                     MaterialTheme
                         .typography
-                        .titleMedium,
-
-                modifier =
-                    Modifier
-                        .padding(
-                            top = 10.dp
-                        )
+                        .titleMedium
 
             )
 
 
         }
+
 
 
 
@@ -145,8 +125,8 @@ fun ChatScreen(
 
             modifier =
                 Modifier
-                    .weight(1f)
                     .fillMaxWidth()
+                    .weight(1f)
                     .padding(
                         horizontal = 12.dp
                     )
@@ -156,8 +136,7 @@ fun ChatScreen(
 
             items(
 
-                items =
-                    state.messages
+                items = state.messages
 
             ) { message ->
 
@@ -193,27 +172,18 @@ fun ChatScreen(
 
 
 
+
         /*
          * Input
          */
 
         ChatInput(
 
-            value =
-                state.input,
+            value = state.input,
 
-            onValueChange =
-                onInputChange,
+            onValueChange = onInputChange,
 
-            onSend =
-                onSend,
-
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        12.dp
-                    )
+            onSend = onSend
 
         )
 
