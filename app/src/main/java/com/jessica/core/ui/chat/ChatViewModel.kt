@@ -3,10 +3,12 @@ package com.jessica.core.ui.chat
 
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
+
+import com.jessica.core.modules.chat.ChatMessage
+
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import com.jessica.core.modules.chat.ChatMessage
 
 
 
@@ -25,23 +27,31 @@ data class ChatState(
 class ChatViewModel : ViewModel() {
 
 
+
     private val _state =
+
         MutableStateFlow(
             ChatState()
         )
 
 
+
     val state: StateFlow<ChatState> =
+
         _state.asStateFlow()
 
 
 
+
     fun updateInput(
+
         value: TextFieldValue
+
     ) {
 
 
         _state.value =
+
             _state.value.copy(
 
                 input = value
@@ -53,19 +63,29 @@ class ChatViewModel : ViewModel() {
 
 
 
+
     fun sendMessage() {
 
 
         val text =
-            _state.value.input.text
+
+            _state.value
+                .input
+                .text
 
 
-        if (text.isBlank())
+
+        if (text.isBlank()) {
+
             return
 
+        }
 
 
-        val message =
+
+
+        val userMessage =
+
             ChatMessage(
 
                 text = text,
@@ -77,21 +97,86 @@ class ChatViewModel : ViewModel() {
 
 
         _state.value =
+
             _state.value.copy(
 
                 messages =
+
                     _state.value.messages +
-                            message,
+                            userMessage,
 
 
                 input =
-                    TextFieldValue()
+
+                    TextFieldValue(),
+
+
+                isRunning = true
+
+            )
+
+
+
+        generateResponse()
+
+
+
+    }
+
+
+
+
+    private fun generateResponse() {
+
+
+
+        /*
+         * Пока тестовый ответ.
+         *
+         * Позже здесь будет:
+         *
+         * ChatViewModel
+         *        |
+         *        ↓
+         * JessicaAIEngine
+         *        |
+         *        ↓
+         * Render API
+         *
+         */
+
+
+
+        val answer =
+
+            ChatMessage(
+
+                text =
+                    "Я получила сообщение. Модуль ответа готов к подключению AI Engine.",
+
+
+                isUser = false
+
+            )
+
+
+
+        _state.value =
+
+            _state.value.copy(
+
+                messages =
+
+                    _state.value.messages +
+                            answer,
+
+
+                isRunning = false
 
             )
 
 
     }
-
 
 
 }
