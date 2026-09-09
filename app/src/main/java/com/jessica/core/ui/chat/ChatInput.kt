@@ -2,18 +2,12 @@ package com.jessica.core.ui.chat
 
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 
 import androidx.compose.runtime.Composable
 
@@ -24,16 +18,15 @@ import androidx.compose.ui.unit.dp
 
 /*
  * =========================================================
- * JESSICA CHAT SCREEN
+ * JESSICA CHAT INPUT
  * =========================================================
  *
- * Ядро UI чата.
+ * Компонент ввода сообщения.
  *
- * Соединяет:
+ * Отвечает только за UI:
  *
- * - MessageBubble
- * - ThinkingIndicator
- * - ChatInput
+ * - поле ввода;
+ * - кнопку отправки.
  *
  * Не содержит бизнес-логику.
  *
@@ -42,15 +35,15 @@ import androidx.compose.ui.unit.dp
 
 
 @Composable
-fun ChatScreen(
+fun ChatInput(
 
-    state: ChatState,
+    value: TextFieldValue,
 
-    onInputChange: (TextFieldValue) -> Unit,
+    onValueChange: (TextFieldValue) -> Unit,
 
     onSend: () -> Unit,
 
-    onBack: () -> Unit
+    modifier: Modifier = Modifier
 
 ) {
 
@@ -58,152 +51,56 @@ fun ChatScreen(
     Column(
 
         modifier =
-            Modifier
-                .fillMaxSize()
+            modifier
+                .fillMaxWidth()
 
     ) {
 
 
-        /*
-         * =================================================
-         * HEADER
-         * =================================================
-         */
+        TextField(
 
-        Row(
+            value =
+                value,
+
+            onValueChange =
+                onValueChange,
 
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .padding(
-                        horizontal = 12.dp,
-                        vertical = 8.dp
-                    )
+                        bottom = 8.dp
+                    ),
 
-        ) {
-
-
-            Button(
-
-                onClick = onBack
-
-            ) {
-
+            placeholder = {
 
                 Text(
-                    text = "Назад"
+                    text = "Введите сообщение"
                 )
-
 
             }
 
+        )
 
-            Spacer(
 
-                modifier =
-                    Modifier.weight(1f)
+        Button(
 
-            )
+            onClick =
+                onSend,
+
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+
+        ) {
 
 
             Text(
-
-                text = "Jessica",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-
-                modifier =
-                    Modifier.padding(
-                        top = 10.dp
-                    )
-
+                text = "Отправить"
             )
 
 
         }
-
-
-
-        /*
-         * =================================================
-         * MESSAGES
-         * =================================================
-         */
-
-        LazyColumn(
-
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(
-                        horizontal = 12.dp
-                    )
-
-        ) {
-
-
-            items(
-
-                items = state.messages
-
-            ) { message ->
-
-
-                MessageBubble(
-
-                    message = message
-
-                )
-
-
-            }
-
-
-            if (state.isRunning) {
-
-
-                item {
-
-
-                    ThinkingIndicator()
-
-
-                }
-
-
-            }
-
-
-        }
-
-
-
-        /*
-         * =================================================
-         * INPUT
-         * =================================================
-         */
-
-        ChatInput(
-
-            value = state.input,
-
-            onValueChange = onInputChange,
-
-            onSend = onSend,
-
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        12.dp
-                    )
-
-        )
 
 
     }
