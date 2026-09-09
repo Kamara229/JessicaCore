@@ -23,6 +23,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 
+import com.jessica.core.modules.chat.ChatMessage
+
 
 
 /*
@@ -32,23 +34,22 @@ import androidx.compose.ui.unit.dp
  *
  * UI слой чата.
  *
- * Отвечает за:
+ * Отвечает:
  *
  * - отображение сообщений
  * - копирование текста
- * - вызов повторного запроса
+ * - повтор запроса
  * - ввод сообщения
  *
  * Не содержит:
  *
- * - AI логику
+ * - AI Engine
  * - сеть
  * - память
  * - Planner
  *
  * =========================================================
  */
-
 
 
 @Composable
@@ -83,9 +84,9 @@ fun ChatScreen(
 
 
         /*
-         * =================================================
+         * ================================
          * HEADER
-         * =================================================
+         * ================================
          */
 
 
@@ -111,12 +112,11 @@ fun ChatScreen(
 
 
                 Text(
-                    "Назад"
+                    text = "Назад"
                 )
 
 
             }
-
 
 
 
@@ -126,7 +126,6 @@ fun ChatScreen(
                     Modifier.weight(1f)
 
             )
-
 
 
 
@@ -155,9 +154,9 @@ fun ChatScreen(
 
 
         /*
-         * =================================================
-         * MESSAGES
-         * =================================================
+         * ================================
+         * MESSAGE LIST
+         * ================================
          */
 
 
@@ -184,27 +183,26 @@ fun ChatScreen(
 
 
 
-
                 MessageBubble(
 
                     message =
                         message,
 
 
+                    onCopy = { text ->
 
-                    onCopy = {
 
                         clipboardManager
                             .setText(
 
                                 AnnotatedString(
-                                    it
+                                    text
                                 )
 
                             )
 
-                    },
 
+                    },
 
 
                     onRetry = {
@@ -224,9 +222,7 @@ fun ChatScreen(
 
 
 
-
             if (state.isRunning) {
-
 
 
                 item {
@@ -236,7 +232,6 @@ fun ChatScreen(
 
 
                 }
-
 
 
             }
@@ -249,14 +244,11 @@ fun ChatScreen(
 
 
 
-
-
         /*
-         * =================================================
+         * ================================
          * INPUT
-         * =================================================
+         * ================================
          */
-
 
 
         ChatInput(
@@ -273,7 +265,6 @@ fun ChatScreen(
                 onSend,
 
 
-
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -282,7 +273,6 @@ fun ChatScreen(
                     )
 
         )
-
 
 
     }
