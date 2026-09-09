@@ -2,7 +2,6 @@ package com.jessica.core.ui.home
 
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -37,6 +35,8 @@ fun HomeScreen(
 
     onUpdate: () -> Unit,
 
+    onChat: () -> Unit,
+
     onBlocks: () -> Unit,
 
     onReports: () -> Unit,
@@ -57,10 +57,12 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(20.dp),
 
+
         verticalArrangement =
             Arrangement.spacedBy(10.dp)
 
     ) {
+
 
 
         item {
@@ -127,6 +129,33 @@ fun HomeScreen(
                     Modifier.height(10.dp)
 
             )
+
+
+        }
+
+
+
+        item {
+
+
+            Button(
+
+                onClick = onChat,
+
+                modifier =
+                    Modifier.fillMaxWidth()
+
+            ) {
+
+
+                Text(
+
+                    "Чат Jessica"
+
+                )
+
+
+            }
 
 
         }
@@ -268,5 +297,6 @@ fun HomeScreen(
 
 
     }
+
 
 }
