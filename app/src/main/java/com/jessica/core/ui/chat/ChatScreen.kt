@@ -1,25 +1,46 @@
 package com.jessica.core.ui.chat
 
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
+
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 
 import androidx.compose.runtime.Composable
 
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 
-import androidx.compose.ui.text.input.TextFieldValue
 
+
+/*
+ * =========================================================
+ * JESSICA CHAT SCREEN
+ * =========================================================
+ *
+ * Основной UI экрана чата.
+ *
+ * Не содержит бизнес-логику.
+ *
+ * Использует:
+ *
+ * - MessageBubble
+ * - ThinkingIndicator
+ * - ChatInput
+ *
+ * =========================================================
+ */
 
 
 @Composable
@@ -27,9 +48,7 @@ fun ChatScreen(
 
     state: ChatState,
 
-    onInputChange: (
-        TextFieldValue
-    ) -> Unit,
+    onInputChange: (TextFieldValue) -> Unit,
 
     onSend: () -> Unit,
 
@@ -43,45 +62,119 @@ fun ChatScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-
-        verticalArrangement =
-            Arrangement.SpaceBetween
 
     ) {
 
 
+        /*
+         * Верхняя панель чата
+         */
 
-        Column {
+        Row(
+
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 12.dp,
+                        vertical = 8.dp
+                    )
+
+        ) {
 
 
-            Text(
+            Button(
 
-                text = "Jessica Chat",
+                onClick = onBack
 
-                style =
-                    MaterialTheme.typography.titleLarge
+            ) {
+
+
+                Text(
+                    "Назад"
+                )
+
+
+            }
+
+
+            Spacer(
+
+                modifier =
+                    Modifier.weight(1f)
 
             )
 
 
+            Text(
 
-            LazyColumn {
+                text = "Jessica",
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleMedium,
+
+                modifier =
+                    Modifier.padding(
+                        top = 10.dp
+                    )
+
+            )
 
 
-                items(
+        }
 
+
+
+        /*
+         * История сообщений
+         */
+
+        LazyColumn(
+
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 12.dp
+                    )
+
+        ) {
+
+
+            items(
+
+                items =
                     state.messages
 
-                ) { message ->
+            ) { message ->
+
+
+                MessageBubble(
+
+                    message =
+                        message
+
+                )
+
+
+            }
 
 
 
-                    MessageBubble(
+            /*
+             * Показываем состояние работы Jessica.
+             */
 
-                        message = message
+            if (state.isRunning) {
 
-                    )
+
+                item {
+
+
+                    ThinkingIndicator()
 
 
                 }
@@ -94,52 +187,40 @@ fun ChatScreen(
 
 
 
-        Column {
+        /*
+         * Поле ввода
+         */
+
+        Column(
+
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        12.dp
+                    )
+
+        ) {
 
 
-
-            TextField(
+            ChatInput(
 
                 value =
                     state.input,
 
-
                 onValueChange =
                     onInputChange,
 
-
-                modifier =
-                    Modifier
-                        .padding(
-                            bottom = 8.dp
-                        )
-
-
-            )
-
-
-
-            Button(
-
-                onClick =
+                onSend =
                     onSend
 
-            ) {
-
-
-                Text(
-
-                    text = "Отправить"
-
-                )
-
-
-            }
+            )
 
 
         }
 
 
     }
+
 
 }
