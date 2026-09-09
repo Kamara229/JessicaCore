@@ -47,7 +47,15 @@ fun JessicaScreen() {
 
 
 
+    /*
+     * =====================================================
+     * CORE
+     * =====================================================
+     */
+
+
     val controller =
+
         remember {
 
             JessicaController(
@@ -58,7 +66,9 @@ fun JessicaScreen() {
 
 
 
+
     val navigator =
+
         remember {
 
             JessicaNavigator()
@@ -67,7 +77,9 @@ fun JessicaScreen() {
 
 
 
+
     val updateViewModel =
+
         remember {
 
             UpdateViewModel()
@@ -76,19 +88,57 @@ fun JessicaScreen() {
 
 
 
+
+    /*
+     * =====================================================
+     * CHAT
+     * =====================================================
+     *
+     * Chat подключён к ядру Jessica.
+     *
+     * Поток:
+     *
+     * ChatViewModel
+     *        ↓
+     * JessicaController
+     *
+     * =====================================================
+     */
+
+
     val chatViewModel =
+
         remember {
 
-            ChatViewModel()
+
+            ChatViewModel(
+
+                messageExecutor = { request ->
+
+
+                    controller.executeChatMessage(
+
+                        request
+
+                    )
+
+
+                }
+
+            )
+
 
         }
 
 
 
+
     val updateState by
+
         updateViewModel
             .state
             .collectAsState()
+
 
 
 
@@ -103,30 +153,50 @@ fun JessicaScreen() {
 
 
 
+    /*
+     * =====================================================
+     * BLOCK PICKER
+     * =====================================================
+     */
+
+
     val blockPicker =
+
         rememberLauncherForActivityResult(
 
             contract =
+
                 ActivityResultContracts.OpenDocument()
 
+
         ) { uri ->
+
 
 
             if (uri != null) {
 
 
+
                 val block =
+
                     BlockFileLoader.read(
+
                         context,
+
                         uri
+
                     )
+
 
 
                 if (block != null) {
 
 
+
                     controller.installBlock(
+
                         block
+
                     )
 
 
@@ -137,6 +207,7 @@ fun JessicaScreen() {
 
 
         }
+
 
 
 
@@ -152,12 +223,13 @@ fun JessicaScreen() {
 
 
                     Text(
+
                         "Jessica Core"
+
                     )
 
 
                 }
-
 
             )
 
@@ -172,9 +244,13 @@ fun JessicaScreen() {
         Box(
 
             modifier =
+
                 Modifier
+
                     .padding(padding)
+
                     .fillMaxSize()
+
 
         ) {
 
@@ -194,15 +270,21 @@ fun JessicaScreen() {
 
                     HomeScreen(
 
+
                         message =
+
                             controller.message.value,
 
 
+
                         blockCount =
+
                             controller.blocks.value.size,
 
 
+
                         updateState =
+
                             updateState,
 
 
@@ -291,7 +373,6 @@ fun JessicaScreen() {
                         onAddBlock = {
 
 
-
                             blockPicker.launch(
 
                                 arrayOf(
@@ -323,6 +404,7 @@ fun JessicaScreen() {
                     ChatRoute(
 
                         viewModel =
+
                             chatViewModel,
 
 
@@ -350,10 +432,12 @@ fun JessicaScreen() {
                     BlockScreen(
 
                         blockManager =
+
                             controller.blockManager,
 
 
                         reportStorage =
+
                             controller.reportStorage,
 
 
@@ -390,6 +474,7 @@ fun JessicaScreen() {
                     ReportScreen(
 
                         reportStorage =
+
                             controller.reportStorage,
 
 
@@ -450,6 +535,23 @@ fun JessicaScreen() {
 
                     )
 
+
+                }
+
+
+                JessicaPage.CHAT -> {
+
+                    ChatRoute(
+
+                        viewModel = chatViewModel,
+
+                        onBack = {
+
+                            navigator.backHome()
+
+                        }
+
+                    )
 
                 }
 
