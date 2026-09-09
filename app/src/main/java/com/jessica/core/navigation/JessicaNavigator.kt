@@ -4,23 +4,6 @@ package com.jessica.core.navigation
 import androidx.compose.runtime.mutableStateOf
 
 
-
-enum class JessicaPage {
-
-    HOME,
-
-    BLOCKS,
-
-    REPORTS,
-
-    MEMORY,
-
-    TASKS
-
-}
-
-
-
 class JessicaNavigator {
 
 
@@ -31,7 +14,6 @@ class JessicaNavigator {
         )
 
 
-
     fun navigateTo(
 
         page: JessicaPage
@@ -40,18 +22,15 @@ class JessicaNavigator {
 
 
         currentPage.value =
-
             page
 
     }
-
 
 
     fun backHome() {
 
 
         currentPage.value =
-
             JessicaPage.HOME
 
     }
