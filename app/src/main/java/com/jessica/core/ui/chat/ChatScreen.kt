@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,15 +22,25 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 
 
-
 /*
  * =========================================================
  * JESSICA CHAT SCREEN
  * =========================================================
  *
- * UI экрана чата.
+ * Ядро UI экрана чата.
  *
- * Только отображение.
+ * Соединяет:
+ *
+ * - MessageBubble
+ * - ThinkingIndicator
+ * - ChatInput
+ *
+ * Не содержит:
+ *
+ * - бизнес-логику;
+ * - работу с сетью;
+ * - AI-логику;
+ * - хранение данных.
  *
  * =========================================================
  */
@@ -60,9 +69,10 @@ fun ChatScreen(
     ) {
 
 
-
         /*
-         * Header
+         * =================================================
+         * HEADER
+         * =================================================
          */
 
         Row(
@@ -70,7 +80,10 @@ fun ChatScreen(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(12.dp)
+                    .padding(
+                        horizontal = 12.dp,
+                        vertical = 8.dp
+                    )
 
         ) {
 
@@ -86,9 +99,16 @@ fun ChatScreen(
                     text = "Назад"
                 )
 
+
             }
 
 
+            /*
+             * Раздвигает кнопку и заголовок.
+             *
+             * ВАЖНО:
+             * отдельный import weight не нужен.
+             */
 
             Spacer(
 
@@ -98,7 +118,6 @@ fun ChatScreen(
             )
 
 
-
             Text(
 
                 text = "Jessica",
@@ -106,7 +125,12 @@ fun ChatScreen(
                 style =
                     MaterialTheme
                         .typography
-                        .titleMedium
+                        .titleMedium,
+
+                modifier =
+                    Modifier.padding(
+                        top = 10.dp
+                    )
 
             )
 
@@ -114,11 +138,10 @@ fun ChatScreen(
         }
 
 
-
-
-
         /*
-         * Messages
+         * =================================================
+         * MESSAGES
+         * =================================================
          */
 
         LazyColumn(
@@ -136,14 +159,16 @@ fun ChatScreen(
 
             items(
 
-                items = state.messages
+                items =
+                    state.messages
 
             ) { message ->
 
 
                 MessageBubble(
 
-                    message = message
+                    message =
+                        message
 
                 )
 
@@ -151,6 +176,9 @@ fun ChatScreen(
             }
 
 
+            /*
+             * Индикатор работы Jessica.
+             */
 
             if (state.isRunning) {
 
@@ -170,20 +198,29 @@ fun ChatScreen(
         }
 
 
-
-
-
         /*
-         * Input
+         * =================================================
+         * INPUT
+         * =================================================
          */
 
         ChatInput(
 
-            value = state.input,
+            value =
+                state.input,
 
-            onValueChange = onInputChange,
+            onValueChange =
+                onInputChange,
 
-            onSend = onSend
+            onSend =
+                onSend,
+
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        12.dp
+                    )
 
         )
 
