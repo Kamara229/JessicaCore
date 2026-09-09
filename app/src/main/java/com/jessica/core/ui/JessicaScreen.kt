@@ -32,6 +32,7 @@ import com.jessica.core.modules.updater.UpdateViewModel
 
 import com.jessica.core.ui.chat.ChatRoute
 import com.jessica.core.ui.chat.ChatViewModel
+
 import com.jessica.core.ui.home.HomeScreen
 
 
@@ -93,9 +94,12 @@ fun JessicaScreen() {
 
     LaunchedEffect(Unit) {
 
+
         controller.loadBlocks()
 
+
     }
+
 
 
 
@@ -136,6 +140,7 @@ fun JessicaScreen() {
 
 
 
+
     Scaffold(
 
         topBar = {
@@ -147,7 +152,7 @@ fun JessicaScreen() {
 
 
                     Text(
-                        text = "Jessica Core"
+                        "Jessica Core"
                     )
 
 
@@ -163,6 +168,7 @@ fun JessicaScreen() {
     ) { padding ->
 
 
+
         Box(
 
             modifier =
@@ -173,6 +179,7 @@ fun JessicaScreen() {
         ) {
 
 
+
             when (
 
                 navigator.currentPage.value
@@ -180,13 +187,9 @@ fun JessicaScreen() {
             ) {
 
 
-                /*
-                 * =================================================
-                 * HOME
-                 * =================================================
-                 */
 
                 JessicaPage.HOME -> {
+
 
 
                     HomeScreen(
@@ -203,6 +206,21 @@ fun JessicaScreen() {
                             updateState,
 
 
+
+                        onChat = {
+
+
+                            navigator.navigateTo(
+
+                                JessicaPage.CHAT
+
+                            )
+
+
+                        },
+
+
+
                         onUpdate = {
 
 
@@ -213,58 +231,75 @@ fun JessicaScreen() {
                         },
 
 
+
                         onBlocks = {
 
 
                             navigator.navigateTo(
+
                                 JessicaPage.BLOCKS
+
                             )
 
 
                         },
+
 
 
                         onReports = {
 
 
                             navigator.navigateTo(
+
                                 JessicaPage.REPORTS
+
                             )
 
 
                         },
+
 
 
                         onMemory = {
 
 
                             navigator.navigateTo(
+
                                 JessicaPage.MEMORY
+
                             )
 
 
                         },
+
 
 
                         onTasks = {
 
 
                             navigator.navigateTo(
+
                                 JessicaPage.TASKS
+
                             )
 
 
                         },
 
 
+
                         onAddBlock = {
+
 
 
                             blockPicker.launch(
 
                                 arrayOf(
+
                                     "application/json",
+
                                     "*/*"
+
                                 )
 
                             )
@@ -280,13 +315,9 @@ fun JessicaScreen() {
 
 
 
-                /*
-                 * =================================================
-                 * CHAT
-                 * =================================================
-                 */
 
                 JessicaPage.CHAT -> {
+
 
 
                     ChatRoute(
@@ -303,6 +334,7 @@ fun JessicaScreen() {
 
                         }
 
+
                     )
 
 
@@ -310,13 +342,9 @@ fun JessicaScreen() {
 
 
 
-                /*
-                 * =================================================
-                 * BLOCKS
-                 * =================================================
-                 */
 
                 JessicaPage.BLOCKS -> {
+
 
 
                     BlockScreen(
@@ -354,13 +382,9 @@ fun JessicaScreen() {
 
 
 
-                /*
-                 * =================================================
-                 * REPORTS
-                 * =================================================
-                 */
 
                 JessicaPage.REPORTS -> {
+
 
 
                     ReportScreen(
@@ -385,13 +409,9 @@ fun JessicaScreen() {
 
 
 
-                /*
-                 * =================================================
-                 * MEMORY
-                 * =================================================
-                 */
 
                 JessicaPage.MEMORY -> {
+
 
 
                     MemoryScreen(
@@ -404,6 +424,7 @@ fun JessicaScreen() {
 
                         }
 
+
                     )
 
 
@@ -411,13 +432,9 @@ fun JessicaScreen() {
 
 
 
-                /*
-                 * =================================================
-                 * TASKS
-                 * =================================================
-                 */
 
                 JessicaPage.TASKS -> {
+
 
 
                     TaskScreen(
@@ -429,6 +446,7 @@ fun JessicaScreen() {
 
 
                         }
+
 
                     )
 
