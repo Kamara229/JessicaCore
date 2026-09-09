@@ -31,7 +31,12 @@ import androidx.compose.ui.unit.dp
  *
  * Основной UI экрана чата.
  *
- * Не содержит бизнес-логику.
+ * Только отображение.
+ *
+ * Не содержит:
+ * - бизнес-логики
+ * - обработчиков сообщений
+ * - работы с сетью
  *
  * Использует:
  *
@@ -66,8 +71,9 @@ fun ChatScreen(
     ) {
 
 
+
         /*
-         * Верхняя панель чата
+         * Header
          */
 
         Row(
@@ -91,11 +97,12 @@ fun ChatScreen(
 
 
                 Text(
-                    "Назад"
+                    text = "Назад"
                 )
 
 
             }
+
 
 
             Spacer(
@@ -104,6 +111,7 @@ fun ChatScreen(
                     Modifier.weight(1f)
 
             )
+
 
 
             Text(
@@ -116,9 +124,10 @@ fun ChatScreen(
                         .titleMedium,
 
                 modifier =
-                    Modifier.padding(
-                        top = 10.dp
-                    )
+                    Modifier
+                        .padding(
+                            top = 10.dp
+                        )
 
             )
 
@@ -127,8 +136,9 @@ fun ChatScreen(
 
 
 
+
         /*
-         * История сообщений
+         * Messages
          */
 
         LazyColumn(
@@ -154,8 +164,7 @@ fun ChatScreen(
 
                 MessageBubble(
 
-                    message =
-                        message
+                    message = message
 
                 )
 
@@ -163,10 +172,6 @@ fun ChatScreen(
             }
 
 
-
-            /*
-             * Показываем состояние работы Jessica.
-             */
 
             if (state.isRunning) {
 
@@ -187,11 +192,21 @@ fun ChatScreen(
 
 
 
+
         /*
-         * Поле ввода
+         * Input
          */
 
-        Column(
+        ChatInput(
+
+            value =
+                state.input,
+
+            onValueChange =
+                onInputChange,
+
+            onSend =
+                onSend,
 
             modifier =
                 Modifier
@@ -200,24 +215,7 @@ fun ChatScreen(
                         12.dp
                     )
 
-        ) {
-
-
-            ChatInput(
-
-                value =
-                    state.input,
-
-                onValueChange =
-                    onInputChange,
-
-                onSend =
-                    onSend
-
-            )
-
-
-        }
+        )
 
 
     }
