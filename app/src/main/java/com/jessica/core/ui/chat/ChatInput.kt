@@ -1,6 +1,7 @@
 package com.jessica.core.ui.chat
 
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 
@@ -16,6 +17,24 @@ import androidx.compose.ui.unit.dp
 
 
 
+/*
+ * =========================================================
+ * JESSICA CHAT INPUT
+ * =========================================================
+ *
+ * Поле ввода сообщения.
+ *
+ * Не содержит бизнес-логики.
+ *
+ * Отвечает только за UI:
+ *
+ * - ввод текста
+ * - отображение кнопки отправки
+ *
+ * =========================================================
+ */
+
+
 @Composable
 fun ChatInput(
 
@@ -25,54 +44,72 @@ fun ChatInput(
         TextFieldValue
     ) -> Unit,
 
-    onSend: () -> Unit
+    onSend: () -> Unit,
+
+    modifier: Modifier = Modifier
 
 ) {
 
 
-    TextField(
-
-        value = value,
-
-
-        onValueChange = onValueChange,
-
+    Column(
 
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
-                .padding(
-                    bottom = 8.dp
-                ),
-
-
-        placeholder = {
-
-            Text(
-                "Введите сообщение"
-            )
-
-        }
-
-    )
-
-
-    Button(
-
-        onClick = onSend,
-
-        modifier =
-            Modifier
-                .padding(
-                    top = 8.dp
-                )
 
     ) {
 
 
-        Text(
-            "Отправить"
+
+        TextField(
+
+            value = value,
+
+
+            onValueChange = onValueChange,
+
+
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        bottom = 8.dp
+                    ),
+
+
+            placeholder = {
+
+                Text(
+                    "Введите сообщение"
+                )
+
+            }
+
         )
+
+
+
+        Button(
+
+            onClick = onSend,
+
+
+            modifier =
+                Modifier
+                    .padding(
+                        top = 8.dp
+                    )
+
+        ) {
+
+
+            Text(
+                "Отправить"
+            )
+
+
+        }
+
 
     }
 
