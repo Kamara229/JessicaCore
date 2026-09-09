@@ -2,12 +2,18 @@ package com.jessica.core.ui.chat
 
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 
 import androidx.compose.runtime.Composable
 
@@ -16,37 +22,35 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 
 
-
 /*
  * =========================================================
- * JESSICA CHAT INPUT
+ * JESSICA CHAT SCREEN
  * =========================================================
  *
- * Поле ввода сообщения.
+ * Ядро UI чата.
  *
- * Не содержит бизнес-логики.
+ * Соединяет:
  *
- * Отвечает только за UI:
+ * - MessageBubble
+ * - ThinkingIndicator
+ * - ChatInput
  *
- * - ввод текста
- * - отображение кнопки отправки
+ * Не содержит бизнес-логику.
  *
  * =========================================================
  */
 
 
 @Composable
-fun ChatInput(
+fun ChatScreen(
 
-    value: TextFieldValue,
+    state: ChatState,
 
-    onValueChange: (
-        TextFieldValue
-    ) -> Unit,
+    onInputChange: (TextFieldValue) -> Unit,
 
     onSend: () -> Unit,
 
-    modifier: Modifier = Modifier
+    onBack: () -> Unit
 
 ) {
 
@@ -54,61 +58,152 @@ fun ChatInput(
     Column(
 
         modifier =
-            modifier
-                .fillMaxWidth()
+            Modifier
+                .fillMaxSize()
 
     ) {
 
 
+        /*
+         * =================================================
+         * HEADER
+         * =================================================
+         */
 
-        TextField(
-
-            value = value,
-
-
-            onValueChange = onValueChange,
-
+        Row(
 
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .padding(
-                        bottom = 8.dp
-                    ),
-
-
-            placeholder = {
-
-                Text(
-                    "Введите сообщение"
-                )
-
-            }
-
-        )
-
-
-
-        Button(
-
-            onClick = onSend,
-
-
-            modifier =
-                Modifier
-                    .padding(
-                        top = 8.dp
+                        horizontal = 12.dp,
+                        vertical = 8.dp
                     )
 
         ) {
 
 
+            Button(
+
+                onClick = onBack
+
+            ) {
+
+
+                Text(
+                    text = "Назад"
+                )
+
+
+            }
+
+
+            Spacer(
+
+                modifier =
+                    Modifier.weight(1f)
+
+            )
+
+
             Text(
-                "Отправить"
+
+                text = "Jessica",
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleMedium,
+
+                modifier =
+                    Modifier.padding(
+                        top = 10.dp
+                    )
+
             )
 
 
         }
+
+
+
+        /*
+         * =================================================
+         * MESSAGES
+         * =================================================
+         */
+
+        LazyColumn(
+
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(
+                        horizontal = 12.dp
+                    )
+
+        ) {
+
+
+            items(
+
+                items = state.messages
+
+            ) { message ->
+
+
+                MessageBubble(
+
+                    message = message
+
+                )
+
+
+            }
+
+
+            if (state.isRunning) {
+
+
+                item {
+
+
+                    ThinkingIndicator()
+
+
+                }
+
+
+            }
+
+
+        }
+
+
+
+        /*
+         * =================================================
+         * INPUT
+         * =================================================
+         */
+
+        ChatInput(
+
+            value = state.input,
+
+            onValueChange = onInputChange,
+
+            onSend = onSend,
+
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        12.dp
+                    )
+
+        )
 
 
     }
