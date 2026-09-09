@@ -29,7 +29,11 @@ import java.util.Locale
 @Composable
 fun MessageBubble(
 
-    message: ChatMessage
+    message: ChatMessage,
+
+    onCopy: (String) -> Unit = {},
+
+    onRetry: (ChatMessage) -> Unit = {}
 
 ) {
 
@@ -38,159 +42,150 @@ fun MessageBubble(
         message.isUser
 
 
-    Row(
+
+    Column(
 
         modifier =
             Modifier
                 .fillMaxWidth()
                 .padding(
                     vertical = 4.dp
-                ),
-
-        horizontalArrangement =
-            if (isUser) {
-
-                Arrangement.End
-
-            } else {
-
-                Arrangement.Start
-
-            }
+                )
 
     ) {
 
 
-        Surface(
+        Row(
 
             modifier =
-                Modifier
-                    .widthIn(
-                        max = 340.dp
-                    ),
+                Modifier.fillMaxWidth(),
 
-            shape =
-                MaterialTheme
-                    .shapes
-                    .large,
-
-            color =
+            horizontalArrangement =
                 if (isUser) {
 
-                    MaterialTheme
-                        .colorScheme
-                        .primaryContainer
+                    Arrangement.End
 
                 } else {
 
-                    MaterialTheme
-                        .colorScheme
-                        .surfaceVariant
+                    Arrangement.Start
 
                 }
 
         ) {
 
 
-            Column(
+            Surface(
 
                 modifier =
-                    Modifier
-                        .padding(
-                            horizontal = 14.dp,
-                            vertical = 10.dp
-                        )
+                    Modifier.widthIn(
+                        max = 340.dp
+                    ),
+
+                shape =
+                    MaterialTheme
+                        .shapes
+                        .large,
+
+                color =
+                    if (isUser) {
+
+                        MaterialTheme
+                            .colorScheme
+                            .primaryContainer
+
+                    } else {
+
+                        MaterialTheme
+                            .colorScheme
+                            .surfaceVariant
+
+                    }
 
             ) {
 
 
-                if (!isUser) {
+                Column(
+
+                    modifier =
+                        Modifier.padding(
+                            14.dp
+                        )
+
+                ) {
 
 
-                    Text(
-
-                        text = "Jessica",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .labelMedium,
-
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .primary,
-
-                        modifier =
-                            Modifier.padding(
-                                bottom = 4.dp
-                            )
-
-                    )
+                    if (!isUser) {
 
 
-                }
+                        Text(
+
+                            text =
+                                "Jessica",
+
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .labelMedium
+
+                        )
+
+                    }
 
 
 
-                SelectionContainer {
+                    SelectionContainer {
+
+
+                        Text(
+
+                            text =
+                                message.text,
+
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .bodyLarge
+
+                        )
+
+
+                    }
+
 
 
                     Text(
 
                         text =
-                            message.text,
+                            formatTime(
+                                message.timestamp
+                            ),
 
                         style =
                             MaterialTheme
                                 .typography
-                                .bodyLarge,
+                                .labelSmall,
 
-                        color =
-                            if (isUser) {
+                        modifier =
+                            Modifier.padding(
+                                top = 4.dp
+                            )
 
-                                MaterialTheme
-                                    .colorScheme
-                                    .onPrimaryContainer
+                    )
 
-                            } else {
 
-                                MaterialTheme
-                                    .colorScheme
-                                    .onSurfaceVariant
 
-                            }
+                    MessageActions(
+
+                        message = message,
+
+                        onCopy = onCopy,
+
+                        onRetry = onRetry
 
                     )
 
 
                 }
-
-
-
-                Text(
-
-                    text =
-                        formatTime(
-                            message.timestamp
-                        ),
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelSmall,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
-
-                    modifier =
-                        Modifier.padding(
-                            top = 5.dp
-                        )
-
-                )
 
 
             }
@@ -213,13 +208,6 @@ private fun formatTime(
 ): String {
 
 
-    if (timestamp <= 0L) {
-
-        return ""
-
-    }
-
-
     return SimpleDateFormat(
 
         "HH:mm",
@@ -231,6 +219,5 @@ private fun formatTime(
         Date(timestamp)
 
     )
-
 
 }
