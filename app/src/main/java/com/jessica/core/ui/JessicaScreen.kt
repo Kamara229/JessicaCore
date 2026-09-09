@@ -30,6 +30,8 @@ import com.jessica.core.navigation.JessicaPage
 import com.jessica.core.modules.blocks.BlockFileLoader
 import com.jessica.core.modules.updater.UpdateViewModel
 
+import com.jessica.core.ui.chat.ChatRoute
+import com.jessica.core.ui.chat.ChatViewModel
 import com.jessica.core.ui.home.HomeScreen
 
 
@@ -73,17 +75,25 @@ fun JessicaScreen() {
 
 
 
+    val chatViewModel =
+        remember {
+
+            ChatViewModel()
+
+        }
+
+
+
     val updateState by
-        updateViewModel.state
+        updateViewModel
+            .state
             .collectAsState()
 
 
 
     LaunchedEffect(Unit) {
 
-
         controller.loadBlocks()
-
 
     }
 
@@ -137,7 +147,7 @@ fun JessicaScreen() {
 
 
                     Text(
-                        "Jessica Core"
+                        text = "Jessica Core"
                     )
 
 
@@ -151,7 +161,6 @@ fun JessicaScreen() {
 
 
     ) { padding ->
-
 
 
         Box(
@@ -171,6 +180,11 @@ fun JessicaScreen() {
             ) {
 
 
+                /*
+                 * =================================================
+                 * HOME
+                 * =================================================
+                 */
 
                 JessicaPage.HOME -> {
 
@@ -266,6 +280,42 @@ fun JessicaScreen() {
 
 
 
+                /*
+                 * =================================================
+                 * CHAT
+                 * =================================================
+                 */
+
+                JessicaPage.CHAT -> {
+
+
+                    ChatRoute(
+
+                        viewModel =
+                            chatViewModel,
+
+
+                        onBack = {
+
+
+                            navigator.backHome()
+
+
+                        }
+
+                    )
+
+
+                }
+
+
+
+                /*
+                 * =================================================
+                 * BLOCKS
+                 * =================================================
+                 */
+
                 JessicaPage.BLOCKS -> {
 
 
@@ -304,6 +354,12 @@ fun JessicaScreen() {
 
 
 
+                /*
+                 * =================================================
+                 * REPORTS
+                 * =================================================
+                 */
+
                 JessicaPage.REPORTS -> {
 
 
@@ -329,6 +385,12 @@ fun JessicaScreen() {
 
 
 
+                /*
+                 * =================================================
+                 * MEMORY
+                 * =================================================
+                 */
+
                 JessicaPage.MEMORY -> {
 
 
@@ -348,6 +410,12 @@ fun JessicaScreen() {
                 }
 
 
+
+                /*
+                 * =================================================
+                 * TASKS
+                 * =================================================
+                 */
 
                 JessicaPage.TASKS -> {
 
