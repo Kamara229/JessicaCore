@@ -18,8 +18,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+
 
 
 /*
@@ -27,23 +30,25 @@ import androidx.compose.ui.unit.dp
  * JESSICA CHAT SCREEN
  * =========================================================
  *
- * Ядро UI экрана чата.
+ * UI слой чата.
  *
- * Соединяет:
+ * Отвечает за:
  *
- * - MessageBubble
- * - ThinkingIndicator
- * - ChatInput
+ * - отображение сообщений
+ * - копирование текста
+ * - вызов повторного запроса
+ * - ввод сообщения
  *
  * Не содержит:
  *
- * - бизнес-логику;
- * - работу с сетью;
- * - AI-логику;
- * - хранение данных.
+ * - AI логику
+ * - сеть
+ * - память
+ * - Planner
  *
  * =========================================================
  */
+
 
 
 @Composable
@@ -55,9 +60,16 @@ fun ChatScreen(
 
     onSend: () -> Unit,
 
-    onBack: () -> Unit
+    onBack: () -> Unit,
+
+    onRetry: (ChatMessage) -> Unit = {}
 
 ) {
+
+
+    val clipboardManager =
+        LocalClipboardManager.current
+
 
 
     Column(
@@ -69,11 +81,13 @@ fun ChatScreen(
     ) {
 
 
+
         /*
          * =================================================
          * HEADER
          * =================================================
          */
+
 
         Row(
 
@@ -88,6 +102,7 @@ fun ChatScreen(
         ) {
 
 
+
             Button(
 
                 onClick = onBack
@@ -96,19 +111,14 @@ fun ChatScreen(
 
 
                 Text(
-                    text = "Назад"
+                    "Назад"
                 )
 
 
             }
 
 
-            /*
-             * Раздвигает кнопку и заголовок.
-             *
-             * ВАЖНО:
-             * отдельный import weight не нужен.
-             */
+
 
             Spacer(
 
@@ -118,9 +128,12 @@ fun ChatScreen(
             )
 
 
+
+
             Text(
 
-                text = "Jessica",
+                text =
+                    "Jessica",
 
                 style =
                     MaterialTheme
@@ -138,11 +151,15 @@ fun ChatScreen(
         }
 
 
+
+
+
         /*
          * =================================================
          * MESSAGES
          * =================================================
          */
+
 
         LazyColumn(
 
@@ -157,6 +174,7 @@ fun ChatScreen(
         ) {
 
 
+
             items(
 
                 items =
@@ -165,22 +183,50 @@ fun ChatScreen(
             ) { message ->
 
 
+
+
                 MessageBubble(
 
                     message =
-                        message
+                        message,
+
+
+
+                    onCopy = {
+
+                        clipboardManager
+                            .setText(
+
+                                AnnotatedString(
+                                    it
+                                )
+
+                            )
+
+                    },
+
+
+
+                    onRetry = {
+
+                        onRetry(
+                            it
+                        )
+
+                    }
 
                 )
+
 
 
             }
 
 
-            /*
-             * Индикатор работы Jessica.
-             */
+
+
 
             if (state.isRunning) {
+
 
 
                 item {
@@ -192,10 +238,17 @@ fun ChatScreen(
                 }
 
 
+
             }
 
 
+
         }
+
+
+
+
+
 
 
         /*
@@ -204,16 +257,22 @@ fun ChatScreen(
          * =================================================
          */
 
+
+
         ChatInput(
 
             value =
                 state.input,
 
+
             onValueChange =
                 onInputChange,
 
+
             onSend =
                 onSend,
+
+
 
             modifier =
                 Modifier
@@ -223,6 +282,7 @@ fun ChatScreen(
                     )
 
         )
+
 
 
     }
