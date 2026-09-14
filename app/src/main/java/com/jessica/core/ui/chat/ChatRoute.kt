@@ -17,7 +17,16 @@ import androidx.compose.runtime.getValue
  *
  * ChatViewModel → ChatScreen
  *
+ * Передаёт:
+ *
+ * - состояние чата
+ * - изменение текста
+ * - отправку сообщения
+ * - повтор запроса
+ * - возврат назад
+ *
  * Не содержит:
+ *
  * - UI логику
  * - бизнес логику
  * - работу с памятью
@@ -44,7 +53,8 @@ fun ChatRoute(
 
     ChatScreen(
 
-        state = state,
+        state =
+            state,
 
 
         onInputChange = {
@@ -59,6 +69,15 @@ fun ChatRoute(
         onSend = {
 
             viewModel.sendMessage()
+
+        },
+
+
+        onRetry = { message ->
+
+            viewModel.retryMessage(
+                message
+            )
 
         },
 
