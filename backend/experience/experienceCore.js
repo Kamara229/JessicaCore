@@ -6,6 +6,10 @@ import {
     buildExperienceContext
 } from "./context/experienceContext.js";
 
+import {
+    loadExperienceSkills
+} from "./storage/experienceStorage.js";
+
 
 /*
  * =========================================================
@@ -19,6 +23,10 @@ import {
  *
  * task
  *   ↓
+ * Experience Storage
+ *   ↓
+ * активные Skills
+ *   ↓
  * Experience Search
  *   ↓
  * подходящий Skill
@@ -31,7 +39,8 @@ import {
  * Этот файл НЕ содержит:
  *
  * - алгоритм поиска;
- * - хранение Skills;
+ * - реализацию Supabase;
+ * - SQL;
  * - обучение;
  * - Planner;
  * - Earnings;
@@ -70,16 +79,15 @@ function createEmptyExperienceResult() {
         source:
             "experience-core",
 
-        planningContext:
-            {
+        planningContext: {
 
-                experience:
-                    null,
+            experience:
+                null,
 
-                metadata:
-                    {}
+            metadata:
+                {}
 
-            }
+        }
 
     };
 
@@ -90,6 +98,27 @@ function createEmptyExperienceResult() {
  * =========================================================
  * RESOLVE EXPERIENCE
  * =========================================================
+ *
+ * Главная точка входа первого слоя
+ * собственного опыта Jessica.
+ *
+ *
+ * В обычной работе:
+ *
+ * resolveExperience(task)
+ *
+ * Skills автоматически загружаются
+ * через Experience Storage.
+ *
+ *
+ * Для тестов можно передать Skills вручную:
+ *
+ * resolveExperience(
+ *     task,
+ *     experiences
+ * )
+ *
+ * =========================================================
  */
 
 
@@ -97,7 +126,7 @@ export async function resolveExperience(
 
     task,
 
-    experiences = []
+    experiences = null
 
 ) {
 
@@ -122,11 +151,84 @@ export async function resolveExperience(
     }
 
 
+    /*
+     * =====================================================
+     * LOAD EXPERIENCE
+     * =====================================================
+     *
+     * Если массив Skills передан вручную,
+     * используем его.
+     *
+     * Иначе загружаем активные Skills
+     * из Experience Storage.
+     *
+     * =====================================================
+     */
+
+
+    let availableExperiences;
+
+
+    try {
+
+
+        if (
+            Array.isArray(
+                experiences
+            )
+        ) {
+
+
+            availableExperiences =
+                experiences;
+
+
+        } else {
+
+
+            availableExperiences =
+                await loadExperienceSkills();
+
+
+        }
+
+
+    } catch (error) {
+
+
+        /*
+         * Ошибка Storage не должна
+         * останавливать Jessica.
+         *
+         * Первый слой опыта просто
+         * считается недоступным.
+         */
+
+
+        console.error(
+            "Jessica Experience storage error:",
+            error
+        );
+
+
+        return createEmptyExperienceResult();
+
+
+    }
+
+
+    /*
+     * =====================================================
+     * NO EXPERIENCE
+     * =====================================================
+     */
+
+
     if (
         !Array.isArray(
-            experiences
+            availableExperiences
         ) ||
-        experiences.length === 0
+        availableExperiences.length === 0
     ) {
 
         return createEmptyExperienceResult();
@@ -149,7 +251,7 @@ export async function resolveExperience(
 
                 cleanTask,
 
-                experiences
+                availableExperiences
 
             );
 
@@ -183,16 +285,15 @@ export async function resolveExperience(
                     searchResult?.source ||
                     "experience-search",
 
-                planningContext:
-                    {
+                planningContext: {
 
-                        experience:
-                            null,
+                    experience:
+                        null,
 
-                        metadata:
-                            {}
+                    metadata:
+                        {}
 
-                    }
+                }
 
             };
 
@@ -246,21 +347,22 @@ export async function resolveExperience(
 
         /*
          * =================================================
-         * ERROR
+         * SEARCH ERROR
          * =================================================
          *
          * Experience никогда не должен
          * ломать основную работу Jessica.
          *
          * Если первый слой опыта недоступен,
-         * Planner сможет работать без него.
+         * Planner позже сможет работать
+         * обычным способом.
          *
          * =================================================
          */
 
 
         console.error(
-            "Jessica Experience error:",
+            "Jessica Experience search error:",
             error
         );
 
