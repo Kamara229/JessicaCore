@@ -29,12 +29,15 @@ import {
  *
  * Главный координатор планирования.
  *
- * Сам Planner больше не содержит
+ * Сам Planner не содержит
  * внутреннюю реализацию отдельных этапов.
+ *
  *
  * Рабочая цепочка:
  *
  * task
+ *   ↓
+ * PlanningContext
  *   ↓
  * plannerRequest
  *   ↓
@@ -52,9 +55,11 @@ import {
  * core/planner/
  *
  * plannerRequest.js
- * planParser.js
- * plannerTools.js
  * plannerPrompt.js
+ * plannerTools.js
+ * planningContext.js
+ * planningContextText.js
+ * planParser.js
  * planNormalizer.js
  * planValidator.js
  * plannerRetry.js
@@ -63,9 +68,24 @@ import {
  * Этот файл отвечает только за:
  *
  * - проверку входной задачи;
+ * - передачу PlanningContext;
  * - управление попытками Planner;
  * - последовательный запуск этапов;
  * - возврат результата.
+ *
+ *
+ * PlanningContext в будущем может содержать:
+ *
+ * - Experience Jessica;
+ * - успешные алгоритмы;
+ * - правила источников;
+ * - ограничения задачи;
+ * - дополнительные инструкции;
+ * - контекст Earnings.
+ *
+ *
+ * Если PlanningContext не передан,
+ * Planner работает как раньше.
  *
  * =========================================================
  */
@@ -79,7 +99,11 @@ import {
 
 
 export async function createPlan(
-    task
+
+    task,
+
+    context = {}
+
 ) {
 
 
@@ -160,6 +184,14 @@ export async function createPlan(
              * =================================================
              * 1. REQUEST PLAN
              * =================================================
+             *
+             * Передаём:
+             *
+             * - задачу;
+             * - ошибку предыдущей попытки;
+             * - PlanningContext.
+             *
+             * =================================================
              */
 
 
@@ -170,7 +202,9 @@ export async function createPlan(
 
                     attempt > 1
                         ? lastError
-                        : ""
+                        : "",
+
+                    context
 
                 );
 
@@ -360,22 +394,42 @@ export async function createPlan(
  * BACKWARD-COMPATIBLE EXPORT
  * =========================================================
  *
- * Старый интерфейс сохраняем,
- * чтобы другие части Jessica
- * продолжили работать без изменений.
+ * Старый вариант:
+ *
+ * planTask(task)
+ *
+ * продолжает работать.
+ *
+ *
+ * Новый вариант:
+ *
+ * planTask(
+ *     task,
+ *     context
+ * )
+ *
+ * позволяет передавать PlanningContext.
  *
  * =========================================================
  */
 
 
 export async function planTask(
-    task
+
+    task,
+
+    context = {}
+
 ) {
 
 
     const result =
         await createPlan(
-            task
+
+            task,
+
+            context
+
         );
 
 
