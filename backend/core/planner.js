@@ -1,12 +1,10 @@
-import OpenAI from "openai";
+import {
+    requestPlan
+} from "./planner/plannerRequest.js";
 
 import {
-    listTools
-} from "../tools/toolRegistry.js";
-
-import {
-    buildPlannerInstructions
-} from "./planner/plannerPrompt.js";
+    parsePlan
+} from "./planner/planParser.js";
 
 import {
     normalizePlan
@@ -31,249 +29,46 @@ import {
  *
  * Главный координатор планирования.
  *
- * Детальная логика вынесена в:
+ * Сам Planner больше не содержит
+ * внутреннюю реализацию отдельных этапов.
+ *
+ * Рабочая цепочка:
+ *
+ * task
+ *   ↓
+ * plannerRequest
+ *   ↓
+ * planParser
+ *   ↓
+ * planNormalizer
+ *   ↓
+ * planValidator
+ *   ↓
+ * retry при необходимости
+ *
+ *
+ * Детальная логика находится в:
  *
  * core/planner/
  *
- * Этот файл должен оставаться небольшим.
- */
-
-
-const groq =
-    new OpenAI({
-        apiKey:
-            process.env.GROQ_API_KEY,
-
-        baseURL:
-            "https://api.groq.com/openai/v1"
-    });
-
-
-const PLANNER_MODEL =
-    "openai/gpt-oss-20b";
-
-
-/*
- * =========================================================
- * CLEAN JSON
+ * plannerRequest.js
+ * planParser.js
+ * plannerTools.js
+ * plannerPrompt.js
+ * planNormalizer.js
+ * planValidator.js
+ * plannerRetry.js
+ *
+ *
+ * Этот файл отвечает только за:
+ *
+ * - проверку входной задачи;
+ * - управление попытками Planner;
+ * - последовательный запуск этапов;
+ * - возврат результата.
+ *
  * =========================================================
  */
-
-
-function cleanJsonText(text) {
-
-    let value =
-        String(text || "").trim();
-
-
-    if (
-        value.startsWith("```")
-    ) {
-
-        value =
-            value.replace(
-                /^```(?:json)?\s*/i,
-                ""
-            );
-
-        value =
-            value.replace(
-                /\s*```$/,
-                ""
-            );
-
-    }
-
-
-    const firstBrace =
-        value.indexOf("{");
-
-    const lastBrace =
-        value.lastIndexOf("}");
-
-
-    if (
-        firstBrace !== -1 &&
-        lastBrace > firstBrace
-    ) {
-
-        value =
-            value.slice(
-                firstBrace,
-                lastBrace + 1
-            );
-
-    }
-
-
-    return value.trim();
-
-}
-
-
-/*
- * =========================================================
- * TOOL DESCRIPTION
- * =========================================================
- */
-
-
-function buildToolsText() {
-
-    const tools =
-        listTools();
-
-
-    if (
-        tools.length === 0
-    ) {
-
-        return "Инструменты отсутствуют.";
-
-    }
-
-
-    return tools
-        .map(
-            tool => {
-
-                return JSON.stringify({
-                    name:
-                        tool.name,
-
-                    description:
-                        tool.description,
-
-                    arguments:
-                        tool.arguments || {}
-                });
-
-            }
-        )
-        .join("\n");
-
-}
-
-
-/*
- * =========================================================
- * AI REQUEST
- * =========================================================
- */
-
-
-async function requestPlan(
-    task,
-    previousError = ""
-) {
-
-    const instructions =
-        buildPlannerInstructions();
-
-
-    const toolsText =
-        buildToolsText();
-
-
-    const retryContext =
-        previousError
-            ? [
-                "",
-                "ПРЕДЫДУЩИЙ ПЛАН БЫЛ ОТКЛОНЁН:",
-                previousError,
-                "",
-                "Исправь ошибку и создай новый валидный план."
-            ].join("\n")
-            : "";
-
-
-    const response =
-        await groq.chat.completions.create({
-            model:
-                PLANNER_MODEL,
-
-            temperature:
-                0,
-
-            messages: [
-                {
-                    role:
-                        "system",
-
-                    content:
-                        instructions
-                },
-                {
-                    role:
-                        "user",
-
-                    content: [
-                        "ЗАДАЧА:",
-                        String(task || "").trim(),
-
-                        "",
-                        "ДОСТУПНЫЕ ИНСТРУМЕНТЫ:",
-                        toolsText,
-
-                        retryContext
-                    ].join("\n")
-                }
-            ]
-        });
-
-
-    return (
-        response
-            ?.choices
-            ?.[0]
-            ?.message
-            ?.content || ""
-    );
-
-}
-
-
-/*
- * =========================================================
- * PARSE PLAN
- * =========================================================
- */
-
-
-function parsePlan(
-    text
-) {
-
-    const cleaned =
-        cleanJsonText(
-            text
-        );
-
-
-    if (!cleaned) {
-
-        throw new Error(
-            "Planner вернул пустой ответ"
-        );
-
-    }
-
-
-    try {
-
-        return JSON.parse(
-            cleaned
-        );
-
-    } catch {
-
-        throw new Error(
-            "Planner вернул невалидный JSON"
-        );
-
-    }
-
-}
 
 
 /*
@@ -287,21 +82,40 @@ export async function createPlan(
     task
 ) {
 
+
+    /*
+     * =====================================================
+     * INPUT
+     * =====================================================
+     */
+
+
     const cleanTask =
-        String(task || "").trim();
+        String(
+            task || ""
+        ).trim();
 
 
     if (!cleanTask) {
 
         return {
+
             success:
                 false,
 
             text:
                 "Задача для Planner не указана"
+
         };
 
     }
+
+
+    /*
+     * =====================================================
+     * CONFIGURATION
+     * =====================================================
+     */
 
 
     if (
@@ -309,14 +123,23 @@ export async function createPlan(
     ) {
 
         return {
+
             success:
                 false,
 
             text:
                 "GROQ_API_KEY не настроен"
+
         };
 
     }
+
+
+    /*
+     * =====================================================
+     * ATTEMPTS
+     * =====================================================
+     */
 
 
     let lastError =
@@ -329,21 +152,47 @@ export async function createPlan(
         attempt++
     ) {
 
+
         try {
+
+
+            /*
+             * =================================================
+             * 1. REQUEST PLAN
+             * =================================================
+             */
+
 
             const rawText =
                 await requestPlan(
+
                     cleanTask,
+
                     attempt > 1
                         ? lastError
                         : ""
+
                 );
+
+
+            /*
+             * =================================================
+             * 2. PARSE PLAN
+             * =================================================
+             */
 
 
             const rawPlan =
                 parsePlan(
                     rawText
                 );
+
+
+            /*
+             * =================================================
+             * 3. NORMALIZE PLAN
+             * =================================================
+             */
 
 
             const plan =
@@ -361,6 +210,13 @@ export async function createPlan(
             }
 
 
+            /*
+             * =================================================
+             * 4. VALIDATE PLAN
+             * =================================================
+             */
+
+
             const validation =
                 validatePlan(
                     plan
@@ -371,15 +227,19 @@ export async function createPlan(
                 !validation.success
             ) {
 
+
                 lastError =
                     validation.text ||
                     "План не прошёл проверку";
 
 
                 console.warn(
+
                     `Planner validation failed ` +
                     `[${attempt}/${MAX_PLANNER_ATTEMPTS}]:`,
+
                     lastError
+
                 );
 
 
@@ -388,22 +248,43 @@ export async function createPlan(
             }
 
 
+            /*
+             * =================================================
+             * SUCCESS
+             * =================================================
+             */
+
+
             console.log(
+
                 "Jessica plan:",
+
                 JSON.stringify(
                     plan
                 )
+
             );
 
 
             return {
+
                 success:
                     true,
 
                 plan
+
             };
 
+
         } catch (error) {
+
+
+            /*
+             * =================================================
+             * ERROR
+             * =================================================
+             */
+
 
             lastError =
                 error?.message ||
@@ -411,40 +292,65 @@ export async function createPlan(
 
 
             console.error(
+
                 `Planner error ` +
                 `[${attempt}/${MAX_PLANNER_ATTEMPTS}]:`,
+
                 lastError
+
             );
 
 
+            /*
+             * =================================================
+             * RETRY
+             * =================================================
+             */
+
+
             if (
-                attempt <
-                    MAX_PLANNER_ATTEMPTS &&
+                attempt < MAX_PLANNER_ATTEMPTS &&
                 isRetryablePlannerError(
                     error
                 )
             ) {
 
+
                 await sleep(
+
                     getPlannerRetryDelay(
                         attempt
                     )
+
                 );
+
 
             }
 
+
         }
+
 
     }
 
 
+    /*
+     * =====================================================
+     * FAILED
+     * =====================================================
+     */
+
+
     return {
+
         success:
             false,
 
         text:
             `Planner не смог создать корректный план: ${lastError}`
+
     };
+
 
 }
 
@@ -453,12 +359,19 @@ export async function createPlan(
  * =========================================================
  * BACKWARD-COMPATIBLE EXPORT
  * =========================================================
+ *
+ * Старый интерфейс сохраняем,
+ * чтобы другие части Jessica
+ * продолжили работать без изменений.
+ *
+ * =========================================================
  */
 
 
 export async function planTask(
     task
 ) {
+
 
     const result =
         await createPlan(
@@ -478,5 +391,6 @@ export async function planTask(
     throw new Error(
         result.text
     );
+
 
 }
