@@ -9,6 +9,7 @@ import com.jessica.core.modules.Block
 import com.jessica.core.modules.BlockManager
 import com.jessica.core.modules.BlockStorage
 import com.jessica.core.modules.ReportStorage
+import com.jessica.core.modules.JessicaAIEngine
 
 
 
@@ -17,7 +18,7 @@ import com.jessica.core.modules.ReportStorage
  * JESSICA CONTROLLER
  * =========================================================
  *
- * Центральное ядро Android-клиента Jessica.
+ * Центральный координатор Android-клиента Jessica.
  *
  * Связывает:
  *
@@ -25,15 +26,30 @@ import com.jessica.core.modules.ReportStorage
  * - Chat
  * - Blocks
  * - Reports
- * - будущий AI Engine
+ * - JessicaAIEngine
  *
- * ВАЖНО:
  *
- * UI не должен напрямую обращаться
- * к Planner / API / Tool Registry.
+ * Основная цепочка чата:
  *
- * Все запросы проходят через
- * JessicaController.
+ * ChatViewModel
+ *      ↓
+ * JessicaController
+ *      ↓
+ * JessicaAIEngine
+ *      ↓
+ * /api/solve
+ *      ↓
+ * Jessica Core Backend
+ *
+ *
+ * JessicaController НЕ содержит:
+ *
+ * - HTTP-реализацию
+ * - Planner
+ * - TaskRunner
+ * - Tool Registry
+ * - Validator
+ * - Answer Composer
  *
  * =========================================================
  */
@@ -80,6 +96,24 @@ class JessicaController(
     val blockManager =
 
         BlockManager()
+
+
+
+    /*
+     * =====================================================
+     * AI ENGINE
+     * =====================================================
+     *
+     * JessicaAIEngine отвечает за соединение
+     * Android-приложения с backend Jessica Core.
+     *
+     * =====================================================
+     */
+
+
+    private val aiEngine =
+
+        JessicaAIEngine()
 
 
 
@@ -239,25 +273,19 @@ class JessicaController(
      * CHAT ENTRY POINT
      * =====================================================
      *
-     * Главная точка входа сообщений из ChatViewModel.
+     * Единая точка входа для сообщений чата.
      *
-     * Сейчас здесь безопасная промежуточная реализация.
-     *
-     * Позже цепочка станет:
+     * Цепочка:
      *
      * ChatViewModel
      *      ↓
      * JessicaController
      *      ↓
-     * Planner
+     * JessicaAIEngine
      *      ↓
-     * TaskRunner
+     * POST /api/solve
      *      ↓
-     * Tool Registry
-     *      ↓
-     * Validator
-     *      ↓
-     * Answer Composer
+     * Jessica Core
      *
      * =====================================================
      */
@@ -270,13 +298,13 @@ class JessicaController(
     ): String {
 
 
-        val text =
+        val task =
 
             request.trim()
 
 
 
-        if (text.isBlank()) {
+        if (task.isBlank()) {
 
 
             return "Запрос пуст."
@@ -288,36 +316,37 @@ class JessicaController(
 
         message.value =
 
-            "Jessica обрабатывает запрос"
+            "Jessica выполняет запрос"
 
-
-
-        /*
-         * =================================================
-         * ВРЕМЕННАЯ ТОЧКА ПОДКЛЮЧЕНИЯ
-         * =================================================
-         *
-         * Именно этот участок следующим шагом
-         * подключим к реальному Jessica backend.
-         *
-         * Никакой AI-логики в ChatViewModel
-         * больше размещать не потребуется.
-         */
 
 
         val result =
 
-            "Запрос получен ядром Jessica: $text"
+            aiEngine.solve(
+                task
+            )
 
 
 
         message.value =
 
-            "Jessica готова к работе"
+            if (result.success) {
+
+
+                "Jessica готова к работе"
+
+
+            } else {
+
+
+                "Ошибка выполнения запроса"
+
+
+            }
 
 
 
-        return result
+        return result.text
 
 
     }
