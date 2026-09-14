@@ -1,3 +1,8 @@
+import {
+    searchExperience
+} from "./search/experienceSearch.js";
+
+
 /*
  * =========================================================
  * JESSICA EXPERIENCE CORE
@@ -5,13 +10,23 @@
  *
  * Центральный координатор накопленного опыта Jessica.
  *
- * В дальнейшем цепочка будет:
+ *
+ * Рабочая цепочка:
  *
  * task
+ *   ↓
+ * Experience Core
  *   ↓
  * Experience Search
  *   ↓
  * подходящий Skill
+ *   ↓
+ * Experience Result
+ *
+ *
+ * В дальнейшем:
+ *
+ * Experience Result
  *   ↓
  * Experience Context
  *   ↓
@@ -20,16 +35,20 @@
  * Planner
  *
  *
- * Этот файл НЕ должен содержать:
+ * Этот файл НЕ содержит:
  *
- * - хранение данных;
+ * - алгоритм поиска;
+ * - хранение Experience;
  * - AI-анализ обучения;
- * - поиск внутри базы;
- * - работу Planner;
- * - бизнес-логику Earnings.
+ * - Planner;
+ * - Earnings;
+ * - выполнение инструментов.
  *
- * Он только объединяет Experience-модули
- * в единую рабочую цепочку.
+ *
+ * Его задача:
+ *
+ * объединять Experience-модули
+ * в одну рабочую цепочку.
  *
  * =========================================================
  */
@@ -37,7 +56,7 @@
 
 /*
  * =========================================================
- * EMPTY EXPERIENCE RESULT
+ * EMPTY RESULT
  * =========================================================
  */
 
@@ -56,7 +75,7 @@ function createEmptyExperienceResult() {
             0,
 
         source:
-            "none"
+            "experience-core"
 
     };
 
@@ -68,20 +87,44 @@ function createEmptyExperienceResult() {
  * RESOLVE EXPERIENCE
  * =========================================================
  *
- * Главная точка входа Experience.
+ * Главная точка входа первого слоя
+ * собственного опыта Jessica.
  *
- * Сейчас это безопасная базовая реализация.
  *
- * Следующим шагом сюда будет подключён
- * experienceSearch.js.
+ * task
+ *     исходная задача / подзадача
+ *
+ * experiences
+ *     уже загруженный список Skills
+ *
+ *
+ * Experience Core сам не знает,
+ * откуда пришли Skills.
+ *
+ * Это важно:
+ *
+ * сегодня их может передать JSON,
+ * завтра PostgreSQL / Supabase,
+ * затем другой Experience Storage.
  *
  * =========================================================
  */
 
 
 export async function resolveExperience(
-    task
+
+    task,
+
+    experiences = []
+
 ) {
+
+
+    /*
+     * =====================================================
+     * INPUT
+     * =====================================================
+     */
 
 
     const cleanTask =
@@ -97,15 +140,127 @@ export async function resolveExperience(
     }
 
 
+    if (
+        !Array.isArray(
+            experiences
+        ) ||
+        experiences.length === 0
+    ) {
+
+        return createEmptyExperienceResult();
+
+    }
+
+
     /*
-     * Пока Experience Search
-     * ещё не подключён.
-     *
-     * Jessica продолжает работать
-     * через обычный Planner.
+     * =====================================================
+     * EXPERIENCE SEARCH
+     * =====================================================
      */
 
 
-    return createEmptyExperienceResult();
+    try {
+
+
+        const searchResult =
+            searchExperience(
+
+                cleanTask,
+
+                experiences
+
+            );
+
+
+        /*
+         * Поиск ничего подходящего
+         * не обнаружил.
+         */
+
+
+        if (
+            !searchResult?.found ||
+            !searchResult?.experience
+        ) {
+
+            return {
+
+                found:
+                    false,
+
+                experience:
+                    null,
+
+                confidence:
+                    Number(
+                        searchResult?.confidence || 0
+                    ),
+
+                source:
+                    searchResult?.source ||
+                    "experience-search"
+
+            };
+
+        }
+
+
+        /*
+         * =================================================
+         * EXPERIENCE FOUND
+         * =================================================
+         */
+
+
+        return {
+
+            found:
+                true,
+
+            experience:
+                searchResult.experience,
+
+            confidence:
+                Number(
+                    searchResult.confidence || 0
+                ),
+
+            source:
+                searchResult.source ||
+                "experience-search"
+
+        };
+
+
+    } catch (error) {
+
+
+        /*
+         * =================================================
+         * SEARCH ERROR
+         * =================================================
+         *
+         * Ошибка Experience не должна
+         * ломать выполнение Jessica.
+         *
+         * Если первый слой опыта недоступен,
+         * Jessica позже сможет перейти
+         * к обычному Planner.
+         *
+         * =================================================
+         */
+
+
+        console.error(
+            "Jessica Experience error:",
+            error
+        );
+
+
+        return createEmptyExperienceResult();
+
+
+    }
+
 
 }
