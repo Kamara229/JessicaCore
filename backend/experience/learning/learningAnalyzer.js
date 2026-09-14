@@ -10,6 +10,10 @@ import {
     validateLearningAnalysis
 } from "./learningAnalyzerValidator.js";
 
+import {
+    validateLearningGrounding
+} from "./learningGroundingValidator.js";
+
 
 /*
  * =========================================================
@@ -28,9 +32,17 @@ import {
  *    ↓
  * Parser
  *    ↓
- * Validator
+ * Structure Validator
+ *    ↓
+ * Grounding Validator
  *    ↓
  * Valid Learning Analysis
+ *
+ *
+ * Grounding Validator программно проверяет,
+ * что операционные правила будущего Skill
+ * действительно имеют основание
+ * в correction пользователя.
  *
  *
  * Этот модуль НЕ:
@@ -48,7 +60,7 @@ import {
 
 /*
  * =========================================================
- * EMPTY FAILURE
+ * FAILURE RESULT
  * =========================================================
  */
 
@@ -61,7 +73,9 @@ function createFailureResult({
 
     rawText = "",
 
-    validationErrors = []
+    validationErrors = [],
+
+    groundingErrors = []
 
 } = {}) {
 
@@ -87,6 +101,13 @@ function createFailureResult({
                 validationErrors
             )
                 ? validationErrors
+                : [],
+
+        groundingErrors:
+            Array.isArray(
+                groundingErrors
+            )
+                ? groundingErrors
                 : [],
 
         error:
@@ -213,7 +234,19 @@ export async function analyzeUserCorrection({
 
     /*
      * =====================================================
-     * 3. VALIDATE
+     * 3. STRUCTURE VALIDATION
+     * =====================================================
+     *
+     * Проверяем:
+     *
+     * - analysis;
+     * - understanding;
+     * - reusable;
+     * - clarificationQuestions;
+     * - unsupportedSuggestions;
+     * - proposedExperience;
+     * - обязательные поля Skill.
+     *
      * =====================================================
      */
 
@@ -255,7 +288,89 @@ export async function analyzeUserCorrection({
 
     /*
      * =====================================================
-     * 4. SUCCESS
+     * 4. GROUNDING VALIDATION
+     * =====================================================
+     *
+     * Теперь проверяем не просто формат,
+     * а происхождение правил.
+     *
+     *
+     * Для каждого элемента:
+     *
+     * - strategy;
+     * - sourcePriority;
+     * - validationRules;
+     * - failurePatterns;
+     *
+     * должно существовать groundingEvidence.
+     *
+     *
+     * Сам evidence должен реально
+     * содержаться в исходном correction
+     * пользователя.
+     *
+     *
+     * Если AI придумал правило
+     * или выдумал цитату,
+     * Learning блокируется здесь.
+     *
+     * =====================================================
+     */
+
+
+    const groundingResult =
+        validateLearningGrounding({
+
+            correction,
+
+            analysis:
+                parseResult.data
+
+        });
+
+
+    if (
+        !groundingResult?.valid
+    ) {
+
+
+        console.error(
+            "Learning Analyzer grounding error:",
+            groundingResult?.errors
+        );
+
+
+        return createFailureResult({
+
+            stage:
+                "grounding",
+
+            error:
+                "Learning Analyzer предложил правила, которые не подтверждены исправлением пользователя",
+
+            rawText,
+
+            groundingErrors:
+                groundingResult?.errors || []
+
+        });
+
+    }
+
+
+    /*
+     * =====================================================
+     * 5. SUCCESS
+     * =====================================================
+     *
+     * До этой точки Learning Analysis
+     * доходит только если:
+     *
+     * 1. AI вернул ответ;
+     * 2. JSON успешно разобран;
+     * 3. структура корректна;
+     * 4. grounding подтверждён кодом.
+     *
      * =====================================================
      */
 
@@ -271,10 +386,33 @@ export async function analyzeUserCorrection({
         analysis:
             parseResult.data,
 
+        grounding: {
+
+            valid:
+                true,
+
+            checkedFields:
+                Array.isArray(
+                    groundingResult?.checkedFields
+                )
+                    ? groundingResult.checkedFields
+                    : [],
+
+            checkedEvidenceCount:
+                Number(
+                    groundingResult
+                        ?.checkedEvidenceCount || 0
+                )
+
+        },
+
         rawText:
             rawText || "",
 
         validationErrors:
+            [],
+
+        groundingErrors:
             [],
 
         error:
