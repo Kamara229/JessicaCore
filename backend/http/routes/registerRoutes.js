@@ -19,6 +19,10 @@ import {
 } from "./solveRoute.js";
 
 import {
+    registerLearningTestRoute
+} from "./learningTestRoute.js";
+
+import {
     registerNotFoundRoute
 } from "./notFoundRoute.js";
 
@@ -51,6 +55,13 @@ export function registerRoutes(
 ) {
 
 
+    /*
+     * =====================================================
+     * PUBLIC / SYSTEM
+     * =====================================================
+     */
+
+
     registerRootRoute(
         app
     );
@@ -59,6 +70,13 @@ export function registerRoutes(
     registerHealthRoute(
         app
     );
+
+
+    /*
+     * =====================================================
+     * TOOLS
+     * =====================================================
+     */
 
 
     registerSearchRoute(
@@ -71,13 +89,49 @@ export function registerRoutes(
     );
 
 
+    /*
+     * =====================================================
+     * JESSICA CORE
+     * =====================================================
+     */
+
+
     registerSolveRoute(
         app
     );
 
 
     /*
+     * =====================================================
+     * LEARNING TEST
+     * =====================================================
+     *
+     * Временный защищённый маршрут:
+     *
+     * POST /api/learning/test
+     *
+     * Пока умеет только создавать
+     * Learning Proposal.
+     *
+     * Experience не сохраняет.
+     *
+     * =====================================================
+     */
+
+
+    registerLearningTestRoute(
+        app
+    );
+
+
+    /*
+     * =====================================================
+     * 404
+     * =====================================================
+     *
      * Всегда последний.
+     *
+     * =====================================================
      */
 
 
