@@ -3,13 +3,17 @@ import {
     approveLearning
 } from "../experience/learning/learningCore.js";
 
+import {
+    getExperienceHistory
+} from "../experience/storage/experienceStorage.js";
+
 
 /*
  * =========================================================
  * JESSICA STARTUP LEARNING APPROVAL TEST
  * =========================================================
  *
- * Проверяет полный цикл:
+ * Одноразовый тест полного цикла обучения:
  *
  * correction
  *      ↓
@@ -21,26 +25,68 @@ import {
  *      ↓
  * approveLearning()
  *      ↓
- * Experience Skill
+ * Experience Skill v1
  *      ↓
  * Supabase
  *
  *
  * ВАЖНО:
  *
- * Скрипт запускается ТОЛЬКО если:
+ * Этот тест предназначен ТОЛЬКО
+ * для первого сохранения тестового Skill.
+ *
+ *
+ * Перед обучением обязательно проверяется:
+ *
+ * TEST_SKILL_ID
+ *      ↓
+ * Experience History
+ *      ↓
+ * история пустая?
+ *
+ * ДА:
+ *      разрешаем тест
+ *
+ * НЕТ:
+ *      STOP
+ *
+ *
+ * Поэтому повторный startup
+ * не должен создавать:
+ *
+ * v2
+ * v3
+ * v4
+ * ...
+ *
+ *
+ * Скрипт запускается только если:
  *
  * RUN_LEARNING_APPROVAL_TEST_ON_START=true
  *
+ * =========================================================
+ */
+
+
+/*
+ * =========================================================
+ * TEST SKILL
+ * =========================================================
  *
- * Обычный:
+ * Используем фиксированный ID.
  *
- * RUN_LEARNING_TEST_ON_START
+ * Это принципиально важно:
  *
- * к этому тесту отношения не имеет.
+ * мы не позволяем AI каждый раз
+ * генерировать новый ID и обходить
+ * защиту от повторного теста.
  *
  * =========================================================
  */
+
+
+const TEST_SKILL_ID =
+    "official-website-verification";
 
 
 /*
@@ -99,12 +145,65 @@ function isTestEnabled() {
 
 /*
  * =========================================================
+ * CHECK EXISTING HISTORY
+ * =========================================================
+ *
+ * Возвращает:
+ *
+ * {
+ *   exists,
+ *   history
+ * }
+ *
+ * =========================================================
+ */
+
+
+async function checkExistingSkill() {
+
+
+    const history =
+        await getExperienceHistory(
+            TEST_SKILL_ID
+        );
+
+
+    const safeHistory =
+        Array.isArray(
+            history
+        )
+            ? history
+            : [];
+
+
+    return {
+
+        exists:
+            safeHistory.length > 0,
+
+        history:
+            safeHistory
+
+    };
+
+}
+
+
+/*
+ * =========================================================
  * RUN
  * =========================================================
  */
 
 
 export async function runStartupLearningApprovalTest() {
+
+
+    /*
+     * =====================================================
+     * FLAG CHECK
+     * =====================================================
+     */
 
 
     if (
@@ -129,12 +228,73 @@ export async function runStartupLearningApprovalTest() {
     );
 
 
+    console.log(
+        "Jessica Learning Approval Test skill:",
+        TEST_SKILL_ID
+    );
+
+
     try {
 
 
         /*
          * =================================================
-         * 1. CREATE LEARNING
+         * 1. REPEAT PROTECTION
+         * =================================================
+         *
+         * Сначала проверяем History.
+         *
+         * Если хотя бы одна версия
+         * этого тестового Skill уже существует,
+         * повторное обучение запрещаем.
+         *
+         * =================================================
+         */
+
+
+        const existingSkill =
+            await checkExistingSkill();
+
+
+        if (
+            existingSkill.exists
+        ) {
+
+
+            console.log(
+                "Jessica Learning Approval Test: SKIPPED"
+            );
+
+
+            console.log(
+                `Skill "${TEST_SKILL_ID}" уже существует`
+            );
+
+
+            console.log(
+                "Existing versions:",
+                existingSkill.history.length
+            );
+
+
+            console.log(
+                "Повторное сохранение тестового Skill запрещено"
+            );
+
+
+            return;
+
+        }
+
+
+        console.log(
+            "Jessica Learning Approval Test: existing Skill not found"
+        );
+
+
+        /*
+         * =================================================
+         * 2. CREATE LEARNING
          * =================================================
          */
 
@@ -145,6 +305,13 @@ export async function runStartupLearningApprovalTest() {
             );
 
 
+        /*
+         * =================================================
+         * 3. PROPOSAL LOG
+         * =================================================
+         */
+
+
         console.log(
             "Jessica Learning Approval proposal:"
         );
@@ -153,6 +320,7 @@ export async function runStartupLearningApprovalTest() {
         console.log(
             JSON.stringify(
                 {
+
                     success:
                         learningResult?.success,
 
@@ -178,7 +346,14 @@ export async function runStartupLearningApprovalTest() {
                     understanding:
                         learningResult
                             ?.proposal
-                            ?.understanding || ""
+                            ?.understanding || "",
+
+                    proposedExperience:
+                        learningResult
+                            ?.proposal
+                            ?.proposedExperience ||
+                        null
+
                 },
                 null,
                 2
@@ -188,7 +363,19 @@ export async function runStartupLearningApprovalTest() {
 
         /*
          * =================================================
-         * 2. SAFETY CHECK
+         * 4. SAFETY CHECK
+         * =================================================
+         *
+         * До реального сохранения допускается
+         * только Learning Result, прошедший:
+         *
+         * - Parser;
+         * - Structure Validator;
+         * - Grounding Validator;
+         * - Generalization Validator;
+         * - reusable check;
+         * - clarification check.
+         *
          * =================================================
          */
 
@@ -204,6 +391,37 @@ export async function runStartupLearningApprovalTest() {
             );
 
 
+            console.log(
+                JSON.stringify(
+                    {
+
+                        success:
+                            learningResult?.success,
+
+                        stage:
+                            learningResult?.stage,
+
+                        reusable:
+                            learningResult?.reusable,
+
+                        needsClarification:
+                            learningResult
+                                ?.needsClarification,
+
+                        readyForApproval:
+                            learningResult
+                                ?.readyForApproval,
+
+                        error:
+                            learningResult?.error || ""
+
+                    },
+                    null,
+                    2
+                )
+            );
+
+
             return;
 
         }
@@ -211,11 +429,61 @@ export async function runStartupLearningApprovalTest() {
 
         /*
          * =================================================
-         * 3. APPROVE
+         * 5. SECOND REPEAT CHECK
          * =================================================
          *
-         * В этот блок выполнение попадёт
-         * только при отдельном approval-флаге.
+         * Между первым чтением History
+         * и окончанием AI-анализа
+         * прошло некоторое время.
+         *
+         * Поэтому непосредственно перед
+         * записью проверяем History ещё раз.
+         *
+         * Это дополнительная защита
+         * от параллельного запуска.
+         *
+         * =================================================
+         */
+
+
+        const beforeApproval =
+            await checkExistingSkill();
+
+
+        if (
+            beforeApproval.exists
+        ) {
+
+
+            console.log(
+                "Jessica Learning Approval Test: STOP before save"
+            );
+
+
+            console.log(
+                `Skill "${TEST_SKILL_ID}" появился во время выполнения теста`
+            );
+
+
+            console.log(
+                "Сохранение отменено"
+            );
+
+
+            return;
+
+        }
+
+
+        /*
+         * =================================================
+         * 6. APPROVE
+         * =================================================
+         *
+         * Передаём ФИКСИРОВАННЫЙ skillId.
+         *
+         * Это не позволяет Analyzer
+         * создать новый ID при каждом запуске.
          *
          * =================================================
          */
@@ -226,6 +494,9 @@ export async function runStartupLearningApprovalTest() {
 
                 learningResult,
 
+                skillId:
+                    TEST_SKILL_ID,
+
                 confidence:
                     0.7
 
@@ -234,7 +505,7 @@ export async function runStartupLearningApprovalTest() {
 
         /*
          * =================================================
-         * 4. RESULT
+         * 7. RESULT
          * =================================================
          */
 
@@ -251,6 +522,62 @@ export async function runStartupLearningApprovalTest() {
                 2
             )
         );
+
+
+        /*
+         * =================================================
+         * 8. FINAL CHECK
+         * =================================================
+         *
+         * После успешной записи проверяем,
+         * появилась ли версия в History.
+         *
+         * =================================================
+         */
+
+
+        if (
+            approvalResult?.success === true
+        ) {
+
+
+            const finalHistory =
+                await getExperienceHistory(
+                    TEST_SKILL_ID
+                );
+
+
+            console.log(
+                "Jessica Learning Approval final history:"
+            );
+
+
+            console.log(
+                JSON.stringify(
+                    {
+
+                        skillId:
+                            TEST_SKILL_ID,
+
+                        versions:
+                            Array.isArray(
+                                finalHistory
+                            )
+                                ? finalHistory.length
+                                : 0,
+
+                        savedVersion:
+                            approvalResult?.version ||
+                            null
+
+                    },
+                    null,
+                    2
+                )
+            );
+
+
+        }
 
 
     } catch (error) {
