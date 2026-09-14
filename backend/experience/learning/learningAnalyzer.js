@@ -14,6 +14,10 @@ import {
     validateLearningGrounding
 } from "./learningGroundingValidator.js";
 
+import {
+    validateLearningGeneralization
+} from "./learningGeneralizationValidator.js";
+
 
 /*
  * =========================================================
@@ -36,13 +40,9 @@ import {
  *    ↓
  * Grounding Validator
  *    ↓
+ * Generalization Validator
+ *    ↓
  * Valid Learning Analysis
- *
- *
- * Grounding Validator программно проверяет,
- * что операционные правила будущего Skill
- * действительно имеют основание
- * в correction пользователя.
  *
  *
  * Этот модуль НЕ:
@@ -75,7 +75,9 @@ function createFailureResult({
 
     validationErrors = [],
 
-    groundingErrors = []
+    groundingErrors = [],
+
+    generalizationErrors = []
 
 } = {}) {
 
@@ -108,6 +110,13 @@ function createFailureResult({
                 groundingErrors
             )
                 ? groundingErrors
+                : [],
+
+        generalizationErrors:
+            Array.isArray(
+                generalizationErrors
+            )
+                ? generalizationErrors
                 : [],
 
         error:
@@ -236,18 +245,6 @@ export async function analyzeUserCorrection({
      * =====================================================
      * 3. STRUCTURE VALIDATION
      * =====================================================
-     *
-     * Проверяем:
-     *
-     * - analysis;
-     * - understanding;
-     * - reusable;
-     * - clarificationQuestions;
-     * - unsupportedSuggestions;
-     * - proposedExperience;
-     * - обязательные поля Skill.
-     *
-     * =====================================================
      */
 
 
@@ -291,28 +288,12 @@ export async function analyzeUserCorrection({
      * 4. GROUNDING VALIDATION
      * =====================================================
      *
-     * Теперь проверяем не просто формат,
-     * а происхождение правил.
+     * Проверяем:
      *
-     *
-     * Для каждого элемента:
-     *
-     * - strategy;
-     * - sourcePriority;
-     * - validationRules;
-     * - failurePatterns;
-     *
-     * должно существовать groundingEvidence.
-     *
-     *
-     * Сам evidence должен реально
-     * содержаться в исходном correction
-     * пользователя.
-     *
-     *
-     * Если AI придумал правило
-     * или выдумал цитату,
-     * Learning блокируется здесь.
+     * - есть ли evidence для каждого правила;
+     * - совпадает ли evidence
+     *   с реальным correction пользователя;
+     * - нет ли лишних или дублирующих evidence.
      *
      * =====================================================
      */
@@ -360,16 +341,95 @@ export async function analyzeUserCorrection({
 
     /*
      * =====================================================
-     * 5. SUCCESS
+     * 5. GENERALIZATION VALIDATION
      * =====================================================
      *
-     * До этой точки Learning Analysis
-     * доходит только если:
+     * Grounding ещё не гарантирует,
+     * что Skill является общим.
+     *
+     * Например:
+     *
+     * correction действительно содержит:
+     *
+     * "Для Blender правильный домен — blender.org"
+     *
+     * Поэтому blender.org является
+     * подтверждённым фактом.
+     *
+     * Но он не должен попадать
+     * в reusable Skill.
+     *
+     *
+     * Здесь проверяем утечку
+     * конкретных значений примера:
+     *
+     * - URL;
+     * - домены;
+     * - email;
+     * - UUID;
+     * - длинные идентификаторы.
+     *
+     * =====================================================
+     */
+
+
+    const generalizationResult =
+        validateLearningGeneralization({
+
+            task,
+
+            correction,
+
+            correctedAnswer,
+
+            analysis:
+                parseResult.data
+
+        });
+
+
+    if (
+        !generalizationResult?.valid
+    ) {
+
+
+        console.error(
+            "Learning Analyzer generalization error:",
+            generalizationResult?.errors
+        );
+
+
+        return createFailureResult({
+
+            stage:
+                "generalization",
+
+            error:
+                "Learning Analyzer перенёс конкретные данные единичного примера в переиспользуемый Skill",
+
+            rawText,
+
+            generalizationErrors:
+                generalizationResult?.errors || []
+
+        });
+
+    }
+
+
+    /*
+     * =====================================================
+     * 6. SUCCESS
+     * =====================================================
+     *
+     * До SUCCESS результат доходит только если:
      *
      * 1. AI вернул ответ;
-     * 2. JSON успешно разобран;
-     * 3. структура корректна;
-     * 4. grounding подтверждён кодом.
+     * 2. JSON разобран;
+     * 3. структура валидна;
+     * 4. правила подтверждены correction;
+     * 5. конкретные данные примера
+     *    не попали в reusable Skill.
      *
      * =====================================================
      */
@@ -406,6 +466,30 @@ export async function analyzeUserCorrection({
 
         },
 
+        generalization: {
+
+            valid:
+                true,
+
+            checked:
+                generalizationResult?.checked === true,
+
+            checkedFields:
+                Array.isArray(
+                    generalizationResult?.checkedFields
+                )
+                    ? generalizationResult.checkedFields
+                    : [],
+
+            exampleMarkers:
+                Array.isArray(
+                    generalizationResult?.exampleMarkers
+                )
+                    ? generalizationResult.exampleMarkers
+                    : []
+
+        },
+
         rawText:
             rawText || "",
 
@@ -413,6 +497,9 @@ export async function analyzeUserCorrection({
             [],
 
         groundingErrors:
+            [],
+
+        generalizationErrors:
             [],
 
         error:
