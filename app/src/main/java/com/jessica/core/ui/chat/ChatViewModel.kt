@@ -318,6 +318,17 @@ class ChatViewModel(
      * =====================================================
      * RETRY
      * =====================================================
+     *
+     * Повторно выполняет выбранный
+     * запрос пользователя.
+     *
+     * Теперь искать предыдущее сообщение
+     * больше не требуется:
+     *
+     * пользователь нажимает непосредственно
+     * на свой запрос → Повторить запрос.
+     *
+     * =====================================================
      */
 
 
@@ -326,6 +337,26 @@ class ChatViewModel(
         message: ChatMessage
 
     ) {
+
+
+        /*
+         * Повтор разрешён только
+         * для сообщения пользователя.
+         */
+
+
+        if (!message.isUser) {
+
+            return
+
+        }
+
+
+
+        /*
+         * Пока Jessica выполняет другой запрос,
+         * второй запуск не допускаем.
+         */
 
 
         if (_state.value.isRunning) {
@@ -338,13 +369,12 @@ class ChatViewModel(
 
         val text =
 
-            findPreviousUserMessage(
-                message
-            )
+            message.text
+                .trim()
 
 
 
-        if (text == null) {
+        if (text.isBlank()) {
 
             return
 
@@ -352,93 +382,32 @@ class ChatViewModel(
 
 
 
+        /*
+         * Показываем ThinkingIndicator.
+         */
+
+
         _state.value =
 
             _state.value.copy(
 
-                isRunning = true
+                isRunning =
+                    true
 
             )
 
+
+
+        /*
+         * Повторно отправляем именно тот запрос,
+         * на котором пользователь выбрал
+         * "Повторить запрос".
+         */
 
 
         executeMessage(
             text
         )
-
-
-    }
-
-
-
-    /*
-     * =====================================================
-     * FIND SOURCE MESSAGE
-     * =====================================================
-     */
-
-
-    private fun findPreviousUserMessage(
-
-        message: ChatMessage
-
-    ): String? {
-
-
-        val messages =
-
-            _state.value.messages
-
-
-
-        val messageIndex =
-
-            messages.indexOf(
-                message
-            )
-
-
-
-        if (messageIndex <= 0) {
-
-            return null
-
-        }
-
-
-
-        for (
-
-            index in
-                messageIndex - 1 downTo 0
-
-        ) {
-
-
-            val previousMessage =
-
-                messages[index]
-
-
-
-            if (previousMessage.isUser) {
-
-
-                return previousMessage
-                    .text
-                    .takeIf {
-                        it.isNotBlank()
-                    }
-
-
-            }
-
-
-        }
-
-
-
-        return null
 
 
     }
