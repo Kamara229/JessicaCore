@@ -10,12 +10,14 @@ import androidx.compose.foundation.layout.padding
 
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -32,14 +34,22 @@ import com.jessica.core.modules.chat.ChatMessage
  * JESSICA CHAT SCREEN
  * =========================================================
  *
- * UI слой чата.
+ * Центральный UI-слой чата.
+ *
+ * Соединяет:
+ *
+ * - MessageBubble
+ * - MessageActions
+ * - ThinkingIndicator
+ * - ChatInput
  *
  * Отвечает:
  *
- * - отображение сообщений
+ * - за отображение сообщений
  * - копирование текста
  * - повтор запроса
  * - ввод сообщения
+ * - автоматическую прокрутку чата
  *
  * Не содержит:
  *
@@ -47,6 +57,7 @@ import com.jessica.core.modules.chat.ChatMessage
  * - сеть
  * - память
  * - Planner
+ * - backend-логику
  *
  * =========================================================
  */
@@ -68,9 +79,101 @@ fun ChatScreen(
 ) {
 
 
+    /*
+     * =====================================================
+     * CLIPBOARD
+     * =====================================================
+     */
+
+
     val clipboardManager =
         LocalClipboardManager.current
 
+
+
+    /*
+     * =====================================================
+     * MESSAGE LIST STATE
+     * =====================================================
+     *
+     * Хранит текущее положение LazyColumn.
+     *
+     * Используется для автоматической прокрутки
+     * к последнему сообщению.
+     *
+     * =====================================================
+     */
+
+
+    val listState =
+        rememberLazyListState()
+
+
+
+    /*
+     * =====================================================
+     * AUTO SCROLL
+     * =====================================================
+     *
+     * Срабатывает когда:
+     *
+     * - пользователь отправил сообщение;
+     * - Jessica начала выполнение;
+     * - Jessica закончила выполнение;
+     * - появился новый ответ.
+     *
+     * =====================================================
+     */
+
+
+    LaunchedEffect(
+
+        state.messages.size,
+
+        state.isRunning
+
+    ) {
+
+
+        val totalItems =
+
+            state.messages.size +
+
+                if (state.isRunning) {
+
+                    1
+
+                } else {
+
+                    0
+
+                }
+
+
+
+        if (totalItems > 0) {
+
+
+            listState.animateScrollToItem(
+
+                index =
+                    totalItems - 1
+
+            )
+
+
+        }
+
+
+    }
+
+
+
+    /*
+     * =====================================================
+     * SCREEN
+     * =====================================================
+     */
 
 
     Column(
@@ -106,13 +209,17 @@ fun ChatScreen(
 
             Button(
 
-                onClick = onBack
+                onClick =
+                    onBack
 
             ) {
 
 
                 Text(
-                    text = "Назад"
+
+                    text =
+                        "Назад"
+
                 )
 
 
@@ -151,8 +258,6 @@ fun ChatScreen(
 
 
 
-
-
         /*
          * ================================
          * MESSAGE LIST
@@ -161,6 +266,9 @@ fun ChatScreen(
 
 
         LazyColumn(
+
+            state =
+                listState,
 
             modifier =
                 Modifier
@@ -172,6 +280,11 @@ fun ChatScreen(
 
         ) {
 
+
+
+            /*
+             * Сообщения диалога.
+             */
 
 
             items(
@@ -187,6 +300,7 @@ fun ChatScreen(
 
                     message =
                         message,
+
 
 
                     onCopy = { text ->
@@ -205,21 +319,27 @@ fun ChatScreen(
                     },
 
 
-                    onRetry = {
+
+                    onRetry = { retryMessage ->
+
 
                         onRetry(
-                            it
+                            retryMessage
                         )
+
 
                     }
 
                 )
 
 
-
             }
 
 
+
+            /*
+             * Jessica выполняет запрос.
+             */
 
 
             if (state.isRunning) {
@@ -237,10 +357,7 @@ fun ChatScreen(
             }
 
 
-
         }
-
-
 
 
 
