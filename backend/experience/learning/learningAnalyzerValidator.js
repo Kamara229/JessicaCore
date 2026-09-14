@@ -7,17 +7,61 @@
  * Learning Analyzer.
  *
  *
+ * Проверяются:
+ *
+ * - analysis;
+ * - understanding;
+ * - reusable;
+ * - clarificationQuestions;
+ * - unsupportedSuggestions;
+ * - proposedExperience;
+ * - groundingEvidence.
+ *
+ *
+ * ВАЖНО:
+ *
+ * Этот Validator проверяет только
+ * структуру и типы данных.
+ *
+ * Реальное наличие evidence
+ * в correction пользователя
+ * проверяет отдельно:
+ *
+ * learningGroundingValidator.js
+ *
+ *
  * Этот модуль НЕ:
  *
  * - вызывает AI;
  * - парсит JSON;
+ * - проверяет цитаты по correction;
  * - создаёт Learning Proposal;
  * - сохраняет Experience;
- * - подтверждает обучение;
  * - работает с Supabase.
  *
  * =========================================================
  */
+
+
+/*
+ * =========================================================
+ * CONSTANTS
+ * =========================================================
+ */
+
+
+const GROUNDED_FIELDS =
+    [
+
+        "strategy",
+
+        "sourcePriority",
+
+        "validationRules",
+
+        "failurePatterns"
+
+    ];
 
 
 /*
@@ -238,16 +282,6 @@ export function validateLearningAnalysis(
      * =====================================================
      * UNSUPPORTED SUGGESTIONS
      * =====================================================
-     *
-     * Здесь Analyzer может указать идеи,
-     * которые считает полезными,
-     * но которые НЕ были подтверждены
-     * исправлением пользователя.
-     *
-     * Они никогда не должны автоматически
-     * становиться частью Skill.
-     *
-     * =====================================================
      */
 
 
@@ -380,13 +414,6 @@ export function validateLearningAnalysis(
          * =================================================
          * REUSABLE STRATEGY
          * =================================================
-         *
-         * Если исправление признано
-         * переиспользуемым,
-         * Skill обязан содержать
-         * хотя бы один шаг стратегии.
-         *
-         * =================================================
          */
 
 
@@ -402,6 +429,222 @@ export function validateLearningAnalysis(
 
             errors.push(
                 "Для reusable Skill strategy не должна быть пустой"
+            );
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
+     * GROUNDING EVIDENCE
+     * =====================================================
+     *
+     * Каждая запись:
+     *
+     * {
+     *   field,
+     *   value,
+     *   evidence
+     * }
+     *
+     * Здесь проверяем только структуру.
+     *
+     * =====================================================
+     */
+
+
+    if (
+        !Array.isArray(
+            analysis.groundingEvidence
+        )
+    ) {
+
+        errors.push(
+            "groundingEvidence должен быть массивом"
+        );
+
+    } else {
+
+
+        for (
+            let index = 0;
+            index < analysis.groundingEvidence.length;
+            index += 1
+        ) {
+
+
+            const item =
+                analysis.groundingEvidence[
+                    index
+                ];
+
+
+            /*
+             * =============================================
+             * ITEM OBJECT
+             * =============================================
+             */
+
+
+            if (
+                !isObject(
+                    item
+                )
+            ) {
+
+                errors.push(
+                    `groundingEvidence[${index}] должен быть объектом`
+                );
+
+
+                continue;
+
+            }
+
+
+            /*
+             * =============================================
+             * FIELD
+             * =============================================
+             */
+
+
+            if (
+                !isNonEmptyString(
+                    item.field
+                )
+            ) {
+
+                errors.push(
+                    `groundingEvidence[${index}].field не указан`
+                );
+
+            } else if (
+                !GROUNDED_FIELDS.includes(
+                    item.field.trim()
+                )
+            ) {
+
+                errors.push(
+                    `groundingEvidence[${index}].field содержит недопустимое значение`
+                );
+
+            }
+
+
+            /*
+             * =============================================
+             * VALUE
+             * =============================================
+             */
+
+
+            if (
+                !isNonEmptyString(
+                    item.value
+                )
+            ) {
+
+                errors.push(
+                    `groundingEvidence[${index}].value не указан`
+                );
+
+            }
+
+
+            /*
+             * =============================================
+             * EVIDENCE
+             * =============================================
+             */
+
+
+            if (
+                !isNonEmptyString(
+                    item.evidence
+                )
+            ) {
+
+                errors.push(
+                    `groundingEvidence[${index}].evidence не указан`
+                );
+
+            }
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
+     * GROUNDING REQUIRED FOR RULES
+     * =====================================================
+     *
+     * На структурном уровне проверяем,
+     * что количество evidence хотя бы
+     * потенциально может покрыть
+     * все операционные правила.
+     *
+     *
+     * Точное соответствие:
+     *
+     * field + value + evidence
+     *
+     * проверит Grounding Validator.
+     *
+     * =====================================================
+     */
+
+
+    if (
+        isObject(
+            analysis.proposedExperience
+        ) &&
+        Array.isArray(
+            analysis.groundingEvidence
+        )
+    ) {
+
+
+        const proposed =
+            analysis.proposedExperience;
+
+
+        const proposedRulesCount =
+            GROUNDED_FIELDS.reduce(
+                (
+                    total,
+                    field
+                ) => {
+
+
+                    return (
+                        total +
+                        (
+                            Array.isArray(
+                                proposed[field]
+                            )
+                                ? proposed[field].length
+                                : 0
+                        )
+                    );
+
+
+                },
+                0
+            );
+
+
+        if (
+            analysis.groundingEvidence.length <
+            proposedRulesCount
+        ) {
+
+            errors.push(
+                "groundingEvidence не покрывает все операционные правила proposedExperience"
             );
 
         }
