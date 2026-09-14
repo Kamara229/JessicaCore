@@ -2,6 +2,10 @@ import {
     searchExperience
 } from "./search/experienceSearch.js";
 
+import {
+    buildExperienceContext
+} from "./context/experienceContext.js";
+
 
 /*
  * =========================================================
@@ -15,31 +19,20 @@ import {
  *
  * task
  *   ↓
- * Experience Core
- *   ↓
  * Experience Search
  *   ↓
  * подходящий Skill
  *   ↓
- * Experience Result
- *
- *
- * В дальнейшем:
- *
- * Experience Result
- *   ↓
  * Experience Context
  *   ↓
- * PlanningContext
- *   ↓
- * Planner
+ * готовый контекст для PlanningContext
  *
  *
  * Этот файл НЕ содержит:
  *
  * - алгоритм поиска;
- * - хранение Experience;
- * - AI-анализ обучения;
+ * - хранение Skills;
+ * - обучение;
  * - Planner;
  * - Earnings;
  * - выполнение инструментов.
@@ -48,7 +41,7 @@ import {
  * Его задача:
  *
  * объединять Experience-модули
- * в одну рабочую цепочку.
+ * в единую рабочую цепочку.
  *
  * =========================================================
  */
@@ -75,7 +68,18 @@ function createEmptyExperienceResult() {
             0,
 
         source:
-            "experience-core"
+            "experience-core",
+
+        planningContext:
+            {
+
+                experience:
+                    null,
+
+                metadata:
+                    {}
+
+            }
 
     };
 
@@ -85,28 +89,6 @@ function createEmptyExperienceResult() {
 /*
  * =========================================================
  * RESOLVE EXPERIENCE
- * =========================================================
- *
- * Главная точка входа первого слоя
- * собственного опыта Jessica.
- *
- *
- * task
- *     исходная задача / подзадача
- *
- * experiences
- *     уже загруженный список Skills
- *
- *
- * Experience Core сам не знает,
- * откуда пришли Skills.
- *
- * Это важно:
- *
- * сегодня их может передать JSON,
- * завтра PostgreSQL / Supabase,
- * затем другой Experience Storage.
- *
  * =========================================================
  */
 
@@ -173,8 +155,9 @@ export async function resolveExperience(
 
 
         /*
-         * Поиск ничего подходящего
-         * не обнаружил.
+         * =================================================
+         * EXPERIENCE NOT FOUND
+         * =================================================
          */
 
 
@@ -198,11 +181,35 @@ export async function resolveExperience(
 
                 source:
                     searchResult?.source ||
-                    "experience-search"
+                    "experience-search",
+
+                planningContext:
+                    {
+
+                        experience:
+                            null,
+
+                        metadata:
+                            {}
+
+                    }
 
             };
 
         }
+
+
+        /*
+         * =================================================
+         * BUILD EXPERIENCE CONTEXT
+         * =================================================
+         */
+
+
+        const planningContext =
+            buildExperienceContext(
+                searchResult
+            );
 
 
         /*
@@ -227,7 +234,9 @@ export async function resolveExperience(
 
             source:
                 searchResult.source ||
-                "experience-search"
+                "experience-search",
+
+            planningContext
 
         };
 
@@ -237,15 +246,14 @@ export async function resolveExperience(
 
         /*
          * =================================================
-         * SEARCH ERROR
+         * ERROR
          * =================================================
          *
-         * Ошибка Experience не должна
-         * ломать выполнение Jessica.
+         * Experience никогда не должен
+         * ломать основную работу Jessica.
          *
          * Если первый слой опыта недоступен,
-         * Jessica позже сможет перейти
-         * к обычному Planner.
+         * Planner сможет работать без него.
          *
          * =================================================
          */
