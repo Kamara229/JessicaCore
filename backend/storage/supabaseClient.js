@@ -67,15 +67,16 @@ let supabaseClient =
 
 function getSupabaseConfig() {
 
+
     const url =
         String(
             process.env.SUPABASE_URL || ""
         ).trim();
 
 
-    const serviceRoleKey =
+    const secretKey =
         String(
-            process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+            process.env.SUPABASE_SECRET_KEY || ""
         ).trim();
 
 
@@ -83,9 +84,10 @@ function getSupabaseConfig() {
 
         url,
 
-        serviceRoleKey
+        secretKey
 
     };
+
 
 }
 
@@ -99,6 +101,7 @@ function getSupabaseConfig() {
 
 export function isSupabaseConfigured() {
 
+
     const config =
         getSupabaseConfig();
 
@@ -107,9 +110,10 @@ export function isSupabaseConfigured() {
 
         config.url &&
 
-        config.serviceRoleKey
+        config.secretKey
 
     );
+
 
 }
 
@@ -137,7 +141,9 @@ export function getSupabaseClient() {
 
 
     /*
-     * Проверяем конфигурацию.
+     * =====================================================
+     * CONFIGURATION CHECK
+     * =====================================================
      */
 
 
@@ -147,18 +153,31 @@ export function getSupabaseClient() {
 
     if (
         !config.url ||
-        !config.serviceRoleKey
+        !config.secretKey
     ) {
 
         throw new Error(
-            "Supabase не настроен: отсутствуют SUPABASE_URL или SUPABASE_SERVICE_ROLE_KEY"
+            "Supabase не настроен: отсутствуют SUPABASE_URL или SUPABASE_SECRET_KEY"
         );
 
     }
 
 
     /*
-     * Создаём единый backend-клиент.
+     * =====================================================
+     * CREATE CLIENT
+     * =====================================================
+     *
+     * Secret key используется только backend.
+     *
+     * Он НЕ должен попадать:
+     *
+     * - в Android;
+     * - в GitHub;
+     * - в ответы API;
+     * - в логи.
+     *
+     * =====================================================
      */
 
 
@@ -167,7 +186,7 @@ export function getSupabaseClient() {
 
             config.url,
 
-            config.serviceRoleKey,
+            config.secretKey,
 
             {
 
@@ -187,5 +206,6 @@ export function getSupabaseClient() {
 
 
     return supabaseClient;
+
 
 }
