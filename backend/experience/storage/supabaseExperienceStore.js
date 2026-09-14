@@ -8,24 +8,44 @@ import {
  * JESSICA SUPABASE EXPERIENCE STORE
  * =========================================================
  *
- * Низкоуровневая работа Experience
- * с Supabase.
+ * Низкоуровневая работа
+ * с текущими Skills в Supabase.
  *
  *
  * Отвечает только за:
  *
- * - чтение Skills;
- * - сохранение Skill;
- * - обновление Skill.
+ * - чтение активных Skills;
+ * - отключение текущего Skill.
  *
  *
- * Не содержит:
+ * Сохранение новых версий
+ * здесь ЗАПРЕЩЕНО.
  *
- * - поиска подходящего опыта;
+ * Новые версии сохраняются только через:
+ *
+ * supabaseExperienceWriter.js
+ *
+ * который использует атомарную PostgreSQL-функцию:
+ *
+ * save_jessica_experience_skill()
+ *
+ *
+ * Это гарантирует:
+ *
+ * History + Current
+ *
+ * обновляются одной транзакцией.
+ *
+ *
+ * Этот модуль НЕ содержит:
+ *
+ * - сохранение новой версии Skill;
+ * - историю версий;
+ * - поиск подходящего опыта;
  * - Learning;
  * - Planner;
  * - Earnings;
- * - бизнес-логики.
+ * - бизнес-логику.
  *
  *
  * Таблица:
@@ -50,6 +70,7 @@ const EXPERIENCE_TABLE =
 function normalizeSkill(
     value
 ) {
+
 
     if (
         !value ||
@@ -76,38 +97,50 @@ function normalizeSkill(
     }
 
 
+    const rawVersion =
+        Number(
+            value.version
+        );
+
+
+    const version =
+        Number.isInteger(
+            rawVersion
+        ) &&
+        rawVersion >= 1
+            ? rawVersion
+            : 1;
+
+
+    const rawConfidence =
+        Number(
+            value.confidence
+        );
+
+
+    const confidence =
+        Number.isFinite(
+            rawConfidence
+        )
+            ? rawConfidence
+            : 0;
+
+
     return {
 
         ...value,
 
         id,
 
+        version,
+
         enabled:
             value.enabled !== false,
 
-        version:
-            Number.isFinite(
-                Number(
-                    value.version
-                )
-            )
-                ? Number(
-                    value.version
-                )
-                : 1,
-
-        confidence:
-            Number.isFinite(
-                Number(
-                    value.confidence
-                )
-            )
-                ? Number(
-                    value.confidence
-                )
-                : 0
+        confidence
 
     };
+
 
 }
 
@@ -116,10 +149,19 @@ function normalizeSkill(
  * =========================================================
  * LOAD EXPERIENCES
  * =========================================================
+ *
+ * Загружает только активные
+ * текущие Skills Jessica.
+ *
+ * История версий здесь
+ * не загружается.
+ *
+ * =========================================================
  */
 
 
 export async function loadExperiences() {
+
 
     const supabase =
         getSupabaseClient();
@@ -167,24 +209,21 @@ export async function loadExperiences() {
             row => {
 
 
-                const skill =
-                    normalizeSkill(
-                        {
-                            ...(row.payload || {}),
+                return normalizeSkill({
 
-                            id:
-                                row.id,
+                    ...(row.payload || {}),
 
-                            enabled:
-                                row.enabled,
+                    id:
+                        row.id,
 
-                            version:
-                                row.version
-                        }
-                    );
+                    enabled:
+                        row.enabled,
 
+                    version:
+                        row.version
 
-                return skill;
+                });
+
 
             }
         )
@@ -192,110 +231,6 @@ export async function loadExperiences() {
             Boolean
         );
 
-}
-
-
-/*
- * =========================================================
- * SAVE EXPERIENCE
- * =========================================================
- *
- * Используется как для создания,
- * так и для обновления Skill.
- *
- * =========================================================
- */
-
-
-export async function saveExperience(
-    experience
-) {
-
-    const skill =
-        normalizeSkill(
-            experience
-        );
-
-
-    if (!skill) {
-
-        throw new Error(
-            "Experience содержит некорректные данные"
-        );
-
-    }
-
-
-    const supabase =
-        getSupabaseClient();
-
-
-    const {
-        data,
-        error
-    } =
-        await supabase
-            .from(
-                EXPERIENCE_TABLE
-            )
-            .upsert(
-                {
-
-                    id:
-                        skill.id,
-
-                    version:
-                        skill.version,
-
-                    enabled:
-                        skill.enabled !== false,
-
-                    payload:
-                        skill,
-
-                    updated_at:
-                        new Date()
-                            .toISOString()
-
-                },
-                {
-
-                    onConflict:
-                        "id"
-
-                }
-            )
-            .select(
-                "id, payload, enabled, version"
-            )
-            .single();
-
-
-    if (error) {
-
-        throw new Error(
-            `Не удалось сохранить Experience: ${error.message}`
-        );
-
-    }
-
-
-    return normalizeSkill(
-        {
-
-            ...(data?.payload || {}),
-
-            id:
-                data?.id,
-
-            enabled:
-                data?.enabled,
-
-            version:
-                data?.version
-
-        }
-    );
 
 }
 
@@ -305,12 +240,21 @@ export async function saveExperience(
  * DISABLE EXPERIENCE
  * =========================================================
  *
- * Skill не удаляем физически.
+ * Отключает текущий Skill,
+ * но физически его не удаляет.
  *
- * Это важно для будущей истории обучения:
  *
- * плохой Skill можно отключить,
- * но сохранить для анализа или отката.
+ * Это позволяет сохранить:
+ *
+ * - историю;
+ * - версии;
+ * - возможность анализа;
+ * - возможность будущего восстановления.
+ *
+ *
+ * Отключённый Skill больше
+ * не будет возвращаться через
+ * loadExperiences().
  *
  * =========================================================
  */
@@ -319,6 +263,7 @@ export async function saveExperience(
 export async function disableExperience(
     skillId
 ) {
+
 
     const id =
         String(
@@ -340,27 +285,29 @@ export async function disableExperience(
 
 
     const {
+        data,
         error
     } =
         await supabase
             .from(
                 EXPERIENCE_TABLE
             )
-            .update(
-                {
+            .update({
 
-                    enabled:
-                        false,
+                enabled:
+                    false,
 
-                    updated_at:
-                        new Date()
-                            .toISOString()
+                updated_at:
+                    new Date()
+                        .toISOString()
 
-                }
-            )
+            })
             .eq(
                 "id",
                 id
+            )
+            .select(
+                "id"
             );
 
 
@@ -373,6 +320,38 @@ export async function disableExperience(
     }
 
 
+    /*
+     * Если Skill с таким ID
+     * не существует, update не является
+     * SQL-ошибкой.
+     *
+     * Поэтому отдельно проверяем,
+     * была ли найдена запись.
+     */
+
+
+    if (
+        !Array.isArray(
+            data
+        ) ||
+        data.length === 0
+    ) {
+
+        return {
+
+            success:
+                false,
+
+            id,
+
+            reason:
+                "Experience не найден"
+
+        };
+
+    }
+
+
     return {
 
         success:
@@ -381,5 +360,6 @@ export async function disableExperience(
         id
 
     };
+
 
 }
