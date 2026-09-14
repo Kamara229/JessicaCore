@@ -8,6 +8,10 @@ import {
     buildToolsText
 } from "./plannerTools.js";
 
+import {
+    buildPlanningContextText
+} from "./planningContextText.js";
+
 
 /*
  * =========================================================
@@ -22,8 +26,10 @@ import {
  * - модель Planner;
  * - сбор prompt;
  * - передача задачи;
+ * - передача дополнительного PlanningContext;
  * - передача доступных инструментов;
  * - передача ошибки предыдущей попытки.
+ *
  *
  * Не содержит:
  *
@@ -31,7 +37,8 @@ import {
  * - нормализацию плана;
  * - валидацию плана;
  * - retry-цикл;
- * - Experience;
+ * - поиск Experience;
+ * - сохранение Experience;
  * - выполнение инструментов.
  *
  * =========================================================
@@ -79,7 +86,9 @@ export async function requestPlan(
 
     task,
 
-    previousError = ""
+    previousError = "",
+
+    context = {}
 
 ) {
 
@@ -93,6 +102,37 @@ export async function requestPlan(
 
     const instructions =
         buildPlannerInstructions();
+
+
+
+    /*
+     * =====================================================
+     * PLANNING CONTEXT
+     * =====================================================
+     *
+     * Сейчас context может быть пустым.
+     *
+     * Позже сюда будут передаваться:
+     *
+     * - Experience Jessica;
+     * - успешные алгоритмы;
+     * - правила источников;
+     * - ограничения задачи;
+     * - инструкции Earnings;
+     * - другой дополнительный контекст.
+     *
+     * Если контекста нет,
+     * buildPlanningContextText()
+     * вернёт пустую строку.
+     *
+     * =====================================================
+     */
+
+
+    const planningContextText =
+        buildPlanningContextText(
+            context
+        );
 
 
 
@@ -134,8 +174,91 @@ export async function requestPlan(
 
                 "Исправь ошибку и создай новый валидный план."
 
-            ].join("\n")
+            ].join(
+                "\n"
+            )
             : "";
+
+
+
+    /*
+     * =====================================================
+     * USER PROMPT
+     * =====================================================
+     *
+     * Формируем prompt из независимых блоков.
+     *
+     * Пустой PlanningContext
+     * вообще не добавляется.
+     *
+     * =====================================================
+     */
+
+
+    const userPromptParts =
+        [
+
+            "ЗАДАЧА:",
+
+            String(
+                task || ""
+            ).trim()
+
+        ];
+
+
+
+    /*
+     * Дополнительный контекст
+     * добавляем только если он существует.
+     */
+
+
+    if (planningContextText) {
+
+        userPromptParts.push(
+
+            "",
+
+            planningContextText
+
+        );
+
+    }
+
+
+
+    /*
+     * Доступные инструменты.
+     */
+
+
+    userPromptParts.push(
+
+        "",
+
+        "ДОСТУПНЫЕ ИНСТРУМЕНТЫ:",
+
+        toolsText
+
+    );
+
+
+
+    /*
+     * Ошибка предыдущего плана.
+     */
+
+
+    if (retryContext) {
+
+        userPromptParts.push(
+
+            retryContext
+
+        );
+
+    }
 
 
 
@@ -172,25 +295,10 @@ export async function requestPlan(
                     role:
                         "user",
 
-                    content: [
-
-                        "ЗАДАЧА:",
-
-                        String(
-                            task || ""
-                        ).trim(),
-
-                        "",
-
-                        "ДОСТУПНЫЕ ИНСТРУМЕНТЫ:",
-
-                        toolsText,
-
-                        retryContext
-
-                    ].join(
-                        "\n"
-                    )
+                    content:
+                        userPromptParts.join(
+                            "\n"
+                        )
 
                 }
 
