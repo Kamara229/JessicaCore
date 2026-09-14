@@ -93,17 +93,25 @@ import {
 
 /*
  * =========================================================
- * STARTUP DIAGNOSTICS
+ * STARTUP LEARNING TEST
  * =========================================================
  *
- * Временный Learning-тест.
+ * Безопасный диагностический тест
+ * создания Learning Proposal.
  *
- * Сам модуль проверяет:
+ *
+ * Управляется переменной:
  *
  * RUN_LEARNING_TEST_ON_START=true
  *
- * Если флаг выключен,
- * ничего не происходит.
+ *
+ * Этот тест:
+ *
+ * - анализирует исправление;
+ * - создаёт Proposal;
+ * - запускает Validators;
+ *
+ * Но НЕ сохраняет Skill.
  *
  * =========================================================
  */
@@ -112,6 +120,44 @@ import {
 import {
     runStartupLearningTest
 } from "./scripts/startupLearningTest.js";
+
+
+/*
+ * =========================================================
+ * STARTUP LEARNING APPROVAL TEST
+ * =========================================================
+ *
+ * Диагностический тест полного
+ * подтверждённого обучения.
+ *
+ *
+ * Управляется отдельной переменной:
+ *
+ * RUN_LEARNING_APPROVAL_TEST_ON_START=true
+ *
+ *
+ * ВАЖНО:
+ *
+ * этот тест способен реально:
+ *
+ * - подтвердить Learning Proposal;
+ * - создать Experience Skill;
+ * - определить его версию;
+ * - сохранить Skill в Supabase;
+ * - записать History + Current.
+ *
+ *
+ * Поэтому этот флаг должен оставаться
+ * false, пока сохранение явно
+ * не подтверждено пользователем.
+ *
+ * =========================================================
+ */
+
+
+import {
+    runStartupLearningApprovalTest
+} from "./scripts/startupLearningApprovalTest.js";
 
 
 /*
@@ -214,18 +260,32 @@ app.listen(
 
         /*
          * =================================================
-         * OPTIONAL STARTUP LEARNING TEST
+         * SAFE STARTUP LEARNING TEST
          * =================================================
          *
-         * ВАЖНО:
+         * Проверяет:
          *
-         * не используем await.
+         * RUN_LEARNING_TEST_ON_START
          *
-         * Backend уже запущен и готов
-         * принимать запросы.
          *
-         * Ошибка диагностического теста
-         * не должна останавливать Jessica.
+         * Если значение:
+         *
+         * false
+         *
+         * функция просто завершится.
+         *
+         *
+         * Используется для проверки:
+         *
+         * Analyzer
+         * → Parser
+         * → Structure Validator
+         * → Grounding Validator
+         * → Generalization Validator
+         * → Proposal
+         *
+         *
+         * Skill не сохраняется.
          *
          * =================================================
          */
@@ -236,8 +296,78 @@ app.listen(
                 error => {
 
 
+                    /*
+                     * Ошибка диагностики
+                     * никогда не должна
+                     * останавливать backend.
+                     */
+
+
                     console.error(
-                        "Jessica startup diagnostic error:",
+                        "Jessica startup Learning diagnostic error:",
+                        error
+                    );
+
+
+                }
+            );
+
+
+        /*
+         * =================================================
+         * STARTUP LEARNING APPROVAL TEST
+         * =================================================
+         *
+         * Проверяет отдельный флаг:
+         *
+         * RUN_LEARNING_APPROVAL_TEST_ON_START
+         *
+         *
+         * По умолчанию этот флаг
+         * должен быть false.
+         *
+         *
+         * При false:
+         *
+         * - Proposal не подтверждается;
+         * - Experience не сохраняется;
+         * - Supabase не изменяется.
+         *
+         *
+         * При true тест может пройти:
+         *
+         * createLearning()
+         *        ↓
+         * Safety Validators
+         *        ↓
+         * PENDING_APPROVAL
+         *        ↓
+         * approveLearning()
+         *        ↓
+         * Skill Builder
+         *        ↓
+         * Atomic Experience Storage
+         *        ↓
+         * Supabase
+         *
+         * =================================================
+         */
+
+
+        runStartupLearningApprovalTest()
+            .catch(
+                error => {
+
+
+                    /*
+                     * Ошибка Approval Test
+                     * также не должна влиять
+                     * на работу Jessica Core.
+                     */
+
+
+                    console.error(
+                        "Jessica startup Learning Approval diagnostic error:",
                         error
                     );
 
