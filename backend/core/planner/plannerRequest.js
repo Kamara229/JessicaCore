@@ -1,4 +1,6 @@
-import OpenAI from "openai";
+import {
+    getGroqClient
+} from "../../ai/groqClient.js";
 
 import {
     buildPlannerInstructions
@@ -18,21 +20,28 @@ import {
  * JESSICA PLANNER REQUEST
  * =========================================================
  *
- * Отвечает только за запрос к AI-модели Planner.
+ * Отвечает только за запрос
+ * к AI-модели Planner.
+ *
  *
  * Здесь находятся:
  *
- * - подключение Groq;
- * - модель Planner;
+ * - выбор модели Planner;
  * - сбор prompt;
  * - передача задачи;
- * - передача дополнительного PlanningContext;
+ * - передача PlanningContext;
  * - передача доступных инструментов;
  * - передача ошибки предыдущей попытки.
  *
  *
- * Не содержит:
+ * Groq Client находится отдельно:
  *
+ * backend/ai/groqClient.js
+ *
+ *
+ * Этот модуль НЕ содержит:
+ *
+ * - создание AI-клиента;
  * - parsing JSON;
  * - нормализацию плана;
  * - валидацию плана;
@@ -43,25 +52,6 @@ import {
  *
  * =========================================================
  */
-
-
-/*
- * =========================================================
- * GROQ CLIENT
- * =========================================================
- */
-
-
-const groq =
-    new OpenAI({
-
-        apiKey:
-            process.env.GROQ_API_KEY,
-
-        baseURL:
-            "https://api.groq.com/openai/v1"
-
-    });
 
 
 /*
@@ -95,6 +85,17 @@ export async function requestPlan(
 
     /*
      * =====================================================
+     * GROQ CLIENT
+     * =====================================================
+     */
+
+
+    const groq =
+        getGroqClient();
+
+
+    /*
+     * =====================================================
      * SYSTEM INSTRUCTIONS
      * =====================================================
      */
@@ -104,27 +105,9 @@ export async function requestPlan(
         buildPlannerInstructions();
 
 
-
     /*
      * =====================================================
      * PLANNING CONTEXT
-     * =====================================================
-     *
-     * Сейчас context может быть пустым.
-     *
-     * Позже сюда будут передаваться:
-     *
-     * - Experience Jessica;
-     * - успешные алгоритмы;
-     * - правила источников;
-     * - ограничения задачи;
-     * - инструкции Earnings;
-     * - другой дополнительный контекст.
-     *
-     * Если контекста нет,
-     * buildPlanningContextText()
-     * вернёт пустую строку.
-     *
      * =====================================================
      */
 
@@ -133,7 +116,6 @@ export async function requestPlan(
         buildPlanningContextText(
             context
         );
-
 
 
     /*
@@ -147,15 +129,9 @@ export async function requestPlan(
         buildToolsText();
 
 
-
     /*
      * =====================================================
      * RETRY CONTEXT
-     * =====================================================
-     *
-     * Если предыдущий план был отклонён,
-     * Planner получает причину ошибки.
-     *
      * =====================================================
      */
 
@@ -180,17 +156,9 @@ export async function requestPlan(
             : "";
 
 
-
     /*
      * =====================================================
      * USER PROMPT
-     * =====================================================
-     *
-     * Формируем prompt из независимых блоков.
-     *
-     * Пустой PlanningContext
-     * вообще не добавляется.
-     *
      * =====================================================
      */
 
@@ -207,10 +175,9 @@ export async function requestPlan(
         ];
 
 
-
     /*
-     * Дополнительный контекст
-     * добавляем только если он существует.
+     * PlanningContext добавляем
+     * только если он действительно есть.
      */
 
 
@@ -225,7 +192,6 @@ export async function requestPlan(
         );
 
     }
-
 
 
     /*
@@ -244,22 +210,18 @@ export async function requestPlan(
     );
 
 
-
     /*
-     * Ошибка предыдущего плана.
+     * Контекст предыдущей ошибки Planner.
      */
 
 
     if (retryContext) {
 
         userPromptParts.push(
-
             retryContext
-
         );
 
     }
-
 
 
     /*
@@ -270,42 +232,44 @@ export async function requestPlan(
 
 
     const response =
-        await groq.chat.completions.create({
+        await groq
+            .chat
+            .completions
+            .create({
 
-            model:
-                PLANNER_MODEL,
+                model:
+                    PLANNER_MODEL,
 
-            temperature:
-                0,
+                temperature:
+                    0,
 
-            messages: [
+                messages: [
 
-                {
+                    {
 
-                    role:
-                        "system",
+                        role:
+                            "system",
 
-                    content:
-                        instructions
+                        content:
+                            instructions
 
-                },
+                    },
 
-                {
+                    {
 
-                    role:
-                        "user",
+                        role:
+                            "user",
 
-                    content:
-                        userPromptParts.join(
-                            "\n"
-                        )
+                        content:
+                            userPromptParts.join(
+                                "\n"
+                            )
 
-                }
+                    }
 
-            ]
+                ]
 
-        });
-
+            });
 
 
     /*
@@ -324,6 +288,5 @@ export async function requestPlan(
             ?.content || ""
 
     );
-
 
 }
