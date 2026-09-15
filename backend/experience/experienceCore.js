@@ -25,32 +25,24 @@ import {
  *   ↓
  * Experience Storage
  *   ↓
- * активные Skills
+ * Active Skills
  *   ↓
  * Experience Search
  *   ↓
- * подходящий Skill
+ * Matching Skill
  *   ↓
  * Experience Context
  *   ↓
- * готовый контекст для PlanningContext
+ * Planner
  *
  *
- * Этот файл НЕ содержит:
+ * Этот модуль НЕ:
  *
- * - алгоритм поиска;
- * - реализацию Supabase;
- * - SQL;
- * - обучение;
- * - Planner;
- * - Earnings;
- * - выполнение инструментов.
- *
- *
- * Его задача:
- *
- * объединять Experience-модули
- * в единую рабочую цепочку.
+ * - работает с Supabase напрямую;
+ * - сохраняет Skills;
+ * - обучает Jessica;
+ * - вызывает AI;
+ * - выполняет инструменты.
  *
  * =========================================================
  */
@@ -63,7 +55,11 @@ import {
  */
 
 
-function createEmptyExperienceResult() {
+function createEmptyExperienceResult(
+
+    reason = "not_found"
+
+) {
 
     return {
 
@@ -78,6 +74,8 @@ function createEmptyExperienceResult() {
 
         source:
             "experience-core",
+
+        reason,
 
         planningContext: {
 
@@ -96,28 +94,61 @@ function createEmptyExperienceResult() {
 
 /*
  * =========================================================
- * RESOLVE EXPERIENCE
+ * DEBUG HELPERS
  * =========================================================
- *
- * Главная точка входа первого слоя
- * собственного опыта Jessica.
- *
- *
- * В обычной работе:
- *
- * resolveExperience(task)
- *
- * Skills автоматически загружаются
- * через Experience Storage.
- *
- *
- * Для тестов можно передать Skills вручную:
- *
- * resolveExperience(
- *     task,
- *     experiences
- * )
- *
+ */
+
+
+function logLoadedExperiences(
+    experiences
+) {
+
+
+    console.log(
+
+        "Jessica Experience loaded:",
+
+        JSON.stringify(
+
+            Array.isArray(experiences)
+
+                ? experiences.map(
+                    item => ({
+
+                        id:
+                            item?.id,
+
+                        name:
+                            item?.name,
+
+                        enabled:
+                            item?.enabled,
+
+                        keywords:
+                            item?.keywords || []
+
+                    })
+                )
+
+                : []
+
+            ,
+
+            null,
+
+            2
+
+        )
+
+    );
+
+
+}
+
+
+/*
+ * =========================================================
+ * RESOLVE EXPERIENCE
  * =========================================================
  */
 
@@ -131,42 +162,39 @@ export async function resolveExperience(
 ) {
 
 
-    /*
-     * =====================================================
-     * INPUT
-     * =====================================================
-     */
-
-
     const cleanTask =
         String(
             task || ""
         ).trim();
 
 
+
     if (!cleanTask) {
 
-        return createEmptyExperienceResult();
+
+        console.log(
+            "Jessica Experience: empty task"
+        );
+
+
+        return createEmptyExperienceResult(
+            "empty-task"
+        );
+
 
     }
+
 
 
     /*
      * =====================================================
      * LOAD EXPERIENCE
      * =====================================================
-     *
-     * Если массив Skills передан вручную,
-     * используем его.
-     *
-     * Иначе загружаем активные Skills
-     * из Experience Storage.
-     *
-     * =====================================================
      */
 
 
-    let availableExperiences;
+    let availableExperiences = [];
+
 
 
     try {
@@ -183,6 +211,11 @@ export async function resolveExperience(
                 experiences;
 
 
+            console.log(
+                "Jessica Experience: using provided Skills"
+            );
+
+
         } else {
 
 
@@ -190,60 +223,102 @@ export async function resolveExperience(
                 await loadExperienceSkills();
 
 
+            console.log(
+                "Jessica Experience: loaded from Storage"
+            );
+
+
         }
 
 
-    } catch (error) {
-
-
-        /*
-         * Ошибка Storage не должна
-         * останавливать Jessica.
-         *
-         * Первый слой опыта просто
-         * считается недоступным.
-         */
+    } catch(error) {
 
 
         console.error(
+
             "Jessica Experience storage error:",
+
             error
+
         );
 
 
-        return createEmptyExperienceResult();
+        return createEmptyExperienceResult(
+            "storage-error"
+        );
 
 
     }
 
 
+
     /*
      * =====================================================
-     * NO EXPERIENCE
+     * DEBUG STORAGE RESULT
+     * =====================================================
+     */
+
+
+    logLoadedExperiences(
+        availableExperiences
+    );
+
+
+
+    /*
+     * =====================================================
+     * NO SKILLS
      * =====================================================
      */
 
 
     if (
+
         !Array.isArray(
             availableExperiences
-        ) ||
+        )
+
+        ||
+
         availableExperiences.length === 0
+
     ) {
 
-        return createEmptyExperienceResult();
+
+        console.log(
+
+            "Jessica Experience: no active Skills"
+
+        );
+
+
+        return createEmptyExperienceResult(
+            "no-skills"
+        );
+
 
     }
 
 
+
     /*
      * =====================================================
-     * EXPERIENCE SEARCH
+     * SEARCH
      * =====================================================
      */
 
 
     try {
+
+
+        console.log(
+
+            "Jessica Experience search task:",
+
+            cleanTask
+
+        );
+
 
 
         const searchResult =
@@ -256,17 +331,55 @@ export async function resolveExperience(
             );
 
 
+
+        console.log(
+
+            "Jessica Experience search result:",
+
+            JSON.stringify(
+
+                {
+
+                    found:
+                        searchResult?.found,
+
+                    confidence:
+                        searchResult?.confidence,
+
+                    skillId:
+                        searchResult
+                            ?.experience
+                            ?.id || null
+
+                },
+
+                null,
+
+                2
+
+            )
+
+        );
+
+
+
         /*
          * =================================================
-         * EXPERIENCE NOT FOUND
+         * NOT FOUND
          * =================================================
          */
 
 
         if (
-            !searchResult?.found ||
+
+            !searchResult?.found
+
+            ||
+
             !searchResult?.experience
+
         ) {
+
 
             return {
 
@@ -285,6 +398,9 @@ export async function resolveExperience(
                     searchResult?.source ||
                     "experience-search",
 
+                reason:
+                    "search-no-match",
+
                 planningContext: {
 
                     experience:
@@ -297,12 +413,14 @@ export async function resolveExperience(
 
             };
 
+
         }
+
 
 
         /*
          * =================================================
-         * BUILD EXPERIENCE CONTEXT
+         * BUILD CONTEXT
          * =================================================
          */
 
@@ -313,61 +431,62 @@ export async function resolveExperience(
             );
 
 
+
         /*
          * =================================================
-         * EXPERIENCE FOUND
+         * SUCCESS
          * =================================================
          */
 
 
         return {
 
+
             found:
                 true,
 
+
             experience:
                 searchResult.experience,
+
 
             confidence:
                 Number(
                     searchResult.confidence || 0
                 ),
 
+
             source:
                 searchResult.source ||
                 "experience-search",
 
+
+            reason:
+                "matched",
+
+
             planningContext
+
 
         };
 
 
-    } catch (error) {
 
-
-        /*
-         * =================================================
-         * SEARCH ERROR
-         * =================================================
-         *
-         * Experience никогда не должен
-         * ломать основную работу Jessica.
-         *
-         * Если первый слой опыта недоступен,
-         * Planner позже сможет работать
-         * обычным способом.
-         *
-         * =================================================
-         */
+    } catch(error) {
 
 
         console.error(
+
             "Jessica Experience search error:",
+
             error
+
         );
 
 
-        return createEmptyExperienceResult();
+        return createEmptyExperienceResult(
+            "search-error"
+        );
 
 
     }
