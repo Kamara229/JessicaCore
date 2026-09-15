@@ -4,11 +4,28 @@
  * =========================================================
  *
  * Приводит сырой ответ Planner AI
- * к стабильной структуре.
+ * к стабильному формату.
  *
- * Этот модуль ничего не валидирует глубоко.
- * Он только нормализует данные.
+ *
+ * Ответственность:
+ *
+ * AI JSON
+ *    ↓
+ * normalize
+ *    ↓
+ * validate
+ *
+ *
+ * Этот модуль НЕ:
+ *
+ * - проверяет существование tools;
+ * - проверяет ссылки;
+ * - проверяет evidence;
+ * - принимает решения.
+ *
+ * =========================================================
  */
+
 
 
 const EVIDENCE_MODES =
@@ -19,6 +36,68 @@ const EVIDENCE_MODES =
     ]);
 
 
+
+const MAX_STEPS =
+    15;
+
+
+
+/*
+ * =========================================================
+ * SAFE STRING
+ * =========================================================
+ */
+
+
+function safeString(
+    value
+) {
+
+    return typeof value === "string"
+        ? value.trim()
+        : "";
+
+}
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE BOOLEAN
+ * =========================================================
+ */
+
+
+function normalizeBoolean(
+    value
+) {
+
+    if (
+        value === true ||
+        value === "true"
+    ) {
+
+        return true;
+
+    }
+
+
+    if (
+        value === false ||
+        value === "false"
+    ) {
+
+        return false;
+
+    }
+
+
+    return false;
+
+}
+
+
+
 /*
  * =========================================================
  * NORMALIZE EVIDENCE
@@ -27,27 +106,69 @@ const EVIDENCE_MODES =
 
 
 function normalizeEvidence(
-    rawEvidence
+    evidence
 ) {
+
 
     const mode =
         EVIDENCE_MODES.has(
-            rawEvidence?.mode
+            evidence?.mode
         )
-            ? rawEvidence.mode
+            ? evidence.mode
             : "none";
 
 
     return {
+
         mode,
 
+
         reason:
-            typeof rawEvidence?.reason === "string"
-                ? rawEvidence.reason.trim()
-                : ""
+            safeString(
+                evidence?.reason
+            )
+                .slice(
+                    0,
+                    1000
+                )
+
     };
 
 }
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE ARGUMENTS
+ * =========================================================
+ */
+
+
+function normalizeArguments(
+    value
+) {
+
+
+    if (
+        !value ||
+        typeof value !== "object" ||
+        Array.isArray(
+            value
+        )
+    ) {
+
+        return {};
+
+    }
+
+
+    return {
+        ...value
+    };
+
+}
+
 
 
 /*
@@ -61,6 +182,7 @@ function normalizeStep(
     step,
     index
 ) {
+
 
     if (
         !step ||
@@ -76,28 +198,73 @@ function normalizeStep(
 
 
     return {
+
+
         id:
-            typeof step.id === "string" &&
-            step.id.trim()
-                ? step.id.trim()
-                : `step_${index + 1}`,
+            safeString(
+                step.id
+            )
+            ||
+            `step_${index + 1}`,
+
 
         tool:
-            typeof step.tool === "string"
-                ? step.tool.trim()
-                : "",
+            safeString(
+                step.tool
+            ),
+
 
         arguments:
-            step.arguments &&
-            typeof step.arguments === "object" &&
-            !Array.isArray(
+            normalizeArguments(
                 step.arguments
             )
-                ? step.arguments
-                : {}
+
     };
 
 }
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE STEPS
+ * =========================================================
+ */
+
+
+function normalizeSteps(
+    steps
+) {
+
+
+    if (
+        !Array.isArray(
+            steps
+        )
+    ) {
+
+        return [];
+
+    }
+
+
+    return steps
+
+        .slice(
+            0,
+            MAX_STEPS
+        )
+
+        .map(
+            normalizeStep
+        )
+
+        .filter(
+            Boolean
+        );
+
+}
+
 
 
 /*
@@ -110,6 +277,7 @@ function normalizeStep(
 export function normalizePlan(
     rawPlan
 ) {
+
 
     if (
         !rawPlan ||
@@ -124,28 +292,27 @@ export function normalizePlan(
     }
 
 
+
     const requiresTools =
-        rawPlan.requiresTools;
+        normalizeBoolean(
+            rawPlan.requiresTools
+        );
+
 
 
     let steps =
-        Array.isArray(
+        normalizeSteps(
             rawPlan.steps
-        )
-            ? rawPlan.steps
-                .map(
-                    normalizeStep
-                )
-                .filter(
-                    Boolean
-                )
-            : [];
+        );
+
 
 
     /*
-     * Для задачи без tools
-     * steps всегда пустой.
+     * Если tools не нужны,
+     * шагов быть не должно.
      */
+
+
     if (
         requiresTools === false
     ) {
@@ -156,25 +323,45 @@ export function normalizePlan(
     }
 
 
+
     return {
+
+
         intent:
-            typeof rawPlan.intent === "string"
-                ? rawPlan.intent.trim()
-                : "",
+            safeString(
+                rawPlan.intent
+            )
+            ||
+            "unknown",
+
+
 
         requiresTools,
 
+
+
         reasoningSummary:
-            typeof rawPlan.reasoningSummary === "string"
-                ? rawPlan.reasoningSummary.trim()
-                : "",
+            safeString(
+                rawPlan.reasoningSummary
+            )
+            .slice(
+                0,
+                2000
+            ),
+
+
 
         evidence:
             normalizeEvidence(
                 rawPlan.evidence
             ),
 
+
+
         steps
+
+
     };
+
 
 }
