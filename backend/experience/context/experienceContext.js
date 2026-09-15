@@ -1,9 +1,9 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE CONTEXT
+ * JESSICA EXPERIENCE CONTEXT v0.2
  * =========================================================
  *
- * Преобразует найденный Skill
+ * Преобразует найденный Experience Skill
  * в безопасный контекст для Planner.
  *
  *
@@ -23,21 +23,34 @@
  * Этот модуль НЕ:
  *
  * - ищет Experience;
- * - читает базу;
+ * - читает Storage;
  * - сохраняет Skills;
  * - обучает Jessica;
  * - вызывает Planner;
- * - выполняет задачу.
+ * - выполняет задачи.
  *
  *
- * Его единственная задача:
+ * Задача:
  *
  * Experience Result
- *      ↓
+ *        ↓
  * Planning-compatible context
  *
  * =========================================================
  */
+
+
+
+/*
+ * =========================================================
+ * CONFIG
+ * =========================================================
+ */
+
+
+const MAX_ARRAY_ITEMS =
+    10;
+
 
 
 /*
@@ -67,13 +80,44 @@ function normalizeStringArray(
             item =>
                 String(
                     item || ""
-                ).trim()
+                )
+                .trim()
         )
         .filter(
             Boolean
         );
 
 }
+
+
+
+/*
+ * =========================================================
+ * LIMIT ARRAY
+ * =========================================================
+ *
+ * Защита Planner Context
+ * от слишком больших Skill.
+ *
+ * =========================================================
+ */
+
+
+function limitArray(
+    value,
+    limit = MAX_ARRAY_ITEMS
+) {
+
+    return normalizeStringArray(
+        value
+    )
+        .slice(
+            0,
+            limit
+        );
+
+}
+
 
 
 /*
@@ -101,6 +145,7 @@ function normalizeNumber(
         : fallback;
 
 }
+
 
 
 /*
@@ -142,6 +187,7 @@ export function buildExperienceContext(
     }
 
 
+
     const sourceExperience =
         experienceResult.experience;
 
@@ -152,12 +198,12 @@ export function buildExperienceContext(
      * SAFE EXPERIENCE
      * =====================================================
      *
-     * Передаём Planner только те поля,
-     * которые реально нужны для планирования.
+     * Передаём Planner только
+     * полезные данные Skill.
      *
-     * Внутренние данные хранения,
-     * служебные поля и будущая история
-     * обучения сюда не попадают.
+     * Служебные поля Storage
+     * и история версий сюда
+     * не попадают.
      *
      * =====================================================
      */
@@ -165,14 +211,26 @@ export function buildExperienceContext(
 
     const experience = {
 
+
         skillId:
             sourceExperience.id ||
             sourceExperience.skillId ||
             null,
 
+
         name:
-            sourceExperience.name ||
-            "",
+            String(
+                sourceExperience.name || ""
+            )
+            .trim(),
+
+
+        description:
+            String(
+                sourceExperience.description || ""
+            )
+            .trim(),
+
 
         version:
             normalizeNumber(
@@ -180,29 +238,72 @@ export function buildExperienceContext(
                 1
             ),
 
-        confidence:
+
+
+        /*
+         * Уверенность самого Skill.
+         *
+         * Например:
+         *
+         * насколько качественно
+         * Jessica его получила.
+         */
+
+        skillConfidence:
             normalizeNumber(
                 sourceExperience.confidence,
                 0
             ),
 
+
+
+        /*
+         * Уверенность поиска.
+         *
+         * Насколько этот Skill
+         * подходит текущей задаче.
+         */
+
+        matchConfidence:
+            normalizeNumber(
+                experienceResult.confidence,
+                0
+            ),
+
+
+
+        keywords:
+            limitArray(
+                sourceExperience.keywords
+            ),
+
+
+        tags:
+            limitArray(
+                sourceExperience.tags
+            ),
+
+
         strategy:
-            normalizeStringArray(
+            limitArray(
                 sourceExperience.strategy
             ),
 
+
         sourcePriority:
-            normalizeStringArray(
+            limitArray(
                 sourceExperience.sourcePriority
             ),
 
+
         validationRules:
-            normalizeStringArray(
+            limitArray(
                 sourceExperience.validationRules
             ),
 
+
         failurePatterns:
-            normalizeStringArray(
+            limitArray(
                 sourceExperience.failurePatterns
             )
 
@@ -215,16 +316,19 @@ export function buildExperienceContext(
      * METADATA
      * =====================================================
      *
-     * Отдельно сохраняем информацию
-     * о том, как Experience был найден.
+     * Служебная информация:
      *
-     * Это пригодится:
+     * - как найден Experience;
+     * - какой Skill использован;
+     * - какая версия;
+     * - когда найден.
      *
-     * - для логов;
-     * - для обучения;
-     * - для оценки качества поиска;
-     * - для Earnings;
-     * - для последующего анализа.
+     * Используется:
+     *
+     * - логи;
+     * - аналитика;
+     * - обучение;
+     * - Earnings.
      *
      * =====================================================
      */
@@ -232,24 +336,39 @@ export function buildExperienceContext(
 
     const metadata = {
 
+
         experienceFound:
             true,
+
 
         experienceSource:
             experienceResult.source ||
             "unknown",
 
+
         experienceMatchConfidence:
-            normalizeNumber(
-                experienceResult.confidence,
-                0
-            ),
+            experience.matchConfidence,
+
+
+        skillConfidence:
+            experience.skillConfidence,
+
 
         skillId:
             experience.skillId,
 
+
+        skillName:
+            experience.name,
+
+
         skillVersion:
-            experience.version
+            experience.version,
+
+
+        matchedAt:
+            new Date()
+                .toISOString()
 
     };
 
