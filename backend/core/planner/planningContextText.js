@@ -1,33 +1,101 @@
+/*
+ * =========================================================
+ * JESSICA PLANNING CONTEXT TEXT
+ * =========================================================
+ *
+ * Преобразует Planning Context
+ * в текстовый блок для Planner.
+ *
+ *
+ * Ответственность:
+ *
+ * PlanningContext
+ *        ↓
+ * Human/AI readable context
+ *        ↓
+ * Planner
+ *
+ *
+ * Этот модуль НЕ:
+ *
+ * - ищет Experience;
+ * - читает Storage;
+ * - изменяет Skills;
+ * - вызывает AI;
+ * - принимает решения.
+ *
+ * =========================================================
+ */
+
+
 import {
     normalizePlanningContext,
     hasPlanningContext
 } from "./planningContext.js";
 
 
+
 /*
  * =========================================================
- * JESSICA PLANNING CONTEXT TEXT
- * =========================================================
- *
- * Преобразует структурированный PlanningContext
- * в текст, понятный Planner.
- *
- * Этот модуль НЕ:
- *
- * - ищет Experience;
- * - сохраняет Experience;
- * - изменяет Planner;
- * - выполняет инструменты;
- * - принимает решения.
- *
- * Его задача только:
- *
- * PlanningContext
- *      ↓
- * текстовый блок для Planner
- *
+ * SAFE STRING
  * =========================================================
  */
+
+
+function safeString(
+    value
+) {
+
+    return String(
+        value || ""
+    )
+        .trim();
+
+}
+
+
+/*
+ * =========================================================
+ * FORMAT ARRAY
+ * =========================================================
+ */
+
+
+function formatArray(
+    items
+) {
+
+
+    if (
+        !Array.isArray(items) ||
+        items.length === 0
+    ) {
+
+        return "";
+
+    }
+
+
+    return items
+        .map(
+            item =>
+                safeString(
+                    item
+                )
+        )
+        .filter(
+            Boolean
+        )
+        .map(
+            item =>
+                `- ${item}`
+        )
+        .join(
+            "\n"
+        );
+
+}
+
 
 
 /*
@@ -41,6 +109,7 @@ function formatExperience(
     experience
 ) {
 
+
     if (
         !experience ||
         typeof experience !== "object"
@@ -51,295 +120,207 @@ function formatExperience(
     }
 
 
-    const lines =
-        [];
+    const sections = [];
+
 
 
     /*
-     * Основная информация о навыке.
+     * BASIC
      */
 
 
-    if (experience.skillId) {
+    const basic = [];
 
-        lines.push(
-            `Навык: ${experience.skillId}`
+
+    if (
+        experience.skillId
+    ) {
+
+        basic.push(
+            `Skill ID: ${experience.skillId}`
         );
 
     }
 
 
-    if (experience.name) {
+    if (
+        experience.name
+    ) {
 
-        lines.push(
+        basic.push(
             `Название: ${experience.name}`
         );
 
     }
 
 
-    if (experience.version !== undefined) {
+    if (
+        experience.version !== undefined
+    ) {
 
-        lines.push(
+        basic.push(
             `Версия: ${experience.version}`
         );
 
     }
 
 
-    if (experience.confidence !== undefined) {
+    if (
+        experience.confidence !== undefined
+    ) {
 
-        lines.push(
-            `Уверенность: ${experience.confidence}`
+        basic.push(
+            `Уверенность Skill: ${experience.confidence}`
         );
 
     }
 
 
+    if (
+        basic.length > 0
+    ) {
+
+        sections.push(
+            [
+                "Информация о навыке:",
+                ...basic
+            ]
+            .join(
+                "\n"
+            )
+        );
+
+    }
+
+
+
     /*
-     * Стратегия.
+     * STRATEGY
      */
 
 
-    if (
-        Array.isArray(
+    const strategy =
+        formatArray(
             experience.strategy
-        ) &&
-        experience.strategy.length > 0
-    ) {
-
-        lines.push(
-            "",
-            "Стратегия:"
         );
 
 
-        experience.strategy.forEach(
-            (
-                item,
-                index
-            ) => {
+    if (
+        strategy
+    ) {
 
-                const text =
-                    String(
-                        item || ""
-                    ).trim();
-
-
-                if (text) {
-
-                    lines.push(
-                        `${index + 1}. ${text}`
-                    );
-
-                }
-
-            }
+        sections.push(
+            [
+                "Стратегия выполнения:",
+                strategy
+            ]
+            .join(
+                "\n"
+            )
         );
 
     }
 
 
+
     /*
-     * Приоритет источников.
+     * SOURCES
      */
 
 
-    if (
-        Array.isArray(
+    const sources =
+        formatArray(
             experience.sourcePriority
-        ) &&
-        experience.sourcePriority.length > 0
-    ) {
-
-        lines.push(
-            "",
-            "Приоритет источников:"
         );
 
 
-        experience.sourcePriority.forEach(
-            (
-                item,
-                index
-            ) => {
+    if (
+        sources
+    ) {
 
-                const text =
-                    String(
-                        item || ""
-                    ).trim();
-
-
-                if (text) {
-
-                    lines.push(
-                        `${index + 1}. ${text}`
-                    );
-
-                }
-
-            }
+        sections.push(
+            [
+                "Приоритет источников:",
+                sources
+            ]
+            .join(
+                "\n"
+            )
         );
 
     }
 
 
+
     /*
-     * Правила проверки.
+     * VALIDATION
      */
 
 
-    if (
-        Array.isArray(
+    const validation =
+        formatArray(
             experience.validationRules
-        ) &&
-        experience.validationRules.length > 0
-    ) {
-
-        lines.push(
-            "",
-            "Правила проверки:"
         );
 
 
-        experience.validationRules.forEach(
-            item => {
+    if (
+        validation
+    ) {
 
-                const text =
-                    String(
-                        item || ""
-                    ).trim();
-
-
-                if (text) {
-
-                    lines.push(
-                        `- ${text}`
-                    );
-
-                }
-
-            }
+        sections.push(
+            [
+                "Правила проверки:",
+                validation
+            ]
+            .join(
+                "\n"
+            )
         );
 
     }
+
 
 
     /*
-     * Известные ошибки.
+     * FAILURES
      */
 
 
-    if (
-        Array.isArray(
+    const failures =
+        formatArray(
             experience.failurePatterns
-        ) &&
-        experience.failurePatterns.length > 0
-    ) {
-
-        lines.push(
-            "",
-            "Известные ошибки, которых нужно избегать:"
         );
 
-
-        experience.failurePatterns.forEach(
-            item => {
-
-                const text =
-                    String(
-                        item || ""
-                    ).trim();
-
-
-                if (text) {
-
-                    lines.push(
-                        `- ${text}`
-                    );
-
-                }
-
-            }
-        );
-
-    }
-
-
-    return lines
-        .filter(
-            item =>
-                item !== null &&
-                item !== undefined
-        )
-        .join(
-            "\n"
-        )
-        .trim();
-
-}
-
-
-/*
- * =========================================================
- * FORMAT STRING LIST
- * =========================================================
- */
-
-
-function formatList(
-    title,
-    items
-) {
 
     if (
-        !Array.isArray(items) ||
-        items.length === 0
+        failures
     ) {
 
-        return "";
+        sections.push(
+            [
+                "Ошибки, которых нужно избегать:",
+                failures
+            ]
+            .join(
+                "\n"
+            )
+        );
 
     }
 
 
-    const lines = [
-        title
-    ];
 
-
-    items.forEach(
-        item => {
-
-            const text =
-                String(
-                    item || ""
-                ).trim();
-
-
-            if (text) {
-
-                lines.push(
-                    `- ${text}`
-                );
-
-            }
-
-        }
+    return sections.join(
+        "\n\n"
     );
 
-
-    return lines
-        .join(
-            "\n"
-        )
-        .trim();
-
 }
+
 
 
 /*
  * =========================================================
- * BUILD PLANNING CONTEXT TEXT
+ * BUILD CONTEXT TEXT
  * =========================================================
  */
 
@@ -347,6 +328,7 @@ function formatList(
 export function buildPlanningContextText(
     context
 ) {
+
 
     if (
         !hasPlanningContext(
@@ -359,14 +341,15 @@ export function buildPlanningContextText(
     }
 
 
+
     const normalized =
         normalizePlanningContext(
             context
         );
 
 
-    const sections =
-        [];
+    const blocks = [];
+
 
 
     /*
@@ -380,39 +363,51 @@ export function buildPlanningContextText(
         );
 
 
-    if (experienceText) {
+    if (
+        experienceText
+    ) {
 
-        sections.push(
+        blocks.push(
             [
-                "НАКОПЛЕННЫЙ ОПЫТ JESSICA:",
+                "=== НАКОПЛЕННЫЙ ОПЫТ JESSICA ===",
                 experienceText
-            ].join(
-                "\n"
+            ]
+            .join(
+                "\n\n"
             )
         );
 
     }
 
 
+
     /*
-     * SOURCE RULES
+     * GLOBAL RULES
      */
 
 
-    const sourceRulesText =
-        formatList(
-            "ПРАВИЛА РАБОТЫ С ИСТОЧНИКАМИ:",
+    const sourceRules =
+        formatArray(
             normalized.sourceRules
         );
 
 
-    if (sourceRulesText) {
+    if (
+        sourceRules
+    ) {
 
-        sections.push(
-            sourceRulesText
+        blocks.push(
+            [
+                "=== ПРАВИЛА ИСТОЧНИКОВ ===",
+                sourceRules
+            ]
+            .join(
+                "\n\n"
+            )
         );
 
     }
+
 
 
     /*
@@ -420,52 +415,61 @@ export function buildPlanningContextText(
      */
 
 
-    const constraintsText =
-        formatList(
-            "ОГРАНИЧЕНИЯ ЗАДАЧИ:",
+    const constraints =
+        formatArray(
             normalized.constraints
         );
 
 
-    if (constraintsText) {
+    if (
+        constraints
+    ) {
 
-        sections.push(
-            constraintsText
+        blocks.push(
+            [
+                "=== ОГРАНИЧЕНИЯ ===",
+                constraints
+            ]
+            .join(
+                "\n\n"
+            )
         );
 
     }
 
 
+
     /*
-     * ADDITIONAL INSTRUCTIONS
+     * USER INSTRUCTIONS
      */
 
 
-    const instructionsText =
-        formatList(
-            "ДОПОЛНИТЕЛЬНЫЕ ИНСТРУКЦИИ:",
+    const instructions =
+        formatArray(
             normalized.instructions
         );
 
 
-    if (instructionsText) {
+    if (
+        instructions
+    ) {
 
-        sections.push(
-            instructionsText
+        blocks.push(
+            [
+                "=== ДОПОЛНИТЕЛЬНЫЕ ИНСТРУКЦИИ ===",
+                instructions
+            ]
+            .join(
+                "\n\n"
+            )
         );
 
     }
 
 
-    /*
-     * =====================================================
-     * FINAL TEXT
-     * =====================================================
-     */
-
 
     if (
-        sections.length === 0
+        blocks.length === 0
     ) {
 
         return "";
@@ -473,17 +477,27 @@ export function buildPlanningContextText(
     }
 
 
+
     return [
-        "ДОПОЛНИТЕЛЬНЫЙ КОНТЕКСТ ПЛАНИРОВАНИЯ:",
+
+        "ДОПОЛНИТЕЛЬНЫЙ КОНТЕКСТ ДЛЯ ПЛАНИРОВАНИЯ:",
+
         "",
-        sections.join(
+
+        blocks.join(
             "\n\n"
         ),
+
         "",
-        "Используй этот контекст как накопленный опыт и ограничения.",
-        "Адаптируй его под текущую задачу, а не копируй механически."
-    ].join(
+
+        "Используй этот опыт как рекомендации.",
+        "Не копируй его механически — адаптируй под текущую задачу."
+
+    ]
+    .join(
         "\n"
-    );
+    )
+    .trim();
+
 
 }
