@@ -20,34 +20,30 @@ import {
  * JESSICA PLANNER REQUEST
  * =========================================================
  *
- * Отвечает только за запрос
- * к AI-модели Planner.
+ * Отвечает только за формирование запроса
+ * к AI Planner.
  *
  *
- * Здесь находятся:
+ * Цепочка:
  *
- * - выбор модели Planner;
- * - сбор prompt;
- * - передача задачи;
- * - передача PlanningContext;
- * - передача доступных инструментов;
- * - передача ошибки предыдущей попытки.
- *
- *
- * Groq Client находится отдельно:
- *
- * backend/ai/groqClient.js
+ * task
+ *   +
+ * PlanningContext
+ *   +
+ * Tools
+ *   +
+ * Retry Error
+ *        ↓
+ *      GPT Planner
  *
  *
- * Этот модуль НЕ содержит:
+ * НЕ отвечает за:
  *
- * - создание AI-клиента;
- * - parsing JSON;
- * - нормализацию плана;
- * - валидацию плана;
- * - retry-цикл;
- * - поиск Experience;
- * - сохранение Experience;
+ * - parsing;
+ * - normalization;
+ * - validation;
+ * - retry цикл;
+ * - Experience поиск;
  * - выполнение инструментов.
  *
  * =========================================================
@@ -56,13 +52,132 @@ import {
 
 /*
  * =========================================================
- * MODEL
+ * MODEL CONFIG
  * =========================================================
  */
 
 
 const PLANNER_MODEL =
     "openai/gpt-oss-20b";
+
+
+const MAX_CONTEXT_LENGTH =
+    6000;
+
+
+
+/*
+ * =========================================================
+ * SAFE STRING
+ * =========================================================
+ */
+
+
+function safeString(
+    value
+) {
+
+    return String(
+        value || ""
+    )
+        .trim();
+
+}
+
+
+
+/*
+ * =========================================================
+ * BUILD RETRY CONTEXT
+ * =========================================================
+ */
+
+
+function buildRetryContext(
+    previousError
+) {
+
+
+    const error =
+        safeString(
+            previousError
+        );
+
+
+    if (!error) {
+
+        return "";
+
+    }
+
+
+    return [
+
+        "=== ПРЕДЫДУЩАЯ ОШИБКА PLANNER ===",
+
+        error,
+
+        "",
+
+        "Исправь ошибку и создай новый валидный JSON-план."
+
+    ].join(
+        "\n"
+    );
+
+}
+
+
+
+/*
+ * =========================================================
+ * LIMIT CONTEXT
+ * =========================================================
+ */
+
+
+function limitContext(
+    value
+) {
+
+
+    const text =
+        safeString(
+            value
+        );
+
+
+    if (!text) {
+
+        return "";
+
+    }
+
+
+    if (
+        text.length <= MAX_CONTEXT_LENGTH
+    ) {
+
+        return text;
+
+    }
+
+
+    return (
+
+        text.slice(
+            0,
+            MAX_CONTEXT_LENGTH
+        )
+
+        +
+
+        "\n\n[Контекст сокращён]"
+
+    );
+
+}
+
 
 
 /*
@@ -85,6 +200,29 @@ export async function requestPlan(
 
     /*
      * =====================================================
+     * INPUT
+     * =====================================================
+     */
+
+
+    const cleanTask =
+        safeString(
+            task
+        );
+
+
+    if (!cleanTask) {
+
+        throw new Error(
+            "Planner task пустой"
+        );
+
+    }
+
+
+
+    /*
+     * =====================================================
      * GROQ CLIENT
      * =====================================================
      */
@@ -94,15 +232,17 @@ export async function requestPlan(
         getGroqClient();
 
 
+
     /*
      * =====================================================
-     * SYSTEM INSTRUCTIONS
+     * SYSTEM PROMPT
      * =====================================================
      */
 
 
     const instructions =
         buildPlannerInstructions();
+
 
 
     /*
@@ -113,14 +253,19 @@ export async function requestPlan(
 
 
     const planningContextText =
-        buildPlanningContextText(
-            context
+        limitContext(
+
+            buildPlanningContextText(
+                context
+            )
+
         );
+
 
 
     /*
      * =====================================================
-     * AVAILABLE TOOLS
+     * TOOLS
      * =====================================================
      */
 
@@ -129,63 +274,38 @@ export async function requestPlan(
         buildToolsText();
 
 
-    /*
-     * =====================================================
-     * RETRY CONTEXT
-     * =====================================================
-     */
-
-
-    const retryContext =
-        previousError
-            ? [
-
-                "",
-
-                "ПРЕДЫДУЩИЙ ПЛАН БЫЛ ОТКЛОНЁН:",
-
-                previousError,
-
-                "",
-
-                "Исправь ошибку и создай новый валидный план."
-
-            ].join(
-                "\n"
-            )
-            : "";
-
 
     /*
      * =====================================================
-     * USER PROMPT
+     * USER MESSAGE
      * =====================================================
      */
 
 
     const userPromptParts =
-        [
-
-            "ЗАДАЧА:",
-
-            String(
-                task || ""
-            ).trim()
-
-        ];
+        [];
 
 
-    /*
-     * PlanningContext добавляем
-     * только если он действительно есть.
-     */
+
+    userPromptParts.push(
+
+        "=== ТЕКУЩАЯ ЗАДАЧА ===",
+
+        cleanTask
+
+    );
 
 
-    if (planningContextText) {
+
+    if (
+        planningContextText
+    ) {
 
         userPromptParts.push(
 
             "",
+
+            "=== НАКОПЛЕННЫЙ КОНТЕКСТ JESSICA ===",
 
             planningContextText
 
@@ -194,34 +314,46 @@ export async function requestPlan(
     }
 
 
-    /*
-     * Доступные инструменты.
-     */
-
 
     userPromptParts.push(
 
         "",
 
-        "ДОСТУПНЫЕ ИНСТРУМЕНТЫ:",
+        "=== ДОСТУПНЫЕ ИНСТРУМЕНТЫ ===",
 
         toolsText
 
     );
 
 
-    /*
-     * Контекст предыдущей ошибки Planner.
-     */
+
+    const retryContext =
+        buildRetryContext(
+            previousError
+        );
 
 
-    if (retryContext) {
+    if (
+        retryContext
+    ) {
 
         userPromptParts.push(
+
+            "",
+
             retryContext
+
         );
 
     }
+
+
+
+    const userPrompt =
+        userPromptParts.join(
+            "\n"
+        );
+
 
 
     /*
@@ -240,10 +372,13 @@ export async function requestPlan(
                 model:
                     PLANNER_MODEL,
 
+
                 temperature:
                     0,
 
-                messages: [
+
+                messages:
+                [
 
                     {
 
@@ -255,15 +390,14 @@ export async function requestPlan(
 
                     },
 
+
                     {
 
                         role:
                             "user",
 
                         content:
-                            userPromptParts.join(
-                                "\n"
-                            )
+                            userPrompt
 
                     }
 
@@ -272,9 +406,10 @@ export async function requestPlan(
             });
 
 
+
     /*
      * =====================================================
-     * RAW MODEL RESPONSE
+     * RESPONSE
      * =====================================================
      */
 
@@ -285,7 +420,9 @@ export async function requestPlan(
             ?.choices
             ?.[0]
             ?.message
-            ?.content || ""
+            ?.content
+            ||
+            ""
 
     );
 
