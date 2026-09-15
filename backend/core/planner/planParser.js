@@ -3,23 +3,33 @@
  * JESSICA PLAN PARSER
  * =========================================================
  *
- * Отвечает только за преобразование
- * ответа Planner в JavaScript object.
+ * Преобразует ответ Planner AI
+ * в JavaScript object.
  *
- * Не содержит:
  *
- * - AI запросов
- * - Planner логики
- * - нормализации плана
- * - валидации плана
+ * Ответственность:
+ *
+ * AI response
+ *      ↓
+ * JSON extraction
+ *      ↓
+ * JavaScript object
+ *
+ *
+ * НЕ отвечает за:
+ *
+ * - нормализацию;
+ * - валидацию;
+ * - исправление плана.
  *
  * =========================================================
  */
 
 
+
 /*
  * =========================================================
- * CLEAN JSON
+ * CLEAN JSON TEXT
  * =========================================================
  */
 
@@ -28,48 +38,55 @@ function cleanJsonText(
     text
 ) {
 
+
     let value =
         String(
             text || ""
-        ).trim();
-
-
-    /*
-     * Удаляем markdown code block:
-     *
-     * ```json
-     * {...}
-     * ```
-     */
-
-
-    if (
-        value.startsWith(
-            "```"
         )
-    ) {
-
-        value =
-            value.replace(
-                /^```(?:json)?\s*/i,
-                ""
-            );
+        .trim();
 
 
-        value =
-            value.replace(
-                /\s*```$/,
-                ""
-            );
+
+    if (!value) {
+
+        return "";
 
     }
 
 
+
+    /*
+     * Убираем markdown:
+     *
+     * ```json
+     * {}
+     * ```
+     */
+
+
+    value =
+        value.replace(
+            /^```(?:json)?/i,
+            ""
+        );
+
+
+    value =
+        value.replace(
+            /```$/i,
+            ""
+        );
+
+
+    value =
+        value.trim();
+
+
+
     /*
      * Если модель добавила текст
-     * вокруг JSON, пытаемся извлечь
-     * объект между первой и последней
-     * фигурной скобкой.
+     * до/после JSON,
+     * пытаемся найти объект.
      */
 
 
@@ -79,29 +96,77 @@ function cleanJsonText(
         );
 
 
-    const lastBrace =
-        value.lastIndexOf(
-            "}"
-        );
-
-
     if (
-        firstBrace !== -1 &&
-        lastBrace > firstBrace
+        firstBrace === -1
     ) {
 
-        value =
-            value.slice(
-                firstBrace,
-                lastBrace + 1
-            );
+        return value;
 
     }
 
 
-    return value.trim();
+
+    let depth =
+        0;
+
+
+    let started =
+        false;
+
+
+
+    for (
+        let i = firstBrace;
+        i < value.length;
+        i++
+    ) {
+
+
+        const char =
+            value[i];
+
+
+        if (
+            char === "{"
+        ) {
+
+            depth++;
+
+            started =
+                true;
+
+        }
+
+
+        if (
+            char === "}"
+        ) {
+
+            depth--;
+
+        }
+
+
+        if (
+            started &&
+            depth === 0
+        ) {
+
+            return value.slice(
+                firstBrace,
+                i + 1
+            );
+
+        }
+
+    }
+
+
+
+    return value;
 
 }
+
 
 
 /*
@@ -115,13 +180,17 @@ export function parsePlan(
     text
 ) {
 
+
     const cleaned =
         cleanJsonText(
             text
         );
 
 
-    if (!cleaned) {
+
+    if (
+        !cleaned
+    ) {
 
         throw new Error(
             "Planner вернул пустой ответ"
@@ -130,18 +199,59 @@ export function parsePlan(
     }
 
 
+
+    let parsed;
+
+
+
     try {
 
-        return JSON.parse(
+
+        parsed =
+            JSON.parse(
+                cleaned
+            );
+
+
+    } catch(error) {
+
+
+        console.error(
+            "Jessica Planner JSON parse error:",
             cleaned
         );
 
-    } catch {
 
         throw new Error(
             "Planner вернул невалидный JSON"
         );
 
     }
+
+
+
+    /*
+     * Planner должен вернуть объект,
+     * а не массив или примитив.
+     */
+
+
+    if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        Array.isArray(
+            parsed
+        )
+    ) {
+
+        throw new Error(
+            "Planner JSON должен быть объектом"
+        );
+
+    }
+
+
+
+    return parsed;
 
 }
