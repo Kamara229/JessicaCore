@@ -16,33 +16,29 @@ import {
  * JESSICA LEARNING ANALYZER REQUEST
  * =========================================================
  *
- * AI-запрос для анализа исправления пользователя.
+ * Отвечает только за обращение к AI-модели.
  *
  *
- * Теперь используется:
+ * Цепочка:
  *
- * Groq Structured Outputs
- *
- * response_format:
- * json_schema
- * strict: true
- *
- *
- * Это гарантирует:
- *
- * - валидный JSON;
- * - обязательные поля;
- * - отсутствие лишних полей;
- * - стабильную структуру ответа.
+ * correction
+ *      ↓
+ * Learning Analyzer Request
+ *      ↓
+ * Groq Structured Output
+ *      ↓
+ * JSON string
+ *      ↓
+ * Parser
  *
  *
- * Этот файл НЕ:
+ * НЕ отвечает за:
  *
- * - парсит JSON;
- * - валидирует смысл;
- * - создаёт Skill;
- * - сохраняет Experience;
- * - подтверждает обучение.
+ * - анализ смысла;
+ * - validation;
+ * - создание Skill;
+ * - сохранение Experience;
+ * - approval.
  *
  * =========================================================
  */
@@ -50,7 +46,7 @@ import {
 
 /*
  * =========================================================
- * MODEL
+ * CONFIG
  * =========================================================
  */
 
@@ -59,9 +55,17 @@ const LEARNING_ANALYZER_MODEL =
     "openai/gpt-oss-20b";
 
 
+const LEARNING_ANALYZER_TEMPERATURE =
+    0;
+
+
+const LEARNING_ANALYZER_MAX_TOKENS =
+    4000;
+
+
 /*
  * =========================================================
- * NORMALIZE TEXT
+ * NORMALIZE
  * =========================================================
  */
 
@@ -79,7 +83,98 @@ function normalizeText(
 
 /*
  * =========================================================
- * REQUEST LEARNING ANALYSIS
+ * BUILD USER PROMPT
+ * =========================================================
+ */
+
+
+function buildLearningPrompt({
+
+    task,
+
+    previousAnswer,
+
+    correction,
+
+    correctedAnswer
+
+}) {
+
+
+    const parts =
+        [
+
+            "ИСХОДНАЯ ЗАДАЧА:",
+
+            task
+
+        ];
+
+
+    if (previousAnswer) {
+
+        parts.push(
+
+            "",
+
+            "ПРЕДЫДУЩИЙ ОТВЕТ JESSICA:",
+
+            previousAnswer
+
+        );
+
+    }
+
+
+    parts.push(
+
+        "",
+
+        "ИСПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ:",
+
+        correction
+
+    );
+
+
+    if (correctedAnswer) {
+
+        parts.push(
+
+            "",
+
+            "ПРАВИЛЬНЫЙ ОТВЕТ:",
+
+            correctedAnswer
+
+        );
+
+    }
+
+
+    parts.push(
+
+        "",
+
+        "Проанализируй исправление пользователя.",
+
+        "Создай переиспользуемый Learning Proposal.",
+
+        "Заполни все поля JSON Schema."
+
+    );
+
+
+    return parts.join(
+        "\n"
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * REQUEST
  * =========================================================
  */
 
@@ -99,7 +194,7 @@ export async function requestLearningAnalysis({
 
     /*
      * =====================================================
-     * INPUT
+     * INPUT VALIDATION
      * =====================================================
      */
 
@@ -148,73 +243,6 @@ export async function requestLearningAnalysis({
 
     /*
      * =====================================================
-     * USER PROMPT
-     * =====================================================
-     */
-
-
-    const userPromptParts =
-        [
-
-            "ИСХОДНАЯ ЗАДАЧА:",
-
-            cleanTask
-
-        ];
-
-
-    if (cleanPreviousAnswer) {
-
-        userPromptParts.push(
-
-            "",
-
-            "ПРЕДЫДУЩИЙ ОТВЕТ JESSICA:",
-
-            cleanPreviousAnswer
-
-        );
-
-    }
-
-
-    userPromptParts.push(
-
-        "",
-
-        "ИСПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ:",
-
-        cleanCorrection
-
-    );
-
-
-    if (cleanCorrectedAnswer) {
-
-        userPromptParts.push(
-
-            "",
-
-            "ПРАВИЛЬНЫЙ ОТВЕТ:",
-
-            cleanCorrectedAnswer
-
-        );
-
-    }
-
-
-    userPromptParts.push(
-
-        "",
-
-        "Проанализируй исправление пользователя и сформируй Learning Proposal."
-
-    );
-
-
-    /*
-     * =====================================================
      * GROQ
      * =====================================================
      */
@@ -224,86 +252,127 @@ export async function requestLearningAnalysis({
         getGroqClient();
 
 
-    /*
-     * =====================================================
-     * AI REQUEST WITH STRUCTURED OUTPUT
-     * =====================================================
-     */
+    const userPrompt =
+        buildLearningPrompt({
+
+            task:
+                cleanTask,
+
+            previousAnswer:
+                cleanPreviousAnswer,
+
+            correction:
+                cleanCorrection,
+
+            correctedAnswer:
+                cleanCorrectedAnswer
+
+        });
 
 
-    const response =
-        await groq
-            .chat
-            .completions
-            .create({
 
-                model:
-                    LEARNING_ANALYZER_MODEL,
+    try {
 
 
-                temperature:
-                    0,
+        /*
+         * =================================================
+         * STRUCTURED OUTPUT REQUEST
+         * =================================================
+         */
 
 
-                response_format:
-                    LEARNING_ANALYZER_RESPONSE_FORMAT,
+        const response =
+            await groq
+                .chat
+                .completions
+                .create({
+
+                    model:
+                        LEARNING_ANALYZER_MODEL,
 
 
-                messages: [
-
-                    {
-
-                        role:
-                            "system",
-
-                        content:
-                            LEARNING_ANALYZER_SYSTEM_PROMPT
-
-                    },
-
-                    {
-
-                        role:
-                            "user",
-
-                        content:
-                            userPromptParts.join(
-                                "\n"
-                            )
-
-                    }
-
-                ]
-
-            });
+                    temperature:
+                        LEARNING_ANALYZER_TEMPERATURE,
 
 
-    /*
-     * =====================================================
-     * RESPONSE
-     * =====================================================
-     *
-     * Structured Output всё равно
-     * возвращает JSON-строку в content.
-     *
-     * Поэтому оставляем старый контракт:
-     *
-     * requestLearningAnalysis()
-     *       ↓
-     * parser
-     *
-     * =====================================================
-     */
+                    max_completion_tokens:
+                        LEARNING_ANALYZER_MAX_TOKENS,
 
 
-    return (
+                    response_format:
+                        LEARNING_ANALYZER_RESPONSE_FORMAT,
 
-        response
-            ?.choices
-            ?.[0]
-            ?.message
-            ?.content || ""
 
-    );
+                    messages: [
+
+                        {
+
+                            role:
+                                "system",
+
+                            content:
+                                LEARNING_ANALYZER_SYSTEM_PROMPT
+
+                        },
+
+                        {
+
+                            role:
+                                "user",
+
+                            content:
+                                userPrompt
+
+                        }
+
+                    ]
+
+                });
+
+
+
+        const content =
+            response
+                ?.choices
+                ?.[0]
+                ?.message
+                ?.content;
+
+
+        if (!content) {
+
+            throw new Error(
+                "Learning Analyzer: AI вернул пустой ответ"
+            );
+
+        }
+
+
+        return content;
+
+
+    } catch (error) {
+
+
+        console.error(
+            "Jessica Learning Analyzer request failed:",
+            {
+
+                message:
+                    error?.message,
+
+                code:
+                    error?.code,
+
+                type:
+                    error?.type
+
+            }
+        );
+
+
+        throw error;
+
+    }
 
 }
