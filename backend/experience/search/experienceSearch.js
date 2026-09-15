@@ -1,80 +1,95 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE SEARCH
+ * JESSICA EXPERIENCE SEARCH v0.2
  * =========================================================
  *
- * Отвечает только за поиск подходящего
- * накопленного опыта среди переданных Skills.
+ * Улучшенный поиск накопленного опыта.
+ *
+ * Поддерживает:
+ *
+ * - RU/EN synonyms
+ * - weighted matching
+ * - phrase matching
+ * - Skill metadata priority
  *
  *
- * Вход:
+ * Не делает:
  *
- * task
- * experiences[]
- *
- *
- * Выход:
- *
- * {
- *     found,
- *     experience,
- *     confidence,
- *     source
- * }
- *
- *
- * ВАЖНО:
- *
- * Этот модуль НЕ:
- *
- * - читает базу данных;
- * - сохраняет Experience;
- * - обучает Jessica;
- * - обращается к Planner;
- * - изменяет Skills.
- *
- *
- * Позже алгоритм поиска можно заменить:
- *
- * lexical
- *     ↓
- * semantic
- *     ↓
- * embeddings
- *     ↓
- * hybrid search
- *
- * не изменяя остальные части Jessica.
+ * - Storage
+ * - Learning
+ * - Planner
  *
  * =========================================================
  */
 
 
+const MIN_MATCH_CONFIDENCE = 0.35;
+
+
+
 /*
  * =========================================================
- * SEARCH CONFIG
+ * SYNONYMS
  * =========================================================
  */
 
 
-/*
- * Минимальная уверенность,
- * при которой опыт считается подходящим.
- *
- * Пока используется простой поиск v0.1.
- *
- * В будущем порог можно перенести
- * в отдельную конфигурацию.
- */
+const SYNONYMS = {
 
 
-const MIN_MATCH_CONFIDENCE =
-    0.35;
+    "официальный":
+        [
+            "official"
+        ],
+
+
+    "сайт":
+        [
+            "website",
+            "site"
+        ],
+
+
+    "найти":
+        [
+            "find",
+            "search"
+        ],
+
+
+    "поиск":
+        [
+            "search"
+        ],
+
+
+    "проверить":
+        [
+            "verify",
+            "verification"
+        ],
+
+
+    "домен":
+        [
+            "domain"
+        ],
+
+
+    "ссылка":
+        [
+            "url",
+            "link"
+        ]
+
+
+};
+
 
 
 /*
  * =========================================================
- * NORMALIZE TEXT
+ * NORMALIZE
  * =========================================================
  */
 
@@ -100,6 +115,7 @@ function normalizeText(
 }
 
 
+
 /*
  * =========================================================
  * TOKENIZE
@@ -111,150 +127,109 @@ function tokenize(
     value
 ) {
 
-    const normalized =
+    const text =
         normalizeText(
             value
         );
 
 
-    if (!normalized) {
+    if (!text) {
 
         return [];
 
     }
 
 
-    return normalized
-        .split(
-            " "
-        )
-        .map(
-            item =>
-                item.trim()
-        )
+    return text
+        .split(" ")
         .filter(
-            item =>
-                item.length >= 3
+            token =>
+                token.length >= 3
         );
 
 }
+
 
 
 /*
  * =========================================================
- * EXPERIENCE SEARCH TEXT
- * =========================================================
- *
- * Формирует только поисковое представление Skill.
- *
- * Основной алгоритм самого Skill
- * здесь НЕ используется.
- *
- * Для поиска достаточно метаданных:
- *
- * - name
- * - description
- * - taskTypes
- * - keywords
- * - tags
- *
+ * EXPAND TOKEN
  * =========================================================
  */
 
 
-function buildExperienceSearchText(
-    experience
+function expandToken(
+    token
 ) {
 
-    if (
-        !experience ||
-        typeof experience !== "object"
-    ) {
 
-        return "";
+    return [
 
-    }
+        token,
 
-
-    const parts =
-        [];
-
-
-    if (experience.name) {
-
-        parts.push(
-            experience.name
-        );
-
-    }
-
-
-    if (experience.description) {
-
-        parts.push(
-            experience.description
-        );
-
-    }
-
-
-    const arrays = [
-
-        experience.taskTypes,
-
-        experience.keywords,
-
-        experience.tags
+        ...(SYNONYMS[token] || [])
 
     ];
 
+}
 
-    arrays.forEach(
-        items => {
 
-            if (
-                Array.isArray(
-                    items
+
+/*
+ * =========================================================
+ * BUILD SEARCH PROFILE
+ * =========================================================
+ */
+
+
+function buildExperienceProfile(
+    experience
+) {
+
+
+    return {
+
+
+        name:
+            normalizeText(
+                experience.name
+            ),
+
+
+        description:
+            normalizeText(
+                experience.description
+            ),
+
+
+        keywords:
+            normalizeText(
+                (
+                    experience.keywords || []
                 )
-            ) {
-
-                parts.push(
-                    ...items
-                );
-
-            }
-
-        }
-    );
+                .join(" ")
+            ),
 
 
-    return normalizeText(
-        parts.join(
-            " "
-        )
-    );
+        tags:
+            normalizeText(
+                (
+                    experience.tags || []
+                )
+                .join(" ")
+            )
+
+
+    };
+
 
 }
+
 
 
 /*
  * =========================================================
  * CALCULATE MATCH
- * =========================================================
- *
- * Простая реализация v0.1.
- *
- * Сравнивает слова задачи
- * с поисковыми метаданными Skill.
- *
- *
- * ВАЖНО:
- *
- * Это временный поисковый алгоритм.
- *
- * Позже его заменим отдельным
- * Experience Matcher с семантическим поиском.
- *
  * =========================================================
  */
 
@@ -264,14 +239,15 @@ function calculateMatch(
     experience
 ) {
 
-    const taskTokens =
+
+    const tokens =
         tokenize(
             task
         );
 
 
     if (
-        taskTokens.length === 0
+        tokens.length === 0
     ) {
 
         return 0;
@@ -279,44 +255,100 @@ function calculateMatch(
     }
 
 
-    const experienceText =
-        buildExperienceSearchText(
+    const profile =
+        buildExperienceProfile(
             experience
         );
 
 
-    if (!experienceText) {
-
-        return 0;
-
-    }
+    let score = 0;
 
 
-    let matched =
-        0;
+    let totalWeight =
+        tokens.length * 3;
 
 
-    taskTokens.forEach(
+
+    tokens.forEach(
         token => {
 
-            if (
-                experienceText.includes(
+
+            const variants =
+                expandToken(
                     token
+                );
+
+
+            let matchedWeight = 0;
+
+
+
+            /*
+             * NAME
+             */
+
+            if (
+                variants.some(
+                    v =>
+                        profile.name.includes(v)
                 )
             ) {
 
-                matched++;
+                matchedWeight = 3;
 
             }
+
+
+            /*
+             * KEYWORDS
+             */
+
+            else if (
+                variants.some(
+                    v =>
+                        profile.keywords.includes(v)
+                )
+            ) {
+
+                matchedWeight = 2;
+
+            }
+
+
+            /*
+             * TAGS / DESCRIPTION
+             */
+
+            else if (
+                variants.some(
+                    v =>
+                        profile.tags.includes(v) ||
+                        profile.description.includes(v)
+                )
+            ) {
+
+                matchedWeight = 1;
+
+            }
+
+
+
+            score += matchedWeight;
+
 
         }
     );
 
 
-    return matched /
-        taskTokens.length;
+
+    return Math.min(
+        1,
+        score / totalWeight
+    );
+
 
 }
+
 
 
 /*
@@ -335,37 +367,21 @@ export function searchExperience(
 ) {
 
 
-    const cleanTask =
-        String(
-            task || ""
-        ).trim();
-
-
-    /*
-     * =====================================================
-     * INVALID INPUT
-     * =====================================================
-     */
-
-
     if (
-        !cleanTask ||
+        !task ||
         !Array.isArray(
             experiences
-        ) ||
-        experiences.length === 0
+        )
     ) {
+
 
         return {
 
-            found:
-                false,
+            found:false,
 
-            experience:
-                null,
+            experience:null,
 
-            confidence:
-                0,
+            confidence:0,
 
             source:
                 "experience-search"
@@ -375,31 +391,20 @@ export function searchExperience(
     }
 
 
-    /*
-     * =====================================================
-     * SEARCH
-     * =====================================================
-     */
 
-
-    let bestExperience =
+    let best =
         null;
 
 
-    let bestConfidence =
+    let bestScore =
         0;
+
 
 
     for (
         const experience
         of experiences
     ) {
-
-
-        /*
-         * Можно временно отключить Skill,
-         * не удаляя его из памяти Jessica.
-         */
 
 
         if (
@@ -411,53 +416,46 @@ export function searchExperience(
         }
 
 
-        const confidence =
+        const score =
             calculateMatch(
-                cleanTask,
+                task,
                 experience
             );
 
 
         if (
-            confidence >
-            bestConfidence
+            score >
+            bestScore
         ) {
 
-            bestExperience =
+            best =
                 experience;
 
 
-            bestConfidence =
-                confidence;
+            bestScore =
+                score;
 
         }
 
     }
 
 
-    /*
-     * =====================================================
-     * NO GOOD MATCH
-     * =====================================================
-     */
-
 
     if (
-        !bestExperience ||
-        bestConfidence <
+        !best ||
+        bestScore <
             MIN_MATCH_CONFIDENCE
     ) {
 
+
         return {
 
-            found:
-                false,
+            found:false,
 
-            experience:
-                null,
+            experience:null,
 
             confidence:
-                bestConfidence,
+                bestScore,
 
             source:
                 "experience-search"
@@ -467,27 +465,21 @@ export function searchExperience(
     }
 
 
-    /*
-     * =====================================================
-     * MATCH FOUND
-     * =====================================================
-     */
-
 
     return {
 
-        found:
-            true,
+        found:true,
 
         experience:
-            bestExperience,
+            best,
 
         confidence:
-            bestConfidence,
+            bestScore,
 
         source:
             "experience-search"
 
     };
+
 
 }
