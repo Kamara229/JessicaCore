@@ -6,42 +6,43 @@ import {
     LEARNING_ANALYZER_SYSTEM_PROMPT
 } from "./learningAnalyzerPrompt.js";
 
+import {
+    LEARNING_ANALYZER_RESPONSE_FORMAT
+} from "./learningAnalyzerSchema.js";
+
 
 /*
  * =========================================================
  * JESSICA LEARNING ANALYZER REQUEST
  * =========================================================
  *
- * Отвечает только за AI-запрос
- * для анализа исправления пользователя.
+ * AI-запрос для анализа исправления пользователя.
  *
  *
- * Вход:
+ * Теперь используется:
  *
- * - исходная задача;
- * - предыдущий ответ Jessica;
- * - исправление пользователя;
- * - правильный ответ, если он известен.
+ * Groq Structured Outputs
  *
- *
- * Выход:
- *
- * - сырой текст ответа AI.
+ * response_format:
+ * json_schema
+ * strict: true
  *
  *
- * Обычно модель должна вернуть JSON,
- * но parsing и validation выполняются
- * отдельными модулями.
+ * Это гарантирует:
+ *
+ * - валидный JSON;
+ * - обязательные поля;
+ * - отсутствие лишних полей;
+ * - стабильную структуру ответа.
  *
  *
  * Этот файл НЕ:
  *
  * - парсит JSON;
- * - создаёт Learning Proposal;
+ * - валидирует смысл;
+ * - создаёт Skill;
  * - сохраняет Experience;
- * - подтверждает обучение;
- * - изменяет Skills;
- * - повторно выполняет задачу.
+ * - подтверждает обучение.
  *
  * =========================================================
  */
@@ -50,15 +51,6 @@ import {
 /*
  * =========================================================
  * MODEL
- * =========================================================
- *
- * Пока используем ту же модель,
- * что и Planner.
- *
- * Позже Learning может получить
- * отдельную более сильную модель,
- * не затрагивая Planner.
- *
  * =========================================================
  */
 
@@ -171,12 +163,6 @@ export async function requestLearningAnalysis({
         ];
 
 
-    /*
-     * Предыдущий ответ Jessica
-     * может отсутствовать.
-     */
-
-
     if (cleanPreviousAnswer) {
 
         userPromptParts.push(
@@ -192,12 +178,6 @@ export async function requestLearningAnalysis({
     }
 
 
-    /*
-     * Исправление пользователя —
-     * обязательная часть обучения.
-     */
-
-
     userPromptParts.push(
 
         "",
@@ -207,13 +187,6 @@ export async function requestLearningAnalysis({
         cleanCorrection
 
     );
-
-
-    /*
-     * Если пользователь отдельно
-     * дал правильный итоговый ответ,
-     * передаём его отдельным блоком.
-     */
 
 
     if (cleanCorrectedAnswer) {
@@ -235,14 +208,14 @@ export async function requestLearningAnalysis({
 
         "",
 
-        "Проанализируй исправление и сформируй Learning Proposal согласно системной инструкции."
+        "Проанализируй исправление пользователя и сформируй Learning Proposal."
 
     );
 
 
     /*
      * =====================================================
-     * GROQ CLIENT
+     * GROQ
      * =====================================================
      */
 
@@ -253,7 +226,7 @@ export async function requestLearningAnalysis({
 
     /*
      * =====================================================
-     * AI REQUEST
+     * AI REQUEST WITH STRUCTURED OUTPUT
      * =====================================================
      */
 
@@ -267,8 +240,14 @@ export async function requestLearningAnalysis({
                 model:
                     LEARNING_ANALYZER_MODEL,
 
+
                 temperature:
                     0,
+
+
+                response_format:
+                    LEARNING_ANALYZER_RESPONSE_FORMAT,
+
 
                 messages: [
 
@@ -301,7 +280,18 @@ export async function requestLearningAnalysis({
 
     /*
      * =====================================================
-     * RAW RESPONSE
+     * RESPONSE
+     * =====================================================
+     *
+     * Structured Output всё равно
+     * возвращает JSON-строку в content.
+     *
+     * Поэтому оставляем старый контракт:
+     *
+     * requestLearningAnalysis()
+     *       ↓
+     * parser
+     *
      * =====================================================
      */
 
