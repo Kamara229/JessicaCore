@@ -1,6 +1,6 @@
 import {
-    getGroqClient
-} from "../../ai/groqClient.js";
+    plannerChat
+} from "../../ai/plannerClient.js";
 
 import {
     buildPlannerInstructions
@@ -20,11 +20,31 @@ import {
  * JESSICA PLANNER REQUEST
  * =========================================================
  *
- * Отвечает только за формирование запроса
- * к AI Planner.
+ * Формирует запрос для AI Planner.
  *
  *
- * Цепочка:
+ * Отвечает только за:
+ *
+ * - сбор system prompt;
+ * - сбор user prompt;
+ * - добавление PlanningContext;
+ * - добавление Tools;
+ * - передачу ошибки предыдущей попытки.
+ *
+ *
+ * НЕ отвечает за:
+ *
+ * - создание AI клиента;
+ * - выбор модели;
+ * - parsing;
+ * - normalization;
+ * - validation;
+ * - retry цикл;
+ * - Experience;
+ * - выполнение инструментов.
+ *
+ *
+ * Архитектура:
  *
  * task
  *   +
@@ -33,18 +53,14 @@ import {
  * Tools
  *   +
  * Retry Error
+ *
  *        ↓
- *      GPT Planner
  *
+ * plannerClient
  *
- * НЕ отвечает за:
+ *        ↓
  *
- * - parsing;
- * - normalization;
- * - validation;
- * - retry цикл;
- * - Experience поиск;
- * - выполнение инструментов.
+ * AI Planner
  *
  * =========================================================
  */
@@ -52,18 +68,13 @@ import {
 
 /*
  * =========================================================
- * MODEL CONFIG
+ * CONFIG
  * =========================================================
  */
 
 
-const PLANNER_MODEL =
-    "openai/gpt-oss-20b";
-
-
 const MAX_CONTEXT_LENGTH =
     6000;
-
 
 
 /*
@@ -88,7 +99,7 @@ function safeString(
 
 /*
  * =========================================================
- * BUILD RETRY CONTEXT
+ * RETRY CONTEXT
  * =========================================================
  */
 
@@ -121,7 +132,8 @@ function buildRetryContext(
 
         "Исправь ошибку и создай новый валидный JSON-план."
 
-    ].join(
+    ]
+    .join(
         "\n"
     );
 
@@ -223,19 +235,7 @@ export async function requestPlan(
 
     /*
      * =====================================================
-     * GROQ CLIENT
-     * =====================================================
-     */
-
-
-    const groq =
-        getGroqClient();
-
-
-
-    /*
-     * =====================================================
-     * SYSTEM PROMPT
+     * SYSTEM INSTRUCTIONS
      * =====================================================
      */
 
@@ -247,7 +247,7 @@ export async function requestPlan(
 
     /*
      * =====================================================
-     * PLANNING CONTEXT
+     * EXPERIENCE CONTEXT
      * =====================================================
      */
 
@@ -277,23 +277,19 @@ export async function requestPlan(
 
     /*
      * =====================================================
-     * USER MESSAGE
+     * USER PROMPT
      * =====================================================
      */
 
 
     const userPromptParts =
-        [];
+        [
 
+            "=== ТЕКУЩАЯ ЗАДАЧА ===",
 
+            cleanTask
 
-    userPromptParts.push(
-
-        "=== ТЕКУЩАЯ ЗАДАЧА ===",
-
-        cleanTask
-
-    );
+        ];
 
 
 
@@ -364,46 +360,34 @@ export async function requestPlan(
 
 
     const response =
-        await groq
-            .chat
-            .completions
-            .create({
+        await plannerChat(
 
-                model:
-                    PLANNER_MODEL,
+            [
 
+                {
 
-                temperature:
-                    0,
+                    role:
+                        "system",
 
+                    content:
+                        instructions
 
-                messages:
-                [
-
-                    {
-
-                        role:
-                            "system",
-
-                        content:
-                            instructions
-
-                    },
+                },
 
 
-                    {
+                {
 
-                        role:
-                            "user",
+                    role:
+                        "user",
 
-                        content:
-                            userPrompt
+                    content:
+                        userPrompt
 
-                    }
+                }
 
-                ]
+            ]
 
-            });
+        );
 
 
 
