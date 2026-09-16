@@ -1,20 +1,6 @@
-import OpenAI from "openai";
-
 import {
-    listTools
-} from "../tools/toolRegistry.js";
-
-import {
-    buildPlannerInstructions
-} from "./planner/plannerPrompt.js";
-
-import {
-    normalizePlan
-} from "./planner/planNormalizer.js";
-
-import {
-    validatePlan
-} from "./planner/planValidator.js";
+    createPlan
+} from "./planner.js";
 
 
 /*
@@ -22,317 +8,277 @@ import {
  * JESSICA REPLANNER
  * =========================================================
  *
- * Строит альтернативный план после того,
- * как Validator отклонил предыдущий результат.
+ * Отвечает только за создание нового маршрута
+ * после неудачного выполнения.
  *
- * Получает:
  *
- * - исходную задачу;
- * - предыдущий план;
- * - причину отказа Validator;
- * - уже выполненные результаты.
+ * НЕ:
  *
- * Не выполняет инструменты сам.
+ * - вызывает AI напрямую;
+ * - создает prompt;
+ * - знает инструменты;
+ * - валидирует JSON.
+ *
+ *
+ * Использует основной Planner:
+ *
+ * Replanner
+ *      ↓
+ * createPlan()
+ *      ↓
+ * Planner
+ *
+ *
+ * Сохраняет:
+ *
+ * - Experience;
+ * - PlanningContext;
+ * - ограничения;
+ * - историю ошибки.
+ *
+ * =========================================================
  */
-
-
-const groq =
-    process.env.GROQ_API_KEY
-        ? new OpenAI({
-            apiKey: process.env.GROQ_API_KEY,
-            baseURL: "https://api.groq.com/openai/v1"
-        })
-        : null;
-
-
-const MODEL =
-    "openai/gpt-oss-20b";
 
 
 /*
  * =========================================================
- * JSON CLEANUP
+ * BUILD RETRY CONTEXT
  * =========================================================
  */
 
 
-function cleanJsonText(text) {
+function buildRetryContext(
+    failure
+) {
 
-    let value =
-        String(text || "")
-            .replace(/```json/gi, "")
-            .replace(/```/g, "")
-            .trim();
+    return {
 
+        retry: {
 
-    const firstBrace =
-        value.indexOf("{");
-
-    const lastBrace =
-        value.lastIndexOf("}");
+            stage:
+                failure?.stage || "",
 
 
-    if (
-        firstBrace !== -1 &&
-        lastBrace > firstBrace
-    ) {
-
-        value =
-            value.slice(
-                firstBrace,
-                lastBrace + 1
-            );
-    }
+            failureType:
+                failure?.failureType || "",
 
 
-    return value;
+            reason:
+                failure?.reason || "",
+
+
+            shouldRetry:
+                true
+
+        }
+
+    };
+
 }
 
 
+
 /*
  * =========================================================
- * TOOL DESCRIPTION
+ * MERGE CONTEXT
  * =========================================================
  */
 
 
-function buildToolsText() {
+function mergePlanningContext(
+    context,
+    failure
+) {
 
-    const tools =
-        listTools();
+
+    return {
+
+        ...(context || {}),
 
 
-    return tools
-        .map(
-            tool =>
-                JSON.stringify({
-                    name:
-                        tool.name,
+        metadata: {
 
-                    description:
-                        tool.description,
+            ...(context?.metadata || {}),
 
-                    arguments:
-                        tool.arguments || {}
-                })
-        )
-        .join("\n");
+
+            retry:
+
+                {
+
+                    stage:
+                        failure?.stage || "",
+
+
+                    failureType:
+                        failure?.failureType || "",
+
+
+                    reason:
+                        failure?.reason || ""
+
+                }
+
+        },
+
+
+        instructions: [
+
+            ...(context?.instructions || []),
+
+            "Предыдущий маршрут выполнения завершился ошибкой.",
+
+            "Используй причину ошибки при построении нового плана.",
+
+            "Не повторяй неэффективный маршрут без изменений."
+
+        ]
+
+    };
+
 }
+
 
 
 /*
  * =========================================================
- * CREATE ALTERNATIVE PLAN
+ * REPLAN TASK
  * =========================================================
  */
 
 
 export async function replanTask(
+
     task,
+
     previousPlan,
-    validationResult,
-    previousRunResult
+
+    failureResult,
+
+    previousRunResult,
+
+    planningContext = {}
+
 ) {
 
-    if (!groq) {
 
-        return {
-            success: false,
-            reason:
-                "Replanner недоступен: GROQ_API_KEY не настроен"
-        };
-    }
+    const retryContext =
+        mergePlanningContext(
+
+            planningContext,
+
+            failureResult
+
+        );
 
 
-    const validatorReason =
-        String(
-            validationResult?.reason || ""
-        ).trim();
+
+    /*
+     * Добавляем историю ошибки
+     */
+
+
+    retryContext.metadata = {
+
+        ...(retryContext.metadata || {}),
+
+
+        previousPlan,
+
+        previousRunResult
+
+    };
+
+
+
+    /*
+     * =====================================================
+     * CREATE NEW PLAN
+     * =====================================================
+     */
 
 
     try {
 
-        const response =
-            await groq.chat.completions.create({
 
-                model:
-                    MODEL,
+        const result =
+            await createPlan(
 
-                temperature:
-                    0,
+                task,
 
-                messages: [
-                    {
-                        role:
-                            "system",
+                retryContext
 
-                        content: [
-                            buildPlannerInstructions(),
-
-                            "",
-                            "ДОПОЛНИТЕЛЬНАЯ РОЛЬ:",
-                            "Предыдущий план уже был выполнен и отклонён Validator.",
-                            "Создай АЛЬТЕРНАТИВНЫЙ план.",
-                            "",
-                            "Не повторяй тот же неудачный маршрут без необходимости.",
-                            "Используй причину отказа Validator как обратную связь.",
-                            "",
-                            "Если предыдущий источник не содержал нужного факта,",
-                            "измени поиск, выбери более конкретный источник",
-                            "или построй дополнительные шаги.",
-                            "",
-                            "Если конкретное утверждение не подтверждено,",
-                            "получи более подходящее evidence.",
-                            "",
-                            "Не придумывай результат заранее.",
-                            "Верни только валидный JSON."
-                        ].join("\n")
-                    },
-
-                    {
-                        role:
-                            "user",
-
-                        content: [
-                            "ИСХОДНАЯ ЗАДАЧА:",
-                            String(task || ""),
-
-                            "",
-                            "ПРЕДЫДУЩИЙ ПЛАН:",
-                            JSON.stringify(
-                                previousPlan,
-                                null,
-                                2
-                            ),
-
-                            "",
-                            "ПРИЧИНА ОТКЛОНЕНИЯ VALIDATOR:",
-                            validatorReason,
-
-                            "",
-                            "ПРЕДЫДУЩИЕ РЕЗУЛЬТАТЫ ВЫПОЛНЕНИЯ:",
-                            JSON.stringify(
-                                previousRunResult,
-                                null,
-                                2
-                            ),
-
-                            "",
-                            "ДОСТУПНЫЕ ИНСТРУМЕНТЫ:",
-                            buildToolsText()
-                        ].join("\n")
-                    }
-                ]
-            });
-
-
-        const raw =
-            response
-                ?.choices
-                ?.[0]
-                ?.message
-                ?.content;
-
-
-        if (!raw) {
-
-            return {
-                success: false,
-                reason:
-                    "Replanner вернул пустой ответ"
-            };
-        }
-
-
-        let parsed;
-
-
-        try {
-
-            parsed =
-                JSON.parse(
-                    cleanJsonText(
-                        raw
-                    )
-                );
-
-        } catch {
-
-            console.error(
-                "Replanner invalid JSON:",
-                raw
             );
 
-
-            return {
-                success: false,
-                reason:
-                    "Replanner вернул некорректный JSON"
-            };
-        }
-
-
-        const plan =
-            normalizePlan(
-                parsed
-            );
-
-
-        if (!plan) {
-
-            return {
-                success: false,
-                reason:
-                    "Не удалось нормализовать альтернативный план"
-            };
-        }
-
-
-        const validation =
-            validatePlan(
-                plan
-            );
 
 
         if (
-            validation.success !== true
+            !result?.success ||
+            !result?.plan
         ) {
 
             return {
-                success: false,
+
+                success:
+                    false,
+
                 reason:
-                    validation.text ||
-                    "Альтернативный план не прошёл проверку"
+                    result?.text ||
+                    "Planner не смог создать альтернативный маршрут"
+
             };
+
         }
 
 
+
         console.log(
-            "Jessica Replan:",
-            JSON.stringify(plan)
+
+            "Jessica Replanner new plan:",
+
+            JSON.stringify(
+                result.plan
+            )
+
         );
 
 
+
         return {
-            success: true,
-            plan
+
+            success:
+                true,
+
+
+            plan:
+                result.plan,
+
+
+            context:
+                retryContext
+
         };
 
 
-    } catch (error) {
+    } catch(error) {
+
 
         console.error(
-            "Replanner error:",
+            "Jessica Replanner error:",
             error
         );
 
 
         return {
-            success: false,
+
+            success:
+                false,
+
             reason:
                 error?.message ||
                 "Ошибка Replanner"
+
         };
+
     }
 
 }
