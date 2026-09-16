@@ -25,32 +25,33 @@ import {
 } from "./runFailurePolicy.js";
 
 
+
 /*
  * =========================================================
  * JESSICA EXECUTION CYCLE
  * =========================================================
  *
- * Центральный цикл выполнения одной задачи.
+ * Центральный цикл выполнения Jessica.
  *
  *
- * Поток:
+ * Flow:
  *
  * Plan
  *  ↓
- * TaskRunner
+ * Run
  *  ↓
- * Run Analysis
+ * Analyze
  *  ↓
- * Answer Composer
+ * Compose
  *  ↓
- * Validator
+ * Validate
  *  ↓
- * Replanner
+ * Replan
  *  ↓
  * Retry
  *
  *
- * Context сохраняется между попытками:
+ * Context сохраняется:
  *
  * Experience
  * PlanningContext
@@ -61,9 +62,10 @@ import {
  */
 
 
+
 /*
  * =========================================================
- * COLLECT USED TOOLS
+ * USED TOOLS
  * =========================================================
  */
 
@@ -95,7 +97,7 @@ function collectUsedTools(
 
 /*
  * =========================================================
- * COMPLETED RESULT
+ * COMPLETED
  * =========================================================
  */
 
@@ -104,7 +106,9 @@ function buildCompletedResult(
     plan,
     taskRunResult,
     answerResult,
-    attempt
+    attempt,
+    context,
+    validationSkipped = false
 ) {
 
     return {
@@ -118,7 +122,10 @@ function buildCompletedResult(
 
 
         validated:
-            true,
+            !validationSkipped,
+
+
+        validationSkipped,
 
 
         result:
@@ -139,6 +146,10 @@ function buildCompletedResult(
         plan,
 
 
+        planningContext:
+            context,
+
+
         toolResults:
             taskRunResult?.results || [],
 
@@ -153,7 +164,7 @@ function buildCompletedResult(
 
 /*
  * =========================================================
- * FAILURE RESULT
+ * FAILURE
  * =========================================================
  */
 
@@ -165,6 +176,7 @@ function buildFailure(
         plan,
         taskRunResult,
         attempt,
+        context,
         shouldRetry = false,
         failureType = null
     }
@@ -196,6 +208,10 @@ function buildFailure(
         plan,
 
 
+        planningContext:
+            context,
+
+
         toolResults:
             taskRunResult?.results || [],
 
@@ -210,18 +226,42 @@ function buildFailure(
 
 /*
  * =========================================================
- * CREATE ALTERNATIVE PLAN
+ * VALIDATOR FEEDBACK
  * =========================================================
- *
- * Единая точка Replan.
- *
- * Сохраняем:
- *
- * - текущий план;
- * - ошибку;
- * - результаты выполнения;
- * - Experience context.
- *
+ */
+
+
+function buildValidatorFeedback(
+    validation
+) {
+
+    return {
+
+        stage:
+            "validator",
+
+
+        failureType:
+            "validation-failure",
+
+
+        reason:
+            validation?.reason ||
+            "Ответ не прошёл проверку",
+
+
+        shouldRetry:
+            true
+
+    };
+
+}
+
+
+
+/*
+ * =========================================================
+ * REPLAN
  * =========================================================
  */
 
@@ -229,32 +269,27 @@ function buildFailure(
 async function createAlternativePlan(
     taskText,
     currentPlan,
-    failureContext,
+    feedback,
     taskRunResult,
-    planningContext,
+    context,
     attempt
 ) {
 
 
     console.log(
-        "Jessica Replan requested:",
+        "Jessica Replan:",
         JSON.stringify({
 
             attempt,
 
             stage:
-                failureContext?.stage ||
-                "",
-
+                feedback?.stage,
 
             failureType:
-                failureContext?.failureType ||
-                "",
-
+                feedback?.failureType,
 
             reason:
-                failureContext?.reason ||
-                ""
+                feedback?.reason
 
         })
     );
@@ -271,11 +306,11 @@ async function createAlternativePlan(
 
                 currentPlan,
 
-                failureContext,
+                feedback,
 
                 taskRunResult,
 
-                planningContext
+                context
 
             );
 
@@ -293,7 +328,7 @@ async function createAlternativePlan(
 
                 reason:
                     result?.reason ||
-                    "Replanner не создал новый план"
+                    "Replanner не создал план"
 
             };
 
@@ -306,13 +341,14 @@ async function createAlternativePlan(
             success:
                 true,
 
+
             plan:
                 result.plan,
 
 
             context:
                 result.context ||
-                planningContext
+                context
 
         };
 
@@ -332,7 +368,8 @@ async function createAlternativePlan(
                 false,
 
             reason:
-                "Ошибка построения альтернативного плана"
+                error?.message ||
+                "Ошибка Replanner"
 
         };
 
@@ -344,7 +381,7 @@ async function createAlternativePlan(
 
 /*
  * =========================================================
- * EXECUTE PLAN CYCLE
+ * MAIN EXECUTION
  * =========================================================
  */
 
@@ -388,7 +425,7 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * 1. RUN PLAN
+         * RUN
          * =================================================
          */
 
@@ -412,12 +449,6 @@ export async function executePlanCycle(
         } catch(error) {
 
 
-            console.error(
-                "Jessica TaskRunner error:",
-                error
-            );
-
-
             return buildFailure({
 
                 stage:
@@ -432,7 +463,9 @@ export async function executePlanCycle(
                 taskRunResult:
                     lastRunResult,
 
-                attempt
+                attempt,
+
+                context
 
             });
 
@@ -447,7 +480,7 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * 2. ANALYZE RUN
+         * RUN ANALYSIS
          * =================================================
          */
 
@@ -464,9 +497,9 @@ export async function executePlanCycle(
         ) {
 
 
-            /*
-             * Требуется уточнение
-             */
+            lastFailure =
+                runFailure;
+
 
 
             if (
@@ -478,28 +511,35 @@ export async function executePlanCycle(
                     success:
                         false,
 
+
                     status:
                         "NEEDS_CLARIFICATION",
 
+
                     needsClarification:
                         true,
+
 
                     stage:
                         runFailure.stage ||
                         "tools",
 
-                    failureType:
-                        runFailure.failureType ||
-                        "needs-clarification",
 
                     result:
                         runFailure.reason,
 
+
                     plan:
                         currentPlan,
 
+
+                    planningContext:
+                        currentContext,
+
+
                     toolResults:
-                        taskRunResult?.results || [],
+                        taskRunResult.results || [],
+
 
                     attempt
 
@@ -509,125 +549,128 @@ export async function executePlanCycle(
 
 
 
-            /*
-             * Можно перестроить маршрут
-             */
-
-
             if (
-                runFailure.shouldRetry === true
+                runFailure.shouldRetry !== true
             ) {
 
+                return buildFailure({
 
-                if (
-                    attempt >= MAX_EXECUTION_ATTEMPTS
-                ) {
+                    stage:
+                        runFailure.stage ||
+                        "tools",
 
-                    return buildFailure({
+                    text:
+                        runFailure.reason,
 
-                        stage:
-                            runFailure.stage,
-
-                        text:
-                            runFailure.reason,
-
-                        plan:
-                            currentPlan,
-
-                        taskRunResult,
-
-                        attempt,
-
-                        failureType:
-                            runFailure.failureType
-
-                    });
-
-                }
-
-
-
-                const alternative =
-                    await createAlternativePlan(
-
-                        taskText,
-
+                    plan:
                         currentPlan,
 
-                        buildRunFailureFeedback(
-                            runFailure
-                        ),
+                    taskRunResult,
 
-                        taskRunResult,
+                    attempt,
 
+                    context:
                         currentContext,
 
-                        attempt
+                    failureType:
+                        runFailure.failureType
 
-                    );
-
-
-
-                if (
-                    !alternative.success
-                ) {
-
-                    return buildFailure({
-
-                        stage:
-                            "replanner",
-
-                        text:
-                            alternative.reason,
-
-                        plan:
-                            currentPlan,
-
-                        taskRunResult,
-
-                        attempt
-
-                    });
-
-                }
-
-
-
-                currentPlan =
-                    alternative.plan;
-
-
-                currentContext =
-                    alternative.context;
-
-
-
-                continue;
+                });
 
             }
 
 
 
-            return buildFailure({
+            if (
+                attempt >= MAX_EXECUTION_ATTEMPTS
+            ) {
 
-                stage:
-                    runFailure.stage ||
-                    "tools",
+                return buildFailure({
 
-                text:
-                    runFailure.reason,
+                    stage:
+                        runFailure.stage,
 
-                plan:
+                    text:
+                        runFailure.reason,
+
+                    plan:
+                        currentPlan,
+
+                    taskRunResult,
+
+                    attempt,
+
+                    context:
+                        currentContext,
+
+                    failureType:
+                        runFailure.failureType
+
+                });
+
+            }
+
+
+
+            const alternative =
+                await createAlternativePlan(
+
+                    taskText,
+
                     currentPlan,
 
-                taskRunResult,
+                    buildRunFailureFeedback(
+                        runFailure
+                    ),
 
-                attempt,
+                    taskRunResult,
 
-                failureType:
-                    runFailure.failureType
+                    currentContext,
 
-            });
+                    attempt
+
+                );
+
+
+
+            if (
+                !alternative.success
+            ) {
+
+                return buildFailure({
+
+                    stage:
+                        "replanner",
+
+                    text:
+                        alternative.reason,
+
+                    plan:
+                        currentPlan,
+
+                    taskRunResult,
+
+                    attempt,
+
+                    context:
+                        currentContext
+
+                });
+
+            }
+
+
+
+            currentPlan =
+                alternative.plan;
+
+
+            currentContext =
+                alternative.context;
+
+
+
+            continue;
 
         }
 
@@ -635,7 +678,7 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * 3. COMPOSE
+         * COMPOSE
          * =================================================
          */
 
@@ -674,7 +717,10 @@ export async function executePlanCycle(
 
                 taskRunResult,
 
-                attempt
+                attempt,
+
+                context:
+                    currentContext
 
             });
 
@@ -700,7 +746,10 @@ export async function executePlanCycle(
 
                 taskRunResult,
 
-                attempt
+                attempt,
+
+                context:
+                    currentContext
 
             });
 
@@ -710,7 +759,7 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * 4. VALIDATE
+         * VALIDATE
          * =================================================
          */
 
@@ -739,7 +788,7 @@ export async function executePlanCycle(
 
 
             console.error(
-                "Jessica Validator error:",
+                "Validator error:",
                 error
             );
 
@@ -752,19 +801,16 @@ export async function executePlanCycle(
 
                 answerResult,
 
-                attempt
+                attempt,
+
+                currentContext,
+
+                true
 
             );
 
         }
 
-
-
-        /*
-         * =================================================
-         * VALID
-         * =================================================
-         */
 
 
         if (
@@ -779,19 +825,14 @@ export async function executePlanCycle(
 
                 answerResult,
 
-                attempt
+                attempt,
+
+                currentContext
 
             );
 
         }
 
-
-
-        /*
-         * =================================================
-         * NEED CLARIFICATION
-         * =================================================
-         */
 
 
         if (
@@ -803,23 +844,34 @@ export async function executePlanCycle(
                 success:
                     false,
 
+
                 status:
                     "NEEDS_CLARIFICATION",
+
 
                 needsClarification:
                     true,
 
+
                 stage:
                     "validator",
+
 
                 result:
                     validation.reason,
 
+
                 plan:
                     currentPlan,
 
+
+                planningContext:
+                    currentContext,
+
+
                 toolResults:
                     taskRunResult.results || [],
+
 
                 attempt
 
@@ -827,13 +879,6 @@ export async function executePlanCycle(
 
         }
 
-
-
-        /*
-         * =================================================
-         * RETRY VALIDATOR
-         * =================================================
-         */
 
 
         if (
@@ -849,8 +894,7 @@ export async function executePlanCycle(
                     "validator",
 
                 text:
-                    validation.reason ||
-                    "Ответ не прошёл проверку",
+                    validation.reason,
 
                 plan:
                     currentPlan,
@@ -858,6 +902,9 @@ export async function executePlanCycle(
                 taskRunResult,
 
                 attempt,
+
+                context:
+                    currentContext,
 
                 failureType:
                     "validation-failure"
@@ -875,7 +922,9 @@ export async function executePlanCycle(
 
                 currentPlan,
 
-                validation,
+                buildValidatorFeedback(
+                    validation
+                ),
 
                 taskRunResult,
 
@@ -904,7 +953,10 @@ export async function executePlanCycle(
 
                 taskRunResult,
 
-                attempt
+                attempt,
+
+                context:
+                    currentContext
 
             });
 
@@ -920,15 +972,9 @@ export async function executePlanCycle(
             alternative.context;
 
 
+
     }
 
-
-
-    /*
-     * =====================================================
-     * FALLBACK
-     * =====================================================
-     */
 
 
     return buildFailure({
@@ -938,7 +984,7 @@ export async function executePlanCycle(
 
         text:
             lastFailure?.reason ||
-            "Исчерпан лимит выполнения",
+            "Исчерпан лимит попыток",
 
         plan:
             currentPlan,
@@ -947,7 +993,10 @@ export async function executePlanCycle(
             lastRunResult,
 
         attempt:
-            MAX_EXECUTION_ATTEMPTS
+            MAX_EXECUTION_ATTEMPTS,
+
+        context:
+            currentContext
 
     });
 
