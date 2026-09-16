@@ -3,14 +3,23 @@
  * JESSICA EVIDENCE RESULT VALIDATOR
  * =========================================================
  *
- * Проверяет не то, что Planner ХОТЕЛ получить,
- * а то, что TaskRunner РЕАЛЬНО получил.
+ * Проверяет фактически полученные данные выполнения.
  *
- * evidence:
+ * Проверяет:
  *
- * none
- * search_results
- * source_content
+ * plan.evidence.mode
+ *        ↓
+ * реальные результаты TaskRunner
+ *
+ *
+ * НЕ:
+ *
+ * - проверяет смысл ответа;
+ * - вызывает AI;
+ * - проверяет claims;
+ * - меняет план.
+ *
+ * =========================================================
  */
 
 
@@ -18,9 +27,6 @@
  * =========================================================
  * COLLECT OBJECTS
  * =========================================================
- *
- * TaskRunner со временем может менять структуру результата.
- * Поэтому не привязываемся жёстко к results[0].
  */
 
 
@@ -35,22 +41,30 @@ function collectObjects(
         value === undefined ||
         typeof value !== "object"
     ) {
+
         return output;
+
     }
 
 
     if (
         visited.has(value)
     ) {
+
         return output;
+
     }
 
 
     visited.add(value);
 
 
-    if (!Array.isArray(value)) {
+    if (
+        !Array.isArray(value)
+    ) {
+
         output.push(value);
+
     }
 
 
@@ -60,7 +74,10 @@ function collectObjects(
             : Object.values(value);
 
 
-    for (const child of children) {
+    for (
+        const child
+        of children
+    ) {
 
         collectObjects(
             child,
@@ -72,12 +89,14 @@ function collectObjects(
 
 
     return output;
+
 }
+
 
 
 /*
  * =========================================================
- * SUCCESSFUL TOOL RESULT
+ * TOOL RESULT CHECK
  * =========================================================
  */
 
@@ -88,16 +107,22 @@ function isSuccessfulToolResult(
 ) {
 
     return (
+
         object &&
+
         object.tool === toolName &&
+
         object.success !== false
+
     );
+
 }
+
 
 
 /*
  * =========================================================
- * SEARCH EVIDENCE
+ * SEARCH RESULT
  * =========================================================
  */
 
@@ -109,33 +134,41 @@ function hasSearchEvidence(
     return objects.some(
         object => {
 
+
             if (
                 !isSuccessfulToolResult(
                     object,
                     "web_search"
                 )
             ) {
+
                 return false;
+
             }
 
 
             const results =
-                object.data?.results;
+                object?.data?.results;
 
 
             return (
+
                 Array.isArray(results) &&
+
                 results.length > 0
+
             );
 
         }
     );
+
 }
+
 
 
 /*
  * =========================================================
- * SOURCE CONTENT EVIDENCE
+ * SOURCE CONTENT
  * =========================================================
  */
 
@@ -147,69 +180,124 @@ function hasSourceContentEvidence(
     return objects.some(
         object => {
 
+
             if (
                 !isSuccessfulToolResult(
                     object,
                     "web_fetch"
                 )
             ) {
+
                 return false;
+
             }
 
 
             const content =
-                object.data?.content;
+                object?.data?.content;
+
+
+            const url =
+                object?.data?.url;
 
 
             return (
+
                 typeof content === "string" &&
-                content.trim().length > 0
+
+                content.trim().length > 0 &&
+
+                (
+                    !url ||
+                    typeof url === "string"
+                )
+
             );
 
         }
     );
+
 }
+
 
 
 /*
  * =========================================================
- * PUBLIC VALIDATOR
+ * RESULT BUILDER
+ * =========================================================
+ */
+
+
+function buildResult(
+    valid,
+    reason,
+    shouldRetry = false
+) {
+
+    return {
+
+        valid,
+
+        shouldRetry,
+
+        needsClarification:
+            false,
+
+        reason
+
+    };
+
+}
+
+
+
+/*
+ * =========================================================
+ * PUBLIC
  * =========================================================
  */
 
 
 export function validateEvidenceResult(
+
     plan,
+
     taskRunResult
+
 ) {
+
 
     const mode =
         plan?.evidence?.mode ||
         "none";
 
 
+
     /*
-     * Внешние доказательства
-     * не требовались.
+     * =====================================================
+     * NONE
+     * =====================================================
      */
+
+
     if (
         mode === "none"
     ) {
 
-        return {
-            valid: true,
-            shouldRetry: false,
-            reason:
-                "Внешние доказательства не требуются"
-        };
+        return buildResult(
+            true,
+            "Внешние доказательства не требуются"
+        );
 
     }
+
 
 
     const objects =
         collectObjects(
             taskRunResult
         );
+
 
 
     /*
@@ -223,30 +311,29 @@ export function validateEvidenceResult(
         mode === "search_results"
     ) {
 
+
         if (
             hasSearchEvidence(
                 objects
             )
         ) {
 
-            return {
-                valid: true,
-                shouldRetry: false,
-                reason:
-                    "Получены реальные результаты web_search"
-            };
+            return buildResult(
+                true,
+                "Получены реальные результаты web_search"
+            );
 
         }
 
 
-        return {
-            valid: false,
-            shouldRetry: true,
-            reason:
-                "Planner требовал search_results, но реальные результаты поиска не получены"
-        };
+        return buildResult(
+            false,
+            "Planner требовал search_results, но результаты поиска отсутствуют",
+            true
+        );
 
     }
+
 
 
     /*
@@ -260,41 +347,42 @@ export function validateEvidenceResult(
         mode === "source_content"
     ) {
 
+
         if (
             hasSourceContentEvidence(
                 objects
             )
         ) {
 
-            return {
-                valid: true,
-                shouldRetry: false,
-                reason:
-                    "Источник действительно был загружен и содержит данные"
-            };
+            return buildResult(
+                true,
+                "Источник успешно загружен"
+            );
 
         }
 
 
-        return {
-            valid: false,
-            shouldRetry: true,
-            reason:
-                "Planner требовал source_content, но содержимое источника фактически не получено"
-        };
+        return buildResult(
+            false,
+            "Planner требовал source_content, но содержимое источника не получено",
+            true
+        );
 
     }
 
 
+
     /*
-     * Неизвестный режим нельзя
-     * молча считать успешным.
+     * =====================================================
+     * UNKNOWN
+     * =====================================================
      */
-    return {
-        valid: false,
-        shouldRetry: true,
-        reason:
-            `Неизвестный evidence.mode: ${mode}`
-    };
+
+
+    return buildResult(
+        false,
+        `Неизвестный evidence.mode: ${mode}`,
+        true
+    );
 
 }
