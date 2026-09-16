@@ -1,27 +1,89 @@
 /*
+ * =========================================================
  * JESSICA BASIC RESULT VALIDATOR
+ * =========================================================
  *
- * Простые технические проверки результата без AI.
+ * Техническая проверка результата.
+ *
+ * Этот модуль НЕ:
+ *
+ * - вызывает AI;
+ * - проверяет смысл ответа;
+ * - проверяет источники;
+ * - анализирует claims.
+ *
+ *
+ * Проверяет только:
+ *
+ * - существует ли результат;
+ * - можно ли показать ответ пользователю;
+ * - есть ли техническая ошибка выполнения.
+ *
+ * =========================================================
  */
 
-export function validateBasicResult(
-    taskRunResult,
+
+
+/*
+ * =========================================================
+ * VALIDATE ANSWER
+ * =========================================================
+ */
+
+
+function validateAnswer(
     answerResult
 ) {
 
+
     if (
         !answerResult ||
+        typeof answerResult !== "object"
+    ) {
+
+        return {
+
+            valid:
+                false,
+
+            shouldRetry:
+                true,
+
+            needsClarification:
+                false,
+
+            reason:
+                "Ответ отсутствует"
+
+        };
+
+    }
+
+
+
+    if (
         answerResult.success !== true
     ) {
 
         return {
-            valid: false,
-            shouldRetry: true,
-            needsClarification: false,
-            reason: "Не удалось сформировать итоговый ответ"
+
+            valid:
+                false,
+
+            shouldRetry:
+                answerResult.shouldRetry === true,
+
+            needsClarification:
+                answerResult.needsClarification === true,
+
+            reason:
+                answerResult.text ||
+                "Ответ не сформирован"
+
         };
 
     }
+
 
 
     if (
@@ -30,41 +92,153 @@ export function validateBasicResult(
     ) {
 
         return {
-            valid: false,
-            shouldRetry: true,
-            needsClarification: false,
-            reason: "Итоговый ответ пустой"
+
+            valid:
+                false,
+
+            shouldRetry:
+                true,
+
+            needsClarification:
+                false,
+
+            reason:
+                "Итоговый ответ пустой"
+
         };
 
     }
 
 
+    return null;
+
+}
+
+
+
+/*
+ * =========================================================
+ * VALIDATE EXECUTION
+ * =========================================================
+ */
+
+
+function validateExecution(
+    taskRunResult
+) {
+
+
     if (
-        taskRunResult &&
+        !taskRunResult ||
+        typeof taskRunResult !== "object"
+    ) {
+
+        return null;
+
+    }
+
+
+
+    if (
         taskRunResult.success === false
     ) {
+
 
         const needsClarification =
             taskRunResult.needsClarification === true;
 
 
+
         return {
-            valid: false,
-            shouldRetry: !needsClarification,
+
+            valid:
+                false,
+
+
+            shouldRetry:
+                !needsClarification,
+
+
             needsClarification,
+
+
             reason:
                 taskRunResult.text ||
-                "План выполнен с ошибкой"
+                "Ошибка выполнения задачи"
+
         };
 
     }
 
 
+    return null;
+
+}
+
+
+
+/*
+ * =========================================================
+ * PUBLIC
+ * =========================================================
+ */
+
+
+export function validateBasicResult(
+
+    taskRunResult,
+
+    answerResult
+
+) {
+
+
+    const answerValidation =
+        validateAnswer(
+            answerResult
+        );
+
+
+    if (
+        answerValidation
+    ) {
+
+        return answerValidation;
+
+    }
+
+
+
+    const executionValidation =
+        validateExecution(
+            taskRunResult
+        );
+
+
+    if (
+        executionValidation
+    ) {
+
+        return executionValidation;
+
+    }
+
+
+
     return {
-        valid: true,
-        shouldRetry: false,
-        needsClarification: false,
-        reason: "Базовые технические проверки пройдены"
+
+        valid:
+            true,
+
+        shouldRetry:
+            false,
+
+        needsClarification:
+            false,
+
+        reason:
+            "Базовые технические проверки пройдены"
+
     };
 
 }
