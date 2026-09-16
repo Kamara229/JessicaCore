@@ -3,25 +3,25 @@
  * JESSICA PLANNING CONTEXT
  * =========================================================
  *
- * Формирует дополнительный контекст,
- * который может быть передан Planner.
- *
- * В будущем сюда будут поступать:
- *
- * - опыт Jessica;
- * - успешные алгоритмы;
- * - правила источников;
- * - ограничения задания;
- * - контекст Earnings;
- * - пользовательские инструкции.
+ * Единый формат дополнительного контекста Planner.
  *
  *
- * ВАЖНО:
+ * Используется:
  *
- * Этот модуль НЕ решает задачу.
+ * Experience
+ * Replanner
+ * Learning
+ * Earnings
  *
- * Он только приводит дополнительный
- * контекст к единому формату.
+ *
+ * Этот модуль НЕ:
+ *
+ * - ищет опыт;
+ * - изменяет Skills;
+ * - принимает решения;
+ * - вызывает AI.
+ *
+ * Только нормализует данные.
  *
  * =========================================================
  */
@@ -38,17 +38,59 @@ export function createEmptyPlanningContext() {
 
     return {
 
+
+        /*
+         * Опыт Jessica
+         */
+
         experience:
             null,
+
+
+
+        /*
+         * Глобальные правила
+         */
 
         sourceRules:
             [],
 
+
+
+        /*
+         * Ограничения задачи
+         */
+
         constraints:
             [],
 
+
+
+        /*
+         * Дополнительные инструкции Planner
+         */
+
         instructions:
             [],
+
+
+
+        /*
+         * Подсказки для построения маршрута
+         */
+
+        plannerHints:
+            [],
+
+
+
+        /*
+         * Служебные данные
+         *
+         * retry
+         * execution
+         * learning
+         */
 
         metadata:
             {}
@@ -58,18 +100,21 @@ export function createEmptyPlanningContext() {
 }
 
 
+
 /*
  * =========================================================
- * NORMALIZE STRING ARRAY
+ * NORMALIZE ARRAY
  * =========================================================
  */
 
 
-function normalizeStringArray(
+function normalizeArray(
     value
 ) {
 
-    if (!Array.isArray(value)) {
+    if (
+        !Array.isArray(value)
+    ) {
 
         return [];
 
@@ -77,17 +122,120 @@ function normalizeStringArray(
 
 
     return value
+
         .map(
             item =>
                 String(
                     item || ""
-                ).trim()
+                )
+                .trim()
         )
+
         .filter(
             Boolean
         );
 
 }
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE OBJECT
+ * =========================================================
+ */
+
+
+function normalizeObject(
+    value
+) {
+
+    if (
+        !value ||
+        typeof value !== "object" ||
+        Array.isArray(value)
+    ) {
+
+        return {};
+
+    }
+
+
+    return {
+        ...value
+    };
+
+}
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE EXPERIENCE
+ * =========================================================
+ */
+
+
+function normalizeExperience(
+    experience
+) {
+
+
+    if (
+        !experience ||
+        typeof experience !== "object"
+    ) {
+
+        return null;
+
+    }
+
+
+
+    return {
+
+        ...experience,
+
+
+        strategy:
+            normalizeArray(
+                experience.strategy
+            ),
+
+
+        sourcePriority:
+            normalizeArray(
+                experience.sourcePriority
+            ),
+
+
+        validationRules:
+            normalizeArray(
+                experience.validationRules
+            ),
+
+
+        failurePatterns:
+            normalizeArray(
+                experience.failurePatterns
+            ),
+
+
+        successfulPatterns:
+            normalizeArray(
+                experience.successfulPatterns
+            ),
+
+
+        avoidPatterns:
+            normalizeArray(
+                experience.avoidPatterns
+            )
+
+    };
+
+}
+
 
 
 /*
@@ -101,6 +249,7 @@ export function normalizePlanningContext(
     context
 ) {
 
+
     if (
         !context ||
         typeof context !== "object"
@@ -111,44 +260,61 @@ export function normalizePlanningContext(
     }
 
 
+
     return {
 
+
         experience:
-            context.experience &&
-            typeof context.experience === "object"
-                ? context.experience
-                : null,
+
+            normalizeExperience(
+                context.experience
+            ),
+
 
 
         sourceRules:
-            normalizeStringArray(
+
+            normalizeArray(
                 context.sourceRules
             ),
 
 
+
         constraints:
-            normalizeStringArray(
+
+            normalizeArray(
                 context.constraints
             ),
 
 
+
         instructions:
-            normalizeStringArray(
+
+            normalizeArray(
                 context.instructions
             ),
 
 
+
+        plannerHints:
+
+            normalizeArray(
+                context.plannerHints
+            ),
+
+
+
         metadata:
-            context.metadata &&
-            typeof context.metadata === "object"
-                ? {
-                    ...context.metadata
-                }
-                : {}
+
+            normalizeObject(
+                context.metadata
+            )
+
 
     };
 
 }
+
 
 
 /*
@@ -162,25 +328,41 @@ export function hasPlanningContext(
     context
 ) {
 
+
     const normalized =
         normalizePlanningContext(
             context
         );
 
 
+
     return Boolean(
+
 
         normalized.experience ||
 
+
+
         normalized.sourceRules.length > 0 ||
+
+
 
         normalized.constraints.length > 0 ||
 
+
+
         normalized.instructions.length > 0 ||
+
+
+
+        normalized.plannerHints.length > 0 ||
+
+
 
         Object.keys(
             normalized.metadata
         ).length > 0
+
 
     );
 
