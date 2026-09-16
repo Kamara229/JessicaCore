@@ -8,69 +8,66 @@ import {
  * JESSICA REPLANNER
  * =========================================================
  *
- * Отвечает только за создание нового маршрута
- * после неудачного выполнения.
+ * Создаёт новый маршрут после неудачного выполнения.
  *
  *
- * НЕ:
+ * Поток:
  *
- * - вызывает AI напрямую;
- * - создает prompt;
- * - знает инструменты;
- * - валидирует JSON.
- *
- *
- * Использует основной Planner:
- *
+ * Execution Cycle
+ *       ↓
+ * Failure Context
+ *       ↓
  * Replanner
- *      ↓
+ *       ↓
  * createPlan()
- *      ↓
+ *       ↓
  * Planner
  *
  *
- * Сохраняет:
+ * Replanner НЕ:
  *
- * - Experience;
- * - PlanningContext;
- * - ограничения;
- * - историю ошибки.
+ * - вызывает AI напрямую;
+ * - строит prompt;
+ * - знает инструменты;
+ * - валидирует план.
+ *
+ *
+ * Использует тот же Planner,
+ * что и первоначальное планирование.
  *
  * =========================================================
  */
+
 
 
 /*
  * =========================================================
- * BUILD RETRY CONTEXT
+ * BUILD RETRY METADATA
  * =========================================================
  */
 
 
-function buildRetryContext(
+function buildRetryMetadata(
     failure
 ) {
 
     return {
 
-        retry: {
-
-            stage:
-                failure?.stage || "",
+        stage:
+            failure?.stage || "",
 
 
-            failureType:
-                failure?.failureType || "",
+        failureType:
+            failure?.failureType || "",
 
 
-            reason:
-                failure?.reason || "",
+        reason:
+            failure?.reason || "",
 
 
-            shouldRetry:
-                true
-
-        }
+        timestamp:
+            new Date()
+                .toISOString()
 
     };
 
@@ -91,45 +88,45 @@ function mergePlanningContext(
 ) {
 
 
+    const retryMetadata =
+        buildRetryMetadata(
+            failure
+        );
+
+
+
     return {
+
 
         ...(context || {}),
 
 
+
         metadata: {
+
 
             ...(context?.metadata || {}),
 
 
             retry:
-
-                {
-
-                    stage:
-                        failure?.stage || "",
-
-
-                    failureType:
-                        failure?.failureType || "",
-
-
-                    reason:
-                        failure?.reason || ""
-
-                }
+                retryMetadata
 
         },
+
 
 
         instructions: [
 
             ...(context?.instructions || []),
 
-            "Предыдущий маршрут выполнения завершился ошибкой.",
 
-            "Используй причину ошибки при построении нового плана.",
+            "Предыдущий маршрут выполнения не дал корректный результат.",
 
-            "Не повторяй неэффективный маршрут без изменений."
+
+            "Используй информацию об ошибке при построении нового маршрута.",
+
+
+            "Измени стратегию, если предыдущий подход оказался неэффективным."
 
         ]
 
@@ -173,20 +170,67 @@ export async function replanTask(
 
 
     /*
-     * Добавляем историю ошибки
+     * Сохраняем минимальную историю.
+     *
+     * Не кладём полный результат выполнения,
+     * чтобы не раздувать prompt.
      */
 
 
     retryContext.metadata = {
 
+
         ...(retryContext.metadata || {}),
 
 
-        previousPlan,
 
-        previousRunResult
+        previousAttempt: {
+
+
+            intent:
+                previousPlan?.intent || "",
+
+
+            stepsCount:
+                Array.isArray(
+                    previousPlan?.steps
+                )
+                    ? previousPlan.steps.length
+                    : 0,
+
+
+            failedTools:
+                Array.isArray(
+                    previousRunResult?.results
+                )
+                    ? previousRunResult.results
+                        .filter(
+                            item =>
+                                item?.success === false
+                        )
+                        .map(
+                            item =>
+                                item.tool
+                        )
+                    : []
+
+        }
 
     };
+
+
+
+    console.log(
+
+        "Jessica Replanner context:",
+
+        JSON.stringify(
+
+            retryContext.metadata
+
+        )
+
+    );
 
 
 
@@ -216,14 +260,18 @@ export async function replanTask(
             !result?.plan
         ) {
 
+
             return {
+
 
                 success:
                     false,
 
+
                 reason:
                     result?.text ||
-                    "Planner не смог создать альтернативный маршрут"
+                    "Не удалось создать новый план"
+
 
             };
 
@@ -245,6 +293,7 @@ export async function replanTask(
 
         return {
 
+
             success:
                 true,
 
@@ -256,26 +305,35 @@ export async function replanTask(
             context:
                 retryContext
 
+
         };
+
 
 
     } catch(error) {
 
 
         console.error(
+
             "Jessica Replanner error:",
+
             error
+
         );
+
 
 
         return {
 
+
             success:
                 false,
+
 
             reason:
                 error?.message ||
                 "Ошибка Replanner"
+
 
         };
 
