@@ -1,31 +1,44 @@
-import OpenAI from "openai";
-
-
 /*
  * =========================================================
  * JESSICA SOURCE CONTENT VALIDATOR
  * =========================================================
  *
- * Проверяет, подходит ли реально загруженная страница
- * для ответа на исходную задачу.
+ * Проверяет качество реально загруженного источника.
  *
- * Не проверяет итоговый ответ.
- * Не выполняет поиск.
- * Не выполняет fetch.
  *
- * Только отвечает:
+ * Проверяет:
  *
- * "Хватает ли содержимого этой страницы?"
+ * task
+ *   +
+ * web_fetch content
+ *        ↓
+ * подходит ли источник
+ *
+ *
+ * НЕ:
+ *
+ * - ищет источник;
+ * - выполняет fetch;
+ * - проверяет итоговый ответ;
+ * - проверяет claims.
+ *
+ *
+ * AI:
+ *
+ * validatorClient.js
+ *
+ * =========================================================
  */
 
 
-const groq =
-    process.env.GROQ_API_KEY
-        ? new OpenAI({
-            apiKey: process.env.GROQ_API_KEY,
-            baseURL: "https://api.groq.com/openai/v1"
-        })
-        : null;
+import {
+    validatorChat
+} from "../../ai/validatorClient.js";
+
+import {
+    executeAIWithRetry
+} from "../../ai/aiRetry.js";
+
 
 
 /*
@@ -35,42 +48,56 @@ const groq =
  */
 
 
-function cleanJsonText(text) {
+function cleanJsonText(
+    text
+) {
 
     let value =
-        String(text || "")
-            .replace(/```json/gi, "")
-            .replace(/```/g, "")
-            .trim();
+        String(
+            text || ""
+        )
+        .replace(
+            /```json/gi,
+            ""
+        )
+        .replace(
+            /```/g,
+            ""
+        )
+        .trim();
 
 
-    const firstBrace =
+    const start =
         value.indexOf("{");
 
-    const lastBrace =
+
+    const end =
         value.lastIndexOf("}");
 
 
     if (
-        firstBrace !== -1 &&
-        lastBrace > firstBrace
+        start !== -1 &&
+        end > start
     ) {
 
         value =
             value.slice(
-                firstBrace,
-                lastBrace + 1
+                start,
+                end + 1
             );
+
     }
 
 
     return value;
+
 }
+
 
 
 /*
  * =========================================================
- * FIND FETCH RESULT
+ * FIND FETCH CONTENT
  * =========================================================
  */
 
@@ -78,6 +105,7 @@ function cleanJsonText(text) {
 function findFetchResult(
     taskRunResult
 ) {
+
 
     const results =
         Array.isArray(
@@ -87,65 +115,249 @@ function findFetchResult(
             : [];
 
 
-    for (
-        let index =
-            results.length - 1;
 
-        index >= 0;
+    return (
 
-        index--
-    ) {
+        results
+            .slice()
+            .reverse()
+            .find(
 
-        const result =
-            results[index];
+                item =>
 
+                    item?.tool === "web_fetch" &&
 
-        if (
-            result?.tool === "web_fetch" &&
-            result?.success === true &&
-            typeof result?.data?.content === "string" &&
-            result.data.content.trim()
-        ) {
+                    item?.success !== false &&
 
-            return result;
-        }
-    }
+                    typeof item?.data?.content === "string" &&
 
+                    item.data.content.trim()
 
-    return null;
+            )
+
+        || null
+
+    );
+
 }
+
 
 
 /*
  * =========================================================
- * VALIDATE SOURCE CONTENT
+ * BUILD PROMPT
+ * =========================================================
+ */
+
+
+function buildMessages(
+    task,
+    url,
+    title,
+    content
+) {
+
+
+    return [
+
+        {
+
+            role:
+                "system",
+
+            content:
+                [
+
+                    "Ты Source Content Validator системы Jessica Core.",
+
+                    "",
+
+                    "Ты проверяешь только переданное содержимое страницы.",
+
+                    "",
+
+                    "Не выполняй поиск.",
+
+                    "Не придумывай факты.",
+
+                    "Не отвечай пользователю.",
+
+                    "",
+
+                    "Определи:",
+
+                    "- содержит ли страница нужную информацию;",
+                    "- достаточно ли её для выполнения задачи.",
+
+                    "",
+
+                    "Если страница официальная, но нужных данных нет — valid=false.",
+
+                    "",
+
+                    "Верни только JSON:",
+
+                    JSON.stringify({
+
+                        valid:
+                            true,
+
+                        shouldRetry:
+                            false,
+
+                        reason:
+                            "краткая причина"
+
+                    })
+
+                ]
+                .join(
+                    "\n"
+                )
+
+        },
+
+
+        {
+
+            role:
+                "user",
+
+            content:
+                [
+
+                    "ЗАДАЧА:",
+
+                    String(
+                        task || ""
+                    ),
+
+
+                    "",
+
+
+                    "URL:",
+
+                    url,
+
+
+                    "",
+
+
+                    "TITLE:",
+
+                    title,
+
+
+                    "",
+
+
+                    "СОДЕРЖИМОЕ:",
+
+                    content.slice(
+                        0,
+                        18000
+                    )
+
+                ]
+                .join(
+                    "\n"
+                )
+
+        }
+
+    ];
+
+}
+
+
+
+/*
+ * =========================================================
+ * AI CHECK
+ * =========================================================
+ */
+
+
+async function requestSourceValidation(
+    task,
+    url,
+    title,
+    content
+) {
+
+
+    return executeAIWithRetry(
+
+        async () => {
+
+
+            return validatorChat(
+
+                buildMessages(
+                    task,
+                    url,
+                    title,
+                    content
+                )
+
+            );
+
+
+        },
+
+        {
+            label:
+                "Source Content Validator"
+        }
+
+    );
+
+}
+
+
+
+/*
+ * =========================================================
+ * PUBLIC
  * =========================================================
  */
 
 
 export async function validateSourceContent(
+
     task,
+
     plan,
+
     taskRunResult
+
 ) {
 
-    /*
-     * Проверка нужна только тогда,
-     * когда Planner потребовал source_content.
-     */
+
     if (
         plan?.evidence?.mode !==
         "source_content"
     ) {
 
         return {
-            success: true,
-            valid: true,
-            shouldRetry: false,
+
+            success:
+                true,
+
+            valid:
+                true,
+
+            shouldRetry:
+                false,
+
             reason:
                 "Проверка содержимого источника не требуется"
+
         };
+
     }
+
 
 
     const fetchResult =
@@ -154,16 +366,27 @@ export async function validateSourceContent(
         );
 
 
+
     if (!fetchResult) {
 
         return {
-            success: true,
-            valid: false,
-            shouldRetry: true,
+
+            success:
+                true,
+
+            valid:
+                false,
+
+            shouldRetry:
+                true,
+
             reason:
-                "Не найдено успешно загруженное содержимое источника"
+                "Источник не был загружен"
+
         };
+
     }
+
 
 
     const content =
@@ -172,117 +395,33 @@ export async function validateSourceContent(
 
     const url =
         String(
-            fetchResult.data?.url || ""
-        ).trim();
+            fetchResult.data.url || ""
+        );
 
 
     const title =
         String(
-            fetchResult.data?.title || ""
-        ).trim();
+            fetchResult.data.title || ""
+        );
 
-
-    /*
-     * Без AI можем подтвердить только
-     * сам факт наличия содержимого.
-     *
-     * Решение пока не блокируем.
-     */
-    if (!groq) {
-
-        return {
-            success: false,
-            unavailable: true,
-            valid: true,
-            shouldRetry: false,
-            reason:
-                "AI-проверка содержимого источника недоступна"
-        };
-    }
 
 
     try {
 
-        /*
-         * Ограничиваем размер текста,
-         * чтобы Validator не отправлял
-         * огромную страницу целиком.
-         */
-        const contentForValidation =
-            content.slice(
-                0,
-                18000
-            );
-
 
         const response =
-            await groq.chat.completions.create({
+            await requestSourceValidation(
 
-                model:
-                    "openai/gpt-oss-20b",
+                task,
 
-                temperature:
-                    0,
+                url,
 
-                messages: [
-                    {
-                        role: "system",
+                title,
 
-                        content: [
-                            "Ты Source Content Validator системы Jessica Core.",
-                            "",
-                            "Ты не отвечаешь пользователю.",
-                            "Ты не придумываешь факты.",
-                            "Ты проверяешь только переданное содержимое страницы.",
-                            "",
-                            "Определи, содержит ли эта страница достаточно информации,",
-                            "чтобы выполнить исходную задачу.",
-                            "",
-                            "valid=true ставь только тогда, когда нужные данные",
-                            "действительно присутствуют в содержимом страницы.",
-                            "",
-                            "Если страница относится к нужному сайту,",
-                            "но нужного факта на ней нет, ставь valid=false.",
-                            "",
-                            "Если нужна другая или более конкретная страница,",
-                            "ставь shouldRetry=true.",
-                            "",
-                            "Не считай страницу подходящей только потому,",
-                            "что её домен выглядит официальным.",
-                            "",
-                            "Верни только JSON:",
-                            JSON.stringify({
-                                valid: true,
-                                shouldRetry: false,
-                                reason:
-                                    "краткая причина"
-                            })
-                        ].join("\n")
-                    },
+                content
 
-                    {
-                        role: "user",
+            );
 
-                        content: [
-                            "ИСХОДНАЯ ЗАДАЧА:",
-                            String(task || ""),
-
-                            "",
-                            "URL:",
-                            url,
-
-                            "",
-                            "TITLE:",
-                            title,
-
-                            "",
-                            "СОДЕРЖИМОЕ СТРАНИЦЫ:",
-                            contentForValidation
-                        ].join("\n")
-                    }
-                ]
-
-            });
 
 
         const raw =
@@ -293,17 +432,30 @@ export async function validateSourceContent(
                 ?.content;
 
 
+
         if (!raw) {
 
             return {
-                success: false,
-                unavailable: false,
-                valid: true,
-                shouldRetry: false,
+
+                success:
+                    false,
+
+                unavailable:
+                    false,
+
+                valid:
+                    true,
+
+                shouldRetry:
+                    false,
+
                 reason:
-                    "Source Content Validator вернул пустой ответ"
+                    "Пустой ответ Source Validator"
+
             };
+
         }
+
 
 
         let parsed;
@@ -320,25 +472,31 @@ export async function validateSourceContent(
 
         } catch {
 
-            console.error(
-                "Source Content Validator invalid JSON:",
-                raw
-            );
-
 
             return {
-                success: false,
-                unavailable: false,
-                valid: true,
-                shouldRetry: false,
+
+                success:
+                    false,
+
+                valid:
+                    true,
+
+                shouldRetry:
+                    false,
+
                 reason:
-                    "Source Content Validator вернул некорректный JSON"
+                    "Некорректный JSON Source Validator"
+
             };
+
         }
 
 
+
         return {
-            success: true,
+
+            success:
+                true,
 
             valid:
                 parsed.valid === true,
@@ -348,12 +506,14 @@ export async function validateSourceContent(
 
             reason:
                 typeof parsed.reason === "string"
-                    ? parsed.reason
+                    ? parsed.reason.trim()
                     : ""
+
         };
 
 
-    } catch (error) {
+    } catch(error) {
+
 
         console.error(
             "Source Content Validator error:",
@@ -362,14 +522,25 @@ export async function validateSourceContent(
 
 
         return {
-            success: false,
-            unavailable: true,
-            valid: true,
-            shouldRetry: false,
+
+            success:
+                false,
+
+            unavailable:
+                true,
+
+            valid:
+                true,
+
+            shouldRetry:
+                false,
+
             reason:
                 error?.message ||
                 "Ошибка Source Content Validator"
+
         };
+
     }
 
 }
