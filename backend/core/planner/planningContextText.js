@@ -3,26 +3,25 @@
  * JESSICA PLANNING CONTEXT TEXT
  * =========================================================
  *
- * Преобразует Planning Context
- * в текстовый блок для Planner.
+ * Преобразует PlanningContext
+ * в текст для Planner.
  *
  *
- * Ответственность:
+ * Flow:
  *
  * PlanningContext
  *        ↓
- * Human/AI readable context
+ * Context Renderer
  *        ↓
- * Planner
+ * Planner Prompt
  *
  *
- * Этот модуль НЕ:
+ * НЕ:
  *
  * - ищет Experience;
- * - читает Storage;
- * - изменяет Skills;
- * - вызывает AI;
- * - принимает решения.
+ * - хранит Skills;
+ * - принимает решения;
+ * - вызывает AI.
  *
  * =========================================================
  */
@@ -35,9 +34,14 @@ import {
 
 
 
+const MAX_CONTEXT_LENGTH =
+    6000;
+
+
+
 /*
  * =========================================================
- * SAFE STRING
+ * SAFE VALUE
  * =========================================================
  */
 
@@ -46,29 +50,28 @@ function safeString(
     value
 ) {
 
-    return String(
-        value || ""
-    )
-        .trim();
+    return typeof value === "string"
+        ? value.trim()
+        : "";
 
 }
 
 
+
 /*
  * =========================================================
- * FORMAT ARRAY
+ * FORMAT LIST
  * =========================================================
  */
 
 
-function formatArray(
-    items
+function formatList(
+    value
 ) {
 
 
     if (
-        !Array.isArray(items) ||
-        items.length === 0
+        !Array.isArray(value)
     ) {
 
         return "";
@@ -76,23 +79,21 @@ function formatArray(
     }
 
 
-    return items
+    return value
+
         .map(
             item =>
-                safeString(
-                    item
-                )
+                safeString(item)
         )
-        .filter(
-            Boolean
-        )
+
+        .filter(Boolean)
+
         .map(
             item =>
                 `- ${item}`
         )
-        .join(
-            "\n"
-        );
+
+        .join("\n");
 
 }
 
@@ -100,7 +101,45 @@ function formatArray(
 
 /*
  * =========================================================
- * FORMAT EXPERIENCE
+ * FORMAT OBJECT SECTION
+ * =========================================================
+ */
+
+
+function formatSection(
+    title,
+    value
+) {
+
+
+    const text =
+        formatList(
+            value
+        );
+
+
+    if (!text) {
+
+        return "";
+
+    }
+
+
+    return [
+
+        title,
+
+        text
+
+    ].join("\n");
+
+}
+
+
+
+/*
+ * =========================================================
+ * EXPERIENCE
  * =========================================================
  */
 
@@ -120,35 +159,24 @@ function formatExperience(
     }
 
 
-    const sections = [];
+    const blocks = [];
 
 
 
     /*
-     * BASIC
+     * Identity
      */
 
 
-    const basic = [];
+    const identity = [];
 
 
     if (
         experience.skillId
     ) {
 
-        basic.push(
-            `Skill ID: ${experience.skillId}`
-        );
-
-    }
-
-
-    if (
-        experience.name
-    ) {
-
-        basic.push(
-            `Название: ${experience.name}`
+        identity.push(
+            `Skill: ${experience.skillId}`
         );
 
     }
@@ -158,8 +186,8 @@ function formatExperience(
         experience.version !== undefined
     ) {
 
-        basic.push(
-            `Версия: ${experience.version}`
+        identity.push(
+            `Version: ${experience.version}`
         );
 
     }
@@ -169,25 +197,27 @@ function formatExperience(
         experience.confidence !== undefined
     ) {
 
-        basic.push(
-            `Уверенность Skill: ${experience.confidence}`
+        identity.push(
+            `Confidence: ${experience.confidence}`
         );
 
     }
 
 
+
     if (
-        basic.length > 0
+        identity.length
     ) {
 
-        sections.push(
+        blocks.push(
+
             [
-                "Информация о навыке:",
-                ...basic
-            ]
-            .join(
-                "\n"
-            )
+                "Информация о Skill:",
+
+                ...identity
+
+            ].join("\n")
+
         );
 
     }
@@ -195,124 +225,121 @@ function formatExperience(
 
 
     /*
-     * STRATEGY
+     * Strategy
      */
 
 
-    const strategy =
-        formatArray(
+    blocks.push(
+
+        formatSection(
+            "Рекомендуемая стратегия:",
             experience.strategy
-        );
+        )
 
-
-    if (
-        strategy
-    ) {
-
-        sections.push(
-            [
-                "Стратегия выполнения:",
-                strategy
-            ]
-            .join(
-                "\n"
-            )
-        );
-
-    }
-
-
-
-    /*
-     * SOURCES
-     */
-
-
-    const sources =
-        formatArray(
-            experience.sourcePriority
-        );
-
-
-    if (
-        sources
-    ) {
-
-        sections.push(
-            [
-                "Приоритет источников:",
-                sources
-            ]
-            .join(
-                "\n"
-            )
-        );
-
-    }
-
-
-
-    /*
-     * VALIDATION
-     */
-
-
-    const validation =
-        formatArray(
-            experience.validationRules
-        );
-
-
-    if (
-        validation
-    ) {
-
-        sections.push(
-            [
-                "Правила проверки:",
-                validation
-            ]
-            .join(
-                "\n"
-            )
-        );
-
-    }
-
-
-
-    /*
-     * FAILURES
-     */
-
-
-    const failures =
-        formatArray(
-            experience.failurePatterns
-        );
-
-
-    if (
-        failures
-    ) {
-
-        sections.push(
-            [
-                "Ошибки, которых нужно избегать:",
-                failures
-            ]
-            .join(
-                "\n"
-            )
-        );
-
-    }
-
-
-
-    return sections.join(
-        "\n\n"
     );
+
+
+
+    blocks.push(
+
+        formatSection(
+            "Приоритет источников:",
+            experience.sourcePriority
+        )
+
+    );
+
+
+
+    blocks.push(
+
+        formatSection(
+            "Правила проверки:",
+            experience.validationRules
+        )
+
+    );
+
+
+
+    blocks.push(
+
+        formatSection(
+            "Известные ошибки:",
+            experience.failurePatterns
+        )
+
+    );
+
+
+
+    blocks.push(
+
+        formatSection(
+            "Успешные паттерны:",
+            experience.successfulPatterns
+        )
+
+    );
+
+
+
+    return blocks
+        .filter(Boolean)
+        .join("\n\n");
+
+}
+
+
+
+/*
+ * =========================================================
+ * METADATA
+ * =========================================================
+ */
+
+
+function formatMetadata(
+    metadata
+) {
+
+
+    if (
+        !metadata ||
+        typeof metadata !== "object"
+    ) {
+
+        return "";
+
+    }
+
+
+    const blocks = [];
+
+
+
+    if (
+        metadata.retry
+    ) {
+
+        blocks.push(
+
+            [
+                "Информация о предыдущей попытке:",
+
+                JSON.stringify(
+                    metadata.retry
+                )
+
+            ].join("\n")
+
+        );
+
+    }
+
+
+
+    return blocks.join("\n\n");
 
 }
 
@@ -348,6 +375,7 @@ export function buildPlanningContextText(
         );
 
 
+
     const blocks = [];
 
 
@@ -357,24 +385,25 @@ export function buildPlanningContextText(
      */
 
 
-    const experienceText =
+    const experience =
         formatExperience(
             normalized.experience
         );
 
 
     if (
-        experienceText
+        experience
     ) {
 
         blocks.push(
+
             [
-                "=== НАКОПЛЕННЫЙ ОПЫТ JESSICA ===",
-                experienceText
-            ]
-            .join(
-                "\n\n"
-            )
+                "=== ОПЫТ JESSICA ===",
+
+                experience
+
+            ].join("\n\n")
+
         );
 
     }
@@ -387,7 +416,8 @@ export function buildPlanningContextText(
 
 
     const sourceRules =
-        formatArray(
+        formatSection(
+            "=== ПРАВИЛА ИСТОЧНИКОВ ===",
             normalized.sourceRules
         );
 
@@ -397,13 +427,7 @@ export function buildPlanningContextText(
     ) {
 
         blocks.push(
-            [
-                "=== ПРАВИЛА ИСТОЧНИКОВ ===",
-                sourceRules
-            ]
-            .join(
-                "\n\n"
-            )
+            sourceRules
         );
 
     }
@@ -416,7 +440,8 @@ export function buildPlanningContextText(
 
 
     const constraints =
-        formatArray(
+        formatSection(
+            "=== ОГРАНИЧЕНИЯ ===",
             normalized.constraints
         );
 
@@ -426,13 +451,7 @@ export function buildPlanningContextText(
     ) {
 
         blocks.push(
-            [
-                "=== ОГРАНИЧЕНИЯ ===",
-                constraints
-            ]
-            .join(
-                "\n\n"
-            )
+            constraints
         );
 
     }
@@ -440,12 +459,13 @@ export function buildPlanningContextText(
 
 
     /*
-     * USER INSTRUCTIONS
+     * INSTRUCTIONS
      */
 
 
     const instructions =
-        formatArray(
+        formatSection(
+            "=== ИНСТРУКЦИИ ===",
             normalized.instructions
         );
 
@@ -455,16 +475,41 @@ export function buildPlanningContextText(
     ) {
 
         blocks.push(
-            [
-                "=== ДОПОЛНИТЕЛЬНЫЕ ИНСТРУКЦИИ ===",
-                instructions
-            ]
-            .join(
-                "\n\n"
-            )
+            instructions
         );
 
     }
+
+
+
+    /*
+     * METADATA
+     */
+
+
+    const metadata =
+        formatMetadata(
+            normalized.metadata
+        );
+
+
+    if (
+        metadata
+    ) {
+
+        blocks.push(
+
+            [
+                "=== СЛУЖЕБНЫЙ КОНТЕКСТ ===",
+
+                metadata
+
+            ].join("\n\n")
+
+        );
+
+    }
+
 
 
 
@@ -478,26 +523,48 @@ export function buildPlanningContextText(
 
 
 
-    return [
+    let result = [
 
-        "ДОПОЛНИТЕЛЬНЫЙ КОНТЕКСТ ДЛЯ ПЛАНИРОВАНИЯ:",
-
-        "",
-
-        blocks.join(
-            "\n\n"
-        ),
+        "ДОПОЛНИТЕЛЬНЫЙ КОНТЕКСТ ПЛАНИРОВАНИЯ:",
 
         "",
 
-        "Используй этот опыт как рекомендации.",
-        "Не копируй его механически — адаптируй под текущую задачу."
+        blocks.join("\n\n"),
+
+        "",
+
+        "Используй этот контекст как рекомендации.",
+
+        "Адаптируй его под текущую задачу."
 
     ]
-    .join(
-        "\n"
-    )
+    .join("\n")
     .trim();
 
+
+
+    /*
+     * Ограничиваем размер.
+     */
+
+
+    if (
+        result.length >
+        MAX_CONTEXT_LENGTH
+    ) {
+
+        result =
+            result.slice(
+                0,
+                MAX_CONTEXT_LENGTH
+            )
+            +
+            "\n\n[Контекст сокращён]";
+
+    }
+
+
+
+    return result;
 
 }
