@@ -25,42 +25,49 @@ import {
 } from "./runFailurePolicy.js";
 
 
-
 /*
  * =========================================================
  * JESSICA EXECUTION CYCLE
  * =========================================================
  *
- * Центральный цикл выполнения Jessica.
+ * Центральный исполнитель Jessica.
  *
  *
  * Flow:
  *
- * Plan
- *  ↓
- * Run
- *  ↓
- * Analyze
- *  ↓
- * Compose
- *  ↓
- * Validate
- *  ↓
- * Replan
- *  ↓
- * Retry
- *
- *
- * Context сохраняется:
- *
- * Experience
  * PlanningContext
- * Constraints
- * Instructions
+ *        |
+ *        v
+ *      Plan
+ *        |
+ *        v
+ *    TaskRunner
+ *        |
+ *        v
+ *     Analyze
+ *        |
+ *        v
+ * Answer Composer
+ *        |
+ *        v
+ *    Validator
+ *        |
+ *        v
+ *    Replanner
+ *        |
+ *        v
+ *      Retry
+ *
+ *
+ * Execution Cycle НЕ:
+ *
+ * - создаёт планы;
+ * - ищет Experience;
+ * - выполняет AI planning;
+ * - хранит обучение.
  *
  * =========================================================
  */
-
 
 
 /*
@@ -97,18 +104,15 @@ function collectUsedTools(
 
 /*
  * =========================================================
- * COMPLETED
+ * COMPLETED RESULT
  * =========================================================
  */
 
 
 function buildCompletedResult(
-    plan,
-    taskRunResult,
-    answerResult,
-    attempt,
     context,
-    validationSkipped = false
+    answerResult,
+    validated
 ) {
 
     return {
@@ -121,11 +125,13 @@ function buildCompletedResult(
             "COMPLETED",
 
 
-        validated:
-            !validationSkipped,
+        validated,
 
 
-        validationSkipped,
+        validationStatus:
+            validated
+                ? "passed"
+                : "skipped",
 
 
         result:
@@ -139,22 +145,24 @@ function buildCompletedResult(
 
         usedTools:
             collectUsedTools(
-                taskRunResult
+                context.runResult
             ),
 
 
-        plan,
+        plan:
+            context.plan,
 
 
         planningContext:
-            context,
+            context.planningContext,
 
 
         toolResults:
-            taskRunResult?.results || [],
+            context.runResult?.results || [],
 
 
-        attempt
+        attempt:
+            context.attempt
 
     };
 
@@ -164,22 +172,16 @@ function buildCompletedResult(
 
 /*
  * =========================================================
- * FAILURE
+ * FAILURE RESULT
  * =========================================================
  */
 
 
 function buildFailure(
-    {
-        stage,
-        text,
-        plan,
-        taskRunResult,
-        attempt,
-        context,
-        shouldRetry = false,
-        failureType = null
-    }
+    context,
+    stage,
+    reason,
+    failureType = null
 ) {
 
     return {
@@ -195,28 +197,31 @@ function buildFailure(
         stage,
 
 
-        shouldRetry,
-
-
         failureType,
 
 
+        shouldRetry:
+            false,
+
+
         result:
-            text,
+            reason,
 
 
-        plan,
+        plan:
+            context.plan,
 
 
         planningContext:
-            context,
+            context.planningContext,
 
 
         toolResults:
-            taskRunResult?.results || [],
+            context.runResult?.results || [],
 
 
-        attempt
+        attempt:
+            context.attempt
 
     };
 
@@ -226,32 +231,52 @@ function buildFailure(
 
 /*
  * =========================================================
- * VALIDATOR FEEDBACK
+ * NEEDS CLARIFICATION
  * =========================================================
  */
 
 
-function buildValidatorFeedback(
-    validation
+function buildClarificationResult(
+    context,
+    stage,
+    reason
 ) {
 
     return {
 
-        stage:
-            "validator",
+        success:
+            false,
 
 
-        failureType:
-            "validation-failure",
+        status:
+            "NEEDS_CLARIFICATION",
 
 
-        reason:
-            validation?.reason ||
-            "Ответ не прошёл проверку",
+        needsClarification:
+            true,
 
 
-        shouldRetry:
-            true
+        stage,
+
+
+        result:
+            reason,
+
+
+        plan:
+            context.plan,
+
+
+        planningContext:
+            context.planningContext,
+
+
+        toolResults:
+            context.runResult?.results || [],
+
+
+        attempt:
+            context.attempt
 
     };
 
@@ -261,26 +286,23 @@ function buildValidatorFeedback(
 
 /*
  * =========================================================
- * REPLAN
+ * CREATE REPLAN
  * =========================================================
  */
 
 
 async function createAlternativePlan(
-    taskText,
-    currentPlan,
-    feedback,
-    taskRunResult,
     context,
-    attempt
+    feedback
 ) {
 
 
     console.log(
-        "Jessica Replan:",
+        "Jessica Replan requested:",
         JSON.stringify({
 
-            attempt,
+            attempt:
+                context.attempt,
 
             stage:
                 feedback?.stage,
@@ -302,15 +324,15 @@ async function createAlternativePlan(
         const result =
             await replanTask(
 
-                taskText,
+                context.task,
 
-                currentPlan,
+                context.plan,
 
                 feedback,
 
-                taskRunResult,
+                context.runResult,
 
-                context
+                context.planningContext
 
             );
 
@@ -328,7 +350,7 @@ async function createAlternativePlan(
 
                 reason:
                     result?.reason ||
-                    "Replanner не создал план"
+                    "Replanner не создал новый план"
 
             };
 
@@ -346,9 +368,9 @@ async function createAlternativePlan(
                 result.plan,
 
 
-            context:
+            planningContext:
                 result.context ||
-                context
+                context.planningContext
 
         };
 
@@ -387,22 +409,42 @@ async function createAlternativePlan(
 
 
 export async function executePlanCycle(
+
     taskText,
+
     initialPlan,
+
     planningContext = {}
+
 ) {
 
 
-    let currentPlan =
-        initialPlan;
+    const context = {
+
+        task:
+            taskText,
 
 
-    let currentContext =
-        planningContext;
+        plan:
+            initialPlan,
 
 
-    let lastRunResult =
-        null;
+        planningContext,
+
+
+        runResult:
+            null,
+
+
+        answerResult:
+            null,
+
+
+        attempt:
+            0
+
+    };
+
 
 
     let lastFailure =
@@ -412,9 +454,16 @@ export async function executePlanCycle(
 
     for (
         let attempt = 1;
+
         attempt <= MAX_EXECUTION_ATTEMPTS;
+
         attempt++
     ) {
+
+
+        context.attempt =
+            attempt;
+
 
 
         console.log(
@@ -425,23 +474,20 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * RUN
+         * 1. RUN PLAN
          * =================================================
          */
-
-
-        let taskRunResult;
 
 
         try {
 
 
-            taskRunResult =
+            context.runResult =
                 await runPlan(
 
-                    currentPlan,
+                    context.plan,
 
-                    taskText
+                    context.task
 
                 );
 
@@ -449,45 +495,36 @@ export async function executePlanCycle(
         } catch(error) {
 
 
-            return buildFailure({
+            console.error(
+                "Jessica TaskRunner error:",
+                error
+            );
 
-                stage:
-                    "runner",
 
-                text:
-                    "Ошибка выполнения плана",
+            return buildFailure(
 
-                plan:
-                    currentPlan,
+                context,
 
-                taskRunResult:
-                    lastRunResult,
+                "runner",
 
-                attempt,
+                "Ошибка выполнения плана"
 
-                context
-
-            });
+            );
 
         }
 
 
 
-        lastRunResult =
-            taskRunResult;
-
-
-
         /*
          * =================================================
-         * RUN ANALYSIS
+         * 2. ANALYZE RUN
          * =================================================
          */
 
 
         const runFailure =
             analyzeRunFailure(
-                taskRunResult
+                context.runResult
             );
 
 
@@ -506,44 +543,16 @@ export async function executePlanCycle(
                 runFailure.needsClarification === true
             ) {
 
-                return {
+                return buildClarificationResult(
 
-                    success:
-                        false,
+                    context,
 
+                    runFailure.stage ||
+                    "tools",
 
-                    status:
-                        "NEEDS_CLARIFICATION",
+                    runFailure.reason
 
-
-                    needsClarification:
-                        true,
-
-
-                    stage:
-                        runFailure.stage ||
-                        "tools",
-
-
-                    result:
-                        runFailure.reason,
-
-
-                    plan:
-                        currentPlan,
-
-
-                    planningContext:
-                        currentContext,
-
-
-                    toolResults:
-                        taskRunResult.results || [],
-
-
-                    attempt
-
-                };
+                );
 
             }
 
@@ -553,29 +562,18 @@ export async function executePlanCycle(
                 runFailure.shouldRetry !== true
             ) {
 
-                return buildFailure({
+                return buildFailure(
 
-                    stage:
-                        runFailure.stage ||
-                        "tools",
+                    context,
 
-                    text:
-                        runFailure.reason,
+                    runFailure.stage ||
+                    "tools",
 
-                    plan:
-                        currentPlan,
+                    runFailure.reason,
 
-                    taskRunResult,
+                    runFailure.failureType
 
-                    attempt,
-
-                    context:
-                        currentContext,
-
-                    failureType:
-                        runFailure.failureType
-
-                });
+                );
 
             }
 
@@ -585,28 +583,17 @@ export async function executePlanCycle(
                 attempt >= MAX_EXECUTION_ATTEMPTS
             ) {
 
-                return buildFailure({
+                return buildFailure(
 
-                    stage:
-                        runFailure.stage,
+                    context,
 
-                    text:
-                        runFailure.reason,
+                    runFailure.stage,
 
-                    plan:
-                        currentPlan,
+                    runFailure.reason,
 
-                    taskRunResult,
+                    runFailure.failureType
 
-                    attempt,
-
-                    context:
-                        currentContext,
-
-                    failureType:
-                        runFailure.failureType
-
-                });
+                );
 
             }
 
@@ -615,19 +602,11 @@ export async function executePlanCycle(
             const alternative =
                 await createAlternativePlan(
 
-                    taskText,
-
-                    currentPlan,
+                    context,
 
                     buildRunFailureFeedback(
                         runFailure
-                    ),
-
-                    taskRunResult,
-
-                    currentContext,
-
-                    attempt
+                    )
 
                 );
 
@@ -637,36 +616,26 @@ export async function executePlanCycle(
                 !alternative.success
             ) {
 
-                return buildFailure({
+                return buildFailure(
 
-                    stage:
-                        "replanner",
+                    context,
 
-                    text:
-                        alternative.reason,
+                    "replanner",
 
-                    plan:
-                        currentPlan,
+                    alternative.reason
 
-                    taskRunResult,
-
-                    attempt,
-
-                    context:
-                        currentContext
-
-                });
+                );
 
             }
 
 
 
-            currentPlan =
+            context.plan =
                 alternative.plan;
 
 
-            currentContext =
-                alternative.context;
+            context.planningContext =
+                alternative.planningContext;
 
 
 
@@ -678,25 +647,22 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * COMPOSE
+         * 3. COMPOSE ANSWER
          * =================================================
          */
-
-
-        let answerResult;
 
 
         try {
 
 
-            answerResult =
+            context.answerResult =
                 await composeAnswer(
 
-                    taskText,
+                    context.task,
 
-                    currentPlan,
+                    context.plan,
 
-                    taskRunResult
+                    context.runResult
 
                 );
 
@@ -704,54 +670,34 @@ export async function executePlanCycle(
         } catch(error) {
 
 
-            return buildFailure({
+            return buildFailure(
 
-                stage:
-                    "composer",
+                context,
 
-                text:
-                    "Ошибка формирования ответа",
+                "composer",
 
-                plan:
-                    currentPlan,
+                "Ошибка формирования ответа"
 
-                taskRunResult,
-
-                attempt,
-
-                context:
-                    currentContext
-
-            });
+            );
 
         }
 
 
 
         if (
-            !answerResult?.success
+            !context.answerResult?.success
         ) {
 
-            return buildFailure({
+            return buildFailure(
 
-                stage:
-                    "composer",
+                context,
 
-                text:
-                    answerResult?.text ||
-                    "Ответ не создан",
+                "composer",
 
-                plan:
-                    currentPlan,
+                context.answerResult?.text ||
+                "Ответ не создан"
 
-                taskRunResult,
-
-                attempt,
-
-                context:
-                    currentContext
-
-            });
+            );
 
         }
 
@@ -759,7 +705,7 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * VALIDATE
+         * 4. VALIDATE
          * =================================================
          */
 
@@ -773,13 +719,13 @@ export async function executePlanCycle(
             validation =
                 await validateResult(
 
-                    taskText,
+                    context.task,
 
-                    currentPlan,
+                    context.plan,
 
-                    taskRunResult,
+                    context.runResult,
 
-                    answerResult
+                    context.answerResult
 
                 );
 
@@ -788,22 +734,41 @@ export async function executePlanCycle(
 
 
             console.error(
-                "Validator error:",
+                "Jessica Validator error:",
                 error
             );
 
 
             return buildCompletedResult(
 
-                currentPlan,
+                context,
 
-                taskRunResult,
+                context.answerResult,
 
-                answerResult,
+                false
 
-                attempt,
+            );
 
-                currentContext,
+        }
+
+
+
+        /*
+         * =================================================
+         * VALID
+         * =================================================
+         */
+
+
+        if (
+            validation.valid === true
+        ) {
+
+            return buildCompletedResult(
+
+                context,
+
+                context.answerResult,
 
                 true
 
@@ -813,21 +778,24 @@ export async function executePlanCycle(
 
 
 
+        /*
+         * =================================================
+         * CLARIFICATION
+         * =================================================
+         */
+
+
         if (
-            validation.valid === true
+            validation.needsClarification === true
         ) {
 
-            return buildCompletedResult(
+            return buildClarificationResult(
 
-                currentPlan,
+                context,
 
-                taskRunResult,
+                "validator",
 
-                answerResult,
-
-                attempt,
-
-                currentContext
+                validation.reason
 
             );
 
@@ -835,102 +803,52 @@ export async function executePlanCycle(
 
 
 
-        if (
-            validation.needsClarification === true
-        ) {
-
-            return {
-
-                success:
-                    false,
-
-
-                status:
-                    "NEEDS_CLARIFICATION",
-
-
-                needsClarification:
-                    true,
-
-
-                stage:
-                    "validator",
-
-
-                result:
-                    validation.reason,
-
-
-                plan:
-                    currentPlan,
-
-
-                planningContext:
-                    currentContext,
-
-
-                toolResults:
-                    taskRunResult.results || [],
-
-
-                attempt
-
-            };
-
-        }
-
+        /*
+         * =================================================
+         * RETRY POLICY
+         * =================================================
+         */
 
 
         if (
             !shouldRetryExecution(
+
                 validation,
+
                 attempt
+
             )
         ) {
 
-            return buildFailure({
+            return buildFailure(
 
-                stage:
-                    "validator",
+                context,
 
-                text:
-                    validation.reason,
+                "validator",
 
-                plan:
-                    currentPlan,
+                validation.reason,
 
-                taskRunResult,
+                "validation-failure"
 
-                attempt,
-
-                context:
-                    currentContext,
-
-                failureType:
-                    "validation-failure"
-
-            });
+            );
 
         }
 
+
+
+        /*
+         * =================================================
+         * REPLAN AFTER VALIDATOR
+         * =================================================
+         */
 
 
         const alternative =
             await createAlternativePlan(
 
-                taskText,
+                context,
 
-                currentPlan,
-
-                buildValidatorFeedback(
-                    validation
-                ),
-
-                taskRunResult,
-
-                currentContext,
-
-                attempt
+                validation
 
             );
 
@@ -940,36 +858,26 @@ export async function executePlanCycle(
             !alternative.success
         ) {
 
-            return buildFailure({
+            return buildFailure(
 
-                stage:
-                    "replanner",
+                context,
 
-                text:
-                    alternative.reason,
+                "replanner",
 
-                plan:
-                    currentPlan,
+                alternative.reason
 
-                taskRunResult,
-
-                attempt,
-
-                context:
-                    currentContext
-
-            });
+            );
 
         }
 
 
 
-        currentPlan =
+        context.plan =
             alternative.plan;
 
 
-        currentContext =
-            alternative.context;
+        context.planningContext =
+            alternative.planningContext;
 
 
 
@@ -977,27 +885,22 @@ export async function executePlanCycle(
 
 
 
-    return buildFailure({
+    /*
+     * =====================================================
+     * FALLBACK
+     * =====================================================
+     */
 
-        stage:
-            "execution",
 
-        text:
-            lastFailure?.reason ||
-            "Исчерпан лимит попыток",
+    return buildFailure(
 
-        plan:
-            currentPlan,
+        context,
 
-        taskRunResult:
-            lastRunResult,
+        "execution",
 
-        attempt:
-            MAX_EXECUTION_ATTEMPTS,
+        lastFailure?.reason ||
+        "Исчерпан лимит выполнения"
 
-        context:
-            currentContext
-
-    });
+    );
 
 }
