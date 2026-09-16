@@ -1,55 +1,34 @@
-import OpenAI from "openai";
-
-import {
-    executeAIWithRetry
-} from "../../ai/aiRetry.js";
-
-
 /*
  * =========================================================
  * JESSICA AI RESULT VALIDATOR
  * =========================================================
  *
- * Семантическая проверка качества ответа.
+ * Проверяет качество уже сформированного ответа.
  *
- * Этот модуль:
+ * НЕ:
  *
- * - не выполняет tools;
- * - не отвечает пользователю;
- * - не меняет план;
- * - только оценивает уже полученный результат.
+ * - выполняет инструменты;
+ * - строит план;
+ * - меняет ответ;
+ * - вызывает Groq напрямую.
  *
- * Технические ошибки AI:
  *
- * 429 / timeout / 5xx
+ * AI доступ:
  *
- * обрабатываются общим:
+ * validatorClient.js
  *
- * ai/aiRetry.js
- */
-
-
-/*
- * =========================================================
- * AI CLIENT
  * =========================================================
  */
 
 
-const groq =
-    process.env.GROQ_API_KEY
-        ? new OpenAI({
-            apiKey:
-                process.env.GROQ_API_KEY,
+import {
+    validatorChat
+} from "../../ai/validatorClient.js";
 
-            baseURL:
-                "https://api.groq.com/openai/v1"
-        })
-        : null;
+import {
+    executeAIWithRetry
+} from "../../ai/aiRetry.js";
 
-
-const VALIDATOR_MODEL =
-    "openai/gpt-oss-20b";
 
 
 /*
@@ -64,16 +43,18 @@ function cleanJsonText(
 ) {
 
     let value =
-        String(text || "")
-            .replace(
-                /```json/gi,
-                ""
-            )
-            .replace(
-                /```/g,
-                ""
-            )
-            .trim();
+        String(
+            text || ""
+        )
+        .replace(
+            /```json/gi,
+            ""
+        )
+        .replace(
+            /```/g,
+            ""
+        )
+        .trim();
 
 
     const firstBrace =
@@ -103,6 +84,150 @@ function cleanJsonText(
 }
 
 
+
+/*
+ * =========================================================
+ * PROMPT
+ * =========================================================
+ */
+
+
+function buildValidatorMessages(
+    task,
+    plan,
+    taskRunResult,
+    answerResult
+) {
+
+
+    return [
+
+        {
+
+            role:
+                "system",
+
+            content:
+                [
+
+                    "Ты AI Validator системы Jessica Core.",
+
+                    "",
+
+                    "Ты проверяешь только уже полученный результат.",
+
+                    "",
+
+                    "Ты НЕ:",
+
+                    "- отвечаешь пользователю;",
+                    "- выполняешь инструменты;",
+                    "- ищешь информацию;",
+                    "- изменяешь план.",
+
+                    "",
+
+                    "Проверь:",
+
+                    "- решает ли ответ исходную задачу;",
+                    "- соответствует ли ответ данным выполнения;",
+                    "- есть ли критические ошибки;",
+                    "- нужна ли повторная попытка;",
+                    "- требуется ли уточнение пользователя.",
+
+                    "",
+
+                    "Не отклоняй короткий корректный ответ.",
+
+                    "",
+
+                    "Верни только JSON:",
+
+                    JSON.stringify({
+
+                        valid:
+                            true,
+
+                        shouldRetry:
+                            false,
+
+                        needsClarification:
+                            false,
+
+                        reason:
+                            "краткая причина"
+
+                    })
+
+                ]
+                .join(
+                    "\n"
+                )
+
+        },
+
+
+        {
+
+            role:
+                "user",
+
+            content:
+                [
+
+                    "ИСХОДНАЯ ЗАДАЧА:",
+
+                    String(
+                        task || ""
+                    ),
+
+
+                    "",
+
+
+                    "ПЛАН:",
+
+                    JSON.stringify(
+                        plan,
+                        null,
+                        2
+                    ),
+
+
+                    "",
+
+
+                    "РЕЗУЛЬТАТ ВЫПОЛНЕНИЯ:",
+
+                    JSON.stringify(
+                        taskRunResult,
+                        null,
+                        2
+                    ),
+
+
+                    "",
+
+
+                    "ИТОГОВЫЙ ОТВЕТ:",
+
+                    String(
+                        answerResult?.text || ""
+                    )
+
+                ]
+                .join(
+                    "\n"
+                )
+
+        }
+
+    ];
+
+}
+
+
+
 /*
  * =========================================================
  * AI REQUEST
@@ -117,177 +242,69 @@ async function requestValidation(
     answerResult
 ) {
 
+
     return await executeAIWithRetry(
+
         async () => {
 
-            return await groq
-                .chat
-                .completions
-                .create({
+            return await validatorChat(
 
-                    model:
-                        VALIDATOR_MODEL,
+                buildValidatorMessages(
+                    task,
+                    plan,
+                    taskRunResult,
+                    answerResult
+                )
 
-                    temperature:
-                        0,
-
-                    messages: [
-                        {
-                            role:
-                                "system",
-
-                            content: [
-                                "Ты Validator системы Jessica Core.",
-
-                                "",
-                                "Ты не отвечаешь пользователю.",
-                                "Ты не выполняешь инструменты.",
-                                "Ты не меняешь план.",
-                                "Ты только проверяешь уже сформированный ответ.",
-
-                                "",
-                                "Определи:",
-
-                                "- решает ли ответ исходную задачу;",
-                                "- соответствует ли ответ результатам выполнения;",
-                                "- есть ли существенные неподтверждённые утверждения;",
-                                "- может ли повторная попытка исправить проблему;",
-                                "- требуется ли уточнение пользователя.",
-
-                                "",
-                                "Не требуй лишней детализации.",
-                                "Не отклоняй хороший краткий ответ только потому, что его можно расширить.",
-
-                                "",
-                                "Если более ранние этапы уже получили данные из источников,",
-                                "не придумывай новые факты и не выполняй собственный поиск.",
-
-                                "",
-                                "Верни только JSON:",
-
-                                JSON.stringify({
-                                    valid:
-                                        true,
-
-                                    shouldRetry:
-                                        false,
-
-                                    needsClarification:
-                                        false,
-
-                                    reason:
-                                        "краткая причина"
-                                })
-                            ].join(
-                                "\n"
-                            )
-                        },
-
-                        {
-                            role:
-                                "user",
-
-                            content: [
-                                "ИСХОДНАЯ ЗАДАЧА:",
-                                String(
-                                    task || ""
-                                ),
-
-                                "",
-                                "ПЛАН:",
-                                JSON.stringify(
-                                    plan,
-                                    null,
-                                    2
-                                ),
-
-                                "",
-                                "РЕЗУЛЬТАТ ВЫПОЛНЕНИЯ:",
-                                JSON.stringify(
-                                    taskRunResult,
-                                    null,
-                                    2
-                                ),
-
-                                "",
-                                "ИТОГОВЫЙ ОТВЕТ:",
-                                String(
-                                    answerResult?.text || ""
-                                )
-                            ].join(
-                                "\n"
-                            )
-                        }
-                    ]
-
-                });
+            );
 
         },
+
         {
             label:
                 "AI Validator"
         }
+
     );
 
 }
 
 
+
 /*
  * =========================================================
- * VALIDATE WITH AI
+ * PUBLIC
  * =========================================================
  */
 
 
 export async function validateWithAI(
+
     task,
+
     plan,
+
     taskRunResult,
+
     answerResult
+
 ) {
-
-    /*
-     * =====================================================
-     * AI UNAVAILABLE
-     * =====================================================
-     *
-     * Главный validator.js сам решает,
-     * что делать при недоступности
-     * дополнительной AI-проверки.
-     */
-
-
-    if (!groq) {
-
-        return {
-            success:
-                false,
-
-            unavailable:
-                true,
-
-            reason:
-                "AI Validator недоступен"
-        };
-
-    }
-
-
-    /*
-     * =====================================================
-     * AI VALIDATION
-     * =====================================================
-     */
 
 
     try {
 
+
         const response =
             await requestValidation(
+
                 task,
+
                 plan,
+
                 taskRunResult,
+
                 answerResult
+
             );
 
 
@@ -299,16 +316,11 @@ export async function validateWithAI(
                 ?.content;
 
 
-        /*
-         * =================================================
-         * EMPTY RESPONSE
-         * =================================================
-         */
-
 
         if (!raw) {
 
             return {
+
                 success:
                     false,
 
@@ -317,22 +329,18 @@ export async function validateWithAI(
 
                 reason:
                     "AI Validator вернул пустой ответ"
+
             };
 
         }
 
-
-        /*
-         * =================================================
-         * PARSE JSON
-         * =================================================
-         */
 
 
         let validation;
 
 
         try {
+
 
             validation =
                 JSON.parse(
@@ -341,15 +349,12 @@ export async function validateWithAI(
                     )
                 );
 
-        } catch {
 
-            console.error(
-                "AI Validator invalid JSON:",
-                raw
-            );
+        } catch {
 
 
             return {
+
                 success:
                     false,
 
@@ -358,55 +363,54 @@ export async function validateWithAI(
 
                 reason:
                     "AI Validator вернул некорректный JSON"
+
             };
 
         }
 
 
-        /*
-         * =================================================
-         * SUCCESS
-         * =================================================
-         */
-
 
         return {
+
             success:
                 true,
+
 
             valid:
                 validation?.valid === true,
 
+
             shouldRetry:
                 validation?.shouldRetry === true,
 
+
             needsClarification:
                 validation?.needsClarification === true,
+
 
             reason:
                 typeof validation?.reason === "string"
                     ? validation.reason.trim()
                     : ""
+
         };
 
 
-    } catch (error) {
 
-        /*
-         * Сюда попадём только после того,
-         * как aiRetry.js исчерпал технические
-         * попытки либо получил ошибку,
-         * которую повторять бессмысленно.
-         */
+    } catch(error) {
 
 
         console.error(
-            "AI Validator final error:",
+
+            "AI Validator error:",
+
             error
+
         );
 
 
         return {
+
             success:
                 false,
 
@@ -419,6 +423,7 @@ export async function validateWithAI(
             reason:
                 error?.message ||
                 "Ошибка AI Validator"
+
         };
 
     }
