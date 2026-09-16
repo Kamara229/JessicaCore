@@ -1,3 +1,32 @@
+/*
+ * =========================================================
+ * JESSICA RESULT VALIDATOR
+ * =========================================================
+ *
+ * Главный координатор проверки результата.
+ *
+ *
+ * Цепочка:
+ *
+ * Result
+ *   ↓
+ * Basic Validator
+ *   ↓
+ * Evidence Validator
+ *   ↓
+ * Source Content Validator
+ *   ↓
+ * Claim Evidence Validator
+ *   ↓
+ * AI Semantic Validator
+ *
+ *
+ * Каждый слой отвечает только за свою область.
+ *
+ * =========================================================
+ */
+
+
 import {
     validateBasicResult
 } from "./validator/basicResultValidator.js";
@@ -19,21 +48,60 @@ import {
 } from "./validator/aiResultValidator.js";
 
 
+
 /*
  * =========================================================
- * JESSICA RESULT VALIDATOR
+ * RESULT BUILDER
  * =========================================================
- *
- * Главный координатор проверки результата.
+ */
+
+
+function buildValidationResult(
+    validation
+) {
+
+    return {
+
+        success:
+            true,
+
+        valid:
+            validation.valid === true,
+
+        shouldRetry:
+            validation.shouldRetry === true,
+
+        needsClarification:
+            validation.needsClarification === true,
+
+        reason:
+            validation.reason || ""
+
+    };
+
+}
+
+
+
+/*
+ * =========================================================
+ * VALIDATE RESULT
+ * =========================================================
  */
 
 
 export async function validateResult(
+
     task,
+
     plan,
+
     taskRunResult,
+
     answerResult
+
 ) {
+
 
     /*
      * =====================================================
@@ -41,10 +109,14 @@ export async function validateResult(
      * =====================================================
      */
 
+
     const basic =
         validateBasicResult(
+
             taskRunResult,
+
             answerResult
+
         );
 
 
@@ -58,87 +130,68 @@ export async function validateResult(
         basic.valid !== true
     ) {
 
-        const result = {
-            success: true,
-            valid: false,
-            shouldRetry:
-                basic.shouldRetry === true,
-            needsClarification:
-                basic.needsClarification === true,
-            reason:
-                basic.reason || ""
-        };
-
-
-        console.log(
-            "Jessica Validator final:",
-            JSON.stringify(result)
+        return buildValidationResult(
+            basic
         );
 
-
-        return result;
     }
+
 
 
     /*
      * =====================================================
-     * 2. EVIDENCE EXISTS
+     * 2. EVIDENCE EXISTENCE
      * =====================================================
      */
 
+
     const evidence =
         validateEvidenceResult(
+
             plan,
+
             taskRunResult
+
         );
 
 
     console.log(
         "Jessica Validator evidence:",
-        JSON.stringify({
-            requiredMode:
-                plan?.evidence?.mode || "none",
-            ...evidence
-        })
+        JSON.stringify(evidence)
     );
+
 
 
     if (
         evidence.valid !== true
     ) {
 
-        const result = {
-            success: true,
-            valid: false,
-            shouldRetry:
-                evidence.shouldRetry === true,
-            needsClarification: false,
-            reason:
-                evidence.reason || ""
-        };
-
-
-        console.log(
-            "Jessica Validator final:",
-            JSON.stringify(result)
+        return buildValidationResult(
+            evidence
         );
 
-
-        return result;
     }
+
 
 
     /*
      * =====================================================
-     * 3. SOURCE CONTENT QUALITY
+     * 3. SOURCE CONTENT
      * =====================================================
+     *
+     * Только если нужен source_content.
      */
+
 
     const sourceContent =
         await validateSourceContent(
+
             task,
+
             plan,
+
             taskRunResult
+
         );
 
 
@@ -148,30 +201,18 @@ export async function validateResult(
     );
 
 
+
     if (
         sourceContent.success === true &&
         sourceContent.valid !== true
     ) {
 
-        const result = {
-            success: true,
-            valid: false,
-            shouldRetry:
-                sourceContent.shouldRetry === true,
-            needsClarification: false,
-            reason:
-                sourceContent.reason || ""
-        };
-
-
-        console.log(
-            "Jessica Validator final:",
-            JSON.stringify(result)
+        return buildValidationResult(
+            sourceContent
         );
 
-
-        return result;
     }
+
 
 
     /*
@@ -179,93 +220,97 @@ export async function validateResult(
      * 4. CLAIM EVIDENCE
      * =====================================================
      *
-     * Проверяем уже конкретные факты
-     * итогового ответа по реальному content.
+     * Проверяем факты ответа
+     * по реально загруженному источнику.
      */
 
-    const claimEvidence =
+
+    const claims =
         await validateClaimEvidence(
+
             task,
+
             plan,
+
             taskRunResult,
+
             answerResult
+
         );
 
 
     console.log(
         "Jessica Validator claims:",
-        JSON.stringify(claimEvidence)
+        JSON.stringify(claims)
     );
 
 
+
     if (
-        claimEvidence.success === true &&
-        claimEvidence.valid !== true
+        claims.success === true &&
+        claims.valid !== true
     ) {
 
-        const result = {
-            success: true,
-            valid: false,
-            shouldRetry:
-                claimEvidence.shouldRetry === true,
-            needsClarification: false,
-            reason:
-                claimEvidence.reason || ""
-        };
-
-
-        console.log(
-            "Jessica Validator final:",
-            JSON.stringify(result)
+        return buildValidationResult(
+            claims
         );
 
-
-        return result;
     }
+
 
 
     /*
      * =====================================================
-     * 5. DIRECT TOOL RESULT
+     * 5. TOOL DIRECT ANSWER
      * =====================================================
      */
+
 
     if (
         answerResult?.source === "tool"
     ) {
 
-        const result = {
-            success: true,
-            valid: true,
-            shouldRetry: false,
-            needsClarification: false,
+        return {
+
+            success:
+                true,
+
+            valid:
+                true,
+
+            shouldRetry:
+                false,
+
+            needsClarification:
+                false,
+
             reason:
-                "Ответ получен напрямую от успешно выполненного инструмента"
+                "Ответ получен напрямую от инструмента"
+
         };
 
-
-        console.log(
-            "Jessica Validator final:",
-            JSON.stringify(result)
-        );
-
-
-        return result;
     }
+
 
 
     /*
      * =====================================================
-     * 6. AI ANSWER VALIDATION
+     * 6. AI SEMANTIC VALIDATOR
      * =====================================================
      */
 
+
     const aiValidation =
         await validateWithAI(
+
             task,
+
             plan,
+
             taskRunResult,
+
             answerResult
+
         );
 
 
@@ -275,55 +320,49 @@ export async function validateResult(
     );
 
 
+
     if (
         aiValidation.success === true
     ) {
 
-        const result = {
-            success: true,
-            valid:
-                aiValidation.valid === true,
-            shouldRetry:
-                aiValidation.shouldRetry === true,
-            needsClarification:
-                aiValidation.needsClarification === true,
-            reason:
-                aiValidation.reason || ""
-        };
-
-
-        console.log(
-            "Jessica Validator final:",
-            JSON.stringify(result)
+        return buildValidationResult(
+            aiValidation
         );
 
-
-        return result;
     }
+
 
 
     /*
      * =====================================================
-     * 7. AI UNAVAILABLE
+     * 7. AI UNAVAILABLE FALLBACK
      * =====================================================
      */
 
-    const result = {
-        success: true,
-        valid: true,
-        shouldRetry: false,
-        needsClarification: false,
+
+    return {
+
+        success:
+            true,
+
+        valid:
+            true,
+
+        shouldRetry:
+            false,
+
+        needsClarification:
+            false,
+
         reason:
-            aiValidation.reason ||
-            "AI Validator недоступен, технические проверки пройдены"
+            (
+                "AI semantic validation skipped: " +
+                (
+                    aiValidation.reason ||
+                    "validator unavailable"
+                )
+            )
+
     };
 
-
-    console.log(
-        "Jessica Validator final:",
-        JSON.stringify(result)
-    );
-
-
-    return result;
 }
