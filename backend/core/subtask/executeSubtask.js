@@ -11,44 +11,49 @@ import {
 } from "../../experience/experienceCore.js";
 
 
+
 /*
  * =========================================================
  * JESSICA EXECUTE SUBTASK
  * =========================================================
  *
- * Выполняет одну подзадачу.
+ * Выполнение одной подзадачи.
  *
  *
- * Рабочая цепочка:
+ * Flow:
  *
  * Subtask
- *   ↓
+ *    ↓
  * Experience
- *   ↓
+ *    ↓
  * PlanningContext
- *   ↓
+ *    ↓
  * Planner
- *   ↓
+ *    ↓
  * Execution Cycle
+ *    ↓
+ * Result
  *
  *
- * Если подходящий Experience не найден
- * или Experience временно недоступен:
+ * Ответственность:
  *
- * PlanningContext остаётся пустым
- * и Planner работает обычным способом.
+ * - найти Experience;
+ * - подготовить PlanningContext;
+ * - создать первый план;
+ * - передать управление Execution Cycle.
  *
  *
- * Этот файл НЕ:
+ * НЕ отвечает за:
  *
- * - запускает несколько подзадач;
- * - считает общую статистику;
- * - хранит Experience;
- * - содержит алгоритм поиска Experience;
- * - содержит внутреннюю реализацию Planner.
+ * - выполнение инструментов;
+ * - retry;
+ * - replan;
+ * - validation;
+ * - обучение.
  *
  * =========================================================
  */
+
 
 
 /*
@@ -65,7 +70,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * PREPARE INPUT
+     * INPUT
      * =====================================================
      */
 
@@ -79,12 +84,6 @@ export async function executeSubtask(
             ? subtask.text.trim()
             : "";
 
-
-    /*
-     * =====================================================
-     * INPUT VALIDATION
-     * =====================================================
-     */
 
 
     if (!taskText) {
@@ -114,24 +113,16 @@ export async function executeSubtask(
     }
 
 
+
     /*
      * =====================================================
      * 1. EXPERIENCE
-     * =====================================================
-     *
-     * Первый слой поиска решения Jessica.
-     *
-     * Experience Core:
-     *
-     * - загружает активные Skills из Storage;
-     * - ищет подходящий Skill;
-     * - формирует контекст для Planner.
-     *
      * =====================================================
      */
 
 
     let experienceResult;
+
 
 
     try {
@@ -143,23 +134,15 @@ export async function executeSubtask(
             );
 
 
-    } catch (error) {
-
-
-        /*
-         * Это дополнительная страховка.
-         *
-         * Experience Core уже сам должен
-         * обрабатывать свои ошибки.
-         *
-         * Даже если что-то пошло не так,
-         * выполнение задачи продолжается.
-         */
+    } catch(error) {
 
 
         console.error(
-            `Subtask ${subtaskId} Experience exception:`,
+
+            `Jessica Experience error ${subtaskId}:`,
+
             error
+
         );
 
 
@@ -168,31 +151,23 @@ export async function executeSubtask(
             found:
                 false,
 
-            experience:
-                null,
 
             confidence:
                 0,
 
-            planningContext: {
 
-                experience:
-                    null,
-
-                metadata:
-                    {}
-
-            }
+            planningContext:
+                {}
 
         };
-
 
     }
 
 
+
     /*
      * =====================================================
-     * PLANNING CONTEXT
+     * 2. PLANNING CONTEXT
      * =====================================================
      */
 
@@ -200,20 +175,12 @@ export async function executeSubtask(
     const planningContext =
         experienceResult?.planningContext &&
         typeof experienceResult.planningContext === "object"
+
             ? experienceResult.planningContext
+
             : {};
 
 
-    /*
-     * =====================================================
-     * EXPERIENCE LOG
-     * =====================================================
-     *
-     * В лог выводим только служебную информацию.
-     *
-     * Содержимое всего Skill здесь не печатаем.
-     * =====================================================
-     */
 
 
     if (
@@ -222,21 +189,30 @@ export async function executeSubtask(
 
 
         console.log(
-            `Subtask ${subtaskId} Experience found:`,
+
+            "Jessica Experience selected:",
+
             {
+
                 skillId:
                     planningContext
                         ?.experience
-                        ?.skillId || null,
+                        ?.skillId ||
+                    null,
+
 
                 version:
                     planningContext
                         ?.experience
-                        ?.version || null,
+                        ?.version ||
+                    null,
 
-                matchConfidence:
+
+                confidence:
                     experienceResult.confidence || 0
+
             }
+
         );
 
 
@@ -244,21 +220,23 @@ export async function executeSubtask(
 
 
         console.log(
-            `Subtask ${subtaskId}: Experience not found`
+            "Jessica Experience not found"
         );
-
 
     }
 
 
+
+
     /*
      * =====================================================
-     * 2. CREATE INITIAL PLAN
+     * 3. INITIAL PLAN
      * =====================================================
      */
 
 
     let planResult;
+
 
 
     try {
@@ -274,12 +252,15 @@ export async function executeSubtask(
             );
 
 
-    } catch (error) {
+    } catch(error) {
 
 
         console.error(
-            `Subtask ${subtaskId} planner exception:`,
+
+            "Jessica Planner error:",
+
             error
+
         );
 
 
@@ -291,22 +272,23 @@ export async function executeSubtask(
             text:
                 taskText,
 
-            status:
-                "FAILED",
-
             success:
                 false,
+
+            status:
+                "FAILED",
 
             stage:
                 "planner",
 
             result:
-                "Не удалось построить план"
+                "Ошибка создания плана"
 
         };
 
-
     }
+
+
 
 
     if (
@@ -314,50 +296,61 @@ export async function executeSubtask(
         !planResult?.plan
     ) {
 
+
         return {
 
             id:
                 subtaskId,
 
+
             text:
                 taskText,
 
-            status:
-                "FAILED",
 
             success:
                 false,
 
+
+            status:
+                "FAILED",
+
+
             stage:
                 "planner",
 
+
             result:
                 planResult?.text ||
-                "Не удалось построить план"
+                "План не создан"
 
         };
 
     }
 
 
+
+
     /*
      * =====================================================
-     * 3. EXECUTION CYCLE
+     * 4. EXECUTION CYCLE
      * =====================================================
      *
-     * План передаётся существующему циклу:
+     * ВАЖНО:
      *
-     * run
-     * → compose
-     * → validate
-     * → replan
-     * → retry
+     * Передаём Experience Context.
+     *
+     * Он используется:
+     *
+     * - Replanner;
+     * - будущим Learning;
+     * - анализом качества Skills.
      *
      * =====================================================
      */
 
 
     let executionResult;
+
 
 
     try {
@@ -368,18 +361,25 @@ export async function executeSubtask(
 
                 taskText,
 
-                planResult.plan
+                planResult.plan,
+
+                planningContext
 
             );
 
 
-    } catch (error) {
+
+    } catch(error) {
 
 
         console.error(
-            `Subtask ${subtaskId} execution cycle exception:`,
+
+            "Jessica Execution Cycle error:",
+
             error
+
         );
+
 
 
         return {
@@ -387,33 +387,41 @@ export async function executeSubtask(
             id:
                 subtaskId,
 
+
             text:
                 taskText,
 
-            status:
-                "FAILED",
 
             success:
                 false,
 
+
+            status:
+                "FAILED",
+
+
             stage:
                 "execution",
 
+
             result:
-                "Непредвиденная ошибка цикла выполнения",
+                "Ошибка цикла выполнения",
+
 
             plan:
                 planResult.plan
 
         };
 
-
     }
+
+
+
 
 
     /*
      * =====================================================
-     * 4. NORMALIZE RESULT
+     * 5. NORMALIZE RESULT
      * =====================================================
      */
 
@@ -423,49 +431,64 @@ export async function executeSubtask(
         id:
             subtaskId,
 
+
         text:
             taskText,
 
 
+
         /*
-         * Сохраняем краткую информацию
-         * о применённом Experience.
+         * Experience metadata.
          *
-         * Она позже пригодится:
+         * Не сохраняем полный Skill.
          *
-         * - Learning;
-         * - статистике;
-         * - Earnings;
-         * - анализу качества Skills.
+         * Только ссылку:
+         *
+         * Learning
+         * Statistics
+         * Earnings
+         *
          */
 
 
         experience: {
 
+
             found:
                 experienceResult?.found === true,
+
 
             skillId:
                 planningContext
                     ?.experience
-                    ?.skillId || null,
+                    ?.skillId ||
+                null,
+
 
             version:
                 planningContext
                     ?.experience
-                    ?.version || null,
+                    ?.version ||
+                null,
 
-            matchConfidence:
+
+            confidence:
                 Number(
                     experienceResult?.confidence || 0
                 )
 
+
         },
+
+
+
+        /*
+         * Полный результат Execution Cycle.
+         */
 
 
         ...executionResult
 
     };
-
 
 }
