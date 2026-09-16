@@ -30,33 +30,40 @@ import {
  * JESSICA EXECUTION CYCLE
  * =========================================================
  *
- * Выполняет цикл одной подзадачи:
+ * Центральный цикл выполнения одной задачи.
  *
- * plan
- * → run
- * → compose
- * → validate
- * → replan
- * → retry
  *
- * ВАЖНО:
+ * Поток:
  *
- * semantic retry теперь может возникнуть
- * не только после Validator,
- * но и раньше — на уровне TaskRunner.
+ * Plan
+ *  ↓
+ * TaskRunner
+ *  ↓
+ * Run Analysis
+ *  ↓
+ * Answer Composer
+ *  ↓
+ * Validator
+ *  ↓
+ * Replanner
+ *  ↓
+ * Retry
  *
- * Например:
  *
- * web_search
- * → Source Selector REJECT
- * → TaskRunner shouldRetry=true
- * → Replanner
+ * Context сохраняется между попытками:
+ *
+ * Experience
+ * PlanningContext
+ * Constraints
+ * Instructions
+ *
+ * =========================================================
  */
 
 
 /*
  * =========================================================
- * USED TOOLS
+ * COLLECT USED TOOLS
  * =========================================================
  */
 
@@ -78,9 +85,12 @@ function collectUsedTools(
             item =>
                 item?.tool
         )
-        .filter(Boolean);
+        .filter(
+            Boolean
+        );
 
 }
+
 
 
 /*
@@ -98,214 +108,269 @@ function buildCompletedResult(
 ) {
 
     return {
+
         success:
             true,
+
 
         status:
             "COMPLETED",
 
+
         validated:
             true,
+
 
         result:
             answerResult.text,
 
+
         answerSource:
-            answerResult.source || "unknown",
+            answerResult.source ||
+            "unknown",
+
 
         usedTools:
             collectUsedTools(
                 taskRunResult
             ),
 
+
         plan,
+
 
         toolResults:
             taskRunResult?.results || [],
 
+
         attempt
+
     };
 
 }
 
 
+
 /*
  * =========================================================
- * EXECUTION FAILURE
+ * FAILURE RESULT
  * =========================================================
  */
 
 
 function buildFailure(
-    stage,
-    text,
-    plan,
-    taskRunResult,
-    attempt,
-    shouldRetry = false,
-    failureType = null
+    {
+        stage,
+        text,
+        plan,
+        taskRunResult,
+        attempt,
+        shouldRetry = false,
+        failureType = null
+    }
 ) {
 
     return {
+
         success:
             false,
+
 
         status:
             "FAILED",
 
+
         stage,
+
 
         shouldRetry,
 
+
         failureType,
+
 
         result:
             text,
 
+
         plan,
+
 
         toolResults:
             taskRunResult?.results || [],
 
+
         attempt
+
     };
 
 }
 
 
+
 /*
  * =========================================================
- * REPLAN
+ * CREATE ALTERNATIVE PLAN
  * =========================================================
  *
- * Единая функция для semantic retry.
+ * Единая точка Replan.
  *
- * Её можно вызвать:
+ * Сохраняем:
  *
- * - после ошибки маршрута TaskRunner;
- * - после отклонения Validator.
+ * - текущий план;
+ * - ошибку;
+ * - результаты выполнения;
+ * - Experience context.
+ *
+ * =========================================================
  */
 
 
 async function createAlternativePlan(
     taskText,
     currentPlan,
-    feedback,
+    failureContext,
     taskRunResult,
+    planningContext,
     attempt
 ) {
 
+
     console.log(
-        "Jessica retry requested:",
+        "Jessica Replan requested:",
         JSON.stringify({
+
             attempt,
 
             stage:
-                feedback?.stage || "",
+                failureContext?.stage ||
+                "",
+
 
             failureType:
-                feedback?.failureType || "",
+                failureContext?.failureType ||
+                "",
+
 
             reason:
-                feedback?.reason || ""
+                failureContext?.reason ||
+                ""
+
         })
     );
 
 
-    let replanResult;
-
 
     try {
 
-        replanResult =
+
+        const result =
             await replanTask(
+
                 taskText,
+
                 currentPlan,
-                feedback,
-                taskRunResult
+
+                failureContext,
+
+                taskRunResult,
+
+                planningContext
+
             );
 
-    } catch (error) {
+
+
+        if (
+            !result?.success ||
+            !result?.plan
+        ) {
+
+            return {
+
+                success:
+                    false,
+
+                reason:
+                    result?.reason ||
+                    "Replanner не создал новый план"
+
+            };
+
+        }
+
+
+
+        return {
+
+            success:
+                true,
+
+            plan:
+                result.plan,
+
+
+            context:
+                result.context ||
+                planningContext
+
+        };
+
+
+    } catch(error) {
+
 
         console.error(
-            "Jessica Replanner exception:",
+            "Jessica Replanner error:",
             error
         );
 
 
         return {
+
             success:
                 false,
 
             reason:
-                "Не удалось построить альтернативный план"
+                "Ошибка построения альтернативного плана"
+
         };
 
     }
-
-
-    if (
-        !replanResult?.success ||
-        !replanResult?.plan
-    ) {
-
-        return {
-            success:
-                false,
-
-            reason:
-                replanResult?.reason ||
-                "Не удалось построить альтернативный план"
-        };
-
-    }
-
-
-    console.log(
-        "Jessica retry plan accepted:",
-        JSON.stringify({
-            nextAttempt:
-                attempt + 1,
-
-            intent:
-                replanResult.plan.intent || ""
-        })
-    );
-
-
-    return {
-        success:
-            true,
-
-        plan:
-            replanResult.plan
-    };
 
 }
 
 
+
 /*
  * =========================================================
- * EXECUTE CYCLE
+ * EXECUTE PLAN CYCLE
  * =========================================================
  */
 
 
 export async function executePlanCycle(
     taskText,
-    initialPlan
+    initialPlan,
+    planningContext = {}
 ) {
+
 
     let currentPlan =
         initialPlan;
 
 
-    let previousRunResult =
+    let currentContext =
+        planningContext;
+
+
+    let lastRunResult =
         null;
 
 
-    let previousValidation =
+    let lastFailure =
         null;
+
 
 
     for (
@@ -314,9 +379,11 @@ export async function executePlanCycle(
         attempt++
     ) {
 
+
         console.log(
             `Jessica execution attempt ${attempt}/${MAX_EXECUTION_ATTEMPTS}`
         );
+
 
 
         /*
@@ -331,38 +398,56 @@ export async function executePlanCycle(
 
         try {
 
+
             taskRunResult =
                 await runPlan(
+
                     currentPlan,
+
                     taskText
+
                 );
 
-        } catch (error) {
+
+        } catch(error) {
+
 
             console.error(
-                "Jessica execution runner error:",
+                "Jessica TaskRunner error:",
                 error
             );
 
 
-            return buildFailure(
-                "runner",
-                "Ошибка выполнения плана",
-                currentPlan,
-                previousRunResult,
+            return buildFailure({
+
+                stage:
+                    "runner",
+
+                text:
+                    "Ошибка выполнения плана",
+
+                plan:
+                    currentPlan,
+
+                taskRunResult:
+                    lastRunResult,
+
                 attempt
-            );
+
+            });
 
         }
 
 
-        previousRunResult =
+
+        lastRunResult =
             taskRunResult;
+
 
 
         /*
          * =================================================
-         * 2. ANALYZE RUN RESULT
+         * 2. ANALYZE RUN
          * =================================================
          */
 
@@ -373,178 +458,184 @@ export async function executePlanCycle(
             );
 
 
-        /*
-         * =================================================
-         * NEEDS CLARIFICATION
-         * =================================================
-         */
-
-
-        if (
-            runFailure.failed === true &&
-            runFailure.needsClarification === true
-        ) {
-
-            return {
-                success:
-                    false,
-
-                status:
-                    "NEEDS_CLARIFICATION",
-
-                needsClarification:
-                    true,
-
-                stage:
-                    runFailure.stage ||
-                    "tools",
-
-                failureType:
-                    runFailure.failureType ||
-                    "needs-clarification",
-
-                result:
-                    runFailure.reason ||
-                    "Для выполнения требуется уточнение",
-
-                plan:
-                    currentPlan,
-
-                toolResults:
-                    taskRunResult?.results || [],
-
-                attempt
-            };
-
-        }
-
-
-        /*
-         * =================================================
-         * RETRYABLE RUN FAILURE
-         * =================================================
-         *
-         * Например:
-         *
-         * Source Selector отклонил всю выдачу.
-         */
-
-
-        if (
-            runFailure.failed === true &&
-            runFailure.shouldRetry === true
-        ) {
-
-            /*
-             * Последняя попытка:
-             * нового Replan уже не будет.
-             */
-
-
-            if (
-                attempt >=
-                MAX_EXECUTION_ATTEMPTS
-            ) {
-
-                return buildFailure(
-                    runFailure.stage ||
-                        "runner",
-
-                    runFailure.reason ||
-                        "Не удалось найти подходящий маршрут выполнения",
-
-                    currentPlan,
-                    taskRunResult,
-                    attempt,
-                    false,
-                    runFailure.failureType
-                );
-
-            }
-
-
-            const feedback =
-                buildRunFailureFeedback(
-                    runFailure
-                );
-
-
-            const alternative =
-                await createAlternativePlan(
-                    taskText,
-                    currentPlan,
-                    feedback,
-                    taskRunResult,
-                    attempt
-                );
-
-
-            if (
-                !alternative.success
-            ) {
-
-                return buildFailure(
-                    "replanner",
-                    alternative.reason,
-                    currentPlan,
-                    taskRunResult,
-                    attempt,
-                    false,
-                    runFailure.failureType
-                );
-
-            }
-
-
-            currentPlan =
-                alternative.plan;
-
-
-            /*
-             * Переходим к следующей итерации.
-             *
-             * Composer и Validator не запускаются,
-             * потому что текущий route уже признан
-             * непригодным.
-             */
-
-
-            continue;
-
-        }
-
-
-        /*
-         * =================================================
-         * NON-RETRYABLE RUN FAILURE
-         * =================================================
-         */
-
 
         if (
             runFailure.failed === true
         ) {
 
-            return buildFailure(
-                runFailure.stage ||
+
+            /*
+             * Требуется уточнение
+             */
+
+
+            if (
+                runFailure.needsClarification === true
+            ) {
+
+                return {
+
+                    success:
+                        false,
+
+                    status:
+                        "NEEDS_CLARIFICATION",
+
+                    needsClarification:
+                        true,
+
+                    stage:
+                        runFailure.stage ||
+                        "tools",
+
+                    failureType:
+                        runFailure.failureType ||
+                        "needs-clarification",
+
+                    result:
+                        runFailure.reason,
+
+                    plan:
+                        currentPlan,
+
+                    toolResults:
+                        taskRunResult?.results || [],
+
+                    attempt
+
+                };
+
+            }
+
+
+
+            /*
+             * Можно перестроить маршрут
+             */
+
+
+            if (
+                runFailure.shouldRetry === true
+            ) {
+
+
+                if (
+                    attempt >= MAX_EXECUTION_ATTEMPTS
+                ) {
+
+                    return buildFailure({
+
+                        stage:
+                            runFailure.stage,
+
+                        text:
+                            runFailure.reason,
+
+                        plan:
+                            currentPlan,
+
+                        taskRunResult,
+
+                        attempt,
+
+                        failureType:
+                            runFailure.failureType
+
+                    });
+
+                }
+
+
+
+                const alternative =
+                    await createAlternativePlan(
+
+                        taskText,
+
+                        currentPlan,
+
+                        buildRunFailureFeedback(
+                            runFailure
+                        ),
+
+                        taskRunResult,
+
+                        currentContext,
+
+                        attempt
+
+                    );
+
+
+
+                if (
+                    !alternative.success
+                ) {
+
+                    return buildFailure({
+
+                        stage:
+                            "replanner",
+
+                        text:
+                            alternative.reason,
+
+                        plan:
+                            currentPlan,
+
+                        taskRunResult,
+
+                        attempt
+
+                    });
+
+                }
+
+
+
+                currentPlan =
+                    alternative.plan;
+
+
+                currentContext =
+                    alternative.context;
+
+
+
+                continue;
+
+            }
+
+
+
+            return buildFailure({
+
+                stage:
+                    runFailure.stage ||
                     "tools",
 
-                runFailure.reason ||
-                    "Не удалось выполнить план",
+                text:
+                    runFailure.reason,
 
-                currentPlan,
+                plan:
+                    currentPlan,
+
                 taskRunResult,
+
                 attempt,
-                false,
-                runFailure.failureType
-            );
+
+                failureType:
+                    runFailure.failureType
+
+            });
 
         }
 
 
+
         /*
          * =================================================
-         * 3. COMPOSE ANSWER
+         * 3. COMPOSE
          * =================================================
          */
 
@@ -554,46 +645,67 @@ export async function executePlanCycle(
 
         try {
 
+
             answerResult =
                 await composeAnswer(
+
                     taskText,
+
                     currentPlan,
+
                     taskRunResult
+
                 );
 
-        } catch (error) {
 
-            console.error(
-                "Jessica execution composer error:",
-                error
-            );
+        } catch(error) {
 
 
-            return buildFailure(
-                "composer",
-                "Не удалось сформировать ответ",
-                currentPlan,
+            return buildFailure({
+
+                stage:
+                    "composer",
+
+                text:
+                    "Ошибка формирования ответа",
+
+                plan:
+                    currentPlan,
+
                 taskRunResult,
+
                 attempt
-            );
+
+            });
 
         }
+
 
 
         if (
             !answerResult?.success
         ) {
 
-            return buildFailure(
-                "composer",
-                answerResult?.text ||
-                    "Не удалось сформировать ответ",
-                currentPlan,
+            return buildFailure({
+
+                stage:
+                    "composer",
+
+                text:
+                    answerResult?.text ||
+                    "Ответ не создан",
+
+                plan:
+                    currentPlan,
+
                 taskRunResult,
+
                 attempt
-            );
+
+            });
 
         }
+
 
 
         /*
@@ -608,79 +720,86 @@ export async function executePlanCycle(
 
         try {
 
+
             validation =
                 await validateResult(
+
                     taskText,
+
                     currentPlan,
+
                     taskRunResult,
+
                     answerResult
+
                 );
 
-        } catch (error) {
+
+        } catch(error) {
+
 
             console.error(
-                "Jessica execution validator error:",
+                "Jessica Validator error:",
                 error
             );
 
 
-            /*
-             * Пока сохраняем существующую политику:
-             *
-             * если сам Validator технически сломался,
-             * уже сформированный ответ не выбрасываем.
-             */
+            return buildCompletedResult(
 
+                currentPlan,
 
-            return {
-                success:
-                    true,
+                taskRunResult,
 
-                status:
-                    "COMPLETED",
-
-                validated:
-                    false,
-
-                result:
-                    answerResult.text,
-
-                answerSource:
-                    answerResult.source || "unknown",
-
-                usedTools:
-                    collectUsedTools(
-                        taskRunResult
-                    ),
-
-                plan:
-                    currentPlan,
-
-                toolResults:
-                    taskRunResult.results || [],
+                answerResult,
 
                 attempt
-            };
+
+            );
 
         }
 
 
-        previousValidation =
-            validation;
-
 
         /*
          * =================================================
-         * 5. VALIDATOR NEEDS CLARIFICATION
+         * VALID
          * =================================================
          */
 
 
         if (
-            validation?.needsClarification === true
+            validation.valid === true
+        ) {
+
+            return buildCompletedResult(
+
+                currentPlan,
+
+                taskRunResult,
+
+                answerResult,
+
+                attempt
+
+            );
+
+        }
+
+
+
+        /*
+         * =================================================
+         * NEED CLARIFICATION
+         * =================================================
+         */
+
+
+        if (
+            validation.needsClarification === true
         ) {
 
             return {
+
                 success:
                     false,
 
@@ -694,8 +813,7 @@ export async function executePlanCycle(
                     "validator",
 
                 result:
-                    validation.reason ||
-                    "Для выполнения требуется уточнение",
+                    validation.reason,
 
                 plan:
                     currentPlan,
@@ -704,35 +822,16 @@ export async function executePlanCycle(
                     taskRunResult.results || [],
 
                 attempt
+
             };
 
         }
 
 
-        /*
-         * =================================================
-         * 6. VALID
-         * =================================================
-         */
-
-
-        if (
-            validation?.valid === true
-        ) {
-
-            return buildCompletedResult(
-                currentPlan,
-                taskRunResult,
-                answerResult,
-                attempt
-            );
-
-        }
-
 
         /*
          * =================================================
-         * 7. VALIDATOR RETRY POLICY
+         * RETRY VALIDATOR
          * =================================================
          */
 
@@ -744,77 +843,112 @@ export async function executePlanCycle(
             )
         ) {
 
-            return buildFailure(
-                "validator",
+            return buildFailure({
 
-                validation?.reason ||
-                    "Результат не прошёл проверку качества",
+                stage:
+                    "validator",
 
-                currentPlan,
+                text:
+                    validation.reason ||
+                    "Ответ не прошёл проверку",
+
+                plan:
+                    currentPlan,
+
                 taskRunResult,
+
                 attempt,
-                false,
-                "validation-failure"
-            );
+
+                failureType:
+                    "validation-failure"
+
+            });
 
         }
 
 
-        /*
-         * =================================================
-         * 8. REPLAN AFTER VALIDATOR
-         * =================================================
-         */
-
 
         const alternative =
             await createAlternativePlan(
+
                 taskText,
+
                 currentPlan,
+
                 validation,
+
                 taskRunResult,
+
+                currentContext,
+
                 attempt
+
             );
+
 
 
         if (
             !alternative.success
         ) {
 
-            return buildFailure(
-                "replanner",
-                alternative.reason,
-                currentPlan,
+            return buildFailure({
+
+                stage:
+                    "replanner",
+
+                text:
+                    alternative.reason,
+
+                plan:
+                    currentPlan,
+
                 taskRunResult,
+
                 attempt
-            );
+
+            });
 
         }
+
 
 
         currentPlan =
             alternative.plan;
 
+
+        currentContext =
+            alternative.context;
+
+
     }
+
 
 
     /*
      * =====================================================
-     * SAFETY FALLBACK
+     * FALLBACK
      * =====================================================
      */
 
 
-    return buildFailure(
-        "execution",
+    return buildFailure({
 
-        previousValidation?.reason ||
-            previousRunResult?.text ||
-            "Исчерпан лимит попыток выполнения",
+        stage:
+            "execution",
 
-        currentPlan,
-        previousRunResult,
-        MAX_EXECUTION_ATTEMPTS
-    );
+        text:
+            lastFailure?.reason ||
+            "Исчерпан лимит выполнения",
+
+        plan:
+            currentPlan,
+
+        taskRunResult:
+            lastRunResult,
+
+        attempt:
+            MAX_EXECUTION_ATTEMPTS
+
+    });
 
 }
