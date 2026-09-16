@@ -15,6 +15,10 @@ import {
 } from "./planner/planValidator.js";
 
 import {
+    normalizePlanningContext
+} from "./planner/planningContext.js";
+
+import {
     MAX_PLANNER_ATTEMPTS,
     sleep,
     isRetryablePlannerError,
@@ -22,73 +26,42 @@ import {
 } from "./planner/plannerRetry.js";
 
 
+
 /*
  * =========================================================
  * JESSICA PLANNER
  * =========================================================
  *
- * Главный координатор планирования.
- *
- * Сам Planner не содержит
- * внутреннюю реализацию отдельных этапов.
+ * Центральный координатор Planner.
  *
  *
- * Рабочая цепочка:
+ * Flow:
  *
- * task
- *   ↓
+ * Task
+ *  ↓
  * PlanningContext
- *   ↓
- * plannerRequest
- *   ↓
- * planParser
- *   ↓
- * planNormalizer
- *   ↓
- * planValidator
- *   ↓
- * retry при необходимости
+ *  ↓
+ * Planner Request
+ *  ↓
+ * Parse
+ *  ↓
+ * Normalize
+ *  ↓
+ * Validate
+ *  ↓
+ * Retry
  *
  *
- * Детальная логика находится в:
+ * Не содержит:
  *
- * core/planner/
- *
- * plannerRequest.js
- * plannerPrompt.js
- * plannerTools.js
- * planningContext.js
- * planningContextText.js
- * planParser.js
- * planNormalizer.js
- * planValidator.js
- * plannerRetry.js
- *
- *
- * Этот файл отвечает только за:
- *
- * - проверку входной задачи;
- * - передачу PlanningContext;
- * - управление попытками Planner;
- * - последовательный запуск этапов;
- * - возврат результата.
- *
- *
- * PlanningContext в будущем может содержать:
- *
- * - Experience Jessica;
- * - успешные алгоритмы;
- * - правила источников;
- * - ограничения задачи;
- * - дополнительные инструкции;
- * - контекст Earnings.
- *
- *
- * Если PlanningContext не передан,
- * Planner работает как раньше.
+ * - AI prompt;
+ * - tools;
+ * - Experience search;
+ * - execution;
  *
  * =========================================================
  */
+
 
 
 /*
@@ -107,17 +80,12 @@ export async function createPlan(
 ) {
 
 
-    /*
-     * =====================================================
-     * INPUT
-     * =====================================================
-     */
-
-
     const cleanTask =
         String(
             task || ""
-        ).trim();
+        )
+        .trim();
+
 
 
     if (!cleanTask) {
@@ -128,18 +96,12 @@ export async function createPlan(
                 false,
 
             text:
-                "Задача для Planner не указана"
+                "Задача Planner пустая"
 
         };
 
     }
 
-
-    /*
-     * =====================================================
-     * CONFIGURATION
-     * =====================================================
-     */
 
 
     if (
@@ -152,45 +114,73 @@ export async function createPlan(
                 false,
 
             text:
-                "GROQ_API_KEY не настроен"
+                "GROQ_API_KEY отсутствует"
 
         };
 
     }
 
 
+
     /*
-     * =====================================================
-     * ATTEMPTS
-     * =====================================================
+     * Единый формат контекста.
      */
 
 
+    let planningContext =
+        normalizePlanningContext(
+            context
+        );
+
+
+
     let lastError =
-        "Не удалось построить план";
+        "";
+
 
 
     for (
         let attempt = 1;
+
         attempt <= MAX_PLANNER_ATTEMPTS;
+
         attempt++
+
     ) {
+
+
+
+        /*
+         * Добавляем служебную информацию
+         * о попытке.
+         */
+
+
+        planningContext = {
+
+            ...planningContext,
+
+
+            metadata: {
+
+                ...(planningContext.metadata || {}),
+
+                plannerAttempt:
+                    attempt
+
+            }
+
+        };
+
 
 
         try {
 
 
+
             /*
              * =================================================
-             * 1. REQUEST PLAN
-             * =================================================
-             *
-             * Передаём:
-             *
-             * - задачу;
-             * - ошибку предыдущей попытки;
-             * - PlanningContext.
-             *
+             * REQUEST
              * =================================================
              */
 
@@ -200,18 +190,17 @@ export async function createPlan(
 
                     cleanTask,
 
-                    attempt > 1
-                        ? lastError
-                        : "",
+                    lastError,
 
-                    context
+                    planningContext
 
                 );
 
 
+
             /*
              * =================================================
-             * 2. PARSE PLAN
+             * PARSE
              * =================================================
              */
 
@@ -222,9 +211,10 @@ export async function createPlan(
                 );
 
 
+
             /*
              * =================================================
-             * 3. NORMALIZE PLAN
+             * NORMALIZE
              * =================================================
              */
 
@@ -235,18 +225,20 @@ export async function createPlan(
                 );
 
 
+
             if (!plan) {
 
                 throw new Error(
-                    "Не удалось нормализовать план"
+                    "normalize_failed"
                 );
 
             }
 
 
+
             /*
              * =================================================
-             * 4. VALIDATE PLAN
+             * VALIDATE
              * =================================================
              */
 
@@ -257,6 +249,7 @@ export async function createPlan(
                 );
 
 
+
             if (
                 !validation.success
             ) {
@@ -264,15 +257,22 @@ export async function createPlan(
 
                 lastError =
                     validation.text ||
-                    "План не прошёл проверку";
+                    "validation_failed";
+
 
 
                 console.warn(
 
-                    `Planner validation failed ` +
-                    `[${attempt}/${MAX_PLANNER_ATTEMPTS}]:`,
+                    "Jessica Planner rejected:",
 
-                    lastError
+                    {
+
+                        attempt,
+
+                        reason:
+                            lastError
+
+                    }
 
                 );
 
@@ -280,6 +280,7 @@ export async function createPlan(
                 continue;
 
             }
+
 
 
             /*
@@ -291,13 +292,26 @@ export async function createPlan(
 
             console.log(
 
-                "Jessica plan:",
+                "Jessica Planner success:",
 
-                JSON.stringify(
-                    plan
-                )
+                {
+
+                    intent:
+                        plan.intent,
+
+
+                    requiresTools:
+                        plan.requiresTools,
+
+
+                    steps:
+                        plan.steps.length
+
+
+                }
 
             );
+
 
 
             return {
@@ -305,48 +319,53 @@ export async function createPlan(
                 success:
                     true,
 
-                plan
+                plan,
+
+
+                context:
+                    planningContext
 
             };
 
 
-        } catch (error) {
 
-
-            /*
-             * =================================================
-             * ERROR
-             * =================================================
-             */
+        } catch(error) {
 
 
             lastError =
                 error?.message ||
-                "Неизвестная ошибка Planner";
+                "planner_error";
+
 
 
             console.error(
 
-                `Planner error ` +
-                `[${attempt}/${MAX_PLANNER_ATTEMPTS}]:`,
+                "Jessica Planner error:",
 
-                lastError
+                {
+
+                    attempt,
+
+                    error:
+                        lastError
+
+                }
 
             );
 
 
-            /*
-             * =================================================
-             * RETRY
-             * =================================================
-             */
-
 
             if (
-                attempt < MAX_PLANNER_ATTEMPTS &&
+
+                attempt <
+                MAX_PLANNER_ATTEMPTS
+
+                &&
+
                 isRetryablePlannerError(
                     error
                 )
+
             ) {
 
 
@@ -358,7 +377,6 @@ export async function createPlan(
 
                 );
 
-
             }
 
 
@@ -368,12 +386,6 @@ export async function createPlan(
     }
 
 
-    /*
-     * =====================================================
-     * FAILED
-     * =====================================================
-     */
-
 
     return {
 
@@ -381,7 +393,11 @@ export async function createPlan(
             false,
 
         text:
-            `Planner не смог создать корректный план: ${lastError}`
+            (
+                "Planner не смог создать корректный план: "
+                +
+                lastError
+            )
 
     };
 
@@ -389,27 +405,10 @@ export async function createPlan(
 }
 
 
+
 /*
  * =========================================================
- * BACKWARD-COMPATIBLE EXPORT
- * =========================================================
- *
- * Старый вариант:
- *
- * planTask(task)
- *
- * продолжает работать.
- *
- *
- * Новый вариант:
- *
- * planTask(
- *     task,
- *     context
- * )
- *
- * позволяет передавать PlanningContext.
- *
+ * LEGACY EXPORT
  * =========================================================
  */
 
@@ -433,6 +432,7 @@ export async function planTask(
         );
 
 
+
     if (
         result.success
     ) {
@@ -442,9 +442,9 @@ export async function planTask(
     }
 
 
+
     throw new Error(
         result.text
     );
-
 
 }
