@@ -5,6 +5,34 @@
  *
  * Проверяет качество уже сформированного ответа.
  *
+ *
+ * Дополнительно определяет semantic outcome:
+ *
+ * result
+ * → искомый результат найден / подтверждён.
+ *
+ * no_verified_result
+ * → ответ корректен, но достоверный результат
+ *   подтвердить не удалось.
+ *
+ *
+ * Важно:
+ *
+ * valid и outcomeType — разные понятия.
+ *
+ * Например:
+ *
+ * {
+ *   valid: true,
+ *   outcomeType: "no_verified_result"
+ * }
+ *
+ * означает:
+ *
+ * Jessica корректно сообщила,
+ * что подтверждённых данных не найдено.
+ *
+ *
  * НЕ:
  *
  * - выполняет инструменты;
@@ -30,6 +58,20 @@ import {
 } from "../../ai/aiRetry.js";
 
 
+/*
+ * =========================================================
+ * OUTCOME TYPES
+ * =========================================================
+ */
+
+
+const OUTCOME_RESULT =
+    "result";
+
+
+const OUTCOME_NO_VERIFIED_RESULT =
+    "no_verified_result";
+
 
 /*
  * =========================================================
@@ -46,15 +88,15 @@ function cleanJsonText(
         String(
             text || ""
         )
-        .replace(
-            /```json/gi,
-            ""
-        )
-        .replace(
-            /```/g,
-            ""
-        )
-        .trim();
+            .replace(
+                /```json/gi,
+                ""
+            )
+            .replace(
+                /```/g,
+                ""
+            )
+            .trim();
 
 
     const firstBrace =
@@ -84,6 +126,31 @@ function cleanJsonText(
 }
 
 
+/*
+ * =========================================================
+ * NORMALIZE OUTCOME TYPE
+ * =========================================================
+ */
+
+
+function normalizeOutcomeType(
+    value
+) {
+
+    if (
+        value ===
+        OUTCOME_NO_VERIFIED_RESULT
+    ) {
+
+        return OUTCOME_NO_VERIFIED_RESULT;
+
+    }
+
+
+    return OUTCOME_RESULT;
+
+}
+
 
 /*
  * =========================================================
@@ -98,7 +165,6 @@ function buildValidatorMessages(
     taskRunResult,
     answerResult
 ) {
-
 
     return [
 
@@ -122,7 +188,7 @@ function buildValidatorMessages(
 
                     "- отвечаешь пользователю;",
                     "- выполняешь инструменты;",
-                    "- ищешь информацию;",
+                    "- ищешь новую информацию;",
                     "- изменяешь план.",
 
                     "",
@@ -130,10 +196,50 @@ function buildValidatorMessages(
                     "Проверь:",
 
                     "- решает ли ответ исходную задачу;",
-                    "- соответствует ли ответ данным выполнения;",
+                    "- соответствует ли ответ фактическим данным выполнения;",
                     "- есть ли критические ошибки;",
                     "- нужна ли повторная попытка;",
                     "- требуется ли уточнение пользователя.",
+
+                    "",
+
+                    "Также определи outcomeType.",
+
+                    "",
+
+                    "Допустимы только два outcomeType:",
+
+                    "",
+
+                    "1. result",
+
+                    "Используй result, если в данных выполнения есть достаточные основания считать, что искомый пользователем результат найден, установлен или подтверждён.",
+
+                    "",
+
+                    "2. no_verified_result",
+
+                    "Используй no_verified_result, если итоговый ответ корректно сообщает, что искомый результат не удалось найти, подтвердить или установить по имеющимся данным.",
+
+                    "",
+
+                    "Примеры no_verified_result:",
+
+                    "- официальный сайт не удалось подтвердить;",
+                    "- поиск не дал сведений об указанном проекте;",
+                    "- среди найденных источников нет достоверного подтверждения;",
+                    "- данных недостаточно для подтверждения конкретного результата, и ответ честно это сообщает.",
+
+                    "",
+
+                    "Важно:",
+
+                    "- no_verified_result НЕ означает, что ответ неправильный;",
+                    "- valid может быть true одновременно с outcomeType=no_verified_result;",
+                    "- отсутствие подтверждения нельзя превращать в выдуманный положительный результат;",
+                    "- не считай сам факт наличия поисковой выдачи подтверждённым результатом;",
+                    "- если найден только сторонний или неподтверждённый источник, это не result;",
+                    "- если ответ содержит подтверждённый искомый результат, используй result.",
 
                     "",
 
@@ -154,15 +260,18 @@ function buildValidatorMessages(
                         needsClarification:
                             false,
 
+                        outcomeType:
+                            "result",
+
                         reason:
                             "краткая причина"
 
                     })
 
                 ]
-                .join(
-                    "\n"
-                )
+                    .join(
+                        "\n"
+                    )
 
         },
 
@@ -216,16 +325,15 @@ function buildValidatorMessages(
                     )
 
                 ]
-                .join(
-                    "\n"
-                )
+                    .join(
+                        "\n"
+                    )
 
         }
 
     ];
 
 }
-
 
 
 /*
@@ -242,7 +350,6 @@ async function requestValidation(
     answerResult
 ) {
 
-
     return await executeAIWithRetry(
 
         async () => {
@@ -250,10 +357,15 @@ async function requestValidation(
             return await validatorChat(
 
                 buildValidatorMessages(
+
                     task,
+
                     plan,
+
                     taskRunResult,
+
                     answerResult
+
                 )
 
             );
@@ -261,14 +373,15 @@ async function requestValidation(
         },
 
         {
+
             label:
                 "AI Validator"
+
         }
 
     );
 
 }
-
 
 
 /*
@@ -290,9 +403,7 @@ export async function validateWithAI(
 
 ) {
 
-
     try {
-
 
         const response =
             await requestValidation(
@@ -316,6 +427,12 @@ export async function validateWithAI(
                 ?.content;
 
 
+        /*
+         * =================================================
+         * EMPTY RESPONSE
+         * =================================================
+         */
+
 
         if (!raw) {
 
@@ -335,23 +452,28 @@ export async function validateWithAI(
         }
 
 
+        /*
+         * =================================================
+         * PARSE
+         * =================================================
+         */
+
 
         let validation;
 
 
         try {
 
-
             validation =
                 JSON.parse(
+
                     cleanJsonText(
                         raw
                     )
+
                 );
 
-
         } catch {
-
 
             return {
 
@@ -368,6 +490,12 @@ export async function validateWithAI(
 
         }
 
+
+        /*
+         * =================================================
+         * NORMALIZED RESULT
+         * =================================================
+         */
 
 
         return {
@@ -388,6 +516,12 @@ export async function validateWithAI(
                 validation?.needsClarification === true,
 
 
+            outcomeType:
+                normalizeOutcomeType(
+                    validation?.outcomeType
+                ),
+
+
             reason:
                 typeof validation?.reason === "string"
                     ? validation.reason.trim()
@@ -395,17 +529,11 @@ export async function validateWithAI(
 
         };
 
-
-
-    } catch(error) {
-
+    } catch (error) {
 
         console.error(
-
             "AI Validator error:",
-
             error
-
         );
 
 
