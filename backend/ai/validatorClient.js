@@ -55,7 +55,7 @@ import {
 
 
 const VALIDATOR_MODEL =
-    "llama-3.1-8b-instant";
+    "qwen/qwen3.8-27b";
 
 
 
