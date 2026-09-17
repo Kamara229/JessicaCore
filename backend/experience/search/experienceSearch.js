@@ -1,49 +1,59 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE SEARCH v0.3
+ * JESSICA EXPERIENCE SEARCH v0.4
  * =========================================================
  *
- * Детерминированный поиск накопленного Experience.
+ * Центральный координатор поиска Experience.
  *
  *
- * Основные принципы:
+ * Flow:
  *
- * 1. Длинный пользовательский запрос
- *    не должен автоматически снижать confidence.
- *
- * 2. Название конкретного объекта:
- *
- *    Quasar Banana Engine ZX-9100
- *
- *    не должно мешать найти универсальный Skill:
- *
- *    Verify Official Website
- *
- * 3. Сравнение выполняется по токенам,
- *    а не через String.includes().
- *
- * 4. Многословные выражения проверяются
- *    как фразы.
- *
- *    Поэтому:
- *
- *    "search engine"
- *
- *    НЕ совпадёт только из-за слова "Engine"
- *    в названии продукта.
- *
- * 5. RU / EN варианты приводятся
- *    к общим semantic concepts.
+ * Task
+ *   ↓
+ * Experience Matcher
+ *   ↓
+ * Compare Skills
+ *   ↓
+ * Best Match
+ *   ↓
+ * Confidence Threshold
+ *   ↓
+ * found / not found
  *
  *
- * Этот модуль НЕ:
+ * Вся специализированная логика вынесена:
  *
+ * experienceSearch/
+ *
+ * ├── experienceText.js
+ * │     → текст и semantic concepts
+ * │
+ * └── experienceMatcher.js
+ *       → scoring и confidence
+ *
+ *
+ * Этот файл НЕ:
+ *
+ * - нормализует текст;
+ * - содержит словарь RU / EN;
+ * - считает phrase matching;
+ * - рассчитывает score самостоятельно;
  * - вызывает AI;
  * - читает Storage;
- * - обучает Jessica;
- * - строит PlanningContext;
  * - изменяет Skills.
  *
+ * =========================================================
+ */
+
+
+import {
+    calculateExperienceMatch
+} from "./experienceSearch/experienceMatcher.js";
+
+
+/*
+ * =========================================================
+ * CONFIG
  * =========================================================
  */
 
@@ -54,455 +64,131 @@ const MIN_MATCH_CONFIDENCE =
 
 /*
  * =========================================================
- * SCORE WEIGHTS
+ * EMPTY MATCH
  * =========================================================
  */
 
 
-const SCORE = {
+function createEmptyMatch() {
 
-    /*
-     * Совпадение полноценной keyword-фразы.
-     *
-     * Например:
-     *
-     * official website
-     * ↔
-     * официальный сайт
-     */
+    return {
 
-    KEYWORD_PHRASE:
-        0.45,
+        confidence:
+            0,
 
+        matchedTerms:
+            [],
 
-    /*
-     * Совпадение однословного keyword.
-     */
+        matchedPhrases:
+            []
 
-    KEYWORD_TERM:
-        0.25,
-
-
-    /*
-     * Совпадение concepts из имени Skill.
-     */
-
-    NAME:
-        0.25,
-
-
-    /*
-     * Совпадение tags.
-     */
-
-    TAG:
-        0.15,
-
-
-    /*
-     * Совпадение description.
-     */
-
-    DESCRIPTION:
-        0.10
-
-};
-
-
-/*
- * =========================================================
- * NORMALIZE TEXT
- * =========================================================
- */
-
-
-function normalizeText(
-    value
-) {
-
-    return String(
-        value || ""
-    )
-        .toLowerCase()
-
-        /*
-         * Дефисы и подчёркивания здесь считаем
-         * разделителями слов.
-         *
-         * Для Experience Search нам важнее concepts,
-         * чем сохранение идентификатора целиком.
-         */
-
-        .replace(
-            /[_-]+/g,
-            " "
-        )
-
-        .replace(
-            /[^a-zа-яё0-9\s]/gi,
-            " "
-        )
-
-        .replace(
-            /\s+/g,
-            " "
-        )
-
-        .trim();
+    };
 
 }
 
 
 /*
  * =========================================================
- * TOKENIZE
+ * EMPTY RESULT
  * =========================================================
  */
 
 
-function tokenize(
-    value
+function createNotFoundResult(
+    match = createEmptyMatch()
 ) {
 
-    const text =
-        normalizeText(
-            value
-        );
+    return {
 
+        found:
+            false,
 
-    if (!text) {
+        experience:
+            null,
 
-        return [];
+        confidence:
+            match?.confidence || 0,
 
-    }
+        matchedTerms:
+            Array.isArray(
+                match?.matchedTerms
+            )
+                ? match.matchedTerms
+                : [],
 
+        matchedPhrases:
+            Array.isArray(
+                match?.matchedPhrases
+            )
+                ? match.matchedPhrases
+                : [],
 
-    return text
-        .split(" ")
-        .filter(
-            token =>
-                token.length >= 2
-        );
+        source:
+            "experience-search"
+
+    };
 
 }
 
 
 /*
  * =========================================================
- * CANONICAL CONCEPT
- * =========================================================
- *
- * Приводит распространённые RU / EN формы
- * к одному смысловому concept.
- *
- *
- * Здесь намеренно нет полного NLP/stemming.
- *
- * Нам нужен:
- *
- * - быстрый;
- * - предсказуемый;
- * - локальный
- *
- * первый слой поиска Experience.
- *
+ * FOUND RESULT
  * =========================================================
  */
 
 
-function canonicalizeToken(
-    token
+function createFoundResult(
+    experience,
+    match
 ) {
 
-    const value =
-        normalizeText(
-            token
-        );
+    return {
 
+        found:
+            true,
 
-    if (!value) {
+        experience,
 
-        return "";
+        confidence:
+            match?.confidence || 0,
 
-    }
+        matchedTerms:
+            Array.isArray(
+                match?.matchedTerms
+            )
+                ? match.matchedTerms
+                : [],
 
+        matchedPhrases:
+            Array.isArray(
+                match?.matchedPhrases
+            )
+                ? match.matchedPhrases
+                : [],
 
-    /*
-     * OFFICIAL
-     */
+        source:
+            "experience-search"
 
-
-    if (
-        value === "official" ||
-        value === "officially" ||
-        value.startsWith(
-            "официал"
-        )
-    ) {
-
-        return "official";
-
-    }
-
-
-    /*
-     * WEBSITE
-     */
-
-
-    if (
-        value === "website" ||
-        value === "site" ||
-        value === "web" ||
-        value.startsWith(
-            "сайт"
-        )
-    ) {
-
-        return "website";
-
-    }
-
-
-    /*
-     * SEARCH / FIND
-     */
-
-
-    if (
-        value === "search" ||
-        value === "find" ||
-        value === "finding" ||
-        value.startsWith(
-            "поиск"
-        ) ||
-        value.startsWith(
-            "ищ"
-        ) ||
-        value.startsWith(
-            "найд"
-        ) ||
-        value.startsWith(
-            "найт"
-        )
-    ) {
-
-        return "search";
-
-    }
-
-
-    /*
-     * VERIFY
-     */
-
-
-    if (
-        value === "verify" ||
-        value === "verified" ||
-        value === "verification" ||
-        value.startsWith(
-            "провер"
-        )
-    ) {
-
-        return "verify";
-
-    }
-
-
-    /*
-     * DOMAIN
-     */
-
-
-    if (
-        value === "domain" ||
-        value.startsWith(
-            "домен"
-        )
-    ) {
-
-        return "domain";
-
-    }
-
-
-    /*
-     * URL / LINK
-     */
-
-
-    if (
-        value === "url" ||
-        value === "link" ||
-        value.startsWith(
-            "ссыл"
-        )
-    ) {
-
-        return "url";
-
-    }
-
-
-    /*
-     * PROJECT
-     */
-
-
-    if (
-        value === "project" ||
-        value.startsWith(
-            "проект"
-        )
-    ) {
-
-        return "project";
-
-    }
-
-
-    return value;
+    };
 
 }
 
 
 /*
  * =========================================================
- * CANONICAL TOKENS
+ * VALID EXPERIENCE
  * =========================================================
  */
 
 
-function canonicalizeTokens(
-    value
-) {
-
-    return tokenize(
-        value
-    )
-        .map(
-            canonicalizeToken
-        )
-        .filter(Boolean);
-
-}
-
-
-/*
- * =========================================================
- * UNIQUE
- * =========================================================
- */
-
-
-function unique(
-    values
-) {
-
-    return [
-        ...new Set(
-            values.filter(Boolean)
-        )
-    ];
-
-}
-
-
-/*
- * =========================================================
- * NORMALIZE STRING ARRAY
- * =========================================================
- */
-
-
-function normalizeStringArray(
-    value
+function isUsableExperience(
+    experience
 ) {
 
     if (
-        !Array.isArray(
-            value
-        )
-    ) {
-
-        return [];
-
-    }
-
-
-    return value
-        .map(
-            item =>
-                String(
-                    item || ""
-                ).trim()
-        )
-        .filter(Boolean);
-
-}
-
-
-/*
- * =========================================================
- * PHRASE EXISTS
- * =========================================================
- *
- * Проверяем последовательность concepts.
- *
- *
- * Пример:
- *
- * task:
- *
- * [search, official, website, project, ...]
- *
- * phrase:
- *
- * [official, website]
- *
- * → true
- *
- *
- * Но:
- *
- * task:
- *
- * [search, official, website, ..., engine]
- *
- * phrase:
- *
- * [search, engine]
- *
- * → false
- *
- *
- * Это устраняет ложный match:
- *
- * Quasar Banana Engine
- * ↔
- * search engine
- *
- * =========================================================
- */
-
-
-function containsPhrase(
-    taskTokens,
-    phraseTokens
-) {
-
-    if (
-        !Array.isArray(
-            taskTokens
-        ) ||
-        !Array.isArray(
-            phraseTokens
-        ) ||
-        phraseTokens.length === 0 ||
-        phraseTokens.length >
-            taskTokens.length
+        !experience ||
+        typeof experience !== "object"
     ) {
 
         return false;
@@ -510,478 +196,135 @@ function containsPhrase(
     }
 
 
-    for (
-        let start = 0;
-
-        start <=
-        taskTokens.length -
-        phraseTokens.length;
-
-        start++
-    ) {
-
-        let matches =
-            true;
-
-
-        for (
-            let offset = 0;
-
-            offset <
-            phraseTokens.length;
-
-            offset++
-        ) {
-
-            if (
-                taskTokens[
-                    start + offset
-                ] !==
-                phraseTokens[offset]
-            ) {
-
-                matches =
-                    false;
-
-                break;
-
-            }
-
-        }
-
-
-        if (matches) {
-
-            return true;
-
-        }
-
-    }
-
-
-    return false;
-
-}
-
-
-/*
- * =========================================================
- * TOKEN OVERLAP
- * =========================================================
- */
-
-
-function calculateTokenOverlap(
-    taskTokenSet,
-    profileTokens
-) {
-
-    const uniqueProfileTokens =
-        unique(
-            profileTokens
-        );
-
-
     if (
-        uniqueProfileTokens.length === 0
+        experience.enabled === false
     ) {
 
-        return {
-
-            ratio:
-                0,
-
-            matched:
-                []
-
-        };
+        return false;
 
     }
 
 
-    const matched =
-        uniqueProfileTokens
-            .filter(
-                token =>
-                    taskTokenSet.has(
-                        token
-                    )
-            );
-
-
-    return {
-
-        ratio:
-            matched.length /
-            uniqueProfileTokens.length,
-
-        matched
-
-    };
+    return true;
 
 }
 
 
 /*
  * =========================================================
- * KEYWORD MATCH
+ * FIND BEST EXPERIENCE
  * =========================================================
  */
 
 
-function calculateKeywordMatch(
-    taskTokens,
-    taskTokenSet,
-    keywords
-) {
-
-    let bestScore =
-        0;
-
-
-    const matchedTerms =
-        [];
-
-
-    const matchedPhrases =
-        [];
-
-
-    for (
-        const keyword
-        of keywords
-    ) {
-
-        const keywordTokens =
-            canonicalizeTokens(
-                keyword
-            );
-
-
-        if (
-            keywordTokens.length === 0
-        ) {
-
-            continue;
-
-        }
-
-
-        /*
-         * =================================================
-         * MULTI-WORD KEYWORD
-         * =================================================
-         */
-
-
-        if (
-            keywordTokens.length > 1
-        ) {
-
-            if (
-                containsPhrase(
-
-                    taskTokens,
-
-                    keywordTokens
-
-                )
-            ) {
-
-                bestScore =
-                    Math.max(
-
-                        bestScore,
-
-                        SCORE.KEYWORD_PHRASE
-
-                    );
-
-
-                matchedPhrases.push(
-                    normalizeText(
-                        keyword
-                    )
-                );
-
-
-                matchedTerms.push(
-                    ...keywordTokens
-                );
-
-            }
-
-
-            continue;
-
-        }
-
-
-        /*
-         * =================================================
-         * SINGLE-WORD KEYWORD
-         * =================================================
-         */
-
-
-        const keywordToken =
-            keywordTokens[0];
-
-
-        if (
-            taskTokenSet.has(
-                keywordToken
-            )
-        ) {
-
-            bestScore =
-                Math.max(
-
-                    bestScore,
-
-                    SCORE.KEYWORD_TERM
-
-                );
-
-
-            matchedTerms.push(
-                keywordToken
-            );
-
-        }
-
-    }
-
-
-    return {
-
-        score:
-            bestScore,
-
-        matchedTerms:
-            unique(
-                matchedTerms
-            ),
-
-        matchedPhrases:
-            unique(
-                matchedPhrases
-            )
-
-    };
-
-}
-
-
-/*
- * =========================================================
- * CALCULATE MATCH
- * =========================================================
- */
-
-
-function calculateMatch(
+function findBestExperience(
     task,
-    experience
+    experiences
 ) {
 
-    const taskTokens =
-        canonicalizeTokens(
-            task
-        );
+    let bestExperience =
+        null;
 
 
-    if (
-        taskTokens.length === 0
+    let bestMatch =
+        createEmptyMatch();
+
+
+    for (
+        const experience
+        of experiences
     ) {
 
-        return {
+        if (
+            !isUsableExperience(
+                experience
+            )
+        ) {
+
+            continue;
+
+        }
+
+
+        const match =
+            calculateExperienceMatch(
+
+                task,
+
+                experience
+
+            );
+
+
+        if (
+            match?.confidence >
+            bestMatch.confidence
+        ) {
+
+            bestExperience =
+                experience;
+
+
+            bestMatch =
+                match;
+
+        }
+
+    }
+
+
+    return {
+
+        experience:
+            bestExperience,
+
+        match:
+            bestMatch
+
+    };
+
+}
+
+
+/*
+ * =========================================================
+ * LOG BEST MATCH
+ * =========================================================
+ */
+
+
+function logBestMatch(
+    experience,
+    match
+) {
+
+    if (
+        !experience
+    ) {
+
+        return;
+
+    }
+
+
+    console.log(
+        "Jessica Experience best match:",
+        JSON.stringify({
+
+            skillId:
+                experience?.id || null,
 
             confidence:
-                0,
+                match?.confidence || 0,
 
             matchedTerms:
-                [],
+                match?.matchedTerms || [],
 
             matchedPhrases:
-                []
+                match?.matchedPhrases || []
 
-        };
-
-    }
-
-
-    const taskTokenSet =
-        new Set(
-            taskTokens
-        );
-
-
-    const keywords =
-        normalizeStringArray(
-            experience?.keywords
-        );
-
-
-    const tags =
-        normalizeStringArray(
-            experience?.tags
-        );
-
-
-    /*
-     * =====================================================
-     * KEYWORDS
-     * =====================================================
-     */
-
-
-    const keywordMatch =
-        calculateKeywordMatch(
-
-            taskTokens,
-
-            taskTokenSet,
-
-            keywords
-
-        );
-
-
-    /*
-     * =====================================================
-     * NAME
-     * =====================================================
-     */
-
-
-    const nameMatch =
-        calculateTokenOverlap(
-
-            taskTokenSet,
-
-            canonicalizeTokens(
-                experience?.name
-            )
-
-        );
-
-
-    /*
-     * =====================================================
-     * TAGS
-     * =====================================================
-     */
-
-
-    const tagMatch =
-        calculateTokenOverlap(
-
-            taskTokenSet,
-
-            canonicalizeTokens(
-                tags.join(
-                    " "
-                )
-            )
-
-        );
-
-
-    /*
-     * =====================================================
-     * DESCRIPTION
-     * =====================================================
-     */
-
-
-    const descriptionMatch =
-        calculateTokenOverlap(
-
-            taskTokenSet,
-
-            canonicalizeTokens(
-                experience?.description
-            )
-
-        );
-
-
-    /*
-     * =====================================================
-     * FINAL SCORE
-     * =====================================================
-     *
-     * Важно:
-     *
-     * знаменатель больше НЕ зависит
-     * от количества слов в пользовательской задаче.
-     *
-     *
-     * Поэтому:
-     *
-     * Quasar Banana Engine ZX-9100
-     *
-     * не снижает confidence универсального Skill.
-     *
-     * =====================================================
-     */
-
-
-    let confidence =
-        0;
-
-
-    confidence +=
-        keywordMatch.score;
-
-
-    confidence +=
-        nameMatch.ratio *
-        SCORE.NAME;
-
-
-    confidence +=
-        tagMatch.ratio *
-        SCORE.TAG;
-
-
-    confidence +=
-        descriptionMatch.ratio *
-        SCORE.DESCRIPTION;
-
-
-    confidence =
-        Math.min(
-            1,
-            confidence
-        );
-
-
-    const matchedTerms =
-        unique([
-
-            ...keywordMatch.matchedTerms,
-
-            ...nameMatch.matched,
-
-            ...tagMatch.matched,
-
-            ...descriptionMatch.matched
-
-        ]);
-
-
-    return {
-
-        confidence,
-
-        matchedTerms,
-
-        matchedPhrases:
-            keywordMatch.matchedPhrases
-
-    };
+        })
+    );
 
 }
 
@@ -1009,101 +352,37 @@ export function searchExperience(
 
 
     if (
-        !task ||
+        typeof task !== "string" ||
+        !task.trim() ||
         !Array.isArray(
             experiences
-        )
+        ) ||
+        experiences.length === 0
     ) {
 
-        return {
-
-            found:
-                false,
-
-            experience:
-                null,
-
-            confidence:
-                0,
-
-            matchedTerms:
-                [],
-
-            matchedPhrases:
-                [],
-
-            source:
-                "experience-search"
-
-        };
+        return createNotFoundResult();
 
     }
-
-
-    let best =
-        null;
-
-
-    let bestMatch = {
-
-        confidence:
-            0,
-
-        matchedTerms:
-            [],
-
-        matchedPhrases:
-            []
-
-    };
 
 
     /*
      * =====================================================
-     * FIND BEST SKILL
+     * BEST MATCH
      * =====================================================
      */
 
 
-    for (
-        const experience
-        of experiences
-    ) {
+    const {
+        experience,
+        match
+    } =
+        findBestExperience(
 
-        if (
-            experience?.enabled === false
-        ) {
+            task,
 
-            continue;
+            experiences
 
-        }
-
-
-        const match =
-            calculateMatch(
-
-                task,
-
-                experience
-
-            );
-
-
-        if (
-            match.confidence >
-            bestMatch.confidence
-        ) {
-
-            best =
-                experience;
-
-
-            bestMatch =
-                match;
-
-        }
-
-    }
+        );
 
 
     /*
@@ -1113,25 +392,28 @@ export function searchExperience(
      */
 
 
-    if (best) {
+    logBestMatch(
 
-        console.log(
-            "Jessica Experience best match:",
-            JSON.stringify({
+        experience,
 
-                skillId:
-                    best?.id || null,
+        match
 
-                confidence:
-                    bestMatch.confidence,
+    );
 
-                matchedTerms:
-                    bestMatch.matchedTerms,
 
-                matchedPhrases:
-                    bestMatch.matchedPhrases
+    /*
+     * =====================================================
+     * NO MATCH
+     * =====================================================
+     */
 
-            })
+
+    if (
+        !experience
+    ) {
+
+        return createNotFoundResult(
+            match
         );
 
     }
@@ -1145,63 +427,30 @@ export function searchExperience(
 
 
     if (
-        !best ||
-        bestMatch.confidence <
+        match.confidence <
         MIN_MATCH_CONFIDENCE
     ) {
 
-        return {
-
-            found:
-                false,
-
-            experience:
-                null,
-
-            confidence:
-                bestMatch.confidence,
-
-            matchedTerms:
-                bestMatch.matchedTerms,
-
-            matchedPhrases:
-                bestMatch.matchedPhrases,
-
-            source:
-                "experience-search"
-
-        };
+        return createNotFoundResult(
+            match
+        );
 
     }
 
 
     /*
      * =====================================================
-     * MATCH
+     * FOUND
      * =====================================================
      */
 
 
-    return {
+    return createFoundResult(
 
-        found:
-            true,
+        experience,
 
-        experience:
-            best,
+        match
 
-        confidence:
-            bestMatch.confidence,
+    );
 
-        matchedTerms:
-            bestMatch.matchedTerms,
-
-        matchedPhrases:
-            bestMatch.matchedPhrases,
-
-        source:
-            "experience-search"
-
-    };
-
-                }
+    }
