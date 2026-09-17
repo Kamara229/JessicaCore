@@ -6,7 +6,7 @@
  * Главный координатор проверки результата.
  *
  *
- * Цепочка:
+ * Основной flow:
  *
  * Result
  *   ↓
@@ -14,14 +14,34 @@
  *   ↓
  * Evidence Validator
  *   ↓
+ * Conditional Validation
+ *
+ *
+ * source_content:
+ *
  * Source Content Validator
  *   ↓
  * Claim Evidence Validator
  *   ↓
+ * SUCCESS
+ *
+ *
+ * none / search_results:
+ *
  * AI Semantic Validator
  *
  *
- * Каждый слой отвечает только за свою область.
+ * AI Semantic Validator также используется
+ * как fallback, если специализированный
+ * AI Validator временно недоступен.
+ *
+ *
+ * Этот файл НЕ:
+ *
+ * - содержит AI prompts;
+ * - проверяет claims самостоятельно;
+ * - выполняет инструменты;
+ * - строит новые планы.
  *
  * =========================================================
  */
@@ -65,19 +85,175 @@ function buildValidationResult(
         success:
             true,
 
+
         valid:
-            validation.valid === true,
+            validation?.valid === true,
+
 
         shouldRetry:
-            validation.shouldRetry === true,
+            validation?.shouldRetry === true,
+
 
         needsClarification:
-            validation.needsClarification === true,
+            validation?.needsClarification === true,
+
 
         reason:
-            validation.reason || ""
+            validation?.reason || ""
 
     };
+
+}
+
+
+
+/*
+ * =========================================================
+ * SUCCESS RESULT
+ * =========================================================
+ */
+
+
+function buildSuccessResult(
+    reason
+) {
+
+    return {
+
+        success:
+            true,
+
+
+        valid:
+            true,
+
+
+        shouldRetry:
+            false,
+
+
+        needsClarification:
+            false,
+
+
+        reason:
+            reason || "Проверка результата пройдена"
+
+    };
+
+}
+
+
+
+/*
+ * =========================================================
+ * EVIDENCE MODE
+ * =========================================================
+ */
+
+
+function getEvidenceMode(
+    plan
+) {
+
+    const mode =
+        String(
+            plan?.evidence?.mode || "none"
+        )
+        .trim()
+        .toLowerCase();
+
+
+    if (
+        mode === "source_content" ||
+        mode === "search_results"
+    ) {
+
+        return mode;
+
+    }
+
+
+    return "none";
+
+}
+
+
+
+/*
+ * =========================================================
+ * AI SEMANTIC FALLBACK
+ * =========================================================
+ */
+
+
+async function runSemanticValidation(
+
+    task,
+
+    plan,
+
+    taskRunResult,
+
+    answerResult
+
+) {
+
+
+    const aiValidation =
+        await validateWithAI(
+
+            task,
+
+            plan,
+
+            taskRunResult,
+
+            answerResult
+
+        );
+
+
+    console.log(
+        "Jessica Validator AI:",
+        JSON.stringify(
+            aiValidation
+        )
+    );
+
+
+
+    if (
+        aiValidation?.success === true
+    ) {
+
+        return buildValidationResult(
+            aiValidation
+        );
+
+    }
+
+
+
+    /*
+     * AI Validator недоступен.
+     *
+     * Базовые и evidence-проверки
+     * к этому моменту уже пройдены.
+     *
+     * Поэтому не ломаем выполнение задачи.
+     */
+
+
+    return buildSuccessResult(
+
+        "AI semantic validation unavailable: " +
+        (
+            aiValidation?.reason ||
+            "validator unavailable"
+        )
+
+    );
 
 }
 
@@ -122,8 +298,11 @@ export async function validateResult(
 
     console.log(
         "Jessica Validator basic:",
-        JSON.stringify(basic)
+        JSON.stringify(
+            basic
+        )
     );
+
 
 
     if (
@@ -157,7 +336,9 @@ export async function validateResult(
 
     console.log(
         "Jessica Validator evidence:",
-        JSON.stringify(evidence)
+        JSON.stringify(
+            evidence
+        )
     );
 
 
@@ -174,41 +355,44 @@ export async function validateResult(
 
 
 
+    const evidenceMode =
+        getEvidenceMode(
+            plan
+        );
+
+
+
     /*
      * =====================================================
-     * 3. SOURCE CONTENT
+     * 3. DIRECT TOOL ANSWER
      * =====================================================
      *
-     * Только если нужен source_content.
+     * Если ответ пришёл напрямую от инструмента
+     * и конкретный source_content не требуется,
+     * дополнительный AI Validator не нужен.
+     *
+     * Например:
+     *
+     * - время;
+     * - вычисление;
+     * - структурированный tool-result.
+     *
+     * =====================================================
      */
 
 
-    const sourceContent =
-        await validateSourceContent(
+    if (
+        answerResult?.source === "tool" &&
+        evidenceMode !== "source_content"
+    ) {
 
-            task,
-
-            plan,
-
-            taskRunResult
-
+        console.log(
+            "Jessica Validator semantic skipped: direct tool answer"
         );
 
 
-    console.log(
-        "Jessica Validator source content:",
-        JSON.stringify(sourceContent)
-    );
-
-
-
-    if (
-        sourceContent.success === true &&
-        sourceContent.valid !== true
-    ) {
-
-        return buildValidationResult(
-            sourceContent
+        return buildSuccessResult(
+            "Ответ получен напрямую от инструмента"
         );
 
     }
@@ -217,152 +401,226 @@ export async function validateResult(
 
     /*
      * =====================================================
-     * 4. CLAIM EVIDENCE
+     * 4. SOURCE CONTENT VALIDATION
      * =====================================================
      *
-     * Проверяем факты ответа
-     * по реально загруженному источнику.
-     */
-
-
-    const claims =
-        await validateClaimEvidence(
-
-            task,
-
-            plan,
-
-            taskRunResult,
-
-            answerResult
-
-        );
-
-
-    console.log(
-        "Jessica Validator claims:",
-        JSON.stringify(claims)
-    );
-
-
-
-    if (
-        claims.success === true &&
-        claims.valid !== true
-    ) {
-
-        return buildValidationResult(
-            claims
-        );
-
-    }
-
-
-
-    /*
-     * =====================================================
-     * 5. TOOL DIRECT ANSWER
+     * Для source_content используем
+     * специализированную цепочку:
+     *
+     * source relevance
+     *      ↓
+     * claim evidence
+     *
      * =====================================================
      */
 
 
     if (
-        answerResult?.source === "tool"
+        evidenceMode === "source_content"
     ) {
 
-        return {
 
-            success:
-                true,
-
-            valid:
-                true,
-
-            shouldRetry:
-                false,
-
-            needsClarification:
-                false,
-
-            reason:
-                "Ответ получен напрямую от инструмента"
-
-        };
-
-    }
+        /*
+         * -----------------------------------------------
+         * SOURCE CONTENT
+         * -----------------------------------------------
+         */
 
 
+        const sourceContent =
+            await validateSourceContent(
 
-    /*
-     * =====================================================
-     * 6. AI SEMANTIC VALIDATOR
-     * =====================================================
-     */
+                task,
 
+                plan,
 
-    const aiValidation =
-        await validateWithAI(
+                taskRunResult
 
-            task,
-
-            plan,
-
-            taskRunResult,
-
-            answerResult
-
-        );
+            );
 
 
-    console.log(
-        "Jessica Validator AI:",
-        JSON.stringify(aiValidation)
-    );
-
-
-
-    if (
-        aiValidation.success === true
-    ) {
-
-        return buildValidationResult(
-            aiValidation
-        );
-
-    }
-
-
-
-    /*
-     * =====================================================
-     * 7. AI UNAVAILABLE FALLBACK
-     * =====================================================
-     */
-
-
-    return {
-
-        success:
-            true,
-
-        valid:
-            true,
-
-        shouldRetry:
-            false,
-
-        needsClarification:
-            false,
-
-        reason:
-            (
-                "AI semantic validation skipped: " +
-                (
-                    aiValidation.reason ||
-                    "validator unavailable"
-                )
+        console.log(
+            "Jessica Validator source content:",
+            JSON.stringify(
+                sourceContent
             )
+        );
 
-    };
+
+
+        /*
+         * Validator отработал
+         * и нашёл реальную проблему.
+         */
+
+
+        if (
+            sourceContent?.success === true &&
+            sourceContent?.valid !== true
+        ) {
+
+            return buildValidationResult(
+                sourceContent
+            );
+
+        }
+
+
+
+        /*
+         * -----------------------------------------------
+         * CLAIM EVIDENCE
+         * -----------------------------------------------
+         */
+
+
+        const claims =
+            await validateClaimEvidence(
+
+                task,
+
+                plan,
+
+                taskRunResult,
+
+                answerResult
+
+            );
+
+
+        console.log(
+            "Jessica Validator claims:",
+            JSON.stringify(
+                claims
+            )
+        );
+
+
+
+        /*
+         * Claims Validator отработал
+         * и обнаружил неподтверждённые факты.
+         */
+
+
+        if (
+            claims?.success === true &&
+            claims?.valid !== true
+        ) {
+
+            return buildValidationResult(
+                claims
+            );
+
+        }
+
+
+
+        /*
+         * -----------------------------------------------
+         * SPECIALIZED VALIDATION PASSED
+         * -----------------------------------------------
+         *
+         * Оба специализированных Validator:
+         *
+         * - подтвердили источник;
+         * - подтвердили утверждения ответа.
+         *
+         * Общий AI Semantic Validator здесь
+         * уже не добавляет существенной проверки.
+         *
+         * -----------------------------------------------
+         */
+
+
+        const sourceConfirmed =
+
+            sourceContent?.success === true &&
+            sourceContent?.valid === true;
+
+
+
+        const claimsConfirmed =
+
+            claims?.success === true &&
+            claims?.valid === true;
+
+
+
+        if (
+            sourceConfirmed &&
+            claimsConfirmed
+        ) {
+
+
+            console.log(
+                "Jessica Validator AI skipped: source and claims confirmed"
+            );
+
+
+            return buildSuccessResult(
+                "Источник и утверждения ответа подтверждены"
+            );
+
+        }
+
+
+
+        /*
+         * Один из специализированных AI Validator
+         * оказался недоступен.
+         *
+         * Тогда используем общий AI Validator
+         * как fallback.
+         */
+
+
+        console.log(
+            "Jessica Validator: specialized validation unavailable, using semantic fallback"
+        );
+
+
+        return await runSemanticValidation(
+
+            task,
+
+            plan,
+
+            taskRunResult,
+
+            answerResult
+
+        );
+
+    }
+
+
+
+    /*
+     * =====================================================
+     * 5. SEARCH RESULTS / NONE
+     * =====================================================
+     *
+     * Здесь специализированной проверки
+     * содержимого источника нет.
+     *
+     * Поэтому используем общий
+     * AI Semantic Validator.
+     *
+     * =====================================================
+     */
+
+
+    return await runSemanticValidation(
+
+        task,
+
+        plan,
+
+        taskRunResult,
+
+        answerResult
+
+    );
 
 }
