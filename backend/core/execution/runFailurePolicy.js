@@ -3,18 +3,27 @@
  * JESSICA RUN FAILURE POLICY
  * =========================================================
  *
- * Преобразует ошибки TaskRunner
+ * Преобразует результат неудачного выполнения TaskRunner
  * в решение для Execution Cycle.
+ *
  *
  * TaskRunner сообщает ЧТО произошло.
  *
  * Этот модуль определяет:
  *
- * - можно ли перестроить план;
- * - какую причину передать Replanner;
- * - нужно ли завершить выполнение.
+ * - произошла ли ошибка;
+ * - можно ли перестроить маршрут;
+ * - требуется ли уточнение пользователя;
+ * - какую причину передать Replanner.
  *
- * Здесь нет вызова Replanner.
+ *
+ * Этот модуль НЕ:
+ *
+ * - выполняет инструменты;
+ * - вызывает Replanner;
+ * - создаёт новый план.
+ *
+ * =========================================================
  */
 
 
@@ -29,72 +38,120 @@ export function analyzeRunFailure(
     taskRunResult
 ) {
 
+
     /*
-     * TaskRunner успешно завершился.
+     * =====================================================
+     * SUCCESS
+     * =====================================================
      */
+
+
     if (
         taskRunResult?.success === true
     ) {
 
         return {
+
             failed:
                 false,
-
-            shouldRetry:
-                false
-        };
-
-    }
-
-
-    /*
-     * Требуется информация от пользователя.
-     *
-     * Replanner здесь не поможет.
-     */
-    if (
-        taskRunResult?.needsClarification === true
-    ) {
-
-        return {
-            failed:
-                true,
 
             shouldRetry:
                 false,
 
             needsClarification:
-                true,
+                false
 
-            stage:
-                taskRunResult?.stage ||
-                "tools",
-
-            failureType:
-                taskRunResult?.failureType ||
-                "needs-clarification",
-
-            reason:
-                taskRunResult?.text ||
-                "Для выполнения задачи требуется уточнение"
         };
 
     }
 
 
+
     /*
      * =====================================================
-     * SEMANTIC ROUTE FAILURE
+     * REASON
+     * =====================================================
+     */
+
+
+    const reason =
+
+        taskRunResult?.reason ||
+
+        taskRunResult?.text ||
+
+        "";
+
+
+
+    /*
+     * =====================================================
+     * NEEDS CLARIFICATION
      * =====================================================
      *
-     * TaskRunner сам определил,
-     * что другой план может решить проблему.
+     * Другой маршрут здесь не поможет.
+     * Нужны дополнительные данные пользователя.
+     *
+     * =====================================================
+     */
+
+
+    if (
+        taskRunResult?.needsClarification === true
+    ) {
+
+        return {
+
+            failed:
+                true,
+
+
+            shouldRetry:
+                false,
+
+
+            needsClarification:
+                true,
+
+
+            stage:
+                taskRunResult?.stage ||
+                "tools",
+
+
+            failureType:
+                taskRunResult?.failureType ||
+                "needs-clarification",
+
+
+            reason:
+                reason ||
+                "Для выполнения задачи требуется уточнение"
+
+        };
+
+    }
+
+
+
+    /*
+     * =====================================================
+     * RETRYABLE ROUTE FAILURE
+     * =====================================================
+     *
+     * TaskRunner сообщил, что проблема может
+     * быть решена другим маршрутом.
+     *
      *
      * Например:
      *
-     * - поиск не дал источников;
-     * - Source Selector отклонил всю выдачу;
-     * - текущий поисковый маршрут непригоден.
+     * - поиск ничего не дал;
+     * - найденные источники не подходят;
+     * - Source Selector отклонил результаты;
+     * - fetch не позволил получить нужный источник;
+     * - выбранный маршрут оказался непригодным.
+     *
+     * =====================================================
      */
 
 
@@ -103,29 +160,37 @@ export function analyzeRunFailure(
     ) {
 
         return {
+
             failed:
                 true,
+
 
             shouldRetry:
                 true,
 
+
             needsClarification:
                 false,
+
 
             stage:
                 taskRunResult?.stage ||
                 "runner",
 
+
             failureType:
                 taskRunResult?.failureType ||
                 "retryable-run-failure",
 
+
             reason:
-                taskRunResult?.text ||
+                reason ||
                 "Текущий план не позволил получить подходящий результат"
+
         };
 
     }
+
 
 
     /*
@@ -136,47 +201,43 @@ export function analyzeRunFailure(
 
 
     return {
+
         failed:
             true,
+
 
         shouldRetry:
             false,
 
+
         needsClarification:
             false,
+
 
         stage:
             taskRunResult?.stage ||
             "tools",
 
+
         failureType:
             taskRunResult?.failureType ||
             "run-failure",
 
+
         reason:
-            taskRunResult?.text ||
+            reason ||
             "Не удалось выполнить план"
+
     };
 
 }
+
 
 
 /*
  * =========================================================
  * BUILD REPLANNER FEEDBACK
  * =========================================================
- *
- * Replanner уже умеет получать объект,
- * похожий на результат Validator:
- *
- * {
- *   valid,
- *   shouldRetry,
- *   reason
- * }
- *
- * Поэтому ошибки маршрута приводим
- * к тому же универсальному формату.
  */
 
 
@@ -185,29 +246,29 @@ export function buildRunFailureFeedback(
 ) {
 
     return {
-        success:
-            true,
-
-        valid:
-            false,
-
-        shouldRetry:
-            analysis?.shouldRetry === true,
-
-        needsClarification:
-            analysis?.needsClarification === true,
 
         stage:
             analysis?.stage ||
             "runner",
 
+
         failureType:
             analysis?.failureType ||
             "run-failure",
 
+
         reason:
             analysis?.reason ||
-            "Текущий план выполнения оказался непригодным"
+            "Текущий маршрут выполнения оказался непригодным",
+
+
+        shouldRetry:
+            analysis?.shouldRetry === true,
+
+
+        needsClarification:
+            analysis?.needsClarification === true
+
     };
 
 }
