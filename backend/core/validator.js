@@ -36,6 +36,30 @@
  * AI Validator временно недоступен.
  *
  *
+ * Дополнительно Validator возвращает:
+ *
+ * outcomeType
+ *
+ * result
+ * → искомый результат подтверждён.
+ *
+ * no_verified_result
+ * → ответ корректный, но подтверждённого
+ *   искомого результата нет.
+ *
+ *
+ * Важно:
+ *
+ * valid и outcomeType — разные понятия.
+ *
+ * valid=true + outcomeType=no_verified_result
+ *
+ * означает:
+ *
+ * ответ Jessica корректен,
+ * но положительный результат не подтверждён.
+ *
+ *
  * Этот файл НЕ:
  *
  * - содержит AI prompts;
@@ -68,6 +92,46 @@ import {
 } from "./validator/aiResultValidator.js";
 
 
+/*
+ * =========================================================
+ * OUTCOME TYPES
+ * =========================================================
+ */
+
+
+const OUTCOME_RESULT =
+    "result";
+
+
+const OUTCOME_NO_VERIFIED_RESULT =
+    "no_verified_result";
+
+
+/*
+ * =========================================================
+ * NORMALIZE OUTCOME TYPE
+ * =========================================================
+ */
+
+
+function normalizeOutcomeType(
+    value
+) {
+
+    if (
+        value ===
+        OUTCOME_NO_VERIFIED_RESULT
+    ) {
+
+        return OUTCOME_NO_VERIFIED_RESULT;
+
+    }
+
+
+    return OUTCOME_RESULT;
+
+}
+
 
 /*
  * =========================================================
@@ -80,14 +144,17 @@ function buildValidationResult(
     validation
 ) {
 
+    const valid =
+        validation?.valid === true;
+
+
     return {
 
         success:
             true,
 
 
-        valid:
-            validation?.valid === true,
+        valid,
 
 
         shouldRetry:
@@ -98,13 +165,31 @@ function buildValidationResult(
             validation?.needsClarification === true,
 
 
+        /*
+         * outcomeType имеет смысл только
+         * для корректно принятого результата.
+         *
+         * Для validation failure ставим null,
+         * потому что результат ещё не является
+         * terminal semantic outcome.
+         */
+
+        outcomeType:
+            valid
+                ? normalizeOutcomeType(
+                    validation?.outcomeType
+                )
+                : null,
+
+
         reason:
-            validation?.reason || ""
+            typeof validation?.reason === "string"
+                ? validation.reason.trim()
+                : ""
 
     };
 
 }
-
 
 
 /*
@@ -115,7 +200,8 @@ function buildValidationResult(
 
 
 function buildSuccessResult(
-    reason
+    reason,
+    outcomeType = OUTCOME_RESULT
 ) {
 
     return {
@@ -136,13 +222,19 @@ function buildSuccessResult(
             false,
 
 
+        outcomeType:
+            normalizeOutcomeType(
+                outcomeType
+            ),
+
+
         reason:
-            reason || "Проверка результата пройдена"
+            reason ||
+            "Проверка результата пройдена"
 
     };
 
 }
-
 
 
 /*
@@ -160,8 +252,8 @@ function getEvidenceMode(
         String(
             plan?.evidence?.mode || "none"
         )
-        .trim()
-        .toLowerCase();
+            .trim()
+            .toLowerCase();
 
 
     if (
@@ -177,7 +269,6 @@ function getEvidenceMode(
     return "none";
 
 }
-
 
 
 /*
@@ -198,7 +289,6 @@ async function runSemanticValidation(
     answerResult
 
 ) {
-
 
     const aiValidation =
         await validateWithAI(
@@ -222,6 +312,12 @@ async function runSemanticValidation(
     );
 
 
+    /*
+     * =====================================================
+     * AI VALIDATION SUCCESS
+     * =====================================================
+     */
+
 
     if (
         aiValidation?.success === true
@@ -234,14 +330,24 @@ async function runSemanticValidation(
     }
 
 
-
     /*
-     * AI Validator недоступен.
+     * =====================================================
+     * AI VALIDATOR UNAVAILABLE
+     * =====================================================
      *
-     * Базовые и evidence-проверки
-     * к этому моменту уже пройдены.
+     * Basic + Evidence к этому моменту
+     * уже пройдены.
      *
-     * Поэтому не ломаем выполнение задачи.
+     * Поэтому техническая недоступность
+     * semantic AI не должна ломать задачу.
+     *
+     *
+     * outcomeType здесь оставляем result.
+     *
+     * Мы НЕ можем надёжно объявить
+     * no_verified_result без semantic проверки.
+     *
+     * =====================================================
      */
 
 
@@ -251,12 +357,13 @@ async function runSemanticValidation(
         (
             aiValidation?.reason ||
             "validator unavailable"
-        )
+        ),
+
+        OUTCOME_RESULT
 
     );
 
 }
-
 
 
 /*
@@ -277,7 +384,6 @@ export async function validateResult(
     answerResult
 
 ) {
-
 
     /*
      * =====================================================
@@ -304,7 +410,6 @@ export async function validateResult(
     );
 
 
-
     if (
         basic.valid !== true
     ) {
@@ -314,7 +419,6 @@ export async function validateResult(
         );
 
     }
-
 
 
     /*
@@ -342,7 +446,6 @@ export async function validateResult(
     );
 
 
-
     if (
         evidence.valid !== true
     ) {
@@ -354,12 +457,10 @@ export async function validateResult(
     }
 
 
-
     const evidenceMode =
         getEvidenceMode(
             plan
         );
-
 
 
     /*
@@ -373,9 +474,12 @@ export async function validateResult(
      *
      * Например:
      *
-     * - время;
+     * - текущее время;
      * - вычисление;
      * - структурированный tool-result.
+     *
+     *
+     * Такой результат считаем обычным result.
      *
      * =====================================================
      */
@@ -392,11 +496,14 @@ export async function validateResult(
 
 
         return buildSuccessResult(
-            "Ответ получен напрямую от инструмента"
+
+            "Ответ получен напрямую от инструмента",
+
+            OUTCOME_RESULT
+
         );
 
     }
-
 
 
     /*
@@ -418,7 +525,6 @@ export async function validateResult(
     if (
         evidenceMode === "source_content"
     ) {
-
 
         /*
          * -----------------------------------------------
@@ -447,9 +553,8 @@ export async function validateResult(
         );
 
 
-
         /*
-         * Validator отработал
+         * Validator успешно отработал
          * и нашёл реальную проблему.
          */
 
@@ -464,7 +569,6 @@ export async function validateResult(
             );
 
         }
-
 
 
         /*
@@ -496,9 +600,8 @@ export async function validateResult(
         );
 
 
-
         /*
-         * Claims Validator отработал
+         * Claims Validator успешно отработал
          * и обнаружил неподтверждённые факты.
          */
 
@@ -515,20 +618,9 @@ export async function validateResult(
         }
 
 
-
         /*
          * -----------------------------------------------
          * SPECIALIZED VALIDATION PASSED
-         * -----------------------------------------------
-         *
-         * Оба специализированных Validator:
-         *
-         * - подтвердили источник;
-         * - подтвердили утверждения ответа.
-         *
-         * Общий AI Semantic Validator здесь
-         * уже не добавляет существенной проверки.
-         *
          * -----------------------------------------------
          */
 
@@ -539,18 +631,27 @@ export async function validateResult(
             sourceContent?.valid === true;
 
 
-
         const claimsConfirmed =
 
             claims?.success === true &&
             claims?.valid === true;
 
 
-
         if (
             sourceConfirmed &&
             claimsConfirmed
         ) {
+
+            /*
+             * Здесь есть:
+             *
+             * - подтверждённый источник;
+             * - подтверждённые claims.
+             *
+             * Поэтому semantic outcome однозначно:
+             *
+             * result.
+             */
 
 
             console.log(
@@ -559,19 +660,30 @@ export async function validateResult(
 
 
             return buildSuccessResult(
-                "Источник и утверждения ответа подтверждены"
+
+                "Источник и утверждения ответа подтверждены",
+
+                OUTCOME_RESULT
+
             );
 
         }
 
 
-
         /*
+         * -----------------------------------------------
+         * SPECIALIZED VALIDATOR UNAVAILABLE
+         * -----------------------------------------------
+         *
          * Один из специализированных AI Validator
          * оказался недоступен.
          *
-         * Тогда используем общий AI Validator
-         * как fallback.
+         * Тогда используем общий semantic Validator.
+         *
+         * Он сможет определить не только valid,
+         * но и outcomeType.
+         *
+         * -----------------------------------------------
          */
 
 
@@ -595,7 +707,6 @@ export async function validateResult(
     }
 
 
-
     /*
      * =====================================================
      * 5. SEARCH RESULTS / NONE
@@ -604,8 +715,18 @@ export async function validateResult(
      * Здесь специализированной проверки
      * содержимого источника нет.
      *
-     * Поэтому используем общий
-     * AI Semantic Validator.
+     * Поэтому общий AI Validator определяет:
+     *
+     * - valid;
+     * - retry;
+     * - clarification;
+     * - outcomeType.
+     *
+     *
+     * Именно здесь наш Quasar-тест должен дать:
+     *
+     * valid=true
+     * outcomeType=no_verified_result
      *
      * =====================================================
      */
