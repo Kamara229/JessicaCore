@@ -1,276 +1,145 @@
-import OpenAI from "openai";
-
-import {
-    executeAIWithRetry
-} from "../ai/aiRetry.js";
-
-import {
-    buildComposerContext
-} from "./composer/composerContext.js";
-
-
 /*
  * =========================================================
  * JESSICA ANSWER COMPOSER
  * =========================================================
  *
- * Answer Composer получает только подготовленный
- * фактический контекст и формирует конечный ответ.
+ * Центральный координатор формирования
+ * пользовательского ответа.
  *
- * Он НЕ должен видеть внутреннюю механику:
  *
- * - Tool Registry;
- * - arguments инструментов;
- * - шаги Planner;
- * - $from;
- * - routing.
+ * Flow:
  *
- * Подготовкой безопасного контекста занимается:
+ * TaskRunResult
+ *      ↓
+ * Direct Answer?
+ *      │
+ *      ├── yes → return
+ *      │
+ *      └── no
+ *           ↓
+ * Composer Context
+ *           ↓
+ * Composer Request
+ *           ↓
+ * Response Check
+ *           ↓
+ * Final Answer
  *
- * core/composer/composerContext.js
+ *
+ * Специализированная логика вынесена в:
+ *
+ * composer/
+ *
+ * ├── composerContext.js
+ * ├── composerPrompt.js
+ * ├── composerRequest.js
+ * └── directAnswer.js
+ *
+ *
+ * Этот файл НЕ:
+ *
+ * - создаёт AI client;
+ * - хранит prompt;
+ * - вызывает tools;
+ * - строит factual context вручную;
+ * - содержит direct-tool правила;
+ * - валидирует факты ответа;
+ * - определяет semantic outcome.
+ *
+ * =========================================================
  */
+
+
+import {
+    buildComposerContext
+} from "./composer/composerContext.js";
+
+import {
+    getDirectAnswer
+} from "./composer/directAnswer.js";
+
+import {
+    isComposerAvailable,
+    requestComposerAnswer
+} from "./composer/composerRequest.js";
 
 
 /*
  * =========================================================
- * AI CLIENT
+ * FAILURE RESULT
  * =========================================================
  */
 
 
-const groq =
-    process.env.GROQ_API_KEY
-        ? new OpenAI({
-            apiKey:
-                process.env.GROQ_API_KEY,
-
-            baseURL:
-                "https://api.groq.com/openai/v1"
-        })
-        : null;
-
-
-/*
- * =========================================================
- * CONFIG
- * =========================================================
- */
-
-
-const COMPOSER_MODEL =
-    "openai/gpt-oss-20b";
-
-
-/*
- * =========================================================
- * DIRECT TOOL ANSWER
- * =========================================================
- *
- * Некоторые инструменты уже возвращают
- * полноценный пользовательский ответ.
- *
- * Для них AI Composer не нужен.
- */
-
-
-const DIRECT_ANSWER_TOOLS =
-    new Set([
-        "current_time"
-    ]);
-
-
-function tryDirectAnswer(
-    taskRunResult
+function buildComposerFailure(
+    text,
+    options = {}
 ) {
 
-    if (
-        !taskRunResult ||
-        !Array.isArray(
-            taskRunResult.results
-        )
-    ) {
+    return {
 
-        return null;
+        success:
+            false,
 
-    }
+        text:
+            text ||
+            "Не удалось сформировать итоговый ответ",
 
+        status:
+            options?.status || 0,
 
-    if (
-        taskRunResult.results.length !== 1
-    ) {
+        retryable:
+            options?.retryable === true
 
-        return null;
-
-    }
-
-
-    const result =
-        taskRunResult.results[0];
-
-
-    if (
-        result.success !== true
-    ) {
-
-        return null;
-
-    }
-
-
-    if (
-        !DIRECT_ANSWER_TOOLS.has(
-            result.tool
-        )
-    ) {
-
-        return null;
-
-    }
-
-
-    if (
-        typeof result.text !== "string" ||
-        !result.text.trim()
-    ) {
-
-        return null;
-
-    }
-
-
-    return result.text.trim();
+    };
 
 }
 
 
 /*
  * =========================================================
- * SYSTEM PROMPT
+ * EXTRACT AI MESSAGE
  * =========================================================
  */
 
 
-const COMPOSER_INSTRUCTIONS =
-    [
-        "Ты — Answer Composer системы Jessica Core.",
+function extractComposerMessage(
+    response
+) {
 
-        "",
-        "Твоя единственная задача — сформировать конечный ответ пользователю.",
+    return response
+        ?.choices
+        ?.[0]
+        ?.message ||
+        null;
 
-        "",
-        "Все действия по получению данных уже завершены.",
-        "Перед тобой находится только подготовленный фактический контекст.",
-
-        "",
-        "Ты НЕ являешься агентом выполнения действий.",
-
-        "",
-        "ЗАПРЕЩЕНО:",
-        "- вызывать инструменты;",
-        "- создавать tool call;",
-        "- предлагать системе вызвать инструмент;",
-        "- выполнять поиск;",
-        "- пытаться открыть URL;",
-        "- менять маршрут решения;",
-        "- придумывать отсутствующие данные;",
-        "- дополнять источник фактами из собственной памяти, если задача требует подтверждения источником.",
-
-        "",
-        "Используй только предоставленные фактические данные.",
-
-        "",
-        "Если режим доказательств source_content,",
-        "существенные фактические утверждения должны следовать из содержимого предоставленного источника.",
-
-        "",
-        "Если данных недостаточно для ответа,",
-        "прямо скажи, какой информации недостаточно.",
-        "Не пытайся самостоятельно её искать.",
-
-        "",
-        "Если задача не требует внешних данных",
-        "и фактический контекст отсутствует,",
-        "можно решить обычную интеллектуальную задачу самостоятельно.",
-
-        "",
-        "Не показывай пользователю:",
-        "- внутреннюю архитектуру Jessica;",
-        "- Planner;",
-        "- Validator;",
-        "- названия внутренних этапов;",
-        "- технический JSON.",
-
-        "",
-        "Отвечай на языке пользователя.",
-
-        "",
-        "Для простого вопроса отвечай кратко.",
-        "Для сложного вопроса дай достаточное объяснение.",
-
-        "",
-        "Интерфейс Jessica отображает обычный текст.",
-        "Не используй Markdown-разметку.",
-        "Не используй Markdown-таблицы.",
-        "Не используй символы ** для выделения.",
-        "Не используй заголовки с #.",
-        "Избегай LaTeX.",
-        "Формулы по возможности записывай обычным текстом.",
-
-        "",
-        "Верни только готовый пользовательский ответ."
-    ].join(
-        "\n"
-    );
+}
 
 
 /*
  * =========================================================
- * AI REQUEST
+ * TOOL CALL GUARD
+ * =========================================================
+ *
+ * Composer не должен выполнять действия.
+ *
+ * Даже если модель неожиданно попытается
+ * сформировать tool call, такой ответ
+ * блокируется.
+ *
  * =========================================================
  */
 
 
-async function requestAnswer(
-    input
+function hasToolCalls(
+    message
 ) {
 
-    return await executeAIWithRetry(
-        async () => {
-
-            return await groq
-                .chat
-                .completions
-                .create({
-
-                    model:
-                        COMPOSER_MODEL,
-
-                    messages: [
-                        {
-                            role:
-                                "system",
-
-                            content:
-                                COMPOSER_INSTRUCTIONS
-                        },
-                        {
-                            role:
-                                "user",
-
-                            content:
-                                input
-                        }
-                    ],
-
-                    temperature:
-                        0.2
-                });
-
-        },
-        {
-            label:
-                "Answer Composer"
-        }
+    return (
+        Array.isArray(
+            message?.tool_calls
+        ) &&
+        message.tool_calls.length > 0
     );
 
 }
@@ -278,89 +147,54 @@ async function requestAnswer(
 
 /*
  * =========================================================
- * COMPOSE ANSWER
+ * EXTRACT ANSWER TEXT
  * =========================================================
  */
 
 
-export async function composeAnswer(
+function extractAnswerText(
+    message
+) {
+
+    return typeof message?.content === "string"
+        ? message.content.trim()
+        : "";
+
+}
+
+
+/*
+ * =========================================================
+ * BUILD CONTEXT
+ * =========================================================
+ */
+
+
+function prepareComposerContext(
     task,
     plan,
     taskRunResult
 ) {
 
-    /*
-     * =====================================================
-     * 1. DIRECT TOOL RESULT
-     * =====================================================
-     */
-
-
-    const directAnswer =
-        tryDirectAnswer(
-            taskRunResult
-        );
-
-
-    if (directAnswer) {
+    try {
 
         return {
+
             success:
                 true,
 
-            text:
-                directAnswer,
+            input:
+                buildComposerContext(
 
-            source:
-                "tool"
+                    task,
+
+                    plan,
+
+                    taskRunResult
+
+                )
+
         };
-
-    }
-
-
-    /*
-     * =====================================================
-     * 2. AI CONFIG
-     * =====================================================
-     */
-
-
-    if (!groq) {
-
-        return {
-            success:
-                false,
-
-            text:
-                "Groq Answer Composer не настроен"
-        };
-
-    }
-
-
-    /*
-     * =====================================================
-     * 3. BUILD SAFE CONTEXT
-     * =====================================================
-     *
-     * ВАЖНО:
-     *
-     * Сюда больше НЕ передаётся JSON плана
-     * и техническая структура результатов tools.
-     */
-
-
-    let input;
-
-
-    try {
-
-        input =
-            buildComposerContext(
-                task,
-                plan,
-                taskRunResult
-            );
 
     } catch (error) {
 
@@ -371,52 +205,58 @@ export async function composeAnswer(
 
 
         return {
+
             success:
                 false,
 
-            text:
-                "Не удалось подготовить данные для итогового ответа"
+            result:
+                buildComposerFailure(
+                    "Не удалось подготовить данные для итогового ответа"
+                )
+
         };
 
     }
 
+}
 
-    /*
-     * =====================================================
-     * 4. COMPOSE
-     * =====================================================
-     */
 
+/*
+ * =========================================================
+ * REQUEST AI ANSWER
+ * =========================================================
+ */
+
+
+async function generateComposerAnswer(
+    input
+) {
 
     try {
 
         const response =
-            await requestAnswer(
+            await requestComposerAnswer(
                 input
             );
 
 
         const message =
-            response
-                ?.choices
-                ?.[0]
-                ?.message;
+            extractComposerMessage(
+                response
+            );
 
 
         /*
-         * Дополнительная защита.
-         *
-         * Даже несмотря на отсутствие tools
-         * Composer не должен пытаться
-         * создавать tool call.
+         * =================================================
+         * TOOL CALL PROTECTION
+         * =================================================
          */
 
 
         if (
-            Array.isArray(
-                message?.tool_calls
-            ) &&
-            message.tool_calls.length > 0
+            hasToolCalls(
+                message
+            )
         ) {
 
             console.error(
@@ -425,44 +265,44 @@ export async function composeAnswer(
             );
 
 
-            return {
-                success:
-                    false,
-
-                text:
-                    "Answer Composer попытался выполнить недопустимое действие"
-            };
-
-        }
-
-
-        const answer =
-            message
-                ?.content
-                ?.trim();
-
-
-        if (!answer) {
-
-            return {
-                success:
-                    false,
-
-                text:
-                    "Answer Composer вернул пустой ответ"
-            };
+            return buildComposerFailure(
+                "Answer Composer попытался выполнить недопустимое действие"
+            );
 
         }
 
 
         /*
          * =================================================
-         * 5. SUCCESS
+         * ANSWER TEXT
+         * =================================================
+         */
+
+
+        const answer =
+            extractAnswerText(
+                message
+            );
+
+
+        if (!answer) {
+
+            return buildComposerFailure(
+                "Answer Composer вернул пустой ответ"
+            );
+
+        }
+
+
+        /*
+         * =================================================
+         * SUCCESS
          * =================================================
          */
 
 
         return {
+
             success:
                 true,
 
@@ -471,8 +311,8 @@ export async function composeAnswer(
 
             source:
                 "groq"
-        };
 
+        };
 
     } catch (error) {
 
@@ -482,20 +322,119 @@ export async function composeAnswer(
         );
 
 
-        return {
-            success:
-                false,
+        return buildComposerFailure(
 
-            status:
-                error?.status || 0,
+            "Не удалось сформировать итоговый ответ",
 
-            retryable:
-                error?.status === 429,
+            {
 
-            text:
-                "Не удалось сформировать итоговый ответ"
-        };
+                status:
+                    error?.status || 0,
+
+                retryable:
+                    error?.status === 429
+
+            }
+
+        );
 
     }
+
+}
+
+
+/*
+ * =========================================================
+ * PUBLIC
+ * =========================================================
+ */
+
+
+export async function composeAnswer(
+
+    task,
+
+    plan,
+
+    taskRunResult
+
+) {
+
+    /*
+     * =====================================================
+     * 1. DIRECT TOOL ANSWER
+     * =====================================================
+     */
+
+
+    const directAnswer =
+        getDirectAnswer(
+            taskRunResult
+        );
+
+
+    if (directAnswer) {
+
+        return directAnswer;
+
+    }
+
+
+    /*
+     * =====================================================
+     * 2. AI AVAILABILITY
+     * =====================================================
+     */
+
+
+    if (
+        !isComposerAvailable()
+    ) {
+
+        return buildComposerFailure(
+            "Groq Answer Composer не настроен"
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * 3. BUILD FACTUAL CONTEXT
+     * =====================================================
+     */
+
+
+    const contextResult =
+        prepareComposerContext(
+
+            task,
+
+            plan,
+
+            taskRunResult
+
+        );
+
+
+    if (
+        !contextResult.success
+    ) {
+
+        return contextResult.result;
+
+    }
+
+
+    /*
+     * =====================================================
+     * 4. GENERATE FINAL ANSWER
+     * =====================================================
+     */
+
+
+    return await generateComposerAnswer(
+        contextResult.input
+    );
 
 }
