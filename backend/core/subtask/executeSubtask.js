@@ -11,13 +11,12 @@ import {
 } from "../../experience/experienceCore.js";
 
 
-
 /*
  * =========================================================
  * JESSICA EXECUTE SUBTASK
  * =========================================================
  *
- * Выполнение одной подзадачи.
+ * Выполняет одну подзадачу.
  *
  *
  * Flow:
@@ -37,10 +36,11 @@ import {
  *
  * Ответственность:
  *
- * - найти Experience;
- * - подготовить PlanningContext;
- * - создать первый план;
- * - передать управление Execution Cycle.
+ * - получить текст подзадачи;
+ * - найти подходящий Experience;
+ * - получить PlanningContext;
+ * - создать первоначальный план;
+ * - передать план и контекст в Execution Cycle.
  *
  *
  * НЕ отвечает за:
@@ -49,16 +49,15 @@ import {
  * - retry;
  * - replan;
  * - validation;
- * - обучение.
+ * - Learning.
  *
  * =========================================================
  */
 
 
-
 /*
  * =========================================================
- * EXECUTE ONE SUBTASK
+ * EXECUTE SUBTASK
  * =========================================================
  */
 
@@ -85,7 +84,6 @@ export async function executeSubtask(
             : "";
 
 
-
     if (!taskText) {
 
         return {
@@ -96,11 +94,11 @@ export async function executeSubtask(
             text:
                 taskText,
 
-            status:
-                "FAILED",
-
             success:
                 false,
+
+            status:
+                "FAILED",
 
             stage:
                 "input",
@@ -124,7 +122,6 @@ export async function executeSubtask(
     let experienceResult;
 
 
-
     try {
 
 
@@ -134,15 +131,12 @@ export async function executeSubtask(
             );
 
 
-    } catch(error) {
+    } catch (error) {
 
 
         console.error(
-
             `Jessica Experience error ${subtaskId}:`,
-
             error
-
         );
 
 
@@ -151,10 +145,8 @@ export async function executeSubtask(
             found:
                 false,
 
-
             confidence:
                 0,
-
 
             planningContext:
                 {}
@@ -167,12 +159,12 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 2. PLANNING CONTEXT
+     * 2. INITIAL PLANNING CONTEXT
      * =====================================================
      */
 
 
-    const planningContext =
+    const initialPlanningContext =
         experienceResult?.planningContext &&
         typeof experienceResult.planningContext === "object"
 
@@ -182,49 +174,48 @@ export async function executeSubtask(
 
 
 
+    /*
+     * =====================================================
+     * EXPERIENCE LOG
+     * =====================================================
+     */
+
 
     if (
         experienceResult?.found === true
     ) {
 
-
         console.log(
-
-            "Jessica Experience selected:",
-
+            `Subtask ${subtaskId} Experience found:`,
             {
 
                 skillId:
-                    planningContext
+                    initialPlanningContext
                         ?.experience
                         ?.skillId ||
                     null,
 
-
                 version:
-                    planningContext
+                    initialPlanningContext
                         ?.experience
                         ?.version ||
                     null,
 
-
-                confidence:
-                    experienceResult.confidence || 0
+                matchConfidence:
+                    Number(
+                        experienceResult?.confidence || 0
+                    )
 
             }
-
         );
-
 
     } else {
 
-
         console.log(
-            "Jessica Experience not found"
+            `Subtask ${subtaskId}: Experience not found`
         );
 
     }
-
 
 
 
@@ -238,7 +229,6 @@ export async function executeSubtask(
     let planResult;
 
 
-
     try {
 
 
@@ -247,20 +237,17 @@ export async function executeSubtask(
 
                 taskText,
 
-                planningContext
+                initialPlanningContext
 
             );
 
 
-    } catch(error) {
+    } catch (error) {
 
 
         console.error(
-
-            "Jessica Planner error:",
-
+            `Subtask ${subtaskId} Planner error:`,
             error
-
         );
 
 
@@ -290,34 +277,27 @@ export async function executeSubtask(
 
 
 
-
     if (
         !planResult?.success ||
         !planResult?.plan
     ) {
-
 
         return {
 
             id:
                 subtaskId,
 
-
             text:
                 taskText,
-
 
             success:
                 false,
 
-
             status:
                 "FAILED",
 
-
             stage:
                 "planner",
-
 
             result:
                 planResult?.text ||
@@ -329,28 +309,40 @@ export async function executeSubtask(
 
 
 
-
     /*
      * =====================================================
-     * 4. EXECUTION CYCLE
+     * 4. EFFECTIVE PLANNING CONTEXT
      * =====================================================
      *
-     * ВАЖНО:
+     * Planner может нормализовать или дополнить контекст.
      *
-     * Передаём Experience Context.
+     * Поэтому после createPlan используем context,
+     * возвращённый Planner.
      *
-     * Он используется:
-     *
-     * - Replanner;
-     * - будущим Learning;
-     * - анализом качества Skills.
+     * Если его нет — сохраняем первоначальный.
      *
      * =====================================================
      */
 
 
-    let executionResult;
+    const effectivePlanningContext =
+        planResult?.context &&
+        typeof planResult.context === "object"
 
+            ? planResult.context
+
+            : initialPlanningContext;
+
+
+
+    /*
+     * =====================================================
+     * 5. EXECUTION CYCLE
+     * =====================================================
+     */
+
+
+    let executionResult;
 
 
     try {
@@ -363,23 +355,18 @@ export async function executeSubtask(
 
                 planResult.plan,
 
-                planningContext
+                effectivePlanningContext
 
             );
 
 
-
-    } catch(error) {
+    } catch (error) {
 
 
         console.error(
-
-            "Jessica Execution Cycle error:",
-
+            `Subtask ${subtaskId} Execution Cycle error:`,
             error
-
         );
-
 
 
         return {
@@ -387,29 +374,26 @@ export async function executeSubtask(
             id:
                 subtaskId,
 
-
             text:
                 taskText,
-
 
             success:
                 false,
 
-
             status:
                 "FAILED",
-
 
             stage:
                 "execution",
 
-
             result:
                 "Ошибка цикла выполнения",
 
-
             plan:
-                planResult.plan
+                planResult.plan,
+
+            planningContext:
+                effectivePlanningContext
 
         };
 
@@ -417,11 +401,9 @@ export async function executeSubtask(
 
 
 
-
-
     /*
      * =====================================================
-     * 5. NORMALIZE RESULT
+     * 6. RESULT
      * =====================================================
      */
 
@@ -431,59 +413,44 @@ export async function executeSubtask(
         id:
             subtaskId,
 
-
         text:
             taskText,
 
 
-
         /*
-         * Experience metadata.
+         * Краткая ссылка на использованный Experience.
          *
-         * Не сохраняем полный Skill.
-         *
-         * Только ссылку:
-         *
-         * Learning
-         * Statistics
-         * Earnings
-         *
+         * Полный Skill сюда не копируем.
          */
 
 
         experience: {
 
-
             found:
                 experienceResult?.found === true,
 
-
             skillId:
-                planningContext
+                effectivePlanningContext
                     ?.experience
                     ?.skillId ||
                 null,
 
-
             version:
-                planningContext
+                effectivePlanningContext
                     ?.experience
                     ?.version ||
                 null,
 
-
-            confidence:
+            matchConfidence:
                 Number(
                     experienceResult?.confidence || 0
                 )
 
-
         },
 
 
-
         /*
-         * Полный результат Execution Cycle.
+         * Результат Execution Cycle.
          */
 
 
