@@ -3,15 +3,33 @@
  * JESSICA EXECUTION TRACE
  * =========================================================
  *
- * История выполнения одной задачи.
+ * История выполнения Jessica.
  *
- * Используется для:
+ * Используется:
  *
- * - отладки;
- * - анализа ошибок;
- * - обучения Jessica;
- * - контроля качества ответов.
+ * - debugging;
+ * - analytics;
+ * - Learning;
+ * - quality control.
  *
+ *
+ * Этот модуль НЕ:
+ *
+ * - выполняет задачи;
+ * - знает Planner;
+ * - знает Experience;
+ * - знает Tools.
+ *
+ * Он только собирает историю.
+ *
+ * =========================================================
+ */
+
+
+
+/*
+ * =========================================================
+ * CREATE TRACE
  * =========================================================
  */
 
@@ -20,12 +38,12 @@ export function createExecutionTrace(
     task
 ) {
 
+
     return {
 
+
         id:
-            crypto.randomUUID
-                ? crypto.randomUUID()
-                : Date.now().toString(),
+            createTraceId(),
 
 
         task,
@@ -57,29 +75,85 @@ export function createExecutionTrace(
 
         stats: {
 
+
             total:
                 0,
+
 
             completed:
                 0,
 
+
             failed:
                 0,
+
 
             clarification:
                 0
 
+
         }
 
+
     };
+
 
 }
 
 
 
+
 /*
  * =========================================================
- * UPDATE TRACE
+ * TRACE ID
+ * =========================================================
+ */
+
+
+function createTraceId() {
+
+
+    try {
+
+
+        if (
+            typeof crypto !== "undefined" &&
+            crypto.randomUUID
+        ) {
+
+            return crypto.randomUUID();
+
+        }
+
+
+    } catch(error) {
+
+    }
+
+
+
+    return (
+
+        Date.now()
+        +
+        "-"
+        +
+        Math.random()
+            .toString(36)
+            .substring(2)
+
+    );
+
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * ADD SUBTASK RESULT
  * =========================================================
  */
 
@@ -101,134 +175,327 @@ export function updateTraceFromResult(
 
 
 
-    /*
-     * сохраняем результат подзадачи
-     */
+    trace.subtasks.push({
 
-    trace.subtasks.push(
-        {
-
-            status:
-                result.status || "UNKNOWN",
+        id:
+            result.id || null,
 
 
-            result:
-                result.result || "",
+        status:
+            result.status || "UNKNOWN",
 
 
-            stage:
-                result.stage || null,
+        stage:
+            result.stage || null,
 
 
-            validated:
-                result.validated === true
+        result:
+            result.result || "",
 
 
-        }
+        validated:
+            result.validated === true
+
+    });
+
+
+
+    addTools(
+        trace,
+        result.usedTools
     );
 
 
 
-    /*
-     * инструменты
-     */
-
-    if (
-        Array.isArray(
-            result.usedTools
-        )
-    ) {
-
-        trace.usedTools.push(
-            ...result.usedTools
-        );
-
-    }
+    addValidationErrors(
+        trace,
+        result.validationErrors
+    );
 
 
 
-    /*
-     * ошибки валидации
-     */
-
-    if (
-        Array.isArray(
-            result.validationErrors
-        )
-    ) {
-
-        trace.validationErrors.push(
-            ...result.validationErrors
-        );
-
-    }
+    updateStats(
+        trace,
+        result
+    );
 
 
 
-    /*
-     * статистика
-     */
-
-    trace.stats.total++;
-
-
-    if (
-        result.status === "COMPLETED"
-    ) {
-
-        trace.stats.completed++;
-
-    }
-
-
-    else if (
-        result.status === "FAILED"
-    ) {
-
-        trace.stats.failed++;
-
-    }
-
-
-    else if (
-        result.status === "NEEDS_CLARIFICATION"
-    ) {
-
-        trace.stats.clarification++;
-
-    }
-
-
-
-    /*
-     * общий статус
-     */
-
-    if (
-        trace.stats.failed > 0
-    ) {
-
-        trace.status =
-            "PARTIAL";
-
-    }
-
-
-    if (
-        trace.stats.total > 0 &&
-        trace.stats.completed === trace.stats.total
-    ) {
-
-        trace.status =
-            "COMPLETED";
-
-    }
+    updateStatus(
+        trace
+    );
 
 
 
     return trace;
 
 }
+
+
+
+
+
+/*
+ * =========================================================
+ * ADD COMPLEX RESULT
+ * =========================================================
+ */
+
+
+export function updateTraceFromSummary(
+    trace,
+    summary
+) {
+
+
+    if (
+        !trace ||
+        !summary
+    ) {
+
+        return trace;
+
+    }
+
+
+
+    trace.stats = {
+
+
+        total:
+            summary.total || 0,
+
+
+        completed:
+            summary.completed || 0,
+
+
+        failed:
+            summary.failed || 0,
+
+
+        clarification:
+            summary.needsClarification || 0
+
+
+    };
+
+
+
+    updateStatus(
+        trace
+    );
+
+
+
+    return trace;
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * TOOLS
+ * =========================================================
+ */
+
+
+function addTools(
+    trace,
+    tools
+) {
+
+
+    if (
+        !Array.isArray(tools)
+    ) {
+
+        return;
+
+    }
+
+
+
+    for (
+        const tool
+        of tools
+    ) {
+
+
+        if (
+            !trace.usedTools.includes(tool)
+        ) {
+
+            trace.usedTools.push(
+                tool
+            );
+
+        }
+
+    }
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * VALIDATION ERRORS
+ * =========================================================
+ */
+
+
+function addValidationErrors(
+    trace,
+    errors
+) {
+
+
+    if (
+        !Array.isArray(errors)
+    ) {
+
+        return;
+
+    }
+
+
+
+    trace.validationErrors.push(
+        ...errors
+    );
+
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * STATS
+ * =========================================================
+ */
+
+
+function updateStats(
+    trace,
+    result
+) {
+
+
+    trace.stats.total++;
+
+
+
+    switch(
+        result.status
+    ) {
+
+
+        case "COMPLETED":
+
+            trace.stats.completed++;
+
+            break;
+
+
+
+        case "FAILED":
+
+            trace.stats.failed++;
+
+            break;
+
+
+
+        case "NEEDS_CLARIFICATION":
+
+            trace.stats.clarification++;
+
+            break;
+
+
+    }
+
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * STATUS
+ * =========================================================
+ */
+
+
+function updateStatus(
+    trace
+) {
+
+
+    const stats =
+        trace.stats;
+
+
+
+    if (
+        stats.failed > 0 &&
+        stats.completed > 0
+    ) {
+
+        trace.status =
+            "PARTIAL";
+
+        return;
+
+    }
+
+
+
+    if (
+        stats.failed > 0
+    ) {
+
+        trace.status =
+            "FAILED";
+
+        return;
+
+    }
+
+
+
+    if (
+        stats.total > 0 &&
+        stats.completed === stats.total
+    ) {
+
+        trace.status =
+            "COMPLETED";
+
+        return;
+
+    }
+
+
+
+    trace.status =
+        "RUNNING";
+
+
+}
+
+
 
 
 
@@ -244,13 +511,30 @@ export function finishExecutionTrace(
 ) {
 
 
-    if (!trace) {
+    if (
+        !trace
+    ) {
+
         return trace;
+
     }
+
 
 
     trace.finishedAt =
         new Date().toISOString();
+
+
+
+    if (
+        trace.status === "RUNNING"
+    ) {
+
+        updateStatus(
+            trace
+        );
+
+    }
 
 
 
