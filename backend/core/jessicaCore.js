@@ -21,7 +21,9 @@ import {
 
 import {
     createExecutionTrace,
-    updateTraceFromResult
+    updateTraceFromResult,
+    updateTraceFromSummary,
+    finishExecutionTrace
 } from "./trace/executionTrace.js";
 
 
@@ -36,15 +38,19 @@ import {
  *
  * Flow:
  *
- * Task
- *  ↓
- * Decomposer
- *  ↓
+ * User Task
+ *      ↓
+ * Execution Trace
+ *      ↓
+ * Task Decomposer
+ *      ↓
  * Subtasks
- *  ↓
+ *      ↓
  * Subtask Runner
- *  ↓
+ *      ↓
  * Response Builder
+ *      ↓
+ * API Response
  *
  *
  * Ответственность:
@@ -52,7 +58,7 @@ import {
  * - принять задачу;
  * - создать execution trace;
  * - запустить декомпозицию;
- * - выбрать single / complex flow;
+ * - выбрать single / complex execution;
  * - вернуть результат.
  *
  *
@@ -61,21 +67,111 @@ import {
  * - Planner;
  * - Experience;
  * - Tools;
- * - Validation;
- * - Answer Composer;
- * - Complex Composer;
+ * - Validator;
+ * - Composer;
  * - Learning;
  * - Storage;
- * - бизнес-логику результата.
+ * - бизнес-логику.
  *
  * =========================================================
  */
 
 
 
+
+
+/*
+ * =========================================================
+ * INVALID INPUT RESPONSE
+ * =========================================================
+ */
+
+
+function buildInputError(
+    executionTrace
+) {
+
+
+    return {
+
+        success:false,
+
+
+        stage:
+            "input",
+
+
+        text:
+            "Задача не указана",
+
+
+        executionTrace
+
+    };
+
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * DECOMPOSER ERROR
+ * =========================================================
+ */
+
+
+function buildDecomposerError(
+    executionTrace,
+    text
+) {
+
+
+    finishExecutionTrace(
+        executionTrace
+    );
+
+
+    return {
+
+        success:false,
+
+
+        stage:
+            "decomposer",
+
+
+        text:
+            text ||
+            "Jessica не смогла разобрать задачу",
+
+
+        executionTrace
+
+    };
+
+
+}
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * EXECUTE JESSICA TASK
+ * =========================================================
+ */
+
+
 export async function executeJessicaTask(
     task
 ) {
+
 
 
     const normalizedTask =
@@ -84,21 +180,6 @@ export async function executeJessicaTask(
             : "";
 
 
-
-    if (!normalizedTask) {
-
-        return {
-
-            success:false,
-
-            stage:"input",
-
-            text:
-                "Задача не указана"
-
-        };
-
-    }
 
 
 
@@ -117,6 +198,30 @@ export async function executeJessicaTask(
 
 
 
+
+    /*
+     * =====================================================
+     * INPUT
+     * =====================================================
+     */
+
+
+    if (
+        !normalizedTask
+    ) {
+
+        return buildInputError(
+            executionTrace
+        );
+
+    }
+
+
+
+
+
+
+
     /*
      * =====================================================
      * DECOMPOSE
@@ -125,6 +230,7 @@ export async function executeJessicaTask(
 
 
     let decompositionResult;
+
 
 
     try {
@@ -140,25 +246,18 @@ export async function executeJessicaTask(
 
 
         console.error(
-            "Jessica Decomposer error:",
+            "Jessica decomposer error:",
             error
         );
 
 
-        return {
-
-            success:false,
-
-            stage:"decomposer",
-
-            text:
-                "Jessica не смогла разобрать задачу",
-
+        return buildDecomposerError(
             executionTrace
+        );
 
-        };
 
     }
+
 
 
 
@@ -168,21 +267,19 @@ export async function executeJessicaTask(
     ) {
 
 
-        return {
+        return buildDecomposerError(
 
-            success:false,
+            executionTrace,
 
-            stage:"decomposer",
+            decompositionResult?.text
 
-            text:
-                decompositionResult?.text ||
-                "Jessica не смогла разобрать задачу",
+        );
 
-            executionTrace
-
-        };
 
     }
+
+
+
 
 
 
@@ -202,30 +299,41 @@ export async function executeJessicaTask(
 
 
 
+
+
+
     if (
         subtasks.length === 0
     ) {
 
-        return {
 
-            success:false,
+        return buildDecomposerError(
 
-            stage:"decomposer",
+            executionTrace,
 
-            text:
-                "Jessica не обнаружила задач",
+            "Jessica не обнаружила задач для выполнения"
 
-            executionTrace
+        );
 
-        };
 
     }
 
 
 
+
+
+
+
     console.log(
-        `Jessica decomposition: ${subtasks.length}`
+
+        `Jessica decomposition: ${subtasks.length} subtask(s)`
+
     );
+
+
+
+
+
 
 
 
@@ -242,17 +350,78 @@ export async function executeJessicaTask(
     ) {
 
 
-        const result =
-            await executeSubtask(
-                subtasks[0]
+        let result;
+
+
+
+        try {
+
+
+            result =
+                await executeSubtask(
+                    subtasks[0]
+                );
+
+
+        } catch(error) {
+
+
+            console.error(
+
+                "Jessica single subtask error:",
+
+                error
+
             );
 
 
 
+            result = {
+
+
+                id:
+                    subtasks[0]?.id || null,
+
+
+                status:
+                    "FAILED",
+
+
+                success:false,
+
+
+                stage:
+                    "subtask",
+
+
+                result:
+                    "Ошибка выполнения подзадачи"
+
+
+            };
+
+
+        }
+
+
+
+
+
         updateTraceFromResult(
+
             executionTrace,
+
             result
+
         );
+
+
+
+        finishExecutionTrace(
+            executionTrace
+        );
+
+
 
 
 
@@ -266,7 +435,14 @@ export async function executeJessicaTask(
 
         );
 
+
+
     }
+
+
+
+
+
 
 
 
@@ -278,42 +454,132 @@ export async function executeJessicaTask(
      */
 
 
-    const subtaskRunResult =
-        await runSubtasks(
-            decomposition
+    let subtaskRunResult;
+
+
+
+    try {
+
+
+        subtaskRunResult =
+            await runSubtasks(
+                decomposition
+            );
+
+
+
+    } catch(error) {
+
+
+        console.error(
+
+            "Jessica complex execution error:",
+
+            error
+
         );
 
 
 
-    executionTrace.subtasks =
-        subtaskRunResult.results || [];
+        finishExecutionTrace(
+            executionTrace
+        );
 
 
 
-    executionTrace.completed =
-        subtaskRunResult.completed > 0;
+        return {
+
+
+            success:false,
+
+
+            stage:
+                "execution",
+
+
+            text:
+                "Ошибка выполнения сложной задачи",
+
+
+            executionTrace
+
+
+        };
+
+
+    }
+
+
+
+
+
+
+
+    /*
+     * TRACE UPDATE
+     */
+
+
+    updateTraceFromSummary(
+
+        executionTrace,
+
+        subtaskRunResult
+
+    );
+
+
+
+    finishExecutionTrace(
+        executionTrace
+    );
+
+
+
+
+
 
 
 
     console.log(
+
         "Jessica complex result:",
+
         {
+
 
             total:
                 subtaskRunResult.total,
 
+
             completed:
                 subtaskRunResult.completed,
+
 
             failed:
                 subtaskRunResult.failed,
 
+
             clarification:
                 subtaskRunResult.needsClarification
 
+
         }
+
     );
 
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * RESPONSE
+     * =====================================================
+     */
 
 
     return await buildComplexTaskResponse(
@@ -327,5 +593,7 @@ export async function executeJessicaTask(
         executionTrace
 
     );
+
+
 
 }
