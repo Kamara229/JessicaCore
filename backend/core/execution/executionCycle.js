@@ -24,36 +24,39 @@ import {
 
 
 
-
-
 /*
  * =========================================================
  * JESSICA EXECUTION CYCLE
  * =========================================================
  *
- * Оркестратор выполнения плана.
+ * Центральный цикл выполнения плана.
  *
  *
  * Flow:
  *
  * Plan
- *  ↓
+ *   ↓
  * Execution Step
- *  ↓
+ *   ↓
+ * Success
+ *
+ * или
+ *
+ * Failure
+ *   ↓
  * Failure Handler
- *  ↓
+ *   ↓
  * Retry / Replan
- *  ↓
- * Result
  *
  *
- * НЕ содержит:
+ * Этот файл НЕ содержит:
  *
- * - Runner logic
- * - Composer logic
- * - Validator logic
- * - Retry rules
- * - Replan logic
+ * - TaskRunner;
+ * - Answer Composer;
+ * - Validator;
+ * - Retry logic;
+ * - Replan logic;
+ * - Terminal logic.
  *
  * =========================================================
  */
@@ -74,6 +77,13 @@ export async function executePlanCycle(
 
 
 
+    /*
+     * =====================================================
+     * CONTEXT
+     * =====================================================
+     */
+
+
     const context =
         createExecutionContext({
 
@@ -90,6 +100,7 @@ export async function executePlanCycle(
 
 
 
+
     let lastFailure =
         null;
 
@@ -97,17 +108,29 @@ export async function executePlanCycle(
 
 
 
+
+    /*
+     * =====================================================
+     * EXECUTION LOOP
+     * =====================================================
+     */
+
+
     for (
+
         let attempt = 1;
 
         attempt <= MAX_EXECUTION_ATTEMPTS;
 
         attempt++
+
     ) {
+
 
 
         context.attempt =
             attempt;
+
 
 
 
@@ -121,26 +144,35 @@ export async function executePlanCycle(
 
 
 
+
         /*
-         * Один полный шаг:
-         *
-         * Runner
-         * Composer
-         * Validator
+         * =================================================
+         * STEP
+         * =================================================
          */
 
 
         const step =
             await executeExecutionStep(
+
                 context
+
             );
 
 
 
 
 
+
+        /*
+         * =================================================
+         * SUCCESS
+         * =================================================
+         */
+
+
         if (
-            step.success
+            step.success === true
         ) {
 
 
@@ -153,8 +185,11 @@ export async function executePlanCycle(
 
 
 
+
         /*
-         * Ошибка выполнения
+         * =================================================
+         * FAILURE
+         * =================================================
          */
 
 
@@ -165,12 +200,50 @@ export async function executePlanCycle(
 
 
 
+
+        /*
+         * =================================================
+         * ATTEMPTS LIMIT
+         * =================================================
+         */
+
+
+        if (
+
+            attempt >= MAX_EXECUTION_ATTEMPTS
+
+        ) {
+
+
+            return buildTerminalResult(
+
+                context,
+
+                lastFailure
+
+            );
+
+
+        }
+
+
+
+
+
+
+        /*
+         * =================================================
+         * HANDLE FAILURE
+         * =================================================
+         */
+
+
         const failureResult =
             await handleExecutionFailure(
 
                 context,
 
-                step.failure
+                lastFailure
 
             );
 
@@ -178,8 +251,18 @@ export async function executePlanCycle(
 
 
 
+
+        /*
+         * =================================================
+         * FINAL RESULT
+         * =================================================
+         */
+
+
         if (
-            failureResult.finished
+
+            failureResult.finished === true
+
         ) {
 
 
@@ -190,14 +273,25 @@ export async function executePlanCycle(
 
 
 
+
+        /*
+         * иначе продолжаем цикл
+         *
+         * с новым планом после replan
+         */
+
     }
 
 
 
 
 
+
+
     /*
-     * Все попытки закончились
+     * =====================================================
+     * FALLBACK
+     * =====================================================
      */
 
 
@@ -210,8 +304,10 @@ export async function executePlanCycle(
             stage:
                 "execution",
 
+
             failureType:
                 "execution-limit",
+
 
             reason:
                 "Исчерпан лимит выполнения"
