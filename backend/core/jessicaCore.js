@@ -31,47 +31,46 @@ import {
  * JESSICA CORE
  * =========================================================
  *
- * Центральный исполнитель Jessica.
+ * Центральный координатор Jessica.
  *
  *
- * Новый цикл:
+ * Flow:
  *
  * Task
- *   ↓
- * Task Decomposer
- *   ↓
+ *  ↓
+ * Decomposer
+ *  ↓
  * Subtasks
- *   ↓
+ *  ↓
  * Subtask Runner
- *   ↓
- * Planner
- *   ↓
- * Tools
- *   ↓
- * Validator
- *   ↓
+ *  ↓
  * Response Builder
  *
  *
- * Этот файл НЕ содержит:
+ * Ответственность:
  *
- * - формирование ответа;
+ * - принять задачу;
+ * - создать execution trace;
+ * - запустить декомпозицию;
+ * - выбрать single / complex flow;
+ * - вернуть результат.
+ *
+ *
+ * НЕ содержит:
+ *
+ * - Planner;
+ * - Experience;
+ * - Tools;
+ * - Validation;
  * - Answer Composer;
  * - Complex Composer;
  * - Learning;
- * - Experience;
- * - Storage.
+ * - Storage;
+ * - бизнес-логику результата.
  *
  * =========================================================
  */
 
-
-
-/*
- * =========================================================
- * EXECUTE JESSICA TASK
- * =========================================================
- */
 
 
 export async function executeJessicaTask(
@@ -90,11 +89,9 @@ export async function executeJessicaTask(
 
         return {
 
-            success:
-                false,
+            success:false,
 
-            stage:
-                "input",
+            stage:"input",
 
             text:
                 "Задача не указана"
@@ -107,12 +104,7 @@ export async function executeJessicaTask(
 
     /*
      * =====================================================
-     * EXECUTION TRACE
-     * =====================================================
-     *
-     * Подготавливаем контекст
-     * для будущего Learning.
-     *
+     * TRACE
      * =====================================================
      */
 
@@ -124,9 +116,10 @@ export async function executeJessicaTask(
 
 
 
+
     /*
      * =====================================================
-     * 1. DECOMPOSE
+     * DECOMPOSE
      * =====================================================
      */
 
@@ -143,29 +136,30 @@ export async function executeJessicaTask(
             );
 
 
-    } catch (error) {
+    } catch(error) {
 
 
         console.error(
-            "Jessica Decomposer exception:",
+            "Jessica Decomposer error:",
             error
         );
 
 
         return {
 
-            success:
-                false,
+            success:false,
 
-            stage:
-                "decomposer",
+            stage:"decomposer",
 
             text:
-                "Jessica не смогла разобрать задачу"
+                "Jessica не смогла разобрать задачу",
+
+            executionTrace
 
         };
 
     }
+
 
 
 
@@ -173,21 +167,23 @@ export async function executeJessicaTask(
         !decompositionResult?.success
     ) {
 
+
         return {
 
-            success:
-                false,
+            success:false,
 
-            stage:
-                "decomposer",
+            stage:"decomposer",
 
             text:
                 decompositionResult?.text ||
-                "Jessica не смогла разобрать задачу"
+                "Jessica не смогла разобрать задачу",
+
+            executionTrace
 
         };
 
     }
+
 
 
 
@@ -212,14 +208,14 @@ export async function executeJessicaTask(
 
         return {
 
-            success:
-                false,
+            success:false,
 
-            stage:
-                "decomposer",
+            stage:"decomposer",
 
             text:
-                "Jessica не обнаружила задач для выполнения"
+                "Jessica не обнаружила задач",
+
+            executionTrace
 
         };
 
@@ -228,21 +224,15 @@ export async function executeJessicaTask(
 
 
     console.log(
-        `Jessica decomposition: ${subtasks.length} subtask(s)`
+        `Jessica decomposition: ${subtasks.length}`
     );
 
-
-    console.log(
-        JSON.stringify(
-            decomposition
-        )
-    );
 
 
 
     /*
      * =====================================================
-     * 2. SINGLE TASK
+     * SINGLE TASK
      * =====================================================
      */
 
@@ -266,32 +256,24 @@ export async function executeJessicaTask(
 
 
 
-        const response =
-            buildSingleTaskResponse(
-                result,
-                decomposition
-            );
+        return buildSingleTaskResponse(
 
+            result,
 
+            decomposition,
 
-        response.executionTrace =
-            executionTrace;
+            executionTrace
 
-
-
-        return response;
+        );
 
     }
 
 
 
+
     /*
      * =====================================================
-     * 3. COMPLEX TASK
-     * =====================================================
-     *
-     * Каждая подзадача выполняется независимо.
-     *
+     * COMPLEX TASK
      * =====================================================
      */
 
@@ -313,18 +295,9 @@ export async function executeJessicaTask(
 
 
 
-    executionTrace.usedTools =
-        executionTrace.subtasks
-            .flatMap(
-                item =>
-                    item.usedTools || []
-            );
-
-
-
     console.log(
-        "Jessica complex task result:",
-        JSON.stringify({
+        "Jessica complex result:",
+        {
 
             total:
                 subtaskRunResult.total,
@@ -332,38 +305,27 @@ export async function executeJessicaTask(
             completed:
                 subtaskRunResult.completed,
 
-            needsClarification:
-                subtaskRunResult.needsClarification,
-
             failed:
-                subtaskRunResult.failed
+                subtaskRunResult.failed,
 
-        })
+            clarification:
+                subtaskRunResult.needsClarification
+
+        }
     );
 
 
 
-    /*
-     * =====================================================
-     * 4. COMPLEX RESPONSE
-     * =====================================================
-     */
+    return await buildComplexTaskResponse(
 
+        normalizedTask,
 
-    const response =
-        await buildComplexTaskResponse(
-            normalizedTask,
-            decomposition,
-            subtaskRunResult
-        );
+        decomposition,
 
+        subtaskRunResult,
 
+        executionTrace
 
-    response.executionTrace =
-        executionTrace;
-
-
-
-    return response;
+    );
 
 }
