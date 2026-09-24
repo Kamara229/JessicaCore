@@ -3,27 +3,25 @@
  * JESSICA SUBTASK SUMMARY
  * =========================================================
  *
- * Подсчитывает итоговую статистику
- * по результатам выполнения подзадач.
+ * Аггрегация результатов выполнения подзадач.
  *
  *
- * Этот модуль НЕ:
+ * Отвечает только за:
  *
- * - выполняет подзадачи;
- * - вызывает Planner;
+ * - подсчёт статистики;
+ * - сохранение результатов.
+ *
+ *
+ * НЕ:
+ *
+ * - выполняет задачи;
+ * - вызывает AI;
  * - работает с Experience;
- * - вызывает инструменты;
- * - формирует пользовательский ответ.
+ * - формирует ответ.
  *
  * =========================================================
  */
 
-
-/*
- * =========================================================
- * BUILD SUMMARY
- * =========================================================
- */
 
 
 export function buildSubtaskSummary(
@@ -32,81 +30,124 @@ export function buildSubtaskSummary(
 
 
     const safeResults =
-        Array.isArray(
-            results
-        )
+        Array.isArray(results)
             ? results
             : [];
 
 
-    /*
-     * =====================================================
-     * COMPLETED
-     * =====================================================
-     */
 
+    const summary = {
 
-    const completed =
-        safeResults.filter(
-            item =>
-                item?.status ===
-                "COMPLETED"
-        ).length;
-
-
-    /*
-     * =====================================================
-     * NEEDS CLARIFICATION
-     * =====================================================
-     */
-
-
-    const needsClarification =
-        safeResults.filter(
-            item =>
-                item?.status ===
-                "NEEDS_CLARIFICATION"
-        ).length;
-
-
-    /*
-     * =====================================================
-     * FAILED
-     * =====================================================
-     */
-
-
-    const failed =
-        safeResults.filter(
-            item =>
-                item?.status ===
-                "FAILED"
-        ).length;
-
-
-    /*
-     * =====================================================
-     * RESULT
-     * =====================================================
-     */
-
-
-    return {
-
-        success:
-            completed > 0,
 
         total:
             safeResults.length,
 
-        completed,
 
-        needsClarification,
 
-        failed,
+        completed:
+            0,
+
+
+
+        needsClarification:
+            0,
+
+
+
+        failed:
+            0,
+
+
+
+        unknown:
+            0
+
+
+    };
+
+
+
+    for (
+        const item
+        of safeResults
+    ) {
+
+
+        switch(
+            item?.status
+        ) {
+
+
+            case "COMPLETED":
+
+                summary.completed++;
+
+                break;
+
+
+
+            case "NEEDS_CLARIFICATION":
+
+                summary.needsClarification++;
+
+                break;
+
+
+
+            case "FAILED":
+
+                summary.failed++;
+
+                break;
+
+
+
+            default:
+
+                summary.unknown++;
+
+                break;
+
+
+        }
+
+
+    }
+
+
+
+    return {
+
+
+        /*
+         * Есть ли хотя бы один
+         * полезный результат
+         */
+
+
+        success:
+            summary.completed > 0,
+
+
+
+        /*
+         * Полная статистика
+         */
+
+
+        ...summary,
+
+
+
+        /*
+         * Сырые результаты
+         */
+
 
         results:
             safeResults
+
+
 
     };
 
