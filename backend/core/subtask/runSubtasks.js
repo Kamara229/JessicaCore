@@ -2,9 +2,11 @@ import {
     executeSubtask
 } from "./executeSubtask.js";
 
+
 import {
     buildSubtaskSummary
 } from "./subtaskSummary.js";
+
 
 
 /*
@@ -12,10 +14,10 @@ import {
  * JESSICA RUN SUBTASKS
  * =========================================================
  *
- * Последовательно выполняет несколько подзадач.
+ * Последовательный запуск нескольких подзадач.
  *
  *
- * Рабочая цепочка:
+ * Flow:
  *
  * decomposition
  *      ↓
@@ -25,19 +27,81 @@ import {
  *      ↓
  * results[]
  *      ↓
- * buildSubtaskSummary()
+ * summary
  *
  *
- * Этот модуль НЕ:
+ * НЕ отвечает за:
  *
- * - вызывает Planner напрямую;
- * - работает с Experience напрямую;
- * - выполняет инструменты;
- * - считает статистику самостоятельно;
- * - формирует финальный ответ пользователю.
+ * - Planner;
+ * - Experience;
+ * - Tools;
+ * - Learning;
+ * - финальный ответ.
  *
  * =========================================================
  */
+
+
+
+/*
+ * =========================================================
+ * FALLBACK FAILED RESULT
+ * =========================================================
+ */
+
+
+function buildUnhandledErrorResult(
+    subtask,
+    error
+) {
+
+
+    return {
+
+        id:
+            subtask?.id ?? null,
+
+
+        text:
+            typeof subtask?.text === "string"
+                ? subtask.text
+                : "",
+
+
+        success:
+            false,
+
+
+        status:
+            "FAILED",
+
+
+        stage:
+            "subtask",
+
+
+        result:
+            "Непредвиденная ошибка выполнения подзадачи",
+
+
+
+        error:
+            error?.message ||
+            "unknown error",
+
+
+
+        executionMeta: {
+
+            failedBeforeExecution:
+                true
+
+        }
+
+    };
+
+}
+
 
 
 /*
@@ -52,13 +116,6 @@ export async function runSubtasks(
 ) {
 
 
-    /*
-     * =====================================================
-     * SUBTASKS
-     * =====================================================
-     */
-
-
     const subtasks =
         Array.isArray(
             decomposition?.subtasks
@@ -67,9 +124,10 @@ export async function runSubtasks(
             : [];
 
 
+
     /*
      * =====================================================
-     * NO SUBTASKS
+     * EMPTY
      * =====================================================
      */
 
@@ -85,15 +143,10 @@ export async function runSubtasks(
     }
 
 
-    /*
-     * =====================================================
-     * RESULTS
-     * =====================================================
-     */
-
 
     const results =
         [];
+
 
 
     /*
@@ -101,17 +154,14 @@ export async function runSubtasks(
      * SEQUENTIAL EXECUTION
      * =====================================================
      *
-     * Пока подзадачи выполняются последовательно.
+     * Пока оставляем последовательный запуск.
      *
      * Причины:
      *
-     * - меньше нагрузка на AI API;
-     * - проще контролировать rate limits;
-     * - проще анализировать логи;
-     * - retry одной подзадачи
-     *   не мешает другим;
-     * - Experience каждой подзадачи
-     *   определяется независимо.
+     * - контроль API лимитов;
+     * - независимый Experience;
+     * - проще анализировать ошибки;
+     * - стабильнее для Learning.
      *
      * =====================================================
      */
@@ -132,14 +182,8 @@ export async function runSubtasks(
         );
 
 
+
         try {
-
-
-            /*
-             * =================================================
-             * EXECUTE
-             * =================================================
-             */
 
 
             const result =
@@ -153,19 +197,8 @@ export async function runSubtasks(
             );
 
 
+
         } catch (error) {
-
-
-            /*
-             * =================================================
-             * UNHANDLED ERROR
-             * =================================================
-             *
-             * Ошибка одной подзадачи
-             * не должна останавливать остальные.
-             *
-             * =================================================
-             */
 
 
             console.error(
@@ -177,30 +210,15 @@ export async function runSubtasks(
             );
 
 
-            results.push({
 
-                id:
-                    subtask?.id ?? null,
+            results.push(
 
-                text:
-                    typeof subtask?.text === "string"
-                        ? subtask.text
-                        : "",
+                buildUnhandledErrorResult(
+                    subtask,
+                    error
+                )
 
-                status:
-                    "FAILED",
-
-                success:
-                    false,
-
-                stage:
-                    "subtask",
-
-                result:
-                    "Непредвиденная ошибка выполнения подзадачи"
-
-            });
-
+            );
 
         }
 
@@ -208,16 +226,60 @@ export async function runSubtasks(
     }
 
 
+
     /*
      * =====================================================
      * SUMMARY
      * =====================================================
+     *
+     * buildSubtaskSummary отвечает
+     * только за статистику.
+     *
+     * =====================================================
      */
 
 
-    return buildSubtaskSummary(
-        results
-    );
+    const summary =
+        buildSubtaskSummary(
+            results
+        );
+
+
+
+    /*
+     * =====================================================
+     * TRACE DATA
+     * =====================================================
+     *
+     * Передаём результаты выше.
+     *
+     * Jessica Core уже решает,
+     * как использовать trace.
+     *
+     * =====================================================
+     */
+
+
+    return {
+
+        ...summary,
+
+
+        results,
+
+
+        executionTraces:
+
+            results
+                .map(
+                    item =>
+                        item.executionTrace || null
+                )
+                .filter(
+                    Boolean
+                )
+
+    };
 
 
 }
