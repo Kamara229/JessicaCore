@@ -1,34 +1,55 @@
 import OpenAI from "openai";
 
 
+
 /*
  * =========================================================
  * JESSICA COMPLEX ANSWER COMPOSER
  * =========================================================
  *
- * Собирает результаты нескольких подзадач
- * в единый ответ пользователю.
+ * Объединяет результаты нескольких подзадач
+ * в единый пользовательский текст.
  *
- * Важно:
  *
- * - успешные ответы сохраняются;
- * - ошибки не скрываются;
- * - уточнения показываются отдельно;
- * - Composer не должен выдумывать
- *   отсутствующие результаты.
+ * Ответственность:
+ *
+ * - структурировать готовые результаты;
+ * - сохранить факты;
+ * - показать ошибки и уточнения.
+ *
+ *
+ * НЕ:
+ *
+ * - решает задачи;
+ * - вызывает Tools;
+ * - меняет результаты;
+ * - определяет success.
+ *
+ * =========================================================
  */
+
+
+
 
 
 const groq =
     process.env.GROQ_API_KEY
         ? new OpenAI({
+
             apiKey:
                 process.env.GROQ_API_KEY,
 
             baseURL:
                 "https://api.groq.com/openai/v1"
+
         })
         : null;
+
+
+
+
+
+
 
 
 /*
@@ -38,74 +59,69 @@ const groq =
  */
 
 
-function formatSubtaskResults(
+function formatResults(
     results
 ) {
+
 
     if (
         !Array.isArray(results) ||
         results.length === 0
     ) {
 
-        return "Нет результатов подзадач.";
+        return "Результаты отсутствуют.";
 
     }
 
 
+
     return results
         .map(
+
             item => {
 
-                return JSON.stringify(
-                    {
-                        id:
-                            item.id,
 
-                        task:
-                            item.text,
+                return (
 
-                        status:
-                            item.status,
+                    `Подзадача ${item.id ?? "?"}\n` +
 
-                        success:
-                            item.success,
+                    `Статус: ${item.status}\n` +
 
-                        result:
-                            item.result,
+                    `Результат:\n${item.result || ""}`
 
-                        needsClarification:
-                            item.needsClarification === true,
-
-                        usedTools:
-                            item.usedTools || []
-                    },
-                    null,
-                    2
                 );
 
+
             }
+
         )
         .join(
-            "\n\n"
+
+            "\n\n---\n\n"
+
         );
+
 
 }
 
 
+
+
+
+
+
+
 /*
  * =========================================================
- * SIMPLE FALLBACK
+ * FALLBACK
  * =========================================================
- *
- * Если Groq недоступен,
- * Jessica всё равно должна показать
- * пользователю результаты.
  */
 
 
-function buildFallbackAnswer(
+function fallbackAnswer(
     subtaskRunResult
 ) {
+
 
     const results =
         Array.isArray(
@@ -115,68 +131,78 @@ function buildFallbackAnswer(
             : [];
 
 
+
     if (
         results.length === 0
     ) {
 
-        return (
-            "Не удалось получить результаты " +
-            "по составной задаче."
-        );
+        return "Нет результатов выполнения.";
 
     }
 
 
+
     return results
         .map(
+
             item => {
 
-                const number =
-                    item.id ?? "?";
-
 
                 if (
-                    item.status ===
-                    "COMPLETED"
+                    item.status === "COMPLETED"
                 ) {
 
+
                     return (
-                        `${number}) ${item.result}`
+
+                        `${item.id}) ${item.result}`
+
                     );
 
                 }
 
 
+
                 if (
-                    item.status ===
-                    "NEEDS_CLARIFICATION"
+                    item.status === "NEEDS_CLARIFICATION"
                 ) {
 
+
                     return (
-                        `${number}) Требуется уточнение: ` +
-                        `${item.result}`
+
+                        `${item.id}) Требуется уточнение: ${item.result}`
+
                     );
 
                 }
+
 
 
                 return (
-                    `${number}) Не удалось выполнить: ` +
-                    `${item.result}`
+
+                    `${item.id}) Не выполнено: ${item.result}`
+
                 );
 
+
             }
+
         )
-        .join(
-            "\n\n"
-        );
+        .join("\n\n");
+
 
 }
 
 
+
+
+
+
+
+
 /*
  * =========================================================
- * COMPOSE COMPLEX ANSWER
+ * COMPOSE
  * =========================================================
  */
 
@@ -187,6 +213,7 @@ export async function composeComplexAnswer(
     subtaskRunResult
 ) {
 
+
     const results =
         Array.isArray(
             subtaskRunResult?.results
@@ -195,197 +222,231 @@ export async function composeComplexAnswer(
             : [];
 
 
+
+
+
     /*
-     * Если Decomposer создал одну задачу,
-     * этот Composer всё равно может
-     * корректно вернуть её результат.
+     * Один результат
      */
+
+
     if (
-        results.length === 1
+        results.length === 1 &&
+        results[0]?.status === "COMPLETED"
     ) {
 
-        const only =
-            results[0];
+
+        return {
+
+            text:
+                results[0].result || "",
 
 
-        if (
-            only.status ===
-            "COMPLETED"
-        ) {
+            source:
+                "single-result"
 
-            return {
+        };
 
-                success: true,
-
-                text:
-                    only.result,
-
-                source:
-                    "single-subtask"
-
-            };
-
-        }
 
     }
 
 
-    if (!groq) {
+
+
+
+
+
+    /*
+     * Нет AI
+     */
+
+
+    if (
+        !groq
+    ) {
+
 
         return {
 
-            success: true,
-
             text:
-                buildFallbackAnswer(
+                fallbackAnswer(
                     subtaskRunResult
                 ),
+
 
             source:
                 "fallback"
 
         };
 
+
     }
+
+
+
+
+
+
 
 
     try {
 
-        const formattedResults =
-            formatSubtaskResults(
-                results
-            );
 
 
         const response =
             await groq.responses.create({
 
+
                 model:
                     "openai/gpt-oss-20b",
 
+
+
                 instructions:
-                    (
-                        "Ты — Complex Answer Composer системы Jessica Core. " +
 
-                        "Пользователь отправил составную задачу, " +
-                        "которая была разбита на несколько независимых подзадач. " +
+                    `
+Ты являешься модулем сборки ответа Jessica Core.
 
-                        "Твоя задача — собрать результаты в один понятный итоговый ответ. " +
+Тебе переданы уже готовые результаты подзадач.
 
-                        "НЕ решай подзадачи заново. " +
-                        "НЕ придумывай отсутствующие данные. " +
-                        "НЕ изменяй факты, числа, даты, время, URL и другие точные данные, " +
-                        "которые уже содержатся в результатах. " +
+Твои правила:
 
-                        "Если подзадача COMPLETED — покажи её результат. " +
+1. Не решай задачи заново.
+2. Не используй внешние знания.
+3. Не добавляй отсутствующие данные.
+4. Не исправляй URL, email, телефоны, даты и числа.
+5. Не меняй смысл результатов.
+6. COMPLETED показывай как выполненный результат.
+7. NEEDS_CLARIFICATION показывай как требующий уточнения.
+8. FAILED показывай как не выполненный пункт.
+9. Не скрывай ошибки.
+10. Не показывай внутреннюю архитектуру Jessica.
 
-                        "Если подзадача NEEDS_CLARIFICATION — прямо укажи, " +
-                        "что для этого пункта требуется уточнение пользователя. " +
+Ответ должен быть понятным пользователю.
+Язык ответа — язык пользователя.
+`,
 
-                        "Если подзадача FAILED — честно укажи, что её выполнить не удалось. " +
 
-                        "Не скрывай неудачные пункты. " +
-
-                        "Не позволяй ошибке одной подзадачи делать весь ответ неуспешным. " +
-
-                        "Сохраняй исходную нумерацию подзадач, если она есть. " +
-
-                        "Если вопросов много, отвечай структурированно и компактно. " +
-
-                        "Не используй markdown-таблицы с символами |. " +
-
-                        "Не показывай внутренние JSON, Planner, TaskRunner, Tool Registry " +
-                        "или техническую архитектуру Jessica, " +
-                        "если пользователь сам об этом не спрашивает. " +
-
-                        "Отвечай на языке пользователя."
-                    ),
 
                 input:
-                    (
-                        `ИСХОДНАЯ КОМПЛЕКСНАЯ ЗАДАЧА:\n` +
-                        `${originalTask}\n\n` +
 
-                        `ДЕКОМПОЗИЦИЯ:\n` +
-                        `${JSON.stringify(decomposition, null, 2)}\n\n` +
+                    `
+Исходная задача:
 
-                        `РЕЗУЛЬТАТЫ ПОДЗАДАЧ:\n` +
-                        `${formattedResults}\n\n` +
+${originalTask}
 
-                        `СВОДКА:\n` +
-                        `Всего: ${subtaskRunResult?.total || 0}\n` +
-                        `Выполнено: ${subtaskRunResult?.completed || 0}\n` +
-                        `Требуют уточнения: ${subtaskRunResult?.needsClarification || 0}\n` +
-                        `Не выполнено: ${subtaskRunResult?.failed || 0}`
-                    ),
 
-                reasoning: {
-                    effort:
-                        "medium"
-                }
+Результаты подзадач:
+
+${formatResults(results)}
+
+
+Статистика:
+
+Всего:
+${subtaskRunResult.total || 0}
+
+Выполнено:
+${subtaskRunResult.completed || 0}
+
+Уточнение:
+${subtaskRunResult.needsClarification || 0}
+
+Ошибки:
+${subtaskRunResult.failed || 0}
+`
+
+
 
             });
 
 
-        const answer =
+
+
+
+
+        const text =
             response.output_text
                 ?.trim();
 
 
-        if (!answer) {
+
+
+
+        if (
+            !text
+        ) {
+
 
             return {
 
-                success: true,
-
                 text:
-                    buildFallbackAnswer(
+                    fallbackAnswer(
                         subtaskRunResult
                     ),
+
 
                 source:
                     "fallback"
 
             };
 
+
         }
+
+
+
+
 
 
         return {
 
-            success: true,
 
-            text:
-                answer,
+            text,
+
 
             source:
                 "groq"
 
+
         };
 
 
-    } catch (error) {
+
+
+
+    } catch(error) {
+
+
 
         console.error(
-            "Complex Answer Composer error:",
+
+            "Jessica Complex Composer error:",
+
             error
+
         );
+
 
 
         return {
 
-            success: true,
 
             text:
-                buildFallbackAnswer(
+                fallbackAnswer(
                     subtaskRunResult
                 ),
+
+
 
             source:
                 "fallback"
 
+
         };
 
+
     }
+
 
 }
