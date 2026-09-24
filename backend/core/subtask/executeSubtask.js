@@ -2,13 +2,16 @@ import {
     createPlan
 } from "../planner.js";
 
+
 import {
     executePlanCycle
 } from "../execution/executionCycle.js";
 
+
 import {
     resolveExperience
 } from "../../experience/experienceCore.js";
+
 
 
 /*
@@ -16,7 +19,7 @@ import {
  * JESSICA EXECUTE SUBTASK
  * =========================================================
  *
- * Выполняет одну подзадачу.
+ * Выполнение одной подзадачи.
  *
  *
  * Flow:
@@ -25,7 +28,7 @@ import {
  *    ↓
  * Experience
  *    ↓
- * PlanningContext
+ * Planning Context
  *    ↓
  * Planner
  *    ↓
@@ -36,23 +39,79 @@ import {
  *
  * Ответственность:
  *
- * - получить текст подзадачи;
- * - найти подходящий Experience;
- * - получить PlanningContext;
- * - создать первоначальный план;
- * - передать план и контекст в Execution Cycle.
+ * - найти Experience;
+ * - создать план;
+ * - запустить Execution Cycle;
+ * - вернуть полный результат.
  *
  *
  * НЕ отвечает за:
  *
- * - выполнение инструментов;
- * - retry;
- * - replan;
- * - validation;
- * - Learning.
+ * - выполнение нескольких задач;
+ * - общий ответ;
+ * - Learning;
+ * - Storage.
  *
  * =========================================================
  */
+
+
+
+/*
+ * =========================================================
+ * FAILED RESULT BUILDER
+ * =========================================================
+ */
+
+
+function buildFailedResult({
+
+    subtaskId,
+
+    taskText,
+
+    stage,
+
+    message,
+
+    experience = null,
+
+    plan = null,
+
+    planningContext = null
+
+}) {
+
+
+    return {
+
+        id:
+            subtaskId,
+
+        text:
+            taskText,
+
+        success:
+            false,
+
+        status:
+            "FAILED",
+
+        stage,
+
+        result:
+            message,
+
+        experience,
+
+        plan,
+
+        planningContext
+
+    };
+
+}
+
 
 
 /*
@@ -84,29 +143,23 @@ export async function executeSubtask(
             : "";
 
 
+
     if (!taskText) {
 
-        return {
 
-            id:
-                subtaskId,
+        return buildFailedResult({
 
-            text:
-                taskText,
+            subtaskId,
 
-            success:
-                false,
-
-            status:
-                "FAILED",
+            taskText,
 
             stage:
                 "input",
 
-            result:
+            message:
                 "Подзадача не содержит текста"
 
-        };
+        });
 
     }
 
@@ -157,13 +210,6 @@ export async function executeSubtask(
 
 
 
-    /*
-     * =====================================================
-     * 2. INITIAL PLANNING CONTEXT
-     * =====================================================
-     */
-
-
     const initialPlanningContext =
         experienceResult?.planningContext &&
         typeof experienceResult.planningContext === "object"
@@ -174,16 +220,10 @@ export async function executeSubtask(
 
 
 
-    /*
-     * =====================================================
-     * EXPERIENCE LOG
-     * =====================================================
-     */
-
-
     if (
         experienceResult?.found === true
     ) {
+
 
         console.log(
             `Subtask ${subtaskId} Experience found:`,
@@ -203,25 +243,29 @@ export async function executeSubtask(
 
                 matchConfidence:
                     Number(
-                        experienceResult?.confidence || 0
+                        experienceResult.confidence || 0
                     )
 
             }
         );
 
+
     } else {
+
 
         console.log(
             `Subtask ${subtaskId}: Experience not found`
         );
 
+
     }
+
 
 
 
     /*
      * =====================================================
-     * 3. INITIAL PLAN
+     * 2. CREATE PLAN
      * =====================================================
      */
 
@@ -251,27 +295,26 @@ export async function executeSubtask(
         );
 
 
-        return {
+        return buildFailedResult({
 
-            id:
-                subtaskId,
+            subtaskId,
 
-            text:
-                taskText,
-
-            success:
-                false,
-
-            status:
-                "FAILED",
+            taskText,
 
             stage:
                 "planner",
 
-            result:
-                "Ошибка создания плана"
+            message:
+                "Ошибка создания плана",
 
-        };
+            experience:
+                experienceResult,
+
+            planningContext:
+                initialPlanningContext
+
+        });
+
 
     }
 
@@ -282,28 +325,28 @@ export async function executeSubtask(
         !planResult?.plan
     ) {
 
-        return {
 
-            id:
-                subtaskId,
+        return buildFailedResult({
 
-            text:
-                taskText,
+            subtaskId,
 
-            success:
-                false,
-
-            status:
-                "FAILED",
+            taskText,
 
             stage:
                 "planner",
 
-            result:
+            message:
                 planResult?.text ||
-                "План не создан"
+                "План не создан",
 
-        };
+            experience:
+                experienceResult,
+
+            planningContext:
+                initialPlanningContext
+
+        });
+
 
     }
 
@@ -311,16 +354,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 4. EFFECTIVE PLANNING CONTEXT
-     * =====================================================
-     *
-     * Planner может нормализовать или дополнить контекст.
-     *
-     * Поэтому после createPlan используем context,
-     * возвращённый Planner.
-     *
-     * Если его нет — сохраняем первоначальный.
-     *
+     * 3. EFFECTIVE CONTEXT
      * =====================================================
      */
 
@@ -335,9 +369,10 @@ export async function executeSubtask(
 
 
 
+
     /*
      * =====================================================
-     * 5. EXECUTION CYCLE
+     * 4. EXECUTION CYCLE
      * =====================================================
      */
 
@@ -369,25 +404,20 @@ export async function executeSubtask(
         );
 
 
-        return {
+        return buildFailedResult({
 
-            id:
-                subtaskId,
+            subtaskId,
 
-            text:
-                taskText,
-
-            success:
-                false,
-
-            status:
-                "FAILED",
+            taskText,
 
             stage:
                 "execution",
 
-            result:
+            message:
                 "Ошибка цикла выполнения",
+
+            experience:
+                experienceResult,
 
             plan:
                 planResult.plan,
@@ -395,7 +425,8 @@ export async function executeSubtask(
             planningContext:
                 effectivePlanningContext
 
-        };
+        });
+
 
     }
 
@@ -403,7 +434,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 6. RESULT
+     * 5. FINAL RESULT
      * =====================================================
      */
 
@@ -413,15 +444,10 @@ export async function executeSubtask(
         id:
             subtaskId,
 
+
         text:
             taskText,
 
-
-        /*
-         * Краткая ссылка на использованный Experience.
-         *
-         * Полный Skill сюда не копируем.
-         */
 
 
         experience: {
@@ -429,17 +455,20 @@ export async function executeSubtask(
             found:
                 experienceResult?.found === true,
 
+
             skillId:
                 effectivePlanningContext
                     ?.experience
                     ?.skillId ||
                 null,
 
+
             version:
                 effectivePlanningContext
                     ?.experience
                     ?.version ||
                 null,
+
 
             matchConfidence:
                 Number(
@@ -449,9 +478,32 @@ export async function executeSubtask(
         },
 
 
-        /*
-         * Результат Execution Cycle.
-         */
+
+        executionMeta: {
+
+            experienceUsed:
+                experienceResult?.found === true,
+
+
+            plannerUsed:
+                true,
+
+
+            executionStarted:
+                true
+
+        },
+
+
+
+        plan:
+            planResult.plan,
+
+
+
+        planningContext:
+            effectivePlanningContext,
+
 
 
         ...executionResult
