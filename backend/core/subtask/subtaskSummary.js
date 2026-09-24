@@ -9,7 +9,7 @@
  * Отвечает только за:
  *
  * - подсчёт статистики;
- * - сохранение результатов.
+ * - возврат списка результатов.
  *
  *
  * НЕ:
@@ -17,11 +17,21 @@
  * - выполняет задачи;
  * - вызывает AI;
  * - работает с Experience;
+ * - работает с Tools;
  * - формирует ответ.
  *
  * =========================================================
  */
 
+
+
+
+
+/*
+ * =========================================================
+ * BUILD SUMMARY
+ * =========================================================
+ */
 
 
 export function buildSubtaskSummary(
@@ -31,8 +41,10 @@ export function buildSubtaskSummary(
 
     const safeResults =
         Array.isArray(results)
-            ? results
+            ? results.filter(Boolean)
             : [];
+
+
 
 
 
@@ -67,6 +79,11 @@ export function buildSubtaskSummary(
 
 
 
+
+
+
+
+
     for (
         const item
         of safeResults
@@ -74,11 +91,13 @@ export function buildSubtaskSummary(
 
 
         switch(
-            item?.status
+            item.status
         ) {
 
 
+
             case "COMPLETED":
+
 
                 summary.completed++;
 
@@ -86,7 +105,10 @@ export function buildSubtaskSummary(
 
 
 
+
+
             case "NEEDS_CLARIFICATION":
+
 
                 summary.needsClarification++;
 
@@ -94,7 +116,10 @@ export function buildSubtaskSummary(
 
 
 
+
+
             case "FAILED":
+
 
                 summary.failed++;
 
@@ -102,7 +127,10 @@ export function buildSubtaskSummary(
 
 
 
+
+
             default:
+
 
                 summary.unknown++;
 
@@ -116,12 +144,17 @@ export function buildSubtaskSummary(
 
 
 
+
+
+
+
+
+
     return {
 
 
         /*
-         * Есть ли хотя бы один
-         * полезный результат
+         * Есть ли полезный результат
          */
 
 
@@ -131,7 +164,17 @@ export function buildSubtaskSummary(
 
 
         /*
-         * Полная статистика
+         * Есть ли вообще результаты
+         */
+
+
+        hasResults:
+            summary.total > 0,
+
+
+
+        /*
+         * Статистика
          */
 
 
@@ -140,13 +183,12 @@ export function buildSubtaskSummary(
 
 
         /*
-         * Сырые результаты
+         * Результаты подзадач
          */
 
 
         results:
             safeResults
-
 
 
     };
