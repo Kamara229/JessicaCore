@@ -7,47 +7,46 @@
  * для одной подзадачи.
  *
  *
- * Отвечает только за:
+ * Ответственность:
  *
- * - success response;
- * - clarification response;
- * - failed response.
+ * - преобразовать результат выполнения;
+ * - сформировать API response;
+ * - прикрепить executionTrace.
  *
  *
  * НЕ содержит:
  *
- * - выполнение задачи;
+ * - выполнение;
  * - Planner;
  * - Tools;
  * - Validator;
- * - Learning;
- * - Experience.
- *
+ * - Experience;
+ * - Learning.
  *
  * =========================================================
  */
+
 
 
 /*
  * =========================================================
  * BUILD SINGLE TASK RESPONSE
  * =========================================================
- *
- * Преобразует результат executeSubtask()
- * в стандартный ответ Jessica Core.
- *
- * =========================================================
  */
 
 
 export function buildSingleTaskResponse(
     result,
-    decomposition
+    decomposition,
+    executionTrace = null
 ) {
 
 
+
     /*
-     * Защита от некорректного результата
+     * =====================================================
+     * INVALID RESULT
+     * =====================================================
      */
 
 
@@ -56,31 +55,43 @@ export function buildSingleTaskResponse(
         typeof result !== "object"
     ) {
 
+
         return {
 
-            success:
-                false,
+
+            success:false,
+
 
             text:
                 "Jessica получила некорректный результат выполнения.",
 
+
             engine:
                 "jessica-core",
+
 
             mode:
                 "single",
 
+
             stage:
-                "response"
+                "response",
+
+
+            executionTrace
+
 
         };
 
     }
 
 
+
+
+
     /*
      * =====================================================
-     * SUCCESS
+     * COMPLETED
      * =====================================================
      */
 
@@ -89,44 +100,69 @@ export function buildSingleTaskResponse(
         result.status === "COMPLETED"
     ) {
 
+
         return {
 
-            success:
-                true,
+
+            success:true,
+
 
             text:
-                result.result,
+                result.result || "",
+
 
             engine:
                 "jessica-core",
 
+
             mode:
                 "single",
+
 
             validated:
                 result.validated === true,
 
-            answerSource:
-                result.answerSource ||
-                "unknown",
 
-            usedTools:
-                result.usedTools ||
-                [],
+            answerSource:
+                result.answerSource || "unknown",
+
+
 
             decomposition,
 
+
+
             plan:
-                result.plan ||
-                null,
+                result.plan || null,
+
+
 
             toolResults:
-                result.toolResults ||
-                []
+                result.toolResults || [],
+
+
+
+            usedTools:
+                result.usedTools || [],
+
+
+
+            experience:
+                result.experience || null,
+
+
+
+            executionTrace
+
+
 
         };
 
     }
+
+
+
+
 
 
     /*
@@ -140,41 +176,63 @@ export function buildSingleTaskResponse(
         result.status === "NEEDS_CLARIFICATION"
     ) {
 
+
         return {
 
-            success:
-                false,
 
-            needsClarification:
-                true,
+            success:false,
+
+
+            needsClarification:true,
+
 
             text:
                 result.result ||
                 "Для выполнения задачи требуется уточнение.",
 
+
+
             engine:
                 "jessica-core",
+
+
 
             mode:
                 "single",
 
+
+
             stage:
-                result.stage ||
-                "subtask",
+                result.stage || "subtask",
+
+
 
             decomposition,
 
+
+
             plan:
-                result.plan ||
-                null,
+                result.plan || null,
+
+
 
             toolResults:
-                result.toolResults ||
-                []
+                result.toolResults || [],
+
+
+
+            executionTrace
+
+
 
         };
 
     }
+
+
+
+
+
 
 
     /*
@@ -186,35 +244,53 @@ export function buildSingleTaskResponse(
 
     return {
 
-        success:
-            false,
+
+        success:false,
+
 
         shouldRetry:
             result.shouldRetry === true,
+
+
 
         text:
             result.result ||
             "Jessica не смогла выполнить задачу.",
 
+
+
         engine:
             "jessica-core",
+
+
 
         mode:
             "single",
 
+
+
         stage:
-            result.stage ||
-            "subtask",
+            result.stage || "subtask",
+
+
 
         decomposition,
 
+
+
         plan:
-            result.plan ||
-            null,
+            result.plan || null,
+
+
 
         toolResults:
-            result.toolResults ||
-            []
+            result.toolResults || [],
+
+
+
+        executionTrace
+
+
 
     };
 
