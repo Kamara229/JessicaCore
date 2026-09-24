@@ -3,24 +3,24 @@
  * JESSICA COMPLEX TASK RESPONSE BUILDER
  * =========================================================
  *
- * Формирование ответа для сложной задачи.
+ * Формирование API ответа
+ * для сложной задачи.
  *
  *
  * Ответственность:
  *
  * - объединить результаты;
- * - определить статус ответа;
- * - подготовить API структуру.
+ * - определить состояние ответа;
+ * - вернуть структуру API.
  *
  *
- * НЕ содержит:
+ * НЕ:
  *
- * - выполнение;
- * - Planner;
- * - Tools;
- * - Validation;
- * - Experience;
- * - Learning.
+ * - выполняет задачи;
+ * - вызывает Planner;
+ * - вызывает Tools;
+ * - работает с Experience;
+ * - работает с Learning.
  *
  * =========================================================
  */
@@ -60,18 +60,26 @@ export async function buildComplexTaskResponse(
 
             success:false,
 
-            stage:"response",
+            status:
+                "FAILED",
+
+            stage:
+                "response",
 
             text:
                 "Нет результатов выполнения задачи.",
 
+
             engine:
                 "jessica-core",
+
 
             mode:
                 "complex",
 
+
             decomposition,
+
 
             executionTrace
 
@@ -83,21 +91,30 @@ export async function buildComplexTaskResponse(
 
 
 
+
     /*
      * =====================================================
-     * COMPOSE
+     * COMPOSE ANSWER
      * =====================================================
      */
 
 
-    let composed;
+    let composed = {
+
+        text:
+            "",
+
+        source:
+            "unknown"
+
+    };
 
 
 
     try {
 
 
-        composed =
+        const result =
             await composeComplexAnswer(
 
                 originalTask,
@@ -109,27 +126,44 @@ export async function buildComplexTaskResponse(
             );
 
 
+        if (
+            result &&
+            typeof result === "object"
+        ) {
+
+            composed =
+                result;
+
+        }
+
+
     } catch(error) {
 
 
         console.error(
-            "Complex answer composer error:",
+
+            "Jessica complex composer error:",
+
             error
+
         );
 
 
         composed = {
 
             text:
-                "Не удалось сформировать итоговый ответ.",
+                "Jessica выполнила часть задачи, но не смогла объединить результаты.",
+
 
             source:
-                "error"
+                "composer-error"
 
         };
 
 
     }
+
+
 
 
 
@@ -148,19 +182,27 @@ export async function buildComplexTaskResponse(
 
 
         total:
-            subtaskRunResult.total || 0,
+            Number(
+                subtaskRunResult.total || 0
+            ),
 
 
         completed:
-            subtaskRunResult.completed || 0,
+            Number(
+                subtaskRunResult.completed || 0
+            ),
 
 
         needsClarification:
-            subtaskRunResult.needsClarification || 0,
+            Number(
+                subtaskRunResult.needsClarification || 0
+            ),
 
 
         failed:
-            subtaskRunResult.failed || 0
+            Number(
+                subtaskRunResult.failed || 0
+            )
 
 
     };
@@ -168,6 +210,27 @@ export async function buildComplexTaskResponse(
 
 
 
+
+
+    const subtasks =
+        Array.isArray(
+            subtaskRunResult.results
+        )
+            ? subtaskRunResult.results
+            : [];
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * PARTIAL
+     * =====================================================
+     */
 
 
     const partial =
@@ -185,9 +248,11 @@ export async function buildComplexTaskResponse(
 
 
 
+
+
     /*
      * =====================================================
-     * SUCCESS
+     * COMPLETED / PARTIAL
      * =====================================================
      */
 
@@ -203,41 +268,60 @@ export async function buildComplexTaskResponse(
             success:true,
 
 
+            status:
+                partial
+                    ? "PARTIAL"
+                    : "COMPLETED",
+
+
+
             text:
-                composed.text,
+                composed.text ||
+                "Задача выполнена.",
+
 
 
             engine:
                 "jessica-core",
 
 
+
             mode:
                 "complex",
+
 
 
             partial,
 
 
+
             summary,
+
 
 
             decomposition,
 
 
-            subtasks:
-                subtaskRunResult.results || [],
+
+            subtasks,
+
 
 
             answerSource:
-                composed.source || "unknown",
+                composed.source ||
+                "unknown",
+
 
 
             executionTrace
 
 
+
         };
 
+
     }
+
 
 
 
@@ -265,38 +349,52 @@ export async function buildComplexTaskResponse(
             success:false,
 
 
+            status:
+                "NEEDS_CLARIFICATION",
+
+
+
             needsClarification:true,
 
 
+
             text:
-                composed.text,
+                composed.text ||
+                "Требуется уточнение.",
+
 
 
             engine:
                 "jessica-core",
 
 
+
             mode:
                 "complex",
+
 
 
             summary,
 
 
+
             decomposition,
 
 
-            subtasks:
-                subtaskRunResult.results || [],
+
+            subtasks,
+
 
 
             executionTrace
+
 
 
         };
 
 
     }
+
 
 
 
@@ -318,33 +416,46 @@ export async function buildComplexTaskResponse(
         success:false,
 
 
+        status:
+            "FAILED",
+
+
+
         needsClarification:
             summary.needsClarification > 0,
 
 
+
         text:
-            composed.text,
+            composed.text ||
+            "Jessica не смогла выполнить задачу.",
+
 
 
         engine:
             "jessica-core",
 
 
+
         mode:
             "complex",
+
 
 
         summary,
 
 
+
         decomposition,
 
 
-        subtasks:
-            subtaskRunResult.results || [],
+
+        subtasks,
+
 
 
         executionTrace
+
 
 
     };
