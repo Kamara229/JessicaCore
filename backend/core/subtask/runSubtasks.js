@@ -14,7 +14,7 @@ import {
  * JESSICA RUN SUBTASKS
  * =========================================================
  *
- * Последовательный запуск нескольких подзадач.
+ * Выполнение нескольких подзадач Jessica.
  *
  *
  * Flow:
@@ -30,27 +30,37 @@ import {
  * summary
  *
  *
+ * Ответственность:
+ *
+ * - последовательный запуск;
+ * - обработка ошибок;
+ * - сбор результатов.
+ *
+ *
  * НЕ отвечает за:
  *
  * - Planner;
  * - Experience;
  * - Tools;
+ * - Response;
  * - Learning;
- * - финальный ответ.
+ * - Trace.
  *
  * =========================================================
  */
 
 
 
+
+
 /*
  * =========================================================
- * FALLBACK FAILED RESULT
+ * FAILED RESULT
  * =========================================================
  */
 
 
-function buildUnhandledErrorResult(
+function buildFailedSubtaskResult(
     subtask,
     error
 ) {
@@ -58,8 +68,10 @@ function buildUnhandledErrorResult(
 
     return {
 
+
         id:
-            subtask?.id ?? null,
+            subtask?.id || null,
+
 
 
         text:
@@ -68,16 +80,20 @@ function buildUnhandledErrorResult(
                 : "",
 
 
+
         success:
             false,
+
 
 
         status:
             "FAILED",
 
 
+
         stage:
             "subtask",
+
 
 
         result:
@@ -87,26 +103,23 @@ function buildUnhandledErrorResult(
 
         error:
             error?.message ||
-            "unknown error",
+            "unknown error"
 
-
-
-        executionMeta: {
-
-            failedBeforeExecution:
-                true
-
-        }
 
     };
+
 
 }
 
 
 
+
+
+
+
 /*
  * =========================================================
- * RUN ALL SUBTASKS
+ * RUN SUBTASKS
  * =========================================================
  */
 
@@ -125,6 +138,8 @@ export async function runSubtasks(
 
 
 
+
+
     /*
      * =====================================================
      * EMPTY
@@ -136,32 +151,35 @@ export async function runSubtasks(
         subtasks.length === 0
     ) {
 
+
         return buildSubtaskSummary(
             []
         );
+
 
     }
 
 
 
-    const results =
-        [];
+
+
+
+    const results = [];
+
+
+
 
 
 
     /*
      * =====================================================
-     * SEQUENTIAL EXECUTION
+     * EXECUTION
      * =====================================================
      *
-     * Пока оставляем последовательный запуск.
+     * Последовательный запуск.
      *
-     * Причины:
-     *
-     * - контроль API лимитов;
-     * - независимый Experience;
-     * - проще анализировать ошибки;
-     * - стабильнее для Learning.
+     * Позже можно заменить
+     * на очередь / worker pool.
      *
      * =====================================================
      */
@@ -173,13 +191,25 @@ export async function runSubtasks(
     ) {
 
 
+
         console.log(
 
-            `Jessica subtask ${subtask?.id}:`,
+            "Jessica subtask:",
 
-            subtask?.text
+            {
+
+                id:
+                    subtask?.id,
+
+
+                text:
+                    subtask?.text
+
+            }
 
         );
+
+
 
 
 
@@ -192,18 +222,20 @@ export async function runSubtasks(
                 );
 
 
+
             results.push(
                 result
             );
 
 
 
-        } catch (error) {
+        } catch(error) {
+
 
 
             console.error(
 
-                `Unhandled subtask error ${subtask?.id}:`,
+                `Jessica subtask failed ${subtask?.id}:`,
 
                 error
 
@@ -213,17 +245,24 @@ export async function runSubtasks(
 
             results.push(
 
-                buildUnhandledErrorResult(
+                buildFailedSubtaskResult(
                     subtask,
                     error
                 )
 
             );
 
+
         }
 
 
+
     }
+
+
+
+
+
 
 
 
@@ -231,55 +270,13 @@ export async function runSubtasks(
      * =====================================================
      * SUMMARY
      * =====================================================
-     *
-     * buildSubtaskSummary отвечает
-     * только за статистику.
-     *
-     * =====================================================
      */
 
 
-    const summary =
-        buildSubtaskSummary(
-            results
-        );
+    return buildSubtaskSummary(
+        results
+    );
 
-
-
-    /*
-     * =====================================================
-     * TRACE DATA
-     * =====================================================
-     *
-     * Передаём результаты выше.
-     *
-     * Jessica Core уже решает,
-     * как использовать trace.
-     *
-     * =====================================================
-     */
-
-
-    return {
-
-        ...summary,
-
-
-        results,
-
-
-        executionTraces:
-
-            results
-                .map(
-                    item =>
-                        item.executionTrace || null
-                )
-                .filter(
-                    Boolean
-                )
-
-    };
 
 
 }
