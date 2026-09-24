@@ -3,26 +3,24 @@
  * JESSICA COMPLEX TASK RESPONSE BUILDER
  * =========================================================
  *
- * Формирование финального ответа Jessica
- * для сложной задачи с несколькими подзадачами.
+ * Формирование ответа для сложной задачи.
  *
  *
- * Отвечает только за:
+ * Ответственность:
  *
- * - объединение результатов;
- * - определение partial результата;
- * - формирование API ответа.
+ * - объединить результаты;
+ * - определить статус ответа;
+ * - подготовить API структуру.
  *
  *
  * НЕ содержит:
  *
- * - выполнение подзадач;
+ * - выполнение;
  * - Planner;
  * - Tools;
- * - Validator;
+ * - Validation;
  * - Experience;
  * - Learning.
- *
  *
  * =========================================================
  */
@@ -34,9 +32,11 @@ import {
 
 
 
+
+
 /*
  * =========================================================
- * BUILD COMPLEX TASK RESPONSE
+ * BUILD COMPLEX RESPONSE
  * =========================================================
  */
 
@@ -44,13 +44,10 @@ import {
 export async function buildComplexTaskResponse(
     originalTask,
     decomposition,
-    subtaskRunResult
+    subtaskRunResult,
+    executionTrace = null
 ) {
 
-
-    /*
-     * Защита от некорректных данных
-     */
 
 
     if (
@@ -58,13 +55,15 @@ export async function buildComplexTaskResponse(
         typeof subtaskRunResult !== "object"
     ) {
 
+
         return {
 
-            success:
-                false,
+            success:false,
+
+            stage:"response",
 
             text:
-                "Jessica не получила результаты выполнения подзадач.",
+                "Нет результатов выполнения задачи.",
 
             engine:
                 "jessica-core",
@@ -72,175 +71,237 @@ export async function buildComplexTaskResponse(
             mode:
                 "complex",
 
-            stage:
-                "response",
+            decomposition,
 
-            decomposition
+            executionTrace
 
         };
 
     }
 
 
-    /*
-     * =====================================================
-     * COMPOSE ANSWER
-     * =====================================================
-     */
-
-
-    const composed =
-        await composeComplexAnswer(
-            originalTask,
-            decomposition,
-            subtaskRunResult
-        );
-
-
-
-    const completed =
-        subtaskRunResult.completed || 0;
-
-
-    const needsClarification =
-        subtaskRunResult.needsClarification || 0;
-
-
-    const failed =
-        subtaskRunResult.failed || 0;
-
-
-    const total =
-        subtaskRunResult.total || 0;
 
 
 
     /*
      * =====================================================
-     * PARTIAL RESULT
-     * =====================================================
-     *
-     * Есть выполненные подзадачи,
-     * но часть требует уточнения
-     * или завершилась ошибкой.
-     *
+     * COMPOSE
      * =====================================================
      */
 
 
-    const partial =
-        completed > 0 &&
-        (
-            needsClarification > 0 ||
-            failed > 0
+    let composed;
+
+
+
+    try {
+
+
+        composed =
+            await composeComplexAnswer(
+
+                originalTask,
+
+                decomposition,
+
+                subtaskRunResult
+
+            );
+
+
+    } catch(error) {
+
+
+        console.error(
+            "Complex answer composer error:",
+            error
         );
 
+
+        composed = {
+
+            text:
+                "Не удалось сформировать итоговый ответ.",
+
+            source:
+                "error"
+
+        };
+
+
+    }
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * SUMMARY
+     * =====================================================
+     */
 
 
     const summary = {
 
-        total,
 
-        completed,
+        total:
+            subtaskRunResult.total || 0,
 
-        needsClarification,
 
-        failed
+        completed:
+            subtaskRunResult.completed || 0,
+
+
+        needsClarification:
+            subtaskRunResult.needsClarification || 0,
+
+
+        failed:
+            subtaskRunResult.failed || 0
+
 
     };
 
 
 
+
+
+
+    const partial =
+
+        summary.completed > 0 &&
+
+        (
+            summary.failed > 0 ||
+            summary.needsClarification > 0
+        );
+
+
+
+
+
+
+
     /*
      * =====================================================
-     * SUCCESS WITH RESULTS
-     * =====================================================
-     *
-     * Если хотя бы одна подзадача выполнена,
-     * отдаём полезный результат.
-     *
+     * SUCCESS
      * =====================================================
      */
 
 
     if (
-        completed > 0
+        summary.completed > 0
     ) {
+
 
         return {
 
-            success:
-                true,
+
+            success:true,
+
 
             text:
                 composed.text,
 
+
             engine:
                 "jessica-core",
 
+
             mode:
                 "complex",
+
 
             partial,
 
+
             summary,
+
 
             decomposition,
 
+
             subtasks:
-                subtaskRunResult.results ||
-                [],
+                subtaskRunResult.results || [],
+
 
             answerSource:
-                composed.source ||
-                "unknown"
+                composed.source || "unknown",
+
+
+            executionTrace
+
 
         };
 
     }
+
+
+
+
+
 
 
 
     /*
      * =====================================================
-     * ONLY CLARIFICATION REQUIRED
+     * NEEDS CLARIFICATION
      * =====================================================
      */
 
 
     if (
-        needsClarification > 0 &&
-        failed === 0
+        summary.needsClarification > 0 &&
+        summary.failed === 0
     ) {
+
 
         return {
 
-            success:
-                false,
 
-            needsClarification:
-                true,
+            success:false,
+
+
+            needsClarification:true,
+
 
             text:
                 composed.text,
 
+
             engine:
                 "jessica-core",
+
 
             mode:
                 "complex",
 
+
             summary,
+
 
             decomposition,
 
+
             subtasks:
-                subtaskRunResult.results ||
-                []
+                subtaskRunResult.results || [],
+
+
+            executionTrace
+
 
         };
 
+
     }
+
+
+
+
+
 
 
 
@@ -253,28 +314,38 @@ export async function buildComplexTaskResponse(
 
     return {
 
-        success:
-            false,
+
+        success:false,
+
 
         needsClarification:
-            needsClarification > 0,
+            summary.needsClarification > 0,
+
 
         text:
             composed.text,
 
+
         engine:
             "jessica-core",
+
 
         mode:
             "complex",
 
+
         summary,
+
 
         decomposition,
 
+
         subtasks:
-            subtaskRunResult.results ||
-            []
+            subtaskRunResult.results || [],
+
+
+        executionTrace
+
 
     };
 
