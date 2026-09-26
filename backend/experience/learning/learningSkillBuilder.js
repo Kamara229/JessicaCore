@@ -8,81 +8,94 @@ import {
  * JESSICA LEARNING SKILL BUILDER
  * =========================================================
  *
- * Превращает proposedExperience
- * из Learning Proposal
- * в полноценный Experience Skill.
+ * Создаёт Experience Skill из Learning Proposal.
  *
  *
- * Этот модуль отвечает только за:
+ * Flow:
  *
- * - Skill ID;
- * - version;
- * - enabled;
- * - confidence;
- * - нормализацию полей Skill.
+ * Learning Proposal
+ *        ↓
+ * Skill Builder
+ *        ↓
+ * Experience Skill Version
+ *        ↓
+ * Experience Storage
  *
  *
- * Этот модуль НЕ:
+ * Ответственность:
  *
- * - сохраняет Skill;
- * - работает с Supabase;
- * - подтверждает Proposal;
- * - вызывает AI;
- * - определяет следующую версию сам.
+ * - нормализация Skill;
+ * - создание ID;
+ * - создание версии;
+ * - сохранение метаданных обучения.
+ *
+ *
+ * НЕ:
+ *
+ * - сохраняет в БД;
+ * - определяет Approval;
+ * - ищет историю версий;
+ * - вызывает AI.
  *
  * =========================================================
  */
 
 
+
+
+
 /*
  * =========================================================
- * CYRILLIC TRANSLITERATION
+ * TRANSLITERATION
  * =========================================================
  */
 
 
 const TRANSLITERATION = {
 
-    а: "a",
-    б: "b",
-    в: "v",
-    г: "g",
-    д: "d",
-    е: "e",
-    ё: "e",
-    ж: "zh",
-    з: "z",
-    и: "i",
-    й: "y",
-    к: "k",
-    л: "l",
-    м: "m",
-    н: "n",
-    о: "o",
-    п: "p",
-    р: "r",
-    с: "s",
-    т: "t",
-    у: "u",
-    ф: "f",
-    х: "h",
-    ц: "ts",
-    ч: "ch",
-    ш: "sh",
-    щ: "sch",
-    ъ: "",
-    ы: "y",
-    ь: "",
-    э: "e",
-    ю: "yu",
-    я: "ya"
+    а:"a",
+    б:"b",
+    в:"v",
+    г:"g",
+    д:"d",
+    е:"e",
+    ё:"e",
+    ж:"zh",
+    з:"z",
+    и:"i",
+    й:"y",
+    к:"k",
+    л:"l",
+    м:"m",
+    н:"n",
+    о:"o",
+    п:"p",
+    р:"r",
+    с:"s",
+    т:"t",
+    у:"u",
+    ф:"f",
+    х:"h",
+    ц:"ts",
+    ч:"ch",
+    ш:"sh",
+    щ:"sch",
+    ъ:"",
+    ы:"y",
+    ь:"",
+    э:"e",
+    ю:"yu",
+    я:"ya"
 
 };
 
 
+
+
+
 /*
  * =========================================================
- * NORMALIZE TEXT
+ * NORMALIZE
  * =========================================================
  */
 
@@ -93,26 +106,21 @@ function normalizeText(
 
     return String(
         value || ""
-    ).trim();
+    )
+    .trim();
 
 }
 
 
-/*
- * =========================================================
- * NORMALIZE TEXT ARRAY
- * =========================================================
- */
 
 
-function normalizeTextArray(
+
+function normalizeArray(
     value
 ) {
 
     if (
-        !Array.isArray(
-            value
-        )
+        !Array.isArray(value)
     ) {
 
         return [];
@@ -123,48 +131,46 @@ function normalizeTextArray(
     return value
         .map(
             item =>
-                normalizeText(
-                    item
-                )
+                normalizeText(item)
         )
-        .filter(
-            Boolean
-        );
+        .filter(Boolean);
 
 }
 
 
-/*
- * =========================================================
- * TRANSLITERATE
- * =========================================================
- */
 
 
-function transliterate(
+
+function normalizeObject(
     value
 ) {
 
-    return normalizeText(
-        value
-    )
-        .toLowerCase()
-        .split("")
-        .map(
-            character =>
-                TRANSLITERATION[
-                    character
-                ] ??
-                character
-        )
-        .join("");
+    if (
+        !value ||
+        typeof value !== "object" ||
+        Array.isArray(value)
+    ) {
+
+        return {};
+
+    }
+
+
+    return {
+        ...value
+    };
 
 }
 
 
+
+
+
+
+
 /*
  * =========================================================
- * BUILD SKILL ID
+ * ID BUILDER
  * =========================================================
  */
 
@@ -175,40 +181,152 @@ export function buildLearningSkillId(
 
 
     const normalized =
-        transliterate(
+
+        normalizeText(
             value
         )
-            .replace(
-                /[^a-z0-9]+/g,
-                "-"
-            )
-            .replace(
-                /^-+|-+$/g,
-                ""
-            )
-            .slice(
-                0,
-                80
-            );
+        .toLowerCase()
+        .split("")
+        .map(
+
+            char =>
+                TRANSLITERATION[char]
+                ??
+                char
+
+        )
+        .join("")
+        .replace(
+            /[^a-z0-9]+/g,
+            "-"
+        )
+        .replace(
+            /^-+|-+$/g,
+            ""
+        )
+        .slice(
+            0,
+            80
+        );
 
 
-    if (normalized) {
+
+    if (
+        normalized
+    ) {
 
         return normalized;
 
     }
 
 
-    /*
-     * Редкий fallback:
-     * если имя вообще нельзя
-     * преобразовать в читаемый ID.
-     */
 
+    return (
 
-    return `skill-${randomUUID()}`;
+        "generated-skill-"
+
+        +
+
+        randomUUID()
+            .slice(
+                0,
+                8
+            )
+
+    );
 
 }
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * VERSION
+ * =========================================================
+ */
+
+
+function normalizeVersion(
+    value
+) {
+
+
+    const version =
+        Number(value);
+
+
+
+    if (
+        !Number.isInteger(version)
+        ||
+        version < 1
+    ) {
+
+        return 1;
+
+    }
+
+
+    return version;
+
+}
+
+
+
+
+
+
+/*
+ * =========================================================
+ * CONFIDENCE
+ * =========================================================
+ */
+
+
+function normalizeConfidence(
+    value
+) {
+
+
+    const confidence =
+        Number(value);
+
+
+
+    if (
+        !Number.isFinite(confidence)
+    ) {
+
+        return 0.7;
+
+    }
+
+
+
+    return Math.max(
+
+        0,
+
+        Math.min(
+
+            1,
+
+            confidence
+
+        )
+
+    );
+
+}
+
+
+
+
+
 
 
 /*
@@ -226,24 +344,31 @@ export function buildExperienceSkill({
 
     version = 1,
 
-    confidence = 0.7
+    previousVersion = null,
+
+    mode = "create",
+
+    confidence = 0.7,
+
+    metadata = {}
 
 } = {}) {
 
 
+
     if (
         !proposedExperience ||
-        typeof proposedExperience !== "object" ||
-        Array.isArray(
-            proposedExperience
-        )
+        typeof proposedExperience !== "object"
     ) {
 
         throw new Error(
-            "proposedExperience не указан"
+            "proposedExperience отсутствует"
         );
 
     }
+
+
+
 
 
     const name =
@@ -252,167 +377,254 @@ export function buildExperienceSkill({
         );
 
 
-    if (!name) {
+
+    if (
+        !name
+    ) {
 
         throw new Error(
-            "Название Skill не указано"
+            "Название Skill отсутствует"
         );
 
     }
 
 
-    /*
-     * =====================================================
-     * ID
-     * =====================================================
-     *
-     * Если Approval передаст ID существующего
-     * Skill — сохраняем его.
-     *
-     * Иначе создаём ID из названия.
-     *
-     * =====================================================
-     */
+
 
 
     const id =
-        normalizeText(
-            skillId
-        ) ||
+
+        normalizeText(skillId)
+
+        ||
+
         buildLearningSkillId(
             name
         );
 
 
-    /*
-     * =====================================================
-     * VERSION
-     * =====================================================
-     */
 
 
-    const normalizedVersion =
-        Number(
-            version
-        );
 
-
-    if (
-        !Number.isInteger(
-            normalizedVersion
-        ) ||
-        normalizedVersion < 1
-    ) {
-
-        throw new Error(
-            "Некорректная версия Skill"
-        );
-
-    }
-
-
-    /*
-     * =====================================================
-     * CONFIDENCE
-     * =====================================================
-     */
-
-
-    const normalizedConfidence =
-        Number(
-            confidence
-        );
-
-
-    const safeConfidence =
-        Number.isFinite(
-            normalizedConfidence
-        )
-            ? Math.max(
-                0,
-                Math.min(
-                    1,
-                    normalizedConfidence
-                )
-            )
-            : 0.7;
-
-
-    /*
-     * =====================================================
-     * SKILL
-     * =====================================================
-     */
 
 
     return {
 
+
+        /*
+         * Identity
+         */
+
+
         id,
 
+
         name,
+
+
+        normalizedName:
+            buildLearningSkillId(
+                name
+            ),
+
+
+
 
         description:
             normalizeText(
                 proposedExperience.description
             ),
 
+
+
+
+        /*
+         * Versioning
+         */
+
+
         version:
-            normalizedVersion,
+            normalizeVersion(
+                version
+            ),
+
+
+
+        previousVersion:
+            previousVersion
+            ?
+            normalizeVersion(
+                previousVersion
+            )
+            :
+            null,
+
+
+
+        mode,
+
+
+
+
+
+        /*
+         * Status
+         */
+
 
         enabled:
             true,
 
-        confidence:
-            safeConfidence,
 
-        taskTypes:
-            normalizeTextArray(
-                proposedExperience.taskTypes
+
+        confidence:
+            normalizeConfidence(
+                confidence
             ),
 
+
+
+
+
+        /*
+         * Knowledge
+         */
+
+
+        workflow:
+            Array.isArray(
+                proposedExperience.workflow
+            )
+            ?
+            proposedExperience.workflow
+            :
+            [],
+
+
+
+        triggerPatterns:
+            normalizeArray(
+                proposedExperience.triggerPatterns
+            ),
+
+
+
         keywords:
-            normalizeTextArray(
+            normalizeArray(
                 proposedExperience.keywords
             ),
 
-        tags:
-            normalizeTextArray(
-                proposedExperience.tags
+
+
+        examples:
+            Array.isArray(
+                proposedExperience.examples
+            )
+            ?
+            proposedExperience.examples
+            :
+            [],
+
+
+
+        constraints:
+            normalizeArray(
+                proposedExperience.constraints
             ),
 
+
+
         strategy:
-            normalizeTextArray(
+            normalizeArray(
                 proposedExperience.strategy
             ),
 
+
+
         sourcePriority:
-            normalizeTextArray(
+            normalizeArray(
                 proposedExperience.sourcePriority
             ),
 
+
+
         validationRules:
-            normalizeTextArray(
+            normalizeArray(
                 proposedExperience.validationRules
             ),
 
+
+
         failurePatterns:
-            normalizeTextArray(
+            normalizeArray(
                 proposedExperience.failurePatterns
             ),
+
+
+
+        successfulPatterns:
+            normalizeArray(
+                proposedExperience.successfulPatterns
+            ),
+
+
+
+        avoidPatterns:
+            normalizeArray(
+                proposedExperience.avoidPatterns
+            ),
+
+
+
+
+
+
+        /*
+         * Statistics
+         */
+
 
         successfulRuns:
             0,
 
+
         failedRuns:
             0,
 
+
+
+
+
+        /*
+         * Learning metadata
+         */
+
+
+        metadata:{
+
+            proposalId:
+                metadata.proposalId ||
+                null,
+
+
+            queueItemId:
+                metadata.queueItemId ||
+                null,
+
+
+            learnedFrom:
+                metadata.learnedFrom ||
+                "learning_pipeline"
+
+        },
+
+
+
         learnedAt:
             new Date()
-                .toISOString(),
+                .toISOString()
 
-        learnedFrom:
-            "user-correction"
 
     };
 
-      }
+}
