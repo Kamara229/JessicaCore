@@ -1,24 +1,28 @@
 /*
  * =========================================================
- * JESSICA PLAN NORMALIZER
+ * JESSICA PLAN NORMALIZER v3
  * =========================================================
  *
  * Приводит ответ Planner AI
  * к стабильному Execution Plan.
  *
  *
- * AI JSON
- *      ↓
+ * Flow:
+ *
+ * Planner AI JSON
+ *        ↓
  * Normalize
- *      ↓
+ *        ↓
  * Validate
+ *        ↓
+ * Execution
  *
  *
- * НЕ:
+ * Этот модуль НЕ:
  *
  * - проверяет tools;
- * - проверяет ссылки;
- * - проверяет evidence;
+ * - проверяет зависимости;
+ * - проверяет корректность evidence;
  * - принимает решения.
  *
  * =========================================================
@@ -26,21 +30,16 @@
 
 
 
-const EVIDENCE_MODES =
-    new Set([
-
-        "none",
-
-        "search_results",
-
-        "source_content"
-
-    ]);
-
 
 
 const MAX_STEPS =
     15;
+
+
+const MAX_TEXT_LENGTH =
+    2000;
+
+
 
 
 
@@ -49,7 +48,7 @@ const MAX_STEPS =
 
 /*
  * =========================================================
- * SAFE STRING
+ * SAFE HELPERS
  * =========================================================
  */
 
@@ -70,17 +69,7 @@ function safeString(
 
 
 
-
-
-
-/*
- * =========================================================
- * BOOLEAN
- * =========================================================
- */
-
-
-function normalizeBoolean(
+function safeBoolean(
     value
 ) {
 
@@ -95,8 +84,47 @@ function normalizeBoolean(
     }
 
 
-
     return false;
+
+}
+
+
+
+
+
+function safeArray(
+    value
+) {
+
+    return Array.isArray(value)
+
+        ? value
+
+        : [];
+
+}
+
+
+
+
+
+function safeObject(
+    value
+) {
+
+
+    if (
+        !value ||
+        typeof value !== "object" ||
+        Array.isArray(value)
+    ) {
+
+        return {};
+
+    }
+
+
+    return value;
 
 }
 
@@ -119,28 +147,44 @@ function normalizeEvidence(
 ) {
 
 
-    const mode =
+    const source =
+        safeObject(
+            evidence
+        );
 
-        EVIDENCE_MODES.has(
-            evidence?.mode
-        )
 
-            ? evidence.mode
 
-            : "none";
+    const allowedModes = [
+
+        "none",
+
+        "search_results",
+
+        "source_content"
+
+    ];
 
 
 
     return {
 
 
-        mode,
+        mode:
+
+            allowedModes.includes(
+                source.mode
+            )
+
+                ? source.mode
+
+                : "none",
+
 
 
         reason:
 
             safeString(
-                evidence?.reason
+                source.reason
             )
             .slice(
                 0,
@@ -150,46 +194,9 @@ function normalizeEvidence(
 
     };
 
-}
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * ARGUMENTS
- * =========================================================
- */
-
-
-function normalizeArguments(
-    value
-) {
-
-
-    if (
-        !value ||
-        typeof value !== "object" ||
-        Array.isArray(value)
-    ) {
-
-        return {};
-
-    }
-
-
-
-    return {
-
-        ...value
-
-    };
 
 }
+
 
 
 
@@ -210,25 +217,10 @@ function normalizeExperience(
 ) {
 
 
-    if (
-        !experience ||
-        typeof experience !== "object"
-    ) {
-
-        return {
-
-
-            used:
-                false,
-
-
-            skills:
-                []
-
-        };
-
-    }
-
+    const source =
+        safeObject(
+            experience
+        );
 
 
 
@@ -237,35 +229,105 @@ function normalizeExperience(
 
         used:
 
-            experience.used === true,
+            safeBoolean(
+                source.used
+            ),
+
+
+
+        source:
+
+            safeString(
+                source.source
+            )
+            ||
+            null,
 
 
 
         skills:
 
-            Array.isArray(
-                experience.skills
+            safeArray(
+                source.skills
             )
+            .map(
 
-                ? experience.skills
+                skill => {
 
-                    .map(
+                    if (
+                        typeof skill === "string"
+                    ) {
 
-                        item =>
+                        return skill.trim();
 
-                            safeString(
-                                item
-                            )
+                    }
 
-                    )
 
-                    .filter(Boolean)
+                    if (
+                        skill &&
+                        typeof skill === "object"
+                    ) {
 
-                : []
+                        return {
+
+                            id:
+                                skill.id ||
+                                null,
+
+
+                            name:
+                                skill.name ||
+                                ""
+
+                        };
+
+                    }
+
+
+                    return null;
+
+                }
+
+            )
+            .filter(Boolean)
+
 
     };
 
+
 }
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * ARGUMENTS
+ * =========================================================
+ */
+
+
+function normalizeArguments(
+    argumentsValue
+) {
+
+
+    return {
+
+        ...safeObject(
+            argumentsValue
+        )
+
+    };
+
+
+}
+
 
 
 
@@ -314,11 +376,15 @@ function normalizeStep(
 
 
 
+
+
         tool:
 
             safeString(
                 step.tool
             ),
+
+
 
 
 
@@ -330,21 +396,26 @@ function normalizeStep(
 
 
 
+
+
         /*
-         * Сохраняем дополнительные поля
-         * для Execution Trace.
+         * Служебные поля
+         *
+         * сохраняем для Execution Trace
          */
 
 
         experienceUsed:
 
-            step.experienceUsed === true
-
-
+            safeBoolean(
+                step.experienceUsed
+            )
 
     };
 
+
 }
+
 
 
 
@@ -365,30 +436,23 @@ function normalizeSteps(
 ) {
 
 
-    if (
-        !Array.isArray(
-            steps
-        )
-    ) {
+    return safeArray(
+        steps
+    )
 
-        return [];
+    .slice(
+        0,
+        MAX_STEPS
+    )
 
-    }
+    .map(
 
+        normalizeStep
 
+    )
 
-    return steps
+    .filter(Boolean);
 
-        .slice(
-            0,
-            MAX_STEPS
-        )
-
-        .map(
-            normalizeStep
-        )
-
-        .filter(Boolean);
 
 }
 
@@ -399,9 +463,68 @@ function normalizeSteps(
 
 
 
+
 /*
  * =========================================================
- * NORMALIZE PLAN
+ * EXTRA METADATA
+ * =========================================================
+ *
+ * Сохраняем полезные поля,
+ * которые AI может добавить.
+ *
+ * Нужно для:
+ *
+ * - Learning;
+ * - Analytics;
+ * - Trace.
+ *
+ * =========================================================
+ */
+
+
+function normalizeMetadata(
+    plan
+) {
+
+
+    return {
+
+
+        plannerVersion:
+
+            safeString(
+                plan.plannerVersion
+            )
+            ||
+            null,
+
+
+
+        generatedAt:
+
+            safeString(
+                plan.generatedAt
+            )
+            ||
+            null
+
+
+    };
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * MAIN NORMALIZER
  * =========================================================
  */
 
@@ -425,47 +548,13 @@ export function normalizePlan(
 
 
 
-    const requiresTools =
-
-        normalizeBoolean(
-            rawPlan.requiresTools
-        );
-
-
-
-
-
-    let steps =
-
-        normalizeSteps(
-            rawPlan.steps
-        );
-
-
-
-
-
-    /*
-     * Если инструменты не нужны,
-     * выполнение не требуется.
-     */
-
-
-    if (
-        !requiresTools
-    ) {
-
-        steps = [];
-
-    }
-
-
-
-
-
-
 
     return {
+
+
+        /*
+         * Основные параметры
+         */
 
 
         intent:
@@ -482,7 +571,11 @@ export function normalizePlan(
 
 
 
-        requiresTools,
+        requiresTools:
+
+            safeBoolean(
+                rawPlan.requiresTools
+            ),
 
 
 
@@ -495,7 +588,7 @@ export function normalizePlan(
             )
             .slice(
                 0,
-                2000
+                MAX_TEXT_LENGTH
             ),
 
 
@@ -503,30 +596,8 @@ export function normalizePlan(
 
 
         /*
-         * Связь:
-         *
-         * Plan
-         *  ↓
-         * Experience
-         *  ↓
-         * Learning
+         * Evidence
          */
-
-
-        experienceUsed:
-
-            rawPlan.experienceUsed === true,
-
-
-
-        experience:
-
-            normalizeExperience(
-                rawPlan.experience
-            ),
-
-
-
 
 
         evidence:
@@ -539,10 +610,49 @@ export function normalizePlan(
 
 
 
-        steps
+        /*
+         * Experience
+         */
 
+
+        experience:
+
+            normalizeExperience(
+                rawPlan.experience
+            ),
+
+
+
+
+
+        /*
+         * Execution Steps
+         */
+
+
+        steps:
+
+            normalizeSteps(
+                rawPlan.steps
+            ),
+
+
+
+
+
+        /*
+         * Metadata
+         */
+
+
+        metadata:
+
+            normalizeMetadata(
+                rawPlan
+            )
 
 
     };
+
 
 }
