@@ -3,18 +3,24 @@ import {
 } from "node:crypto";
 
 
+
 /*
  * =========================================================
  * JESSICA LEARNING PROPOSAL
  * =========================================================
  *
- * Модель предложения обучения Jessica.
+ * Модель предложения изменения памяти Jessica.
  *
  *
- * Proposal — это НЕ Skill.
+ * Proposal НЕ является Skill.
  *
- * Это кандидат на изменение памяти Jessica,
- * который проходит Approval.
+ * Это кандидат:
+ *
+ * NEW_SKILL
+ *      создание нового навыка
+ *
+ * SKILL_IMPROVEMENT
+ *      улучшение существующего навыка
  *
  *
  * Flow:
@@ -31,12 +37,13 @@ import {
  * НЕ:
  *
  * - сохраняет Skill;
- * - пишет в Supabase;
- * - изменяет Experience;
- * - принимает решение Approval.
+ * - работает с Supabase;
+ * - изменяет Experience.
  *
  * =========================================================
  */
+
+
 
 
 
@@ -75,7 +82,7 @@ function normalizeText(
     return String(
         value || ""
     )
-        .trim();
+    .trim();
 
 }
 
@@ -86,6 +93,7 @@ function normalizeText(
 function normalizeArray(
     value
 ) {
+
 
     if (
         !Array.isArray(value)
@@ -113,9 +121,13 @@ function normalizeArray(
 
 
 
+
+
+
+
 /*
  * =========================================================
- * EXTRACT QUEUE EVENT
+ * EVENT
  * =========================================================
  */
 
@@ -124,11 +136,12 @@ function extractEvent(
     queueItem
 ) {
 
+
     return (
 
-        queueItem?.event_json ||
-
         queueItem?.event ||
+
+        queueItem?.event_json ||
 
         {}
 
@@ -140,13 +153,171 @@ function extractEvent(
 
 
 
+
+
+
+
+/*
+ * =========================================================
+ * RESOLVE SKILL TARGET
+ * =========================================================
+ */
+
+
+function resolveTargetSkill(
+    queueItem,
+    event
+) {
+
+
+    /*
+     * NEW_SKILL
+     */
+
+
+    const candidate =
+        event
+            ?.payload
+            ?.skillCandidate;
+
+
+
+    if (
+        candidate?.skillId
+    ) {
+
+        return {
+
+
+            id:
+                candidate.skillId,
+
+
+            version:
+                null,
+
+
+            exists:
+                false
+
+
+        };
+
+    }
+
+
+
+
+
+
+
+
+    /*
+     * SKILL IMPROVEMENT
+     */
+
+
+    const skills =
+        event
+            ?.payload
+            ?.skills;
+
+
+
+    if (
+        Array.isArray(skills) &&
+        skills.length > 0
+    ) {
+
+
+        const skill =
+            skills[0];
+
+
+
+        return {
+
+
+            id:
+
+                skill.id ||
+
+                skill.skillId ||
+
+                queueItem.skillId ||
+
+                null,
+
+
+
+            version:
+
+                skill.version ||
+
+                null,
+
+
+
+            exists:
+
+                true
+
+
+        };
+
+
+    }
+
+
+
+
+
+
+
+
+    /*
+     * fallback
+     */
+
+
+    return {
+
+
+        id:
+
+            queueItem.skillId ||
+
+            event.skillId ||
+
+            null,
+
+
+        version:
+
+            null,
+
+
+        exists:
+
+            false
+
+
+    };
+
+
+}
+
+
+
+
+
+
+
+
+
 /*
  * =========================================================
  * CREATE FROM QUEUE
- * =========================================================
- *
- * Основной путь автоматического обучения.
- *
  * =========================================================
  */
 
@@ -162,10 +333,12 @@ export function createLearningProposalFromQueue(
     ) {
 
         throw new Error(
-            "Learning Proposal: queue item не указан"
+            "Learning Proposal: queue item отсутствует"
         );
 
     }
+
+
 
 
 
@@ -176,42 +349,50 @@ export function createLearningProposalFromQueue(
 
 
 
-    const proposedExperience =
-        event.proposedExperience ||
 
-        event.experience ||
+
+    const action =
+        queueItem.action ||
+
+        event.action ||
+
+        "IGNORE";
+
+
+
+
+
+    const targetSkill =
+        resolveTargetSkill(
+            queueItem,
+            event
+        );
+
+
+
+
+
+    const sourceExperience =
+
+        event
+            ?.payload
+            ?.skillCandidate ||
 
         {};
 
 
 
 
+
+
     const skillName =
 
-        proposedExperience.name ||
+        sourceExperience.name ||
 
-        event.skillName ||
-
-        "Jessica Generated Skill";
+        `Jessica Skill ${targetSkill.id || "generated"}`;
 
 
 
-
-
-    const skillId =
-
-        proposedExperience.id ||
-
-        event.skillId ||
-
-        skillName
-
-            .toLowerCase()
-
-            .replace(
-                /\s+/g,
-                "_"
-            );
 
 
 
@@ -221,86 +402,131 @@ export function createLearningProposalFromQueue(
 
 
         id:
+
             randomUUID(),
 
 
 
         status:
+
             LEARNING_PROPOSAL_STATUS
                 .PENDING_APPROVAL,
 
 
 
         source:
+
             "learning_queue",
 
 
 
         queueItemId:
+
             queueItem.id || null,
 
 
 
-        action:
-            queueItem.action ||
-            event.action ||
-            "NEW_SKILL",
+        action,
 
 
 
         confidence:
+
             Number(
-                queueItem.confidence ||
-                event.confidence ||
-                0
+                queueItem.confidence || 0
             ),
 
 
 
-        proposedExperience: {
+
+        targetSkill:
+
+        {
 
 
             id:
-                skillId,
+
+                targetSkill.id,
+
+
+            version:
+
+                targetSkill.version,
+
+
+            exists:
+
+                targetSkill.exists
+
+
+        },
+
+
+
+
+
+
+        proposedExperience:
+
+        {
+
+
+            id:
+
+                targetSkill.id || null,
+
 
 
             name:
+
                 skillName,
 
 
+
             description:
-                proposedExperience.description ||
+
+                sourceExperience.description ||
+
                 "",
 
 
+
             workflow:
+
                 Array.isArray(
-                    proposedExperience.workflow
+                    sourceExperience.workflow
                 )
-                    ? proposedExperience.workflow
+
+                    ? sourceExperience.workflow
+
                     : [],
 
 
 
             triggerPatterns:
+
                 normalizeArray(
-                    proposedExperience.triggerPatterns
+                    sourceExperience.triggerPatterns
                 ),
 
 
 
             examples:
+
                 Array.isArray(
-                    proposedExperience.examples
+                    sourceExperience.examples
                 )
-                    ? proposedExperience.examples
+
+                    ? sourceExperience.examples
+
                     : [],
 
 
 
             constraints:
+
                 normalizeArray(
-                    proposedExperience.constraints
+                    sourceExperience.constraints
                 )
 
 
@@ -308,17 +534,25 @@ export function createLearningProposalFromQueue(
 
 
 
+
+
+
+
         createdAt:
+
             new Date()
                 .toISOString(),
 
 
 
         approvedAt:
+
             null,
 
 
+
         rejectedAt:
+
             null
 
 
@@ -330,13 +564,13 @@ export function createLearningProposalFromQueue(
 
 
 
+
+
+
+
 /*
  * =========================================================
- * CREATE MANUAL PROPOSAL
- * =========================================================
- *
- * Для обучения через исправление пользователя.
- *
+ * MANUAL PROPOSAL
  * =========================================================
  */
 
@@ -360,15 +594,10 @@ export function createLearningProposal({
 } = {}) {
 
 
+
     const cleanTask =
         normalizeText(
             task
-        );
-
-
-    const cleanCorrection =
-        normalizeText(
-            correction
         );
 
 
@@ -389,27 +618,38 @@ export function createLearningProposal({
 
 
         id:
+
             randomUUID(),
 
 
 
         status:
+
             LEARNING_PROPOSAL_STATUS
                 .PENDING_APPROVAL,
 
 
 
         source:
+
             "manual",
 
 
 
+        action:
+
+            "NEW_SKILL",
+
+
+
         task:
+
             cleanTask,
 
 
 
         previousAnswer:
+
             normalizeText(
                 previousAnswer
             ),
@@ -417,53 +657,59 @@ export function createLearningProposal({
 
 
         correction:
-            cleanCorrection,
 
-
-
-        correctedAnswer:
             normalizeText(
-                correctedAnswer
+                correction
             ),
 
 
 
-        understanding:
-            normalizeText(
-                understanding
-            ),
+        correctedAnswer,
+
+
+
+        understanding,
 
 
 
         clarificationQuestions:
+
             normalizeArray(
                 clarificationQuestions
             ),
 
 
 
-        proposedExperience:
-            proposedExperience || null,
+        proposedExperience,
 
 
 
         createdAt:
+
             new Date()
                 .toISOString(),
 
 
 
         approvedAt:
+
             null,
 
 
+
         rejectedAt:
+
             null
 
 
     };
 
+
 }
+
+
+
+
 
 
 
@@ -486,27 +732,40 @@ export function approveLearningProposal(
     );
 
 
+
     return {
+
 
         ...proposal,
 
 
         status:
+
             LEARNING_PROPOSAL_STATUS
                 .APPROVED,
 
 
+
         approvedAt:
+
             new Date()
                 .toISOString(),
 
 
+
         rejectedAt:
+
             null
+
 
     };
 
+
 }
+
+
+
+
 
 
 
@@ -529,27 +788,40 @@ export function rejectLearningProposal(
     );
 
 
+
     return {
+
 
         ...proposal,
 
 
         status:
+
             LEARNING_PROPOSAL_STATUS
                 .REJECTED,
 
 
+
         approvedAt:
+
             null,
 
 
+
         rejectedAt:
+
             new Date()
                 .toISOString()
 
+
     };
 
+
 }
+
+
+
+
 
 
 
@@ -573,7 +845,7 @@ function validateProposal(
     ) {
 
         throw new Error(
-            "Learning Proposal не указан"
+            "Learning Proposal отсутствует"
         );
 
     }
@@ -592,4 +864,4 @@ function validateProposal(
     }
 
 
-        }
+}
