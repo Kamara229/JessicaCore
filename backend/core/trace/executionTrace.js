@@ -1,9 +1,9 @@
 /*
  * =========================================================
- * JESSICA EXECUTION TRACE
+ * JESSICA EXECUTION TRACE v4
  * =========================================================
  *
- * История выполнения задачи Jessica.
+ * История выполнения одного Execution Run.
  *
  *
  * Используется:
@@ -11,25 +11,35 @@
  * - debugging;
  * - analytics;
  * - Learning;
- * - quality control.
+ * - Experience Analyzer.
  *
  *
  * Хранит:
  *
- * - выполнение;
- * - инструменты;
+ * - события выполнения;
+ * - шаги;
  * - ошибки;
- * - Experience usage.
+ * - применённый Experience;
+ * - итог.
  *
  *
  * НЕ:
  *
  * - выполняет задачи;
  * - вызывает Planner;
- * - изменяет Skills.
+ * - изменяет Skills;
+ * - обучает систему.
  *
  * =========================================================
  */
+
+
+
+import {
+    randomUUID
+} from "node:crypto";
+
+
 
 
 
@@ -45,7 +55,9 @@
 
 
 export function createExecutionTrace(
+
     task
+
 ) {
 
 
@@ -53,42 +65,51 @@ export function createExecutionTrace(
 
 
         id:
-            createTraceId(),
+
+            randomUUID(),
 
 
 
         task:
-            task || "",
+
+            String(
+                task || ""
+            )
+            .trim(),
 
 
 
         startedAt:
-            new Date().toISOString(),
+
+            new Date()
+                .toISOString(),
 
 
 
         finishedAt:
+
             null,
 
 
 
         status:
+
             "RUNNING",
 
 
 
 
-        subtasks:
-            [],
 
 
+        /*
+         * =================================================
+         * EVENTS
+         * =================================================
+         */
 
-        usedTools:
-            [],
 
+        events:
 
-
-        validationErrors:
             [],
 
 
@@ -97,8 +118,42 @@ export function createExecutionTrace(
 
 
         /*
-         * Память Jessica,
-         * использованная при выполнении
+         * =================================================
+         * EXECUTION STEPS
+         * =================================================
+         */
+
+
+        steps:
+
+            [],
+
+
+
+
+
+
+
+        /*
+         * =================================================
+         * FAILURES
+         * =================================================
+         */
+
+
+        failures:
+
+            [],
+
+
+
+
+
+
+        /*
+         * =================================================
+         * EXPERIENCE USAGE
+         * =================================================
          */
 
 
@@ -108,23 +163,20 @@ export function createExecutionTrace(
 
 
             used:
+
                 false,
 
 
 
+            source:
+
+                null,
+
+
+
             skills:
-                [],
 
-
-
-            successfulUses:
-                0,
-
-
-
-            failedUses:
-                0
-
+                []
 
         },
 
@@ -134,31 +186,27 @@ export function createExecutionTrace(
 
 
 
-        stats:
 
-        {
-
-
-            total:
-                0,
-
-
-            completed:
-                0,
+        /*
+         * =================================================
+         * RESULT
+         * =================================================
+         */
 
 
-            failed:
-                0,
+        result:
+
+            null,
 
 
-            clarification:
-                0
 
+        learningReady:
 
-        }
+            false
 
 
     };
+
 
 }
 
@@ -172,44 +220,59 @@ export function createExecutionTrace(
 
 /*
  * =========================================================
- * TRACE ID
+ * ADD EVENT
  * =========================================================
  */
 
 
-function createTraceId() {
+export function addTraceEvent(
+
+    trace,
+
+    type,
+
+    payload = {}
+
+) {
 
 
-    try {
+    if (
+        !trace
+    ) {
 
-
-        if (
-            typeof crypto !== "undefined" &&
-            crypto.randomUUID
-        ) {
-
-            return crypto.randomUUID();
-
-        }
-
-
-    } catch(error) {
+        return trace;
 
     }
 
 
 
-    return (
 
-        Date.now()
-        +
-        "-"
-        +
-        Math.random()
-            .toString(36)
-            .substring(2)
+    trace.events.push({
 
-    );
+        id:
+
+            randomUUID(),
+
+
+
+        type,
+
+
+
+        payload,
+
+
+
+        timestamp:
+
+            new Date()
+                .toISOString()
+
+    });
+
+
+
+    return trace;
 
 
 }
@@ -224,7 +287,63 @@ function createTraceId() {
 
 /*
  * =========================================================
- * UPDATE RESULT
+ * ADD STEP
+ * =========================================================
+ */
+
+
+export function addTraceStep(
+
+    trace,
+
+    step
+
+) {
+
+
+    if (
+        !trace ||
+        !step
+    ) {
+
+        return trace;
+
+    }
+
+
+
+    trace.steps.push({
+
+        ...normalizeStep(
+            step
+        ),
+
+
+        timestamp:
+
+            new Date()
+                .toISOString()
+
+    });
+
+
+
+    return trace;
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * UPDATE FROM EXECUTION RESULT
  * =========================================================
  */
 
@@ -251,24 +370,18 @@ export function updateTraceFromResult(
 
 
 
-    trace.subtasks.push(
 
-        normalizeSubtaskResult(
-            result
-        )
-
-    );
-
-
-
-
-
-
-    collectTools(
+    addTraceEvent(
 
         trace,
 
-        result.usedTools
+        result.success === true
+
+            ? "EXECUTION_COMPLETED"
+
+            : "EXECUTION_FAILED",
+
+        result
 
     );
 
@@ -276,19 +389,37 @@ export function updateTraceFromResult(
 
 
 
-    collectValidationErrors(
-
-        trace,
-
-        result.validationErrors
-
-    );
 
 
 
+    if (
+        result.failure
+    ) {
 
 
-    collectExperienceUsage(
+        trace.failures.push({
+
+            ...result.failure,
+
+
+            timestamp:
+
+                new Date()
+                    .toISOString()
+
+        });
+
+
+    }
+
+
+
+
+
+
+
+
+    collectExperience(
 
         trace,
 
@@ -300,25 +431,9 @@ export function updateTraceFromResult(
 
 
 
-    updateStats(
 
-        trace,
-
-        result.status
-
-    );
-
-
-
-
-
-    updateStatus(
-
-        trace
-
-    );
-
-
+    trace.result =
+        result;
 
 
 
@@ -337,12 +452,12 @@ export function updateTraceFromResult(
 
 /*
  * =========================================================
- * EXPERIENCE COLLECTION
+ * EXPERIENCE
  * =========================================================
  */
 
 
-function collectExperienceUsage(
+function collectExperience(
 
     trace,
 
@@ -353,7 +468,9 @@ function collectExperienceUsage(
 
     const experience =
 
-        result?.executionMeta?.experience;
+        result
+            ?.executionMeta
+            ?.experience;
 
 
 
@@ -377,6 +494,14 @@ function collectExperienceUsage(
 
 
 
+    trace.experienceUsage.source =
+
+        experience.source ||
+        trace.experienceUsage.source;
+
+
+
+
 
 
     if (
@@ -386,35 +511,35 @@ function collectExperienceUsage(
     ) {
 
 
+
         for (
             const skill
             of experience.skills
         ) {
 
 
+            const id =
+
+                skill?.id ||
+                skill;
+
+
+
             const exists =
 
-                trace.experienceUsage.skills.some(
+                trace.experienceUsage.skills
+                    .some(
 
-                    item =>
+                        item =>
 
-                        (
+                            (
+                                item?.id ||
+                                item
+                            )
+                            ===
+                            id
 
-                            item?.id ||
-                            item
-
-                        )
-
-                        ===
-
-                        (
-
-                            skill?.id ||
-                            skill
-
-                        )
-
-                );
+                    );
 
 
 
@@ -422,11 +547,9 @@ function collectExperienceUsage(
                 !exists
             ) {
 
-
                 trace.experienceUsage.skills.push(
                     skill
                 );
-
 
             }
 
@@ -436,31 +559,6 @@ function collectExperienceUsage(
 
     }
 
-
-
-
-
-
-    if (
-        result.status === "COMPLETED"
-    ) {
-
-
-        trace.experienceUsage.successfulUses++;
-
-
-    }
-
-
-    if (
-        result.status === "FAILED"
-    ) {
-
-
-        trace.experienceUsage.failedUses++;
-
-
-    }
 
 
 }
@@ -475,7 +573,7 @@ function collectExperienceUsage(
 
 /*
  * =========================================================
- * SUMMARY UPDATE
+ * UPDATE SUMMARY
  * =========================================================
  */
 
@@ -502,27 +600,24 @@ export function updateTraceFromSummary(
 
 
 
+    addTraceEvent(
+
+        trace,
+
+        "EXECUTION_SUMMARY",
+
+        summary
+
+    );
+
+
+
+
     if (
         Array.isArray(
             summary.results
         )
     ) {
-
-
-        trace.subtasks =
-
-            summary.results.map(
-
-                item =>
-
-                    normalizeSubtaskResult(
-                        item
-                    )
-
-            );
-
-
-
 
 
         for (
@@ -531,27 +626,7 @@ export function updateTraceFromSummary(
         ) {
 
 
-            collectTools(
-
-                trace,
-
-                item.usedTools
-
-            );
-
-
-
-            collectValidationErrors(
-
-                trace,
-
-                item.validationErrors
-
-            );
-
-
-
-            collectExperienceUsage(
+            updateTraceFromResult(
 
                 trace,
 
@@ -566,53 +641,6 @@ export function updateTraceFromSummary(
     }
 
 
-
-
-
-
-    trace.stats = {
-
-
-        total:
-
-            Number(
-                summary.total || 0
-            ),
-
-
-
-        completed:
-
-            Number(
-                summary.completed || 0
-            ),
-
-
-
-        failed:
-
-            Number(
-                summary.failed || 0
-            ),
-
-
-
-        clarification:
-
-            Number(
-                summary.needsClarification || 0
-            )
-
-
-    };
-
-
-
-
-
-    updateStatus(
-        trace
-    );
 
 
 
@@ -631,13 +659,15 @@ export function updateTraceFromSummary(
 
 /*
  * =========================================================
- * NORMALIZE RESULT
+ * NORMALIZE STEP
  * =========================================================
  */
 
 
-function normalizeSubtaskResult(
-    result
+function normalizeStep(
+
+    step
+
 ) {
 
 
@@ -645,262 +675,33 @@ function normalizeSubtaskResult(
 
 
         id:
-            result.id || null,
+
+            step.id ||
+            null,
 
 
 
-        status:
-            result.status || "UNKNOWN",
+        tool:
+
+            step.tool ||
+            null,
 
 
 
-        stage:
-            result.stage || null,
+        success:
+
+            step.success === true,
 
 
 
         result:
-            result.result || "",
 
+            step.result ||
+            null
 
-
-        validated:
-            result.validated === true,
-
-
-
-        experienceUsed:
-
-            result?.executionMeta?.experience?.used === true
 
 
     };
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * TOOLS
- * =========================================================
- */
-
-
-function collectTools(
-
-    trace,
-
-    tools
-
-) {
-
-
-    if (
-        !Array.isArray(tools)
-    ) {
-
-        return;
-
-    }
-
-
-
-    for (
-        const tool
-        of tools
-    ) {
-
-
-        if (
-            !trace.usedTools.includes(tool)
-        ) {
-
-
-            trace.usedTools.push(tool);
-
-
-        }
-
-    }
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * VALIDATION ERRORS
- * =========================================================
- */
-
-
-function collectValidationErrors(
-
-    trace,
-
-    errors
-
-) {
-
-
-    if (
-        !Array.isArray(errors)
-    ) {
-
-        return;
-
-    }
-
-
-
-    trace.validationErrors.push(
-        ...errors
-    );
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * STATS
- * =========================================================
- */
-
-
-function updateStats(
-
-    trace,
-
-    status
-
-) {
-
-
-    trace.stats.total++;
-
-
-
-    switch(status) {
-
-
-        case "COMPLETED":
-
-            trace.stats.completed++;
-
-            break;
-
-
-
-        case "FAILED":
-
-            trace.stats.failed++;
-
-            break;
-
-
-
-        case "NEEDS_CLARIFICATION":
-
-            trace.stats.clarification++;
-
-            break;
-
-
-    }
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * STATUS
- * =========================================================
- */
-
-
-function updateStatus(
-    trace
-) {
-
-
-    const stats =
-        trace.stats;
-
-
-
-    if (
-        stats.completed > 0 &&
-        stats.failed > 0
-    ) {
-
-        trace.status =
-            "PARTIAL";
-
-        return;
-
-    }
-
-
-
-    if (
-        stats.failed > 0 &&
-        stats.completed === 0
-    ) {
-
-        trace.status =
-            "FAILED";
-
-        return;
-
-    }
-
-
-
-    if (
-        stats.total > 0 &&
-        stats.completed === stats.total
-    ) {
-
-        trace.status =
-            "COMPLETED";
-
-        return;
-
-    }
-
-
-
-    trace.status =
-        "RUNNING";
 
 
 }
@@ -921,7 +722,9 @@ function updateStatus(
 
 
 export function finishExecutionTrace(
+
     trace
+
 ) {
 
 
@@ -936,18 +739,121 @@ export function finishExecutionTrace(
 
 
     trace.finishedAt =
+
         new Date()
             .toISOString();
 
 
 
-    updateStatus(
-        trace
-    );
+
+
+
+    trace.status =
+
+        trace.result?.success === true
+
+            ? "COMPLETED"
+
+            : "FAILED";
+
+
+
+
+
+
+    trace.learningReady = true;
 
 
 
     return trace;
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD LEARNING PAYLOAD
+ * =========================================================
+ */
+
+
+export function buildLearningPayload(
+
+    trace
+
+) {
+
+
+    if (
+        !trace
+    ) {
+
+        return null;
+
+    }
+
+
+
+
+    return {
+
+
+        executionId:
+
+            trace.id,
+
+
+
+        task:
+
+            trace.task,
+
+
+
+        success:
+
+            trace.status === "COMPLETED",
+
+
+
+        experience:
+
+            trace.experienceUsage,
+
+
+
+        steps:
+
+            trace.steps,
+
+
+
+        failures:
+
+            trace.failures,
+
+
+
+        events:
+
+            trace.events,
+
+
+
+        result:
+
+            trace.result
+
+
+    };
 
 
 }
