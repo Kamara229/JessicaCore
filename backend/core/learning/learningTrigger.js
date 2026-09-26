@@ -3,7 +3,7 @@
  * JESSICA LEARNING TRIGGER
  * =========================================================
  *
- * Автоматический запуск анализа обучения
+ * Автоматический запуск системы обучения
  * после выполнения задачи.
  *
  *
@@ -11,18 +11,38 @@
  *
  * ExecutionTrace
  *       ↓
- * analyzeExecutionTrace()
+ * Experience Analyzer
+ *       ↓
+ * Learning Router
  *       ↓
  * Learning Decision
  *
  *
- * НЕ:
+ * Возможные решения:
  *
- * - сохраняет Experience;
+ * NEW_SKILL
+ *      ↓
+ * создание нового навыка
+ *
+ *
+ * SKILL_IMPROVEMENT
+ *      ↓
+ * улучшение существующего навыка
+ *
+ *
+ * IGNORE
+ *      ↓
+ * опыт не сохраняем
+ *
+ *
+ * Этот модуль НЕ:
+ *
+ * - сохраняет данные;
  * - изменяет Supabase;
- * - создаёт Skill напрямую.
+ * - создаёт Skill;
+ * - обновляет Experience.
  *
- * Только запускает анализ.
+ * Только анализирует и выбирает направление обучения.
  *
  * =========================================================
  */
@@ -31,6 +51,13 @@
 import {
     analyzeExecutionTrace
 } from "./experienceAnalyzer.js";
+
+
+import {
+    routeLearningEvent
+} from "./learningRouter.js";
+
+
 
 
 
@@ -47,7 +74,8 @@ function shouldAnalyze(
 
 
     if (
-        !trace
+        !trace ||
+        typeof trace !== "object"
     ) {
 
         return false;
@@ -57,12 +85,12 @@ function shouldAnalyze(
 
 
     /*
-     * Есть выполненные шаги
+     * Нет выполненных действий
      */
 
     if (
         !trace.stats ||
-        trace.stats.completed === 0
+        trace.stats.completed <= 0
     ) {
 
         return false;
@@ -81,7 +109,7 @@ function shouldAnalyze(
 
 /*
  * =========================================================
- * RUN LEARNING CHECK
+ * RUN LEARNING TRIGGER
  * =========================================================
  */
 
@@ -92,8 +120,11 @@ export function runLearningTrigger(
 
 
     /*
-     * Защита
+     * =====================================================
+     * CHECK
+     * =====================================================
      */
+
 
     if (
         !shouldAnalyze(
@@ -110,10 +141,14 @@ export function runLearningTrigger(
 
 
             reason:
-                "Недостаточно данных для обучения",
+                "Недостаточно данных для анализа обучения",
 
 
             analysis:
+                null,
+
+
+            decision:
                 null
 
 
@@ -128,11 +163,55 @@ export function runLearningTrigger(
     try {
 
 
+
+        /*
+         * =================================================
+         * 1. ANALYZE EXPERIENCE
+         * =================================================
+         */
+
+
         const analysis =
             analyzeExecutionTrace(
                 trace
             );
 
+
+
+
+
+        /*
+         * =================================================
+         * 2. ROUTE LEARNING
+         * =================================================
+         *
+         * Router решает:
+         *
+         * создать новый Skill
+         * или улучшить старый
+         *
+         * =================================================
+         */
+
+
+        const decision =
+            routeLearningEvent({
+
+                trace,
+
+                analysis
+
+            });
+
+
+
+
+
+        /*
+         * =================================================
+         * RESULT
+         * =================================================
+         */
 
 
         return {
@@ -142,7 +221,14 @@ export function runLearningTrigger(
                 true,
 
 
-            analysis
+            analysis,
+
+
+            decision,
+
+
+            traceId:
+                trace.id || null
 
 
         };
@@ -150,6 +236,7 @@ export function runLearningTrigger(
 
 
     } catch(error) {
+
 
 
         console.error(
@@ -167,18 +254,24 @@ export function runLearningTrigger(
 
 
             reason:
-                "Ошибка анализа обучения",
+                "Ошибка запуска Learning Pipeline",
 
 
             error:
-                error.message,
+                error?.message ||
+                "unknown error",
 
 
             analysis:
+                null,
+
+
+            decision:
                 null
 
 
         };
+
 
     }
 
