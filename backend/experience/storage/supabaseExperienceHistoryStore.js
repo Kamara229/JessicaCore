@@ -3,45 +3,53 @@ import {
 } from "../../storage/supabaseClient.js";
 
 
+
 /*
  * =========================================================
  * JESSICA EXPERIENCE HISTORY STORE
  * =========================================================
  *
- * Работает только с историей версий Skills.
+ * Хранилище версий Experience Skill.
  *
  *
- * Таблица:
+ * Flow:
  *
- * jessica_experience_skill_versions
- *
- *
- * Отвечает за:
- *
- * - сохранение версии Skill;
- * - получение истории Skill;
- * - получение конкретной версии.
+ * Experience Skill
+ *        ↓
+ * History Store
+ *        ↓
+ * Supabase
  *
  *
- * НЕ отвечает за:
+ * Отвечает:
  *
- * - текущую активную версию;
- * - поиск подходящего Skill;
- * - обучение;
- * - Planner;
- * - Earnings.
+ * - запись версии;
+ * - история;
+ * - получение версии;
+ * - получение последней версии.
+ *
+ *
+ * НЕ:
+ *
+ * - ищет Skill;
+ * - принимает Learning решения;
+ * - вызывает AI.
  *
  * =========================================================
  */
+
 
 
 const EXPERIENCE_HISTORY_TABLE =
     "jessica_experience_skill_versions";
 
 
+
+
+
 /*
  * =========================================================
- * NORMALIZE ID
+ * NORMALIZE
  * =========================================================
  */
 
@@ -52,16 +60,12 @@ function normalizeSkillId(
 
     return String(
         value || ""
-    ).trim();
+    )
+    .trim();
 
 }
 
 
-/*
- * =========================================================
- * NORMALIZE VERSION
- * =========================================================
- */
 
 
 function normalizeVersion(
@@ -69,13 +73,12 @@ function normalizeVersion(
 ) {
 
     const version =
-        Number(
-            value
-        );
+        Number(value);
 
 
     if (
-        !Number.isInteger(version) ||
+        !Number.isInteger(version)
+        ||
         version < 1
     ) {
 
@@ -89,16 +92,66 @@ function normalizeVersion(
 }
 
 
+
+
+
+function normalizePayload(
+    experience
+) {
+
+
+    return {
+
+
+        ...experience,
+
+
+        id:
+            normalizeSkillId(
+                experience.id ||
+                experience.skillId
+            ),
+
+
+
+        version:
+            normalizeVersion(
+                experience.version
+            ),
+
+
+
+        previousVersion:
+            experience.previousVersion
+            ||
+            null,
+
+
+
+        metadata:
+            experience.metadata
+            ||
+            {},
+
+
+        mode:
+            experience.mode
+            ||
+            "create"
+
+    };
+
+}
+
+
+
+
+
+
+
 /*
  * =========================================================
  * SAVE VERSION
- * =========================================================
- *
- * Сохраняет снимок конкретной версии Skill.
- *
- * Уже существующая версия
- * не должна молча перезаписываться.
- *
  * =========================================================
  */
 
@@ -107,94 +160,181 @@ export async function saveExperienceVersion(
     experience
 ) {
 
+
     if (
         !experience ||
         typeof experience !== "object"
     ) {
 
         throw new Error(
-            "Experience не указан"
+            "Experience отсутствует"
         );
 
     }
 
 
-    const skillId =
-        normalizeSkillId(
-            experience.id ||
-            experience.skillId
+
+    const payload =
+        normalizePayload(
+            experience
         );
 
 
-    const version =
-        normalizeVersion(
-            experience.version
-        );
 
-
-    if (!skillId) {
+    if (
+        !payload.id
+    ) {
 
         throw new Error(
-            "Skill ID не указан"
+            "Skill ID отсутствует"
         );
 
     }
 
 
-    if (!version) {
+
+    if (
+        !payload.version
+    ) {
 
         throw new Error(
-            "Некорректная версия Skill"
+            "Версия Skill отсутствует"
         );
 
     }
+
+
+
 
 
     const supabase =
         getSupabaseClient();
 
 
+
+
+
     const {
         data,
         error
-    } =
-        await supabase
-            .from(
-                EXPERIENCE_HISTORY_TABLE
-            )
-            .insert({
+    }
+    =
+    await supabase
+        .from(
+            EXPERIENCE_HISTORY_TABLE
+        )
+        .insert({
 
-                skill_id:
-                    skillId,
-
-                version,
-
-                payload: {
-                    ...experience,
-                    id:
-                        skillId,
-                    version
-                }
-
-            })
-            .select(
-                "skill_id, version, payload, created_at"
-            )
-            .single();
+            skill_id:
+                payload.id,
 
 
-    if (error) {
+            version:
+                payload.version,
+
+
+            previous_version:
+                payload.previousVersion,
+
+
+            mode:
+                payload.mode,
+
+
+            payload,
+
+
+            metadata:
+                payload.metadata
+
+
+        })
+        .select(
+            `
+            skill_id,
+            version,
+            previous_version,
+            mode,
+            payload,
+            metadata,
+            created_at
+            `
+        )
+        .single();
+
+
+
+
+
+
+
+    if (
+        error
+    ) {
+
+
+        if (
+            error.code === "23505"
+        ) {
+
+
+            return {
+
+
+                success:false,
+
+
+                reason:
+                    "version_exists",
+
+
+                skillId:
+                    payload.id,
+
+
+                version:
+                    payload.version
+
+
+            };
+
+        }
+
+
 
         throw new Error(
-            `Не удалось сохранить версию Experience: ${error.message}`
+
+            `History save error: ${error.message}`
+
         );
 
     }
 
 
-    return data;
+
+
+
+
+
+    return {
+
+
+        success:true,
+
+
+        version:
+            data
+
+
+    };
+
 
 }
+
+
+
+
+
 
 
 /*
@@ -208,56 +348,82 @@ export async function loadExperienceHistory(
     skillId
 ) {
 
+
     const id =
         normalizeSkillId(
             skillId
         );
 
 
-    if (!id) {
+
+    if (
+        !id
+    ) {
 
         throw new Error(
-            "Skill ID не указан"
+            "Skill ID отсутствует"
         );
 
     }
+
+
+
 
 
     const supabase =
         getSupabaseClient();
 
 
+
+
+
     const {
         data,
         error
-    } =
-        await supabase
-            .from(
-                EXPERIENCE_HISTORY_TABLE
-            )
-            .select(
-                "skill_id, version, payload, created_at"
-            )
-            .eq(
-                "skill_id",
-                id
-            )
-            .order(
-                "version",
-                {
-                    ascending:
-                        false
-                }
-            );
+    }
+    =
+    await supabase
+        .from(
+            EXPERIENCE_HISTORY_TABLE
+        )
+        .select(
+            `
+            skill_id,
+            version,
+            previous_version,
+            mode,
+            payload,
+            metadata,
+            created_at
+            `
+        )
+        .eq(
+            "skill_id",
+            id
+        )
+        .order(
+            "version",
+            {
+                ascending:false
+            }
+        );
 
 
-    if (error) {
+
+
+
+    if (
+        error
+    ) {
 
         throw new Error(
-            `Не удалось загрузить историю Experience: ${error.message}`
+            `History load error: ${error.message}`
         );
 
     }
+
+
+
 
 
     return Array.isArray(data)
@@ -265,6 +431,11 @@ export async function loadExperienceHistory(
         : [];
 
 }
+
+
+
+
+
 
 
 /*
@@ -282,6 +453,7 @@ export async function loadExperienceVersion(
 
 ) {
 
+
     const id =
         normalizeSkillId(
             skillId
@@ -294,59 +466,117 @@ export async function loadExperienceVersion(
         );
 
 
-    if (!id) {
+
+    if (
+        !id ||
+        !normalizedVersion
+    ) {
 
         throw new Error(
-            "Skill ID не указан"
+            "Некорректный Skill или Version"
         );
 
     }
 
 
-    if (!normalizedVersion) {
 
-        throw new Error(
-            "Некорректная версия Skill"
-        );
-
-    }
 
 
     const supabase =
         getSupabaseClient();
 
 
+
+
+
     const {
         data,
         error
-    } =
-        await supabase
-            .from(
-                EXPERIENCE_HISTORY_TABLE
-            )
-            .select(
-                "skill_id, version, payload, created_at"
-            )
-            .eq(
-                "skill_id",
-                id
-            )
-            .eq(
-                "version",
-                normalizedVersion
-            )
-            .maybeSingle();
+    }
+    =
+    await supabase
+        .from(
+            EXPERIENCE_HISTORY_TABLE
+        )
+        .select(
+            `
+            skill_id,
+            version,
+            previous_version,
+            mode,
+            payload,
+            metadata,
+            created_at
+            `
+        )
+        .eq(
+            "skill_id",
+            id
+        )
+        .eq(
+            "version",
+            normalizedVersion
+        )
+        .maybeSingle();
 
 
-    if (error) {
+
+
+
+    if (
+        error
+    ) {
 
         throw new Error(
-            `Не удалось загрузить версию Experience: ${error.message}`
+            `Version load error: ${error.message}`
         );
 
     }
 
 
+
+
+
     return data || null;
 
-          }
+
+}
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * LOAD LATEST VERSION
+ * =========================================================
+ */
+
+
+export async function loadLatestExperienceVersion(
+    skillId
+) {
+
+
+    const history =
+        await loadExperienceHistory(
+            skillId
+        );
+
+
+
+    if (
+        history.length === 0
+    ) {
+
+        return null;
+
+    }
+
+
+
+    return history[0];
+
+}
