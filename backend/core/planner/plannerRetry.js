@@ -1,15 +1,59 @@
 /*
  * =========================================================
- * JESSICA PLANNER RETRY
+ * JESSICA PLANNER RETRY POLICY v3
  * =========================================================
  *
- * Техническая логика повторных попыток Planner.
+ * Техническая политика повторных попыток Planner.
  *
- * Здесь нет логики планирования задач.
+ *
+ * Отвечает:
+ *
+ * - количество попыток;
+ * - задержки;
+ * - определение временных ошибок.
+ *
+ *
+ * НЕ:
+ *
+ * - создаёт план;
+ * - вызывает AI;
+ * - исправляет JSON;
+ * - анализирует Experience.
+ *
+ * =========================================================
  */
 
 
-export const MAX_PLANNER_ATTEMPTS = 3;
+
+
+
+/*
+ * =========================================================
+ * CONFIG
+ * =========================================================
+ */
+
+
+export const MAX_PLANNER_ATTEMPTS =
+    3;
+
+
+
+
+const INITIAL_DELAY =
+    700;
+
+
+
+const MAX_DELAY =
+    5000;
+
+
+
+
+
+
+
 
 
 /*
@@ -19,14 +63,140 @@ export const MAX_PLANNER_ATTEMPTS = 3;
  */
 
 
-export function sleep(ms) {
+export function sleep(
+    milliseconds
+) {
+
 
     return new Promise(
+
         resolve =>
-            setTimeout(resolve, ms)
+            setTimeout(
+                resolve,
+                milliseconds
+            )
+
     );
 
 }
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * ERROR HELPERS
+ * =========================================================
+ */
+
+
+function getStatus(
+    error
+) {
+
+
+    return Number(
+
+        error?.status ||
+
+        error?.statusCode ||
+
+        error?.response?.status ||
+
+        0
+
+    );
+
+
+}
+
+
+
+
+
+
+function getCode(
+    error
+) {
+
+
+    return String(
+
+        error?.code ||
+
+        ""
+
+    )
+    .toUpperCase();
+
+
+}
+
+
+
+
+
+
+function getMessage(
+    error
+) {
+
+
+    return String(
+
+        error?.message ||
+
+        error ||
+
+        ""
+
+    )
+    .toLowerCase();
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * NETWORK ERRORS
+ * =========================================================
+ */
+
+
+const NETWORK_CODES =
+    new Set([
+
+        "ETIMEDOUT",
+
+        "ECONNRESET",
+
+        "ECONNREFUSED",
+
+        "EAI_AGAIN",
+
+        "ENETUNREACH"
+
+    ]);
+
+
+
+
+
+
+
 
 
 /*
@@ -36,79 +206,215 @@ export function sleep(ms) {
  */
 
 
-export function isRetryablePlannerError(error) {
+export function isRetryablePlannerError(
+    error
+) {
 
-    if (!error) {
+
+    if (
+        !error
+    ) {
+
         return false;
+
     }
+
 
 
     const status =
-        Number(
-            error.status ||
-            error.statusCode ||
-            error.response?.status ||
-            0
+        getStatus(
+            error
         );
 
 
+
     /*
-     * Rate limit.
+     * Rate limit
      */
-    if (status === 429) {
+
+
+    if (
+        status === 429
+    ) {
+
         return true;
+
     }
 
 
+
+
+
     /*
-     * Временные ошибки сервера AI.
+     * Временные ошибки AI сервера
      */
+
+
     if (
         status >= 500 &&
         status <= 599
     ) {
+
         return true;
+
     }
+
+
+
+
+
+    /*
+     * Network
+     */
 
 
     const code =
-        String(
-            error.code || ""
-        ).toUpperCase();
-
-
-    const retryableCodes =
-        new Set([
-            "ETIMEDOUT",
-            "ECONNRESET",
-            "ECONNREFUSED",
-            "EAI_AGAIN",
-            "ENETUNREACH"
-        ]);
+        getCode(
+            error
+        );
 
 
     if (
-        retryableCodes.has(code)
+        NETWORK_CODES.has(
+            code
+        )
     ) {
+
         return true;
+
     }
 
 
+
+
+
     const message =
-        String(
-            error.message || ""
-        ).toLowerCase();
+        getMessage(
+            error
+        );
 
 
-    return (
-        message.includes("timeout") ||
-        message.includes("timed out") ||
-        message.includes("network") ||
-        message.includes("rate limit") ||
-        message.includes("temporarily unavailable")
-    );
+
+
+
+
+    /*
+     * Timeout
+     */
+
+
+    if (
+
+        message.includes(
+            "timeout"
+        )
+
+        ||
+
+        message.includes(
+            "timed out"
+        )
+
+    ) {
+
+        return true;
+
+    }
+
+
+
+
+
+
+    /*
+     * AI временно недоступен
+     */
+
+
+    if (
+
+        message.includes(
+            "temporarily unavailable"
+        )
+
+        ||
+
+        message.includes(
+            "service unavailable"
+        )
+
+        ||
+
+        message.includes(
+            "network"
+        )
+
+    ) {
+
+        return true;
+
+    }
+
+
+
+
+
+
+
+
+    /*
+     * Ошибки формата ответа AI.
+     *
+     * Иногда модель возвращает
+     * неправильный JSON.
+     */
+
+
+    if (
+
+        message.includes(
+            "json"
+        )
+
+        ||
+
+        message.includes(
+            "parse"
+        )
+
+        ||
+
+        message.includes(
+            "normalize"
+        )
+
+        ||
+
+        message.includes(
+            "planner validation"
+        )
+
+    ) {
+
+        return true;
+
+    }
+
+
+
+
+
+    return false;
+
 
 }
+
+
+
+
+
+
+
 
 
 /*
@@ -122,26 +428,112 @@ export function getPlannerRetryDelay(
     attempt
 ) {
 
-    /*
-     * 1-я повторная попытка: 700 мс
-     * 2-я: 1400 мс
-     * 3-я: 2800 мс
-     */
 
     const safeAttempt =
         Math.max(
+
             1,
-            Number(attempt) || 1
+
+            Number(
+                attempt
+            )
+            ||
+            1
+
         );
 
 
+
     return Math.min(
-        700 *
-            Math.pow(
-                2,
-                safeAttempt - 1
-            ),
-        5000
+
+        INITIAL_DELAY *
+        Math.pow(
+
+            2,
+
+            safeAttempt - 1
+
+        ),
+
+        MAX_DELAY
+
     );
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * RETRY INFORMATION
+ * =========================================================
+ *
+ * Используется для логов
+ * и Trace.
+ *
+ * =========================================================
+ */
+
+
+export function getRetryInfo(
+    attempt,
+    error
+) {
+
+
+    return {
+
+
+        attempt:
+
+
+            Number(
+                attempt || 0
+            ),
+
+
+
+        maxAttempts:
+
+
+            MAX_PLANNER_ATTEMPTS,
+
+
+
+        retryable:
+
+
+            isRetryablePlannerError(
+                error
+            ),
+
+
+
+        delay:
+
+
+            getPlannerRetryDelay(
+                attempt
+            ),
+
+
+
+        reason:
+
+
+            getMessage(
+                error
+            )
+
+
+    };
+
 
 }
