@@ -2,21 +2,26 @@ import {
     requestPlan
 } from "./planner/plannerRequest.js";
 
+
 import {
     parsePlan
 } from "./planner/planParser.js";
+
 
 import {
     normalizePlan
 } from "./planner/planNormalizer.js";
 
+
 import {
     validatePlan
 } from "./planner/planValidator.js";
 
+
 import {
     normalizePlanningContext
 } from "./planner/planningContext.js";
+
 
 import {
     MAX_PLANNER_ATTEMPTS,
@@ -27,40 +32,224 @@ import {
 
 
 
+
+
 /*
  * =========================================================
  * JESSICA PLANNER
  * =========================================================
  *
- * Центральный координатор Planner.
+ * Центральный координатор создания плана.
  *
  *
  * Flow:
  *
  * Task
- *  ↓
- * PlanningContext
- *  ↓
+ *   ↓
+ * Planning Context
+ *   ↓
+ * Experience Context
+ *   ↓
  * Planner Request
- *  ↓
+ *   ↓
  * Parse
- *  ↓
+ *   ↓
  * Normalize
- *  ↓
+ *   ↓
  * Validate
- *  ↓
- * Retry
+ *   ↓
+ * Execution
  *
  *
- * Не содержит:
+ * НЕ:
  *
- * - AI prompt;
- * - tools;
- * - Experience search;
- * - execution;
+ * - ищет Experience;
+ * - сохраняет Skill;
+ * - выполняет задачи;
+ * - работает с Tools.
  *
  * =========================================================
  */
+
+
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE EXPERIENCE CONTEXT
+ * =========================================================
+ */
+
+
+function enrichExperienceContext(
+    context
+) {
+
+
+    const experience =
+        context?.experience;
+
+
+
+    if (
+        !experience ||
+        typeof experience !== "object"
+    ) {
+
+
+        return {
+
+
+            experience:
+
+
+                {
+
+
+                    available:
+                        false,
+
+
+                    skills:
+                        []
+
+
+                }
+
+
+        };
+
+    }
+
+
+
+
+
+    const skills =
+
+        Array.isArray(
+            experience?.experience?.skills
+        )
+
+            ? experience.experience.skills
+
+            : [];
+
+
+
+
+
+    return {
+
+
+        experience:
+
+
+            {
+
+
+                available:
+                    experience.found === true,
+
+
+                source:
+                    experience.source || "unknown",
+
+
+                confidence:
+                    Number(
+                        experience.confidence || 0
+                    ),
+
+
+                skills
+
+
+            }
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD CONTEXT
+ * =========================================================
+ */
+
+
+function buildPlannerContext(
+    context
+) {
+
+
+    const normalized =
+        normalizePlanningContext(
+            context
+        );
+
+
+
+    const experienceContext =
+        enrichExperienceContext(
+            normalized
+        );
+
+
+
+    return {
+
+
+        ...normalized,
+
+
+        ...experienceContext,
+
+
+        metadata:
+
+
+            {
+
+
+                ...(normalized.metadata || {}),
+
+
+                experienceAvailable:
+                    experienceContext
+                        .experience
+                        .available,
+
+
+                experienceSkillCount:
+                    experienceContext
+                        .experience
+                        .skills
+                        .length
+
+
+            }
+
+
+    };
+
+}
+
+
+
+
+
+
 
 
 
@@ -88,19 +277,31 @@ export async function createPlan(
 
 
 
-    if (!cleanTask) {
+
+
+    if (
+        !cleanTask
+    ) {
+
 
         return {
+
 
             success:
                 false,
 
+
             text:
                 "Задача Planner пустая"
+
 
         };
 
     }
+
+
+
+
 
 
 
@@ -108,13 +309,17 @@ export async function createPlan(
         !process.env.GROQ_API_KEY
     ) {
 
+
         return {
+
 
             success:
                 false,
 
+
             text:
                 "GROQ_API_KEY отсутствует"
+
 
         };
 
@@ -122,15 +327,16 @@ export async function createPlan(
 
 
 
-    /*
-     * Единый формат контекста.
-     */
+
+
 
 
     let planningContext =
-        normalizePlanningContext(
+        buildPlannerContext(
             context
         );
+
+
 
 
 
@@ -139,7 +345,13 @@ export async function createPlan(
 
 
 
+
+
+
+
+
     for (
+
         let attempt = 1;
 
         attempt <= MAX_PLANNER_ATTEMPTS;
@@ -150,31 +362,40 @@ export async function createPlan(
 
 
 
-        /*
-         * Добавляем служебную информацию
-         * о попытке.
-         */
-
 
         planningContext = {
+
 
             ...planningContext,
 
 
-            metadata: {
+            metadata:
 
-                ...(planningContext.metadata || {}),
 
-                plannerAttempt:
-                    attempt
+                {
 
-            }
+
+                    ...(planningContext.metadata || {}),
+
+
+                    plannerAttempt:
+                        attempt
+
+
+                }
+
 
         };
 
 
 
+
+
+
+
         try {
+
+
 
 
 
@@ -198,6 +419,11 @@ export async function createPlan(
 
 
 
+
+
+
+
+
             /*
              * =================================================
              * PARSE
@@ -209,6 +435,11 @@ export async function createPlan(
                 parsePlan(
                     rawText
                 );
+
+
+
+
+
 
 
 
@@ -226,13 +457,80 @@ export async function createPlan(
 
 
 
-            if (!plan) {
+
+
+            if (
+                !plan
+            ) {
+
 
                 throw new Error(
                     "normalize_failed"
                 );
 
             }
+
+
+
+
+
+
+
+
+            /*
+             * =================================================
+             * EXPERIENCE MARKING
+             * =================================================
+             *
+             * Помечаем:
+             *
+             * использовался ли опыт.
+             *
+             * =================================================
+             */
+
+
+            plan.experience = {
+
+
+                used:
+
+                    planningContext
+                        ?.experience
+                        ?.available === true,
+
+
+
+                source:
+
+                    planningContext
+                        ?.experience
+                        ?.source ||
+                    null,
+
+
+
+                skills:
+
+                    planningContext
+                        ?.experience
+                        ?.skills
+                        ?.map(
+
+                            skill =>
+                                skill.id ||
+                                skill.name
+
+                        )
+                        ||
+                        []
+
+            };
+
+
+
+
+
 
 
 
@@ -247,6 +545,10 @@ export async function createPlan(
                 validatePlan(
                     plan
                 );
+
+
+
+
 
 
 
@@ -277,9 +579,15 @@ export async function createPlan(
                 );
 
 
+
                 continue;
 
             }
+
+
+
+
+
 
 
 
@@ -300,12 +608,12 @@ export async function createPlan(
                         plan.intent,
 
 
-                    requiresTools:
-                        plan.requiresTools,
-
-
                     steps:
-                        plan.steps.length
+                        plan.steps.length,
+
+
+                    experienceUsed:
+                        plan.experience.used
 
 
                 }
@@ -314,10 +622,16 @@ export async function createPlan(
 
 
 
+
+
+
+
             return {
+
 
                 success:
                     true,
+
 
                 plan,
 
@@ -325,16 +639,23 @@ export async function createPlan(
                 context:
                     planningContext
 
+
             };
+
+
+
 
 
 
         } catch(error) {
 
 
+
+
             lastError =
                 error?.message ||
                 "planner_error";
+
 
 
 
@@ -355,10 +676,12 @@ export async function createPlan(
 
 
 
+
+
+
             if (
 
-                attempt <
-                MAX_PLANNER_ATTEMPTS
+                attempt < MAX_PLANNER_ATTEMPTS
 
                 &&
 
@@ -377,32 +700,46 @@ export async function createPlan(
 
                 );
 
+
             }
 
 
+
         }
+
 
 
     }
 
 
 
+
+
+
+
+
     return {
+
 
         success:
             false,
 
+
         text:
-            (
-                "Planner не смог создать корректный план: "
-                +
-                lastError
-            )
+
+            "Planner не смог создать корректный план: "
+            +
+            lastError
+
 
     };
 
-
 }
+
+
+
+
+
 
 
 
@@ -433,9 +770,12 @@ export async function planTask(
 
 
 
+
+
     if (
         result.success
     ) {
+
 
         return result.plan;
 
@@ -443,8 +783,13 @@ export async function planTask(
 
 
 
+
+
+
     throw new Error(
+
         result.text
+
     );
 
 }
