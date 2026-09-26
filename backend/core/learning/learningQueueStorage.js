@@ -12,14 +12,16 @@
  *        ↓
  * Learning Queue Storage
  *        ↓
- * Supabase
+ * Supabase Client
+ *        ↓
+ * PostgreSQL
  *
  *
  * Ответственность:
  *
  * - сохранить Learning Event;
  * - получить ожидающие события;
- * - обновить статус.
+ * - обновить статус обучения.
  *
  *
  * НЕ:
@@ -32,8 +34,9 @@
  */
 
 
+
 import {
-    supabase
+    getSupabaseClient
 } from "../../storage/supabaseClient.js";
 
 
@@ -56,6 +59,55 @@ const TABLE_NAME =
 
 /*
  * =========================================================
+ * CLIENT
+ * =========================================================
+ *
+ * Клиент создаётся через общий Supabase слой.
+ *
+ * =========================================================
+ */
+
+
+function getClient()
+{
+
+    return getSupabaseClient();
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * VALIDATION
+ * =========================================================
+ */
+
+
+function isValidQueueItem(
+    item
+) {
+
+
+    return (
+
+        item &&
+
+        typeof item === "object"
+
+    );
+
+
+}
+
+
+
+
+
+/*
+ * =========================================================
  * SAVE QUEUE ITEM
  * =========================================================
  */
@@ -67,8 +119,9 @@ export async function saveLearningQueueItem(
 
 
     if (
-        !item ||
-        typeof item !== "object"
+        !isValidQueueItem(
+            item
+        )
     ) {
 
 
@@ -83,6 +136,8 @@ export async function saveLearningQueueItem(
         };
 
     }
+
+
 
 
 
@@ -129,11 +184,12 @@ export async function saveLearningQueueItem(
 
 
 
+
         const {
             data,
             error
         } =
-            await supabase
+            await getClient()
 
                 .from(
                     TABLE_NAME
@@ -144,7 +200,7 @@ export async function saveLearningQueueItem(
                 )
 
                 .select()
-                
+
                 .single();
 
 
@@ -157,7 +213,7 @@ export async function saveLearningQueueItem(
 
 
             console.error(
-                "Learning Queue save error:",
+                "Jessica Learning Queue insert error:",
                 error
             );
 
@@ -201,7 +257,7 @@ export async function saveLearningQueueItem(
 
 
         console.error(
-            "Learning Queue storage exception:",
+            "Jessica Learning Queue storage exception:",
             error
         );
 
@@ -214,7 +270,7 @@ export async function saveLearningQueueItem(
 
 
             error:
-                error.message ||
+                error?.message ||
                 "Storage error"
 
 
@@ -247,7 +303,7 @@ export async function getPendingLearningItems()
             data,
             error
         } =
-            await supabase
+            await getClient()
 
                 .from(
                     TABLE_NAME
@@ -263,8 +319,10 @@ export async function getPendingLearningItems()
                 .order(
                     "created_at",
                     {
+
                         ascending:
                             true
+
                     }
                 );
 
@@ -330,7 +388,8 @@ export async function getPendingLearningItems()
 
 
             error:
-                error.message
+                error?.message ||
+                "Storage error"
 
 
         };
@@ -367,11 +426,38 @@ export async function updateLearningQueueItemStatus(
 
         return {
 
+
             success:
                 false,
 
+
             error:
                 "Queue item id required"
+
+
+        };
+
+    }
+
+
+
+
+
+    if (
+        !status
+    ) {
+
+
+        return {
+
+
+            success:
+                false,
+
+
+            error:
+                "Queue status required"
+
 
         };
 
@@ -388,7 +474,7 @@ export async function updateLearningQueueItemStatus(
             data,
             error
         } =
-            await supabase
+            await getClient()
 
                 .from(
                     TABLE_NAME
@@ -467,7 +553,8 @@ export async function updateLearningQueueItemStatus(
 
 
             error:
-                error.message
+                error?.message ||
+                "Storage error"
 
 
         };
