@@ -1,50 +1,13 @@
 /*
  * =========================================================
- * JESSICA EXECUTION RESULT v4
+ * JESSICA EXECUTION RESULT v5
  * =========================================================
  *
  * Единый контракт результата Execution.
  *
- *
- * Создаёт:
- *
- * - COMPLETED
- * - FAILED
- * - NEEDS_CLARIFICATION
- * - NO_VERIFIED_RESULT
- *
- *
- * Используется:
- *
- * - Execution Cycle
- * - Terminal
- * - Trace
- * - Learning
- * - Analytics
- *
- *
- * НЕ:
- *
- * - анализирует ошибки;
- * - решает Retry;
- * - делает Replan;
- * - вызывает Planner;
- * - вызывает Validator.
- *
  * =========================================================
  */
 
-
-
-
-
-
-
-/*
- * =========================================================
- * STATUS
- * =========================================================
- */
 
 
 export const EXECUTION_RESULT_STATUS = {
@@ -76,23 +39,14 @@ export const EXECUTION_RESULT_STATUS = {
 
 
 
-/*
- * =========================================================
- * SAFE VALUES
- * =========================================================
- */
-
-
 function safeString(
     value
 ) {
-
 
     return String(
         value || ""
     )
     .trim();
-
 
 }
 
@@ -107,7 +61,6 @@ function safeString(
 function safeArray(
     value
 ) {
-
 
     return Array.isArray(value)
 
@@ -127,20 +80,20 @@ function safeArray(
 
 /*
  * =========================================================
- * TOOLS META
+ * TOOLS
  * =========================================================
  */
 
 
 function collectUsedTools(
-    runResult
+    context
 ) {
 
 
     const results =
 
         safeArray(
-            runResult?.results
+            context?.runResult?.results
         );
 
 
@@ -154,7 +107,6 @@ function collectUsedTools(
                 .map(
 
                     item =>
-
                         item?.tool
 
                 )
@@ -177,7 +129,7 @@ function collectUsedTools(
 
 /*
  * =========================================================
- * EXPERIENCE META
+ * EXPERIENCE
  * =========================================================
  */
 
@@ -206,35 +158,48 @@ function buildExperienceMeta(
 
 
 
+        source:
+
+            context?.experience?.source ||
+            null,
+
+
+
+        confidence:
+
+            Number(
+                context?.experience?.confidence || 0
+            ),
+
+
+
         skills,
 
 
 
         skillIds:
 
-            skills
+            skills.map(
 
-                .map(
+                skill =>
 
-                    skill =>
+                    typeof skill === "string"
 
-                        typeof skill === "string"
+                    ?
 
-                            ? skill
+                    skill
 
-                            :
+                    :
 
-                            skill?.id
-                            ||
-                            skill?.name
+                    skill?.id ||
+                    skill?.name
 
-                )
+            )
 
-                .filter(Boolean)
+            .filter(Boolean)
 
 
     };
-
 
 }
 
@@ -275,10 +240,18 @@ function buildExecutionMeta(
 
 
 
-        attempt:
+        attempts:
 
             Number(
                 context?.attempt || 0
+            ),
+
+
+
+        retryCount:
+
+            Number(
+                context?.retryCount || 0
             ),
 
 
@@ -294,7 +267,7 @@ function buildExecutionMeta(
         usedTools:
 
             collectUsedTools(
-                context?.runResult
+                context
             ),
 
 
@@ -306,7 +279,6 @@ function buildExecutionMeta(
             )
 
     };
-
 
 }
 
@@ -320,7 +292,57 @@ function buildExecutionMeta(
 
 /*
  * =========================================================
- * BASE RESULT
+ * HISTORY
+ * =========================================================
+ */
+
+
+function buildHistoryMeta(
+    context
+) {
+
+
+    return {
+
+
+        failures:
+
+            safeArray(
+                context?.errors
+            ),
+
+
+
+        replans:
+
+            safeArray(
+                context?.replans
+            ),
+
+
+
+        executionHistory:
+
+            safeArray(
+                context?.executionHistory
+            )
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BASE
  * =========================================================
  */
 
@@ -335,12 +357,18 @@ function buildBaseResult(
 
         task:
 
-            context?.task ||
-            "",
+            context?.task || "",
 
 
 
-        plan:
+        initialPlan:
+
+            context?.initialPlan ||
+            null,
+
+
+
+        currentPlan:
 
             context?.plan ||
             null,
@@ -351,7 +379,16 @@ function buildBaseResult(
 
             buildExecutionMeta(
                 context
+            ),
+
+
+
+        history:
+
+            buildHistoryMeta(
+                context
             )
+
 
     };
 
@@ -400,7 +437,8 @@ export function buildCompletedResult(
 
         status:
 
-            EXECUTION_RESULT_STATUS.COMPLETED,
+            EXECUTION_RESULT_STATUS
+                .COMPLETED,
 
 
 
@@ -413,7 +451,6 @@ export function buildCompletedResult(
         answer:
 
         {
-
 
             text:
 
@@ -436,7 +473,6 @@ export function buildCompletedResult(
         failure:
 
             null,
-
 
 
         clarification:
@@ -470,13 +506,13 @@ export function buildFailureResult(
 
     {
 
-        stage = "execution",
+        stage="execution",
 
-        reason = "Не удалось выполнить задачу",
+        reason="Не удалось выполнить задачу",
 
-        failureType = "execution_failure"
+        failureType="execution_failure"
 
-    } = {}
+    }={}
 
 ) {
 
@@ -490,33 +526,26 @@ export function buildFailureResult(
 
 
 
-        success:
-
-            false,
+        success:false,
 
 
 
         status:
 
-            EXECUTION_RESULT_STATUS.FAILED,
+            EXECUTION_RESULT_STATUS
+                .FAILED,
 
 
 
-        verified:
-
-            false,
+        verified:false,
 
 
 
-        answer:
-
-            null,
+        answer:null,
 
 
 
-        clarification:
-
-            null,
+        clarification:null,
 
 
 
@@ -524,14 +553,12 @@ export function buildFailureResult(
 
         {
 
-
             stage,
 
 
             type:
 
                 failureType,
-
 
 
             reason:
@@ -546,7 +573,6 @@ export function buildFailureResult(
 
     };
 
-
 }
 
 
@@ -559,7 +585,7 @@ export function buildFailureResult(
 
 /*
  * =========================================================
- * NEEDS CLARIFICATION
+ * CLARIFICATION
  * =========================================================
  */
 
@@ -570,11 +596,11 @@ export function buildClarificationResult(
 
     {
 
-        stage = "execution",
+        stage="execution",
 
-        reason = "Требуется уточнение"
+        reason="Требуется уточнение"
 
-    } = {}
+    }={}
 
 ) {
 
@@ -588,9 +614,7 @@ export function buildClarificationResult(
 
 
 
-        success:
-
-            false,
+        success:false,
 
 
 
@@ -601,28 +625,21 @@ export function buildClarificationResult(
 
 
 
-        verified:
-
-            false,
+        verified:false,
 
 
 
-        answer:
-
-            null,
+        answer:null,
 
 
 
-        failure:
-
-            null,
+        failure:null,
 
 
 
         clarification:
 
         {
-
 
             stage,
 
@@ -633,12 +650,10 @@ export function buildClarificationResult(
                     reason
                 )
 
-
         }
 
 
     };
-
 
 }
 
@@ -652,7 +667,7 @@ export function buildClarificationResult(
 
 /*
  * =========================================================
- * NO VERIFIED RESULT
+ * NO VERIFIED
  * =========================================================
  */
 
@@ -663,13 +678,13 @@ export function buildNoVerifiedResult(
 
     {
 
-        stage = "verification",
+        stage="verification",
 
-        reason = "Не удалось подтвердить результат",
+        reason="Не удалось подтвердить результат",
 
-        failureType = "no_verified_result"
+        failureType="no_verified_result"
 
-    } = {}
+    }={}
 
 ) {
 
@@ -683,9 +698,7 @@ export function buildNoVerifiedResult(
 
 
 
-        success:
-
-            false,
+        success:true,
 
 
 
@@ -696,28 +709,21 @@ export function buildNoVerifiedResult(
 
 
 
-        verified:
-
-            false,
+        verified:false,
 
 
 
-        answer:
-
-            null,
+        answer:null,
 
 
 
-        clarification:
-
-            null,
+        clarification:null,
 
 
 
         failure:
 
         {
-
 
             stage,
 
@@ -727,19 +733,16 @@ export function buildNoVerifiedResult(
                 failureType,
 
 
-
             reason:
 
                 safeString(
                     reason
                 )
 
-
         }
 
 
     };
-
 
 }
 
@@ -753,7 +756,7 @@ export function buildNoVerifiedResult(
 
 /*
  * =========================================================
- * RESULT HELPERS
+ * HELPERS
  * =========================================================
  */
 
@@ -762,33 +765,24 @@ export function isCompletedResult(
     result
 ) {
 
-
     return (
 
         result?.status ===
         EXECUTION_RESULT_STATUS.COMPLETED
 
         &&
-
+        
         result?.success === true
 
     );
 
-
 }
-
-
-
-
-
-
 
 
 
 export function isFailedResult(
     result
 ) {
-
 
     return (
 
@@ -797,14 +791,7 @@ export function isFailedResult(
 
     );
 
-
 }
-
-
-
-
-
-
 
 
 
@@ -812,23 +799,15 @@ export function isClarificationResult(
     result
 ) {
 
-
     return (
 
         result?.status ===
         EXECUTION_RESULT_STATUS
-            .NEEDS_CLARIFICATION
+        .NEEDS_CLARIFICATION
 
     );
 
-
 }
-
-
-
-
-
-
 
 
 
@@ -836,14 +815,12 @@ export function isNoVerifiedResult(
     result
 ) {
 
-
     return (
 
         result?.status ===
         EXECUTION_RESULT_STATUS
-            .NO_VERIFIED_RESULT
+        .NO_VERIFIED_RESULT
 
     );
-
 
 }
