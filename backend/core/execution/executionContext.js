@@ -1,9 +1,9 @@
 /*
  * =========================================================
- * JESSICA EXECUTION CONTEXT v3
+ * JESSICA EXECUTION CONTEXT v4
  * =========================================================
  *
- * Контекст одного Execution Cycle.
+ * Контекст одного Execution Run.
  *
  *
  * Flow:
@@ -24,8 +24,7 @@
  * - executionCycle
  * - executionStepRunner
  * - failureHandler
- * - ExecutionTrace
- * - Learning Analyzer
+ * - executionTrace
  *
  *
  * НЕ:
@@ -33,11 +32,11 @@
  * - выполняет инструменты;
  * - делает retry;
  * - делает replan;
- * - валидирует результат.
+ * - валидирует результат;
+ * - обучает Jessica.
  *
  * =========================================================
  */
-
 
 
 import {
@@ -49,9 +48,11 @@ import {
 
 
 
+
+
 /*
  * =========================================================
- * NORMALIZE EXPERIENCE
+ * EXPERIENCE NORMALIZER
  * =========================================================
  */
 
@@ -69,26 +70,20 @@ function normalizeExperience(
 
         return {
 
-
             found:
                 false,
-
 
             source:
                 null,
 
-
             confidence:
                 0,
-
 
             skills:
                 [],
 
-
             context:
                 null
-
 
         };
 
@@ -141,7 +136,6 @@ function normalizeExperience(
 
     };
 
-
 }
 
 
@@ -154,21 +148,20 @@ function normalizeExperience(
 
 /*
  * =========================================================
- * NORMALIZE PLANNER TRACE
+ * TASK NORMALIZER
  * =========================================================
  */
 
 
-function normalizePlannerTrace(
-    trace
+function normalizeTask(
+    task
 ) {
 
 
-    return Array.isArray(
-        trace
+    return String(
+        task || ""
     )
-        ? trace
-        : [];
+    .trim();
 
 }
 
@@ -195,22 +188,19 @@ export function createExecutionContext({
 
     planningContext = {},
 
-    experience = null,
-
-    plannerTrace = []
+    experience = null
 
 } = {}) {
 
 
 
-    const executionId =
-        randomUUID();
-
+    const now =
+        new Date()
+            .toISOString();
 
 
 
     return {
-
 
 
         /*
@@ -220,27 +210,28 @@ export function createExecutionContext({
          */
 
 
-        executionId,
+        executionId:
+
+            randomUUID(),
 
 
 
         createdAt:
 
-            new Date()
-                .toISOString(),
+            now,
 
 
 
         startedAt:
 
-            new Date()
-                .toISOString(),
+            now,
 
 
 
         finishedAt:
 
             null,
+
 
 
 
@@ -259,57 +250,36 @@ export function createExecutionContext({
 
 
 
+        status:
+
+            "ACTIVE",
+
+
+
+
+
+
 
 
         /*
          * =================================================
-         * TASK
+         * INPUT
          * =================================================
          */
 
 
         task:
 
-            String(
-                task || ""
-            )
-            .trim(),
+            normalizeTask(
+                task
+            ),
 
-
-
-
-
-        /*
-         * =================================================
-         * PLAN
-         * =================================================
-         */
 
 
         plan:
 
             plan || null,
 
-
-
-
-
-        plannerTrace:
-
-            normalizePlannerTrace(
-                plannerTrace
-            ),
-
-
-
-
-
-
-        /*
-         * =================================================
-         * PLANNING CONTEXT
-         * =================================================
-         */
 
 
         planningContext:
@@ -321,13 +291,11 @@ export function createExecutionContext({
 
 
 
+
         /*
          * =================================================
          * EXPERIENCE
          * =================================================
-         *
-         * Опыт, доступный Planner.
-         *
          */
 
 
@@ -342,9 +310,11 @@ export function createExecutionContext({
 
 
 
+
+
         /*
          * =================================================
-         * EXECUTION DATA
+         * EXECUTION POSITION
          * =================================================
          */
 
@@ -367,9 +337,10 @@ export function createExecutionContext({
 
 
 
-        stepsHistory:
+        executionHistory:
 
             [],
+
 
 
 
@@ -405,14 +376,27 @@ export function createExecutionContext({
 
 
 
+
         /*
          * =================================================
-         * ATTEMPTS
+         * RETRY / REPLAN
          * =================================================
          */
 
 
         attempt:
+
+            0,
+
+
+
+        retryCount:
+
+            0,
+
+
+
+        replanCount:
 
             0,
 
@@ -447,36 +431,207 @@ export function createExecutionContext({
 
         /*
          * =================================================
-         * LEARNING DATA
+         * TRACE HOLDER
          * =================================================
-         *
-         * Передаётся Experience Analyzer.
-         *
          */
 
 
-        learningContext:
+        trace:
 
-            {
-
-
-                reusable:
-                    false,
-
-
-                candidateSkill:
-                    null,
-
-
-                signals:
-                    []
-
-            }
+            null
 
 
 
 
 
     };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * UPDATE STATE
+ * =========================================================
+ */
+
+
+export function updateExecutionState(
+
+    context,
+
+    state
+
+) {
+
+
+    if (
+        !context ||
+        typeof context !== "object"
+    ) {
+
+        return;
+
+    }
+
+
+
+    context.state =
+        state;
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * REGISTER STEP
+ * =========================================================
+ */
+
+
+export function registerExecutionStep(
+
+    context,
+
+    stepResult
+
+) {
+
+
+    if (
+        !context ||
+        !stepResult
+    ) {
+
+        return;
+
+    }
+
+
+
+    context.executionHistory.push({
+
+        ...stepResult,
+
+        timestamp:
+
+            new Date()
+                .toISOString()
+
+    });
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * REGISTER ERROR
+ * =========================================================
+ */
+
+
+export function registerExecutionError(
+
+    context,
+
+    error
+
+) {
+
+
+    if (
+        !context ||
+        !error
+    ) {
+
+        return;
+
+    }
+
+
+
+    context.errors.push({
+
+        ...error,
+
+        timestamp:
+
+            new Date()
+                .toISOString()
+
+    });
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * FINISH CONTEXT
+ * =========================================================
+ */
+
+
+export function finishExecutionContext(
+    context,
+    state = "FINISHED"
+) {
+
+
+    if (
+        !context
+    ) {
+
+        return;
+
+    }
+
+
+
+    context.state =
+        state;
+
+
+
+    context.status =
+        "COMPLETED";
+
+
+
+    context.finishedAt =
+
+        new Date()
+            .toISOString();
+
 
 }
