@@ -3,7 +3,7 @@
  * JESSICA LEARNING WORKER
  * =========================================================
  *
- * Обработчик очереди обучения.
+ * Обработчик Learning Queue.
  *
  *
  * Flow:
@@ -12,29 +12,28 @@
  *        ↓
  * Learning Worker
  *        ↓
- * Learning Proposal Builder
+ * Learning Proposal
  *        ↓
- * learning_proposals
- *        ↓
- * Learning Approval
+ * Approval
  *
  *
  * Ответственность:
  *
- * - получить PENDING Queue Items;
- * - создать Learning Proposal;
+ * - получить ожидающие события;
+ * - создать Proposal;
  * - сохранить Proposal;
- * - обновить статус очереди.
+ * - изменить статус Queue.
  *
  *
  * НЕ:
  *
- * - создаёт Experience Skill;
+ * - создаёт Skill;
  * - сохраняет Experience;
- * - принимает Approval решение.
+ * - выполняет Approval.
  *
  * =========================================================
  */
+
 
 
 import {
@@ -56,9 +55,54 @@ import {
 
 
 
+
+
 /*
  * =========================================================
- * PROCESS SINGLE QUEUE ITEM
+ * VALID QUEUE ITEM
+ * =========================================================
+ */
+
+
+function validateQueueItem(
+    item
+) {
+
+
+    if (
+        !item ||
+        typeof item !== "object"
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+        !item.action
+    ) {
+
+        return false;
+
+    }
+
+
+    return true;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * PROCESS ITEM
  * =========================================================
  */
 
@@ -69,18 +113,18 @@ async function processQueueItem(
 
 
     if (
-        !item ||
-        typeof item !== "object"
+        !validateQueueItem(
+            item
+        )
     ) {
 
 
         return {
 
-            success:
-                false,
+            success:false,
 
             reason:
-                "Empty queue item"
+                "Некорректный Learning Queue Item"
 
         };
 
@@ -90,12 +134,15 @@ async function processQueueItem(
 
 
 
+
+
     try {
+
 
 
         /*
          * =================================================
-         * 1. CREATE PROPOSAL
+         * 1. BUILD PROPOSAL
          * =================================================
          */
 
@@ -104,7 +151,6 @@ async function processQueueItem(
             createLearningProposalFromQueue(
                 item
             );
-
 
 
 
@@ -123,20 +169,24 @@ async function processQueueItem(
             );
 
 
+
             return {
 
-                success:
-                    false,
+                success:false,
 
                 queueItemId:
                     item.id,
 
                 reason:
-                    "Learning Proposal не создан"
+                    "Proposal не создан"
 
             };
 
+
         }
+
+
+
 
 
 
@@ -157,7 +207,6 @@ async function processQueueItem(
 
 
 
-
         if (
             !saveResult?.success
         ) {
@@ -172,21 +221,26 @@ async function processQueueItem(
             );
 
 
+
             return {
 
-                success:
-                    false,
+
+                success:false,
+
 
                 queueItemId:
                     item.id,
 
-                proposal,
 
                 reason:
+
                     saveResult?.error ||
-                    "Proposal не сохранён"
+
+                    "Proposal сохранение не подтверждено"
+
 
             };
+
 
         }
 
@@ -194,9 +248,13 @@ async function processQueueItem(
 
 
 
+
+
+
+
         /*
          * =================================================
-         * 3. UPDATE QUEUE STATUS
+         * 3. UPDATE QUEUE
          * =================================================
          */
 
@@ -213,7 +271,6 @@ async function processQueueItem(
 
 
 
-
         if (
             !updateResult?.success
         ) {
@@ -221,13 +278,17 @@ async function processQueueItem(
 
             return {
 
-                success:
-                    false,
+
+                success:false,
+
 
                 proposal,
 
+
                 reason:
-                    "Proposal сохранён, но очередь не обновлена"
+
+                    "Proposal создан, но Queue не обновлена"
+
 
             };
 
@@ -237,30 +298,41 @@ async function processQueueItem(
 
 
 
+
+
+
+
         return {
 
 
-            success:
-                true,
+            success:true,
 
 
             queueItemId:
+
                 item.id,
 
 
             proposalId:
+
                 proposal.id,
 
 
-            proposal
+            action:
 
+                proposal.action,
+
+
+            proposal
 
 
         };
 
 
 
+
     } catch(error) {
+
 
 
         console.error(
@@ -270,6 +342,8 @@ async function processQueueItem(
             error
 
         );
+
+
 
 
 
@@ -290,14 +364,14 @@ async function processQueueItem(
 
             console.error(
 
-                "Learning Queue status update error:",
+                "Learning Queue update error:",
 
                 updateError
 
             );
 
-
         }
+
 
 
 
@@ -306,25 +380,32 @@ async function processQueueItem(
         return {
 
 
-            success:
-                false,
+            success:false,
 
 
             queueItemId:
+
                 item.id,
 
 
             reason:
+
                 error?.message ||
+
                 "Worker error"
 
 
         };
 
+
     }
 
 
 }
+
+
+
+
 
 
 
@@ -341,16 +422,8 @@ export async function runLearningWorker()
 {
 
 
-    /*
-     * =====================================================
-     * GET QUEUE
-     * =====================================================
-     */
-
-
     const queueResult =
         await getPendingLearningItems();
-
 
 
 
@@ -363,17 +436,17 @@ export async function runLearningWorker()
         return {
 
 
-            success:
-                false,
+            success:false,
 
 
-            processed:
-                0,
+            processed:0,
 
 
             error:
+
                 queueResult?.error ||
-                "Не удалось получить Learning Queue"
+
+                "Ошибка получения очереди"
 
 
         };
@@ -384,12 +457,19 @@ export async function runLearningWorker()
 
 
 
+
+
     const items =
         Array.isArray(
             queueResult.items
         )
+
             ? queueResult.items
+
             : [];
+
+
+
 
 
 
@@ -400,13 +480,6 @@ export async function runLearningWorker()
 
 
 
-
-
-    /*
-     * =====================================================
-     * PROCESS
-     * =====================================================
-     */
 
 
     for (
@@ -425,7 +498,10 @@ export async function runLearningWorker()
             result
         );
 
+
     }
+
+
 
 
 
@@ -434,30 +510,37 @@ export async function runLearningWorker()
     return {
 
 
-        success:
-            true,
+        success:true,
 
 
         processed:
+
             items.length,
 
 
         successful:
+
             results.filter(
+
                 item =>
                     item.success === true
+
             ).length,
+
 
 
         failed:
+
             results.filter(
+
                 item =>
                     item.success === false
+
             ).length,
 
 
-        results
 
+        results
 
 
     };
