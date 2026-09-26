@@ -14,7 +14,11 @@
  *        ↓
  * Learning Event
  *        ↓
- * Learning Queue
+ * Learning Queue Builder
+ *        ↓
+ * Learning Queue Storage
+ *        ↓
+ * Supabase
  *
  *
  * Ответственность:
@@ -22,16 +26,16 @@
  * - принять Execution Trace;
  * - запустить анализ обучения;
  * - получить Learning Decision;
- * - создать Queue Item.
+ * - создать Queue Item;
+ * - сохранить Queue Item.
  *
  *
  * НЕ отвечает за:
  *
  * - создание Skill;
- * - сохранение Experience;
- * - запись в Supabase;
- * - Approval;
- * - изменение памяти Jessica.
+ * - Experience Approval;
+ * - изменение памяти Jessica;
+ * - обучение напрямую.
  *
  * =========================================================
  */
@@ -48,6 +52,11 @@ import {
 } from "./learningQueue.js";
 
 
+import {
+    saveLearningQueueItem
+} from "./learningQueueStorage.js";
+
+
 
 
 
@@ -62,7 +71,6 @@ function isValidTrace(
     trace
 ) {
 
-
     return (
 
         trace &&
@@ -71,7 +79,6 @@ function isValidTrace(
 
     );
 
-
 }
 
 
@@ -80,51 +87,7 @@ function isValidTrace(
 
 /*
  * =========================================================
- * IGNORE RESULT
- * =========================================================
- */
-
-
-function buildIgnoredResult(
-    triggerResult
-) {
-
-
-    return {
-
-
-        success:
-            true,
-
-
-        type:
-            "LEARNING_EVENT",
-
-
-        queued:
-            false,
-
-
-        reason:
-            "Learning decision IGNORE",
-
-
-        trigger:
-            triggerResult
-
-
-    };
-
-
-}
-
-
-
-
-
-/*
- * =========================================================
- * FAILED RESULT
+ * RESULT HELPERS
  * =========================================================
  */
 
@@ -133,27 +96,49 @@ function buildFailureResult(
     reason
 ) {
 
-
     return {
-
 
         success:
             false,
 
-
         type:
             "LEARNING_EVENT",
-
 
         queued:
             false,
 
-
         reason
-
 
     };
 
+}
+
+
+
+
+
+function buildIgnoredResult(
+    triggerResult
+) {
+
+    return {
+
+        success:
+            true,
+
+        type:
+            "LEARNING_EVENT",
+
+        queued:
+            false,
+
+        reason:
+            "Learning decision IGNORE",
+
+        trigger:
+            triggerResult
+
+    };
 
 }
 
@@ -168,14 +153,14 @@ function buildFailureResult(
  */
 
 
-export function processLearning(
+export async function processLearning(
     trace
 ) {
 
 
     /*
      * =====================================================
-     * TRACE VALIDATION
+     * VALIDATE
      * =====================================================
      */
 
@@ -186,11 +171,8 @@ export function processLearning(
         )
     ) {
 
-
         return buildFailureResult(
-
             "Invalid execution trace"
-
         );
 
     }
@@ -201,13 +183,12 @@ export function processLearning(
 
     /*
      * =====================================================
-     * LEARNING ANALYSIS
+     * TRIGGER
      * =====================================================
      */
 
 
     let triggerResult;
-
 
 
     try {
@@ -223,19 +204,13 @@ export function processLearning(
 
 
         console.error(
-
-            "Jessica Learning Coordinator trigger error:",
-
+            "Jessica Learning Trigger error:",
             error
-
         );
 
 
-
         return buildFailureResult(
-
             "Ошибка запуска Learning Trigger"
-
         );
 
     }
@@ -258,27 +233,21 @@ export function processLearning(
 
         return {
 
-
             success:
                 true,
-
 
             type:
                 "LEARNING_EVENT",
 
-
             queued:
                 false,
-
 
             reason:
                 triggerResult?.reason ||
                 "Learning не запущен",
 
-
             trigger:
                 triggerResult
-
 
         };
 
@@ -300,16 +269,12 @@ export function processLearning(
 
 
 
-
     if (
         !learningEvent
     ) {
 
-
         return buildFailureResult(
-
             "Learning Event не создан"
-
         );
 
     }
@@ -322,10 +287,6 @@ export function processLearning(
      * =====================================================
      * IGNORE
      * =====================================================
-     *
-     * Не сохраняем бесполезный опыт.
-     *
-     * =====================================================
      */
 
 
@@ -336,9 +297,7 @@ export function processLearning(
 
 
         return buildIgnoredResult(
-
             triggerResult
-
         );
 
     }
@@ -357,7 +316,6 @@ export function processLearning(
     let queueItem;
 
 
-
     try {
 
 
@@ -371,19 +329,13 @@ export function processLearning(
 
 
         console.error(
-
-            "Jessica Learning Queue creation error:",
-
+            "Learning Queue Builder error:",
             error
-
         );
 
 
-
         return buildFailureResult(
-
-            "Не удалось создать Learning Queue Item"
-
+            "Не удалось создать Queue Item"
         );
 
     }
@@ -396,12 +348,77 @@ export function processLearning(
         !queueItem
     ) {
 
+        return buildFailureResult(
+            "Queue Item пустой"
+        );
+
+    }
+
+
+
+
+
+    /*
+     * =====================================================
+     * SAVE TO SUPABASE
+     * =====================================================
+     */
+
+
+    let saveResult;
+
+
+    try {
+
+
+        saveResult =
+            await saveLearningQueueItem(
+                queueItem
+            );
+
+
+    } catch(error) {
+
+
+        console.error(
+            "Learning Queue Storage error:",
+            error
+        );
+
 
         return buildFailureResult(
-
-            "Learning Queue Item пустой"
-
+            "Ошибка сохранения Learning Queue"
         );
+
+    }
+
+
+
+
+
+    if (
+        !saveResult?.success
+    ) {
+
+
+        return {
+
+            success:
+                false,
+
+            type:
+                "LEARNING_EVENT",
+
+            queued:
+                false,
+
+            queueItem,
+
+            reason:
+                saveResult?.error ||
+                "Learning Queue не сохранён"
+
+        };
 
     }
 
@@ -432,6 +449,10 @@ export function processLearning(
 
 
         queueItem,
+
+
+        storage:
+            saveResult,
 
 
         trigger:
