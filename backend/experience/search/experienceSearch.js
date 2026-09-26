@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE SEARCH v0.4
+ * JESSICA EXPERIENCE SEARCH
  * =========================================================
  *
  * Центральный координатор поиска Experience.
@@ -12,43 +12,38 @@
  *   ↓
  * Experience Matcher
  *   ↓
- * Compare Skills
- *   ↓
- * Best Match
+ * Skill Ranking
  *   ↓
  * Confidence Threshold
  *   ↓
- * found / not found
+ * Experience Match
  *
  *
- * Вся специализированная логика вынесена:
+ * Ответственность:
  *
- * experienceSearch/
- *
- * ├── experienceText.js
- * │     → текст и semantic concepts
- * │
- * └── experienceMatcher.js
- *       → scoring и confidence
+ * - выбрать лучший Skill;
+ * - вернуть confidence;
+ * - вернуть причины совпадения.
  *
  *
- * Этот файл НЕ:
+ * НЕ:
  *
- * - нормализует текст;
- * - содержит словарь RU / EN;
- * - считает phrase matching;
- * - рассчитывает score самостоятельно;
- * - вызывает AI;
  * - читает Storage;
- * - изменяет Skills.
+ * - сохраняет Skills;
+ * - изменяет Experience;
+ * - вызывает AI.
  *
  * =========================================================
  */
 
 
+
 import {
     calculateExperienceMatch
 } from "./experienceSearch/experienceMatcher.js";
+
+
+
 
 
 /*
@@ -62,6 +57,15 @@ const MIN_MATCH_CONFIDENCE =
     0.35;
 
 
+
+const MAX_RANKING_ITEMS =
+    5;
+
+
+
+
+
+
 /*
  * =========================================================
  * EMPTY MATCH
@@ -69,22 +73,35 @@ const MIN_MATCH_CONFIDENCE =
  */
 
 
-function createEmptyMatch() {
+function emptyMatch() {
+
 
     return {
+
 
         confidence:
             0,
 
+
         matchedTerms:
             [],
 
+
         matchedPhrases:
+            [],
+
+
+        reasons:
             []
 
     };
 
+
 }
+
+
+
+
 
 
 /*
@@ -94,85 +111,58 @@ function createEmptyMatch() {
  */
 
 
-function createNotFoundResult(
-    match = createEmptyMatch()
+function notFoundResult(
+    match = emptyMatch(),
+
+    ranking = []
+
 ) {
 
+
     return {
+
 
         found:
             false,
 
+
         experience:
             null,
 
+
         confidence:
-            match?.confidence || 0,
+            Number(
+                match.confidence || 0
+            ),
+
 
         matchedTerms:
-            Array.isArray(
-                match?.matchedTerms
-            )
-                ? match.matchedTerms
-                : [],
+            match.matchedTerms || [],
+
 
         matchedPhrases:
-            Array.isArray(
-                match?.matchedPhrases
-            )
-                ? match.matchedPhrases
-                : [],
+            match.matchedPhrases || [],
+
+
+        matchReasons:
+            match.reasons || [],
+
+
+        ranking,
+
 
         source:
             "experience-search"
 
+
     };
+
 
 }
 
 
-/*
- * =========================================================
- * FOUND RESULT
- * =========================================================
- */
 
 
-function createFoundResult(
-    experience,
-    match
-) {
-
-    return {
-
-        found:
-            true,
-
-        experience,
-
-        confidence:
-            match?.confidence || 0,
-
-        matchedTerms:
-            Array.isArray(
-                match?.matchedTerms
-            )
-                ? match.matchedTerms
-                : [],
-
-        matchedPhrases:
-            Array.isArray(
-                match?.matchedPhrases
-            )
-                ? match.matchedPhrases
-                : [],
-
-        source:
-            "experience-search"
-
-    };
-
-}
 
 
 /*
@@ -186,147 +176,165 @@ function isUsableExperience(
     experience
 ) {
 
-    if (
-        !experience ||
-        typeof experience !== "object"
-    ) {
 
-        return false;
+    return Boolean(
 
-    }
+        experience &&
 
+        typeof experience === "object" &&
 
-    if (
-        experience.enabled === false
-    ) {
+        experience.enabled !== false
 
-        return false;
+    );
 
-    }
-
-
-    return true;
 
 }
 
 
+
+
+
+
+
 /*
  * =========================================================
- * FIND BEST EXPERIENCE
+ * RANK EXPERIENCES
  * =========================================================
  */
 
 
-function findBestExperience(
+function rankExperiences(
+
     task,
+
     experiences
+
 ) {
 
-    let bestExperience =
-        null;
+
+    return experiences
 
 
-    let bestMatch =
-        createEmptyMatch();
+        .filter(
+            isUsableExperience
+        )
 
 
-    for (
-        const experience
-        of experiences
-    ) {
+        .map(
 
-        if (
-            !isUsableExperience(
-                experience
-            )
-        ) {
-
-            continue;
-
-        }
+            experience => {
 
 
-        const match =
-            calculateExperienceMatch(
+                const match =
 
-                task,
+                    calculateExperienceMatch(
 
-                experience
+                        task,
 
-            );
+                        experience
 
-
-        if (
-            match?.confidence >
-            bestMatch.confidence
-        ) {
-
-            bestExperience =
-                experience;
+                    );
 
 
-            bestMatch =
-                match;
 
-        }
+                return {
 
-    }
+
+                    experience,
+
+
+                    match,
+
+
+                    confidence:
+                        Number(
+                            match?.confidence || 0
+                        )
+
+
+                };
+
+
+            }
+
+        )
+
+
+        .sort(
+
+            (a,b) =>
+
+                b.confidence -
+                a.confidence
+
+        );
+
+}
+
+
+
+
+/*
+ * =========================================================
+ * BUILD FOUND RESULT
+ * =========================================================
+ */
+
+
+function foundResult(
+    item,
+    ranking
+) {
 
 
     return {
 
-        experience:
-            bestExperience,
 
-        match:
-            bestMatch
+        found:
+            true,
+
+
+        experience:
+            item.experience,
+
+
+        confidence:
+            item.confidence,
+
+
+
+        matchedTerms:
+            item.match?.matchedTerms || [],
+
+
+
+        matchedPhrases:
+            item.match?.matchedPhrases || [],
+
+
+
+        matchReasons:
+            item.match?.reasons || [],
+
+
+
+        ranking,
+
+
+
+        source:
+            "experience-search"
+
+
 
     };
 
-}
-
-
-/*
- * =========================================================
- * LOG BEST MATCH
- * =========================================================
- */
-
-
-function logBestMatch(
-    experience,
-    match
-) {
-
-    if (
-        !experience
-    ) {
-
-        return;
-
-    }
-
-
-    console.log(
-        "Jessica Experience best match:",
-        JSON.stringify({
-
-            skillId:
-                experience?.id || null,
-
-            confidence:
-                match?.confidence || 0,
-
-            matchedTerms:
-                match?.matchedTerms || [],
-
-            matchedPhrases:
-                match?.matchedPhrases || []
-
-        })
-    );
 
 }
+
+
+
+
 
 
 /*
@@ -344,39 +352,47 @@ export function searchExperience(
 
 ) {
 
-    /*
-     * =====================================================
-     * INVALID INPUT
-     * =====================================================
-     */
 
 
     if (
-        typeof task !== "string" ||
-        !task.trim() ||
+
+        typeof task !== "string"
+
+        ||
+
+        !task.trim()
+
+        ||
+
         !Array.isArray(
             experiences
-        ) ||
+        )
+
+        ||
+
         experiences.length === 0
+
     ) {
 
-        return createNotFoundResult();
+
+        return notFoundResult();
 
     }
 
 
+
+
+
+
     /*
      * =====================================================
-     * BEST MATCH
+     * RANK
      * =====================================================
      */
 
 
-    const {
-        experience,
-        match
-    } =
-        findBestExperience(
+    const ranking =
+        rankExperiences(
 
             task,
 
@@ -385,72 +401,119 @@ export function searchExperience(
         );
 
 
-    /*
-     * =====================================================
-     * DIAGNOSTIC LOG
-     * =====================================================
-     */
 
 
-    logBestMatch(
 
-        experience,
+    const top =
+        ranking[0];
 
-        match
 
-    );
+
+
+
 
 
     /*
      * =====================================================
-     * NO MATCH
+     * NO RESULT
      * =====================================================
      */
 
 
     if (
-        !experience
+        !top
     ) {
 
-        return createNotFoundResult(
-            match
-        );
+
+        return notFoundResult();
 
     }
 
 
+
+
+
+
+    const publicRanking =
+
+        ranking
+
+            .slice(
+                0,
+                MAX_RANKING_ITEMS
+            )
+
+            .map(
+
+                item => ({
+
+                    skillId:
+                        item.experience?.id ||
+                        null,
+
+
+                    confidence:
+                        item.confidence,
+
+
+                    matchedTerms:
+                        item.match?.matchedTerms || []
+
+                })
+
+            );
+
+
+
+
+
+
+
     /*
      * =====================================================
-     * BELOW THRESHOLD
+     * BELOW CONFIDENCE
      * =====================================================
      */
 
 
     if (
-        match.confidence <
+
+        top.confidence <
         MIN_MATCH_CONFIDENCE
+
     ) {
 
-        return createNotFoundResult(
-            match
+
+        return notFoundResult(
+
+            top.match,
+
+            publicRanking
+
         );
 
     }
 
 
+
+
+
+
+
     /*
      * =====================================================
-     * FOUND
+     * SUCCESS
      * =====================================================
      */
 
 
-    return createFoundResult(
+    return foundResult(
 
-        experience,
+        top,
 
-        match
+        publicRanking
 
     );
 
-    }
+
+}
