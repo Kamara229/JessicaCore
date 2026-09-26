@@ -3,77 +3,65 @@ import {
 } from "../../storage/supabaseClient.js";
 
 
+
 /*
  * =========================================================
  * JESSICA EXPERIENCE WRITER
  * =========================================================
  *
- * Отвечает только за атомарное сохранение
- * новой версии Skill в Supabase.
+ * Атомарное сохранение Experience Skill.
  *
  *
- * Использует PostgreSQL функцию:
+ * Flow:
  *
- * save_jessica_experience_skill()
- *
- *
- * Одна операция одновременно:
- *
- * 1. сохраняет версию в History;
- * 2. обновляет Current Skill.
- *
- *
- * Если один этап завершается ошибкой,
- * PostgreSQL откатывает всю операцию.
+ * Experience Skill
+ *        ↓
+ * Writer
+ *        ↓
+ * PostgreSQL RPC
+ *        ↓
+ * History + Current Skill
  *
  *
- * Этот модуль НЕ:
+ * НЕ:
  *
- * - ищет Skills;
- * - загружает Skills;
- * - отключает Skills;
- * - выполняет Learning;
- * - вызывает Planner;
- * - содержит Earnings.
+ * - анализирует обучение;
+ * - создаёт Skill;
+ * - ищет версии;
+ * - работает с Planner.
  *
  * =========================================================
  */
 
-
-/*
- * =========================================================
- * RPC
- * =========================================================
- */
 
 
 const SAVE_SKILL_RPC =
     "save_jessica_experience_skill";
 
 
+
+
+
 /*
  * =========================================================
- * NORMALIZE SKILL ID
+ * NORMALIZE
  * =========================================================
  */
 
 
-function normalizeSkillId(
+function normalizeText(
     value
 ) {
 
     return String(
         value || ""
-    ).trim();
+    )
+    .trim();
 
 }
 
 
-/*
- * =========================================================
- * NORMALIZE VERSION
- * =========================================================
- */
+
 
 
 function normalizeVersion(
@@ -81,13 +69,12 @@ function normalizeVersion(
 ) {
 
     const version =
-        Number(
-            value
-        );
+        Number(value);
 
 
     if (
-        !Number.isInteger(version) ||
+        !Number.isInteger(version)
+        ||
         version < 1
     ) {
 
@@ -99,6 +86,21 @@ function normalizeVersion(
     return version;
 
 }
+
+
+
+
+
+function normalizeBoolean(
+    value
+) {
+
+    return value !== false;
+
+}
+
+
+
 
 
 /*
@@ -113,32 +115,27 @@ export async function saveExperienceAtomic(
 ) {
 
 
-    /*
-     * =====================================================
-     * INPUT
-     * =====================================================
-     */
-
-
     if (
         !experience ||
         typeof experience !== "object"
     ) {
 
         throw new Error(
-            "Experience не указан"
+            "Experience отсутствует"
         );
 
     }
 
 
-    const skillId =
-        normalizeSkillId(
 
+
+
+    const skillId =
+        normalizeText(
             experience.id ||
             experience.skillId
-
         );
+
 
 
     const version =
@@ -147,53 +144,78 @@ export async function saveExperienceAtomic(
         );
 
 
-    if (!skillId) {
+
+    if (
+        !skillId
+    ) {
 
         throw new Error(
-            "Skill ID не указан"
-        );
-
-    }
-
-
-    if (!version) {
-
-        throw new Error(
-            "Некорректная версия Skill"
+            "Skill ID отсутствует"
         );
 
     }
 
 
 
-    /*
-     * =====================================================
-     * NORMALIZED SKILL
-     * =====================================================
-     */
+    if (
+        !version
+    ) {
+
+        throw new Error(
+            "Версия Skill некорректна"
+        );
+
+    }
 
 
-    const skill = {
+
+
+
+
+    const payload = {
 
         ...experience,
+
 
         id:
             skillId,
 
+
         version,
 
+
         enabled:
-            experience.enabled !== false
+            normalizeBoolean(
+                experience.enabled
+            )
 
     };
 
 
 
-    /*
-     * =====================================================
-     * SUPABASE
-     * =====================================================
-     */
+
+
+    const metadata = {
+
+
+        ...(experience.metadata || {}),
+
+
+        previousVersion:
+            experience.previousVersion ||
+            null,
+
+
+        mode:
+            experience.mode ||
+            "create"
+
+    };
+
+
+
+
+
 
 
     const supabase =
@@ -201,11 +223,6 @@ export async function saveExperienceAtomic(
 
 
 
-    /*
-     * =====================================================
-     * ATOMIC DATABASE OPERATION
-     * =====================================================
-     */
 
 
     const {
@@ -218,17 +235,37 @@ export async function saveExperienceAtomic(
 
             {
 
+
                 p_skill_id:
-                    skill.id,
+                    skillId,
+
 
                 p_version:
-                    skill.version,
+                    version,
+
+
+                p_previous_version:
+                    experience.previousVersion ||
+                    null,
+
+
+                p_mode:
+                    metadata.mode,
+
 
                 p_enabled:
-                    skill.enabled,
+                    payload.enabled,
+
+
 
                 p_payload:
-                    skill
+                    payload,
+
+
+
+                p_metadata:
+                    metadata
+
 
             }
 
@@ -236,50 +273,130 @@ export async function saveExperienceAtomic(
 
 
 
-    /*
-     * =====================================================
-     * ERROR
-     * =====================================================
-     */
 
 
-    if (error) {
+
+
+    if (
+        error
+    ) {
+
 
         throw new Error(
-            `Не удалось атомарно сохранить Experience: ${error.message}`
+
+            "Experience atomic save failed: "
+
+            +
+
+            error.message
+
         );
 
     }
 
 
 
-    /*
-     * =====================================================
-     * RESULT
-     * =====================================================
-     */
+
+
+
+
+    const rpcResult =
+        Array.isArray(data)
+            ? data[0]
+            : data;
+
+
+
+
+
+
+    const success =
+
+        rpcResult?.success === true
+
+        ||
+
+        rpcResult?.success === "true";
+
+
+
+
+
+
+
+    if (
+        !success
+    ) {
+
+
+        return {
+
+
+            success:false,
+
+
+            error:
+
+                rpcResult?.error
+
+                ||
+
+                "RPC не подтвердил сохранение"
+
+
+        };
+
+    }
+
+
+
+
+
 
 
     return {
 
-        success:
-            data?.success === true,
+
+        success:true,
+
 
         id:
-            data?.id ||
-            skill.id,
+            rpcResult?.id ||
+            skillId,
+
+
+
+        skillId,
+
+
 
         version:
             Number(
-                data?.version ||
-                skill.version
+
+                rpcResult?.version
+
+                ||
+
+                version
+
             ),
 
+
+
+        historyId:
+            rpcResult?.historyId ||
+            null,
+
+
+
         enabled:
-            data?.enabled !== false,
+            rpcResult?.enabled !== false,
+
+
 
         experience:
-            skill
+            payload
+
 
     };
 
