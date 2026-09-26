@@ -1,34 +1,30 @@
 /*
  * =========================================================
- * JESSICA EXECUTION STEP RUNNER
+ * JESSICA EXECUTION STEP RUNNER v3
  * =========================================================
  *
- * Один полный цикл выполнения:
+ * Выполняет один полный Execution Step.
+ *
+ *
+ * Flow:
  *
  * Plan
  *   ↓
- * Runner
+ * Task Runner
  *   ↓
- * Composer
+ * Answer Composer
  *   ↓
  * Validator
+ *   ↓
+ * Step Result
  *
  *
- * Передаёт:
- *
- * ExecutionContext
- *        ↓
- * ExecutionResult
- *        ↓
- * Learning
- *
- *
- * НЕ отвечает за:
+ * НЕ:
  *
  * - retry;
  * - replan;
- * - лимиты;
- * - terminal decision.
+ * - terminal decision;
+ * - Learning save.
  *
  * =========================================================
  */
@@ -67,54 +63,165 @@ import {
 
 
 
-
 /*
  * =========================================================
- * EXPERIENCE META
+ * REGISTER STEP
  * =========================================================
  */
 
 
-function buildExecutionExperienceMeta(
-    context
+function registerStep(
+
+    context,
+
+    {
+
+        stage,
+
+        status,
+
+        error = null
+
+    }
+
+) {
+
+
+    if (
+        !context
+    ) {
+
+        return;
+
+    }
+
+
+
+    context.currentStep =
+        stage;
+
+
+
+    context.stepsHistory.push({
+
+        stage,
+
+        status,
+
+        error,
+
+        timestamp:
+            new Date()
+                .toISOString()
+
+    });
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * REGISTER LEARNING SIGNAL
+ * =========================================================
+ */
+
+
+function addLearningSignal(
+
+    context,
+
+    signal
+
+) {
+
+
+    if (
+        !context?.learningContext
+    ) {
+
+        return;
+
+    }
+
+
+
+    if (
+        !Array.isArray(
+            context.learningContext.signals
+        )
+    ) {
+
+        context.learningContext.signals = [];
+
+    }
+
+
+
+    context.learningContext.signals.push(
+        signal
+    );
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * FAILURE BUILDER
+ * =========================================================
+ */
+
+
+function createFailure(
+
+    stage,
+
+    reason,
+
+    failureType,
+
+    extra = {}
+
 ) {
 
 
     return {
 
 
-        used:
+        stage,
 
-            context?.experience?.used === true,
+        reason:
 
+            reason ||
 
-
-        skills:
-
-            context?.experience?.skills || [],
+            "Ошибка выполнения",
 
 
+        failureType:
 
-        skillIds:
 
-            Array.isArray(
-                context?.experience?.skills
-            )
+            failureType ||
 
-                ? context.experience.skills
 
-                    .map(
+            `${stage}-failure`,
 
-                        skill =>
 
-                            skill?.id ||
-                            skill
 
-                    )
-
-                    .filter(Boolean)
-
-                : []
+        ...extra
 
     };
 
@@ -130,22 +237,133 @@ function buildExecutionExperienceMeta(
 
 /*
  * =========================================================
- * EXECUTE STEP
+ * EXCEPTION HANDLER
+ * =========================================================
+ */
+
+
+function handleException(
+
+    context,
+
+    stage,
+
+    error
+
+) {
+
+
+    registerStep(
+
+        context,
+
+        {
+
+            stage,
+
+            status:
+                "FAILED",
+
+            error:
+                error?.message
+
+        }
+
+    );
+
+
+
+    addLearningSignal(
+
+        context,
+
+        {
+
+            type:
+                "execution_exception",
+
+
+            stage,
+
+
+            reason:
+                error?.message || ""
+
+        }
+
+    );
+
+
+
+    return {
+
+
+        success:false,
+
+
+        failure:
+
+            createFailure(
+
+                stage,
+
+                error?.message,
+
+                `${stage}-exception`
+
+            )
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * EXECUTE EXECUTION STEP
  * =========================================================
  */
 
 
 export async function executeExecutionStep(
+
     context
+
 ) {
 
 
 
     /*
      * =====================================================
-     * RUN PLAN
+     * RUNNER
      * =====================================================
      */
+
+
+    registerStep(
+
+        context,
+
+        {
+
+            stage:
+                "runner",
+
+            status:
+                "RUNNING"
+
+        }
+
+    );
+
 
 
     try {
@@ -165,56 +383,20 @@ export async function executeExecutionStep(
     } catch(error) {
 
 
-        console.error(
-            "Jessica TaskRunner error:",
+        return handleException(
+
+            context,
+
+            "runner",
+
             error
+
         );
-
-
-        return {
-
-
-            success:false,
-
-
-            failure:{
-
-                stage:
-                    "runner",
-
-
-                reason:
-
-                    error?.message ||
-
-                    "Ошибка выполнения плана",
-
-
-
-                failureType:
-
-                    "runner-exception"
-
-            }
-
-
-        };
-
 
     }
 
 
 
-
-
-
-
-
-    /*
-     * =====================================================
-     * ANALYZE RUN
-     * =====================================================
-     */
 
 
     const runFailure =
@@ -228,9 +410,47 @@ export async function executeExecutionStep(
 
 
 
+
     if (
         runFailure?.failed === true
     ) {
+
+
+        registerStep(
+
+            context,
+
+            {
+
+                stage:
+                    "runner",
+
+                status:
+                    "FAILED"
+
+            }
+
+        );
+
+
+
+        addLearningSignal(
+
+            context,
+
+            {
+
+                type:
+                    "runner_failure",
+
+
+                failure:
+                    runFailure
+
+            }
+
+        );
+
 
 
         return {
@@ -252,14 +472,53 @@ export async function executeExecutionStep(
 
 
 
+    registerStep(
+
+        context,
+
+        {
+
+            stage:
+                "runner",
+
+            status:
+                "COMPLETED"
+
+        }
+
+    );
+
+
+
+
+
+
 
 
 
     /*
      * =====================================================
-     * COMPOSE
+     * COMPOSER
      * =====================================================
      */
+
+
+    registerStep(
+
+        context,
+
+        {
+
+            stage:
+                "composer",
+
+            status:
+                "RUNNING"
+
+        }
+
+    );
+
 
 
     try {
@@ -278,41 +537,22 @@ export async function executeExecutionStep(
             );
 
 
-
     } catch(error) {
 
 
-        return {
+        return handleException(
 
+            context,
 
-            success:false,
+            "composer",
 
+            error
 
-            failure:{
-
-                stage:
-                    "composer",
-
-
-                reason:
-
-                    error?.message ||
-
-                    "Ошибка создания ответа",
-
-
-
-                failureType:
-
-                    "composer-exception"
-
-            }
-
-
-        };
-
+        );
 
     }
+
+
 
 
 
@@ -324,31 +564,43 @@ export async function executeExecutionStep(
     ) {
 
 
+        registerStep(
+
+            context,
+
+            {
+
+                stage:
+                    "composer",
+
+                status:
+                    "FAILED"
+
+            }
+
+        );
+
+
+
         return {
 
 
             success:false,
 
 
-            failure:{
+            failure:
 
-                stage:
+                createFailure(
+
                     "composer",
-
-
-                reason:
 
                     context.answerResult?.text ||
 
                     "Ответ не создан",
 
-
-
-                failureType:
-
                     "composer-failure"
 
-            }
+                )
 
 
         };
@@ -362,12 +614,53 @@ export async function executeExecutionStep(
 
 
 
+    registerStep(
+
+        context,
+
+        {
+
+            stage:
+                "composer",
+
+            status:
+                "COMPLETED"
+
+        }
+
+    );
+
+
+
+
+
+
+
+
 
     /*
      * =====================================================
-     * VALIDATION
+     * VALIDATOR
      * =====================================================
      */
+
+
+    registerStep(
+
+        context,
+
+        {
+
+            stage:
+                "validator",
+
+            status:
+                "RUNNING"
+
+        }
+
+    );
+
 
 
     let validation;
@@ -392,8 +685,48 @@ export async function executeExecutionStep(
             );
 
 
-
     } catch(error) {
+
+
+
+        /*
+         * Ошибка самого Validator.
+         *
+         * Ответ существует,
+         * но подтверждение отсутствует.
+         */
+
+
+        registerStep(
+
+            context,
+
+            {
+
+                stage:
+                    "validator",
+
+                status:
+                    "SKIPPED"
+
+            }
+
+        );
+
+
+
+        addLearningSignal(
+
+            context,
+
+            {
+
+                type:
+                    "validation_skipped"
+
+            }
+
+        );
 
 
 
@@ -426,14 +759,13 @@ export async function executeExecutionStep(
 
 
 
+    context.validationResult =
+        validation;
 
 
 
-    /*
-     * =====================================================
-     * VALID RESULT
-     * =====================================================
-     */
+
+
 
 
     if (
@@ -441,39 +773,40 @@ export async function executeExecutionStep(
     ) {
 
 
+        registerStep(
 
-        const result =
+            context,
 
-            buildCompletedResult(
+            {
 
-                context,
+                stage:
+                    "validator",
 
-                context.answerResult,
+                status:
+                    "COMPLETED"
 
-                true
+            }
 
-            );
-
-
-
-
-
-        result.executionMeta = {
-
-
-            ...(result.executionMeta || {}),
+        );
 
 
 
-            experience:
+        addLearningSignal(
 
-                buildExecutionExperienceMeta(
-                    context
-                )
+            context,
 
-        };
+            {
+
+                type:
+                    "successful_execution",
 
 
+                validated:
+                    true
+
+            }
+
+        );
 
 
 
@@ -483,15 +816,23 @@ export async function executeExecutionStep(
             success:true,
 
 
-            result
+            result:
+
+                buildCompletedResult(
+
+                    context,
+
+                    context.answerResult,
+
+                    true
+
+                )
 
 
         };
 
 
     }
-
-
 
 
 
@@ -506,30 +847,68 @@ export async function executeExecutionStep(
      */
 
 
+    registerStep(
+
+        context,
+
+        {
+
+            stage:
+                "validator",
+
+            status:
+                "FAILED"
+
+        }
+
+    );
+
+
+
+    addLearningSignal(
+
+        context,
+
+        {
+
+            type:
+                "validation_failure",
+
+
+            reason:
+                validation?.reason || ""
+
+        }
+
+    );
+
+
+
     return {
 
 
         success:false,
 
 
-        failure:{
+        failure:
 
-            stage:
+            createFailure(
+
                 "validator",
-
-
-            reason:
 
                 validation?.reason ||
 
                 "Ответ не прошёл проверку",
 
+                "validation-failure",
 
+                {
 
-            validation
+                    validation
 
+                }
 
-        }
+            )
 
 
     };
