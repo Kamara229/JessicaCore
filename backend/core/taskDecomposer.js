@@ -1,60 +1,73 @@
 import OpenAI from "openai";
 
 
+
 /*
  * =========================================================
  * JESSICA TASK DECOMPOSER
  * =========================================================
  *
- * Разделяет комплексную пользовательскую задачу
+ * Разделяет пользовательскую задачу
  * на независимые подзадачи.
  *
- * Пример:
  *
- * "Узнай время в Токио, погоду и курс иены"
+ * Flow:
  *
- * может стать:
+ * User Task
+ *      +
+ * Memory Context
+ *          ↓
+ * Task Decomposer
+ *          ↓
+ * Subtasks
  *
- * 1. Узнать текущее время в Токио
- * 2. Узнать текущую погоду в Токио
- * 3. Узнать актуальный курс иены
  *
- * ВАЖНО:
+ * НЕ:
  *
- * Decomposer НЕ решает задачи.
- * НЕ выбирает инструменты.
- * НЕ отвечает пользователю.
+ * - выполняет задачи;
+ * - вызывает инструменты;
+ * - создаёт ответы;
+ * - изменяет память.
  *
- * Его задача только определить структуру работы.
+ * =========================================================
  */
+
+
+
 
 
 const groq =
     process.env.GROQ_API_KEY
+
         ? new OpenAI({
+
             apiKey:
                 process.env.GROQ_API_KEY,
 
             baseURL:
                 "https://api.groq.com/openai/v1"
+
         })
+
         : null;
 
 
-/*
- * =========================================================
- * LIMITS
- * =========================================================
- */
+
+
 
 
 const MAX_SUBTASKS =
     30;
 
 
+
+
+
+
+
 /*
  * =========================================================
- * JSON CLEANUP
+ * CLEAN JSON
  * =========================================================
  */
 
@@ -62,6 +75,7 @@ const MAX_SUBTASKS =
 function cleanJsonText(
     text
 ) {
+
 
     if (
         typeof text !== "string"
@@ -73,30 +87,105 @@ function cleanJsonText(
 
 
     return text
+
         .replace(
             /```json/gi,
             ""
         )
+
         .replace(
             /```/g,
             ""
         )
+
         .trim();
 
 }
 
 
+
+
+
+
+
 /*
  * =========================================================
- * VALIDATION
+ * NORMALIZE MEMORY
+ * =========================================================
+ */
+
+
+function normalizeMemoryContext(
+    memoryContext
+) {
+
+
+    if (
+        !memoryContext ||
+        !Array.isArray(
+            memoryContext.skills
+        )
+    ) {
+
+        return [];
+
+    }
+
+
+
+    return memoryContext.skills
+
+        .map(
+
+            skill => ({
+
+                name:
+                    skill.name || "",
+
+
+                description:
+                    skill.description || "",
+
+
+                workflow:
+                    skill.workflow || [],
+
+
+                constraints:
+                    skill.constraints || []
+
+            })
+
+        )
+
+        .filter(
+            skill =>
+                skill.name
+        );
+
+
+}
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * VALIDATE
  * =========================================================
  */
 
 
 function validateDecomposition(
     data,
-    originalTask
+    originalTask,
+    memoryContext
 ) {
+
 
     if (
         !data ||
@@ -104,13 +193,20 @@ function validateDecomposition(
     ) {
 
         return {
-            success: false,
+
+            success:
+                false,
+
 
             text:
-                "Decomposer вернул некорректную структуру"
+                "Некорректная структура"
+
         };
 
     }
+
+
+
 
 
     if (
@@ -119,28 +215,45 @@ function validateDecomposition(
         )
     ) {
 
+
         return {
-            success: false,
+
+            success:
+                false,
+
 
             text:
-                "Decomposer не сформировал список подзадач"
+                "Нет списка подзадач"
+
         };
 
     }
+
+
+
 
 
     if (
         data.subtasks.length === 0
     ) {
 
+
         return {
-            success: false,
+
+            success:
+                false,
+
 
             text:
-                "Decomposer сформировал пустой список подзадач"
+                "Пустой список задач"
+
         };
 
     }
+
+
+
+
 
 
     if (
@@ -148,150 +261,242 @@ function validateDecomposition(
         MAX_SUBTASKS
     ) {
 
+
         return {
-            success: false,
+
+            success:
+                false,
+
 
             text:
-                `Слишком много подзадач: ${data.subtasks.length}`
+                "Слишком много подзадач"
+
         };
 
     }
+
+
+
+
+
 
 
     const subtasks =
         [];
 
 
+
+
+
     for (
-        let index = 0;
-        index < data.subtasks.length;
-        index++
+        let i = 0;
+        i < data.subtasks.length;
+        i++
     ) {
 
+
+
         const item =
-            data.subtasks[index];
+            data.subtasks[i];
 
-
-        if (
-            !item ||
-            typeof item !== "object"
-        ) {
-
-            return {
-                success: false,
-
-                text:
-                    `Некорректная подзадача ${index + 1}`
-            };
-
-        }
 
 
         const text =
-            typeof item.text === "string"
+            typeof item?.text === "string"
+
                 ? item.text.trim()
+
                 : "";
 
 
-        if (!text) {
+
+
+
+        if (
+            !text
+        ) {
+
 
             return {
-                success: false,
+
+                success:
+                    false,
+
 
                 text:
-                    `Подзадача ${index + 1} не содержит текста`
+                    `Пустая подзадача ${i + 1}`
+
             };
 
         }
+
+
+
 
 
         subtasks.push({
 
             id:
-                index + 1,
+                i + 1,
+
 
             text,
 
-            /*
-             * Если результат этой подзадачи
-             * понадобится для общей финальной сводки.
-             */
+
+
             contributesToFinalAnswer:
-                item.contributesToFinalAnswer !== false
+                item.contributesToFinalAnswer !== false,
+
+
+
+            memoryHints:
+                Array.isArray(
+                    item.memoryHints
+                )
+
+                    ? item.memoryHints
+
+                    : []
 
         });
+
 
     }
 
 
+
+
+
+
     return {
-        success: true,
+
+
+        success:
+            true,
+
+
 
         decomposition: {
 
+
             originalTask,
+
 
             isComplex:
                 subtasks.length > 1,
 
+
+
+            memoryContext,
+
+
+
             subtasks
 
+
         }
+
 
     };
 
 }
+
+
+
+
+
+
+
 
 
 /*
  * =========================================================
  * FALLBACK
  * =========================================================
- *
- * Если Decomposer временно недоступен,
- * не ломаем Jessica.
- *
- * Весь запрос становится одной подзадачей.
  */
 
 
-function createSingleTaskFallback(
-    task
+function createFallback(
+    task,
+    memoryContext
 ) {
+
 
     return {
 
-        success: true,
+
+        success:
+            true,
+
 
         fallback:
             true,
 
+
+
         decomposition: {
+
 
             originalTask:
                 task,
 
+
+
             isComplex:
                 false,
 
-            subtasks: [
+
+
+            memoryContext,
+
+
+
+            subtasks:[
+
+
                 {
+
+
                     id:
                         1,
+
+
 
                     text:
                         task,
 
+
+
                     contributesToFinalAnswer:
-                        true
+                        true,
+
+
+
+                    memoryHints:
+                        normalizeMemoryContext(
+                            memoryContext
+                        )
+
+
                 }
+
+
             ]
 
+
         }
+
 
     };
 
 }
+
+
+
+
+
+
+
 
 
 /*
@@ -301,38 +506,92 @@ function createSingleTaskFallback(
  */
 
 
-export async function decomposeTask(
-    task
-) {
+export async function decomposeTask({
+
+    task,
+
+    memoryContext = null
+
+} = {}) {
+
+
 
     const normalizedTask =
         typeof task === "string"
+
             ? task.trim()
+
             : "";
 
 
-    if (!normalizedTask) {
+
+
+
+    if (
+        !normalizedTask
+    ) {
+
 
         return {
-            success: false,
+
+
+            success:
+                false,
+
 
             text:
-                "Не передана задача для декомпозиции"
+                "Не передана задача"
+
         };
 
     }
 
 
-    if (!groq) {
 
-        return createSingleTaskFallback(
-            normalizedTask
+
+
+
+    const normalizedMemory =
+        normalizeMemoryContext(
+            memoryContext
+        );
+
+
+
+
+
+    if (
+        !groq
+    ) {
+
+
+        return createFallback(
+
+            normalizedTask,
+
+            {
+
+                hasExperience:
+                    normalizedMemory.length > 0,
+
+
+                skills:
+                    normalizedMemory
+
+            }
+
         );
 
     }
 
 
+
+
+
+
+
     try {
+
 
         const response =
             await groq.responses.create({
@@ -340,61 +599,87 @@ export async function decomposeTask(
                 model:
                     "openai/gpt-oss-20b",
 
+
+
+
                 instructions:
-                    (
-                        "Ты — Task Decomposer системы Jessica Core. " +
 
-                        "Ты НЕ решаешь пользовательскую задачу. " +
-                        "Ты НЕ отвечаешь пользователю. " +
-                        "Ты НЕ выбираешь инструменты. " +
+                    `
+Ты — Task Decomposer системы Jessica Core.
 
-                        "Твоя задача — определить, содержит ли запрос " +
-                        "несколько самостоятельных действий или вопросов. " +
+Твоя задача:
+разделить пользовательский запрос
+на самостоятельные исполнимые подзадачи.
 
-                        "Если запрос является одной цельной задачей, " +
-                        "создай ровно одну подзадачу. " +
+У тебя есть Memory Context Jessica.
 
-                        "Если пользователь явно или по смыслу просит выполнить " +
-                        "несколько независимых действий, раздели их на подзадачи. " +
+Используй его только как подсказку:
+- не считай его всегда правильным;
+- не добавляй факты из памяти без необходимости;
+- учитывай прошлые workflow и ограничения.
 
-                        "Не дроби простую задачу на искусственные этапы. " +
+Ты НЕ:
+- решаешь задачу;
+- отвечаешь пользователю;
+- выбираешь инструменты.
 
-                        "Например поиск информации, её анализ и формирование ответа " +
-                        "могут оставаться одной подзадачей, если это одна цель. " +
+Если задача простая:
+создай одну подзадачу.
 
-                        "Но список из двадцати разных вопросов должен стать " +
-                        "двадцатью отдельными подзадачами. " +
+Если задача содержит несколько независимых целей:
+раздели её.
 
-                        "Сохраняй важные условия исходного запроса внутри каждой " +
-                        "подзадачи, чтобы её можно было выполнить независимо. " +
+Каждая подзадача должна быть самостоятельной.
 
-                        "Не теряй числа, даты, названия, ограничения и формулировки пользователя. " +
+Верни только JSON:
 
-                        "Верни ТОЛЬКО JSON без markdown. " +
+{
+ "subtasks":[
+   {
+    "text":"описание подзадачи",
+    "contributesToFinalAnswer":true,
+    "memoryHints":[]
+   }
+ ]
+}
+`,
 
-                        "Формат: " +
 
-                        JSON.stringify({
-                            subtasks: [
-                                {
-                                    text:
-                                        "полная самостоятельная формулировка подзадачи",
-                                    contributesToFinalAnswer:
-                                        true
-                                }
-                            ]
-                        })
-                    ),
+
+
 
                 input:
-                    normalizedTask,
+
+                    JSON.stringify({
+
+                        task:
+                            normalizedTask,
+
+
+                        memory:
+
+                            normalizedMemory
+
+                    }),
+
+
+
 
                 reasoning: {
+
                     effort:
                         "medium"
+
                 }
 
+
             });
+
+
+
+
+
+
 
 
         const raw =
@@ -402,24 +687,35 @@ export async function decomposeTask(
                 ?.trim();
 
 
-        if (!raw) {
-
-            console.error(
-                "Task Decomposer returned empty response"
-            );
 
 
-            return createSingleTaskFallback(
-                normalizedTask
+
+        if (
+            !raw
+        ) {
+
+
+            return createFallback(
+
+                normalizedTask,
+
+                memoryContext
+
             );
 
         }
 
 
+
+
+
+
         let parsed;
 
 
+
         try {
+
 
             parsed =
                 JSON.parse(
@@ -428,60 +724,93 @@ export async function decomposeTask(
                     )
                 );
 
-        } catch {
-
-            console.error(
-                "Task Decomposer invalid JSON:",
-                raw
-            );
 
 
-            return createSingleTaskFallback(
-                normalizedTask
+        } catch(error) {
+
+
+            return createFallback(
+
+                normalizedTask,
+
+                memoryContext
+
             );
 
         }
 
 
+
+
+
+
+
         const validated =
             validateDecomposition(
+
                 parsed,
-                normalizedTask
+
+                normalizedTask,
+
+                memoryContext
+
             );
+
+
+
+
+
 
 
         if (
             !validated.success
         ) {
 
-            console.error(
-                "Task Decomposer validation failed:",
-                validated.text
-            );
 
+            return createFallback(
 
-            return createSingleTaskFallback(
-                normalizedTask
+                normalizedTask,
+
+                memoryContext
+
             );
 
         }
 
 
+
+
+
+
+
         return validated;
 
 
-    } catch (error) {
+
+
+
+    } catch(error) {
+
 
         console.error(
-            "Task Decomposer error:",
+
+            "Jessica Task Decomposer error:",
+
             error
+
         );
 
 
-        return createSingleTaskFallback(
-            normalizedTask
+
+        return createFallback(
+
+            normalizedTask,
+
+            memoryContext
+
         );
 
     }
+
 
 }
