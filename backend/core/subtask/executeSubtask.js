@@ -14,6 +14,8 @@ import {
 
 
 
+
+
 /*
  * =========================================================
  * JESSICA EXECUTE SUBTASK
@@ -25,41 +27,45 @@ import {
  * Flow:
  *
  * Subtask
- *    ↓
- * Experience
- *    ↓
+ *      ↓
+ * Memory Context
+ *      ↓
+ * Experience Resolver
+ *      ↓
  * Planning Context
- *    ↓
+ *      ↓
  * Planner
- *    ↓
+ *      ↓
  * Execution Cycle
- *    ↓
+ *      ↓
  * Result
  *
  *
  * Ответственность:
  *
- * - найти Experience;
+ * - подготовить Experience Context;
  * - создать план;
- * - запустить Execution Cycle;
+ * - запустить выполнение;
  * - вернуть полный результат.
  *
  *
- * НЕ отвечает за:
+ * НЕ:
  *
- * - выполнение нескольких задач;
- * - общий ответ;
- * - Learning;
- * - Storage.
+ * - выполняет несколько задач;
+ * - создаёт Skill;
+ * - сохраняет Experience;
+ * - управляет Learning.
  *
  * =========================================================
  */
 
 
 
+
+
 /*
  * =========================================================
- * FAILED RESULT BUILDER
+ * FAILED RESULT
  * =========================================================
  */
 
@@ -85,32 +91,200 @@ function buildFailedResult({
 
     return {
 
+
         id:
             subtaskId,
+
 
         text:
             taskText,
 
+
         success:
             false,
+
 
         status:
             "FAILED",
 
+
         stage,
+
 
         result:
             message,
 
+
         experience,
+
 
         plan,
 
+
         planningContext
+
 
     };
 
 }
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD MEMORY EXPERIENCE
+ * =========================================================
+ *
+ * Опыт, который пришёл из Decomposer
+ * через Memory Context.
+ *
+ * =========================================================
+ */
+
+
+function buildMemoryExperience(
+    subtask
+) {
+
+
+    const hints =
+        Array.isArray(
+            subtask?.memoryHints
+        )
+            ? subtask.memoryHints
+            : [];
+
+
+
+    if (
+        hints.length === 0
+    ) {
+
+        return null;
+
+    }
+
+
+
+    return {
+
+
+        source:
+            "memory-context",
+
+
+        skills:
+            hints.map(
+
+                item => ({
+
+                    id:
+                        item?.id || null,
+
+
+                    name:
+                        item?.name || "",
+
+
+                    workflow:
+                        item?.workflow || [],
+
+
+                    constraints:
+                        item?.constraints || []
+
+                })
+
+            )
+
+
+    };
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * MERGE EXPERIENCE
+ * =========================================================
+ */
+
+
+function mergeExperienceContext(
+
+    resolverExperience,
+
+    memoryExperience
+
+) {
+
+
+    if (
+        memoryExperience
+    ) {
+
+
+        return {
+
+
+            found:
+                true,
+
+
+            confidence:
+                0.8,
+
+
+            source:
+                "memory-context",
+
+
+            experience:
+                memoryExperience
+
+
+        };
+
+    }
+
+
+
+
+    return resolverExperience || {
+
+
+        found:
+            false,
+
+
+        confidence:
+            0,
+
+
+        source:
+            "none",
+
+
+        experience:
+            null
+
+
+    };
+
+
+}
+
+
+
+
+
 
 
 
@@ -126,6 +300,22 @@ export async function executeSubtask(
 ) {
 
 
+    const subtaskId =
+        subtask?.id ?? null;
+
+
+
+    const taskText =
+        typeof subtask?.text === "string"
+
+            ? subtask.text.trim()
+
+            : "";
+
+
+
+
+
     /*
      * =====================================================
      * INPUT
@@ -133,18 +323,9 @@ export async function executeSubtask(
      */
 
 
-    const subtaskId =
-        subtask?.id ?? null;
-
-
-    const taskText =
-        typeof subtask?.text === "string"
-            ? subtask.text.trim()
-            : "";
-
-
-
-    if (!taskText) {
+    if (
+        !taskText
+    ) {
 
 
         return buildFailedResult({
@@ -161,104 +342,186 @@ export async function executeSubtask(
 
         });
 
+
     }
+
+
+
+
 
 
 
     /*
      * =====================================================
-     * 1. EXPERIENCE
+     * 1. EXPERIENCE CONTEXT
      * =====================================================
      */
 
 
-    let experienceResult;
+    let resolverResult =
+        null;
+
+
+
+    let memoryExperience =
+        null;
+
 
 
     try {
 
 
-        experienceResult =
-            await resolveExperience(
-                taskText
+        memoryExperience =
+            buildMemoryExperience(
+                subtask
             );
 
 
-    } catch (error) {
+
+
+        /*
+         * Если Decomposer уже передал опыт,
+         * дополнительный поиск не обязателен.
+         *
+         * Если опыта нет —
+         * ищем в Experience Storage.
+         */
+
+
+        if (
+            !memoryExperience
+        ) {
+
+
+            resolverResult =
+                await resolveExperience(
+                    taskText
+                );
+
+
+        }
+
+
+
+    } catch(error) {
 
 
         console.error(
+
             `Jessica Experience error ${subtaskId}:`,
+
             error
+
         );
 
 
-        experienceResult = {
+        resolverResult = {
+
 
             found:
                 false,
 
+
             confidence:
                 0,
+
+
+            source:
+                "error",
+
 
             planningContext:
                 {}
 
+
         };
 
+
     }
 
 
 
-    const initialPlanningContext =
-        experienceResult?.planningContext &&
-        typeof experienceResult.planningContext === "object"
-
-            ? experienceResult.planningContext
-
-            : {};
 
 
 
-    if (
-        experienceResult?.found === true
-    ) {
+
+    const experienceResult =
+        mergeExperienceContext(
+
+            resolverResult,
+
+            memoryExperience
+
+        );
 
 
-        console.log(
-            `Subtask ${subtaskId} Experience found:`,
+
+
+
+
+
+
+    const initialPlanningContext = {
+
+
+        experience:
+
+
+            experienceResult,
+
+
+
+        subtask:
+
+
             {
 
-                skillId:
-                    initialPlanningContext
-                        ?.experience
-                        ?.skillId ||
-                    null,
 
-                version:
-                    initialPlanningContext
-                        ?.experience
-                        ?.version ||
-                    null,
+                id:
+                    subtaskId,
 
-                matchConfidence:
-                    Number(
-                        experienceResult.confidence || 0
-                    )
+
+                text:
+                    taskText
+
 
             }
-        );
 
 
-    } else {
+
+    };
 
 
-        console.log(
-            `Subtask ${subtaskId}: Experience not found`
-        );
 
 
-    }
+
+
+    console.log(
+
+        `Jessica Subtask ${subtaskId} experience:`,
+
+        {
+
+
+            found:
+                experienceResult.found,
+
+
+            source:
+                experienceResult.source,
+
+
+            confidence:
+                experienceResult.confidence
+
+
+        }
+
+    );
+
+
+
+
 
 
 
@@ -271,6 +534,7 @@ export async function executeSubtask(
 
 
     let planResult;
+
 
 
     try {
@@ -286,13 +550,18 @@ export async function executeSubtask(
             );
 
 
-    } catch (error) {
+
+    } catch(error) {
 
 
         console.error(
-            `Subtask ${subtaskId} Planner error:`,
+
+            `Jessica Planner error ${subtaskId}:`,
+
             error
+
         );
+
 
 
         return buildFailedResult({
@@ -317,6 +586,10 @@ export async function executeSubtask(
 
 
     }
+
+
+
+
 
 
 
@@ -352,6 +625,11 @@ export async function executeSubtask(
 
 
 
+
+
+
+
+
     /*
      * =====================================================
      * 3. EFFECTIVE CONTEXT
@@ -360,7 +638,9 @@ export async function executeSubtask(
 
 
     const effectivePlanningContext =
-        planResult?.context &&
+
+        planResult.context &&
+
         typeof planResult.context === "object"
 
             ? planResult.context
@@ -370,14 +650,19 @@ export async function executeSubtask(
 
 
 
+
+
+
+
     /*
      * =====================================================
-     * 4. EXECUTION CYCLE
+     * 4. EXECUTION
      * =====================================================
      */
 
 
     let executionResult;
+
 
 
     try {
@@ -395,13 +680,18 @@ export async function executeSubtask(
             );
 
 
-    } catch (error) {
+
+    } catch(error) {
 
 
         console.error(
-            `Subtask ${subtaskId} Execution Cycle error:`,
+
+            `Jessica Execution Cycle error ${subtaskId}:`,
+
             error
+
         );
+
 
 
         return buildFailedResult({
@@ -432,6 +722,11 @@ export async function executeSubtask(
 
 
 
+
+
+
+
+
     /*
      * =====================================================
      * 5. FINAL RESULT
@@ -440,6 +735,7 @@ export async function executeSubtask(
 
 
     return {
+
 
         id:
             subtaskId,
@@ -450,49 +746,60 @@ export async function executeSubtask(
 
 
 
-        experience: {
-
-            found:
-                experienceResult?.found === true,
+        experience:
 
 
-            skillId:
-                effectivePlanningContext
-                    ?.experience
-                    ?.skillId ||
-                null,
+            {
 
 
-            version:
-                effectivePlanningContext
-                    ?.experience
-                    ?.version ||
-                null,
+                found:
+                    experienceResult.found,
 
 
-            matchConfidence:
-                Number(
-                    experienceResult?.confidence || 0
-                )
+                source:
+                    experienceResult.source,
 
-        },
+
+                confidence:
+                    experienceResult.confidence,
+
+
+                skills:
+
+                    experienceResult
+                        ?.experience
+                        ?.skills || []
 
 
 
-        executionMeta: {
-
-            experienceUsed:
-                experienceResult?.found === true,
+            },
 
 
-            plannerUsed:
-                true,
+
+        executionMeta:
 
 
-            executionStarted:
-                true
+            {
 
-        },
+
+                experienceUsed:
+                    experienceResult.found,
+
+
+                experienceSource:
+                    experienceResult.source,
+
+
+                plannerUsed:
+                    true,
+
+
+                executionStarted:
+                    true
+
+
+
+            },
 
 
 
@@ -508,6 +815,8 @@ export async function executeSubtask(
 
         ...executionResult
 
+
     };
+
 
 }
