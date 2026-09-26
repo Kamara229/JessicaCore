@@ -3,23 +3,30 @@
  * JESSICA PLANNING CONTEXT TEXT
  * =========================================================
  *
- * Преобразует PlanningContext
- * в текст для AI Planner.
+ * Renderer PlanningContext для AI Planner.
  *
  *
  * Flow:
  *
  * PlanningContext
  *        ↓
- * Experience Renderer
+ * Context Renderer
  *        ↓
  * Planner Prompt
+ *
+ *
+ * Ответственность:
+ *
+ * - превратить Context в текст;
+ * - передать опыт Jessica Planner;
+ * - сохранить структуру.
  *
  *
  * НЕ:
  *
  * - ищет Experience;
  * - изменяет Skills;
+ * - вызывает AI;
  * - принимает решения.
  *
  * =========================================================
@@ -39,13 +46,18 @@ const MAX_CONTEXT_LENGTH =
     6000;
 
 
+const MAX_ARRAY_ITEMS =
+    15;
+
+
+
 
 
 
 
 /*
  * =========================================================
- * SAFE STRING
+ * STRING
  * =========================================================
  */
 
@@ -53,7 +65,6 @@ const MAX_CONTEXT_LENGTH =
 function safeString(
     value
 ) {
-
 
     return String(
         value || ""
@@ -70,7 +81,7 @@ function safeString(
 
 /*
  * =========================================================
- * FORMAT ARRAY
+ * ARRAY
  * =========================================================
  */
 
@@ -92,25 +103,23 @@ function formatArray(
 
     return value
 
-        .map(
-
-            item =>
-
-                typeof item === "string"
-
-                    ? item.trim()
-
-                    : JSON.stringify(item)
-
+        .slice(
+            0,
+            MAX_ARRAY_ITEMS
         )
 
-        .filter(Boolean)
+        .map(
+            item =>
+                safeString(item)
+        )
+
+        .filter(
+            Boolean
+        )
 
         .map(
-
             item =>
                 `- ${item}`
-
         )
 
         .join("\n");
@@ -124,23 +133,26 @@ function formatArray(
 
 
 
-
 /*
  * =========================================================
- * FORMAT SKILL
+ * SIMPLE SECTION
  * =========================================================
  */
 
 
-function formatSkill(
-    skill
+function formatSection(
+    title,
+    value
 ) {
 
 
-    if (
-        !skill ||
-        typeof skill !== "object"
-    ) {
+    const text =
+        formatArray(
+            value
+        );
+
+
+    if (!text) {
 
         return "";
 
@@ -148,135 +160,15 @@ function formatSkill(
 
 
 
-    const blocks = [];
+    return [
 
+        title,
 
+        text
 
+    ]
+    .join("\n");
 
-
-    if (
-        skill.id ||
-        skill.name
-    ) {
-
-
-        blocks.push(
-
-            [
-
-                "Навык:",
-
-                skill.name ||
-                skill.id
-
-            ]
-
-            .join("\n")
-
-        );
-
-    }
-
-
-
-
-
-    if (
-        skill.workflow &&
-        Array.isArray(
-            skill.workflow
-        )
-    ) {
-
-
-        blocks.push(
-
-            [
-
-                "Workflow:",
-
-                formatArray(
-                    skill.workflow
-                )
-
-            ]
-
-            .join("\n")
-
-        );
-
-    }
-
-
-
-
-
-
-    if (
-        skill.constraints &&
-        Array.isArray(
-            skill.constraints
-        )
-    ) {
-
-
-        blocks.push(
-
-            [
-
-                "Ограничения:",
-
-                formatArray(
-                    skill.constraints
-                )
-
-            ]
-
-            .join("\n")
-
-        );
-
-    }
-
-
-
-
-
-    if (
-        skill.examples &&
-        Array.isArray(
-            skill.examples
-        )
-    ) {
-
-
-        blocks.push(
-
-            [
-
-                "Примеры:",
-
-                formatArray(
-                    skill.examples
-                )
-
-            ]
-
-            .join("\n")
-
-        );
-
-    }
-
-
-
-
-
-    return blocks.join(
-
-        "\n\n"
-
-    );
 
 }
 
@@ -286,11 +178,9 @@ function formatSkill(
 
 
 
-
-
 /*
  * =========================================================
- * FORMAT EXPERIENCE
+ * EXPERIENCE FORMAT
  * =========================================================
  */
 
@@ -311,7 +201,6 @@ function formatExperience(
 
 
 
-
     const blocks = [];
 
 
@@ -319,34 +208,50 @@ function formatExperience(
 
 
 
-    blocks.push(
-
-        [
-
-            "Источник:",
-
-            experience.source ||
-            "unknown"
-
-        ]
-
-        .join("\n")
-
-    );
+    /*
+     * Identity
+     */
 
 
-
+    const identity = [];
 
 
 
     if (
-        experience.confidence !== undefined
+        experience.skillId
     ) {
 
+        identity.push(
 
-        blocks.push(
+            `Skill ID: ${experience.skillId}`
 
-            `Confidence: ${experience.confidence}`
+        );
+
+    }
+
+
+
+    if (
+        experience.name
+    ) {
+
+        identity.push(
+
+            `Название: ${experience.name}`
+
+        );
+
+    }
+
+
+
+    if (
+        experience.version
+    ) {
+
+        identity.push(
+
+            `Версия: ${experience.version}`
 
         );
 
@@ -355,28 +260,38 @@ function formatExperience(
 
 
 
+    if (
+        experience.skillConfidence !== undefined
+    ) {
 
+        identity.push(
 
+            `Skill confidence: ${experience.skillConfidence}`
 
-    const skills =
+        );
 
-        Array.isArray(
-            experience?.experience?.skills
-        )
-
-            ? experience.experience.skills
-
-            : [];
-
-
-
-
+    }
 
 
 
 
     if (
-        skills.length > 0
+        experience.matchConfidence !== undefined
+    ) {
+
+        identity.push(
+
+            `Match confidence: ${experience.matchConfidence}`
+
+        );
+
+    }
+
+
+
+
+    if (
+        identity.length
     ) {
 
 
@@ -384,31 +299,13 @@ function formatExperience(
 
             [
 
-                "Используемые Skills:",
+                "=== ИНФОРМАЦИЯ О SKILL ===",
 
-
-                skills
-
-                    .map(
-
-                        skill =>
-
-                            formatSkill(
-                                skill
-                            )
-
-                    )
-
-                    .filter(Boolean)
-
-                    .join(
-                        "\n\n---\n\n"
-                    )
-
+                identity.join("\n")
 
             ]
 
-            .join("\n\n")
+            .join("\n")
 
         );
 
@@ -419,14 +316,69 @@ function formatExperience(
 
 
 
-    return blocks.join(
 
-        "\n\n"
+    /*
+     * Description
+     */
+
+
+    if (
+        experience.description
+    ) {
+
+
+        blocks.push(
+
+            [
+
+                "Описание:",
+
+                experience.description
+
+            ]
+
+            .join("\n")
+
+        );
+
+    }
+
+
+
+
+
+
+
+    /*
+     * Knowledge
+     */
+
+
+    blocks.push(
+
+        formatSection(
+
+            "Ключевые слова:",
+
+            experience.keywords
+
+        )
 
     );
 
 
-}
+
+    blocks.push(
+
+        formatSection(
+
+            "Теги:",
+
+            experience.tags
+
+        )
+
+    );
 
 
 
@@ -435,44 +387,113 @@ function formatExperience(
 
 
 
-/*
- * =========================================================
- * FORMAT SIMPLE SECTION
- * =========================================================
- */
+    /*
+     * Strategy
+     */
 
 
-function formatSection(
-    title,
-    value
-) {
+    blocks.push(
 
+        formatSection(
 
-    const text =
-        formatArray(
-            value
-        );
+            "Стратегия выполнения:",
 
+            experience.strategy
 
-    if (
-        !text
-    ) {
+        )
 
-        return "";
-
-    }
+    );
 
 
 
-    return [
+    blocks.push(
 
-        title,
+        formatSection(
 
-        text
+            "Приоритет источников:",
 
-    ]
+            experience.sourcePriority
 
-    .join("\n");
+        )
+
+    );
+
+
+
+
+
+
+
+
+    /*
+     * Quality
+     */
+
+
+    blocks.push(
+
+        formatSection(
+
+            "Правила проверки:",
+
+            experience.validationRules
+
+        )
+
+    );
+
+
+
+    blocks.push(
+
+        formatSection(
+
+            "Известные ошибки:",
+
+            experience.failurePatterns
+
+        )
+
+    );
+
+
+
+    blocks.push(
+
+        formatSection(
+
+            "Успешные паттерны:",
+
+            experience.successfulPatterns
+
+        )
+
+    );
+
+
+
+    blocks.push(
+
+        formatSection(
+
+            "Избегать:",
+
+            experience.avoidPatterns
+
+        )
+
+    );
+
+
+
+
+
+    return blocks
+
+        .filter(Boolean)
+
+        .join("\n\n");
+
 
 }
 
@@ -506,10 +527,24 @@ function formatMetadata(
 
 
 
+    if (
+        Object.keys(metadata).length === 0
+    ) {
+
+        return "";
+
+    }
+
+
+
     return JSON.stringify(
+
         metadata,
+
         null,
+
         2
+
     );
 
 
@@ -547,8 +582,8 @@ export function buildPlanningContextText(
 
 
 
-
     const normalized =
+
         normalizePlanningContext(
             context
         );
@@ -570,7 +605,8 @@ export function buildPlanningContextText(
      */
 
 
-    const experience =
+    const experienceText =
+
         formatExperience(
 
             normalized.experience
@@ -580,9 +616,8 @@ export function buildPlanningContextText(
 
 
     if (
-        experience
+        experienceText
     ) {
-
 
         blocks.push(
 
@@ -590,8 +625,7 @@ export function buildPlanningContextText(
 
                 "=== ОПЫТ JESSICA ===",
 
-                experience
-
+                experienceText
 
             ]
 
@@ -607,13 +641,13 @@ export function buildPlanningContextText(
 
 
 
-
     /*
-     * RULES
+     * SOURCE RULES
      */
 
 
     const sourceRules =
+
         formatSection(
 
             "=== ПРАВИЛА ИСТОЧНИКОВ ===",
@@ -646,6 +680,7 @@ export function buildPlanningContextText(
 
 
     const constraints =
+
         formatSection(
 
             "=== ОГРАНИЧЕНИЯ ===",
@@ -672,12 +707,14 @@ export function buildPlanningContextText(
 
 
 
+
     /*
      * INSTRUCTIONS
      */
 
 
     const instructions =
+
         formatSection(
 
             "=== ИНСТРУКЦИИ ===",
@@ -705,11 +742,45 @@ export function buildPlanningContextText(
 
 
     /*
+     * PLANNER HINTS
+     */
+
+
+    const hints =
+
+        formatSection(
+
+            "=== ПОДСКАЗКИ PLANNER ===",
+
+            normalized.plannerHints
+
+        );
+
+
+
+    if (
+        hints
+    ) {
+
+        blocks.push(
+            hints
+        );
+
+    }
+
+
+
+
+
+
+
+    /*
      * METADATA
      */
 
 
     const metadata =
+
         formatMetadata(
 
             normalized.metadata
@@ -722,15 +793,13 @@ export function buildPlanningContextText(
         metadata
     ) {
 
-
         blocks.push(
 
             [
 
-                "=== META ===",
+                "=== СЛУЖЕБНЫЙ КОНТЕКСТ ===",
 
                 metadata
-
 
             ]
 
@@ -739,7 +808,6 @@ export function buildPlanningContextText(
         );
 
     }
-
 
 
 
@@ -766,25 +834,24 @@ export function buildPlanningContextText(
 
         [
 
-            "ДОПОЛНИТЕЛЬНЫЙ КОНТЕКСТ ПЛАНИРОВАНИЯ:",
+            "ДОПОЛНИТЕЛЬНЫЙ КОНТЕКСТ JESSICA:",
 
             "",
 
             blocks.join("\n\n"),
 
-
             "",
-
 
             "Используй опыт Jessica как рекомендации.",
 
-            "Проверяй применимость перед использованием."
+            "Проверяй применимость опыта к текущей задаче."
 
         ]
 
         .join("\n")
 
         .trim();
+
 
 
 
@@ -814,6 +881,7 @@ export function buildPlanningContextText(
 
 
     }
+
 
 
 
