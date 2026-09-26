@@ -1,109 +1,219 @@
+/*
+ * =========================================================
+ * JESSICA EXPERIENCE STORAGE
+ * =========================================================
+ *
+ * Единый интерфейс хранения Experience Skills.
+ *
+ *
+ * Flow:
+ *
+ * Experience Core
+ *        ↓
+ * Experience Storage
+ *        ↓
+ * Supabase Storage Layer
+ *
+ *
+ * Отвечает:
+ *
+ * - загрузка Skills;
+ * - сохранение версии;
+ * - история;
+ * - получение версии;
+ * - отключение Skill.
+ *
+ *
+ * НЕ:
+ *
+ * - ищет Skill;
+ * - обучает;
+ * - вызывает AI;
+ * - содержит SQL.
+ *
+ * =========================================================
+ */
+
+
 import {
     loadExperiences,
     disableExperience
 } from "./supabaseExperienceStore.js";
+
 
 import {
     loadExperienceHistory,
     loadExperienceVersion
 } from "./supabaseExperienceHistoryStore.js";
 
+
 import {
     saveExperienceAtomic
 } from "./supabaseExperienceWriter.js";
 
 
-/*
- * =========================================================
- * JESSICA EXPERIENCE STORAGE
- * =========================================================
- *
- * Центральный интерфейс хранения опыта Jessica.
- *
- *
- * Остальная система работает только через этот файл.
- *
- *
- * Experience Core
- *       ↓
- * experienceStorage.js
- *       ↓
- * ┌────────────────────────────────────────┐
- * │ supabaseExperienceStore.js             │
- * │ supabaseExperienceHistoryStore.js      │
- * │ supabaseExperienceWriter.js            │
- * └────────────────────────────────────────┘
- *       ↓
- * Supabase / PostgreSQL
- *
- *
- * Этот файл НЕ содержит:
- *
- * - SQL;
- * - Supabase Client;
- * - поиск подходящего Skill;
- * - Learning;
- * - Planner;
- * - Earnings.
- *
- *
- * Его задача:
- *
- * предоставить Experience единый
- * интерфейс работы с хранилищем.
- *
- * =========================================================
- */
+
 
 
 /*
  * =========================================================
- * LOAD SKILLS
- * =========================================================
- *
- * Загружает все активные Skills Jessica.
- *
+ * NORMALIZE
  * =========================================================
  */
 
 
-export async function loadExperienceSkills() {
+function normalizeText(
+    value
+) {
+
+    return String(
+        value || ""
+    )
+    .trim();
+
+}
+
+
+
+
+function normalizeVersion(
+    value
+) {
+
+    const version =
+        Number(value);
+
+
+    if (
+        !Number.isInteger(version)
+        ||
+        version < 1
+    ) {
+
+        return 1;
+
+    }
+
+
+    return version;
+
+}
+
+
+
+
+
+function normalizeExperience(
+    experience
+) {
+
+
+    if (
+        !experience ||
+        typeof experience !== "object"
+    ) {
+
+        return null;
+
+    }
+
+
+
+    return {
+
+
+        ...experience,
+
+
+        id:
+            normalizeText(
+                experience.id
+            ),
+
+
+        name:
+            normalizeText(
+                experience.name
+            ),
+
+
+        version:
+            normalizeVersion(
+                experience.version
+            ),
+
+
+        previousVersion:
+            experience.previousVersion
+            ?
+            normalizeVersion(
+                experience.previousVersion
+            )
+            :
+            null,
+
+
+        enabled:
+            experience.enabled !== false,
+
+
+        confidence:
+            Number(
+                experience.confidence || 0
+            )
+
+    };
+
+
+}
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * LOAD ACTIVE SKILLS
+ * =========================================================
+ */
+
+
+export async function loadExperienceSkills()
+{
 
 
     try {
 
 
-        const experiences =
+        const skills =
             await loadExperiences();
 
 
+
         return Array.isArray(
-            experiences
+            skills
         )
-            ? experiences
+            ? skills
             : [];
 
 
-    } catch (error) {
+
+    } catch(error) {
 
 
         console.error(
+
             "Experience Storage load error:",
+
             error
+
         );
 
 
-        /*
-         * Ошибка базы не должна
-         * ломать всю Jessica.
-         *
-         * В этом случае первый слой
-         * Experience будет просто пустым.
-         */
-
-
         return [];
-
 
     }
 
@@ -111,19 +221,14 @@ export async function loadExperienceSkills() {
 }
 
 
+
+
+
+
+
 /*
  * =========================================================
- * SAVE SKILL
- * =========================================================
- *
- * Сохраняет новую версию Skill.
- *
- * Используется только атомарная операция:
- *
- * History
- * +
- * Current Skill
- *
+ * SAVE EXPERIENCE SKILL
  * =========================================================
  */
 
@@ -133,28 +238,164 @@ export async function saveExperienceSkill(
 ) {
 
 
-    return await saveExperienceAtomic(
-        experience
-    );
+    const normalized =
+        normalizeExperience(
+            experience
+        );
+
+
+
+    if (
+        !normalized
+    ) {
+
+
+        return {
+
+            success:false,
+
+            error:
+                "Experience Skill отсутствует"
+
+        };
+
+    }
+
+
+
+    if (
+        !normalized.id
+    ) {
+
+
+        return {
+
+            success:false,
+
+            error:
+                "Experience Skill ID отсутствует"
+
+        };
+
+    }
+
+
+
+    if (
+        !normalized.name
+    ) {
+
+
+        return {
+
+            success:false,
+
+            error:
+                "Experience Skill name отсутствует"
+
+        };
+
+    }
+
+
+
+    try {
+
+
+        const result =
+            await saveExperienceAtomic(
+                normalized
+            );
+
+
+
+        if (
+            !result?.success
+        ) {
+
+
+            return {
+
+                success:false,
+
+                error:
+                    result?.error ||
+                    "Не удалось сохранить Experience"
+
+            };
+
+        }
+
+
+
+
+        return {
+
+
+            success:true,
+
+
+            skillId:
+                normalized.id,
+
+
+            version:
+                normalized.version,
+
+
+            experience:
+                normalized,
+
+
+            storage:
+                result
+
+
+
+        };
+
+
+
+    } catch(error) {
+
+
+        console.error(
+
+            "Experience save error:",
+
+            error
+
+        );
+
+
+        return {
+
+
+            success:false,
+
+
+            error:
+                error.message ||
+                "Storage error"
+
+
+        };
+
+
+    }
 
 
 }
 
 
+
+
+
+
+
 /*
  * =========================================================
  * DISABLE SKILL
- * =========================================================
- *
- * Skill не удаляется физически.
- *
- * Он остаётся в базе для:
- *
- * - истории;
- * - анализа;
- * - будущего восстановления;
- * - обучения.
- *
  * =========================================================
  */
 
@@ -164,12 +405,35 @@ export async function disableExperienceSkill(
 ) {
 
 
+    if (
+        !skillId
+    ) {
+
+
+        return {
+
+            success:false,
+
+            error:
+                "Skill ID отсутствует"
+
+        };
+
+    }
+
+
+
     return await disableExperience(
         skillId
     );
 
 
 }
+
+
+
+
+
 
 
 /*
@@ -200,17 +464,20 @@ export async function getExperienceHistory(
             : [];
 
 
-    } catch (error) {
+
+    } catch(error) {
 
 
         console.error(
-            "Experience History load error:",
+
+            "Experience history error:",
+
             error
+
         );
 
 
         return [];
-
 
     }
 
@@ -218,9 +485,14 @@ export async function getExperienceHistory(
 }
 
 
+
+
+
+
+
 /*
  * =========================================================
- * LOAD SPECIFIC VERSION
+ * LOAD VERSION
  * =========================================================
  */
 
@@ -241,17 +513,23 @@ export async function getExperienceVersion(
 
             skillId,
 
-            version
+            normalizeVersion(
+                version
+            )
 
         );
 
 
-    } catch (error) {
+
+    } catch(error) {
 
 
         console.error(
-            "Experience Version load error:",
+
+            "Experience version error:",
+
             error
+
         );
 
 
@@ -259,6 +537,61 @@ export async function getExperienceVersion(
 
 
     }
+
+
+}
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * GET LATEST VERSION
+ * =========================================================
+ */
+
+
+export async function getLatestExperienceVersion(
+    skillId
+) {
+
+
+    const history =
+        await getExperienceHistory(
+            skillId
+        );
+
+
+
+    if (
+        history.length === 0
+    ) {
+
+        return null;
+
+    }
+
+
+
+    return history
+        .sort(
+
+            (a,b) =>
+
+                Number(
+                    b.version || 0
+                )
+
+                -
+
+                Number(
+                    a.version || 0
+                )
+
+        )[0];
 
 
 }
