@@ -3,27 +3,54 @@
  * JESSICA PLANNING CONTEXT
  * =========================================================
  *
- * Единый формат контекста Planner.
+ * Единый формат контекста Jessica Planner.
  *
  *
  * Используется:
  *
  * Experience
+ * Planner
  * Replanner
  * Learning
  * Earnings
  *
  *
- * НЕ:
+ * Flow:
+ *
+ * External Context
+ *        ↓
+ * normalizePlanningContext()
+ *        ↓
+ * Planner
+ *
+ *
+ * Этот модуль НЕ:
  *
  * - ищет Experience;
- * - изменяет Skills;
- * - вызывает AI.
+ * - хранит Skills;
+ * - вызывает AI;
+ * - изменяет память Jessica.
  *
- * Только приводит данные к единому виду.
+ * Только нормализует данные.
  *
  * =========================================================
  */
+
+
+
+
+
+/*
+ * =========================================================
+ * LIMITS
+ * =========================================================
+ */
+
+
+const MAX_ARRAY_ITEMS =
+    20;
+
+
 
 
 
@@ -76,11 +103,39 @@ export function createEmptyPlanningContext() {
 
 
 
+/*
+ * =========================================================
+ * STRING
+ * =========================================================
+ */
+
+
+function normalizeString(
+    value
+) {
+
+
+    return typeof value === "string"
+
+        ? value.trim()
+
+        : String(
+            value || ""
+        )
+        .trim();
+
+
+}
+
+
+
+
+
 
 
 /*
  * =========================================================
- * NORMALIZE ARRAY
+ * ARRAY
  * =========================================================
  */
 
@@ -102,18 +157,17 @@ function normalizeArray(
     return value
 
         .map(
-
-            item =>
-
-                typeof item === "string"
-
-                    ? item.trim()
-
-                    : item
-
+            normalizeString
         )
 
-        .filter(Boolean);
+        .filter(
+            Boolean
+        )
+
+        .slice(
+            0,
+            MAX_ARRAY_ITEMS
+        );
 
 }
 
@@ -121,13 +175,9 @@ function normalizeArray(
 
 
 
-
-
-
-
 /*
  * =========================================================
- * NORMALIZE OBJECT
+ * OBJECT
  * =========================================================
  */
 
@@ -139,8 +189,11 @@ function normalizeObject(
 
     if (
         !value ||
+
         typeof value !== "object" ||
+
         Array.isArray(value)
+
     ) {
 
         return {};
@@ -149,86 +202,11 @@ function normalizeObject(
 
 
     return {
-
         ...value
-
     };
 
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * NORMALIZE SKILL
- * =========================================================
- */
-
-
-function normalizeSkill(
-    skill
-) {
-
-
-    if (
-        !skill ||
-        typeof skill !== "object"
-    ) {
-
-        return null;
-
-    }
-
-
-    return {
-
-
-        id:
-            skill.id ||
-            null,
-
-
-        name:
-            String(
-                skill.name || ""
-            )
-            .trim(),
-
-
-
-        workflow:
-
-            normalizeArray(
-                skill.workflow
-            ),
-
-
-
-        constraints:
-
-            normalizeArray(
-                skill.constraints
-            ),
-
-
-
-        examples:
-
-            normalizeArray(
-                skill.examples
-            )
-
-    };
 
 }
-
-
 
 
 
@@ -250,7 +228,9 @@ function normalizeExperience(
 
     if (
         !experience ||
+
         typeof experience !== "object"
+
     ) {
 
         return null;
@@ -260,9 +240,20 @@ function normalizeExperience(
 
 
 
+    /*
+     * Поддержка старого формата:
+     *
+     * {
+     *   experience:{
+     *      ...
+     *   }
+     * }
+     *
+     */
 
 
-    const nestedExperience =
+    const source =
+
 
         experience.experience &&
 
@@ -270,8 +261,7 @@ function normalizeExperience(
 
             ? experience.experience
 
-            : {};
-
+            : experience;
 
 
 
@@ -281,62 +271,112 @@ function normalizeExperience(
     return {
 
 
+
         /*
-         * Новая модель памяти
+         * Идентификация Skill
          */
 
 
-        found:
+        skillId:
 
-            experience.found === true,
+            normalizeString(
 
+                source.skillId ||
 
+                source.id
 
-        source:
-
-            experience.source ||
-            "unknown",
-
-
-
-        confidence:
-
-            Number(
-                experience.confidence || 0
             ),
 
 
 
-        skills:
+        name:
 
-            Array.isArray(
-                nestedExperience.skills
-            )
+            normalizeString(
+                source.name
+            ),
 
-                ? nestedExperience.skills
 
-                    .map(
-                        normalizeSkill
-                    )
 
-                    .filter(Boolean)
+        description:
 
-                : [],
+            normalizeString(
+                source.description
+            ),
+
+
+
+        version:
+
+            Number(
+                source.version || 1
+            ),
 
 
 
 
 
         /*
-         * Старые поля Experience
-         * оставляем для совместимости
+         * Уровни доверия
+         */
+
+
+        skillConfidence:
+
+            Number(
+                source.skillConfidence ||
+                source.confidence ||
+                0
+            ),
+
+
+
+        matchConfidence:
+
+            Number(
+                source.matchConfidence ||
+                experience.confidence ||
+                0
+            ),
+
+
+
+
+
+
+        /*
+         * Метаданные Skill
+         */
+
+
+        keywords:
+
+            normalizeArray(
+                source.keywords
+            ),
+
+
+
+        tags:
+
+            normalizeArray(
+                source.tags
+            ),
+
+
+
+
+
+
+
+        /*
+         * Стратегия выполнения
          */
 
 
         strategy:
 
             normalizeArray(
-                experience.strategy
+                source.strategy
             ),
 
 
@@ -344,7 +384,7 @@ function normalizeExperience(
         sourcePriority:
 
             normalizeArray(
-                experience.sourcePriority
+                source.sourcePriority
             ),
 
 
@@ -352,7 +392,7 @@ function normalizeExperience(
         validationRules:
 
             normalizeArray(
-                experience.validationRules
+                source.validationRules
             ),
 
 
@@ -360,7 +400,7 @@ function normalizeExperience(
         failurePatterns:
 
             normalizeArray(
-                experience.failurePatterns
+                source.failurePatterns
             ),
 
 
@@ -368,7 +408,7 @@ function normalizeExperience(
         successfulPatterns:
 
             normalizeArray(
-                experience.successfulPatterns
+                source.successfulPatterns
             ),
 
 
@@ -376,15 +416,13 @@ function normalizeExperience(
         avoidPatterns:
 
             normalizeArray(
-                experience.avoidPatterns
+                source.avoidPatterns
             )
 
     };
 
 
 }
-
-
 
 
 
@@ -406,7 +444,9 @@ export function normalizePlanningContext(
 
     if (
         !context ||
+
         typeof context !== "object"
+
     ) {
 
         return createEmptyPlanningContext();
@@ -421,12 +461,12 @@ export function normalizePlanningContext(
     return {
 
 
+
         experience:
 
             normalizeExperience(
                 context.experience
             ),
-
 
 
 
@@ -438,13 +478,11 @@ export function normalizePlanningContext(
 
 
 
-
         constraints:
 
             normalizeArray(
                 context.constraints
             ),
-
 
 
 
@@ -456,13 +494,11 @@ export function normalizePlanningContext(
 
 
 
-
         plannerHints:
 
             normalizeArray(
                 context.plannerHints
             ),
-
 
 
 
@@ -473,13 +509,10 @@ export function normalizePlanningContext(
             )
 
 
-
     };
 
 
 }
-
-
 
 
 
@@ -510,25 +543,19 @@ export function hasPlanningContext(
     return Boolean(
 
 
-
         normalized.experience ||
-
 
 
         normalized.sourceRules.length > 0 ||
 
 
-
         normalized.constraints.length > 0 ||
-
 
 
         normalized.instructions.length > 0 ||
 
 
-
         normalized.plannerHints.length > 0 ||
-
 
 
         Object.keys(
@@ -536,7 +563,7 @@ export function hasPlanningContext(
         ).length > 0
 
 
-
     );
+
 
 }
