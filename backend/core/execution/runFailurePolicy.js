@@ -1,41 +1,393 @@
 /*
  * =========================================================
- * JESSICA RUN FAILURE POLICY
+ * JESSICA RUN FAILURE POLICY v4
  * =========================================================
  *
- * Преобразует результат неудачного выполнения TaskRunner
- * в решение для Execution Cycle.
+ * Анализатор результата выполнения.
  *
  *
- * TaskRunner сообщает ЧТО произошло.
+ * Ответственность:
  *
- * Этот модуль определяет:
+ * Execution Result
+ *        ↓
+ * Failure Classification
+ *        ↓
+ * Normalized Failure
  *
- * - произошла ли ошибка;
- * - можно ли перестроить маршрут;
- * - требуется ли уточнение пользователя;
- * - какую причину передать Replanner.
  *
+ * НЕ:
  *
- * Этот модуль НЕ:
- *
- * - выполняет инструменты;
- * - вызывает Replanner;
- * - создаёт новый план.
+ * - принимает решение retry;
+ * - делает replan;
+ * - вызывает Planner;
+ * - вызывает Tools;
+ * - создаёт финальный результат.
  *
  * =========================================================
  */
 
 
+
+
+
 /*
  * =========================================================
- * ANALYZE RUN FAILURE
+ * FAILURE TYPES
+ * =========================================================
+ */
+
+
+export const FAILURE_TYPE = {
+
+
+    TOOL_ERROR:
+        "tool-error",
+
+
+    RUNNER_ERROR:
+        "runner-error",
+
+
+    SEARCH_EMPTY:
+        "search-empty",
+
+
+    SOURCE_UNAVAILABLE:
+        "source-unavailable",
+
+
+    INVALID_RESULT:
+        "invalid-result",
+
+
+    VALIDATION_ERROR:
+        "validation-error",
+
+
+    MISSING_DATA:
+        "missing-data",
+
+
+    USER_REQUIRED:
+        "user-required",
+
+
+    TEMPORARY_ERROR:
+        "temporary-error",
+
+
+    UNKNOWN:
+        "unknown"
+
+};
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE TEXT
+ * =========================================================
+ */
+
+
+function normalizeText(
+    value
+) {
+
+
+    return String(
+        value || ""
+    )
+        .trim();
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD FAILURE
+ * =========================================================
+ */
+
+
+function buildFailure({
+
+    stage,
+
+    type,
+
+    reason,
+
+    original = null
+
+}) {
+
+
+    return {
+
+
+        failed:
+            true,
+
+
+        stage:
+            stage || "execution",
+
+
+
+        failureType:
+            type || FAILURE_TYPE.UNKNOWN,
+
+
+
+        reason:
+            reason || "Неизвестная ошибка",
+
+
+
+        original
+
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * DETECT FAILURE TYPE
+ * =========================================================
+ */
+
+
+function detectFailureType(
+    result,
+    reason
+) {
+
+
+    const text =
+
+        reason
+            .toLowerCase();
+
+
+
+
+
+    if (
+        result?.needsClarification === true
+    ) {
+
+
+        return FAILURE_TYPE.USER_REQUIRED;
+
+    }
+
+
+
+
+
+
+
+    if (
+        result?.stage === "tool"
+    ) {
+
+
+        return FAILURE_TYPE.TOOL_ERROR;
+
+    }
+
+
+
+
+
+
+
+
+    if (
+        result?.stage === "runner"
+    ) {
+
+
+        return FAILURE_TYPE.RUNNER_ERROR;
+
+    }
+
+
+
+
+
+
+
+
+    if (
+
+        text.includes(
+            "timeout"
+        )
+
+        ||
+
+        text.includes(
+            "network"
+        )
+
+        ||
+
+        text.includes(
+            "temporarily"
+        )
+
+    ) {
+
+
+        return FAILURE_TYPE.TEMPORARY_ERROR;
+
+    }
+
+
+
+
+
+
+
+
+    if (
+
+        text.includes(
+            "not found"
+        )
+
+        ||
+
+        text.includes(
+            "empty"
+        )
+
+        ||
+
+        text.includes(
+            "нет результатов"
+        )
+
+    ) {
+
+
+        return FAILURE_TYPE.SEARCH_EMPTY;
+
+    }
+
+
+
+
+
+
+
+
+    if (
+
+        text.includes(
+            "validation"
+        )
+
+        ||
+
+        text.includes(
+            "провер"
+        )
+
+    ) {
+
+
+        return FAILURE_TYPE.VALIDATION_ERROR;
+
+    }
+
+
+
+
+
+
+
+
+    if (
+
+        text.includes(
+            "missing"
+        )
+
+        ||
+
+        text.includes(
+            "required"
+        )
+
+        ||
+
+        text.includes(
+            "не указан"
+        )
+
+    ) {
+
+
+        return FAILURE_TYPE.MISSING_DATA;
+
+    }
+
+
+
+
+
+
+
+    return FAILURE_TYPE.UNKNOWN;
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * ANALYZE RUN RESULT
  * =========================================================
  */
 
 
 export function analyzeRunFailure(
-    taskRunResult
+
+    executionResult
+
 ) {
 
 
@@ -47,190 +399,117 @@ export function analyzeRunFailure(
 
 
     if (
-        taskRunResult?.success === true
+        executionResult?.success === true
     ) {
 
+
         return {
+
 
             failed:
                 false,
 
-            shouldRetry:
-                false,
 
-            needsClarification:
-                false
+            failureType:
+                null,
+
+
+            stage:
+                null,
+
+
+            reason:
+                ""
 
         };
+
 
     }
 
 
 
-    /*
-     * =====================================================
-     * REASON
-     * =====================================================
-     */
+
+
 
 
     const reason =
 
-        taskRunResult?.reason ||
+        normalizeText(
 
-        taskRunResult?.text ||
+            executionResult?.reason
 
-        "";
+            ||
 
+            executionResult?.text
 
+            ||
 
-    /*
-     * =====================================================
-     * NEEDS CLARIFICATION
-     * =====================================================
-     *
-     * Другой маршрут здесь не поможет.
-     * Нужны дополнительные данные пользователя.
-     *
-     * =====================================================
-     */
+            executionResult?.error
 
-
-    if (
-        taskRunResult?.needsClarification === true
-    ) {
-
-        return {
-
-            failed:
-                true,
-
-
-            shouldRetry:
-                false,
-
-
-            needsClarification:
-                true,
-
-
-            stage:
-                taskRunResult?.stage ||
-                "tools",
-
-
-            failureType:
-                taskRunResult?.failureType ||
-                "needs-clarification",
-
-
-            reason:
-                reason ||
-                "Для выполнения задачи требуется уточнение"
-
-        };
-
-    }
+        );
 
 
 
-    /*
-     * =====================================================
-     * RETRYABLE ROUTE FAILURE
-     * =====================================================
-     *
-     * TaskRunner сообщил, что проблема может
-     * быть решена другим маршрутом.
-     *
-     *
-     * Например:
-     *
-     * - поиск ничего не дал;
-     * - найденные источники не подходят;
-     * - Source Selector отклонил результаты;
-     * - fetch не позволил получить нужный источник;
-     * - выбранный маршрут оказался непригодным.
-     *
-     * =====================================================
-     */
-
-
-    if (
-        taskRunResult?.shouldRetry === true
-    ) {
-
-        return {
-
-            failed:
-                true,
-
-
-            shouldRetry:
-                true,
-
-
-            needsClarification:
-                false,
-
-
-            stage:
-                taskRunResult?.stage ||
-                "runner",
-
-
-            failureType:
-                taskRunResult?.failureType ||
-                "retryable-run-failure",
-
-
-            reason:
-                reason ||
-                "Текущий план не позволил получить подходящий результат"
-
-        };
-
-    }
 
 
 
-    /*
-     * =====================================================
-     * NON-RETRYABLE FAILURE
-     * =====================================================
-     */
+
+    const failureType =
+
+        detectFailureType(
+
+            executionResult,
+
+            reason
+
+        );
 
 
-    return {
-
-        failed:
-            true,
 
 
-        shouldRetry:
-            false,
 
 
-        needsClarification:
-            false,
 
+    return buildFailure({
 
         stage:
-            taskRunResult?.stage ||
-            "tools",
+
+            executionResult?.stage ||
+
+            "execution",
 
 
-        failureType:
-            taskRunResult?.failureType ||
-            "run-failure",
+
+        type:
+
+            executionResult?.failureType ||
+
+            failureType,
+
 
 
         reason:
-            reason ||
-            "Не удалось выполнить план"
 
-    };
+            reason ||
+
+            "Не удалось выполнить операцию",
+
+
+
+        original:
+
+            executionResult
+
+    });
+
 
 }
+
+
+
+
+
+
 
 
 
@@ -238,36 +517,53 @@ export function analyzeRunFailure(
  * =========================================================
  * BUILD REPLANNER FEEDBACK
  * =========================================================
+ *
+ * Только данные для Planner.
+ *
+ * Не решение.
+ *
+ * =========================================================
  */
 
 
 export function buildRunFailureFeedback(
-    analysis
+    failure
 ) {
+
+
+    if (
+        !failure
+    ) {
+
+        return null;
+
+    }
+
+
 
     return {
 
-        stage:
-            analysis?.stage ||
-            "runner",
+
+        previousFailure:
+            {
 
 
-        failureType:
-            analysis?.failureType ||
-            "run-failure",
+                type:
+
+                    failure.failureType,
 
 
-        reason:
-            analysis?.reason ||
-            "Текущий маршрут выполнения оказался непригодным",
+                stage:
+
+                    failure.stage,
 
 
-        shouldRetry:
-            analysis?.shouldRetry === true,
+                reason:
+
+                    failure.reason
 
 
-        needsClarification:
-            analysis?.needsClarification === true
+            }
 
     };
 
