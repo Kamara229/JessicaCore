@@ -1,36 +1,15 @@
 /*
  * =========================================================
- * JESSICA EXECUTION TRACE v5
+ * JESSICA EXECUTION TRACE v6
  * =========================================================
  *
  * История одного Execution Run.
  *
- *
- * Используется:
- *
- * - debugging;
- * - analytics;
- * - Learning;
- * - Experience Analyzer.
- *
- *
- * Хранит:
- *
- * - события;
- * - попытки;
- * - шаги;
- * - ошибки;
- * - replans;
- * - Experience usage;
- * - итоговый результат.
- *
- *
  * НЕ:
  *
  * - выполняет задачи;
- * - вызывает Planner;
- * - меняет Skills;
- * - принимает решения.
+ * - принимает решения;
+ * - меняет Skills.
  *
  * =========================================================
  */
@@ -46,13 +25,6 @@ import {
 
 
 
-
-
-/*
- * =========================================================
- * CREATE TRACE
- * =========================================================
- */
 
 
 export function createExecutionTrace(
@@ -83,7 +55,7 @@ export function createExecutionTrace(
         startedAt:
 
             new Date()
-                .toISOString(),
+            .toISOString(),
 
 
 
@@ -103,26 +75,12 @@ export function createExecutionTrace(
 
 
 
-
-        /*
-         * Все события цикла
-         */
-
-
         events:
 
             [],
 
 
 
-
-
-
-
-
-        /*
-         * Попытки выполнения
-         */
 
 
         attempts:
@@ -133,30 +91,12 @@ export function createExecutionTrace(
 
 
 
-
-
-
-
-        /*
-         * Шаги выполнения
-         */
-
-
         steps:
 
             [],
 
 
 
-
-
-
-
-
-
-        /*
-         * Ошибки
-         */
 
 
         failures:
@@ -167,15 +107,6 @@ export function createExecutionTrace(
 
 
 
-
-
-
-
-        /*
-         * Replan history
-         */
-
-
         replans:
 
             [],
@@ -184,37 +115,25 @@ export function createExecutionTrace(
 
 
 
+        terminal:
+
+            null,
 
 
 
-
-        /*
-         * Experience
-         */
 
 
         experienceUsage:
 
         {
 
-
-            used:
-
-                false,
+            used:false,
 
 
-
-            skills:
-
-                [],
+            source:null,
 
 
-
-            source:
-
-                null
-
-
+            skills:[]
 
         },
 
@@ -223,19 +142,28 @@ export function createExecutionTrace(
 
 
 
+        statistics:
+
+        {
+
+            attempts:0,
+
+
+            retries:0,
+
+
+            replans:0
+
+        },
 
 
 
-        /*
-         * Финальный результат
-         */
+
 
 
         result:
 
             null,
-
-
 
 
 
@@ -246,7 +174,6 @@ export function createExecutionTrace(
 
     };
 
-
 }
 
 
@@ -259,7 +186,7 @@ export function createExecutionTrace(
 
 /*
  * =========================================================
- * ADD EVENT
+ * EVENT
  * =========================================================
  */
 
@@ -270,50 +197,37 @@ export function addTraceEvent(
 
     type,
 
-    payload = {}
+    payload={}
 
 ) {
 
 
-    if (
-        !trace
-    ) {
-
+    if(!trace)
         return trace;
-
-    }
-
-
 
 
 
     trace.events.push({
 
         id:
-
             randomUUID(),
-
 
 
         type,
 
 
-
         payload,
-
 
 
         timestamp:
 
             new Date()
-                .toISOString()
+            .toISOString()
 
     });
 
 
-
     return trace;
-
 
 }
 
@@ -327,7 +241,7 @@ export function addTraceEvent(
 
 /*
  * =========================================================
- * ADD ATTEMPT
+ * ATTEMPT
  * =========================================================
  */
 
@@ -338,19 +252,18 @@ export function addTraceAttempt(
 
     attempt,
 
-    data = {}
+    data={}
 
 ) {
 
 
-    if (
-        !trace
-    ) {
-
+    if(!trace)
         return trace;
 
-    }
 
+
+    trace.statistics.attempts =
+        Number(attempt);
 
 
 
@@ -358,20 +271,21 @@ export function addTraceAttempt(
 
         attempt,
 
+
         ...data,
 
 
         timestamp:
 
             new Date()
-                .toISOString()
+            .toISOString()
+
 
     });
 
 
 
     return trace;
-
 
 }
 
@@ -385,89 +299,7 @@ export function addTraceAttempt(
 
 /*
  * =========================================================
- * ADD STEP
- * =========================================================
- */
-
-
-export function addTraceStep(
-
-    trace,
-
-    step
-
-) {
-
-
-    if (
-        !trace ||
-        !step
-    ) {
-
-        return trace;
-
-    }
-
-
-
-
-
-    trace.steps.push({
-
-        id:
-
-            step.id ||
-            null,
-
-
-
-        tool:
-
-            step.tool ||
-            null,
-
-
-
-        status:
-
-            step.status ||
-            "UNKNOWN",
-
-
-
-        result:
-
-            step.result ||
-            null,
-
-
-
-        timestamp:
-
-            new Date()
-                .toISOString()
-
-
-    });
-
-
-
-    return trace;
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * UPDATE FROM EXECUTION RESULT
+ * RESULT UPDATE
  * =========================================================
  */
 
@@ -481,49 +313,11 @@ export function updateTraceFromResult(
 ) {
 
 
-    if (
+    if(
         !trace ||
         !result
-    ) {
-
+    )
         return trace;
-
-    }
-
-
-
-
-
-
-
-
-    addTraceEvent(
-
-        trace,
-
-        result.success === true
-
-            ? "RESULT_COMPLETED"
-
-            : "RESULT_FAILED",
-
-        {
-
-            status:
-
-                result.status,
-
-
-            verified:
-
-                result.verified
-
-        }
-
-    );
-
-
-
 
 
 
@@ -539,11 +333,38 @@ export function updateTraceFromResult(
 
 
 
+    addTraceEvent(
+
+        trace,
+
+        "RESULT",
+
+        {
+
+            status:
+                result.status,
 
 
-    if (
-        result.failure
-    ) {
+            success:
+                result.success,
+
+
+            verified:
+                result.verified
+
+        }
+
+    );
+
+
+
+
+
+
+
+
+
+    if(result.failure){
 
 
         trace.failures.push({
@@ -554,8 +375,7 @@ export function updateTraceFromResult(
             timestamp:
 
                 new Date()
-                    .toISOString()
-
+                .toISOString()
 
         });
 
@@ -563,6 +383,18 @@ export function updateTraceFromResult(
     }
 
 
+
+
+
+
+
+
+    if(result.terminal){
+
+        trace.terminal =
+            result.terminal;
+
+    }
 
 
 
@@ -583,7 +415,9 @@ export function updateTraceFromResult(
 
 
 
-    collectExecutionMeta(
+
+
+    collectMeta(
 
         trace,
 
@@ -594,11 +428,7 @@ export function updateTraceFromResult(
 
 
 
-
-
-
     return trace;
-
 
 }
 
@@ -612,7 +442,7 @@ export function updateTraceFromResult(
 
 /*
  * =========================================================
- * COLLECT EXPERIENCE
+ * EXPERIENCE
  * =========================================================
  */
 
@@ -623,40 +453,43 @@ function collectExperience(
 
     result
 
-) {
-
+){
 
     const experience =
 
         result
-            ?.executionMeta
-            ?.experience;
+        ?.executionMeta
+        ?.experience;
 
 
 
-    if (
-        !experience
-    ) {
-
+    if(!experience)
         return;
 
-    }
 
 
 
 
-
-
-
-
-    if (
+    if(
         experience.used === true
-    ) {
-
+    ){
 
         trace.experienceUsage.used =
             true;
 
+    }
+
+
+
+
+
+
+    if(
+        experience.source
+    ){
+
+        trace.experienceUsage.source =
+            experience.source;
 
     }
 
@@ -666,48 +499,45 @@ function collectExperience(
 
 
 
-
-    if (
+    if(
         Array.isArray(
             experience.skills
         )
-    ) {
+    ){
 
 
-        for (
+        for(
             const skill
             of experience.skills
-        ) {
+        ){
+
+
+            const id =
+                getSkillId(skill);
+
 
 
             const exists =
 
                 trace.experienceUsage.skills
-                    .some(
+                .some(
 
-                        item =>
+                    item =>
+                        getSkillId(item)
+                        ===
+                        id
 
-                            JSON.stringify(
-                                item
-                            )
-                            ===
-                            JSON.stringify(
-                                skill
-                            )
-
-                    );
+                );
 
 
 
-            if (
+            if(
                 !exists
-            ) {
-
+            ){
 
                 trace.experienceUsage.skills.push(
                     skill
                 );
-
 
             }
 
@@ -717,6 +547,86 @@ function collectExperience(
 
     }
 
+
+}
+
+
+
+
+
+
+
+
+
+function getSkillId(
+    skill
+){
+
+    if(
+        typeof skill === "string"
+    )
+        return skill;
+
+
+
+    return (
+
+        skill?.id ||
+
+        skill?.name ||
+
+        ""
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * META
+ * =========================================================
+ */
+
+
+function collectMeta(
+
+    trace,
+
+    result
+
+){
+
+    const meta =
+        result?.executionMeta;
+
+
+
+    if(!meta)
+        return;
+
+
+
+
+
+    trace.statistics.retries =
+        Number(
+            meta.retryCount || 0
+        );
+
+
+
+    trace.statistics.replans =
+        Number(
+            meta.replanCount || 0
+        );
 
 
 }
@@ -731,73 +641,77 @@ function collectExperience(
 
 /*
  * =========================================================
- * EXECUTION META
+ * REPLAN
  * =========================================================
  */
 
 
-function collectExecutionMeta(
+export function addTraceReplan(
 
     trace,
 
-    result
+    data={}
 
-) {
+){
 
-
-    const meta =
-        result.executionMeta;
-
-
-
-    if (
-        !meta
-    ) {
-
-        return;
-
-    }
+    if(!trace)
+        return trace;
 
 
 
+    const item = {
+
+
+        previousPlan:
+
+            data.previousPlan ||
+            null,
 
 
 
-    if (
-        meta.traceId
-    ) {
+        newPlan:
 
-
-        trace.id =
-            meta.traceId;
-
-    }
+            data.newPlan ||
+            null,
 
 
 
+        failure:
+
+            data.failure ||
+            null,
 
 
 
+        timestamp:
+
+            new Date()
+            .toISOString()
+
+
+    };
 
 
 
-    const experience =
-        meta.experience;
+    trace.replans.push(
+        item
+    );
 
 
 
-    if (
-        experience?.used === true
-    ) {
+    addTraceEvent(
+
+        trace,
+
+        "REPLAN",
+
+        item
+
+    );
 
 
-        trace.experienceUsage.used =
-            true;
 
-
-    }
-
-
+    return trace;
 
 }
 
@@ -822,19 +736,13 @@ export function updateTraceFromSummary(
 
     summary
 
-) {
+){
 
-
-    if (
+    if(
         !trace ||
         !summary
-    ) {
-
+    )
         return trace;
-
-    }
-
-
 
 
 
@@ -842,7 +750,7 @@ export function updateTraceFromSummary(
 
         trace,
 
-        "EXECUTION_SUMMARY",
+        "SUMMARY",
 
         summary
 
@@ -850,113 +758,7 @@ export function updateTraceFromSummary(
 
 
 
-
-
-
-    if (
-        Array.isArray(
-            summary.results
-        )
-    ) {
-
-
-        for (
-            const result
-            of summary.results
-        ) {
-
-
-            updateTraceFromResult(
-
-                trace,
-
-                result
-
-            );
-
-
-        }
-
-
-    }
-
-
-
-
-
     return trace;
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * REPLAN EVENT
- * =========================================================
- */
-
-
-export function addTraceReplan(
-
-    trace,
-
-    data = {}
-
-) {
-
-
-    if (
-        !trace
-    ) {
-
-        return trace;
-
-    }
-
-
-
-
-
-    trace.replans.push({
-
-        ...data,
-
-
-        timestamp:
-
-            new Date()
-                .toISOString()
-
-
-    });
-
-
-
-
-
-
-    addTraceEvent(
-
-        trace,
-
-        "REPLAN",
-
-        data
-
-    );
-
-
-
-    return trace;
-
 
 }
 
@@ -979,65 +781,59 @@ export function finishExecutionTrace(
 
     trace
 
-) {
+){
 
-
-    if (
-        !trace
-    ) {
-
+    if(!trace)
         return trace;
-
-    }
-
 
 
 
     trace.finishedAt =
 
         new Date()
-            .toISOString();
+        .toISOString();
 
 
 
 
 
+    switch(
+        trace.result?.status
+    ){
+
+        case "COMPLETED":
+
+            trace.status =
+                "COMPLETED";
+
+            break;
 
 
-    if (
-        trace.result?.success === true
-    ) {
+
+        case "NO_VERIFIED_RESULT":
+
+            trace.status =
+                "NO_VERIFIED_RESULT";
+
+            break;
 
 
-        trace.status =
-            "COMPLETED";
 
+        case "NEEDS_CLARIFICATION":
+
+            trace.status =
+                "NEEDS_CLARIFICATION";
+
+            break;
+
+
+
+        default:
+
+            trace.status =
+                "FAILED";
 
     }
-
-    else if (
-        trace.result?.status ===
-        "NEEDS_CLARIFICATION"
-    ) {
-
-
-        trace.status =
-            "NEEDS_CLARIFICATION";
-
-
-    }
-
-    else {
-
-
-        trace.status =
-            "FAILED";
-
-
-    }
-
-
-
 
 
 
@@ -1049,7 +845,6 @@ export function finishExecutionTrace(
 
 
     return trace;
-
 
 }
 
@@ -1063,7 +858,7 @@ export function finishExecutionTrace(
 
 /*
  * =========================================================
- * BUILD LEARNING PAYLOAD
+ * LEARNING PAYLOAD
  * =========================================================
  */
 
@@ -1072,18 +867,10 @@ export function buildLearningPayload(
 
     trace
 
-) {
+){
 
-
-    if (
-        !trace
-    ) {
-
+    if(!trace)
         return null;
-
-    }
-
-
 
 
 
@@ -1091,66 +878,55 @@ export function buildLearningPayload(
 
 
         executionId:
-
             trace.id,
 
 
-
         task:
-
             trace.task,
 
 
-
         status:
-
             trace.status,
 
 
 
-        success:
-
-            trace.status ===
-            "COMPLETED",
+        statistics:
+            trace.statistics,
 
 
 
         experience:
-
             trace.experienceUsage,
 
 
 
-        steps:
-
-            trace.steps,
-
-
-
-        failures:
-
-            trace.failures,
-
-
-
         replans:
-
             trace.replans,
 
 
 
-        events:
+        failures:
+            trace.failures,
 
+
+
+        terminal:
+            trace.terminal,
+
+
+
+        steps:
+            trace.steps,
+
+
+        events:
             trace.events,
 
 
-
         result:
-
             trace.result
 
 
     };
-
 
 }
