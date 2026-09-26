@@ -18,42 +18,49 @@ import {
 } from "./planningContextText.js";
 
 
+import {
+    normalizePlanningContext
+} from "./planningContext.js";
 
 
 
 /*
  * =========================================================
- * JESSICA PLANNER REQUEST
+ * JESSICA PLANNER REQUEST v2
  * =========================================================
  *
- * Формирование запроса AI Planner.
+ * Формирует запрос AI Planner.
  *
  *
  * Flow:
  *
  * Task
  *   +
- * Planning Context
+ * Normalized PlanningContext
  *   +
  * Experience Memory
  *   +
  * Tools
+ *   +
+ * Retry Feedback
+ *
  *        ↓
+ *
  * Planner AI
  *
  *
- * Отвечает:
+ * Отвечает только за:
  *
- * - system prompt;
- * - user prompt;
- * - context;
- * - tools;
- * - retry feedback.
+ * - сбор system prompt;
+ * - сбор user prompt;
+ * - добавление контекста;
+ * - передачу ошибки предыдущей попытки.
  *
  *
  * НЕ:
  *
  * - создаёт план;
+ * - парсит JSON;
  * - валидирует план;
  * - выполняет инструменты;
  * - изменяет Experience.
@@ -72,13 +79,16 @@ import {
  */
 
 
+const MAX_TASK_LENGTH =
+    8000;
+
+
 const MAX_CONTEXT_LENGTH =
     6000;
 
 
-
-const MAX_EXPERIENCE_LENGTH =
-    2500;
+const MAX_RETRY_LENGTH =
+    3000;
 
 
 
@@ -96,7 +106,6 @@ const MAX_EXPERIENCE_LENGTH =
 function safeString(
     value
 ) {
-
 
     return String(
         value || ""
@@ -119,11 +128,8 @@ function safeString(
 
 
 function limitText(
-
     value,
-
     limit
-
 ) {
 
 
@@ -134,9 +140,7 @@ function limitText(
 
 
 
-    if (
-        !text
-    ) {
+    if (!text) {
 
         return "";
 
@@ -167,7 +171,6 @@ function limitText(
 
     );
 
-
 }
 
 
@@ -189,15 +192,14 @@ function buildRetryContext(
 
 
     const error =
-        safeString(
-            previousError
+        limitText(
+            previousError,
+            MAX_RETRY_LENGTH
         );
 
 
 
-    if (
-        !error
-    ) {
+    if (!error) {
 
         return "";
 
@@ -207,24 +209,22 @@ function buildRetryContext(
 
     return [
 
-        "=== ПРЕДЫДУЩАЯ ОШИБКА PLANNER ===",
-
-        error,
-
+        "=== ОБРАТНАЯ СВЯЗЬ ПРЕДЫДУЩЕЙ ПОПЫТКИ ===",
 
         "",
 
+        error,
 
-        "Исправь ошибку. " +
-        "Создай новый корректный JSON-план."
+        "",
+
+        "Исправь маршрут.",
+
+        "Не повторяй ошибочный план без изменений."
 
     ]
-    .join(
-        "\n"
-    );
+    .join("\n");
 
 }
-
 
 
 
@@ -234,28 +234,128 @@ function buildRetryContext(
 
 /*
  * =========================================================
- * EXPERIENCE INFO
+ * BUILD CONTEXT
  * =========================================================
  */
 
 
-function buildExperienceMeta(
+function buildContextBlock(
     context
 ) {
 
 
-    const experience =
-        context?.experience;
+    const normalized =
+
+        normalizePlanningContext(
+            context
+        );
+
+
+
+    const text =
+
+        buildPlanningContextText(
+            normalized
+        );
+
+
+
+    return limitText(
+
+        text,
+
+        MAX_CONTEXT_LENGTH
+
+    );
+
+
+}
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD USER PROMPT
+ * =========================================================
+ */
+
+
+function buildUserPrompt({
+
+    task,
+
+    context,
+
+    previousError
+
+}) {
+
+
+    const parts = [];
+
+
+
+
+
+
+    /*
+     * TASK
+     */
+
+
+    parts.push(
+
+        [
+
+            "=== ТЕКУЩАЯ ЗАДАЧА ===",
+
+            task
+
+        ]
+        .join("\n")
+
+    );
+
+
+
+
+
+
+
+    /*
+     * EXPERIENCE + CONTEXT
+     */
+
+
+    const contextText =
+
+        buildContextBlock(
+            context
+        );
 
 
 
     if (
-        !experience ||
-        experience.available !== true
+        contextText
     ) {
 
 
-        return "";
+        parts.push(
+
+            [
+
+                "=== КОНТЕКСТ JESSICA ===",
+
+                contextText
+
+            ]
+            .join("\n")
+
+        );
 
     }
 
@@ -263,32 +363,72 @@ function buildExperienceMeta(
 
 
 
-    return [
-
-        "=== EXPERIENCE MEMORY ===",
 
 
-        `Источник:
-${experience.source || "unknown"}`,
+
+    /*
+     * TOOLS
+     */
 
 
-        `Уверенность:
-${experience.confidence || 0}`,
+    parts.push(
+
+        [
+
+            "=== ДОСТУПНЫЕ ИНСТРУМЕНТЫ ===",
+
+            buildToolsText()
+
+        ]
+        .join("\n")
+
+    );
 
 
-        `Количество навыков:
-${experience.skills?.length || 0}`
 
 
-    ]
-    .join(
-        "\n"
+
+
+
+
+    /*
+     * RETRY
+     */
+
+
+    const retry =
+
+        buildRetryContext(
+            previousError
+        );
+
+
+
+    if (
+        retry
+    ) {
+
+
+        parts.push(
+            retry
+        );
+
+    }
+
+
+
+
+
+
+
+    return parts.join(
+
+        "\n\n"
+
     );
 
 
 }
-
-
 
 
 
@@ -315,18 +455,20 @@ export async function requestPlan(
 
 
     const cleanTask =
-        safeString(
-            task
+
+        limitText(
+
+            safeString(
+                task
+            ),
+
+            MAX_TASK_LENGTH
+
         );
 
 
 
-
-
-    if (
-        !cleanTask
-    ) {
-
+    if (!cleanTask) {
 
         throw new Error(
             "Planner task пустой"
@@ -338,80 +480,16 @@ export async function requestPlan(
 
 
 
-
-
-
     /*
      * =====================================================
-     * SYSTEM
+     * SYSTEM PROMPT
      * =====================================================
      */
 
 
     const instructions =
+
         buildPlannerInstructions();
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * CONTEXT
-     * =====================================================
-     */
-
-
-    let planningContextText =
-        buildPlanningContextText(
-            context
-        );
-
-
-
-    planningContextText =
-        limitText(
-
-            planningContextText,
-
-            MAX_CONTEXT_LENGTH
-
-        );
-
-
-
-
-
-    const experienceMeta =
-        limitText(
-
-            buildExperienceMeta(
-                context
-            ),
-
-            MAX_EXPERIENCE_LENGTH
-
-        );
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * TOOLS
-     * =====================================================
-     */
-
-
-    const toolsText =
-        buildToolsText();
-
 
 
 
@@ -426,124 +504,18 @@ export async function requestPlan(
      */
 
 
-    const parts =
-        [
-
-            "=== ТЕКУЩАЯ ЗАДАЧА ===",
-
-            cleanTask
-
-
-        ];
-
-
-
-
-
-
-
-    if (
-        experienceMeta
-    ) {
-
-
-        parts.push(
-
-            "",
-
-            experienceMeta
-
-        );
-
-    }
-
-
-
-
-
-
-
-    if (
-        planningContextText
-    ) {
-
-
-        parts.push(
-
-            "",
-
-
-            "=== КОНТЕКСТ ПЛАНИРОВАНИЯ JESSICA ===",
-
-
-            planningContextText
-
-        );
-
-
-    }
-
-
-
-
-
-
-
-    parts.push(
-
-        "",
-
-
-        "=== ДОСТУПНЫЕ ИНСТРУМЕНТЫ ===",
-
-
-        toolsText
-
-
-    );
-
-
-
-
-
-
-
-    const retryContext =
-        buildRetryContext(
-            previousError
-        );
-
-
-
-
-    if (
-        retryContext
-    ) {
-
-
-        parts.push(
-
-            "",
-
-            retryContext
-
-        );
-
-
-    }
-
-
-
-
-
-
-
     const userPrompt =
-        parts.join(
-            "\n"
-        );
 
+        buildUserPrompt({
 
+            task:
+                cleanTask,
+
+            context,
+
+            previousError
+
+        });
 
 
 
@@ -553,12 +525,13 @@ export async function requestPlan(
 
     /*
      * =====================================================
-     * AI CALL
+     * AI REQUEST
      * =====================================================
      */
 
 
     const response =
+
         await plannerChat(
 
             [
@@ -568,10 +541,8 @@ export async function requestPlan(
                     role:
                         "system",
 
-
                     content:
                         instructions
-
 
                 },
 
@@ -581,13 +552,10 @@ export async function requestPlan(
                     role:
                         "user",
 
-
                     content:
                         userPrompt
 
-
                 }
-
 
             ]
 
@@ -599,6 +567,11 @@ export async function requestPlan(
 
 
 
+    /*
+     * =====================================================
+     * RESPONSE
+     * =====================================================
+     */
 
 
     return (
@@ -608,8 +581,10 @@ export async function requestPlan(
             ?.[0]
             ?.message
             ?.content
-            ||
-            ""
+
+        ||
+
+        ""
 
     );
 
