@@ -27,6 +27,11 @@ import {
 } from "./trace/executionTrace.js";
 
 
+import {
+    runLearningTrigger
+} from "../experience/learning/learningTrigger.js";
+
+
 
 /*
  * =========================================================
@@ -42,36 +47,27 @@ import {
  *      ↓
  * Execution Trace
  *      ↓
- * Task Decomposer
+ * Decomposer
  *      ↓
  * Subtasks
  *      ↓
- * Subtask Runner
+ * Execution
  *      ↓
  * Response Builder
  *      ↓
- * API Response
- *
- *
- * Ответственность:
- *
- * - принять задачу;
- * - создать execution trace;
- * - запустить декомпозицию;
- * - выбрать single / complex execution;
- * - вернуть результат.
+ * Learning Trigger
+ *      ↓
+ * Learning Decision
  *
  *
  * НЕ содержит:
  *
  * - Planner;
- * - Experience;
  * - Tools;
  * - Validator;
- * - Composer;
- * - Learning;
+ * - Experience logic;
  * - Storage;
- * - бизнес-логику.
+ * - Skill creation.
  *
  * =========================================================
  */
@@ -82,33 +78,52 @@ import {
 
 /*
  * =========================================================
- * INVALID INPUT RESPONSE
+ * SAFE LEARNING
  * =========================================================
  */
 
 
-function buildInputError(
+function runLearningSafely(
     executionTrace
 ) {
 
 
-    return {
-
-        success:false,
+    try {
 
 
-        stage:
-            "input",
+        if (
+            !executionTrace
+        ) {
+
+            return null;
+
+        }
 
 
-        text:
-            "Задача не указана",
+        return runLearningTrigger(
+            executionTrace
+        );
 
 
-        executionTrace
+    } catch(error) {
 
-    };
 
+        console.error(
+            "Jessica Learning error:",
+            error
+        );
+
+
+        return {
+
+            triggered:false,
+
+            reason:
+                "Learning pipeline error"
+
+        };
+
+    }
 
 }
 
@@ -118,14 +133,21 @@ function buildInputError(
 
 /*
  * =========================================================
- * DECOMPOSER ERROR
+ * FAILED RESULT
  * =========================================================
  */
 
 
-function buildDecomposerError(
-    executionTrace,
-    text
+function buildFailureResponse(
+{
+
+    stage,
+
+    text,
+
+    executionTrace
+
+}
 ) {
 
 
@@ -138,20 +160,13 @@ function buildDecomposerError(
 
         success:false,
 
+        stage,
 
-        stage:
-            "decomposer",
-
-
-        text:
-            text ||
-            "Jessica не смогла разобрать задачу",
-
+        text,
 
         executionTrace
 
     };
-
 
 }
 
@@ -159,11 +174,9 @@ function buildDecomposerError(
 
 
 
-
-
 /*
  * =========================================================
- * EXECUTE JESSICA TASK
+ * EXECUTE TASK
  * =========================================================
  */
 
@@ -173,21 +186,11 @@ export async function executeJessicaTask(
 ) {
 
 
-
     const normalizedTask =
         typeof task === "string"
             ? task.trim()
             : "";
 
-
-
-
-
-    /*
-     * =====================================================
-     * TRACE
-     * =====================================================
-     */
 
 
     const executionTrace =
@@ -198,11 +201,8 @@ export async function executeJessicaTask(
 
 
 
-
     /*
-     * =====================================================
      * INPUT
-     * =====================================================
      */
 
 
@@ -210,9 +210,18 @@ export async function executeJessicaTask(
         !normalizedTask
     ) {
 
-        return buildInputError(
+
+        return buildFailureResponse({
+
+            stage:
+                "input",
+
+            text:
+                "Задача не указана",
+
             executionTrace
-        );
+
+        });
 
     }
 
@@ -221,16 +230,12 @@ export async function executeJessicaTask(
 
 
 
-
     /*
-     * =====================================================
      * DECOMPOSE
-     * =====================================================
      */
 
 
     let decompositionResult;
-
 
 
     try {
@@ -251,13 +256,20 @@ export async function executeJessicaTask(
         );
 
 
-        return buildDecomposerError(
+        return buildFailureResponse({
+
+            stage:
+                "decomposer",
+
+            text:
+                "Jessica не смогла разобрать задачу",
+
             executionTrace
-        );
+
+        });
 
 
     }
-
 
 
 
@@ -267,18 +279,20 @@ export async function executeJessicaTask(
     ) {
 
 
-        return buildDecomposerError(
+        return buildFailureResponse({
 
-            executionTrace,
+            stage:
+                "decomposer",
 
-            decompositionResult?.text
+            text:
+                decompositionResult?.text ||
+                "Ошибка декомпозиции",
 
-        );
+            executionTrace
 
+        });
 
     }
-
-
 
 
 
@@ -300,21 +314,22 @@ export async function executeJessicaTask(
 
 
 
-
-
     if (
         subtasks.length === 0
     ) {
 
 
-        return buildDecomposerError(
+        return buildFailureResponse({
 
-            executionTrace,
+            stage:
+                "decomposer",
 
-            "Jessica не обнаружила задач для выполнения"
+            text:
+                "Jessica не обнаружила задач",
 
-        );
+            executionTrace
 
+        });
 
     }
 
@@ -322,16 +337,9 @@ export async function executeJessicaTask(
 
 
 
-
-
     console.log(
-
-        `Jessica decomposition: ${subtasks.length} subtask(s)`
-
+        `Jessica decomposition: ${subtasks.length}`
     );
-
-
-
 
 
 
@@ -340,7 +348,7 @@ export async function executeJessicaTask(
 
     /*
      * =====================================================
-     * SINGLE TASK
+     * SINGLE
      * =====================================================
      */
 
@@ -367,39 +375,28 @@ export async function executeJessicaTask(
 
 
             console.error(
-
-                "Jessica single subtask error:",
-
+                "Jessica single execution error:",
                 error
-
             );
-
 
 
             result = {
 
-
                 id:
                     subtasks[0]?.id || null,
-
 
                 status:
                     "FAILED",
 
-
                 success:false,
-
 
                 stage:
                     "subtask",
 
-
                 result:
                     "Ошибка выполнения подзадачи"
 
-
             };
-
 
         }
 
@@ -424,17 +421,32 @@ export async function executeJessicaTask(
 
 
 
+        const response =
+            buildSingleTaskResponse(
 
-        return buildSingleTaskResponse(
+                result,
 
-            result,
+                decomposition,
 
-            decomposition,
+                executionTrace
 
-            executionTrace
+            );
 
-        );
 
+
+        /*
+         * Запуск обучения
+         */
+
+
+        response.learning =
+            runLearningSafely(
+                executionTrace
+            );
+
+
+
+        return response;
 
 
     }
@@ -445,11 +457,9 @@ export async function executeJessicaTask(
 
 
 
-
-
     /*
      * =====================================================
-     * COMPLEX TASK
+     * COMPLEX
      * =====================================================
      */
 
@@ -467,44 +477,26 @@ export async function executeJessicaTask(
             );
 
 
-
     } catch(error) {
 
 
         console.error(
-
             "Jessica complex execution error:",
-
             error
-
         );
 
 
-
-        finishExecutionTrace(
-            executionTrace
-        );
-
-
-
-        return {
-
-
-            success:false,
-
+        return buildFailureResponse({
 
             stage:
                 "execution",
 
-
             text:
                 "Ошибка выполнения сложной задачи",
 
-
             executionTrace
 
-
-        };
+        });
 
 
     }
@@ -513,11 +505,6 @@ export async function executeJessicaTask(
 
 
 
-
-
-    /*
-     * TRACE UPDATE
-     */
 
 
     updateTraceFromSummary(
@@ -539,30 +526,20 @@ export async function executeJessicaTask(
 
 
 
-
-
     console.log(
 
         "Jessica complex result:",
 
         {
 
-
             total:
                 subtaskRunResult.total,
-
 
             completed:
                 subtaskRunResult.completed,
 
-
             failed:
-                subtaskRunResult.failed,
-
-
-            clarification:
-                subtaskRunResult.needsClarification
-
+                subtaskRunResult.failed
 
         }
 
@@ -574,26 +551,37 @@ export async function executeJessicaTask(
 
 
 
+    const response =
+        await buildComplexTaskResponse(
+
+            normalizedTask,
+
+            decomposition,
+
+            subtaskRunResult,
+
+            executionTrace
+
+        );
+
+
+
+
 
     /*
-     * =====================================================
-     * RESPONSE
-     * =====================================================
+     * Автоматическое обучение
      */
 
 
-    return await buildComplexTaskResponse(
+    response.learning =
+        runLearningSafely(
+            executionTrace
+        );
 
-        normalizedTask,
 
-        decomposition,
 
-        subtaskRunResult,
 
-        executionTrace
-
-    );
-
+    return response;
 
 
 }
