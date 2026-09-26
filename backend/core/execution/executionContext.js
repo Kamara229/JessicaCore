@@ -5,25 +5,119 @@
  *
  * Контекст одной попытки выполнения.
  *
+ *
  * Используется:
  *
- * executionCycle
- * executionStepRunner
- * failureHandler
+ * - executionCycle
+ * - executionStepRunner
+ * - failureHandler
+ * - ExecutionTrace
  *
  *
- * НЕ содержит:
+ * Хранит:
  *
- * - выполнение;
- * - retry;
- * - replan;
- * - validation logic.
+ * - задачу;
+ * - текущий Plan;
+ * - PlanningContext;
+ * - применённый Experience;
+ * - результаты выполнения.
  *
- * Только хранит состояние.
+ *
+ * НЕ:
+ *
+ * - выполняет инструменты;
+ * - делает retry;
+ * - делает replan;
+ * - валидирует результат.
  *
  * =========================================================
  */
 
+
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE EXPERIENCE
+ * =========================================================
+ */
+
+
+function normalizeExperience(
+    experience
+) {
+
+
+    if (
+        !experience ||
+        typeof experience !== "object"
+    ) {
+
+        return {
+
+
+            used:
+                false,
+
+
+            skills:
+                [],
+
+
+            context:
+                null
+
+        };
+
+    }
+
+
+
+
+    return {
+
+
+        used:
+
+            experience.used === true,
+
+
+
+        skills:
+
+            Array.isArray(
+                experience.skills
+            )
+
+                ? experience.skills
+
+                : [],
+
+
+
+        context:
+
+            experience.context || null
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * CREATE EXECUTION CONTEXT
+ * =========================================================
+ */
 
 
 export function createExecutionContext({
@@ -32,7 +126,9 @@ export function createExecutionContext({
 
     plan,
 
-    planningContext = {}
+    planningContext = {},
+
+    experience = null
 
 } = {}) {
 
@@ -40,11 +136,15 @@ export function createExecutionContext({
     return {
 
 
+
         /*
          * исходная задача
          */
 
+
         task,
+
+
 
 
 
@@ -52,32 +152,67 @@ export function createExecutionContext({
          * текущий план
          */
 
+
         plan,
 
 
 
+
+
         /*
-         * контекст Experience / Planner
+         * Контекст Planner
+         *
+         * Experience + rules
          */
+
 
         planningContext,
 
 
 
+
+
         /*
-         * результаты этапов
+         * Experience,
+         * реально использованный
+         * при построении плана
          */
 
+
+        experience:
+
+            normalizeExperience(
+                experience
+            ),
+
+
+
+
+
+
+        /*
+         * результаты выполнения
+         */
+
+
         runResult:
+
             null,
+
 
 
         answerResult:
+
             null,
+
 
 
         validationResult:
+
             null,
+
+
+
 
 
 
@@ -85,8 +220,13 @@ export function createExecutionContext({
          * номер попытки
          */
 
+
         attempt:
+
             0,
+
+
+
 
 
 
@@ -94,10 +234,13 @@ export function createExecutionContext({
          * история попыток
          */
 
+
         attempts:
+
             []
 
-    };
 
+
+    };
 
 }
