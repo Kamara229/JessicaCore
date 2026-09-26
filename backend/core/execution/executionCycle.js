@@ -1,3 +1,41 @@
+/*
+ * =========================================================
+ * JESSICA EXECUTION CYCLE v3
+ * =========================================================
+ *
+ * Центральный координатор Execution Plan.
+ *
+ *
+ * Flow:
+ *
+ * Plan
+ *   ↓
+ * Execution Context
+ *   ↓
+ * Execution Step Runner
+ *   ↓
+ * Result
+ *
+ *
+ * Failure:
+ *
+ * Failure Handler
+ *   ↓
+ * Retry / Replan
+ *
+ *
+ * НЕ:
+ *
+ * - выполняет инструменты;
+ * - создаёт ответы;
+ * - валидирует результат;
+ * - сохраняет Experience.
+ *
+ * =========================================================
+ */
+
+
+
 import {
     createExecutionContext
 } from "./executionContext.js";
@@ -19,52 +57,15 @@ import {
 
 
 import {
+    createExecutionTrace,
+    updateTraceFromResult,
+    finishExecutionTrace
+} from "./executionTrace.js";
+
+
+import {
     MAX_EXECUTION_ATTEMPTS
 } from "./retryPolicy.js";
-
-
-
-
-
-/*
- * =========================================================
- * JESSICA EXECUTION CYCLE
- * =========================================================
- *
- * Центральный исполнитель Execution Plan.
- *
- *
- * Flow:
- *
- * Plan
- *   ↓
- * Execution Context
- *   ↓
- * Step Runner
- *   ↓
- * Result
- *
- *
- * Experience:
- *
- * Plan.experience
- *        ↓
- * Execution Context
- *        ↓
- * Execution Trace
- *        ↓
- * Learning
- *
- *
- * НЕ:
- *
- * - выполняет конкретные инструменты;
- * - создаёт ответы;
- * - сохраняет Experience;
- * - создаёт Skills.
- *
- * =========================================================
- */
 
 
 
@@ -79,7 +80,7 @@ import {
  */
 
 
-function buildExperienceMeta(
+function extractExperience(
     plan,
     planningContext
 ) {
@@ -88,9 +89,30 @@ function buildExperienceMeta(
     return {
 
 
-        used:
+        found:
 
-            plan?.experienceUsed === true,
+            planningContext
+                ?.experience
+                ?.found === true,
+
+
+
+        source:
+
+            planningContext
+                ?.experience
+                ?.source ||
+            null,
+
+
+
+        confidence:
+
+            Number(
+                planningContext
+                    ?.experience
+                    ?.confidence || 0
+            ),
 
 
 
@@ -108,7 +130,9 @@ function buildExperienceMeta(
 
         context:
 
-            planningContext?.experience || null
+            planningContext
+                ?.experience ||
+            null
 
 
     };
@@ -125,12 +149,156 @@ function buildExperienceMeta(
 
 /*
  * =========================================================
- * CREATE CONTEXT
+ * BUILD FINAL META
  * =========================================================
  */
 
 
-function createJessicaExecutionContext({
+function buildExecutionMeta(
+    context
+) {
+
+
+    return {
+
+
+        executionId:
+            context.executionId,
+
+
+
+        attempts:
+            context.attempt,
+
+
+
+        experienceUsed:
+
+            context
+                ?.experience
+                ?.skills
+                ?.length > 0,
+
+
+
+        experienceSkills:
+
+            context
+                ?.experience
+                ?.skills || [],
+
+
+
+        traceId:
+
+            context
+                ?.trace
+                ?.id ||
+            null
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SUCCESS RESULT
+ * =========================================================
+ */
+
+
+function attachExecutionMeta(
+    result,
+    context
+) {
+
+
+    return {
+
+
+        ...result,
+
+
+        executionMeta:
+
+            buildExecutionMeta(
+                context
+            )
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * REGISTER FAILURE
+ * =========================================================
+ */
+
+
+function registerFailure(
+    context,
+    failure
+) {
+
+
+    if (
+        !failure
+    ) {
+
+        return;
+
+    }
+
+
+
+    context.errors.push({
+
+        ...failure,
+
+        timestamp:
+            new Date()
+                .toISOString()
+
+    });
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * CREATE EXECUTION CONTEXT
+ * =========================================================
+ */
+
+
+function createJessicaContext({
 
     task,
 
@@ -149,14 +317,12 @@ function createJessicaExecutionContext({
         plan,
 
 
-
         planningContext,
-
 
 
         experience:
 
-            buildExperienceMeta(
+            extractExperience(
 
                 plan,
 
@@ -179,7 +345,7 @@ function createJessicaExecutionContext({
 
 /*
  * =========================================================
- * EXECUTE PLAN
+ * EXECUTE PLAN CYCLE
  * =========================================================
  */
 
@@ -198,14 +364,14 @@ export async function executePlanCycle(
 
     /*
      * =====================================================
-     * CREATE EXECUTION CONTEXT
+     * CONTEXT
      * =====================================================
      */
 
 
     const context =
 
-        createJessicaExecutionContext({
+        createJessicaContext({
 
             task:
                 taskText,
@@ -223,8 +389,32 @@ export async function executePlanCycle(
 
 
 
+
+
+
+    /*
+     * =====================================================
+     * TRACE
+     * =====================================================
+     */
+
+
+    context.trace =
+
+        createExecutionTrace(
+
+            taskText
+
+        );
+
+
+
+
+
+
     let lastFailure =
         null;
+
 
 
 
@@ -257,23 +447,21 @@ export async function executePlanCycle(
 
 
 
-
         console.log(
 
-            "Jessica execution:",
+            "Jessica Execution Cycle:",
 
             {
+
+                executionId:
+                    context.executionId,
+
 
                 attempt,
 
 
                 max:
-                    MAX_EXECUTION_ATTEMPTS,
-
-
-                experienceUsed:
-                    context.experience?.used || false
-
+                    MAX_EXECUTION_ATTEMPTS
 
             }
 
@@ -284,20 +472,84 @@ export async function executePlanCycle(
 
 
 
+
+
         /*
          * =================================================
-         * RUN STEP
+         * STEP RUNNER
          * =================================================
          */
 
 
-        const stepResult =
+        let stepResult;
 
-            await executeExecutionStep(
 
-                context
 
-            );
+        try {
+
+
+            stepResult =
+
+                await executeExecutionStep(
+
+                    context
+
+                );
+
+
+        } catch(error) {
+
+
+            stepResult = {
+
+
+                success:false,
+
+
+                failure:{
+
+                    stage:
+                        "execution",
+
+
+                    failureType:
+                        "exception",
+
+
+                    reason:
+                        error.message
+
+                }
+
+
+            };
+
+
+        }
+
+
+
+
+
+
+
+
+        /*
+         * =================================================
+         * TRACE
+         * =================================================
+         */
+
+
+        updateTraceFromResult(
+
+            context.trace,
+
+            stepResult
+
+        );
+
+
 
 
 
@@ -319,37 +571,29 @@ export async function executePlanCycle(
         ) {
 
 
-            return {
 
-
-                ...stepResult.result,
-
-
-
-                executionMeta: {
-
-
-                    ...(stepResult.result?.executionMeta || {}),
+            context.state =
+                "COMPLETED";
 
 
 
-                    experienceUsed:
-
-                        context.experience?.used === true,
-
-
-
-                    experienceSkills:
-
-                        context.experience?.skills || []
-
-                }
+            finishExecutionTrace(
+                context.trace
+            );
 
 
-            };
+
+            return attachExecutionMeta(
+
+                stepResult.result,
+
+                context
+
+            );
 
 
         }
+
 
 
 
@@ -373,10 +617,27 @@ export async function executePlanCycle(
                     "execution",
 
 
+                failureType:
+                    "unknown",
+
+
                 reason:
-                    "Unknown execution failure"
+                    "Неизвестная ошибка выполнения"
+
 
             };
+
+
+
+
+
+        registerFailure(
+
+            context,
+
+            lastFailure
+
+        );
 
 
 
@@ -399,11 +660,29 @@ export async function executePlanCycle(
         ) {
 
 
-            return buildTerminalResult(
 
-                context,
+            context.state =
+                "FAILED";
 
-                lastFailure
+
+
+            finishExecutionTrace(
+                context.trace
+            );
+
+
+
+            return attachExecutionMeta(
+
+                buildTerminalResult(
+
+                    context,
+
+                    lastFailure
+
+                ),
+
+                context
 
             );
 
@@ -447,20 +726,36 @@ export async function executePlanCycle(
         ) {
 
 
-            return failureResult.result;
+
+            context.state =
+                failureResult
+                    ?.result
+                    ?.status ||
+                "FAILED";
+
+
+
+            finishExecutionTrace(
+                context.trace
+            );
+
+
+
+            return attachExecutionMeta(
+
+                failureResult.result,
+
+                context
+
+            );
 
 
         }
 
 
 
-        /*
-         *
-         * продолжаем с новым планом
-         *
-         */
-
     }
+
 
 
 
@@ -476,26 +771,42 @@ export async function executePlanCycle(
      */
 
 
-    return buildTerminalResult(
-
-        context,
-
-        lastFailure || {
+    context.state =
+        "FAILED";
 
 
-            stage:
-                "execution",
+    finishExecutionTrace(
+        context.trace
+    );
 
 
-            failureType:
-                "execution-limit",
+
+    return attachExecutionMeta(
+
+        buildTerminalResult(
+
+            context,
+
+            lastFailure || {
 
 
-            reason:
-                "Лимит выполнения исчерпан"
+                stage:
+                    "execution",
 
 
-        }
+                failureType:
+                    "execution-limit",
+
+
+                reason:
+                    "Лимит выполнения исчерпан"
+
+
+            }
+
+        ),
+
+        context
 
     );
 
