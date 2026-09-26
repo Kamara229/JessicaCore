@@ -3,7 +3,7 @@
  * JESSICA PLANNING CONTEXT
  * =========================================================
  *
- * Единый формат дополнительного контекста Planner.
+ * Единый формат контекста Planner.
  *
  *
  * Используется:
@@ -14,17 +14,19 @@
  * Earnings
  *
  *
- * Этот модуль НЕ:
+ * НЕ:
  *
- * - ищет опыт;
+ * - ищет Experience;
  * - изменяет Skills;
- * - принимает решения;
  * - вызывает AI.
  *
- * Только нормализует данные.
+ * Только приводит данные к единому виду.
  *
  * =========================================================
  */
+
+
+
 
 
 /*
@@ -36,68 +38,43 @@
 
 export function createEmptyPlanningContext() {
 
+
     return {
 
-
-        /*
-         * Опыт Jessica
-         */
 
         experience:
             null,
 
 
-
-        /*
-         * Глобальные правила
-         */
-
         sourceRules:
             [],
 
-
-
-        /*
-         * Ограничения задачи
-         */
 
         constraints:
             [],
 
 
-
-        /*
-         * Дополнительные инструкции Planner
-         */
-
         instructions:
             [],
 
 
-
-        /*
-         * Подсказки для построения маршрута
-         */
-
         plannerHints:
             [],
 
-
-
-        /*
-         * Служебные данные
-         *
-         * retry
-         * execution
-         * learning
-         */
 
         metadata:
             {}
 
     };
 
+
 }
+
+
+
+
+
+
 
 
 
@@ -112,6 +89,7 @@ function normalizeArray(
     value
 ) {
 
+
     if (
         !Array.isArray(value)
     ) {
@@ -124,18 +102,26 @@ function normalizeArray(
     return value
 
         .map(
+
             item =>
-                String(
-                    item || ""
-                )
-                .trim()
+
+                typeof item === "string"
+
+                    ? item.trim()
+
+                    : item
+
         )
 
-        .filter(
-            Boolean
-        );
+        .filter(Boolean);
 
 }
+
+
+
+
+
+
 
 
 
@@ -150,6 +136,7 @@ function normalizeObject(
     value
 ) {
 
+
     if (
         !value ||
         typeof value !== "object" ||
@@ -162,10 +149,90 @@ function normalizeObject(
 
 
     return {
+
         ...value
+
     };
 
 }
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE SKILL
+ * =========================================================
+ */
+
+
+function normalizeSkill(
+    skill
+) {
+
+
+    if (
+        !skill ||
+        typeof skill !== "object"
+    ) {
+
+        return null;
+
+    }
+
+
+    return {
+
+
+        id:
+            skill.id ||
+            null,
+
+
+        name:
+            String(
+                skill.name || ""
+            )
+            .trim(),
+
+
+
+        workflow:
+
+            normalizeArray(
+                skill.workflow
+            ),
+
+
+
+        constraints:
+
+            normalizeArray(
+                skill.constraints
+            ),
+
+
+
+        examples:
+
+            normalizeArray(
+                skill.examples
+            )
+
+    };
+
+}
+
+
+
+
+
+
 
 
 
@@ -192,49 +259,136 @@ function normalizeExperience(
 
 
 
+
+
+
+    const nestedExperience =
+
+        experience.experience &&
+
+        typeof experience.experience === "object"
+
+            ? experience.experience
+
+            : {};
+
+
+
+
+
+
+
     return {
 
-        ...experience,
+
+        /*
+         * Новая модель памяти
+         */
+
+
+        found:
+
+            experience.found === true,
+
+
+
+        source:
+
+            experience.source ||
+            "unknown",
+
+
+
+        confidence:
+
+            Number(
+                experience.confidence || 0
+            ),
+
+
+
+        skills:
+
+            Array.isArray(
+                nestedExperience.skills
+            )
+
+                ? nestedExperience.skills
+
+                    .map(
+                        normalizeSkill
+                    )
+
+                    .filter(Boolean)
+
+                : [],
+
+
+
+
+
+        /*
+         * Старые поля Experience
+         * оставляем для совместимости
+         */
 
 
         strategy:
+
             normalizeArray(
                 experience.strategy
             ),
 
 
+
         sourcePriority:
+
             normalizeArray(
                 experience.sourcePriority
             ),
 
 
+
         validationRules:
+
             normalizeArray(
                 experience.validationRules
             ),
 
 
+
         failurePatterns:
+
             normalizeArray(
                 experience.failurePatterns
             ),
 
 
+
         successfulPatterns:
+
             normalizeArray(
                 experience.successfulPatterns
             ),
 
 
+
         avoidPatterns:
+
             normalizeArray(
                 experience.avoidPatterns
             )
 
     };
 
+
 }
+
+
+
+
+
+
 
 
 
@@ -261,6 +415,9 @@ export function normalizePlanningContext(
 
 
 
+
+
+
     return {
 
 
@@ -272,11 +429,13 @@ export function normalizePlanningContext(
 
 
 
+
         sourceRules:
 
             normalizeArray(
                 context.sourceRules
             ),
+
 
 
 
@@ -288,11 +447,13 @@ export function normalizePlanningContext(
 
 
 
+
         instructions:
 
             normalizeArray(
                 context.instructions
             ),
+
 
 
 
@@ -304,6 +465,7 @@ export function normalizePlanningContext(
 
 
 
+
         metadata:
 
             normalizeObject(
@@ -311,9 +473,17 @@ export function normalizePlanningContext(
             )
 
 
+
     };
 
+
 }
+
+
+
+
+
+
 
 
 
@@ -330,6 +500,7 @@ export function hasPlanningContext(
 
 
     const normalized =
+
         normalizePlanningContext(
             context
         );
@@ -337,6 +508,7 @@ export function hasPlanningContext(
 
 
     return Boolean(
+
 
 
         normalized.experience ||
@@ -362,6 +534,7 @@ export function hasPlanningContext(
         Object.keys(
             normalized.metadata
         ).length > 0
+
 
 
     );
