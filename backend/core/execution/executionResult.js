@@ -1,35 +1,100 @@
 /*
  * =========================================================
- * JESSICA EXECUTION RESULT
+ * JESSICA EXECUTION RESULT v3
  * =========================================================
  *
- * Формирует стандартизированные результаты
- * Execution Cycle.
+ * Единый контракт результата Execution.
  *
  *
- * Поддерживает:
+ * Создаёт:
  *
- * - COMPLETED;
- * - FAILED;
- * - NEEDS_CLARIFICATION;
- * - NO_VERIFIED_RESULT.
+ * - COMPLETED
+ * - FAILED
+ * - NEEDS_CLARIFICATION
+ * - NO_VERIFIED_RESULT
  *
  *
- * Добавляет:
+ * Используется:
  *
- * - Experience metadata;
- * - Execution metadata;
- * - Learning context.
+ * Execution Cycle
+ * Terminal
+ * Trace
+ * Learning
  *
  *
  * НЕ:
  *
- * - выполняет инструменты;
+ * - анализирует ошибки;
+ * - решает retry;
+ * - делает replan;
  * - вызывает Planner;
  * - вызывает Validator.
  *
  * =========================================================
  */
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * STATUS
+ * =========================================================
+ */
+
+
+export const EXECUTION_RESULT_STATUS = {
+
+
+    COMPLETED:
+        "COMPLETED",
+
+
+    FAILED:
+        "FAILED",
+
+
+    NEEDS_CLARIFICATION:
+        "NEEDS_CLARIFICATION",
+
+
+    NO_VERIFIED_RESULT:
+        "NO_VERIFIED_RESULT"
+
+
+};
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SAFE STRING
+ * =========================================================
+ */
+
+
+function safeString(
+    value
+) {
+
+    return String(
+        value || ""
+    )
+        .trim();
+
+}
+
+
+
 
 
 
@@ -44,20 +109,19 @@
 
 
 function collectUsedTools(
-    taskRunResult
+    runResult
 ) {
 
 
     const results =
 
         Array.isArray(
-            taskRunResult?.results
+            runResult?.results
         )
 
-            ? taskRunResult.results
+            ? runResult.results
 
             : [];
-
 
 
 
@@ -68,10 +132,8 @@ function collectUsedTools(
             results
 
                 .map(
-
                     item =>
                         item?.tool
-
                 )
 
                 .filter(Boolean)
@@ -97,9 +159,21 @@ function collectUsedTools(
  */
 
 
-function buildExperienceData(
+function buildExperienceMeta(
     context
 ) {
+
+
+    const skills =
+
+        Array.isArray(
+            context?.experience?.skills
+        )
+
+            ? context.experience.skills
+
+            : [];
+
 
 
     return {
@@ -111,40 +185,34 @@ function buildExperienceData(
 
 
 
-        skills:
-
-            Array.isArray(
-                context?.experience?.skills
-            )
-
-                ? context.experience.skills
-
-                : [],
+        skills,
 
 
 
         skillIds:
 
-            Array.isArray(
-                context?.experience?.skills
-            )
+            skills
 
-                ? context.experience.skills
+                .map(
 
-                    .map(
+                    skill =>
 
-                        skill =>
+                        typeof skill === "string"
+
+                            ? skill
+
+                            :
 
                             skill?.id ||
-                            skill
+                            skill?.name
 
-                    )
+                )
 
-                    .filter(Boolean)
+                .filter(Boolean)
 
-                : []
 
     };
+
 
 }
 
@@ -158,12 +226,12 @@ function buildExperienceData(
 
 /*
  * =========================================================
- * COMMON DATA
+ * COMMON META
  * =========================================================
  */
 
 
-function buildCommonData(
+function buildExecutionMeta(
     context
 ) {
 
@@ -171,36 +239,11 @@ function buildCommonData(
     return {
 
 
-        plan:
+        attempt:
 
-            context?.plan || null,
-
-
-
-
-        planningContext:
-
-            context?.planningContext || {},
-
-
-
-
-
-        experience:
-
-            buildExperienceData(
-                context
+            Number(
+                context?.attempt || 0
             ),
-
-
-
-
-
-        toolResults:
-
-            context?.runResult?.results || [],
-
-
 
 
 
@@ -212,38 +255,67 @@ function buildCommonData(
 
 
 
+        experience:
 
-
-        attempt:
-
-            Number(
-                context?.attempt || 0
+            buildExperienceMeta(
+                context
             ),
 
 
 
+        planId:
+
+            context?.plan?.id ||
+            null
+
+
+    };
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BASE
+ * =========================================================
+ */
+
+
+function buildBaseResult(
+    context
+) {
+
+
+    return {
+
+
+        task:
+
+            context?.task ||
+            "",
+
+
+
+        plan:
+
+            context?.plan ||
+            null,
 
 
 
         executionMeta:
 
-        {
-
-            attempt:
-
-                Number(
-                    context?.attempt || 0
-                ),
-
-
-
-            experienceUsed:
-
-                context?.experience?.used === true
-
-        }
-
-
+            buildExecutionMeta(
+                context
+            )
 
     };
 
@@ -270,19 +342,18 @@ export function buildCompletedResult(
 
     answerResult,
 
-    validated
+    validated = true
 
 ) {
 
 
-    const isValidated =
-
-        validated === true;
-
-
-
-
     return {
+
+
+        ...buildBaseResult(
+            context
+        ),
+
 
 
         success:
@@ -293,64 +364,44 @@ export function buildCompletedResult(
 
         status:
 
-            "COMPLETED",
-
-
-
-        resultType:
-
-            "result",
+            EXECUTION_RESULT_STATUS
+                .COMPLETED,
 
 
 
         verified:
 
-            isValidated,
+            validated === true,
 
 
 
-        validated:
+        answer:
 
-            isValidated,
+        {
 
+            text:
 
-
-        validationStatus:
-
-            isValidated
-
-                ? "passed"
-
-                : "skipped",
+                answerResult?.text ||
+                "",
 
 
+            source:
+
+                answerResult?.source ||
+                "unknown"
 
 
-
-        result:
-
-            answerResult?.text || "",
+        },
 
 
 
+        failure:
 
+            null
 
-        answerSource:
-
-            answerResult?.source ||
-
-            "unknown",
-
-
-
-
-
-
-        ...buildCommonData(
-            context
-        )
 
     };
+
 
 }
 
@@ -364,7 +415,7 @@ export function buildCompletedResult(
 
 /*
  * =========================================================
- * FAILURE
+ * FAILED
  * =========================================================
  */
 
@@ -377,9 +428,9 @@ export function buildFailureResult(
 
         stage = "execution",
 
-        reason = "Не удалось выполнить задачу",
+        reason = "",
 
-        failureType = null
+        failureType = "execution_failure"
 
     } = {}
 
@@ -387,6 +438,12 @@ export function buildFailureResult(
 
 
     return {
+
+
+        ...buildBaseResult(
+            context
+        ),
+
 
 
         success:
@@ -397,13 +454,8 @@ export function buildFailureResult(
 
         status:
 
-            "FAILED",
-
-
-
-        resultType:
-
-            "failure",
+            EXECUTION_RESULT_STATUS
+                .FAILED,
 
 
 
@@ -413,31 +465,36 @@ export function buildFailureResult(
 
 
 
-        shouldRetry:
+        answer:
 
-            false,
-
-
-
-        stage,
+            null,
 
 
 
-        failureType,
+        failure:
+
+        {
 
 
-
-        result:
-
-            reason,
+            stage,
 
 
+            type:
+                failureType,
 
-        ...buildCommonData(
-            context
-        )
+
+            reason:
+
+                safeString(
+                    reason
+                )
+
+
+        }
+
 
     };
+
 
 }
 
@@ -465,7 +522,7 @@ export function buildClarificationResult(
         stage = "execution",
 
         reason =
-            "Для выполнения задачи требуется уточнение"
+            "Требуется уточнение"
 
     } = {}
 
@@ -473,6 +530,12 @@ export function buildClarificationResult(
 
 
     return {
+
+
+        ...buildBaseResult(
+            context
+        ),
+
 
 
         success:
@@ -483,13 +546,8 @@ export function buildClarificationResult(
 
         status:
 
-            "NEEDS_CLARIFICATION",
-
-
-
-        resultType:
-
-            "needs_clarification",
+            EXECUTION_RESULT_STATUS
+                .NEEDS_CLARIFICATION,
 
 
 
@@ -499,33 +557,33 @@ export function buildClarificationResult(
 
 
 
-        shouldRetry:
+        answer:
 
-            false,
-
-
-
-        needsClarification:
-
-            true,
+            null,
 
 
 
-        stage,
+        clarification:
+
+        {
 
 
-
-        result:
-
-            reason,
+            stage,
 
 
+            reason:
 
-        ...buildCommonData(
-            context
-        )
+                safeString(
+                    reason
+                )
+
+
+        }
+
+
 
     };
+
 
 }
 
@@ -548,24 +606,7 @@ export function buildNoVerifiedResult(
 
     context,
 
-    {
-
-        message =
-            "Не удалось подтвердить достоверный результат по доступным источникам.",
-
-
-        reason =
-            "",
-
-
-        stage =
-            "search",
-
-
-        failureType =
-            null
-
-    } = {}
+    reason = ""
 
 ) {
 
@@ -573,21 +614,22 @@ export function buildNoVerifiedResult(
     return {
 
 
+        ...buildBaseResult(
+            context
+        ),
+
+
+
         success:
 
-            true,
+            false,
 
 
 
         status:
 
-            "COMPLETED",
-
-
-
-        resultType:
-
-            "no_verified_result",
+            EXECUTION_RESULT_STATUS
+                .NO_VERIFIED_RESULT,
 
 
 
@@ -597,53 +639,108 @@ export function buildNoVerifiedResult(
 
 
 
-        validated:
+        answer:
 
-            false,
-
-
-
-        validationStatus:
-
-            "not_applicable",
+            null,
 
 
 
-        shouldRetry:
+        failure:
 
-            false,
-
-
-
-        stage,
+        {
 
 
-
-        failureType,
+            stage:
+                "verification",
 
 
 
-        result:
-
-            message,
-
-
-
-        reason,
+            type:
+                "no_verified_result",
 
 
 
-        answerSource:
+            reason:
 
-            "execution",
+                safeString(
+                    reason
+                )
 
 
+        }
 
-
-        ...buildCommonData(
-            context
-        )
 
     };
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * RESULT HELPERS
+ * =========================================================
+ */
+
+
+export function isCompletedResult(
+    result
+) {
+
+
+    return (
+
+        result?.status ===
+        EXECUTION_RESULT_STATUS.COMPLETED
+
+        &&
+
+        result?.success === true
+
+    );
+
+}
+
+
+
+
+
+export function isFailedResult(
+    result
+) {
+
+
+    return (
+
+        result?.status ===
+        EXECUTION_RESULT_STATUS.FAILED
+
+    );
+
+}
+
+
+
+
+
+export function isClarificationResult(
+    result
+) {
+
+
+    return (
+
+        result?.status ===
+        EXECUTION_RESULT_STATUS
+            .NEEDS_CLARIFICATION
+
+    );
 
 }
