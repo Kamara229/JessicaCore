@@ -19,7 +19,7 @@ import {
  * JESSICA EXPERIENCE CORE
  * =========================================================
  *
- * Центральный слой доступа к опыту Jessica.
+ * Центральный координатор Experience слоя.
  *
  *
  * Flow:
@@ -34,16 +34,23 @@ import {
  *   ↓
  * Skill Match
  *   ↓
- * Planning Context
+ * Experience Context
  *   ↓
  * Planner
  *
  *
+ * Ответственность:
+ *
+ * - получить активные Skills;
+ * - найти подходящий опыт;
+ * - построить PlanningContext.
+ *
+ *
  * НЕ:
  *
- * - хранит Skills;
+ * - сохраняет Experience;
  * - изменяет Skills;
- * - обучает систему;
+ * - обучает Jessica;
  * - вызывает AI;
  * - выполняет инструменты.
  *
@@ -61,8 +68,8 @@ import {
  */
 
 
-function emptyExperienceResult(
-    reason = "not_found"
+function createEmptyResult(
+    reason
 ) {
 
 
@@ -77,6 +84,10 @@ function emptyExperienceResult(
             null,
 
 
+        match:
+            null,
+
+
         confidence:
             0,
 
@@ -85,7 +96,8 @@ function emptyExperienceResult(
             "experience-core",
 
 
-        reason,
+        reason:
+            reason || "not-found",
 
 
 
@@ -96,10 +108,27 @@ function emptyExperienceResult(
                 null,
 
 
+            sourceRules:
+                [],
+
+
+            constraints:
+                [],
+
+
+            instructions:
+                [],
+
+
+            plannerHints:
+                [],
+
+
             metadata:
             {
 
-                reason
+                reason:
+                    reason || "not-found"
 
             }
 
@@ -107,6 +136,7 @@ function emptyExperienceResult(
 
 
     };
+
 
 }
 
@@ -116,33 +146,44 @@ function emptyExperienceResult(
 
 /*
  * =========================================================
- * NORMALIZE EXPERIENCE RESULT
+ * NORMALIZE MATCH
  * =========================================================
  */
 
 
-function normalizeExperienceResult(
+function normalizeMatch(
     experience,
     confidence
 ) {
+
+
+    if (
+        !experience ||
+        typeof experience !== "object"
+    ) {
+
+        return null;
+
+    }
+
 
 
     return {
 
 
         skillId:
-            experience?.id ||
+            experience.id ||
             null,
 
 
         version:
             Number(
-                experience?.version || 0
+                experience.version || 1
             ),
 
 
         name:
-            experience?.name ||
+            experience.name ||
             "",
 
 
@@ -153,6 +194,40 @@ function normalizeExperienceResult(
 
 
     };
+
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * LOAD AVAILABLE EXPERIENCE
+ * =========================================================
+ */
+
+
+async function getAvailableExperiences(
+    experiences
+) {
+
+
+    if (
+        Array.isArray(
+            experiences
+        )
+    ) {
+
+        return experiences;
+
+    }
+
+
+
+    return await loadExperienceSkills();
+
 
 }
 
@@ -176,7 +251,6 @@ export async function resolveExperience(
 ) {
 
 
-
     const cleanTask =
         String(
             task || ""
@@ -186,14 +260,16 @@ export async function resolveExperience(
 
 
 
+
     if (
         !cleanTask
     ) {
 
 
-        return emptyExperienceResult(
+        return createEmptyResult(
             "empty-task"
         );
+
 
     }
 
@@ -201,9 +277,10 @@ export async function resolveExperience(
 
 
 
+
     /*
      * =====================================================
-     * LOAD SKILLS
+     * STORAGE
      * =====================================================
      */
 
@@ -216,18 +293,9 @@ export async function resolveExperience(
 
 
         availableExperiences =
-
-            Array.isArray(
+            await getAvailableExperiences(
                 experiences
-            )
-
-            ?
-
-            experiences
-
-            :
-
-            await loadExperienceSkills();
+            );
 
 
 
@@ -237,7 +305,7 @@ export async function resolveExperience(
 
         console.error(
 
-            "Jessica Experience Storage error:",
+            "Jessica Experience storage error:",
 
             error
 
@@ -245,12 +313,13 @@ export async function resolveExperience(
 
 
 
-        return emptyExperienceResult(
+        return createEmptyResult(
             "storage-error"
         );
 
 
     }
+
 
 
 
@@ -269,12 +338,14 @@ export async function resolveExperience(
     ) {
 
 
-        return emptyExperienceResult(
-            "no-skills"
+
+        return createEmptyResult(
+            "no-active-skills"
         );
 
 
     }
+
 
 
 
@@ -295,9 +366,7 @@ export async function resolveExperience(
     try {
 
 
-
         searchResult =
-
             searchExperience(
 
                 cleanTask,
@@ -311,16 +380,18 @@ export async function resolveExperience(
     } catch(error) {
 
 
+
         console.error(
 
-            "Jessica Experience Search error:",
+            "Jessica Experience search error:",
 
             error
 
         );
 
 
-        return emptyExperienceResult(
+
+        return createEmptyResult(
             "search-error"
         );
 
@@ -344,16 +415,12 @@ export async function resolveExperience(
     ) {
 
 
-
         return {
 
 
-            found:
-                false,
-
-
-            experience:
-                null,
+            ...createEmptyResult(
+                "no-match"
+            ),
 
 
             confidence:
@@ -363,29 +430,9 @@ export async function resolveExperience(
 
 
             source:
-                "experience-search",
+                searchResult?.source ||
+                "experience-search"
 
-
-            reason:
-                "no-match",
-
-
-            planningContext:
-            {
-
-                experience:
-                    null,
-
-
-                metadata:
-                {
-
-                    searched:
-                        true
-
-                }
-
-            }
 
 
         };
@@ -399,9 +446,10 @@ export async function resolveExperience(
 
 
 
+
     /*
      * =====================================================
-     * BUILD PLANNER CONTEXT
+     * CONTEXT
      * =====================================================
      */
 
@@ -414,7 +462,6 @@ export async function resolveExperience(
 
 
         planningContext =
-
             buildExperienceContext(
                 searchResult
             );
@@ -427,7 +474,7 @@ export async function resolveExperience(
 
         console.error(
 
-            "Experience Context build error:",
+            "Jessica Experience context error:",
 
             error
 
@@ -482,6 +529,18 @@ export async function resolveExperience(
 
 
 
+        match:
+
+            normalizeMatch(
+
+                searchResult.experience,
+
+                searchResult.confidence
+
+            ),
+
+
+
         confidence:
             Number(
                 searchResult.confidence || 0
@@ -497,18 +556,6 @@ export async function resolveExperience(
 
         reason:
             "matched",
-
-
-
-        match:
-
-            normalizeExperienceResult(
-
-                searchResult.experience,
-
-                searchResult.confidence
-
-            ),
 
 
 
