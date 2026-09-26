@@ -1,9 +1,9 @@
 /*
  * =========================================================
- * JESSICA EXECUTION CYCLE v4
+ * JESSICA EXECUTION CYCLE v5
  * =========================================================
  *
- * Главный координатор Execution.
+ * Главный координатор Execution Run.
  *
  *
  * Flow:
@@ -12,18 +12,13 @@
  *   ↓
  * Execution Context
  *   ↓
- * Trace
+ * Execution Trace
  *   ↓
  * Step Runner
  *   ↓
- * Result
- *
- *
- * Failure:
- *
  * Failure Handler
  *   ↓
- * Retry / Replan / Terminal
+ * Result
  *
  *
  * НЕ:
@@ -35,6 +30,7 @@
  *
  * =========================================================
  */
+
 
 
 import {
@@ -60,8 +56,9 @@ import {
 import {
     createExecutionTrace,
     updateTraceFromResult,
-    finishExecutionTrace
-} from "./executionTrace.js";
+    finishExecutionTrace,
+    addTraceEvent
+} from "../trace/executionTrace.js";
 
 
 import {
@@ -84,17 +81,40 @@ import {
 
 
 function extractExperience(
+
     plan,
+
     planningContext
+
 ) {
+
+
+    const experience =
+        planningContext?.experience;
+
 
 
     return {
 
 
-        used:
+        found:
 
-            plan?.experienceUsed === true,
+            experience?.found === true,
+
+
+
+        source:
+
+            experience?.source ||
+            null,
+
+
+
+        confidence:
+
+            Number(
+                experience?.confidence || 0
+            ),
 
 
 
@@ -106,15 +126,15 @@ function extractExperience(
 
                 ? plan.experience.skills
 
-                : [],
+                :
+
+                [],
 
 
 
         context:
 
-            planningContext?.experience ||
-            null
-
+            experience || null
 
 
     };
@@ -131,161 +151,12 @@ function extractExperience(
 
 /*
  * =========================================================
- * META
+ * CONTEXT
  * =========================================================
  */
 
 
-function buildExecutionMeta(
-    context
-) {
-
-
-    return {
-
-
-        executionId:
-
-            context.executionId ||
-            null,
-
-
-
-        traceId:
-
-            context.trace?.id ||
-            null,
-
-
-
-        attempts:
-
-            context.attempt || 0,
-
-
-
-        experienceUsed:
-
-            context.experience?.used === true,
-
-
-
-        experienceSkills:
-
-            context.experience?.skills || []
-
-    };
-
-
-}
-
-
-
-
-
-
-
-
-
-function attachMeta(
-    result,
-    context
-) {
-
-
-    return {
-
-
-        ...result,
-
-
-        executionMeta:
-
-            buildExecutionMeta(
-                context
-            )
-
-
-    };
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * FAILURE LOG
- * =========================================================
- */
-
-
-function registerFailure(
-    context,
-    failure
-) {
-
-
-    if (
-        !failure
-    ) {
-
-        return;
-
-    }
-
-
-
-    if (
-        !Array.isArray(
-            context.errors
-        )
-    ) {
-
-        context.errors = [];
-
-    }
-
-
-
-    context.errors.push({
-
-        ...failure,
-
-
-        timestamp:
-
-            new Date()
-                .toISOString()
-
-
-    });
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * CREATE CONTEXT
- * =========================================================
- */
-
-
-function createJessicaExecutionContext({
+function createJessicaContext({
 
     task,
 
@@ -300,9 +171,7 @@ function createJessicaExecutionContext({
 
         task,
 
-
         plan,
-
 
         planningContext,
 
@@ -332,7 +201,130 @@ function createJessicaExecutionContext({
 
 /*
  * =========================================================
- * EXECUTE CYCLE
+ * META
+ * =========================================================
+ */
+
+
+function attachExecutionMeta(
+
+    result,
+
+    context
+
+) {
+
+
+    return {
+
+
+        ...result,
+
+
+        executionMeta:
+
+        {
+
+
+            executionId:
+
+                context.executionId,
+
+
+
+            traceId:
+
+                context.trace?.id || null,
+
+
+
+            attempts:
+
+                context.attempt,
+
+
+
+            replans:
+
+                context.replanCount,
+
+
+
+            experience:
+
+            {
+
+
+                used:
+
+                    context.experience.found === true,
+
+
+
+                skills:
+
+                    context.experience.skills || []
+
+            }
+
+
+        }
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * ERROR REGISTER
+ * =========================================================
+ */
+
+
+function registerFailure(
+
+    context,
+
+    failure
+
+) {
+
+
+    context.errors.push({
+
+        ...failure,
+
+
+        timestamp:
+
+            new Date()
+                .toISOString()
+
+    });
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * MAIN EXECUTION
  * =========================================================
  */
 
@@ -350,7 +342,7 @@ export async function executePlanCycle(
 
     const context =
 
-        createJessicaExecutionContext({
+        createJessicaContext({
 
             task,
 
@@ -358,7 +350,6 @@ export async function executePlanCycle(
                 initialPlan,
 
             planningContext
-
 
         });
 
@@ -369,6 +360,11 @@ export async function executePlanCycle(
 
 
 
+    /*
+     * TRACE CREATE
+     */
+
+
     context.trace =
 
         createExecutionTrace(
@@ -376,6 +372,25 @@ export async function executePlanCycle(
             task
 
         );
+
+
+
+
+
+    addTraceEvent(
+
+        context.trace,
+
+        "EXECUTION_STARTED",
+
+        {
+
+            executionId:
+                context.executionId
+
+        }
+
+    );
 
 
 
@@ -393,6 +408,12 @@ export async function executePlanCycle(
 
 
 
+
+    /*
+     * =====================================================
+     * EXECUTION LOOP
+     * =====================================================
+     */
 
 
     for (
@@ -412,23 +433,15 @@ export async function executePlanCycle(
 
 
 
+        addTraceEvent(
 
+            context.trace,
 
-        console.log(
-
-            "Jessica Execution:",
+            "ATTEMPT_STARTED",
 
             {
 
-                executionId:
-                    context.executionId,
-
-
-                attempt,
-
-
-                max:
-                    MAX_EXECUTION_ATTEMPTS
+                attempt
 
             }
 
@@ -441,23 +454,16 @@ export async function executePlanCycle(
 
 
 
-        let executionResult;
+        let result;
 
 
 
-
-
-        /*
-         * =================================================
-         * STEP RUNNER
-         * =================================================
-         */
 
 
         try {
 
 
-            executionResult =
+            result =
 
                 await executeExecutionStep(
 
@@ -466,10 +472,12 @@ export async function executePlanCycle(
                 );
 
 
+
         } catch(error) {
 
 
-            executionResult = {
+
+            result = {
 
 
                 success:false,
@@ -489,7 +497,7 @@ export async function executePlanCycle(
 
                         error?.message ||
 
-                        "Execution exception"
+                        "Execution error"
 
                 }
 
@@ -506,11 +514,8 @@ export async function executePlanCycle(
 
 
 
-
         /*
-         * =================================================
          * TRACE
-         * =================================================
          */
 
 
@@ -518,7 +523,7 @@ export async function executePlanCycle(
 
             context.trace,
 
-            executionResult
+            result
 
         );
 
@@ -531,37 +536,48 @@ export async function executePlanCycle(
 
 
         /*
-         * =================================================
          * SUCCESS
-         * =================================================
          */
 
 
         if (
 
-            executionResult?.success === true
+            result?.success === true
 
         ) {
+
 
 
             context.state =
                 "COMPLETED";
 
 
-            finishExecutionTrace(
-                context.trace
+
+            addTraceEvent(
+
+                context.trace,
+
+                "EXECUTION_COMPLETED"
+
             );
 
 
 
-            return attachMeta(
+            finishExecutionTrace(
 
-                executionResult.result,
+                context.trace
+
+            );
+
+
+
+            return attachExecutionMeta(
+
+                result.result,
 
                 context
 
             );
-
 
         }
 
@@ -574,15 +590,13 @@ export async function executePlanCycle(
 
 
         /*
-         * =================================================
          * FAILURE
-         * =================================================
          */
 
 
         lastFailure =
 
-            executionResult?.failure ||
+            result?.failure ||
 
             {
 
@@ -595,10 +609,9 @@ export async function executePlanCycle(
 
 
                 reason:
-                    "Unknown execution failure"
+                    "Unknown failure"
 
             };
-
 
 
 
@@ -620,9 +633,63 @@ export async function executePlanCycle(
 
 
         /*
-         * =================================================
+         * TERMINAL LIMIT
+         */
+
+
+        if (
+
+            attempt >= MAX_EXECUTION_ATTEMPTS
+
+        ) {
+
+
+            context.state =
+                "FAILED";
+
+
+
+            const terminal =
+
+                buildTerminalResult(
+
+                    context,
+
+                    lastFailure
+
+                );
+
+
+
+            finishExecutionTrace(
+
+                context.trace
+
+            );
+
+
+
+            return attachExecutionMeta(
+
+                terminal,
+
+                context
+
+            );
+
+
+        }
+
+
+
+
+
+
+
+
+
+        /*
          * FAILURE HANDLER
-         * =================================================
          */
 
 
@@ -644,17 +711,39 @@ export async function executePlanCycle(
 
 
 
-        /*
-         * =================================================
-         * TERMINAL
-         * =================================================
-         */
+        if (
+
+            decision?.action === "REPLAN"
+
+        ) {
+
+
+            context.replanCount++;
+
+
+            addTraceEvent(
+
+                context.trace,
+
+                "REPLAN_REQUESTED",
+
+                decision
+
+            );
+
+
+        }
+
+
+
+
+
+
 
 
         if (
 
-            decision?.action ===
-            "TERMINAL"
+            decision?.finished === true
 
         ) {
 
@@ -663,13 +752,16 @@ export async function executePlanCycle(
                 "FAILED";
 
 
+
             finishExecutionTrace(
+
                 context.trace
+
             );
 
 
 
-            return attachMeta(
+            return attachExecutionMeta(
 
                 decision.result,
 
@@ -677,93 +769,11 @@ export async function executePlanCycle(
 
             );
 
-
         }
 
 
 
 
-
-
-
-
-
-        /*
-         * =================================================
-         * OLD LIMIT PROTECTION
-         * =================================================
-         */
-
-
-        if (
-
-            attempt >= MAX_EXECUTION_ATTEMPTS
-
-        ) {
-
-
-            context.state =
-                "FAILED";
-
-
-            finishExecutionTrace(
-                context.trace
-            );
-
-
-
-            return attachMeta(
-
-                buildTerminalResult(
-
-                    context,
-
-                    {
-
-                        status:
-                            "FAILED",
-
-
-                        stage:
-                            lastFailure.stage,
-
-
-                        reason:
-                            lastFailure.reason,
-
-
-                        failureType:
-                            lastFailure.failureType
-
-                    }
-
-                ),
-
-                context
-
-            );
-
-
-        }
-
-
-
-
-
-
-
-
-
-        /*
-         * CONTINUE:
-         *
-         * Failure Handler мог:
-         *
-         * - обновить Plan;
-         * - подготовить Replan;
-         * - изменить Context.
-         *
-         */
 
 
     }
@@ -777,41 +787,31 @@ export async function executePlanCycle(
 
 
     /*
-     * =====================================================
      * FALLBACK
-     * =====================================================
      */
 
 
     finishExecutionTrace(
+
         context.trace
+
     );
 
 
 
-    return attachMeta(
+    return attachExecutionMeta(
 
         buildTerminalResult(
 
             context,
 
-            {
-
-                status:
-                    "FAILED",
-
+            lastFailure || {
 
                 stage:
                     "execution",
 
-
                 reason:
-                    "Execution limit reached",
-
-
-                failureType:
-                    "execution-limit"
-
+                    "Execution limit reached"
 
             }
 
