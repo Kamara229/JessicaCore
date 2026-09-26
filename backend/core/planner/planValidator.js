@@ -18,26 +18,28 @@ import {
 
 /*
  * =========================================================
- * JESSICA PLAN VALIDATOR
+ * JESSICA PLAN VALIDATOR v2
  * =========================================================
  *
- * Проверка нормализованного Execution Plan.
+ * Проверяет нормализованный Execution Plan.
  *
  *
  * Проверяет:
  *
- * - структуру;
- * - tools;
+ * - структуру плана;
  * - evidence;
- * - зависимости;
- * - Experience compatibility.
+ * - доступность tools;
+ * - шаги;
+ * - зависимости $from;
+ * - совместимость PlanningContext.
  *
  *
  * НЕ:
  *
- * - выполняет план;
- * - меняет Experience;
- * - обучает Jessica.
+ * - выполняет инструменты;
+ * - меняет план;
+ * - вызывает AI;
+ * - работает с Learning.
  *
  * =========================================================
  */
@@ -46,6 +48,7 @@ import {
 
 const MAX_STEPS =
     15;
+
 
 
 
@@ -71,6 +74,7 @@ function validateBasicStructure(
         Array.isArray(plan)
     ) {
 
+
         return {
 
             success:false,
@@ -81,6 +85,8 @@ function validateBasicStructure(
         };
 
     }
+
+
 
 
 
@@ -95,11 +101,12 @@ function validateBasicStructure(
             success:false,
 
             text:
-                "В плане отсутствует intent"
+                "Отсутствует intent"
 
         };
 
     }
+
 
 
 
@@ -114,11 +121,12 @@ function validateBasicStructure(
             success:false,
 
             text:
-                "В плане отсутствует requiresTools"
+                "Отсутствует requiresTools"
 
         };
 
     }
+
 
 
 
@@ -133,11 +141,12 @@ function validateBasicStructure(
             success:false,
 
             text:
-                "В плане отсутствует steps"
+                "Отсутствует steps"
 
         };
 
     }
+
 
 
 
@@ -147,7 +156,6 @@ function validateBasicStructure(
         success:true
 
     };
-
 
 }
 
@@ -161,17 +169,14 @@ function validateBasicStructure(
 
 /*
  * =========================================================
- * EXPERIENCE VALIDATION
+ * PLANNING CONTEXT COMPATIBILITY
  * =========================================================
  */
 
 
-function validateExperienceUsage(
-
+function validatePlanningContext(
     plan,
-
     context = {}
-
 ) {
 
 
@@ -198,171 +203,12 @@ function validateExperienceUsage(
 
 
     /*
-     * Если Experience не использован,
-     * ничего не проверяем.
-     */
-
-
-    if (
-        plan.experienceUsed !== true
-    ) {
-
-
-        return {
-
-            success:true
-
-        };
-
-    }
-
-
-
-
-
-
-
-    const skills =
-
-
-        Array.isArray(
-            experience?.experience?.skills
-        )
-
-            ? experience.experience.skills
-
-            : [];
-
-
-
-
-
-    /*
-     * План заявил использование опыта,
-     * но Skills отсутствуют.
-     */
-
-
-    if (
-        skills.length === 0
-    ) {
-
-
-        return {
-
-            success:false,
-
-            text:
-                "Planner указал использование Experience, но Skill Context отсутствует"
-
-        };
-
-    }
-
-
-
-
-
-
-
-    /*
-     * Проверяем ограничения Skill.
+     * Если есть Experience,
+     * проверяем только критические ограничения.
      *
-     * Сейчас только наличие.
-     * Детальная проверка выполняется Execution/Learning.
+     * Experience не управляет Planner.
+     * Он только добавляет рекомендации.
      */
-
-
-    for (
-        const skill
-        of skills
-    ) {
-
-
-        if (
-            Array.isArray(
-                skill.constraints
-            )
-            &&
-            skill.constraints.length > 0
-        ) {
-
-
-            console.log(
-
-                "Jessica Skill constraints:",
-
-                {
-
-                    skill:
-                        skill.name ||
-                        skill.id,
-
-
-                    constraints:
-                        skill.constraints
-
-                }
-
-            );
-
-        }
-
-    }
-
-
-
-
-    return {
-
-        success:true
-
-    };
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * LEGACY EXPERIENCE VALIDATION
- * =========================================================
- */
-
-
-function validateLegacyExperience(
-
-    plan,
-
-    context = {}
-
-) {
-
-
-    const experience =
-        context?.experience;
-
-
-
-    if (
-        !experience
-    ) {
-
-        return {
-
-            success:true
-
-        };
-
-    }
-
 
 
 
@@ -380,7 +226,7 @@ function validateLegacyExperience(
 
 
 
-    const requiresSourceValidation =
+    const sourceRequired =
 
         rules.some(
 
@@ -399,7 +245,7 @@ function validateLegacyExperience(
 
 
     if (
-        requiresSourceValidation &&
+        sourceRequired &&
 
         plan.evidence?.mode === "none"
 
@@ -414,13 +260,13 @@ function validateLegacyExperience(
 
             text:
 
-            "Experience требует проверки источника, но evidence.mode=none"
-
+                "PlanningContext требует подтверждения источника"
 
         };
 
 
     }
+
 
 
 
@@ -443,7 +289,7 @@ function validateLegacyExperience(
 
 /*
  * =========================================================
- * NO TOOLS
+ * NO TOOLS PLAN
  * =========================================================
  */
 
@@ -463,11 +309,13 @@ function validateNoToolsPlan(
             success:false,
 
             text:
-                "При requiresTools=false steps должен быть пустым"
+                "requiresTools=false не может иметь steps"
 
         };
 
     }
+
+
 
 
 
@@ -481,11 +329,13 @@ function validateNoToolsPlan(
             success:false,
 
             text:
-                "Без инструментов evidence должен быть none"
+                "План без инструментов должен иметь evidence.mode=none"
 
         };
 
     }
+
+
 
 
 
@@ -507,7 +357,7 @@ function validateNoToolsPlan(
 
 /*
  * =========================================================
- * TOOL VALIDATION
+ * TOOL STEPS
  * =========================================================
  */
 
@@ -527,11 +377,12 @@ function validateToolSteps(
             success:false,
 
             text:
-                "Planner не создал шаги"
+                "План требует tools, но steps отсутствуют"
 
         };
 
     }
+
 
 
 
@@ -546,7 +397,7 @@ function validateToolSteps(
             success:false,
 
             text:
-                `Слишком много шагов: ${plan.steps.length}`
+                `Превышен лимит шагов: ${plan.steps.length}`
 
         };
 
@@ -556,12 +407,11 @@ function validateToolSteps(
 
 
 
-    const tools =
+    const availableTools =
 
         new Set(
 
             listTools()
-
                 .map(
 
                     tool =>
@@ -575,8 +425,17 @@ function validateToolSteps(
 
 
 
-    const ids =
+    const stepIds =
         new Set();
+
+
+
+    const previousStepIds =
+        new Set();
+
+
+
+
 
 
 
@@ -587,8 +446,10 @@ function validateToolSteps(
 
 
 
+
         if (
-            !step.id
+            !step ||
+            typeof step !== "object"
         ) {
 
 
@@ -597,7 +458,7 @@ function validateToolSteps(
                 success:false,
 
                 text:
-                    "Шаг без id"
+                    "Некорректный step"
 
             };
 
@@ -606,8 +467,35 @@ function validateToolSteps(
 
 
 
+
+
+
+
         if (
-            ids.has(
+            !step.id ||
+            typeof step.id !== "string"
+        ) {
+
+
+            return {
+
+                success:false,
+
+                text:
+                    "Step без id"
+
+            };
+
+        }
+
+
+
+
+
+
+
+        if (
+            stepIds.has(
                 step.id
             )
         ) {
@@ -618,7 +506,7 @@ function validateToolSteps(
                 success:false,
 
                 text:
-                    `Дублирующийся id: ${step.id}`
+                    `Повторяющийся id шага: ${step.id}`
 
             };
 
@@ -626,7 +514,9 @@ function validateToolSteps(
 
 
 
-        ids.add(
+
+
+        stepIds.add(
             step.id
         );
 
@@ -634,8 +524,33 @@ function validateToolSteps(
 
 
 
+
+
         if (
-            !tools.has(
+            !step.tool ||
+            typeof step.tool !== "string"
+        ) {
+
+
+            return {
+
+                success:false,
+
+                text:
+                    `У шага ${step.id} отсутствует tool`
+
+            };
+
+        }
+
+
+
+
+
+
+
+        if (
+            !availableTools.has(
                 step.tool
             )
         ) {
@@ -655,9 +570,13 @@ function validateToolSteps(
 
 
 
+
+
+
         if (
             !step.arguments ||
-            typeof step.arguments !== "object"
+            typeof step.arguments !== "object" ||
+            Array.isArray(step.arguments)
         ) {
 
 
@@ -666,45 +585,34 @@ function validateToolSteps(
                 success:false,
 
                 text:
-                    `Некорректные arguments: ${step.id}`
+                    `Некорректные arguments у ${step.id}`
 
             };
 
         }
 
-    }
 
 
 
 
 
 
-    const previousIds =
-        new Set();
+        const referenceValidation =
 
-
-
-
-
-    for (
-        const step
-        of plan.steps
-    ) {
-
-
-        const validation =
             validateReferences(
 
                 step.arguments,
 
-                previousIds
+                previousStepIds
 
             );
 
 
 
+
+
         if (
-            !validation.success
+            !referenceValidation.success
         ) {
 
 
@@ -713,7 +621,8 @@ function validateToolSteps(
                 success:false,
 
                 text:
-                    `Ошибка ссылки ${step.id}: ${validation.text}`
+
+                    `Ошибка зависимости ${step.id}: ${referenceValidation.text}`
 
             };
 
@@ -721,11 +630,17 @@ function validateToolSteps(
 
 
 
-        previousIds.add(
+
+
+
+        previousStepIds.add(
             step.id
         );
 
+
     }
+
+
 
 
 
@@ -747,7 +662,7 @@ function validateToolSteps(
 
 /*
  * =========================================================
- * PUBLIC
+ * PUBLIC VALIDATION
  * =========================================================
  */
 
@@ -761,7 +676,10 @@ export function validatePlan(
 ) {
 
 
+
+
     const basic =
+
         validateBasicStructure(
             plan
         );
@@ -781,7 +699,10 @@ export function validatePlan(
 
 
 
+
+
     const evidence =
+
         validateEvidencePlan(
             plan
         );
@@ -802,8 +723,10 @@ export function validatePlan(
 
 
 
-    const experience =
-        validateExperienceUsage(
+
+    const contextValidation =
+
+        validatePlanningContext(
 
             plan,
 
@@ -814,36 +737,14 @@ export function validatePlan(
 
 
     if (
-        !experience.success
+        !contextValidation.success
     ) {
 
-        return experience;
+        return contextValidation;
 
     }
 
 
-
-
-
-
-    const legacy =
-        validateLegacyExperience(
-
-            plan,
-
-            context
-
-        );
-
-
-
-    if (
-        !legacy.success
-    ) {
-
-        return legacy;
-
-    }
 
 
 
@@ -866,6 +767,8 @@ export function validatePlan(
 
 
 
+
+
     return validateToolSteps(
         plan
     );
@@ -879,6 +782,13 @@ export function validatePlan(
 
 
 
+
+
+/*
+ * =========================================================
+ * CONFIG
+ * =========================================================
+ */
 
 
 export function getMaxPlannerSteps() {
