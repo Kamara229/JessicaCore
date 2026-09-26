@@ -1,11 +1,61 @@
+/*
+ * =========================================================
+ * JESSICA LEARNING APPROVAL
+ * =========================================================
+ *
+ * Финальный этап обучения Jessica.
+ *
+ *
+ * Поддерживает:
+ *
+ * NEW_SKILL
+ *      ↓
+ * создание нового Experience Skill
+ *
+ *
+ * SKILL_IMPROVEMENT
+ *      ↓
+ * создание новой версии существующего Skill
+ *
+ *
+ * Flow:
+ *
+ * Learning Decision
+ *        ↓
+ * Resolve Target Skill
+ *        ↓
+ * Load History
+ *        ↓
+ * Next Version
+ *        ↓
+ * Build Experience
+ *        ↓
+ * Atomic Save
+ *        ↓
+ * Approve Proposal
+ *
+ *
+ * НЕ:
+ *
+ * - анализирует обучение;
+ * - выбирает решение;
+ * - вызывает AI;
+ * - изменяет Supabase напрямую.
+ *
+ * =========================================================
+ */
+
+
 import {
     approveLearningProposal
 } from "./learningProposal.js";
+
 
 import {
     buildExperienceSkill,
     buildLearningSkillId
 } from "./learningSkillBuilder.js";
+
 
 import {
     getExperienceHistory,
@@ -13,56 +63,12 @@ import {
 } from "../storage/experienceStorage.js";
 
 
-/*
- * =========================================================
- * JESSICA LEARNING APPROVAL
- * =========================================================
- *
- * Финальный этап подтверждённого обучения.
- *
- *
- * Рабочая цепочка:
- *
- * PENDING Learning Proposal
- *        ↓
- * пользователь подтверждает
- *        ↓
- * определяем Skill ID
- *        ↓
- * читаем историю Skill
- *        ↓
- * определяем следующую version
- *        ↓
- * buildExperienceSkill()
- *        ↓
- * saveExperienceSkill()
- *        ↓
- * атомарно:
- *
- * History vN
- * +
- * Current vN
- *
- *        ↓
- * Proposal → APPROVED
- *
- *
- * ВАЖНО:
- *
- * Proposal отмечается APPROVED
- * только ПОСЛЕ успешного сохранения Skill.
- *
- * Если Supabase вернул ошибку,
- * Proposal остаётся PENDING_APPROVAL,
- * чтобы сохранение можно было повторить.
- *
- * =========================================================
- */
+
 
 
 /*
  * =========================================================
- * NORMALIZE ID
+ * NORMALIZE
  * =========================================================
  */
 
@@ -78,9 +84,12 @@ function normalizeSkillId(
 }
 
 
+
+
+
 /*
  * =========================================================
- * GET VERSION FROM HISTORY ITEM
+ * VERSION
  * =========================================================
  */
 
@@ -89,7 +98,7 @@ function getHistoryVersion(
     item
 ) {
 
-    const value =
+    const version =
         Number(
             item?.version ??
             item?.payload?.version
@@ -97,10 +106,8 @@ function getHistoryVersion(
 
 
     if (
-        !Number.isInteger(
-            value
-        ) ||
-        value < 1
+        !Number.isInteger(version) ||
+        version < 1
     ) {
 
         return null;
@@ -108,16 +115,10 @@ function getHistoryVersion(
     }
 
 
-    return value;
+    return version;
 
 }
 
-
-/*
- * =========================================================
- * GET NEXT VERSION
- * =========================================================
- */
 
 
 function getNextVersion(
@@ -126,9 +127,7 @@ function getNextVersion(
 
 
     if (
-        !Array.isArray(
-            history
-        ) ||
+        !Array.isArray(history) ||
         history.length === 0
     ) {
 
@@ -143,8 +142,7 @@ function getNextVersion(
                 getHistoryVersion
             )
             .filter(
-                version =>
-                    version !== null
+                Boolean
             );
 
 
@@ -157,73 +155,229 @@ function getNextVersion(
     }
 
 
-    return (
-        Math.max(
-            ...versions
-        ) + 1
-    );
+    return Math.max(
+        ...versions
+    ) + 1;
 
 }
 
 
+
+
+
 /*
  * =========================================================
- * FAILURE RESULT
+ * FAILURE
  * =========================================================
  */
 
 
-function createFailureResult({
+function failure(
+{
 
     stage,
 
     error,
 
-    proposal = null,
-
     skillId = null,
 
-    version = null
+    version = null,
 
-} = {}) {
+    proposal = null
+
+} = {}
+) {
 
 
     return {
 
-        success:
-            false,
+        success:false,
 
         stage:
             stage || "approval",
 
         proposal,
 
-        experience:
-            null,
+        experience:null,
 
         skillId,
 
         version,
 
         error:
-            String(
-                error ||
-                "Не удалось подтвердить обучение"
-            )
+            error ||
+            "Ошибка сохранения обучения"
 
     };
 
 }
 
 
+
+
+
 /*
  * =========================================================
- * APPROVE AND SAVE
+ * RESOLVE TARGET
  * =========================================================
  */
 
 
-export async function approveAndSaveLearningProposal({
+function resolveLearningTarget(
+{
+
+    decision,
+
+    proposal,
+
+    skillId
+
+}
+) {
+
+
+    const action =
+        decision?.action || "";
+
+
+
+    const proposed =
+        proposal?.proposedExperience || {};
+
+
+
+
+    /*
+     * Новый Skill
+     */
+
+
+    if (
+        action === "NEW_SKILL"
+    ) {
+
+
+        return {
+
+
+            mode:
+                "create",
+
+
+            skillId:
+
+                normalizeSkillId(
+                    skillId
+                )
+
+                ||
+
+                normalizeSkillId(
+                    proposed.id ||
+                    proposed.skillId
+                )
+
+                ||
+
+                buildLearningSkillId(
+                    proposed.name
+                )
+
+
+        };
+
+    }
+
+
+
+
+    /*
+     * Улучшение существующего
+     */
+
+
+    if (
+        action === "SKILL_IMPROVEMENT"
+    ) {
+
+
+        return {
+
+
+            mode:
+                "update",
+
+
+            skillId:
+
+                normalizeSkillId(
+                    skillId
+                )
+
+                ||
+
+                normalizeSkillId(
+                    decision.skillId
+                )
+
+        };
+
+    }
+
+
+
+
+    /*
+     * Совместимость со старым Proposal
+     */
+
+
+    return {
+
+
+        mode:
+            "create",
+
+
+        skillId:
+
+            normalizeSkillId(
+                skillId
+            )
+
+            ||
+
+            normalizeSkillId(
+                proposed.id ||
+                proposed.skillId
+            )
+
+            ||
+
+            buildLearningSkillId(
+                proposed.name
+            )
+
+    };
+
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * MAIN APPROVAL
+ * =========================================================
+ */
+
+
+export async function approveAndSaveLearning(
+{
+
+    decision = null,
 
     proposal,
 
@@ -231,83 +385,49 @@ export async function approveAndSaveLearningProposal({
 
     confidence = 0.7
 
-} = {}) {
+} = {}
+) {
+
 
 
     /*
-     * =====================================================
-     * 1. PROPOSAL VALIDATION
-     * =====================================================
+     * INPUT
      */
 
 
     if (
         !proposal ||
-        typeof proposal !== "object" ||
-        Array.isArray(
-            proposal
-        )
+        typeof proposal !== "object"
     ) {
 
-        return createFailureResult({
+
+        return failure({
 
             stage:
                 "input",
 
             error:
-                "Learning Proposal не указан"
+                "Learning Proposal отсутствует"
 
         });
 
     }
 
 
-    /*
-     * Если Analyzer запросил уточнения,
-     * сохранять Skill пока нельзя.
-     */
-
-
-    const clarificationQuestions =
-        Array.isArray(
-            proposal.clarificationQuestions
-        )
-            ? proposal.clarificationQuestions
-            : [];
-
-
-    if (
-        clarificationQuestions.length > 0
-    ) {
-
-        return createFailureResult({
-
-            stage:
-                "clarification",
-
-            proposal,
-
-            error:
-                "Learning Proposal требует уточнения перед сохранением"
-
-        });
-
-    }
 
 
     const proposedExperience =
         proposal.proposedExperience;
 
 
+
     if (
         !proposedExperience ||
-        typeof proposedExperience !== "object" ||
-        Array.isArray(
-            proposedExperience
-        )
+        typeof proposedExperience !== "object"
     ) {
 
-        return createFailureResult({
+
+        return failure({
 
             stage:
                 "input",
@@ -315,48 +435,40 @@ export async function approveAndSaveLearningProposal({
             proposal,
 
             error:
-                "Learning Proposal не содержит proposedExperience"
+                "Нет proposedExperience"
 
         });
 
     }
 
 
+
+
+
     /*
-     * =====================================================
-     * 2. DETERMINE SKILL ID
-     * =====================================================
-     *
-     * Приоритет:
-     *
-     * 1. skillId, переданный Approval явно;
-     * 2. ID внутри proposedExperience;
-     * 3. ID, автоматически созданный из name.
-     *
-     * Явный skillId понадобится,
-     * когда пользователь исправляет
-     * уже существующий Skill.
-     *
-     * =====================================================
+     * TARGET
      */
 
 
-    const targetSkillId =
-        normalizeSkillId(
+    const target =
+        resolveLearningTarget({
+
+            decision,
+
+            proposal,
+
             skillId
-        ) ||
-        normalizeSkillId(
-            proposedExperience.id ||
-            proposedExperience.skillId
-        ) ||
-        buildLearningSkillId(
-            proposedExperience.name
-        );
+
+        });
 
 
-    if (!targetSkillId) {
 
-        return createFailureResult({
+    if (
+        !target.skillId
+    ) {
+
+
+        return failure({
 
             stage:
                 "skill",
@@ -371,10 +483,11 @@ export async function approveAndSaveLearningProposal({
     }
 
 
+
+
+
     /*
-     * =====================================================
-     * 3. LOAD HISTORY
-     * =====================================================
+     * HISTORY
      */
 
 
@@ -386,20 +499,14 @@ export async function approveAndSaveLearningProposal({
 
         history =
             await getExperienceHistory(
-                targetSkillId
+                target.skillId
             );
 
 
-    } catch (error) {
+    } catch(error) {
 
 
-        console.error(
-            "Learning Approval history error:",
-            error
-        );
-
-
-        return createFailureResult({
+        return failure({
 
             stage:
                 "history",
@@ -407,34 +514,29 @@ export async function approveAndSaveLearningProposal({
             proposal,
 
             skillId:
-                targetSkillId,
+                target.skillId,
 
             error:
-                error?.message ||
-                "Не удалось получить историю Skill"
+                error.message
 
         });
 
     }
 
 
-    /*
-     * =====================================================
-     * 4. NEXT VERSION
-     * =====================================================
-     */
 
 
-    const nextVersion =
+    const version =
         getNextVersion(
             history
         );
 
 
+
+
+
     /*
-     * =====================================================
-     * 5. BUILD SKILL
-     * =====================================================
+     * BUILD
      */
 
 
@@ -450,64 +552,43 @@ export async function approveAndSaveLearningProposal({
                 proposedExperience,
 
                 skillId:
-                    targetSkillId,
+                    target.skillId,
 
-                version:
-                    nextVersion,
+                version,
 
                 confidence
 
             });
 
 
-    } catch (error) {
+    } catch(error) {
 
 
-        console.error(
-            "Learning Approval Skill build error:",
-            error
-        );
-
-
-        return createFailureResult({
+        return failure({
 
             stage:
-                "skill",
+                "build",
 
             proposal,
 
             skillId:
-                targetSkillId,
+                target.skillId,
 
-            version:
-                nextVersion,
+            version,
 
             error:
-                error?.message ||
-                "Не удалось сформировать Experience Skill"
+                error.message
 
         });
 
     }
 
 
+
+
+
     /*
-     * =====================================================
-     * 6. ATOMIC SAVE
-     * =====================================================
-     *
-     * Здесь используется:
-     *
-     * experienceStorage
-     *      ↓
-     * supabaseExperienceWriter
-     *      ↓
-     * PostgreSQL RPC
-     *
-     * History и Current сохраняются
-     * одной транзакцией.
-     *
-     * =====================================================
+     * SAVE
      */
 
 
@@ -523,25 +604,10 @@ export async function approveAndSaveLearningProposal({
             );
 
 
-    } catch (error) {
+    } catch(error) {
 
 
-        console.error(
-            "Learning Approval save error:",
-            error
-        );
-
-
-        /*
-         * Proposal НЕ переводим
-         * в APPROVED.
-         *
-         * Его можно будет сохранить
-         * повторно после устранения ошибки.
-         */
-
-
-        return createFailureResult({
+        return failure({
 
             stage:
                 "save",
@@ -549,25 +615,26 @@ export async function approveAndSaveLearningProposal({
             proposal,
 
             skillId:
-                targetSkillId,
+                target.skillId,
 
-            version:
-                nextVersion,
+            version,
 
             error:
-                error?.message ||
-                "Не удалось сохранить Experience Skill"
+                error.message
 
         });
 
     }
+
+
 
 
     if (
         !saveResult?.success
     ) {
 
-        return createFailureResult({
+
+        return failure({
 
             stage:
                 "save",
@@ -575,135 +642,100 @@ export async function approveAndSaveLearningProposal({
             proposal,
 
             skillId:
-                targetSkillId,
+                target.skillId,
 
-            version:
-                nextVersion,
+            version,
 
             error:
-                "Experience Storage не подтвердил сохранение Skill"
+                "Storage не подтвердил сохранение"
 
         });
 
     }
 
 
+
+
+
     /*
-     * =====================================================
-     * 7. APPROVE PROPOSAL
-     * =====================================================
-     *
-     * Только теперь считаем обучение
-     * успешно завершённым.
-     *
-     * =====================================================
+     * APPROVE ONLY AFTER SAVE
      */
 
 
-    let approvedProposal;
+    let approved;
 
 
     try {
 
 
-        approvedProposal =
+        approved =
             approveLearningProposal(
                 proposal
             );
 
 
-    } catch (error) {
-
-
-        /*
-         * Skill уже сохранён.
-         *
-         * Поэтому здесь нельзя утверждать,
-         * что сохранение не произошло.
-         */
-
-
-        console.error(
-            "Learning Proposal approval state error:",
-            error
-        );
+    } catch(error) {
 
 
         return {
 
-            success:
-                true,
+            success:true,
 
             stage:
                 "saved",
 
             proposal,
 
-            proposalStateUpdated:
-                false,
-
             experience,
 
             skillId:
-                targetSkillId,
+                target.skillId,
 
-            version:
-                nextVersion,
+            version,
 
-            previousVersions:
-                Array.isArray(
-                    history
-                )
-                    ? history.length
-                    : 0,
+            proposalStateUpdated:false,
 
             error:
-                "Skill сохранён, но состояние Proposal не удалось обновить"
+                "Skill сохранён, но Proposal не обновлён"
 
         };
 
     }
 
 
-    /*
-     * =====================================================
-     * 8. SUCCESS
-     * =====================================================
-     */
+
 
 
     return {
 
-        success:
-            true,
+        success:true,
 
         stage:
             "approved",
 
         proposal:
-            approvedProposal,
+            approved,
 
-        proposalStateUpdated:
-            true,
+        proposalStateUpdated:true,
 
         experience,
 
         skillId:
-            targetSkillId,
+            target.skillId,
 
-        version:
-            nextVersion,
+        version,
 
         previousVersions:
-            Array.isArray(
-                history
-            )
+            Array.isArray(history)
                 ? history.length
                 : 0,
 
-        error:
-            ""
+        mode:
+            target.mode,
+
+        error:""
 
     };
+
 
 }
