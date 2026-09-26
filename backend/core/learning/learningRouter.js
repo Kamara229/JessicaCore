@@ -3,10 +3,19 @@
  * JESSICA LEARNING ROUTER
  * =========================================================
  *
- * Центральный маршрутизатор обучения Jessica.
+ * Маршрутизатор Learning Pipeline.
  *
  *
- * Определяет тип обучения:
+ * Получает результат Analyzer:
+ *
+ * Experience Analyzer
+ *        ↓
+ * Learning Router
+ *        ↓
+ * Learning Event
+ *
+ *
+ * Возможные действия:
  *
  * NEW_SKILL
  * SKILL_IMPROVEMENT
@@ -15,62 +24,241 @@
  *
  * НЕ:
  *
- * - сохраняет данные;
+ * - сохраняет Experience;
  * - вызывает Supabase;
- * - подтверждает обучение.
+ * - создаёт Skill;
+ * - делает Approval.
  *
  * =========================================================
  */
 
 
 
+
+
+
 /*
  * =========================================================
- * ROUTE LEARNING EVENT
+ * IGNORE EVENT
+ * =========================================================
+ */
+
+
+function createIgnoreEvent(
+    reason
+) {
+
+
+    return {
+
+
+        action:
+
+            "IGNORE",
+
+
+
+        reason:
+
+            reason ||
+
+            "Обучение не требуется"
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * NEW SKILL
+ * =========================================================
+ */
+
+
+function createNewSkillEvent(
+    analysis
+) {
+
+
+    return {
+
+
+        action:
+
+            "NEW_SKILL",
+
+
+
+        confidence:
+
+            analysis
+                ?.skillCandidate
+                ?.confidence || 0,
+
+
+
+        payload:
+
+            {
+
+
+                skillCandidate:
+
+                    analysis.skillCandidate,
+
+
+
+                source:
+
+                    "experience-analyzer"
+
+
+            }
+
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SKILL IMPROVEMENT
+ * =========================================================
+ */
+
+
+function createSkillImprovementEvent(
+    analysis
+) {
+
+
+    return {
+
+
+        action:
+
+            "SKILL_IMPROVEMENT",
+
+
+
+        confidence:
+
+            analysis
+                ?.skillCandidate
+                ?.confidence || 0,
+
+
+
+        payload:
+
+            {
+
+
+                skills:
+
+                    analysis
+                        .skillCandidate
+                        ?.skills || [],
+
+
+
+                source:
+
+                    "experience-analyzer"
+
+
+            }
+
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * ROUTER
  * =========================================================
  */
 
 
 export function routeLearningEvent({
 
-    analysis = null,
-
-    proposal = null,
-
-    improvement = null,
-
-    quality = null
+    analysis = null
 
 } = {}) {
+
+
+    if (
+        !analysis ||
+        typeof analysis !== "object"
+    ) {
+
+
+        return createIgnoreEvent(
+
+            "Нет результата анализа"
+
+        );
+
+    }
+
+
+
+
+
 
 
 
     /*
      * =====================================================
-     * QUALITY CHECK
+     * IGNORE
      * =====================================================
      */
 
 
     if (
-        quality &&
-        quality.approved === false
+        analysis.action === "IGNORE"
     ) {
 
-        return {
 
-            action:
-                "IGNORE",
+        return createIgnoreEvent(
 
+            analysis.reason
 
-            reason:
-                quality.reason || 
-                "Опыт не прошёл проверку качества"
-
-
-        };
+        );
 
     }
+
+
+
+
+
 
 
 
@@ -83,24 +271,21 @@ export function routeLearningEvent({
 
 
     if (
-        proposal?.success === true &&
-        proposal.proposal
+        analysis.action === "NEW_SKILL"
     ) {
 
 
-        return {
+        return createNewSkillEvent(
 
-            action:
-                "NEW_SKILL",
+            analysis
 
-
-            payload:
-                proposal.proposal
-
-
-        };
+        );
 
     }
+
+
+
+
 
 
 
@@ -114,22 +299,15 @@ export function routeLearningEvent({
 
 
     if (
-        improvement?.success === true &&
-        improvement.proposal
+        analysis.action === "SKILL_IMPROVEMENT"
     ) {
 
 
-        return {
+        return createSkillImprovementEvent(
 
-            action:
-                "SKILL_IMPROVEMENT",
+            analysis
 
-
-            payload:
-                improvement.proposal
-
-
-        };
+        );
 
     }
 
@@ -137,24 +315,22 @@ export function routeLearningEvent({
 
 
 
+
+
+
+
     /*
      * =====================================================
-     * NOTHING
+     * UNKNOWN
      * =====================================================
      */
 
 
-    return {
+    return createIgnoreEvent(
 
-        action:
-            "IGNORE",
+        "Неизвестный тип Learning Action"
 
-
-        reason:
-            "Нет подходящего обучения"
-
-
-    };
+    );
 
 
 }
