@@ -1,72 +1,80 @@
+/*
+ * =========================================================
+ * JESSICA REPLAN COORDINATOR v4
+ * =========================================================
+ *
+ * Координатор перестроения Execution Plan.
+ *
+ *
+ * Flow:
+ *
+ * Failure Decision
+ *        ↓
+ * Replan Feedback
+ *        ↓
+ * Replanner
+ *        ↓
+ * Alternative Plan
+ *        ↓
+ * Apply Context
+ *
+ *
+ * НЕ:
+ *
+ * - анализирует ошибки;
+ * - решает нужен ли Replan;
+ * - выполняет инструменты;
+ * - запускает Execution Cycle;
+ * - меняет Experience.
+ *
+ * =========================================================
+ */
+
+
 import {
     replanTask
 } from "../replanner.js";
 
 
-/*
- * =========================================================
- * JESSICA REPLAN COORDINATOR
- * =========================================================
- *
- * Координирует переход от неудачной попытки
- * выполнения к новому плану.
- *
- *
- * Flow:
- *
- * Failure / Validation Failure
- *        ↓
- * Replan Feedback
- *        ↓
- * replanTask()
- *        ↓
- * Alternative Plan
- *        ↓
- * Apply To Execution Context
- *
- *
- * Этот модуль НЕ:
- *
- * - строит Planner prompt;
- * - вызывает AI напрямую;
- * - анализирует Retry History;
- * - выполняет инструменты;
- * - запускает Execution Cycle;
- * - принимает terminal outcome.
- *
- *
- * Retry History и Retry Context
- * находятся внутри Replanner.
- *
- * =========================================================
- */
+
+
+
+
+
 
 
 /*
  * =========================================================
- * SAFE STRING
+ * NORMALIZE STRING
  * =========================================================
  */
 
 
-function safeString(
+function normalizeString(
     value
 ) {
 
-    return typeof value === "string"
-        ? value.trim()
-        : "";
+    return String(
+        value || ""
+    )
+        .trim();
 
 }
 
 
+
+
+
+
+
+
+
 /*
  * =========================================================
- * VALIDATOR FEEDBACK
+ * BUILD VALIDATOR FEEDBACK
  * =========================================================
  *
- * Приводит результат Validator
- * к общему failure-формату Replanner.
+ * Используется, если источник ошибки Validator.
  *
  * =========================================================
  */
@@ -76,85 +84,189 @@ export function buildValidatorFeedback(
     validation
 ) {
 
+
     return {
+
 
         stage:
             "validator",
 
 
+
         failureType:
-            "validation-failure",
+            "validation-error",
+
 
 
         reason:
-            safeString(
+
+            normalizeString(
                 validation?.reason
-            ) ||
-            "Ответ не прошёл проверку",
+            )
 
+            ||
 
-        shouldRetry:
-            true,
+            "Результат не прошёл проверку"
 
-
-        needsClarification:
-            false
 
     };
 
 }
+
+
+
+
+
+
+
 
 
 /*
  * =========================================================
- * NORMALIZE FEEDBACK
- * =========================================================
- *
- * Replanner должен всегда получать
- * одинаковую структуру ошибки.
- *
+ * NORMALIZE REPLAN INPUT
  * =========================================================
  */
 
 
-function normalizeReplanFeedback(
+function normalizeReplanInput(
     feedback
 ) {
 
+
+    if (
+        !feedback ||
+        typeof feedback !== "object"
+    ) {
+
+
+        return {
+
+
+            stage:
+                "execution",
+
+
+            failureType:
+                "unknown",
+
+
+            reason:
+                "Неизвестная причина перестроения"
+
+        };
+
+    }
+
+
+
+
+
     return {
 
+
         stage:
-            safeString(
-                feedback?.stage
-            ) ||
+
+            normalizeString(
+                feedback.stage
+            )
+
+            ||
+
             "execution",
 
 
+
+
         failureType:
-            safeString(
-                feedback?.failureType
-            ) ||
-            "execution-failure",
+
+            normalizeString(
+                feedback.failureType
+            )
+
+            ||
+
+            "execution-error",
+
+
 
 
         reason:
-            safeString(
-                feedback?.reason ||
-                feedback?.text
-            ) ||
-            "Предыдущий маршрут выполнения оказался неэффективным",
 
+            normalizeString(
+                feedback.reason
+            )
 
-        shouldRetry:
-            feedback?.shouldRetry !== false,
+            ||
 
+            "Текущий план оказался неэффективным"
 
-        needsClarification:
-            feedback?.needsClarification === true
 
     };
 
 }
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD REPLAN CONTEXT
+ * =========================================================
+ */
+
+
+function buildReplanContext(
+
+    context,
+
+    feedback
+
+) {
+
+
+    return {
+
+
+        previousPlan:
+
+            context?.plan || null,
+
+
+
+        executionFailure:
+
+            feedback,
+
+
+
+        attempt:
+
+            Number(
+                context?.attempt || 0
+            ),
+
+
+
+        executionResults:
+
+            context?.runResult || null
+
+
+    };
+
+}
+
+
+
+
+
+
+
 
 
 /*
@@ -165,86 +277,106 @@ function normalizeReplanFeedback(
 
 
 export async function createAlternativePlan(
+
     context,
+
     feedback
+
 ) {
 
+
     const normalizedFeedback =
-        normalizeReplanFeedback(
+
+        normalizeReplanInput(
             feedback
         );
 
 
-    console.log(
-        "Jessica Replan requested:",
-        JSON.stringify({
 
-            attempt:
-                context?.attempt || 0,
+
+
+    console.log(
+
+        "Jessica Replan:",
+
+        {
 
             stage:
                 normalizedFeedback.stage,
 
+
             failureType:
                 normalizedFeedback.failureType,
 
-            reason:
-                normalizedFeedback.reason
-
-        })
-    );
-
-
-    /*
-     * Replanner не должен запускаться,
-     * если уже известно, что требуется
-     * уточнение пользователя.
-     */
-
-
-    if (
-        normalizedFeedback.needsClarification === true
-    ) {
-
-        return {
-
-            success:
-                false,
 
             reason:
                 normalizedFeedback.reason,
 
-            needsClarification:
-                true
 
-        };
+            attempt:
+                context?.attempt || 0
 
-    }
+        }
+
+    );
+
+
+
+
+
+
 
 
     try {
 
+
         const result =
+
             await replanTask(
 
                 context?.task || "",
 
+
+
                 context?.plan || null,
+
+
 
                 normalizedFeedback,
 
+
+
                 context?.runResult || null,
 
-                context?.planningContext || {}
+
+
+                {
+
+
+                    ...(context?.planningContext || {}),
+
+
+
+                    replanContext:
+
+                        buildReplanContext(
+
+                            context,
+
+                            normalizedFeedback
+
+                        )
+
+                }
 
             );
 
 
-        /*
-         * =================================================
-         * REPLANNER FAILURE
-         * =================================================
-         */
+
+
+
+
+
 
 
         if (
@@ -252,73 +384,111 @@ export async function createAlternativePlan(
             !result?.plan
         ) {
 
+
             return {
 
-                success:
-                    false,
+
+                success:false,
+
 
                 reason:
-                    result?.reason ||
+
+                    result?.reason
+
+                    ||
+
                     "Replanner не создал новый план"
+
 
             };
 
         }
 
 
-        /*
-         * =================================================
-         * SUCCESS
-         * =================================================
-         */
+
+
+
+
 
 
         return {
 
-            success:
-                true,
+
+            success:true,
+
 
 
             plan:
+
                 result.plan,
+
 
 
             planningContext:
 
-                result?.context &&
-                typeof result.context === "object" &&
-                !Array.isArray(
-                    result.context
-                )
+                result.context
+
+                &&
+
+                typeof result.context === "object"
 
                     ? result.context
 
-                    : context?.planningContext || {}
+                    :
+
+                    context?.planningContext || {}
+
+
 
         };
 
-    } catch (error) {
+
+
+
+
+    } catch(error) {
+
+
 
         console.error(
-            "Jessica Replan Coordinator error:",
+
+            "Jessica Replan error:",
+
             error
+
         );
+
 
 
         return {
 
-            success:
-                false,
+
+            success:false,
+
 
             reason:
-                error?.message ||
-                "Ошибка создания альтернативного плана"
+
+                error?.message
+
+                ||
+
+                "Ошибка Replanner"
+
 
         };
 
+
     }
 
+
 }
+
+
+
+
+
+
+
 
 
 /*
@@ -326,62 +496,106 @@ export async function createAlternativePlan(
  * APPLY ALTERNATIVE PLAN
  * =========================================================
  *
- * Обновляет Execution Context после успешного Replan.
+ * Меняет только маршрут.
  *
- *
- * Важно:
- *
- * старые answerResult/runResult относятся
- * к предыдущему маршруту.
- *
- * Поэтому перед следующей попыткой
- * очищаем их.
+ * Старые результаты удаляются,
+ * потому что относятся к предыдущему плану.
  *
  * =========================================================
  */
 
 
 export function applyAlternativePlan(
+
     context,
+
     alternative
+
 ) {
 
+
     if (
+
         !context ||
-        typeof context !== "object"
-    ) {
 
-        return false;
-
-    }
-
-
-    if (
         !alternative?.success ||
-        !alternative?.plan
+
+        !alternative.plan
+
     ) {
+
 
         return false;
 
     }
+
+
+
+
+
 
 
     context.plan =
+
         alternative.plan;
 
 
-    context.planningContext =
-        alternative.planningContext ||
-        context.planningContext ||
-        {};
+
+
+
+
+
+    if (
+        alternative.planningContext
+    ) {
+
+
+        context.planningContext =
+
+            alternative.planningContext;
+
+
+    }
+
+
+
+
+
 
 
     context.runResult =
         null;
 
 
+
     context.answerResult =
         null;
+
+
+
+    context.validationResult =
+        null;
+
+
+
+
+
+
+
+    context.replanCount =
+
+        Number(
+            context.replanCount || 0
+        )
+
+        +
+
+        1;
+
+
+
+
+
 
 
     return true;
