@@ -24,45 +24,164 @@ import {
 
 
 
+
+
 /*
  * =========================================================
  * JESSICA EXECUTION CYCLE
  * =========================================================
  *
- * Центральный цикл выполнения плана.
+ * Центральный исполнитель Execution Plan.
  *
  *
  * Flow:
  *
  * Plan
  *   ↓
- * Execution Step
+ * Execution Context
  *   ↓
- * Success
- *
- * или
- *
- * Failure
+ * Step Runner
  *   ↓
- * Failure Handler
- *   ↓
- * Retry / Replan
+ * Result
  *
  *
- * Этот файл НЕ содержит:
+ * Experience:
  *
- * - TaskRunner;
- * - Answer Composer;
- * - Validator;
- * - Retry logic;
- * - Replan logic;
- * - Terminal logic.
+ * Plan.experience
+ *        ↓
+ * Execution Context
+ *        ↓
+ * Execution Trace
+ *        ↓
+ * Learning
+ *
+ *
+ * НЕ:
+ *
+ * - выполняет конкретные инструменты;
+ * - создаёт ответы;
+ * - сохраняет Experience;
+ * - создаёт Skills.
  *
  * =========================================================
  */
 
 
 
+
+
+
+
+/*
+ * =========================================================
+ * BUILD EXPERIENCE META
+ * =========================================================
+ */
+
+
+function buildExperienceMeta(
+    plan,
+    planningContext
+) {
+
+
+    return {
+
+
+        used:
+
+            plan?.experienceUsed === true,
+
+
+
+        skills:
+
+            Array.isArray(
+                plan?.experience?.skills
+            )
+
+                ? plan.experience.skills
+
+                : [],
+
+
+
+        context:
+
+            planningContext?.experience || null
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * CREATE CONTEXT
+ * =========================================================
+ */
+
+
+function createJessicaExecutionContext({
+
+    task,
+
+    plan,
+
+    planningContext
+
+}) {
+
+
+    return createExecutionContext({
+
+        task,
+
+
+        plan,
+
+
+
+        planningContext,
+
+
+
+        experience:
+
+            buildExperienceMeta(
+
+                plan,
+
+                planningContext
+
+            )
+
+    });
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * EXECUTE PLAN
+ * =========================================================
+ */
 
 
 export async function executePlanCycle(
@@ -79,19 +198,22 @@ export async function executePlanCycle(
 
     /*
      * =====================================================
-     * CONTEXT
+     * CREATE EXECUTION CONTEXT
      * =====================================================
      */
 
 
     const context =
-        createExecutionContext({
+
+        createJessicaExecutionContext({
 
             task:
                 taskText,
 
+
             plan:
                 initialPlan,
+
 
             planningContext
 
@@ -103,6 +225,7 @@ export async function executePlanCycle(
 
     let lastFailure =
         null;
+
 
 
 
@@ -134,9 +257,25 @@ export async function executePlanCycle(
 
 
 
+
         console.log(
 
-            `Jessica execution attempt ${attempt}/${MAX_EXECUTION_ATTEMPTS}`
+            "Jessica execution:",
+
+            {
+
+                attempt,
+
+
+                max:
+                    MAX_EXECUTION_ATTEMPTS,
+
+
+                experienceUsed:
+                    context.experience?.used || false
+
+
+            }
 
         );
 
@@ -147,17 +286,19 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * STEP
+         * RUN STEP
          * =================================================
          */
 
 
-        const step =
+        const stepResult =
+
             await executeExecutionStep(
 
                 context
 
             );
+
 
 
 
@@ -172,14 +313,44 @@ export async function executePlanCycle(
 
 
         if (
-            step.success === true
+
+            stepResult?.success === true
+
         ) {
 
 
-            return step.result;
+            return {
+
+
+                ...stepResult.result,
+
+
+
+                executionMeta: {
+
+
+                    ...(stepResult.result?.executionMeta || {}),
+
+
+
+                    experienceUsed:
+
+                        context.experience?.used === true,
+
+
+
+                    experienceSkills:
+
+                        context.experience?.skills || []
+
+                }
+
+
+            };
 
 
         }
+
 
 
 
@@ -194,7 +365,20 @@ export async function executePlanCycle(
 
 
         lastFailure =
-            step.failure;
+
+            stepResult?.failure || {
+
+
+                stage:
+                    "execution",
+
+
+                reason:
+                    "Unknown execution failure"
+
+            };
+
+
 
 
 
@@ -203,7 +387,7 @@ export async function executePlanCycle(
 
         /*
          * =================================================
-         * ATTEMPTS LIMIT
+         * LIMIT
          * =================================================
          */
 
@@ -231,14 +415,17 @@ export async function executePlanCycle(
 
 
 
+
+
         /*
          * =================================================
-         * HANDLE FAILURE
+         * FAILURE HANDLER
          * =================================================
          */
 
 
         const failureResult =
+
             await handleExecutionFailure(
 
                 context,
@@ -252,16 +439,10 @@ export async function executePlanCycle(
 
 
 
-        /*
-         * =================================================
-         * FINAL RESULT
-         * =================================================
-         */
-
 
         if (
 
-            failureResult.finished === true
+            failureResult?.finished === true
 
         ) {
 
@@ -273,14 +454,14 @@ export async function executePlanCycle(
 
 
 
-
         /*
-         * иначе продолжаем цикл
          *
-         * с новым планом после replan
+         * продолжаем с новым планом
+         *
          */
 
     }
+
 
 
 
@@ -301,6 +482,7 @@ export async function executePlanCycle(
 
         lastFailure || {
 
+
             stage:
                 "execution",
 
@@ -310,7 +492,8 @@ export async function executePlanCycle(
 
 
             reason:
-                "Исчерпан лимит выполнения"
+                "Лимит выполнения исчерпан"
+
 
         }
 
