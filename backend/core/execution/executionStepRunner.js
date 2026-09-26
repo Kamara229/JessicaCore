@@ -1,3 +1,40 @@
+/*
+ * =========================================================
+ * JESSICA EXECUTION STEP RUNNER
+ * =========================================================
+ *
+ * Один полный цикл выполнения:
+ *
+ * Plan
+ *   ↓
+ * Runner
+ *   ↓
+ * Composer
+ *   ↓
+ * Validator
+ *
+ *
+ * Передаёт:
+ *
+ * ExecutionContext
+ *        ↓
+ * ExecutionResult
+ *        ↓
+ * Learning
+ *
+ *
+ * НЕ отвечает за:
+ *
+ * - retry;
+ * - replan;
+ * - лимиты;
+ * - terminal decision.
+ *
+ * =========================================================
+ */
+
+
+
 import {
     runPlan
 } from "../taskRunner.js";
@@ -25,37 +62,83 @@ import {
 
 
 
+
+
+
+
+
+
 /*
  * =========================================================
- * JESSICA EXECUTION STEP RUNNER
- * =========================================================
- *
- * Выполняет один цикл:
- *
- * Plan
- *  ↓
- * Runner
- *  ↓
- * Composer
- *  ↓
- * Validator
- *
- *
- * НЕ отвечает за:
- *
- * - retry
- * - replan
- * - лимиты попыток
- * - terminal outcome
- *
+ * EXPERIENCE META
  * =========================================================
  */
 
+
+function buildExecutionExperienceMeta(
+    context
+) {
+
+
+    return {
+
+
+        used:
+
+            context?.experience?.used === true,
+
+
+
+        skills:
+
+            context?.experience?.skills || [],
+
+
+
+        skillIds:
+
+            Array.isArray(
+                context?.experience?.skills
+            )
+
+                ? context.experience.skills
+
+                    .map(
+
+                        skill =>
+
+                            skill?.id ||
+                            skill
+
+                    )
+
+                    .filter(Boolean)
+
+                : []
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * EXECUTE STEP
+ * =========================================================
+ */
 
 
 export async function executeExecutionStep(
     context
 ) {
+
 
 
     /*
@@ -69,6 +152,7 @@ export async function executeExecutionStep(
 
 
         context.runResult =
+
             await runPlan(
 
                 context.plan,
@@ -89,25 +173,38 @@ export async function executeExecutionStep(
 
         return {
 
+
             success:false,
+
 
             failure:{
 
                 stage:
                     "runner",
 
+
                 reason:
+
                     error?.message ||
+
                     "Ошибка выполнения плана",
 
+
+
                 failureType:
+
                     "runner-exception"
 
             }
 
+
         };
 
+
     }
+
+
+
 
 
 
@@ -121,9 +218,13 @@ export async function executeExecutionStep(
 
 
     const runFailure =
+
         analyzeRunFailure(
+
             context.runResult
+
         );
+
 
 
 
@@ -134,12 +235,16 @@ export async function executeExecutionStep(
 
         return {
 
+
             success:false,
+
 
             failure:
                 runFailure
 
+
         };
+
 
     }
 
@@ -147,9 +252,12 @@ export async function executeExecutionStep(
 
 
 
+
+
+
     /*
      * =====================================================
-     * COMPOSE ANSWER
+     * COMPOSE
      * =====================================================
      */
 
@@ -158,6 +266,7 @@ export async function executeExecutionStep(
 
 
         context.answerResult =
+
             await composeAnswer(
 
                 context.task,
@@ -169,30 +278,42 @@ export async function executeExecutionStep(
             );
 
 
+
     } catch(error) {
 
 
         return {
 
+
             success:false,
+
 
             failure:{
 
                 stage:
                     "composer",
 
+
                 reason:
+
                     error?.message ||
+
                     "Ошибка создания ответа",
 
+
+
                 failureType:
+
                     "composer-exception"
 
             }
 
+
         };
 
+
     }
+
 
 
 
@@ -205,23 +326,33 @@ export async function executeExecutionStep(
 
         return {
 
+
             success:false,
+
 
             failure:{
 
                 stage:
                     "composer",
 
+
                 reason:
+
                     context.answerResult?.text ||
+
                     "Ответ не создан",
 
+
+
                 failureType:
+
                     "composer-failure"
 
             }
 
+
         };
+
 
     }
 
@@ -229,9 +360,12 @@ export async function executeExecutionStep(
 
 
 
+
+
+
     /*
      * =====================================================
-     * VALIDATE
+     * VALIDATION
      * =====================================================
      */
 
@@ -239,10 +373,12 @@ export async function executeExecutionStep(
     let validation;
 
 
+
     try {
 
 
         validation =
+
             await validateResult(
 
                 context.task,
@@ -256,15 +392,19 @@ export async function executeExecutionStep(
             );
 
 
+
     } catch(error) {
 
 
+
         return {
+
 
             success:true,
 
 
             result:
+
                 buildCompletedResult(
 
                     context,
@@ -275,7 +415,9 @@ export async function executeExecutionStep(
 
                 )
 
+
         };
+
 
     }
 
@@ -283,9 +425,13 @@ export async function executeExecutionStep(
 
 
 
+
+
+
+
     /*
      * =====================================================
-     * VALIDATION RESULT
+     * VALID RESULT
      * =====================================================
      */
 
@@ -295,23 +441,53 @@ export async function executeExecutionStep(
     ) {
 
 
+
+        const result =
+
+            buildCompletedResult(
+
+                context,
+
+                context.answerResult,
+
+                true
+
+            );
+
+
+
+
+
+        result.executionMeta = {
+
+
+            ...(result.executionMeta || {}),
+
+
+
+            experience:
+
+                buildExecutionExperienceMeta(
+                    context
+                )
+
+        };
+
+
+
+
+
         return {
+
 
             success:true,
 
 
-            result:
-                buildCompletedResult(
+            result
 
-                    context,
-
-                    context.answerResult,
-
-                    true
-
-                )
 
         };
+
 
     }
 
@@ -319,22 +495,42 @@ export async function executeExecutionStep(
 
 
 
+
+
+
+
+    /*
+     * =====================================================
+     * VALIDATION FAILURE
+     * =====================================================
+     */
+
+
     return {
 
+
         success:false,
+
 
         failure:{
 
             stage:
                 "validator",
 
+
             reason:
+
                 validation?.reason ||
+
                 "Ответ не прошёл проверку",
+
+
 
             validation
 
+
         }
+
 
     };
 
