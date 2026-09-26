@@ -28,8 +28,8 @@ import {
 
 
 import {
-    runLearningTrigger
-} from "../experience/learning/learningTrigger.js";
+    processLearning
+} from "./learning/learningCoordinator.js";
 
 
 
@@ -47,17 +47,17 @@ import {
  *      ↓
  * Execution Trace
  *      ↓
- * Decomposer
+ * Task Decomposer
  *      ↓
  * Subtasks
  *      ↓
- * Execution
+ * Subtask Runner
  *      ↓
  * Response Builder
  *      ↓
- * Learning Trigger
+ * Learning Coordinator
  *      ↓
- * Learning Decision
+ * Learning Queue
  *
  *
  * НЕ содержит:
@@ -66,6 +66,7 @@ import {
  * - Tools;
  * - Validator;
  * - Experience logic;
+ * - Learning logic;
  * - Storage;
  * - Skill creation.
  *
@@ -78,68 +79,12 @@ import {
 
 /*
  * =========================================================
- * SAFE LEARNING
+ * FAILURE RESPONSE
  * =========================================================
  */
 
 
-function runLearningSafely(
-    executionTrace
-) {
-
-
-    try {
-
-
-        if (
-            !executionTrace
-        ) {
-
-            return null;
-
-        }
-
-
-        return runLearningTrigger(
-            executionTrace
-        );
-
-
-    } catch(error) {
-
-
-        console.error(
-            "Jessica Learning error:",
-            error
-        );
-
-
-        return {
-
-            triggered:false,
-
-            reason:
-                "Learning pipeline error"
-
-        };
-
-    }
-
-}
-
-
-
-
-
-/*
- * =========================================================
- * FAILED RESULT
- * =========================================================
- */
-
-
-function buildFailureResponse(
-{
+function buildFailureResponse({
 
     stage,
 
@@ -147,8 +92,7 @@ function buildFailureResponse(
 
     executionTrace
 
-}
-) {
+}) {
 
 
     finishExecutionTrace(
@@ -158,7 +102,8 @@ function buildFailureResponse(
 
     return {
 
-        success:false,
+        success:
+            false,
 
         stage,
 
@@ -176,7 +121,62 @@ function buildFailureResponse(
 
 /*
  * =========================================================
- * EXECUTE TASK
+ * SAFE LEARNING CALL
+ * =========================================================
+ */
+
+
+function attachLearning(
+    response,
+    executionTrace
+) {
+
+
+    try {
+
+
+        response.learning =
+            processLearning(
+                executionTrace
+            );
+
+
+    } catch(error) {
+
+
+        console.error(
+            "Jessica Learning Coordinator error:",
+            error
+        );
+
+
+        response.learning = {
+
+            success:
+                false,
+
+            queued:
+                false,
+
+            reason:
+                "Learning coordinator error"
+
+        };
+
+    }
+
+
+    return response;
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * EXECUTE JESSICA TASK
  * =========================================================
  */
 
@@ -201,8 +201,11 @@ export async function executeJessicaTask(
 
 
 
+
     /*
+     * =====================================================
      * INPUT
+     * =====================================================
      */
 
 
@@ -231,7 +234,9 @@ export async function executeJessicaTask(
 
 
     /*
+     * =====================================================
      * DECOMPOSE
+     * =====================================================
      */
 
 
@@ -268,8 +273,8 @@ export async function executeJessicaTask(
 
         });
 
-
     }
+
 
 
 
@@ -314,6 +319,7 @@ export async function executeJessicaTask(
 
 
 
+
     if (
         subtasks.length === 0
     ) {
@@ -348,7 +354,7 @@ export async function executeJessicaTask(
 
     /*
      * =====================================================
-     * SINGLE
+     * SINGLE TASK
      * =====================================================
      */
 
@@ -385,13 +391,18 @@ export async function executeJessicaTask(
                 id:
                     subtasks[0]?.id || null,
 
+
                 status:
                     "FAILED",
 
-                success:false,
+
+                success:
+                    false,
+
 
                 stage:
                     "subtask",
+
 
                 result:
                     "Ошибка выполнения подзадачи"
@@ -421,6 +432,7 @@ export async function executeJessicaTask(
 
 
 
+
         const response =
             buildSingleTaskResponse(
 
@@ -434,19 +446,14 @@ export async function executeJessicaTask(
 
 
 
-        /*
-         * Запуск обучения
-         */
 
+        return attachLearning(
 
-        response.learning =
-            runLearningSafely(
-                executionTrace
-            );
+            response,
 
+            executionTrace
 
-
-        return response;
+        );
 
 
     }
@@ -459,7 +466,7 @@ export async function executeJessicaTask(
 
     /*
      * =====================================================
-     * COMPLEX
+     * COMPLEX TASK
      * =====================================================
      */
 
@@ -498,9 +505,7 @@ export async function executeJessicaTask(
 
         });
 
-
     }
-
 
 
 
@@ -535,8 +540,10 @@ export async function executeJessicaTask(
             total:
                 subtaskRunResult.total,
 
+
             completed:
                 subtaskRunResult.completed,
+
 
             failed:
                 subtaskRunResult.failed
@@ -568,20 +575,13 @@ export async function executeJessicaTask(
 
 
 
-    /*
-     * Автоматическое обучение
-     */
+    return attachLearning(
+
+        response,
+
+        executionTrace
+
+    );
 
 
-    response.learning =
-        runLearningSafely(
-            executionTrace
-        );
-
-
-
-
-    return response;
-
-
-}
+        }
