@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA RETRY POLICY v4
+ * JESSICA RETRY POLICY v5
  * =========================================================
  *
  * Политика повторных попыток Execution.
@@ -8,19 +8,21 @@
  *
  * Отвечает только:
  *
- * Можно ли повторить текущий план?
+ * - можно ли повторить текущий маршрут;
+ * - сколько попыток осталось.
  *
  *
  * НЕ:
  *
- * - анализирует ошибки;
- * - создаёт новый план;
+ * - создаёт новый Plan;
  * - вызывает Planner;
- * - выполняет инструменты;
- * - работает с Validation.
+ * - делает Replan;
+ * - выполняет Tools;
+ * - анализирует качество результата.
  *
  * =========================================================
  */
+
 
 
 
@@ -46,46 +48,68 @@ export const MAX_EXECUTION_ATTEMPTS = 3;
 
 /*
  * =========================================================
- * RETRYABLE FAILURE TYPES
+ * RETRYABLE CATEGORIES
+ * =========================================================
+ *
+ * Ошибки, где повтор того же плана
+ * может дать другой результат.
+ *
  * =========================================================
  */
 
 
-const RETRYABLE_FAILURE_TYPES = new Set([
+const RETRYABLE_CATEGORIES = new Set([
 
 
-    /*
-     * Временная проблема.
-     *
-     * Например:
-     *
-     * - timeout;
-     * - network;
-     * - временная недоступность API.
-     *
-     */
+    "temporary",
+
+
+    "network",
+
+
+    "timeout",
+
+
+    "rate-limit",
+
+
+    "service-unavailable",
+
+
+    "tool-temporary"
+
+
+
+]);
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * RETRYABLE TYPES
+ * =========================================================
+ */
+
+
+const RETRYABLE_TYPES = new Set([
 
 
     "temporary-error",
 
 
+    "timeout-error",
 
 
-    /*
-     * Ошибка инструмента.
-     *
-     * Может пройти при повторном запуске.
-     */
+    "network-error",
 
 
     "tool-error",
-
-
-
-
-    /*
-     * Ошибка выполнения маршрута.
-     */
 
 
     "runner-error"
@@ -106,50 +130,42 @@ const RETRYABLE_FAILURE_TYPES = new Set([
  * =========================================================
  * NEVER RETRY
  * =========================================================
+ *
+ * Эти ошибки требуют:
+ *
+ * - Replan;
+ * - уточнение;
+ * - завершение.
+ *
+ * =========================================================
  */
 
 
-const TERMINAL_FAILURE_TYPES = new Set([
-
-
-    /*
-     * Нужны данные пользователя.
-     */
+const NON_RETRYABLE_TYPES = new Set([
 
 
     "user-required",
 
 
-
-
-    /*
-     * План неверный.
-     *
-     * Нужен Replan.
-     */
+    "needs-clarification",
 
 
     "validation-error",
 
 
-
-
-    /*
-     * Ответ невозможно использовать.
-     */
+    "validation-failure",
 
 
     "invalid-result",
 
 
+    "missing-data",
 
 
-    /*
-     * Недостаточно входных данных.
-     */
+    "wrong-tool",
 
 
-    "missing-data"
+    "planner-required"
 
 
 
@@ -165,29 +181,34 @@ const TERMINAL_FAILURE_TYPES = new Set([
 
 /*
  * =========================================================
- * NORMALIZE ATTEMPT
+ * NORMALIZE NUMBER
  * =========================================================
  */
 
 
-function normalizeAttempt(
+function normalizeNumber(
     value
 ) {
 
 
-    const attempt =
+    const number =
         Number(
             value
         );
 
 
-    return Number.isInteger(
-        attempt
-    )
+    if (
+        Number.isFinite(
+            number
+        )
+    ) {
 
-        ? attempt
+        return number;
 
-        : 0;
+    }
+
+
+    return 0;
 
 }
 
@@ -215,15 +236,14 @@ export function shouldRetryExecution(
 ) {
 
 
-
     /*
-     * Проверка лимита.
+     * Лимит попыток
      */
 
 
     const attempt =
 
-        normalizeAttempt(
+        normalizeNumber(
             context?.attempt
         );
 
@@ -232,7 +252,6 @@ export function shouldRetryExecution(
     if (
         attempt >= MAX_EXECUTION_ATTEMPTS
     ) {
-
 
         return false;
 
@@ -244,10 +263,8 @@ export function shouldRetryExecution(
 
 
 
-
     /*
-     * Нет ошибки —
-     * повторять нечего.
+     * Нет ошибки
      */
 
 
@@ -256,6 +273,24 @@ export function shouldRetryExecution(
         typeof failure !== "object"
     ) {
 
+        return false;
+
+    }
+
+
+
+
+
+
+
+    /*
+     * Требуется пользователь
+     */
+
+
+    if (
+        failure.needsClarification === true
+    ) {
 
         return false;
 
@@ -273,7 +308,18 @@ export function shouldRetryExecution(
         String(
             failure.failureType || ""
         )
-        .trim();
+        .toLowerCase();
+
+
+
+
+    const category =
+
+        String(
+            failure.category || ""
+        )
+        .toLowerCase();
+
 
 
 
@@ -283,16 +329,17 @@ export function shouldRetryExecution(
 
 
     /*
-     * Терминальные ошибки.
+     * Ошибки, которые нельзя повторять.
      */
 
 
     if (
-        TERMINAL_FAILURE_TYPES.has(
+
+        NON_RETRYABLE_TYPES.has(
             type
         )
-    ) {
 
+    ) {
 
         return false;
 
@@ -306,16 +353,17 @@ export function shouldRetryExecution(
 
 
     /*
-     * Разрешённые временные ошибки.
+     * Явно временная ошибка.
      */
 
 
     if (
-        RETRYABLE_FAILURE_TYPES.has(
+
+        RETRYABLE_TYPES.has(
             type
         )
-    ) {
 
+    ) {
 
         return true;
 
@@ -328,7 +376,78 @@ export function shouldRetryExecution(
 
 
 
+    /*
+     * Категория временной ошибки.
+     */
+
+
+    if (
+
+        RETRYABLE_CATEGORIES.has(
+            category
+        )
+
+    ) {
+
+        return true;
+
+    }
+
+
+
+
+
+
+
+
+    /*
+     * По умолчанию:
+     *
+     * не повторяем неизвестное.
+     *
+     * Неизвестная ошибка должна
+     * уйти в Replan или Terminal.
+     *
+     */
+
+
     return false;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SHOULD STOP
+ * =========================================================
+ */
+
+
+export function shouldStopExecution(
+
+    context
+
+) {
+
+
+    return (
+
+        normalizeNumber(
+            context?.attempt
+        )
+
+        >=
+
+        MAX_EXECUTION_ATTEMPTS
+
+    );
 
 }
 
@@ -354,19 +473,15 @@ export function getRemainingAttempts(
 ) {
 
 
-    const current =
-
-        normalizeAttempt(
-            attempt
-        );
-
-
-
     return Math.max(
 
         0,
 
-        MAX_EXECUTION_ATTEMPTS - current
+        MAX_EXECUTION_ATTEMPTS -
+
+        normalizeNumber(
+            attempt
+        )
 
     );
 
@@ -382,7 +497,7 @@ export function getRemainingAttempts(
 
 /*
  * =========================================================
- * EXPORT CHECK
+ * CHECK FAILURE
  * =========================================================
  */
 
@@ -394,9 +509,41 @@ export function isRetryableFailure(
 ) {
 
 
-    return RETRYABLE_FAILURE_TYPES.has(
+    if (
+        !failure
+    ) {
 
-        failure?.failureType
+        return false;
+
+    }
+
+
+
+    return (
+
+
+        RETRYABLE_TYPES.has(
+
+            String(
+                failure.failureType || ""
+            )
+            .toLowerCase()
+
+        )
+
+
+        ||
+
+
+        RETRYABLE_CATEGORIES.has(
+
+            String(
+                failure.category || ""
+            )
+            .toLowerCase()
+
+        )
+
 
     );
 
