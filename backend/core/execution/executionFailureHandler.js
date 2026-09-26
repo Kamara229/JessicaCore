@@ -1,59 +1,52 @@
+/*
+ * =========================================================
+ * JESSICA EXECUTION FAILURE HANDLER v3
+ * =========================================================
+ *
+ * Координатор обработки ошибок выполнения.
+ *
+ *
+ * Flow:
+ *
+ * Execution Failure
+ *        ↓
+ * Analyze Failure
+ *        ↓
+ *
+ * RETRY
+ * REPLAN
+ * CLARIFICATION
+ * FINISH
+ *
+ *
+ * НЕ:
+ *
+ * - создаёт новый Plan;
+ * - вызывает Planner;
+ * - выполняет Tools;
+ * - создаёт Answer;
+ * - сохраняет Learning;
+ * - изменяет Experience.
+ *
+ * =========================================================
+ */
+
+
+
+
+
 import {
     shouldRetryExecution
 } from "./retryPolicy.js";
 
 
 import {
-    buildRunFailureFeedback,
     analyzeRunFailure
 } from "./runFailurePolicy.js";
 
 
-import {
-    createAlternativePlan,
-    applyAlternativePlan
-} from "./replanCoordinator.js";
 
 
-import {
-    buildFailureResult,
-    buildClarificationResult
-} from "./executionResult.js";
-
-
-
-/*
- * =========================================================
- * JESSICA EXECUTION FAILURE HANDLER
- * =========================================================
- *
- * Обрабатывает ошибки выполнения.
- *
- *
- * Flow:
- *
- * Failure
- *    ↓
- * Analyze
- *    ↓
- * Clarification?
- *    ↓
- * Retry?
- *    ↓
- * Replan
- *    ↓
- * Result
- *
- *
- * НЕ содержит:
- *
- * - TaskRunner
- * - Composer
- * - Validator
- * - Execution loop
- *
- * =========================================================
- */
 
 
 
@@ -61,126 +54,338 @@ import {
 
 /*
  * =========================================================
- * TRY REPLAN
+ * ACTIONS
  * =========================================================
  */
 
 
-async function tryReplan(
-    context,
+export const FAILURE_ACTION = {
+
+
+    RETRY:
+        "RETRY",
+
+
+    REPLAN:
+        "REPLAN",
+
+
+    CLARIFICATION:
+        "CLARIFICATION",
+
+
+    FINISH:
+        "FINISH"
+
+
+};
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE FAILURE
+ * =========================================================
+ */
+
+
+function normalizeFailure(
     failure
 ) {
 
 
-    const feedback =
-        buildRunFailureFeedback(
-            failure
-        );
-
-
-
-    const alternative =
-        await createAlternativePlan(
-
-            context,
-
-            feedback
-
-        );
-
-
-
     if (
-        !alternative?.success
+        !failure ||
+        typeof failure !== "object"
     ) {
 
 
         return {
 
-            success:false,
 
-            result:
-                buildFailureResult(
+            stage:
+                "execution",
 
-                    context,
 
-                    {
+            reason:
+                "Неизвестная ошибка",
 
-                        stage:
-                            "replanner",
 
-                        reason:
-                            alternative?.reason ||
-                            "Не удалось создать новый план",
+            failureType:
+                "unknown"
 
-                        failureType:
-                            "replanner-failure"
-
-                    }
-
-                )
 
         };
 
     }
 
 
-
-
-    const applied =
-        applyAlternativePlan(
-
-            context,
-
-            alternative
-
-        );
-
-
-
-    if (
-        applied !== true
-    ) {
-
-
-        return {
-
-            success:false,
-
-            result:
-                buildFailureResult(
-
-                    context,
-
-                    {
-
-                        stage:
-                            "replanner",
-
-                        reason:
-                            "Не удалось применить новый план",
-
-                        failureType:
-                            "replan-apply-failure"
-
-                    }
-
-                )
-
-        };
-
-    }
 
 
 
     return {
 
-        success:true
+
+        stage:
+
+            failure.stage ||
+            "execution",
+
+
+
+        reason:
+
+            failure.reason ||
+            "Ошибка выполнения",
+
+
+
+        failureType:
+
+            failure.failureType ||
+            "execution-error",
+
+
+
+        validation:
+
+            failure.validation ||
+            null
+
+
 
     };
 
 
 }
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD RETRY DATA
+ * =========================================================
+ */
+
+
+function buildRetryDecision(
+    context,
+    failure
+) {
+
+
+    return {
+
+
+        finished:
+            false,
+
+
+        action:
+            FAILURE_ACTION.RETRY,
+
+
+        retryContext:
+        {
+
+            attempt:
+                context.attempt,
+
+
+            failureType:
+                failure.failureType,
+
+
+            reason:
+                failure.reason
+
+
+        }
+
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD REPLAN DATA
+ * =========================================================
+ */
+
+
+function buildReplanDecision(
+    context,
+    failure
+) {
+
+
+    return {
+
+
+        finished:
+            false,
+
+
+        action:
+            FAILURE_ACTION.REPLAN,
+
+
+        replanContext:
+        {
+
+            task:
+                context.task,
+
+
+            previousPlan:
+                context.plan,
+
+
+            failure:
+            {
+
+                stage:
+                    failure.stage,
+
+
+                type:
+                    failure.failureType,
+
+
+                reason:
+                    failure.reason
+
+
+            },
+
+
+
+            attempt:
+                context.attempt
+
+
+
+        }
+
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD CLARIFICATION
+ * =========================================================
+ */
+
+
+function buildClarificationDecision(
+    failure
+) {
+
+
+    return {
+
+
+        finished:
+            true,
+
+
+        action:
+            FAILURE_ACTION.CLARIFICATION,
+
+
+        clarification:
+        {
+
+
+            reason:
+                failure.reason,
+
+
+            stage:
+                failure.stage
+
+
+
+        }
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD FINISH
+ * =========================================================
+ */
+
+
+function buildFinishDecision(
+    failure
+) {
+
+
+    return {
+
+
+        finished:
+            true,
+
+
+        action:
+            FAILURE_ACTION.FINISH,
+
+
+        failure
+
+
+
+    };
+
+}
+
+
 
 
 
@@ -204,13 +409,34 @@ export async function handleExecutionFailure(
 ) {
 
 
+    /*
+     * =====================================================
+     * ANALYZE
+     * =====================================================
+     */
 
-    const analyzedFailure =
+
+    const analyzed =
+
         analyzeRunFailure(
             failure
         )
         ||
         failure;
+
+
+
+
+
+    const normalized =
+
+        normalizeFailure(
+            analyzed
+        );
+
+
+
+
 
 
 
@@ -224,36 +450,24 @@ export async function handleExecutionFailure(
 
 
     if (
-        analyzedFailure?.needsClarification === true
+
+        analyzed?.needsClarification === true
+
     ) {
 
 
-        return {
+        return buildClarificationDecision(
 
-            finished:true,
+            normalized
 
-            result:
-                buildClarificationResult(
+        );
 
-                    context,
-
-                    {
-
-                        stage:
-                            analyzedFailure.stage ||
-                            "execution",
-
-                        reason:
-                            analyzedFailure.reason ||
-                            "Требуется уточнение"
-
-                    }
-
-                )
-
-        };
 
     }
+
+
+
+
 
 
 
@@ -261,46 +475,38 @@ export async function handleExecutionFailure(
 
     /*
      * =====================================================
-     * RETRY CHECK
+     * RETRY
      * =====================================================
      */
 
 
     if (
-        analyzedFailure?.shouldRetry !== true
+
+        shouldRetryExecution(
+
+            context,
+
+            normalized
+
+        )
+
     ) {
 
 
-        return {
+        return buildRetryDecision(
 
-            finished:true,
+            context,
 
-            result:
-                buildFailureResult(
+            normalized
 
-                    context,
+        );
 
-                    {
-
-                        stage:
-                            analyzedFailure.stage ||
-                            "execution",
-
-                        reason:
-                            analyzedFailure.reason ||
-                            "Не удалось выполнить задачу",
-
-                        failureType:
-                            analyzedFailure.failureType ||
-                            "execution-failure"
-
-                    }
-
-                )
-
-        };
 
     }
+
+
+
+
 
 
 
@@ -310,33 +516,46 @@ export async function handleExecutionFailure(
      * =====================================================
      * REPLAN
      * =====================================================
+     *
+     * Ошибка передаётся Planner.
+     *
+     * Handler не создаёт план.
+     *
+     * =====================================================
      */
 
 
-    const replan =
-        await tryReplan(
-
-            context,
-
-            analyzedFailure
-
-        );
-
-
-
     if (
-        !replan.success
+
+        [
+
+            "validation-error",
+
+            "invalid-result",
+
+            "wrong-tool",
+
+            "missing-data",
+
+            "planner-required"
+
+        ]
+
+        .includes(
+            normalized.failureType
+        )
+
     ) {
 
 
-        return {
+        return buildReplanDecision(
 
-            finished:true,
+            context,
 
-            result:
-                replan.result
+            normalized
 
-        };
+        );
+
 
     }
 
@@ -344,18 +563,22 @@ export async function handleExecutionFailure(
 
 
 
+
+
+
+
     /*
      * =====================================================
-     * CONTINUE LOOP
+     * FINISH
      * =====================================================
      */
 
 
-    return {
+    return buildFinishDecision(
 
-        finished:false
+        normalized
 
-    };
+    );
 
 
 }
