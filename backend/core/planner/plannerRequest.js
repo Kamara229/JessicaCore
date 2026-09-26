@@ -2,17 +2,23 @@ import {
     plannerChat
 } from "../../ai/plannerClient.js";
 
+
 import {
     buildPlannerInstructions
 } from "./plannerPrompt.js";
+
 
 import {
     buildToolsText
 } from "./plannerTools.js";
 
+
 import {
     buildPlanningContextText
 } from "./planningContextText.js";
+
+
+
 
 
 /*
@@ -20,61 +26,64 @@ import {
  * JESSICA PLANNER REQUEST
  * =========================================================
  *
- * Формирует запрос для AI Planner.
+ * Формирование запроса AI Planner.
  *
  *
- * Отвечает только за:
+ * Flow:
  *
- * - сбор system prompt;
- * - сбор user prompt;
- * - добавление PlanningContext;
- * - добавление Tools;
- * - передачу ошибки предыдущей попытки.
- *
- *
- * НЕ отвечает за:
- *
- * - создание AI клиента;
- * - выбор модели;
- * - parsing;
- * - normalization;
- * - validation;
- * - retry цикл;
- * - Experience;
- * - выполнение инструментов.
- *
- *
- * Архитектура:
- *
- * task
+ * Task
  *   +
- * PlanningContext
+ * Planning Context
+ *   +
+ * Experience Memory
  *   +
  * Tools
- *   +
- * Retry Error
- *
  *        ↓
+ * Planner AI
  *
- * plannerClient
  *
- *        ↓
+ * Отвечает:
  *
- * AI Planner
+ * - system prompt;
+ * - user prompt;
+ * - context;
+ * - tools;
+ * - retry feedback.
+ *
+ *
+ * НЕ:
+ *
+ * - создаёт план;
+ * - валидирует план;
+ * - выполняет инструменты;
+ * - изменяет Experience.
  *
  * =========================================================
  */
 
 
+
+
+
 /*
  * =========================================================
- * CONFIG
+ * LIMITS
  * =========================================================
  */
 
 
 const MAX_CONTEXT_LENGTH =
     6000;
+
+
+
+const MAX_EXPERIENCE_LENGTH =
+    2500;
+
+
+
+
+
 
 
 /*
@@ -88,12 +97,82 @@ function safeString(
     value
 ) {
 
+
     return String(
         value || ""
     )
         .trim();
 
 }
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * LIMIT TEXT
+ * =========================================================
+ */
+
+
+function limitText(
+
+    value,
+
+    limit
+
+) {
+
+
+    const text =
+        safeString(
+            value
+        );
+
+
+
+    if (
+        !text
+    ) {
+
+        return "";
+
+    }
+
+
+
+    if (
+        text.length <= limit
+    ) {
+
+        return text;
+
+    }
+
+
+
+    return (
+
+        text.slice(
+            0,
+            limit
+        )
+
+        +
+
+        "\n\n[Контекст сокращён]"
+
+    );
+
+
+}
+
+
+
+
 
 
 
@@ -115,11 +194,15 @@ function buildRetryContext(
         );
 
 
-    if (!error) {
+
+    if (
+        !error
+    ) {
 
         return "";
 
     }
+
 
 
     return [
@@ -128,9 +211,12 @@ function buildRetryContext(
 
         error,
 
+
         "",
 
-        "Исправь ошибку и создай новый валидный JSON-план."
+
+        "Исправь ошибку. " +
+        "Создай новый корректный JSON-план."
 
     ]
     .join(
@@ -141,54 +227,72 @@ function buildRetryContext(
 
 
 
+
+
+
+
+
 /*
  * =========================================================
- * LIMIT CONTEXT
+ * EXPERIENCE INFO
  * =========================================================
  */
 
 
-function limitContext(
-    value
+function buildExperienceMeta(
+    context
 ) {
 
 
-    const text =
-        safeString(
-            value
-        );
+    const experience =
+        context?.experience;
 
 
-    if (!text) {
+
+    if (
+        !experience ||
+        experience.available !== true
+    ) {
+
 
         return "";
 
     }
 
 
-    if (
-        text.length <= MAX_CONTEXT_LENGTH
-    ) {
-
-        return text;
-
-    }
 
 
-    return (
 
-        text.slice(
-            0,
-            MAX_CONTEXT_LENGTH
-        )
+    return [
 
-        +
+        "=== EXPERIENCE MEMORY ===",
 
-        "\n\n[Контекст сокращён]"
 
+        `Источник:
+${experience.source || "unknown"}`,
+
+
+        `Уверенность:
+${experience.confidence || 0}`,
+
+
+        `Количество навыков:
+${experience.skills?.length || 0}`
+
+
+    ]
+    .join(
+        "\n"
     );
 
+
 }
+
+
+
+
+
+
 
 
 
@@ -210,20 +314,19 @@ export async function requestPlan(
 ) {
 
 
-    /*
-     * =====================================================
-     * INPUT
-     * =====================================================
-     */
-
-
     const cleanTask =
         safeString(
             task
         );
 
 
-    if (!cleanTask) {
+
+
+
+    if (
+        !cleanTask
+    ) {
+
 
         throw new Error(
             "Planner task пустой"
@@ -233,9 +336,14 @@ export async function requestPlan(
 
 
 
+
+
+
+
+
     /*
      * =====================================================
-     * SYSTEM INSTRUCTIONS
+     * SYSTEM
      * =====================================================
      */
 
@@ -245,21 +353,52 @@ export async function requestPlan(
 
 
 
+
+
+
+
+
     /*
      * =====================================================
-     * EXPERIENCE CONTEXT
+     * CONTEXT
      * =====================================================
      */
 
 
-    const planningContextText =
-        limitContext(
+    let planningContextText =
+        buildPlanningContextText(
+            context
+        );
 
-            buildPlanningContextText(
-                context
-            )
+
+
+    planningContextText =
+        limitText(
+
+            planningContextText,
+
+            MAX_CONTEXT_LENGTH
 
         );
+
+
+
+
+
+    const experienceMeta =
+        limitText(
+
+            buildExperienceMeta(
+                context
+            ),
+
+            MAX_EXPERIENCE_LENGTH
+
+        );
+
+
+
+
 
 
 
@@ -275,6 +414,11 @@ export async function requestPlan(
 
 
 
+
+
+
+
+
     /*
      * =====================================================
      * USER PROMPT
@@ -282,28 +426,32 @@ export async function requestPlan(
      */
 
 
-    const userPromptParts =
+    const parts =
         [
 
             "=== ТЕКУЩАЯ ЗАДАЧА ===",
 
             cleanTask
 
+
         ];
 
 
 
+
+
+
+
     if (
-        planningContextText
+        experienceMeta
     ) {
 
-        userPromptParts.push(
+
+        parts.push(
 
             "",
 
-            "=== НАКОПЛЕННЫЙ КОНТЕКСТ JESSICA ===",
-
-            planningContextText
+            experienceMeta
 
         );
 
@@ -311,15 +459,52 @@ export async function requestPlan(
 
 
 
-    userPromptParts.push(
+
+
+
+
+    if (
+        planningContextText
+    ) {
+
+
+        parts.push(
+
+            "",
+
+
+            "=== КОНТЕКСТ ПЛАНИРОВАНИЯ JESSICA ===",
+
+
+            planningContextText
+
+        );
+
+
+    }
+
+
+
+
+
+
+
+    parts.push(
 
         "",
 
+
         "=== ДОСТУПНЫЕ ИНСТРУМЕНТЫ ===",
+
 
         toolsText
 
+
     );
+
+
+
+
 
 
 
@@ -329,11 +514,14 @@ export async function requestPlan(
         );
 
 
+
+
     if (
         retryContext
     ) {
 
-        userPromptParts.push(
+
+        parts.push(
 
             "",
 
@@ -341,20 +529,31 @@ export async function requestPlan(
 
         );
 
+
     }
 
 
 
+
+
+
+
     const userPrompt =
-        userPromptParts.join(
+        parts.join(
             "\n"
         );
 
 
 
+
+
+
+
+
+
     /*
      * =====================================================
-     * AI REQUEST
+     * AI CALL
      * =====================================================
      */
 
@@ -369,8 +568,10 @@ export async function requestPlan(
                     role:
                         "system",
 
+
                     content:
                         instructions
+
 
                 },
 
@@ -380,10 +581,13 @@ export async function requestPlan(
                     role:
                         "user",
 
+
                     content:
                         userPrompt
 
+
                 }
+
 
             ]
 
@@ -391,11 +595,10 @@ export async function requestPlan(
 
 
 
-    /*
-     * =====================================================
-     * RESPONSE
-     * =====================================================
-     */
+
+
+
+
 
 
     return (
@@ -409,5 +612,6 @@ export async function requestPlan(
             ""
 
     );
+
 
 }
