@@ -1,41 +1,122 @@
-import {
-    TERMINAL_OUTCOME,
-    resolveTerminalOutcome
-} from "./terminalOutcomePolicy.js";
+/*
+ * =========================================================
+ * JESSICA EXECUTION TERMINAL v3
+ * =========================================================
+ *
+ * Финальный слой завершения Execution Cycle.
+ *
+ *
+ * Получает:
+ *
+ * Execution Context
+ * Failure Decision
+ *
+ *
+ * Возвращает:
+ *
+ * Terminal Execution Result
+ *
+ *
+ * НЕ:
+ *
+ * - анализирует ошибки;
+ * - решает retry;
+ * - решает replan;
+ * - вызывает Planner;
+ * - вызывает Tools;
+ * - меняет Experience.
+ *
+ * =========================================================
+ */
+
 
 
 import {
     buildFailureResult,
-    buildNoVerifiedResult
+    buildNoVerifiedResult,
+    buildClarificationResult
 } from "./executionResult.js";
+
+
+
+
 
 
 
 /*
  * =========================================================
- * JESSICA EXECUTION TERMINAL
- * =========================================================
- *
- * Финальная обработка завершения цикла.
- *
- *
- * Сюда приходят ситуации:
- *
- * - закончились попытки;
- * - нет подтверждённого результата;
- * - дальнейшее выполнение невозможно.
- *
- *
- * НЕ содержит:
- *
- * - retry;
- * - replan;
- * - runner;
- * - composer;
- * - validator.
- *
+ * NORMALIZE STRING
  * =========================================================
  */
+
+
+function normalizeString(
+    value
+) {
+
+    return String(
+        value || ""
+    )
+        .trim();
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * LOG TERMINAL
+ * =========================================================
+ */
+
+
+function logTerminal(
+    context,
+    decision
+) {
+
+
+    console.log(
+
+        "Jessica terminal:",
+
+        JSON.stringify({
+
+            status:
+                decision?.status ||
+                null,
+
+
+            reason:
+                decision?.reason ||
+                "",
+
+
+            stage:
+                decision?.stage ||
+                "",
+
+
+            attempt:
+                context?.attempt || 0
+
+
+        })
+
+    );
+
+
+}
+
+
+
+
 
 
 
@@ -45,6 +126,10 @@ import {
  * =========================================================
  * BUILD TERMINAL RESULT
  * =========================================================
+ *
+ * Главная точка выхода.
+ *
+ * =========================================================
  */
 
 
@@ -52,43 +137,83 @@ export function buildTerminalResult(
 
     context,
 
-    failure
+    decision = {}
 
 ) {
 
 
+    logTerminal(
 
-    const outcome =
-        resolveTerminalOutcome(
-            failure
+        context,
+
+        decision
+
+    );
+
+
+
+
+
+    const status =
+
+        decision.status ||
+        "FAILED";
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * NEEDS CLARIFICATION
+     * =====================================================
+     */
+
+
+    if (
+
+        status ===
+        "NEEDS_CLARIFICATION"
+
+    ) {
+
+
+        return buildClarificationResult(
+
+            context,
+
+            {
+
+                stage:
+
+                    decision.stage ||
+                    "execution",
+
+
+
+                reason:
+
+                    normalizeString(
+                        decision.reason
+                    )
+
+                    ||
+
+                    "Требуется уточнение"
+
+
+            }
+
         );
 
 
-
-    console.log(
-
-        "Jessica terminal outcome:",
-
-        JSON.stringify({
-
-            type:
-                outcome?.type || null,
+    }
 
 
-            resultType:
-                outcome?.resultType || null,
 
-
-            failureType:
-                failure?.failureType || null,
-
-
-            attempt:
-                context?.attempt || 0
-
-        })
-
-    );
 
 
 
@@ -104,9 +229,8 @@ export function buildTerminalResult(
 
     if (
 
-        outcome?.type ===
-
-        TERMINAL_OUTCOME.NO_VERIFIED_RESULT
+        status ===
+        "NO_VERIFIED_RESULT"
 
     ) {
 
@@ -115,29 +239,15 @@ export function buildTerminalResult(
 
             context,
 
-            {
+            normalizeString(
 
-                message:
-                    outcome?.message ||
-                    "Не удалось подтвердить результат.",
+                decision.reason
 
+            )
 
-                reason:
-                    outcome?.reason ||
-                    failure?.reason ||
-                    "",
+            ||
 
-
-                stage:
-                    failure?.stage ||
-                    "execution",
-
-
-                failureType:
-                    failure?.failureType ||
-                    null
-
-            }
+            "Результат не удалось подтвердить."
 
         );
 
@@ -149,9 +259,12 @@ export function buildTerminalResult(
 
 
 
+
+
+
     /*
      * =====================================================
-     * FINAL FAILURE
+     * FAILED
      * =====================================================
      */
 
@@ -163,19 +276,29 @@ export function buildTerminalResult(
         {
 
             stage:
-                failure?.stage ||
+
+                decision.stage ||
                 "execution",
 
 
+
             reason:
-                outcome?.reason ||
-                failure?.reason ||
+
+                normalizeString(
+                    decision.reason
+                )
+
+                ||
+
                 "Не удалось выполнить задачу",
 
 
+
             failureType:
-                failure?.failureType ||
-                null
+
+                decision.failureType ||
+                "execution-failure"
+
 
         }
 
