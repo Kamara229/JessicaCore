@@ -1,19 +1,19 @@
 /*
  * =========================================================
- * JESSICA EXECUTION FAILURE HANDLER v4
+ * JESSICA EXECUTION FAILURE HANDLER v5
  * =========================================================
  *
- * Центральный маршрутизатор ошибок Execution.
+ * Центральный маршрутизатор Execution Failure.
  *
  *
  * Flow:
  *
- * Execution Failure
- *        ↓
+ * Failure
+ *    ↓
  * Normalize
- *        ↓
+ *    ↓
  * Analyze
- *        ↓
+ *    ↓
  *
  * RETRY
  * REPLAN
@@ -21,20 +21,23 @@
  * FINISH
  *
  *
- * Handler только принимает решение.
+ * Handler:
+ *
+ * - принимает решение;
+ * - формирует следующий action.
  *
  *
  * НЕ:
  *
  * - выполняет retry;
- * - создаёт новый Plan;
  * - вызывает Planner;
- * - создаёт Answer;
- * - сохраняет Learning;
- * - меняет Experience.
+ * - создаёт Plan;
+ * - изменяет Context;
+ * - сохраняет Learning.
  *
  * =========================================================
  */
+
 
 
 import {
@@ -56,7 +59,7 @@ import {
 
 /*
  * =========================================================
- * FAILURE ACTIONS
+ * ACTIONS
  * =========================================================
  */
 
@@ -81,6 +84,41 @@ export const FAILURE_ACTION = {
 
 
 };
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * FAILURE CATEGORIES
+ * =========================================================
+ */
+
+
+const REPLAN_TYPES = new Set([
+
+
+    "validation",
+
+    "invalid-result",
+
+    "strategy-failed",
+
+    "wrong-route",
+
+    "missing-data",
+
+    "tool-mismatch",
+
+    "planner-required"
+
+
+]);
 
 
 
@@ -118,12 +156,13 @@ function normalizeFailure(
                 "unknown",
 
 
+            category:
+                "execution",
+
+
             reason:
-                "Неизвестная ошибка",
+                "Неизвестная ошибка"
 
-
-            validation:
-                null
 
         };
 
@@ -154,6 +193,17 @@ function normalizeFailure(
 
 
 
+        category:
+
+            String(
+                failure.category ||
+                detectCategory(
+                    failure.failureType
+                )
+            ),
+
+
+
         reason:
 
             String(
@@ -167,7 +217,6 @@ function normalizeFailure(
 
             failure.validation ||
             null
-
 
 
     };
@@ -184,12 +233,93 @@ function normalizeFailure(
 
 /*
  * =========================================================
- * BUILD DECISION
+ * CATEGORY DETECTION
  * =========================================================
  */
 
 
-function createDecision(
+function detectCategory(
+    failureType
+) {
+
+
+    const type =
+
+        String(
+            failureType || ""
+        )
+        .toLowerCase();
+
+
+
+    if (
+        type.includes(
+            "validation"
+        )
+    ) {
+
+        return "validation";
+
+    }
+
+
+
+    if (
+        type.includes(
+            "tool"
+        )
+    ) {
+
+        return "tool";
+
+    }
+
+
+
+    if (
+        type.includes(
+            "data"
+        )
+    ) {
+
+        return "data";
+
+    }
+
+
+
+    if (
+        type.includes(
+            "planner"
+        )
+    ) {
+
+        return "planner";
+
+    }
+
+
+
+    return "execution";
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * DECISION BUILDER
+ * =========================================================
+ */
+
+
+function buildDecision(
 
     action,
 
@@ -206,9 +336,11 @@ function createDecision(
         action,
 
 
-        reason:
+        canContinue:
 
-            failure.reason,
+            action === FAILURE_ACTION.RETRY ||
+
+            action === FAILURE_ACTION.REPLAN,
 
 
 
@@ -217,7 +349,9 @@ function createDecision(
 
 
         metadata:
+
         {
+
 
             attempt:
 
@@ -233,12 +367,13 @@ function createDecision(
 
 
 
-            failureType:
+            category:
 
-                failure.failureType
+                failure.category
+
+
 
         }
-
 
     };
 
@@ -264,29 +399,17 @@ function shouldReplan(
 ) {
 
 
-    const replannableErrors =
+    return (
 
-        new Set([
+        REPLAN_TYPES.has(
+            failure.failureType
+        )
 
-            "validation-error",
+        ||
 
-            "invalid-result",
-
-            "wrong-tool",
-
-            "missing-data",
-
-            "planner-required",
-
-            "execution-strategy-failed"
-
-        ]);
-
-
-
-    return replannableErrors.has(
-
-        failure.failureType
+        REPLAN_TYPES.has(
+            failure.category
+        )
 
     );
 
@@ -351,7 +474,7 @@ export async function handleExecutionFailure(
 
     /*
      * =====================================================
-     * CLARIFICATION
+     * USER CLARIFICATION
      * =====================================================
      */
 
@@ -363,7 +486,7 @@ export async function handleExecutionFailure(
     ) {
 
 
-        return createDecision(
+        return buildDecision(
 
             FAILURE_ACTION.CLARIFICATION,
 
@@ -403,7 +526,7 @@ export async function handleExecutionFailure(
     ) {
 
 
-        return createDecision(
+        return buildDecision(
 
             FAILURE_ACTION.RETRY,
 
@@ -439,7 +562,7 @@ export async function handleExecutionFailure(
     ) {
 
 
-        return createDecision(
+        return buildDecision(
 
             FAILURE_ACTION.REPLAN,
 
@@ -466,7 +589,7 @@ export async function handleExecutionFailure(
      */
 
 
-    return createDecision(
+    return buildDecision(
 
         FAILURE_ACTION.FINISH,
 
@@ -502,12 +625,12 @@ export function isRetryAction(
     return (
 
         decision?.action ===
-
         FAILURE_ACTION.RETRY
 
     );
 
 }
+
 
 
 
@@ -521,12 +644,12 @@ export function isReplanAction(
     return (
 
         decision?.action ===
-
         FAILURE_ACTION.REPLAN
 
     );
 
 }
+
 
 
 
@@ -540,7 +663,6 @@ export function isTerminalAction(
     return (
 
         decision?.action ===
-
         FAILURE_ACTION.FINISH
 
     );
