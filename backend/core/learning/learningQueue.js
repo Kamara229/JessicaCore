@@ -3,7 +3,7 @@
  * JESSICA LEARNING QUEUE
  * =========================================================
  *
- * Очередь новых знаний Jessica.
+ * Очередь событий обучения Jessica.
  *
  *
  * Flow:
@@ -12,7 +12,7 @@
  *        ↓
  * Queue Item
  *        ↓
- * PENDING
+ * Learning Worker
  *        ↓
  * Approval
  *
@@ -23,10 +23,34 @@
  * - изменяет Experience;
  * - пишет в Supabase.
  *
- * Только управляет состоянием обучения.
+ * Только управляет очередью обучения.
  *
  * =========================================================
  */
+
+
+
+
+
+/*
+ * =========================================================
+ * VALID ACTIONS
+ * =========================================================
+ */
+
+
+const VALID_ACTIONS = [
+
+    "NEW_SKILL",
+
+    "SKILL_IMPROVEMENT",
+
+    "IGNORE"
+
+];
+
+
+
 
 
 
@@ -53,6 +77,43 @@ export function createLearningQueueItem(
 
 
 
+
+
+    const action =
+        VALID_ACTIONS.includes(
+            learningEvent.action
+        )
+            ? learningEvent.action
+            : "IGNORE";
+
+
+
+
+
+
+    /*
+     * Получаем Skill ID
+     *
+     * NEW_SKILL:
+     * payload.skillCandidate.skillId
+     *
+     * SKILL_IMPROVEMENT:
+     * payload.skills[0].id
+     *
+     */
+
+
+    const skillId =
+        resolveSkillId(
+            learningEvent
+        );
+
+
+
+
+
+
+
     return {
 
 
@@ -62,40 +123,42 @@ export function createLearningQueueItem(
 
 
         status:
+
             "PENDING",
 
 
 
-        action:
-            learningEvent.action ||
-            "IGNORE",
+        action,
 
 
 
-        skillId:
-            learningEvent.skillId ||
-            null,
+        skillId,
 
 
 
         confidence:
-            learningEvent.confidence ||
-            0,
+
+            Number(
+                learningEvent.confidence || 0
+            ),
 
 
 
         event:
+
             learningEvent,
 
 
 
         createdAt:
+
             new Date()
                 .toISOString(),
 
 
 
         reviewedAt:
+
             null
 
 
@@ -103,6 +166,96 @@ export function createLearningQueueItem(
 
 
 }
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * RESOLVE SKILL ID
+ * =========================================================
+ */
+
+
+function resolveSkillId(
+    event
+) {
+
+
+    /*
+     * Новый Skill
+     */
+
+
+    const candidate =
+        event
+            ?.payload
+            ?.skillCandidate;
+
+
+
+    if (
+        candidate?.skillId
+    ) {
+
+        return candidate.skillId;
+
+    }
+
+
+
+
+
+
+
+    /*
+     * Улучшение Skill
+     */
+
+
+    const skills =
+        event
+            ?.payload
+            ?.skills;
+
+
+
+    if (
+        Array.isArray(skills) &&
+        skills.length > 0
+    ) {
+
+
+        return (
+
+            skills[0]?.id ||
+
+            skills[0]?.skillId ||
+
+            null
+
+        );
+
+
+    }
+
+
+
+
+
+    return null;
+
+
+}
+
+
+
+
 
 
 
@@ -116,7 +269,7 @@ export function createLearningQueueItem(
 
 
 export function updateLearningQueueStatus(
-    
+
     item,
 
     status
@@ -139,20 +292,25 @@ export function updateLearningQueueStatus(
 
 
 
+
     if (
         status === "APPROVED" ||
         status === "REJECTED"
     ) {
 
+
         item.reviewedAt =
             new Date()
                 .toISOString();
+
 
     }
 
 
 
+
     return item;
+
 
 }
 
@@ -160,9 +318,13 @@ export function updateLearningQueueStatus(
 
 
 
+
+
+
+
 /*
  * =========================================================
- * VALID ACTIONS
+ * VALID ACTION
  * =========================================================
  */
 
@@ -172,20 +334,15 @@ export function isValidLearningAction(
 ) {
 
 
-    return [
-
-        "NEW_SKILL",
-
-        "SKILL_IMPROVEMENT",
-
-        "IGNORE"
-
-    ]
-    .includes(
+    return VALID_ACTIONS.includes(
         action
     );
 
 }
+
+
+
+
 
 
 
@@ -209,7 +366,9 @@ function createQueueId() {
             crypto.randomUUID
         ) {
 
+
             return crypto.randomUUID();
+
 
         }
 
@@ -220,12 +379,17 @@ function createQueueId() {
 
 
 
+
     return (
 
         Date.now()
+
         +
+
         "-"
+
         +
+
         Math.random()
             .toString(36)
             .substring(2)
