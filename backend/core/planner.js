@@ -1,3 +1,43 @@
+/*
+ * =========================================================
+ * JESSICA PLANNER CORE v3
+ * =========================================================
+ *
+ * Центральный координатор создания Execution Plan.
+ *
+ *
+ * Flow:
+ *
+ * Task
+ *   ↓
+ * Planning Context
+ *   ↓
+ * Planner Request
+ *   ↓
+ * AI Response
+ *   ↓
+ * Parse
+ *   ↓
+ * Normalize
+ *   ↓
+ * Validate
+ *   ↓
+ * Execution Plan
+ *
+ *
+ * НЕ:
+ *
+ * - ищет Experience;
+ * - хранит Skills;
+ * - выполняет Tools;
+ * - обучает Jessica;
+ * - отвечает пользователю.
+ *
+ * =========================================================
+ */
+
+
+
 import {
     requestPlan
 } from "./planner/plannerRequest.js";
@@ -25,10 +65,16 @@ import {
 
 import {
     MAX_PLANNER_ATTEMPTS,
+
     sleep,
+
     isRetryablePlannerError,
+
     getPlannerRetryDelay
+
 } from "./planner/plannerRetry.js";
+
+
 
 
 
@@ -36,41 +82,140 @@ import {
 
 /*
  * =========================================================
- * JESSICA PLANNER CORE v2
- * =========================================================
- *
- * Центральный координатор Planner.
- *
- *
- * Flow:
- *
- * Task
- *   ↓
- * PlanningContext
- *   ↓
- * Planner Request
- *   ↓
- * AI Planner
- *   ↓
- * Parse JSON
- *   ↓
- * Normalize
- *   ↓
- * Validate
- *   ↓
- * Execution Plan
- *
- *
- * НЕ:
- *
- * - ищет Experience;
- * - хранит Skills;
- * - выполняет Tools;
- * - обучает Jessica;
- * - отвечает пользователю.
- *
+ * BUILD CONTEXT
  * =========================================================
  */
+
+
+function buildPlannerContext(
+    context
+) {
+
+
+    const normalized =
+
+        normalizePlanningContext(
+            context
+        );
+
+
+
+    return {
+
+
+        ...normalized,
+
+
+        metadata:
+
+
+        {
+
+
+            ...(normalized.metadata || {}),
+
+
+            planner:
+
+            {
+
+
+                version:
+                    "3",
+
+
+                createdAt:
+                    new Date()
+                        .toISOString()
+
+
+            }
+
+
+        }
+
+
+    };
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * ADD PLAN META
+ * =========================================================
+ */
+
+
+function enrichPlan(
+    plan,
+    context,
+    attempt
+) {
+
+
+    return {
+
+
+        ...plan,
+
+
+        metadata:
+
+
+        {
+
+
+            ...(plan.metadata || {}),
+
+
+            plannerAttempt:
+                attempt,
+
+
+            generatedAt:
+                new Date()
+                    .toISOString()
+
+
+        },
+
+
+
+        experience:
+
+
+            {
+
+
+                ...(plan.experience || {}),
+
+
+
+                available:
+
+                    Boolean(
+                        context?.experience
+                    )
+
+            }
+
+
+    };
+
+
+}
+
+
+
 
 
 
@@ -103,12 +248,17 @@ export async function createPlan(
 
 
 
-    if (!cleanTask) {
+
+
+    if (
+        !cleanTask
+    ) {
 
 
         return {
 
             success:false,
+
 
             text:
                 "Задача Planner пустая"
@@ -121,6 +271,7 @@ export async function createPlan(
 
 
 
+
     if (
         !process.env.GROQ_API_KEY
     ) {
@@ -128,7 +279,9 @@ export async function createPlan(
 
         return {
 
+
             success:false,
+
 
             text:
                 "GROQ_API_KEY отсутствует"
@@ -143,18 +296,12 @@ export async function createPlan(
 
 
 
-    /*
-     * =====================================================
-     * CONTEXT
-     * =====================================================
-     */
-
-
     const baseContext =
 
-        normalizePlanningContext(
+        buildPlannerContext(
             context
         );
+
 
 
 
@@ -164,6 +311,13 @@ export async function createPlan(
         "";
 
 
+
+
+
+    const trace = [];
+
+
+    
 
 
 
@@ -188,7 +342,6 @@ export async function createPlan(
 
 
 
-
         const planningContext = {
 
 
@@ -196,13 +349,17 @@ export async function createPlan(
 
 
             metadata:
+
+
             {
+
 
                 ...(baseContext.metadata || {}),
 
 
                 plannerAttempt:
                     attempt
+
 
             }
 
@@ -215,17 +372,13 @@ export async function createPlan(
 
 
 
-
         try {
 
 
 
 
-
             /*
-             * =================================================
              * REQUEST
-             * =================================================
              */
 
 
@@ -246,27 +399,41 @@ export async function createPlan(
 
 
 
+            trace.push({
+
+                stage:
+                    "request",
+
+
+                attempt
+
+            });
+
+
+
+
+
+
+
+
 
 
             /*
-             * =================================================
              * PARSE
-             * =================================================
              */
 
 
             const parsedPlan =
 
                 parsePlan(
-
                     rawResponse
-
                 );
 
 
 
-
-            if (!parsedPlan) {
+            if (
+                !parsedPlan
+            ) {
 
 
                 throw new Error(
@@ -279,28 +446,41 @@ export async function createPlan(
 
 
 
+            trace.push({
+
+                stage:
+                    "parse",
+
+
+                success:
+                    true
+
+            });
+
+
+
+
+
+
 
 
 
             /*
-             * =================================================
              * NORMALIZE
-             * =================================================
              */
 
 
-            const plan =
+            const normalizedPlan =
 
                 normalizePlan(
-
                     parsedPlan
-
                 );
 
 
 
-
-            if (!plan) {
+            if (
+                !normalizedPlan
+            ) {
 
 
                 throw new Error(
@@ -315,12 +495,27 @@ export async function createPlan(
 
 
 
+            trace.push({
+
+                stage:
+                    "normalize",
+
+
+                success:
+                    true
+
+            });
+
+
+
+
+
+
+
 
 
             /*
-             * =================================================
              * VALIDATE
-             * =================================================
              */
 
 
@@ -328,7 +523,7 @@ export async function createPlan(
 
                 validatePlan(
 
-                    plan,
+                    normalizedPlan,
 
                     planningContext
 
@@ -345,7 +540,6 @@ export async function createPlan(
             ) {
 
 
-
                 lastError =
 
                     validation.text ||
@@ -355,25 +549,28 @@ export async function createPlan(
 
 
 
-                console.warn(
 
-                    "Jessica Planner validation failed:",
+                trace.push({
 
-                    {
+                    stage:
+                        "validation",
 
-                        attempt,
 
-                        reason:
-                            lastError
+                    success:
+                        false,
 
-                    }
 
-                );
+                    reason:
+                        lastError
+
+
+                });
+
+
 
 
 
                 continue;
-
 
             }
 
@@ -385,29 +582,57 @@ export async function createPlan(
 
 
 
-            /*
-             * =================================================
-             * SUCCESS
-             * =================================================
-             */
+            const finalPlan =
+
+                enrichPlan(
+
+                    normalizedPlan,
+
+                    planningContext,
+
+                    attempt
+
+                );
+
+
+
+
+
+
+
+
+
+            trace.push({
+
+                stage:
+                    "completed",
+
+
+                success:
+                    true
+
+            });
+
+
+
+
+
+
+
 
 
             console.log(
 
-                "Jessica Planner success:",
+                "Jessica Planner completed:",
 
                 {
 
                     intent:
-                        plan.intent,
-
-
-                    requiresTools:
-                        plan.requiresTools,
+                        finalPlan.intent,
 
 
                     steps:
-                        plan.steps.length,
+                        finalPlan.steps.length,
 
 
                     attempt
@@ -426,17 +651,25 @@ export async function createPlan(
             return {
 
 
-                success:true,
+                success:
+                    true,
 
 
-                plan,
+                plan:
+                    finalPlan,
+
 
 
                 context:
-                    planningContext
+                    planningContext,
+
+
+
+                trace
 
 
             };
+
 
 
 
@@ -448,12 +681,32 @@ export async function createPlan(
 
 
 
-
             lastError =
 
                 error?.message ||
 
                 "planner_error";
+
+
+
+
+
+
+            trace.push({
+
+                stage:
+                    "error",
+
+
+                attempt,
+
+
+                error:
+                    lastError
+
+
+            });
+
 
 
 
@@ -480,6 +733,7 @@ export async function createPlan(
 
 
 
+
             if (
 
                 attempt < MAX_PLANNER_ATTEMPTS
@@ -493,6 +747,7 @@ export async function createPlan(
             ) {
 
 
+
                 await sleep(
 
                     getPlannerRetryDelay(
@@ -502,12 +757,14 @@ export async function createPlan(
                 );
 
 
+
+                continue;
+
             }
 
 
 
         }
-
 
 
     }
@@ -519,29 +776,27 @@ export async function createPlan(
 
 
 
-    /*
-     * =====================================================
-     * FAILED
-     * =====================================================
-     */
-
-
     return {
 
 
-        success:false,
+        success:
+            false,
 
 
         text:
 
             "Planner не смог создать корректный план: "
-
             +
 
-            lastError
+            lastError,
+
+
+
+        trace
 
 
     };
+
 
 }
 
@@ -582,9 +837,11 @@ export async function planTask(
 
 
 
+
     if (
         result.success
     ) {
+
 
         return result.plan;
 
