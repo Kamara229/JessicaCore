@@ -1,9 +1,22 @@
 /*
  * =========================================================
- * JESSICA EXECUTION CONTEXT
+ * JESSICA EXECUTION CONTEXT v3
  * =========================================================
  *
- * Контекст одной попытки выполнения.
+ * Контекст одного Execution Cycle.
+ *
+ *
+ * Flow:
+ *
+ * Planner
+ *    ↓
+ * Execution Context
+ *    ↓
+ * Execution Cycle
+ *    ↓
+ * Execution Trace
+ *    ↓
+ * Learning
  *
  *
  * Используется:
@@ -12,15 +25,7 @@
  * - executionStepRunner
  * - failureHandler
  * - ExecutionTrace
- *
- *
- * Хранит:
- *
- * - задачу;
- * - текущий Plan;
- * - PlanningContext;
- * - применённый Experience;
- * - результаты выполнения.
+ * - Learning Analyzer
  *
  *
  * НЕ:
@@ -32,6 +37,13 @@
  *
  * =========================================================
  */
+
+
+
+import {
+    randomUUID
+} from "node:crypto";
+
 
 
 
@@ -54,11 +66,20 @@ function normalizeExperience(
         typeof experience !== "object"
     ) {
 
+
         return {
 
 
-            used:
+            found:
                 false,
+
+
+            source:
+                null,
+
+
+            confidence:
+                0,
 
 
             skills:
@@ -67,6 +88,7 @@ function normalizeExperience(
 
             context:
                 null
+
 
         };
 
@@ -78,9 +100,24 @@ function normalizeExperience(
     return {
 
 
-        used:
+        found:
 
-            experience.used === true,
+            experience.found === true,
+
+
+
+        source:
+
+            experience.source ||
+            null,
+
+
+
+        confidence:
+
+            Number(
+                experience.confidence || 0
+            ),
 
 
 
@@ -98,10 +135,40 @@ function normalizeExperience(
 
         context:
 
-            experience.context || null
+            experience.context ||
+            null
 
 
     };
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE PLANNER TRACE
+ * =========================================================
+ */
+
+
+function normalizePlannerTrace(
+    trace
+) {
+
+
+    return Array.isArray(
+        trace
+    )
+        ? trace
+        : [];
 
 }
 
@@ -128,9 +195,18 @@ export function createExecutionContext({
 
     planningContext = {},
 
-    experience = null
+    experience = null,
+
+    plannerTrace = []
 
 } = {}) {
+
+
+
+    const executionId =
+        randomUUID();
+
+
 
 
     return {
@@ -138,44 +214,120 @@ export function createExecutionContext({
 
 
         /*
-         * исходная задача
+         * =================================================
+         * IDENTITY
+         * =================================================
          */
 
 
-        task,
+        executionId,
+
+
+
+        createdAt:
+
+            new Date()
+                .toISOString(),
+
+
+
+        startedAt:
+
+            new Date()
+                .toISOString(),
+
+
+
+        finishedAt:
+
+            null,
 
 
 
 
 
         /*
-         * текущий план
+         * =================================================
+         * STATE
+         * =================================================
          */
 
 
-        plan,
+        state:
+
+            "RUNNING",
 
 
 
 
 
         /*
-         * Контекст Planner
+         * =================================================
+         * TASK
+         * =================================================
+         */
+
+
+        task:
+
+            String(
+                task || ""
+            )
+            .trim(),
+
+
+
+
+
+        /*
+         * =================================================
+         * PLAN
+         * =================================================
+         */
+
+
+        plan:
+
+            plan || null,
+
+
+
+
+
+        plannerTrace:
+
+            normalizePlannerTrace(
+                plannerTrace
+            ),
+
+
+
+
+
+
+        /*
+         * =================================================
+         * PLANNING CONTEXT
+         * =================================================
+         */
+
+
+        planningContext:
+
+            planningContext || {},
+
+
+
+
+
+
+        /*
+         * =================================================
+         * EXPERIENCE
+         * =================================================
          *
-         * Experience + rules
-         */
-
-
-        planningContext,
-
-
-
-
-
-        /*
-         * Experience,
-         * реально использованный
-         * при построении плана
+         * Опыт, доступный Planner.
+         *
          */
 
 
@@ -191,7 +343,43 @@ export function createExecutionContext({
 
 
         /*
-         * результаты выполнения
+         * =================================================
+         * EXECUTION DATA
+         * =================================================
+         */
+
+
+        currentStep:
+
+            null,
+
+
+
+        completedSteps:
+
+            [],
+
+
+
+        failedSteps:
+
+            [],
+
+
+
+        stepsHistory:
+
+            [],
+
+
+
+
+
+
+        /*
+         * =================================================
+         * RESULTS
+         * =================================================
          */
 
 
@@ -216,8 +404,11 @@ export function createExecutionContext({
 
 
 
+
         /*
-         * номер попытки
+         * =================================================
+         * ATTEMPTS
+         * =================================================
          */
 
 
@@ -227,17 +418,62 @@ export function createExecutionContext({
 
 
 
+        attempts:
+
+            [],
+
+
+
+
 
 
 
         /*
-         * история попыток
+         * =================================================
+         * ERRORS
+         * =================================================
          */
 
 
-        attempts:
+        errors:
 
-            []
+            [],
+
+
+
+
+
+
+
+        /*
+         * =================================================
+         * LEARNING DATA
+         * =================================================
+         *
+         * Передаётся Experience Analyzer.
+         *
+         */
+
+
+        learningContext:
+
+            {
+
+
+                reusable:
+                    false,
+
+
+                candidateSkill:
+                    null,
+
+
+                signals:
+                    []
+
+            }
+
+
 
 
 
