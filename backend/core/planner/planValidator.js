@@ -18,28 +18,29 @@ import {
 
 /*
  * =========================================================
- * JESSICA PLAN VALIDATOR v2
+ * JESSICA PLAN VALIDATOR v3
  * =========================================================
  *
- * Проверяет нормализованный Execution Plan.
+ * Финальная проверка Execution Plan.
  *
  *
  * Проверяет:
  *
- * - структуру плана;
+ * - структуру;
+ * - intent;
+ * - requiresTools;
  * - evidence;
- * - доступность tools;
- * - шаги;
- * - зависимости $from;
- * - совместимость PlanningContext.
+ * - доступные инструменты;
+ * - уникальность шагов;
+ * - зависимости $from.
  *
  *
  * НЕ:
  *
  * - выполняет инструменты;
- * - меняет план;
- * - вызывает AI;
- * - работает с Learning.
+ * - анализирует Experience;
+ * - изменяет Skills;
+ * - обучает Jessica.
  *
  * =========================================================
  */
@@ -55,10 +56,9 @@ const MAX_STEPS =
 
 
 
-
 /*
  * =========================================================
- * BASIC STRUCTURE
+ * BASIC VALIDATION
  * =========================================================
  */
 
@@ -80,7 +80,7 @@ function validateBasicStructure(
             success:false,
 
             text:
-                "Некорректный план"
+                "Plan должен быть объектом"
 
         };
 
@@ -101,7 +101,7 @@ function validateBasicStructure(
             success:false,
 
             text:
-                "Отсутствует intent"
+                "Не указан intent"
 
         };
 
@@ -121,7 +121,7 @@ function validateBasicStructure(
             success:false,
 
             text:
-                "Отсутствует requiresTools"
+                "Не указан requiresTools"
 
         };
 
@@ -141,7 +141,7 @@ function validateBasicStructure(
             success:false,
 
             text:
-                "Отсутствует steps"
+                "steps должен быть массивом"
 
         };
 
@@ -166,130 +166,9 @@ function validateBasicStructure(
 
 
 
-
 /*
  * =========================================================
- * PLANNING CONTEXT COMPATIBILITY
- * =========================================================
- */
-
-
-function validatePlanningContext(
-    plan,
-    context = {}
-) {
-
-
-    const experience =
-        context?.experience;
-
-
-
-    if (
-        !experience ||
-        typeof experience !== "object"
-    ) {
-
-        return {
-
-            success:true
-
-        };
-
-    }
-
-
-
-
-
-    /*
-     * Если есть Experience,
-     * проверяем только критические ограничения.
-     *
-     * Experience не управляет Planner.
-     * Он только добавляет рекомендации.
-     */
-
-
-
-    const rules =
-
-        Array.isArray(
-            experience.validationRules
-        )
-
-            ? experience.validationRules
-
-            : [];
-
-
-
-
-
-    const sourceRequired =
-
-        rules.some(
-
-            rule =>
-
-                String(rule)
-                    .toLowerCase()
-                    .includes(
-                        "источник"
-                    )
-
-        );
-
-
-
-
-
-    if (
-        sourceRequired &&
-
-        plan.evidence?.mode === "none"
-
-    ) {
-
-
-        return {
-
-
-            success:false,
-
-
-            text:
-
-                "PlanningContext требует подтверждения источника"
-
-        };
-
-
-    }
-
-
-
-
-
-    return {
-
-        success:true
-
-    };
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * NO TOOLS PLAN
+ * NO TOOL PLAN
  * =========================================================
  */
 
@@ -300,7 +179,7 @@ function validateNoToolsPlan(
 
 
     if (
-        plan.steps.length !== 0
+        plan.steps.length > 0
     ) {
 
 
@@ -309,7 +188,7 @@ function validateNoToolsPlan(
             success:false,
 
             text:
-                "requiresTools=false не может иметь steps"
+                "requiresTools=false не допускает steps"
 
         };
 
@@ -329,7 +208,7 @@ function validateNoToolsPlan(
             success:false,
 
             text:
-                "План без инструментов должен иметь evidence.mode=none"
+                "Без инструментов evidence должен быть none"
 
         };
 
@@ -354,10 +233,9 @@ function validateNoToolsPlan(
 
 
 
-
 /*
  * =========================================================
- * TOOL STEPS
+ * TOOL VALIDATION
  * =========================================================
  */
 
@@ -377,7 +255,7 @@ function validateToolSteps(
             success:false,
 
             text:
-                "План требует tools, но steps отсутствуют"
+                "requiresTools=true, но steps пустой"
 
         };
 
@@ -397,7 +275,7 @@ function validateToolSteps(
             success:false,
 
             text:
-                `Превышен лимит шагов: ${plan.steps.length}`
+                `Количество шагов превышает лимит ${MAX_STEPS}`
 
         };
 
@@ -407,7 +285,7 @@ function validateToolSteps(
 
 
 
-    const availableTools =
+    const registeredTools =
 
         new Set(
 
@@ -425,13 +303,14 @@ function validateToolSteps(
 
 
 
-    const stepIds =
+    const ids =
         new Set();
 
 
 
-    const previousStepIds =
+    const previousIds =
         new Set();
+
 
 
 
@@ -443,7 +322,6 @@ function validateToolSteps(
         const step
         of plan.steps
     ) {
-
 
 
 
@@ -472,8 +350,8 @@ function validateToolSteps(
 
 
         if (
-            !step.id ||
-            typeof step.id !== "string"
+            typeof step.id !== "string" ||
+            !step.id.trim()
         ) {
 
 
@@ -482,7 +360,7 @@ function validateToolSteps(
                 success:false,
 
                 text:
-                    "Step без id"
+                    "Step должен иметь id"
 
             };
 
@@ -495,7 +373,7 @@ function validateToolSteps(
 
 
         if (
-            stepIds.has(
+            ids.has(
                 step.id
             )
         ) {
@@ -506,7 +384,7 @@ function validateToolSteps(
                 success:false,
 
                 text:
-                    `Повторяющийся id шага: ${step.id}`
+                    `Дублирующийся step id: ${step.id}`
 
             };
 
@@ -516,7 +394,7 @@ function validateToolSteps(
 
 
 
-        stepIds.add(
+        ids.add(
             step.id
         );
 
@@ -526,9 +404,10 @@ function validateToolSteps(
 
 
 
+
         if (
-            !step.tool ||
-            typeof step.tool !== "string"
+            typeof step.tool !== "string" ||
+            !step.tool.trim()
         ) {
 
 
@@ -549,8 +428,9 @@ function validateToolSteps(
 
 
 
+
         if (
-            !availableTools.has(
+            !registeredTools.has(
                 step.tool
             )
         ) {
@@ -561,11 +441,12 @@ function validateToolSteps(
                 success:false,
 
                 text:
-                    `Неизвестный инструмент: ${step.tool}`
+                    `Инструмент не зарегистрирован: ${step.tool}`
 
             };
 
         }
+
 
 
 
@@ -597,13 +478,14 @@ function validateToolSteps(
 
 
 
-        const referenceValidation =
+
+        const referenceResult =
 
             validateReferences(
 
                 step.arguments,
 
-                previousStepIds
+                previousIds
 
             );
 
@@ -612,7 +494,7 @@ function validateToolSteps(
 
 
         if (
-            !referenceValidation.success
+            !referenceResult.success
         ) {
 
 
@@ -622,7 +504,7 @@ function validateToolSteps(
 
                 text:
 
-                    `Ошибка зависимости ${step.id}: ${referenceValidation.text}`
+                    `Ошибка зависимости ${step.id}: ${referenceResult.text}`
 
             };
 
@@ -633,12 +515,15 @@ function validateToolSteps(
 
 
 
-        previousStepIds.add(
+
+
+        previousIds.add(
             step.id
         );
 
 
     }
+
 
 
 
@@ -659,10 +544,9 @@ function validateToolSteps(
 
 
 
-
 /*
  * =========================================================
- * PUBLIC VALIDATION
+ * PUBLIC VALIDATOR
  * =========================================================
  */
 
@@ -676,9 +560,21 @@ export function validatePlan(
 ) {
 
 
+    /*
+     * Context намеренно принимается,
+     * чтобы сохранить единый контракт.
+     *
+     * Сейчас Validator не использует его.
+     *
+     * В будущем сюда можно добавить
+     * policy validation.
+     */
 
 
-    const basic =
+
+
+
+    const structure =
 
         validateBasicStructure(
             plan
@@ -687,13 +583,12 @@ export function validatePlan(
 
 
     if (
-        !basic.success
+        !structure.success
     ) {
 
-        return basic;
+        return structure;
 
     }
-
 
 
 
@@ -723,34 +618,6 @@ export function validatePlan(
 
 
 
-
-    const contextValidation =
-
-        validatePlanningContext(
-
-            plan,
-
-            context
-
-        );
-
-
-
-    if (
-        !contextValidation.success
-    ) {
-
-        return contextValidation;
-
-    }
-
-
-
-
-
-
-
-
     if (
         plan.requiresTools === false
     ) {
@@ -768,14 +635,12 @@ export function validatePlan(
 
 
 
-
     return validateToolSteps(
         plan
     );
 
 
 }
-
 
 
 
