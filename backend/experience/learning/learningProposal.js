@@ -11,61 +11,59 @@ import {
  * Модель предложения обучения Jessica.
  *
  *
- * ВАЖНО:
+ * Proposal — это НЕ Skill.
  *
- * Learning Proposal ещё НЕ является Skill.
- *
- * Это черновик нового опыта,
- * который должен быть подтверждён
- * пользователем перед сохранением.
+ * Это кандидат на изменение памяти Jessica,
+ * который проходит Approval.
  *
  *
- * Жизненный цикл:
+ * Flow:
  *
- * PENDING_APPROVAL
+ * Learning Queue
  *        ↓
- * APPROVED
+ * Proposal
  *        ↓
- * сохранение Skill
- *
- *
- * Или:
- *
- * PENDING_APPROVAL
+ * Approval
  *        ↓
- * REJECTED
+ * Experience Skill
  *
  *
- * Этот модуль НЕ:
+ * НЕ:
  *
- * - вызывает AI;
- * - анализирует ошибку;
  * - сохраняет Skill;
- * - работает с Supabase;
- * - вызывает Planner;
- * - выполняет задачу.
+ * - пишет в Supabase;
+ * - изменяет Experience;
+ * - принимает решение Approval.
  *
  * =========================================================
  */
 
 
+
 export const LEARNING_PROPOSAL_STATUS = {
+
 
     PENDING_APPROVAL:
         "PENDING_APPROVAL",
 
+
     APPROVED:
         "APPROVED",
+
 
     REJECTED:
         "REJECTED"
 
+
 };
+
+
+
 
 
 /*
  * =========================================================
- * NORMALIZE TEXT
+ * NORMALIZE
  * =========================================================
  */
 
@@ -76,26 +74,21 @@ function normalizeText(
 
     return String(
         value || ""
-    ).trim();
+    )
+        .trim();
 
 }
 
 
-/*
- * =========================================================
- * NORMALIZE ARRAY
- * =========================================================
- */
 
 
-function normalizeTextArray(
+
+function normalizeArray(
     value
 ) {
 
     if (
-        !Array.isArray(
-            value
-        )
+        !Array.isArray(value)
     ) {
 
         return [];
@@ -104,12 +97,12 @@ function normalizeTextArray(
 
 
     return value
+
         .map(
             item =>
-                normalizeText(
-                    item
-                )
+                normalizeText(item)
         )
+
         .filter(
             Boolean
         );
@@ -117,9 +110,233 @@ function normalizeTextArray(
 }
 
 
+
+
+
 /*
  * =========================================================
- * CREATE LEARNING PROPOSAL
+ * EXTRACT QUEUE EVENT
+ * =========================================================
+ */
+
+
+function extractEvent(
+    queueItem
+) {
+
+    return (
+
+        queueItem?.event_json ||
+
+        queueItem?.event ||
+
+        {}
+
+    );
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * CREATE FROM QUEUE
+ * =========================================================
+ *
+ * Основной путь автоматического обучения.
+ *
+ * =========================================================
+ */
+
+
+export function createLearningProposalFromQueue(
+    queueItem
+) {
+
+
+    if (
+        !queueItem ||
+        typeof queueItem !== "object"
+    ) {
+
+        throw new Error(
+            "Learning Proposal: queue item не указан"
+        );
+
+    }
+
+
+
+    const event =
+        extractEvent(
+            queueItem
+        );
+
+
+
+    const proposedExperience =
+        event.proposedExperience ||
+
+        event.experience ||
+
+        {};
+
+
+
+
+    const skillName =
+
+        proposedExperience.name ||
+
+        event.skillName ||
+
+        "Jessica Generated Skill";
+
+
+
+
+
+    const skillId =
+
+        proposedExperience.id ||
+
+        event.skillId ||
+
+        skillName
+
+            .toLowerCase()
+
+            .replace(
+                /\s+/g,
+                "_"
+            );
+
+
+
+
+
+    return {
+
+
+        id:
+            randomUUID(),
+
+
+
+        status:
+            LEARNING_PROPOSAL_STATUS
+                .PENDING_APPROVAL,
+
+
+
+        source:
+            "learning_queue",
+
+
+
+        queueItemId:
+            queueItem.id || null,
+
+
+
+        action:
+            queueItem.action ||
+            event.action ||
+            "NEW_SKILL",
+
+
+
+        confidence:
+            Number(
+                queueItem.confidence ||
+                event.confidence ||
+                0
+            ),
+
+
+
+        proposedExperience: {
+
+
+            id:
+                skillId,
+
+
+            name:
+                skillName,
+
+
+            description:
+                proposedExperience.description ||
+                "",
+
+
+            workflow:
+                Array.isArray(
+                    proposedExperience.workflow
+                )
+                    ? proposedExperience.workflow
+                    : [],
+
+
+
+            triggerPatterns:
+                normalizeArray(
+                    proposedExperience.triggerPatterns
+                ),
+
+
+
+            examples:
+                Array.isArray(
+                    proposedExperience.examples
+                )
+                    ? proposedExperience.examples
+                    : [],
+
+
+
+            constraints:
+                normalizeArray(
+                    proposedExperience.constraints
+                )
+
+
+        },
+
+
+
+        createdAt:
+            new Date()
+                .toISOString(),
+
+
+
+        approvedAt:
+            null,
+
+
+        rejectedAt:
+            null
+
+
+    };
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * CREATE MANUAL PROPOSAL
+ * =========================================================
+ *
+ * Для обучения через исправление пользователя.
+ *
  * =========================================================
  */
 
@@ -155,90 +372,106 @@ export function createLearningProposal({
         );
 
 
-    if (!cleanTask) {
+
+    if (
+        !cleanTask
+    ) {
 
         throw new Error(
-            "Learning Proposal: исходная задача не указана"
+            "Learning Proposal: задача не указана"
         );
 
     }
 
-
-    if (!cleanCorrection) {
-
-        throw new Error(
-            "Learning Proposal: исправление пользователя не указано"
-        );
-
-    }
 
 
     return {
 
+
         id:
             randomUUID(),
+
+
 
         status:
             LEARNING_PROPOSAL_STATUS
                 .PENDING_APPROVAL,
 
+
+
+        source:
+            "manual",
+
+
+
         task:
             cleanTask,
+
+
 
         previousAnswer:
             normalizeText(
                 previousAnswer
             ),
 
+
+
         correction:
             cleanCorrection,
+
+
 
         correctedAnswer:
             normalizeText(
                 correctedAnswer
             ),
 
+
+
         understanding:
             normalizeText(
                 understanding
             ),
 
+
+
         clarificationQuestions:
-            normalizeTextArray(
+            normalizeArray(
                 clarificationQuestions
             ),
 
+
+
         proposedExperience:
-            proposedExperience &&
-            typeof proposedExperience === "object"
-                ? proposedExperience
-                : null,
+            proposedExperience || null,
+
+
 
         createdAt:
             new Date()
                 .toISOString(),
 
+
+
         approvedAt:
             null,
 
+
         rejectedAt:
             null
+
 
     };
 
 }
 
 
+
+
+
 /*
  * =========================================================
- * APPROVE PROPOSAL
- * =========================================================
- *
- * Пока только меняет состояние объекта.
- *
- * Сохранение Skill будет выполняться
- * отдельным модулем Learning.
- *
+ * APPROVE
  * =========================================================
  */
 
@@ -248,42 +481,25 @@ export function approveLearningProposal(
 ) {
 
 
-    if (
-        !proposal ||
-        typeof proposal !== "object"
-    ) {
-
-        throw new Error(
-            "Learning Proposal не указан"
-        );
-
-    }
-
-
-    if (
-        proposal.status !==
-        LEARNING_PROPOSAL_STATUS
-            .PENDING_APPROVAL
-    ) {
-
-        throw new Error(
-            "Learning Proposal уже обработан"
-        );
-
-    }
+    validateProposal(
+        proposal
+    );
 
 
     return {
 
         ...proposal,
 
+
         status:
             LEARNING_PROPOSAL_STATUS
                 .APPROVED,
 
+
         approvedAt:
             new Date()
                 .toISOString(),
+
 
         rejectedAt:
             null
@@ -293,14 +509,60 @@ export function approveLearningProposal(
 }
 
 
+
+
+
 /*
  * =========================================================
- * REJECT PROPOSAL
+ * REJECT
  * =========================================================
  */
 
 
 export function rejectLearningProposal(
+    proposal
+) {
+
+
+    validateProposal(
+        proposal
+    );
+
+
+    return {
+
+        ...proposal,
+
+
+        status:
+            LEARNING_PROPOSAL_STATUS
+                .REJECTED,
+
+
+        approvedAt:
+            null,
+
+
+        rejectedAt:
+            new Date()
+                .toISOString()
+
+    };
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * VALIDATE
+ * =========================================================
+ */
+
+
+function validateProposal(
     proposal
 ) {
 
@@ -317,10 +579,10 @@ export function rejectLearningProposal(
     }
 
 
+
     if (
         proposal.status !==
-        LEARNING_PROPOSAL_STATUS
-            .PENDING_APPROVAL
+        LEARNING_PROPOSAL_STATUS.PENDING_APPROVAL
     ) {
 
         throw new Error(
@@ -330,21 +592,4 @@ export function rejectLearningProposal(
     }
 
 
-    return {
-
-        ...proposal,
-
-        status:
-            LEARNING_PROPOSAL_STATUS
-                .REJECTED,
-
-        approvedAt:
-            null,
-
-        rejectedAt:
-            new Date()
-                .toISOString()
-
-    };
-
-}
+        }
