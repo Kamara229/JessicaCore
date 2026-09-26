@@ -1,16 +1,18 @@
 /*
  * =========================================================
- * JESSICA EXECUTION FAILURE HANDLER v3
+ * JESSICA EXECUTION FAILURE HANDLER v4
  * =========================================================
  *
- * Координатор обработки ошибок выполнения.
+ * Центральный маршрутизатор ошибок Execution.
  *
  *
  * Flow:
  *
  * Execution Failure
  *        ↓
- * Analyze Failure
+ * Normalize
+ *        ↓
+ * Analyze
  *        ↓
  *
  * RETRY
@@ -19,20 +21,20 @@
  * FINISH
  *
  *
+ * Handler только принимает решение.
+ *
+ *
  * НЕ:
  *
+ * - выполняет retry;
  * - создаёт новый Plan;
  * - вызывает Planner;
- * - выполняет Tools;
  * - создаёт Answer;
  * - сохраняет Learning;
- * - изменяет Experience.
+ * - меняет Experience.
  *
  * =========================================================
  */
-
-
-
 
 
 import {
@@ -54,7 +56,7 @@ import {
 
 /*
  * =========================================================
- * ACTIONS
+ * FAILURE ACTIONS
  * =========================================================
  */
 
@@ -108,18 +110,20 @@ function normalizeFailure(
 
         return {
 
-
             stage:
                 "execution",
+
+
+            failureType:
+                "unknown",
 
 
             reason:
                 "Неизвестная ошибка",
 
 
-            failureType:
-                "unknown"
-
+            validation:
+                null
 
         };
 
@@ -134,22 +138,28 @@ function normalizeFailure(
 
         stage:
 
-            failure.stage ||
-            "execution",
-
-
-
-        reason:
-
-            failure.reason ||
-            "Ошибка выполнения",
+            String(
+                failure.stage ||
+                "execution"
+            ),
 
 
 
         failureType:
 
-            failure.failureType ||
-            "execution-error",
+            String(
+                failure.failureType ||
+                "execution-error"
+            ),
+
+
+
+        reason:
+
+            String(
+                failure.reason ||
+                "Ошибка выполнения"
+            ),
 
 
 
@@ -162,7 +172,6 @@ function normalizeFailure(
 
     };
 
-
 }
 
 
@@ -175,169 +184,58 @@ function normalizeFailure(
 
 /*
  * =========================================================
- * BUILD RETRY DATA
+ * BUILD DECISION
  * =========================================================
  */
 
 
-function buildRetryDecision(
-    context,
-    failure
+function createDecision(
+
+    action,
+
+    failure,
+
+    context
+
 ) {
 
 
     return {
 
 
-        finished:
-            false,
+        action,
 
 
-        action:
-            FAILURE_ACTION.RETRY,
+        reason:
+
+            failure.reason,
 
 
-        retryContext:
+
+        failure,
+
+
+
+        metadata:
         {
 
             attempt:
-                context.attempt,
 
+                Number(
+                    context?.attempt || 0
+                ),
 
-            failureType:
-                failure.failureType,
-
-
-            reason:
-                failure.reason
-
-
-        }
-
-
-
-    };
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * BUILD REPLAN DATA
- * =========================================================
- */
-
-
-function buildReplanDecision(
-    context,
-    failure
-) {
-
-
-    return {
-
-
-        finished:
-            false,
-
-
-        action:
-            FAILURE_ACTION.REPLAN,
-
-
-        replanContext:
-        {
-
-            task:
-                context.task,
-
-
-            previousPlan:
-                context.plan,
-
-
-            failure:
-            {
-
-                stage:
-                    failure.stage,
-
-
-                type:
-                    failure.failureType,
-
-
-                reason:
-                    failure.reason
-
-
-            },
-
-
-
-            attempt:
-                context.attempt
-
-
-
-        }
-
-
-
-    };
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * BUILD CLARIFICATION
- * =========================================================
- */
-
-
-function buildClarificationDecision(
-    failure
-) {
-
-
-    return {
-
-
-        finished:
-            true,
-
-
-        action:
-            FAILURE_ACTION.CLARIFICATION,
-
-
-        clarification:
-        {
-
-
-            reason:
-                failure.reason,
 
 
             stage:
-                failure.stage
+
+                failure.stage,
 
 
+
+            failureType:
+
+                failure.failureType
 
         }
 
@@ -356,32 +254,41 @@ function buildClarificationDecision(
 
 /*
  * =========================================================
- * BUILD FINISH
+ * SHOULD REPLAN
  * =========================================================
  */
 
 
-function buildFinishDecision(
+function shouldReplan(
     failure
 ) {
 
 
-    return {
+    const replannableErrors =
+
+        new Set([
+
+            "validation-error",
+
+            "invalid-result",
+
+            "wrong-tool",
+
+            "missing-data",
+
+            "planner-required",
+
+            "execution-strategy-failed"
+
+        ]);
 
 
-        finished:
-            true,
 
+    return replannableErrors.has(
 
-        action:
-            FAILURE_ACTION.FINISH,
+        failure.failureType
 
-
-        failure
-
-
-
-    };
+    );
 
 }
 
@@ -456,12 +363,15 @@ export async function handleExecutionFailure(
     ) {
 
 
-        return buildClarificationDecision(
+        return createDecision(
 
-            normalized
+            FAILURE_ACTION.CLARIFICATION,
+
+            normalized,
+
+            context
 
         );
-
 
     }
 
@@ -493,14 +403,15 @@ export async function handleExecutionFailure(
     ) {
 
 
-        return buildRetryDecision(
+        return createDecision(
 
-            context,
+            FAILURE_ACTION.RETRY,
 
-            normalized
+            normalized,
+
+            context
 
         );
-
 
     }
 
@@ -516,46 +427,27 @@ export async function handleExecutionFailure(
      * =====================================================
      * REPLAN
      * =====================================================
-     *
-     * Ошибка передаётся Planner.
-     *
-     * Handler не создаёт план.
-     *
-     * =====================================================
      */
 
 
     if (
 
-        [
-
-            "validation-error",
-
-            "invalid-result",
-
-            "wrong-tool",
-
-            "missing-data",
-
-            "planner-required"
-
-        ]
-
-        .includes(
-            normalized.failureType
+        shouldReplan(
+            normalized
         )
 
     ) {
 
 
-        return buildReplanDecision(
+        return createDecision(
 
-            context,
+            FAILURE_ACTION.REPLAN,
 
-            normalized
+            normalized,
+
+            context
 
         );
-
 
     }
 
@@ -574,11 +466,83 @@ export async function handleExecutionFailure(
      */
 
 
-    return buildFinishDecision(
+    return createDecision(
 
-        normalized
+        FAILURE_ACTION.FINISH,
+
+        normalized,
+
+        context
 
     );
 
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * HELPERS
+ * =========================================================
+ */
+
+
+export function isRetryAction(
+    decision
+) {
+
+
+    return (
+
+        decision?.action ===
+
+        FAILURE_ACTION.RETRY
+
+    );
+
+}
+
+
+
+
+
+export function isReplanAction(
+    decision
+) {
+
+
+    return (
+
+        decision?.action ===
+
+        FAILURE_ACTION.REPLAN
+
+    );
+
+}
+
+
+
+
+
+export function isTerminalAction(
+    decision
+) {
+
+
+    return (
+
+        decision?.action ===
+
+        FAILURE_ACTION.FINISH
+
+    );
 
 }
