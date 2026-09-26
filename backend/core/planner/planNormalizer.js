@@ -3,22 +3,20 @@
  * JESSICA PLAN NORMALIZER
  * =========================================================
  *
- * Приводит сырой ответ Planner AI
- * к стабильному формату.
+ * Приводит ответ Planner AI
+ * к стабильному Execution Plan.
  *
- *
- * Ответственность:
  *
  * AI JSON
- *    ↓
- * normalize
- *    ↓
- * validate
+ *      ↓
+ * Normalize
+ *      ↓
+ * Validate
  *
  *
- * Этот модуль НЕ:
+ * НЕ:
  *
- * - проверяет существование tools;
+ * - проверяет tools;
  * - проверяет ссылки;
  * - проверяет evidence;
  * - принимает решения.
@@ -30,15 +28,22 @@
 
 const EVIDENCE_MODES =
     new Set([
+
         "none",
+
         "search_results",
+
         "source_content"
+
     ]);
 
 
 
 const MAX_STEPS =
     15;
+
+
+
 
 
 
@@ -54,16 +59,23 @@ function safeString(
 ) {
 
     return typeof value === "string"
+
         ? value.trim()
+
         : "";
 
 }
 
 
 
+
+
+
+
+
 /*
  * =========================================================
- * NORMALIZE BOOLEAN
+ * BOOLEAN
  * =========================================================
  */
 
@@ -71,6 +83,7 @@ function safeString(
 function normalizeBoolean(
     value
 ) {
+
 
     if (
         value === true ||
@@ -82,15 +95,6 @@ function normalizeBoolean(
     }
 
 
-    if (
-        value === false ||
-        value === "false"
-    ) {
-
-        return false;
-
-    }
-
 
     return false;
 
@@ -98,9 +102,14 @@ function normalizeBoolean(
 
 
 
+
+
+
+
+
 /*
  * =========================================================
- * NORMALIZE EVIDENCE
+ * EVIDENCE
  * =========================================================
  */
 
@@ -111,26 +120,33 @@ function normalizeEvidence(
 
 
     const mode =
+
         EVIDENCE_MODES.has(
             evidence?.mode
         )
+
             ? evidence.mode
+
             : "none";
 
 
+
     return {
+
 
         mode,
 
 
         reason:
+
             safeString(
                 evidence?.reason
             )
-                .slice(
-                    0,
-                    1000
-                )
+            .slice(
+                0,
+                1000
+            )
+
 
     };
 
@@ -138,9 +154,14 @@ function normalizeEvidence(
 
 
 
+
+
+
+
+
 /*
  * =========================================================
- * NORMALIZE ARGUMENTS
+ * ARGUMENTS
  * =========================================================
  */
 
@@ -153,9 +174,7 @@ function normalizeArguments(
     if (
         !value ||
         typeof value !== "object" ||
-        Array.isArray(
-            value
-        )
+        Array.isArray(value)
     ) {
 
         return {};
@@ -163,17 +182,101 @@ function normalizeArguments(
     }
 
 
+
     return {
+
         ...value
+
     };
 
 }
 
 
 
+
+
+
+
+
 /*
  * =========================================================
- * NORMALIZE STEP
+ * EXPERIENCE
+ * =========================================================
+ */
+
+
+function normalizeExperience(
+    experience
+) {
+
+
+    if (
+        !experience ||
+        typeof experience !== "object"
+    ) {
+
+        return {
+
+
+            used:
+                false,
+
+
+            skills:
+                []
+
+        };
+
+    }
+
+
+
+
+    return {
+
+
+        used:
+
+            experience.used === true,
+
+
+
+        skills:
+
+            Array.isArray(
+                experience.skills
+            )
+
+                ? experience.skills
+
+                    .map(
+
+                        item =>
+
+                            safeString(
+                                item
+                            )
+
+                    )
+
+                    .filter(Boolean)
+
+                : []
+
+    };
+
+}
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * STEP
  * =========================================================
  */
 
@@ -187,9 +290,7 @@ function normalizeStep(
     if (
         !step ||
         typeof step !== "object" ||
-        Array.isArray(
-            step
-        )
+        Array.isArray(step)
     ) {
 
         return null;
@@ -197,27 +298,49 @@ function normalizeStep(
     }
 
 
+
     return {
 
 
         id:
+
             safeString(
                 step.id
             )
+
             ||
+
             `step_${index + 1}`,
 
 
+
         tool:
+
             safeString(
                 step.tool
             ),
 
 
+
         arguments:
+
             normalizeArguments(
                 step.arguments
-            )
+            ),
+
+
+
+        /*
+         * Сохраняем дополнительные поля
+         * для Execution Trace.
+         */
+
+
+        experienceUsed:
+
+            step.experienceUsed === true
+
+
 
     };
 
@@ -225,9 +348,14 @@ function normalizeStep(
 
 
 
+
+
+
+
+
 /*
  * =========================================================
- * NORMALIZE STEPS
+ * STEPS
  * =========================================================
  */
 
@@ -248,6 +376,7 @@ function normalizeSteps(
     }
 
 
+
     return steps
 
         .slice(
@@ -259,11 +388,14 @@ function normalizeSteps(
             normalizeStep
         )
 
-        .filter(
-            Boolean
-        );
+        .filter(Boolean);
 
 }
+
+
+
+
+
 
 
 
@@ -282,9 +414,7 @@ export function normalizePlan(
     if (
         !rawPlan ||
         typeof rawPlan !== "object" ||
-        Array.isArray(
-            rawPlan
-        )
+        Array.isArray(rawPlan)
     ) {
 
         return null;
@@ -293,34 +423,45 @@ export function normalizePlan(
 
 
 
+
+
     const requiresTools =
+
         normalizeBoolean(
             rawPlan.requiresTools
         );
 
 
 
+
+
     let steps =
+
         normalizeSteps(
             rawPlan.steps
         );
 
 
 
+
+
     /*
-     * Если tools не нужны,
-     * шагов быть не должно.
+     * Если инструменты не нужны,
+     * выполнение не требуется.
      */
 
 
     if (
-        requiresTools === false
+        !requiresTools
     ) {
 
-        steps =
-            [];
+        steps = [];
 
     }
+
+
+
+
 
 
 
@@ -328,11 +469,16 @@ export function normalizePlan(
 
 
         intent:
+
             safeString(
                 rawPlan.intent
             )
+
             ||
+
             "unknown",
+
+
 
 
 
@@ -340,7 +486,10 @@ export function normalizePlan(
 
 
 
+
+
         reasoningSummary:
+
             safeString(
                 rawPlan.reasoningSummary
             )
@@ -351,17 +500,49 @@ export function normalizePlan(
 
 
 
+
+
+        /*
+         * Связь:
+         *
+         * Plan
+         *  ↓
+         * Experience
+         *  ↓
+         * Learning
+         */
+
+
+        experienceUsed:
+
+            rawPlan.experienceUsed === true,
+
+
+
+        experience:
+
+            normalizeExperience(
+                rawPlan.experience
+            ),
+
+
+
+
+
         evidence:
+
             normalizeEvidence(
                 rawPlan.evidence
             ),
 
 
 
+
+
         steps
 
 
-    };
 
+    };
 
 }
