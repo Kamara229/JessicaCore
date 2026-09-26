@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION TERMINAL v3
+ * JESSICA EXECUTION TERMINAL v4
  * =========================================================
  *
  * Финальный слой завершения Execution Cycle.
@@ -9,7 +9,7 @@
  * Получает:
  *
  * Execution Context
- * Failure Decision
+ * Failure
  *
  *
  * Возвращает:
@@ -17,18 +17,23 @@
  * Terminal Execution Result
  *
  *
+ * Ответственность:
+ *
+ * - сформировать финальный результат;
+ * - выбрать правильный Result Builder.
+ *
+ *
  * НЕ:
  *
  * - анализирует ошибки;
- * - решает retry;
- * - решает replan;
+ * - делает Retry;
+ * - делает Replan;
  * - вызывает Planner;
  * - вызывает Tools;
- * - меняет Experience.
+ * - изменяет Experience.
  *
  * =========================================================
  */
-
 
 
 import {
@@ -36,6 +41,8 @@ import {
     buildNoVerifiedResult,
     buildClarificationResult
 } from "./executionResult.js";
+
+
 
 
 
@@ -54,10 +61,12 @@ function normalizeString(
     value
 ) {
 
+
     return String(
         value || ""
     )
-        .trim();
+    .trim();
+
 
 }
 
@@ -71,43 +80,147 @@ function normalizeString(
 
 /*
  * =========================================================
- * LOG TERMINAL
+ * NORMALIZE FAILURE
+ * =========================================================
+ */
+
+
+function normalizeFailure(
+    failure
+) {
+
+
+    if (
+        !failure ||
+        typeof failure !== "object"
+    ) {
+
+
+        return {
+
+
+            stage:
+                "execution",
+
+
+            failureType:
+                "unknown",
+
+
+            reason:
+                "Неизвестная ошибка"
+
+
+
+        };
+
+    }
+
+
+
+
+
+
+    return {
+
+
+        stage:
+
+            failure.stage ||
+
+            "execution",
+
+
+
+
+        failureType:
+
+            failure.failureType ||
+
+            "execution-failure",
+
+
+
+
+        reason:
+
+            normalizeString(
+                failure.reason
+            )
+            ||
+
+            "Не удалось выполнить задачу",
+
+
+
+
+        needsClarification:
+
+            failure.needsClarification === true,
+
+
+
+
+        noVerifiedResult:
+
+            failure.noVerifiedResult === true
+
+
+
+    };
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * LOG
  * =========================================================
  */
 
 
 function logTerminal(
     context,
-    decision
+    failure
 ) {
 
 
     console.log(
 
-        "Jessica terminal:",
+        "Jessica Terminal Result:",
 
-        JSON.stringify({
+        {
 
-            status:
-                decision?.status ||
+            executionId:
+
+                context?.executionId ||
                 null,
 
 
-            reason:
-                decision?.reason ||
-                "",
+            attempt:
+
+                context?.attempt ||
+                0,
 
 
             stage:
-                decision?.stage ||
-                "",
+
+                failure.stage,
 
 
-            attempt:
-                context?.attempt || 0
+            failureType:
 
+                failure.failureType
 
-        })
+        }
 
     );
 
@@ -126,10 +239,6 @@ function logTerminal(
  * =========================================================
  * BUILD TERMINAL RESULT
  * =========================================================
- *
- * Главная точка выхода.
- *
- * =========================================================
  */
 
 
@@ -137,27 +246,30 @@ export function buildTerminalResult(
 
     context,
 
-    decision = {}
+    failure = {}
 
 ) {
+
+
+
+    const normalized =
+
+        normalizeFailure(
+            failure
+        );
+
+
+
 
 
     logTerminal(
 
         context,
 
-        decision
+        normalized
 
     );
 
-
-
-
-
-    const status =
-
-        decision.status ||
-        "FAILED";
 
 
 
@@ -168,16 +280,13 @@ export function buildTerminalResult(
 
     /*
      * =====================================================
-     * NEEDS CLARIFICATION
+     * CLARIFICATION
      * =====================================================
      */
 
 
     if (
-
-        status ===
-        "NEEDS_CLARIFICATION"
-
+        normalized.needsClarification === true
     ) {
 
 
@@ -189,20 +298,13 @@ export function buildTerminalResult(
 
                 stage:
 
-                    decision.stage ||
-                    "execution",
+                    normalized.stage,
 
 
 
                 reason:
 
-                    normalizeString(
-                        decision.reason
-                    )
-
-                    ||
-
-                    "Требуется уточнение"
+                    normalized.reason
 
 
             }
@@ -228,10 +330,7 @@ export function buildTerminalResult(
 
 
     if (
-
-        status ===
-        "NO_VERIFIED_RESULT"
-
+        normalized.noVerifiedResult === true
     ) {
 
 
@@ -239,15 +338,32 @@ export function buildTerminalResult(
 
             context,
 
-            normalizeString(
+            {
 
-                decision.reason
+                message:
 
-            )
+                    normalized.reason,
 
-            ||
 
-            "Результат не удалось подтвердить."
+
+                reason:
+
+                    normalized.reason,
+
+
+
+                stage:
+
+                    normalized.stage,
+
+
+
+                failureType:
+
+                    normalized.failureType
+
+
+            }
 
         );
 
@@ -264,7 +380,7 @@ export function buildTerminalResult(
 
     /*
      * =====================================================
-     * FAILED
+     * FINAL FAILURE
      * =====================================================
      */
 
@@ -277,32 +393,53 @@ export function buildTerminalResult(
 
             stage:
 
-                decision.stage ||
-                "execution",
+                normalized.stage,
 
 
 
             reason:
 
-                normalizeString(
-                    decision.reason
-                )
-
-                ||
-
-                "Не удалось выполнить задачу",
+                normalized.reason,
 
 
 
             failureType:
 
-                decision.failureType ||
-                "execution-failure"
+                normalized.failureType
 
 
         }
 
     );
 
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * HELPERS
+ * =========================================================
+ */
+
+
+export function isTerminalFailure(
+    failure
+) {
+
+
+    return Boolean(
+
+        failure &&
+        typeof failure === "object"
+
+    );
 
 }
