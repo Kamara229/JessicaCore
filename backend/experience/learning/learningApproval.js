@@ -20,27 +20,29 @@
  *
  * Flow:
  *
- * Learning Decision
- *        ↓
+ * Proposal
+ *      ↓
+ * Resolve Action
+ *      ↓
  * Resolve Target Skill
- *        ↓
- * Load History
- *        ↓
+ *      ↓
+ * History
+ *      ↓
  * Next Version
- *        ↓
+ *      ↓
  * Build Experience
- *        ↓
+ *      ↓
  * Atomic Save
- *        ↓
+ *      ↓
  * Approve Proposal
  *
  *
  * НЕ:
  *
  * - анализирует обучение;
- * - выбирает решение;
+ * - принимает решение;
  * - вызывает AI;
- * - изменяет Supabase напрямую.
+ * - работает напрямую с Supabase.
  *
  * =========================================================
  */
@@ -66,6 +68,10 @@ import {
 
 
 
+
+
+
+
 /*
  * =========================================================
  * NORMALIZE
@@ -79,9 +85,14 @@ function normalizeSkillId(
 
     return String(
         value || ""
-    ).trim();
+    )
+    .trim();
 
 }
+
+
+
+
 
 
 
@@ -94,15 +105,17 @@ function normalizeSkillId(
  */
 
 
-function getHistoryVersion(
+function extractVersion(
     item
 ) {
+
 
     const version =
         Number(
             item?.version ??
             item?.payload?.version
         );
+
 
 
     if (
@@ -121,6 +134,8 @@ function getHistoryVersion(
 
 
 
+
+
 function getNextVersion(
     history
 ) {
@@ -136,14 +151,19 @@ function getNextVersion(
     }
 
 
+
     const versions =
+
         history
+
             .map(
-                getHistoryVersion
+                extractVersion
             )
+
             .filter(
                 Boolean
             );
+
 
 
     if (
@@ -155,11 +175,24 @@ function getNextVersion(
     }
 
 
-    return Math.max(
-        ...versions
-    ) + 1;
+
+    return (
+
+        Math.max(
+            ...versions
+        )
+
+        +
+
+        1
+
+    );
 
 }
+
+
+
+
 
 
 
@@ -172,45 +205,101 @@ function getNextVersion(
  */
 
 
-function failure(
-{
+function buildFailure({
 
     stage,
 
     error,
 
+    proposal = null,
+
     skillId = null,
 
-    version = null,
+    version = null
 
-    proposal = null
-
-} = {}
-) {
+} = {}) {
 
 
     return {
 
+
         success:false,
 
+
         stage:
+
+
             stage || "approval",
+
+
 
         proposal,
 
+
+
         experience:null,
+
+
 
         skillId,
 
+
+
         version,
 
+
+
         error:
+
             error ||
-            "Ошибка сохранения обучения"
+
+            "Ошибка обучения"
+
 
     };
 
 }
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * RESOLVE ACTION
+ * =========================================================
+ */
+
+
+function resolveAction(
+    proposal,
+    decision
+) {
+
+
+    return (
+
+        decision?.action
+
+        ||
+
+        proposal?.action
+
+        ||
+
+        "NEW_SKILL"
+
+    );
+
+}
+
+
+
+
 
 
 
@@ -223,26 +312,28 @@ function failure(
  */
 
 
-function resolveLearningTarget(
-{
+function resolveTargetSkill({
 
-    decision,
+    action,
 
     proposal,
 
     skillId
 
-}
-) {
+}) {
 
 
-    const action =
-        decision?.action || "";
+    const experience =
 
-
-
-    const proposed =
         proposal?.proposedExperience || {};
+
+
+
+    const target =
+
+        proposal?.targetSkill || {};
+
+
 
 
 
@@ -261,27 +352,38 @@ function resolveLearningTarget(
 
 
             mode:
+
                 "create",
 
 
+
             skillId:
+
 
                 normalizeSkillId(
                     skillId
                 )
 
+
                 ||
 
                 normalizeSkillId(
-                    proposed.id ||
-                    proposed.skillId
+                    experience.id ||
+                    experience.skillId
                 )
+
 
                 ||
 
                 buildLearningSkillId(
-                    proposed.name
-                )
+                    experience.name
+                ),
+
+
+
+            previousVersion:
+
+                null
 
 
         };
@@ -291,8 +393,12 @@ function resolveLearningTarget(
 
 
 
+
+
+
+
     /*
-     * Улучшение существующего
+     * Улучшение Skill
      */
 
 
@@ -305,20 +411,33 @@ function resolveLearningTarget(
 
 
             mode:
+
                 "update",
 
 
+
             skillId:
+
 
                 normalizeSkillId(
                     skillId
                 )
 
+
                 ||
 
                 normalizeSkillId(
-                    decision.skillId
+                    target.id
+                ),
+
+
+
+            previousVersion:
+
+                Number(
+                    target.version || 0
                 )
+
 
         };
 
@@ -327,41 +446,49 @@ function resolveLearningTarget(
 
 
 
-    /*
-     * Совместимость со старым Proposal
-     */
+
+
 
 
     return {
 
 
         mode:
+
             "create",
+
 
 
         skillId:
 
-            normalizeSkillId(
-                skillId
-            )
-
-            ||
 
             normalizeSkillId(
-                proposed.id ||
-                proposed.skillId
+                experience.id ||
+                experience.skillId
             )
+
 
             ||
 
             buildLearningSkillId(
-                proposed.name
-            )
+                experience.name
+            ),
+
+
+
+        previousVersion:
+
+            null
+
 
     };
 
 
 }
+
+
+
+
 
 
 
@@ -374,24 +501,24 @@ function resolveLearningTarget(
  */
 
 
-export async function approveAndSaveLearning(
-{
-
-    decision = null,
+export async function approveAndSaveLearning({
 
     proposal,
+
+    decision = null,
 
     skillId = "",
 
     confidence = 0.7
 
-} = {}
-) {
+} = {}) {
 
 
 
     /*
-     * INPUT
+     * =====================================================
+     * VALIDATE INPUT
+     * =====================================================
      */
 
 
@@ -401,7 +528,7 @@ export async function approveAndSaveLearning(
     ) {
 
 
-        return failure({
+        return buildFailure({
 
             stage:
                 "input",
@@ -416,18 +543,14 @@ export async function approveAndSaveLearning(
 
 
 
-    const proposedExperience =
-        proposal.proposedExperience;
-
 
 
     if (
-        !proposedExperience ||
-        typeof proposedExperience !== "object"
+        !proposal.proposedExperience
     ) {
 
 
-        return failure({
+        return buildFailure({
 
             stage:
                 "input",
@@ -445,15 +568,43 @@ export async function approveAndSaveLearning(
 
 
 
+
+
+
     /*
+     * =====================================================
+     * ACTION
+     * =====================================================
+     */
+
+
+    const action =
+
+        resolveAction(
+            proposal,
+            decision
+        );
+
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
      * TARGET
+     * =====================================================
      */
 
 
     const target =
-        resolveLearningTarget({
 
-            decision,
+        resolveTargetSkill({
+
+            action,
 
             proposal,
 
@@ -463,12 +614,14 @@ export async function approveAndSaveLearning(
 
 
 
+
+
     if (
         !target.skillId
     ) {
 
 
-        return failure({
+        return buildFailure({
 
             stage:
                 "skill",
@@ -476,7 +629,7 @@ export async function approveAndSaveLearning(
             proposal,
 
             error:
-                "Не удалось определить Skill ID"
+                "Skill ID не определён"
 
         });
 
@@ -486,18 +639,26 @@ export async function approveAndSaveLearning(
 
 
 
+
+
+
+
     /*
+     * =====================================================
      * HISTORY
+     * =====================================================
      */
 
 
     let history;
 
 
+
     try {
 
 
         history =
+
             await getExperienceHistory(
                 target.skillId
             );
@@ -506,7 +667,7 @@ export async function approveAndSaveLearning(
     } catch(error) {
 
 
-        return failure({
+        return buildFailure({
 
             stage:
                 "history",
@@ -526,7 +687,19 @@ export async function approveAndSaveLearning(
 
 
 
+
+
+
+
+    /*
+     * =====================================================
+     * VERSION
+     * =====================================================
+     */
+
+
     const version =
+
         getNextVersion(
             history
         );
@@ -535,36 +708,51 @@ export async function approveAndSaveLearning(
 
 
 
+
+
+
+
     /*
-     * BUILD
+     * =====================================================
+     * BUILD EXPERIENCE
+     * =====================================================
      */
 
 
     let experience;
 
 
+
     try {
 
 
         experience =
+
             buildExperienceSkill({
 
-                proposedExperience,
+                proposedExperience:
+
+                    proposal.proposedExperience,
+
 
                 skillId:
+
                     target.skillId,
 
+
                 version,
+
 
                 confidence
 
             });
 
 
+
     } catch(error) {
 
 
-        return failure({
+        return buildFailure({
 
             stage:
                 "build",
@@ -587,27 +775,36 @@ export async function approveAndSaveLearning(
 
 
 
+
+
+
+
     /*
+     * =====================================================
      * SAVE
+     * =====================================================
      */
 
 
     let saveResult;
 
 
+
     try {
 
 
         saveResult =
+
             await saveExperienceSkill(
                 experience
             );
 
 
+
     } catch(error) {
 
 
-        return failure({
+        return buildFailure({
 
             stage:
                 "save",
@@ -629,12 +826,16 @@ export async function approveAndSaveLearning(
 
 
 
+
+
+
+
     if (
         !saveResult?.success
     ) {
 
 
-        return failure({
+        return buildFailure({
 
             stage:
                 "save",
@@ -647,7 +848,7 @@ export async function approveAndSaveLearning(
             version,
 
             error:
-                "Storage не подтвердил сохранение"
+                "Experience Storage не подтвердил сохранение"
 
         });
 
@@ -657,21 +858,30 @@ export async function approveAndSaveLearning(
 
 
 
+
+
+
+
     /*
-     * APPROVE ONLY AFTER SAVE
+     * =====================================================
+     * APPROVE
+     * =====================================================
      */
 
 
-    let approved;
+    let approvedProposal;
+
 
 
     try {
 
 
-        approved =
+        approvedProposal =
+
             approveLearningProposal(
                 proposal
             );
+
 
 
     } catch(error) {
@@ -679,26 +889,36 @@ export async function approveAndSaveLearning(
 
         return {
 
+
             success:true,
+
 
             stage:
                 "saved",
 
+
             proposal,
 
+
             experience,
+
 
             skillId:
                 target.skillId,
 
+
             version,
 
+
             proposalStateUpdated:false,
+
 
             error:
                 "Skill сохранён, но Proposal не обновлён"
 
+
         };
+
 
     }
 
@@ -706,34 +926,72 @@ export async function approveAndSaveLearning(
 
 
 
+
+
+
+
+    /*
+     * =====================================================
+     * SUCCESS
+     * =====================================================
+     */
+
+
     return {
 
+
         success:true,
+
 
         stage:
             "approved",
 
-        proposal:
-            approved,
 
-        proposalStateUpdated:true,
+
+        proposal:
+
+            approvedProposal,
+
+
+
+        proposalStateUpdated:
+
+            true,
+
+
 
         experience,
 
+
+
         skillId:
+
             target.skillId,
+
+
 
         version,
 
-        previousVersions:
-            Array.isArray(history)
-                ? history.length
-                : 0,
+
 
         mode:
+
             target.mode,
 
+
+
+        previousVersions:
+
+            Array.isArray(history)
+
+                ? history.length
+
+                : 0,
+
+
+
         error:""
+
 
     };
 
