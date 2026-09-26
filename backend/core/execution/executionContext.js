@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION CONTEXT v4
+ * JESSICA EXECUTION CONTEXT v5
  * =========================================================
  *
  * Контекст одного Execution Run.
@@ -29,10 +29,10 @@
  *
  * НЕ:
  *
- * - выполняет инструменты;
- * - делает retry;
- * - делает replan;
- * - валидирует результат;
+ * - выполняет Tools;
+ * - делает Retry;
+ * - делает Replan;
+ * - валидирует Answer;
  * - обучает Jessica.
  *
  * =========================================================
@@ -42,6 +42,7 @@
 import {
     randomUUID
 } from "node:crypto";
+
 
 
 
@@ -70,20 +71,29 @@ function normalizeExperience(
 
         return {
 
+            used:
+                false,
+
+
             found:
                 false,
+
 
             source:
                 null,
 
+
             confidence:
                 0,
+
 
             skills:
                 [],
 
+
             context:
                 null
+
 
         };
 
@@ -92,7 +102,14 @@ function normalizeExperience(
 
 
 
+
     return {
+
+
+        used:
+
+            experience.used === true,
+
 
 
         found:
@@ -175,7 +192,7 @@ function normalizeTask(
 
 /*
  * =========================================================
- * CREATE EXECUTION CONTEXT
+ * CREATE CONTEXT
  * =========================================================
  */
 
@@ -200,7 +217,11 @@ export function createExecutionContext({
 
 
 
+
+
     return {
+
+
 
 
         /*
@@ -237,6 +258,7 @@ export function createExecutionContext({
 
 
 
+
         /*
          * =================================================
          * STATE
@@ -253,6 +275,7 @@ export function createExecutionContext({
         status:
 
             "ACTIVE",
+
 
 
 
@@ -312,9 +335,10 @@ export function createExecutionContext({
 
 
 
+
         /*
          * =================================================
-         * EXECUTION POSITION
+         * EXECUTION TRACKING
          * =================================================
          */
 
@@ -337,9 +361,10 @@ export function createExecutionContext({
 
 
 
-        executionHistory:
+        stepsHistory:
 
             [],
+
 
 
 
@@ -369,6 +394,13 @@ export function createExecutionContext({
         validationResult:
 
             null,
+
+
+
+        terminalResult:
+
+            null,
+
 
 
 
@@ -402,6 +434,12 @@ export function createExecutionContext({
 
 
 
+        replanHistory:
+
+            [],
+
+
+
         attempts:
 
             [],
@@ -414,9 +452,15 @@ export function createExecutionContext({
 
         /*
          * =================================================
-         * ERRORS
+         * FAILURE
          * =================================================
          */
+
+
+        lastFailure:
+
+            null,
+
 
 
         errors:
@@ -429,18 +473,63 @@ export function createExecutionContext({
 
 
 
+
+
         /*
          * =================================================
-         * TRACE HOLDER
+         * TRACE
          * =================================================
          */
 
 
         trace:
 
-            null
+            null,
 
 
+
+
+
+
+
+
+
+        /*
+         * =================================================
+         * LEARNING
+         * =================================================
+         */
+
+
+        learningContext:
+
+        {
+
+
+            signals:
+
+                [],
+
+
+
+            successful:
+
+                false,
+
+
+
+            reusable:
+
+                false,
+
+
+
+            candidateSkill:
+
+                null
+
+
+        }
 
 
 
@@ -473,8 +562,7 @@ export function updateExecutionState(
 
 
     if (
-        !context ||
-        typeof context !== "object"
+        !context
     ) {
 
         return;
@@ -508,14 +596,14 @@ export function registerExecutionStep(
 
     context,
 
-    stepResult
+    step
 
 ) {
 
 
     if (
         !context ||
-        !stepResult
+        !step
     ) {
 
         return;
@@ -524,14 +612,122 @@ export function registerExecutionStep(
 
 
 
-    context.executionHistory.push({
 
-        ...stepResult,
+
+    const record = {
+
+
+        ...step,
+
+
 
         timestamp:
 
             new Date()
                 .toISOString()
+
+
+    };
+
+
+
+
+
+
+    context.stepsHistory.push(
+        record
+    );
+
+
+
+
+
+
+    if (
+        step.status === "COMPLETED"
+    ) {
+
+
+        context.completedSteps.push(
+            step
+        );
+
+
+    }
+
+
+
+
+
+
+    if (
+        step.status === "FAILED"
+    ) {
+
+
+        context.failedSteps.push(
+            step
+        );
+
+
+    }
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * REGISTER FAILURE
+ * =========================================================
+ */
+
+
+export function registerExecutionFailure(
+
+    context,
+
+    failure
+
+) {
+
+
+    if (
+        !context ||
+        !failure
+    ) {
+
+        return;
+
+    }
+
+
+
+
+    context.lastFailure =
+        failure;
+
+
+
+
+
+    context.errors.push({
+
+        ...failure,
+
+
+        timestamp:
+
+            new Date()
+                .toISOString()
+
 
     });
 
@@ -548,23 +744,23 @@ export function registerExecutionStep(
 
 /*
  * =========================================================
- * REGISTER ERROR
+ * REGISTER REPLAN
  * =========================================================
  */
 
 
-export function registerExecutionError(
+export function registerReplan(
 
     context,
 
-    error
+    data
 
 ) {
 
 
     if (
         !context ||
-        !error
+        !data
     ) {
 
         return;
@@ -573,14 +769,23 @@ export function registerExecutionError(
 
 
 
-    context.errors.push({
 
-        ...error,
+    context.replanCount++;
+
+
+
+
+
+    context.replanHistory.push({
+
+        ...data,
+
 
         timestamp:
 
             new Date()
                 .toISOString()
+
 
     });
 
@@ -603,8 +808,11 @@ export function registerExecutionError(
 
 
 export function finishExecutionContext(
+
     context,
+
     state = "FINISHED"
+
 ) {
 
 
@@ -618,13 +826,33 @@ export function finishExecutionContext(
 
 
 
+
+
     context.state =
         state;
 
 
 
+
     context.status =
-        "COMPLETED";
+
+
+        state === "COMPLETED"
+
+            ? "COMPLETED"
+
+            :
+
+        state === "FAILED"
+
+            ? "FAILED"
+
+            :
+
+            "FINISHED";
+
+
+
 
 
 
