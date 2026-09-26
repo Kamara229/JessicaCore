@@ -3,31 +3,32 @@
  * JESSICA LEARNING TRIGGER
  * =========================================================
  *
- * Автоматический запуск системы обучения
- * после выполнения задачи.
+ * Точка входа Learning Pipeline.
  *
  *
  * Flow:
  *
  * ExecutionTrace
- *       ↓
+ *        ↓
+ * shouldAnalyze()
+ *        ↓
  * Experience Analyzer
- *       ↓
+ *        ↓
  * Learning Router
- *       ↓
- * Learning Decision
+ *        ↓
+ * Learning Event
  *
  *
  * Возможные решения:
  *
  * NEW_SKILL
  *      ↓
- * создание нового навыка
+ * новый навык
  *
  *
  * SKILL_IMPROVEMENT
  *      ↓
- * улучшение существующего навыка
+ * новая версия существующего навыка
  *
  *
  * IGNORE
@@ -35,17 +36,17 @@
  * опыт не сохраняем
  *
  *
- * Этот модуль НЕ:
+ * НЕ отвечает за:
  *
- * - сохраняет данные;
- * - изменяет Supabase;
- * - создаёт Skill;
- * - обновляет Experience.
- *
- * Только анализирует и выбирает направление обучения.
+ * - сохранение в Supabase;
+ * - создание Skill;
+ * - изменение Experience;
+ * - Approval;
+ * - версии.
  *
  * =========================================================
  */
+
 
 
 import {
@@ -85,8 +86,9 @@ function shouldAnalyze(
 
 
     /*
-     * Нет выполненных действий
+     * Нет успешного выполнения
      */
+
 
     if (
         !trace.stats ||
@@ -100,6 +102,135 @@ function shouldAnalyze(
 
 
     return true;
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD LEARNING EVENT
+ * =========================================================
+ *
+ * Унифицированный объект обучения.
+ *
+ * Передаётся дальше в:
+ *
+ * Queue
+ * Approval
+ * Storage
+ *
+ * =========================================================
+ */
+
+
+function buildLearningEvent({
+
+    trace,
+
+    analysis,
+
+    decision
+
+}) {
+
+
+    return {
+
+
+        id:
+            trace?.id || null,
+
+
+        action:
+            decision?.action ||
+            "IGNORE",
+
+
+
+        skillId:
+
+            decision?.skillId ||
+            null,
+
+
+
+        confidence:
+
+            Number(
+                decision?.confidence || 0
+            ),
+
+
+
+        traceId:
+
+            trace?.id ||
+            null,
+
+
+
+        analysis,
+
+
+
+        decision,
+
+
+
+        createdAt:
+
+            new Date()
+                .toISOString()
+
+
+    };
+
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * EMPTY RESULT
+ * =========================================================
+ */
+
+
+function buildEmptyResult(
+    reason
+) {
+
+
+    return {
+
+
+        triggered:
+            false,
+
+
+        reason,
+
+
+        analysis:
+            null,
+
+
+        decision:
+            null,
+
+
+        learningEvent:
+            null
+
+
+    };
+
 
 }
 
@@ -133,26 +264,11 @@ export function runLearningTrigger(
     ) {
 
 
-        return {
+        return buildEmptyResult(
 
+            "Недостаточно данных для обучения"
 
-            triggered:
-                false,
-
-
-            reason:
-                "Недостаточно данных для анализа обучения",
-
-
-            analysis:
-                null,
-
-
-            decision:
-                null
-
-
-        };
+        );
 
     }
 
@@ -166,7 +282,7 @@ export function runLearningTrigger(
 
         /*
          * =================================================
-         * 1. ANALYZE EXPERIENCE
+         * 1. ANALYZE
          * =================================================
          */
 
@@ -182,14 +298,7 @@ export function runLearningTrigger(
 
         /*
          * =================================================
-         * 2. ROUTE LEARNING
-         * =================================================
-         *
-         * Router решает:
-         *
-         * создать новый Skill
-         * или улучшить старый
-         *
+         * 2. ROUTE
          * =================================================
          */
 
@@ -202,6 +311,57 @@ export function runLearningTrigger(
                 analysis
 
             });
+
+
+
+
+
+        /*
+         * =================================================
+         * 3. EVENT
+         * =================================================
+         */
+
+
+        const learningEvent =
+            buildLearningEvent({
+
+                trace,
+
+                analysis,
+
+                decision
+
+            });
+
+
+
+
+
+        console.log(
+
+            "Jessica Learning Event:",
+
+            JSON.stringify(
+
+                {
+
+                    action:
+                        learningEvent.action,
+
+
+                    skillId:
+                        learningEvent.skillId,
+
+
+                    confidence:
+                        learningEvent.confidence
+
+                }
+
+            )
+
+        );
 
 
 
@@ -227,6 +387,9 @@ export function runLearningTrigger(
             decision,
 
 
+            learningEvent,
+
+
             traceId:
                 trace.id || null
 
@@ -240,8 +403,11 @@ export function runLearningTrigger(
 
 
         console.error(
+
             "Jessica Learning Trigger error:",
+
             error
+
         );
 
 
@@ -254,7 +420,7 @@ export function runLearningTrigger(
 
 
             reason:
-                "Ошибка запуска Learning Pipeline",
+                "Ошибка Learning Pipeline",
 
 
             error:
@@ -267,6 +433,10 @@ export function runLearningTrigger(
 
 
             decision:
+                null,
+
+
+            learningEvent:
                 null
 
 
