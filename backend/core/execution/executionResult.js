@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION RESULT v3
+ * JESSICA EXECUTION RESULT v4
  * =========================================================
  *
  * Единый контракт результата Execution.
@@ -16,17 +16,18 @@
  *
  * Используется:
  *
- * Execution Cycle
- * Terminal
- * Trace
- * Learning
+ * - Execution Cycle
+ * - Terminal
+ * - Trace
+ * - Learning
+ * - Analytics
  *
  *
  * НЕ:
  *
  * - анализирует ошибки;
- * - решает retry;
- * - делает replan;
+ * - решает Retry;
+ * - делает Replan;
  * - вызывает Planner;
  * - вызывает Validator.
  *
@@ -77,7 +78,7 @@ export const EXECUTION_RESULT_STATUS = {
 
 /*
  * =========================================================
- * SAFE STRING
+ * SAFE VALUES
  * =========================================================
  */
 
@@ -86,10 +87,33 @@ function safeString(
     value
 ) {
 
+
     return String(
         value || ""
     )
-        .trim();
+    .trim();
+
+
+}
+
+
+
+
+
+
+
+
+
+function safeArray(
+    value
+) {
+
+
+    return Array.isArray(value)
+
+        ? value
+
+        : [];
 
 }
 
@@ -103,7 +127,7 @@ function safeString(
 
 /*
  * =========================================================
- * USED TOOLS
+ * TOOLS META
  * =========================================================
  */
 
@@ -115,13 +139,9 @@ function collectUsedTools(
 
     const results =
 
-        Array.isArray(
+        safeArray(
             runResult?.results
-        )
-
-            ? runResult.results
-
-            : [];
+        );
 
 
 
@@ -132,8 +152,11 @@ function collectUsedTools(
             results
 
                 .map(
+
                     item =>
+
                         item?.tool
+
                 )
 
                 .filter(Boolean)
@@ -166,13 +189,9 @@ function buildExperienceMeta(
 
     const skills =
 
-        Array.isArray(
+        safeArray(
             context?.experience?.skills
-        )
-
-            ? context.experience.skills
-
-            : [];
+        );
 
 
 
@@ -181,6 +200,8 @@ function buildExperienceMeta(
 
         used:
 
+            context?.experience?.found === true
+            ||
             context?.experience?.used === true,
 
 
@@ -203,7 +224,8 @@ function buildExperienceMeta(
 
                             :
 
-                            skill?.id ||
+                            skill?.id
+                            ||
                             skill?.name
 
                 )
@@ -226,7 +248,7 @@ function buildExperienceMeta(
 
 /*
  * =========================================================
- * COMMON META
+ * EXECUTION META
  * =========================================================
  */
 
@@ -239,10 +261,32 @@ function buildExecutionMeta(
     return {
 
 
+        executionId:
+
+            context?.executionId ||
+            null,
+
+
+
+        traceId:
+
+            context?.trace?.id ||
+            null,
+
+
+
         attempt:
 
             Number(
                 context?.attempt || 0
+            ),
+
+
+
+        replanCount:
+
+            Number(
+                context?.replanCount || 0
             ),
 
 
@@ -259,15 +303,7 @@ function buildExecutionMeta(
 
             buildExperienceMeta(
                 context
-            ),
-
-
-
-        planId:
-
-            context?.plan?.id ||
-            null
-
+            )
 
     };
 
@@ -284,7 +320,7 @@ function buildExecutionMeta(
 
 /*
  * =========================================================
- * BASE
+ * BASE RESULT
  * =========================================================
  */
 
@@ -342,7 +378,7 @@ export function buildCompletedResult(
 
     answerResult,
 
-    validated = true
+    verified = true
 
 ) {
 
@@ -364,14 +400,13 @@ export function buildCompletedResult(
 
         status:
 
-            EXECUTION_RESULT_STATUS
-                .COMPLETED,
+            EXECUTION_RESULT_STATUS.COMPLETED,
 
 
 
         verified:
 
-            validated === true,
+            verified === true,
 
 
 
@@ -379,10 +414,13 @@ export function buildCompletedResult(
 
         {
 
+
             text:
 
-                answerResult?.text ||
-                "",
+                safeString(
+                    answerResult?.text
+                ),
+
 
 
             source:
@@ -396,6 +434,12 @@ export function buildCompletedResult(
 
 
         failure:
+
+            null,
+
+
+
+        clarification:
 
             null
 
@@ -428,7 +472,7 @@ export function buildFailureResult(
 
         stage = "execution",
 
-        reason = "",
+        reason = "Не удалось выполнить задачу",
 
         failureType = "execution_failure"
 
@@ -454,8 +498,7 @@ export function buildFailureResult(
 
         status:
 
-            EXECUTION_RESULT_STATUS
-                .FAILED,
+            EXECUTION_RESULT_STATUS.FAILED,
 
 
 
@@ -471,6 +514,12 @@ export function buildFailureResult(
 
 
 
+        clarification:
+
+            null,
+
+
+
         failure:
 
         {
@@ -480,7 +529,9 @@ export function buildFailureResult(
 
 
             type:
+
                 failureType,
+
 
 
             reason:
@@ -521,8 +572,7 @@ export function buildClarificationResult(
 
         stage = "execution",
 
-        reason =
-            "Требуется уточнение"
+        reason = "Требуется уточнение"
 
     } = {}
 
@@ -563,6 +613,12 @@ export function buildClarificationResult(
 
 
 
+        failure:
+
+            null,
+
+
+
         clarification:
 
         {
@@ -579,7 +635,6 @@ export function buildClarificationResult(
 
 
         }
-
 
 
     };
@@ -606,7 +661,15 @@ export function buildNoVerifiedResult(
 
     context,
 
-    reason = ""
+    {
+
+        stage = "verification",
+
+        reason = "Не удалось подтвердить результат",
+
+        failureType = "no_verified_result"
+
+    } = {}
 
 ) {
 
@@ -645,18 +708,23 @@ export function buildNoVerifiedResult(
 
 
 
+        clarification:
+
+            null,
+
+
+
         failure:
 
         {
 
 
-            stage:
-                "verification",
-
+            stage,
 
 
             type:
-                "no_verified_result",
+
+                failureType,
 
 
 
@@ -706,7 +774,12 @@ export function isCompletedResult(
 
     );
 
+
 }
+
+
+
+
 
 
 
@@ -724,7 +797,12 @@ export function isFailedResult(
 
     );
 
+
 }
+
+
+
+
 
 
 
@@ -742,5 +820,30 @@ export function isClarificationResult(
             .NEEDS_CLARIFICATION
 
     );
+
+
+}
+
+
+
+
+
+
+
+
+
+export function isNoVerifiedResult(
+    result
+) {
+
+
+    return (
+
+        result?.status ===
+        EXECUTION_RESULT_STATUS
+            .NO_VERIFIED_RESULT
+
+    );
+
 
 }
