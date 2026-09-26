@@ -32,6 +32,17 @@ import {
 } from "./learning/learningCoordinator.js";
 
 
+import {
+    retrieveRelevantExperience
+} from "./experience/memoryRetriever.js";
+
+
+import {
+    buildMemoryContext
+} from "./memory/memoryContextBuilder.js";
+
+
+
 
 /*
  * =========================================================
@@ -45,13 +56,17 @@ import {
  *
  * User Task
  *      ↓
+ * Memory Retrieval
+ *      ↓
+ * Memory Context
+ *      ↓
  * Execution Trace
  *      ↓
  * Task Decomposer
  *      ↓
  * Subtasks
  *      ↓
- * Subtask Runner
+ * Execution
  *      ↓
  * Response Builder
  *      ↓
@@ -65,9 +80,7 @@ import {
  * - Planner;
  * - Tools;
  * - Validator;
- * - Experience logic;
- * - Learning logic;
- * - Storage;
+ * - Experience Storage;
  * - Skill creation.
  *
  * =========================================================
@@ -121,7 +134,80 @@ function buildFailureResponse({
 
 /*
  * =========================================================
- * SAFE LEARNING CALL
+ * MEMORY LOAD
+ * =========================================================
+ */
+
+
+async function loadMemoryContext(
+    task
+) {
+
+
+    try {
+
+
+        const experience =
+            await retrieveRelevantExperience(
+                task
+            );
+
+
+
+        return buildMemoryContext(
+
+            experience?.skills || []
+
+        );
+
+
+
+    } catch(error) {
+
+
+        console.error(
+
+            "Jessica Memory Retrieval error:",
+
+            error
+
+        );
+
+
+        return {
+
+
+            hasExperience:
+                false,
+
+
+            skills:
+                [],
+
+
+            skillCount:
+                0,
+
+
+            summary:
+                []
+
+
+        };
+
+
+    }
+
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * SAFE LEARNING
  * =========================================================
  */
 
@@ -145,28 +231,39 @@ function attachLearning(
 
 
         console.error(
+
             "Jessica Learning Coordinator error:",
+
             error
+
         );
+
 
 
         response.learning = {
 
+
             success:
                 false,
+
 
             queued:
                 false,
 
+
             reason:
                 "Learning coordinator error"
 
+
         };
+
 
     }
 
 
+
     return response;
+
 
 }
 
@@ -174,9 +271,12 @@ function attachLearning(
 
 
 
+
+
+
 /*
  * =========================================================
- * EXECUTE JESSICA TASK
+ * EXECUTE TASK
  * =========================================================
  */
 
@@ -193,10 +293,13 @@ export async function executeJessicaTask(
 
 
 
+
+
     const executionTrace =
         createExecutionTrace(
             normalizedTask
         );
+
 
 
 
@@ -235,6 +338,28 @@ export async function executeJessicaTask(
 
     /*
      * =====================================================
+     * MEMORY RETRIEVAL
+     * =====================================================
+     */
+
+
+    const memoryContext =
+        await loadMemoryContext(
+            normalizedTask
+        );
+
+
+
+    executionTrace.memory =
+        memoryContext;
+
+
+
+
+
+
+    /*
+     * =====================================================
      * DECOMPOSE
      * =====================================================
      */
@@ -243,22 +368,34 @@ export async function executeJessicaTask(
     let decompositionResult;
 
 
+
     try {
 
 
         decompositionResult =
-            await decomposeTask(
-                normalizedTask
-            );
+            await decomposeTask({
+
+                task:
+                    normalizedTask,
+
+
+                memoryContext
+
+            });
+
 
 
     } catch(error) {
 
 
         console.error(
+
             "Jessica decomposer error:",
+
             error
+
         );
+
 
 
         return buildFailureResponse({
@@ -273,7 +410,9 @@ export async function executeJessicaTask(
 
         });
 
+
     }
+
 
 
 
@@ -297,7 +436,9 @@ export async function executeJessicaTask(
 
         });
 
+
     }
+
 
 
 
@@ -337,15 +478,20 @@ export async function executeJessicaTask(
 
         });
 
+
     }
 
 
 
 
 
+
     console.log(
+
         `Jessica decomposition: ${subtasks.length}`
+
     );
+
 
 
 
@@ -377,16 +523,22 @@ export async function executeJessicaTask(
                 );
 
 
+
         } catch(error) {
 
 
             console.error(
+
                 "Jessica single execution error:",
+
                 error
+
             );
 
 
+
             result = {
+
 
                 id:
                     subtasks[0]?.id || null,
@@ -407,7 +559,9 @@ export async function executeJessicaTask(
                 result:
                     "Ошибка выполнения подзадачи"
 
+
             };
+
 
         }
 
@@ -447,6 +601,7 @@ export async function executeJessicaTask(
 
 
 
+
         return attachLearning(
 
             response,
@@ -457,6 +612,7 @@ export async function executeJessicaTask(
 
 
     }
+
 
 
 
@@ -488,9 +644,13 @@ export async function executeJessicaTask(
 
 
         console.error(
+
             "Jessica complex execution error:",
+
             error
+
         );
+
 
 
         return buildFailureResponse({
@@ -505,7 +665,9 @@ export async function executeJessicaTask(
 
         });
 
+
     }
+
 
 
 
@@ -525,33 +687,6 @@ export async function executeJessicaTask(
     finishExecutionTrace(
         executionTrace
     );
-
-
-
-
-
-
-    console.log(
-
-        "Jessica complex result:",
-
-        {
-
-            total:
-                subtaskRunResult.total,
-
-
-            completed:
-                subtaskRunResult.completed,
-
-
-            failed:
-                subtaskRunResult.failed
-
-        }
-
-    );
-
 
 
 
@@ -584,4 +719,4 @@ export async function executeJessicaTask(
     );
 
 
-        }
+}
