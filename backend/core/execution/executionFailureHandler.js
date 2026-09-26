@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION FAILURE HANDLER v5
+ * JESSICA EXECUTION FAILURE HANDLER v6
  * =========================================================
  *
  * Центральный маршрутизатор Execution Failure.
@@ -12,7 +12,7 @@
  *    ↓
  * Normalize
  *    ↓
- * Analyze
+ * Classify
  *    ↓
  *
  * RETRY
@@ -21,17 +21,10 @@
  * FINISH
  *
  *
- * Handler:
- *
- * - принимает решение;
- * - формирует следующий action.
- *
- *
  * НЕ:
  *
  * - выполняет retry;
  * - вызывает Planner;
- * - создаёт Plan;
  * - изменяет Context;
  * - сохраняет Learning.
  *
@@ -41,7 +34,8 @@
 
 
 import {
-    shouldRetryExecution
+    shouldRetryExecution,
+    MAX_EXECUTION_ATTEMPTS
 } from "./retryPolicy.js";
 
 
@@ -95,27 +89,44 @@ export const FAILURE_ACTION = {
 
 /*
  * =========================================================
- * FAILURE CATEGORIES
+ * CONFIG
  * =========================================================
  */
 
 
-const REPLAN_TYPES = new Set([
+const MAX_REPLAN_COUNT = 2;
 
 
-    "validation",
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * REPLAN FAILURE TYPES
+ * =========================================================
+ */
+
+
+const REPLAN_FAILURE_TYPES = new Set([
+
+
+    "validation-error",
 
     "invalid-result",
 
-    "strategy-failed",
-
     "wrong-route",
 
-    "missing-data",
+    "strategy-failed",
+
+    "planner-required",
 
     "tool-mismatch",
 
-    "planner-required"
+    "missing-data"
 
 
 ]);
@@ -130,13 +141,46 @@ const REPLAN_TYPES = new Set([
 
 /*
  * =========================================================
- * NORMALIZE FAILURE
+ * RETRY FAILURE TYPES
+ * =========================================================
+ */
+
+
+const TEMPORARY_FAILURE_TYPES = new Set([
+
+
+    "timeout",
+
+    "network-error",
+
+    "temporary-error",
+
+    "tool-error",
+
+    "runner-error"
+
+
+]);
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE
  * =========================================================
  */
 
 
 function normalizeFailure(
+
     failure
+
 ) {
 
 
@@ -151,18 +195,14 @@ function normalizeFailure(
             stage:
                 "execution",
 
-
             failureType:
                 "unknown",
-
 
             category:
                 "execution",
 
-
             reason:
                 "Неизвестная ошибка"
-
 
         };
 
@@ -195,11 +235,8 @@ function normalizeFailure(
 
         category:
 
-            String(
-                failure.category ||
-                detectCategory(
-                    failure.failureType
-                )
+            detectCategory(
+                failure
             ),
 
 
@@ -219,6 +256,7 @@ function normalizeFailure(
             null
 
 
+
     };
 
 }
@@ -233,29 +271,30 @@ function normalizeFailure(
 
 /*
  * =========================================================
- * CATEGORY DETECTION
+ * CATEGORY
  * =========================================================
  */
 
 
 function detectCategory(
-    failureType
+
+    failure
+
 ) {
 
 
     const type =
 
         String(
-            failureType || ""
+            failure?.failureType || ""
         )
         .toLowerCase();
 
 
 
+
     if (
-        type.includes(
-            "validation"
-        )
+        type.includes("validation")
     ) {
 
         return "validation";
@@ -265,9 +304,7 @@ function detectCategory(
 
 
     if (
-        type.includes(
-            "tool"
-        )
+        type.includes("tool")
     ) {
 
         return "tool";
@@ -277,9 +314,19 @@ function detectCategory(
 
 
     if (
-        type.includes(
-            "data"
-        )
+        type.includes("network")
+        ||
+        type.includes("timeout")
+    ) {
+
+        return "temporary";
+
+    }
+
+
+
+    if (
+        type.includes("data")
     ) {
 
         return "data";
@@ -289,9 +336,7 @@ function detectCategory(
 
 
     if (
-        type.includes(
-            "planner"
-        )
+        type.includes("planner")
     ) {
 
         return "planner";
@@ -314,7 +359,7 @@ function detectCategory(
 
 /*
  * =========================================================
- * DECISION BUILDER
+ * BUILD DECISION
  * =========================================================
  */
 
@@ -338,7 +383,9 @@ function buildDecision(
 
         canContinue:
 
-            action === FAILURE_ACTION.RETRY ||
+            action === FAILURE_ACTION.RETRY
+
+            ||
 
             action === FAILURE_ACTION.REPLAN,
 
@@ -361,6 +408,22 @@ function buildDecision(
 
 
 
+            retryCount:
+
+                Number(
+                    context?.retryCount || 0
+                ),
+
+
+
+            replanCount:
+
+                Number(
+                    context?.replanCount || 0
+                ),
+
+
+
             stage:
 
                 failure.stage,
@@ -369,7 +432,13 @@ function buildDecision(
 
             category:
 
-                failure.category
+                failure.category,
+
+
+
+            failureType:
+
+                failure.failureType
 
 
 
@@ -389,27 +458,90 @@ function buildDecision(
 
 /*
  * =========================================================
- * SHOULD REPLAN
+ * CHECK REPLAN
  * =========================================================
  */
 
 
-function shouldReplan(
+function canReplan(
+
+    context,
+
     failure
+
 ) {
+
+
+    const replans =
+
+        Number(
+            context?.replanCount || 0
+        );
+
+
+
+    if (
+        replans >= MAX_REPLAN_COUNT
+    ) {
+
+        return false;
+
+    }
+
 
 
     return (
 
-        REPLAN_TYPES.has(
+        REPLAN_FAILURE_TYPES.has(
             failure.failureType
         )
 
-        ||
+    );
 
-        REPLAN_TYPES.has(
-            failure.category
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * CHECK RETRY
+ * =========================================================
+ */
+
+
+function canRetry(
+
+    context,
+
+    failure
+
+) {
+
+
+    if (
+        !TEMPORARY_FAILURE_TYPES.has(
+            failure.failureType
         )
+    ) {
+
+
+        return false;
+
+    }
+
+
+
+    return shouldRetryExecution(
+
+        context,
+
+        failure
 
     );
 
@@ -437,13 +569,6 @@ export async function handleExecutionFailure(
     failure
 
 ) {
-
-
-    /*
-     * =====================================================
-     * ANALYZE
-     * =====================================================
-     */
 
 
     const analyzed =
@@ -474,15 +599,13 @@ export async function handleExecutionFailure(
 
     /*
      * =====================================================
-     * USER CLARIFICATION
+     * CLARIFICATION
      * =====================================================
      */
 
 
     if (
-
         analyzed?.needsClarification === true
-
     ) {
 
 
@@ -515,7 +638,7 @@ export async function handleExecutionFailure(
 
     if (
 
-        shouldRetryExecution(
+        canRetry(
 
             context,
 
@@ -555,8 +678,12 @@ export async function handleExecutionFailure(
 
     if (
 
-        shouldReplan(
+        canReplan(
+
+            context,
+
             normalized
+
         )
 
     ) {
@@ -621,7 +748,6 @@ export function isRetryAction(
     decision
 ) {
 
-
     return (
 
         decision?.action ===
@@ -634,12 +760,9 @@ export function isRetryAction(
 
 
 
-
-
 export function isReplanAction(
     decision
 ) {
-
 
     return (
 
@@ -653,17 +776,30 @@ export function isReplanAction(
 
 
 
-
-
 export function isTerminalAction(
     decision
 ) {
-
 
     return (
 
         decision?.action ===
         FAILURE_ACTION.FINISH
+
+    );
+
+}
+
+
+
+
+export function isClarificationAction(
+    decision
+) {
+
+    return (
+
+        decision?.action ===
+        FAILURE_ACTION.CLARIFICATION
 
     );
 
