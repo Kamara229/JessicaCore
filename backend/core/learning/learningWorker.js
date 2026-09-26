@@ -12,16 +12,26 @@
  *        ↓
  * Learning Worker
  *        ↓
- * Learning Proposal
+ * Learning Proposal Builder
+ *        ↓
+ * learning_proposals
  *        ↓
  * Learning Approval
+ *
+ *
+ * Ответственность:
+ *
+ * - получить PENDING Queue Items;
+ * - создать Learning Proposal;
+ * - сохранить Proposal;
+ * - обновить статус очереди.
  *
  *
  * НЕ:
  *
  * - создаёт Experience Skill;
- * - пишет напрямую в Experience Storage;
- * - принимает решение Approval.
+ * - сохраняет Experience;
+ * - принимает Approval решение.
  *
  * =========================================================
  */
@@ -34,8 +44,13 @@ import {
 
 
 import {
-    createLearningProposal
+    createLearningProposalFromQueue
 } from "./learningProposal.js";
+
+
+import {
+    saveLearningProposal
+} from "./learningProposalStorage.js";
 
 
 
@@ -43,7 +58,7 @@ import {
 
 /*
  * =========================================================
- * PROCESS SINGLE ITEM
+ * PROCESS SINGLE QUEUE ITEM
  * =========================================================
  */
 
@@ -54,8 +69,10 @@ async function processQueueItem(
 
 
     if (
-        !item
+        !item ||
+        typeof item !== "object"
     ) {
+
 
         return {
 
@@ -71,13 +88,24 @@ async function processQueueItem(
 
 
 
+
+
     try {
 
 
+        /*
+         * =================================================
+         * 1. CREATE PROPOSAL
+         * =================================================
+         */
+
+
         const proposal =
-            createLearningProposal(
+            createLearningProposalFromQueue(
                 item
             );
+
+
 
 
 
@@ -100,8 +128,11 @@ async function processQueueItem(
                 success:
                     false,
 
+                queueItemId:
+                    item.id,
+
                 reason:
-                    "Proposal not created"
+                    "Learning Proposal не создан"
 
             };
 
@@ -109,22 +140,120 @@ async function processQueueItem(
 
 
 
-        await updateLearningQueueItemStatus(
 
-            item.id,
 
-            "PROPOSED"
+        /*
+         * =================================================
+         * 2. SAVE PROPOSAL
+         * =================================================
+         */
 
-        );
+
+        const saveResult =
+            await saveLearningProposal(
+                proposal
+            );
+
+
+
+
+
+        if (
+            !saveResult?.success
+        ) {
+
+
+            await updateLearningQueueItemStatus(
+
+                item.id,
+
+                "FAILED"
+
+            );
+
+
+            return {
+
+                success:
+                    false,
+
+                queueItemId:
+                    item.id,
+
+                proposal,
+
+                reason:
+                    saveResult?.error ||
+                    "Proposal не сохранён"
+
+            };
+
+        }
+
+
+
+
+
+        /*
+         * =================================================
+         * 3. UPDATE QUEUE STATUS
+         * =================================================
+         */
+
+
+        const updateResult =
+            await updateLearningQueueItemStatus(
+
+                item.id,
+
+                "PROPOSED"
+
+            );
+
+
+
+
+
+        if (
+            !updateResult?.success
+        ) {
+
+
+            return {
+
+                success:
+                    false,
+
+                proposal,
+
+                reason:
+                    "Proposal сохранён, но очередь не обновлена"
+
+            };
+
+        }
+
+
 
 
 
         return {
 
+
             success:
                 true,
 
+
+            queueItemId:
+                item.id,
+
+
+            proposalId:
+                proposal.id,
+
+
             proposal
+
 
 
         };
@@ -144,23 +273,51 @@ async function processQueueItem(
 
 
 
-        await updateLearningQueueItemStatus(
+        try {
 
-            item.id,
 
-            "FAILED"
+            await updateLearningQueueItemStatus(
 
-        );
+                item.id,
+
+                "FAILED"
+
+            );
+
+
+        } catch(updateError) {
+
+
+            console.error(
+
+                "Learning Queue status update error:",
+
+                updateError
+
+            );
+
+
+        }
+
+
 
 
 
         return {
 
+
             success:
                 false,
 
+
+            queueItemId:
+                item.id,
+
+
             reason:
-                error.message
+                error?.message ||
+                "Worker error"
+
 
         };
 
@@ -184,8 +341,17 @@ export async function runLearningWorker()
 {
 
 
+    /*
+     * =====================================================
+     * GET QUEUE
+     * =====================================================
+     */
+
+
     const queueResult =
         await getPendingLearningItems();
+
+
 
 
 
@@ -196,14 +362,19 @@ export async function runLearningWorker()
 
         return {
 
+
             success:
                 false,
+
 
             processed:
                 0,
 
+
             error:
-                queueResult?.error
+                queueResult?.error ||
+                "Не удалось получить Learning Queue"
+
 
         };
 
@@ -211,14 +382,31 @@ export async function runLearningWorker()
 
 
 
+
+
     const items =
-        queueResult.items || [];
+        Array.isArray(
+            queueResult.items
+        )
+            ? queueResult.items
+            : [];
+
+
 
 
 
     const results =
         [];
 
+
+
+
+
+    /*
+     * =====================================================
+     * PROCESS
+     * =====================================================
+     */
 
 
     for (
@@ -237,8 +425,9 @@ export async function runLearningWorker()
             result
         );
 
-
     }
+
+
 
 
 
@@ -253,7 +442,22 @@ export async function runLearningWorker()
             items.length,
 
 
+        successful:
+            results.filter(
+                item =>
+                    item.success === true
+            ).length,
+
+
+        failed:
+            results.filter(
+                item =>
+                    item.success === false
+            ).length,
+
+
         results
+
 
 
     };
