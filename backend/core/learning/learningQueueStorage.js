@@ -3,32 +3,54 @@
  * JESSICA LEARNING QUEUE STORAGE
  * =========================================================
  *
- * Хранилище очереди обучения.
+ * Persistent storage для Learning Queue.
  *
  *
  * Flow:
  *
  * Learning Queue Item
  *        ↓
- * Storage Adapter
+ * Learning Queue Storage
  *        ↓
  * Supabase
  *
  *
- * Пока содержит интерфейс.
+ * Ответственность:
  *
- * Реальное подключение к Supabase
- * добавляется внутри этого слоя.
+ * - сохранить Learning Event;
+ * - получить ожидающие события;
+ * - обновить статус.
  *
  *
  * НЕ:
  *
  * - анализирует обучение;
  * - создаёт Skill;
- * - принимает решения.
+ * - принимает решение Approval.
  *
  * =========================================================
  */
+
+
+import {
+    supabase
+} from "../../storage/supabaseClient.js";
+
+
+
+
+
+/*
+ * =========================================================
+ * TABLE
+ * =========================================================
+ */
+
+
+const TABLE_NAME =
+    "learning_queue";
+
+
 
 
 
@@ -49,6 +71,7 @@ export async function saveLearningQueueItem(
         typeof item !== "object"
     ) {
 
+
         return {
 
             success:
@@ -63,36 +86,141 @@ export async function saveLearningQueueItem(
 
 
 
-    /*
-     * TODO:
-     *
-     * Supabase insert
-     *
-     */
+    try {
+
+
+        const payload = {
+
+
+            id:
+                item.id || null,
+
+
+            skill_id:
+                item.skillId || null,
+
+
+            action:
+                item.action || "IGNORE",
+
+
+            confidence:
+                Number(
+                    item.confidence || 0
+                ),
+
+
+            status:
+                item.status || "PENDING",
+
+
+            event_json:
+                item.event || {},
+
+
+            created_at:
+                item.createdAt ||
+                new Date()
+                    .toISOString()
+
+
+        };
 
 
 
-    console.log(
-        "Jessica Learning Queue Save:",
-        JSON.stringify(
-            item
-        )
-    );
+
+        const {
+            data,
+            error
+        } =
+            await supabase
+
+                .from(
+                    TABLE_NAME
+                )
+
+                .insert(
+                    payload
+                )
+
+                .select()
+                
+                .single();
 
 
 
-    return {
 
 
-        success:
-            true,
+        if (
+            error
+        ) {
 
 
-        id:
-            item.id || null
+            console.error(
+                "Learning Queue save error:",
+                error
+            );
 
 
-    };
+            return {
+
+                success:
+                    false,
+
+                error:
+                    error.message
+
+            };
+
+        }
+
+
+
+
+
+        return {
+
+
+            success:
+                true,
+
+
+            id:
+                data?.id || null,
+
+
+            item:
+                data
+
+
+        };
+
+
+
+    } catch(error) {
+
+
+        console.error(
+            "Learning Queue storage exception:",
+            error
+        );
+
+
+        return {
+
+
+            success:
+                false,
+
+
+            error:
+                error.message ||
+                "Storage error"
+
+
+        };
+
+    }
 
 
 }
@@ -112,15 +240,103 @@ export async function getPendingLearningItems()
 {
 
 
-    /*
-     * TODO:
-     *
-     * Supabase select
-     *
-     */
+    try {
 
 
-    return [];
+        const {
+            data,
+            error
+        } =
+            await supabase
+
+                .from(
+                    TABLE_NAME
+                )
+
+                .select("*")
+
+                .eq(
+                    "status",
+                    "PENDING"
+                )
+
+                .order(
+                    "created_at",
+                    {
+                        ascending:
+                            true
+                    }
+                );
+
+
+
+
+
+        if (
+            error
+        ) {
+
+
+            return {
+
+
+                success:
+                    false,
+
+
+                items:
+                    [],
+
+
+                error:
+                    error.message
+
+
+            };
+
+        }
+
+
+
+
+
+        return {
+
+
+            success:
+                true,
+
+
+            items:
+                data || []
+
+
+        };
+
+
+
+    } catch(error) {
+
+
+        return {
+
+
+            success:
+                false,
+
+
+            items:
+                [],
+
+
+            error:
+                error.message
+
+
+        };
+
+    }
+
 
 }
 
@@ -148,6 +364,7 @@ export async function updateLearningQueueItemStatus(
         !id
     ) {
 
+
         return {
 
             success:
@@ -162,27 +379,100 @@ export async function updateLearningQueueItemStatus(
 
 
 
-    /*
-     * TODO:
-     *
-     * Supabase update
-     *
-     */
 
 
-    return {
+    try {
 
 
-        success:
-            true,
+        const {
+            data,
+            error
+        } =
+            await supabase
+
+                .from(
+                    TABLE_NAME
+                )
+
+                .update({
+
+                    status,
+
+                    reviewed_at:
+                        new Date()
+                            .toISOString()
+
+                })
+
+                .eq(
+                    "id",
+                    id
+                )
+
+                .select()
+
+                .single();
 
 
-        id,
-
-        status
 
 
-    };
+
+        if (
+            error
+        ) {
+
+
+            return {
+
+
+                success:
+                    false,
+
+
+                error:
+                    error.message
+
+
+            };
+
+        }
+
+
+
+
+
+        return {
+
+
+            success:
+                true,
+
+
+            item:
+                data
+
+
+        };
+
+
+
+    } catch(error) {
+
+
+        return {
+
+
+            success:
+                false,
+
+
+            error:
+                error.message
+
+
+        };
+
+    }
 
 
 }
