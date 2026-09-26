@@ -1,43 +1,35 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE CONTEXT v0.2
+ * JESSICA EXPERIENCE CONTEXT
  * =========================================================
  *
  * Преобразует найденный Experience Skill
- * в безопасный контекст для Planner.
+ * в PlanningContext для Planner.
  *
  *
- * Вход:
+ * Flow:
  *
- * ExperienceResult
- *
- *
- * Выход:
- *
- * {
- *     experience: {...},
- *     metadata: {...}
- * }
+ * Experience Search Result
+ *          ↓
+ * Context Builder
+ *          ↓
+ * PlanningContext
+ *          ↓
+ * Planner
  *
  *
- * Этот модуль НЕ:
+ * НЕ:
  *
  * - ищет Experience;
  * - читает Storage;
  * - сохраняет Skills;
  * - обучает Jessica;
- * - вызывает Planner;
- * - выполняет задачи.
- *
- *
- * Задача:
- *
- * Experience Result
- *        ↓
- * Planning-compatible context
+ * - вызывает AI.
  *
  * =========================================================
  */
+
+
 
 
 
@@ -52,22 +44,28 @@ const MAX_ARRAY_ITEMS =
     10;
 
 
+const MAX_RANKING_ITEMS =
+    5;
+
+
+
+
+
 
 /*
  * =========================================================
- * NORMALIZE STRING ARRAY
+ * NORMALIZE ARRAY
  * =========================================================
  */
 
 
-function normalizeStringArray(
+function normalizeArray(
     value
 ) {
 
+
     if (
-        !Array.isArray(
-            value
-        )
+        !Array.isArray(value)
     ) {
 
         return [];
@@ -76,6 +74,7 @@ function normalizeStringArray(
 
 
     return value
+
         .map(
             item =>
                 String(
@@ -83,40 +82,20 @@ function normalizeStringArray(
                 )
                 .trim()
         )
+
         .filter(
             Boolean
-        );
+        )
 
-}
-
-
-
-/*
- * =========================================================
- * LIMIT ARRAY
- * =========================================================
- *
- * Защита Planner Context
- * от слишком больших Skill.
- *
- * =========================================================
- */
-
-
-function limitArray(
-    value,
-    limit = MAX_ARRAY_ITEMS
-) {
-
-    return normalizeStringArray(
-        value
-    )
         .slice(
             0,
-            limit
+            MAX_ARRAY_ITEMS
         );
 
 }
+
+
+
 
 
 
@@ -132,19 +111,88 @@ function normalizeNumber(
     fallback = 0
 ) {
 
+
     const number =
         Number(
             value
         );
 
 
-    return Number.isFinite(
-        number
-    )
+    return Number.isFinite(number)
         ? number
         : fallback;
 
 }
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD MATCH INFORMATION
+ * =========================================================
+ */
+
+
+function buildMatchMetadata(
+    experienceResult
+) {
+
+
+    return {
+
+
+        matchedTerms:
+
+            normalizeArray(
+                experienceResult.matchedTerms
+            ),
+
+
+
+        matchedPhrases:
+
+            normalizeArray(
+                experienceResult.matchedPhrases
+            ),
+
+
+
+        matchReasons:
+
+            normalizeArray(
+                experienceResult.matchReasons
+            ),
+
+
+
+        ranking:
+
+            Array.isArray(
+                experienceResult.ranking
+            )
+
+            ?
+
+            experienceResult.ranking
+                .slice(
+                    0,
+                    MAX_RANKING_ITEMS
+                )
+
+            :
+
+            []
+
+    };
+
+
+}
+
+
+
 
 
 
@@ -160,51 +208,79 @@ export function buildExperienceContext(
 ) {
 
 
-    /*
-     * =====================================================
-     * NO EXPERIENCE
-     * =====================================================
-     */
-
 
     if (
-        !experienceResult ||
-        experienceResult.found !== true ||
-        !experienceResult.experience ||
+
+        !experienceResult
+
+        ||
+
+        experienceResult.found !== true
+
+        ||
+
+        !experienceResult.experience
+
+        ||
+
         typeof experienceResult.experience !== "object"
+
     ) {
 
+
         return {
+
 
             experience:
                 null,
 
+
+            sourceRules:
+                [],
+
+
+            constraints:
+                [],
+
+
+            instructions:
+                [],
+
+
+            plannerHints:
+                [],
+
+
             metadata:
-                {}
+                {
+
+                    experienceFound:
+                        false
+
+                }
 
         };
+
 
     }
 
 
 
-    const sourceExperience =
+
+
+
+    const skill =
         experienceResult.experience;
+
+
+
+
 
 
 
     /*
      * =====================================================
-     * SAFE EXPERIENCE
-     * =====================================================
-     *
-     * Передаём Planner только
-     * полезные данные Skill.
-     *
-     * Служебные поля Storage
-     * и история версий сюда
-     * не попадают.
-     *
+     * EXPERIENCE CONTEXT
      * =====================================================
      */
 
@@ -213,58 +289,51 @@ export function buildExperienceContext(
 
 
         skillId:
-            sourceExperience.id ||
-            sourceExperience.skillId ||
+
+            skill.id ||
+            skill.skillId ||
             null,
 
 
+
         name:
+
             String(
-                sourceExperience.name || ""
+                skill.name || ""
             )
             .trim(),
+
 
 
         description:
+
             String(
-                sourceExperience.description || ""
+                skill.description || ""
             )
             .trim(),
 
 
+
         version:
+
             normalizeNumber(
-                sourceExperience.version,
+                skill.version,
                 1
             ),
 
 
 
-        /*
-         * Уверенность самого Skill.
-         *
-         * Например:
-         *
-         * насколько качественно
-         * Jessica его получила.
-         */
-
         skillConfidence:
+
             normalizeNumber(
-                sourceExperience.confidence,
+                skill.confidence,
                 0
             ),
 
 
 
-        /*
-         * Уверенность поиска.
-         *
-         * Насколько этот Skill
-         * подходит текущей задаче.
-         */
-
         matchConfidence:
+
             normalizeNumber(
                 experienceResult.confidence,
                 0
@@ -273,63 +342,136 @@ export function buildExperienceContext(
 
 
         keywords:
-            limitArray(
-                sourceExperience.keywords
+
+            normalizeArray(
+                skill.keywords
             ),
+
 
 
         tags:
-            limitArray(
-                sourceExperience.tags
+
+            normalizeArray(
+                skill.tags
             ),
+
 
 
         strategy:
-            limitArray(
-                sourceExperience.strategy
+
+            normalizeArray(
+                skill.strategy
             ),
+
 
 
         sourcePriority:
-            limitArray(
-                sourceExperience.sourcePriority
+
+            normalizeArray(
+                skill.sourcePriority
             ),
+
 
 
         validationRules:
-            limitArray(
-                sourceExperience.validationRules
+
+            normalizeArray(
+                skill.validationRules
             ),
 
 
+
         failurePatterns:
-            limitArray(
-                sourceExperience.failurePatterns
+
+            normalizeArray(
+                skill.failurePatterns
+            ),
+
+
+
+        successfulPatterns:
+
+            normalizeArray(
+                skill.successfulPatterns
+            ),
+
+
+
+        avoidPatterns:
+
+            normalizeArray(
+                skill.avoidPatterns
             )
 
     };
 
 
 
+
+
+
+
+    /*
+     * =====================================================
+     * PLANNER RULES
+     * =====================================================
+     */
+
+
+    const sourceRules =
+
+        normalizeArray(
+            skill.sourcePriority
+        );
+
+
+
+    const constraints =
+
+        normalizeArray(
+            skill.constraints
+        );
+
+
+
+    const instructions =
+
+        normalizeArray(
+            skill.instructions
+        );
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * HINTS
+     * =====================================================
+     */
+
+
+    const plannerHints = [
+
+        "Используй Experience как рекомендацию, а не как жёсткий сценарий.",
+
+        "Проверяй актуальность результата.",
+
+        "Избегай известных ошибок Skill."
+
+    ];
+
+
+
+
+
+
+
     /*
      * =====================================================
      * METADATA
-     * =====================================================
-     *
-     * Служебная информация:
-     *
-     * - как найден Experience;
-     * - какой Skill использован;
-     * - какая версия;
-     * - когда найден.
-     *
-     * Используется:
-     *
-     * - логи;
-     * - аналитика;
-     * - обучение;
-     * - Earnings.
-     *
      * =====================================================
      */
 
@@ -341,51 +483,77 @@ export function buildExperienceContext(
             true,
 
 
+
         experienceSource:
+
             experienceResult.source ||
-            "unknown",
+            "experience-search",
 
-
-        experienceMatchConfidence:
-            experience.matchConfidence,
-
-
-        skillConfidence:
-            experience.skillConfidence,
 
 
         skillId:
             experience.skillId,
 
 
-        skillName:
-            experience.name,
-
 
         skillVersion:
             experience.version,
 
 
+
+        skillName:
+            experience.name,
+
+
+
+        skillConfidence:
+            experience.skillConfidence,
+
+
+
+        matchConfidence:
+            experience.matchConfidence,
+
+
+
         matchedAt:
             new Date()
-                .toISOString()
+                .toISOString(),
+
+
+
+        ...buildMatchMetadata(
+            experienceResult
+        )
 
     };
 
 
 
-    /*
-     * =====================================================
-     * RESULT
-     * =====================================================
-     */
+
+
 
 
     return {
 
+
         experience,
 
+
+        sourceRules,
+
+
+        constraints,
+
+
+        instructions,
+
+
+        plannerHints,
+
+
         metadata
+
 
     };
 
