@@ -1,53 +1,93 @@
 /*
  * =========================================================
- * JESSICA PLAN PARSER
+ * JESSICA PLAN PARSER v3
  * =========================================================
  *
  * Преобразует ответ Planner AI
  * в JavaScript object.
  *
  *
- * Ответственность:
+ * Flow:
  *
- * AI response
+ * AI Response
  *      ↓
- * JSON extraction
+ * JSON Extraction
  *      ↓
- * JavaScript object
+ * JSON Parse
+ *      ↓
+ * Planner Normalizer
  *
  *
- * НЕ отвечает за:
+ * НЕ:
  *
- * - нормализацию;
- * - валидацию;
- * - исправление плана.
+ * - нормализует поля;
+ * - валидирует план;
+ * - исправляет ошибки;
+ * - проверяет tools.
  *
  * =========================================================
  */
+
+
+
+
+
+const MAX_RESPONSE_LENGTH =
+    30000;
+
+
+
+
+
 
 
 
 /*
  * =========================================================
- * CLEAN JSON TEXT
+ * SAFE STRING
  * =========================================================
  */
 
 
-function cleanJsonText(
+function safeString(
+    value
+) {
+
+    return String(
+        value || ""
+    )
+    .trim();
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * REMOVE MARKDOWN
+ * =========================================================
+ */
+
+
+function removeMarkdown(
     text
 ) {
 
 
-    let value =
-        String(
-            text || ""
-        )
-        .trim();
+    let result =
+        safeString(
+            text
+        );
 
 
 
-    if (!value) {
+    if (!result) {
 
         return "";
 
@@ -55,52 +95,88 @@ function cleanJsonText(
 
 
 
+
     /*
-     * Убираем markdown:
+     * Убираем:
      *
      * ```json
-     * {}
-     * ```
+     *
      */
 
 
-    value =
-        value.replace(
-            /^```(?:json)?/i,
+    result =
+        result.replace(
+            /^```json\s*/i,
             ""
         );
 
 
-    value =
-        value.replace(
+
+
+    /*
+     * Убираем:
+     *
+     * ```
+     *
+     */
+
+
+    result =
+        result.replace(
             /```$/i,
             ""
         );
 
 
-    value =
-        value.trim();
+
+    return result.trim();
+
+}
 
 
 
-    /*
-     * Если модель добавила текст
-     * до/после JSON,
-     * пытаемся найти объект.
-     */
 
 
-    const firstBrace =
-        value.indexOf(
+
+
+
+
+/*
+ * =========================================================
+ * EXTRACT JSON OBJECT
+ * =========================================================
+ *
+ * Ищет первый полный JSON объект.
+ *
+ * Поддерживает вложенность:
+ *
+ * {
+ *    a:{
+ *       b:1
+ *    }
+ * }
+ *
+ * =========================================================
+ */
+
+
+function extractJsonObject(
+    text
+) {
+
+
+    const start =
+        text.indexOf(
             "{"
         );
 
 
+
     if (
-        firstBrace === -1
+        start === -1
     ) {
 
-        return value;
+        return null;
 
     }
 
@@ -110,20 +186,83 @@ function cleanJsonText(
         0;
 
 
-    let started =
+    let inString =
+        false;
+
+
+    let escaped =
         false;
 
 
 
+
+
+
     for (
-        let i = firstBrace;
-        i < value.length;
+        let i = start;
+        i < text.length;
         i++
     ) {
 
 
         const char =
-            value[i];
+            text[i];
+
+
+
+
+
+        /*
+         * JSON string handling
+         */
+
+
+        if (
+            char === "\\" &&
+            !escaped
+        ) {
+
+            escaped =
+                true;
+
+            continue;
+
+        }
+
+
+
+
+        if (
+            char === '"' &&
+            !escaped
+        ) {
+
+            inString =
+                !inString;
+
+        }
+
+
+
+
+        escaped =
+            false;
+
+
+
+
+
+
+        if (
+            inString
+        ) {
+
+            continue;
+
+        }
+
+
+
 
 
         if (
@@ -132,10 +271,10 @@ function cleanJsonText(
 
             depth++;
 
-            started =
-                true;
-
         }
+
+
+
 
 
         if (
@@ -144,28 +283,111 @@ function cleanJsonText(
 
             depth--;
 
+
+            if (
+                depth === 0
+            ) {
+
+
+                return text.slice(
+
+                    start,
+
+                    i + 1
+
+                );
+
+            }
+
         }
 
-
-        if (
-            started &&
-            depth === 0
-        ) {
-
-            return value.slice(
-                firstBrace,
-                i + 1
-            );
-
-        }
 
     }
 
 
 
-    return value;
+
+    return null;
+
 
 }
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * PARSE JSON
+ * =========================================================
+ */
+
+
+function parseJson(
+    text
+) {
+
+
+    try {
+
+
+        return JSON.parse(
+            text
+        );
+
+
+    } catch(error) {
+
+
+        return null;
+
+    }
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * VALID OBJECT
+ * =========================================================
+ */
+
+
+function isValidObject(
+    value
+) {
+
+
+    return (
+
+        value !== null &&
+
+        typeof value === "object" &&
+
+        !Array.isArray(value)
+
+    );
+
+
+}
+
+
+
+
+
+
 
 
 
@@ -181,77 +403,200 @@ export function parsePlan(
 ) {
 
 
-    const cleaned =
-        cleanJsonText(
+    const raw =
+        safeString(
             text
         );
 
 
 
-    if (
-        !cleaned
-    ) {
+    if (!raw) {
 
-        throw new Error(
-            "Planner вернул пустой ответ"
-        );
+        return null;
 
     }
 
 
 
-    let parsed;
-
-
-
-    try {
-
-
-        parsed =
-            JSON.parse(
-                cleaned
-            );
-
-
-    } catch(error) {
-
-
-        console.error(
-            "Jessica Planner JSON parse error:",
-            cleaned
-        );
-
-
-        throw new Error(
-            "Planner вернул невалидный JSON"
-        );
-
-    }
 
 
 
     /*
-     * Planner должен вернуть объект,
-     * а не массив или примитив.
+     * Защита от огромного ответа AI
      */
 
 
     if (
-        !parsed ||
-        typeof parsed !== "object" ||
-        Array.isArray(
-            parsed
-        )
+        raw.length >
+        MAX_RESPONSE_LENGTH
     ) {
 
-        throw new Error(
-            "Planner JSON должен быть объектом"
+        console.warn(
+
+            "Jessica Planner response too large"
+
         );
+
+
+        return null;
 
     }
 
 
 
+
+
+
+    /*
+     * 1. Убираем markdown
+     */
+
+
+    const cleaned =
+        removeMarkdown(
+            raw
+        );
+
+
+
+
+
+
+    /*
+     * 2. Прямая попытка JSON
+     */
+
+
+    let parsed =
+        parseJson(
+            cleaned
+        );
+
+
+
+    if (
+        isValidObject(
+            parsed
+        )
+    ) {
+
+        return parsed;
+
+    }
+
+
+
+
+
+
+    /*
+     * 3. Извлечение JSON
+     */
+
+
+    const extracted =
+        extractJsonObject(
+            cleaned
+        );
+
+
+
+    if (!extracted) {
+
+        return null;
+
+    }
+
+
+
+
+
+    parsed =
+        parseJson(
+            extracted
+        );
+
+
+
+
+
+    if (
+        !isValidObject(
+            parsed
+        )
+    ) {
+
+
+        console.warn(
+
+            "Jessica Planner invalid JSON:",
+
+            extracted
+
+        );
+
+
+        return null;
+
+    }
+
+
+
+
+
     return parsed;
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * DEBUG INFO
+ * =========================================================
+ */
+
+
+export function getParserDebugInfo(
+    text
+) {
+
+
+    const value =
+        safeString(
+            text
+        );
+
+
+
+    return {
+
+
+        length:
+            value.length,
+
+
+
+        hasJsonStart:
+            value.includes(
+                "{"
+            ),
+
+
+
+        hasJsonEnd:
+            value.includes(
+                "}"
+            )
+
+    };
+
 
 }
