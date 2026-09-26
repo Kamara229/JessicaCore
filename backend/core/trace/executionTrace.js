@@ -3,10 +3,10 @@
  * JESSICA EXECUTION TRACE
  * =========================================================
  *
- * История выполнения одной задачи Jessica.
+ * История выполнения задачи Jessica.
  *
  *
- * Используется для:
+ * Используется:
  *
  * - debugging;
  * - analytics;
@@ -14,21 +14,24 @@
  * - quality control.
  *
  *
- * Этот модуль НЕ:
+ * Хранит:
+ *
+ * - выполнение;
+ * - инструменты;
+ * - ошибки;
+ * - Experience usage.
+ *
+ *
+ * НЕ:
  *
  * - выполняет задачи;
  * - вызывает Planner;
- * - вызывает Tools;
- * - работает с Experience;
- * - формирует ответы.
- *
- *
- * Его задача:
- *
- * собрать полный execution history.
+ * - изменяет Skills.
  *
  * =========================================================
  */
+
+
 
 
 
@@ -74,6 +77,7 @@ export function createExecutionTrace(
 
 
 
+
         subtasks:
             [],
 
@@ -89,7 +93,50 @@ export function createExecutionTrace(
 
 
 
-        stats: {
+
+
+
+        /*
+         * Память Jessica,
+         * использованная при выполнении
+         */
+
+
+        experienceUsage:
+
+        {
+
+
+            used:
+                false,
+
+
+
+            skills:
+                [],
+
+
+
+            successfulUses:
+                0,
+
+
+
+            failedUses:
+                0
+
+
+        },
+
+
+
+
+
+
+
+        stats:
+
+        {
 
 
             total:
@@ -113,8 +160,10 @@ export function createExecutionTrace(
 
     };
 
-
 }
+
+
+
 
 
 
@@ -172,22 +221,20 @@ function createTraceId() {
 
 
 
+
 /*
  * =========================================================
- * UPDATE SINGLE RESULT
- * =========================================================
- *
- * Используется для:
- *
- * executeSubtask()
- *
+ * UPDATE RESULT
  * =========================================================
  */
 
 
 export function updateTraceFromResult(
+
     trace,
+
     result
+
 ) {
 
 
@@ -203,6 +250,7 @@ export function updateTraceFromResult(
 
 
 
+
     trace.subtasks.push(
 
         normalizeSubtaskResult(
@@ -213,30 +261,64 @@ export function updateTraceFromResult(
 
 
 
+
+
+
     collectTools(
+
         trace,
+
         result.usedTools
+
     );
+
+
 
 
 
     collectValidationErrors(
+
         trace,
+
         result.validationErrors
+
     );
+
+
+
+
+
+    collectExperienceUsage(
+
+        trace,
+
+        result
+
+    );
+
+
 
 
 
     updateStats(
+
         trace,
+
         result.status
+
     );
+
+
 
 
 
     updateStatus(
+
         trace
+
     );
+
+
 
 
 
@@ -255,20 +337,155 @@ export function updateTraceFromResult(
 
 /*
  * =========================================================
- * UPDATE COMPLEX SUMMARY
+ * EXPERIENCE COLLECTION
  * =========================================================
- *
- * Используется после:
- *
- * runSubtasks()
- *
+ */
+
+
+function collectExperienceUsage(
+
+    trace,
+
+    result
+
+) {
+
+
+    const experience =
+
+        result?.executionMeta?.experience;
+
+
+
+    if (
+        !experience ||
+        experience.used !== true
+    ) {
+
+        return;
+
+    }
+
+
+
+
+
+
+    trace.experienceUsage.used =
+        true;
+
+
+
+
+
+
+    if (
+        Array.isArray(
+            experience.skills
+        )
+    ) {
+
+
+        for (
+            const skill
+            of experience.skills
+        ) {
+
+
+            const exists =
+
+                trace.experienceUsage.skills.some(
+
+                    item =>
+
+                        (
+
+                            item?.id ||
+                            item
+
+                        )
+
+                        ===
+
+                        (
+
+                            skill?.id ||
+                            skill
+
+                        )
+
+                );
+
+
+
+            if (
+                !exists
+            ) {
+
+
+                trace.experienceUsage.skills.push(
+                    skill
+                );
+
+
+            }
+
+
+        }
+
+
+    }
+
+
+
+
+
+
+    if (
+        result.status === "COMPLETED"
+    ) {
+
+
+        trace.experienceUsage.successfulUses++;
+
+
+    }
+
+
+    if (
+        result.status === "FAILED"
+    ) {
+
+
+        trace.experienceUsage.failedUses++;
+
+
+    }
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SUMMARY UPDATE
  * =========================================================
  */
 
 
 export function updateTraceFromSummary(
+
     trace,
+
     summary
+
 ) {
 
 
@@ -285,11 +502,6 @@ export function updateTraceFromSummary(
 
 
 
-    /*
-     * Сохраняем результаты всех подзадач
-     */
-
-
     if (
         Array.isArray(
             summary.results
@@ -298,14 +510,18 @@ export function updateTraceFromSummary(
 
 
         trace.subtasks =
+
             summary.results.map(
 
                 item =>
+
                     normalizeSubtaskResult(
                         item
                     )
 
             );
+
+
 
 
 
@@ -316,15 +532,31 @@ export function updateTraceFromSummary(
 
 
             collectTools(
+
                 trace,
+
                 item.usedTools
+
             );
 
 
 
             collectValidationErrors(
+
                 trace,
+
                 item.validationErrors
+
+            );
+
+
+
+            collectExperienceUsage(
+
+                trace,
+
+                item
+
             );
 
 
@@ -337,15 +569,12 @@ export function updateTraceFromSummary(
 
 
 
-    /*
-     * Обновляем статистику
-     */
-
 
     trace.stats = {
 
 
         total:
+
             Number(
                 summary.total || 0
             ),
@@ -353,6 +582,7 @@ export function updateTraceFromSummary(
 
 
         completed:
+
             Number(
                 summary.completed || 0
             ),
@@ -360,6 +590,7 @@ export function updateTraceFromSummary(
 
 
         failed:
+
             Number(
                 summary.failed || 0
             ),
@@ -367,6 +598,7 @@ export function updateTraceFromSummary(
 
 
         clarification:
+
             Number(
                 summary.needsClarification || 0
             )
@@ -388,6 +620,7 @@ export function updateTraceFromSummary(
 
 
 }
+
 
 
 
@@ -432,12 +665,16 @@ function normalizeSubtaskResult(
 
 
         validated:
-            result.validated === true
+            result.validated === true,
 
+
+
+        experienceUsed:
+
+            result?.executionMeta?.experience?.used === true
 
 
     };
-
 
 }
 
@@ -457,8 +694,11 @@ function normalizeSubtaskResult(
 
 
 function collectTools(
+
     trace,
+
     tools
+
 ) {
 
 
@@ -483,13 +723,10 @@ function collectTools(
         ) {
 
 
-            trace.usedTools.push(
-                tool
-            );
+            trace.usedTools.push(tool);
 
 
         }
-
 
     }
 
@@ -512,8 +749,11 @@ function collectTools(
 
 
 function collectValidationErrors(
+
     trace,
+
     errors
+
 ) {
 
 
@@ -530,7 +770,6 @@ function collectValidationErrors(
     trace.validationErrors.push(
         ...errors
     );
-
 
 }
 
@@ -550,8 +789,11 @@ function collectValidationErrors(
 
 
 function updateStats(
+
     trace,
+
     status
+
 ) {
 
 
@@ -615,42 +857,17 @@ function updateStatus(
 
 
 
-
     if (
         stats.completed > 0 &&
         stats.failed > 0
     ) {
 
-
         trace.status =
             "PARTIAL";
-
 
         return;
 
     }
-
-
-
-
-
-
-    if (
-        stats.completed > 0 &&
-        stats.clarification > 0
-    ) {
-
-
-        trace.status =
-            "PARTIAL";
-
-
-        return;
-
-    }
-
-
-
 
 
 
@@ -659,36 +876,12 @@ function updateStatus(
         stats.completed === 0
     ) {
 
-
         trace.status =
             "FAILED";
 
-
         return;
 
     }
-
-
-
-
-
-
-    if (
-        stats.completed === 0 &&
-        stats.clarification > 0
-    ) {
-
-
-        trace.status =
-            "NEEDS_CLARIFICATION";
-
-
-        return;
-
-    }
-
-
-
 
 
 
@@ -697,16 +890,12 @@ function updateStatus(
         stats.completed === stats.total
     ) {
 
-
         trace.status =
             "COMPLETED";
-
 
         return;
 
     }
-
-
 
 
 
@@ -747,7 +936,8 @@ export function finishExecutionTrace(
 
 
     trace.finishedAt =
-        new Date().toISOString();
+        new Date()
+            .toISOString();
 
 
 
