@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * TASK RUNNER EXECUTOR v1
+ * TASK RUNNER EXECUTOR v2
  * =========================================================
  *
  * Запуск выполнения текущего Execution Plan.
@@ -14,6 +14,13 @@
  * Task Runner
  *        ↓
  * Run Result
+ *
+ *
+ * Ответственность:
+ *
+ * - передать Plan в TaskRunner;
+ * - сохранить Run Result;
+ * - нормализовать ошибку выполнения.
  *
  *
  * НЕ:
@@ -80,11 +87,81 @@ function buildFailure(
             reason,
 
 
+
             ...extra
 
 
         }
 
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE RUN FAILURE
+ * =========================================================
+ */
+
+
+function normalizeRunFailure(
+
+    runResult
+
+) {
+
+
+    return {
+
+
+        stage:
+
+            runResult?.stage ||
+
+            "runner",
+
+
+
+        failureType:
+
+            runResult?.failureType ||
+
+            "runner-failure",
+
+
+
+        reason:
+
+            runResult?.reason ||
+
+            runResult?.text ||
+
+            "План не выполнен",
+
+
+
+        shouldRetry:
+
+            runResult?.shouldRetry === true,
+
+
+
+        needsClarification:
+
+            runResult?.needsClarification === true,
+
+
+
+        runResult
 
     };
 
@@ -113,7 +190,9 @@ export async function executeTaskRunner(
 
 
     if (
+
         !context
+
     ) {
 
 
@@ -151,7 +230,6 @@ export async function executeTaskRunner(
             );
 
 
-
     }
 
     catch(error){
@@ -187,33 +265,22 @@ export async function executeTaskRunner(
     ) {
 
 
-
-        return buildFailure(
-
-            context.runResult?.stage ||
-
-            "runner",
+        return {
 
 
-            context.runResult?.failureType ||
-
-            "runner-failure",
+            success:false,
 
 
-            context.runResult?.reason ||
+            failure:
 
-            "План не выполнен",
-
-
-            {
-
-                runResult:
+                normalizeRunFailure(
 
                     context.runResult
 
-            }
+                )
 
-        );
+
+        };
 
 
     }
