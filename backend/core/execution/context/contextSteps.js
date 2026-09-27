@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CONTEXT STEPS v1
+ * JESSICA CONTEXT STEPS v2
  * =========================================================
  *
  * Управление историей Execution Steps.
@@ -30,6 +30,156 @@
 
 /*
  * =========================================================
+ * STATUS
+ * =========================================================
+ */
+
+
+const STEP_STATUS = {
+
+
+    RUNNING:
+
+        "RUNNING",
+
+
+
+    COMPLETED:
+
+        "COMPLETED",
+
+
+
+    FAILED:
+
+        "FAILED"
+
+
+};
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SAFE ARRAY
+ * =========================================================
+ */
+
+
+function ensureArray(
+
+    object,
+
+    field
+
+) {
+
+
+    if(
+
+        !Array.isArray(
+
+            object[field]
+
+        )
+
+    ){
+
+        object[field] = [];
+
+    }
+
+
+    return object[field];
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE STEP
+ * =========================================================
+ */
+
+
+function normalizeStep(
+
+    step
+
+) {
+
+
+    return {
+
+
+        stage:
+
+            step.stage || null,
+
+
+
+        status:
+
+            Object.values(
+
+                STEP_STATUS
+
+            )
+            .includes(
+
+                step.status
+
+            )
+
+                ?
+
+                step.status
+
+                :
+
+                STEP_STATUS.RUNNING,
+
+
+
+        data:
+
+            step.data || {},
+
+
+
+        failure:
+
+            step.failure || null
+
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
  * REGISTER STEP
  * =========================================================
  */
@@ -44,17 +194,19 @@ export function registerExecutionStep(
 ) {
 
 
-    if (
+    if(
 
         !context ||
 
         !step
 
-    ) {
+    ){
 
-        return;
+        return null;
 
     }
+
+
 
 
 
@@ -65,7 +217,11 @@ export function registerExecutionStep(
     const record = {
 
 
-        ...step,
+        ...normalizeStep(
+
+            step
+
+        ),
 
 
 
@@ -86,16 +242,9 @@ export function registerExecutionStep(
 
 
 
-    /*
-     * Current step
-     */
-
-
     context.currentStep =
 
-        step.stage ||
-
-        null;
+        record.stage;
 
 
 
@@ -105,66 +254,19 @@ export function registerExecutionStep(
 
 
 
-    /*
-     * Full history
-     */
+    const steps =
 
+        ensureArray(
 
-    if (
+            context,
 
-        !Array.isArray(
+            "stepsHistory"
 
-            context.stepsHistory
-
-        )
-
-    ) {
-
-
-        context.stepsHistory = [];
-
-    }
+        );
 
 
 
-
-
-
-    context.stepsHistory.push(
-
-        record
-
-    );
-
-
-
-
-
-
-
-
-
-    if (
-
-        !Array.isArray(
-
-            context.executionHistory
-
-        )
-
-    ) {
-
-
-        context.executionHistory = [];
-
-    }
-
-
-
-
-
-
-    context.executionHistory.push(
+    steps.push(
 
         record
 
@@ -179,36 +281,34 @@ export function registerExecutionStep(
 
 
     /*
-     * Completed
+     * Backward compatibility
      */
 
 
-    if (
+    context.executionHistory =
 
-        step.status === "COMPLETED"
-
-    ) {
-
-
-        if (
-
-            !Array.isArray(
-
-                context.completedSteps
-
-            )
-
-        ) {
-
-
-            context.completedSteps = [];
-
-        }
+        context.stepsHistory;
 
 
 
 
-        context.completedSteps.push(
+
+
+
+
+
+    if(
+
+        record.status ===
+
+        STEP_STATUS.COMPLETED
+
+    ){
+
+
+        registerCompletedStep(
+
+            context,
 
             record
 
@@ -225,37 +325,18 @@ export function registerExecutionStep(
 
 
 
-    /*
-     * Failed
-     */
+    if(
+
+        record.status ===
+
+        STEP_STATUS.FAILED
+
+    ){
 
 
-    if (
+        registerFailedStep(
 
-        step.status === "FAILED"
-
-    ) {
-
-
-        if (
-
-            !Array.isArray(
-
-                context.failedSteps
-
-            )
-
-        ) {
-
-
-            context.failedSteps = [];
-
-        }
-
-
-
-
-        context.failedSteps.push(
+            context,
 
             record
 
@@ -263,5 +344,133 @@ export function registerExecutionStep(
 
 
     }
+
+
+
+
+
+
+
+
+
+    return record;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * COMPLETED
+ * =========================================================
+ */
+
+
+export function registerCompletedStep(
+
+    context,
+
+    step
+
+) {
+
+
+    if(
+
+        !context
+
+    ){
+
+        return null;
+
+    }
+
+
+
+    const list =
+
+        ensureArray(
+
+            context,
+
+            "completedSteps"
+
+        );
+
+
+
+    list.push(
+
+        step
+
+    );
+
+
+    return step;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * FAILED
+ * =========================================================
+ */
+
+
+export function registerFailedStep(
+
+    context,
+
+    step
+
+) {
+
+
+    if(
+
+        !context
+
+    ){
+
+        return null;
+
+    }
+
+
+
+    const list =
+
+        ensureArray(
+
+            context,
+
+            "failedSteps"
+
+        );
+
+
+
+    list.push(
+
+        step
+
+    );
+
+
+    return step;
 
 }
