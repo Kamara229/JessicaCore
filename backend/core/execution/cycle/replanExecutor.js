@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * REPLAN EXECUTOR v1
+ * REPLAN EXECUTOR v2
  * =========================================================
  *
  * Выполнение уже принятого Replan решения.
@@ -14,6 +14,8 @@
  * Alternative Plan
  *        ↓
  * Apply Context
+ *        ↓
+ * Reset Execution State
  *        ↓
  * New Execution Route
  *
@@ -32,6 +34,11 @@ import {
     createAlternativePlan,
     applyAlternativePlan
 } from "../replanCoordinator.js";
+
+
+import {
+    resetExecutionAfterReplan
+} from "../executionContext.js";
 
 
 import {
@@ -78,6 +85,7 @@ export async function executeReplan(
         }
 
     );
+
 
 
 
@@ -171,6 +179,15 @@ export async function executeReplan(
     ) {
 
 
+        addTraceEvent(
+
+            context.trace,
+
+            "REPLAN_APPLY_FAILED"
+
+        );
+
+
         return false;
 
     }
@@ -184,15 +201,16 @@ export async function executeReplan(
 
 
     /*
-     * Новый план начинает
-     * новый цикл попыток
+     * Новый Plan начинает
+     * новый execution pass
      */
 
 
-    context.attempt = 0;
+    resetExecutionAfterReplan(
 
+        context
 
-    context.retryCount = 0;
+    );
 
 
 
@@ -207,7 +225,6 @@ export async function executeReplan(
         context.trace,
 
         {
-
 
             previousPlan,
 
