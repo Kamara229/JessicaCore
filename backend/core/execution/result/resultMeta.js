@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA RESULT META v1
+ * JESSICA RESULT META v2
  * =========================================================
  *
  * Формирование metadata для Execution Result.
@@ -37,14 +37,59 @@
 
 
 function safeArray(
+
     value
+
 ) {
+
 
     return Array.isArray(value)
 
-        ? value
+        ?
 
-        : [];
+        value
+
+        :
+
+        [];
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * RUN RESULTS
+ * =========================================================
+ */
+
+
+function getRunResults(
+
+    context
+
+) {
+
+
+    return (
+
+        context?.runResult?.results
+
+        ||
+
+        context?.runResult?.result?.results
+
+        ||
+
+        []
+
+    );
 
 }
 
@@ -74,7 +119,11 @@ export function collectUsedTools(
 
         safeArray(
 
-            context?.runResult?.results
+            getRunResults(
+
+                context
+
+            )
 
         );
 
@@ -171,27 +220,27 @@ export function buildExperienceMeta(
 
         skillIds:
 
-            skills.map(
+            skills
 
-                skill =>
+                .map(
 
+                    skill =>
 
-                    typeof skill === "string"
+                        typeof skill === "string"
 
-                        ?
+                            ?
 
-                        skill
+                            skill
 
-                        :
+                            :
 
-                        skill?.id ||
+                            skill?.id ||
 
-                        skill?.name
+                            skill?.name
 
+                )
 
-            )
-
-            .filter(Boolean)
+                .filter(Boolean)
 
 
     };
@@ -291,7 +340,6 @@ export function buildExecutionMeta(
 
     };
 
-
 }
 
 
@@ -350,7 +398,6 @@ export function buildHistoryMeta(
 
     };
 
-
 }
 
 
@@ -376,6 +423,12 @@ export function buildBaseResult(
 
 
     return {
+
+
+        resultType:
+
+            "EXECUTION_RESULT",
+
 
 
         task:
@@ -420,6 +473,5 @@ export function buildBaseResult(
 
 
     };
-
 
 }
