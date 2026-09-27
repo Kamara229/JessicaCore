@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION TERMINAL v6
+ * JESSICA EXECUTION TERMINAL v7
  * =========================================================
  *
  * Финальный слой завершения Execution Cycle.
@@ -45,6 +45,15 @@ import {
     buildClarificationResult
 
 } from "./executionResult.js";
+
+
+import {
+
+    getExecutionId,
+
+    getExecutionCounters
+
+} from "./context/contextReader.js";
 
 
 
@@ -99,12 +108,16 @@ export const TERMINAL_TYPE = {
 
 
 function safeString(
+
     value
+
 ) {
 
 
     return String(
+
         value || ""
+
     )
     .trim();
 
@@ -182,7 +195,9 @@ function normalizeFailure(
     const failureType =
 
         safeString(
+
             failure.failureType
+
         )
 
         ||
@@ -200,6 +215,7 @@ function normalizeFailure(
     let terminalType =
 
         TERMINAL_TYPE.FAILURE;
+
 
 
 
@@ -270,7 +286,9 @@ function normalizeFailure(
         stage:
 
             safeString(
+
                 failure.stage
+
             )
 
             ||
@@ -287,7 +305,9 @@ function normalizeFailure(
         reason:
 
             safeString(
+
                 failure.reason
+
             )
 
             ||
@@ -329,6 +349,16 @@ function logTerminal(
 ) {
 
 
+    const counters =
+
+        getExecutionCounters(
+
+            context
+
+        );
+
+
+
     console.log(
 
         "Jessica Terminal:",
@@ -338,17 +368,17 @@ function logTerminal(
 
             executionId:
 
-                context?.executionId ||
+                getExecutionId(
 
-                null,
+                    context
+
+                ),
 
 
 
             attempt:
 
-                context?.attempt ||
-
-                0,
+                counters.attempt,
 
 
 
@@ -403,7 +433,9 @@ export function buildTerminalResult(
     const normalized =
 
         normalizeFailure(
+
             failure
+
         );
 
 
