@@ -1,17 +1,17 @@
 /*
  * =========================================================
- * JESSICA EXECUTION CONTEXT FACADE v5
+ * JESSICA EXECUTION CONTEXT FACADE v6
  * =========================================================
  *
  * Единая публичная точка доступа к Execution Context.
  *
  *
- * Ответственность:
+ * Отвечает:
  *
- * - предоставить публичный API Context слоя;
- * - скрыть внутренние context modules;
- * - не допускать прямой зависимости Execution слоя
- *   от внутренней структуры Context.
+ * - предоставляет публичный API Context слоя;
+ * - скрывает внутренние context modules;
+ * - изолирует Execution слой от внутренней
+ *   структуры Execution Context.
  *
  *
  * Internal:
@@ -32,8 +32,8 @@
  *
  * - выполняет Tools;
  * - принимает Execution решения;
- * - делает Retry;
- * - делает Replan;
+ * - определяет Retry;
+ * - определяет Replan;
  * - управляет Execution Flow;
  * - хранит собственное состояние.
  *
@@ -82,17 +82,29 @@ export {
 
     getTraceId,
 
+    getExecutionState,
+
     getExecutionCounters,
 
     getExperience,
 
     getRunResults,
 
+    getTerminalResult,
+
+    getResultHistory,
+
     getExecutionFailures,
+
+    getExecutionAttempts,
 
     getExecutionReplans,
 
     getExecutionHistory,
+
+    getInitialPlan,
+
+    getCurrentPlan,
 
     getPlans
 
@@ -138,7 +150,11 @@ export {
 
 export {
 
-    registerExecutionStep
+    registerExecutionStep,
+
+    registerCompletedStep,
+
+    registerFailedStep
 
 } from "./context/contextSteps.js";
 
@@ -173,7 +189,7 @@ export {
 
 /*
  * =========================================================
- * FAILURE
+ * FAILURES
  * =========================================================
  */
 
