@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION CYCLE v13
+ * JESSICA EXECUTION CYCLE v14
  * =========================================================
  *
  * Central Execution Coordinator.
@@ -11,20 +11,20 @@
  * - создать Execution Context;
  * - создать Execution Trace;
  * - запустить Execution Loop;
- * - передать результат Terminal.
+ * - передать результат в Cycle Terminal.
  *
  *
  * Flow:
  *
  * Task
  *   ↓
- * Context Factory
+ * Context
  *   ↓
  * Trace
  *   ↓
  * Execution Loop
  *   ↓
- * Terminal
+ * Cycle Terminal
  *   ↓
  * Result
  *
@@ -34,9 +34,11 @@
  * - выполняет Tools;
  * - делает Retry;
  * - делает Replan;
- * - анализирует ошибки;
+ * - анализирует Failure;
  * - создаёт Answer;
- * - валидирует результат.
+ * - валидирует Result;
+ * - завершает Context;
+ * - завершает Trace.
  *
  * =========================================================
  */
@@ -73,7 +75,7 @@ import {
 
 /*
  * =========================================================
- * SAFE FAILURE
+ * EXECUTION EXCEPTION
  * =========================================================
  */
 
@@ -104,10 +106,278 @@ function buildExecutionException(
 
             error?.message ||
 
-            "Execution exception"
+            "Execution exception",
+
+
+
+        shouldRetry:
+
+            false,
+
+
+
+        needsClarification:
+
+            false,
+
+
+
+        noVerifiedResult:
+
+            false
 
 
     };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * UNKNOWN FAILURE
+ * =========================================================
+ */
+
+
+function buildUnknownFailure() {
+
+
+    return {
+
+
+        stage:
+
+            "execution",
+
+
+
+        failureType:
+
+            "unknown",
+
+
+
+        reason:
+
+            "Unknown execution failure",
+
+
+
+        shouldRetry:
+
+            false,
+
+
+
+        needsClarification:
+
+            false,
+
+
+
+        noVerifiedResult:
+
+            false
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * CREATE TRACE
+ * =========================================================
+ */
+
+
+function initializeTrace(
+
+    context
+
+) {
+
+
+    const trace =
+
+        createExecutionTrace(
+
+            context?.task || ""
+
+        );
+
+
+
+    context.trace =
+
+        trace;
+
+
+
+
+
+
+
+
+
+    addTraceEvent(
+
+        trace,
+
+        "EXECUTION_STARTED",
+
+        {
+
+            executionId:
+
+                context.executionId,
+
+
+
+            hasPlan:
+
+                Boolean(
+
+                    context.plan
+
+                ),
+
+
+
+            experienceFound:
+
+                context?.experience?.found === true
+
+
+        }
+
+    );
+
+
+
+
+
+
+
+
+
+    return trace;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * EXECUTE LOOP
+ * =========================================================
+ */
+
+
+async function runExecutionLoop(
+
+    context
+
+) {
+
+
+    try {
+
+
+        return await executeExecutionLoop(
+
+            context
+
+        );
+
+
+    }
+
+    catch(error){
+
+
+        const failure =
+
+            buildExecutionException(
+
+                error
+
+            );
+
+
+
+
+
+
+
+
+
+        addTraceEvent(
+
+            context.trace,
+
+            "EXECUTION_EXCEPTION",
+
+            {
+
+                failureType:
+
+                    failure.failureType,
+
+
+
+                reason:
+
+                    failure.reason
+
+
+            }
+
+        );
+
+
+
+
+
+
+
+
+
+        return {
+
+
+            success:false,
+
+
+            failure
+
+
+        };
+
+
+    }
+
 
 }
 
@@ -179,11 +449,32 @@ export async function executePlanCycle(
      */
 
 
-    context.trace =
+    initializeTrace(
 
-        createExecutionTrace(
+        context
 
-            task
+    );
+
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * EXECUTION LOOP
+     * =====================================================
+     */
+
+
+    const loopResult =
+
+        await runExecutionLoop(
+
+            context
 
         );
 
@@ -195,17 +486,33 @@ export async function executePlanCycle(
 
 
 
+    /*
+     * =====================================================
+     * LOOP COMPLETED
+     * =====================================================
+     */
+
+
     addTraceEvent(
 
         context.trace,
 
-        "EXECUTION_STARTED",
+        "EXECUTION_LOOP_COMPLETED",
 
         {
 
-            executionId:
+            success:
 
-                context.executionId
+                loopResult?.success === true,
+
+
+
+            failureType:
+
+                loopResult?.failure?.failureType ||
+
+                null
+
 
         }
 
@@ -221,79 +528,27 @@ export async function executePlanCycle(
 
     /*
      * =====================================================
-     * LOOP
+     * SUCCESS
      * =====================================================
      */
 
 
-    let result;
+    if (
 
+        loopResult?.success === true
 
+        &&
 
-    try {
+        loopResult.result
 
-
-        result =
-
-            await executeExecutionLoop(
-
-                context
-
-            );
-
-
-    }
-
-    catch(error){
-
-
-        result = {
-
-
-            success:false,
-
-
-            failure:
-
-                buildExecutionException(
-
-                    error
-
-                )
-
-
-        };
-
-
-    }
-
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * TERMINAL
-     * =====================================================
-     */
-
-
-    if(
-
-        result?.success === true
-
-    ){
+    ) {
 
 
         return finishSuccessfulExecution(
 
             context,
 
-            result.result
+            loopResult.result
 
         );
 
@@ -308,31 +563,20 @@ export async function executePlanCycle(
 
 
 
+    /*
+     * =====================================================
+     * FAILURE
+     * =====================================================
+     */
+
+
     return finishFailedExecution(
 
         context,
 
-        result?.failure ||
+        loopResult?.failure ||
 
-        {
-
-            stage:
-
-                "execution",
-
-
-
-            failureType:
-
-                "unknown",
-
-
-
-            reason:
-
-                "Unknown execution failure"
-
-        }
+        buildUnknownFailure()
 
     );
 
