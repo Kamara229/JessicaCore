@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CONTEXT FACTORY v3
+ * JESSICA CONTEXT FACTORY v4
  * =========================================================
  *
  * Создание нового Execution Context.
@@ -10,16 +10,19 @@
  *
  * - нормализация входных данных;
  * - создание полной runtime-схемы Context;
- * - инициализация histories и counters.
+ * - инициализация counters;
+ * - инициализация histories;
+ * - инициализация runtime results.
  *
  *
  * НЕ:
  *
- * - меняет состояние после создания;
+ * - меняет Context после создания;
  * - регистрирует шаги;
- * - регистрирует ошибки;
- * - делает Retry;
- * - делает Replan;
+ * - регистрирует Attempts;
+ * - регистрирует Retry;
+ * - регистрирует Replan;
+ * - регистрирует Failure;
  * - управляет Execution Flow.
  *
  * =========================================================
@@ -100,13 +103,13 @@ function normalizeExperience(
 ) {
 
 
-    if (
+    if(
 
         !experience ||
 
         typeof experience !== "object"
 
-    ) {
+    ){
 
 
         return {
@@ -230,7 +233,9 @@ function normalizeTask(
 
     return String(
 
-        task || ""
+        task ||
+
+        ""
 
     )
     .trim();
@@ -259,15 +264,19 @@ function normalizePlanningContext(
 ) {
 
 
-    if (
+    if(
 
         !planningContext ||
 
         typeof planningContext !== "object" ||
 
-        Array.isArray(planningContext)
+        Array.isArray(
 
-    ) {
+            planningContext
+
+        )
+
+    ){
 
 
         return {};
@@ -276,9 +285,17 @@ function normalizePlanningContext(
 
 
 
+
+
+
+
+
+
     return {
 
+
         ...planningContext
+
 
     };
 
@@ -495,12 +512,6 @@ export function createExecutionContext({
 
 
 
-        executionHistory:
-
-            [],
-
-
-
 
 
 
@@ -538,6 +549,14 @@ export function createExecutionContext({
 
 
 
+        /*
+         * Пока сохраняем.
+         *
+         * Перед удалением необходимо проверить
+         * Result / Terminal layer на наличие writer.
+         */
+
+
         resultHistory:
 
             [],
@@ -570,6 +589,12 @@ export function createExecutionContext({
 
 
         replanCount:
+
+            0,
+
+
+
+        failureCount:
 
             0,
 
@@ -627,24 +652,6 @@ export function createExecutionContext({
 
 
         replanHistory:
-
-            [],
-
-
-
-        /*
-         * Compatibility / secondary history.
-         *
-         * Пока сохраняем, потому что существующий
-         * Context API использует context.replans.
-         *
-         * После проверки contextReplan.js и
-         * contextReader.js решим, нужен ли этот
-         * второй массив вообще.
-         */
-
-
-        replans:
 
             [],
 
@@ -751,7 +758,7 @@ export function createExecutionContext({
 
             version:
 
-                "context-v3"
+                "context-v4"
 
 
         }
