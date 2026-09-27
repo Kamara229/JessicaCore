@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * CYCLE TERMINAL v1
+ * CYCLE TERMINAL v2
  * =========================================================
  *
  * Финальное завершение Execution Cycle.
@@ -10,6 +10,8 @@
  * Flow:
  *
  * Context
+ *    ↓
+ * Sync Trace
  *    ↓
  * Finish Context
  *    ↓
@@ -43,6 +45,18 @@ import {
 } from "../../trace/executionTrace.js";
 
 
+import {
+    syncTraceFromContext
+} from "../../trace/traceContextAdapter.js";
+
+
+import {
+    getExecutionId,
+    getTraceId,
+    getExecutionCounters
+} from "../context/contextReader.js";
+
+
 
 
 
@@ -66,6 +80,16 @@ function attachExecutionMeta(
 ) {
 
 
+    const counters =
+
+        getExecutionCounters(
+
+            context
+
+        );
+
+
+
     return {
 
 
@@ -83,37 +107,89 @@ function attachExecutionMeta(
 
             executionId:
 
-                context?.executionId || null,
+                getExecutionId(
+
+                    context
+
+                ),
 
 
 
             traceId:
 
-                context?.trace?.id || null,
+                getTraceId(
+
+                    context
+
+                ),
 
 
 
             attempt:
 
-                context?.attempt || 0,
+                counters.attempt,
 
 
 
             retryCount:
 
-                context?.retryCount || 0,
+                counters.retryCount,
 
 
 
             replanCount:
 
-                context?.replanCount || 0
+                counters.replanCount
 
 
         }
 
 
     };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * PREPARE TRACE
+ * =========================================================
+ */
+
+
+function prepareTrace(
+
+    context
+
+) {
+
+
+    if (
+
+        !context?.trace
+
+    ) {
+
+        return;
+
+    }
+
+
+
+    syncTraceFromContext(
+
+        context.trace,
+
+        context
+
+    );
 
 }
 
@@ -139,6 +215,14 @@ export function finishFailedExecution(
     failure
 
 ) {
+
+
+    prepareTrace(
+
+        context
+
+    );
+
 
 
     finishExecutionContext(
@@ -198,6 +282,14 @@ export function finishSuccessfulExecution(
     result
 
 ) {
+
+
+    prepareTrace(
+
+        context
+
+    );
+
 
 
     finishExecutionContext(
