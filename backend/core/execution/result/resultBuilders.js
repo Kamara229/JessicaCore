@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA RESULT BUILDERS v2
+ * JESSICA RESULT BUILDERS v3
  * =========================================================
  *
  * Создание Execution Result объектов.
@@ -44,7 +44,7 @@ import {
 
 /*
  * =========================================================
- * SAFE VALUE
+ * SAFE STRING
  * =========================================================
  */
 
@@ -53,25 +53,11 @@ function safeString(
 
     value
 
-) {
-
-
-    if (
-
-        value === null ||
-
-        value === undefined
-
-    ) {
-
-        return "";
-
-    }
-
+){
 
     return String(
 
-        value
+        value || ""
 
     )
     .trim();
@@ -88,44 +74,81 @@ function safeString(
 
 /*
  * =========================================================
- * NORMALIZE FAILURE
+ * FAILURE META
  * =========================================================
  */
 
 
 function buildFailureMeta(
 
-    {
+    options = {}
 
-        stage = "execution",
-
-        reason = "Ошибка выполнения",
-
-        failureType = "execution-error"
-
-    } = {}
-
-) {
-
+){
 
     return {
 
 
-        stage,
+        stage:
+
+            options.stage ||
+
+            "execution",
 
 
-        type:
 
-            failureType,
+        failureType:
+
+            options.failureType ||
+
+            options.type ||
+
+            "execution-error",
+
+
+
+        category:
+
+            options.category ||
+
+            "execution",
+
 
 
         reason:
 
             safeString(
 
-                reason
+                options.reason
 
             )
+            ||
+
+            "Ошибка выполнения",
+
+
+
+        validation:
+
+            options.validation ||
+
+            null,
+
+
+
+        source:
+
+            options.source ||
+
+            null,
+
+
+
+        details:
+
+            options.details ||
+
+            null
+
 
 
     };
@@ -142,7 +165,7 @@ function buildFailureMeta(
 
 /*
  * =========================================================
- * COMPLETED RESULT
+ * COMPLETED
  * =========================================================
  */
 
@@ -155,7 +178,7 @@ export function buildCompletedResult(
 
     verified = true
 
-) {
+){
 
 
     return {
@@ -191,7 +214,6 @@ export function buildCompletedResult(
 
         {
 
-
             text:
 
                 safeString(
@@ -213,6 +235,14 @@ export function buildCompletedResult(
 
 
 
+        validation:
+
+            context?.validationResult ||
+
+            null,
+
+
+
         failure:
 
             null,
@@ -220,6 +250,12 @@ export function buildCompletedResult(
 
 
         clarification:
+
+            null,
+
+
+
+        terminal:
 
             null
 
@@ -239,7 +275,7 @@ export function buildCompletedResult(
 
 /*
  * =========================================================
- * FAILED RESULT
+ * FAILED
  * =========================================================
  */
 
@@ -250,19 +286,7 @@ export function buildFailureResult(
 
     options = {}
 
-) {
-
-
-    const failure =
-
-        buildFailureMeta(
-
-            options
-
-        );
-
-
-
+){
 
 
     return {
@@ -300,13 +324,39 @@ export function buildFailureResult(
 
 
 
+        validation:
+
+            context?.validationResult ||
+
+            null,
+
+
+
         clarification:
 
             null,
 
 
 
-        failure
+        terminal:
+
+            {
+
+                type:
+
+                    "FAILURE"
+
+            },
+
+
+
+        failure:
+
+            buildFailureMeta(
+
+                options
+
+            )
 
 
     };
@@ -324,7 +374,7 @@ export function buildFailureResult(
 
 /*
  * =========================================================
- * CLARIFICATION RESULT
+ * NEEDS CLARIFICATION
  * =========================================================
  */
 
@@ -333,15 +383,35 @@ export function buildClarificationResult(
 
     context,
 
-    {
+    options = {}
 
-        stage = "execution",
+){
 
-        reason = "Требуется уточнение"
 
-    } = {}
+    const failure =
 
-) {
+        buildFailureMeta(
+
+            {
+
+                ...options,
+
+
+                category:
+
+                    "clarification"
+
+
+            }
+
+        );
+
+
+
+
+
+
+
 
 
     return {
@@ -380,6 +450,12 @@ export function buildClarificationResult(
 
 
 
+        validation:
+
+            null,
+
+
+
         failure:
 
             null,
@@ -391,17 +467,28 @@ export function buildClarificationResult(
         {
 
 
-            stage,
+            stage:
+
+                failure.stage,
+
 
 
             reason:
 
-                safeString(
+                failure.reason
 
-                    reason
 
-                )
+        },
 
+
+
+        terminal:
+
+        {
+
+            type:
+
+                "CLARIFICATION"
 
         }
 
@@ -430,17 +517,35 @@ export function buildNoVerifiedResult(
 
     context,
 
-    {
+    options = {}
 
-        stage = "verification",
+){
 
-        reason = "Не удалось подтвердить результат",
 
-        failureType = "no-verified-result"
+    const failure =
 
-    } = {}
+        buildFailureMeta(
 
-) {
+            {
+
+                ...options,
+
+
+                category:
+
+                    "no_verified"
+
+
+            }
+
+        );
+
+
+
+
+
+
+
 
 
     return {
@@ -479,23 +584,33 @@ export function buildNoVerifiedResult(
 
 
 
+        validation:
+
+            context?.validationResult ||
+
+            null,
+
+
+
         clarification:
 
             null,
 
 
 
-        failure:
+        terminal:
 
-            buildFailureMeta({
+        {
 
-                stage,
+            type:
 
-                reason,
+                "NO_VERIFIED_RESULT"
 
-                failureType
+        },
 
-            })
+
+
+        failure
 
 
     };
