@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA TASK RUNNER
- * STEP RESULT RESOLVER v1
+ * STEP RESULT RESOLVER v2
  * =========================================================
  *
  * Работа с результатами предыдущих Execution Steps.
@@ -10,20 +10,64 @@
  * Отвечает:
  *
  * - поиск результата шага;
- * - поиск web_search результата;
+ * - поиск результата web_search;
  * - извлечение URL;
- * - подготовка источников.
+ * - подготовка кандидатов источников.
  *
  *
  * НЕ:
  *
  * - выполняет Tools;
+ * - разрешает arguments;
  * - делает Retry;
- * - делает Replan;
- * - разрешает аргументы;
+ * - делает Replan.
  *
  * =========================================================
  */
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * URL VALIDATION
+ * =========================================================
+ */
+
+
+function isValidUrl(
+
+    value
+
+) {
+
+
+    if (
+
+        typeof value !== "string"
+
+    ) {
+
+        return false;
+
+    }
+
+
+
+
+
+    return /^https?:\/\/\S+$/i.test(
+
+        value.trim()
+
+    );
+
+}
+
+
 
 
 
@@ -55,17 +99,7 @@ export function findStepResult(
 
         !stepId.trim()
 
-    ) {
-
-        return null;
-
-    }
-
-
-
-
-
-    if (
+        ||
 
         !Array.isArray(results)
 
@@ -94,6 +128,44 @@ export function findStepResult(
         ||
 
         null
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * CHECK TOOL NAME
+ * =========================================================
+ */
+
+
+function isWebSearchResult(
+
+    item
+
+) {
+
+
+    return (
+
+        item?.tool === "web_search"
+
+        ||
+
+        item?.metadata?.tool === "web_search"
+
+        ||
+
+        item?.name === "web_search"
 
     );
 
@@ -143,8 +215,7 @@ export function findPreviousSearchResult(
 
             item =>
 
-
-                item?.tool === "web_search"
+                isWebSearchResult(item)
 
                 &&
 
@@ -159,27 +230,19 @@ export function findPreviousSearchResult(
 
 
 
-    if (
+    return (
 
-        searches.length === 0
+        searches.length > 0
 
-    ) {
+            ?
 
-        return null;
+            searches[searches.length - 1]
 
-    }
+            :
 
+            null
 
-
-
-
-
-
-    return searches[
-
-        searches.length - 1
-
-    ];
+    );
 
 }
 
@@ -225,21 +288,101 @@ export function extractUrl(
 
 
 
+    const candidates = [
+
+
+        item.url,
+
+
+        item.link,
+
+
+        item.href,
+
+
+        item.sourceUrl,
+
+
+        item.source_url
+
+
+    ];
+
+
+
+
+
+
+
+
+    for (
+
+        const value
+
+        of candidates
+
+    ) {
+
+
+        if (
+
+            isValidUrl(value)
+
+        ) {
+
+            return value.trim();
+
+        }
+
+    }
+
+
+
+
+
+
+
+    return null;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * EXTRACT SEARCH RESULTS ARRAY
+ * =========================================================
+ */
+
+
+function getSearchResults(
+
+    searchResult
+
+) {
+
+
     return (
 
-        item.url
+        searchResult?.data?.results
 
         ||
 
-        item.link
+        searchResult?.results
 
         ||
 
-        item.href
+        searchResult?.data
 
         ||
 
-        null
+        []
 
     );
 
@@ -269,16 +412,11 @@ export function extractSearchCandidates(
 
     const results =
 
+        getSearchResults(
 
-        searchResult?.data?.results
+            searchResult
 
-        ||
-
-        searchResult?.results
-
-        ||
-
-        [];
+        );
 
 
 
@@ -306,20 +444,28 @@ export function extractSearchCandidates(
 
         .map(
 
-            item =>
+            item => {
 
 
-            ({
+                const url =
 
-                ...item,
+                    extractUrl(item);
 
 
-                url:
 
-                    extractUrl(item)
+                return {
 
-            })
 
+                    ...item,
+
+
+                    url
+
+
+                };
+
+
+            }
 
         )
 
@@ -329,7 +475,9 @@ export function extractSearchCandidates(
             item =>
 
                 Boolean(
+
                     item.url
+
                 )
 
         );
@@ -346,7 +494,7 @@ export function extractSearchCandidates(
 
 /*
  * =========================================================
- * HAS SEARCH SOURCES
+ * HAS SOURCES
  * =========================================================
  */
 
@@ -366,6 +514,48 @@ export function hasSearchSources(
 
         )
         .length > 0
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * GET SOURCE URLS
+ * =========================================================
+ */
+
+
+export function extractSourceUrls(
+
+    searchResult
+
+) {
+
+
+    return (
+
+        extractSearchCandidates(
+
+            searchResult
+
+        )
+
+        .map(
+
+            item =>
+
+                item.url
+
+        )
 
     );
 
