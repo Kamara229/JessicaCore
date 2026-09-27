@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * CYCLE TERMINAL v3
+ * CYCLE TERMINAL v4
  * =========================================================
  *
  * Финальное завершение Execution Cycle.
@@ -11,13 +11,17 @@
  *
  * Context
  *    ↓
+ * Build Result
+ *    ↓
+ * Attach Result
+ *    ↓
  * Sync Trace
  *    ↓
  * Finish Context
  *    ↓
  * Finish Trace
  *    ↓
- * Result
+ * Return Result
  *
  *
  * НЕ:
@@ -41,7 +45,8 @@ import {
 
 
 import {
-    finishExecutionTrace
+    finishExecutionTrace,
+    updateTraceFromResult
 } from "../../trace/executionTrace.js";
 
 
@@ -59,16 +64,18 @@ import {
 
 /*
  * =========================================================
- * TRACE PREPARE
+ * FINALIZE TRACE
  * =========================================================
  */
 
 
-function prepareTrace(
+function finalizeTrace(
 
-    context
+    context,
 
-) {
+    result
+
+){
 
 
     if(
@@ -83,6 +90,38 @@ function prepareTrace(
 
 
 
+
+
+
+
+
+
+    /*
+     * Result -> Trace
+     */
+
+
+    updateTraceFromResult(
+
+        context.trace,
+
+        result
+
+    );
+
+
+
+
+
+
+
+
+
+    /*
+     * Context -> Trace
+     */
+
+
     syncTraceFromContext(
 
         context.trace,
@@ -91,6 +130,56 @@ function prepareTrace(
 
     );
 
+
+
+
+
+
+
+
+
+    finishExecutionTrace(
+
+        context.trace
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SAVE RESULT
+ * =========================================================
+ */
+
+
+function saveTerminalResult(
+
+    context,
+
+    result
+
+){
+
+
+    if(!context)
+        return;
+
+
+
+    context.terminalResult = result;
+
+
+
+    return result;
 
 }
 
@@ -115,12 +204,32 @@ export function finishFailedExecution(
 
     failure
 
-) {
+){
 
 
-    prepareTrace(
+    const result =
 
-        context
+        buildTerminalResult(
+
+            context,
+
+            failure
+
+        );
+
+
+
+
+
+
+
+
+
+    saveTerminalResult(
+
+        context,
+
+        result
 
     );
 
@@ -148,27 +257,23 @@ export function finishFailedExecution(
 
 
 
-    finishExecutionTrace(
-
-        context.trace
-
-    );
-
-
-
-
-
-
-
-
-
-    return buildTerminalResult(
+    finalizeTrace(
 
         context,
 
-        failure
+        result
 
     );
+
+
+
+
+
+
+
+
+
+    return result;
 
 }
 
@@ -193,14 +298,18 @@ export function finishSuccessfulExecution(
 
     result
 
-) {
+){
 
 
-    prepareTrace(
+    const finalResult =
 
-        context
+        saveTerminalResult(
 
-    );
+            context,
+
+            result
+
+        );
 
 
 
@@ -226,9 +335,11 @@ export function finishSuccessfulExecution(
 
 
 
-    finishExecutionTrace(
+    finalizeTrace(
 
-        context.trace
+        context,
+
+        finalResult
 
     );
 
@@ -240,7 +351,6 @@ export function finishSuccessfulExecution(
 
 
 
-    return result;
-
+    return finalResult;
 
 }
