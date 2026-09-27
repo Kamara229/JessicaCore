@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * FAILURE DECISION v2
+ * FAILURE DECISION v3
  * =========================================================
  *
  * Выбор следующего Execution Action.
@@ -52,13 +52,6 @@ import {
 
 
 
-/*
- * =========================================================
- * BUILD DECISION
- * =========================================================
- */
-
-
 function buildDecision(
 
     action,
@@ -67,8 +60,7 @@ function buildDecision(
 
     context
 
-) {
-
+){
 
     return {
 
@@ -84,7 +76,7 @@ function buildDecision(
 
         reason:
 
-            failure.reason,
+            failure.reason || "",
 
 
 
@@ -106,13 +98,9 @@ function buildDecision(
 
         {
 
-
             executionId:
 
-                context?.executionId ||
-
-                null,
-
+                context?.executionId || null,
 
 
             attempt:
@@ -147,7 +135,7 @@ function buildDecision(
 
             failureType:
 
-                failure.failureType,
+                failure.failureType || null,
 
 
 
@@ -171,44 +159,13 @@ function buildDecision(
 
 
 
-/*
- * =========================================================
- * RETRY CHECK
- * =========================================================
- */
-
-
 function canRetry(
 
     context,
 
     failure
 
-) {
-
-
-    /*
-     * Явный сигнал от слоя ниже
-     */
-
-
-    if(
-
-        failure.shouldRetry === true
-
-    ){
-
-        return true;
-
-    }
-
-
-
-
-
-
-
-
+){
 
     return shouldRetryExecution(
 
@@ -228,30 +185,19 @@ function canRetry(
 
 
 
-/*
- * =========================================================
- * DECIDE ACTION
- * =========================================================
- */
-
-
 export function decideFailureAction(
 
     context,
 
-    failure
+    failure = {}
 
-) {
-
+){
 
     /*
-     * =====================================================
-     * USER INPUT REQUIRED
-     * =====================================================
+     * USER INPUT
      */
 
-
-    if (
+    if(
 
         failure.needsClarification === true
 
@@ -259,8 +205,7 @@ export function decideFailureAction(
 
         failure.category === "clarification"
 
-    ) {
-
+    ){
 
         return buildDecision(
 
@@ -283,13 +228,10 @@ export function decideFailureAction(
 
 
     /*
-     * =====================================================
-     * RESULT NOT VERIFIED
-     * =====================================================
+     * NO VERIFIED RESULT
      */
 
-
-    if (
+    if(
 
         failure.noVerifiedResult === true
 
@@ -297,8 +239,7 @@ export function decideFailureAction(
 
         failure.category === "no_verified"
 
-    ) {
-
+    ){
 
         return buildDecision(
 
@@ -321,13 +262,10 @@ export function decideFailureAction(
 
 
     /*
-     * =====================================================
      * RETRY
-     * =====================================================
      */
 
-
-    if (
+    if(
 
         canRetry(
 
@@ -337,8 +275,7 @@ export function decideFailureAction(
 
         )
 
-    ) {
-
+    ){
 
         return buildDecision(
 
@@ -361,13 +298,10 @@ export function decideFailureAction(
 
 
     /*
-     * =====================================================
      * REPLAN
-     * =====================================================
      */
 
-
-    if (
+    if(
 
         canReplan(
 
@@ -379,8 +313,7 @@ export function decideFailureAction(
 
         failure.category !== "temporary"
 
-    ) {
-
+    ){
 
         return buildDecision(
 
@@ -403,11 +336,8 @@ export function decideFailureAction(
 
 
     /*
-     * =====================================================
      * FINISH
-     * =====================================================
      */
-
 
     return buildDecision(
 
