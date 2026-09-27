@@ -1,9 +1,9 @@
 /*
  * =========================================================
- * JESSICA EXECUTION CONTEXT v5
+ * JESSICA EXECUTION CONTEXT v6
  * =========================================================
  *
- * Контекст одного Execution Run.
+ * Runtime context одного Execution Run.
  *
  *
  * Flow:
@@ -19,21 +19,23 @@
  * Learning
  *
  *
- * Используется:
+ * Ответственность:
  *
- * - executionCycle
- * - executionStepRunner
- * - failureHandler
- * - executionTrace
+ * - хранить состояние выполнения;
+ * - хранить текущий Plan;
+ * - хранить результаты этапов;
+ * - хранить retry/replan counters;
+ * - передавать данные между Execution модулями.
  *
  *
  * НЕ:
  *
  * - выполняет Tools;
+ * - принимает решения;
  * - делает Retry;
  * - делает Replan;
  * - валидирует Answer;
- * - обучает Jessica.
+ * - сохраняет Learning.
  *
  * =========================================================
  */
@@ -53,7 +55,7 @@ import {
 
 /*
  * =========================================================
- * EXPERIENCE NORMALIZER
+ * NORMALIZE EXPERIENCE
  * =========================================================
  */
 
@@ -70,6 +72,7 @@ function normalizeExperience(
 
 
         return {
+
 
             used:
                 false,
@@ -120,8 +123,7 @@ function normalizeExperience(
 
         source:
 
-            experience.source ||
-            null,
+            experience.source || null,
 
 
 
@@ -147,8 +149,7 @@ function normalizeExperience(
 
         context:
 
-            experience.context ||
-            null
+            experience.context || null
 
 
     };
@@ -165,7 +166,7 @@ function normalizeExperience(
 
 /*
  * =========================================================
- * TASK NORMALIZER
+ * NORMALIZE TASK
  * =========================================================
  */
 
@@ -192,7 +193,7 @@ function normalizeTask(
 
 /*
  * =========================================================
- * CREATE CONTEXT
+ * CREATE EXECUTION CONTEXT
  * =========================================================
  */
 
@@ -210,8 +211,8 @@ export function createExecutionContext({
 } = {}) {
 
 
-
     const now =
+
         new Date()
             .toISOString();
 
@@ -220,8 +221,6 @@ export function createExecutionContext({
 
 
     return {
-
-
 
 
         /*
@@ -259,6 +258,8 @@ export function createExecutionContext({
 
 
 
+
+
         /*
          * =================================================
          * STATE
@@ -269,12 +270,6 @@ export function createExecutionContext({
         state:
 
             "RUNNING",
-
-
-
-        status:
-
-            "ACTIVE",
 
 
 
@@ -317,7 +312,7 @@ export function createExecutionContext({
 
         /*
          * =================================================
-         * EXPERIENCE
+         * EXPERIENCE SNAPSHOT
          * =================================================
          */
 
@@ -334,47 +329,9 @@ export function createExecutionContext({
 
 
 
-
-
         /*
          * =================================================
-         * EXECUTION TRACKING
-         * =================================================
-         */
-
-
-        currentStep:
-
-            null,
-
-
-
-        completedSteps:
-
-            [],
-
-
-
-        failedSteps:
-
-            [],
-
-
-
-        stepsHistory:
-
-            [],
-
-
-
-
-
-
-
-
-        /*
-         * =================================================
-         * RESULTS
+         * EXECUTION RESULTS
          * =================================================
          */
 
@@ -397,21 +354,13 @@ export function createExecutionContext({
 
 
 
-        terminalResult:
-
-            null,
-
-
-
-
-
 
 
 
 
         /*
          * =================================================
-         * RETRY / REPLAN
+         * RETRY / REPLAN STATE
          * =================================================
          */
 
@@ -434,15 +383,17 @@ export function createExecutionContext({
 
 
 
+        attempts:
+
+            [],
+
+
+
         replanHistory:
 
             [],
 
 
-
-        attempts:
-
-            [],
 
 
 
@@ -452,7 +403,7 @@ export function createExecutionContext({
 
         /*
          * =================================================
-         * FAILURE
+         * FAILURE STATE
          * =================================================
          */
 
@@ -473,63 +424,18 @@ export function createExecutionContext({
 
 
 
-
-
         /*
          * =================================================
-         * TRACE
+         * TRACE REFERENCE
          * =================================================
          */
 
 
         trace:
 
-            null,
+            null
 
 
-
-
-
-
-
-
-
-        /*
-         * =================================================
-         * LEARNING
-         * =================================================
-         */
-
-
-        learningContext:
-
-        {
-
-
-            signals:
-
-                [],
-
-
-
-            successful:
-
-                false,
-
-
-
-            reusable:
-
-                false,
-
-
-
-            candidateSkill:
-
-                null
-
-
-        }
 
 
 
@@ -565,7 +471,7 @@ export function updateExecutionState(
         !context
     ) {
 
-        return;
+        return context;
 
     }
 
@@ -575,103 +481,8 @@ export function updateExecutionState(
         state;
 
 
-}
 
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * REGISTER STEP
- * =========================================================
- */
-
-
-export function registerExecutionStep(
-
-    context,
-
-    step
-
-) {
-
-
-    if (
-        !context ||
-        !step
-    ) {
-
-        return;
-
-    }
-
-
-
-
-
-    const record = {
-
-
-        ...step,
-
-
-
-        timestamp:
-
-            new Date()
-                .toISOString()
-
-
-    };
-
-
-
-
-
-
-    context.stepsHistory.push(
-        record
-    );
-
-
-
-
-
-
-    if (
-        step.status === "COMPLETED"
-    ) {
-
-
-        context.completedSteps.push(
-            step
-        );
-
-
-    }
-
-
-
-
-
-
-    if (
-        step.status === "FAILED"
-    ) {
-
-
-        context.failedSteps.push(
-            step
-        );
-
-
-    }
-
+    return context;
 
 }
 
@@ -711,6 +522,7 @@ export function registerExecutionFailure(
 
 
 
+
     context.lastFailure =
         failure;
 
@@ -744,28 +556,93 @@ export function registerExecutionFailure(
 
 /*
  * =========================================================
- * REGISTER REPLAN
+ * REGISTER ATTEMPT
  * =========================================================
  */
 
 
-export function registerReplan(
+export function registerExecutionAttempt(
 
     context,
 
-    data
+    data = {}
 
 ) {
 
 
     if (
-        !context ||
-        !data
+        !context
     ) {
 
         return;
 
     }
+
+
+
+
+
+    context.attempt++;
+
+
+
+
+
+    context.attempts.push({
+
+        attempt:
+
+            context.attempt,
+
+
+
+        ...data,
+
+
+
+        timestamp:
+
+            new Date()
+                .toISOString()
+
+
+    });
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * REGISTER REPLAN
+ * =========================================================
+ */
+
+
+export function registerExecutionReplan(
+
+    context,
+
+    data = {}
+
+) {
+
+
+    if (
+        !context
+    ) {
+
+        return;
+
+    }
+
 
 
 
@@ -779,6 +656,7 @@ export function registerReplan(
     context.replanHistory.push({
 
         ...data,
+
 
 
         timestamp:
@@ -830,29 +708,6 @@ export function finishExecutionContext(
 
     context.state =
         state;
-
-
-
-
-    context.status =
-
-
-        state === "COMPLETED"
-
-            ? "COMPLETED"
-
-            :
-
-        state === "FAILED"
-
-            ? "FAILED"
-
-            :
-
-            "FINISHED";
-
-
-
 
 
 
