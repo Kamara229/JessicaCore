@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA TASK RUNNER
- * VALUE RESOLVER v1
+ * VALUE RESOLVER v2
  * =========================================================
  *
  * Рекурсивное разрешение arguments.
@@ -50,6 +50,110 @@ import {
 
 
 
+const MAX_DEPTH = 20;
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * UNSAFE KEY
+ * =========================================================
+ */
+
+
+function isUnsafeKey(
+
+    key
+
+) {
+
+
+    return (
+
+        key === "__proto__"
+
+        ||
+
+        key === "prototype"
+
+        ||
+
+        key === "constructor"
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * FAILURE
+ * =========================================================
+ */
+
+
+function buildFailure(
+
+    text
+
+) {
+
+
+    return {
+
+
+        success:false,
+
+
+        stage:
+
+            "argument-resolution",
+
+
+
+        failureType:
+
+            "value-resolution-error",
+
+
+
+        reason:
+
+            text,
+
+
+
+        text,
+
+
+        shouldRetry:false
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
 /*
  * =========================================================
  * RESOLVE VALUE
@@ -61,9 +165,40 @@ export function resolveValue(
 
     value,
 
-    results
+    results,
+
+    depth = 0
 
 ) {
+
+
+    /*
+     * Защита глубины
+     */
+
+
+    if (
+
+        depth >
+
+        MAX_DEPTH
+
+    ) {
+
+
+        return buildFailure(
+
+            "Превышена максимальная глубина arguments"
+
+        );
+
+    }
+
+
+
+
+
+
 
 
 
@@ -91,9 +226,12 @@ export function resolveValue(
 
         return {
 
+
             success:true,
 
+
             value
+
 
         };
 
@@ -170,14 +308,15 @@ export function resolveValue(
         ) {
 
 
-
             const resolved =
 
                 resolveValue(
 
                     item,
 
-                    results
+                    results,
+
+                    depth + 1
 
                 );
 
@@ -189,7 +328,7 @@ export function resolveValue(
 
             if (
 
-                !resolved.success
+                resolved.success !== true
 
             ) {
 
@@ -271,6 +410,21 @@ export function resolveValue(
     ) {
 
 
+        if (
+
+            isUnsafeKey(key)
+
+        ) {
+
+
+            continue;
+
+        }
+
+
+
+
+
 
 
         const resolved =
@@ -279,7 +433,9 @@ export function resolveValue(
 
                 item,
 
-                results
+                results,
+
+                depth + 1
 
             );
 
@@ -291,7 +447,7 @@ export function resolveValue(
 
         if (
 
-            !resolved.success
+            resolved.success !== true
 
         ) {
 
@@ -330,6 +486,5 @@ export function resolveValue(
 
 
     };
-
 
 }
