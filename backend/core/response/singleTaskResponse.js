@@ -1,30 +1,120 @@
 /*
  * =========================================================
- * JESSICA SINGLE TASK RESPONSE BUILDER
+ * JESSICA SINGLE TASK RESPONSE BUILDER v2
  * =========================================================
  *
- * Формирование ответа Jessica
+ * Формирование API ответа Jessica
  * для одной подзадачи.
+ *
+ *
+ * Flow:
+ *
+ * Execution Result
+ *        ↓
+ * Single Task Response
+ *        ↓
+ * Android API Response
  *
  *
  * Ответственность:
  *
- * - преобразовать результат выполнения;
- * - сформировать API response;
+ * - преобразовать Execution Result;
+ * - сохранить публичный API контракт;
+ * - вернуть текст ответа;
  * - прикрепить executionTrace.
  *
  *
- * НЕ содержит:
+ * НЕ:
  *
- * - выполнение;
- * - Planner;
- * - Tools;
- * - Validator;
- * - Experience;
- * - Learning.
+ * - выполняет Execution;
+ * - запускает Planner;
+ * - выполняет Tools;
+ * - валидирует;
+ * - изменяет Experience;
+ * - выполняет Learning.
  *
  * =========================================================
  */
+
+
+
+/*
+ * =========================================================
+ * ANSWER TEXT
+ * =========================================================
+ */
+
+
+function getAnswerText(
+    result
+) {
+
+    if (
+        typeof result?.answer?.text === "string"
+    ) {
+
+        return result.answer.text.trim();
+
+    }
+
+
+    return "";
+
+}
+
+
+
+/*
+ * =========================================================
+ * FAILURE TEXT
+ * =========================================================
+ */
+
+
+function getFailureText(
+    result
+) {
+
+    if (
+        typeof result?.failure?.reason === "string" &&
+        result.failure.reason.trim()
+    ) {
+
+        return result.failure.reason.trim();
+
+    }
+
+
+    return "Jessica не смогла выполнить задачу.";
+
+}
+
+
+
+/*
+ * =========================================================
+ * CLARIFICATION TEXT
+ * =========================================================
+ */
+
+
+function getClarificationText(
+    result
+) {
+
+    if (
+        typeof result?.clarification?.reason === "string" &&
+        result.clarification.reason.trim()
+    ) {
+
+        return result.clarification.reason.trim();
+
+    }
+
+
+    return "Для выполнения задачи требуется уточнение.";
+
+}
 
 
 
@@ -42,7 +132,6 @@ export function buildSingleTaskResponse(
 ) {
 
 
-
     /*
      * =====================================================
      * INVALID RESULT
@@ -55,37 +144,28 @@ export function buildSingleTaskResponse(
         typeof result !== "object"
     ) {
 
-
         return {
 
-
-            success:false,
-
+            success:
+                false,
 
             text:
                 "Jessica получила некорректный результат выполнения.",
 
-
             engine:
                 "jessica-core",
-
 
             mode:
                 "single",
 
-
             stage:
                 "response",
 
-
             executionTrace
-
 
         };
 
     }
-
-
 
 
 
@@ -100,68 +180,56 @@ export function buildSingleTaskResponse(
         result.status === "COMPLETED"
     ) {
 
-
         return {
 
-
-            success:true,
-
+            success:
+                true,
 
             text:
-                result.result || "",
-
+                getAnswerText(
+                    result
+                ),
 
             engine:
                 "jessica-core",
 
-
             mode:
                 "single",
 
-
             validated:
-                result.validated === true,
-
+                result.verified === true,
 
             answerSource:
-                result.answerSource || "unknown",
-
-
+                result?.answer?.source ||
+                "unknown",
 
             decomposition,
 
-
-
             plan:
-                result.plan || null,
-
-
+                result.currentPlan ||
+                null,
 
             toolResults:
-                result.toolResults || [],
-
-
+                result.toolResults ||
+                [],
 
             usedTools:
-                result.usedTools || [],
-
-
+                result?.executionMeta?.usedTools ||
+                [],
 
             experience:
-                result.experience || null,
+                result?.executionMeta?.experience ||
+                null,
 
-
+            validation:
+                result.validation ||
+                null,
 
             executionTrace
-
-
 
         };
 
     }
-
-
-
 
 
 
@@ -176,54 +244,48 @@ export function buildSingleTaskResponse(
         result.status === "NEEDS_CLARIFICATION"
     ) {
 
-
         return {
 
+            success:
+                false,
 
-            success:false,
-
-
-            needsClarification:true,
-
+            needsClarification:
+                true,
 
             text:
-                result.result ||
-                "Для выполнения задачи требуется уточнение.",
-
-
+                getClarificationText(
+                    result
+                ),
 
             engine:
                 "jessica-core",
 
-
-
             mode:
                 "single",
 
-
-
             stage:
-                result.stage || "subtask",
-
-
+                result?.clarification?.stage ||
+                "subtask",
 
             decomposition,
 
-
-
             plan:
-                result.plan || null,
-
-
+                result.currentPlan ||
+                null,
 
             toolResults:
-                result.toolResults || [],
+                result.toolResults ||
+                [],
 
+            usedTools:
+                result?.executionMeta?.usedTools ||
+                [],
 
+            experience:
+                result?.executionMeta?.experience ||
+                null,
 
             executionTrace
-
-
 
         };
 
@@ -231,68 +293,60 @@ export function buildSingleTaskResponse(
 
 
 
-
-
-
-
     /*
      * =====================================================
-     * FAILED
+     * FAILED / NO VERIFIED RESULT
      * =====================================================
      */
 
 
     return {
 
-
-        success:false,
-
+        success:
+            false,
 
         shouldRetry:
-            result.shouldRetry === true,
-
-
+            result?.failure?.shouldRetry === true,
 
         text:
-            result.result ||
-            "Jessica не смогла выполнить задачу.",
-
-
+            getFailureText(
+                result
+            ),
 
         engine:
             "jessica-core",
 
-
-
         mode:
             "single",
 
-
-
         stage:
-            result.stage || "subtask",
+            result?.failure?.stage ||
+            "subtask",
 
-
+        failureType:
+            result?.failure?.failureType ||
+            null,
 
         decomposition,
 
-
-
         plan:
-            result.plan || null,
-
-
+            result.currentPlan ||
+            null,
 
         toolResults:
-            result.toolResults || [],
+            result.toolResults ||
+            [],
 
+        usedTools:
+            result?.executionMeta?.usedTools ||
+            [],
 
+        experience:
+            result?.executionMeta?.experience ||
+            null,
 
         executionTrace
 
-
-
     };
-
 
 }
