@@ -1,25 +1,29 @@
 /*
  * =========================================================
- * JESSICA CONTEXT RETRY v2
+ * JESSICA CONTEXT RETRY v3
  * =========================================================
  *
- * Управление Retry counters.
+ * Управление Retry-состоянием Execution Context.
  *
  *
  * Отвечает:
  *
  * - увеличение retryCount;
- * - история retry.
+ * - регистрация retryHistory;
+ * - связь Retry с Failure и текущим Attempt.
  *
  *
  * НЕ:
  *
  * - принимает решение Retry;
- * - проверяет лимиты;
- * - запускает выполнение.
+ * - проверяет Retry limits;
+ * - классифицирует Failure;
+ * - запускает Execution.
  *
  * =========================================================
  */
+
+
 
 
 
@@ -43,11 +47,19 @@ function safeNumber(
 
     const number =
 
-        Number(value);
+        Number(
+
+            value
+
+        );
 
 
 
-    return Number.isFinite(number)
+    return Number.isFinite(
+
+        number
+
+    )
 
         ?
 
@@ -56,6 +68,49 @@ function safeNumber(
         :
 
         0;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * ENSURE HISTORY
+ * =========================================================
+ */
+
+
+function ensureRetryHistory(
+
+    context
+
+) {
+
+
+    if(
+
+        !Array.isArray(
+
+            context.retryHistory
+
+        )
+
+    ){
+
+
+        context.retryHistory = [];
+
+    }
+
+
+
+    return context.retryHistory;
 
 }
 
@@ -89,6 +144,7 @@ export function registerExecutionRetry(
 
     ){
 
+
         return null;
 
     }
@@ -99,6 +155,13 @@ export function registerExecutionRetry(
 
 
 
+
+
+    /*
+     * =====================================================
+     * COUNTER
+     * =====================================================
+     */
 
 
     context.retryCount =
@@ -121,26 +184,11 @@ export function registerExecutionRetry(
 
 
 
-    if(
-
-        !Array.isArray(
-
-            context.retryHistory
-
-        )
-
-    ){
-
-        context.retryHistory = [];
-
-    }
-
-
-
-
-
-
-
+    /*
+     * =====================================================
+     * RECORD
+     * =====================================================
+     */
 
 
     const record = {
@@ -162,9 +210,21 @@ export function registerExecutionRetry(
 
 
 
+        replanCount:
+
+            safeNumber(
+
+                context.replanCount
+
+            ),
+
+
+
         failure:
 
-            failure || null,
+            failure ||
+
+            null,
 
 
 
@@ -185,7 +245,24 @@ export function registerExecutionRetry(
 
 
 
-    context.retryHistory.push(
+    /*
+     * =====================================================
+     * HISTORY
+     * =====================================================
+     */
+
+
+    const history =
+
+        ensureRetryHistory(
+
+            context
+
+        );
+
+
+
+    history.push(
 
         record
 
