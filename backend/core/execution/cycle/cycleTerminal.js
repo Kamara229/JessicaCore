@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * CYCLE TERMINAL v2
+ * CYCLE TERMINAL v3
  * =========================================================
  *
  * Финальное завершение Execution Cycle.
@@ -17,7 +17,7 @@
  *    ↓
  * Finish Trace
  *    ↓
- * Terminal Result
+ * Result
  *
  *
  * НЕ:
@@ -50,106 +50,6 @@ import {
 } from "../../trace/traceContextAdapter.js";
 
 
-import {
-    getExecutionId,
-    getTraceId,
-    getExecutionCounters
-} from "../context/contextReader.js";
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * META
- * =========================================================
- */
-
-
-function attachExecutionMeta(
-
-    result,
-
-    context
-
-) {
-
-
-    const counters =
-
-        getExecutionCounters(
-
-            context
-
-        );
-
-
-
-    return {
-
-
-        ...result,
-
-
-        executionMeta:
-
-        {
-
-
-            ...(result?.executionMeta || {}),
-
-
-
-            executionId:
-
-                getExecutionId(
-
-                    context
-
-                ),
-
-
-
-            traceId:
-
-                getTraceId(
-
-                    context
-
-                ),
-
-
-
-            attempt:
-
-                counters.attempt,
-
-
-
-            retryCount:
-
-                counters.retryCount,
-
-
-
-            replanCount:
-
-                counters.replanCount
-
-
-        }
-
-
-    };
-
-}
-
-
 
 
 
@@ -159,7 +59,7 @@ function attachExecutionMeta(
 
 /*
  * =========================================================
- * PREPARE TRACE
+ * TRACE PREPARE
  * =========================================================
  */
 
@@ -171,11 +71,11 @@ function prepareTrace(
 ) {
 
 
-    if (
+    if(
 
         !context?.trace
 
-    ) {
+    ){
 
         return;
 
@@ -190,6 +90,7 @@ function prepareTrace(
         context
 
     );
+
 
 }
 
@@ -225,6 +126,12 @@ export function finishFailedExecution(
 
 
 
+
+
+
+
+
+
     finishExecutionContext(
 
         context,
@@ -232,6 +139,12 @@ export function finishFailedExecution(
         "FAILED"
 
     );
+
+
+
+
+
+
 
 
 
@@ -243,20 +156,19 @@ export function finishFailedExecution(
 
 
 
-    return attachExecutionMeta(
 
-        buildTerminalResult(
 
-            context,
 
-            failure
 
-        ),
 
-        context
+
+    return buildTerminalResult(
+
+        context,
+
+        failure
 
     );
-
 
 }
 
@@ -292,6 +204,12 @@ export function finishSuccessfulExecution(
 
 
 
+
+
+
+
+
+
     finishExecutionContext(
 
         context,
@@ -299,6 +217,12 @@ export function finishSuccessfulExecution(
         "COMPLETED"
 
     );
+
+
+
+
+
+
 
 
 
@@ -310,13 +234,13 @@ export function finishSuccessfulExecution(
 
 
 
-    return attachExecutionMeta(
 
-        result,
 
-        context
 
-    );
+
+
+
+    return result;
 
 
 }
