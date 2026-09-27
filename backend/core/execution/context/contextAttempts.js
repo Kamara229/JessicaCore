@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CONTEXT ATTEMPTS v1
+ * JESSICA CONTEXT ATTEMPTS v2
  * =========================================================
  *
  * Управление попытками Execution.
@@ -8,20 +8,59 @@
  *
  * Отвечает:
  *
- * - регистрация попыток;
- * - счётчики retry;
- * - счётчики replan;
- * - история перепланирования.
+ * - регистрация Execution Attempt;
+ * - история попыток.
  *
  *
  * НЕ:
  *
- * - принимает решение Retry/Replan;
+ * - принимает решение Retry;
+ * - принимает решение Replan;
  * - создаёт планы;
  * - запускает выполнение.
  *
  * =========================================================
  */
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SAFE NUMBER
+ * =========================================================
+ */
+
+
+function safeNumber(
+
+    value
+
+) {
+
+
+    const number =
+
+        Number(value);
+
+
+
+    return Number.isFinite(number)
+
+        ?
+
+        number
+
+        :
+
+        0;
+
+}
+
+
 
 
 
@@ -45,13 +84,13 @@ export function registerExecutionAttempt(
 ) {
 
 
-    if (
+    if(
 
         !context
 
-    ) {
+    ){
 
-        return;
+        return null;
 
     }
 
@@ -63,7 +102,17 @@ export function registerExecutionAttempt(
 
 
 
-    context.attempt++;
+    context.attempt =
+
+        safeNumber(
+
+            context.attempt
+
+        )
+
+        +
+
+        1;
 
 
 
@@ -73,7 +122,7 @@ export function registerExecutionAttempt(
 
 
 
-    if (
+    if(
 
         !Array.isArray(
 
@@ -81,8 +130,7 @@ export function registerExecutionAttempt(
 
         )
 
-    ) {
-
+    ){
 
         context.attempts = [];
 
@@ -96,7 +144,8 @@ export function registerExecutionAttempt(
 
 
 
-    context.attempts.push({
+    const record = {
+
 
         attempt:
 
@@ -104,75 +153,24 @@ export function registerExecutionAttempt(
 
 
 
-        ...data,
+        retryCount:
+
+            safeNumber(
+
+                context.retryCount
+
+            ),
 
 
 
-        timestamp:
+        replanCount:
 
-            new Date()
+            safeNumber(
 
-                .toISOString()
+                context.replanCount
 
+            ),
 
-    });
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * REGISTER REPLAN
- * =========================================================
- */
-
-
-export function registerExecutionReplan(
-
-    context,
-
-    data = {}
-
-) {
-
-
-    if (
-
-        !context
-
-    ) {
-
-        return;
-
-    }
-
-
-
-
-
-
-
-
-
-    context.replanCount++;
-
-
-
-
-
-
-
-
-
-    const record = {
 
 
         ...data,
@@ -196,30 +194,7 @@ export function registerExecutionReplan(
 
 
 
-    if (
-
-        !Array.isArray(
-
-            context.replanHistory
-
-        )
-
-    ) {
-
-
-        context.replanHistory = [];
-
-    }
-
-
-
-
-
-
-
-
-
-    context.replanHistory.push(
+    context.attempts.push(
 
         record
 
@@ -233,34 +208,6 @@ export function registerExecutionReplan(
 
 
 
-    if (
-
-        !Array.isArray(
-
-            context.replans
-
-        )
-
-    ) {
-
-
-        context.replans = [];
-
-    }
-
-
-
-
-
-
-
-
-
-    context.replans.push(
-
-        record
-
-    );
-
+    return record;
 
 }
