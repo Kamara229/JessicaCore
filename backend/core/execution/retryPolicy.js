@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA RETRY POLICY v6
+ * JESSICA RETRY POLICY v7
  * =========================================================
  *
  * Политика повторных попыток Execution.
@@ -47,7 +47,7 @@ export const MAX_EXECUTION_ATTEMPTS = 3;
 
 /*
  * =========================================================
- * RETRYABLE FAILURE TYPES
+ * RETRYABLE TYPES
  * =========================================================
  */
 
@@ -67,7 +67,13 @@ const RETRYABLE_TYPES = new Set([
     "tool-error",
 
 
+    "tool-exception",
+
+
     "runner-error",
+
+
+    "runner-exception",
 
 
     "rate-limit-error",
@@ -117,12 +123,16 @@ const RETRYABLE_CATEGORIES = new Set([
 
 
 function normalizeString(
+
     value
+
 ) {
 
 
     return String(
+
         value || ""
+
     )
     .toLowerCase()
     .trim();
@@ -138,20 +148,27 @@ function normalizeString(
 
 
 function normalizeAttempt(
+
     value
+
 ) {
 
 
     const number =
+
         Number(value);
 
 
 
     return Number.isFinite(number)
 
-        ? number
+        ?
 
-        : 0;
+        number
+
+        :
+
+        0;
 
 }
 
@@ -165,7 +182,7 @@ function normalizeAttempt(
 
 /*
  * =========================================================
- * CHECK FAILURE
+ * HELPERS
  * =========================================================
  */
 
@@ -184,6 +201,10 @@ function getFailureType(
     );
 
 }
+
+
+
+
 
 
 
@@ -240,14 +261,16 @@ export function shouldRetryExecution(
 
 
 
-    /*
-     * Лимит попыток
-     */
 
 
-    if(
+
+
+    if (
+
         attempt >= MAX_EXECUTION_ATTEMPTS
-    ){
+
+    ) {
+
 
         return false;
 
@@ -260,15 +283,15 @@ export function shouldRetryExecution(
 
 
 
-    /*
-     * Нет ошибки
-     */
 
+    if (
 
-    if(
         !failure ||
+
         typeof failure !== "object"
-    ){
+
+    ) {
+
 
         return false;
 
@@ -281,18 +304,27 @@ export function shouldRetryExecution(
 
 
 
+
     /*
-     * Требуется пользователь
+     * Пользователь должен ответить
      */
 
 
-    if(
+    if (
+
         failure.needsClarification === true
-    ){
+
+        ||
+
+        failure.category === "clarification"
+
+    ) {
+
 
         return false;
 
     }
+
 
 
 
@@ -302,17 +334,49 @@ export function shouldRetryExecution(
 
 
     /*
-     * NO VERIFIED RESULT
+     * Нет подтвержденного результата
      */
 
 
-    if(
+    if (
+
         failure.noVerifiedResult === true
-    ){
+
+        ||
+
+        failure.category === "no_verified"
+
+    ) {
+
 
         return false;
 
     }
+
+
+
+
+
+
+
+
+
+    /*
+     * Явный сигнал снизу
+     */
+
+
+    if (
+
+        failure.shouldRetry === true
+
+    ) {
+
+
+        return true;
+
+    }
+
 
 
 
@@ -324,7 +388,9 @@ export function shouldRetryExecution(
     const type =
 
         getFailureType(
+
             failure
+
         );
 
 
@@ -332,7 +398,9 @@ export function shouldRetryExecution(
     const category =
 
         getFailureCategory(
+
             failure
+
         );
 
 
@@ -342,18 +410,17 @@ export function shouldRetryExecution(
 
 
 
-    /*
-     * Явный тип ошибки
-     */
 
-
-    if(
+    if (
 
         RETRYABLE_TYPES.has(
+
             type
+
         )
 
-    ){
+    ) {
+
 
         return true;
 
@@ -366,22 +433,22 @@ export function shouldRetryExecution(
 
 
 
-    /*
-     * Временная категория
-     */
 
-
-    if(
+    if (
 
         RETRYABLE_CATEGORIES.has(
+
             category
+
         )
 
-    ){
+    ) {
+
 
         return true;
 
     }
+
 
 
 
@@ -419,7 +486,9 @@ export function getRetryReason(
     const type =
 
         getFailureType(
+
             failure
+
         );
 
 
@@ -439,7 +508,9 @@ export function getRetryReason(
 
         case "tool-error":
 
-            return "Временная ошибка инструмента";
+        case "tool-exception":
+
+            return "Ошибка выполнения инструмента";
 
 
         case "rate-limit-error":
@@ -486,7 +557,9 @@ export function shouldStopExecution(
     return (
 
         normalizeAttempt(
+
             context?.attempt
+
         )
 
         >=
@@ -526,7 +599,9 @@ export function getRemainingAttempts(
         MAX_EXECUTION_ATTEMPTS -
 
         normalizeAttempt(
+
             attempt
+
         )
 
     );
@@ -558,7 +633,9 @@ export function isRetryableFailure(
     return shouldRetryExecution(
 
         {
+
             attempt:0
+
         },
 
         failure
