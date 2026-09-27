@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA REPLAN COORDINATOR v7
+ * JESSICA REPLAN COORDINATOR v8
  * =========================================================
  *
  * Координатор перестроения Execution Plan.
@@ -19,13 +19,6 @@
  * Apply Context
  *
  *
- * Ответственность:
- *
- * - подготовить запрос Replanner;
- * - получить новый Plan;
- * - заменить текущий маршрут.
- *
- *
  * НЕ:
  *
  * - анализирует Failure;
@@ -41,6 +34,11 @@
 import {
     replanTask
 } from "../replanner.js";
+
+
+import {
+    registerExecutionReplan
+} from "./executionContext.js";
 
 
 
@@ -75,15 +73,18 @@ export const MAX_REPLAN_COUNT = 3;
 
 
 function safeString(
+
     value
+
 ) {
 
 
     return String(
+
         value || ""
+
     )
     .trim();
-
 
 }
 
@@ -117,7 +118,9 @@ function normalizeFailure(
             safeString(
                 failure?.stage
             )
+
             ||
+
             "execution",
 
 
@@ -127,7 +130,9 @@ function normalizeFailure(
             safeString(
                 failure?.failureType
             )
+
             ||
+
             "execution-error",
 
 
@@ -137,7 +142,9 @@ function normalizeFailure(
             safeString(
                 failure?.category
             )
+
             ||
+
             "execution",
 
 
@@ -147,15 +154,40 @@ function normalizeFailure(
             safeString(
                 failure?.reason
             )
+
             ||
+
             "Execution plan failed",
+
+
+
+        shouldRetry:
+
+            failure?.shouldRetry === true,
+
+
+
+        needsClarification:
+
+            failure?.needsClarification === true,
+
+
+
+        noVerifiedResult:
+
+            failure?.noVerifiedResult === true,
 
 
 
         validation:
 
-            failure?.validation ||
-            null
+            failure?.validation || null,
+
+
+
+        details:
+
+            failure?.details || null
 
 
     };
@@ -192,15 +224,13 @@ function buildReplanRequest(
 
         task:
 
-            context?.task ||
-            "",
+            context?.task || "",
 
 
 
         previousPlan:
 
-            context?.plan ||
-            null,
+            context?.plan || null,
 
 
 
@@ -210,8 +240,7 @@ function buildReplanRequest(
 
         runResult:
 
-            context?.runResult ||
-            null,
+            context?.runResult || null,
 
 
 
@@ -251,6 +280,7 @@ function buildReplanRequest(
 
             context?.planningContext || {}
 
+
     };
 
 
@@ -283,10 +313,10 @@ export async function createAlternativePlan(
     const normalizedFailure =
 
         normalizeFailure(
+
             failure
+
         );
-
-
 
 
 
@@ -331,46 +361,7 @@ export async function createAlternativePlan(
 
         };
 
-
     }
-
-
-
-
-
-
-
-
-
-    console.log(
-
-        "Jessica Replan Coordinator:",
-
-        {
-
-            failureType:
-
-                normalizedFailure.failureType,
-
-
-            category:
-
-                normalizedFailure.category,
-
-
-            attempt:
-
-                request.executionState.attempt,
-
-
-            replanCount:
-
-                request.executionState.replanCount
-
-
-        }
-
-    );
 
 
 
@@ -401,11 +392,9 @@ export async function createAlternativePlan(
                     ...request.planningContext,
 
 
-
                     replanContext:
 
                     {
-
 
                         previousPlan:
 
@@ -465,8 +454,8 @@ export async function createAlternativePlan(
 
             };
 
-
         }
+
 
 
 
@@ -511,9 +500,9 @@ export async function createAlternativePlan(
         };
 
 
+    }
 
-    } catch(error){
-
+    catch(error){
 
 
         console.error(
@@ -523,7 +512,6 @@ export async function createAlternativePlan(
             error
 
         );
-
 
 
         return {
@@ -606,11 +594,6 @@ export function applyAlternativePlan(
 
 
 
-    /*
-     * Replace route
-     */
-
-
     context.plan =
 
         alternative.plan;
@@ -622,11 +605,12 @@ export function applyAlternativePlan(
 
 
 
-    if(
+
+    if (
 
         alternative.planningContext
 
-    ){
+    ) {
 
 
         context.planningContext =
@@ -642,11 +626,6 @@ export function applyAlternativePlan(
 
 
 
-
-
-    /*
-     * Clear previous execution data
-     */
 
 
     context.runResult =
@@ -672,17 +651,10 @@ export function applyAlternativePlan(
 
 
 
-    /*
-     * Reset retry cycle
-     */
+    context.attempt = 0;
 
 
-    context.attempt =
-        0;
-
-
-    context.retryCount =
-        0;
+    context.retryCount = 0;
 
 
 
@@ -692,73 +664,31 @@ export function applyAlternativePlan(
 
 
 
-    /*
-     * Register replan
-     */
+    registerExecutionReplan(
+
+        context,
+
+        {
 
 
-    context.replanCount =
-
-        Number(
-            context.replanCount || 0
-        )
-        +
-        1;
+            previousPlan,
 
 
+            newPlan:
 
-
+                alternative.plan,
 
 
 
+            failure:
+
+                alternative.failure || null
 
 
-    if(
+        }
 
-        !Array.isArray(
-            context.replanHistory
-        )
+    );
 
-    ){
-
-        context.replanHistory = [];
-
-    }
-
-
-
-
-
-
-
-
-    context.replanHistory.push({
-
-        timestamp:
-
-            new Date()
-            .toISOString(),
-
-
-
-        previousPlan:
-
-            previousPlan || null,
-
-
-
-        newPlan:
-
-            alternative.plan,
-
-
-
-        failure:
-
-            alternative.failure || null
-
-
-    });
 
 
 
@@ -797,7 +727,9 @@ export function canReplan(
     return (
 
         Number(
+
             context?.replanCount || 0
+
         )
 
         <
@@ -805,6 +737,5 @@ export function canReplan(
         MAX_REPLAN_COUNT
 
     );
-
 
 }
