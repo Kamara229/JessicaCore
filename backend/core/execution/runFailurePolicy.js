@@ -1,30 +1,41 @@
 /*
  * =========================================================
- * JESSICA RUN FAILURE POLICY v4
+ * JESSICA RUN FAILURE POLICY v5
  * =========================================================
  *
- * Анализатор результата выполнения.
+ * Классификатор Execution Failure.
  *
  *
- * Ответственность:
+ * Flow:
  *
- * Execution Result
+ * Execution Output
  *        ↓
- * Failure Classification
+ * Normalize
+ *        ↓
+ * Classify
  *        ↓
  * Normalized Failure
  *
  *
+ * Ответственность:
+ *
+ * - определить тип ошибки;
+ * - определить категорию;
+ * - подготовить Failure объект.
+ *
+ *
  * НЕ:
  *
- * - принимает решение retry;
- * - делает replan;
+ * - решает Retry;
+ * - решает Replan;
  * - вызывает Planner;
  * - вызывает Tools;
- * - создаёт финальный результат.
+ * - создаёт Terminal Result.
  *
  * =========================================================
  */
+
+
 
 
 
@@ -48,20 +59,16 @@ export const FAILURE_TYPE = {
         "runner-error",
 
 
-    SEARCH_EMPTY:
-        "search-empty",
+    COMPOSER_ERROR:
+        "composer-error",
 
 
-    SOURCE_UNAVAILABLE:
-        "source-unavailable",
+    VALIDATOR_ERROR:
+        "validation-error",
 
 
     INVALID_RESULT:
         "invalid-result",
-
-
-    VALIDATION_ERROR:
-        "validation-error",
 
 
     MISSING_DATA:
@@ -76,8 +83,21 @@ export const FAILURE_TYPE = {
         "temporary-error",
 
 
+    TIMEOUT:
+        "timeout-error",
+
+
+    NETWORK:
+        "network-error",
+
+
+    NO_VERIFIED_RESULT:
+        "no-verified-result",
+
+
     UNKNOWN:
         "unknown"
+
 
 };
 
@@ -91,7 +111,52 @@ export const FAILURE_TYPE = {
 
 /*
  * =========================================================
- * NORMALIZE TEXT
+ * FAILURE CATEGORIES
+ * =========================================================
+ */
+
+
+export const FAILURE_CATEGORY = {
+
+
+    TEMPORARY:
+        "temporary",
+
+
+    TOOL:
+        "tool",
+
+
+    VALIDATION:
+        "validation",
+
+
+    DATA:
+        "data",
+
+
+    USER:
+        "user",
+
+
+    EXECUTION:
+        "execution"
+
+
+
+};
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * TEXT
  * =========================================================
  */
 
@@ -104,7 +169,100 @@ function normalizeText(
     return String(
         value || ""
     )
-        .trim();
+    .trim();
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * CATEGORY DETECTION
+ * =========================================================
+ */
+
+
+function detectCategory(
+
+    failureType
+
+) {
+
+
+    switch(
+        failureType
+    ){
+
+
+        case FAILURE_TYPE.TIMEOUT:
+
+
+        case FAILURE_TYPE.NETWORK:
+
+
+        case FAILURE_TYPE.TEMPORARY_ERROR:
+
+
+            return FAILURE_CATEGORY.TEMPORARY;
+
+
+
+
+
+        case FAILURE_TYPE.TOOL_ERROR:
+
+
+            return FAILURE_CATEGORY.TOOL;
+
+
+
+
+
+        case FAILURE_TYPE.VALIDATOR_ERROR:
+
+
+        case FAILURE_TYPE.INVALID_RESULT:
+
+
+            return FAILURE_CATEGORY.VALIDATION;
+
+
+
+
+
+        case FAILURE_TYPE.MISSING_DATA:
+
+
+            return FAILURE_CATEGORY.DATA;
+
+
+
+
+
+        case FAILURE_TYPE.USER_REQUIRED:
+
+
+            return FAILURE_CATEGORY.USER;
+
+
+
+
+
+        default:
+
+
+            return FAILURE_CATEGORY.EXECUTION;
+
+
+    }
+
 
 }
 
@@ -127,11 +285,13 @@ function buildFailure({
 
     stage,
 
-    type,
+    failureType,
 
     reason,
 
-    original = null
+    original = null,
+
+    extra = {}
 
 }) {
 
@@ -144,25 +304,63 @@ function buildFailure({
 
 
         stage:
-            stage || "execution",
+
+            stage ||
+            "execution",
 
 
 
         failureType:
-            type || FAILURE_TYPE.UNKNOWN,
+
+
+
+            failureType ||
+            FAILURE_TYPE.UNKNOWN,
+
+
+
+        category:
+
+
+
+            detectCategory(
+                failureType
+            ),
 
 
 
         reason:
-            reason || "Неизвестная ошибка",
 
 
 
-        original
+            reason ||
+            "Ошибка выполнения",
 
+
+
+        needsClarification:
+
+            failureType ===
+            FAILURE_TYPE.USER_REQUIRED,
+
+
+
+        noVerifiedResult:
+
+            failureType ===
+            FAILURE_TYPE.NO_VERIFIED_RESULT,
+
+
+
+        original,
+
+
+
+        ...extra
 
 
     };
+
 
 }
 
@@ -176,14 +374,17 @@ function buildFailure({
 
 /*
  * =========================================================
- * DETECT FAILURE TYPE
+ * DETECT TYPE
  * =========================================================
  */
 
 
 function detectFailureType(
+
     result,
+
     reason
+
 ) {
 
 
@@ -196,10 +397,14 @@ function detectFailureType(
 
 
 
-    if (
-        result?.needsClarification === true
-    ) {
 
+
+
+    if(
+
+        result?.needsClarification === true
+
+    ){
 
         return FAILURE_TYPE.USER_REQUIRED;
 
@@ -211,10 +416,12 @@ function detectFailureType(
 
 
 
-    if (
-        result?.stage === "tool"
-    ) {
 
+    if(
+
+        result?.stage === "tool"
+
+    ){
 
         return FAILURE_TYPE.TOOL_ERROR;
 
@@ -227,10 +434,11 @@ function detectFailureType(
 
 
 
-    if (
-        result?.stage === "runner"
-    ) {
+    if(
 
+        result?.stage === "runner"
+
+    ){
 
         return FAILURE_TYPE.RUNNER_ERROR;
 
@@ -243,26 +451,91 @@ function detectFailureType(
 
 
 
-    if (
+    if(
 
-        text.includes(
-            "timeout"
-        )
+        result?.stage === "composer"
+
+    ){
+
+        return FAILURE_TYPE.COMPOSER_ERROR;
+
+    }
+
+
+
+
+
+
+
+
+    if(
+
+        result?.stage === "validator"
+
+    ){
+
+        return FAILURE_TYPE.VALIDATOR_ERROR;
+
+    }
+
+
+
+
+
+
+
+
+    if(
+
+        text.includes("timeout")
 
         ||
 
-        text.includes(
-            "network"
-        )
+        text.includes("timed out")
+
+    ){
+
+        return FAILURE_TYPE.TIMEOUT;
+
+    }
+
+
+
+
+
+
+
+
+    if(
+
+        text.includes("network")
 
         ||
 
-        text.includes(
-            "temporarily"
-        )
+        text.includes("connection")
 
-    ) {
+    ){
 
+        return FAILURE_TYPE.NETWORK;
+
+    }
+
+
+
+
+
+
+
+
+    if(
+
+        text.includes("temporary")
+
+        ||
+
+        text.includes("temporarily")
+
+    ){
 
         return FAILURE_TYPE.TEMPORARY_ERROR;
 
@@ -275,88 +548,70 @@ function detectFailureType(
 
 
 
-    if (
+    if(
 
-        text.includes(
-            "not found"
-        )
+        text.includes("missing")
 
         ||
 
-        text.includes(
-            "empty"
-        )
+        text.includes("required")
 
         ||
 
-        text.includes(
-            "нет результатов"
-        )
-
-    ) {
-
-
-        return FAILURE_TYPE.SEARCH_EMPTY;
-
-    }
-
-
-
-
-
-
-
-
-    if (
-
-        text.includes(
-            "validation"
-        )
+        text.includes("не указан")
 
         ||
 
-        text.includes(
-            "провер"
-        )
+        text.includes("отсутствует")
 
-    ) {
-
-
-        return FAILURE_TYPE.VALIDATION_ERROR;
-
-    }
-
-
-
-
-
-
-
-
-    if (
-
-        text.includes(
-            "missing"
-        )
-
-        ||
-
-        text.includes(
-            "required"
-        )
-
-        ||
-
-        text.includes(
-            "не указан"
-        )
-
-    ) {
-
+    ){
 
         return FAILURE_TYPE.MISSING_DATA;
 
     }
+
+
+
+
+
+
+
+
+    if(
+
+        text.includes("validation")
+
+        ||
+
+        text.includes("провер")
+
+        ||
+
+        text.includes("не прошёл")
+
+    ){
+
+        return FAILURE_TYPE.VALIDATOR_ERROR;
+
+    }
+
+
+
+
+
+
+
+
+    if(
+
+        result?.noVerifiedResult === true
+
+    ){
+
+        return FAILURE_TYPE.NO_VERIFIED_RESULT;
+
+    }
+
 
 
 
@@ -379,7 +634,7 @@ function detectFailureType(
 
 /*
  * =========================================================
- * ANALYZE RUN RESULT
+ * ANALYZE EXECUTION RESULT
  * =========================================================
  */
 
@@ -391,35 +646,36 @@ export function analyzeRunFailure(
 ) {
 
 
+
     /*
-     * =====================================================
      * SUCCESS
-     * =====================================================
      */
 
 
-    if (
+    if(
+
         executionResult?.success === true
-    ) {
+
+    ){
 
 
         return {
 
 
-            failed:
-                false,
+            failed:false,
 
 
-            failureType:
-                null,
+            failureType:null,
 
 
-            stage:
-                null,
+            category:null,
 
 
-            reason:
-                ""
+            stage:null,
+
+
+            reason:""
+
 
         };
 
@@ -432,9 +688,15 @@ export function analyzeRunFailure(
 
 
 
+
+
     const reason =
 
         normalizeText(
+
+            executionResult?.failure?.reason
+
+            ||
 
             executionResult?.reason
 
@@ -454,7 +716,16 @@ export function analyzeRunFailure(
 
 
 
-    const failureType =
+
+    const detectedType =
+
+        executionResult?.failureType
+
+        ||
+
+        executionResult?.failure?.failureType
+
+        ||
 
         detectFailureType(
 
@@ -470,21 +741,26 @@ export function analyzeRunFailure(
 
 
 
+
     return buildFailure({
 
         stage:
 
-            executionResult?.stage ||
+            executionResult?.stage
+
+            ||
+
+            executionResult?.failure?.stage
+
+            ||
 
             "execution",
 
 
 
-        type:
+        failureType:
 
-            executionResult?.failureType ||
-
-            failureType,
+            detectedType,
 
 
 
@@ -498,7 +774,28 @@ export function analyzeRunFailure(
 
         original:
 
-            executionResult
+            executionResult,
+
+
+        extra:
+
+        {
+
+            validation:
+
+                executionResult?.validation
+
+                ||
+
+                executionResult?.failure?.validation
+
+                ||
+
+                null
+
+
+        }
+
 
     });
 
@@ -515,10 +812,10 @@ export function analyzeRunFailure(
 
 /*
  * =========================================================
- * BUILD REPLANNER FEEDBACK
+ * REPLANNER FEEDBACK
  * =========================================================
  *
- * Только данные для Planner.
+ * Только перенос данных.
  *
  * Не решение.
  *
@@ -527,13 +824,15 @@ export function analyzeRunFailure(
 
 
 export function buildRunFailureFeedback(
+
     failure
+
 ) {
 
 
-    if (
+    if(
         !failure
-    ) {
+    ){
 
         return null;
 
@@ -544,27 +843,31 @@ export function buildRunFailureFeedback(
     return {
 
 
-        previousFailure:
-            {
+        failureType:
+
+            failure.failureType,
 
 
-                type:
 
-                    failure.failureType,
+        category:
 
-
-                stage:
-
-                    failure.stage,
+            failure.category,
 
 
-                reason:
 
-                    failure.reason
+        stage:
+
+            failure.stage,
 
 
-            }
+
+        reason:
+
+            failure.reason
+
+
 
     };
+
 
 }
