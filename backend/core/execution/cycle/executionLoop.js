@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * EXECUTION LOOP v3
+ * EXECUTION LOOP v4
  * =========================================================
  *
  * Основной цикл выполнения.
@@ -13,16 +13,12 @@
  *    ↓
  * Execute Step
  *    ↓
- * Analyze Result
+ * Failure Handler
  *    ↓
- * Retry / Replan / Finish
  *
- *
- * Ответственность:
- *
- * - управлять Execution iterations;
- * - передавать Context;
- * - обрабатывать решение Failure Handler.
+ * Retry
+ * Replan
+ * Finish
  *
  *
  * НЕ:
@@ -31,8 +27,7 @@
  * - создаёт Trace;
  * - строит Plan;
  * - создаёт Terminal Result;
- * - реализует Replan;
- * - меняет Context напрямую.
+ * - принимает Failure Decision.
  *
  * =========================================================
  */
@@ -63,6 +58,11 @@ import {
 
 
 import {
+    addTraceEvent
+} from "../../trace/executionTrace.js";
+
+
+import {
     MAX_EXECUTION_ATTEMPTS
 } from "../retryPolicy.js";
 
@@ -76,60 +76,7 @@ import {
 
 /*
  * =========================================================
- * FAILURE NORMALIZE
- * =========================================================
- */
-
-
-function normalizeFailure(
-
-    failure
-
-) {
-
-
-    return {
-
-
-        stage:
-
-            failure?.stage ||
-
-            "execution",
-
-
-
-        failureType:
-
-            failure?.failureType ||
-
-            "execution-error",
-
-
-
-        reason:
-
-            failure?.reason ||
-
-            "Неизвестная ошибка"
-
-
-
-    };
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * EXECUTION EXCEPTION
+ * EXCEPTION
  * =========================================================
  */
 
@@ -178,7 +125,7 @@ function buildExecutionException(
 
 /*
  * =========================================================
- * LIMIT FAILURE
+ * LIMIT
  * =========================================================
  */
 
@@ -210,7 +157,6 @@ function buildExecutionLimitFailure()
 
 
     };
-
 
 }
 
@@ -246,11 +192,7 @@ export async function executeExecutionLoop(
 
 
 
-    while (
-
-        true
-
-    ) {
+    while(true){
 
 
 
@@ -272,14 +214,13 @@ export async function executeExecutionLoop(
 
 
 
-        if (
+        if(
 
             counters.attempt >=
 
             MAX_EXECUTION_ATTEMPTS
 
-        ) {
-
+        ){
 
             break;
 
@@ -291,13 +232,6 @@ export async function executeExecutionLoop(
 
 
 
-
-
-        /*
-         * =================================================
-         * ATTEMPT
-         * =================================================
-         */
 
 
         registerExecutionAttempt(
@@ -315,7 +249,6 @@ export async function executeExecutionLoop(
                 replanCount:
 
                     counters.replanCount
-
 
 
             }
@@ -340,13 +273,6 @@ export async function executeExecutionLoop(
 
 
 
-        /*
-         * =================================================
-         * EXECUTION STEP
-         * =================================================
-         */
-
-
         try {
 
 
@@ -357,7 +283,6 @@ export async function executeExecutionLoop(
                     context
 
                 );
-
 
 
         }
@@ -393,18 +318,11 @@ export async function executeExecutionLoop(
 
 
 
-        /*
-         * =================================================
-         * SUCCESS
-         * =================================================
-         */
-
-
-        if (
+        if(
 
             result?.success === true
 
-        ) {
+        ){
 
 
             return {
@@ -416,7 +334,6 @@ export async function executeExecutionLoop(
                 result:
 
                     result.result
-
 
 
             };
@@ -433,19 +350,16 @@ export async function executeExecutionLoop(
 
 
         /*
-         * =================================================
-         * FAILURE
-         * =================================================
+         * Failure передаётся
+         * без изменения
          */
 
 
         lastFailure =
 
-            normalizeFailure(
+            result?.failure ||
 
-                result?.failure
-
-            );
+            buildExecutionLimitFailure();
 
 
 
@@ -489,12 +403,11 @@ export async function executeExecutionLoop(
 
 
 
-        if (
+        if(
 
             !decision
 
-        ) {
-
+        ){
 
             break;
 
@@ -508,23 +421,12 @@ export async function executeExecutionLoop(
 
 
 
-        switch (
+        switch(
 
             decision.action
 
-        ) {
+        ){
 
-
-
-
-
-
-
-            /*
-             * =============================================
-             * RETRY
-             * =============================================
-             */
 
 
             case FAILURE_ACTION.RETRY:
@@ -533,6 +435,23 @@ export async function executeExecutionLoop(
                 registerExecutionRetry(
 
                     context
+
+                );
+
+
+                addTraceEvent(
+
+                    context.trace,
+
+                    "RETRY",
+
+                    {
+
+                        attempt:
+
+                            context.attempt
+
+                    }
 
                 );
 
@@ -547,17 +466,10 @@ export async function executeExecutionLoop(
 
 
 
-            /*
-             * =============================================
-             * REPLAN
-             * =============================================
-             */
-
-
             case FAILURE_ACTION.REPLAN:
 
 
-                if (
+                if(
 
                     await executeReplan(
 
@@ -567,7 +479,16 @@ export async function executeExecutionLoop(
 
                     )
 
-                ) {
+                ){
+
+
+                    addTraceEvent(
+
+                        context.trace,
+
+                        "REPLAN_CONTINUE"
+
+                    );
 
 
                     continue;
@@ -586,13 +507,6 @@ export async function executeExecutionLoop(
 
 
 
-            /*
-             * =============================================
-             * CLARIFICATION
-             * =============================================
-             */
-
-
             case FAILURE_ACTION.CLARIFICATION:
 
 
@@ -604,18 +518,7 @@ export async function executeExecutionLoop(
 
                     failure:
 
-                    {
-
-
-                        ...lastFailure,
-
-
-                        needsClarification:true
-
-
-
-                    }
-
+                        lastFailure
 
 
                 };
@@ -628,13 +531,6 @@ export async function executeExecutionLoop(
 
 
 
-            /*
-             * =============================================
-             * FINISH
-             * =============================================
-             */
-
-
             case FAILURE_ACTION.FINISH:
 
 
@@ -642,10 +538,6 @@ export async function executeExecutionLoop(
 
 
         }
-
-
-
-
 
 
 
