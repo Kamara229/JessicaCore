@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * EXECUTION LOOP v4
+ * EXECUTION LOOP v5
  * =========================================================
  *
  * Основной цикл выполнения.
@@ -74,33 +74,22 @@ import {
 
 
 
-/*
- * =========================================================
- * EXCEPTION
- * =========================================================
- */
-
-
 function buildExecutionException(
 
     error
 
-) {
-
+){
 
     return {
-
 
         stage:
 
             "execution",
 
 
-
         failureType:
 
             "execution-error",
-
 
 
         reason:
@@ -109,8 +98,6 @@ function buildExecutionException(
 
             "Execution exception"
 
-
-
     };
 
 }
@@ -123,25 +110,15 @@ function buildExecutionException(
 
 
 
-/*
- * =========================================================
- * LIMIT
- * =========================================================
- */
-
-
 function buildExecutionLimitFailure()
 
 {
 
-
     return {
-
 
         stage:
 
             "execution",
-
 
 
         failureType:
@@ -149,12 +126,9 @@ function buildExecutionLimitFailure()
             "execution-limit",
 
 
-
         reason:
 
             "Execution limit reached"
-
-
 
     };
 
@@ -168,18 +142,48 @@ function buildExecutionLimitFailure()
 
 
 
-/*
- * =========================================================
- * EXECUTION LOOP
- * =========================================================
- */
-
-
 export async function executeExecutionLoop(
 
     context
 
-) {
+){
+
+    if(!context){
+
+        return {
+
+            success:false,
+
+            failure:
+
+            {
+
+                stage:
+
+                    "execution",
+
+
+                failureType:
+
+                    "missing-context",
+
+
+                reason:
+
+                    "Execution context отсутствует"
+
+            }
+
+        };
+
+    }
+
+
+
+
+
+
+
 
 
     let lastFailure = null;
@@ -193,9 +197,6 @@ export async function executeExecutionLoop(
 
 
     while(true){
-
-
-
 
 
         const counters =
@@ -245,11 +246,9 @@ export async function executeExecutionLoop(
                     counters.retryCount,
 
 
-
                 replanCount:
 
                     counters.replanCount
-
 
             }
 
@@ -292,9 +291,7 @@ export async function executeExecutionLoop(
 
             result = {
 
-
                 success:false,
-
 
                 failure:
 
@@ -304,9 +301,7 @@ export async function executeExecutionLoop(
 
                     )
 
-
             };
-
 
         }
 
@@ -324,20 +319,15 @@ export async function executeExecutionLoop(
 
         ){
 
-
             return {
 
-
                 success:true,
-
 
                 result:
 
                     result.result
 
-
             };
-
 
         }
 
@@ -347,12 +337,6 @@ export async function executeExecutionLoop(
 
 
 
-
-
-        /*
-         * Failure передаётся
-         * без изменения
-         */
 
 
         lastFailure =
@@ -403,11 +387,7 @@ export async function executeExecutionLoop(
 
 
 
-        if(
-
-            !decision
-
-        ){
+        if(!decision){
 
             break;
 
@@ -426,7 +406,6 @@ export async function executeExecutionLoop(
             decision.action
 
         ){
-
 
 
             case FAILURE_ACTION.RETRY:
@@ -481,7 +460,6 @@ export async function executeExecutionLoop(
 
                 ){
 
-
                     addTraceEvent(
 
                         context.trace,
@@ -492,7 +470,6 @@ export async function executeExecutionLoop(
 
 
                     continue;
-
 
                 }
 
@@ -518,7 +495,14 @@ export async function executeExecutionLoop(
 
                     failure:
 
-                        lastFailure
+                    {
+
+                        ...lastFailure,
+
+
+                        needsClarification:true
+
+                    }
 
 
                 };
@@ -538,9 +522,6 @@ export async function executeExecutionLoop(
 
 
         }
-
-
-
 
 
         break;
@@ -567,7 +548,6 @@ export async function executeExecutionLoop(
             lastFailure ||
 
             buildExecutionLimitFailure()
-
 
 
     };
