@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA RETRY POLICY v7
+ * JESSICA RETRY POLICY v8
  * =========================================================
  *
  * Политика повторных попыток Execution.
@@ -23,18 +23,6 @@
  */
 
 
-
-
-
-
-
-/*
- * =========================================================
- * CONFIG
- * =========================================================
- */
-
-
 export const MAX_EXECUTION_ATTEMPTS = 3;
 
 
@@ -43,13 +31,6 @@ export const MAX_EXECUTION_ATTEMPTS = 3;
 
 
 
-
-
-/*
- * =========================================================
- * RETRYABLE TYPES
- * =========================================================
- */
 
 
 const RETRYABLE_TYPES = new Set([
@@ -93,17 +74,14 @@ const RETRYABLE_TYPES = new Set([
 
 
 
-/*
- * =========================================================
- * RETRYABLE CATEGORIES
- * =========================================================
- */
-
-
 const RETRYABLE_CATEGORIES = new Set([
 
 
-    "temporary"
+    "temporary",
+
+
+    "tool"
+
 
 ]);
 
@@ -115,19 +93,39 @@ const RETRYABLE_CATEGORIES = new Set([
 
 
 
-/*
- * =========================================================
- * NORMALIZE
- * =========================================================
- */
+const NON_RETRYABLE_CATEGORIES = new Set([
+
+
+    "clarification",
+
+
+    "no_verified",
+
+
+    "planner",
+
+
+    "data",
+
+
+    "validation"
+
+
+]);
+
+
+
+
+
+
+
 
 
 function normalizeString(
 
     value
 
-) {
-
+){
 
     return String(
 
@@ -151,8 +149,7 @@ function normalizeAttempt(
 
     value
 
-) {
-
+){
 
     const number =
 
@@ -180,19 +177,11 @@ function normalizeAttempt(
 
 
 
-/*
- * =========================================================
- * HELPERS
- * =========================================================
- */
-
-
 function getFailureType(
 
     failure
 
-) {
-
+){
 
     return normalizeString(
 
@@ -214,8 +203,7 @@ function getFailureCategory(
 
     failure
 
-) {
-
+){
 
     return normalizeString(
 
@@ -233,21 +221,13 @@ function getFailureCategory(
 
 
 
-/*
- * =========================================================
- * RETRY DECISION
- * =========================================================
- */
-
-
 export function shouldRetryExecution(
 
     context,
 
     failure
 
-) {
-
+){
 
     const attempt =
 
@@ -265,12 +245,11 @@ export function shouldRetryExecution(
 
 
 
-    if (
+    if(
 
         attempt >= MAX_EXECUTION_ATTEMPTS
 
-    ) {
-
+    ){
 
         return false;
 
@@ -284,14 +263,13 @@ export function shouldRetryExecution(
 
 
 
-    if (
+    if(
 
         !failure ||
 
         typeof failure !== "object"
 
-    ) {
-
+    ){
 
         return false;
 
@@ -305,21 +283,11 @@ export function shouldRetryExecution(
 
 
 
-    /*
-     * Пользователь должен ответить
-     */
-
-
-    if (
+    if(
 
         failure.needsClarification === true
 
-        ||
-
-        failure.category === "clarification"
-
-    ) {
-
+    ){
 
         return false;
 
@@ -333,47 +301,13 @@ export function shouldRetryExecution(
 
 
 
-    /*
-     * Нет подтвержденного результата
-     */
-
-
-    if (
+    if(
 
         failure.noVerifiedResult === true
 
-        ||
-
-        failure.category === "no_verified"
-
-    ) {
-
+    ){
 
         return false;
-
-    }
-
-
-
-
-
-
-
-
-
-    /*
-     * Явный сигнал снизу
-     */
-
-
-    if (
-
-        failure.shouldRetry === true
-
-    ) {
-
-
-        return true;
 
     }
 
@@ -411,7 +345,29 @@ export function shouldRetryExecution(
 
 
 
-    if (
+    if(
+
+        NON_RETRYABLE_CATEGORIES.has(
+
+            category
+
+        )
+
+    ){
+
+        return false;
+
+    }
+
+
+
+
+
+
+
+
+
+    if(
 
         RETRYABLE_TYPES.has(
 
@@ -419,8 +375,7 @@ export function shouldRetryExecution(
 
         )
 
-    ) {
-
+    ){
 
         return true;
 
@@ -434,7 +389,7 @@ export function shouldRetryExecution(
 
 
 
-    if (
+    if(
 
         RETRYABLE_CATEGORIES.has(
 
@@ -442,8 +397,7 @@ export function shouldRetryExecution(
 
         )
 
-    ) {
-
+    ){
 
         return true;
 
@@ -469,19 +423,11 @@ export function shouldRetryExecution(
 
 
 
-/*
- * =========================================================
- * RETRY REASON
- * =========================================================
- */
-
-
 export function getRetryReason(
 
     failure
 
-) {
-
+){
 
     const type =
 
@@ -527,7 +473,6 @@ export function getRetryReason(
 
             return "Повтор выполнения маршрута";
 
-
     }
 
 }
@@ -540,19 +485,11 @@ export function getRetryReason(
 
 
 
-/*
- * =========================================================
- * STOP
- * =========================================================
- */
-
-
 export function shouldStopExecution(
 
     context
 
-) {
-
+){
 
     return (
 
@@ -578,19 +515,11 @@ export function shouldStopExecution(
 
 
 
-/*
- * =========================================================
- * REMAINING
- * =========================================================
- */
-
-
 export function getRemainingAttempts(
 
     attempt
 
-) {
-
+){
 
     return Math.max(
 
@@ -616,19 +545,11 @@ export function getRemainingAttempts(
 
 
 
-/*
- * =========================================================
- * EXTERNAL CHECK
- * =========================================================
- */
-
-
 export function isRetryableFailure(
 
     failure
 
-) {
-
+){
 
     return shouldRetryExecution(
 
