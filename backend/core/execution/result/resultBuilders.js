@@ -1,24 +1,25 @@
 /*
  * =========================================================
- * JESSICA RESULT BUILDERS v1
+ * JESSICA RESULT BUILDERS v2
  * =========================================================
  *
  * Создание Execution Result объектов.
  *
  *
- * Отвечает:
+ * Ответственность:
  *
- * - COMPLETED
- * - FAILED
- * - NEEDS_CLARIFICATION
- * - NO_VERIFIED_RESULT
+ * - COMPLETED;
+ * - FAILED;
+ * - NEEDS_CLARIFICATION;
+ * - NO_VERIFIED_RESULT.
  *
  *
  * НЕ:
  *
  * - анализирует ошибки;
  * - принимает решения;
- * - выполняет Execution.
+ * - выполняет Execution;
+ * - изменяет Context.
  *
  * =========================================================
  */
@@ -43,7 +44,7 @@ import {
 
 /*
  * =========================================================
- * SAFE STRING
+ * SAFE VALUE
  * =========================================================
  */
 
@@ -54,10 +55,80 @@ function safeString(
 
 ) {
 
+
+    if (
+
+        value === null ||
+
+        value === undefined
+
+    ) {
+
+        return "";
+
+    }
+
+
     return String(
-        value || ""
+
+        value
+
     )
     .trim();
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE FAILURE
+ * =========================================================
+ */
+
+
+function buildFailureMeta(
+
+    {
+
+        stage = "execution",
+
+        reason = "Ошибка выполнения",
+
+        failureType = "execution-error"
+
+    } = {}
+
+) {
+
+
+    return {
+
+
+        stage,
+
+
+        type:
+
+            failureType,
+
+
+        reason:
+
+            safeString(
+
+                reason
+
+            )
+
+
+    };
 
 }
 
@@ -177,17 +248,21 @@ export function buildFailureResult(
 
     context,
 
-    {
-
-        stage = "execution",
-
-        reason = "Не удалось выполнить задачу",
-
-        failureType = "execution_failure"
-
-    } = {}
+    options = {}
 
 ) {
+
+
+    const failure =
+
+        buildFailureMeta(
+
+            options
+
+        );
+
+
+
 
 
     return {
@@ -231,30 +306,7 @@ export function buildFailureResult(
 
 
 
-        failure:
-
-        {
-
-
-            stage,
-
-
-            type:
-
-                failureType,
-
-
-
-            reason:
-
-                safeString(
-
-                    reason
-
-                )
-
-
-        }
+        failure
 
 
     };
@@ -384,7 +436,7 @@ export function buildNoVerifiedResult(
 
         reason = "Не удалось подтвердить результат",
 
-        failureType = "no_verified_result"
+        failureType = "no-verified-result"
 
     } = {}
 
@@ -435,28 +487,15 @@ export function buildNoVerifiedResult(
 
         failure:
 
-        {
+            buildFailureMeta({
 
+                stage,
 
-            stage,
+                reason,
 
+                failureType
 
-            type:
-
-                failureType,
-
-
-
-            reason:
-
-                safeString(
-
-                    reason
-
-                )
-
-
-        }
+            })
 
 
     };
