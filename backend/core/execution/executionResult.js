@@ -1,37 +1,113 @@
 /*
  * =========================================================
- * JESSICA EXECUTION RESULT CONTRACT v1
+ * JESSICA EXECUTION RESULT FACADE v2
  * =========================================================
  *
- * Базовый контракт Execution Result.
+ * Единая точка доступа Execution Result.
+ *
+ *
+ * Публичный API:
+ *
+ * - статусы;
+ * - создание результатов;
+ * - проверки результатов.
+ *
+ *
+ * Внутренние слои:
+ *
+ * resultMeta
+ * resultBuilders
+ * resultHelpers
+ *
  *
  * НЕ:
  *
- * - создаёт результаты;
- * - анализирует ошибки;
- * - собирает metadata.
+ * - содержит бизнес-логику;
+ * - собирает metadata напрямую;
+ * - анализирует ошибки.
  *
  * =========================================================
  */
 
 
-export const EXECUTION_RESULT_STATUS = {
 
 
-    COMPLETED:
-        "COMPLETED",
 
 
-    FAILED:
-        "FAILED",
+
+/*
+ * =========================================================
+ * STATUS
+ * =========================================================
+ */
 
 
-    NEEDS_CLARIFICATION:
-        "NEEDS_CLARIFICATION",
+export {
+
+    EXECUTION_RESULT_STATUS
+
+} from "./result/resultStatus.js";
 
 
-    NO_VERIFIED_RESULT:
-        "NO_VERIFIED_RESULT"
 
 
-};
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILDERS
+ * =========================================================
+ */
+
+
+export {
+
+
+    buildCompletedResult,
+
+
+    buildFailureResult,
+
+
+    buildClarificationResult,
+
+
+    buildNoVerifiedResult
+
+
+} from "./result/resultBuilders.js";
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * HELPERS
+ * =========================================================
+ */
+
+
+export {
+
+
+    isCompletedResult,
+
+
+    isFailedResult,
+
+
+    isClarificationResult,
+
+
+    isNoVerifiedResult
+
+
+} from "./result/resultHelpers.js";
