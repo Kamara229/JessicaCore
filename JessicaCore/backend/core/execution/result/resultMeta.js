@@ -1,10 +1,17 @@
 /*
  * =========================================================
- * JESSICA RESULT META
+ * JESSICA RESULT META v1
  * =========================================================
  *
- * Сбор технической информации
- * для Execution Result.
+ * Формирование metadata для Execution Result.
+ *
+ *
+ * Отвечает:
+ *
+ * - execution metadata;
+ * - tools usage;
+ * - experience usage;
+ * - execution history.
  *
  *
  * НЕ:
@@ -13,6 +20,18 @@
  * - меняет Context;
  * - принимает решения.
  *
+ * =========================================================
+ */
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SAFE ARRAY
  * =========================================================
  */
 
@@ -39,7 +58,7 @@ function safeArray(
 
 /*
  * =========================================================
- * TOOLS
+ * USED TOOLS
  * =========================================================
  */
 
@@ -70,6 +89,7 @@ export function collectUsedTools(
                 .map(
 
                     item =>
+
                         item?.tool
 
                 )
@@ -92,7 +112,7 @@ export function collectUsedTools(
 
 /*
  * =========================================================
- * EXPERIENCE
+ * EXPERIENCE META
  * =========================================================
  */
 
@@ -151,32 +171,31 @@ export function buildExperienceMeta(
 
         skillIds:
 
-            skills
+            skills.map(
 
-                .map(
-
-                    skill =>
+                skill =>
 
 
-                        typeof skill === "string"
+                    typeof skill === "string"
 
-                            ?
+                        ?
 
-                            skill
+                        skill
 
-                            :
+                        :
 
-                            skill?.id ||
+                        skill?.id ||
 
-                            skill?.name
+                        skill?.name
 
 
-                )
+            )
 
-                .filter(Boolean)
+            .filter(Boolean)
 
 
     };
+
 
 }
 
@@ -221,7 +240,7 @@ export function buildExecutionMeta(
 
 
 
-        attempts:
+        attempt:
 
             Number(
 
@@ -285,7 +304,7 @@ export function buildExecutionMeta(
 
 /*
  * =========================================================
- * HISTORY
+ * HISTORY META
  * =========================================================
  */
 
@@ -344,7 +363,7 @@ export function buildHistoryMeta(
 
 /*
  * =========================================================
- * BASE RESULT
+ * BASE RESULT DATA
  * =========================================================
  */
 
