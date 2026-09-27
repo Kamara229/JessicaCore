@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION TERMINAL v5
+ * JESSICA EXECUTION TERMINAL v6
  * =========================================================
  *
  * Финальный слой завершения Execution Cycle.
@@ -14,7 +14,13 @@
  *
  * Возвращает:
  *
- * Terminal Execution Result
+ * Execution Result
+ *
+ *
+ * Ответственность:
+ *
+ * - выбрать финальный Result Builder;
+ * - сформировать terminal outcome.
  *
  *
  * НЕ:
@@ -23,16 +29,21 @@
  * - делает Retry;
  * - делает Replan;
  * - вызывает Planner;
- * - вызывает Tools.
+ * - вызывает Tools;
+ * - изменяет Context.
  *
  * =========================================================
  */
 
 
 import {
+
     buildFailureResult,
+
     buildNoVerifiedResult,
+
     buildClarificationResult
+
 } from "./executionResult.js";
 
 
@@ -54,14 +65,19 @@ export const TERMINAL_TYPE = {
 
 
     CLARIFICATION:
+
         "CLARIFICATION",
 
 
+
     NO_VERIFIED_RESULT:
+
         "NO_VERIFIED_RESULT",
 
 
+
     FAILURE:
+
         "FAILURE"
 
 
@@ -77,7 +93,7 @@ export const TERMINAL_TYPE = {
 
 /*
  * =========================================================
- * STRING
+ * SAFE STRING
  * =========================================================
  */
 
@@ -111,13 +127,18 @@ function safeString(
 
 
 function normalizeFailure(
+
     failure
+
 ) {
 
 
     if (
+
         !failure ||
+
         typeof failure !== "object"
+
     ) {
 
 
@@ -125,21 +146,25 @@ function normalizeFailure(
 
 
             stage:
+
                 "execution",
 
 
 
             failureType:
+
                 "unknown",
 
 
 
             reason:
+
                 "Неизвестная ошибка",
 
 
 
             terminalType:
+
                 TERMINAL_TYPE.FAILURE
 
 
@@ -152,13 +177,19 @@ function normalizeFailure(
 
 
 
+
+
     const failureType =
 
         safeString(
             failure.failureType
         )
+
         ||
+
         "execution-failure";
+
+
 
 
 
@@ -176,9 +207,14 @@ function normalizeFailure(
 
 
 
+
     if (
 
         failure.needsClarification === true
+
+        ||
+
+        failure.type === "needs-clarification"
 
     ) {
 
@@ -196,30 +232,31 @@ function normalizeFailure(
 
 
 
+
+
     if (
 
         failure.noVerifiedResult === true
 
         ||
 
-        failureType ===
-        "no-verified-result"
+        failureType === "no_verified_result"
 
         ||
 
-        failureType ===
-        "no_verified_result"
+        failureType === "no-verified-result"
 
     ) {
 
 
         terminalType =
 
-            TERMINAL_TYPE
-                .NO_VERIFIED_RESULT;
+            TERMINAL_TYPE.NO_VERIFIED_RESULT;
 
 
     }
+
+
 
 
 
@@ -235,7 +272,9 @@ function normalizeFailure(
             safeString(
                 failure.stage
             )
+
             ||
+
             "execution",
 
 
@@ -250,8 +289,11 @@ function normalizeFailure(
             safeString(
                 failure.reason
             )
+
             ||
+
             "Не удалось выполнить задачу",
+
 
 
 
@@ -297,73 +339,17 @@ function logTerminal(
             executionId:
 
                 context?.executionId ||
+
                 null,
 
 
 
             attempt:
 
-                context?.attempt || 0,
+                context?.attempt ||
 
+                0,
 
-
-            terminalType:
-
-                failure.terminalType,
-
-
-
-            stage:
-
-                failure.stage,
-
-
-
-            failureType:
-
-                failure.failureType
-
-
-        }
-
-    );
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * ATTACH TERMINAL META
- * =========================================================
- */
-
-
-function attachTerminalMeta(
-
-    result,
-
-    failure
-
-) {
-
-
-    return {
-
-
-        ...result,
-
-
-        terminal:
-
-        {
 
 
             type:
@@ -385,8 +371,8 @@ function attachTerminalMeta(
 
         }
 
+    );
 
-    };
 
 }
 
@@ -442,7 +428,7 @@ export function buildTerminalResult(
 
     /*
      * =====================================================
-     * USER CLARIFICATION
+     * CLARIFICATION
      * =====================================================
      */
 
@@ -450,40 +436,33 @@ export function buildTerminalResult(
     if (
 
         normalized.terminalType ===
+
         TERMINAL_TYPE.CLARIFICATION
 
     ) {
 
 
-        return attachTerminalMeta(
+        return buildClarificationResult(
 
-            buildClarificationResult(
+            context,
 
-                context,
-
-                {
+            {
 
 
-                    stage:
+                stage:
 
-                        normalized.stage,
+                    normalized.stage,
 
 
 
-                    reason:
+                reason:
 
-                        normalized.reason
-
-
-                }
-
-            ),
+                    normalized.reason
 
 
-            normalized
+            }
 
         );
-
 
     }
 
@@ -505,67 +484,13 @@ export function buildTerminalResult(
     if (
 
         normalized.terminalType ===
+
         TERMINAL_TYPE.NO_VERIFIED_RESULT
 
     ) {
 
 
-        return attachTerminalMeta(
-
-            buildNoVerifiedResult(
-
-                context,
-
-                {
-
-
-                    stage:
-
-                        normalized.stage,
-
-
-
-                    reason:
-
-                        normalized.reason,
-
-
-
-                    failureType:
-
-                        normalized.failureType
-
-
-                }
-
-            ),
-
-
-            normalized
-
-        );
-
-
-    }
-
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * FINAL FAILURE
-     * =====================================================
-     */
-
-
-    return attachTerminalMeta(
-
-        buildFailureResult(
+        return buildNoVerifiedResult(
 
             context,
 
@@ -591,10 +516,50 @@ export function buildTerminalResult(
 
             }
 
-        ),
+        );
+
+    }
 
 
-        normalized
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * FAILURE
+     * =====================================================
+     */
+
+
+    return buildFailureResult(
+
+        context,
+
+        {
+
+
+            stage:
+
+                normalized.stage,
+
+
+
+            reason:
+
+                normalized.reason,
+
+
+
+            failureType:
+
+                normalized.failureType
+
+
+        }
 
     );
 
@@ -617,7 +582,9 @@ export function buildTerminalResult(
 
 
 export function isTerminalFailure(
+
     failure
+
 ) {
 
 
