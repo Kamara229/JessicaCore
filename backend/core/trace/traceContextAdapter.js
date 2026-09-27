@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA TRACE CONTEXT ADAPTER v1
+ * JESSICA TRACE CONTEXT ADAPTER v2
  * =========================================================
  *
  * Связь Execution Context и Execution Trace.
@@ -29,7 +29,8 @@ import {
     getExecutionCounters,
     getExecutionFailures,
     getExecutionHistory,
-    getExecutionReplans
+    getExecutionReplans,
+    getExperience
 } from "../execution/context/contextReader.js";
 
 
@@ -56,8 +57,7 @@ function safeArray(
 
     value
 
-) {
-
+){
 
     return Array.isArray(value)
 
@@ -81,7 +81,7 @@ function safeArray(
 
 /*
  * =========================================================
- * SYNC COUNTERS
+ * COUNTERS
  * =========================================================
  */
 
@@ -92,26 +92,19 @@ export function syncTraceCounters(
 
     context
 
-) {
+){
 
-
-    if (
+    if(
 
         !trace ||
 
         !context
 
-    ) {
+    ){
 
         return trace;
 
     }
-
-
-
-
-
-
 
 
 
@@ -125,17 +118,10 @@ export function syncTraceCounters(
 
 
 
-
-
-
-
-
-
     trace.statistics = {
 
 
         ...(trace.statistics || {}),
-
 
 
         attempts:
@@ -143,11 +129,9 @@ export function syncTraceCounters(
             counters.attempt,
 
 
-
         retries:
 
             counters.retryCount,
-
 
 
         replans:
@@ -159,12 +143,6 @@ export function syncTraceCounters(
 
 
 
-
-
-
-
-
-
     return trace;
 
 }
@@ -179,7 +157,7 @@ export function syncTraceCounters(
 
 /*
  * =========================================================
- * SYNC FAILURES
+ * FAILURES
  * =========================================================
  */
 
@@ -190,16 +168,15 @@ export function syncTraceFailures(
 
     context
 
-) {
+){
 
-
-    if (
+    if(
 
         !trace ||
 
         !context
 
-    ) {
+    ){
 
         return trace;
 
@@ -207,41 +184,19 @@ export function syncTraceFailures(
 
 
 
+    trace.failures = [
 
+        ...safeArray(
 
+            getExecutionFailures(
 
+                context
 
+            )
 
+        )
 
-    const failures =
-
-        getExecutionFailures(
-
-            context
-
-        );
-
-
-
-
-
-
-
-
-
-    trace.failures =
-
-        safeArray(
-
-            failures
-
-        );
-
-
-
-
-
-
+    ];
 
 
 
@@ -259,7 +214,7 @@ export function syncTraceFailures(
 
 /*
  * =========================================================
- * SYNC REPLANS
+ * REPLANS
  * =========================================================
  */
 
@@ -270,16 +225,15 @@ export function syncTraceReplans(
 
     context
 
-) {
+){
 
-
-    if (
+    if(
 
         !trace ||
 
         !context
 
-    ) {
+    ){
 
         return trace;
 
@@ -287,15 +241,9 @@ export function syncTraceReplans(
 
 
 
+    trace.replans = [
 
-
-
-
-
-
-    trace.replans =
-
-        safeArray(
+        ...safeArray(
 
             getExecutionReplans(
 
@@ -303,13 +251,9 @@ export function syncTraceReplans(
 
             )
 
-        );
+        )
 
-
-
-
-
-
+    ];
 
 
 
@@ -327,7 +271,7 @@ export function syncTraceReplans(
 
 /*
  * =========================================================
- * SYNC STEPS
+ * STEPS
  * =========================================================
  */
 
@@ -338,16 +282,15 @@ export function syncTraceSteps(
 
     context
 
-) {
+){
 
-
-    if (
+    if(
 
         !trace ||
 
         !context
 
-    ) {
+    ){
 
         return trace;
 
@@ -355,15 +298,9 @@ export function syncTraceSteps(
 
 
 
+    trace.steps = [
 
-
-
-
-
-
-    trace.steps =
-
-        safeArray(
+        ...safeArray(
 
             getExecutionHistory(
 
@@ -371,13 +308,152 @@ export function syncTraceSteps(
 
             )
 
+        )
+
+    ];
+
+
+
+    return trace;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * EXPERIENCE
+ * =========================================================
+ */
+
+
+export function syncTraceExperience(
+
+    trace,
+
+    context
+
+){
+
+    if(
+
+        !trace ||
+
+        !context
+
+    ){
+
+        return trace;
+
+    }
+
+
+
+    const experience =
+
+        getExperience(
+
+            context
+
         );
 
 
 
+    trace.experienceUsage = {
+
+
+        ...(trace.experienceUsage || {}),
 
 
 
+        used:
+
+            experience.used,
+
+
+
+        source:
+
+            experience.source,
+
+
+
+        skills:
+
+            experience.skills
+
+
+    };
+
+
+
+    return trace;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * RESULT
+ * =========================================================
+ */
+
+
+export function syncTraceResult(
+
+    trace,
+
+    context
+
+){
+
+    if(
+
+        !trace ||
+
+        !context
+
+    ){
+
+        return trace;
+
+    }
+
+
+
+    if(
+
+        context.terminalResult
+
+    ){
+
+        trace.result =
+
+            context.terminalResult;
+
+
+
+        trace.terminal =
+
+            context.terminalResult.terminal ||
+
+            null;
+
+
+    }
 
 
 
@@ -406,26 +482,19 @@ export function syncTraceFromContext(
 
     context
 
-) {
+){
 
-
-    if (
+    if(
 
         !trace ||
 
         !context
 
-    ) {
+    ){
 
         return trace;
 
     }
-
-
-
-
-
-
 
 
 
@@ -439,12 +508,6 @@ export function syncTraceFromContext(
 
 
 
-
-
-
-
-
-
     syncTraceFailures(
 
         trace,
@@ -452,12 +515,6 @@ export function syncTraceFromContext(
         context
 
     );
-
-
-
-
-
-
 
 
 
@@ -471,13 +528,27 @@ export function syncTraceFromContext(
 
 
 
-
-
-
-
-
-
     syncTraceSteps(
+
+        trace,
+
+        context
+
+    );
+
+
+
+    syncTraceExperience(
+
+        trace,
+
+        context
+
+    );
+
+
+
+    syncTraceResult(
 
         trace,
 
@@ -514,6 +585,7 @@ export function syncTraceFromContext(
             replans:
 
                 trace.statistics?.replans || 0
+
 
         }
 
