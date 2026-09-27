@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA TASK RUNNER
- * EXECUTE STEP v1
+ * EXECUTE STEP v2
  * =========================================================
  *
  * Выполнение одного Execution Step.
@@ -9,14 +9,18 @@
  *
  * Flow:
  *
- * Prepared Step
- *       ↓
+ * Step
+ *   ↓
+ * Step Identity
+ *   ↓
+ * Tool Check
+ *   ↓
  * Resolve Arguments
- *       ↓
+ *   ↓
  * Execute Tool
- *       ↓
+ *   ↓
  * Normalize Result
- *       ↓
+ *   ↓
  * Step Result
  *
  *
@@ -32,8 +36,14 @@
 
 
 import {
-    executeTool
+    executeTool,
+    hasTool
 } from "../../tools/toolRegistry.js";
+
+
+import {
+    getStepId
+} from "./planRuntimeValidator.js";
 
 
 import {
@@ -46,74 +56,9 @@ import {
 } from "./stepResult.js";
 
 
-
-
-
-
-
-
-
-/*
- * =========================================================
- * FAILURE
- * =========================================================
- */
-
-
-function buildFailure({
-
-    stage,
-
-    failureType,
-
-    text,
-
-    failedStep,
-
-    failedStepId,
-
-    results = []
-
-}) {
-
-
-    return {
-
-
-        success:false,
-
-
-        shouldRetry:false,
-
-
-        needsClarification:false,
-
-
-        stage,
-
-
-        failureType,
-
-
-        reason:
-            text,
-
-
-        text,
-
-
-        failedStep,
-
-
-        failedStepId,
-
-
-        results
-
-
-    };
-
-}
+import {
+    buildFailure
+} from "./resultHandler.js";
 
 
 
@@ -134,10 +79,6 @@ export async function executeStep({
 
     step,
 
-    stepId,
-
-    toolName,
-
     index,
 
     results,
@@ -150,7 +91,141 @@ export async function executeStep({
 
     /*
      * =====================================================
-     * ORIGINAL ARGUMENTS
+     * STEP IDENTITY
+     * =====================================================
+     */
+
+
+    const stepId =
+
+        getStepId(
+
+            step,
+
+            index
+
+        );
+
+
+
+
+
+    const toolName =
+
+        typeof step?.tool === "string"
+
+            ?
+
+            step.tool.trim()
+
+            :
+
+            "";
+
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * STEP VALIDATION
+     * =====================================================
+     */
+
+
+    if (!toolName) {
+
+
+        return buildFailure({
+
+            stage:
+                "runner",
+
+
+            failureType:
+                "missing-tool",
+
+
+            text:
+
+                `В шаге ${index + 1} отсутствует tool`,
+
+
+            failedStep:
+                index,
+
+
+            failedStepId:
+                stepId,
+
+
+            results
+
+        });
+
+
+    }
+
+
+
+
+
+
+
+
+
+    if (
+
+        !hasTool(toolName)
+
+    ) {
+
+
+        return buildFailure({
+
+            stage:
+                "runner",
+
+
+            failureType:
+                "unknown-tool",
+
+
+            text:
+
+                `Инструмент ${toolName} не зарегистрирован`,
+
+
+            failedStep:
+                index,
+
+
+            failedStepId:
+                stepId,
+
+
+            results
+
+        });
+
+
+    }
+
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * ARGUMENTS
      * =====================================================
      */
 
@@ -177,16 +252,8 @@ export async function executeStep({
 
 
 
-
-
-    /*
-     * =====================================================
-     * ARGUMENT RESOLUTION
-     * =====================================================
-     */
-
-
     let resolvedArgsResult;
+
 
 
     try {
@@ -221,6 +288,7 @@ export async function executeStep({
         );
 
 
+
         return buildFailure({
 
             stage:
@@ -232,7 +300,10 @@ export async function executeStep({
 
 
             text:
-                `Ошибка подготовки аргументов шага ${stepId}`,
+
+                error?.message ||
+
+                `Ошибка подготовки аргументов ${stepId}`,
 
 
             failedStep:
@@ -267,6 +338,7 @@ export async function executeStep({
 
         return {
 
+
             ...resolvedArgsResult,
 
 
@@ -281,6 +353,7 @@ export async function executeStep({
             results
 
         };
+
 
     }
 
@@ -328,6 +401,7 @@ export async function executeStep({
     let rawResult;
 
 
+
     try {
 
 
@@ -347,16 +421,6 @@ export async function executeStep({
     catch(error){
 
 
-        console.error(
-
-            `Jessica tool execution error [${toolName}]:`,
-
-            error
-
-        );
-
-
-
         return buildFailure({
 
             stage:
@@ -368,7 +432,10 @@ export async function executeStep({
 
 
             text:
-                `Ошибка выполнения инструмента ${toolName}`,
+
+                error?.message ||
+
+                `Ошибка выполнения ${toolName}`,
 
 
             failedStep:
@@ -448,69 +515,7 @@ export async function executeStep({
 
     /*
      * =====================================================
-     * CLARIFICATION
-     * =====================================================
-     */
-
-
-    if (
-
-        result.needsClarification === true
-
-    ) {
-
-
-        const reason =
-
-            result.reason ||
-
-            result.text ||
-
-            "Требуется уточнение";
-
-
-
-        return buildFailure({
-
-            stage:
-                result.stage ||
-                "tool",
-
-
-            failureType:
-                result.failureType ||
-                "needs-clarification",
-
-
-            text:
-                reason,
-
-
-            failedStep:
-                index,
-
-
-            failedStepId:
-                stepId,
-
-
-            results
-
-        });
-
-    }
-
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * TOOL FAILURE
+     * STEP FAILURE
      * =====================================================
      */
 
@@ -525,16 +530,23 @@ export async function executeStep({
         return buildFailure({
 
             stage:
+
                 result.stage ||
+
                 "tool",
 
 
+
             failureType:
+
                 result.failureType ||
+
                 "tool-failure",
 
 
+
             text:
+
                 result.reason ||
 
                 result.text ||
@@ -542,17 +554,24 @@ export async function executeStep({
                 `Ошибка шага ${index + 1}`,
 
 
+
             failedStep:
+
                 index,
 
 
+
             failedStepId:
+
                 stepId,
+
 
 
             results
 
+
         });
+
 
     }
 
