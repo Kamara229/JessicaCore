@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA RESULT HELPERS v2
+ * JESSICA RESULT HELPERS v3
  * =========================================================
  *
  * Проверки Execution Result.
@@ -8,7 +8,8 @@
  *
  * Отвечает:
  *
- * - определение типа результата.
+ * - определение типа результата;
+ * - безопасная проверка Result контрактов.
  *
  *
  * НЕ:
@@ -35,9 +36,33 @@ import {
 
 /*
  * =========================================================
- * VALID RESULT
+ * BASE CHECK
  * =========================================================
  */
+
+
+function isObject(
+
+    value
+
+){
+
+    return (
+
+        value &&
+
+        typeof value === "object"
+
+    );
+
+}
+
+
+
+
+
+
+
 
 
 function hasStatus(
@@ -46,16 +71,73 @@ function hasStatus(
 
     status
 
-) {
-
+){
 
     return (
 
-        result &&
+        isObject(result)
 
-        typeof result === "object" &&
+        &&
 
         result.status === status
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * EXECUTION RESULT
+ * =========================================================
+ */
+
+
+export function isExecutionResult(
+
+    result
+
+){
+
+    return isObject(result)
+
+        &&
+
+        typeof result.status === "string";
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SUCCESS
+ * =========================================================
+ */
+
+
+export function isSuccessfulResult(
+
+    result
+
+){
+
+    return (
+
+        isCompletedResult(result)
 
     );
 
@@ -80,10 +162,11 @@ export function isCompletedResult(
 
     result
 
-) {
+){
 
 
     return (
+
 
         hasStatus(
 
@@ -95,11 +178,23 @@ export function isCompletedResult(
 
         &&
 
+
         result.success === true
 
         &&
 
+
         result.verified === true
+
+        &&
+
+
+        Boolean(
+
+            result.answer
+
+        )
+
 
     );
 
@@ -124,10 +219,11 @@ export function isFailedResult(
 
     result
 
-) {
+){
 
 
     return (
+
 
         hasStatus(
 
@@ -139,7 +235,18 @@ export function isFailedResult(
 
         &&
 
+
         result.success === false
+
+        &&
+
+
+        Boolean(
+
+            result.failure
+
+        )
+
 
     );
 
@@ -155,7 +262,7 @@ export function isFailedResult(
 
 /*
  * =========================================================
- * NEEDS CLARIFICATION
+ * CLARIFICATION
  * =========================================================
  */
 
@@ -164,10 +271,11 @@ export function isClarificationResult(
 
     result
 
-) {
+){
 
 
     return (
+
 
         hasStatus(
 
@@ -180,7 +288,18 @@ export function isClarificationResult(
 
         &&
 
+
         result.success === false
+
+        &&
+
+
+        Boolean(
+
+            result.clarification
+
+        )
+
 
     );
 
@@ -196,7 +315,7 @@ export function isClarificationResult(
 
 /*
  * =========================================================
- * NO VERIFIED RESULT
+ * NO VERIFIED
  * =========================================================
  */
 
@@ -205,10 +324,11 @@ export function isNoVerifiedResult(
 
     result
 
-) {
+){
 
 
     return (
+
 
         hasStatus(
 
@@ -221,7 +341,72 @@ export function isNoVerifiedResult(
 
         &&
 
+
         result.success === false
+
+        &&
+
+
+        result.verified === false
+
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * FAILURE CHECK
+ * =========================================================
+ */
+
+
+export function hasFailure(
+
+    result
+
+){
+
+    return Boolean(
+
+        result?.failure
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * TERMINAL CHECK
+ * =========================================================
+ */
+
+
+export function hasTerminal(
+
+    result
+
+){
+
+    return Boolean(
+
+        result?.terminal
 
     );
 
