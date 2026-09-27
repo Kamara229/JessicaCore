@@ -1,36 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION CYCLE v7
- * =========================================================
- *
- * Центральный координатор Execution Run.
- *
- * Flow:
- *
- * Plan
- *   ↓
- * Context
- *   ↓
- * Trace
- *   ↓
- * Step Runner
- *   ↓
- * Failure Handler
- *   ↓
- *
- * RETRY
- * REPLAN
- * CLARIFICATION
- * FINISH
- *
- *
- * НЕ:
- *
- * - выполняет Tools;
- * - создаёт Answer;
- * - валидирует;
- * - сохраняет Experience.
- *
+ * JESSICA EXECUTION CYCLE v8
  * =========================================================
  */
 
@@ -66,7 +36,9 @@ import {
     createExecutionTrace,
     updateTraceFromResult,
     finishExecutionTrace,
-    addTraceEvent
+    addTraceEvent,
+    addTraceAttempt,
+    addTraceReplan
 } from "../trace/executionTrace.js";
 
 
@@ -83,40 +55,29 @@ import {
 
 
 function extractExperience(
-
     plan,
-
     planningContext
-
 ) {
+
+    const experience =
+        planningContext?.experience;
+
 
 
     return {
 
-
         found:
-
-            planningContext
-                ?.experience
-                ?.found === true,
+            experience?.found === true,
 
 
         source:
-
-            planningContext
-                ?.experience
-                ?.source ||
-            null,
+            experience?.source || null,
 
 
         confidence:
-
             Number(
-                planningContext
-                    ?.experience
-                    ?.confidence || 0
+                experience?.confidence || 0
             ),
-
 
 
         skills:
@@ -130,12 +91,8 @@ function extractExperience(
                 : [],
 
 
-
         context:
-
-            planningContext?.experience ||
-            null
-
+            experience || null
 
     };
 
@@ -160,26 +117,33 @@ function createJessicaContext({
 }) {
 
 
-    return createExecutionContext({
+    const context =
+        createExecutionContext({
 
-        task,
+            task,
 
-        plan,
+            plan,
 
-        planningContext,
+            planningContext,
 
 
-        experience:
+            experience:
 
-            extractExperience(
+                extractExperience(
+                    plan,
+                    planningContext
+                )
 
-                plan,
+        });
 
-                planningContext
 
-            )
 
-    });
+    context.initialPlan =
+        plan;
+
+
+
+    return context;
 
 }
 
@@ -211,38 +175,27 @@ function attachExecutionMeta(
         {
 
 
-            ...(result?.executionMeta || {}),
-
+            ...(result.executionMeta || {}),
 
 
             executionId:
-
                 context.executionId,
 
 
-
             traceId:
-
                 context.trace?.id || null,
 
 
-
             attempts:
-
                 context.attempt,
 
 
-
             retryCount:
-
                 context.retryCount || 0,
 
 
-
-            replans:
-
+            replanCount:
                 context.replanCount || 0,
-
 
 
             experience:
@@ -250,15 +203,10 @@ function attachExecutionMeta(
             {
 
                 used:
-
-                    context.experience
-                        ?.skills
-                        ?.length > 0,
-
+                    context.experience?.found === true,
 
 
                 skills:
-
                     context.experience?.skills || []
 
             }
@@ -288,6 +236,25 @@ function registerFailure(
 ) {
 
 
+    if(
+        !failure
+    )
+        return;
+
+
+
+    if(
+        !Array.isArray(
+            context.errors
+        )
+    ){
+
+        context.errors=[];
+
+    }
+
+
+
     context.errors.push({
 
         ...failure,
@@ -296,10 +263,9 @@ function registerFailure(
         timestamp:
 
             new Date()
-                .toISOString()
+            .toISOString()
 
     });
-
 
 }
 
@@ -339,6 +305,17 @@ async function executeReplan(
 
 
 
+
+
+    const previousPlan =
+        context.plan;
+
+
+
+
+
+
+
     const alternative =
 
         await createAlternativePlan(
@@ -353,9 +330,9 @@ async function executeReplan(
 
 
 
-    if (
-        !alternative.success
-    ) {
+    if(
+        !alternative?.success
+    ){
 
 
         addTraceEvent(
@@ -378,22 +355,78 @@ async function executeReplan(
 
 
 
-    applyAlternativePlan(
 
-        context,
+    const applied =
 
-        alternative
+        applyAlternativePlan(
 
-    );
+            context,
+
+            alternative
+
+        );
 
 
 
 
 
-    context.replanCount++;
+    if(
+        !applied
+    ){
+
+        return false;
+
+    }
+
+
+
+
+
+
+
+    context.replanCount =
+
+        Number(
+            context.replanCount || 0
+        )
+        +
+        1;
+
+
+
+
 
 
     context.retryCount = 0;
+
+
+
+
+
+
+
+
+    addTraceReplan(
+
+        context.trace,
+
+        {
+
+
+            previousPlan,
+
+
+            newPlan:
+                context.plan,
+
+
+            failure:
+                decision.failure
+
+
+        }
+
+    );
 
 
 
@@ -403,14 +436,7 @@ async function executeReplan(
 
         context.trace,
 
-        "REPLAN_COMPLETED",
-
-        {
-
-            intent:
-                context.plan.intent
-
-        }
+        "REPLAN_COMPLETED"
 
     );
 
@@ -434,7 +460,7 @@ export async function executePlanCycle(
 
     initialPlan,
 
-    planningContext = {}
+    planningContext={}
 
 ) {
 
@@ -457,13 +483,14 @@ export async function executePlanCycle(
 
 
 
+
     context.trace =
 
         createExecutionTrace(
-
             task
-
         );
+
+
 
 
 
@@ -489,6 +516,7 @@ export async function executePlanCycle(
 
 
 
+
     let lastFailure = null;
 
 
@@ -498,13 +526,12 @@ export async function executePlanCycle(
 
 
 
-    while (
+    while(
 
         context.attempt <
-
         MAX_EXECUTION_ATTEMPTS
 
-    ) {
+    ){
 
 
 
@@ -514,16 +541,22 @@ export async function executePlanCycle(
 
 
 
-        addTraceEvent(
+
+        addTraceAttempt(
 
             context.trace,
 
-            "ATTEMPT_STARTED",
+            context.attempt,
 
             {
 
-                attempt:
-                    context.attempt
+                retryCount:
+                    context.retryCount,
+
+
+                replanCount:
+                    context.replanCount
+
 
             }
 
@@ -534,7 +567,10 @@ export async function executePlanCycle(
 
 
 
+
         let result;
+
+
 
 
 
@@ -544,16 +580,14 @@ export async function executePlanCycle(
             result =
 
                 await executeExecutionStep(
-
                     context
-
                 );
 
 
-        } catch(error) {
+        } catch(error){
 
 
-            result = {
+            result={
 
 
                 success:false,
@@ -564,18 +598,22 @@ export async function executePlanCycle(
                     stage:
                         "execution",
 
+
                     failureType:
                         "execution-error",
 
+
                     reason:
-                        error.message
+                        error?.message ||
+
+                        "Execution error"
 
                 }
 
             };
 
-
         }
+
 
 
 
@@ -598,10 +636,9 @@ export async function executePlanCycle(
 
 
 
-
-        if (
-            result.success === true
-        ) {
+        if(
+            result?.success === true
+        ){
 
 
             context.state =
@@ -609,11 +646,8 @@ export async function executePlanCycle(
 
 
             finishExecutionTrace(
-
                 context.trace
-
             );
-
 
 
             return attachExecutionMeta(
@@ -624,8 +658,8 @@ export async function executePlanCycle(
 
             );
 
-
         }
+
 
 
 
@@ -635,7 +669,26 @@ export async function executePlanCycle(
 
         lastFailure =
 
-            result.failure;
+            result?.failure ||
+
+            {
+
+                stage:
+                    "execution",
+
+
+                failureType:
+                    "unknown",
+
+
+                reason:
+                    "Unknown failure"
+
+            };
+
+
+
+
 
 
 
@@ -646,6 +699,7 @@ export async function executePlanCycle(
             lastFailure
 
         );
+
 
 
 
@@ -671,15 +725,23 @@ export async function executePlanCycle(
 
 
         switch(
-            decision.action
-        ) {
 
+            decision.action
+
+        ){
 
 
             case FAILURE_ACTION.RETRY:
 
 
-                context.retryCount++;
+                context.retryCount =
+
+                    Number(
+                        context.retryCount || 0
+                    )
+                    +
+                    1;
+
 
 
                 addTraceEvent(
@@ -699,28 +761,22 @@ export async function executePlanCycle(
 
 
 
-
             case FAILURE_ACTION.REPLAN:
 
 
-                if (
-
+                if(
                     await executeReplan(
-
                         context,
-
                         decision
-
                     )
-
-                ) {
+                ){
 
                     continue;
 
                 }
 
-                break;
 
+                break;
 
 
 
@@ -732,9 +788,7 @@ export async function executePlanCycle(
 
 
                 finishExecutionTrace(
-
                     context.trace
-
                 );
 
 
@@ -746,8 +800,8 @@ export async function executePlanCycle(
 
                         {
 
-                            status:
-                                "NEEDS_CLARIFICATION",
+                            needsClarification:
+                                true,
 
                             ...lastFailure
 
@@ -765,7 +819,6 @@ export async function executePlanCycle(
 
 
 
-
             case FAILURE_ACTION.FINISH:
 
                 break;
@@ -776,6 +829,7 @@ export async function executePlanCycle(
 
 
         break;
+
 
     }
 
@@ -800,19 +854,15 @@ export async function executePlanCycle(
 
             context,
 
+            lastFailure ||
+
             {
 
-                status:
-                    "FAILED",
+                failureType:
+                    "execution-limit",
 
-
-                ...(
-
-                    lastFailure ||
-
-                    {}
-
-                )
+                reason:
+                    "Execution limit reached"
 
             }
 
