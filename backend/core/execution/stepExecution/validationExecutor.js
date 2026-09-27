@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * VALIDATION EXECUTOR v1
+ * VALIDATION EXECUTOR v2
  * =========================================================
  *
  * Проверка результата выполнения.
@@ -17,6 +17,13 @@
  * Validator
  *        ↓
  * Validation Result
+ *
+ *
+ * Ответственность:
+ *
+ * - вызвать Validator;
+ * - сохранить Validation Result;
+ * - нормализовать ошибку проверки.
  *
  *
  * НЕ:
@@ -102,6 +109,79 @@ function buildFailure(
 
 /*
  * =========================================================
+ * NORMALIZE VALIDATION FAILURE
+ * =========================================================
+ */
+
+
+function normalizeValidationFailure(
+
+    validation
+
+) {
+
+
+    return {
+
+
+        stage:
+
+            validation?.stage ||
+
+            "validator",
+
+
+
+        failureType:
+
+            validation?.failureType ||
+
+            "validation-error",
+
+
+
+        reason:
+
+            validation?.reason ||
+
+            "Результат не прошёл проверку",
+
+
+
+        shouldRetry:
+
+            validation?.shouldRetry === true,
+
+
+
+        needsClarification:
+
+            validation?.needsClarification === true,
+
+
+
+        noVerifiedResult:
+
+            validation?.noVerifiedResult === true,
+
+
+
+        validation
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
  * EXECUTE VALIDATION
  * =========================================================
  */
@@ -115,7 +195,9 @@ export async function executeValidation(
 
 
     if (
+
         !context
+
     ) {
 
 
@@ -208,24 +290,22 @@ export async function executeValidation(
     ) {
 
 
-        return buildFailure(
-
-            "validator",
-
-            "validation-error",
-
-            validation?.reason ||
-
-            "Результат не прошёл проверку",
+        return {
 
 
-            {
+            success:false,
 
-                validation
 
-            }
+            failure:
 
-        );
+                normalizeValidationFailure(
+
+                    validation
+
+                )
+
+
+        };
 
 
     }
