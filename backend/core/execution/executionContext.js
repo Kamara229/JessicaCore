@@ -1,18 +1,20 @@
 /*
  * =========================================================
- * JESSICA EXECUTION CONTEXT FACADE v4
+ * JESSICA EXECUTION CONTEXT FACADE v5
  * =========================================================
  *
- * Единая точка доступа Execution Context.
+ * Единая публичная точка доступа к Execution Context.
  *
  *
  * Ответственность:
  *
  * - предоставить публичный API Context слоя;
- * - скрыть внутреннюю структуру context modules.
+ * - скрыть внутренние context modules;
+ * - не допускать прямой зависимости Execution слоя
+ *   от внутренней структуры Context.
  *
  *
- * Внутренние слои:
+ * Internal:
  *
  * context/
  *
@@ -29,11 +31,16 @@
  * НЕ:
  *
  * - выполняет Tools;
- * - принимает решения;
- * - управляет Execution Flow.
+ * - принимает Execution решения;
+ * - делает Retry;
+ * - делает Replan;
+ * - управляет Execution Flow;
+ * - хранит собственное состояние.
  *
  * =========================================================
  */
+
+
 
 
 
@@ -50,9 +57,7 @@
 
 export {
 
-
     createExecutionContext
-
 
 } from "./context/contextFactory.js";
 
@@ -73,52 +78,23 @@ export {
 
 export {
 
-
     getExecutionId,
-
 
     getTraceId,
 
-
     getExecutionCounters,
-
-
-    getCurrentPlan,
-
-
-    getInitialPlan,
-
-
-    getExecutionState,
-
 
     getExperience,
 
-
     getRunResults,
-
-
-    getTerminalResult,
-
-
-    getResultHistory,
-
 
     getExecutionFailures,
 
-
     getExecutionReplans,
-
-
-    getExecutionAttempts,
-
 
     getExecutionHistory,
 
-
     getPlans
-
-
 
 } from "./context/contextReader.js";
 
@@ -139,16 +115,9 @@ export {
 
 export {
 
-
-    EXECUTION_CONTEXT_STATE,
-
-
     updateExecutionState,
 
-
     finishExecutionContext
-
-
 
 } from "./context/contextState.js";
 
@@ -169,16 +138,7 @@ export {
 
 export {
 
-
-    registerExecutionStep,
-
-
-    registerCompletedStep,
-
-
-    registerFailedStep
-
-
+    registerExecutionStep
 
 } from "./context/contextSteps.js";
 
@@ -199,10 +159,7 @@ export {
 
 export {
 
-
     registerExecutionAttempt
-
-
 
 } from "./context/contextAttempts.js";
 
@@ -223,10 +180,7 @@ export {
 
 export {
 
-
     registerExecutionFailure
-
-
 
 } from "./context/contextFailures.js";
 
@@ -247,10 +201,7 @@ export {
 
 export {
 
-
     registerExecutionRetry
-
-
 
 } from "./context/contextRetry.js";
 
@@ -271,12 +222,8 @@ export {
 
 export {
 
-
     registerExecutionReplan,
 
-
     resetExecutionAfterReplan
-
-
 
 } from "./context/contextReplan.js";
