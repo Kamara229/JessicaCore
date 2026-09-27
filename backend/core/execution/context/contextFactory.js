@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CONTEXT FACTORY v1
+ * JESSICA CONTEXT FACTORY v2
  * =========================================================
  *
  * Создание нового Execution Context.
@@ -61,39 +61,22 @@ function normalizeExperience(
         return {
 
 
-            used:
-
-                false,
+            used:false,
 
 
-
-            found:
-
-                false,
+            found:false,
 
 
-
-            source:
-
-                null,
+            source:null,
 
 
-
-            confidence:
-
-                0,
+            confidence:0,
 
 
-
-            skills:
-
-                [],
+            skills:[],
 
 
-
-            context:
-
-                null
+            context:null
 
 
         };
@@ -236,7 +219,16 @@ export function createExecutionContext({
 
 
 
+
+
+
+
     return {
+
+
+        /*
+         * IDENTITY
+         */
 
 
         executionId:
@@ -273,6 +265,7 @@ export function createExecutionContext({
          * STATE
          */
 
+
         state:
 
             "RUNNING",
@@ -291,9 +284,11 @@ export function createExecutionContext({
 
 
 
+
         /*
          * INPUT
          */
+
 
         task:
 
@@ -329,9 +324,11 @@ export function createExecutionContext({
 
 
 
+
         /*
          * EXPERIENCE
          */
+
 
         experience:
 
@@ -349,9 +346,11 @@ export function createExecutionContext({
 
 
 
+
         /*
-         * EXECUTION DATA
+         * EXECUTION STEPS
          */
+
 
         currentStep:
 
@@ -389,9 +388,11 @@ export function createExecutionContext({
 
 
 
+
         /*
          * RESULTS
          */
+
 
         runResult:
 
@@ -417,6 +418,11 @@ export function createExecutionContext({
 
 
 
+        resultHistory:
+
+            [],
+
+
 
 
 
@@ -426,8 +432,9 @@ export function createExecutionContext({
 
 
         /*
-         * RETRY / REPLAN
+         * COUNTERS
          */
+
 
         attempt:
 
@@ -447,10 +454,33 @@ export function createExecutionContext({
 
 
 
+
+
+
+
+
+
+        /*
+         * ATTEMPTS
+         */
+
+
         attempts:
 
             [],
 
+
+
+
+
+
+
+
+
+
+        /*
+         * REPLAN HISTORY
+         */
 
 
         replanHistory:
@@ -471,9 +501,11 @@ export function createExecutionContext({
 
 
 
+
         /*
-         * FAILURE
+         * FAILURES
          */
+
 
         lastFailure:
 
@@ -493,9 +525,11 @@ export function createExecutionContext({
 
 
 
+
         /*
          * TRACE
          */
+
 
         trace:
 
@@ -510,39 +544,56 @@ export function createExecutionContext({
 
 
         /*
-         * LEARNING SIGNALS
+         * LEARNING
          */
+
 
         learningContext:
 
         {
 
 
-            signals:
-
-                [],
+            signals:[],
 
 
 
-            successful:
-
-                false,
+            successful:false,
 
 
 
-            reusable:
-
-                false,
+            reusable:false,
 
 
 
-            candidateSkill:
+            candidateSkill:null
 
-                null
+
+        },
+
+
+
+
+
+
+
+
+
+        /*
+         * EXTRA METADATA
+         */
+
+
+        metadata:
+
+        {
+
+
+            version:
+
+                "context-v2"
 
 
         }
-
 
 
     };
