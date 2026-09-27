@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION CONTEXT FACADE v3
+ * JESSICA EXECUTION CONTEXT FACADE v4
  * =========================================================
  *
  * Единая точка доступа Execution Context.
@@ -29,10 +29,8 @@
  * НЕ:
  *
  * - выполняет Tools;
- * - принимает Execution решения;
- * - управляет Retry;
- * - управляет Replan;
- * - меняет Execution Flow.
+ * - принимает решения;
+ * - управляет Execution Flow.
  *
  * =========================================================
  */
@@ -91,7 +89,34 @@ export {
     getInitialPlan,
 
 
-    getExecutionState
+    getExecutionState,
+
+
+    getExperience,
+
+
+    getRunResults,
+
+
+    getTerminalResult,
+
+
+    getResultHistory,
+
+
+    getExecutionFailures,
+
+
+    getExecutionReplans,
+
+
+    getExecutionAttempts,
+
+
+    getExecutionHistory,
+
+
+    getPlans
 
 
 
@@ -113,6 +138,9 @@ export {
 
 
 export {
+
+
+    EXECUTION_CONTEXT_STATE,
 
 
     updateExecutionState,
