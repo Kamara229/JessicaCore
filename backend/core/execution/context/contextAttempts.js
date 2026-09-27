@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CONTEXT ATTEMPTS v2
+ * JESSICA CONTEXT ATTEMPTS v3
  * =========================================================
  *
  * Управление попытками Execution.
@@ -8,19 +8,23 @@
  *
  * Отвечает:
  *
- * - регистрация Execution Attempt;
- * - история попыток.
+ * - увеличение счётчика Execution Attempt;
+ * - регистрация истории попыток.
  *
  *
  * НЕ:
  *
  * - принимает решение Retry;
+ * - регистрирует Retry;
  * - принимает решение Replan;
+ * - регистрирует Replan;
  * - создаёт планы;
- * - запускает выполнение.
+ * - запускает Execution.
  *
  * =========================================================
  */
+
+
 
 
 
@@ -44,11 +48,19 @@ function safeNumber(
 
     const number =
 
-        Number(value);
+        Number(
+
+            value
+
+        );
 
 
 
-    return Number.isFinite(number)
+    return Number.isFinite(
+
+        number
+
+    )
 
         ?
 
@@ -90,6 +102,7 @@ export function registerExecutionAttempt(
 
     ){
 
+
         return null;
 
     }
@@ -100,6 +113,13 @@ export function registerExecutionAttempt(
 
 
 
+
+
+    /*
+     * =====================================================
+     * INCREMENT
+     * =====================================================
+     */
 
 
     context.attempt =
@@ -122,6 +142,13 @@ export function registerExecutionAttempt(
 
 
 
+    /*
+     * =====================================================
+     * HISTORY
+     * =====================================================
+     */
+
+
     if(
 
         !Array.isArray(
@@ -131,6 +158,7 @@ export function registerExecutionAttempt(
         )
 
     ){
+
 
         context.attempts = [];
 
@@ -144,7 +172,28 @@ export function registerExecutionAttempt(
 
 
 
+    /*
+     * =====================================================
+     * RECORD
+     * =====================================================
+     *
+     * Системные поля располагаются после ...data,
+     * чтобы внешний caller не мог подменить:
+     *
+     * - attempt;
+     * - retryCount;
+     * - replanCount;
+     * - timestamp.
+     *
+     * =====================================================
+     */
+
+
     const record = {
+
+
+        ...data,
+
 
 
         attempt:
@@ -170,10 +219,6 @@ export function registerExecutionAttempt(
                 context.replanCount
 
             ),
-
-
-
-        ...data,
 
 
 
