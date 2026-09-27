@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA REPLAN COORDINATOR v9
+ * JESSICA REPLAN COORDINATOR v10
  * =========================================================
  *
  * Координатор перестроения Execution Plan.
@@ -16,14 +16,15 @@
  *        ↓
  * Alternative Plan
  *        ↓
- * Apply Context
+ * Apply Alternative Plan
  *
  *
  * Ответственность:
  *
  * - подготовить запрос Replanner;
  * - получить новый Plan;
- * - заменить текущий маршрут.
+ * - применить новый Plan;
+ * - очистить результаты предыдущего маршрута.
  *
  *
  * НЕ:
@@ -43,11 +44,23 @@ import {
 } from "../replanner.js";
 
 
+import {
+    getExecutionCounters
+} from "./executionContext.js";
 
 
 
 
 
+
+
+
+
+/*
+ * =========================================================
+ * LIMIT
+ * =========================================================
+ */
 
 
 export const MAX_REPLAN_COUNT = 3;
@@ -58,6 +71,13 @@ export const MAX_REPLAN_COUNT = 3;
 
 
 
+
+
+/*
+ * =========================================================
+ * SAFE STRING
+ * =========================================================
+ */
 
 
 function safeString(
@@ -82,6 +102,13 @@ function safeString(
 
 
 
+
+
+/*
+ * =========================================================
+ * NORMALIZE FAILURE
+ * =========================================================
+ */
 
 
 function normalizeFailure(
@@ -150,6 +177,12 @@ function normalizeFailure(
 
 
 
+        shouldRetry:
+
+            failure?.shouldRetry === true,
+
+
+
         needsClarification:
 
             failure?.needsClarification === true,
@@ -164,7 +197,25 @@ function normalizeFailure(
 
         validation:
 
-            failure?.validation || null
+            failure?.validation ||
+
+            null,
+
+
+
+        source:
+
+            failure?.source ||
+
+            null,
+
+
+
+        details:
+
+            failure?.details ||
+
+            null
 
 
     };
@@ -179,6 +230,13 @@ function normalizeFailure(
 
 
 
+/*
+ * =========================================================
+ * BUILD REQUEST
+ * =========================================================
+ */
+
+
 function buildReplanRequest(
 
     context,
@@ -188,18 +246,38 @@ function buildReplanRequest(
 ) {
 
 
+    const counters =
+
+        getExecutionCounters(
+
+            context
+
+        );
+
+
+
+
+
+
+
+
+
     return {
 
 
         task:
 
-            context?.task || "",
+            context?.task ||
+
+            "",
 
 
 
         previousPlan:
 
-            context?.plan || null,
+            context?.plan ||
+
+            null,
 
 
 
@@ -209,7 +287,9 @@ function buildReplanRequest(
 
         runResult:
 
-            context?.runResult || null,
+            context?.runResult ||
+
+            null,
 
 
 
@@ -222,7 +302,7 @@ function buildReplanRequest(
 
                 Number(
 
-                    context?.attempt || 0
+                    counters?.attempt || 0
 
                 ),
 
@@ -232,7 +312,7 @@ function buildReplanRequest(
 
                 Number(
 
-                    context?.retryCount || 0
+                    counters?.retryCount || 0
 
                 ),
 
@@ -242,7 +322,7 @@ function buildReplanRequest(
 
                 Number(
 
-                    context?.replanCount || 0
+                    counters?.replanCount || 0
 
                 )
 
@@ -253,7 +333,9 @@ function buildReplanRequest(
 
         planningContext:
 
-            context?.planningContext || {}
+            context?.planningContext ||
+
+            {}
 
 
     };
@@ -268,6 +350,13 @@ function buildReplanRequest(
 
 
 
+/*
+ * =========================================================
+ * CREATE ALTERNATIVE PLAN
+ * =========================================================
+ */
+
+
 export async function createAlternativePlan(
 
     context,
@@ -277,6 +366,36 @@ export async function createAlternativePlan(
 ) {
 
 
+    if(
+
+        !context
+
+    ){
+
+
+        return {
+
+
+            success:false,
+
+
+            reason:
+
+                "Execution context is missing"
+
+
+        };
+
+    }
+
+
+
+
+
+
+
+
+
     const normalizedFailure =
 
         normalizeFailure(
@@ -284,6 +403,10 @@ export async function createAlternativePlan(
             failure
 
         );
+
+
+
+
 
 
 
@@ -307,6 +430,13 @@ export async function createAlternativePlan(
 
 
 
+    /*
+     * =====================================================
+     * REPLAN LIMIT
+     * =====================================================
+     */
+
+
     if(
 
         request.executionState.replanCount
@@ -316,6 +446,7 @@ export async function createAlternativePlan(
         MAX_REPLAN_COUNT
 
     ){
+
 
         return {
 
@@ -340,6 +471,13 @@ export async function createAlternativePlan(
 
 
 
+    /*
+     * =====================================================
+     * REPLANNER
+     * =====================================================
+     */
+
+
     try {
 
 
@@ -359,6 +497,7 @@ export async function createAlternativePlan(
 
 
                     ...request.planningContext,
+
 
 
                     replanContext:
@@ -398,6 +537,13 @@ export async function createAlternativePlan(
 
 
 
+        /*
+         * =================================================
+         * INVALID REPLAN RESULT
+         * =================================================
+         */
+
+
         if(
 
             !result ||
@@ -407,6 +553,7 @@ export async function createAlternativePlan(
             !result.plan
 
         ){
+
 
             return {
 
@@ -433,10 +580,18 @@ export async function createAlternativePlan(
 
 
 
+        /*
+         * =================================================
+         * ALTERNATIVE
+         * =================================================
+         */
+
+
         return {
 
 
             success:true,
+
 
 
             plan:
@@ -489,6 +644,7 @@ export async function createAlternativePlan(
 
         };
 
+
     }
 
 }
@@ -503,7 +659,7 @@ export async function createAlternativePlan(
 
 /*
  * =========================================================
- * APPLY PLAN
+ * APPLY ALTERNATIVE PLAN
  * =========================================================
  */
 
@@ -527,6 +683,7 @@ export function applyAlternativePlan(
 
     ){
 
+
         return false;
 
     }
@@ -537,6 +694,13 @@ export function applyAlternativePlan(
 
 
 
+
+
+    /*
+     * =====================================================
+     * PLAN
+     * =====================================================
+     */
 
 
     context.plan =
@@ -551,11 +715,21 @@ export function applyAlternativePlan(
 
 
 
+    /*
+     * =====================================================
+     * PLANNING CONTEXT
+     * =====================================================
+     */
+
+
     if(
 
-        alternative.planningContext
+        alternative.planningContext &&
+
+        typeof alternative.planningContext === "object"
 
     ){
+
 
         context.planningContext =
 
@@ -571,16 +745,48 @@ export function applyAlternativePlan(
 
 
 
-    context.runResult = null;
+    /*
+     * =====================================================
+     * CLEAR PREVIOUS ROUTE RESULTS
+     * =====================================================
+     *
+     * Эти результаты принадлежат старому Plan.
+     *
+     * Новый маршрут обязан выполнить:
+     *
+     * TaskRunner
+     *      ↓
+     * Answer Composer
+     *      ↓
+     * Validator
+     *
+     * заново.
+     *
+     * =====================================================
+     */
 
 
-    context.answerResult = null;
+    context.runResult =
+
+        null;
 
 
-    context.validationResult = null;
+
+    context.answerResult =
+
+        null;
 
 
-    context.terminalResult = null;
+
+    context.validationResult =
+
+        null;
+
+
+
+    context.terminalResult =
+
+        null;
 
 
 
@@ -613,13 +819,49 @@ export function canReplan(
 
     context
 
-){
+) {
+
+
+    if(
+
+        !context
+
+    ){
+
+
+        return false;
+
+    }
+
+
+
+
+
+
+
+
+
+    const counters =
+
+        getExecutionCounters(
+
+            context
+
+        );
+
+
+
+
+
+
+
+
 
     return (
 
         Number(
 
-            context?.replanCount || 0
+            counters?.replanCount || 0
 
         )
 
