@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION FAILURE HANDLER v10
+ * JESSICA EXECUTION FAILURE HANDLER v11
  * =========================================================
  *
  * Центральный маршрутизатор Execution Failure.
@@ -49,7 +49,6 @@ import {
 } from "./failure/failureActions.js";
 
 
-
 export {
     FAILURE_ACTION
 };
@@ -88,6 +87,12 @@ export async function handleExecutionFailure(
 
 
 
+
+
+
+
+
+
     normalized.original =
 
         failure || null;
@@ -100,24 +105,52 @@ export async function handleExecutionFailure(
 
 
 
-    normalized.category =
-
-        classifyFailure(
-
-            normalized
-
-        );
+    /*
+     * CLASSIFICATION
+     */
 
 
+    try {
+
+
+        normalized.category =
+
+            classifyFailure(
+
+                normalized
+
+            );
+
+
+    }
+
+    catch(error){
+
+
+        normalized.category =
+
+            "execution";
+
+
+    }
 
 
 
 
 
+
+
+
+
+    /*
+     * NO CONTEXT
+     */
 
 
     if(
+
         !context
+
     ){
 
 
@@ -146,6 +179,7 @@ export async function handleExecutionFailure(
 
         };
 
+
     }
 
 
@@ -154,6 +188,11 @@ export async function handleExecutionFailure(
 
 
 
+
+
+    /*
+     * DECISION
+     */
 
 
     return decideFailureAction(
@@ -188,6 +227,7 @@ export function isRetryAction(
 
 ){
 
+
     return (
 
         decision?.action ===
@@ -196,7 +236,12 @@ export function isRetryAction(
 
     );
 
+
 }
+
+
+
+
 
 
 
@@ -208,6 +253,7 @@ export function isReplanAction(
 
 ){
 
+
     return (
 
         decision?.action ===
@@ -216,7 +262,12 @@ export function isReplanAction(
 
     );
 
+
 }
+
+
+
+
 
 
 
@@ -228,6 +279,7 @@ export function isClarificationAction(
 
 ){
 
+
     return (
 
         decision?.action ===
@@ -236,7 +288,12 @@ export function isClarificationAction(
 
     );
 
+
 }
+
+
+
+
 
 
 
@@ -248,6 +305,7 @@ export function isTerminalAction(
 
 ){
 
+
     return (
 
         decision?.action ===
@@ -255,5 +313,6 @@ export function isTerminalAction(
         FAILURE_ACTION.FINISH
 
     );
+
 
 }
