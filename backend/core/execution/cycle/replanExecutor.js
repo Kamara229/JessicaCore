@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * REPLAN EXECUTOR v4
+ * REPLAN EXECUTOR v5
  * =========================================================
  *
  * Выполнение уже принятого Replan решения.
@@ -13,20 +13,31 @@
  *        ↓
  * Alternative Plan
  *        ↓
- * Apply Context
- *        ↓
- * Reset Execution Pass
+ * Apply Alternative Plan
  *        ↓
  * Register Replan
  *        ↓
- * New Execution Route
+ * Reset Execution Pass
+ *        ↓
+ * Continue Execution
+ *
+ *
+ * Ответственность:
+ *
+ * - запросить Alternative Plan;
+ * - применить Alternative Plan;
+ * - зарегистрировать успешный Replan;
+ * - подготовить новый Execution Pass;
+ * - зафиксировать lifecycle events в Trace.
  *
  *
  * НЕ:
  *
  * - принимает решение Replan;
  * - анализирует Failure;
- * - запускает Execution.
+ * - запускает Execution;
+ * - хранит Replan history в Trace;
+ * - изменяет счётчики напрямую.
  *
  * =========================================================
  */
@@ -45,8 +56,7 @@ import {
 
 
 import {
-    addTraceEvent,
-    addTraceReplan
+    addTraceEvent
 } from "../../trace/executionTrace.js";
 
 
@@ -73,13 +83,21 @@ export async function executeReplan(
 ) {
 
 
-    if(
+    /*
+     * =====================================================
+     * GUARD
+     * =====================================================
+     */
+
+
+    if (
 
         !context ||
 
         !decision
 
-    ){
+    ) {
+
 
         return false;
 
@@ -91,6 +109,13 @@ export async function executeReplan(
 
 
 
+
+
+    /*
+     * =====================================================
+     * START
+     * =====================================================
+     */
 
 
     addTraceEvent(
@@ -119,7 +144,7 @@ export async function executeReplan(
 
     const previousPlan =
 
-        context.plan;
+        context.plan || null;
 
 
 
@@ -129,29 +154,34 @@ export async function executeReplan(
 
 
 
-    const alternative =
+    /*
+     * =====================================================
+     * CREATE ALTERNATIVE
+     * =====================================================
+     */
 
-        await createAlternativePlan(
 
-            context,
-
-            decision.failure
-
-        );
-
+    let alternative;
 
 
 
+    try {
 
 
+        alternative =
+
+            await createAlternativePlan(
+
+                context,
+
+                decision.failure
+
+            );
 
 
+    }
 
-    if(
-
-        !alternative?.success
-
-    ){
+    catch(error){
 
 
         addTraceEvent(
@@ -162,15 +192,79 @@ export async function executeReplan(
 
             {
 
+                stage:
+
+                    "create-alternative-plan",
+
+
+
+                reason:
+
+                    error?.message ||
+
+                    "Alternative plan creation failed"
+
+
+            }
+
+        );
+
+
+
+        return false;
+
+
+    }
+
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * ALTERNATIVE FAILED
+     * =====================================================
+     */
+
+
+    if (
+
+        !alternative?.success ||
+
+        !alternative.plan
+
+    ) {
+
+
+        addTraceEvent(
+
+            context.trace,
+
+            "REPLAN_FAILED",
+
+            {
+
+                stage:
+
+                    "create-alternative-plan",
+
+
+
                 reason:
 
                     alternative?.reason ||
 
                     "Alternative plan not created"
 
+
             }
 
         );
+
 
 
         return false;
@@ -183,6 +277,13 @@ export async function executeReplan(
 
 
 
+
+
+    /*
+     * =====================================================
+     * APPLY ALTERNATIVE
+     * =====================================================
+     */
 
 
     const applied =
@@ -203,20 +304,36 @@ export async function executeReplan(
 
 
 
-    if(
+    if (
 
         !applied
 
-    ){
+    ) {
 
 
         addTraceEvent(
 
             context.trace,
 
-            "REPLAN_APPLY_FAILED"
+            "REPLAN_FAILED",
+
+            {
+
+                stage:
+
+                    "apply-alternative-plan",
+
+
+
+                reason:
+
+                    "Alternative plan was not applied"
+
+
+            }
 
         );
+
 
 
         return false;
@@ -232,7 +349,69 @@ export async function executeReplan(
 
 
     /*
-     * Новый Execution Pass
+     * =====================================================
+     * REGISTER REPLAN
+     * =====================================================
+     *
+     * Context является единственным
+     * источником истины для Replan history.
+     *
+     * Trace получит эту историю позже через:
+     *
+     * traceContextAdapter
+     *      ↓
+     * syncTraceReplans()
+     *
+     * =====================================================
+     */
+
+
+    registerExecutionReplan(
+
+        context,
+
+        {
+
+            previousPlan,
+
+
+            newPlan:
+
+                context.plan,
+
+
+
+            failure:
+
+                decision.failure || null
+
+
+        }
+
+    );
+
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * RESET EXECUTION PASS
+     * =====================================================
+     *
+     * Сбрасываем только локальные counters
+     * текущего маршрута:
+     *
+     * attempt
+     * retryCount
+     *
+     * replanCount НЕ сбрасывается.
+     *
+     * =====================================================
      */
 
 
@@ -251,85 +430,46 @@ export async function executeReplan(
 
 
     /*
-     * Регистрация Replan
+     * =====================================================
+     * TRACE EVENT
+     * =====================================================
+     *
+     * Здесь Trace хранит только lifecycle event.
+     *
+     * Сам Replan history находится в Context.
+     *
+     * =====================================================
      */
-
-
-    registerExecutionReplan(
-
-        context,
-
-        {
-
-
-            previousPlan,
-
-
-            newPlan:
-
-                context.plan,
-
-
-
-            failure:
-
-                decision.failure || null
-
-
-        }
-
-    );
-
-
-
-
-
-
-
-
-
-    /*
-     * Trace
-     */
-
-
-    addTraceReplan(
-
-        context.trace,
-
-        {
-
-            previousPlan,
-
-
-            newPlan:
-
-                context.plan,
-
-
-
-            failure:
-
-                decision.failure || null
-
-
-        }
-
-    );
-
-
-
-
-
-
-
 
 
     addTraceEvent(
 
         context.trace,
 
-        "REPLAN_COMPLETED"
+        "REPLAN_COMPLETED",
+
+        {
+
+            replanCount:
+
+                context.replanCount,
+
+
+
+            previousPlan:
+
+
+
+                previousPlan,
+
+
+
+            newPlan:
+
+                context.plan
+
+
+        }
 
     );
 
