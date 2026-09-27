@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CONTEXT STATE v2
+ * JESSICA CONTEXT STATE v3
  * =========================================================
  *
  * Управление состоянием Execution Context.
@@ -10,18 +10,21 @@
  *
  * - изменение state;
  * - синхронизация status;
- * - завершение execution.
+ * - завершение Execution Context.
  *
  *
  * НЕ:
  *
  * - создаёт Context;
  * - выполняет шаги;
- * - принимает решения;
- * - управляет Retry/Replan.
+ * - принимает Execution решения;
+ * - управляет Retry;
+ * - управляет Replan.
  *
  * =========================================================
  */
+
+
 
 
 
@@ -74,37 +77,28 @@ export const EXECUTION_CONTEXT_STATE = {
 
 /*
  * =========================================================
- * NORMALIZE STATE
+ * VALIDATE STATE
  * =========================================================
  */
 
 
-function normalizeState(
+function isValidState(
 
     state
 
 ) {
 
 
-    if (
+    return Object.values(
 
-        Object.values(
+        EXECUTION_CONTEXT_STATE
 
-            EXECUTION_CONTEXT_STATE
+    )
+    .includes(
 
-        )
-        .includes(state)
+        state
 
-    ) {
-
-
-        return state;
-
-    }
-
-
-
-    return EXECUTION_CONTEXT_STATE.RUNNING;
+    );
 
 }
 
@@ -130,7 +124,11 @@ function resolveStatus(
 ) {
 
 
-    switch(state){
+    switch(
+
+        state
+
+    ){
 
 
         case EXECUTION_CONTEXT_STATE.COMPLETED:
@@ -150,6 +148,8 @@ function resolveStatus(
             return "FINISHED";
 
 
+
+        case EXECUTION_CONTEXT_STATE.RUNNING:
 
         default:
 
@@ -189,6 +189,37 @@ export function updateExecutionState(
 
     ){
 
+
+        return null;
+
+    }
+
+
+
+
+
+
+
+
+
+    /*
+     * Неизвестный state не должен
+     * неожиданно переводить Context
+     * обратно в RUNNING.
+     */
+
+
+    if(
+
+        !isValidState(
+
+            state
+
+        )
+
+    ){
+
+
         return context;
 
     }
@@ -201,25 +232,9 @@ export function updateExecutionState(
 
 
 
-    const normalized =
-
-        normalizeState(
-
-            state
-
-        );
-
-
-
-
-
-
-
-
-
     context.state =
 
-        normalized;
+        state;
 
 
 
@@ -227,7 +242,7 @@ export function updateExecutionState(
 
         resolveStatus(
 
-            normalized
+            state
 
         );
 
@@ -273,9 +288,47 @@ export function finishExecutionContext(
 
     ){
 
-        return context;
+
+        return null;
 
     }
+
+
+
+
+
+
+
+
+
+    /*
+     * Для finish допускаются только
+     * терминальные состояния.
+     *
+     * RUNNING здесь не должен
+     * завершать Context.
+     */
+
+
+    const terminalState =
+
+        state === EXECUTION_CONTEXT_STATE.COMPLETED
+
+        ||
+
+        state === EXECUTION_CONTEXT_STATE.FAILED
+
+        ||
+
+        state === EXECUTION_CONTEXT_STATE.FINISHED
+
+            ?
+
+            state
+
+            :
+
+            EXECUTION_CONTEXT_STATE.FINISHED;
 
 
 
@@ -289,7 +342,7 @@ export function finishExecutionContext(
 
         context,
 
-        state
+        terminalState
 
     );
 
