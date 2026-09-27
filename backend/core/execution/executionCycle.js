@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION CYCLE v11
+ * JESSICA EXECUTION CYCLE v12
  * =========================================================
  *
  * Central Execution Coordinator.
@@ -8,23 +8,25 @@
  *
  * Ответственность:
  *
- * Create Context
- * Create Trace
- * Start Execution Loop
- * Finish Result
+ * - создать Execution Context;
+ * - создать Execution Trace;
+ * - запустить Execution Loop;
+ * - передать результат в Terminal.
  *
  *
  * Flow:
  *
  * Task
  *   ↓
- * Context
+ * Context Factory
  *   ↓
  * Trace
  *   ↓
  * Execution Loop
  *   ↓
- * Terminal
+ * Trace Sync
+ *   ↓
+ * Terminal Result
  *
  *
  * НЕ:
@@ -34,15 +36,17 @@
  * - делает Replan;
  * - анализирует ошибки;
  * - создаёт Answer;
- * - валидирует.
+ * - валидирует результат.
  *
  * =========================================================
  */
 
 
+
 import {
     createExecutionContext
 } from "./executionContext.js";
+
 
 
 import {
@@ -51,15 +55,71 @@ import {
 } from "../trace/executionTrace.js";
 
 
+
+import {
+    syncTraceFromContext
+} from "../trace/traceContextAdapter.js";
+
+
+
 import {
     executeExecutionLoop
 } from "./cycle/executionLoop.js";
+
 
 
 import {
     finishFailedExecution,
     finishSuccessfulExecution
 } from "./cycle/cycleTerminal.js";
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SAFE FAILURE
+ * =========================================================
+ */
+
+
+function buildExecutionException(
+
+    error
+
+) {
+
+
+    return {
+
+
+        stage:
+
+            "execution",
+
+
+
+        failureType:
+
+            "execution-exception",
+
+
+
+        reason:
+
+            error?.message ||
+
+            "Execution exception"
+
+
+    };
+
+}
 
 
 
@@ -101,6 +161,7 @@ export async function executePlanCycle(
             task,
 
             plan:
+
                 initialPlan,
 
 
@@ -138,6 +199,35 @@ export async function executePlanCycle(
 
 
 
+
+    /*
+     * Первичная синхронизация.
+     *
+     * Trace получает:
+     *
+     * - execution metadata;
+     * - counters;
+     * - initial context state.
+     *
+     */
+
+
+    syncTraceFromContext(
+
+        context.trace,
+
+        context
+
+    );
+
+
+
+
+
+
+
+
+
     addTraceEvent(
 
         context.trace,
@@ -164,7 +254,7 @@ export async function executePlanCycle(
 
     /*
      * =====================================================
-     * START LOOP
+     * EXECUTION LOOP
      * =====================================================
      */
 
@@ -185,11 +275,9 @@ export async function executePlanCycle(
             );
 
 
-
     }
 
     catch(error){
-
 
 
         result = {
@@ -198,23 +286,13 @@ export async function executePlanCycle(
             success:false,
 
 
-            failure:{
+            failure:
 
-                stage:
-                    "execution",
+                buildExecutionException(
 
+                    error
 
-                failureType:
-                    "execution-exception",
-
-
-                reason:
-
-                    error?.message ||
-
-                    "Execution exception"
-
-            }
+                )
 
 
         };
@@ -232,16 +310,47 @@ export async function executePlanCycle(
 
     /*
      * =====================================================
+     * FINAL TRACE SYNC
+     * =====================================================
+     *
+     * Перед Terminal переносим:
+     *
+     * - steps;
+     * - failures;
+     * - attempts;
+     * - replans.
+     *
+     */
+
+
+    syncTraceFromContext(
+
+        context.trace,
+
+        context
+
+    );
+
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
      * SUCCESS
      * =====================================================
      */
 
 
-    if(
+    if (
 
         result?.success === true
 
-    ){
+    ) {
 
 
         return finishSuccessfulExecution(
@@ -274,19 +383,26 @@ export async function executePlanCycle(
 
         context,
 
-        result?.failure ||
+        result?.failure
+
+        ||
 
         {
 
             stage:
+
                 "execution",
 
 
+
             failureType:
+
                 "unknown",
 
 
+
             reason:
+
                 "Unknown execution failure"
 
         }
