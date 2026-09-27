@@ -1,62 +1,57 @@
 /*
  * =========================================================
- * JESSICA EXECUTION STEP RUNNER v6
+ * JESSICA EXECUTION STEP RUNNER v7
  * =========================================================
  *
- * Выполняет один Execution Pass.
+ * Центральный координатор одного Execution Pass.
  *
  *
  * Flow:
  *
  * Execution Context
  *        ↓
- * Task Runner
+ * Task Runner Executor
  *        ↓
- * Answer Composer
+ * Answer Executor
  *        ↓
- * Validator
+ * Validation Executor
  *        ↓
  * Execution Result
  *
  *
  * Ответственность:
  *
- * - выполнить текущий маршрут;
- * - собрать результат;
- * - вернуть Failure или Success.
+ * - запускать стадии Execution;
+ * - передавать Context;
+ * - возвращать Success / Failure.
  *
  *
  * НЕ:
  *
- * - Retry;
- * - Replan;
- * - Terminal decision;
- * - Learning save;
- * - изменение Execution Flow.
+ * - выполняет Tools;
+ * - создаёт Answer;
+ * - валидирует данные;
+ * - делает Retry;
+ * - делает Replan;
+ * - принимает Terminal Decision.
  *
  * =========================================================
  */
 
 
-
 import {
-    runPlan
-} from "../taskRunner.js";
-
-
-import {
-    composeAnswer
-} from "../answerComposer.js";
+    executeTaskRunner
+} from "./stepExecution/taskRunnerExecutor.js";
 
 
 import {
-    validateResult
-} from "../validator.js";
+    executeAnswer
+} from "./stepExecution/answerExecutor.js";
 
 
 import {
-    analyzeRunFailure
-} from "./runFailurePolicy.js";
+    executeValidation
+} from "./stepExecution/validationExecutor.js";
 
 
 import {
@@ -78,104 +73,7 @@ import {
 
 /*
  * =========================================================
- * FAILURE BUILDER
- * =========================================================
- */
-
-
-function createFailure(
-
-    stage,
-
-    reason,
-
-    failureType,
-
-    extra = {}
-
-) {
-
-
-    return {
-
-
-        stage,
-
-
-        failureType:
-
-            failureType ||
-
-            `${stage}-failure`,
-
-
-
-        reason:
-
-            reason ||
-
-            "Ошибка выполнения",
-
-
-
-        ...extra
-
-
-    };
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * EXCEPTION
- * =========================================================
- */
-
-
-function createExceptionFailure(
-
-    stage,
-
-    error
-
-) {
-
-
-    return createFailure(
-
-        stage,
-
-        error?.message ||
-
-        "Execution exception",
-
-        `${stage}-exception`
-
-    );
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * STEP REGISTER
+ * STEP MARK
  * =========================================================
  */
 
@@ -205,88 +103,9 @@ function markStep(
 
             ...data
 
-
         }
 
     );
-
-}
-
-
- 
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * EXPERIENCE META
- * =========================================================
- */
-
-
-function attachExperience(
-
-    result,
-
-    context
-
-) {
-
-
-    if(
-        !result
-    ){
-
-        return result;
-
-    }
-
-
-
-
-    result.executionMeta = {
-
-
-        ...(result.executionMeta || {}),
-
-
-
-        experience:
-
-        {
-
-
-            used:
-
-                context?.experience?.used === true,
-
-
-
-            found:
-
-                context?.experience?.found === true,
-
-
-
-            skills:
-
-                context?.experience?.skills || []
-
-        }
-
-
-    };
-
-
-
-
-    return result;
 
 }
 
@@ -312,15 +131,11 @@ export async function executeExecutionStep(
 ) {
 
 
-
-
-
     /*
      * =====================================================
-     * RUNNER
+     * TASK RUNNER
      * =====================================================
      */
-
 
 
     markStep(
@@ -335,97 +150,21 @@ export async function executeExecutionStep(
 
 
 
+    const runner =
 
+        await executeTaskRunner(
 
-    try {
-
-
-        context.runResult =
-
-            await runPlan(
-
-                context.plan,
-
-                context.task
-
-            );
-
-
-    } catch(error) {
-
-
-        const failure =
-
-            createExceptionFailure(
-
-                "runner",
-
-                error
-
-            );
-
-
-
-        markStep(
-
-            context,
-
-            "runner",
-
-            "FAILED",
-
-            {
-
-                failure
-
-            }
+            context
 
         );
 
 
 
-        return {
+    if (
 
+        runner.success !== true
 
-            success:false,
-
-
-            failure
-
-        };
-
-
-    }
-
-
-
-
-
-
-
-
-
-    const analyzedFailure =
-
-        analyzeRunFailure(
-
-            context.runResult
-
-        );
-
-
-
-
-
-
-
-
-
-    if(
-
-        analyzedFailure?.failed === true
-
-    ){
+    ) {
 
 
         markStep(
@@ -440,7 +179,7 @@ export async function executeExecutionStep(
 
                 failure:
 
-                    analyzedFailure
+                    runner.failure
 
             }
 
@@ -448,27 +187,9 @@ export async function executeExecutionStep(
 
 
 
-        return {
-
-
-            success:false,
-
-
-            failure:
-
-                analyzedFailure
-
-
-        };
-
+        return runner;
 
     }
-
-
-
-
-
-
 
 
 
@@ -492,10 +213,9 @@ export async function executeExecutionStep(
 
     /*
      * =====================================================
-     * COMPOSER
+     * ANSWER
      * =====================================================
      */
-
 
 
     markStep(
@@ -510,40 +230,21 @@ export async function executeExecutionStep(
 
 
 
+    const answer =
+
+        await executeAnswer(
+
+            context
+
+        );
 
 
 
-    try {
+    if (
 
+        answer.success !== true
 
-        context.answerResult =
-
-            await composeAnswer(
-
-                context.task,
-
-                context.plan,
-
-                context.runResult
-
-            );
-
-
-
-    } catch(error) {
-
-
-
-        const failure =
-
-            createExceptionFailure(
-
-                "composer",
-
-                error
-
-            );
-
+    ) {
 
 
         markStep(
@@ -556,7 +257,9 @@ export async function executeExecutionStep(
 
             {
 
-                failure
+                failure:
+
+                    answer.failure
 
             }
 
@@ -564,88 +267,9 @@ export async function executeExecutionStep(
 
 
 
-        return {
-
-
-            success:false,
-
-
-            failure
-
-        };
-
+        return answer;
 
     }
-
-
-
-
-
-
-
-
-
-    if(
-
-        !context.answerResult ||
-
-        context.answerResult.success !== true
-
-    ){
-
-
-        const failure =
-
-            createFailure(
-
-                "composer",
-
-                context.answerResult?.text ||
-
-                "Ответ не создан",
-
-                "composer-failure"
-
-            );
-
-
-
-        markStep(
-
-            context,
-
-            "composer",
-
-            "FAILED",
-
-            {
-
-                failure
-
-            }
-
-        );
-
-
-
-        return {
-
-
-            success:false,
-
-
-            failure
-
-        };
-
-
-    }
-
-
-
-
-
-
 
 
 
@@ -669,10 +293,9 @@ export async function executeExecutionStep(
 
     /*
      * =====================================================
-     * VALIDATOR
+     * VALIDATION
      * =====================================================
      */
-
 
 
     markStep(
@@ -687,47 +310,21 @@ export async function executeExecutionStep(
 
 
 
+    const validation =
 
+        await executeValidation(
 
-    let validation;
+            context
 
-
-
-
-
-
-    try {
-
-
-        validation =
-
-            await validateResult(
-
-                context.task,
-
-                context.plan,
-
-                context.runResult,
-
-                context.answerResult
-
-            );
+        );
 
 
 
-    } catch(error) {
+    if (
 
+        validation.success !== true
 
-        const failure =
-
-            createExceptionFailure(
-
-                "validator",
-
-                error
-
-            );
-
+    ) {
 
 
         markStep(
@@ -740,7 +337,9 @@ export async function executeExecutionStep(
 
             {
 
-                failure
+                failure:
+
+                    validation.failure
 
             }
 
@@ -748,131 +347,9 @@ export async function executeExecutionStep(
 
 
 
-        return {
-
-
-            success:false,
-
-
-            failure
-
-        };
-
+        return validation;
 
     }
-
-
-
-
-
-
-
-
-
-    context.validationResult =
-
-        validation;
-
-
-
-
-
-
-
-
-
-    if(
-
-        validation?.valid === true
-
-    ){
-
-
-        markStep(
-
-            context,
-
-            "validator",
-
-            "COMPLETED"
-
-        );
-
-
-
-
-
-        const result =
-
-            buildCompletedResult(
-
-                context,
-
-                context.answerResult,
-
-                true
-
-            );
-
-
-
-
-
-        return {
-
-
-            success:true,
-
-
-            result:
-
-                attachExperience(
-
-                    result,
-
-                    context
-
-                )
-
-
-        };
-
-
-    }
-
-
-
-
-
-
-
-
-
-    const failure =
-
-        createFailure(
-
-            "validator",
-
-            validation?.reason ||
-
-            "Результат не прошёл проверку",
-
-            "validation-error",
-
-            {
-
-                validation
-
-            }
-
-        );
-
-
-
-
-
-
 
 
 
@@ -882,15 +359,7 @@ export async function executeExecutionStep(
 
         "validator",
 
-        "FAILED",
-
-        {
-
-            validation,
-
-            failure
-
-        }
+        "COMPLETED"
 
     );
 
@@ -899,13 +368,34 @@ export async function executeExecutionStep(
 
 
 
+
+
+
+    /*
+     * =====================================================
+     * COMPLETED RESULT
+     * =====================================================
+     */
+
+
     return {
 
 
-        success:false,
+        success:true,
 
 
-        failure
+        result:
+
+            buildCompletedResult(
+
+                context,
+
+                context.answerResult,
+
+                true
+
+            )
+
 
     };
 
