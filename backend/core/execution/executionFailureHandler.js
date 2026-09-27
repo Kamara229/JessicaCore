@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION FAILURE HANDLER v9
+ * JESSICA EXECUTION FAILURE HANDLER v10
  * =========================================================
  *
  * Центральный маршрутизатор Execution Failure.
@@ -15,19 +15,6 @@
  * Classify
  *    ↓
  * Decision
- *    ↓
- *
- * RETRY
- * REPLAN
- * CLARIFICATION
- * FINISH
- *
- *
- * Ответственность:
- *
- * - собрать обработку Failure;
- * - передать ошибку между модулями;
- * - вернуть Decision.
  *
  *
  * НЕ:
@@ -57,46 +44,14 @@ import {
 } from "./failure/failureDecision.js";
 
 
+import {
+    FAILURE_ACTION
+} from "./failure/failureActions.js";
 
 
 
-
-
-
-
-/*
- * =========================================================
- * ACTIONS
- * =========================================================
- */
-
-
-export const FAILURE_ACTION = {
-
-
-    RETRY:
-
-        "RETRY",
-
-
-
-    REPLAN:
-
-        "REPLAN",
-
-
-
-    CLARIFICATION:
-
-        "CLARIFICATION",
-
-
-
-    FINISH:
-
-        "FINISH"
-
-
+export {
+    FAILURE_ACTION
 };
 
 
@@ -123,13 +78,6 @@ export async function handleExecutionFailure(
 ) {
 
 
-    /*
-     * =====================================================
-     * NORMALIZE
-     * =====================================================
-     */
-
-
     const normalized =
 
         normalizeFailure(
@@ -140,17 +88,16 @@ export async function handleExecutionFailure(
 
 
 
+    normalized.original =
+
+        failure || null;
 
 
 
 
 
 
-    /*
-     * =====================================================
-     * CLASSIFY
-     * =====================================================
-     */
+
 
 
     normalized.category =
@@ -169,11 +116,44 @@ export async function handleExecutionFailure(
 
 
 
-    /*
-     * =====================================================
-     * DECISION
-     * =====================================================
-     */
+    if(
+        !context
+    ){
+
+
+        return {
+
+
+            action:
+
+                FAILURE_ACTION.FINISH,
+
+
+            type:
+
+                FAILURE_ACTION.FINISH,
+
+
+            reason:
+
+                "Execution context отсутствует",
+
+
+            failure:
+
+                normalized
+
+
+        };
+
+    }
+
+
+
+
+
+
+
 
 
     return decideFailureAction(
@@ -197,7 +177,7 @@ export async function handleExecutionFailure(
 
 /*
  * =========================================================
- * ACTION HELPERS
+ * HELPERS
  * =========================================================
  */
 
@@ -206,8 +186,7 @@ export function isRetryAction(
 
     decision
 
-) {
-
+){
 
     return (
 
@@ -217,12 +196,7 @@ export function isRetryAction(
 
     );
 
-
 }
-
-
-
-
 
 
 
@@ -232,8 +206,7 @@ export function isReplanAction(
 
     decision
 
-) {
-
+){
 
     return (
 
@@ -243,12 +216,7 @@ export function isReplanAction(
 
     );
 
-
 }
-
-
-
-
 
 
 
@@ -258,8 +226,7 @@ export function isClarificationAction(
 
     decision
 
-) {
-
+){
 
     return (
 
@@ -269,12 +236,7 @@ export function isClarificationAction(
 
     );
 
-
 }
-
-
-
-
 
 
 
@@ -284,8 +246,7 @@ export function isTerminalAction(
 
     decision
 
-) {
-
+){
 
     return (
 
@@ -294,6 +255,5 @@ export function isTerminalAction(
         FAILURE_ACTION.FINISH
 
     );
-
 
 }
