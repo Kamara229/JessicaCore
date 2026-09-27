@@ -1,39 +1,38 @@
 /*
  * =========================================================
- * JESSICA EXECUTION CONTEXT FACADE v2
+ * JESSICA EXECUTION CONTEXT FACADE v3
  * =========================================================
  *
  * Единая точка доступа Execution Context.
  *
  *
- * Публичный API:
+ * Ответственность:
  *
- * - создание Context;
- * - изменение состояния;
- * - регистрация шагов;
- * - регистрация ошибок;
- * - counters;
- * - Retry;
- * - Replan.
+ * - предоставить публичный API Context слоя;
+ * - скрыть внутреннюю структуру context modules.
  *
  *
  * Внутренние слои:
  *
- * contextFactory
- * contextReader
- * contextState
- * contextSteps
- * contextAttempts
- * contextFailures
- * contextRetry
- * contextReplan
+ * context/
+ *
+ * ├── contextFactory.js
+ * ├── contextReader.js
+ * ├── contextState.js
+ * ├── contextSteps.js
+ * ├── contextAttempts.js
+ * ├── contextFailures.js
+ * ├── contextRetry.js
+ * └── contextReplan.js
  *
  *
  * НЕ:
  *
  * - выполняет Tools;
- * - принимает решения;
- * - управляет Execution Flow.
+ * - принимает Execution решения;
+ * - управляет Retry;
+ * - управляет Replan;
+ * - меняет Execution Flow.
  *
  * =========================================================
  */
@@ -53,7 +52,9 @@
 
 export {
 
+
     createExecutionContext
+
 
 } from "./context/contextFactory.js";
 
@@ -93,6 +94,7 @@ export {
     getExecutionState
 
 
+
 } from "./context/contextReader.js";
 
 
@@ -112,7 +114,13 @@ export {
 
 export {
 
-    updateExecutionState
+
+    updateExecutionState,
+
+
+    finishExecutionContext
+
+
 
 } from "./context/contextState.js";
 
@@ -143,6 +151,7 @@ export {
     registerFailedStep
 
 
+
 } from "./context/contextSteps.js";
 
 
@@ -164,6 +173,8 @@ export {
 
 
     registerExecutionAttempt
+
+
 
 } from "./context/contextAttempts.js";
 
@@ -187,6 +198,8 @@ export {
 
     registerExecutionFailure
 
+
+
 } from "./context/contextFailures.js";
 
 
@@ -209,6 +222,8 @@ export {
 
     registerExecutionRetry
 
+
+
 } from "./context/contextRetry.js";
 
 
@@ -229,28 +244,11 @@ export {
 export {
 
 
-    registerExecutionReplan
+    registerExecutionReplan,
+
+
+    resetExecutionAfterReplan
+
+
 
 } from "./context/contextReplan.js";
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * FINISH
- * =========================================================
- */
-
-
-export {
-
-
-    finishExecutionContext
-
-} from "./context/contextState.js";
