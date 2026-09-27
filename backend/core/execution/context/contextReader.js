@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CONTEXT READER v1
+ * JESSICA CONTEXT READER v2
  * =========================================================
  *
  * Безопасное чтение Execution Context.
@@ -12,7 +12,8 @@
  * - execution history;
  * - failures;
  * - experience;
- * - run results.
+ * - results;
+ * - plans.
  *
  *
  * НЕ:
@@ -78,11 +79,21 @@ function safeNumber(
 ) {
 
 
-    return Number(
+    const number =
 
-        value || 0
+        Number(value);
 
-    );
+
+
+    return Number.isFinite(number)
+
+        ?
+
+        number
+
+        :
+
+        0;
 
 }
 
@@ -96,7 +107,7 @@ function safeNumber(
 
 /*
  * =========================================================
- * EXECUTION ID
+ * ID
  * =========================================================
  */
 
@@ -108,15 +119,26 @@ export function getExecutionId(
 ) {
 
 
-    return (
+    return context?.executionId || null;
 
-        context?.executionId
+}
 
-        ||
 
-        null
 
-    );
+
+
+
+
+
+
+export function getTraceId(
+
+    context
+
+) {
+
+
+    return context?.trace?.id || null;
 
 }
 
@@ -130,27 +152,33 @@ export function getExecutionId(
 
 /*
  * =========================================================
- * TRACE ID
+ * STATE
  * =========================================================
  */
 
 
-export function getTraceId(
+export function getExecutionState(
 
     context
 
 ) {
 
 
-    return (
+    return {
 
-        context?.trace?.id
 
-        ||
+        state:
 
-        null
+            context?.state || null,
 
-    );
+
+
+        status:
+
+            context?.status || null
+
+
+    };
 
 }
 
@@ -251,11 +279,7 @@ export function getExperience(
 
         source:
 
-            context?.experience?.source
-
-            ||
-
-            null,
+            context?.experience?.source || null,
 
 
 
@@ -281,11 +305,7 @@ export function getExperience(
 
         context:
 
-            context?.experience?.context
-
-            ||
-
-            null
+            context?.experience?.context || null
 
 
     };
@@ -302,7 +322,7 @@ export function getExperience(
 
 /*
  * =========================================================
- * RUN RESULTS
+ * RESULTS
  * =========================================================
  */
 
@@ -321,6 +341,48 @@ export function getRunResults(
         ||
 
         context?.runResult?.result?.results
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
+export function getTerminalResult(
+
+    context
+
+) {
+
+
+    return context?.terminalResult || null;
+
+}
+
+
+
+
+
+
+
+
+
+export function getResultHistory(
+
+    context
+
+) {
+
+
+    return safeArray(
+
+        context?.resultHistory
 
     );
 
@@ -396,7 +458,37 @@ export function getExecutionReplans(
 
 /*
  * =========================================================
- * STEPS HISTORY
+ * ATTEMPTS
+ * =========================================================
+ */
+
+
+export function getExecutionAttempts(
+
+    context
+
+) {
+
+
+    return safeArray(
+
+        context?.attempts
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * STEPS
  * =========================================================
  */
 
@@ -408,11 +500,23 @@ export function getExecutionHistory(
 ) {
 
 
+    if(
+
+        Array.isArray(context?.stepsHistory)
+
+        &&
+
+        context.stepsHistory.length > 0
+
+    ){
+
+        return context.stepsHistory;
+
+    }
+
+
+
     return safeArray(
-
-        context?.stepsHistory
-
-        ||
 
         context?.executionHistory
 
@@ -435,6 +539,44 @@ export function getExecutionHistory(
  */
 
 
+export function getInitialPlan(
+
+    context
+
+) {
+
+
+    return context?.initialPlan || null;
+
+}
+
+
+
+
+
+
+
+
+
+export function getCurrentPlan(
+
+    context
+
+) {
+
+
+    return context?.plan || null;
+
+}
+
+
+
+
+
+
+
+
+
 export function getPlans(
 
     context
@@ -447,21 +589,21 @@ export function getPlans(
 
         initialPlan:
 
-            context?.initialPlan
+            getInitialPlan(
 
-            ||
+                context
 
-            null,
+            ),
 
 
 
         currentPlan:
 
-            context?.plan
+            getCurrentPlan(
 
-            ||
+                context
 
-            null
+            )
 
 
     };
