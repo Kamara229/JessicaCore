@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * FAILURE NORMALIZER v2
+ * FAILURE NORMALIZER v3
  * =========================================================
  *
  * Нормализация Execution Failure.
@@ -32,13 +32,6 @@
 
 
 
-/*
- * =========================================================
- * SAFE STRING
- * =========================================================
- */
-
-
 function safeString(
 
     value
@@ -46,15 +39,12 @@ function safeString(
 ) {
 
 
-    return typeof value === "string"
+    return String(
 
-        ?
+        value || ""
 
-        value.trim()
-
-        :
-
-        "";
+    )
+    .trim();
 
 }
 
@@ -66,13 +56,6 @@ function safeString(
 
 
 
-/*
- * =========================================================
- * NORMALIZE FAILURE
- * =========================================================
- */
-
-
 export function normalizeFailure(
 
     failure
@@ -80,20 +63,13 @@ export function normalizeFailure(
 ) {
 
 
-    /*
-     * =====================================================
-     * EMPTY FAILURE
-     * =====================================================
-     */
-
-
-    if (
+    if(
 
         !failure ||
 
         typeof failure !== "object"
 
-    ) {
+    ){
 
 
         return {
@@ -108,6 +84,12 @@ export function normalizeFailure(
             failureType:
 
                 "unknown",
+
+
+
+            category:
+
+                null,
 
 
 
@@ -164,13 +146,6 @@ export function normalizeFailure(
 
 
 
-    /*
-     * =====================================================
-     * STANDARD FAILURE
-     * =====================================================
-     */
-
-
     return {
 
 
@@ -203,6 +178,26 @@ export function normalizeFailure(
             ||
 
             "execution-error",
+
+
+
+
+
+
+
+        category:
+
+            safeString(
+
+                failure.category
+
+            )
+
+            ||
+
+            null,
+
+
 
 
 
