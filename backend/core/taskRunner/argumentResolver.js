@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA TASK RUNNER
- * ARGUMENT RESOLVER v2
+ * ARGUMENT RESOLVER v3
  * =========================================================
  *
  * Главный маршрутизатор подготовки arguments.
@@ -11,11 +11,21 @@
  *
  * Step Arguments
  *        ↓
- * Fetch Source Resolver
- *        ↓
- * Value Resolver
+ * Route Resolver
  *        ↓
  * Final Arguments
+ *
+ *
+ * Resolver:
+ *
+ * web_fetch
+ *      ↓
+ * fetchSourceResolver
+ *
+ *
+ * остальные tools
+ *      ↓
+ * valueResolver
  *
  *
  * НЕ:
@@ -48,14 +58,12 @@ import {
 
 /*
  * =========================================================
- * RESOLVE STEP ARGUMENTS
+ * WEB FETCH ARGUMENTS
  * =========================================================
  */
 
 
-export async function resolveStepArguments(
-
-    toolName,
+async function resolveFetchArguments(
 
     originalArgs,
 
@@ -66,10 +74,201 @@ export async function resolveStepArguments(
 ) {
 
 
+    const source =
+
+        await resolveFetchSource(
+
+            originalArgs,
+
+            results,
+
+            selectionContext
+
+        );
+
+
+
+
+
+
+
+
+
+    /*
+     * Resolver не вмешивается.
+     *
+     * Используем обычный путь.
+     */
+
+
+    if (
+
+        source === null
+
+    ) {
+
+
+        return resolveValue(
+
+            originalArgs || {},
+
+            results
+
+        );
+
+    }
+
+
+
+
+
+
+
+
+
+    /*
+     * Ошибка выбора источника.
+     */
+
+
+    if (
+
+        source.success !== true
+
+    ) {
+
+
+        return source;
+
+    }
+
+
+
+
+
+
+
+
+
+    const argsWithoutUrl = {
+
+
+        ...(originalArgs || {})
+
+
+    };
+
+
+
+
+
+
+
+    delete argsWithoutUrl.url;
+
+
+
+
+
+
+
+
+    const resolved =
+
+        resolveValue(
+
+            argsWithoutUrl,
+
+            results
+
+        );
+
+
+
+
+
+
+
+
+
+    if (
+
+        resolved.success !== true
+
+    ) {
+
+
+        return resolved;
+
+    }
+
+
+
+
+
+
+
+
+
+    return {
+
+
+        success:true,
+
+
+        value:
+
+        {
+
+
+            ...resolved.value,
+
+
+
+            url:
+
+                source.url
+
+
+        }
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * MAIN RESOLVER
+ * =========================================================
+ */
+
+
+export async function resolveStepArguments(
+
+    toolName,
+
+    originalArgs = {},
+
+    results = [],
+
+    selectionContext = ""
+
+) {
+
+
 
     /*
      * =====================================================
-     * WEB FETCH SPECIAL ROUTE
+     * WEB FETCH ROUTE
      * =====================================================
      */
 
@@ -81,170 +280,15 @@ export async function resolveStepArguments(
     ) {
 
 
+        return resolveFetchArguments(
 
-        const source =
+            originalArgs,
 
-            await resolveFetchSource(
+            results,
 
-                originalArgs,
+            selectionContext
 
-                results,
-
-                selectionContext
-
-            );
-
-
-
-
-
-
-
-
-        /*
-         * Source Resolver ничего
-         * не обнаружил.
-         *
-         * Продолжаем обычный resolve.
-         */
-
-
-        if (
-
-            source === null
-
-        ) {
-
-
-            return resolveValue(
-
-                originalArgs,
-
-                results
-
-            );
-
-        }
-
-
-
-
-
-
-
-
-        /*
-         * Source Resolver нашёл ошибку.
-         */
-
-
-        if (
-
-            source.success !== true
-
-        ) {
-
-
-            return source;
-
-        }
-
-
-
-
-
-
-
-
-        /*
-         * URL выбран.
-         *
-         * Остальные аргументы
-         * разрешаем стандартно.
-         */
-
-
-        const argsWithoutUrl = {
-
-
-            ...(originalArgs || {})
-
-
-        };
-
-
-
-
-
-        delete argsWithoutUrl.url;
-
-
-
-
-
-
-
-
-        const rest =
-
-            resolveValue(
-
-                argsWithoutUrl,
-
-                results
-
-            );
-
-
-
-
-
-
-
-
-        if (
-
-            rest.success !== true
-
-        ) {
-
-
-            return rest;
-
-        }
-
-
-
-
-
-
-
-
-        return {
-
-
-            success:true,
-
-
-            value:
-
-            {
-
-
-                ...rest.value,
-
-
-
-                url:
-
-                    source.url
-
-
-            }
-
-
-        };
-
+        );
 
     }
 
@@ -258,7 +302,7 @@ export async function resolveStepArguments(
 
     /*
      * =====================================================
-     * STANDARD ARGUMENT RESOLUTION
+     * STANDARD ROUTE
      * =====================================================
      */
 
