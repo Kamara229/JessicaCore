@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION CYCLE v12
+ * JESSICA EXECUTION CYCLE v13
  * =========================================================
  *
  * Central Execution Coordinator.
@@ -11,7 +11,7 @@
  * - создать Execution Context;
  * - создать Execution Trace;
  * - запустить Execution Loop;
- * - передать результат в Terminal.
+ * - передать результат Terminal.
  *
  *
  * Flow:
@@ -24,9 +24,9 @@
  *   ↓
  * Execution Loop
  *   ↓
- * Trace Sync
+ * Terminal
  *   ↓
- * Terminal Result
+ * Result
  *
  *
  * НЕ:
@@ -42,11 +42,9 @@
  */
 
 
-
 import {
     createExecutionContext
 } from "./executionContext.js";
-
 
 
 import {
@@ -55,17 +53,9 @@ import {
 } from "../trace/executionTrace.js";
 
 
-
-import {
-    syncTraceFromContext
-} from "../trace/traceContextAdapter.js";
-
-
-
 import {
     executeExecutionLoop
 } from "./cycle/executionLoop.js";
-
 
 
 import {
@@ -142,14 +132,16 @@ export async function executePlanCycle(
 
     initialPlan,
 
-    planningContext = {}
+    planningContext = {},
+
+    experience = null
 
 ) {
 
 
     /*
      * =====================================================
-     * CREATE CONTEXT
+     * CONTEXT
      * =====================================================
      */
 
@@ -165,7 +157,10 @@ export async function executePlanCycle(
                 initialPlan,
 
 
-            planningContext
+            planningContext,
+
+
+            experience
 
         });
 
@@ -179,7 +174,7 @@ export async function executePlanCycle(
 
     /*
      * =====================================================
-     * CREATE TRACE
+     * TRACE
      * =====================================================
      */
 
@@ -191,34 +186,6 @@ export async function executePlanCycle(
             task
 
         );
-
-
-
-
-
-
-
-
-
-    /*
-     * Первичная синхронизация.
-     *
-     * Trace получает:
-     *
-     * - execution metadata;
-     * - counters;
-     * - initial context state.
-     *
-     */
-
-
-    syncTraceFromContext(
-
-        context.trace,
-
-        context
-
-    );
 
 
 
@@ -254,7 +221,7 @@ export async function executePlanCycle(
 
     /*
      * =====================================================
-     * EXECUTION LOOP
+     * LOOP
      * =====================================================
      */
 
@@ -310,47 +277,16 @@ export async function executePlanCycle(
 
     /*
      * =====================================================
-     * FINAL TRACE SYNC
-     * =====================================================
-     *
-     * Перед Terminal переносим:
-     *
-     * - steps;
-     * - failures;
-     * - attempts;
-     * - replans.
-     *
-     */
-
-
-    syncTraceFromContext(
-
-        context.trace,
-
-        context
-
-    );
-
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * SUCCESS
+     * TERMINAL
      * =====================================================
      */
 
 
-    if (
+    if(
 
         result?.success === true
 
-    ) {
+    ){
 
 
         return finishSuccessfulExecution(
@@ -372,20 +308,11 @@ export async function executePlanCycle(
 
 
 
-    /*
-     * =====================================================
-     * FAILURE
-     * =====================================================
-     */
-
-
     return finishFailedExecution(
 
         context,
 
-        result?.failure
-
-        ||
+        result?.failure ||
 
         {
 
