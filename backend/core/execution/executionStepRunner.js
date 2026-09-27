@@ -1,28 +1,28 @@
 /*
  * =========================================================
- * JESSICA EXECUTION STEP RUNNER v7
+ * JESSICA EXECUTION STEP RUNNER v8
  * =========================================================
  *
- * Центральный координатор одного Execution Pass.
+ * Координатор одного Execution Pass.
  *
  *
  * Flow:
  *
- * Execution Context
+ * Context
  *        ↓
- * Task Runner Executor
+ * Task Runner
  *        ↓
  * Answer Executor
  *        ↓
  * Validation Executor
  *        ↓
- * Execution Result
+ * Completed Result
  *
  *
  * Ответственность:
  *
  * - запускать стадии Execution;
- * - передавать Context;
+ * - сохранять статус этапов;
  * - возвращать Success / Failure.
  *
  *
@@ -30,13 +30,14 @@
  *
  * - выполняет Tools;
  * - создаёт Answer;
- * - валидирует данные;
+ * - валидирует;
  * - делает Retry;
  * - делает Replan;
  * - принимает Terminal Decision.
  *
  * =========================================================
  */
+
 
 
 import {
@@ -119,6 +120,207 @@ function markStep(
 
 /*
  * =========================================================
+ * STAGE ERROR
+ * =========================================================
+ */
+
+
+function buildStageException(
+
+    stage,
+
+    error
+
+) {
+
+
+    return {
+
+
+        success:false,
+
+
+        failure:
+
+        {
+
+
+            stage,
+
+
+            failureType:
+
+                `${stage}-exception`,
+
+
+
+            reason:
+
+                error?.message ||
+
+                `Ошибка стадии ${stage}`
+
+
+        }
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * EXECUTE STAGE
+ * =========================================================
+ */
+
+
+async function executeStage(
+
+    context,
+
+    stage,
+
+    executor
+
+) {
+
+
+    markStep(
+
+        context,
+
+        stage,
+
+        "RUNNING"
+
+    );
+
+
+
+
+
+    let result;
+
+
+
+    try {
+
+
+        result =
+
+            await executor(
+
+                context
+
+            );
+
+
+    }
+
+    catch(error){
+
+
+        result =
+
+            buildStageException(
+
+                stage,
+
+                error
+
+            );
+
+
+    }
+
+
+
+
+
+
+
+
+
+    if (
+
+        result?.success !== true
+
+    ) {
+
+
+        markStep(
+
+            context,
+
+            stage,
+
+            "FAILED",
+
+            {
+
+                failure:
+
+                    result?.failure
+
+            }
+
+        );
+
+
+
+        return result;
+
+    }
+
+
+
+
+
+
+
+
+
+    markStep(
+
+        context,
+
+        stage,
+
+        "COMPLETED"
+
+    );
+
+
+
+
+
+
+
+
+
+    return result;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
  * EXECUTE STEP
  * =========================================================
  */
@@ -138,23 +340,15 @@ export async function executeExecutionStep(
      */
 
 
-    markStep(
-
-        context,
-
-        "runner",
-
-        "RUNNING"
-
-    );
-
-
-
     const runner =
 
-        await executeTaskRunner(
+        await executeStage(
 
-            context
+            context,
+
+            "runner",
+
+            executeTaskRunner
 
         );
 
@@ -167,41 +361,9 @@ export async function executeExecutionStep(
     ) {
 
 
-        markStep(
-
-            context,
-
-            "runner",
-
-            "FAILED",
-
-            {
-
-                failure:
-
-                    runner.failure
-
-            }
-
-        );
-
-
-
         return runner;
 
     }
-
-
-
-    markStep(
-
-        context,
-
-        "runner",
-
-        "COMPLETED"
-
-    );
 
 
 
@@ -218,23 +380,15 @@ export async function executeExecutionStep(
      */
 
 
-    markStep(
-
-        context,
-
-        "composer",
-
-        "RUNNING"
-
-    );
-
-
-
     const answer =
 
-        await executeAnswer(
+        await executeStage(
 
-            context
+            context,
+
+            "composer",
+
+            executeAnswer
 
         );
 
@@ -247,41 +401,9 @@ export async function executeExecutionStep(
     ) {
 
 
-        markStep(
-
-            context,
-
-            "composer",
-
-            "FAILED",
-
-            {
-
-                failure:
-
-                    answer.failure
-
-            }
-
-        );
-
-
-
         return answer;
 
     }
-
-
-
-    markStep(
-
-        context,
-
-        "composer",
-
-        "COMPLETED"
-
-    );
 
 
 
@@ -298,23 +420,15 @@ export async function executeExecutionStep(
      */
 
 
-    markStep(
-
-        context,
-
-        "validator",
-
-        "RUNNING"
-
-    );
-
-
-
     const validation =
 
-        await executeValidation(
+        await executeStage(
 
-            context
+            context,
+
+            "validator",
+
+            executeValidation
 
         );
 
@@ -327,41 +441,9 @@ export async function executeExecutionStep(
     ) {
 
 
-        markStep(
-
-            context,
-
-            "validator",
-
-            "FAILED",
-
-            {
-
-                failure:
-
-                    validation.failure
-
-            }
-
-        );
-
-
-
         return validation;
 
     }
-
-
-
-    markStep(
-
-        context,
-
-        "validator",
-
-        "COMPLETED"
-
-    );
 
 
 
@@ -373,7 +455,7 @@ export async function executeExecutionStep(
 
     /*
      * =====================================================
-     * COMPLETED RESULT
+     * RESULT
      * =====================================================
      */
 
