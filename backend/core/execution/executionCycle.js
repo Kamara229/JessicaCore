@@ -1,84 +1,65 @@
 /*
  * =========================================================
- * JESSICA EXECUTION CYCLE v10
+ * JESSICA EXECUTION CYCLE v11
  * =========================================================
  *
  * Central Execution Coordinator.
  *
  *
+ * Ответственность:
+ *
+ * Create Context
+ * Create Trace
+ * Start Execution Loop
+ * Finish Result
+ *
+ *
  * Flow:
  *
- * Plan
+ * Task
  *   ↓
  * Context
  *   ↓
  * Trace
  *   ↓
- * Step Runner
+ * Execution Loop
  *   ↓
- * Failure Handler
- *   ↓
- *
- * RETRY
- * REPLAN
- * CLARIFICATION
- * FINISH
+ * Terminal
  *
  *
  * НЕ:
  *
  * - выполняет Tools;
+ * - делает Retry;
+ * - делает Replan;
+ * - анализирует ошибки;
  * - создаёт Answer;
- * - валидирует;
- * - сохраняет Learning.
+ * - валидирует.
  *
  * =========================================================
  */
 
 
 import {
-    createExecutionContext,
-    registerExecutionFailure,
-    registerExecutionAttempt,
-    finishExecutionContext
+    createExecutionContext
 } from "./executionContext.js";
 
 
 import {
-    executeExecutionStep
-} from "./executionStepRunner.js";
-
-
-import {
-    handleExecutionFailure,
-    FAILURE_ACTION
-} from "./executionFailureHandler.js";
-
-
-import {
-    createAlternativePlan,
-    applyAlternativePlan
-} from "./replanCoordinator.js";
-
-
-import {
-    buildTerminalResult
-} from "./executionTerminal.js";
-
-
-import {
     createExecutionTrace,
-    updateTraceFromResult,
-    finishExecutionTrace,
-    addTraceEvent,
-    addTraceAttempt,
-    addTraceReplan
+    addTraceEvent
 } from "../trace/executionTrace.js";
 
 
 import {
-    MAX_EXECUTION_ATTEMPTS
-} from "./retryPolicy.js";
+    executeExecutionLoop
+} from "./cycle/executionLoop.js";
+
+
+import {
+    finishFailedExecution,
+    finishSuccessfulExecution
+} from "./cycle/cycleTerminal.js";
 
 
 
@@ -90,346 +71,7 @@ import {
 
 /*
  * =========================================================
- * META
- * =========================================================
- */
-
-
-function attachExecutionMeta(
-
-    result,
-
-    context
-
-) {
-
-
-    return {
-
-
-        ...result,
-
-
-        executionMeta:
-
-        {
-
-
-            ...(result?.executionMeta || {}),
-
-
-
-            executionId:
-
-                context?.executionId || null,
-
-
-
-            traceId:
-
-                context?.trace?.id || null,
-
-
-
-            attempt:
-
-                context?.attempt || 0,
-
-
-
-            retryCount:
-
-                context?.retryCount || 0,
-
-
-
-            replanCount:
-
-                context?.replanCount || 0
-
-
-        }
-
-
-    };
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * SAFE FAILURE
- * =========================================================
- */
-
-
-function normalizeFailure(
-
-    failure
-
-) {
-
-
-    return {
-
-
-        stage:
-
-            failure?.stage ||
-
-            "execution",
-
-
-
-        failureType:
-
-            failure?.failureType ||
-
-            "execution-error",
-
-
-
-        reason:
-
-            failure?.reason ||
-
-            "Неизвестная ошибка"
-
-
-    };
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * REPLAN
- * =========================================================
- */
-
-
-async function executeReplan(
-
-    context,
-
-    decision
-
-) {
-
-
-    addTraceEvent(
-
-        context.trace,
-
-        "REPLAN_STARTED",
-
-        {
-
-            failure:
-
-                decision.failure
-
-        }
-
-    );
-
-
-
-
-
-
-
-
-    const previousPlan =
-
-        context.plan;
-
-
-
-
-
-
-
-
-
-    const alternative =
-
-        await createAlternativePlan(
-
-            context,
-
-            decision.failure
-
-        );
-
-
-
-
-
-
-
-
-
-    if (
-
-        !alternative?.success
-
-    ) {
-
-
-        addTraceEvent(
-
-            context.trace,
-
-            "REPLAN_FAILED",
-
-            alternative
-
-        );
-
-
-        return false;
-
-    }
-
-
-
-
-
-
-
-
-
-    const applied =
-
-        applyAlternativePlan(
-
-            context,
-
-            alternative
-
-        );
-
-
-
-
-
-
-
-
-
-    if (
-
-        !applied
-
-    ) {
-
-
-        return false;
-
-    }
-
-
-
-
-
-
-
-
-
-    context.attempt =
-        0;
-
-
-
-    context.retryCount =
-        0;
-
-
-
-
-
-
-
-
-
-    addTraceReplan(
-
-        context.trace,
-
-        {
-
-
-            previousPlan,
-
-
-            newPlan:
-
-                context.plan,
-
-
-
-            failure:
-
-                decision.failure
-
-
-        }
-
-    );
-
-
-
-
-
-
-
-
-    addTraceEvent(
-
-        context.trace,
-
-        "REPLAN_COMPLETED"
-
-    );
-
-
-
-
-
-
-
-
-    return true;
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * MAIN
+ * EXECUTE PLAN CYCLE
  * =========================================================
  */
 
@@ -445,6 +87,12 @@ export async function executePlanCycle(
 ) {
 
 
+    /*
+     * =====================================================
+     * CREATE CONTEXT
+     * =====================================================
+     */
+
 
     const context =
 
@@ -453,8 +101,8 @@ export async function executePlanCycle(
             task,
 
             plan:
-
                 initialPlan,
+
 
             planningContext
 
@@ -468,6 +116,13 @@ export async function executePlanCycle(
 
 
 
+    /*
+     * =====================================================
+     * CREATE TRACE
+     * =====================================================
+     */
+
+
     context.trace =
 
         createExecutionTrace(
@@ -475,7 +130,6 @@ export async function executePlanCycle(
             task
 
         );
-
 
 
 
@@ -508,444 +162,62 @@ export async function executePlanCycle(
 
 
 
-    let lastFailure =
-        null;
+    /*
+     * =====================================================
+     * START LOOP
+     * =====================================================
+     */
 
 
+    let result;
 
 
 
+    try {
 
 
+        result =
 
-
-    while (
-
-        true
-
-    ) {
-
-
-
-
-
-
-        if (
-
-            context.attempt >=
-
-            MAX_EXECUTION_ATTEMPTS
-
-        ) {
-
-
-            break;
-
-        }
-
-
-
-
-
-
-
-
-
-        registerExecutionAttempt(
-
-            context,
-
-            {
-
-                retryCount:
-
-                    context.retryCount,
-
-
-
-                replanCount:
-
-                    context.replanCount
-
-            }
-
-        );
-
-
-
-
-
-
-
-
-
-        addTraceAttempt(
-
-            context.trace,
-
-            context.attempt,
-
-            {
-
-                retryCount:
-
-                    context.retryCount,
-
-
-
-                replanCount:
-
-                    context.replanCount
-
-
-            }
-
-        );
-
-
-
-
-
-
-
-
-
-        let result;
-
-
-
-
-
-
-
-
-
-        try {
-
-
-            result =
-
-                await executeExecutionStep(
-
-                    context
-
-                );
-
-
-
-        } catch(error) {
-
-
-
-            result = {
-
-
-                success:false,
-
-
-                failure:
-
-                {
-
-                    stage:
-
-                        "execution",
-
-
-
-                    failureType:
-
-                        "execution-error",
-
-
-
-                    reason:
-
-                        error?.message ||
-
-                        "Execution exception"
-
-                }
-
-
-            };
-
-
-        }
-
-
-
-
-
-
-
-
-
-        updateTraceFromResult(
-
-            context.trace,
-
-            result
-
-        );
-
-
-
-
-
-
-
-
-
-        /*
-         * =================================================
-         * SUCCESS
-         * =================================================
-         */
-
-
-        if (
-
-            result?.success === true
-
-        ) {
-
-
-            finishExecutionContext(
-
-                context,
-
-                "COMPLETED"
-
-            );
-
-
-
-            finishExecutionTrace(
-
-                context.trace
-
-            );
-
-
-
-            return attachExecutionMeta(
-
-                result.result,
+            await executeExecutionLoop(
 
                 context
 
             );
 
 
-        }
 
+    }
 
+    catch(error){
 
 
 
+        result = {
 
 
+            success:false,
 
 
-        /*
-         * =================================================
-         * FAILURE
-         * =================================================
-         */
+            failure:{
 
+                stage:
+                    "execution",
 
-        lastFailure =
 
-            normalizeFailure(
+                failureType:
+                    "execution-exception",
 
-                result?.failure
 
-            );
+                reason:
 
+                    error?.message ||
 
+                    "Execution exception"
 
+            }
 
 
-
-
-
-
-        registerExecutionFailure(
-
-            context,
-
-            lastFailure
-
-        );
-
-
-
-
-
-
-
-
-
-        const decision =
-
-            await handleExecutionFailure(
-
-                context,
-
-                lastFailure
-
-            );
-
-
-
-
-
-
-
-
-
-        switch (
-
-            decision.action
-
-        ) {
-
-
-
-
-
-
-
-            case FAILURE_ACTION.RETRY:
-
-
-                context.retryCount++;
-
-
-                addTraceEvent(
-
-                    context.trace,
-
-                    "RETRY",
-
-                    {
-
-                        attempt:
-
-                            context.attempt
-
-                    }
-
-                );
-
-
-                continue;
-
-
-
-
-
-
-
-
-
-            case FAILURE_ACTION.REPLAN:
-
-
-                if (
-
-                    await executeReplan(
-
-                        context,
-
-                        decision
-
-                    )
-
-                ) {
-
-
-                    continue;
-
-
-                }
-
-
-                break;
-
-
-
-
-
-
-
-
-
-            case FAILURE_ACTION.CLARIFICATION:
-
-
-                finishExecutionContext(
-
-                    context,
-
-                    "FAILED"
-
-                );
-
-
-
-                finishExecutionTrace(
-
-                    context.trace
-
-                );
-
-
-
-                return attachExecutionMeta(
-
-                    buildTerminalResult(
-
-                        context,
-
-                        {
-
-                            ...lastFailure,
-
-
-                            needsClarification:
-
-                                true
-
-
-                        }
-
-                    ),
-
-                    context
-
-                );
-
-
-
-
-
-
-
-
-
-            case FAILURE_ACTION.FINISH:
-
-
-                break;
-
-
-        }
-
-
-
-        break;
+        };
 
 
     }
@@ -960,67 +232,64 @@ export async function executePlanCycle(
 
     /*
      * =====================================================
-     * TERMINAL
+     * SUCCESS
      * =====================================================
      */
 
 
-    finishExecutionContext(
+    if(
 
-        context,
+        result?.success === true
 
-        "FAILED"
-
-    );
+    ){
 
 
-
-    finishExecutionTrace(
-
-        context.trace
-
-    );
-
-
-
-
-
-
-
-
-
-    return attachExecutionMeta(
-
-        buildTerminalResult(
+        return finishSuccessfulExecution(
 
             context,
 
-            lastFailure ||
+            result.result
 
-            {
-
-                stage:
-
-                    "execution",
+        );
 
 
-
-                failureType:
-
-                    "execution-limit",
+    }
 
 
 
-                reason:
-
-                    "Execution limit reached"
 
 
-            }
 
-        ),
 
-        context
+
+
+    /*
+     * =====================================================
+     * FAILURE
+     * =====================================================
+     */
+
+
+    return finishFailedExecution(
+
+        context,
+
+        result?.failure ||
+
+        {
+
+            stage:
+                "execution",
+
+
+            failureType:
+                "unknown",
+
+
+            reason:
+                "Unknown execution failure"
+
+        }
 
     );
 
