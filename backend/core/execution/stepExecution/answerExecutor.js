@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * ANSWER EXECUTOR v1
+ * ANSWER EXECUTOR v2
  * =========================================================
  *
  * Создание пользовательского ответа.
@@ -14,6 +14,13 @@
  * Answer Composer
  *      ↓
  * Answer Result
+ *
+ *
+ * Ответственность:
+ *
+ * - вызвать Answer Composer;
+ * - сохранить результат ответа;
+ * - нормализовать ошибку.
  *
  *
  * НЕ:
@@ -99,6 +106,75 @@ function buildFailure(
 
 /*
  * =========================================================
+ * NORMALIZE FAILURE
+ * =========================================================
+ */
+
+
+function normalizeAnswerFailure(
+
+    answerResult
+
+) {
+
+
+    return {
+
+
+        stage:
+
+            answerResult?.stage ||
+
+            "composer",
+
+
+
+        failureType:
+
+            answerResult?.failureType ||
+
+            "composer-failure",
+
+
+
+        reason:
+
+            answerResult?.reason ||
+
+            answerResult?.text ||
+
+            "Ответ не создан",
+
+
+
+        shouldRetry:
+
+            answerResult?.shouldRetry === true,
+
+
+
+        needsClarification:
+
+            answerResult?.needsClarification === true,
+
+
+
+        answerResult
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
  * EXECUTE ANSWER
  * =========================================================
  */
@@ -112,7 +188,9 @@ export async function executeAnswer(
 
 
     if (
+
         !context
+
     ) {
 
 
@@ -187,26 +265,22 @@ export async function executeAnswer(
     ) {
 
 
-        return buildFailure(
-
-            "composer",
-
-            "composer-failure",
-
-            context.answerResult?.text ||
-
-            "Ответ не создан",
+        return {
 
 
-            {
+            success:false,
 
-                answerResult:
+
+            failure:
+
+                normalizeAnswerFailure(
 
                     context.answerResult
 
-            }
+                )
 
-        );
+
+        };
 
 
     }
