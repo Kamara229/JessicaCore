@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * FAILURE DECISION v1
+ * FAILURE DECISION v2
  * =========================================================
  *
  * Выбор следующего Execution Action.
@@ -38,6 +38,11 @@ import {
 import {
     canReplan
 } from "../replanCoordinator.js";
+
+
+import {
+    FAILURE_ACTION
+} from "./failureActions.js";
 
 
 
@@ -89,11 +94,11 @@ function buildDecision(
 
         canContinue:
 
-            action === "RETRY"
+            action === FAILURE_ACTION.RETRY
 
             ||
 
-            action === "REPLAN",
+            action === FAILURE_ACTION.REPLAN,
 
 
 
@@ -114,9 +119,7 @@ function buildDecision(
 
                 Number(
 
-                    context?.attempt ||
-
-                    0
+                    context?.attempt || 0
 
                 ),
 
@@ -126,9 +129,7 @@ function buildDecision(
 
                 Number(
 
-                    context?.retryCount ||
-
-                    0
+                    context?.retryCount || 0
 
                 ),
 
@@ -138,9 +139,7 @@ function buildDecision(
 
                 Number(
 
-                    context?.replanCount ||
-
-                    0
+                    context?.replanCount || 0
 
                 ),
 
@@ -154,7 +153,7 @@ function buildDecision(
 
             category:
 
-                failure.category
+                failure.category || null
 
 
         }
@@ -174,7 +173,7 @@ function buildDecision(
 
 /*
  * =========================================================
- * RETRY
+ * RETRY CHECK
  * =========================================================
  */
 
@@ -186,6 +185,29 @@ function canRetry(
     failure
 
 ) {
+
+
+    /*
+     * Явный сигнал от слоя ниже
+     */
+
+
+    if(
+
+        failure.shouldRetry === true
+
+    ){
+
+        return true;
+
+    }
+
+
+
+
+
+
+
 
 
     return shouldRetryExecution(
@@ -222,26 +244,27 @@ export function decideFailureAction(
 ) {
 
 
-
-
-
     /*
      * =====================================================
-     * USER CLARIFICATION
+     * USER INPUT REQUIRED
      * =====================================================
      */
 
 
-    if(
+    if (
 
         failure.needsClarification === true
+
+        ||
+
+        failure.category === "clarification"
 
     ) {
 
 
         return buildDecision(
 
-            "CLARIFICATION",
+            FAILURE_ACTION.CLARIFICATION,
 
             failure,
 
@@ -261,21 +284,25 @@ export function decideFailureAction(
 
     /*
      * =====================================================
-     * NO VERIFIED RESULT
+     * RESULT NOT VERIFIED
      * =====================================================
      */
 
 
-    if(
+    if (
 
         failure.noVerifiedResult === true
+
+        ||
+
+        failure.category === "no_verified"
 
     ) {
 
 
         return buildDecision(
 
-            "FINISH",
+            FAILURE_ACTION.FINISH,
 
             failure,
 
@@ -300,7 +327,7 @@ export function decideFailureAction(
      */
 
 
-    if(
+    if (
 
         canRetry(
 
@@ -315,7 +342,7 @@ export function decideFailureAction(
 
         return buildDecision(
 
-            "RETRY",
+            FAILURE_ACTION.RETRY,
 
             failure,
 
@@ -340,7 +367,7 @@ export function decideFailureAction(
      */
 
 
-    if(
+    if (
 
         canReplan(
 
@@ -357,7 +384,7 @@ export function decideFailureAction(
 
         return buildDecision(
 
-            "REPLAN",
+            FAILURE_ACTION.REPLAN,
 
             failure,
 
@@ -384,7 +411,7 @@ export function decideFailureAction(
 
     return buildDecision(
 
-        "FINISH",
+        FAILURE_ACTION.FINISH,
 
         failure,
 
