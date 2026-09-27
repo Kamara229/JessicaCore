@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA TASK RUNNER
- * REFERENCE RESOLVER v1
+ * REFERENCE RESOLVER v2
  * =========================================================
  *
  * Разрешение ссылок между Execution Steps.
@@ -49,6 +49,16 @@ import {
 
 
 
+const MAX_PATH_DEPTH = 20;
+
+
+
+
+
+
+
+
+
 /*
  * =========================================================
  * FAILURE
@@ -72,6 +82,7 @@ function buildReferenceFailure(
 
 
         stage:
+
             "argument-resolution",
 
 
@@ -85,6 +96,7 @@ function buildReferenceFailure(
 
 
         reason:
+
             text,
 
 
@@ -106,12 +118,50 @@ function buildReferenceFailure(
 
 /*
  * =========================================================
- * OBJECT PATH
+ * SAFE PATH PART
  * =========================================================
  */
 
 
-function getValueByPath(
+function isUnsafePathPart(
+
+    part
+
+) {
+
+
+    return (
+
+        part === "__proto__"
+
+        ||
+
+        part === "prototype"
+
+        ||
+
+        part === "constructor"
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * READ OBJECT PATH
+ * =========================================================
+ */
+
+
+export function readPath(
 
     source,
 
@@ -122,7 +172,9 @@ function getValueByPath(
 
     if (
 
-        source === null ||
+        source === null
+
+        ||
 
         source === undefined
 
@@ -131,6 +183,9 @@ function getValueByPath(
         return undefined;
 
     }
+
+
+
 
 
 
@@ -146,9 +201,11 @@ function getValueByPath(
 
     ) {
 
+
         return source;
 
     }
+
 
 
 
@@ -178,6 +235,29 @@ function getValueByPath(
 
 
 
+
+
+    if (
+
+        parts.length >
+
+        MAX_PATH_DEPTH
+
+    ) {
+
+
+        return undefined;
+
+    }
+
+
+
+
+
+
+
+
+
     let current =
 
         source;
@@ -188,7 +268,9 @@ function getValueByPath(
 
 
 
-    for(
+
+
+    for (
 
         const part
 
@@ -197,17 +279,17 @@ function getValueByPath(
     ) {
 
 
-
-
-
         if (
 
-            current === null ||
+            current === null
+
+            ||
 
             current === undefined
 
         ) {
 
+
             return undefined;
 
         }
@@ -217,29 +299,23 @@ function getValueByPath(
 
 
 
-
-        /*
-         * Защита от prototype traversal
-         */
 
 
         if (
 
-            part === "__proto__"
+            isUnsafePathPart(
 
-            ||
+                part
 
-            part === "prototype"
-
-            ||
-
-            part === "constructor"
+            )
 
         ) {
+
 
             return undefined;
 
         }
+
 
 
 
@@ -251,7 +327,6 @@ function getValueByPath(
 
             current[part];
 
-
     }
 
 
@@ -260,8 +335,9 @@ function getValueByPath(
 
 
 
-    return current;
 
+
+    return current;
 
 }
 
@@ -300,6 +376,7 @@ export function resolveReference(
             :
 
             "";
+
 
 
 
@@ -403,7 +480,7 @@ export function resolveReference(
 
     const value =
 
-        getValueByPath(
+        readPath(
 
             source,
 
@@ -431,11 +508,13 @@ export function resolveReference(
             "reference-path-not-found",
 
             (
+
                 `Не найден путь ` +
 
                 `${reference.path || "result"} ` +
 
                 `в шаге ${from}`
+
             )
 
         );
@@ -487,7 +566,7 @@ export function isReference(
 
     return (
 
-        value
+        value !== null
 
         &&
 
