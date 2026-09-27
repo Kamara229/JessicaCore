@@ -1,30 +1,34 @@
 /*
  * =========================================================
- * JESSICA EXECUTION RESULT FACADE v2
+ * JESSICA EXECUTION RESULT FACADE v3
  * =========================================================
  *
- * Единая точка доступа Execution Result.
+ * Единая точка доступа Execution Result слоя.
  *
  *
- * Публичный API:
+ * Ответственность:
  *
- * - статусы;
- * - создание результатов;
- * - проверки результатов.
+ * - экспортировать Result API;
+ * - скрывать внутренние result modules;
+ * - предоставлять единый контракт результата.
  *
  *
  * Внутренние слои:
  *
- * resultMeta
- * resultBuilders
- * resultHelpers
+ * result/
+ *
+ * ├── resultStatus.js
+ * ├── resultBuilders.js
+ * ├── resultHelpers.js
+ * └── resultMeta.js
  *
  *
  * НЕ:
  *
- * - содержит бизнес-логику;
- * - собирает metadata напрямую;
- * - анализирует ошибки.
+ * - создаёт Execution Context;
+ * - анализирует Failure;
+ * - принимает Terminal Decision;
+ * - выполняет Execution.
  *
  * =========================================================
  */
@@ -44,7 +48,10 @@
 
 export {
 
+
     EXECUTION_RESULT_STATUS
+
+
 
 } from "./result/resultStatus.js";
 
@@ -78,7 +85,44 @@ export {
     buildNoVerifiedResult
 
 
+
 } from "./result/resultBuilders.js";
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * META
+ * =========================================================
+ */
+
+
+export {
+
+
+    buildBaseResult,
+
+
+    buildExecutionMeta,
+
+
+    buildHistoryMeta,
+
+
+    buildExperienceMeta,
+
+
+    collectUsedTools
+
+
+
+} from "./result/resultMeta.js";
 
 
 
@@ -108,6 +152,7 @@ export {
 
 
     isNoVerifiedResult
+
 
 
 } from "./result/resultHelpers.js";
