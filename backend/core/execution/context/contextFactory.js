@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CONTEXT FACTORY v2
+ * JESSICA CONTEXT FACTORY v3
  * =========================================================
  *
  * Создание нового Execution Context.
@@ -9,14 +9,17 @@
  * Отвечает:
  *
  * - нормализация входных данных;
- * - создание runtime context.
+ * - создание полной runtime-схемы Context;
+ * - инициализация histories и counters.
  *
  *
  * НЕ:
  *
- * - меняет состояние;
+ * - меняет состояние после создания;
  * - регистрирует шаги;
- * - хранит ошибки;
+ * - регистрирует ошибки;
+ * - делает Retry;
+ * - делает Replan;
  * - управляет Execution Flow.
  *
  * =========================================================
@@ -26,6 +29,54 @@
 import {
     randomUUID
 } from "node:crypto";
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SAFE NUMBER
+ * =========================================================
+ */
+
+
+function safeNumber(
+
+    value
+
+) {
+
+
+    const number =
+
+        Number(
+
+            value
+
+        );
+
+
+
+    return Number.isFinite(
+
+        number
+
+    )
+
+        ?
+
+        number
+
+        :
+
+        0;
+
+}
 
 
 
@@ -108,15 +159,17 @@ function normalizeExperience(
 
         source:
 
-            experience.source || null,
+            experience.source ||
+
+            null,
 
 
 
         confidence:
 
-            Number(
+            safeNumber(
 
-                experience.confidence || 0
+                experience.confidence
 
             ),
 
@@ -132,7 +185,9 @@ function normalizeExperience(
 
                 ?
 
-                experience.skills
+                [
+                    ...experience.skills
+                ]
 
                 :
 
@@ -142,7 +197,9 @@ function normalizeExperience(
 
         context:
 
-            experience.context || null
+            experience.context ||
+
+            null
 
 
     };
@@ -177,6 +234,53 @@ function normalizeTask(
 
     )
     .trim();
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE PLANNING CONTEXT
+ * =========================================================
+ */
+
+
+function normalizePlanningContext(
+
+    planningContext
+
+) {
+
+
+    if (
+
+        !planningContext ||
+
+        typeof planningContext !== "object" ||
+
+        Array.isArray(planningContext)
+
+    ) {
+
+
+        return {};
+
+    }
+
+
+
+    return {
+
+        ...planningContext
+
+    };
 
 }
 
@@ -227,7 +331,9 @@ export function createExecutionContext({
 
 
         /*
+         * =================================================
          * IDENTITY
+         * =================================================
          */
 
 
@@ -262,7 +368,9 @@ export function createExecutionContext({
 
 
         /*
+         * =================================================
          * STATE
+         * =================================================
          */
 
 
@@ -284,9 +392,10 @@ export function createExecutionContext({
 
 
 
-
         /*
+         * =================================================
          * INPUT
+         * =================================================
          */
 
 
@@ -302,20 +411,27 @@ export function createExecutionContext({
 
         plan:
 
-            plan || null,
+            plan ||
+
+            null,
 
 
 
         initialPlan:
 
-            plan || null,
+            plan ||
+
+            null,
 
 
 
         planningContext:
 
-            planningContext || {},
+            normalizePlanningContext(
 
+                planningContext
+
+            ),
 
 
 
@@ -326,7 +442,9 @@ export function createExecutionContext({
 
 
         /*
+         * =================================================
          * EXPERIENCE
+         * =================================================
          */
 
 
@@ -346,9 +464,10 @@ export function createExecutionContext({
 
 
 
-
         /*
+         * =================================================
          * EXECUTION STEPS
+         * =================================================
          */
 
 
@@ -388,9 +507,10 @@ export function createExecutionContext({
 
 
 
-
         /*
+         * =================================================
          * RESULTS
+         * =================================================
          */
 
 
@@ -430,9 +550,10 @@ export function createExecutionContext({
 
 
 
-
         /*
+         * =================================================
          * COUNTERS
+         * =================================================
          */
 
 
@@ -461,7 +582,9 @@ export function createExecutionContext({
 
 
         /*
-         * ATTEMPTS
+         * =================================================
+         * ATTEMPT HISTORY
+         * =================================================
          */
 
 
@@ -477,9 +600,29 @@ export function createExecutionContext({
 
 
 
+        /*
+         * =================================================
+         * RETRY HISTORY
+         * =================================================
+         */
+
+
+        retryHistory:
+
+            [],
+
+
+
+
+
+
+
+
 
         /*
+         * =================================================
          * REPLAN HISTORY
+         * =================================================
          */
 
 
@@ -487,6 +630,18 @@ export function createExecutionContext({
 
             [],
 
+
+
+        /*
+         * Compatibility / secondary history.
+         *
+         * Пока сохраняем, потому что существующий
+         * Context API использует context.replans.
+         *
+         * После проверки contextReplan.js и
+         * contextReader.js решим, нужен ли этот
+         * второй массив вообще.
+         */
 
 
         replans:
@@ -501,9 +656,10 @@ export function createExecutionContext({
 
 
 
-
         /*
+         * =================================================
          * FAILURES
+         * =================================================
          */
 
 
@@ -525,9 +681,10 @@ export function createExecutionContext({
 
 
 
-
         /*
+         * =================================================
          * TRACE
+         * =================================================
          */
 
 
@@ -544,7 +701,9 @@ export function createExecutionContext({
 
 
         /*
+         * =================================================
          * LEARNING
+         * =================================================
          */
 
 
@@ -579,7 +738,9 @@ export function createExecutionContext({
 
 
         /*
-         * EXTRA METADATA
+         * =================================================
+         * METADATA
+         * =================================================
          */
 
 
@@ -590,7 +751,7 @@ export function createExecutionContext({
 
             version:
 
-                "context-v2"
+                "context-v3"
 
 
         }
