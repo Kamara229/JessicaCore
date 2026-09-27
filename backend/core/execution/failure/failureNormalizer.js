@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * FAILURE NORMALIZER v1
+ * FAILURE NORMALIZER v2
  * =========================================================
  *
  * Нормализация Execution Failure.
@@ -25,6 +25,40 @@
  *
  * =========================================================
  */
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SAFE STRING
+ * =========================================================
+ */
+
+
+function safeString(
+
+    value
+
+) {
+
+
+    return typeof value === "string"
+
+        ?
+
+        value.trim()
+
+        :
+
+        "";
+
+}
+
+
 
 
 
@@ -83,9 +117,9 @@ export function normalizeFailure(
 
 
 
-            validation:
+            shouldRetry:
 
-                null,
+                false,
 
 
 
@@ -97,7 +131,25 @@ export function normalizeFailure(
 
             noVerifiedResult:
 
-                false
+                false,
+
+
+
+            validation:
+
+                null,
+
+
+
+            source:
+
+                null,
+
+
+
+            details:
+
+                null
 
 
         };
@@ -124,27 +176,93 @@ export function normalizeFailure(
 
         stage:
 
-            failure.stage ||
+            safeString(
+
+                failure.stage
+
+            )
+
+            ||
 
             "execution",
 
 
 
+
+
+
+
         failureType:
 
-            failure.failureType ||
+            safeString(
+
+                failure.failureType
+
+            )
+
+            ||
 
             "execution-error",
 
 
 
+
+
+
+
         reason:
 
-            failure.reason ||
+            safeString(
 
-            failure.text ||
+                failure.reason
+
+            )
+
+            ||
+
+            safeString(
+
+                failure.text
+
+            )
+
+            ||
 
             "Ошибка выполнения",
+
+
+
+
+
+
+
+        shouldRetry:
+
+            failure.shouldRetry === true,
+
+
+
+
+
+
+
+        needsClarification:
+
+            failure.needsClarification === true,
+
+
+
+
+
+
+
+        noVerifiedResult:
+
+            failure.noVerifiedResult === true,
+
+
+
+
 
 
 
@@ -156,15 +274,59 @@ export function normalizeFailure(
 
 
 
-        needsClarification:
-
-            failure.needsClarification === true,
 
 
 
-        noVerifiedResult:
 
-            failure.noVerifiedResult === true
+        source:
+
+            failure.source ||
+
+            null,
+
+
+
+
+
+
+
+        details:
+
+        {
+
+
+            runResult:
+
+                failure.runResult ||
+
+                null,
+
+
+
+            answerResult:
+
+                failure.answerResult ||
+
+                null,
+
+
+
+            tool:
+
+                failure.tool ||
+
+                null,
+
+
+
+            stepId:
+
+                failure.stepId ||
+
+                null
+
+
+        }
 
 
     };
