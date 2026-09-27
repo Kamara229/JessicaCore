@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CONTEXT FAILURES v1
+ * JESSICA CONTEXT FAILURES v2
  * =========================================================
  *
  * Управление ошибками Execution Context.
@@ -29,6 +29,156 @@
 
 /*
  * =========================================================
+ * NORMALIZE FAILURE
+ * =========================================================
+ */
+
+
+function normalizeFailure(
+
+    failure
+
+) {
+
+
+    if(
+
+        !failure ||
+
+        typeof failure !== "object"
+
+    ){
+
+        return {
+
+
+            stage:
+
+                "execution",
+
+
+
+            failureType:
+
+                "unknown",
+
+
+
+            reason:
+
+                String(
+
+                    failure ||
+
+                    "Неизвестная ошибка"
+
+                ),
+
+
+
+            category:
+
+                "execution",
+
+
+
+            validation:
+
+                null,
+
+
+
+            needsClarification:
+
+                false,
+
+
+
+            noVerifiedResult:
+
+                false
+
+
+        };
+
+    }
+
+
+
+
+
+
+
+
+
+    return {
+
+
+        stage:
+
+            failure.stage ||
+
+            "execution",
+
+
+
+        failureType:
+
+            failure.failureType ||
+
+            "execution-error",
+
+
+
+        reason:
+
+            failure.reason ||
+
+            "Ошибка выполнения",
+
+
+
+        category:
+
+            failure.category ||
+
+            "execution",
+
+
+
+        validation:
+
+            failure.validation ||
+
+            null,
+
+
+
+        needsClarification:
+
+            failure.needsClarification === true,
+
+
+
+        noVerifiedResult:
+
+            failure.noVerifiedResult === true
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
  * REGISTER FAILURE
  * =========================================================
  */
@@ -43,15 +193,13 @@ export function registerExecutionFailure(
 ) {
 
 
-    if (
+    if(
 
-        !context ||
+        !context
 
-        !failure
+    ){
 
-    ) {
-
-        return;
+        return null;
 
     }
 
@@ -63,14 +211,42 @@ export function registerExecutionFailure(
 
 
 
+    const record = {
+
+
+        ...normalizeFailure(
+
+            failure
+
+        ),
+
+
+
+        timestamp:
+
+            new Date()
+
+                .toISOString()
+
+
+    };
+
+
+
+
+
+
+
+
+
     /*
-     * Последняя ошибка
+     * Last failure
      */
 
 
     context.lastFailure =
 
-        failure;
+        record;
 
 
 
@@ -81,11 +257,11 @@ export function registerExecutionFailure(
 
 
     /*
-     * История ошибок
+     * History
      */
 
 
-    if (
+    if(
 
         !Array.isArray(
 
@@ -93,8 +269,7 @@ export function registerExecutionFailure(
 
         )
 
-    ) {
-
+    ){
 
         context.errors = [];
 
@@ -108,20 +283,45 @@ export function registerExecutionFailure(
 
 
 
-    context.errors.push({
+    context.errors.push(
 
-        ...failure,
+        record
 
-
-
-        timestamp:
-
-            new Date()
-
-                .toISOString()
+    );
 
 
-    });
 
+
+
+
+
+
+
+    /*
+     * Counter
+     */
+
+
+    context.failureCount =
+
+        Number(
+
+            context.failureCount || 0
+
+        )
+
+        +
+
+        1;
+
+
+
+
+
+
+
+
+
+    return record;
 
 }
