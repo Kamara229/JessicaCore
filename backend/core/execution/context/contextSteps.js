@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CONTEXT STEPS v2
+ * JESSICA CONTEXT STEPS v3
  * =========================================================
  *
  * Управление историей Execution Steps.
@@ -8,19 +8,23 @@
  *
  * Отвечает:
  *
- * - регистрация выполненных этапов;
- * - хранение истории;
- * - фиксация completed/failed шагов.
+ * - регистрация Execution Step;
+ * - хранение канонической истории stepsHistory;
+ * - фиксация completedSteps;
+ * - фиксация failedSteps.
  *
  *
  * НЕ:
  *
  * - выполняет шаги;
  * - принимает решения;
- * - управляет Execution Flow.
+ * - управляет Execution Flow;
+ * - хранит альтернативную историю шагов.
  *
  * =========================================================
  */
+
+
 
 
 
@@ -67,7 +71,7 @@ const STEP_STATUS = {
 
 /*
  * =========================================================
- * SAFE ARRAY
+ * ENSURE ARRAY
  * =========================================================
  */
 
@@ -91,9 +95,11 @@ function ensureArray(
 
     ){
 
+
         object[field] = [];
 
     }
+
 
 
     return object[field];
@@ -122,48 +128,93 @@ function normalizeStep(
 ) {
 
 
+    const source =
+
+        step &&
+
+        typeof step === "object"
+
+            ?
+
+            step
+
+            :
+
+            {};
+
+
+
+
+
+
+
+
+
+    const status =
+
+        Object.values(
+
+            STEP_STATUS
+
+        )
+        .includes(
+
+            source.status
+
+        )
+
+            ?
+
+            source.status
+
+            :
+
+            STEP_STATUS.RUNNING;
+
+
+
+
+
+
+
+
+
     return {
 
 
         stage:
 
-            step.stage || null,
+            source.stage ||
+
+            null,
 
 
 
-        status:
-
-            Object.values(
-
-                STEP_STATUS
-
-            )
-            .includes(
-
-                step.status
-
-            )
-
-                ?
-
-                step.status
-
-                :
-
-                STEP_STATUS.RUNNING,
+        status,
 
 
 
         data:
 
-            step.data || {},
+            source.data &&
+
+            typeof source.data === "object"
+
+                ?
+
+                source.data
+
+                :
+
+                {},
 
 
 
         failure:
 
-            step.failure || null
+            source.failure ||
 
+            null
 
 
     };
@@ -198,9 +249,12 @@ export function registerExecutionStep(
 
         !context ||
 
-        !step
+        !step ||
+
+        typeof step !== "object"
 
     ){
+
 
         return null;
 
@@ -242,6 +296,13 @@ export function registerExecutionStep(
 
 
 
+    /*
+     * =====================================================
+     * CURRENT STEP
+     * =====================================================
+     */
+
+
     context.currentStep =
 
         record.stage;
@@ -252,6 +313,18 @@ export function registerExecutionStep(
 
 
 
+
+
+    /*
+     * =====================================================
+     * STEP HISTORY
+     * =====================================================
+     *
+     * stepsHistory является единственным
+     * каноническим журналом Execution Steps.
+     *
+     * =====================================================
+     */
 
 
     const steps =
@@ -281,20 +354,10 @@ export function registerExecutionStep(
 
 
     /*
-     * Backward compatibility
+     * =====================================================
+     * COMPLETED
+     * =====================================================
      */
-
-
-    context.executionHistory =
-
-        context.stepsHistory;
-
-
-
-
-
-
-
 
 
     if(
@@ -314,7 +377,6 @@ export function registerExecutionStep(
 
         );
 
-
     }
 
 
@@ -323,6 +385,13 @@ export function registerExecutionStep(
 
 
 
+
+
+    /*
+     * =====================================================
+     * FAILED
+     * =====================================================
+     */
 
 
     if(
@@ -341,7 +410,6 @@ export function registerExecutionStep(
             record
 
         );
-
 
     }
 
@@ -367,7 +435,7 @@ export function registerExecutionStep(
 
 /*
  * =========================================================
- * COMPLETED
+ * REGISTER COMPLETED STEP
  * =========================================================
  */
 
@@ -383,13 +451,22 @@ export function registerCompletedStep(
 
     if(
 
-        !context
+        !context ||
+
+        !step
 
     ){
+
 
         return null;
 
     }
+
+
+
+
+
+
 
 
 
@@ -412,6 +489,7 @@ export function registerCompletedStep(
     );
 
 
+
     return step;
 
 }
@@ -426,7 +504,7 @@ export function registerCompletedStep(
 
 /*
  * =========================================================
- * FAILED
+ * REGISTER FAILED STEP
  * =========================================================
  */
 
@@ -442,13 +520,22 @@ export function registerFailedStep(
 
     if(
 
-        !context
+        !context ||
+
+        !step
 
     ){
+
 
         return null;
 
     }
+
+
+
+
+
+
 
 
 
@@ -469,6 +556,7 @@ export function registerFailedStep(
         step
 
     );
+
 
 
     return step;
