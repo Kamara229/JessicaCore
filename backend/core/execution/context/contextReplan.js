@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CONTEXT REPLAN
+ * JESSICA CONTEXT REPLAN v2
  * =========================================================
  *
  * Управление состоянием после Replan.
@@ -28,6 +28,46 @@
 
 /*
  * =========================================================
+ * SAFE NUMBER
+ * =========================================================
+ */
+
+
+function safeNumber(
+
+    value
+
+) {
+
+
+    const number =
+
+        Number(value);
+
+
+
+    return Number.isFinite(number)
+
+        ?
+
+        number
+
+        :
+
+        0;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
  * RESET EXECUTION AFTER REPLAN
  * =========================================================
  */
@@ -40,24 +80,79 @@ export function resetExecutionAfterReplan(
 ) {
 
 
-    if (
+    if(
 
         !context
 
-    ) {
+    ){
 
-        return;
+        return context;
 
     }
 
 
 
-    context.attempt = 0;
 
 
-    context.retryCount = 0;
 
 
+
+
+    context.attempt =
+
+        0;
+
+
+
+    context.retryCount =
+
+        0;
+
+
+
+
+
+
+
+
+
+    /*
+     * Очистка результатов
+     * старого execution pass
+     */
+
+
+    context.runResult =
+
+        null;
+
+
+
+    context.answerResult =
+
+        null;
+
+
+
+    context.validationResult =
+
+        null;
+
+
+
+    context.terminalResult =
+
+        null;
+
+
+
+
+
+
+
+
+
+    return context;
 
 }
 
@@ -85,13 +180,13 @@ export function registerExecutionReplan(
 ) {
 
 
-    if (
+    if(
 
         !context
 
-    ) {
+    ){
 
-        return;
+        return null;
 
     }
 
@@ -99,7 +194,25 @@ export function registerExecutionReplan(
 
 
 
-    context.replanCount++;
+
+
+
+
+    context.replanCount =
+
+        safeNumber(
+
+            context.replanCount
+
+        )
+
+        +
+
+        1;
+
+
+
+
 
 
 
@@ -108,7 +221,34 @@ export function registerExecutionReplan(
     const record = {
 
 
-        ...data,
+        replanCount:
+
+            context.replanCount,
+
+
+
+        previousPlan:
+
+            data.previousPlan ||
+
+            null,
+
+
+
+        newPlan:
+
+            data.newPlan ||
+
+            null,
+
+
+
+        failure:
+
+            data.failure ||
+
+            null,
+
 
 
         timestamp:
@@ -124,7 +264,11 @@ export function registerExecutionReplan(
 
 
 
-    if (
+
+
+
+
+    if(
 
         !Array.isArray(
 
@@ -132,12 +276,15 @@ export function registerExecutionReplan(
 
         )
 
-    ) {
-
+    ){
 
         context.replanHistory = [];
 
     }
+
+
+
+
 
 
 
@@ -153,7 +300,16 @@ export function registerExecutionReplan(
 
 
 
-    if (
+
+
+
+
+    /*
+     * Legacy compatibility
+     */
+
+
+    if(
 
         !Array.isArray(
 
@@ -161,12 +317,15 @@ export function registerExecutionReplan(
 
         )
 
-    ) {
-
+    ){
 
         context.replans = [];
 
     }
+
+
+
+
 
 
 
@@ -178,5 +337,14 @@ export function registerExecutionReplan(
 
     );
 
+
+
+
+
+
+
+
+
+    return record;
 
 }
