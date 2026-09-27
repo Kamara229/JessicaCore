@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * EXECUTION LOOP v1
+ * EXECUTION LOOP v2
  * =========================================================
  *
  * Основной цикл выполнения.
@@ -23,7 +23,8 @@
  * - создаёт Context;
  * - создаёт Trace;
  * - строит Plan;
- * - создаёт Terminal Result.
+ * - создаёт Terminal Result;
+ * - реализует Replan.
  *
  * =========================================================
  */
@@ -41,9 +42,8 @@ import {
 
 
 import {
-    createAlternativePlan,
-    applyAlternativePlan
-} from "../replanCoordinator.js";
+    executeReplan
+} from "./replanExecutor.js";
 
 
 import {
@@ -55,8 +55,7 @@ import {
 import {
     updateTraceFromResult,
     addTraceAttempt,
-    addTraceEvent,
-    addTraceReplan
+    addTraceEvent
 } from "../../trace/executionTrace.js";
 
 
@@ -126,160 +125,7 @@ function normalizeFailure(
 
 /*
  * =========================================================
- * REPLAN
- * =========================================================
- */
-
-
-async function executeReplan(
-
-    context,
-
-    decision
-
-) {
-
-
-    addTraceEvent(
-
-        context.trace,
-
-        "REPLAN_STARTED",
-
-        {
-
-            failure:
-
-                decision.failure
-
-        }
-
-    );
-
-
-
-
-    const previousPlan =
-
-        context.plan;
-
-
-
-
-    const alternative =
-
-        await createAlternativePlan(
-
-            context,
-
-            decision.failure
-
-        );
-
-
-
-
-
-    if(
-        !alternative?.success
-    ){
-
-        addTraceEvent(
-
-            context.trace,
-
-            "REPLAN_FAILED",
-
-            alternative
-
-        );
-
-
-        return false;
-
-    }
-
-
-
-
-
-    const applied =
-
-        applyAlternativePlan(
-
-            context,
-
-            alternative
-
-        );
-
-
-
-
-
-    if(!applied){
-
-        return false;
-
-    }
-
-
-
-
-
-    context.attempt = 0;
-
-    context.retryCount = 0;
-
-
-
-
-    addTraceReplan(
-
-        context.trace,
-
-        {
-
-            previousPlan,
-
-            newPlan:
-                context.plan,
-
-            failure:
-                decision.failure
-
-        }
-
-    );
-
-
-
-
-    addTraceEvent(
-
-        context.trace,
-
-        "REPLAN_COMPLETED"
-
-    );
-
-
-
-    return true;
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * EXECUTE LOOP
+ * EXECUTION LOOP
  * =========================================================
  */
 
@@ -297,7 +143,13 @@ export async function executeExecutionLoop(
 
 
 
+
+
+
+
     while(true){
+
+
 
 
 
@@ -318,6 +170,9 @@ export async function executeExecutionLoop(
 
 
 
+
+
+
         registerExecutionAttempt(
 
             context,
@@ -325,15 +180,21 @@ export async function executeExecutionLoop(
             {
 
                 retryCount:
+
                     context.retryCount,
 
 
                 replanCount:
+
                     context.replanCount
 
             }
 
         );
+
+
+
+
 
 
 
@@ -348,10 +209,12 @@ export async function executeExecutionLoop(
             {
 
                 retryCount:
+
                     context.retryCount,
 
 
                 replanCount:
+
                     context.replanCount
 
             }
@@ -362,7 +225,17 @@ export async function executeExecutionLoop(
 
 
 
+
+
+
+
         let result;
+
+
+
+
+
+
 
 
 
@@ -385,20 +258,26 @@ export async function executeExecutionLoop(
 
             result = {
 
+
                 success:false,
 
 
                 failure:{
 
                     stage:
+
                         "execution",
 
 
+
                     failureType:
+
                         "execution-error",
 
 
+
                     reason:
+
                         error?.message ||
 
                         "Execution exception"
@@ -409,6 +288,10 @@ export async function executeExecutionLoop(
 
 
         }
+
+
+
+
 
 
 
@@ -425,6 +308,16 @@ export async function executeExecutionLoop(
 
 
 
+
+
+
+
+
+        /*
+         * =================================================
+         * SUCCESS
+         * =================================================
+         */
 
 
         if(
@@ -455,6 +348,16 @@ export async function executeExecutionLoop(
 
 
 
+
+
+
+        /*
+         * =================================================
+         * FAILURE
+         * =================================================
+         */
+
+
         lastFailure =
 
             normalizeFailure(
@@ -468,6 +371,9 @@ export async function executeExecutionLoop(
 
 
 
+
+
+
         registerExecutionFailure(
 
             context,
@@ -475,6 +381,9 @@ export async function executeExecutionLoop(
             lastFailure
 
         );
+
+
+
 
 
 
@@ -496,11 +405,16 @@ export async function executeExecutionLoop(
 
 
 
+
+
+
         switch(
 
             decision.action
 
         ){
+
+
 
 
 
@@ -520,6 +434,8 @@ export async function executeExecutionLoop(
 
 
                 continue;
+
+
 
 
 
@@ -555,10 +471,13 @@ export async function executeExecutionLoop(
 
 
 
+
+
             case FAILURE_ACTION.CLARIFICATION:
 
 
                 return {
+
 
                     success:false,
 
@@ -580,6 +499,8 @@ export async function executeExecutionLoop(
 
 
 
+
+
             case FAILURE_ACTION.FINISH:
 
 
@@ -590,10 +511,17 @@ export async function executeExecutionLoop(
 
 
 
+
+
+
         break;
 
 
     }
+
+
+
+
 
 
 
@@ -612,14 +540,19 @@ export async function executeExecutionLoop(
             {
 
                 stage:
+
                     "execution",
 
 
+
                 failureType:
+
                     "execution-limit",
 
 
+
                 reason:
+
                     "Execution limit reached"
 
             }
