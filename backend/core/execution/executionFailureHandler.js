@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION FAILURE HANDLER v8
+ * JESSICA EXECUTION FAILURE HANDLER v9
  * =========================================================
  *
  * Центральный маршрутизатор Execution Failure.
@@ -14,6 +14,8 @@
  *    ↓
  * Classify
  *    ↓
+ * Decision
+ *    ↓
  *
  * RETRY
  * REPLAN
@@ -23,16 +25,17 @@
  *
  * Ответственность:
  *
- * - классифицировать ошибку;
- * - выбрать следующий action.
+ * - собрать обработку Failure;
+ * - передать ошибку между модулями;
+ * - вернуть Decision.
  *
  *
  * НЕ:
  *
  * - выполняет Retry;
- * - создаёт Plan;
- * - вызывает Planner;
+ * - выполняет Replan;
  * - изменяет Context;
+ * - создаёт Plan;
  * - сохраняет Learning.
  *
  * =========================================================
@@ -40,13 +43,18 @@
 
 
 import {
-    shouldRetryExecution
-} from "./retryPolicy.js";
+    normalizeFailure
+} from "./failure/failureNormalizer.js";
 
 
 import {
-    canReplan
-} from "./replanCoordinator.js";
+    classifyFailure
+} from "./failure/failureClassifier.js";
+
+
+import {
+    decideFailureAction
+} from "./failure/failureDecision.js";
 
 
 
@@ -101,423 +109,7 @@ export const FAILURE_ACTION = {
 
 /*
  * =========================================================
- * NORMALIZE FAILURE
- * =========================================================
- */
-
-
-function normalizeFailure(
-
-    failure
-
-) {
-
-
-    if (
-
-        !failure ||
-
-        typeof failure !== "object"
-
-    ) {
-
-
-        return {
-
-
-            stage:
-
-                "execution",
-
-
-
-            failureType:
-
-                "unknown",
-
-
-
-            category:
-
-                "execution",
-
-
-
-            reason:
-
-                "Неизвестная ошибка",
-
-
-
-            needsClarification:
-
-                false,
-
-
-
-            noVerifiedResult:
-
-                false
-
-
-        };
-
-    }
-
-
-
-
-
-
-
-
-    return {
-
-
-        stage:
-
-            failure.stage ||
-
-            "execution",
-
-
-
-        failureType:
-
-            failure.failureType ||
-
-            "execution-error",
-
-
-
-        category:
-
-            detectCategory(
-                failure
-            ),
-
-
-
-        reason:
-
-            failure.reason ||
-
-            "Ошибка выполнения",
-
-
-
-        validation:
-
-            failure.validation ||
-            null,
-
-
-
-        needsClarification:
-
-            failure.needsClarification === true,
-
-
-
-        noVerifiedResult:
-
-            failure.noVerifiedResult === true
-
-
-    };
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * CATEGORY
- * =========================================================
- */
-
-
-function detectCategory(
-
-    failure
-
-) {
-
-
-    const type =
-
-        String(
-            failure?.failureType || ""
-        )
-        .toLowerCase();
-
-
-
-
-
-    if (
-
-        type.includes("validation")
-
-    ) {
-
-        return "validation";
-
-    }
-
-
-
-
-
-
-
-    if (
-
-        type.includes("tool")
-
-    ) {
-
-        return "tool";
-
-    }
-
-
-
-
-
-
-
-    if (
-
-        type.includes("timeout")
-
-        ||
-
-        type.includes("network")
-
-        ||
-
-        type.includes("temporary")
-
-    ) {
-
-        return "temporary";
-
-    }
-
-
-
-
-
-
-
-    if (
-
-        type.includes("planner")
-
-        ||
-
-        type.includes("strategy")
-
-    ) {
-
-        return "planner";
-
-    }
-
-
-
-
-
-
-
-    if (
-
-        type.includes("data")
-
-    ) {
-
-        return "data";
-
-    }
-
-
-
-
-
-
-
-    return "execution";
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * BUILD DECISION
- * =========================================================
- */
-
-
-function buildDecision(
-
-    action,
-
-    failure,
-
-    context
-
-) {
-
-
-    return {
-
-
-        action,
-
-
-        type:
-
-            action,
-
-
-
-        reason:
-
-            failure.reason,
-
-
-
-        failure,
-
-
-
-        canContinue:
-
-            action === FAILURE_ACTION.RETRY
-
-            ||
-
-            action === FAILURE_ACTION.REPLAN,
-
-
-
-        metadata:
-
-        {
-
-
-            executionId:
-
-                context?.executionId ||
-                null,
-
-
-
-            attempt:
-
-                Number(
-                    context?.attempt || 0
-                ),
-
-
-
-            retryCount:
-
-                Number(
-                    context?.retryCount || 0
-                ),
-
-
-
-            replanCount:
-
-                Number(
-                    context?.replanCount || 0
-                ),
-
-
-
-            failureType:
-
-                failure.failureType,
-
-
-
-            category:
-
-                failure.category
-
-
-        }
-
-
-    };
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * RETRY CHECK
- * =========================================================
- */
-
-
-function canRetry(
-
-    context,
-
-    failure
-
-) {
-
-
-    return shouldRetryExecution(
-
-        context,
-
-        failure
-
-    );
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * MAIN HANDLER
+ * HANDLE FAILURE
  * =========================================================
  */
 
@@ -531,10 +123,19 @@ export async function handleExecutionFailure(
 ) {
 
 
+    /*
+     * =====================================================
+     * NORMALIZE
+     * =====================================================
+     */
+
+
     const normalized =
 
         normalizeFailure(
+
             failure
+
         );
 
 
@@ -547,103 +148,18 @@ export async function handleExecutionFailure(
 
     /*
      * =====================================================
-     * CLARIFICATION
+     * CLASSIFY
      * =====================================================
      */
 
 
-    if (
+    normalized.category =
 
-        normalized.needsClarification === true
-
-    ) {
-
-
-        return buildDecision(
-
-            FAILURE_ACTION.CLARIFICATION,
-
-            normalized,
-
-            context
-
-        );
-
-    }
-
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * NO VERIFIED RESULT
-     * =====================================================
-     */
-
-
-    if (
-
-        normalized.noVerifiedResult === true
-
-    ) {
-
-
-        return buildDecision(
-
-            FAILURE_ACTION.FINISH,
-
-            normalized,
-
-            context
-
-        );
-
-    }
-
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * RETRY
-     * =====================================================
-     */
-
-
-    if (
-
-        canRetry(
-
-            context,
+        classifyFailure(
 
             normalized
 
-        )
-
-    ) {
-
-
-        return buildDecision(
-
-            FAILURE_ACTION.RETRY,
-
-            normalized,
-
-            context
-
         );
-
-    }
 
 
 
@@ -655,60 +171,16 @@ export async function handleExecutionFailure(
 
     /*
      * =====================================================
-     * REPLAN
+     * DECISION
      * =====================================================
      */
 
 
-    if (
+    return decideFailureAction(
 
-        canReplan(
+        context,
 
-            context
-
-        )
-
-        &&
-
-        normalized.category !== "temporary"
-
-    ) {
-
-
-        return buildDecision(
-
-            FAILURE_ACTION.REPLAN,
-
-            normalized,
-
-            context
-
-        );
-
-    }
-
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * FINISH
-     * =====================================================
-     */
-
-
-    return buildDecision(
-
-        FAILURE_ACTION.FINISH,
-
-        normalized,
-
-        context
+        normalized
 
     );
 
@@ -725,7 +197,7 @@ export async function handleExecutionFailure(
 
 /*
  * =========================================================
- * HELPERS
+ * ACTION HELPERS
  * =========================================================
  */
 
