@@ -1,9 +1,9 @@
 /*
  * =========================================================
- * JESSICA EXECUTION STEP RUNNER v5
+ * JESSICA EXECUTION STEP RUNNER v6
  * =========================================================
  *
- * Выполняет один проход Execution Cycle.
+ * Выполняет один Execution Pass.
  *
  *
  * Flow:
@@ -19,12 +19,20 @@
  * Execution Result
  *
  *
+ * Ответственность:
+ *
+ * - выполнить текущий маршрут;
+ * - собрать результат;
+ * - вернуть Failure или Success.
+ *
+ *
  * НЕ:
  *
- * - retry;
- * - replan;
- * - terminal decision;
- * - Learning save.
+ * - Retry;
+ * - Replan;
+ * - Terminal decision;
+ * - Learning save;
+ * - изменение Execution Flow.
  *
  * =========================================================
  */
@@ -57,70 +65,8 @@ import {
 
 
 import {
-    registerExecutionStep,
-    registerExecutionFailure
+    registerExecutionStep
 } from "./executionContext.js";
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * LEARNING SIGNAL
- * =========================================================
- */
-
-
-function addLearningSignal(
-
-    context,
-
-    signal
-
-) {
-
-
-    if (
-        !context?.learningContext
-    ) {
-
-        return;
-
-    }
-
-
-
-    if (
-        !Array.isArray(
-            context.learningContext.signals
-        )
-    ) {
-
-        context.learningContext.signals = [];
-
-    }
-
-
-
-    context.learningContext.signals.push({
-
-        ...signal,
-
-
-        timestamp:
-
-            new Date()
-                .toISOString()
-
-    });
-
-
-}
 
 
 
@@ -159,6 +105,7 @@ function createFailure(
         failureType:
 
             failureType ||
+
             `${stage}-failure`,
 
 
@@ -166,13 +113,16 @@ function createFailure(
         reason:
 
             reason ||
+
             "Ошибка выполнения",
 
 
 
         ...extra
 
+
     };
+
 
 }
 
@@ -191,9 +141,7 @@ function createFailure(
  */
 
 
-function handleException(
-
-    context,
+function createExceptionFailure(
 
     stage,
 
@@ -202,20 +150,47 @@ function handleException(
 ) {
 
 
-    const failure =
+    return createFailure(
 
-        createFailure(
+        stage,
 
-            stage,
+        error?.message ||
 
-            error?.message,
+        "Execution exception",
 
-            `${stage}-exception`
+        `${stage}-exception`
 
-        );
+    );
+
+
+}
 
 
 
+
+
+
+
+
+
+/*
+ * =========================================================
+ * STEP REGISTER
+ * =========================================================
+ */
+
+
+function markStep(
+
+    context,
+
+    stage,
+
+    status,
+
+    data = {}
+
+) {
 
 
     registerExecutionStep(
@@ -226,67 +201,19 @@ function handleException(
 
             stage,
 
-            status:
-                "FAILED",
+            status,
 
-            error:
-                failure.reason
+            ...data
+
 
         }
 
     );
-
-
-
-
-
-    registerExecutionFailure(
-
-        context,
-
-        failure
-
-    );
-
-
-
-
-
-    addLearningSignal(
-
-        context,
-
-        {
-
-            type:
-                "execution_exception",
-
-
-            stage,
-
-
-            reason:
-                failure.reason
-
-        }
-
-    );
-
-
-
-
-
-    return {
-
-
-        success:false,
-
-
-        failure
-
-    };
 
 }
+
+
+ 
 
 
 
@@ -312,13 +239,14 @@ function attachExperience(
 ) {
 
 
-    if (
+    if(
         !result
-    ) {
+    ){
 
         return result;
 
     }
+
 
 
 
@@ -336,30 +264,25 @@ function attachExperience(
 
             used:
 
-                context
-                    ?.experience
-                    ?.used === true,
+                context?.experience?.used === true,
 
 
 
             found:
 
-                context
-                    ?.experience
-                    ?.found === true,
+                context?.experience?.found === true,
 
 
 
             skills:
 
-                context
-                    ?.experience
-                    ?.skills || []
+                context?.experience?.skills || []
 
         }
 
 
     };
+
 
 
 
@@ -390,6 +313,8 @@ export async function executeExecutionStep(
 
 
 
+
+
     /*
      * =====================================================
      * RUNNER
@@ -397,23 +322,16 @@ export async function executeExecutionStep(
      */
 
 
-    registerExecutionStep(
+
+    markStep(
 
         context,
 
-        {
+        "runner",
 
-            stage:
-                "runner",
-
-
-            status:
-                "RUNNING"
-
-        }
+        "RUNNING"
 
     );
-
 
 
 
@@ -436,15 +354,46 @@ export async function executeExecutionStep(
     } catch(error) {
 
 
-        return handleException(
+        const failure =
+
+            createExceptionFailure(
+
+                "runner",
+
+                error
+
+            );
+
+
+
+        markStep(
 
             context,
 
             "runner",
 
-            error
+            "FAILED",
+
+            {
+
+                failure
+
+            }
 
         );
+
+
+
+        return {
+
+
+            success:false,
+
+
+            failure
+
+        };
+
 
     }
 
@@ -454,7 +403,9 @@ export async function executeExecutionStep(
 
 
 
-    const runFailure =
+
+
+    const analyzedFailure =
 
         analyzeRunFailure(
 
@@ -467,54 +418,29 @@ export async function executeExecutionStep(
 
 
 
-    if (
-        runFailure?.failed === true
-    ) {
 
 
-        registerExecutionStep(
+
+    if(
+
+        analyzedFailure?.failed === true
+
+    ){
+
+
+        markStep(
 
             context,
+
+            "runner",
+
+            "FAILED",
 
             {
 
-                stage:
-                    "runner",
-
-                status:
-                    "FAILED",
-
                 failure:
-                    runFailure
 
-            }
-
-        );
-
-
-
-        registerExecutionFailure(
-
-            context,
-
-            runFailure
-
-        );
-
-
-
-        addLearningSignal(
-
-            context,
-
-            {
-
-                type:
-                    "runner_failure",
-
-
-                failure:
-                    runFailure
+                    analyzedFailure
 
             }
 
@@ -529,7 +455,9 @@ export async function executeExecutionStep(
 
 
             failure:
-                runFailure
+
+                analyzedFailure
+
 
         };
 
@@ -542,19 +470,15 @@ export async function executeExecutionStep(
 
 
 
-    registerExecutionStep(
+
+
+    markStep(
 
         context,
 
-        {
+        "runner",
 
-            stage:
-                "runner",
-
-            status:
-                "COMPLETED"
-
-        }
+        "COMPLETED"
 
     );
 
@@ -573,19 +497,14 @@ export async function executeExecutionStep(
      */
 
 
-    registerExecutionStep(
+
+    markStep(
 
         context,
 
-        {
+        "composer",
 
-            stage:
-                "composer",
-
-            status:
-                "RUNNING"
-
-        }
+        "RUNNING"
 
     );
 
@@ -610,71 +529,34 @@ export async function executeExecutionStep(
             );
 
 
+
     } catch(error) {
 
-
-        return handleException(
-
-            context,
-
-            "composer",
-
-            error
-
-        );
-
-    }
-
-
-
-
-
-
-
-
-    if (
-        !context.answerResult ||
-        context.answerResult.success !== true
-    ) {
 
 
         const failure =
 
-            createFailure(
+            createExceptionFailure(
 
                 "composer",
 
-                context.answerResult?.text ||
-
-                "Ответ не создан",
-
-                "composer-failure"
+                error
 
             );
 
 
 
-        registerExecutionFailure(
+        markStep(
 
             context,
 
-            failure
+            "composer",
 
-        );
-
-
-
-        registerExecutionStep(
-
-            context,
+            "FAILED",
 
             {
 
-                stage:
-                    "composer",
-
-                status:
-                    "FAILED"
+                failure
 
             }
 
@@ -700,19 +582,80 @@ export async function executeExecutionStep(
 
 
 
-    registerExecutionStep(
+
+
+
+    if(
+
+        !context.answerResult ||
+
+        context.answerResult.success !== true
+
+    ){
+
+
+        const failure =
+
+            createFailure(
+
+                "composer",
+
+                context.answerResult?.text ||
+
+                "Ответ не создан",
+
+                "composer-failure"
+
+            );
+
+
+
+        markStep(
+
+            context,
+
+            "composer",
+
+            "FAILED",
+
+            {
+
+                failure
+
+            }
+
+        );
+
+
+
+        return {
+
+
+            success:false,
+
+
+            failure
+
+        };
+
+
+    }
+
+
+
+
+
+
+
+
+
+    markStep(
 
         context,
 
-        {
+        "composer",
 
-            stage:
-                "composer",
-
-            status:
-                "COMPLETED"
-
-        }
+        "COMPLETED"
 
     );
 
@@ -731,19 +674,14 @@ export async function executeExecutionStep(
      */
 
 
-    registerExecutionStep(
+
+    markStep(
 
         context,
 
-        {
+        "validator",
 
-            stage:
-                "validator",
-
-            status:
-                "RUNNING"
-
-        }
+        "RUNNING"
 
     );
 
@@ -751,8 +689,10 @@ export async function executeExecutionStep(
 
 
 
-
     let validation;
+
+
+
 
 
 
@@ -774,18 +714,49 @@ export async function executeExecutionStep(
             );
 
 
+
     } catch(error) {
 
 
-        return handleException(
+        const failure =
+
+            createExceptionFailure(
+
+                "validator",
+
+                error
+
+            );
+
+
+
+        markStep(
 
             context,
 
             "validator",
 
-            error
+            "FAILED",
+
+            {
+
+                failure
+
+            }
 
         );
+
+
+
+        return {
+
+
+            success:false,
+
+
+            failure
+
+        };
 
 
     }
@@ -797,7 +768,9 @@ export async function executeExecutionStep(
 
 
 
+
     context.validationResult =
+
         validation;
 
 
@@ -807,47 +780,39 @@ export async function executeExecutionStep(
 
 
 
-    if (
+
+    if(
+
         validation?.valid === true
-    ) {
+
+    ){
 
 
-        registerExecutionStep(
+        markStep(
 
             context,
 
-            {
+            "validator",
 
-                stage:
-                    "validator",
-
-                status:
-                    "COMPLETED"
-
-            }
+            "COMPLETED"
 
         );
 
 
 
-        context.learningContext.successful =
-            true;
 
 
+        const result =
 
+            buildCompletedResult(
 
-        addLearningSignal(
+                context,
 
-            context,
+                context.answerResult,
 
-            {
+                true
 
-                type:
-                    "validated_success"
-
-            }
-
-        );
+            );
 
 
 
@@ -863,15 +828,7 @@ export async function executeExecutionStep(
 
                 attachExperience(
 
-                    buildCompletedResult(
-
-                        context,
-
-                        context.answerResult,
-
-                        true
-
-                    ),
+                    result,
 
                     context
 
@@ -915,52 +872,23 @@ export async function executeExecutionStep(
 
 
 
-    registerExecutionFailure(
+
+
+
+
+    markStep(
 
         context,
 
-        failure
+        "validator",
 
-    );
-
-
-
-
-
-    registerExecutionStep(
-
-        context,
+        "FAILED",
 
         {
 
-            stage:
-                "validator",
+            validation,
 
-            status:
-                "FAILED",
-
-            validation
-
-        }
-
-    );
-
-
-
-
-
-    addLearningSignal(
-
-        context,
-
-        {
-
-            type:
-                "validation_failure",
-
-
-            reason:
-                failure.reason
+            failure
 
         }
 
