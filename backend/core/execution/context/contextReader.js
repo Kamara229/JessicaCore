@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CONTEXT READER v2
+ * JESSICA CONTEXT READER v3
  * =========================================================
  *
  * Безопасное чтение Execution Context.
@@ -8,9 +8,13 @@
  *
  * Отвечает:
  *
+ * - identity;
+ * - state;
  * - counters;
  * - execution history;
  * - failures;
+ * - attempts;
+ * - replans;
  * - experience;
  * - results;
  * - plans.
@@ -20,10 +24,14 @@
  *
  * - изменяет Context;
  * - создаёт Context;
- * - управляет Retry/Replan.
+ * - управляет Retry;
+ * - управляет Replan;
+ * - выполняет Execution.
  *
  * =========================================================
  */
+
+
 
 
 
@@ -49,7 +57,9 @@ function safeArray(
 
         ?
 
-        value
+        [
+            ...value
+        ]
 
         :
 
@@ -81,7 +91,11 @@ function safeNumber(
 
     const number =
 
-        Number(value);
+        Number(
+
+            value
+
+        );
 
 
 
@@ -107,7 +121,7 @@ function safeNumber(
 
 /*
  * =========================================================
- * ID
+ * IDENTITY
  * =========================================================
  */
 
@@ -322,7 +336,7 @@ export function getExperience(
 
 /*
  * =========================================================
- * RESULTS
+ * RUN RESULTS
  * =========================================================
  */
 
@@ -354,6 +368,13 @@ export function getRunResults(
 
 
 
+/*
+ * =========================================================
+ * TERMINAL RESULT
+ * =========================================================
+ */
+
+
 export function getTerminalResult(
 
     context
@@ -371,6 +392,13 @@ export function getTerminalResult(
 
 
 
+
+
+/*
+ * =========================================================
+ * RESULT HISTORY
+ * =========================================================
+ */
 
 
 export function getResultHistory(
@@ -428,36 +456,6 @@ export function getExecutionFailures(
 
 /*
  * =========================================================
- * REPLANS
- * =========================================================
- */
-
-
-export function getExecutionReplans(
-
-    context
-
-) {
-
-
-    return safeArray(
-
-        context?.replanHistory
-
-    );
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
  * ATTEMPTS
  * =========================================================
  */
@@ -488,37 +486,21 @@ export function getExecutionAttempts(
 
 /*
  * =========================================================
- * STEPS
+ * REPLANS
  * =========================================================
  */
 
 
-export function getExecutionHistory(
+export function getExecutionReplans(
 
     context
 
 ) {
 
 
-    if(
-
-        Array.isArray(context?.stepsHistory)
-
-        &&
-
-        context.stepsHistory.length > 0
-
-    ){
-
-        return context.stepsHistory;
-
-    }
-
-
-
     return safeArray(
 
-        context?.executionHistory
+        context?.replanHistory
 
     );
 
@@ -534,7 +516,37 @@ export function getExecutionHistory(
 
 /*
  * =========================================================
- * PLANS
+ * EXECUTION HISTORY
+ * =========================================================
+ */
+
+
+export function getExecutionHistory(
+
+    context
+
+) {
+
+
+    return safeArray(
+
+        context?.stepsHistory
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * INITIAL PLAN
  * =========================================================
  */
 
@@ -558,6 +570,13 @@ export function getInitialPlan(
 
 
 
+/*
+ * =========================================================
+ * CURRENT PLAN
+ * =========================================================
+ */
+
+
 export function getCurrentPlan(
 
     context
@@ -575,6 +594,13 @@ export function getCurrentPlan(
 
 
 
+
+
+/*
+ * =========================================================
+ * PLANS
+ * =========================================================
+ */
 
 
 export function getPlans(
