@@ -1,52 +1,6 @@
-import {
-    decomposeTask
-} from "./taskDecomposer.js";
-
-
-import {
-    executeSubtask,
-    runSubtasks
-} from "./subtaskRunner.js";
-
-
-import {
-    buildSingleTaskResponse
-} from "./response/singleTaskResponse.js";
-
-
-import {
-    buildComplexTaskResponse
-} from "./response/complexTaskResponse.js";
-
-
-import {
-    createExecutionTrace,
-    updateTraceFromResult,
-    updateTraceFromSummary,
-    finishExecutionTrace
-} from "./trace/executionTrace.js";
-
-
-import {
-    processLearning
-} from "./learning/learningCoordinator.js";
-
-
-import {
-    retrieveRelevantExperience
-} from "./experience/memoryRetriever.js";
-
-
-import {
-    buildMemoryContext
-} from "./memory/memoryContextBuilder.js";
-
-
-
-
 /*
  * =========================================================
- * JESSICA CORE
+ * JESSICA CORE v2
  * =========================================================
  *
  * Центральный координатор Jessica.
@@ -56,35 +10,67 @@ import {
  *
  * User Task
  *      ↓
- * Memory Retrieval
- *      ↓
- * Memory Context
- *      ↓
- * Execution Trace
+ * Memory Facade
  *      ↓
  * Task Decomposer
  *      ↓
- * Subtasks
+ * Execution Router
  *      ↓
- * Execution
+ * Trace Facade
  *      ↓
- * Response Builder
+ * Response Facade
  *      ↓
- * Learning Coordinator
- *      ↓
- * Learning Queue
+ * Learning Facade
  *
  *
- * НЕ содержит:
+ * НЕ:
  *
- * - Planner;
- * - Tools;
- * - Validator;
- * - Experience Storage;
- * - Skill creation.
+ * - выполняет Tools;
+ * - создаёт Plan;
+ * - валидирует результат;
+ * - хранит Experience;
+ * - создаёт Skills.
  *
  * =========================================================
  */
+
+
+
+import {
+    decomposeTask
+} from "./taskDecomposer.js";
+
+
+import {
+    buildExecutionMemoryContext
+} from "./memory/executionMemoryFacade.js";
+
+
+import {
+    createJessicaExecutionTrace,
+    recordExecutionResult,
+    recordExecutionSummary,
+    completeExecutionTrace
+} from "./trace/executionTraceFacade.js";
+
+
+import {
+    executeByRoute
+} from "./execution/executionRouter.js";
+
+
+import {
+    buildJessicaResponse
+} from "./response/responseFacade.js";
+
+
+import {
+    processExecutionLearning
+} from "./learning/learningFacade.js";
+
+
+
+
 
 
 
@@ -92,180 +78,55 @@ import {
 
 /*
  * =========================================================
- * FAILURE RESPONSE
+ * FAILURE
  * =========================================================
  */
 
 
-function buildFailureResponse({
+function buildCoreFailure(
 
     stage,
 
     text,
 
-    executionTrace
+    trace
 
-}) {
+)
+{
 
 
-    finishExecutionTrace(
-        executionTrace
+    completeExecutionTrace(
+
+        trace
+
     );
+
 
 
     return {
 
+
         success:
+
             false,
+
 
         stage,
 
+
         text,
 
-        executionTrace
+
+        executionTrace:
+
+            trace
+
 
     };
 
-}
-
-
-
-
-
-/*
- * =========================================================
- * MEMORY LOAD
- * =========================================================
- */
-
-
-async function loadMemoryContext(
-    task
-) {
-
-
-    try {
-
-
-        const experience =
-            await retrieveRelevantExperience(
-                task
-            );
-
-
-
-        return buildMemoryContext(
-
-            experience?.skills || []
-
-        );
-
-
-
-    } catch(error) {
-
-
-        console.error(
-
-            "Jessica Memory Retrieval error:",
-
-            error
-
-        );
-
-
-        return {
-
-
-            hasExperience:
-                false,
-
-
-            skills:
-                [],
-
-
-            skillCount:
-                0,
-
-
-            summary:
-                []
-
-
-        };
-
-
-    }
-
 
 }
 
-
-
-
-
-/*
- * =========================================================
- * SAFE LEARNING
- * =========================================================
- */
-
-
-function attachLearning(
-    response,
-    executionTrace
-) {
-
-
-    try {
-
-
-        response.learning =
-            processLearning(
-                executionTrace
-            );
-
-
-    } catch(error) {
-
-
-        console.error(
-
-            "Jessica Learning Coordinator error:",
-
-            error
-
-        );
-
-
-
-        response.learning = {
-
-
-            success:
-                false,
-
-
-            queued:
-                false,
-
-
-            reason:
-                "Learning coordinator error"
-
-
-        };
-
-
-    }
-
-
-
-    return response;
-
-
-}
 
 
 
@@ -282,23 +143,40 @@ function attachLearning(
 
 
 export async function executeJessicaTask(
+
     task
-) {
+
+)
+{
 
 
     const normalizedTask =
+
         typeof task === "string"
-            ? task.trim()
-            : "";
+
+            ?
+
+            task.trim()
+
+            :
+
+            "";
+
 
 
 
 
 
     const executionTrace =
-        createExecutionTrace(
+
+        createJessicaExecutionTrace(
+
             normalizedTask
+
         );
+
+
+
 
 
 
@@ -312,22 +190,21 @@ export async function executeJessicaTask(
      */
 
 
-    if (
+    if(
         !normalizedTask
-    ) {
+    )
+    {
 
 
-        return buildFailureResponse({
+        return buildCoreFailure(
 
-            stage:
-                "input",
+            "input",
 
-            text:
-                "Задача не указана",
+            "Задача не указана",
 
             executionTrace
 
-        });
+        );
 
     }
 
@@ -336,22 +213,26 @@ export async function executeJessicaTask(
 
 
 
+
+
+
     /*
      * =====================================================
-     * MEMORY RETRIEVAL
+     * MEMORY
      * =====================================================
      */
 
 
-    const memoryContext =
-        await loadMemoryContext(
+    const memoryResult =
+
+        await buildExecutionMemoryContext(
+
             normalizedTask
+
         );
 
 
 
-    executionTrace.memory =
-        memoryContext;
 
 
 
@@ -360,7 +241,7 @@ export async function executeJessicaTask(
 
     /*
      * =====================================================
-     * DECOMPOSE
+     * DECOMPOSITION
      * =====================================================
      */
 
@@ -369,23 +250,31 @@ export async function executeJessicaTask(
 
 
 
-    try {
+    try
+    {
 
 
         decompositionResult =
+
             await decomposeTask({
 
                 task:
+
                     normalizedTask,
 
 
-                memoryContext
+                memoryContext:
+
+                    memoryResult.memoryContext
+
 
             });
 
 
+    }
 
-    } catch(error) {
+    catch(error)
+    {
 
 
         console.error(
@@ -398,17 +287,15 @@ export async function executeJessicaTask(
 
 
 
-        return buildFailureResponse({
+        return buildCoreFailure(
 
-            stage:
-                "decomposer",
+            "decomposer",
 
-            text:
-                "Jessica не смогла разобрать задачу",
+            "Jessica не смогла разобрать задачу",
 
             executionTrace
 
-        });
+        );
 
 
     }
@@ -418,26 +305,31 @@ export async function executeJessicaTask(
 
 
 
-    if (
+
+
+
+    if(
         !decompositionResult?.success
-    ) {
+    )
+    {
 
 
-        return buildFailureResponse({
+        return buildCoreFailure(
 
-            stage:
-                "decomposer",
+            "decomposer",
 
-            text:
-                decompositionResult?.text ||
-                "Ошибка декомпозиции",
+            decompositionResult?.text ||
+
+            "Ошибка декомпозиции",
 
             executionTrace
 
-        });
+        );
 
 
     }
+
+
 
 
 
@@ -445,53 +337,11 @@ export async function executeJessicaTask(
 
 
     const decomposition =
+
         decompositionResult.decomposition;
 
 
 
-    const subtasks =
-        Array.isArray(
-            decomposition?.subtasks
-        )
-            ? decomposition.subtasks
-            : [];
-
-
-
-
-
-
-    if (
-        subtasks.length === 0
-    ) {
-
-
-        return buildFailureResponse({
-
-            stage:
-                "decomposer",
-
-            text:
-                "Jessica не обнаружила задач",
-
-            executionTrace
-
-        });
-
-
-    }
-
-
-
-
-
-
-    console.log(
-
-        `Jessica decomposition: ${subtasks.length}`
-
-    );
-
 
 
 
@@ -500,152 +350,37 @@ export async function executeJessicaTask(
 
     /*
      * =====================================================
-     * SINGLE TASK
+     * EXECUTION ROUTER
      * =====================================================
      */
 
 
-    if (
-        subtasks.length === 1
-    ) {
+    let executionResult;
 
 
-        let result;
 
+    try
+    {
 
 
-        try {
+        executionResult =
 
+            await executeByRoute(
 
-            result =
-                await executeSubtask(
-                    subtasks[0]
-                );
-
-
-
-        } catch(error) {
-
-
-            console.error(
-
-                "Jessica single execution error:",
-
-                error
-
-            );
-
-
-
-            result = {
-
-
-                id:
-                    subtasks[0]?.id || null,
-
-
-                status:
-                    "FAILED",
-
-
-                success:
-                    false,
-
-
-                stage:
-                    "subtask",
-
-
-                result:
-                    "Ошибка выполнения подзадачи"
-
-
-            };
-
-
-        }
-
-
-
-
-
-        updateTraceFromResult(
-
-            executionTrace,
-
-            result
-
-        );
-
-
-
-        finishExecutionTrace(
-            executionTrace
-        );
-
-
-
-
-
-        const response =
-            buildSingleTaskResponse(
-
-                result,
-
-                decomposition,
-
-                executionTrace
-
-            );
-
-
-
-
-
-        return attachLearning(
-
-            response,
-
-            executionTrace
-
-        );
-
-
-    }
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * COMPLEX TASK
-     * =====================================================
-     */
-
-
-    let subtaskRunResult;
-
-
-
-    try {
-
-
-        subtaskRunResult =
-            await runSubtasks(
                 decomposition
+
             );
 
 
-    } catch(error) {
+    }
+
+    catch(error)
+    {
 
 
         console.error(
 
-            "Jessica complex execution error:",
+            "Jessica execution router error:",
 
             error
 
@@ -653,17 +388,15 @@ export async function executeJessicaTask(
 
 
 
-        return buildFailureResponse({
+        return buildCoreFailure(
 
-            stage:
-                "execution",
+            "execution",
 
-            text:
-                "Ошибка выполнения сложной задачи",
+            "Ошибка выполнения задачи",
 
             executionTrace
 
-        });
+        );
 
 
     }
@@ -674,33 +407,119 @@ export async function executeJessicaTask(
 
 
 
-    updateTraceFromSummary(
-
-        executionTrace,
-
-        subtaskRunResult
-
-    );
 
 
+    /*
+     * =====================================================
+     * TRACE UPDATE
+     * =====================================================
+     */
 
-    finishExecutionTrace(
+
+    if(
+
+        Array.isArray(
+
+            executionResult?.results
+
+        )
+
+    )
+    {
+
+
+        recordExecutionSummary(
+
+            executionTrace,
+
+            executionResult
+
+        );
+
+
+    }
+
+    else
+    {
+
+
+        recordExecutionResult(
+
+            executionTrace,
+
+            executionResult
+
+        );
+
+
+    }
+
+
+
+
+
+
+
+
+    completeExecutionTrace(
+
         executionTrace
+
     );
 
 
 
 
+
+
+
+
+
+    /*
+     * =====================================================
+     * RESPONSE
+     * =====================================================
+     */
 
 
     const response =
-        await buildComplexTaskResponse(
 
-            normalizedTask,
+        await buildJessicaResponse({
+
+            task:
+
+                normalizedTask,
+
 
             decomposition,
 
-            subtaskRunResult,
+
+            executionResult,
+
+
+            executionTrace
+
+
+        });
+
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * LEARNING
+     * =====================================================
+     */
+
+
+    response.learning =
+
+        processExecutionLearning(
 
             executionTrace
 
@@ -710,13 +529,11 @@ export async function executeJessicaTask(
 
 
 
-    return attachLearning(
 
-        response,
 
-        executionTrace
 
-    );
+
+    return response;
 
 
 }
