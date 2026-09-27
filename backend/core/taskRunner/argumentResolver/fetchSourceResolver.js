@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA TASK RUNNER
- * FETCH SOURCE RESOLVER v1
+ * FETCH SOURCE RESOLVER v2
  * =========================================================
  *
  * Выбор источника для web_fetch.
@@ -11,11 +11,11 @@
  *
  * web_search result
  *        ↓
- * Candidates
+ * Search Candidates
  *        ↓
  * Source Selector
  *        ↓
- * URL
+ * Selected URL
  *
  *
  * НЕ:
@@ -23,7 +23,8 @@
  * - выполняет web_fetch;
  * - выполняет Tools;
  * - делает Retry;
- * - делает Replan.
+ * - делает Replan;
+ * - меняет Execution Context.
  *
  * =========================================================
  */
@@ -54,28 +55,30 @@ import {
  */
 
 
-function buildFailure(
+function buildFailure({
 
-    {
+    failureType,
 
-        failureType,
+    text,
 
-        text,
+    shouldRetry = false,
 
-        shouldRetry = false
+    needsClarification = false
 
-    }
-
-) {
+}) {
 
 
     return {
 
 
-        success:false,
+        success:
+
+            false,
+
 
 
         stage:
+
             "source-selection",
 
 
@@ -89,12 +92,20 @@ function buildFailure(
 
 
         reason:
+
             text,
 
 
 
         shouldRetry:
-            shouldRetry === true
+
+            shouldRetry === true,
+
+
+
+        needsClarification:
+
+            needsClarification === true
 
 
     };
@@ -111,7 +122,7 @@ function buildFailure(
 
 /*
  * =========================================================
- * DIRECT URL
+ * DIRECT URL CHECK
  * =========================================================
  */
 
@@ -129,8 +140,10 @@ function isDirectUrl(
 
         &&
 
-        /^https?:\/\//i.test(
+        /^https?:\/\/\S+$/i.test(
+
             url.trim()
+
         )
 
     );
@@ -165,7 +178,7 @@ export async function resolveFetchSource(
 
     /*
      * =====================================================
-     * Уже передан URL
+     * DIRECT URL
      * =====================================================
      */
 
@@ -173,7 +186,9 @@ export async function resolveFetchSource(
     if (
 
         isDirectUrl(
+
             originalArgs?.url
+
         )
 
     ) {
@@ -182,7 +197,10 @@ export async function resolveFetchSource(
         return {
 
 
-            success:true,
+            success:
+
+                true,
+
 
 
             url:
@@ -205,7 +223,7 @@ export async function resolveFetchSource(
 
     /*
      * =====================================================
-     * Ищем предыдущий web_search
+     * FIND SEARCH RESULT
      * =====================================================
      */
 
@@ -223,6 +241,16 @@ export async function resolveFetchSource(
 
 
 
+
+
+    /*
+     * Нет предыдущего поиска.
+     *
+     * Для web_fetch это ошибка маршрута,
+     * а не отсутствие аргумента.
+     */
+
+
     if (
 
         !searchResult
@@ -230,7 +258,26 @@ export async function resolveFetchSource(
     ) {
 
 
-        return null;
+        return buildFailure({
+
+            failureType:
+
+                "missing-fetch-source",
+
+
+
+            shouldRetry:
+
+                false,
+
+
+
+            text:
+
+                "Для web_fetch не найден результат web_search"
+
+        });
+
 
     }
 
@@ -242,6 +289,13 @@ export async function resolveFetchSource(
 
 
 
+    /*
+     * =====================================================
+     * EXTRACT CANDIDATES
+     * =====================================================
+     */
+
+
     const candidates =
 
         extractSearchCandidates(
@@ -249,7 +303,6 @@ export async function resolveFetchSource(
             searchResult
 
         );
-
 
 
 
@@ -268,13 +321,19 @@ export async function resolveFetchSource(
         return buildFailure({
 
             failureType:
+
                 "no-search-results",
 
 
-            shouldRetry:true,
+
+            shouldRetry:
+
+                true,
+
 
 
             text:
+
                 "Поиск не вернул ссылок для загрузки"
 
         });
@@ -333,12 +392,14 @@ export async function resolveFetchSource(
         return buildFailure({
 
             failureType:
+
                 "source-selector-error",
 
 
-            text:
-                "Ошибка выбора источника"
 
+            text:
+
+                "Ошибка выбора источника"
 
         });
 
@@ -355,7 +416,7 @@ export async function resolveFetchSource(
 
     /*
      * =====================================================
-     * NO SOURCE
+     * NO SUITABLE SOURCE
      * =====================================================
      */
 
@@ -370,10 +431,15 @@ export async function resolveFetchSource(
         return buildFailure({
 
             failureType:
+
                 "no-suitable-source",
 
 
-            shouldRetry:true,
+
+            shouldRetry:
+
+                true,
+
 
 
             text:
@@ -382,6 +448,50 @@ export async function resolveFetchSource(
 
                 "Не найден подходящий источник"
 
+        });
+
+
+    }
+
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * SELECTOR FAILURE
+     * =====================================================
+     */
+
+
+    if (
+
+        selection?.success !== true
+
+        ||
+
+        !selection?.result?.url
+
+    ) {
+
+
+        return buildFailure({
+
+            failureType:
+
+                "source-selector-error",
+
+
+
+            text:
+
+                selection?.reason ||
+
+                "Источник не выбран"
 
         });
 
@@ -403,51 +513,21 @@ export async function resolveFetchSource(
      */
 
 
-    if (
-
-        selection?.result?.url
-
-    ) {
+    return {
 
 
-        return {
+        success:
 
-
-            success:true,
-
-
-            url:
-
-                selection.result.url
-
-
-        };
-
-
-    }
+            true,
 
 
 
+        url:
+
+            selection.result.url
 
 
-
-
-
-
-    return buildFailure({
-
-        failureType:
-            "source-selector-error",
-
-
-        text:
-
-            selection?.reason ||
-
-            "Источник не выбран"
-
-
-    });
+    };
 
 
 }
