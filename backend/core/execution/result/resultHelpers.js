@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA RESULT HELPERS v1
+ * JESSICA RESULT HELPERS v2
  * =========================================================
  *
  * Проверки Execution Result.
@@ -35,6 +35,42 @@ import {
 
 /*
  * =========================================================
+ * VALID RESULT
+ * =========================================================
+ */
+
+
+function hasStatus(
+
+    result,
+
+    status
+
+) {
+
+
+    return (
+
+        result &&
+
+        typeof result === "object" &&
+
+        result.status === status
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
  * COMPLETED
  * =========================================================
  */
@@ -49,13 +85,21 @@ export function isCompletedResult(
 
     return (
 
-        result?.status ===
+        hasStatus(
+
+            result,
 
             EXECUTION_RESULT_STATUS.COMPLETED
 
+        )
+
         &&
 
-        result?.success === true
+        result.success === true
+
+        &&
+
+        result.verified === true
 
     );
 
@@ -85,9 +129,17 @@ export function isFailedResult(
 
     return (
 
-        result?.status ===
+        hasStatus(
+
+            result,
 
             EXECUTION_RESULT_STATUS.FAILED
+
+        )
+
+        &&
+
+        result.success === false
 
     );
 
@@ -117,10 +169,18 @@ export function isClarificationResult(
 
     return (
 
-        result?.status ===
+        hasStatus(
+
+            result,
 
             EXECUTION_RESULT_STATUS
                 .NEEDS_CLARIFICATION
+
+        )
+
+        &&
+
+        result.success === false
 
     );
 
@@ -150,10 +210,18 @@ export function isNoVerifiedResult(
 
     return (
 
-        result?.status ===
+        hasStatus(
+
+            result,
 
             EXECUTION_RESULT_STATUS
                 .NO_VERIFIED_RESULT
+
+        )
+
+        &&
+
+        result.success === false
 
     );
 
