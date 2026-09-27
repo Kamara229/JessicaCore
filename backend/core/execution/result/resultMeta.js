@@ -1,27 +1,39 @@
 /*
  * =========================================================
- * JESSICA RESULT META v2
+ * JESSICA RESULT META v3
  * =========================================================
  *
  * Формирование metadata для Execution Result.
  *
  *
- * Отвечает:
+ * Использует:
  *
- * - execution metadata;
- * - tools usage;
- * - experience usage;
- * - execution history.
+ * Context Reader API
  *
  *
  * НЕ:
  *
- * - создаёт Result;
+ * - читает Context напрямую;
  * - меняет Context;
  * - принимает решения.
  *
  * =========================================================
  */
+
+
+import {
+    getExecutionId,
+    getTraceId,
+    getExecutionCounters,
+    getExperience,
+    getRunResults,
+    getExecutionFailures,
+    getExecutionReplans,
+    getExecutionHistory,
+    getPlans
+} from "../context/contextReader.js";
+
+
 
 
 
@@ -52,44 +64,6 @@ function safeArray(
         :
 
         [];
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * RUN RESULTS
- * =========================================================
- */
-
-
-function getRunResults(
-
-    context
-
-) {
-
-
-    return (
-
-        context?.runResult?.results
-
-        ||
-
-        context?.runResult?.result?.results
-
-        ||
-
-        []
-
-    );
 
 }
 
@@ -173,11 +147,21 @@ export function buildExperienceMeta(
 ) {
 
 
+    const experience =
+
+        getExperience(
+
+            context
+
+        );
+
+
+
     const skills =
 
         safeArray(
 
-            context?.experience?.skills
+            experience.skills
 
         );
 
@@ -188,29 +172,23 @@ export function buildExperienceMeta(
 
         used:
 
-            context?.experience?.found === true
+            experience.used
 
             ||
 
-            context?.experience?.used === true,
+            experience.found,
 
 
 
         source:
 
-            context?.experience?.source ||
-
-            null,
+            experience.source,
 
 
 
         confidence:
 
-            Number(
-
-                context?.experience?.confidence || 0
-
-            ),
+            experience.confidence,
 
 
 
@@ -225,6 +203,7 @@ export function buildExperienceMeta(
                 .map(
 
                     skill =>
+
 
                         typeof skill === "string"
 
@@ -244,7 +223,6 @@ export function buildExperienceMeta(
 
 
     };
-
 
 }
 
@@ -270,52 +248,54 @@ export function buildExecutionMeta(
 ) {
 
 
+    const counters =
+
+        getExecutionCounters(
+
+            context
+
+        );
+
+
+
     return {
 
 
         executionId:
 
-            context?.executionId ||
+            getExecutionId(
 
-            null,
+                context
+
+            ),
 
 
 
         traceId:
 
-            context?.trace?.id ||
+            getTraceId(
 
-            null,
+                context
+
+            ),
 
 
 
         attempt:
 
-            Number(
-
-                context?.attempt || 0
-
-            ),
+            counters.attempt,
 
 
 
         retryCount:
 
-            Number(
-
-                context?.retryCount || 0
-
-            ),
+            counters.retryCount,
 
 
 
         replanCount:
 
-            Number(
-
-                context?.replanCount || 0
-
-            ),
+            counters.replanCount,
 
 
 
@@ -369,9 +349,9 @@ export function buildHistoryMeta(
 
         failures:
 
-            safeArray(
+            getExecutionFailures(
 
-                context?.errors
+                context
 
             ),
 
@@ -379,9 +359,9 @@ export function buildHistoryMeta(
 
         replans:
 
-            safeArray(
+            getExecutionReplans(
 
-                context?.replanHistory
+                context
 
             ),
 
@@ -389,9 +369,9 @@ export function buildHistoryMeta(
 
         executionHistory:
 
-            safeArray(
+            getExecutionHistory(
 
-                context?.stepsHistory
+                context
 
             )
 
@@ -422,6 +402,16 @@ export function buildBaseResult(
 ) {
 
 
+    const plans =
+
+        getPlans(
+
+            context
+
+        );
+
+
+
     return {
 
 
@@ -439,17 +429,13 @@ export function buildBaseResult(
 
         initialPlan:
 
-            context?.initialPlan ||
-
-            null,
+            plans.initialPlan,
 
 
 
         currentPlan:
 
-            context?.plan ||
-
-            null,
+            plans.currentPlan,
 
 
 
