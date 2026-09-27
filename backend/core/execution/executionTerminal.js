@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION TERMINAL v7
+ * JESSICA EXECUTION TERMINAL v8
  * =========================================================
  *
  * Финальный слой завершения Execution Cycle.
@@ -9,28 +9,21 @@
  * Получает:
  *
  * Execution Context
- * Failure
+ * Normalized Failure
  *
  *
  * Возвращает:
  *
- * Execution Result
- *
- *
- * Ответственность:
- *
- * - выбрать финальный Result Builder;
- * - сформировать terminal outcome.
+ * Terminal Result
  *
  *
  * НЕ:
  *
  * - анализирует ошибки;
+ * - принимает Failure Decision;
  * - делает Retry;
  * - делает Replan;
- * - вызывает Planner;
- * - вызывает Tools;
- * - изменяет Context.
+ * - меняет Context.
  *
  * =========================================================
  */
@@ -63,13 +56,6 @@ import {
 
 
 
-/*
- * =========================================================
- * TERMINAL TYPES
- * =========================================================
- */
-
-
 export const TERMINAL_TYPE = {
 
 
@@ -100,19 +86,11 @@ export const TERMINAL_TYPE = {
 
 
 
-/*
- * =========================================================
- * SAFE STRING
- * =========================================================
- */
-
-
 function safeString(
 
     value
 
-) {
-
+){
 
     return String(
 
@@ -120,7 +98,6 @@ function safeString(
 
     )
     .trim();
-
 
 }
 
@@ -134,34 +111,30 @@ function safeString(
 
 /*
  * =========================================================
- * NORMALIZE FAILURE
+ * NORMALIZE TERMINAL FAILURE
  * =========================================================
  */
 
 
-function normalizeFailure(
+function normalizeTerminalFailure(
 
     failure
 
-) {
+){
 
-
-    if (
+    if(
 
         !failure ||
 
         typeof failure !== "object"
 
-    ) {
-
+    ){
 
         return {
-
 
             stage:
 
                 "execution",
-
 
 
             failureType:
@@ -169,11 +142,14 @@ function normalizeFailure(
                 "unknown",
 
 
+            category:
+
+                "execution",
+
 
             reason:
 
                 "Неизвестная ошибка",
-
 
 
             terminalType:
@@ -184,25 +160,6 @@ function normalizeFailure(
         };
 
     }
-
-
-
-
-
-
-
-
-    const failureType =
-
-        safeString(
-
-            failure.failureType
-
-        )
-
-        ||
-
-        "execution-failure";
 
 
 
@@ -224,21 +181,19 @@ function normalizeFailure(
 
 
 
-    if (
+    if(
 
-        failure.needsClarification === true
+        failure.category === "clarification"
 
         ||
 
-        failure.type === "needs-clarification"
+        failure.needsClarification === true
 
-    ) {
-
+    ){
 
         terminalType =
 
             TERMINAL_TYPE.CLARIFICATION;
-
 
     }
 
@@ -250,25 +205,19 @@ function normalizeFailure(
 
 
 
-    if (
+    if(
+
+        failure.category === "no_verified"
+
+        ||
 
         failure.noVerifiedResult === true
 
-        ||
-
-        failureType === "no_verified_result"
-
-        ||
-
-        failureType === "no-verified-result"
-
-    ) {
-
+    ){
 
         terminalType =
 
             TERMINAL_TYPE.NO_VERIFIED_RESULT;
-
 
     }
 
@@ -281,6 +230,10 @@ function normalizeFailure(
 
 
     return {
+
+
+        ...failure,
+
 
 
         stage:
@@ -297,8 +250,25 @@ function normalizeFailure(
 
 
 
+        failureType:
 
-        failureType,
+            safeString(
+
+                failure.failureType
+
+            )
+
+            ||
+
+            "execution-failure",
+
+
+
+        category:
+
+            failure.category ||
+
+            "execution",
 
 
 
@@ -313,7 +283,6 @@ function normalizeFailure(
             ||
 
             "Не удалось выполнить задачу",
-
 
 
 
@@ -346,8 +315,7 @@ function logTerminal(
 
     failure
 
-) {
-
+){
 
     const counters =
 
@@ -365,7 +333,6 @@ function logTerminal(
 
         {
 
-
             executionId:
 
                 getExecutionId(
@@ -375,23 +342,19 @@ function logTerminal(
                 ),
 
 
-
             attempt:
 
                 counters.attempt,
 
 
-
-            type:
+            terminalType:
 
                 failure.terminalType,
 
 
+            category:
 
-            stage:
-
-                failure.stage,
-
+                failure.category,
 
 
             failureType:
@@ -416,7 +379,7 @@ function logTerminal(
 
 /*
  * =========================================================
- * BUILD TERMINAL RESULT
+ * BUILD RESULT
  * =========================================================
  */
 
@@ -427,16 +390,19 @@ export function buildTerminalResult(
 
     failure = {}
 
-) {
-
+){
 
     const normalized =
 
-        normalizeFailure(
+        normalizeTerminalFailure(
 
             failure
 
         );
+
+
+
+
 
 
 
@@ -458,41 +424,19 @@ export function buildTerminalResult(
 
 
 
-    /*
-     * =====================================================
-     * CLARIFICATION
-     * =====================================================
-     */
-
-
-    if (
+    if(
 
         normalized.terminalType ===
 
         TERMINAL_TYPE.CLARIFICATION
 
-    ) {
-
+    ){
 
         return buildClarificationResult(
 
             context,
 
-            {
-
-
-                stage:
-
-                    normalized.stage,
-
-
-
-                reason:
-
-                    normalized.reason
-
-
-            }
+            normalized
 
         );
 
@@ -506,47 +450,19 @@ export function buildTerminalResult(
 
 
 
-    /*
-     * =====================================================
-     * NO VERIFIED RESULT
-     * =====================================================
-     */
-
-
-    if (
+    if(
 
         normalized.terminalType ===
 
         TERMINAL_TYPE.NO_VERIFIED_RESULT
 
-    ) {
-
+    ){
 
         return buildNoVerifiedResult(
 
             context,
 
-            {
-
-
-                stage:
-
-                    normalized.stage,
-
-
-
-                reason:
-
-                    normalized.reason,
-
-
-
-                failureType:
-
-                    normalized.failureType
-
-
-            }
+            normalized
 
         );
 
@@ -558,40 +474,13 @@ export function buildTerminalResult(
 
 
 
-
-
-    /*
-     * =====================================================
-     * FAILURE
-     * =====================================================
-     */
 
 
     return buildFailureResult(
 
         context,
 
-        {
-
-
-            stage:
-
-                normalized.stage,
-
-
-
-            reason:
-
-                normalized.reason,
-
-
-
-            failureType:
-
-                normalized.failureType
-
-
-        }
+        normalized
 
     );
 
@@ -606,19 +495,11 @@ export function buildTerminalResult(
 
 
 
-/*
- * =========================================================
- * HELPERS
- * =========================================================
- */
-
-
 export function isTerminalFailure(
 
     failure
 
-) {
-
+){
 
     return Boolean(
 
