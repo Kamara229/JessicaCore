@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * EXECUTION LOOP v2
+ * EXECUTION LOOP v3
  * =========================================================
  *
  * Основной цикл выполнения.
@@ -18,13 +18,21 @@
  * Retry / Replan / Finish
  *
  *
+ * Ответственность:
+ *
+ * - управлять Execution iterations;
+ * - передавать Context;
+ * - обрабатывать решение Failure Handler.
+ *
+ *
  * НЕ:
  *
  * - создаёт Context;
  * - создаёт Trace;
  * - строит Plan;
  * - создаёт Terminal Result;
- * - реализует Replan.
+ * - реализует Replan;
+ * - меняет Context напрямую.
  *
  * =========================================================
  */
@@ -48,15 +56,10 @@ import {
 
 import {
     registerExecutionFailure,
-    registerExecutionAttempt
+    registerExecutionAttempt,
+    registerExecutionRetry,
+    getExecutionCounters
 } from "../executionContext.js";
-
-
-import {
-    updateTraceFromResult,
-    addTraceAttempt,
-    addTraceEvent
-} from "../../trace/executionTrace.js";
 
 
 import {
@@ -111,7 +114,103 @@ function normalizeFailure(
             "Неизвестная ошибка"
 
 
+
     };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * EXECUTION EXCEPTION
+ * =========================================================
+ */
+
+
+function buildExecutionException(
+
+    error
+
+) {
+
+
+    return {
+
+
+        stage:
+
+            "execution",
+
+
+
+        failureType:
+
+            "execution-error",
+
+
+
+        reason:
+
+            error?.message ||
+
+            "Execution exception"
+
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * LIMIT FAILURE
+ * =========================================================
+ */
+
+
+function buildExecutionLimitFailure()
+
+{
+
+
+    return {
+
+
+        stage:
+
+            "execution",
+
+
+
+        failureType:
+
+            "execution-limit",
+
+
+
+        reason:
+
+            "Execution limit reached"
+
+
+
+    };
+
 
 }
 
@@ -147,19 +246,40 @@ export async function executeExecutionLoop(
 
 
 
-    while(true){
+    while (
+
+        true
+
+    ) {
 
 
 
 
 
-        if(
+        const counters =
 
-            context.attempt >=
+            getExecutionCounters(
+
+                context
+
+            );
+
+
+
+
+
+
+
+
+
+        if (
+
+            counters.attempt >=
 
             MAX_EXECUTION_ATTEMPTS
 
-        ){
+        ) {
+
 
             break;
 
@@ -173,6 +293,13 @@ export async function executeExecutionLoop(
 
 
 
+        /*
+         * =================================================
+         * ATTEMPT
+         * =================================================
+         */
+
+
         registerExecutionAttempt(
 
             context,
@@ -181,41 +308,15 @@ export async function executeExecutionLoop(
 
                 retryCount:
 
-                    context.retryCount,
+                    counters.retryCount,
+
 
 
                 replanCount:
 
-                    context.replanCount
-
-            }
-
-        );
+                    counters.replanCount
 
 
-
-
-
-
-
-
-
-        addTraceAttempt(
-
-            context.trace,
-
-            context.attempt,
-
-            {
-
-                retryCount:
-
-                    context.retryCount,
-
-
-                replanCount:
-
-                    context.replanCount
 
             }
 
@@ -239,6 +340,13 @@ export async function executeExecutionLoop(
 
 
 
+        /*
+         * =================================================
+         * EXECUTION STEP
+         * =================================================
+         */
+
+
         try {
 
 
@@ -249,6 +357,7 @@ export async function executeExecutionLoop(
                     context
 
                 );
+
 
 
         }
@@ -262,48 +371,19 @@ export async function executeExecutionLoop(
                 success:false,
 
 
-                failure:{
+                failure:
 
-                    stage:
+                    buildExecutionException(
 
-                        "execution",
+                        error
 
+                    )
 
-
-                    failureType:
-
-                        "execution-error",
-
-
-
-                    reason:
-
-                        error?.message ||
-
-                        "Execution exception"
-
-                }
 
             };
 
 
         }
-
-
-
-
-
-
-
-
-
-        updateTraceFromResult(
-
-            context.trace,
-
-            result
-
-        );
 
 
 
@@ -320,11 +400,11 @@ export async function executeExecutionLoop(
          */
 
 
-        if(
+        if (
 
             result?.success === true
 
-        ){
+        ) {
 
 
             return {
@@ -336,6 +416,7 @@ export async function executeExecutionLoop(
                 result:
 
                     result.result
+
 
 
             };
@@ -408,27 +489,50 @@ export async function executeExecutionLoop(
 
 
 
-        switch(
+        if (
+
+            !decision
+
+        ) {
+
+
+            break;
+
+        }
+
+
+
+
+
+
+
+
+
+        switch (
 
             decision.action
 
-        ){
+        ) {
 
 
 
+
+
+
+
+            /*
+             * =============================================
+             * RETRY
+             * =============================================
+             */
 
 
             case FAILURE_ACTION.RETRY:
 
 
-                context.retryCount++;
+                registerExecutionRetry(
 
-
-                addTraceEvent(
-
-                    context.trace,
-
-                    "RETRY"
+                    context
 
                 );
 
@@ -443,10 +547,17 @@ export async function executeExecutionLoop(
 
 
 
+            /*
+             * =============================================
+             * REPLAN
+             * =============================================
+             */
+
+
             case FAILURE_ACTION.REPLAN:
 
 
-                if(
+                if (
 
                     await executeReplan(
 
@@ -456,9 +567,11 @@ export async function executeExecutionLoop(
 
                     )
 
-                ){
+                ) {
+
 
                     continue;
+
 
                 }
 
@@ -473,6 +586,13 @@ export async function executeExecutionLoop(
 
 
 
+            /*
+             * =============================================
+             * CLARIFICATION
+             * =============================================
+             */
+
+
             case FAILURE_ACTION.CLARIFICATION:
 
 
@@ -482,14 +602,21 @@ export async function executeExecutionLoop(
                     success:false,
 
 
-                    failure:{
+                    failure:
+
+                    {
+
 
                         ...lastFailure,
 
 
                         needsClarification:true
 
+
+
                     }
+
+
 
                 };
 
@@ -501,6 +628,13 @@ export async function executeExecutionLoop(
 
 
 
+            /*
+             * =============================================
+             * FINISH
+             * =============================================
+             */
+
+
             case FAILURE_ACTION.FINISH:
 
 
@@ -508,6 +642,9 @@ export async function executeExecutionLoop(
 
 
         }
+
+
+
 
 
 
@@ -537,25 +674,8 @@ export async function executeExecutionLoop(
 
             lastFailure ||
 
-            {
+            buildExecutionLimitFailure()
 
-                stage:
-
-                    "execution",
-
-
-
-                failureType:
-
-                    "execution-limit",
-
-
-
-                reason:
-
-                    "Execution limit reached"
-
-            }
 
 
     };
