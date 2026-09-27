@@ -1,25 +1,34 @@
 /*
  * =========================================================
- * JESSICA CONTEXT FAILURES v2
+ * JESSICA CONTEXT FAILURES v3
  * =========================================================
  *
- * Управление ошибками Execution Context.
+ * Хранение Failure в Execution Context.
  *
  *
  * Отвечает:
  *
- * - сохранение последней ошибки;
- * - накопление истории ошибок.
+ * - сохранение последней Failure;
+ * - накопление истории Failure;
+ * - увеличение failureCount.
  *
  *
  * НЕ:
  *
- * - анализирует ошибки;
- * - принимает решение Retry/Replan;
+ * - нормализует Failure;
+ * - классифицирует Failure;
+ * - принимает решение Retry;
+ * - принимает решение Replan;
  * - меняет Execution Flow.
+ *
+ *
+ * Failure должна приходить сюда уже после
+ * Failure Normalizer / Failure Classifier.
  *
  * =========================================================
  */
+
+
 
 
 
@@ -29,12 +38,103 @@
 
 /*
  * =========================================================
- * NORMALIZE FAILURE
+ * SAFE NUMBER
  * =========================================================
  */
 
 
-function normalizeFailure(
+function safeNumber(
+
+    value
+
+) {
+
+
+    const number =
+
+        Number(
+
+            value
+
+        );
+
+
+
+    return Number.isFinite(
+
+        number
+
+    )
+
+        ?
+
+        number
+
+        :
+
+        0;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * ENSURE FAILURE HISTORY
+ * =========================================================
+ */
+
+
+function ensureFailureHistory(
+
+    context
+
+) {
+
+
+    if(
+
+        !Array.isArray(
+
+            context.errors
+
+        )
+
+    ){
+
+
+        context.errors = [];
+
+    }
+
+
+
+    return context.errors;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * CREATE FAILURE RECORD
+ * =========================================================
+ */
+
+
+function createFailureRecord(
 
     failure
 
@@ -43,60 +143,25 @@ function normalizeFailure(
 
     if(
 
-        !failure ||
+        failure &&
 
-        typeof failure !== "object"
+        typeof failure === "object"
 
     ){
+
 
         return {
 
 
-            stage:
-
-                "execution",
+            ...failure,
 
 
 
-            failureType:
+            timestamp:
 
-                "unknown",
+                new Date()
 
-
-
-            reason:
-
-                String(
-
-                    failure ||
-
-                    "Неизвестная ошибка"
-
-                ),
-
-
-
-            category:
-
-                "execution",
-
-
-
-            validation:
-
-                null,
-
-
-
-            needsClarification:
-
-                false,
-
-
-
-            noVerifiedResult:
-
-                false
+                    .toISOString()
 
 
         };
@@ -116,53 +181,39 @@ function normalizeFailure(
 
         stage:
 
-            failure.stage ||
-
             "execution",
 
 
 
         failureType:
 
-            failure.failureType ||
-
-            "execution-error",
-
-
-
-        reason:
-
-            failure.reason ||
-
-            "Ошибка выполнения",
+            "unknown",
 
 
 
         category:
 
-            failure.category ||
-
             "execution",
 
 
 
-        validation:
+        reason:
 
-            failure.validation ||
+            String(
 
-            null,
+                failure ||
 
+                "Неизвестная ошибка"
 
-
-        needsClarification:
-
-            failure.needsClarification === true,
+            ),
 
 
 
-        noVerifiedResult:
+        timestamp:
 
-            failure.noVerifiedResult === true
+            new Date()
+
+                .toISOString()
 
 
     };
@@ -199,6 +250,7 @@ export function registerExecutionFailure(
 
     ){
 
+
         return null;
 
     }
@@ -211,25 +263,20 @@ export function registerExecutionFailure(
 
 
 
-    const record = {
+    /*
+     * =====================================================
+     * RECORD
+     * =====================================================
+     */
 
 
-        ...normalizeFailure(
+    const record =
+
+        createFailureRecord(
 
             failure
 
-        ),
-
-
-
-        timestamp:
-
-            new Date()
-
-                .toISOString()
-
-
-    };
+        );
 
 
 
@@ -240,7 +287,9 @@ export function registerExecutionFailure(
 
 
     /*
-     * Last failure
+     * =====================================================
+     * LAST FAILURE
+     * =====================================================
      */
 
 
@@ -257,33 +306,23 @@ export function registerExecutionFailure(
 
 
     /*
-     * History
+     * =====================================================
+     * HISTORY
+     * =====================================================
      */
 
 
-    if(
+    const history =
 
-        !Array.isArray(
+        ensureFailureHistory(
 
-            context.errors
+            context
 
-        )
-
-    ){
-
-        context.errors = [];
-
-    }
+        );
 
 
 
-
-
-
-
-
-
-    context.errors.push(
+    history.push(
 
         record
 
@@ -298,15 +337,17 @@ export function registerExecutionFailure(
 
 
     /*
-     * Counter
+     * =====================================================
+     * COUNTER
+     * =====================================================
      */
 
 
     context.failureCount =
 
-        Number(
+        safeNumber(
 
-            context.failureCount || 0
+            context.failureCount
 
         )
 
