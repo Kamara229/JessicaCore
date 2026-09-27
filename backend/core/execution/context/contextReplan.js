@@ -1,24 +1,31 @@
 /*
  * =========================================================
- * JESSICA CONTEXT REPLAN v2
+ * JESSICA CONTEXT REPLAN v3
  * =========================================================
  *
- * Управление состоянием после Replan.
+ * Управление Replan-состоянием Execution Context.
  *
  *
  * Отвечает:
  *
- * - регистрация Replan;
- * - подготовка нового execution pass.
+ * - регистрация успешного Replan;
+ * - увеличение replanCount;
+ * - хранение канонической replanHistory;
+ * - сброс counters нового execution pass.
  *
  *
  * НЕ:
  *
  * - принимает решение Replan;
- * - создаёт новый Plan.
+ * - создаёт новый Plan;
+ * - применяет новый Plan;
+ * - очищает результаты Plan;
+ * - выполняет Execution.
  *
  * =========================================================
  */
+
+
 
 
 
@@ -42,11 +49,19 @@ function safeNumber(
 
     const number =
 
-        Number(value);
+        Number(
+
+            value
+
+        );
 
 
 
-    return Number.isFinite(number)
+    return Number.isFinite(
+
+        number
+
+    )
 
         ?
 
@@ -68,7 +83,50 @@ function safeNumber(
 
 /*
  * =========================================================
- * RESET EXECUTION AFTER REPLAN
+ * ENSURE HISTORY
+ * =========================================================
+ */
+
+
+function ensureReplanHistory(
+
+    context
+
+) {
+
+
+    if(
+
+        !Array.isArray(
+
+            context.replanHistory
+
+        )
+
+    ){
+
+
+        context.replanHistory = [];
+
+    }
+
+
+
+    return context.replanHistory;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * RESET EXECUTION PASS
  * =========================================================
  */
 
@@ -86,7 +144,8 @@ export function resetExecutionAfterReplan(
 
     ){
 
-        return context;
+
+        return null;
 
     }
 
@@ -95,6 +154,25 @@ export function resetExecutionAfterReplan(
 
 
 
+
+
+
+    /*
+     * Новый Plan начинает собственный
+     * execution pass.
+     *
+     * Сбрасываются только локальные counters:
+     *
+     * attempt
+     * retryCount
+     *
+     * replanCount является глобальным
+     * счётчиком текущего Execution и
+     * НЕ сбрасывается.
+     *
+     * Результаты здесь не очищаются.
+     * Это ответственность applyAlternativePlan().
+     */
 
 
 
@@ -107,42 +185,6 @@ export function resetExecutionAfterReplan(
     context.retryCount =
 
         0;
-
-
-
-
-
-
-
-
-
-    /*
-     * Очистка результатов
-     * старого execution pass
-     */
-
-
-    context.runResult =
-
-        null;
-
-
-
-    context.answerResult =
-
-        null;
-
-
-
-    context.validationResult =
-
-        null;
-
-
-
-    context.terminalResult =
-
-        null;
 
 
 
@@ -186,6 +228,7 @@ export function registerExecutionReplan(
 
     ){
 
+
         return null;
 
     }
@@ -196,6 +239,13 @@ export function registerExecutionReplan(
 
 
 
+
+
+    /*
+     * =====================================================
+     * COUNTER
+     * =====================================================
+     */
 
 
     context.replanCount =
@@ -218,13 +268,14 @@ export function registerExecutionReplan(
 
 
 
+    /*
+     * =====================================================
+     * RECORD
+     * =====================================================
+     */
+
+
     const record = {
-
-
-        replanCount:
-
-            context.replanCount,
-
 
 
         previousPlan:
@@ -251,6 +302,12 @@ export function registerExecutionReplan(
 
 
 
+        replanCount:
+
+            context.replanCount,
+
+
+
         timestamp:
 
             new Date()
@@ -268,70 +325,29 @@ export function registerExecutionReplan(
 
 
 
-    if(
-
-        !Array.isArray(
-
-            context.replanHistory
-
-        )
-
-    ){
-
-        context.replanHistory = [];
-
-    }
-
-
-
-
-
-
-
-
-
-    context.replanHistory.push(
-
-        record
-
-    );
-
-
-
-
-
-
-
-
-
     /*
-     * Legacy compatibility
+     * =====================================================
+     * HISTORY
+     * =====================================================
+     *
+     * replanHistory является единственным
+     * каноническим журналом Replan.
+     *
+     * =====================================================
      */
 
 
-    if(
+    const history =
 
-        !Array.isArray(
+        ensureReplanHistory(
 
-            context.replans
+            context
 
-        )
-
-    ){
-
-        context.replans = [];
-
-    }
+        );
 
 
 
-
-
-
-
-
-
-    context.replans.push(
+    history.push(
 
         record
 
