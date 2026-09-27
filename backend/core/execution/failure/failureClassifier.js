@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * FAILURE CLASSIFIER v1
+ * FAILURE CLASSIFIER v2
  * =========================================================
  *
  * Определение категории Execution Failure.
@@ -21,6 +21,8 @@
  * temporary
  * planner
  * data
+ * clarification
+ * no_verified
  * execution
  *
  *
@@ -32,6 +34,40 @@
  *
  * =========================================================
  */
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SAFE TYPE
+ * =========================================================
+ */
+
+
+function getFailureType(
+
+    failure
+
+) {
+
+
+    return String(
+
+        failure?.failureType ||
+
+        ""
+
+    )
+    .toLowerCase();
+
+
+}
+
+
 
 
 
@@ -55,14 +91,63 @@ export function classifyFailure(
 
     const type =
 
-        String(
+        getFailureType(
 
-            failure?.failureType ||
+            failure
 
-            ""
+        );
 
-        )
-        .toLowerCase();
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * CLARIFICATION
+     * =====================================================
+     */
+
+
+    if (
+
+        failure?.needsClarification === true
+
+    ) {
+
+
+        return "clarification";
+
+    }
+
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * NO VERIFIED RESULT
+     * =====================================================
+     */
+
+
+    if (
+
+        failure?.noVerifiedResult === true
+
+    ) {
+
+
+        return "no_verified";
+
+    }
 
 
 
@@ -153,6 +238,12 @@ export function classifyFailure(
             "temporary"
         )
 
+        ||
+
+        type.includes(
+            "rate"
+        )
+
     ) {
 
 
@@ -187,6 +278,12 @@ export function classifyFailure(
             "strategy"
         )
 
+        ||
+
+        type.includes(
+            "plan"
+        )
+
     ) {
 
 
@@ -213,6 +310,18 @@ export function classifyFailure(
 
         type.includes(
             "data"
+        )
+
+        ||
+
+        type.includes(
+            "schema"
+        )
+
+        ||
+
+        type.includes(
+            "argument"
         )
 
     ) {
