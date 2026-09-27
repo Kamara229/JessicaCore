@@ -1,10 +1,11 @@
 /*
  * =========================================================
- * JESSICA COMPOSER CONTEXT
+ * JESSICA COMPOSER CONTEXT v2
  * =========================================================
  *
- * Подготавливает безопасный фактический контекст
+ * Подготавливает безопасный контекст
  * для Answer Composer.
+ *
  *
  * Composer НЕ должен видеть:
  *
@@ -14,11 +15,33 @@
  * - $from;
  * - внутренний routing.
  *
- * Ему нужны только:
  *
- * - задача пользователя;
- * - требования к evidence;
+ * Composer получает:
+ *
+ * - задачу пользователя;
+ * - режим evidence;
+ * - цель evidence;
  * - фактически полученные данные.
+ *
+ *
+ * Режим ответа определяется через:
+ *
+ * plan.evidence.mode
+ *
+ *
+ * evidence.mode === "none"
+ *
+ *     → knowledge mode
+ *     → внешние данные не требовались
+ *
+ *
+ * evidence.mode !== "none"
+ *
+ *     → grounded mode
+ *     → ответ должен опираться
+ *       на полученные данные
+ *
+ * =========================================================
  */
 
 
@@ -143,6 +166,7 @@ function formatWebSource(
 
         "",
         "Содержимое:",
+
         limitText(
             content,
             MAX_SOURCE_CONTENT
@@ -195,6 +219,7 @@ function formatSearchResults(
             )
             .map(
                 item => ({
+
                     title:
                         item?.title || "",
 
@@ -203,12 +228,14 @@ function formatSearchResults(
 
                     snippet:
                         item?.snippet || ""
+
                 })
             );
 
 
     return [
         "РЕЗУЛЬТАТЫ ПОИСКА:",
+
         limitText(
             JSON.stringify(
                 cleanResults,
@@ -217,6 +244,7 @@ function formatSearchResults(
             ),
             MAX_GENERIC_DATA
         )
+
     ].join(
         "\n"
     );
@@ -293,7 +321,8 @@ function formatGenericResult(
                     2
                 );
 
-        } catch {
+        }
+        catch {
 
             serialized =
                 String(
@@ -397,7 +426,8 @@ function formatResult(
 
 
 function buildFactualContext(
-    taskRunResult
+    taskRunResult,
+    evidenceMode
 ) {
 
     const results =
@@ -416,12 +446,47 @@ function buildFactualContext(
             .filter(Boolean);
 
 
+    /*
+     * =====================================================
+     * NO EXTERNAL EVIDENCE REQUIRED
+     * =====================================================
+     *
+     * Пустой results здесь НЕ является ошибкой.
+     *
+     * Planner сознательно решил,
+     * что задача может быть решена
+     * без внешних источников.
+     *
+     * =====================================================
+     */
+
+
+    if (
+        sections.length === 0 &&
+        evidenceMode === "none"
+    ) {
+
+        return (
+            "Внешние фактические данные для этой задачи " +
+            "не требовались."
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * REQUIRED EVIDENCE NOT RECEIVED
+     * =====================================================
+     */
+
+
     if (
         sections.length === 0
     ) {
 
         return (
-            "Дополнительные фактические данные " +
+            "Необходимые дополнительные фактические данные " +
             "не были получены."
         );
 
@@ -455,7 +520,9 @@ export function buildComposerContext(
         String(
             plan?.evidence?.mode ||
             "none"
-        );
+        )
+            .trim()
+            .toLowerCase();
 
 
     const evidenceReason =
@@ -465,21 +532,37 @@ export function buildComposerContext(
         ).trim();
 
 
+    const answerMode =
+        evidenceMode === "none"
+            ? "knowledge"
+            : "grounded";
+
+
     const factualContext =
         buildFactualContext(
-            taskRunResult
+            taskRunResult,
+            evidenceMode
         );
 
 
     const sections =
         [
             "ЗАДАЧА ПОЛЬЗОВАТЕЛЯ:",
+
             String(
                 task || ""
             ).trim(),
 
             "",
+
+            "РЕЖИМ ОТВЕТА:",
+
+            answerMode,
+
+            "",
+
             "ТРЕБОВАНИЯ К ДОКАЗАТЕЛЬСТВАМ:",
+
             `Режим: ${evidenceMode}`,
 
             evidenceReason
@@ -487,7 +570,9 @@ export function buildComposerContext(
                 : null,
 
             "",
+
             "ФАКТИЧЕСКИЕ ДАННЫЕ:",
+
             factualContext
         ];
 
@@ -501,4 +586,4 @@ export function buildComposerContext(
             "\n"
         );
 
-      }
+}
