@@ -1,9 +1,9 @@
 /*
  * =========================================================
- * JESSICA EXECUTION FAILURE HANDLER v7
+ * JESSICA EXECUTION FAILURE HANDLER v8
  * =========================================================
  *
- * Центральный маршрутизатор Failure.
+ * Центральный маршрутизатор Execution Failure.
  *
  *
  * Flow:
@@ -21,12 +21,18 @@
  * FINISH
  *
  *
+ * Ответственность:
+ *
+ * - классифицировать ошибку;
+ * - выбрать следующий action.
+ *
+ *
  * НЕ:
  *
- * - выполняет retry;
+ * - выполняет Retry;
  * - создаёт Plan;
  * - вызывает Planner;
- * - меняет Context;
+ * - изменяет Context;
  * - сохраняет Learning.
  *
  * =========================================================
@@ -50,23 +56,38 @@ import {
 
 
 
+/*
+ * =========================================================
+ * ACTIONS
+ * =========================================================
+ */
+
+
 export const FAILURE_ACTION = {
 
 
     RETRY:
+
         "RETRY",
 
 
+
     REPLAN:
+
         "REPLAN",
 
 
+
     CLARIFICATION:
+
         "CLARIFICATION",
 
 
+
     FINISH:
+
         "FINISH"
+
 
 };
 
@@ -92,34 +113,60 @@ function normalizeFailure(
 ) {
 
 
-    if(
+    if (
+
         !failure ||
+
         typeof failure !== "object"
-    ){
+
+    ) {
+
 
         return {
 
 
             stage:
+
                 "execution",
+
 
 
             failureType:
+
                 "unknown",
 
 
+
             category:
+
                 "execution",
 
 
-            reason:
-                "Неизвестная ошибка"
 
+            reason:
+
+                "Неизвестная ошибка",
+
+
+
+            needsClarification:
+
+                false,
+
+
+
+            noVerifiedResult:
+
+                false
 
 
         };
 
     }
+
+
+
+
 
 
 
@@ -130,6 +177,7 @@ function normalizeFailure(
         stage:
 
             failure.stage ||
+
             "execution",
 
 
@@ -137,6 +185,7 @@ function normalizeFailure(
         failureType:
 
             failure.failureType ||
+
             "execution-error",
 
 
@@ -152,6 +201,7 @@ function normalizeFailure(
         reason:
 
             failure.reason ||
+
             "Ошибка выполнения",
 
 
@@ -175,6 +225,7 @@ function normalizeFailure(
 
 
     };
+
 
 }
 
@@ -209,9 +260,13 @@ function detectCategory(
 
 
 
-    if(
+
+
+    if (
+
         type.includes("validation")
-    ){
+
+    ) {
 
         return "validation";
 
@@ -219,9 +274,15 @@ function detectCategory(
 
 
 
-    if(
+
+
+
+
+    if (
+
         type.includes("tool")
-    ){
+
+    ) {
 
         return "tool";
 
@@ -229,11 +290,23 @@ function detectCategory(
 
 
 
-    if(
-        type.includes("timeout") ||
-        type.includes("network") ||
+
+
+
+
+    if (
+
+        type.includes("timeout")
+
+        ||
+
+        type.includes("network")
+
+        ||
+
         type.includes("temporary")
-    ){
+
+    ) {
 
         return "temporary";
 
@@ -241,10 +314,19 @@ function detectCategory(
 
 
 
-    if(
-        type.includes("planner") ||
+
+
+
+
+    if (
+
+        type.includes("planner")
+
+        ||
+
         type.includes("strategy")
-    ){
+
+    ) {
 
         return "planner";
 
@@ -252,9 +334,15 @@ function detectCategory(
 
 
 
-    if(
+
+
+
+
+    if (
+
         type.includes("data")
-    ){
+
+    ) {
 
         return "data";
 
@@ -262,7 +350,12 @@ function detectCategory(
 
 
 
+
+
+
+
     return "execution";
+
 
 }
 
@@ -276,7 +369,7 @@ function detectCategory(
 
 /*
  * =========================================================
- * DECISION BUILDER
+ * BUILD DECISION
  * =========================================================
  */
 
@@ -298,6 +391,12 @@ function buildDecision(
         action,
 
 
+        type:
+
+            action,
+
+
+
         reason:
 
             failure.reason,
@@ -310,7 +409,9 @@ function buildDecision(
 
         canContinue:
 
-            action === FAILURE_ACTION.RETRY ||
+            action === FAILURE_ACTION.RETRY
+
+            ||
 
             action === FAILURE_ACTION.REPLAN,
 
@@ -363,11 +464,11 @@ function buildDecision(
                 failure.category
 
 
-
         }
 
 
     };
+
 
 }
 
@@ -386,24 +487,13 @@ function buildDecision(
  */
 
 
-function shouldRetry(
+function canRetry(
 
     context,
 
     failure
 
 ) {
-
-
-    if(
-        failure.category !==
-        "temporary"
-    ){
-
-        return false;
-
-    }
-
 
 
     return shouldRetryExecution(
@@ -413,6 +503,7 @@ function shouldRetry(
         failure
 
     );
+
 
 }
 
@@ -426,7 +517,7 @@ function shouldRetry(
 
 /*
  * =========================================================
- * MAIN
+ * MAIN HANDLER
  * =========================================================
  */
 
@@ -453,16 +544,20 @@ export async function handleExecutionFailure(
 
 
 
+
     /*
      * =====================================================
-     * USER INPUT REQUIRED
+     * CLARIFICATION
      * =====================================================
      */
 
 
-    if(
-        normalized.needsClarification
-    ){
+    if (
+
+        normalized.needsClarification === true
+
+    ) {
+
 
         return buildDecision(
 
@@ -491,9 +586,12 @@ export async function handleExecutionFailure(
      */
 
 
-    if(
-        normalized.noVerifiedResult
-    ){
+    if (
+
+        normalized.noVerifiedResult === true
+
+    ) {
+
 
         return buildDecision(
 
@@ -522,9 +620,9 @@ export async function handleExecutionFailure(
      */
 
 
-    if(
+    if (
 
-        shouldRetry(
+        canRetry(
 
             context,
 
@@ -532,7 +630,8 @@ export async function handleExecutionFailure(
 
         )
 
-    ){
+    ) {
+
 
         return buildDecision(
 
@@ -561,7 +660,7 @@ export async function handleExecutionFailure(
      */
 
 
-    if(
+    if (
 
         canReplan(
 
@@ -571,10 +670,10 @@ export async function handleExecutionFailure(
 
         &&
 
-        normalized.category !==
-        "temporary"
+        normalized.category !== "temporary"
 
-    ){
+    ) {
+
 
         return buildDecision(
 
@@ -624,50 +723,80 @@ export async function handleExecutionFailure(
 
 
 
+/*
+ * =========================================================
+ * HELPERS
+ * =========================================================
+ */
+
+
 export function isRetryAction(
+
     decision
-){
+
+) {
+
 
     return (
 
         decision?.action ===
+
         FAILURE_ACTION.RETRY
 
     );
 
+
 }
+
+
+
+
 
 
 
 
 
 export function isReplanAction(
+
     decision
-){
+
+) {
+
 
     return (
 
         decision?.action ===
+
         FAILURE_ACTION.REPLAN
 
     );
 
+
 }
+
+
+
+
 
 
 
 
 
 export function isClarificationAction(
+
     decision
-){
+
+) {
+
 
     return (
 
         decision?.action ===
+
         FAILURE_ACTION.CLARIFICATION
 
     );
+
 
 }
 
@@ -675,15 +804,24 @@ export function isClarificationAction(
 
 
 
+
+
+
+
 export function isTerminalAction(
+
     decision
-){
+
+) {
+
 
     return (
 
         decision?.action ===
+
         FAILURE_ACTION.FINISH
 
     );
+
 
 }
