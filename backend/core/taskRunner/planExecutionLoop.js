@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA TASK RUNNER
- * PLAN EXECUTION LOOP v1
+ * PLAN EXECUTION LOOP v2
  * =========================================================
  *
  * Выполнение списка шагов плана.
@@ -11,7 +11,7 @@
  *
  * Plan Steps
  *      ↓
- * Step Validation
+ * Step Iterator
  *      ↓
  * Execute Step
  *      ↓
@@ -20,33 +20,19 @@
  *
  * НЕ:
  *
- * - строит план;
- * - выполняет Retry;
- * - делает Replan;
- * - валидирует Answer.
+ * - проверяет инструменты;
+ * - разрешает arguments;
+ * - выполняет Tools;
+ * - делает Retry;
+ * - делает Replan.
  *
  * =========================================================
  */
 
 
 import {
-    hasTool
-} from "../../tools/toolRegistry.js";
-
-
-import {
-    getStepId
-} from "./planRuntimeValidator.js";
-
-
-import {
     executeStep
 } from "./executeStep.js";
-
-
-import {
-    buildFailure
-} from "./resultHandler.js";
 
 
 
@@ -58,23 +44,21 @@ import {
 
 /*
  * =========================================================
- * RUN LOOP
+ * BUILD CONTEXT
  * =========================================================
  */
 
 
-export async function executePlanSteps({
+function buildSelectionContext(
 
     plan,
 
-    task,
+    task
 
-    results = []
-
-}) {
+) {
 
 
-    const selectionContext =
+    return (
 
         String(
             task || ""
@@ -95,7 +79,89 @@ export async function executePlanSteps({
 
         .filter(Boolean)
 
-        .join("\n");
+        .join("\n")
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * EXECUTION LOOP
+ * =========================================================
+ */
+
+
+export async function executePlanSteps({
+
+    plan,
+
+    task,
+
+    results = []
+
+}) {
+
+
+    if (
+
+        !Array.isArray(
+            plan?.steps
+        )
+
+    ) {
+
+
+        return {
+
+
+            success:false,
+
+
+            stage:
+                "runner",
+
+
+            failureType:
+                "invalid-steps",
+
+
+            reason:
+                "В плане отсутствуют шаги",
+
+
+            results
+
+
+        };
+
+    }
+
+
+
+
+
+
+
+
+
+    const selectionContext =
+
+        buildSelectionContext(
+
+            plan,
+
+            task
+
+        );
 
 
 
@@ -129,211 +195,11 @@ export async function executePlanSteps({
 
 
 
-        /*
-         * =====================================================
-         * STEP CHECK
-         * =====================================================
-         */
-
-
-        if (
-
-            !step
-
-            ||
-
-            typeof step !== "object"
-
-            ||
-
-            Array.isArray(step)
-
-        ) {
-
-
-            return buildFailure({
-
-                stage:
-                    "runner",
-
-
-                failureType:
-                    "invalid-step",
-
-
-                text:
-
-                    `Некорректный шаг ${index + 1}`,
-
-
-                failedStep:
-                    index,
-
-
-                results
-
-
-            });
-
-        }
-
-
-
-
-
-
-
-
-
-        const stepId =
-
-            getStepId(
-
-                step,
-
-                index
-
-            );
-
-
-
-
-
-
-
-
-
-        /*
-         * =====================================================
-         * TOOL CHECK
-         * =====================================================
-         */
-
-
-        const toolName =
-
-            typeof step.tool === "string"
-
-                ?
-
-                step.tool.trim()
-
-                :
-
-                "";
-
-
-
-
-
-
-
-
-
-        if (!toolName) {
-
-
-            return buildFailure({
-
-                stage:
-                    "runner",
-
-
-                failureType:
-                    "missing-tool",
-
-
-                text:
-
-                    `В шаге ${index + 1} отсутствует tool`,
-
-
-                failedStep:
-                    index,
-
-
-                failedStepId:
-                    stepId,
-
-
-                results
-
-
-            });
-
-
-        }
-
-
-
-
-
-
-
-
-
-        if (
-
-            !hasTool(toolName)
-
-        ) {
-
-
-            return buildFailure({
-
-                stage:
-                    "runner",
-
-
-                failureType:
-                    "unknown-tool",
-
-
-                text:
-
-                    `Инструмент ${toolName} не зарегистрирован`,
-
-
-                failedStep:
-                    index,
-
-
-                failedStepId:
-                    stepId,
-
-
-                results
-
-
-            });
-
-
-        }
-
-
-
-
-
-
-
-
-
-        /*
-         * =====================================================
-         * EXECUTE STEP
-         * =====================================================
-         */
-
-
         const result =
 
             await executeStep({
 
                 step,
-
-                stepId,
-
-                toolName,
 
                 index,
 
@@ -352,11 +218,6 @@ export async function executePlanSteps({
 
 
 
-        /*
-         * Ошибка шага
-         */
-
-
         if (
 
             result?.success !== true
@@ -369,21 +230,6 @@ export async function executePlanSteps({
 
         }
 
-
-
-
-
-
-
-
-
-        /*
-         * executeStep уже добавляет
-         * результат в массив.
-         *
-         * Но если в будущем это изменится,
-         * здесь будет единая точка контроля.
-         */
 
 
     }
