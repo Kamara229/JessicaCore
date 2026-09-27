@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CONTEXT RETRY v1
+ * JESSICA CONTEXT RETRY v2
  * =========================================================
  *
  * Управление Retry counters.
@@ -15,10 +15,51 @@
  * НЕ:
  *
  * - принимает решение Retry;
+ * - проверяет лимиты;
  * - запускает выполнение.
  *
  * =========================================================
  */
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SAFE NUMBER
+ * =========================================================
+ */
+
+
+function safeNumber(
+
+    value
+
+) {
+
+
+    const number =
+
+        Number(value);
+
+
+
+    return Number.isFinite(number)
+
+        ?
+
+        number
+
+        :
+
+        0;
+
+}
+
+
 
 
 
@@ -35,18 +76,20 @@
 
 export function registerExecutionRetry(
 
-    context
+    context,
+
+    failure = null
 
 ) {
 
 
-    if (
+    if(
 
         !context
 
-    ) {
+    ){
 
-        return;
+        return null;
 
     }
 
@@ -58,7 +101,17 @@ export function registerExecutionRetry(
 
 
 
-    context.retryCount++;
+    context.retryCount =
+
+        safeNumber(
+
+            context.retryCount
+
+        )
+
+        +
+
+        1;
 
 
 
@@ -68,7 +121,7 @@ export function registerExecutionRetry(
 
 
 
-    if (
+    if(
 
         !Array.isArray(
 
@@ -76,8 +129,7 @@ export function registerExecutionRetry(
 
         )
 
-    ) {
-
+    ){
 
         context.retryHistory = [];
 
@@ -91,7 +143,8 @@ export function registerExecutionRetry(
 
 
 
-    context.retryHistory.push({
+    const record = {
+
 
         retryCount:
 
@@ -101,7 +154,17 @@ export function registerExecutionRetry(
 
         attempt:
 
-            context.attempt,
+            safeNumber(
+
+                context.attempt
+
+            ),
+
+
+
+        failure:
+
+            failure || null,
 
 
 
@@ -111,7 +174,31 @@ export function registerExecutionRetry(
 
                 .toISOString()
 
-    });
 
+    };
+
+
+
+
+
+
+
+
+
+    context.retryHistory.push(
+
+        record
+
+    );
+
+
+
+
+
+
+
+
+
+    return record;
 
 }
