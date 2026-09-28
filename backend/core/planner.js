@@ -1,225 +1,76 @@
 /*
  * =========================================================
- * JESSICA PLANNER CORE v3
+ * JESSICA PLANNER CORE v4
  * =========================================================
  *
- * Центральный координатор создания Execution Plan.
+ * Центральный координатор Planner.
  *
  *
  * Flow:
  *
  * Task
  *   ↓
- * Planning Context
+ * Planner Context
  *   ↓
- * Planner Request
+ * Planner Attempt
  *   ↓
- * AI Response
- *   ↓
- * Parse
- *   ↓
- * Normalize
- *   ↓
- * Validate
+ * Retry Policy
  *   ↓
  * Execution Plan
  *
  *
- * НЕ:
+ * Этот файл отвечает только за:
  *
- * - ищет Experience;
- * - хранит Skills;
- * - выполняет Tools;
- * - обучает Jessica;
- * - отвечает пользователю.
+ * - orchestration;
+ * - retry loop;
+ * - итоговый результат.
+ *
+ *
+ * Детали вынесены в:
+ *
+ * planner/runtime/plannerContext.js
+ * planner/runtime/plannerAttempt.js
+ * planner/runtime/plannerPlanResult.js
+ * planner/plannerRetry.js
  *
  * =========================================================
  */
 
 
-
 import {
-    requestPlan
-} from "./planner/plannerRequest.js";
 
+    buildPlannerContext,
 
-import {
-    parsePlan
-} from "./planner/planParser.js";
+    buildPlannerAttemptContext
+
+} from "./planner/runtime/plannerContext.js";
 
 
 import {
-    normalizePlan
-} from "./planner/planNormalizer.js";
+    runPlannerAttempt
+} from "./planner/runtime/plannerAttempt.js";
 
 
 import {
-    validatePlan
-} from "./planner/planValidator.js";
+    enrichPlan
+} from "./planner/runtime/plannerPlanResult.js";
 
 
 import {
-    normalizePlanningContext
-} from "./planner/planningContext.js";
 
-
-import {
     MAX_PLANNER_ATTEMPTS,
 
     sleep,
 
     isRetryablePlannerError,
 
+    isTechnicalPlannerError,
+
+    isSemanticPlannerError,
+
     getPlannerRetryDelay
 
 } from "./planner/plannerRetry.js";
-
-
-
-
-
-
-
-/*
- * =========================================================
- * BUILD CONTEXT
- * =========================================================
- */
-
-
-function buildPlannerContext(
-    context
-) {
-
-
-    const normalized =
-
-        normalizePlanningContext(
-            context
-        );
-
-
-
-    return {
-
-
-        ...normalized,
-
-
-        metadata:
-
-
-        {
-
-
-            ...(normalized.metadata || {}),
-
-
-            planner:
-
-            {
-
-
-                version:
-                    "3",
-
-
-                createdAt:
-                    new Date()
-                        .toISOString()
-
-
-            }
-
-
-        }
-
-
-    };
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * ADD PLAN META
- * =========================================================
- */
-
-
-function enrichPlan(
-    plan,
-    context,
-    attempt
-) {
-
-
-    return {
-
-
-        ...plan,
-
-
-        metadata:
-
-
-        {
-
-
-            ...(plan.metadata || {}),
-
-
-            plannerAttempt:
-                attempt,
-
-
-            generatedAt:
-                new Date()
-                    .toISOString()
-
-
-        },
-
-
-
-        experience:
-
-
-            {
-
-
-                ...(plan.experience || {}),
-
-
-
-                available:
-
-                    Boolean(
-                        context?.experience
-                    )
-
-            }
-
-
-    };
-
-
-}
-
-
-
-
-
-
-
 
 
 /*
@@ -239,15 +90,17 @@ export async function createPlan(
 
 
     const cleanTask =
-
         String(
             task || ""
         )
         .trim();
 
 
-
-
+    /*
+     * =====================================================
+     * INPUT
+     * =====================================================
+     */
 
 
     if (
@@ -257,8 +110,8 @@ export async function createPlan(
 
         return {
 
-            success:false,
-
+            success:
+                false,
 
             text:
                 "Задача Planner пустая"
@@ -268,10 +121,6 @@ export async function createPlan(
     }
 
 
-
-
-
-
     if (
         !process.env.GROQ_API_KEY
     ) {
@@ -279,9 +128,8 @@ export async function createPlan(
 
         return {
 
-
-            success:false,
-
+            success:
+                false,
 
             text:
                 "GROQ_API_KEY отсутствует"
@@ -291,36 +139,34 @@ export async function createPlan(
     }
 
 
-
-
-
+    /*
+     * =====================================================
+     * BASE CONTEXT
+     * =====================================================
+     */
 
 
     const baseContext =
-
         buildPlannerContext(
             context
         );
 
 
+    /*
+     * Только semantic feedback
+     * передаётся обратно AI.
+     */
 
-
+    let plannerFeedback =
+        "";
 
 
     let lastError =
         "";
 
 
-
-
-
-    const trace = [];
-
-
-    
-
-
-
+    const trace =
+        [];
 
 
     /*
@@ -341,233 +187,84 @@ export async function createPlan(
     ) {
 
 
+        const planningContext =
+            buildPlannerAttemptContext(
 
-        const planningContext = {
+                baseContext,
 
+                attempt
 
-            ...baseContext,
-
-
-            metadata:
-
-
-            {
-
-
-                ...(baseContext.metadata || {}),
-
-
-                plannerAttempt:
-                    attempt
-
-
-            }
-
-
-        };
-
-
-
-
-
+            );
 
 
         try {
 
 
-
-
             /*
-             * REQUEST
+             * =================================================
+             * ONE ATTEMPT
+             * =================================================
              */
 
 
-            const rawResponse =
+            const attemptResult =
+                await runPlannerAttempt({
 
-                await requestPlan(
+                    task:
+                        cleanTask,
 
-                    cleanTask,
+                    feedback:
+                        plannerFeedback,
 
-                    lastError,
+                    context:
+                        planningContext,
 
-                    planningContext
+                    attempt
 
-                );
-
-
-
-
-
-
-            trace.push({
-
-                stage:
-                    "request",
-
-
-                attempt
-
-            });
-
-
-
-
-
-
-
-
+                });
 
 
             /*
-             * PARSE
+             * =================================================
+             * SEMANTIC VALIDATION FAILURE
+             * =================================================
              */
-
-
-            const parsedPlan =
-
-                parsePlan(
-                    rawResponse
-                );
-
 
 
             if (
-                !parsedPlan
-            ) {
-
-
-                throw new Error(
-                    "planner_parse_failed"
-                );
-
-            }
-
-
-
-
-
-            trace.push({
-
-                stage:
-                    "parse",
-
-
-                success:
-                    true
-
-            });
-
-
-
-
-
-
-
-
-
-            /*
-             * NORMALIZE
-             */
-
-
-            const normalizedPlan =
-
-                normalizePlan(
-                    parsedPlan
-                );
-
-
-
-            if (
-                !normalizedPlan
-            ) {
-
-
-                throw new Error(
-                    "planner_normalize_failed"
-                );
-
-            }
-
-
-
-
-
-
-
-            trace.push({
-
-                stage:
-                    "normalize",
-
-
-                success:
-                    true
-
-            });
-
-
-
-
-
-
-
-
-
-            /*
-             * VALIDATE
-             */
-
-
-            const validation =
-
-                validatePlan(
-
-                    normalizedPlan,
-
-                    planningContext
-
-                );
-
-
-
-
-
-
-
-            if (
-                !validation.success
+                !attemptResult.success
             ) {
 
 
                 lastError =
 
-                    validation.text ||
+                    attemptResult.feedback ||
 
                     "planner_validation_failed";
 
 
-
+                plannerFeedback =
+                    lastError;
 
 
                 trace.push({
 
                     stage:
+                        attemptResult.stage ||
                         "validation",
 
+                    attempt,
 
                     success:
                         false,
 
+                    type:
+                        "semantic",
 
                     reason:
                         lastError
 
-
                 });
-
-
-
 
 
                 continue;
@@ -575,18 +272,17 @@ export async function createPlan(
             }
 
 
-
-
-
-
-
+            /*
+             * =================================================
+             * SUCCESS
+             * =================================================
+             */
 
 
             const finalPlan =
-
                 enrichPlan(
 
-                    normalizedPlan,
+                    attemptResult.plan,
 
                     planningContext,
 
@@ -595,30 +291,17 @@ export async function createPlan(
                 );
 
 
-
-
-
-
-
-
-
             trace.push({
 
                 stage:
                     "completed",
 
+                attempt,
 
                 success:
                     true
 
             });
-
-
-
-
-
-
-
 
 
             console.log(
@@ -630,10 +313,8 @@ export async function createPlan(
                     intent:
                         finalPlan.intent,
 
-
                     steps:
                         finalPlan.steps.length,
-
 
                     attempt
 
@@ -642,54 +323,135 @@ export async function createPlan(
             );
 
 
-
-
-
-
-
-
             return {
-
 
                 success:
                     true,
 
-
                 plan:
                     finalPlan,
-
-
 
                 context:
                     planningContext,
 
-
-
                 trace
 
-
             };
-
-
-
-
-
-
 
 
         } catch(error) {
 
 
+            /*
+             * =================================================
+             * ERROR CLASSIFICATION
+             * =================================================
+             */
 
-            lastError =
+
+            const errorMessage =
 
                 error?.message ||
 
                 "planner_error";
 
 
+            lastError =
+                errorMessage;
 
 
+            const technical =
+                isTechnicalPlannerError(
+                    error
+                );
+
+
+            const semantic =
+                isSemanticPlannerError(
+                    error
+                );
+
+
+            const retryable =
+                isRetryablePlannerError(
+                    error
+                );
+
+
+            /*
+             * Semantic error:
+             *
+             * модель получила запрос,
+             * но сформировала плохой результат.
+             *
+             * Поэтому feedback нужен.
+             */
+
+
+            if (
+                semantic
+            ) {
+
+
+                plannerFeedback =
+                    errorMessage;
+
+            }
+
+
+            /*
+             * Technical error:
+             *
+             * 429 / 5xx / network.
+             *
+             * Это НЕ ошибка маршрута,
+             * поэтому AI не должен её видеть.
+             */
+
+
+            if (
+                technical
+            ) {
+
+
+                plannerFeedback =
+                    "";
+
+            }
+
+
+            /*
+             * =================================================
+             * RETRY DELAY
+             * =================================================
+             */
+
+
+            const canRetry =
+
+                retryable &&
+
+                attempt <
+                MAX_PLANNER_ATTEMPTS;
+
+
+            const delay =
+
+                canRetry
+
+                    ? getPlannerRetryDelay(
+                        attempt,
+                        error
+                    )
+
+                    : 0;
+
+
+            /*
+             * =================================================
+             * TRACE
+             * =================================================
+             */
 
 
             trace.push({
@@ -697,20 +459,31 @@ export async function createPlan(
                 stage:
                     "error",
 
-
                 attempt,
 
+                success:
+                    false,
 
                 error:
-                    lastError
+                    errorMessage,
 
+                type:
+
+                    technical
+
+                        ? "technical"
+
+                        : semantic
+
+                            ? "semantic"
+
+                            : "non-retryable",
+
+                retryable,
+
+                delay
 
             });
-
-
-
-
-
 
 
             console.error(
@@ -721,41 +494,53 @@ export async function createPlan(
 
                     attempt,
 
+                    type:
+
+                        technical
+
+                            ? "technical"
+
+                            : semantic
+
+                                ? "semantic"
+
+                                : "non-retryable",
+
+                    retryable,
+
+                    retryDelay:
+                        delay,
+
                     error:
-                        lastError
+                        errorMessage
 
                 }
 
             );
 
 
-
-
-
+            /*
+             * =================================================
+             * RETRY
+             * =================================================
+             */
 
 
             if (
-
-                attempt < MAX_PLANNER_ATTEMPTS
-
-                &&
-
-                isRetryablePlannerError(
-                    error
-                )
-
+                canRetry
             ) {
 
 
+                if (
+                    delay > 0
+                ) {
 
-                await sleep(
 
-                    getPlannerRetryDelay(
-                        attempt
-                    )
+                    await sleep(
+                        delay
+                    );
 
-                );
-
+                }
 
 
                 continue;
@@ -763,49 +548,36 @@ export async function createPlan(
             }
 
 
+            break;
 
         }
-
 
     }
 
 
-
-
-
-
+    /*
+     * =====================================================
+     * FAILED
+     * =====================================================
+     */
 
 
     return {
 
-
         success:
             false,
-
 
         text:
 
             "Planner не смог создать корректный план: "
             +
-
             lastError,
-
-
 
         trace
 
-
     };
 
-
 }
-
-
-
-
-
-
-
 
 
 /*
@@ -825,7 +597,6 @@ export async function planTask(
 
 
     const result =
-
         await createPlan(
 
             task,
@@ -833,9 +604,6 @@ export async function planTask(
             context
 
         );
-
-
-
 
 
     if (
@@ -848,13 +616,8 @@ export async function planTask(
     }
 
 
-
-
     throw new Error(
-
         result.text
-
     );
-
 
 }
