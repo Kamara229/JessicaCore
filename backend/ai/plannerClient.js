@@ -1,28 +1,28 @@
 /*
  * =========================================================
- * JESSICA PLANNER CLIENT
+ * JESSICA PLANNER CLIENT v2
  * =========================================================
  *
- * Единый AI-клиент Planner.
+ * AI-клиент Planner.
  *
- *
- * Отвечает только за:
+ * Ответственность:
  *
  * - выбор модели Planner;
- * - общие параметры модели;
+ * - параметры генерации;
  * - JSON output mode;
- * - отправку сообщений;
- * - возврат ответа модели.
- *
+ * - проверка входных messages;
+ * - отправка запроса в Groq;
+ * - возврат сырого ответа Planner.
  *
  * НЕ отвечает за:
  *
  * - построение prompt;
+ * - PlanningContext;
  * - parsing JSON;
  * - нормализацию плана;
  * - validation;
  * - retry;
- * - execution.
+ * - выполнение плана.
  *
  * =========================================================
  */
@@ -35,7 +35,7 @@ import {
 
 /*
  * =========================================================
- * MODEL
+ * CONFIG
  * =========================================================
  */
 
@@ -45,29 +45,40 @@ const PLANNER_MODEL =
 
 
 /*
- * =========================================================
- * OUTPUT LIMIT
- * =========================================================
+ * План — компактный JSON.
  *
- * План является компактным JSON.
+ * 800 токенов оставляют запас для:
  *
- * Лимит нужен, чтобы Planner не генерировал
- * чрезмерно большие ответы.
+ * - многошагового плана;
+ * - arguments;
+ * - $from зависимостей;
+ * - evidence;
+ * - reasoningSummary.
  *
- * При этом оставляем достаточный запас
- * для многошаговых планов.
- *
- * =========================================================
+ * При этом лимит меньше прежних 1200,
+ * что снижает максимальный token budget
+ * одного Planner-запроса.
  */
 
 
 const PLANNER_MAX_COMPLETION_TOKENS =
-    1200;
+    800;
+
+
+/*
+ * Planner занимается маршрутизацией,
+ * поэтому высокий reasoning effort
+ * здесь не требуется.
+ */
+
+
+const PLANNER_REASONING_EFFORT =
+    "low";
 
 
 /*
  * =========================================================
- * VALIDATE MESSAGES
+ * MESSAGE VALIDATION
  * =========================================================
  */
 
@@ -77,9 +88,7 @@ function validateMessages(
 ) {
 
     if (
-        !Array.isArray(
-            messages
-        )
+        !Array.isArray(messages)
     ) {
 
         throw new Error(
@@ -152,6 +161,82 @@ function validateMessages(
 
 /*
  * =========================================================
+ * REQUEST OPTIONS
+ * =========================================================
+ */
+
+
+function buildPlannerRequestOptions(
+    messages
+) {
+
+    return {
+
+        model:
+            PLANNER_MODEL,
+
+
+        /*
+         * Planner должен быть максимально
+         * детерминированным.
+         */
+
+        temperature:
+            0,
+
+
+        /*
+         * Для маршрутизации достаточно
+         * минимального reasoning effort.
+         */
+
+        reasoning_effort:
+            PLANNER_REASONING_EFFORT,
+
+
+        /*
+         * Внутреннее reasoning модели
+         * в ответ API не включаем.
+         */
+
+        include_reasoning:
+            false,
+
+
+        /*
+         * Ограничиваем максимальный
+         * размер генерируемого плана.
+         */
+
+        max_completion_tokens:
+            PLANNER_MAX_COMPLETION_TOKENS,
+
+
+        /*
+         * Planner обязан вернуть JSON.
+         *
+         * Полная JSON Schema здесь
+         * намеренно не используется:
+         * arguments инструментов динамические.
+         */
+
+        response_format: {
+
+            type:
+                "json_object"
+
+        },
+
+
+        messages
+
+    };
+
+}
+
+
+/*
+ * =========================================================
  * PLANNER CHAT
  * =========================================================
  */
@@ -170,85 +255,18 @@ export async function plannerChat(
         getGroqClient();
 
 
+    const requestOptions =
+        buildPlannerRequestOptions(
+            messages
+        );
+
+
     return await groq
         .chat
         .completions
-        .create({
-
-            /*
-             * Planner model.
-             */
-
-            model:
-                PLANNER_MODEL,
-
-
-            /*
-             * Минимальная случайность.
-             */
-
-            temperature:
-                0,
-
-
-            /*
-             * GPT-OSS reasoning.
-             *
-             * Planner должен рассуждать,
-             * но для маршрутизации нам
-             * достаточно low.
-             */
-
-            reasoning_effort:
-                "low",
-
-
-            /*
-             * Не возвращаем reasoning
-             * в API response.
-             */
-
-            include_reasoning:
-                false,
-
-
-            /*
-             * Ограничение размера плана.
-             */
-
-            max_completion_tokens:
-                PLANNER_MAX_COMPLETION_TOKENS,
-
-
-            /*
-             * =================================================
-             * JSON OBJECT MODE
-             * =================================================
-             *
-             * Критично:
-             *
-             * модель теперь обязана вернуть
-             * синтаксически корректный JSON.
-             *
-             * Semantic correctness дальше всё равно
-             * проверяет planValidator.
-             *
-             * JSON Schema здесь намеренно не используем,
-             * потому что arguments инструментов являются
-             * динамическими.
-             */
-
-            response_format: {
-
-                type:
-                    "json_object"
-
-            },
-
-
-            messages
-
-        });
+        .create(
+            requestOptions
+        );
 
 }
 
