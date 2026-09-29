@@ -1,27 +1,36 @@
 /*
  * =========================================================
- * JESSICA LEARNING APPROVAL RUNNER
+ * JESSICA LEARNING APPROVAL RUNNER v2
  * =========================================================
  *
- * Финальный исполнитель обучения.
+ * Автономный исполнитель обучения.
  *
  *
  * Flow:
  *
  * Learning Proposal
  *        ↓
- * Approval Runner
+ * Autonomy Policy
+ *        ↓
+ *
+ * AUTO_APPROVE
  *        ↓
  * learningApproval
  *        ↓
  * Experience Skill
  *
  *
+ * KEEP_CANDIDATE
+ *        ↓
+ * ожидание накопления опыта
+ *
+ *
  * НЕ:
  *
  * - создаёт Proposal;
  * - анализирует обучение;
- * - меняет решение Reviewer.
+ * - вызывает AI;
+ * - хранит память.
  *
  * =========================================================
  */
@@ -31,6 +40,13 @@
 import {
     approveAndSaveLearningProposal
 } from "./learningApproval.js";
+
+
+import {
+    evaluateLearningAutonomy
+} from "./learningAutonomyPolicy.js";
+
+
 
 
 
@@ -52,6 +68,7 @@ async function processProposal(
         !proposal
     ) {
 
+
         return {
 
             success:
@@ -68,19 +85,92 @@ async function processProposal(
 
 
 
+
+
+    /*
+     * =====================================================
+     * AUTONOMY CHECK
+     * =====================================================
+     */
+
+
+    const autonomy =
+
+        evaluateLearningAutonomy(
+            proposal
+        );
+
+
+
+
+
+    if (
+        autonomy.action !==
+        "AUTO_APPROVE"
+    ) {
+
+
+        return {
+
+
+            success:
+                true,
+
+
+            learned:
+                false,
+
+
+            status:
+                "KEEP_CANDIDATE",
+
+
+            reason:
+                autonomy.reason,
+
+
+            autonomy
+
+
+        };
+
+    }
+
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * SAVE EXPERIENCE SKILL
+     * =====================================================
+     */
+
+
     try {
 
 
         const result =
+
             await approveAndSaveLearningProposal({
 
                 proposal,
 
+
                 skillId:
+
                     proposal.skillId || "",
 
+
+
                 confidence:
+
                     proposal.confidence || 0
+
 
             });
 
@@ -88,7 +178,17 @@ async function processProposal(
 
 
 
-        return result;
+
+        return {
+
+
+            ...result,
+
+
+            autonomy
+
+        };
+
 
 
 
@@ -113,8 +213,10 @@ async function processProposal(
 
 
             reason:
-                error.message
+                error.message,
 
+
+            autonomy
 
         };
 
@@ -123,6 +225,10 @@ async function processProposal(
 
 
 }
+
+
+
+
 
 
 
@@ -149,11 +255,14 @@ export async function runLearningApproval(
 
         return {
 
+
             success:
                 false,
 
+
             processed:
                 0,
+
 
             error:
                 "Invalid proposals"
@@ -161,6 +270,7 @@ export async function runLearningApproval(
         };
 
     }
+
 
 
 
@@ -180,6 +290,7 @@ export async function runLearningApproval(
 
 
         const result =
+
             await processProposal(
                 proposal
             );
@@ -189,7 +300,11 @@ export async function runLearningApproval(
             result
         );
 
+
     }
+
+
+
 
 
 
@@ -203,23 +318,43 @@ export async function runLearningApproval(
 
 
         processed:
+
             proposals.length,
 
 
-        approved:
+
+        learned:
 
             results.filter(
+
                 item =>
-                    item.success === true
+                    item.learned === true
+
             ).length,
+
+
+
+        candidates:
+
+            results.filter(
+
+                item =>
+                    item.status ===
+                    "KEEP_CANDIDATE"
+
+            ).length,
+
 
 
         failed:
 
             results.filter(
+
                 item =>
                     item.success === false
+
             ).length,
+
 
 
         results
