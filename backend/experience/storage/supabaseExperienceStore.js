@@ -6,24 +6,24 @@ import {
 
 /*
  * =========================================================
- * JESSICA SUPABASE EXPERIENCE STORE
+ * JESSICA SUPABASE EXPERIENCE STORE v2
  * =========================================================
  *
- * Работа с активной памятью Experience.
+ * Активная память Experience.
  *
  *
  * Отвечает:
  *
- * - загрузка актуальных Skills;
- * - получение Skill;
+ * - загрузка Skills;
+ * - получение последней версии;
  * - отключение Skill.
  *
  *
  * НЕ:
  *
- * - сохраняет новые версии;
+ * - обучает;
  * - создаёт Skill;
- * - работает с Learning.
+ * - сохраняет версии.
  *
  * =========================================================
  */
@@ -37,35 +37,38 @@ const EXPERIENCE_TABLE =
 
 
 
-/*
- * =========================================================
- * NORMALIZE
- * =========================================================
- */
 
 
 function normalizeArray(
     value
-) {
+){
 
     return Array.isArray(value)
-        ? value
-            .filter(Boolean)
-        : [];
+
+        ?
+
+        value.filter(Boolean)
+
+        :
+
+        [];
 
 }
 
 
 
+
+
+
+
 function normalizeSkill(
     value
-) {
+){
 
-
-    if (
+    if(
         !value ||
         typeof value !== "object"
-    ) {
+    ){
 
         return null;
 
@@ -74,20 +77,29 @@ function normalizeSkill(
 
 
     const id =
+
         String(
+
             value.id ||
+
             value.skillId ||
+
             ""
+
         )
         .trim();
 
 
 
-    if (!id) {
+
+    if(
+        !id
+    ){
 
         return null;
 
     }
+
 
 
 
@@ -97,10 +109,13 @@ function normalizeSkill(
         ...value,
 
 
+
         id,
 
 
+
         version:
+
             Number(
                 value.version || 1
             ),
@@ -108,50 +123,56 @@ function normalizeSkill(
 
 
         enabled:
+
             value.enabled !== false,
 
 
 
         confidence:
+
             Number(
                 value.confidence || 0
             ),
 
 
 
+
+
+
         workflow:
-            Array.isArray(
+
+            normalizeArray(
                 value.workflow
-            )
-            ?
-            value.workflow
-            :
-            [],
+            ),
 
 
 
         triggerPatterns:
+
             normalizeArray(
                 value.triggerPatterns
             ),
 
 
 
-        constraints:
-            normalizeArray(
-                value.constraints
-            ),
-
-
-
         validationRules:
+
             normalizeArray(
                 value.validationRules
             ),
 
 
 
+        constraints:
+
+            normalizeArray(
+                value.constraints
+            ),
+
+
+
         successfulPatterns:
+
             normalizeArray(
                 value.successfulPatterns
             ),
@@ -159,6 +180,7 @@ function normalizeSkill(
 
 
         failurePatterns:
+
             normalizeArray(
                 value.failurePatterns
             ),
@@ -166,13 +188,61 @@ function normalizeSkill(
 
 
         avoidPatterns:
+
             normalizeArray(
                 value.avoidPatterns
-            )
+            ),
+
+
+
+
+
+        usage:
+
+        {
+
+            successfulRuns:
+
+                Number(
+                    value.usage?.successfulRuns || 0
+                ),
+
+
+            failedRuns:
+
+                Number(
+                    value.usage?.failedRuns || 0
+                ),
+
+
+            lastUsedAt:
+
+                value.usage?.lastUsedAt || null,
+
+
+            lastResult:
+
+                value.usage?.lastResult || null
+
+        },
+
+
+
+
+
+        metadata:
+
+        {
+
+            ...(value.metadata || {})
+
+        }
+
 
     };
 
 }
+
 
 
 
@@ -193,7 +263,10 @@ export async function loadExperiences()
 
 
     const supabase =
+
         getSupabaseClient();
+
+
 
 
 
@@ -201,11 +274,15 @@ export async function loadExperiences()
         data,
         error
     }
+
     =
+
     await supabase
+
         .from(
             EXPERIENCE_TABLE
         )
+
         .select(
             `
             id,
@@ -214,10 +291,12 @@ export async function loadExperiences()
             version
             `
         )
-        .eq(
-            "enabled",
-            true
-        )
+
+        /*
+         * Берём все версии.
+         * Фильтр enabled делаем после выбора версии.
+         */
+
         .order(
             "version",
             {
@@ -227,21 +306,31 @@ export async function loadExperiences()
 
 
 
-    if (
+
+
+
+
+    if(
         error
-    ) {
+    ){
 
         throw new Error(
+
             `Experience load error: ${error.message}`
+
         );
 
     }
 
 
 
-    if (
+
+
+
+
+    if(
         !Array.isArray(data)
-    ) {
+    ){
 
         return [];
 
@@ -250,9 +339,7 @@ export async function loadExperiences()
 
 
 
-    /*
-     * Оставляем только последнюю версию каждого Skill
-     */
+
 
 
     const latest =
@@ -260,33 +347,44 @@ export async function loadExperiences()
 
 
 
-    for (
-        const row
-        of data
-    ) {
 
+
+
+
+    for(
+        const row of data
+    ){
 
         const skill =
+
             normalizeSkill({
 
                 ...(row.payload || {}),
 
+
                 id:
+
                     row.id,
 
+
                 version:
+
                     row.version,
 
+
                 enabled:
+
                     row.enabled
 
             });
 
 
 
-        if (
+
+
+        if(
             !skill
-        ) {
+        ){
 
             continue;
 
@@ -294,21 +392,32 @@ export async function loadExperiences()
 
 
 
+
+
+
+
         const current =
+
             latest.get(
                 skill.id
             );
 
 
 
-        if (
-            !current ||
+
+
+        if(
+            !current
+            ||
             skill.version > current.version
-        ) {
+        ){
 
             latest.set(
+
                 skill.id,
+
                 skill
+
             );
 
         }
@@ -318,12 +427,24 @@ export async function loadExperiences()
 
 
 
+
+
+
+
     return Array.from(
         latest.values()
+    )
+
+    .filter(
+
+        skill =>
+            skill.enabled === true
+
     );
 
 
 }
+
 
 
 
@@ -341,10 +462,10 @@ export async function loadExperiences()
 
 export async function loadExperienceSkill(
     skillId
-) {
-
+){
 
     const id =
+
         String(
             skillId || ""
         )
@@ -352,9 +473,10 @@ export async function loadExperienceSkill(
 
 
 
-    if (
+
+    if(
         !id
-    ) {
+    ){
 
         return null;
 
@@ -362,22 +484,28 @@ export async function loadExperienceSkill(
 
 
 
+
+
     const skills =
+
         await loadExperiences();
+
 
 
 
     return skills.find(
 
         skill =>
+
             skill.id === id
 
     )
     ||
     null;
 
-
 }
+
+
 
 
 
@@ -394,10 +522,10 @@ export async function loadExperienceSkill(
 
 export async function disableExperience(
     skillId
-) {
-
+){
 
     const id =
+
         String(
             skillId || ""
         )
@@ -405,9 +533,11 @@ export async function disableExperience(
 
 
 
-    if (
+
+
+    if(
         !id
-    ) {
+    ){
 
         throw new Error(
             "Skill ID отсутствует"
@@ -417,35 +547,53 @@ export async function disableExperience(
 
 
 
+
+
+
+
     const supabase =
+
         getSupabaseClient();
 
 
 
 
+
+
+
     const {
+
         data,
+
         error
+
     }
+
     =
+
     await supabase
+
         .from(
             EXPERIENCE_TABLE
         )
+
         .update({
 
             enabled:false,
 
 
             updated_at:
+
                 new Date()
-                    .toISOString()
+                .toISOString()
 
         })
+
         .eq(
             "id",
             id
         )
+
         .select(
             "id"
         );
@@ -453,15 +601,23 @@ export async function disableExperience(
 
 
 
-    if (
+
+
+
+    if(
         error
-    ) {
+    ){
 
         throw new Error(
+
             `Disable Experience error: ${error.message}`
+
         );
 
     }
+
+
+
 
 
 
@@ -470,14 +626,18 @@ export async function disableExperience(
 
 
         success:
+
             Array.isArray(data)
+
             &&
+
             data.length > 0,
+
 
 
         id
 
-    };
 
+    };
 
 }
