@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE SEARCH
+ * JESSICA EXPERIENCE SEARCH v0.5
  * =========================================================
  *
  * Центральный координатор поиска Experience.
@@ -9,6 +9,8 @@
  * Flow:
  *
  * Task
+ *   ↓
+ * Experience Profile
  *   ↓
  * Experience Matcher
  *   ↓
@@ -21,6 +23,7 @@
  *
  * Ответственность:
  *
+ * - подготовить Skills к поиску;
  * - выбрать лучший Skill;
  * - вернуть confidence;
  * - вернуть причины совпадения.
@@ -41,6 +44,13 @@
 import {
     calculateExperienceMatch
 } from "./experienceSearch/experienceMatcher.js";
+
+
+import {
+    buildExperienceProfile
+} from "./experienceProfile.js";
+
+
 
 
 
@@ -66,6 +76,7 @@ const MAX_RANKING_ITEMS =
 
 
 
+
 /*
  * =========================================================
  * EMPTY MATCH
@@ -73,7 +84,8 @@ const MAX_RANKING_ITEMS =
  */
 
 
-function emptyMatch() {
+function emptyMatch()
+{
 
 
     return {
@@ -104,6 +116,8 @@ function emptyMatch() {
 
 
 
+
+
 /*
  * =========================================================
  * EMPTY RESULT
@@ -112,11 +126,13 @@ function emptyMatch() {
 
 
 function notFoundResult(
+
     match = emptyMatch(),
 
     ranking = []
 
-) {
+)
+{
 
 
     return {
@@ -165,6 +181,9 @@ function notFoundResult(
 
 
 
+
+
+
 /*
  * =========================================================
  * VALID EXPERIENCE
@@ -174,7 +193,8 @@ function notFoundResult(
 
 function isUsableExperience(
     experience
-) {
+)
+{
 
 
     return Boolean(
@@ -196,6 +216,8 @@ function isUsableExperience(
 
 
 
+
+
 /*
  * =========================================================
  * RANK EXPERIENCES
@@ -209,7 +231,8 @@ function rankExperiences(
 
     experiences
 
-) {
+)
+{
 
 
     return experiences
@@ -225,15 +248,43 @@ function rankExperiences(
             experience => {
 
 
+                /*
+                 * Создаем поисковый профиль.
+                 *
+                 * Здесь объединяются:
+                 *
+                 * name
+                 * description
+                 * workflow
+                 * examples
+                 * validationRules
+                 * triggerPatterns
+                 *
+                 */
+
+
+                const profile =
+
+                    buildExperienceProfile(
+                        experience
+                    );
+
+
+
+
+
                 const match =
 
                     calculateExperienceMatch(
 
                         task,
 
-                        experience
+                        profile
 
                     );
+
+
+
 
 
 
@@ -243,13 +294,19 @@ function rankExperiences(
                     experience,
 
 
+                    profile,
+
+
                     match,
 
 
+
                     confidence:
+
                         Number(
                             match?.confidence || 0
                         )
+
 
 
                 };
@@ -265,26 +322,120 @@ function rankExperiences(
             (a,b) =>
 
                 b.confidence -
+
                 a.confidence
 
         );
+
 
 }
 
 
 
 
+
+
+
+
+
 /*
  * =========================================================
- * BUILD FOUND RESULT
+ * PUBLIC RANKING
+ * =========================================================
+ */
+
+
+function buildPublicRanking(
+    ranking
+)
+{
+
+
+    return ranking
+
+        .slice(
+            0,
+            MAX_RANKING_ITEMS
+        )
+
+
+        .map(
+
+            item => ({
+
+
+                skillId:
+
+                    item
+                        .experience
+                        ?.id
+
+                    ||
+
+                    null,
+
+
+
+                name:
+
+                    item
+                        .experience
+                        ?.name
+
+                    ||
+
+                    "",
+
+
+
+                confidence:
+
+                    item.confidence,
+
+
+
+                matchedTerms:
+
+                    item
+                        .match
+                        ?.matchedTerms
+
+                    ||
+
+                    []
+
+
+
+            })
+
+        );
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * FOUND RESULT
  * =========================================================
  */
 
 
 function foundResult(
+
     item,
+
     ranking
-) {
+
+)
+{
 
 
     return {
@@ -294,27 +445,46 @@ function foundResult(
             true,
 
 
+
         experience:
+
             item.experience,
 
 
+
         confidence:
+
             item.confidence,
 
 
 
         matchedTerms:
-            item.match?.matchedTerms || [],
+
+            item.match?.matchedTerms
+
+            ||
+
+            [],
 
 
 
         matchedPhrases:
-            item.match?.matchedPhrases || [],
+
+            item.match?.matchedPhrases
+
+            ||
+
+            [],
 
 
 
         matchReasons:
-            item.match?.reasons || [],
+
+            item.match?.reasons
+
+            ||
+
+            [],
 
 
 
@@ -323,6 +493,7 @@ function foundResult(
 
 
         source:
+
             "experience-search"
 
 
@@ -331,6 +502,9 @@ function foundResult(
 
 
 }
+
+
+
 
 
 
@@ -350,8 +524,8 @@ export function searchExperience(
 
     experiences = []
 
-) {
-
+)
+{
 
 
     if (
@@ -372,12 +546,15 @@ export function searchExperience(
 
         experiences.length === 0
 
-    ) {
+    )
+    {
 
 
         return notFoundResult();
 
+
     }
+
 
 
 
@@ -392,6 +569,7 @@ export function searchExperience(
 
 
     const ranking =
+
         rankExperiences(
 
             task,
@@ -404,7 +582,18 @@ export function searchExperience(
 
 
 
+    const publicRanking =
+
+        buildPublicRanking(
+            ranking
+        );
+
+
+
+
+
     const top =
+
         ranking[0];
 
 
@@ -413,19 +602,29 @@ export function searchExperience(
 
 
 
+
+
     /*
      * =====================================================
-     * NO RESULT
+     * NOTHING FOUND
      * =====================================================
      */
 
 
-    if (
+    if(
         !top
-    ) {
+    )
+    {
 
 
-        return notFoundResult();
+        return notFoundResult(
+
+            emptyMatch(),
+
+            publicRanking
+
+        );
+
 
     }
 
@@ -434,54 +633,23 @@ export function searchExperience(
 
 
 
-    const publicRanking =
-
-        ranking
-
-            .slice(
-                0,
-                MAX_RANKING_ITEMS
-            )
-
-            .map(
-
-                item => ({
-
-                    skillId:
-                        item.experience?.id ||
-                        null,
-
-
-                    confidence:
-                        item.confidence,
-
-
-                    matchedTerms:
-                        item.match?.matchedTerms || []
-
-                })
-
-            );
-
-
-
-
-
 
 
     /*
      * =====================================================
-     * BELOW CONFIDENCE
+     * CONFIDENCE CHECK
      * =====================================================
      */
 
 
-    if (
+    if(
 
         top.confidence <
+
         MIN_MATCH_CONFIDENCE
 
-    ) {
+    )
+    {
 
 
         return notFoundResult(
@@ -492,7 +660,10 @@ export function searchExperience(
 
         );
 
+
     }
+
+
 
 
 
