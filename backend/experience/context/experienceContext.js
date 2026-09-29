@@ -1,16 +1,14 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE CONTEXT v3
+ * JESSICA EXPERIENCE CONTEXT v4
  * =========================================================
  *
- * Преобразует Experience Skill
- * в Planning Context.
- *
- * Search
- *    ↓
- * Context
- *    ↓
+ * Search Result
+ *       ↓
+ * Experience Context
+ *       ↓
  * Planner
+ *
  *
  * НЕ:
  *
@@ -23,11 +21,15 @@
 
 
 
+
+
 const MAX_ARRAY_ITEMS = 10;
 
 const MAX_WORKFLOW_ITEMS = 20;
 
 const MAX_RANKING_ITEMS = 5;
+
+
 
 
 
@@ -52,9 +54,13 @@ function normalizeArray(
     return value
 
         .map(
+
             item =>
-                String(item || "")
+                String(
+                    item || ""
+                )
                 .trim()
+
         )
 
         .filter(Boolean)
@@ -72,6 +78,8 @@ function normalizeArray(
 
 
 
+
+
 function normalizeNumber(
     value,
     fallback = 0
@@ -81,13 +89,20 @@ function normalizeNumber(
         Number(value);
 
 
+
     return Number.isFinite(number)
+
         ?
+
         number
+
         :
+
         fallback;
 
 }
+
+
 
 
 
@@ -142,11 +157,28 @@ function buildMatchMetadata(
 
             :
 
-            []
+            [],
+
+
+
+
+        matchDetails:
+
+            result?.matchDetails
+
+            ||
+
+            result?.details
+
+            ||
+
+            {}
 
     };
 
 }
+
+
 
 
 
@@ -161,9 +193,15 @@ function buildPlannerHints(
     const hints = [];
 
 
+
+
     hints.push(
+
         "Используй Experience как проверенную рекомендацию, а не как жёсткий сценарий."
+
     );
+
+
 
 
 
@@ -172,10 +210,15 @@ function buildPlannerHints(
     ){
 
         hints.push(
-            "Применяй правила проверки Experience."
+
+            "Проверь результат по Validation Rules."
+
         );
 
     }
+
+
+
 
 
 
@@ -184,10 +227,15 @@ function buildPlannerHints(
     ){
 
         hints.push(
+
             "Избегай известных ошибок предыдущих выполнений."
+
         );
 
     }
+
+
+
 
 
 
@@ -196,15 +244,96 @@ function buildPlannerHints(
     ){
 
         hints.push(
+
             "Используй подтверждённые успешные подходы."
+
         );
 
     }
 
 
+
+
+
+    if(
+        skill.metadata?.learningMode ===
+        "autonomous"
+    ){
+
+        hints.push(
+
+            "Skill создан через автономное обучение Jessica."
+
+        );
+
+    }
+
+
+
+
+
     return hints;
 
 }
+
+
+
+
+
+
+
+
+
+function buildMatchQuality(
+    result,
+    skill
+){
+
+    return {
+
+
+        matchConfidence:
+
+            normalizeNumber(
+                result?.confidence
+            ),
+
+
+
+        skillConfidence:
+
+            normalizeNumber(
+                skill?.confidence
+            ),
+
+
+
+        successfulRuns:
+
+            normalizeNumber(
+                skill?.usage?.successfulRuns
+            ),
+
+
+
+        failedRuns:
+
+            normalizeNumber(
+                skill?.usage?.failedRuns
+            ),
+
+
+
+        learningMode:
+
+            skill?.metadata?.learningMode
+            ||
+            null
+
+    };
+
+}
+
 
 
 
@@ -233,18 +362,27 @@ export function buildExperienceContext(
 
         return {
 
+
             experience:null,
+
 
             sourceRules:[],
 
+
             constraints:[],
+
 
             instructions:[],
 
+
             plannerHints:[],
 
+
+
             metadata:{
+
                 experienceFound:false
+
             }
 
         };
@@ -256,8 +394,12 @@ export function buildExperienceContext(
 
 
 
+
+
     const skill =
+
         experienceResult.experience;
+
 
 
 
@@ -271,8 +413,7 @@ export function buildExperienceContext(
 
         id:
 
-            skill.id ||
-            null,
+            skill.id || null,
 
 
 
@@ -305,12 +446,32 @@ export function buildExperienceContext(
 
 
 
+
+
+
         workflow:
 
             normalizeArray(
+
                 skill.workflow,
+
                 MAX_WORKFLOW_ITEMS
+
             ),
+
+
+
+
+
+
+        triggerPatterns:
+
+            normalizeArray(
+                skill.triggerPatterns
+            ),
+
+
+
 
 
 
@@ -322,11 +483,17 @@ export function buildExperienceContext(
 
 
 
+
+
+
         strategy:
 
             normalizeArray(
                 skill.strategy
             ),
+
+
+
 
 
 
@@ -338,11 +505,17 @@ export function buildExperienceContext(
 
 
 
+
+
+
         constraints:
 
             normalizeArray(
                 skill.constraints
             ),
+
+
+
 
 
 
@@ -354,11 +527,17 @@ export function buildExperienceContext(
 
 
 
+
+
+
         successfulPatterns:
 
             normalizeArray(
                 skill.successfulPatterns
             ),
+
+
+
 
 
 
@@ -371,15 +550,17 @@ export function buildExperienceContext(
 
 
 
-        usage:
 
-        {
+
+        usage:{
+
 
             successfulRuns:
 
                 normalizeNumber(
                     skill.usage?.successfulRuns
                 ),
+
 
 
             failedRuns:
@@ -389,15 +570,20 @@ export function buildExperienceContext(
                 ),
 
 
+
             lastUsedAt:
 
-                skill.usage?.lastUsedAt || null
+                skill.usage?.lastUsedAt
+                ||
+                null
+
+
 
         }
 
-
-
     };
+
+
 
 
 
@@ -408,7 +594,11 @@ export function buildExperienceContext(
     return {
 
 
+
+
         experience,
+
+
 
 
 
@@ -420,11 +610,17 @@ export function buildExperienceContext(
 
 
 
+
+
+
         constraints:
 
             normalizeArray(
                 skill.constraints
             ),
+
+
+
 
 
 
@@ -436,6 +632,9 @@ export function buildExperienceContext(
 
 
 
+
+
+
         plannerHints:
 
             buildPlannerHints(
@@ -444,19 +643,24 @@ export function buildExperienceContext(
 
 
 
-        metadata:
 
 
-        {
+
+
+        metadata:{
+
 
 
             experienceFound:true,
 
 
+
             source:
 
-                experienceResult.source ||
+                experienceResult.source
+                ||
                 "experience-search",
+
 
 
 
@@ -466,15 +670,21 @@ export function buildExperienceContext(
 
 
 
+
+
             skillVersion:
 
                 skill.version,
 
 
 
+
+
             skillConfidence:
 
                 skill.confidence,
+
+
 
 
 
@@ -486,17 +696,39 @@ export function buildExperienceContext(
 
 
 
+
+
+            matchQuality:
+
+                buildMatchQuality(
+
+                    experienceResult,
+
+                    skill
+
+                ),
+
+
+
+
+
             learningMode:
 
-                skill.metadata?.learningMode ||
+                skill.metadata?.learningMode
+                ||
                 null,
+
+
 
 
 
             createdBy:
 
-                skill.metadata?.createdBy ||
+                skill.metadata?.createdBy
+                ||
                 null,
+
+
 
 
 
@@ -507,9 +739,12 @@ export function buildExperienceContext(
 
 
 
+
+
             ...buildMatchMetadata(
                 experienceResult
             )
+
 
 
         }
