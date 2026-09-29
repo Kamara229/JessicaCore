@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING PROPOSAL STORAGE
+ * JESSICA LEARNING PROPOSAL STORAGE v2
  * =========================================================
  *
  * Хранилище Learning Proposal.
@@ -15,19 +15,27 @@
  * learning_proposals
  *
  *
+ * Отвечает:
+ *
+ * - сохранение Proposal;
+ * - сохранение полного контекста обучения.
+ *
+ *
  * НЕ:
  *
  * - создаёт Proposal;
- * - принимает Approval;
+ * - принимает решение;
  * - создаёт Skill.
  *
  * =========================================================
  */
 
 
+
 import {
     getSupabaseClient
 } from "../../storage/supabaseClient.js";
+
 
 
 
@@ -39,10 +47,20 @@ const TABLE_NAME =
 
 
 
+
+
+
+
 function getClient()
 {
+
     return getSupabaseClient();
+
 }
+
+
+
+
 
 
 
@@ -50,28 +68,228 @@ function getClient()
 
 /*
  * =========================================================
- * SAVE PROPOSAL
+ * NORMALIZE
+ * =========================================================
+ */
+
+
+function safeNumber(
+    value
+){
+
+    const number =
+        Number(value);
+
+
+
+    return Number.isFinite(number)
+        ?
+        number
+        :
+        0;
+
+}
+
+
+
+
+
+
+function safeObject(
+    value
+){
+
+    if(
+        !value ||
+        typeof value !== "object" ||
+        Array.isArray(value)
+    ){
+
+        return {};
+
+    }
+
+
+    return value;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD PAYLOAD
+ * =========================================================
+ */
+
+
+function buildPayload(
+    proposal
+){
+
+    return {
+
+
+        id:
+
+            proposal.id,
+
+
+
+        status:
+
+            proposal.status,
+
+
+
+        source:
+
+            proposal.source ||
+            "learning_queue",
+
+
+
+        queue_item_id:
+
+            proposal.queueItemId || null,
+
+
+
+        action:
+
+            proposal.action || null,
+
+
+
+        confidence:
+
+            safeNumber(
+                proposal.confidence
+            ),
+
+
+
+
+
+
+        /*
+         * Полный Experience Candidate
+         */
+
+
+        proposed_experience:
+
+            safeObject(
+                proposal.proposedExperience
+            ),
+
+
+
+
+
+
+        /*
+         * Анализ пригодности
+         */
+
+
+        analysis:
+
+            safeObject(
+                proposal.analysis
+            ),
+
+
+
+
+
+
+        /*
+         * Целевой Skill
+         */
+
+
+        target_skill:
+
+            safeObject(
+                proposal.targetSkill
+            ),
+
+
+
+
+
+
+        created_at:
+
+            proposal.createdAt
+
+            ||
+
+            new Date()
+                .toISOString(),
+
+
+
+
+        approved_at:
+
+            proposal.approvedAt
+            ||
+            null,
+
+
+
+        rejected_at:
+
+            proposal.rejectedAt
+            ||
+            null
+
+
+    };
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SAVE
  * =========================================================
  */
 
 
 export async function saveLearningProposal(
     proposal
-) {
+){
 
-
-    if (
+    if(
         !proposal ||
         typeof proposal !== "object"
-    ) {
+    ){
 
         return {
 
-            success:
-                false,
+
+            success:false,
+
 
             error:
                 "Invalid proposal"
+
 
         };
 
@@ -79,47 +297,19 @@ export async function saveLearningProposal(
 
 
 
+
+
+
     try {
 
 
-        const payload = {
+        const payload =
+
+            buildPayload(
+                proposal
+            );
 
 
-            id:
-                proposal.id,
-
-
-            status:
-                proposal.status,
-
-
-            source:
-                proposal.source || "learning_queue",
-
-
-            queue_item_id:
-                proposal.queueItemId || null,
-
-
-            action:
-                proposal.action || null,
-
-
-            confidence:
-                proposal.confidence || 0,
-
-
-            proposed_experience:
-                proposal.proposedExperience || {},
-
-
-            created_at:
-                proposal.createdAt ||
-                new Date()
-                    .toISOString()
-
-
-        };
 
 
 
@@ -129,6 +319,7 @@ export async function saveLearningProposal(
             data,
             error
         } =
+
             await getClient()
 
                 .from(
@@ -147,17 +338,21 @@ export async function saveLearningProposal(
 
 
 
-        if (
+
+
+        if(
             error
-        ) {
+        ){
 
             return {
 
-                success:
-                    false,
+
+                success:false,
+
 
                 error:
                     error.message
+
 
             };
 
@@ -167,11 +362,12 @@ export async function saveLearningProposal(
 
 
 
+
+
         return {
 
 
-            success:
-                true,
+            success:true,
 
 
             proposal:
@@ -182,18 +378,160 @@ export async function saveLearningProposal(
 
 
 
-    } catch(error) {
+
+
+
+
+    } catch(error){
+
 
 
         return {
 
-            success:
-                false,
+
+            success:false,
+
 
             error:
                 error.message
 
+
         };
+
+
+    }
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * UPDATE STATUS
+ * =========================================================
+ */
+
+
+export async function updateLearningProposalStatus(
+    id,
+    status
+){
+
+    if(
+        !id ||
+        !status
+    ){
+
+        return {
+
+
+            success:false,
+
+
+            error:
+                "Missing id or status"
+
+
+        };
+
+    }
+
+
+
+
+
+    try{
+
+
+        const {
+            data,
+            error
+        } =
+
+            await getClient()
+
+                .from(
+                    TABLE_NAME
+                )
+
+                .update({
+
+                    status
+
+                })
+
+                .eq(
+                    "id",
+                    id
+                )
+
+                .select()
+                .single();
+
+
+
+
+
+
+        if(
+            error
+        ){
+
+            return {
+
+
+                success:false,
+
+
+                error:
+                    error.message
+
+
+            };
+
+        }
+
+
+
+
+
+
+        return {
+
+
+            success:true,
+
+
+            proposal:
+                data
+
+
+        };
+
+
+
+    }catch(error){
+
+
+        return {
+
+
+            success:false,
+
+
+            error:
+                error.message
+
+
+        };
+
 
     }
 
