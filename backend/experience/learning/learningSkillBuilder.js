@@ -3,50 +3,38 @@ import {
 } from "node:crypto";
 
 
+
 /*
  * =========================================================
- * JESSICA LEARNING SKILL BUILDER v2
+ * JESSICA LEARNING SKILL BUILDER v3
  * =========================================================
  *
- * Создает Experience Skill из Learning Proposal.
+ * Создание Experience Skill.
  *
  *
  * Flow:
  *
  * Learning Proposal
  *        ↓
- * Skill Builder
+ * Autonomy Approval
  *        ↓
- * Experience Skill
+ * Skill Builder
  *        ↓
  * Experience Storage
  *
  *
- * Ответственность:
- *
- * - нормализация Skill;
- * - создание ID;
- * - создание версии;
- * - сохранение метаданных обучения.
- *
- *
  * НЕ:
  *
- * - Approval;
- * - AI;
- * - поиск истории;
- * - сохранение в БД.
+ * - принимает решение обучения;
+ * - работает с БД;
+ * - ищет версии;
+ * - вызывает AI.
  *
  * =========================================================
  */
 
 
 
-/*
- * =========================================================
- * TRANSLITERATION
- * =========================================================
- */
 
 
 const TRANSLITERATION = {
@@ -92,11 +80,7 @@ const TRANSLITERATION = {
 
 
 
-/*
- * =========================================================
- * NORMALIZE
- * =========================================================
- */
+
 
 
 function normalizeText(
@@ -109,6 +93,10 @@ function normalizeText(
     .trim();
 
 }
+
+
+
+
 
 
 
@@ -145,6 +133,9 @@ function normalizeArray(
 
 
 
+
+
+
 function normalizeConfidence(
     value
 ){
@@ -163,17 +154,11 @@ function normalizeConfidence(
 
 
     return Math.max(
-
         0,
-
         Math.min(
-
             1,
-
             number
-
         )
-
     );
 
 }
@@ -184,9 +169,42 @@ function normalizeConfidence(
 
 
 
+
+
+function normalizeVersion(
+    value
+){
+
+    const version =
+        Number(value);
+
+
+    if(
+        !Number.isInteger(version)
+        ||
+        version < 1
+    ){
+
+        return 1;
+
+    }
+
+
+    return version;
+
+}
+
+
+
+
+
+
+
+
+
 /*
  * =========================================================
- * SKILL ID
+ * BUILD SKILL ID
  * =========================================================
  */
 
@@ -206,12 +224,10 @@ export function buildLearningSkillId(
         .split("")
 
         .map(
-
             char =>
                 TRANSLITERATION[char]
                 ??
                 char
-
         )
 
         .join("")
@@ -265,40 +281,6 @@ export function buildLearningSkillId(
 
 
 
-/*
- * =========================================================
- * VERSION
- * =========================================================
- */
-
-
-function normalizeVersion(
-    value
-){
-
-    const version =
-        Number(value);
-
-
-    if(
-        !Number.isInteger(version)
-        ||
-        version < 1
-    ){
-
-        return 1;
-
-    }
-
-
-    return version;
-
-}
-
-
-
-
-
 
 
 /*
@@ -329,7 +311,8 @@ export function buildExperienceSkill({
 
 
     if(
-        !proposedExperience ||
+        !proposedExperience
+        ||
         typeof proposedExperience !== "object"
     ){
 
@@ -369,7 +352,9 @@ export function buildExperienceSkill({
 
     const id =
 
-        normalizeText(skillId)
+        normalizeText(
+            skillId
+        )
 
         ||
 
@@ -384,7 +369,11 @@ export function buildExperienceSkill({
 
 
 
+
     return {
+
+
+
 
 
         /*
@@ -406,16 +395,6 @@ export function buildExperienceSkill({
 
 
 
-        description:
-
-            normalizeText(
-                proposedExperience.description
-            ),
-
-
-
-
-
         category:
 
             normalizeText(
@@ -423,6 +402,14 @@ export function buildExperienceSkill({
             )
             ||
             "general",
+
+
+
+        description:
+
+            normalizeText(
+                proposedExperience.description
+            ),
 
 
 
@@ -463,13 +450,14 @@ export function buildExperienceSkill({
 
 
 
+
+
         /*
          * STATUS
          */
 
 
-        enabled:
-            true,
+        enabled:true,
 
 
 
@@ -478,7 +466,6 @@ export function buildExperienceSkill({
             normalizeConfidence(
                 confidence
             ),
-
 
 
 
@@ -496,9 +483,13 @@ export function buildExperienceSkill({
             Array.isArray(
                 proposedExperience.workflow
             )
+
             ?
+
             proposedExperience.workflow
+
             :
+
             [],
 
 
@@ -515,6 +506,14 @@ export function buildExperienceSkill({
 
             normalizeArray(
                 proposedExperience.keywords
+            ),
+
+
+
+        tags:
+
+            normalizeArray(
+                proposedExperience.tags
             ),
 
 
@@ -551,18 +550,18 @@ export function buildExperienceSkill({
 
 
 
-        failurePatterns:
-
-            normalizeArray(
-                proposedExperience.failurePatterns
-            ),
-
-
-
         successfulPatterns:
 
             normalizeArray(
                 proposedExperience.successfulPatterns
+            ),
+
+
+
+        failurePatterns:
+
+            normalizeArray(
+                proposedExperience.failurePatterns
             ),
 
 
@@ -580,9 +579,13 @@ export function buildExperienceSkill({
             Array.isArray(
                 proposedExperience.examples
             )
+
             ?
+
             proposedExperience.examples
+
             :
+
             [],
 
 
@@ -591,29 +594,25 @@ export function buildExperienceSkill({
 
 
 
-
         /*
-         * USAGE MEMORY
+         * RUNTIME MEMORY
          */
 
 
-        usage:{
+        statistics:{
 
 
-            successfulRuns:
-                0,
+            successfulRuns:0,
 
 
-            failedRuns:
-                0,
+            failedRuns:0,
 
 
-            lastUsedAt:
-                null,
+            lastUsedAt:null,
 
 
-            lastResult:
-                null
+            lastResult:null
+
 
         },
 
@@ -624,8 +623,9 @@ export function buildExperienceSkill({
 
 
 
+
         /*
-         * AUTONOMOUS LEARNING META
+         * LEARNING META
          */
 
 
@@ -638,12 +638,10 @@ export function buildExperienceSkill({
                 null,
 
 
-
             queueItemId:
 
                 metadata.queueItemId ||
                 null,
-
 
 
             learnedFrom:
@@ -653,27 +651,33 @@ export function buildExperienceSkill({
 
 
 
-            learningMode:
+            learning:
 
-                metadata.learningMode ||
-                "autonomous",
+
+                metadata.learning
+                ||
+                null,
 
 
 
             createdBy:
 
-                metadata.createdBy ||
+                metadata.createdBy
+                ||
                 "jessica-learning",
 
 
 
             sourceExperience:
 
-                metadata.sourceExperience ||
+                metadata.sourceExperience
+                ||
                 null
 
 
         },
+
+
 
 
 
@@ -686,9 +690,9 @@ export function buildExperienceSkill({
 
 
 
-        learningVersion:
+        builderVersion:
 
-            "v2"
+            "v3"
 
 
     };
