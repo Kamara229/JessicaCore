@@ -6,7 +6,7 @@ import {
 
 /*
  * =========================================================
- * JESSICA SUPABASE EXPERIENCE STORE v2
+ * JESSICA SUPABASE EXPERIENCE STORE v3
  * =========================================================
  *
  * Активная память Experience.
@@ -14,16 +14,16 @@ import {
  *
  * Отвечает:
  *
- * - загрузка Skills;
- * - получение последней версии;
+ * - загрузка актуальных Skills;
+ * - получение Skill;
  * - отключение Skill.
  *
  *
  * НЕ:
  *
  * - обучает;
- * - создаёт Skill;
- * - сохраняет версии.
+ * - создаёт версии;
+ * - сохраняет Skill.
  *
  * =========================================================
  */
@@ -32,6 +32,8 @@ import {
 
 const EXPERIENCE_TABLE =
     "jessica_experience_skills";
+
+
 
 
 
@@ -54,6 +56,8 @@ function normalizeArray(
         [];
 
 }
+
+
 
 
 
@@ -92,6 +96,7 @@ function normalizeSkill(
 
 
 
+
     if(
         !id
     ){
@@ -99,6 +104,9 @@ function normalizeSkill(
         return null;
 
     }
+
+
+
 
 
 
@@ -139,10 +147,38 @@ function normalizeSkill(
 
 
 
+
+        category:
+
+            value.category ||
+            "general",
+
+
+
+
+
+
+
         workflow:
 
             normalizeArray(
                 value.workflow
+            ),
+
+
+
+        keywords:
+
+            normalizeArray(
+                value.keywords
+            ),
+
+
+
+        tags:
+
+            normalizeArray(
+                value.tags
             ),
 
 
@@ -167,6 +203,22 @@ function normalizeSkill(
 
             normalizeArray(
                 value.constraints
+            ),
+
+
+
+        strategy:
+
+            normalizeArray(
+                value.strategy
+            ),
+
+
+
+        sourcePriority:
+
+            normalizeArray(
+                value.sourcePriority
             ),
 
 
@@ -197,34 +249,67 @@ function normalizeSkill(
 
 
 
-        usage:
+
+
+        statistics:
 
         {
+
 
             successfulRuns:
 
                 Number(
-                    value.usage?.successfulRuns || 0
+
+                    value.statistics
+                    ?.successfulRuns
+
+                    ||
+
+                    0
+
                 ),
+
 
 
             failedRuns:
 
                 Number(
-                    value.usage?.failedRuns || 0
+
+                    value.statistics
+                    ?.failedRuns
+
+                    ||
+
+                    0
+
                 ),
+
 
 
             lastUsedAt:
 
-                value.usage?.lastUsedAt || null,
+                value.statistics
+                ?.lastUsedAt
+
+                ||
+
+                null,
+
 
 
             lastResult:
 
-                value.usage?.lastResult || null
+                value.statistics
+                ?.lastResult
+
+                ||
+
+                null
+
 
         },
+
+
 
 
 
@@ -292,11 +377,6 @@ export async function loadExperiences()
             `
         )
 
-        /*
-         * Берём все версии.
-         * Фильтр enabled делаем после выбора версии.
-         */
-
         .order(
             "version",
             {
@@ -328,6 +408,7 @@ export async function loadExperiences()
 
 
 
+
     if(
         !Array.isArray(data)
     ){
@@ -335,6 +416,7 @@ export async function loadExperiences()
         return [];
 
     }
+
 
 
 
@@ -351,9 +433,12 @@ export async function loadExperiences()
 
 
 
+
+
     for(
         const row of data
     ){
+
 
         const skill =
 
@@ -362,9 +447,11 @@ export async function loadExperiences()
                 ...(row.payload || {}),
 
 
+
                 id:
 
                     row.id,
+
 
 
                 version:
@@ -372,9 +459,11 @@ export async function loadExperiences()
                     row.version,
 
 
+
                 enabled:
 
                     row.enabled
+
 
             });
 
@@ -389,6 +478,7 @@ export async function loadExperiences()
             continue;
 
         }
+
 
 
 
@@ -431,13 +521,18 @@ export async function loadExperiences()
 
 
 
+
+
     return Array.from(
+
         latest.values()
+
     )
 
     .filter(
 
         skill =>
+
             skill.enabled === true
 
     );
@@ -455,7 +550,7 @@ export async function loadExperiences()
 
 /*
  * =========================================================
- * LOAD SINGLE SKILL
+ * LOAD SINGLE
  * =========================================================
  */
 
@@ -474,6 +569,7 @@ export async function loadExperienceSkill(
 
 
 
+
     if(
         !id
     ){
@@ -486,9 +582,12 @@ export async function loadExperienceSkill(
 
 
 
+
+
     const skills =
 
         await loadExperiences();
+
 
 
 
@@ -502,6 +601,7 @@ export async function loadExperienceSkill(
     )
     ||
     null;
+
 
 }
 
@@ -561,12 +661,10 @@ export async function disableExperience(
 
 
 
+
     const {
-
         data,
-
         error
-
     }
 
     =
@@ -587,6 +685,7 @@ export async function disableExperience(
                 new Date()
                 .toISOString()
 
+
         })
 
         .eq(
@@ -597,6 +696,8 @@ export async function disableExperience(
         .select(
             "id"
         );
+
+
 
 
 
