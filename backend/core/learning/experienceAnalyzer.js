@@ -1,43 +1,117 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE ANALYZER
+ * JESSICA EXPERIENCE ANALYZER v2
  * =========================================================
  *
  * Анализирует Execution Trace.
  *
  *
- * Определяет:
+ * Главная задача:
  *
- * - улучшать существующий Skill;
+ * определить:
+ *
+ * - можно ли превратить опыт в Skill;
  * - создать новый Skill;
+ * - улучшить существующий Skill;
  * - игнорировать опыт.
  *
  *
  * НЕ:
  *
- * - сохраняет Experience;
+ * - сохраняет Skill;
  * - пишет в Supabase;
- * - создаёт Skill.
+ * - изменяет Experience.
  *
- * Только анализ.
+ * Только создаёт Learning Candidate.
  *
  * =========================================================
  */
-
-
-
-
 
 
 
 /*
  * =========================================================
- * REUSABLE PATTERNS
+ * REUSABLE EXPERIENCE PATTERNS
+ * =========================================================
+ *
+ * Временная база паттернов.
+ *
+ * Позже заменится на:
+ *
+ * Experience Memory
+ *        +
+ * AI extraction
+ *
  * =========================================================
  */
 
 
 const REUSABLE_PATTERNS = [
+
+    {
+
+        id:
+            "official-source-verification",
+
+
+        name:
+            "Проверка официального источника",
+
+
+        category:
+            "verification",
+
+
+        description:
+            "Навык поиска, проверки и подтверждения официальных источников информации.",
+
+
+        keywords:
+        [
+
+            "официальный сайт",
+
+            "официальный источник",
+
+            "документ",
+
+            "сертификат",
+
+            "проверить",
+
+            "подтверждение"
+
+        ],
+
+
+        workflow:
+        [
+
+            "найти потенциальный источник",
+
+            "проверить принадлежность источника",
+
+            "сопоставить данные",
+
+            "сформировать подтверждённый вывод"
+
+        ],
+
+
+        validationRules:
+        [
+
+            "использовать первичные источники",
+
+            "проверять соответствие источника запросу",
+
+            "не использовать неподтверждённые данные"
+
+        ]
+
+    },
+
+
 
 
     {
@@ -46,7 +120,20 @@ const REUSABLE_PATTERNS = [
             "company-contact-finder",
 
 
-        keywords:[
+        name:
+            "Поиск контактов организации",
+
+
+        category:
+            "web-research",
+
+
+        description:
+            "Навык поиска контактной информации организаций.",
+
+
+        keywords:
+        [
 
             "контакт",
 
@@ -58,46 +145,35 @@ const REUSABLE_PATTERNS = [
 
             "адрес компании",
 
-            "support",
-
-            "contact"
+            "support"
 
         ],
 
 
-        category:
-            "web-research"
+        workflow:
+        [
 
-    },
+            "найти официальный ресурс",
 
+            "извлечь контактные данные",
 
+            "проверить актуальность",
 
-    {
-
-        id:
-            "official-source-verification",
-
-
-        keywords:[
-
-            "официальный сайт",
-
-            "официальный источник",
-
-            "документ",
-
-            "сертификат",
-
-            "проверить"
+            "предоставить результат"
 
         ],
 
 
-        category:
-            "verification"
+        validationRules:
+        [
+
+            "использовать официальный источник",
+
+            "проверять актуальность контактов"
+
+        ]
 
     }
-
 
 ];
 
@@ -107,10 +183,9 @@ const REUSABLE_PATTERNS = [
 
 
 
-
 /*
  * =========================================================
- * TEXT
+ * HELPERS
  * =========================================================
  */
 
@@ -118,7 +193,6 @@ const REUSABLE_PATTERNS = [
 function normalizeText(
     value
 ) {
-
 
     return String(
         value || ""
@@ -133,17 +207,39 @@ function normalizeText(
 
 
 
+function countExamples(
+    trace
+) {
+
+    if (
+        Array.isArray(
+            trace?.examples
+        )
+    ) {
+
+        return trace.examples.length;
+
+    }
+
+
+    return 1;
+
+}
+
+
+
+
 
 
 
 /*
  * =========================================================
- * DETECT PATTERN
+ * FIND PATTERN
  * =========================================================
  */
 
 
-function detectPattern(
+function detectReusablePattern(
     task
 ) {
 
@@ -154,10 +250,8 @@ function detectPattern(
         );
 
 
-
     let best =
         null;
-
 
 
     let score =
@@ -167,7 +261,7 @@ function detectPattern(
 
 
 
-    for (
+    for(
         const pattern
         of REUSABLE_PATTERNS
     ) {
@@ -188,11 +282,9 @@ function detectPattern(
 
 
 
-
-        if (
+        if(
             matches > score
-        ) {
-
+        ){
 
             score =
                 matches;
@@ -201,19 +293,16 @@ function detectPattern(
             best =
                 pattern;
 
-
         }
-
 
     }
 
 
 
 
-
-    if (
+    if(
         !best
-    ) {
+    ){
 
         return null;
 
@@ -222,27 +311,24 @@ function detectPattern(
 
 
 
+
     return {
 
 
-        skillId:
-
-            best.id,
-
-
-
-        category:
-
-            best.category,
-
+        ...best,
 
 
         confidence:
 
             Math.min(
-                score / 5,
+
+                score /
+                best.keywords.length,
+
                 1
+
             )
+
 
     };
 
@@ -256,10 +342,9 @@ function detectPattern(
 
 
 
-
 /*
  * =========================================================
- * EXPERIENCE USAGE
+ * EXISTING SKILL IMPROVEMENT
  * =========================================================
  */
 
@@ -274,10 +359,10 @@ function analyzeExistingSkill(
 
 
 
-    if (
+    if(
         !usage ||
         usage.used !== true
-    ) {
+    ){
 
         return null;
 
@@ -285,21 +370,17 @@ function analyzeExistingSkill(
 
 
 
-
-
-    if (
+    if(
         !Array.isArray(
             usage.skills
         )
         ||
         usage.skills.length === 0
-    ) {
+    ){
 
         return null;
 
     }
-
-
 
 
 
@@ -314,17 +395,21 @@ function analyzeExistingSkill(
 
 
 
+        reusable:
+
+            true,
+
+
+
         reason:
 
-            "Использованный Skill дал новый успешный опыт",
+            "Существующий Skill получил новый успешный опыт",
 
 
 
         skillCandidate:
 
-
         {
-
 
             skills:
 
@@ -332,22 +417,45 @@ function analyzeExistingSkill(
 
 
 
-            source:
+            examples:
 
-                "execution-trace",
+            [
+
+                {
+
+                    task:
+
+                        trace.task,
+
+
+                    result:
+
+                        trace.result || "",
+
+
+                    success:
+
+                        true
+
+                }
+
+            ],
 
 
 
             confidence:
 
-                0.9
+                0.9,
 
+
+            source:
+
+                "execution-trace"
 
         }
 
 
     };
-
 
 }
 
@@ -361,7 +469,7 @@ function analyzeExistingSkill(
 
 /*
  * =========================================================
- * NEW SKILL DETECTION
+ * NEW SKILL
  * =========================================================
  */
 
@@ -373,20 +481,20 @@ function analyzeNewSkill(
 
     const pattern =
 
-        detectPattern(
+        detectReusablePattern(
             trace.task
         );
 
 
 
-    if (
+    if(
         !pattern
-    ) {
-
+    ){
 
         return null;
 
     }
+
 
 
 
@@ -401,26 +509,85 @@ function analyzeNewSkill(
 
 
 
+        reusable:
+
+            true,
+
+
+
         reason:
 
-            "Обнаружен повторяемый сценарий без существующего Skill",
+            "Обнаружен повторяемый сценарий, пригодный для Skill",
 
 
 
         skillCandidate:
 
-
         {
+
 
             skillId:
 
-                pattern.skillId,
+                pattern.id,
 
+
+            name:
+
+                pattern.name,
 
 
             category:
 
                 pattern.category,
+
+
+            description:
+
+                pattern.description,
+
+
+
+            workflow:
+
+                pattern.workflow,
+
+
+
+            validationRules:
+
+                pattern.validationRules,
+
+
+
+            examples:
+
+            [
+
+                {
+
+                    task:
+
+                        trace.task,
+
+
+                    result:
+
+                        trace.result || "",
+
+
+                    success:
+
+                        true
+
+                }
+
+            ],
+
+
+
+            constraints:
+
+            [],
 
 
 
@@ -434,12 +601,10 @@ function analyzeNewSkill(
 
                 "execution-trace"
 
-
         }
 
 
     };
-
 
 }
 
@@ -453,7 +618,7 @@ function analyzeNewSkill(
 
 /*
  * =========================================================
- * MAIN ANALYSIS
+ * MAIN
  * =========================================================
  */
 
@@ -463,37 +628,50 @@ export function analyzeExecutionTrace(
 ) {
 
 
-    if (
+    if(
         !trace ||
         typeof trace !== "object"
-    ) {
-
+    ){
 
         return {
 
-
             action:
-
                 "IGNORE",
 
-
-
             reusable:
-
                 false,
 
-
-
             reason:
-
-                "Нет Execution Trace",
-
-
+                "Execution Trace отсутствует",
 
             skillCandidate:
-
                 null
 
+        };
+
+    }
+
+
+
+
+
+    if(
+        (trace.stats?.completed || 0) <= 0
+    ){
+
+        return {
+
+            action:
+                "IGNORE",
+
+            reusable:
+                false,
+
+            reason:
+                "Нет успешного выполнения",
+
+            skillCandidate:
+                null
 
         };
 
@@ -505,59 +683,9 @@ export function analyzeExecutionTrace(
 
 
 
-    /*
-     * Только успешные выполнения
-     */
-
-
-    if (
-        (trace.stats?.completed || 0) === 0
-    ) {
-
-
-        return {
-
-
-            action:
-
-                "IGNORE",
-
-
-
-            reusable:
-
-                false,
-
-
-
-            reason:
-
-                "Нет успешного результата",
-
-
-
-            skillCandidate:
-
-                null
-
-
-        };
-
-
-    }
-
-
-
-
-
-
-
-
 
     /*
-     * Сначала проверяем:
-     *
-     * был ли использован Skill
+     * 1. Улучшение существующего Skill
      */
 
 
@@ -569,24 +697,11 @@ export function analyzeExecutionTrace(
 
 
 
-    if (
+    if(
         existingSkill
-    ) {
+    ){
 
-
-        return {
-
-
-            reusable:
-
-                true,
-
-
-            ...existingSkill
-
-
-        };
-
+        return existingSkill;
 
     }
 
@@ -597,9 +712,8 @@ export function analyzeExecutionTrace(
 
 
 
-
     /*
-     * Потом ищем новый Skill
+     * 2. Новый Skill
      */
 
 
@@ -611,24 +725,11 @@ export function analyzeExecutionTrace(
 
 
 
-    if (
+    if(
         newSkill
-    ) {
+    ){
 
-
-        return {
-
-
-            reusable:
-
-                true,
-
-
-            ...newSkill
-
-
-        };
-
+        return newSkill;
 
     }
 
@@ -639,19 +740,16 @@ export function analyzeExecutionTrace(
 
 
 
-
     /*
-     * Нечему учиться
+     * 3. Игнор
      */
 
 
     return {
 
-
         action:
 
             "IGNORE",
-
 
 
         reusable:
@@ -659,19 +757,15 @@ export function analyzeExecutionTrace(
             false,
 
 
-
         reason:
 
-            "Повторяемый опыт не найден",
-
+            "Недостаточно признаков повторяемого навыка",
 
 
         skillCandidate:
 
             null
 
-
     };
-
 
 }
