@@ -1,228 +1,153 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE MATCHER v0.4
+ * JESSICA EXPERIENCE MATCHER v0.5
  * =========================================================
  *
- * Слой сопоставления задачи с одним Experience Skill.
+ * Match Task → Experience Skill
  *
+ * Приоритет:
  *
- * Отвечает за:
+ * 1. triggerPatterns
+ * 2. keywords
+ * 3. workflow
+ * 4. successfulPatterns
+ * 5. name
+ * 6. description
  *
- * - phrase matching;
- * - keyword matching;
- * - token overlap;
- * - расчёт confidence;
- * - диагностические matchedTerms;
- * - диагностические matchedPhrases.
+ * НЕ:
  *
- *
- * НЕ отвечает за:
- *
- * - выбор лучшего Skill среди нескольких;
- * - threshold found / not found;
- * - Storage;
- * - AI;
- * - языковую нормализацию.
- *
- *
- * Языковая нормализация находится в:
- *
- * experienceText.js
+ * - выбирает Skill;
+ * - читает Storage;
+ * - вызывает AI.
  *
  * =========================================================
  */
 
 
 import {
+
     normalizeExperienceText,
+
     canonicalizeExperienceTokens,
+
     uniqueExperienceValues,
+
     normalizeExperienceStringArray
-} from "./experienceText.js";
+
+}
+from "./experienceText.js";
 
 
-/*
- * =========================================================
- * SCORE WEIGHTS
- * =========================================================
- */
+
+
 
 
 const SCORE = {
 
-    /*
-     * Полное совпадение keyword-фразы.
-     *
-     * Например:
-     *
-     * official website
-     * ↔
-     * официальный сайт
-     *
-     * current time
-     * ↔
-     * сейчас час
-     */
+
+    TRIGGER_PHRASE:
+        0.50,
+
+
+    TRIGGER_TERM:
+        0.30,
+
 
     KEYWORD_PHRASE:
-        0.45,
+        0.35,
 
-
-    /*
-     * Однословный keyword.
-     */
 
     KEYWORD_TERM:
-        0.25,
+        0.20,
 
 
-    /*
-     * Concepts из имени Skill.
-     */
-
-    NAME:
-        0.25,
+    WORKFLOW:
+        0.20,
 
 
-    /*
-     * Tags.
-     */
-
-    TAG:
+    SUCCESS_PATTERN:
         0.15,
 
 
-    /*
-     * Description.
-     */
+    NAME:
+        0.15,
+
 
     DESCRIPTION:
-        0.10
+        0.05
 
 };
 
 
-/*
- * =========================================================
- * EMPTY MATCH
- * =========================================================
- */
 
 
-function createEmptyMatch() {
+
+
+
+function emptyMatch(){
 
     return {
 
-        confidence:
-            0,
+        confidence:0,
 
-        matchedTerms:
-            [],
+        matchedTerms:[],
 
-        matchedPhrases:
-            []
+        matchedPhrases:[],
+
+        reasons:[]
 
     };
 
 }
 
 
-/*
- * =========================================================
- * PHRASE EXISTS
- * =========================================================
- *
- * Проверяет именно последовательность concepts.
- *
- *
- * Пример:
- *
- * task:
- *
- * [search, official, website, blender]
- *
- * phrase:
- *
- * [official, website]
- *
- * → true
- *
- *
- * task:
- *
- * [search, official, website, banana, engine]
- *
- * phrase:
- *
- * [search, engine]
- *
- * → false
- *
- *
- * Поэтому слово Engine в названии продукта
- * больше не создаёт ложный match с:
- *
- * "search engine".
- *
- * =========================================================
- */
 
 
-function containsExperiencePhrase(
+
+
+
+
+function containsPhrase(
     taskTokens,
     phraseTokens
-) {
+){
 
-    if (
-        !Array.isArray(
-            taskTokens
-        ) ||
-        !Array.isArray(
-            phraseTokens
-        ) ||
-        phraseTokens.length === 0 ||
-        phraseTokens.length >
-            taskTokens.length
-    ) {
+    if(
+        phraseTokens.length === 0
+    ){
 
         return false;
 
     }
 
 
-    for (
-        let start = 0;
 
-        start <=
-        taskTokens.length -
-        phraseTokens.length;
+    for(
+        let i = 0;
 
-        start++
-    ) {
+        i <= taskTokens.length - phraseTokens.length;
 
-        let matches =
-            true;
+        i++
+    ){
+
+        let ok=true;
 
 
-        for (
-            let offset = 0;
+        for(
+            let j=0;
 
-            offset <
-            phraseTokens.length;
+            j<phraseTokens.length;
 
-            offset++
-        ) {
+            j++
+        ){
 
-            if (
-                taskTokens[
-                    start + offset
-                ] !==
-                phraseTokens[offset]
-            ) {
+            if(
+                taskTokens[i+j]
+                !==
+                phraseTokens[j]
+            ){
 
-                matches =
-                    false;
-
+                ok=false;
                 break;
 
             }
@@ -230,11 +155,8 @@ function containsExperiencePhrase(
         }
 
 
-        if (matches) {
-
+        if(ok)
             return true;
-
-        }
 
     }
 
@@ -244,205 +166,93 @@ function containsExperiencePhrase(
 }
 
 
-/*
- * =========================================================
- * TOKEN OVERLAP
- * =========================================================
- *
- * Сравнивает concepts профиля Skill
- * с concepts пользовательской задачи.
- *
- *
- * Важно:
- *
- * denominator зависит от самого Skill,
- * а НЕ от длины пользовательской задачи.
- *
- * Поэтому название объекта вроде:
- *
- * Quasar Banana Engine ZX-9100
- *
- * не снижает confidence универсального Skill.
- *
- * =========================================================
- */
 
 
-function calculateTokenOverlap(
-    taskTokenSet,
-    profileTokens
-) {
-
-    const uniqueProfileTokens =
-        uniqueExperienceValues(
-            profileTokens
-        );
 
 
-    if (
-        uniqueProfileTokens.length === 0
-    ) {
-
-        return {
-
-            ratio:
-                0,
-
-            matched:
-                []
-
-        };
-
-    }
 
 
-    const matched =
-        uniqueProfileTokens
-            .filter(
-                token =>
-                    taskTokenSet.has(
-                        token
-                    )
-            );
 
-
-    return {
-
-        ratio:
-            matched.length /
-            uniqueProfileTokens.length,
-
-        matched
-
-    };
-
-}
-
-
-/*
- * =========================================================
- * KEYWORD MATCH
- * =========================================================
- */
-
-
-function calculateKeywordMatch(
+function matchPhrases(
     taskTokens,
-    taskTokenSet,
-    keywords
-) {
+    phrases,
+    phraseScore,
+    termScore
+){
 
-    let bestScore =
-        0;
+    let score=0;
 
+    const terms=[];
 
-    const matchedTerms =
-        [];
-
-
-    const matchedPhrases =
-        [];
+    const matchedPhrases=[];
 
 
-    for (
-        const keyword
-        of keywords
-    ) {
 
-        const keywordTokens =
+    for(
+        const phrase of phrases
+    ){
+
+        const tokens =
             canonicalizeExperienceTokens(
-                keyword
+                phrase
             );
 
 
-        if (
-            keywordTokens.length === 0
-        ) {
+
+        if(
+            tokens.length===0
+        ){
 
             continue;
 
         }
 
 
-        /*
-         * =================================================
-         * MULTI-WORD KEYWORD
-         * =================================================
-         */
 
-
-        if (
-            keywordTokens.length > 1
-        ) {
-
-            if (
-                containsExperiencePhrase(
-
-                    taskTokens,
-
-                    keywordTokens
-
-                )
-            ) {
-
-                bestScore =
-                    Math.max(
-
-                        bestScore,
-
-                        SCORE.KEYWORD_PHRASE
-
-                    );
-
-
-                matchedPhrases.push(
-                    normalizeExperienceText(
-                        keyword
-                    )
-                );
-
-
-                matchedTerms.push(
-                    ...keywordTokens
-                );
-
-            }
-
-
-            continue;
-
-        }
-
-
-        /*
-         * =================================================
-         * SINGLE-WORD KEYWORD
-         * =================================================
-         */
-
-
-        const keywordToken =
-            keywordTokens[0];
-
-
-        if (
-            taskTokenSet.has(
-                keywordToken
+        if(
+            tokens.length>1
+            &&
+            containsPhrase(
+                taskTokens,
+                tokens
             )
-        ) {
+        ){
 
-            bestScore =
-                Math.max(
-
-                    bestScore,
-
-                    SCORE.KEYWORD_TERM
-
-                );
+            score=Math.max(
+                score,
+                phraseScore
+            );
 
 
-            matchedTerms.push(
-                keywordToken
+            matchedPhrases.push(
+                normalizeExperienceText(
+                    phrase
+                )
+            );
+
+
+            terms.push(
+                ...tokens
+            );
+
+
+        }
+        else if(
+            tokens.length===1
+            &&
+            taskTokens.includes(
+                tokens[0]
+            )
+        ){
+
+            score=Math.max(
+                score,
+                termScore
+            );
+
+
+            terms.push(
+                tokens[0]
             );
 
         }
@@ -450,17 +260,17 @@ function calculateKeywordMatch(
     }
 
 
+
     return {
 
-        score:
-            bestScore,
+        score,
 
-        matchedTerms:
+        terms:
             uniqueExperienceValues(
-                matchedTerms
+                terms
             ),
 
-        matchedPhrases:
+        phrases:
             uniqueExperienceValues(
                 matchedPhrases
             )
@@ -470,43 +280,74 @@ function calculateKeywordMatch(
 }
 
 
-/*
- * =========================================================
- * CALCULATE EXPERIENCE MATCH
- * =========================================================
- *
- * Главная публичная функция этого модуля.
- *
- *
- * Получает:
- *
- * task
- * experience
- *
- *
- * Возвращает:
- *
- * {
- *   confidence,
- *   matchedTerms,
- *   matchedPhrases
- * }
- *
- * =========================================================
- */
+
+
+
+
+
+
+
+function overlap(
+    taskSet,
+    tokens
+){
+
+    const unique =
+        uniqueExperienceValues(
+            tokens
+        );
+
+
+    if(
+        unique.length===0
+    ){
+
+        return {
+
+            ratio:0,
+
+            matched:[]
+
+        };
+
+    }
+
+
+    const matched =
+        unique.filter(
+            x =>
+            taskSet.has(x)
+        );
+
+
+    return {
+
+
+        ratio:
+            matched.length /
+            unique.length,
+
+
+        matched
+
+
+    };
+
+
+}
+
+
+
+
+
+
+
 
 
 export function calculateExperienceMatch(
     task,
     experience
-) {
-
-    /*
-     * =====================================================
-     * TASK TOKENS
-     * =====================================================
-     */
-
+){
 
     const taskTokens =
         canonicalizeExperienceTokens(
@@ -514,70 +355,116 @@ export function calculateExperienceMatch(
         );
 
 
-    if (
-        taskTokens.length === 0
-    ) {
+    if(
+        taskTokens.length===0
+    ){
 
-        return createEmptyMatch();
+        return emptyMatch();
 
     }
 
 
-    const taskTokenSet =
+
+    const taskSet =
         new Set(
             taskTokens
         );
 
 
-    /*
-     * =====================================================
-     * SKILL DATA
-     * =====================================================
-     */
 
 
-    const keywords =
-        normalizeExperienceStringArray(
-            experience?.keywords
-        );
 
 
-    const tags =
-        normalizeExperienceStringArray(
-            experience?.tags
-        );
 
 
-    /*
-     * =====================================================
-     * KEYWORDS
-     * =====================================================
-     */
-
-
-    const keywordMatch =
-        calculateKeywordMatch(
+    const triggerMatch =
+        matchPhrases(
 
             taskTokens,
 
-            taskTokenSet,
+            normalizeExperienceStringArray(
+                experience?.triggerPatterns
+            ),
 
-            keywords
+            SCORE.TRIGGER_PHRASE,
+
+            SCORE.TRIGGER_TERM
 
         );
 
 
-    /*
-     * =====================================================
-     * NAME
-     * =====================================================
-     */
+
+
+
+
+    const keywordMatch =
+        matchPhrases(
+
+            taskTokens,
+
+            normalizeExperienceStringArray(
+                experience?.keywords
+            ),
+
+            SCORE.KEYWORD_PHRASE,
+
+            SCORE.KEYWORD_TERM
+
+        );
+
+
+
+
+
+
+    const workflowMatch =
+        overlap(
+
+            taskSet,
+
+            canonicalizeExperienceTokens(
+
+                (
+                    experience?.workflow || []
+                )
+                .join(" ")
+
+            )
+
+        );
+
+
+
+
+
+
+
+    const successMatch =
+        overlap(
+
+            taskSet,
+
+            canonicalizeExperienceTokens(
+
+                (
+                    experience?.successfulPatterns || []
+                )
+                .join(" ")
+
+            )
+
+        );
+
+
+
+
+
 
 
     const nameMatch =
-        calculateTokenOverlap(
+        overlap(
 
-            taskTokenSet,
+            taskSet,
 
             canonicalizeExperienceTokens(
                 experience?.name
@@ -586,38 +473,15 @@ export function calculateExperienceMatch(
         );
 
 
-    /*
-     * =====================================================
-     * TAGS
-     * =====================================================
-     */
 
 
-    const tagMatch =
-        calculateTokenOverlap(
 
-            taskTokenSet,
-
-            canonicalizeExperienceTokens(
-                tags.join(
-                    " "
-                )
-            )
-
-        );
-
-
-    /*
-     * =====================================================
-     * DESCRIPTION
-     * =====================================================
-     */
 
 
     const descriptionMatch =
-        calculateTokenOverlap(
+        overlap(
 
-            taskTokenSet,
+            taskSet,
 
             canonicalizeExperienceTokens(
                 experience?.description
@@ -626,19 +490,67 @@ export function calculateExperienceMatch(
         );
 
 
-    /*
-     * =====================================================
-     * FINAL CONFIDENCE
-     * =====================================================
-     */
 
 
-    let confidence =
-        0;
+
+
+
+
+    let confidence=0;
+
+
+    const reasons=[];
+
+
+
+    if(triggerMatch.score){
+
+        confidence +=
+            triggerMatch.score;
+
+
+        reasons.push(
+            "trigger-pattern-match"
+        );
+
+    }
+
 
 
     confidence +=
         keywordMatch.score;
+
+
+    if(keywordMatch.score){
+
+        reasons.push(
+            "keyword-match"
+        );
+
+    }
+
+
+
+    confidence +=
+        workflowMatch.ratio *
+        SCORE.WORKFLOW;
+
+
+
+    if(workflowMatch.ratio){
+
+        reasons.push(
+            "workflow-match"
+        );
+
+    }
+
+
+
+    confidence +=
+        successMatch.ratio *
+        SCORE.SUCCESS_PATTERN;
+
 
 
     confidence +=
@@ -646,14 +558,11 @@ export function calculateExperienceMatch(
         SCORE.NAME;
 
 
-    confidence +=
-        tagMatch.ratio *
-        SCORE.TAG;
-
 
     confidence +=
         descriptionMatch.ratio *
         SCORE.DESCRIPTION;
+
 
 
     confidence =
@@ -663,36 +572,53 @@ export function calculateExperienceMatch(
         );
 
 
-    /*
-     * =====================================================
-     * DIAGNOSTICS
-     * =====================================================
-     */
 
 
-    const matchedTerms =
-        uniqueExperienceValues([
 
-            ...keywordMatch.matchedTerms,
-
-            ...nameMatch.matched,
-
-            ...tagMatch.matched,
-
-            ...descriptionMatch.matched
-
-        ]);
 
 
     return {
 
+
         confidence,
 
-        matchedTerms,
+
+        matchedTerms:
+
+            uniqueExperienceValues([
+
+                ...triggerMatch.terms,
+
+                ...keywordMatch.terms,
+
+                ...workflowMatch.matched,
+
+                ...successMatch.matched,
+
+                ...nameMatch.matched,
+
+                ...descriptionMatch.matched
+
+            ]),
+
+
 
         matchedPhrases:
-            keywordMatch.matchedPhrases
+
+            uniqueExperienceValues([
+
+                ...triggerMatch.phrases,
+
+                ...keywordMatch.phrases
+
+            ]),
+
+
+
+        reasons
+
 
     };
+
 
 }
