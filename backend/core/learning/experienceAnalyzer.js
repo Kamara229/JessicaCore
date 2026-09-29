@@ -1,181 +1,69 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE ANALYZER v2
+ * JESSICA EXPERIENCE ANALYZER v4
  * =========================================================
  *
- * Анализирует Execution Trace.
+ * Главный координатор анализа опыта.
  *
  *
- * Главная задача:
+ * Flow:
  *
- * определить:
+ * Execution Trace
+ *        ↓
+ * Experience Analyzer
  *
- * - можно ли превратить опыт в Skill;
- * - создать новый Skill;
- * - улучшить существующий Skill;
- * - игнорировать опыт.
+ *        ↓
+ * Pattern Matcher
+ *
+ *        ↓
+ * Confidence Calculator
+ *
+ *        ↓
+ * Candidate Builder
+ *
+ *        ↓
+ * Learning Candidate
+ *
+ *
+ * Ответственность:
+ *
+ * - принять Execution Trace;
+ * - определить тип обучения;
+ * - собрать результат анализа.
  *
  *
  * НЕ:
  *
- * - сохраняет Skill;
- * - пишет в Supabase;
- * - изменяет Experience.
- *
- * Только создаёт Learning Candidate.
- *
- * =========================================================
- */
-
-
-
-/*
- * =========================================================
- * REUSABLE EXPERIENCE PATTERNS
- * =========================================================
- *
- * Временная база паттернов.
- *
- * Позже заменится на:
- *
- * Experience Memory
- *        +
- * AI extraction
+ * - хранит паттерны;
+ * - считает confidence;
+ * - создаёт Skill;
+ * - пишет в память.
  *
  * =========================================================
  */
 
 
-const REUSABLE_PATTERNS = [
 
-    {
+import {
+    matchExperiencePattern
+} from "./experiencePatternMatcher.js";
 
-        id:
-            "official-source-verification",
 
+import {
+    getOccurrences,
+    getExamples,
+    calculateSuccessRate,
+    calculateExperienceConfidence,
+    calculateExperienceMaturity
+} from "./experienceConfidence.js";
 
-        name:
-            "Проверка официального источника",
 
+import {
+    buildNewSkillCandidate,
+    buildSkillImprovementCandidate
+} from "./experienceCandidateBuilder.js";
 
-        category:
-            "verification",
 
-
-        description:
-            "Навык поиска, проверки и подтверждения официальных источников информации.",
-
-
-        keywords:
-        [
-
-            "официальный сайт",
-
-            "официальный источник",
-
-            "документ",
-
-            "сертификат",
-
-            "проверить",
-
-            "подтверждение"
-
-        ],
-
-
-        workflow:
-        [
-
-            "найти потенциальный источник",
-
-            "проверить принадлежность источника",
-
-            "сопоставить данные",
-
-            "сформировать подтверждённый вывод"
-
-        ],
-
-
-        validationRules:
-        [
-
-            "использовать первичные источники",
-
-            "проверять соответствие источника запросу",
-
-            "не использовать неподтверждённые данные"
-
-        ]
-
-    },
-
-
-
-
-    {
-
-        id:
-            "company-contact-finder",
-
-
-        name:
-            "Поиск контактов организации",
-
-
-        category:
-            "web-research",
-
-
-        description:
-            "Навык поиска контактной информации организаций.",
-
-
-        keywords:
-        [
-
-            "контакт",
-
-            "почта",
-
-            "email",
-
-            "телефон",
-
-            "адрес компании",
-
-            "support"
-
-        ],
-
-
-        workflow:
-        [
-
-            "найти официальный ресурс",
-
-            "извлечь контактные данные",
-
-            "проверить актуальность",
-
-            "предоставить результат"
-
-        ],
-
-
-        validationRules:
-        [
-
-            "использовать официальный источник",
-
-            "проверять актуальность контактов"
-
-        ]
-
-    }
-
-];
 
 
 
@@ -185,153 +73,22 @@ const REUSABLE_PATTERNS = [
 
 /*
  * =========================================================
- * HELPERS
+ * VALIDATE TRACE
  * =========================================================
  */
 
 
-function normalizeText(
-    value
-) {
-
-    return String(
-        value || ""
-    )
-    .toLowerCase()
-    .trim();
-
-}
-
-
-
-
-
-
-function countExamples(
+function isValidTrace(
     trace
 ) {
 
-    if (
-        Array.isArray(
-            trace?.examples
-        )
-    ) {
+    return (
 
-        return trace.examples.length;
+        trace &&
 
-    }
+        typeof trace === "object"
 
-
-    return 1;
-
-}
-
-
-
-
-
-
-
-/*
- * =========================================================
- * FIND PATTERN
- * =========================================================
- */
-
-
-function detectReusablePattern(
-    task
-) {
-
-
-    const text =
-        normalizeText(
-            task
-        );
-
-
-    let best =
-        null;
-
-
-    let score =
-        0;
-
-
-
-
-
-    for(
-        const pattern
-        of REUSABLE_PATTERNS
-    ) {
-
-
-        const matches =
-
-            pattern.keywords.filter(
-
-                keyword =>
-
-                    text.includes(
-                        keyword
-                    )
-
-            )
-            .length;
-
-
-
-        if(
-            matches > score
-        ){
-
-            score =
-                matches;
-
-
-            best =
-                pattern;
-
-        }
-
-    }
-
-
-
-
-    if(
-        !best
-    ){
-
-        return null;
-
-    }
-
-
-
-
-
-    return {
-
-
-        ...best,
-
-
-        confidence:
-
-            Math.min(
-
-                score /
-                best.keywords.length,
-
-                1
-
-            )
-
-
-    };
-
+    );
 
 }
 
@@ -342,9 +99,10 @@ function detectReusablePattern(
 
 
 
+
 /*
  * =========================================================
- * EXISTING SKILL IMPROVEMENT
+ * ANALYZE EXISTING SKILL
  * =========================================================
  */
 
@@ -370,6 +128,7 @@ function analyzeExistingSkill(
 
 
 
+
     if(
         !Array.isArray(
             usage.skills
@@ -381,6 +140,58 @@ function analyzeExistingSkill(
         return null;
 
     }
+
+
+
+
+    const occurrences =
+
+        getOccurrences(
+            trace
+        );
+
+
+
+    const examples =
+
+        getExamples(
+            trace
+        );
+
+
+
+    const successRate =
+
+        calculateSuccessRate(
+            examples
+        );
+
+
+
+    const confidence =
+
+        calculateExperienceConfidence({
+
+            matchScore:
+                1,
+
+
+            successRate,
+
+
+            occurrences
+
+        });
+
+
+
+    const maturity =
+
+        calculateExperienceMaturity(
+            occurrences
+        );
+
+
 
 
 
@@ -403,59 +214,33 @@ function analyzeExistingSkill(
 
         reason:
 
-            "Существующий Skill получил новый успешный опыт",
+            "Существующий Skill получил успешный новый опыт",
 
 
 
         skillCandidate:
 
-        {
+            buildSkillImprovementCandidate({
 
-            skills:
-
-                usage.skills,
-
+                skills:
+                    usage.skills,
 
 
-            examples:
-
-            [
-
-                {
-
-                    task:
-
-                        trace.task,
+                trace,
 
 
-                    result:
-
-                        trace.result || "",
+                confidence,
 
 
-                    success:
-
-                        true
-
-                }
-
-            ],
+                maturity,
 
 
+                occurrences
 
-            confidence:
-
-                0.9,
-
-
-            source:
-
-                "execution-trace"
-
-        }
-
+            })
 
     };
+
 
 }
 
@@ -469,7 +254,7 @@ function analyzeExistingSkill(
 
 /*
  * =========================================================
- * NEW SKILL
+ * ANALYZE NEW SKILL
  * =========================================================
  */
 
@@ -479,21 +264,73 @@ function analyzeNewSkill(
 ) {
 
 
-    const pattern =
+    const matched =
 
-        detectReusablePattern(
+        matchExperiencePattern(
             trace.task
         );
 
 
 
     if(
-        !pattern
+        !matched
     ){
 
         return null;
 
     }
+
+
+
+
+
+    const occurrences =
+
+        getOccurrences(
+            trace
+        );
+
+
+
+    const examples =
+
+        getExamples(
+            trace
+        );
+
+
+
+    const successRate =
+
+        calculateSuccessRate(
+            examples
+        );
+
+
+
+    const confidence =
+
+        calculateExperienceConfidence({
+
+            matchScore:
+
+                matched.matchScore,
+
+
+            successRate,
+
+
+            occurrences
+
+        });
+
+
+
+    const maturity =
+
+        calculateExperienceMaturity(
+            occurrences
+        );
 
 
 
@@ -523,88 +360,28 @@ function analyzeNewSkill(
 
         skillCandidate:
 
-        {
+            buildNewSkillCandidate({
+
+                pattern:
+
+                    matched.pattern,
 
 
-            skillId:
-
-                pattern.id,
+                trace,
 
 
-            name:
-
-                pattern.name,
+                confidence,
 
 
-            category:
-
-                pattern.category,
+                maturity,
 
 
-            description:
+                occurrences
 
-                pattern.description,
-
-
-
-            workflow:
-
-                pattern.workflow,
-
-
-
-            validationRules:
-
-                pattern.validationRules,
-
-
-
-            examples:
-
-            [
-
-                {
-
-                    task:
-
-                        trace.task,
-
-
-                    result:
-
-                        trace.result || "",
-
-
-                    success:
-
-                        true
-
-                }
-
-            ],
-
-
-
-            constraints:
-
-            [],
-
-
-
-            confidence:
-
-                pattern.confidence,
-
-
-
-            source:
-
-                "execution-trace"
-
-        }
-
+            })
 
     };
+
 
 }
 
@@ -618,7 +395,7 @@ function analyzeNewSkill(
 
 /*
  * =========================================================
- * MAIN
+ * MAIN ANALYSIS
  * =========================================================
  */
 
@@ -629,22 +406,34 @@ export function analyzeExecutionTrace(
 
 
     if(
-        !trace ||
-        typeof trace !== "object"
+        !isValidTrace(
+            trace
+        )
     ){
 
         return {
 
+
             action:
+
                 "IGNORE",
 
+
+
             reusable:
+
                 false,
 
+
+
             reason:
+
                 "Execution Trace отсутствует",
 
+
+
             skillCandidate:
+
                 null
 
         };
@@ -653,6 +442,13 @@ export function analyzeExecutionTrace(
 
 
 
+
+
+
+
+    /*
+     * Анализируем только успешные выполнения
+     */
 
 
     if(
@@ -661,21 +457,33 @@ export function analyzeExecutionTrace(
 
         return {
 
+
             action:
+
                 "IGNORE",
 
+
+
             reusable:
+
                 false,
 
+
+
             reason:
+
                 "Нет успешного выполнения",
 
+
+
             skillCandidate:
+
                 null
 
         };
 
     }
+
 
 
 
@@ -689,7 +497,7 @@ export function analyzeExecutionTrace(
      */
 
 
-    const existingSkill =
+    const existing =
 
         analyzeExistingSkill(
             trace
@@ -698,12 +506,13 @@ export function analyzeExecutionTrace(
 
 
     if(
-        existingSkill
+        existing
     ){
 
-        return existingSkill;
+        return existing;
 
     }
+
 
 
 
@@ -740,16 +549,19 @@ export function analyzeExecutionTrace(
 
 
 
+
     /*
-     * 3. Игнор
+     * 3. Нечему учиться
      */
 
 
     return {
 
+
         action:
 
             "IGNORE",
+
 
 
         reusable:
@@ -757,9 +569,11 @@ export function analyzeExecutionTrace(
             false,
 
 
+
         reason:
 
-            "Недостаточно признаков повторяемого навыка",
+            "Повторяемый сценарий не найден",
+
 
 
         skillCandidate:
@@ -767,5 +581,6 @@ export function analyzeExecutionTrace(
             null
 
     };
+
 
 }
