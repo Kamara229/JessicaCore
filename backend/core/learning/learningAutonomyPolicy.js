@@ -1,24 +1,32 @@
 /*
  * =========================================================
- * JESSICA LEARNING AUTONOMY POLICY v2
+ * JESSICA LEARNING AUTONOMY POLICY v3
  * =========================================================
  *
- * Автоматическое решение:
+ * Решает:
  *
- * добавлять Experience Skill
- * или оставить кандидатом.
+ * может ли Jessica автоматически
+ * добавить новый Experience Skill.
  *
  *
- * Цель:
+ * Flow:
  *
- * Jessica должна обучаться автоматически
- * на основе успешных действий пользователя.
+ * Learning Proposal
+ *        ↓
+ * Autonomy Policy
+ *        ↓
+ *
+ * AUTO_APPROVE
+ *
+ * или
+ *
+ * KEEP_CANDIDATE
  *
  *
  * НЕ:
  *
  * - сохраняет Skill;
- * - пишет в БД;
+ * - работает с БД;
  * - вызывает AI.
  *
  * =========================================================
@@ -35,24 +43,32 @@
  */
 
 
-
-/*
- * Минимальная уверенность
- * для нового Skill.
- */
-
 const NEW_SKILL_MIN_CONFIDENCE =
-    0.70;
+    0.80;
 
 
-
-/*
- * Минимальная уверенность
- * для улучшения существующего.
- */
 
 const IMPROVEMENT_MIN_CONFIDENCE =
     0.60;
+
+
+
+const MIN_SUCCESS_RATE =
+    0.80;
+
+
+
+const MIN_MATURITY =
+    0.50;
+
+
+
+const MIN_EXAMPLES =
+    1;
+
+
+
+
 
 
 
@@ -93,10 +109,10 @@ function normalizeNumber(
 
 
 
+
 function getAction(
     proposal
 ) {
-
 
     return (
 
@@ -113,6 +129,29 @@ function getAction(
 
 
 
+
+function getExperience(
+    proposal
+) {
+
+    return (
+
+        proposal
+            ?.proposedExperience
+        ||
+
+        {}
+
+    );
+
+}
+
+
+
+
+
+
+
 function getExamplesCount(
     proposal
 ) {
@@ -120,24 +159,22 @@ function getExamplesCount(
 
     const examples =
 
-        proposal
-            ?.proposedExperience
-            ?.examples;
+        getExperience(
+            proposal
+        )
+        .examples;
 
 
 
-    if(
-        !Array.isArray(examples)
-    ){
+    return Array.isArray(examples)
 
-        return 0;
+        ? examples.length
 
-    }
+        : 0;
 
-
-    return examples.length;
 
 }
+
 
 
 
@@ -165,26 +202,72 @@ function isReusable(
 
 
 
-function hasExperience(
+function hasExperienceStructure(
     proposal
 ) {
 
 
+    const experience =
+        getExperience(
+            proposal
+        );
+
+
     return (
 
-        proposal
-            ?.proposedExperience
-            ?.workflow
-            ?.length > 0
+        experience.workflow?.length > 0
 
         ||
 
-        proposal
-            ?.proposedExperience
-            ?.examples
-            ?.length > 0
+        experience.examples?.length > 0
 
     );
+
+}
+
+
+
+
+
+
+
+function getQualityMetrics(
+    proposal
+) {
+
+
+    const experience =
+        getExperience(
+            proposal
+        );
+
+
+    return {
+
+
+        maturity:
+
+            normalizeNumber(
+                experience.maturity
+            ),
+
+
+
+        occurrences:
+
+            normalizeNumber(
+                experience.occurrences
+            ),
+
+
+
+        successRate:
+
+            normalizeNumber(
+                experience.successRate
+            )
+
+    };
 
 }
 
@@ -198,7 +281,90 @@ function hasExperience(
 
 /*
  * =========================================================
- * MAIN POLICY
+ * QUALITY CHECK
+ * =========================================================
+ */
+
+
+function validateQuality(
+    proposal
+) {
+
+
+    const metrics =
+        getQualityMetrics(
+            proposal
+        );
+
+
+
+    /*
+     * Если метрики ещё не заполнены,
+     * допускаем обучение на первом успешном опыте.
+     *
+     * Позже они будут приходить
+     * из Experience Memory.
+     */
+
+
+    if(
+        metrics.successRate > 0 &&
+        metrics.successRate < MIN_SUCCESS_RATE
+    ){
+
+        return {
+
+            ok:false,
+
+            reason:
+                "Низкий показатель успешности"
+
+        };
+
+    }
+
+
+
+
+    if(
+        metrics.maturity > 0 &&
+        metrics.maturity < MIN_MATURITY
+    ){
+
+        return {
+
+            ok:false,
+
+            reason:
+                "Недостаточная зрелость Skill"
+
+        };
+
+    }
+
+
+
+
+    return {
+
+        ok:true
+
+    };
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * MAIN
  * =========================================================
  */
 
@@ -215,10 +381,8 @@ export function evaluateLearningAutonomy(
 
         return {
 
-
             action:
                 "KEEP_CANDIDATE",
-
 
             reason:
                 "Proposal отсутствует"
@@ -241,13 +405,11 @@ export function evaluateLearningAutonomy(
 
 
 
-
     const action =
 
         getAction(
             proposal
         );
-
 
 
 
@@ -265,12 +427,6 @@ export function evaluateLearningAutonomy(
 
 
 
-    /*
-     * =====================================================
-     * COMMON CHECKS
-     * =====================================================
-     */
-
 
     if(
         !isReusable(
@@ -280,14 +436,11 @@ export function evaluateLearningAutonomy(
 
         return {
 
-
             action:
                 "KEEP_CANDIDATE",
 
-
             reason:
                 "Опыт не признан повторяемым"
-
 
         };
 
@@ -298,22 +451,74 @@ export function evaluateLearningAutonomy(
 
 
 
+
+
     if(
-        !hasExperience(
+        !hasExperienceStructure(
             proposal
         )
     ){
 
         return {
 
+            action:
+                "KEEP_CANDIDATE",
+
+            reason:
+                "Нет структуры Skill"
+
+        };
+
+    }
+
+
+
+
+
+
+
+    if(
+        examples <
+        MIN_EXAMPLES
+    ){
+
+        return {
 
             action:
                 "KEEP_CANDIDATE",
 
+            reason:
+                "Нет подтверждённых примеров"
+
+        };
+
+    }
+
+
+
+
+
+
+
+
+    const quality =
+        validateQuality(
+            proposal
+        );
+
+
+
+    if(
+        !quality.ok
+    ){
+
+        return {
+
+            action:
+                "KEEP_CANDIDATE",
 
             reason:
-                "Недостаточно структуры Skill"
-
+                quality.reason
 
         };
 
@@ -340,12 +545,10 @@ export function evaluateLearningAutonomy(
     ){
 
 
-
         if(
             confidence >=
             NEW_SKILL_MIN_CONFIDENCE
         ){
-
 
             return {
 
@@ -359,7 +562,7 @@ export function evaluateLearningAutonomy(
 
 
                 reason:
-                    "Новый Skill имеет достаточную уверенность",
+                    "Новый Skill прошёл проверку автономного обучения",
 
 
                 confidence,
@@ -367,12 +570,9 @@ export function evaluateLearningAutonomy(
 
                 examples
 
-
             };
 
         }
-
-
 
 
         return {
@@ -383,7 +583,7 @@ export function evaluateLearningAutonomy(
 
 
             reason:
-                "Новый Skill требует дополнительного опыта",
+                "Недостаточная уверенность для нового Skill",
 
 
             confidence,
@@ -407,7 +607,7 @@ export function evaluateLearningAutonomy(
 
     /*
      * =====================================================
-     * SKILL IMPROVEMENT
+     * IMPROVEMENT
      * =====================================================
      */
 
@@ -436,7 +636,7 @@ export function evaluateLearningAutonomy(
 
 
                 reason:
-                    "Существующий Skill получил успешное улучшение",
+                    "Существующий Skill может быть улучшен",
 
 
                 confidence,
@@ -448,6 +648,7 @@ export function evaluateLearningAutonomy(
             };
 
         }
+
 
 
 
@@ -478,13 +679,6 @@ export function evaluateLearningAutonomy(
 
 
 
-
-
-    /*
-     * =====================================================
-     * UNKNOWN
-     * =====================================================
-     */
 
 
     return {
