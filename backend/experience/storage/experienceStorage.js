@@ -1,9 +1,9 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE STORAGE
+ * JESSICA EXPERIENCE STORAGE v2
  * =========================================================
  *
- * Единый интерфейс хранения Experience Skills.
+ * Единый слой хранения Experience Skills.
  *
  *
  * Flow:
@@ -18,7 +18,7 @@
  * Отвечает:
  *
  * - загрузка Skills;
- * - сохранение версии;
+ * - сохранение новых версий;
  * - история;
  * - получение версии;
  * - отключение Skill.
@@ -26,13 +26,14 @@
  *
  * НЕ:
  *
- * - ищет Skill;
  * - обучает;
+ * - принимает решение;
  * - вызывает AI;
  * - содержит SQL.
  *
  * =========================================================
  */
+
 
 
 import {
@@ -55,16 +56,20 @@ import {
 
 
 
+
+
+
+
 /*
  * =========================================================
- * NORMALIZE
+ * NORMALIZE HELPERS
  * =========================================================
  */
 
 
 function normalizeText(
     value
-) {
+){
 
     return String(
         value || ""
@@ -76,19 +81,20 @@ function normalizeText(
 
 
 
+
 function normalizeVersion(
     value
-) {
+){
 
     const version =
         Number(value);
 
 
-    if (
+    if(
         !Number.isInteger(version)
         ||
         version < 1
-    ) {
+    ){
 
         return 1;
 
@@ -103,15 +109,55 @@ function normalizeVersion(
 
 
 
+function normalizeConfidence(
+    value
+){
+
+    const confidence =
+        Number(value);
+
+
+    if(
+        !Number.isFinite(confidence)
+    ){
+
+        return 0;
+
+    }
+
+
+    return Math.max(
+
+        0,
+
+        Math.min(
+
+            1,
+
+            confidence
+
+        )
+
+    );
+
+}
+
+
+
+
+
+
+
+
+
 function normalizeExperience(
     experience
-) {
+){
 
-
-    if (
+    if(
         !experience ||
         typeof experience !== "object"
-    ) {
+    ){
 
         return null;
 
@@ -125,47 +171,73 @@ function normalizeExperience(
         ...experience,
 
 
+
         id:
+
             normalizeText(
                 experience.id
             ),
 
 
+
         name:
+
             normalizeText(
                 experience.name
             ),
 
 
+
         version:
+
             normalizeVersion(
                 experience.version
             ),
 
 
+
         previousVersion:
+
             experience.previousVersion
+
             ?
+
             normalizeVersion(
                 experience.previousVersion
             )
+
             :
+
             null,
 
 
+
         enabled:
+
             experience.enabled !== false,
 
 
+
         confidence:
-            Number(
-                experience.confidence || 0
-            )
+
+            normalizeConfidence(
+                experience.confidence
+            ),
+
+
+
+        metadata:
+
+            {
+
+                ...(experience.metadata || {})
+
+            }
 
     };
 
-
 }
+
 
 
 
@@ -176,7 +248,7 @@ function normalizeExperience(
 
 /*
  * =========================================================
- * LOAD ACTIVE SKILLS
+ * LOAD ACTIVE EXPERIENCE
  * =========================================================
  */
 
@@ -184,41 +256,47 @@ function normalizeExperience(
 export async function loadExperienceSkills()
 {
 
-
-    try {
+    try{
 
 
         const skills =
+
             await loadExperiences();
 
 
 
-        return Array.isArray(
+        return Array.isArray(skills)
+
+            ?
+
             skills
-        )
-            ? skills
-            : [];
+
+            :
+
+            [];
 
 
 
-    } catch(error) {
+    }catch(error){
 
 
         console.error(
 
-            "Experience Storage load error:",
+            "Jessica Experience load error:",
 
             error
 
         );
 
 
+
         return [];
 
     }
 
-
 }
+
+
 
 
 
@@ -235,20 +313,21 @@ export async function loadExperienceSkills()
 
 export async function saveExperienceSkill(
     experience
-) {
-
+){
 
     const normalized =
+
         normalizeExperience(
             experience
         );
 
 
 
-    if (
-        !normalized
-    ) {
 
+
+    if(
+        !normalized
+    ){
 
         return {
 
@@ -263,10 +342,13 @@ export async function saveExperienceSkill(
 
 
 
-    if (
-        !normalized.id
-    ) {
 
+
+
+
+    if(
+        !normalized.id
+    ){
 
         return {
 
@@ -281,10 +363,13 @@ export async function saveExperienceSkill(
 
 
 
-    if (
-        !normalized.name
-    ) {
 
+
+
+
+    if(
+        !normalized.name
+    ){
 
         return {
 
@@ -299,32 +384,169 @@ export async function saveExperienceSkill(
 
 
 
-    try {
+
+
+
+
+    try{
+
+
+
+        /*
+         * =================================================
+         * VERSION CONTROL
+         * =================================================
+         */
+
+
+        const history =
+
+            await getExperienceHistory(
+                normalized.id
+            );
+
+
+
+
+
+        const duplicate =
+
+            history.some(
+
+                item =>
+
+                    Number(
+                        item.version
+                    )
+                    ===
+                    Number(
+                        normalized.version
+                    )
+
+            );
+
+
+
+
+
+        if(
+            duplicate
+        ){
+
+            return {
+
+
+                success:false,
+
+
+                error:
+
+                    "Такая версия Experience уже существует",
+
+
+                skillId:
+
+                    normalized.id,
+
+
+                version:
+
+                    normalized.version
+
+
+            };
+
+        }
+
+
+
+
+
+
+
+
+
+        /*
+         * =================================================
+         * AUTONOMOUS LEARNING META
+         * =================================================
+         */
+
+
+        normalized.metadata = {
+
+
+            ...normalized.metadata,
+
+
+
+            storage:
+
+                "experience-storage",
+
+
+
+            storedAt:
+
+                new Date()
+                    .toISOString(),
+
+
+
+            storageVersion:
+
+                "v2"
+
+        };
+
+
+
+
+
+
+
+
+
+        /*
+         * =================================================
+         * ATOMIC SAVE
+         * =================================================
+         */
 
 
         const result =
+
             await saveExperienceAtomic(
                 normalized
             );
 
 
 
-        if (
-            !result?.success
-        ) {
 
+
+        if(
+            !result?.success
+        ){
 
             return {
 
+
                 success:false,
 
+
                 error:
+
                     result?.error ||
-                    "Не удалось сохранить Experience"
+
+                    "Ошибка сохранения Experience"
+
 
             };
 
         }
+
+
+
 
 
 
@@ -336,18 +558,22 @@ export async function saveExperienceSkill(
 
 
             skillId:
+
                 normalized.id,
 
 
             version:
+
                 normalized.version,
 
 
             experience:
+
                 normalized,
 
 
             storage:
+
                 result
 
 
@@ -356,16 +582,19 @@ export async function saveExperienceSkill(
 
 
 
-    } catch(error) {
+
+
+    }catch(error){
 
 
         console.error(
 
-            "Experience save error:",
+            "Jessica Experience save error:",
 
             error
 
         );
+
 
 
         return {
@@ -375,7 +604,9 @@ export async function saveExperienceSkill(
 
 
             error:
+
                 error.message ||
+
                 "Storage error"
 
 
@@ -383,7 +614,6 @@ export async function saveExperienceSkill(
 
 
     }
-
 
 }
 
@@ -393,22 +623,29 @@ export async function saveExperienceSkill(
 
 
 
+
+
 /*
  * =========================================================
- * DISABLE SKILL
+ * DISABLE EXPERIENCE
  * =========================================================
  */
 
 
 export async function disableExperienceSkill(
     skillId
-) {
+){
+
+    const id =
+        normalizeText(
+            skillId
+        );
 
 
-    if (
-        !skillId
-    ) {
 
+    if(
+        !id
+    ){
 
         return {
 
@@ -424,9 +661,8 @@ export async function disableExperienceSkill(
 
 
     return await disableExperience(
-        skillId
+        id
     );
-
 
 }
 
@@ -436,51 +672,75 @@ export async function disableExperienceSkill(
 
 
 
+
+
 /*
  * =========================================================
- * LOAD HISTORY
+ * HISTORY
  * =========================================================
  */
 
 
 export async function getExperienceHistory(
     skillId
-) {
+){
+
+    const id =
+        normalizeText(
+            skillId
+        );
 
 
-    try {
+
+    if(
+        !id
+    ){
+
+        return [];
+
+    }
+
+
+
+    try{
 
 
         const history =
+
             await loadExperienceHistory(
-                skillId
+                id
             );
 
 
-        return Array.isArray(
+
+        return Array.isArray(history)
+
+            ?
+
             history
-        )
-            ? history
-            : [];
+
+            :
+
+            [];
 
 
 
-    } catch(error) {
+    }catch(error){
 
 
         console.error(
 
-            "Experience history error:",
+            "Jessica Experience history error:",
 
             error
 
         );
 
 
+
         return [];
 
     }
-
 
 }
 
@@ -490,28 +750,43 @@ export async function getExperienceHistory(
 
 
 
+
+
 /*
  * =========================================================
- * LOAD VERSION
+ * VERSION
  * =========================================================
  */
 
 
 export async function getExperienceVersion(
-
     skillId,
-
     version
+){
 
-) {
+    const id =
+        normalizeText(
+            skillId
+        );
 
 
-    try {
+
+    if(
+        !id
+    ){
+
+        return null;
+
+    }
+
+
+
+    try{
 
 
         return await loadExperienceVersion(
 
-            skillId,
+            id,
 
             normalizeVersion(
                 version
@@ -521,25 +796,26 @@ export async function getExperienceVersion(
 
 
 
-    } catch(error) {
+    }catch(error){
 
 
         console.error(
 
-            "Experience version error:",
+            "Jessica Experience version error:",
 
             error
 
         );
 
 
-        return null;
 
+        return null;
 
     }
 
-
 }
+
+
 
 
 
@@ -549,26 +825,26 @@ export async function getExperienceVersion(
 
 /*
  * =========================================================
- * GET LATEST VERSION
+ * LATEST VERSION
  * =========================================================
  */
 
 
 export async function getLatestExperienceVersion(
     skillId
-) {
-
+){
 
     const history =
+
         await getExperienceHistory(
             skillId
         );
 
 
 
-    if (
+    if(
         history.length === 0
-    ) {
+    ){
 
         return null;
 
@@ -576,22 +852,23 @@ export async function getLatestExperienceVersion(
 
 
 
-    return history
-        .sort(
-
-            (a,b) =>
-
-                Number(
-                    b.version || 0
-                )
-
-                -
-
-                Number(
-                    a.version || 0
-                )
-
-        )[0];
 
 
-}
+
+    return history.sort(
+
+        (a,b)=>
+
+            Number(
+                b.version || 0
+            )
+
+            -
+
+            Number(
+                a.version || 0
+            )
+
+    )[0];
+
+        }
