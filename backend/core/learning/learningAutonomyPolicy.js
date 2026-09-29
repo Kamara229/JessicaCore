@@ -1,37 +1,25 @@
 /*
  * =========================================================
- * JESSICA LEARNING AUTONOMY POLICY
+ * JESSICA LEARNING AUTONOMY POLICY v2
  * =========================================================
  *
- * Автоматическая политика обучения Jessica.
+ * Автоматическое решение:
+ *
+ * добавлять Experience Skill
+ * или оставить кандидатом.
  *
  *
- * Flow:
+ * Цель:
  *
- * Learning Proposal
- *        ↓
- * Autonomy Policy
- *        ↓
- *
- * AUTO_APPROVE
- *
- * или
- *
- * KEEP_CANDIDATE
- *
- *
- * Отвечает только за:
- *
- * - оценку качества обучения;
- * - решение об автоматическом добавлении.
+ * Jessica должна обучаться автоматически
+ * на основе успешных действий пользователя.
  *
  *
  * НЕ:
  *
  * - сохраняет Skill;
- * - меняет Experience;
- * - вызывает AI;
- * - работает с БД.
+ * - пишет в БД;
+ * - вызывает AI.
  *
  * =========================================================
  */
@@ -47,23 +35,24 @@
  */
 
 
+
 /*
  * Минимальная уверенность
- * для автоматического обучения.
+ * для нового Skill.
  */
 
-const MIN_CONFIDENCE =
-    0.85;
+const NEW_SKILL_MIN_CONFIDENCE =
+    0.70;
 
 
 
 /*
- * Минимальное количество
- * подтверждений опыта.
+ * Минимальная уверенность
+ * для улучшения существующего.
  */
 
-const MIN_EXAMPLES =
-    3;
+const IMPROVEMENT_MIN_CONFIDENCE =
+    0.60;
 
 
 
@@ -86,9 +75,9 @@ function normalizeNumber(
 
 
 
-    if (
+    if(
         Number.isNaN(number)
-    ) {
+    ){
 
         return 0;
 
@@ -104,6 +93,25 @@ function normalizeNumber(
 
 
 
+function getAction(
+    proposal
+) {
+
+
+    return (
+
+        proposal.action ||
+
+        "NEW_SKILL"
+
+    );
+
+}
+
+
+
+
+
 
 function getExamplesCount(
     proposal
@@ -111,20 +119,20 @@ function getExamplesCount(
 
 
     const examples =
+
         proposal
             ?.proposedExperience
             ?.examples;
 
 
 
-    if (
+    if(
         !Array.isArray(examples)
-    ) {
+    ){
 
         return 0;
 
     }
-
 
 
     return examples.length;
@@ -136,16 +144,6 @@ function getExamplesCount(
 
 
 
-
-
-
-/*
- * =========================================================
- * CHECK REUSABLE
- * =========================================================
- */
-
-
 function isReusable(
     proposal
 ) {
@@ -154,8 +152,37 @@ function isReusable(
     return (
 
         proposal
-        ?.analysis
-        ?.reusable === true
+            ?.analysis
+            ?.reusable === true
+
+    );
+
+}
+
+
+
+
+
+
+
+function hasExperience(
+    proposal
+) {
+
+
+    return (
+
+        proposal
+            ?.proposedExperience
+            ?.workflow
+            ?.length > 0
+
+        ||
+
+        proposal
+            ?.proposedExperience
+            ?.examples
+            ?.length > 0
 
     );
 
@@ -181,13 +208,13 @@ export function evaluateLearningAutonomy(
 ) {
 
 
-    if (
+    if(
         !proposal ||
         typeof proposal !== "object"
-    ) {
-
+    ){
 
         return {
+
 
             action:
                 "KEEP_CANDIDATE",
@@ -208,9 +235,17 @@ export function evaluateLearningAutonomy(
     const confidence =
 
         normalizeNumber(
-
             proposal.confidence
+        );
 
+
+
+
+
+    const action =
+
+        getAction(
+            proposal
         );
 
 
@@ -232,19 +267,19 @@ export function evaluateLearningAutonomy(
 
     /*
      * =====================================================
-     * HARD RULES
+     * COMMON CHECKS
      * =====================================================
      */
 
 
-    if (
+    if(
         !isReusable(
             proposal
         )
-    ) {
-
+    ){
 
         return {
+
 
             action:
                 "KEEP_CANDIDATE",
@@ -253,6 +288,7 @@ export function evaluateLearningAutonomy(
             reason:
                 "Опыт не признан повторяемым"
 
+
         };
 
     }
@@ -262,47 +298,28 @@ export function evaluateLearningAutonomy(
 
 
 
-    if (
-        confidence < MIN_CONFIDENCE
-    ) {
-
+    if(
+        !hasExperience(
+            proposal
+        )
+    ){
 
         return {
+
 
             action:
                 "KEEP_CANDIDATE",
 
 
             reason:
-                "Недостаточная уверенность"
+                "Недостаточно структуры Skill"
+
 
         };
 
     }
 
 
-
-
-
-
-
-    if (
-        examples < MIN_EXAMPLES
-    ) {
-
-
-        return {
-
-            action:
-                "KEEP_CANDIDATE",
-
-
-            reason:
-                "Недостаточно примеров успешного применения"
-
-        };
-
-    }
 
 
 
@@ -312,7 +329,160 @@ export function evaluateLearningAutonomy(
 
     /*
      * =====================================================
-     * AUTO LEARNING
+     * NEW SKILL
+     * =====================================================
+     */
+
+
+    if(
+        action ===
+        "NEW_SKILL"
+    ){
+
+
+
+        if(
+            confidence >=
+            NEW_SKILL_MIN_CONFIDENCE
+        ){
+
+
+            return {
+
+
+                action:
+                    "AUTO_APPROVE",
+
+
+                mode:
+                    "NEW_SKILL",
+
+
+                reason:
+                    "Новый Skill имеет достаточную уверенность",
+
+
+                confidence,
+
+
+                examples
+
+
+            };
+
+        }
+
+
+
+
+        return {
+
+
+            action:
+                "KEEP_CANDIDATE",
+
+
+            reason:
+                "Новый Skill требует дополнительного опыта",
+
+
+            confidence,
+
+
+            examples
+
+
+        };
+
+
+    }
+
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * SKILL IMPROVEMENT
+     * =====================================================
+     */
+
+
+    if(
+        action ===
+        "SKILL_IMPROVEMENT"
+    ){
+
+
+        if(
+            confidence >=
+            IMPROVEMENT_MIN_CONFIDENCE
+        ){
+
+
+            return {
+
+
+                action:
+                    "AUTO_APPROVE",
+
+
+                mode:
+                    "SKILL_IMPROVEMENT",
+
+
+                reason:
+                    "Существующий Skill получил успешное улучшение",
+
+
+                confidence,
+
+
+                examples
+
+
+            };
+
+        }
+
+
+
+        return {
+
+
+            action:
+                "KEEP_CANDIDATE",
+
+
+            reason:
+                "Недостаточная уверенность для изменения Skill",
+
+
+            confidence,
+
+
+            examples
+
+
+        };
+
+
+    }
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * UNKNOWN
      * =====================================================
      */
 
@@ -321,19 +491,11 @@ export function evaluateLearningAutonomy(
 
 
         action:
-            "AUTO_APPROVE",
-
+            "KEEP_CANDIDATE",
 
 
         reason:
-            "Опыт соответствует условиям автономного обучения",
-
-
-
-        confidence,
-
-
-        examples
+            "Неизвестный тип обучения"
 
 
     };
