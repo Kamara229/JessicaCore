@@ -6,30 +6,23 @@ import {
 
 /*
  * =========================================================
- * JESSICA LEARNING PROPOSAL
+ * JESSICA LEARNING PROPOSAL v2
  * =========================================================
  *
- * Модель предложения изменения памяти Jessica.
+ * Модель кандидата обучения Jessica.
  *
  *
- * Proposal НЕ является Skill.
+ * Важно:
  *
- * Это кандидат:
+ * Proposal != Skill
  *
- * NEW_SKILL
- *      создание нового навыка
+ * Proposal это промежуточный объект:
  *
- * SKILL_IMPROVEMENT
- *      улучшение существующего навыка
- *
- *
- * Flow:
- *
- * Learning Queue
+ * Experience Analyzer
  *        ↓
- * Proposal
+ * Learning Proposal
  *        ↓
- * Approval
+ * Autonomy Policy
  *        ↓
  * Experience Skill
  *
@@ -37,30 +30,24 @@ import {
  * НЕ:
  *
  * - сохраняет Skill;
- * - работает с Supabase;
- * - изменяет Experience.
+ * - работает с БД;
+ * - принимает решение обучения.
  *
  * =========================================================
  */
 
 
 
-
-
 export const LEARNING_PROPOSAL_STATUS = {
-
 
     PENDING_APPROVAL:
         "PENDING_APPROVAL",
 
-
     APPROVED:
         "APPROVED",
 
-
     REJECTED:
         "REJECTED"
-
 
 };
 
@@ -94,10 +81,9 @@ function normalizeArray(
     value
 ) {
 
-
-    if (
+    if(
         !Array.isArray(value)
-    ) {
+    ){
 
         return [];
 
@@ -105,12 +91,10 @@ function normalizeArray(
 
 
     return value
-
         .map(
             item =>
                 normalizeText(item)
         )
-
         .filter(
             Boolean
         );
@@ -136,7 +120,6 @@ function extractEvent(
     queueItem
 ) {
 
-
     return (
 
         queueItem?.event ||
@@ -159,7 +142,7 @@ function extractEvent(
 
 /*
  * =========================================================
- * RESOLVE SKILL TARGET
+ * TARGET SKILL
  * =========================================================
  */
 
@@ -170,36 +153,33 @@ function resolveTargetSkill(
 ) {
 
 
-    /*
-     * NEW_SKILL
-     */
-
-
     const candidate =
+
         event
             ?.payload
             ?.skillCandidate;
 
 
 
-    if (
+    /*
+     * NEW SKILL
+     */
+
+
+    if(
         candidate?.skillId
-    ) {
+    ){
 
         return {
-
 
             id:
                 candidate.skillId,
 
-
             version:
                 null,
 
-
             exists:
                 false
-
 
         };
 
@@ -210,33 +190,30 @@ function resolveTargetSkill(
 
 
 
-
-
     /*
-     * SKILL IMPROVEMENT
+     * EXISTING SKILL UPDATE
      */
 
 
     const skills =
+
         event
             ?.payload
             ?.skills;
 
 
 
-    if (
-        Array.isArray(skills) &&
-        skills.length > 0
-    ) {
-
+    if(
+        Array.isArray(skills)
+        &&
+        skills.length
+    ){
 
         const skill =
             skills[0];
 
 
-
         return {
-
 
             id:
 
@@ -249,35 +226,20 @@ function resolveTargetSkill(
                 null,
 
 
-
             version:
 
-                skill.version ||
-
-                null,
-
+                skill.version || null,
 
 
             exists:
-
                 true
 
-
         };
-
 
     }
 
 
 
-
-
-
-
-
-    /*
-     * fallback
-     */
 
 
     return {
@@ -293,14 +255,116 @@ function resolveTargetSkill(
 
 
         version:
-
             null,
 
 
         exists:
-
             false
 
+    };
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD EXPERIENCE
+ * =========================================================
+ */
+
+
+function buildProposedExperience(
+    candidate,
+    targetSkill
+) {
+
+
+    return {
+
+
+        id:
+
+            targetSkill.id || null,
+
+
+
+        name:
+
+            candidate.name ||
+
+            `Jessica Skill ${targetSkill.id || "generated"}`,
+
+
+
+        description:
+
+            candidate.description || "",
+
+
+
+        category:
+
+            candidate.category || "general",
+
+
+
+        workflow:
+
+            Array.isArray(candidate.workflow)
+
+                ? candidate.workflow
+
+                : [],
+
+
+
+        validationRules:
+
+            normalizeArray(
+                candidate.validationRules
+            ),
+
+
+
+        triggerPatterns:
+
+            normalizeArray(
+                candidate.triggerPatterns
+            ),
+
+
+
+        examples:
+
+            Array.isArray(candidate.examples)
+
+                ? candidate.examples
+
+                : [],
+
+
+
+        constraints:
+
+            normalizeArray(
+                candidate.constraints
+            ),
+
+
+
+        source:
+
+            candidate.source ||
+
+            "execution-learning"
 
     };
 
@@ -327,10 +391,10 @@ export function createLearningProposalFromQueue(
 ) {
 
 
-    if (
+    if(
         !queueItem ||
         typeof queueItem !== "object"
-    ) {
+    ){
 
         throw new Error(
             "Learning Proposal: queue item отсутствует"
@@ -343,6 +407,7 @@ export function createLearningProposalFromQueue(
 
 
     const event =
+
         extractEvent(
             queueItem
         );
@@ -352,6 +417,7 @@ export function createLearningProposalFromQueue(
 
 
     const action =
+
         queueItem.action ||
 
         event.action ||
@@ -363,6 +429,7 @@ export function createLearningProposalFromQueue(
 
 
     const targetSkill =
+
         resolveTargetSkill(
             queueItem,
             event
@@ -372,26 +439,13 @@ export function createLearningProposalFromQueue(
 
 
 
-    const sourceExperience =
+    const candidate =
 
         event
             ?.payload
             ?.skillCandidate ||
 
         {};
-
-
-
-
-
-
-    const skillName =
-
-        sourceExperience.name ||
-
-        `Jessica Skill ${targetSkill.id || "generated"}`;
-
-
 
 
 
@@ -433,8 +487,49 @@ export function createLearningProposalFromQueue(
         confidence:
 
             Number(
-                queueItem.confidence || 0
+                queueItem.confidence ||
+                candidate.confidence ||
+                0
             ),
+
+
+
+
+        /*
+         * Сохраняем исходный анализ.
+         *
+         * Нужен Autonomy Policy.
+         */
+
+
+        analysis:
+
+        {
+
+            reusable:
+
+                event
+                    ?.reusable === true
+                    ||
+                    event
+                    ?.payload
+                    ?.reusable === true,
+
+
+            reason:
+
+                event.reason || "",
+
+
+
+            source:
+
+                "experience-analyzer"
+
+        },
+
+
+
 
 
 
@@ -442,7 +537,6 @@ export function createLearningProposalFromQueue(
         targetSkill:
 
         {
-
 
             id:
 
@@ -458,7 +552,6 @@ export function createLearningProposalFromQueue(
 
                 targetSkill.exists
 
-
         },
 
 
@@ -468,69 +561,13 @@ export function createLearningProposalFromQueue(
 
         proposedExperience:
 
-        {
+            buildProposedExperience(
 
+                candidate,
 
-            id:
+                targetSkill
 
-                targetSkill.id || null,
-
-
-
-            name:
-
-                skillName,
-
-
-
-            description:
-
-                sourceExperience.description ||
-
-                "",
-
-
-
-            workflow:
-
-                Array.isArray(
-                    sourceExperience.workflow
-                )
-
-                    ? sourceExperience.workflow
-
-                    : [],
-
-
-
-            triggerPatterns:
-
-                normalizeArray(
-                    sourceExperience.triggerPatterns
-                ),
-
-
-
-            examples:
-
-                Array.isArray(
-                    sourceExperience.examples
-                )
-
-                    ? sourceExperience.examples
-
-                    : [],
-
-
-
-            constraints:
-
-                normalizeArray(
-                    sourceExperience.constraints
-                )
-
-
-        },
+            ),
 
 
 
@@ -550,13 +587,13 @@ export function createLearningProposalFromQueue(
             null,
 
 
-
         rejectedAt:
 
             null
 
 
     };
+
 
 }
 
@@ -579,16 +616,6 @@ export function createLearningProposal({
 
     task,
 
-    previousAnswer = "",
-
-    correction = "",
-
-    correctedAnswer = "",
-
-    understanding = "",
-
-    clarificationQuestions = [],
-
     proposedExperience = null
 
 } = {}) {
@@ -596,15 +623,16 @@ export function createLearningProposal({
 
 
     const cleanTask =
+
         normalizeText(
             task
         );
 
 
 
-    if (
+    if(
         !cleanTask
-    ) {
+    ){
 
         throw new Error(
             "Learning Proposal: задача не указана"
@@ -648,35 +676,23 @@ export function createLearningProposal({
 
 
 
-        previousAnswer:
+        confidence:
 
-            normalizeText(
-                previousAnswer
-            ),
+            0,
 
 
 
-        correction:
+        analysis:
 
-            normalizeText(
-                correction
-            ),
+        {
 
+            reusable:
+                false,
 
+            reason:
+                "manual"
 
-        correctedAnswer,
-
-
-
-        understanding,
-
-
-
-        clarificationQuestions:
-
-            normalizeArray(
-                clarificationQuestions
-            ),
+        },
 
 
 
@@ -692,13 +708,10 @@ export function createLearningProposal({
 
 
         approvedAt:
-
             null,
 
 
-
         rejectedAt:
-
             null
 
 
@@ -732,7 +745,6 @@ export function approveLearningProposal(
     );
 
 
-
     return {
 
 
@@ -745,18 +757,15 @@ export function approveLearningProposal(
                 .APPROVED,
 
 
-
         approvedAt:
 
             new Date()
                 .toISOString(),
 
 
-
         rejectedAt:
 
             null
-
 
     };
 
@@ -788,7 +797,6 @@ export function rejectLearningProposal(
     );
 
 
-
     return {
 
 
@@ -801,11 +809,9 @@ export function rejectLearningProposal(
                 .REJECTED,
 
 
-
         approvedAt:
 
             null,
-
 
 
         rejectedAt:
@@ -839,10 +845,10 @@ function validateProposal(
 ) {
 
 
-    if (
+    if(
         !proposal ||
         typeof proposal !== "object"
-    ) {
+    ){
 
         throw new Error(
             "Learning Proposal отсутствует"
@@ -852,10 +858,10 @@ function validateProposal(
 
 
 
-    if (
+    if(
         proposal.status !==
         LEARNING_PROPOSAL_STATUS.PENDING_APPROVAL
-    ) {
+    ){
 
         throw new Error(
             "Learning Proposal уже обработан"
@@ -864,4 +870,4 @@ function validateProposal(
     }
 
 
-}
+            }
