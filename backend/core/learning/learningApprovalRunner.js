@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING APPROVAL RUNNER v2
+ * JESSICA LEARNING APPROVAL RUNNER v3
  * =========================================================
  *
  * Автономный исполнитель обучения.
@@ -14,6 +14,8 @@
  *        ↓
  *
  * AUTO_APPROVE
+ *        ↓
+ * Attach autonomy decision
  *        ↓
  * learningApproval
  *        ↓
@@ -52,6 +54,8 @@ import {
 
 
 
+
+
 /*
  * =========================================================
  * PROCESS SINGLE PROPOSAL
@@ -65,7 +69,8 @@ async function processProposal(
 
 
     if (
-        !proposal
+        !proposal ||
+        typeof proposal !== "object"
     ) {
 
 
@@ -104,6 +109,14 @@ async function processProposal(
 
 
 
+
+    /*
+     * =====================================================
+     * KEEP CANDIDATE
+     * =====================================================
+     */
+
+
     if (
         autonomy.action !==
         "AUTO_APPROVE"
@@ -125,8 +138,10 @@ async function processProposal(
                 "KEEP_CANDIDATE",
 
 
+
             reason:
                 autonomy.reason,
+
 
 
             autonomy
@@ -135,6 +150,38 @@ async function processProposal(
         };
 
     }
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * ATTACH AUTONOMY DECISION
+     *
+     * Теперь Proposal содержит:
+     *
+     * proposal.autonomy
+     *
+     * и следующий слой может
+     * подтвердить автоматическое обучение.
+     *
+     * =====================================================
+     */
+
+
+    const approvedProposal = {
+
+
+        ...proposal,
+
+
+        autonomy
+
+
+    };
 
 
 
@@ -158,21 +205,21 @@ async function processProposal(
 
             await approveAndSaveLearningProposal({
 
-                proposal,
-
-
-                skillId:
-
-                    proposal.skillId || "",
-
+                proposal:
+                    approvedProposal,
 
 
                 confidence:
 
-                    proposal.confidence || 0
+                    autonomy.confidence ??
+
+                    proposal.confidence ??
+
+                    0
 
 
             });
+
 
 
 
@@ -185,7 +232,13 @@ async function processProposal(
             ...result,
 
 
+            learned:
+
+                result.success === true,
+
+
             autonomy
+
 
         };
 
@@ -212,7 +265,12 @@ async function processProposal(
                 false,
 
 
+            learned:
+                false,
+
+
             reason:
+
                 error.message,
 
 
