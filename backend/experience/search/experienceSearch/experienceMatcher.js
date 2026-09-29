@@ -1,11 +1,14 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE MATCHER v0.5
+ * JESSICA EXPERIENCE MATCHER v0.6
  * =========================================================
  *
- * Match Task → Experience Skill
+ * Match:
  *
- * Приоритет:
+ * Task → Experience Skill
+ *
+ *
+ * Priority:
  *
  * 1. triggerPatterns
  * 2. keywords
@@ -13,6 +16,7 @@
  * 4. successfulPatterns
  * 5. name
  * 6. description
+ *
  *
  * НЕ:
  *
@@ -42,6 +46,7 @@ from "./experienceText.js";
 
 
 
+
 const SCORE = {
 
 
@@ -53,12 +58,14 @@ const SCORE = {
         0.30,
 
 
+
     KEYWORD_PHRASE:
         0.35,
 
 
     KEYWORD_TERM:
         0.20,
+
 
 
     WORKFLOW:
@@ -76,6 +83,7 @@ const SCORE = {
     DESCRIPTION:
         0.05
 
+
 };
 
 
@@ -84,17 +92,26 @@ const SCORE = {
 
 
 
-function emptyMatch(){
+
+
+function emptyMatch()
+{
 
     return {
 
         confidence:0,
 
+
         matchedTerms:[],
+
 
         matchedPhrases:[],
 
-        reasons:[]
+
+        reasons:[],
+
+
+        details:{}
 
     };
 
@@ -107,18 +124,34 @@ function emptyMatch(){
 
 
 
+
 function containsPhrase(
+
     taskTokens,
+
     phraseTokens
+
 ){
 
     if(
+
+        !Array.isArray(taskTokens)
+
+        ||
+
+        !Array.isArray(phraseTokens)
+
+        ||
+
         phraseTokens.length === 0
+
     ){
 
         return false;
 
     }
+
+
 
 
 
@@ -130,7 +163,8 @@ function containsPhrase(
         i++
     ){
 
-        let ok=true;
+        let match=true;
+
 
 
         for(
@@ -147,7 +181,8 @@ function containsPhrase(
                 phraseTokens[j]
             ){
 
-                ok=false;
+                match=false;
+
                 break;
 
             }
@@ -155,8 +190,10 @@ function containsPhrase(
         }
 
 
-        if(ok)
+
+        if(match)
             return true;
+
 
     }
 
@@ -174,17 +211,25 @@ function containsPhrase(
 
 
 function matchPhrases(
+
     taskTokens,
+
     phrases,
+
     phraseScore,
+
     termScore
+
 ){
 
     let score=0;
 
+
     const terms=[];
 
+
     const matchedPhrases=[];
+
 
 
 
@@ -192,10 +237,13 @@ function matchPhrases(
         const phrase of phrases
     ){
 
+
         const tokens =
+
             canonicalizeExperienceTokens(
                 phrase
             );
+
 
 
 
@@ -209,26 +257,38 @@ function matchPhrases(
 
 
 
+
+
+
         if(
-            tokens.length>1
+
+            tokens.length > 1
+
             &&
+
             containsPhrase(
                 taskTokens,
                 tokens
             )
+
         ){
 
-            score=Math.max(
-                score,
-                phraseScore
-            );
+
+            score =
+                Math.max(
+                    score,
+                    phraseScore
+                );
 
 
             matchedPhrases.push(
+
                 normalizeExperienceText(
                     phrase
                 )
+
             );
+
 
 
             terms.push(
@@ -237,18 +297,30 @@ function matchPhrases(
 
 
         }
+
+
+
+
+
         else if(
-            tokens.length===1
+
+            tokens.length === 1
+
             &&
+
             taskTokens.includes(
                 tokens[0]
             )
+
         ){
 
-            score=Math.max(
-                score,
-                termScore
-            );
+
+            score =
+                Math.max(
+                    score,
+                    termScore
+                );
+
 
 
             terms.push(
@@ -257,25 +329,36 @@ function matchPhrases(
 
         }
 
+
     }
+
+
+
 
 
 
     return {
 
+
         score,
 
+
         terms:
+
             uniqueExperienceValues(
                 terms
             ),
 
+
+
         phrases:
+
             uniqueExperienceValues(
                 matchedPhrases
             )
 
     };
+
 
 }
 
@@ -288,14 +371,19 @@ function matchPhrases(
 
 
 function overlap(
+
     taskSet,
+
     tokens
+
 ){
 
     const unique =
+
         uniqueExperienceValues(
             tokens
         );
+
 
 
     if(
@@ -313,19 +401,31 @@ function overlap(
     }
 
 
+
+
+
     const matched =
+
         unique.filter(
-            x =>
-            taskSet.has(x)
+
+            token =>
+
+                taskSet.has(token)
+
         );
+
+
+
 
 
     return {
 
 
         ratio:
+
             matched.length /
             unique.length,
+
 
 
         matched
@@ -345,14 +445,41 @@ function overlap(
 
 
 export function calculateExperienceMatch(
+
     task,
+
     experience
+
 ){
 
+    if(
+
+        !experience
+
+        ||
+
+        typeof experience !== "object"
+
+    ){
+
+        return emptyMatch();
+
+    }
+
+
+
+
+
+
+
     const taskTokens =
+
         canonicalizeExperienceTokens(
             task
         );
+
+
+
 
 
     if(
@@ -365,7 +492,12 @@ export function calculateExperienceMatch(
 
 
 
+
+
+
+
     const taskSet =
+
         new Set(
             taskTokens
         );
@@ -378,12 +510,13 @@ export function calculateExperienceMatch(
 
 
     const triggerMatch =
+
         matchPhrases(
 
             taskTokens,
 
             normalizeExperienceStringArray(
-                experience?.triggerPatterns
+                experience.triggerPatterns
             ),
 
             SCORE.TRIGGER_PHRASE,
@@ -397,13 +530,15 @@ export function calculateExperienceMatch(
 
 
 
+
     const keywordMatch =
+
         matchPhrases(
 
             taskTokens,
 
             normalizeExperienceStringArray(
-                experience?.keywords
+                experience.keywords
             ),
 
             SCORE.KEYWORD_PHRASE,
@@ -417,7 +552,11 @@ export function calculateExperienceMatch(
 
 
 
+
+
+
     const workflowMatch =
+
         overlap(
 
             taskSet,
@@ -425,13 +564,15 @@ export function calculateExperienceMatch(
             canonicalizeExperienceTokens(
 
                 (
-                    experience?.workflow || []
+                    experience.workflow || []
+
                 )
                 .join(" ")
 
             )
 
         );
+
 
 
 
@@ -440,6 +581,7 @@ export function calculateExperienceMatch(
 
 
     const successMatch =
+
         overlap(
 
             taskSet,
@@ -447,7 +589,8 @@ export function calculateExperienceMatch(
             canonicalizeExperienceTokens(
 
                 (
-                    experience?.successfulPatterns || []
+                    experience.successfulPatterns || []
+
                 )
                 .join(" ")
 
@@ -461,16 +604,21 @@ export function calculateExperienceMatch(
 
 
 
+
     const nameMatch =
+
         overlap(
 
             taskSet,
 
             canonicalizeExperienceTokens(
-                experience?.name
+
+                experience.name
+
             )
 
         );
+
 
 
 
@@ -479,12 +627,15 @@ export function calculateExperienceMatch(
 
 
     const descriptionMatch =
+
         overlap(
 
             taskSet,
 
             canonicalizeExperienceTokens(
-                experience?.description
+
+                experience.description
+
             )
 
         );
@@ -496,16 +647,26 @@ export function calculateExperienceMatch(
 
 
 
-    let confidence=0;
+
+    let confidence = 0;
 
 
     const reasons=[];
 
 
 
-    if(triggerMatch.score){
+
+
+
+
+
+
+    if(
+        triggerMatch.score
+    ){
 
         confidence +=
+
             triggerMatch.score;
 
 
@@ -517,11 +678,18 @@ export function calculateExperienceMatch(
 
 
 
-    confidence +=
-        keywordMatch.score;
 
 
-    if(keywordMatch.score){
+
+
+    if(
+        keywordMatch.score
+    ){
+
+        confidence +=
+
+            keywordMatch.score;
+
 
         reasons.push(
             "keyword-match"
@@ -531,13 +699,19 @@ export function calculateExperienceMatch(
 
 
 
-    confidence +=
-        workflowMatch.ratio *
-        SCORE.WORKFLOW;
 
 
 
-    if(workflowMatch.ratio){
+
+    if(
+        workflowMatch.ratio
+    ){
+
+        confidence +=
+
+            workflowMatch.ratio *
+            SCORE.WORKFLOW;
+
 
         reasons.push(
             "workflow-match"
@@ -547,29 +721,87 @@ export function calculateExperienceMatch(
 
 
 
-    confidence +=
-        successMatch.ratio *
-        SCORE.SUCCESS_PATTERN;
 
 
 
-    confidence +=
-        nameMatch.ratio *
-        SCORE.NAME;
+
+    if(
+        successMatch.ratio
+    ){
+
+        confidence +=
+
+            successMatch.ratio *
+            SCORE.SUCCESS_PATTERN;
+
+
+        reasons.push(
+            "success-pattern-match"
+        );
+
+    }
 
 
 
-    confidence +=
-        descriptionMatch.ratio *
-        SCORE.DESCRIPTION;
+
+
+
+
+
+    if(
+        nameMatch.ratio
+    ){
+
+        confidence +=
+
+            nameMatch.ratio *
+            SCORE.NAME;
+
+
+        reasons.push(
+            "name-match"
+        );
+
+    }
+
+
+
+
+
+
+
+
+    if(
+        descriptionMatch.ratio
+    ){
+
+        confidence +=
+
+            descriptionMatch.ratio *
+            SCORE.DESCRIPTION;
+
+
+        reasons.push(
+            "description-match"
+        );
+
+    }
+
+
+
+
+
 
 
 
     confidence =
+
         Math.min(
             1,
             confidence
         );
+
+
 
 
 
@@ -583,23 +815,34 @@ export function calculateExperienceMatch(
         confidence,
 
 
+
         matchedTerms:
 
             uniqueExperienceValues([
 
+
                 ...triggerMatch.terms,
+
 
                 ...keywordMatch.terms,
 
+
                 ...workflowMatch.matched,
+
 
                 ...successMatch.matched,
 
+
                 ...nameMatch.matched,
+
 
                 ...descriptionMatch.matched
 
+
             ]),
+
+
+
 
 
 
@@ -607,15 +850,58 @@ export function calculateExperienceMatch(
 
             uniqueExperienceValues([
 
+
                 ...triggerMatch.phrases,
 
+
                 ...keywordMatch.phrases
+
 
             ]),
 
 
 
-        reasons
+
+
+
+        reasons,
+
+
+
+
+
+        details:{
+
+
+            triggerScore:
+                triggerMatch.score,
+
+
+            keywordScore:
+                keywordMatch.score,
+
+
+            workflowScore:
+                workflowMatch.ratio *
+                SCORE.WORKFLOW,
+
+
+            successScore:
+                successMatch.ratio *
+                SCORE.SUCCESS_PATTERN,
+
+
+            nameScore:
+                nameMatch.ratio *
+                SCORE.NAME,
+
+
+            descriptionScore:
+                descriptionMatch.ratio *
+                SCORE.DESCRIPTION
+
+
+        }
 
 
     };
