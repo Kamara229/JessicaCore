@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING WORKER
+ * JESSICA LEARNING WORKER v2
  * =========================================================
  *
  * Обработчик Learning Queue.
@@ -8,18 +8,21 @@
  *
  * Flow:
  *
- * learning_queue
+ * Learning Queue
  *        ↓
  * Learning Worker
  *        ↓
  * Learning Proposal
  *        ↓
- * Approval
+ * Autonomy Policy
+ *        ↓
+ * Approval Runner
  *
  *
  * Ответственность:
  *
  * - получить ожидающие события;
+ * - проверить возможность обучения;
  * - создать Proposal;
  * - сохранить Proposal;
  * - изменить статус Queue.
@@ -27,9 +30,10 @@
  *
  * НЕ:
  *
+ * - анализирует опыт;
+ * - принимает решение обучения;
  * - создаёт Skill;
- * - сохраняет Experience;
- * - выполняет Approval.
+ * - сохраняет Experience.
  *
  * =========================================================
  */
@@ -44,12 +48,14 @@ import {
 
 import {
     createLearningProposalFromQueue
-} from "./learningProposal.js";
+} from "../../experience/learning/learningProposal.js";
 
 
 import {
     saveLearningProposal
 } from "./learningProposalStorage.js";
+
+
 
 
 
@@ -69,26 +75,30 @@ function validateQueueItem(
 ) {
 
 
-    if (
+    if(
         !item ||
         typeof item !== "object"
-    ) {
+    ){
 
         return false;
 
     }
 
 
-    if (
-        !item.action
-    ) {
 
-        return false;
+    const allowedActions = [
 
-    }
+        "NEW_SKILL",
+
+        "SKILL_IMPROVEMENT"
+
+    ];
 
 
-    return true;
+
+    return allowedActions.includes(
+        item.action
+    );
 
 }
 
@@ -112,19 +122,25 @@ async function processQueueItem(
 ) {
 
 
-    if (
+    if(
         !validateQueueItem(
             item
         )
-    ) {
-
+    ){
 
         return {
 
+
             success:false,
 
+
+            queueItemId:
+                item?.id || null,
+
+
             reason:
-                "Некорректный Learning Queue Item"
+                "Queue item не требует обучения"
+
 
         };
 
@@ -140,14 +156,17 @@ async function processQueueItem(
 
 
 
+
+
         /*
          * =================================================
-         * 1. BUILD PROPOSAL
+         * CREATE PROPOSAL
          * =================================================
          */
 
 
         const proposal =
+
             createLearningProposalFromQueue(
                 item
             );
@@ -155,9 +174,11 @@ async function processQueueItem(
 
 
 
-        if (
+
+
+        if(
             !proposal
-        ) {
+        ){
 
 
             await updateLearningQueueItemStatus(
@@ -172,16 +193,19 @@ async function processQueueItem(
 
             return {
 
+
                 success:false,
+
 
                 queueItemId:
                     item.id,
 
+
                 reason:
                     "Proposal не создан"
 
-            };
 
+            };
 
         }
 
@@ -192,14 +216,16 @@ async function processQueueItem(
 
 
 
+
         /*
          * =================================================
-         * 2. SAVE PROPOSAL
+         * SAVE PROPOSAL
          * =================================================
          */
 
 
-        const saveResult =
+        const saved =
+
             await saveLearningProposal(
                 proposal
             );
@@ -207,9 +233,11 @@ async function processQueueItem(
 
 
 
-        if (
-            !saveResult?.success
-        ) {
+
+
+        if(
+            !saved?.success
+        ){
 
 
             await updateLearningQueueItemStatus(
@@ -234,13 +262,12 @@ async function processQueueItem(
 
                 reason:
 
-                    saveResult?.error ||
+                    saved?.error ||
 
-                    "Proposal сохранение не подтверждено"
+                    "Proposal не сохранён"
 
 
             };
-
 
         }
 
@@ -254,12 +281,13 @@ async function processQueueItem(
 
         /*
          * =================================================
-         * 3. UPDATE QUEUE
+         * UPDATE QUEUE
          * =================================================
          */
 
 
-        const updateResult =
+        const updated =
+
             await updateLearningQueueItemStatus(
 
                 item.id,
@@ -271,9 +299,11 @@ async function processQueueItem(
 
 
 
-        if (
-            !updateResult?.success
-        ) {
+
+
+        if(
+            !updated?.success
+        ){
 
 
             return {
@@ -285,9 +315,12 @@ async function processQueueItem(
                 proposal,
 
 
-                reason:
+                queueItemId:
+                    item.id,
 
-                    "Proposal создан, но Queue не обновлена"
+
+                reason:
+                    "Proposal создан, Queue не обновлена"
 
 
             };
@@ -309,17 +342,14 @@ async function processQueueItem(
 
 
             queueItemId:
-
                 item.id,
 
 
             proposalId:
-
                 proposal.id,
 
 
             action:
-
                 proposal.action,
 
 
@@ -331,7 +361,9 @@ async function processQueueItem(
 
 
 
-    } catch(error) {
+
+
+    } catch(error){
 
 
 
@@ -345,9 +377,7 @@ async function processQueueItem(
 
 
 
-
-
-        try {
+        try{
 
 
             await updateLearningQueueItemStatus(
@@ -359,7 +389,7 @@ async function processQueueItem(
             );
 
 
-        } catch(updateError) {
+        }catch(updateError){
 
 
             console.error(
@@ -370,8 +400,8 @@ async function processQueueItem(
 
             );
 
-        }
 
+        }
 
 
 
@@ -384,15 +414,11 @@ async function processQueueItem(
 
 
             queueItemId:
-
-                item.id,
+                item?.id || null,
 
 
             reason:
-
-                error?.message ||
-
-                "Worker error"
+                error.message || "Worker error"
 
 
         };
@@ -423,15 +449,16 @@ export async function runLearningWorker()
 
 
     const queueResult =
+
         await getPendingLearningItems();
 
 
 
 
-    if (
-        !queueResult?.success
-    ) {
 
+    if(
+        !queueResult?.success
+    ){
 
         return {
 
@@ -446,7 +473,7 @@ export async function runLearningWorker()
 
                 queueResult?.error ||
 
-                "Ошибка получения очереди"
+                "Ошибка получения Learning Queue"
 
 
         };
@@ -458,37 +485,40 @@ export async function runLearningWorker()
 
 
 
-
     const items =
+
         Array.isArray(
             queueResult.items
         )
 
-            ? queueResult.items
+        ?
 
-            : [];
+        queueResult.items
 
+        :
 
-
-
-
-
-
-
-    const results =
         [];
 
 
 
 
 
-    for (
+
+
+
+    const results = [];
+
+
+
+
+
+    for(
         const item
         of items
-    ) {
-
+    ){
 
         const result =
+
             await processQueueItem(
                 item
             );
@@ -498,8 +528,8 @@ export async function runLearningWorker()
             result
         );
 
-
     }
+
 
 
 
@@ -514,8 +544,8 @@ export async function runLearningWorker()
 
 
         processed:
-
             items.length,
+
 
 
         successful:
