@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING DAEMON v4
+ * JESSICA LEARNING DAEMON v5
  * =========================================================
  *
  * Фоновый процесс автономного обучения Jessica.
@@ -18,15 +18,25 @@
  *   ↓
  * Autonomy Policy
  *   ↓
+ * Learning Approval
+ *   ↓
  * Experience Memory
+ *
+ *
+ * Ответственность:
+ *
+ * - запускать цикл обучения;
+ * - координировать Pipeline;
+ * - передавать Proposal в Approval Runner;
+ * - возвращать статистику обучения.
  *
  *
  * НЕ:
  *
- * - выполняет пользовательские задачи;
- * - вызывает AI;
  * - анализирует опыт;
- * - создаёт Skill напрямую.
+ * - создаёт Proposal;
+ * - создаёт Skill;
+ * - работает с БД.
  *
  * =========================================================
  */
@@ -61,6 +71,7 @@ let daemonTimer =
     null;
 
 
+
 let running =
     false;
 
@@ -79,30 +90,57 @@ let running =
  */
 
 
-function emptyResult(
-    reason
+function createEmptyCycleResult(
+    reason,
+    pipeline = null
 ){
 
     return {
 
 
-        success:true,
+        success:
+            true,
+
 
 
         reason:
 
+            reason ||
 
-            reason || "nothing-to-learn",
-
-
-
-        pipeline:null,
+            "nothing-to-learn",
 
 
-        approval:null
+
+        pipeline,
+
+
+
+        proposals:
+            0,
+
+
+
+        learned:
+            0,
+
+
+
+        candidates:
+            0,
+
+
+
+        failed:
+            0,
+
+
+
+        approval:
+            null
 
 
     };
+
 
 }
 
@@ -116,7 +154,43 @@ function emptyResult(
 
 /*
  * =========================================================
- * SINGLE CYCLE
+ * NORMALIZE NUMBER
+ * =========================================================
+ */
+
+
+function normalizeNumber(
+    value
+){
+
+    const number =
+        Number(value);
+
+
+
+    return Number.isFinite(number)
+
+        ?
+
+        number
+
+        :
+
+        0;
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * SINGLE LEARNING CYCLE
  * =========================================================
  */
 
@@ -132,16 +206,19 @@ export async function runLearningDaemonCycle()
         return {
 
 
-            success:false,
+            success:
+                false,
 
 
             reason:
+
                 "Learning cycle already running"
 
 
         };
 
     }
+
 
 
 
@@ -156,21 +233,21 @@ export async function runLearningDaemonCycle()
 
 
 
-
     try {
 
 
 
         /*
-         * =============================================
-         * 1. PIPELINE
-         * =============================================
+         * =================================================
+         * 1. LEARNING PIPELINE
+         * =================================================
          */
 
 
         const pipelineResult =
 
             await runLearningPipeline();
+
 
 
 
@@ -184,7 +261,8 @@ export async function runLearningDaemonCycle()
             return {
 
 
-                success:false,
+                success:
+                    false,
 
 
                 stage:
@@ -199,6 +277,7 @@ export async function runLearningDaemonCycle()
                     ||
 
                     "Learning Pipeline failed"
+
 
 
             };
@@ -233,12 +312,23 @@ export async function runLearningDaemonCycle()
 
 
 
+        /*
+         * =================================================
+         * NOTHING TO APPROVE
+         * =================================================
+         */
+
+
         if(
             proposals.length === 0
         ){
 
-            return emptyResult(
-                "no-proposals"
+            return createEmptyCycleResult(
+
+                "no-proposals",
+
+                pipelineResult
+
             );
 
         }
@@ -252,9 +342,9 @@ export async function runLearningDaemonCycle()
 
 
         /*
-         * =============================================
+         * =================================================
          * 2. APPROVAL RUNNER
-         * =============================================
+         * =================================================
          */
 
 
@@ -279,7 +369,8 @@ export async function runLearningDaemonCycle()
             return {
 
 
-                success:false,
+                success:
+                    false,
 
 
                 stage:
@@ -288,8 +379,12 @@ export async function runLearningDaemonCycle()
 
 
                 pipeline:
-
                     pipelineResult,
+
+
+
+                proposals:
+                    proposals.length,
 
 
 
@@ -297,7 +392,9 @@ export async function runLearningDaemonCycle()
                     error.message
 
 
+
             };
+
 
         }
 
@@ -309,10 +406,18 @@ export async function runLearningDaemonCycle()
 
 
 
+        /*
+         * =================================================
+         * FINAL RESULT
+         * =================================================
+         */
+
+
         return {
 
 
-            success:true,
+            success:
+                true,
 
 
 
@@ -322,32 +427,43 @@ export async function runLearningDaemonCycle()
 
 
             proposals:
-
                 proposals.length,
 
 
 
             learned:
 
-                approvalResult?.learned || 0,
+                normalizeNumber(
+
+                    approvalResult?.learned
+
+                ),
 
 
 
             candidates:
 
-                approvalResult?.candidates || 0,
+                normalizeNumber(
+
+                    approvalResult?.candidates
+
+                ),
 
 
 
             failed:
 
-                approvalResult?.failed || 0,
+                normalizeNumber(
+
+                    approvalResult?.failed
+
+                ),
 
 
 
             approval:
-
                 approvalResult
+
 
 
         };
@@ -357,7 +473,9 @@ export async function runLearningDaemonCycle()
 
 
 
+
     }catch(error){
+
 
 
         console.error(
@@ -373,14 +491,18 @@ export async function runLearningDaemonCycle()
         return {
 
 
-            success:false,
+            success:
+                false,
 
 
             error:
                 error.message
 
 
+
         };
+
+
 
 
 
@@ -422,11 +544,14 @@ export function startLearningDaemon(
         return {
 
 
-            started:false,
+            started:
+                false,
 
 
             reason:
+
                 "Daemon already started"
+
 
 
         };
@@ -437,14 +562,30 @@ export function startLearningDaemon(
 
 
 
+
+
     daemonTimer =
 
         setInterval(
 
-            async () => {
+            () => {
 
 
-                await runLearningDaemonCycle();
+                runLearningDaemonCycle()
+
+                    .catch(error => {
+
+
+                        console.error(
+
+                            "Learning Daemon cycle error:",
+
+                            error
+
+                        );
+
+
+                    });
 
 
 
@@ -453,6 +594,8 @@ export function startLearningDaemon(
             interval
 
         );
+
+
 
 
 
@@ -468,13 +611,17 @@ export function startLearningDaemon(
 
 
 
+
+
     return {
 
 
-        started:true,
+        started:
+            true,
 
 
         interval
+
 
 
     };
@@ -508,12 +655,17 @@ export function stopLearningDaemon()
         return {
 
 
-            stopped:false
+            stopped:
+                false
+
 
 
         };
 
     }
+
+
+
 
 
 
@@ -529,12 +681,18 @@ export function stopLearningDaemon()
 
 
 
+
+
+
     return {
 
 
-        stopped:true
+        stopped:
+            true
+
 
 
     };
+
 
 }
