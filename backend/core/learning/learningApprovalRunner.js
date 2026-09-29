@@ -15,9 +15,7 @@
  *
  * AUTO_APPROVE
  *        ↓
- * Attach autonomy decision
- *        ↓
- * learningApproval
+ * Learning Approval
  *        ↓
  * Experience Skill
  *
@@ -30,9 +28,8 @@
  * НЕ:
  *
  * - создаёт Proposal;
- * - анализирует обучение;
- * - вызывает AI;
- * - хранит память.
+ * - анализирует опыт;
+ * - сохраняет память напрямую.
  *
  * =========================================================
  */
@@ -41,7 +38,7 @@
 
 import {
     approveAndSaveLearningProposal
-} from "./learningApproval.js";
+} from "../../experience/learning/learningApproval.js";
 
 
 import {
@@ -68,16 +65,14 @@ async function processProposal(
 ) {
 
 
-    if (
+    if(
         !proposal ||
         typeof proposal !== "object"
-    ) {
-
+    ){
 
         return {
 
-            success:
-                false,
+            success:false,
 
             reason:
                 "Proposal отсутствует"
@@ -94,7 +89,7 @@ async function processProposal(
 
     /*
      * =====================================================
-     * AUTONOMY CHECK
+     * AUTONOMY DECISION
      * =====================================================
      */
 
@@ -110,28 +105,27 @@ async function processProposal(
 
 
 
+
     /*
-     * =====================================================
-     * KEEP CANDIDATE
-     * =====================================================
+     * Сохраняем решение
+     * только в текущий поток.
+     *
+     * Proposal в БД не изменяем.
      */
 
 
-    if (
+    if(
         autonomy.action !==
         "AUTO_APPROVE"
-    ) {
-
+    ){
 
         return {
 
 
-            success:
-                true,
+            success:true,
 
 
-            learned:
-                false,
+            learned:false,
 
 
             status:
@@ -140,48 +134,16 @@ async function processProposal(
 
 
             reason:
+
                 autonomy.reason,
 
 
 
             autonomy
 
-
         };
 
     }
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * ATTACH AUTONOMY DECISION
-     *
-     * Теперь Proposal содержит:
-     *
-     * proposal.autonomy
-     *
-     * и следующий слой может
-     * подтвердить автоматическое обучение.
-     *
-     * =====================================================
-     */
-
-
-    const approvedProposal = {
-
-
-        ...proposal,
-
-
-        autonomy
-
-
-    };
 
 
 
@@ -205,21 +167,18 @@ async function processProposal(
 
             await approveAndSaveLearningProposal({
 
-                proposal:
-                    approvedProposal,
+                proposal,
+
+
+                autonomy,
 
 
                 confidence:
 
-                    autonomy.confidence ??
-
-                    proposal.confidence ??
-
-                    0
+                    proposal.confidence || 0
 
 
             });
-
 
 
 
@@ -237,6 +196,7 @@ async function processProposal(
                 result.success === true,
 
 
+
             autonomy
 
 
@@ -250,7 +210,7 @@ async function processProposal(
 
         console.error(
 
-            "Jessica Approval Runner error:",
+            "Jessica Learning Approval Runner error:",
 
             error
 
@@ -261,12 +221,10 @@ async function processProposal(
         return {
 
 
-            success:
-                false,
+            success:false,
 
 
-            learned:
-                false,
+            learned:false,
 
 
             reason:
@@ -274,7 +232,9 @@ async function processProposal(
                 error.message,
 
 
+
             autonomy
+
 
         };
 
@@ -294,7 +254,7 @@ async function processProposal(
 
 /*
  * =========================================================
- * RUN APPROVAL BATCH
+ * RUN BATCH
  * =========================================================
  */
 
@@ -304,26 +264,22 @@ export async function runLearningApproval(
 ) {
 
 
-    if (
-        !Array.isArray(
-            proposals
-        )
-    ) {
-
+    if(
+        !Array.isArray(proposals)
+    ){
 
         return {
 
 
-            success:
-                false,
+            success:false,
 
 
-            processed:
-                0,
+            processed:0,
 
 
             error:
                 "Invalid proposals"
+
 
         };
 
@@ -334,18 +290,19 @@ export async function runLearningApproval(
 
 
 
-    const results =
-        [];
+
+    const results = [];
 
 
 
 
 
-    for (
+
+
+    for(
         const proposal
         of proposals
-    ) {
-
+    ){
 
         const result =
 
@@ -358,9 +315,7 @@ export async function runLearningApproval(
             result
         );
 
-
     }
-
 
 
 
@@ -371,8 +326,7 @@ export async function runLearningApproval(
     return {
 
 
-        success:
-            true,
+        success:true,
 
 
         processed:
@@ -384,10 +338,8 @@ export async function runLearningApproval(
         learned:
 
             results.filter(
-
                 item =>
                     item.learned === true
-
             ).length,
 
 
@@ -395,11 +347,9 @@ export async function runLearningApproval(
         candidates:
 
             results.filter(
-
                 item =>
                     item.status ===
                     "KEEP_CANDIDATE"
-
             ).length,
 
 
@@ -407,10 +357,8 @@ export async function runLearningApproval(
         failed:
 
             results.filter(
-
                 item =>
                     item.success === false
-
             ).length,
 
 
