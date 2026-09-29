@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING APPROVAL v3
+ * JESSICA LEARNING APPROVAL v4
  * =========================================================
  *
  * Финальный исполнитель автономного обучения.
@@ -31,6 +31,7 @@
  */
 
 
+
 import {
     approveLearningProposal
 } from "./learningProposal.js";
@@ -51,7 +52,13 @@ import {
 
 
 
-function safeString(value){
+
+
+
+
+function safeString(
+    value
+){
 
     return String(
         value || ""
@@ -64,10 +71,16 @@ function safeString(value){
 
 
 
+
+
+
+
 function buildFailure({
 
     stage,
+
     error,
+
     proposal = null
 
 }){
@@ -95,11 +108,14 @@ function buildFailure({
 
 
 
+
+
 function resolveSkillId(
     proposal
 ){
 
     const experience =
+
         proposal.proposedExperience || {};
 
 
@@ -134,6 +150,8 @@ function resolveSkillId(
 
 
 
+
+
 function getNextVersion(
     history
 ){
@@ -150,9 +168,11 @@ function getNextVersion(
 
 
 
+
     const versions =
 
         history
+
         .map(
             item =>
                 Number(
@@ -160,10 +180,11 @@ function getNextVersion(
                     item.payload?.version
                 )
         )
+
         .filter(
-            item =>
-                Number.isInteger(item)
+            Number.isInteger
         );
+
 
 
 
@@ -176,11 +197,15 @@ function getNextVersion(
     }
 
 
+
+
     return Math.max(
         ...versions
     ) + 1;
 
+
 }
+
 
 
 
@@ -193,15 +218,19 @@ export async function approveAndSaveLearningProposal({
 
     proposal,
 
+    autonomy = null,
+
     confidence = null
 
 } = {}) {
 
 
 
+
     /*
      * INPUT
      */
+
 
     if(
         !proposal ||
@@ -225,12 +254,15 @@ export async function approveAndSaveLearningProposal({
 
 
 
+
+
     /*
      * AUTONOMY CHECK
      */
 
+
     if(
-        proposal.autonomy?.action !==
+        autonomy?.action !==
         "AUTO_APPROVE"
     ){
 
@@ -246,6 +278,7 @@ export async function approveAndSaveLearningProposal({
         });
 
     }
+
 
 
 
@@ -277,11 +310,15 @@ export async function approveAndSaveLearningProposal({
 
 
 
+
+
     const skillId =
 
         resolveSkillId(
             proposal
         );
+
+
 
 
 
@@ -308,9 +345,6 @@ export async function approveAndSaveLearningProposal({
 
 
 
-    /*
-     * HISTORY
-     */
 
 
     let history;
@@ -348,6 +382,8 @@ export async function approveAndSaveLearningProposal({
 
 
 
+
+
     const version =
 
         getNextVersion(
@@ -360,10 +396,6 @@ export async function approveAndSaveLearningProposal({
 
 
 
-
-    /*
-     * BUILD EXPERIENCE
-     */
 
 
     let experience;
@@ -397,16 +429,17 @@ export async function approveAndSaveLearningProposal({
             });
 
 
-        /*
-         * Добавляем данные обучения
-         */
+
+
 
 
         experience.learning = {
 
+
             action:
 
                 proposal.action,
+
 
 
             source:
@@ -414,17 +447,26 @@ export async function approveAndSaveLearningProposal({
                 proposal.source,
 
 
-            reason:
 
-                proposal.analysis?.reason || "",
+            confidence:
+
+                confidence ??
+                proposal.confidence ??
+                0,
 
 
-            autonomy:
 
-                proposal.autonomy || null
+            analysis:
 
+                proposal.analysis || null,
+
+
+
+            autonomy
 
         };
+
+
 
 
     }catch(error){
@@ -449,9 +491,6 @@ export async function approveAndSaveLearningProposal({
 
 
 
-    /*
-     * SAVE
-     */
 
 
     let saved;
@@ -489,6 +528,8 @@ export async function approveAndSaveLearningProposal({
 
 
 
+
+
     if(
         !saved?.success
     ){
@@ -512,9 +553,6 @@ export async function approveAndSaveLearningProposal({
 
 
 
-    /*
-     * APPROVE
-     */
 
 
     const approved =
@@ -528,35 +566,47 @@ export async function approveAndSaveLearningProposal({
 
 
 
+
+
+
     return {
 
 
         success:true,
 
 
-        stage:"learned",
+        stage:
+            "learned",
+
 
 
         proposal:
             approved,
 
 
+
         experience,
+
 
 
         skillId,
 
 
+
         version,
 
 
+
         action:
+
             proposal.action,
+
 
 
         previousVersions:
 
             history.length
+
 
     };
 
