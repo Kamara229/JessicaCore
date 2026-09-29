@@ -5,10 +5,10 @@ import {
 
 /*
  * =========================================================
- * JESSICA LEARNING SKILL BUILDER
+ * JESSICA LEARNING SKILL BUILDER v2
  * =========================================================
  *
- * Создаёт Experience Skill из Learning Proposal.
+ * Создает Experience Skill из Learning Proposal.
  *
  *
  * Flow:
@@ -17,7 +17,7 @@ import {
  *        ↓
  * Skill Builder
  *        ↓
- * Experience Skill Version
+ * Experience Skill
  *        ↓
  * Experience Storage
  *
@@ -32,15 +32,13 @@ import {
  *
  * НЕ:
  *
- * - сохраняет в БД;
- * - определяет Approval;
- * - ищет историю версий;
- * - вызывает AI.
+ * - Approval;
+ * - AI;
+ * - поиск истории;
+ * - сохранение в БД.
  *
  * =========================================================
  */
-
-
 
 
 
@@ -93,6 +91,7 @@ const TRANSLITERATION = {
 
 
 
+
 /*
  * =========================================================
  * NORMALIZE
@@ -102,7 +101,7 @@ const TRANSLITERATION = {
 
 function normalizeText(
     value
-) {
+){
 
     return String(
         value || ""
@@ -117,11 +116,11 @@ function normalizeText(
 
 function normalizeArray(
     value
-) {
+){
 
-    if (
+    if(
         !Array.isArray(value)
-    ) {
+    ){
 
         return [];
 
@@ -129,11 +128,15 @@ function normalizeArray(
 
 
     return value
+
         .map(
             item =>
                 normalizeText(item)
         )
-        .filter(Boolean);
+
+        .filter(
+            Boolean
+        );
 
 }
 
@@ -141,24 +144,37 @@ function normalizeArray(
 
 
 
-function normalizeObject(
+
+function normalizeConfidence(
     value
-) {
+){
 
-    if (
-        !value ||
-        typeof value !== "object" ||
-        Array.isArray(value)
-    ) {
+    const number =
+        Number(value);
 
-        return {};
+
+    if(
+        !Number.isFinite(number)
+    ){
+
+        return 0.7;
 
     }
 
 
-    return {
-        ...value
-    };
+    return Math.max(
+
+        0,
+
+        Math.min(
+
+            1,
+
+            number
+
+        )
+
+    );
 
 }
 
@@ -170,23 +186,25 @@ function normalizeObject(
 
 /*
  * =========================================================
- * ID BUILDER
+ * SKILL ID
  * =========================================================
  */
 
 
 export function buildLearningSkillId(
     value
-) {
-
+){
 
     const normalized =
 
         normalizeText(
             value
         )
+
         .toLowerCase()
+
         .split("")
+
         .map(
 
             char =>
@@ -195,15 +213,19 @@ export function buildLearningSkillId(
                 char
 
         )
+
         .join("")
+
         .replace(
             /[^a-z0-9]+/g,
             "-"
         )
+
         .replace(
             /^-+|-+$/g,
             ""
         )
+
         .slice(
             0,
             80
@@ -211,9 +233,9 @@ export function buildLearningSkillId(
 
 
 
-    if (
+    if(
         normalized
-    ) {
+    ){
 
         return normalized;
 
@@ -223,7 +245,7 @@ export function buildLearningSkillId(
 
     return (
 
-        "generated-skill-"
+        "skill-"
 
         +
 
@@ -252,19 +274,17 @@ export function buildLearningSkillId(
 
 function normalizeVersion(
     value
-) {
-
+){
 
     const version =
         Number(value);
 
 
-
-    if (
+    if(
         !Number.isInteger(version)
         ||
         version < 1
-    ) {
+    ){
 
         return 1;
 
@@ -272,54 +292,6 @@ function normalizeVersion(
 
 
     return version;
-
-}
-
-
-
-
-
-
-/*
- * =========================================================
- * CONFIDENCE
- * =========================================================
- */
-
-
-function normalizeConfidence(
-    value
-) {
-
-
-    const confidence =
-        Number(value);
-
-
-
-    if (
-        !Number.isFinite(confidence)
-    ) {
-
-        return 0.7;
-
-    }
-
-
-
-    return Math.max(
-
-        0,
-
-        Math.min(
-
-            1,
-
-            confidence
-
-        )
-
-    );
 
 }
 
@@ -356,10 +328,10 @@ export function buildExperienceSkill({
 
 
 
-    if (
+    if(
         !proposedExperience ||
         typeof proposedExperience !== "object"
-    ) {
+    ){
 
         throw new Error(
             "proposedExperience отсутствует"
@@ -372,21 +344,24 @@ export function buildExperienceSkill({
 
 
     const name =
+
         normalizeText(
             proposedExperience.name
         );
 
 
 
-    if (
+    if(
         !name
-    ) {
+    ){
 
         throw new Error(
             "Название Skill отсутствует"
         );
 
     }
+
+
 
 
 
@@ -408,11 +383,12 @@ export function buildExperienceSkill({
 
 
 
+
     return {
 
 
         /*
-         * Identity
+         * IDENTITY
          */
 
 
@@ -423,14 +399,15 @@ export function buildExperienceSkill({
 
 
         normalizedName:
+
             buildLearningSkillId(
                 name
             ),
 
 
 
-
         description:
+
             normalizeText(
                 proposedExperience.description
             ),
@@ -438,12 +415,28 @@ export function buildExperienceSkill({
 
 
 
+
+        category:
+
+            normalizeText(
+                proposedExperience.category
+            )
+            ||
+            "general",
+
+
+
+
+
+
+
         /*
-         * Versioning
+         * VERSION
          */
 
 
         version:
+
             normalizeVersion(
                 version
             ),
@@ -451,6 +444,7 @@ export function buildExperienceSkill({
 
 
         previousVersion:
+
             previousVersion
             ?
             normalizeVersion(
@@ -467,8 +461,10 @@ export function buildExperienceSkill({
 
 
 
+
+
         /*
-         * Status
+         * STATUS
          */
 
 
@@ -478,6 +474,7 @@ export function buildExperienceSkill({
 
 
         confidence:
+
             normalizeConfidence(
                 confidence
             ),
@@ -486,12 +483,16 @@ export function buildExperienceSkill({
 
 
 
+
+
+
         /*
-         * Knowledge
+         * KNOWLEDGE
          */
 
 
         workflow:
+
             Array.isArray(
                 proposedExperience.workflow
             )
@@ -503,6 +504,7 @@ export function buildExperienceSkill({
 
 
         triggerPatterns:
+
             normalizeArray(
                 proposedExperience.triggerPatterns
             ),
@@ -510,13 +512,71 @@ export function buildExperienceSkill({
 
 
         keywords:
+
             normalizeArray(
                 proposedExperience.keywords
             ),
 
 
 
+        validationRules:
+
+            normalizeArray(
+                proposedExperience.validationRules
+            ),
+
+
+
+        constraints:
+
+            normalizeArray(
+                proposedExperience.constraints
+            ),
+
+
+
+        strategy:
+
+            normalizeArray(
+                proposedExperience.strategy
+            ),
+
+
+
+        sourcePriority:
+
+            normalizeArray(
+                proposedExperience.sourcePriority
+            ),
+
+
+
+        failurePatterns:
+
+            normalizeArray(
+                proposedExperience.failurePatterns
+            ),
+
+
+
+        successfulPatterns:
+
+            normalizeArray(
+                proposedExperience.successfulPatterns
+            ),
+
+
+
+        avoidPatterns:
+
+            normalizeArray(
+                proposedExperience.avoidPatterns
+            ),
+
+
+
         examples:
+
             Array.isArray(
                 proposedExperience.examples
             )
@@ -527,102 +587,108 @@ export function buildExperienceSkill({
 
 
 
-        constraints:
-            normalizeArray(
-                proposedExperience.constraints
-            ),
-
-
-
-        strategy:
-            normalizeArray(
-                proposedExperience.strategy
-            ),
-
-
-
-        sourcePriority:
-            normalizeArray(
-                proposedExperience.sourcePriority
-            ),
-
-
-
-        validationRules:
-            normalizeArray(
-                proposedExperience.validationRules
-            ),
-
-
-
-        failurePatterns:
-            normalizeArray(
-                proposedExperience.failurePatterns
-            ),
-
-
-
-        successfulPatterns:
-            normalizeArray(
-                proposedExperience.successfulPatterns
-            ),
-
-
-
-        avoidPatterns:
-            normalizeArray(
-                proposedExperience.avoidPatterns
-            ),
-
 
 
 
 
 
         /*
-         * Statistics
+         * USAGE MEMORY
          */
 
 
-        successfulRuns:
-            0,
+        usage:{
 
 
-        failedRuns:
-            0,
+            successfulRuns:
+                0,
 
 
+            failedRuns:
+                0,
 
 
-
-        /*
-         * Learning metadata
-         */
-
-
-        metadata:{
-
-            proposalId:
-                metadata.proposalId ||
+            lastUsedAt:
                 null,
 
 
-            queueItemId:
-                metadata.queueItemId ||
-                null,
-
-
-            learnedFrom:
-                metadata.learnedFrom ||
-                "learning_pipeline"
+            lastResult:
+                null
 
         },
 
 
 
+
+
+
+
+
+        /*
+         * AUTONOMOUS LEARNING META
+         */
+
+
+        metadata:{
+
+
+            proposalId:
+
+                metadata.proposalId ||
+                null,
+
+
+
+            queueItemId:
+
+                metadata.queueItemId ||
+                null,
+
+
+
+            learnedFrom:
+
+                metadata.learnedFrom ||
+                "learning_pipeline",
+
+
+
+            learningMode:
+
+                metadata.learningMode ||
+                "autonomous",
+
+
+
+            createdBy:
+
+                metadata.createdBy ||
+                "jessica-learning",
+
+
+
+            sourceExperience:
+
+                metadata.sourceExperience ||
+                null
+
+
+        },
+
+
+
+
+
         learnedAt:
+
             new Date()
-                .toISOString()
+                .toISOString(),
+
+
+
+        learningVersion:
+
+            "v2"
 
 
     };
