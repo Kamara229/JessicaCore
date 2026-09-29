@@ -1,84 +1,57 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE TEXT v0.4
+ * JESSICA EXPERIENCE TEXT v0.5
  * =========================================================
  *
- * Текстовый слой Experience Search.
+ * Semantic normalization layer.
  *
+ * НЕ:
  *
- * Отвечает за:
- *
- * - нормализацию текста;
- * - токенизацию;
- * - RU / EN semantic concepts;
- * - нормализацию массивов строк;
- * - удаление дублей.
- *
- *
- * НЕ отвечает за:
- *
- * - scoring;
- * - confidence;
- * - выбор Skill;
- * - phrase matching;
- * - Storage;
- * - AI.
+ * - считает score;
+ * - выбирает Skill;
+ * - работает с Storage.
  *
  * =========================================================
  */
 
-
-/*
- * =========================================================
- * NORMALIZE TEXT
- * =========================================================
- */
 
 
 export function normalizeExperienceText(
     value
-) {
+){
 
     return String(
         value || ""
     )
-        .toLowerCase()
+    .toLowerCase()
 
-        /*
-         * Для Experience Search дефисы
-         * и подчёркивания считаем разделителями.
-         */
+    .replace(
+        /[_-]+/g,
+        " "
+    )
 
-        .replace(
-            /[_-]+/g,
-            " "
-        )
+    .replace(
+        /[^a-zа-яё0-9\s]/gi,
+        " "
+    )
 
-        .replace(
-            /[^a-zа-яё0-9\s]/gi,
-            " "
-        )
+    .replace(
+        /\s+/g,
+        " "
+    )
 
-        .replace(
-            /\s+/g,
-            " "
-        )
-
-        .trim();
+    .trim();
 
 }
 
 
-/*
- * =========================================================
- * TOKENIZE
- * =========================================================
- */
+
+
 
 
 export function tokenizeExperienceText(
     value
-) {
+){
 
     const text =
         normalizeExperienceText(
@@ -86,7 +59,9 @@ export function tokenizeExperienceText(
         );
 
 
-    if (!text) {
+    if(
+        !text
+    ){
 
         return [];
 
@@ -103,30 +78,192 @@ export function tokenizeExperienceText(
 }
 
 
-/*
- * =========================================================
- * CANONICAL CONCEPT
- * =========================================================
- *
- * Приводит распространённые языковые формы
- * к стабильным semantic concepts.
- *
- *
- * Это НЕ полноценный NLP.
- *
- * Здесь должны находиться только
- * универсальные смысловые соответствия.
- *
- * Не добавляем сюда правила
- * под один конкретный пользовательский запрос.
- *
- * =========================================================
- */
+
+
+
+
+
+
+const CONCEPTS = [
+
+
+    {
+        concept:"verify",
+        patterns:[
+            "verify",
+            "verified",
+            "verification",
+            "провер",
+            "вериф"
+        ]
+    },
+
+
+    {
+        concept:"search",
+        patterns:[
+            "search",
+            "find",
+            "ищ",
+            "поиск",
+            "найд"
+        ]
+    },
+
+
+    {
+        concept:"official",
+        patterns:[
+            "official",
+            "официал"
+        ]
+    },
+
+
+    {
+        concept:"website",
+        patterns:[
+            "website",
+            "site",
+            "web",
+            "сайт"
+        ]
+    },
+
+
+    {
+        concept:"document",
+        patterns:[
+            "document",
+            "doc",
+            "документ"
+        ]
+    },
+
+
+    {
+        concept:"certificate",
+        patterns:[
+            "certificate",
+            "сертификат",
+            "удостовер"
+        ]
+    },
+
+
+    {
+        concept:"create",
+        patterns:[
+            "create",
+            "make",
+            "созд",
+            "формир"
+        ]
+    },
+
+
+    {
+        concept:"get",
+        patterns:[
+            "get",
+            "receive",
+            "получ",
+            "загруз"
+        ]
+    },
+
+
+    {
+        concept:"send",
+        patterns:[
+            "send",
+            "отправ",
+            "перед"
+        ]
+    },
+
+
+    {
+        concept:"analyze",
+        patterns:[
+            "analyze",
+            "analysis",
+            "анализ"
+        ]
+    },
+
+
+    {
+        concept:"save",
+        patterns:[
+            "save",
+            "store",
+            "сохран"
+        ]
+    },
+
+
+    {
+        concept:"api",
+        patterns:[
+            "api"
+        ]
+    },
+
+
+    {
+        concept:"database",
+        patterns:[
+            "database",
+            "db",
+            "база",
+            "данных"
+        ]
+    },
+
+
+    {
+        concept:"code",
+        patterns:[
+            "code",
+            "код",
+            "программ"
+        ]
+    },
+
+
+    {
+        concept:"error",
+        patterns:[
+            "error",
+            "bug",
+            "ошиб"
+        ]
+    },
+
+
+    {
+        concept:"report",
+        patterns:[
+            "report",
+            "отчет",
+            "доклад"
+        ]
+    }
+
+
+];
+
+
+
+
+
+
 
 
 export function canonicalizeExperienceToken(
     token
-) {
+){
 
     const value =
         normalizeExperienceText(
@@ -134,245 +271,38 @@ export function canonicalizeExperienceToken(
         );
 
 
-    if (!value) {
+    if(
+        !value
+    ){
 
         return "";
 
     }
 
 
-    /*
-     * =====================================================
-     * CURRENT
-     * =====================================================
-     *
-     * current
-     * now
-     * текущий
-     * текущее
-     * текущего
-     * сейчас
-     *
-     * → current
-     */
 
+    for(
+        const item of CONCEPTS
+    ){
 
-    if (
-        value === "current" ||
-        value === "currently" ||
-        value === "now" ||
-        value === "сейчас" ||
-        value.startsWith(
-            "текущ"
-        )
-    ) {
+        for(
+            const pattern of item.patterns
+        ){
 
-        return "current";
+            if(
+                value === pattern
+                ||
+                value.startsWith(pattern)
+            ){
+
+                return item.concept;
+
+            }
+
+        }
 
     }
 
-
-    /*
-     * =====================================================
-     * TIME
-     * =====================================================
-     *
-     * time
-     * hour
-     * время
-     * времени
-     * час
-     * часов
-     *
-     * → time
-     */
-
-
-    if (
-        value === "time" ||
-        value === "hour" ||
-        value === "hours" ||
-        value.startsWith(
-            "врем"
-        ) ||
-        value.startsWith(
-            "час"
-        )
-    ) {
-
-        return "time";
-
-    }
-
-
-    /*
-     * =====================================================
-     * OFFICIAL
-     * =====================================================
-     */
-
-
-    if (
-        value === "official" ||
-        value === "officially" ||
-        value.startsWith(
-            "официал"
-        )
-    ) {
-
-        return "official";
-
-    }
-
-
-    /*
-     * =====================================================
-     * WEBSITE
-     * =====================================================
-     */
-
-
-    if (
-        value === "website" ||
-        value === "site" ||
-        value === "web" ||
-        value.startsWith(
-            "сайт"
-        )
-    ) {
-
-        return "website";
-
-    }
-
-
-    /*
-     * =====================================================
-     * SEARCH / FIND
-     * =====================================================
-     */
-
-
-    if (
-        value === "search" ||
-        value === "find" ||
-        value === "finding" ||
-        value.startsWith(
-            "поиск"
-        ) ||
-        value.startsWith(
-            "ищ"
-        ) ||
-        value.startsWith(
-            "найд"
-        ) ||
-        value.startsWith(
-            "найт"
-        )
-    ) {
-
-        return "search";
-
-    }
-
-
-    /*
-     * =====================================================
-     * VERIFY
-     * =====================================================
-     */
-
-
-    if (
-        value === "verify" ||
-        value === "verified" ||
-        value === "verification" ||
-        value.startsWith(
-            "провер"
-        )
-    ) {
-
-        return "verify";
-
-    }
-
-
-    /*
-     * =====================================================
-     * DOMAIN
-     * =====================================================
-     */
-
-
-    if (
-        value === "domain" ||
-        value.startsWith(
-            "домен"
-        )
-    ) {
-
-        return "domain";
-
-    }
-
-
-    /*
-     * =====================================================
-     * URL / LINK
-     * =====================================================
-     */
-
-
-    if (
-        value === "url" ||
-        value === "link" ||
-        value.startsWith(
-            "ссыл"
-        )
-    ) {
-
-        return "url";
-
-    }
-
-
-    /*
-     * =====================================================
-     * PROJECT
-     * =====================================================
-     */
-
-
-    if (
-        value === "project" ||
-        value.startsWith(
-            "проект"
-        )
-    ) {
-
-        return "project";
-
-    }
-
-
-    /*
-     * =====================================================
-     * FALLBACK
-     * =====================================================
-     *
-     * Неизвестные слова не выбрасываем.
-     *
-     * Они всё ещё могут быть полезны
-     * для будущих Skills:
-     *
-     * blender
-     * android
-     * invoice
-     * seo
-     * etc.
-     *
-     * =====================================================
-     */
 
 
     return value;
@@ -380,44 +310,60 @@ export function canonicalizeExperienceToken(
 }
 
 
-/*
- * =========================================================
- * CANONICAL TOKENS
- * =========================================================
- */
+
+
+
+
+
 
 
 export function canonicalizeExperienceTokens(
     value
-) {
+){
 
     return tokenizeExperienceText(
         value
     )
-        .map(
-            canonicalizeExperienceToken
-        )
-        .filter(Boolean);
+
+    .map(
+        canonicalizeExperienceToken
+    )
+
+    .filter(Boolean);
 
 }
 
 
-/*
- * =========================================================
- * UNIQUE VALUES
- * =========================================================
- */
+
+
+
+
+
+
+export function canonicalizeExperiencePhrase(
+    value
+){
+
+    return canonicalizeExperienceTokens(
+        value
+    );
+
+}
+
+
+
+
+
+
 
 
 export function uniqueExperienceValues(
     values
-) {
+){
 
-    if (
-        !Array.isArray(
-            values
-        )
-    ) {
+    if(
+        !Array.isArray(values)
+    ){
 
         return [];
 
@@ -425,30 +371,29 @@ export function uniqueExperienceValues(
 
 
     return [
+
         ...new Set(
             values.filter(Boolean)
         )
+
     ];
 
 }
 
 
-/*
- * =========================================================
- * NORMALIZE STRING ARRAY
- * =========================================================
- */
+
+
+
+
 
 
 export function normalizeExperienceStringArray(
     value
-) {
+){
 
-    if (
-        !Array.isArray(
-            value
-        )
-    ) {
+    if(
+        !Array.isArray(value)
+    ){
 
         return [];
 
@@ -456,12 +401,13 @@ export function normalizeExperienceStringArray(
 
 
     return value
+
         .map(
             item =>
-                String(
-                    item || ""
-                ).trim()
+                String(item || "")
+                .trim()
         )
+
         .filter(Boolean);
 
 }
