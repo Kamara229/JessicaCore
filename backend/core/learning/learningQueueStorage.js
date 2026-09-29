@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING QUEUE STORAGE
+ * JESSICA LEARNING QUEUE STORAGE v2
  * =========================================================
  *
  * Persistent storage для Learning Queue.
@@ -8,27 +8,28 @@
  *
  * Flow:
  *
- * Learning Queue Item
+ * Learning Event
  *        ↓
- * Learning Queue Storage
+ * Learning Queue
  *        ↓
- * Supabase Client
+ * Learning Worker
  *        ↓
- * PostgreSQL
+ * Learning Proposal
  *
  *
  * Ответственность:
  *
  * - сохранить Learning Event;
  * - получить ожидающие события;
- * - обновить статус обучения.
+ * - изменить статус обработки.
  *
  *
  * НЕ:
  *
- * - анализирует обучение;
- * - создаёт Skill;
- * - принимает решение Approval.
+ * - анализирует опыт;
+ * - создаёт Proposal;
+ * - принимает решение обучения;
+ * - создаёт Skill.
  *
  * =========================================================
  */
@@ -43,15 +44,12 @@ import {
 
 
 
-/*
- * =========================================================
- * TABLE
- * =========================================================
- */
-
-
 const TABLE_NAME =
     "learning_queue";
+
+
+
+
 
 
 
@@ -60,10 +58,6 @@ const TABLE_NAME =
 /*
  * =========================================================
  * CLIENT
- * =========================================================
- *
- * Клиент создаётся через общий Supabase слой.
- *
  * =========================================================
  */
 
@@ -79,6 +73,82 @@ function getClient()
 
 
 
+
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE
+ * =========================================================
+ */
+
+
+function normalizeText(
+    value
+){
+
+    return String(
+        value || ""
+    )
+    .trim();
+
+}
+
+
+
+
+
+
+function normalizeNumber(
+    value
+){
+
+    const number =
+        Number(value);
+
+
+
+    return Number.isFinite(number)
+        ?
+        number
+        :
+        0;
+
+}
+
+
+
+
+
+
+function normalizeObject(
+    value
+){
+
+    if(
+        !value ||
+        typeof value !== "object" ||
+        Array.isArray(value)
+    ){
+
+        return {};
+
+    }
+
+
+    return value;
+
+}
+
+
+
+
+
+
+
+
+
 /*
  * =========================================================
  * VALIDATION
@@ -88,19 +158,38 @@ function getClient()
 
 function isValidQueueItem(
     item
-) {
+){
+
+    if(
+        !item ||
+        typeof item !== "object"
+    ){
+
+        return false;
+
+    }
 
 
-    return (
 
-        item &&
+    const allowedActions = [
 
-        typeof item === "object"
+        "NEW_SKILL",
 
+        "SKILL_IMPROVEMENT"
+
+    ];
+
+
+
+    return allowedActions.includes(
+        item.action
     );
 
-
 }
+
+
+
+
 
 
 
@@ -115,23 +204,23 @@ function isValidQueueItem(
 
 export async function saveLearningQueueItem(
     item
-) {
+){
 
-
-    if (
+    if(
         !isValidQueueItem(
             item
         )
-    ) {
-
+    ){
 
         return {
 
-            success:
-                false,
+
+            success:false,
+
 
             error:
-                "Invalid queue item"
+                "Invalid learning queue item"
+
 
         };
 
@@ -141,40 +230,66 @@ export async function saveLearningQueueItem(
 
 
 
+
     try {
+
 
 
         const payload = {
 
 
+
             id:
+
                 item.id || null,
 
 
+
             skill_id:
-                item.skillId || null,
+
+                normalizeText(
+                    item.skillId
+                )
+                ||
+                null,
+
 
 
             action:
-                item.action || "IGNORE",
+
+                item.action,
+
 
 
             confidence:
-                Number(
-                    item.confidence || 0
+
+                normalizeNumber(
+                    item.confidence
                 ),
 
 
+
             status:
-                item.status || "PENDING",
+
+                item.status ||
+                "PENDING",
+
 
 
             event_json:
-                item.event || {},
+
+                normalizeObject(
+                    item.event
+                ),
+
 
 
             created_at:
-                item.createdAt ||
+
+                item.createdAt
+
+                ||
+
                 new Date()
                     .toISOString()
 
@@ -185,10 +300,16 @@ export async function saveLearningQueueItem(
 
 
 
+
+
+
+
         const {
             data,
             error
+
         } =
+
             await getClient()
 
                 .from(
@@ -207,24 +328,31 @@ export async function saveLearningQueueItem(
 
 
 
-        if (
-            error
-        ) {
 
+
+        if(
+            error
+        ){
 
             console.error(
+
                 "Jessica Learning Queue insert error:",
+
                 error
+
             );
+
 
 
             return {
 
-                success:
-                    false,
+
+                success:false,
+
 
                 error:
                     error.message
+
 
             };
 
@@ -234,11 +362,12 @@ export async function saveLearningQueueItem(
 
 
 
+
+
         return {
 
 
-            success:
-                true,
+            success:true,
 
 
             id:
@@ -253,24 +382,31 @@ export async function saveLearningQueueItem(
 
 
 
-    } catch(error) {
+
+
+
+
+    }catch(error){
 
 
         console.error(
-            "Jessica Learning Queue storage exception:",
+
+            "Jessica Learning Queue storage error:",
+
             error
+
         );
+
 
 
         return {
 
 
-            success:
-                false,
+            success:false,
 
 
             error:
-                error?.message ||
+                error.message ||
                 "Storage error"
 
 
@@ -280,6 +416,10 @@ export async function saveLearningQueueItem(
 
 
 }
+
+
+
+
 
 
 
@@ -295,14 +435,15 @@ export async function saveLearningQueueItem(
 export async function getPendingLearningItems()
 {
 
-
     try {
 
 
         const {
             data,
             error
+
         } =
+
             await getClient()
 
                 .from(
@@ -317,33 +458,34 @@ export async function getPendingLearningItems()
                 )
 
                 .order(
+
                     "created_at",
+
                     {
 
-                        ascending:
-                            true
+                        ascending:true
 
                     }
+
                 );
 
 
 
 
 
-        if (
-            error
-        ) {
 
+
+        if(
+            error
+        ){
 
             return {
 
 
-                success:
-                    false,
+                success:false,
 
 
-                items:
-                    [],
+                items:[],
 
 
                 error:
@@ -358,46 +500,62 @@ export async function getPendingLearningItems()
 
 
 
+
+
         return {
 
 
-            success:
-                true,
+            success:true,
 
 
             items:
-                data || []
+
+                Array.isArray(data)
+
+                ?
+
+                data
+
+                :
+
+                []
 
 
         };
 
 
 
-    } catch(error) {
+
+
+
+    }catch(error){
 
 
         return {
 
 
-            success:
-                false,
+            success:false,
 
 
-            items:
-                [],
+            items:[],
 
 
             error:
-                error?.message ||
+                error.message ||
                 "Storage error"
 
 
         };
 
+
     }
 
 
 }
+
+
+
+
 
 
 
@@ -416,19 +574,18 @@ export async function updateLearningQueueItemStatus(
 
     status
 
-) {
+)
+{
 
 
-    if (
+    if(
         !id
-    ) {
-
+    ){
 
         return {
 
 
-            success:
-                false,
+            success:false,
 
 
             error:
@@ -443,16 +600,15 @@ export async function updateLearningQueueItemStatus(
 
 
 
-    if (
-        !status
-    ) {
 
+    if(
+        !status
+    ){
 
         return {
 
 
-            success:
-                false,
+            success:false,
 
 
             error:
@@ -467,13 +623,18 @@ export async function updateLearningQueueItemStatus(
 
 
 
+
+
     try {
+
 
 
         const {
             data,
             error
+
         } =
+
             await getClient()
 
                 .from(
@@ -484,9 +645,12 @@ export async function updateLearningQueueItemStatus(
 
                     status,
 
-                    reviewed_at:
+
+                    processed_at:
+
                         new Date()
                             .toISOString()
+
 
                 })
 
@@ -503,16 +667,16 @@ export async function updateLearningQueueItemStatus(
 
 
 
-        if (
-            error
-        ) {
 
+
+        if(
+            error
+        ){
 
             return {
 
 
-                success:
-                    false,
+                success:false,
 
 
                 error:
@@ -527,11 +691,13 @@ export async function updateLearningQueueItemStatus(
 
 
 
+
+
+
         return {
 
 
-            success:
-                true,
+            success:true,
 
 
             item:
@@ -542,22 +708,26 @@ export async function updateLearningQueueItemStatus(
 
 
 
-    } catch(error) {
+
+
+
+
+    }catch(error){
 
 
         return {
 
 
-            success:
-                false,
+            success:false,
 
 
             error:
-                error?.message ||
+                error.message ||
                 "Storage error"
 
 
         };
+
 
     }
 
