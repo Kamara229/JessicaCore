@@ -1,3 +1,38 @@
+/*
+ * =========================================================
+ * JESSICA EXPERIENCE CORE v2
+ * =========================================================
+ *
+ * Центральный координатор Experience слоя.
+ *
+ *
+ * Flow:
+ *
+ * Task
+ *   ↓
+ * Experience Storage
+ *   ↓
+ * Experience Search
+ *   ↓
+ * Experience Match
+ *   ↓
+ * Experience Context
+ *   ↓
+ * Planner
+ *
+ *
+ * НЕ:
+ *
+ * - сохраняет Experience;
+ * - обучает;
+ * - вызывает AI;
+ * - выполняет инструменты.
+ *
+ * =========================================================
+ */
+
+
+
 import {
     searchExperience
 } from "./search/experienceSearch.js";
@@ -14,82 +49,29 @@ import {
 
 
 
-/*
- * =========================================================
- * JESSICA EXPERIENCE CORE
- * =========================================================
- *
- * Центральный координатор Experience слоя.
- *
- *
- * Flow:
- *
- * Task
- *   ↓
- * Experience Storage
- *   ↓
- * Active Skills
- *   ↓
- * Experience Search
- *   ↓
- * Skill Match
- *   ↓
- * Experience Context
- *   ↓
- * Planner
- *
- *
- * Ответственность:
- *
- * - получить активные Skills;
- * - найти подходящий опыт;
- * - построить PlanningContext.
- *
- *
- * НЕ:
- *
- * - сохраняет Experience;
- * - изменяет Skills;
- * - обучает Jessica;
- * - вызывает AI;
- * - выполняет инструменты.
- *
- * =========================================================
- */
 
 
 
 
-
-/*
- * =========================================================
- * EMPTY RESULT
- * =========================================================
- */
 
 
 function createEmptyResult(
     reason
-) {
-
+){
 
     return {
 
 
-        found:
-            false,
+        found:false,
 
 
-        experience:
-            null,
+        experience:null,
 
 
-        match:
-            null,
+        match:null,
 
 
-        confidence:
-            0,
+        confidence:0,
 
 
         source:
@@ -101,31 +83,21 @@ function createEmptyResult(
 
 
 
-        planningContext:
-        {
+        planningContext:{
 
-            experience:
-                null,
+            experience:null,
 
+            sourceRules:[],
 
-            sourceRules:
-                [],
+            constraints:[],
 
+            instructions:[],
 
-            constraints:
-                [],
+            plannerHints:[],
 
+            metadata:{
 
-            instructions:
-                [],
-
-
-            plannerHints:
-                [],
-
-
-            metadata:
-            {
+                experienceFound:false,
 
                 reason:
                     reason || "not-found"
@@ -137,30 +109,23 @@ function createEmptyResult(
 
     };
 
-
 }
 
 
 
 
 
-/*
- * =========================================================
- * NORMALIZE MATCH
- * =========================================================
- */
+
+
 
 
 function normalizeMatch(
-    experience,
-    confidence
-) {
+    result
+){
 
-
-    if (
-        !experience ||
-        typeof experience !== "object"
-    ) {
+    if(
+        !result?.experience
+    ){
 
         return null;
 
@@ -168,33 +133,75 @@ function normalizeMatch(
 
 
 
+    const experience =
+        result.experience;
+
+
+
     return {
 
 
         skillId:
+
             experience.id ||
+
             null,
 
 
+
         version:
+
             Number(
                 experience.version || 1
             ),
 
 
+
         name:
-            experience.name ||
-            "",
+
+            experience.name || "",
+
 
 
         confidence:
-            Number(
-                confidence || 0
-            )
 
+            Number(
+                result.confidence || 0
+            ),
+
+
+
+        rankingScore:
+
+            Number(
+                result.rankingScore || 0
+            ),
+
+
+
+        matchedTerms:
+
+            result.matchedTerms || [],
+
+
+
+        matchedPhrases:
+
+            result.matchedPhrases || [],
+
+
+
+        matchReasons:
+
+            result.matchReasons || [],
+
+
+
+        matchDetails:
+
+            result.matchDetails || {}
 
     };
-
 
 }
 
@@ -202,23 +209,19 @@ function normalizeMatch(
 
 
 
-/*
- * =========================================================
- * LOAD AVAILABLE EXPERIENCE
- * =========================================================
- */
+
+
 
 
 async function getAvailableExperiences(
     experiences
-) {
+){
 
-
-    if (
+    if(
         Array.isArray(
             experiences
         )
-    ) {
+    ){
 
         return experiences;
 
@@ -228,18 +231,14 @@ async function getAvailableExperiences(
 
     return await loadExperienceSkills();
 
-
 }
 
 
 
 
 
-/*
- * =========================================================
- * RESOLVE EXPERIENCE
- * =========================================================
- */
+
+
 
 
 export async function resolveExperience(
@@ -248,10 +247,10 @@ export async function resolveExperience(
 
     experiences = null
 
-) {
-
+){
 
     const cleanTask =
+
         String(
             task || ""
         )
@@ -261,15 +260,13 @@ export async function resolveExperience(
 
 
 
-    if (
+    if(
         !cleanTask
-    ) {
-
+    ){
 
         return createEmptyResult(
             "empty-task"
         );
-
 
     }
 
@@ -278,29 +275,24 @@ export async function resolveExperience(
 
 
 
-    /*
-     * =====================================================
-     * STORAGE
-     * =====================================================
-     */
 
 
     let availableExperiences;
 
 
 
-    try {
+    try{
 
 
         availableExperiences =
+
             await getAvailableExperiences(
                 experiences
             );
 
 
 
-    } catch(error) {
-
+    }catch(error){
 
 
         console.error(
@@ -312,11 +304,9 @@ export async function resolveExperience(
         );
 
 
-
         return createEmptyResult(
             "storage-error"
         );
-
 
     }
 
@@ -325,7 +315,9 @@ export async function resolveExperience(
 
 
 
-    if (
+
+
+    if(
 
         !Array.isArray(
             availableExperiences
@@ -335,14 +327,11 @@ export async function resolveExperience(
 
         availableExperiences.length === 0
 
-    ) {
-
-
+    ){
 
         return createEmptyResult(
             "no-active-skills"
         );
-
 
     }
 
@@ -352,21 +341,17 @@ export async function resolveExperience(
 
 
 
-    /*
-     * =====================================================
-     * SEARCH
-     * =====================================================
-     */
 
 
     let searchResult;
 
 
 
-    try {
+    try{
 
 
         searchResult =
+
             searchExperience(
 
                 cleanTask,
@@ -377,8 +362,7 @@ export async function resolveExperience(
 
 
 
-    } catch(error) {
-
+    }catch(error){
 
 
         console.error(
@@ -388,7 +372,6 @@ export async function resolveExperience(
             error
 
         );
-
 
 
         return createEmptyResult(
@@ -404,7 +387,8 @@ export async function resolveExperience(
 
 
 
-    if (
+
+    if(
 
         !searchResult?.found
 
@@ -412,7 +396,7 @@ export async function resolveExperience(
 
         !searchResult.experience
 
-    ) {
+    ){
 
 
         return {
@@ -423,20 +407,30 @@ export async function resolveExperience(
             ),
 
 
+
             confidence:
+
                 Number(
                     searchResult?.confidence || 0
                 ),
 
 
+
             source:
-                searchResult?.source ||
-                "experience-search"
+
+                searchResult?.source
+                ||
+                "experience-search",
+
+
+
+            ranking:
+
+                searchResult?.ranking || []
 
 
 
         };
-
 
     }
 
@@ -447,29 +441,23 @@ export async function resolveExperience(
 
 
 
-    /*
-     * =====================================================
-     * CONTEXT
-     * =====================================================
-     */
-
 
     let planningContext;
 
 
 
-    try {
+    try{
 
 
         planningContext =
+
             buildExperienceContext(
                 searchResult
             );
 
 
 
-    } catch(error) {
-
+    }catch(error){
 
 
         console.error(
@@ -482,18 +470,23 @@ export async function resolveExperience(
 
 
 
-        planningContext =
-        {
+        planningContext = {
 
-            experience:
-                null,
+            experience:null,
 
+            sourceRules:[],
 
-            metadata:
-            {
+            constraints:[],
 
-                contextError:
-                    true
+            instructions:[],
+
+            plannerHints:[],
+
+            metadata:{
+
+                experienceFound:false,
+
+                contextError:true
 
             }
 
@@ -509,22 +502,15 @@ export async function resolveExperience(
 
 
 
-    /*
-     * =====================================================
-     * SUCCESS
-     * =====================================================
-     */
-
 
     return {
 
 
-        found:
-            true,
-
+        found:true,
 
 
         experience:
+
             searchResult.experience,
 
 
@@ -532,16 +518,13 @@ export async function resolveExperience(
         match:
 
             normalizeMatch(
-
-                searchResult.experience,
-
-                searchResult.confidence
-
+                searchResult
             ),
 
 
 
         confidence:
+
             Number(
                 searchResult.confidence || 0
             ),
@@ -549,12 +532,15 @@ export async function resolveExperience(
 
 
         source:
-            searchResult.source ||
+
+            searchResult.source
+            ||
             "experience-search",
 
 
 
         reason:
+
             "matched",
 
 
