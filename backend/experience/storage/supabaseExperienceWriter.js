@@ -6,7 +6,7 @@ import {
 
 /*
  * =========================================================
- * JESSICA EXPERIENCE WRITER v3
+ * JESSICA EXPERIENCE WRITER v4
  * =========================================================
  *
  * Атомарное сохранение Experience Skill.
@@ -41,11 +41,8 @@ const SAVE_SKILL_RPC =
 
 
 
-
-
-function normalizeText(
-    value
-){
+function normalizeText(value)
+{
 
     return String(
         value || ""
@@ -60,15 +57,11 @@ function normalizeText(
 
 
 
-
-
-function normalizeVersion(
-    value
-){
+function normalizeVersion(value)
+{
 
     const version =
         Number(value);
-
 
 
     if(
@@ -92,17 +85,38 @@ function normalizeVersion(
 
 
 
-
-
-function normalizeBoolean(
-    value
-){
+function normalizeBoolean(value)
+{
 
     return value !== false;
 
 }
 
 
+
+
+
+
+
+function normalizePreviousVersion(value)
+{
+
+    if(
+        value === null
+        ||
+        value === undefined
+    ){
+
+        return null;
+
+    }
+
+
+    return normalizeVersion(
+        value
+    );
+
+}
 
 
 
@@ -121,21 +135,9 @@ function validateVersionChain(
 
 
     const previous =
-        experience.previousVersion === null
-        ||
-        experience.previousVersion === undefined
-
-        ?
-
-        null
-
-        :
-
-        normalizeVersion(
+        normalizePreviousVersion(
             experience.previousVersion
         );
-
-
 
 
 
@@ -149,9 +151,6 @@ function validateVersionChain(
 
 
 
-
-
-
     if(
         previous === null
     ){
@@ -162,14 +161,84 @@ function validateVersionChain(
 
 
 
-
-
-
     return (
 
         version === previous + 1
 
     );
+
+}
+
+
+
+
+
+
+
+
+
+function buildMetadata(
+    experience
+){
+
+    return {
+
+
+        ...(experience.metadata || {}),
+
+
+
+        previousVersion:
+
+            normalizePreviousVersion(
+                experience.previousVersion
+            ),
+
+
+
+        mode:
+
+            experience.mode
+            ||
+            "create",
+
+
+
+        learningMode:
+
+            experience.metadata?.learningMode
+            ||
+            "autonomous",
+
+
+
+        createdBy:
+
+            experience.metadata?.createdBy
+            ||
+            "jessica-learning",
+
+
+
+        storage:
+
+            "experience-writer",
+
+
+
+        storageVersion:
+
+            "v4",
+
+
+
+        storedAt:
+
+            new Date()
+                .toISOString()
+
+
+    };
 
 }
 
@@ -203,15 +272,19 @@ export async function saveExperienceAtomic(
 
 
 
+
     const skillId =
 
         normalizeText(
 
             experience.id
+
             ||
+
             experience.skillId
 
         );
+
 
 
 
@@ -236,6 +309,7 @@ export async function saveExperienceAtomic(
         normalizeVersion(
             experience.version
         );
+
 
 
 
@@ -274,6 +348,19 @@ export async function saveExperienceAtomic(
 
 
 
+    const previousVersion =
+
+        normalizePreviousVersion(
+            experience.previousVersion
+        );
+
+
+
+
+
+
+
+
 
     const payload = {
 
@@ -281,11 +368,19 @@ export async function saveExperienceAtomic(
         ...experience,
 
 
+
         id:
+
             skillId,
 
 
+
         version,
+
+
+
+        previousVersion,
+
 
 
         enabled:
@@ -295,76 +390,22 @@ export async function saveExperienceAtomic(
             )
 
 
-    };
-
-
-
-
-
-
-
-
-
-    const metadata = {
-
-
-        ...(experience.metadata || {}),
-
-
-
-        previousVersion:
-
-            experience.previousVersion
-            ||
-            null,
-
-
-
-        mode:
-
-            experience.mode
-            ||
-            "create",
-
-
-
-
-
-        learning:
-
-            experience.metadata?.learning
-            ||
-            null,
-
-
-
-
-
-        learningMode:
-
-            "autonomous",
-
-
-
-
-
-        createdBy:
-
-            experience.metadata?.createdBy
-            ||
-            "jessica-learning",
-
-
-
-
-
-        storedAt:
-
-            new Date()
-                .toISOString()
-
 
     };
+
+
+
+
+
+
+
+
+
+    const metadata =
+
+        buildMetadata(
+            payload
+        );
 
 
 
@@ -377,6 +418,8 @@ export async function saveExperienceAtomic(
     const supabase =
 
         getSupabaseClient();
+
+
 
 
 
@@ -412,9 +455,7 @@ export async function saveExperienceAtomic(
 
             p_previous_version:
 
-                experience.previousVersion
-                ||
-                null,
+                previousVersion,
 
 
 
@@ -550,10 +591,13 @@ export async function saveExperienceAtomic(
         success:true,
 
 
+
         id:
 
             rpcResult?.id
+
             ||
+
             skillId,
 
 
@@ -567,7 +611,9 @@ export async function saveExperienceAtomic(
             Number(
 
                 rpcResult?.version
+
                 ||
+
                 version
 
             ),
@@ -577,7 +623,9 @@ export async function saveExperienceAtomic(
         historyId:
 
             rpcResult?.historyId
+
             ||
+
             null,
 
 
@@ -591,6 +639,7 @@ export async function saveExperienceAtomic(
         experience:
 
             payload
+
 
 
     };
