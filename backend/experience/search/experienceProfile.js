@@ -1,18 +1,23 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE PROFILE BUILDER
+ * JESSICA EXPERIENCE PROFILE BUILDER v0.2
  * =========================================================
  *
  * Создаёт поисковый профиль Experience Skill.
+ *
+ *
+ * Ответственность:
+ *
+ * - подготовка данных для Matcher;
+ * - нормализация полей поиска;
+ * - сохранение оригинального Skill.
  *
  *
  * НЕ:
  *
  * - ищет;
  * - считает confidence;
- * - работает с БД.
- *
- * Только готовит данные для Matcher.
+ * - работает с Storage.
  *
  * =========================================================
  */
@@ -27,64 +32,42 @@ import {
 
 
 
-function safeArray(value){
-
-    return Array.isArray(value)
-        ? value
-        : [];
-
-}
 
 
-
-
-
-function mergeTextFields(
-    experience
+function safeArray(
+    value
 ){
 
-    return [
+    return Array.isArray(value)
 
-        experience.name,
+        ?
 
-        experience.description,
+        value
 
-        experience.category,
+        :
 
-
-        ...safeArray(
-            experience.keywords
-        ),
-
-
-        ...safeArray(
-            experience.triggerPatterns
-        ),
-
-
-        ...safeArray(
-            experience.workflow
-        ),
-
-
-        ...safeArray(
-            experience.validationRules
-        ),
-
-
-        ...safeArray(
-            experience.successfulPatterns
-        ),
-
-
-        ...safeArray(
-            experience.examples
-        )
-
-    ]
-    .filter(Boolean);
+        [];
 
 }
+
+
+
+
+
+
+
+
+
+function normalizeField(
+    value
+){
+
+    return normalizeExperienceStringArray(
+        value
+    );
+
+}
+
 
 
 
@@ -98,13 +81,20 @@ export function buildExperienceProfile(
 ){
 
     if(
-        !experience ||
+        !experience
+        ||
         typeof experience !== "object"
     ){
 
         return {
 
-            keywords:[]
+            keywords:[],
+
+            triggerPatterns:[],
+
+            workflow:[],
+
+            successfulPatterns:[]
 
         };
 
@@ -114,21 +104,167 @@ export function buildExperienceProfile(
 
 
 
+
+
+
     return {
+
+
+        /*
+         * Сохраняем оригинальные данные
+         */
 
 
         ...experience,
 
 
+
+
+
+
+
+
+        /*
+         * Основные ключи поиска
+         */
+
+
         keywords:
 
-            normalizeExperienceStringArray(
+            normalizeField(
 
-                mergeTextFields(
-                    experience
+                experience.keywords
+
+            ),
+
+
+
+
+
+
+
+
+        /*
+         * Сценарии запуска
+         */
+
+
+        triggerPatterns:
+
+            normalizeField(
+
+                experience.triggerPatterns
+
+            ),
+
+
+
+
+
+
+
+
+        /*
+         * Этапы процесса
+         */
+
+
+        workflow:
+
+            normalizeField(
+
+                experience.workflow
+
+            ),
+
+
+
+
+
+
+
+
+        /*
+         * Подтверждённые успешные случаи
+         */
+
+
+        successfulPatterns:
+
+            normalizeField(
+
+                experience.successfulPatterns
+
+            ),
+
+
+
+
+
+
+
+
+        /*
+         * Ошибочные сценарии
+         */
+
+
+        failurePatterns:
+
+            normalizeField(
+
+                experience.failurePatterns
+
+            ),
+
+
+
+
+
+
+
+
+        /*
+         * Примеры
+         */
+
+
+        examples:
+
+            normalizeField(
+
+                experience.examples
+
+            ),
+
+
+
+
+
+
+
+
+        /*
+         * Дополнительные поисковые признаки
+         */
+
+
+        searchTerms:
+
+            normalizeExperienceStringArray([
+
+
+                experience.name,
+
+
+                experience.category,
+
+
+                ...safeArray(
+                    experience.tags
                 )
 
-            )
+            ])
 
     };
 
