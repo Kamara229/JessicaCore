@@ -1,25 +1,30 @@
 /*
  * =========================================================
- * JESSICA LEARNING ROUTER v2
+ * JESSICA LEARNING ROUTER v3
  * =========================================================
  *
- * Маршрутизатор Learning Pipeline.
+ * Преобразует результат Experience Analyzer
+ * в Learning Event.
  *
  *
  * Flow:
  *
+ * Execution Trace
+ *        ↓
  * Experience Analyzer
  *        ↓
  * Learning Router
  *        ↓
- * Learning Event
+ * Learning Queue
+ *        ↓
+ * Learning Proposal
  *
  *
  * Ответственность:
  *
- * - преобразовать Analysis в Event;
- * - сохранить данные кандидата;
- * - передать информацию дальше.
+ * - создать Learning Event;
+ * - сохранить кандидата обучения;
+ * - подготовить данные для Proposal.
  *
  *
  * НЕ:
@@ -27,10 +32,60 @@
  * - анализирует опыт;
  * - создаёт Skill;
  * - сохраняет Experience;
- * - принимает решение обучения.
+ * - принимает Approval.
  *
  * =========================================================
  */
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE
+ * =========================================================
+ */
+
+
+function normalizeNumber(
+    value
+){
+
+    const number =
+        Number(value);
+
+
+    return Number.isFinite(number)
+        ?
+        number
+        :
+        0;
+
+}
+
+
+
+
+
+
+function normalizeObject(
+    value
+){
+
+    if(
+        !value ||
+        typeof value !== "object"
+    ){
+
+        return {};
+
+    }
+
+
+    return value;
+
+}
+
+
 
 
 
@@ -47,8 +102,7 @@
 
 function createIgnoreEvent(
     reason
-) {
-
+){
 
     return {
 
@@ -63,11 +117,17 @@ function createIgnoreEvent(
 
             reason ||
 
-            "Обучение не требуется"
+            "Обучение не требуется",
+
+
+
+        createdAt:
+
+            new Date()
+                .toISOString()
 
 
     };
-
 
 }
 
@@ -81,19 +141,23 @@ function createIgnoreEvent(
 
 /*
  * =========================================================
- * CREATE EVENT BASE
+ * BASE EVENT
  * =========================================================
  */
 
 
 function createBaseEvent(
     analysis
-) {
-
+){
 
     const candidate =
 
-        analysis?.skillCandidate || {};
+        normalizeObject(
+
+            analysis?.skillCandidate
+
+        );
+
 
 
 
@@ -103,21 +167,30 @@ function createBaseEvent(
 
         confidence:
 
-            Number(
-                candidate.confidence || 0
+            normalizeNumber(
+
+                candidate.confidence
+
             ),
+
+
 
 
 
         reusable:
 
-            analysis.reusable === true,
+            analysis?.reusable === true,
+
+
 
 
 
         reason:
 
-            analysis.reason || "",
+            analysis?.reason || "",
+
+
+
 
 
 
@@ -138,11 +211,18 @@ function createBaseEvent(
 
 
 
-        }
+        },
+
+
+
+
+        createdAt:
+
+            new Date()
+                .toISOString()
 
 
     };
-
 
 }
 
@@ -156,15 +236,14 @@ function createBaseEvent(
 
 /*
  * =========================================================
- * NEW SKILL
+ * NEW SKILL EVENT
  * =========================================================
  */
 
 
 function createNewSkillEvent(
     analysis
-) {
-
+){
 
     return {
 
@@ -182,7 +261,6 @@ function createNewSkillEvent(
 
     };
 
-
 }
 
 
@@ -195,22 +273,20 @@ function createNewSkillEvent(
 
 /*
  * =========================================================
- * SKILL IMPROVEMENT
+ * SKILL IMPROVEMENT EVENT
  * =========================================================
  */
 
 
 function createSkillImprovementEvent(
     analysis
-) {
+){
 
-
-    const event =
+    const base =
 
         createBaseEvent(
             analysis
         );
-
 
 
 
@@ -224,7 +300,8 @@ function createSkillImprovementEvent(
 
 
 
-        ...event,
+        ...base,
+
 
 
         payload:
@@ -232,7 +309,7 @@ function createSkillImprovementEvent(
         {
 
 
-            ...event.payload,
+            ...base.payload,
 
 
 
@@ -246,7 +323,6 @@ function createSkillImprovementEvent(
 
 
     };
-
 
 }
 
@@ -272,6 +348,7 @@ export function routeLearningEvent({
 } = {}) {
 
 
+
     if(
         !analysis ||
         typeof analysis !== "object"
@@ -291,69 +368,67 @@ export function routeLearningEvent({
 
 
 
-
-
-    if(
-        analysis.action === "IGNORE"
+    switch(
+        analysis.action
     ){
 
-        return createIgnoreEvent(
 
-            analysis.reason
 
-        );
+        case "NEW_SKILL":
+
+
+            return createNewSkillEvent(
+
+                analysis
+
+            );
+
+
+
+
+
+
+        case "SKILL_IMPROVEMENT":
+
+
+            return createSkillImprovementEvent(
+
+                analysis
+
+            );
+
+
+
+
+
+
+
+        case "IGNORE":
+
+
+            return createIgnoreEvent(
+
+                analysis.reason
+
+            );
+
+
+
+
+
+
+
+        default:
+
+
+            return createIgnoreEvent(
+
+                "Неизвестный тип Learning Action"
+
+            );
+
 
     }
-
-
-
-
-
-
-
-
-
-    if(
-        analysis.action === "NEW_SKILL"
-    ){
-
-        return createNewSkillEvent(
-            analysis
-        );
-
-    }
-
-
-
-
-
-
-
-
-
-    if(
-        analysis.action === "SKILL_IMPROVEMENT"
-    ){
-
-        return createSkillImprovementEvent(
-            analysis
-        );
-
-    }
-
-
-
-
-
-
-
-
-
-    return createIgnoreEvent(
-
-        "Неизвестный тип Learning Action"
-
-    );
 
 
 }
