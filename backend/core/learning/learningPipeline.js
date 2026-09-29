@@ -1,9 +1,9 @@
 /*
  * =========================================================
- * JESSICA LEARNING PIPELINE v3
+ * JESSICA LEARNING PIPELINE v4
  * =========================================================
  *
- * Первый этап Learning Pipeline.
+ * Координатор первого этапа обучения.
  *
  *
  * Flow:
@@ -13,26 +13,23 @@
  * Learning Worker
  *       ↓
  * Learning Proposal
+ *       ↓
+ * Approval Runner
  *
  *
  * Ответственность:
  *
- * - запустить Learning Worker;
- * - получить созданные Proposal;
- * - передать их дальше.
+ * - запустить Worker;
+ * - получить Proposal;
+ * - передать дальше.
  *
  *
  * НЕ:
  *
- * - принимает решение обучения;
- * - вызывает Reviewer;
+ * - анализирует опыт;
+ * - принимает решение;
  * - создаёт Skill;
  * - сохраняет Experience.
- *
- *
- * Решение:
- *
- * Autonomy Policy
  *
  * =========================================================
  */
@@ -50,6 +47,7 @@ import {
 
 
 
+
 /*
  * =========================================================
  * EXTRACT PROPOSALS
@@ -59,8 +57,7 @@ import {
 
 function extractProposals(
     workerResult
-) {
-
+){
 
     if(
         !Array.isArray(
@@ -74,25 +71,94 @@ function extractProposals(
 
 
 
+
     return workerResult.results
 
         .filter(
 
             item =>
 
-                item.success === true
+                item?.success === true
                 &&
-                item.proposal
+                item?.proposal
 
         )
 
         .map(
 
             item =>
-
                 item.proposal
 
         );
+
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * STATS
+ * =========================================================
+ */
+
+
+function buildStats(
+    workerResult
+){
+
+    const results =
+
+        Array.isArray(
+            workerResult?.results
+        )
+        ?
+        workerResult.results
+        :
+        [];
+
+
+
+    return {
+
+
+        processed:
+
+            results.length,
+
+
+
+        successful:
+
+            results.filter(
+
+                item =>
+                    item.success === true
+
+            )
+            .length,
+
+
+
+        failed:
+
+            results.filter(
+
+                item =>
+                    item.success !== true
+
+            )
+            .length
+
+
+
+    };
 
 
 }
@@ -116,18 +182,11 @@ export async function runLearningPipeline()
 {
 
 
-    /*
-     * =====================================================
-     * WORKER
-     * =====================================================
-     */
-
-
     let workerResult;
 
 
 
-    try {
+    try{
 
 
         workerResult =
@@ -136,7 +195,7 @@ export async function runLearningPipeline()
 
 
 
-    } catch(error) {
+    }catch(error){
 
 
         return {
@@ -149,8 +208,10 @@ export async function runLearningPipeline()
                 "worker",
 
 
+
             error:
                 error.message,
+
 
 
             proposals:[]
@@ -166,10 +227,12 @@ export async function runLearningPipeline()
 
 
 
-    if(
-        !workerResult?.success
-    ){
 
+
+    if(
+        !workerResult ||
+        workerResult.success !== true
+    ){
 
         return {
 
@@ -179,6 +242,7 @@ export async function runLearningPipeline()
 
             stage:
                 "worker",
+
 
 
             error:
@@ -193,8 +257,8 @@ export async function runLearningPipeline()
 
             proposals:[]
 
-        };
 
+        };
 
     }
 
@@ -205,21 +269,12 @@ export async function runLearningPipeline()
 
 
 
-    /*
-     * =====================================================
-     * PROPOSALS
-     * =====================================================
-     */
-
 
     const proposals =
 
         extractProposals(
             workerResult
         );
-
-
-
 
 
 
@@ -237,15 +292,26 @@ export async function runLearningPipeline()
 
 
 
-        processed:
+        stats:
 
-            workerResult.processed || 0,
+            buildStats(
+                workerResult
+            ),
+
+
+
+
+        worker:
+
+            workerResult,
+
 
 
 
         created:
 
             proposals.length,
+
 
 
 
