@@ -1,34 +1,37 @@
 /*
  * =========================================================
- * JESSICA LEARNING APPROVAL v4
+ * JESSICA LEARNING APPROVAL RUNNER v5
  * =========================================================
  *
- * Финальный исполнитель автономного обучения.
+ * Финальный координатор автономного обучения.
  *
  *
  * Flow:
  *
  * Learning Proposal
  *        ↓
- * Autonomy Decision
+ * Reviewer
  *        ↓
- * Build Experience Skill
+ * Autonomy Policy
  *        ↓
- * Save Experience
+ *
+ * AUTO_APPROVE
  *        ↓
- * Approve Proposal
+ * Learning Approval
+ *        ↓
+ * Experience Skill
+ *
+ *
+ * KEEP_CANDIDATE
+ *        ↓
+ * ожидание опыта
  *
  *
  * НЕ:
  *
- * - анализирует опыт;
- * - принимает решение обучения;
- * - вызывает AI;
- * - ищет кандидатов.
- *
- * Решение принимает:
- *
- * learningAutonomyPolicy
+ * - создаёт Proposal;
+ * - анализирует Execution Trace;
+ * - вызывает AI.
  *
  * =========================================================
  */
@@ -36,20 +39,18 @@
 
 
 import {
-    approveLearningProposal
-} from "./learningProposal.js";
+    reviewLearningProposal
+} from "./learningReviewer.js";
 
 
 import {
-    buildExperienceSkill,
-    buildLearningSkillId
-} from "./learningSkillBuilder.js";
+    evaluateLearningAutonomy
+} from "./learningAutonomyPolicy.js";
 
 
 import {
-    getExperienceHistory,
-    saveExperienceSkill
-} from "../storage/experienceStorage.js";
+    approveAndSaveLearningProposal
+} from "../../experience/learning/learningApproval.js";
 
 
 
@@ -61,255 +62,30 @@ import {
 
 /*
  * =========================================================
- * HELPERS
+ * PROCESS SINGLE PROPOSAL
  * =========================================================
  */
 
 
-function safeString(
-    value
-){
-
-    return String(
-        value || ""
-    )
-    .trim();
-
-}
-
-
-
-
-
-
-
-
-function buildFailure({
-
-    stage,
-
-    error,
-
-    proposal = null
-
-} = {}){
-
-
-    return {
-
-
-        success:false,
-
-
-        stage,
-
-
-        error,
-
-
-        proposal,
-
-
-        experience:null
-
-
-    };
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * RESOLVE SKILL ID
- * =========================================================
- */
-
-
-function resolveSkillId(
+async function processProposal(
     proposal
 ){
-
-    const experience =
-
-        proposal?.proposedExperience || {};
-
-
-
-
-    return (
-
-        safeString(
-            proposal?.targetSkill?.id
-        )
-
-
-        ||
-
-
-        safeString(
-            experience.id
-        )
-
-
-        ||
-
-
-        safeString(
-            experience.skillId
-        )
-
-
-        ||
-
-
-        buildLearningSkillId(
-            experience.name
-        )
-
-    );
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * VERSION
- * =========================================================
- */
-
-
-function getNextVersion(
-    history
-){
-
-    if(
-        !Array.isArray(history)
-        ||
-        history.length === 0
-    ){
-
-        return 1;
-
-    }
-
-
-
-    const versions =
-
-        history
-
-            .map(
-
-                item =>
-
-                    Number(
-
-                        item.version
-
-                        ||
-
-                        item.payload?.version
-
-                    )
-
-            )
-
-            .filter(
-
-                value =>
-
-                    Number.isInteger(value)
-
-                    &&
-
-                    value > 0
-
-            );
-
-
-
-
-    if(
-        versions.length === 0
-    ){
-
-        return 1;
-
-    }
-
-
-
-    return Math.max(
-        ...versions
-    ) + 1;
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * MAIN APPROVAL
- * =========================================================
- */
-
-
-export async function approveAndSaveLearningProposal({
-
-    proposal,
-
-    autonomy,
-
-    confidence = null
-
-} = {}) {
-
-
-
-    /*
-     * =====================================================
-     * INPUT
-     * =====================================================
-     */
-
 
     if(
         !proposal ||
         typeof proposal !== "object"
     ){
 
-        return buildFailure({
+        return {
 
-            stage:
-                "input",
+            success:false,
 
-            error:
+            learned:false,
+
+            reason:
                 "Proposal отсутствует"
 
-        });
+        };
 
     }
 
@@ -320,399 +96,27 @@ export async function approveAndSaveLearningProposal({
 
 
 
-
     /*
      * =====================================================
-     * AUTONOMY RESULT
+     * 1. REVIEW
      * =====================================================
      */
 
 
-    if(
-        !autonomy
-        ||
-        autonomy.action !==
-        "AUTO_APPROVE"
-    ){
+    const review =
 
-        return buildFailure({
-
-            stage:
-                "autonomy",
-
-            proposal,
-
-            error:
-                "Proposal не разрешён для автоматического обучения"
-
-        });
-
-    }
-
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * EXPERIENCE DATA
-     * =====================================================
-     */
-
-
-    if(
-        !proposal.proposedExperience
-    ){
-
-        return buildFailure({
-
-            stage:
-                "experience",
-
-            proposal,
-
-            error:
-                "Нет данных Experience"
-
-        });
-
-    }
-
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * SKILL ID
-     * =====================================================
-     */
-
-
-    const skillId =
-
-        resolveSkillId(
+        reviewLearningProposal(
             proposal
         );
 
 
 
 
-    if(
-        !skillId
-    ){
-
-        return buildFailure({
-
-            stage:
-                "skill",
-
-            proposal,
-
-            error:
-                "Skill ID не определён"
-
-        });
-
-    }
-
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * HISTORY
-     * =====================================================
-     */
-
-
-    let history;
-
-
-
-    try {
-
-
-        history =
-
-            await getExperienceHistory(
-                skillId
-            );
-
-
-    } catch(error){
-
-
-        return buildFailure({
-
-            stage:
-                "history",
-
-            proposal,
-
-            error:
-                error.message
-
-        });
-
-
-    }
-
-
-
-
-
-
-
-
-
-    const version =
-
-        getNextVersion(
-            history
-        );
-
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * BUILD EXPERIENCE
-     * =====================================================
-     */
-
-
-    let experience;
-
-
-
-    try {
-
-
-        experience =
-
-            buildExperienceSkill({
-
-                proposedExperience:
-
-                    proposal.proposedExperience,
-
-
-                skillId,
-
-
-                version,
-
-
-                previousVersion:
-
-                    version > 1
-
-                    ?
-
-                    version - 1
-
-                    :
-
-                    null,
-
-
-
-                mode:
-
-                    proposal.action ===
-                    "SKILL_IMPROVEMENT"
-
-                    ?
-
-                    "update"
-
-                    :
-
-                    "create",
-
-
-
-
-                confidence:
-
-                    confidence ??
-
-                    proposal.confidence ??
-
-                    0.7,
-
-
-
-                metadata:
-
-                {
-
-                    proposalId:
-
-                        proposal.id,
-
-
-
-                    queueItemId:
-
-                        proposal.queueItemId,
-
-
-
-                    learnedFrom:
-
-                        proposal.source || 
-                        "learning_pipeline"
-
-
-                }
-
-
-            });
-
-
-
-    }catch(error){
-
-
-        return buildFailure({
-
-            stage:
-                "build",
-
-            proposal,
-
-            error:
-                error.message
-
-        });
-
-
-    }
-
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * SAVE
-     * =====================================================
-     */
-
-
-    let saved;
-
-
-
-    try {
-
-
-        saved =
-
-            await saveExperienceSkill(
-                experience
-            );
-
-
-    }catch(error){
-
-
-        return buildFailure({
-
-            stage:
-                "save",
-
-            proposal,
-
-            error:
-                error.message
-
-        });
-
-
-    }
-
-
-
-
-
-
-
 
 
     if(
-        !saved?.success
+        review.valid !== true
     ){
-
-        return buildFailure({
-
-            stage:
-                "save",
-
-            proposal,
-
-            error:
-                "Experience Storage не подтвердил сохранение"
-
-        });
-
-    }
-
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * APPROVE PROPOSAL
-     * =====================================================
-     */
-
-
-    let approved;
-
-
-
-    try {
-
-
-        approved =
-
-            approveLearningProposal(
-                proposal
-            );
-
-
-    }catch(error){
-
 
         return {
 
@@ -720,27 +124,189 @@ export async function approveAndSaveLearningProposal({
             success:true,
 
 
-            stage:
-                "saved",
+            learned:false,
 
 
-            proposal,
+            status:
+                "REJECT",
 
 
-            experience,
+
+            reason:
+
+                review.reason,
 
 
-            skillId,
+
+            review
 
 
-            version,
+        };
+
+    }
 
 
-            proposalStateUpdated:false,
 
 
-            error:
-                error.message
+
+
+
+
+
+    /*
+     * =====================================================
+     * 2. AUTONOMY POLICY
+     * =====================================================
+     */
+
+
+    const autonomy =
+
+        evaluateLearningAutonomy(
+            proposal
+        );
+
+
+
+
+
+
+
+    if(
+        autonomy.action !==
+        "AUTO_APPROVE"
+    ){
+
+        return {
+
+
+            success:true,
+
+
+            learned:false,
+
+
+            status:
+                "KEEP_CANDIDATE",
+
+
+
+            reason:
+
+                autonomy.reason,
+
+
+
+            autonomy,
+
+
+            review
+
+
+        };
+
+    }
+
+
+
+
+
+
+
+
+
+    /*
+     * =====================================================
+     * 3. SAVE EXPERIENCE
+     * =====================================================
+     */
+
+
+    try {
+
+
+        const result =
+
+            await approveAndSaveLearningProposal({
+
+                proposal,
+
+
+                autonomy,
+
+
+                confidence:
+
+                    proposal.confidence || 0
+
+
+            });
+
+
+
+
+
+
+        return {
+
+
+            ...result,
+
+
+            learned:
+
+                result.success === true,
+
+
+
+            autonomy,
+
+
+            review
+
+
+        };
+
+
+
+
+
+    }catch(error){
+
+
+        console.error(
+
+            "Jessica Learning Approval Runner error:",
+
+            error
+
+        );
+
+
+
+        return {
+
+
+            success:false,
+
+
+            learned:false,
+
+
+            status:
+                "FAILED",
+
+
+
+            reason:
+                error.message,
+
+
+
+            autonomy,
+
+
+            review
 
 
         };
@@ -748,6 +314,90 @@ export async function approveAndSaveLearningProposal({
 
     }
 
+
+}
+
+
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * RUN BATCH
+ * =========================================================
+ */
+
+
+export async function runLearningApproval(
+    proposals = []
+){
+
+    if(
+        !Array.isArray(proposals)
+    ){
+
+        return {
+
+
+            success:false,
+
+
+            processed:0,
+
+
+            learned:0,
+
+
+            candidates:0,
+
+
+            failed:0,
+
+
+            error:
+                "Invalid proposals"
+
+
+
+        };
+
+    }
+
+
+
+
+
+
+
+    const results = [];
+
+
+
+
+
+
+
+    for(
+        const proposal
+        of proposals
+    ){
+
+        const result =
+
+            await processProposal(
+                proposal
+            );
+
+
+        results.push(
+            result
+        );
+
+    }
 
 
 
@@ -762,40 +412,66 @@ export async function approveAndSaveLearningProposal({
         success:true,
 
 
-        stage:
-            "learned",
+
+        processed:
+
+            proposals.length,
 
 
 
-        proposal:
-            approved,
+        learned:
+
+            results.filter(
+
+                item =>
+                    item.learned === true
+
+            )
+            .length,
 
 
 
-        experience,
+        candidates:
+
+            results.filter(
+
+                item =>
+                    item.status ===
+                    "KEEP_CANDIDATE"
+
+            )
+            .length,
 
 
 
-        skillId,
+        rejected:
+
+            results.filter(
+
+                item =>
+                    item.status ===
+                    "REJECT"
+
+            )
+            .length,
 
 
 
-        version,
+        failed:
+
+            results.filter(
+
+                item =>
+                    item.success === false
+
+            )
+            .length,
 
 
 
-        action:
-            proposal.action,
-
-
-
-        previousVersions:
-
-            history.length || 0
-
+        results
 
 
     };
-
 
 }
