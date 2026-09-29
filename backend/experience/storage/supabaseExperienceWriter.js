@@ -6,13 +6,11 @@ import {
 
 /*
  * =========================================================
- * JESSICA EXPERIENCE WRITER v2
+ * JESSICA EXPERIENCE WRITER v3
  * =========================================================
  *
  * Атомарное сохранение Experience Skill.
  *
- *
- * Flow:
  *
  * Experience Skill
  *        ↓
@@ -20,14 +18,14 @@ import {
  *        ↓
  * PostgreSQL RPC
  *        ↓
- * History + Current Skill
+ * Current + History
  *
  *
  * НЕ:
  *
  * - анализирует обучение;
  * - принимает решения;
- * - работает с Planner.
+ * - вызывает AI.
  *
  * =========================================================
  */
@@ -36,6 +34,8 @@ import {
 
 const SAVE_SKILL_RPC =
     "save_jessica_experience_skill";
+
+
 
 
 
@@ -53,6 +53,8 @@ function normalizeText(
     .trim();
 
 }
+
+
 
 
 
@@ -90,6 +92,8 @@ function normalizeVersion(
 
 
 
+
+
 function normalizeBoolean(
     value
 ){
@@ -97,6 +101,8 @@ function normalizeBoolean(
     return value !== false;
 
 }
+
+
 
 
 
@@ -115,28 +121,53 @@ function validateVersionChain(
 
 
     const previous =
+        experience.previousVersion === null
+        ||
+        experience.previousVersion === undefined
+
+        ?
+
+        null
+
+        :
+
         normalizeVersion(
             experience.previousVersion
         );
 
 
 
+
+
     if(
-        !previous
-        ||
         version === 1
     ){
 
-        return true;
+        return previous === null;
 
     }
 
 
 
+
+
+
+    if(
+        previous === null
+    ){
+
+        return false;
+
+    }
+
+
+
+
+
+
     return (
 
-        version ===
-        previous + 1
+        version === previous + 1
 
     );
 
@@ -155,7 +186,8 @@ export async function saveExperienceAtomic(
 ){
 
     if(
-        !experience ||
+        !experience
+        ||
         typeof experience !== "object"
     ){
 
@@ -175,8 +207,8 @@ export async function saveExperienceAtomic(
 
         normalizeText(
 
-            experience.id ||
-
+            experience.id
+            ||
             experience.skillId
 
         );
@@ -192,6 +224,7 @@ export async function saveExperienceAtomic(
         );
 
     }
+
 
 
 
@@ -221,6 +254,7 @@ export async function saveExperienceAtomic(
 
 
 
+
     if(
         !validateVersionChain(
             experience
@@ -232,6 +266,7 @@ export async function saveExperienceAtomic(
         );
 
     }
+
 
 
 
@@ -268,6 +303,8 @@ export async function saveExperienceAtomic(
 
 
 
+
+
     const metadata = {
 
 
@@ -291,11 +328,23 @@ export async function saveExperienceAtomic(
 
 
 
+
+
+        learning:
+
+            experience.metadata?.learning
+            ||
+            null,
+
+
+
+
+
         learningMode:
 
-            experience.metadata?.learningMode
-            ||
             "autonomous",
+
+
 
 
 
@@ -304,6 +353,8 @@ export async function saveExperienceAtomic(
             experience.metadata?.createdBy
             ||
             "jessica-learning",
+
+
 
 
 
@@ -334,66 +385,65 @@ export async function saveExperienceAtomic(
 
 
     const {
-
         data,
-
         error
+    }
 
-    } =
+    =
 
-        await supabase.rpc(
+    await supabase.rpc(
 
-            SAVE_SKILL_RPC,
+        SAVE_SKILL_RPC,
 
-            {
-
-
-                p_skill_id:
-
-                    skillId,
+        {
 
 
+            p_skill_id:
 
-                p_version:
-
-                    version,
+                skillId,
 
 
 
-                p_previous_version:
+            p_version:
 
-                    experience.previousVersion
-                    ||
-                    null,
+                version,
 
 
 
-                p_mode:
+            p_previous_version:
 
-                    metadata.mode,
-
-
-
-                p_enabled:
-
-                    payload.enabled,
+                experience.previousVersion
+                ||
+                null,
 
 
 
-                p_payload:
+            p_mode:
 
-                    payload,
-
-
-
-                p_metadata:
-
-                    metadata
+                metadata.mode,
 
 
-            }
 
-        );
+            p_enabled:
+
+                payload.enabled,
+
+
+
+            p_payload:
+
+                payload,
+
+
+
+            p_metadata:
+
+                metadata
+
+
+        }
+
+    );
 
 
 
@@ -426,6 +476,7 @@ export async function saveExperienceAtomic(
 
 
 
+
     const rpcResult =
 
         Array.isArray(data)
@@ -445,6 +496,7 @@ export async function saveExperienceAtomic(
 
 
 
+
     const success =
 
         rpcResult?.success === true
@@ -452,6 +504,7 @@ export async function saveExperienceAtomic(
         ||
 
         rpcResult?.success === "true";
+
 
 
 
@@ -490,6 +543,7 @@ export async function saveExperienceAtomic(
 
 
 
+
     return {
 
 
@@ -499,9 +553,7 @@ export async function saveExperienceAtomic(
         id:
 
             rpcResult?.id
-
             ||
-
             skillId,
 
 
@@ -515,9 +567,7 @@ export async function saveExperienceAtomic(
             Number(
 
                 rpcResult?.version
-
                 ||
-
                 version
 
             ),
@@ -527,9 +577,7 @@ export async function saveExperienceAtomic(
         historyId:
 
             rpcResult?.historyId
-
             ||
-
             null,
 
 
