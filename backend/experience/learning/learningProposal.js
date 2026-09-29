@@ -6,25 +6,28 @@ import {
 
 /*
  * =========================================================
- * JESSICA LEARNING PROPOSAL v2
+ * JESSICA LEARNING PROPOSAL v3
  * =========================================================
  *
- * Модель кандидата обучения Jessica.
+ * Промежуточная модель кандидата обучения.
  *
  *
- * Важно:
+ * Flow:
  *
- * Proposal != Skill
- *
- * Proposal это промежуточный объект:
- *
+ * Execution Trace
+ *        ↓
  * Experience Analyzer
+ *        ↓
+ * Learning Router
  *        ↓
  * Learning Proposal
  *        ↓
  * Autonomy Policy
  *        ↓
  * Experience Skill
+ *
+ *
+ * Proposal != Skill
  *
  *
  * НЕ:
@@ -35,6 +38,8 @@ import {
  *
  * =========================================================
  */
+
+
 
 
 
@@ -50,6 +55,8 @@ export const LEARNING_PROPOSAL_STATUS = {
         "REJECTED"
 
 };
+
+
 
 
 
@@ -72,7 +79,6 @@ function normalizeText(
     .trim();
 
 }
-
 
 
 
@@ -108,7 +114,6 @@ function normalizeArray(
 
 
 
-
 /*
  * =========================================================
  * EVENT
@@ -132,6 +137,67 @@ function extractEvent(
 
 }
 
+
+
+
+
+
+
+
+/*
+ * =========================================================
+ * CONFIDENCE
+ * =========================================================
+ */
+
+
+function resolveConfidence(
+    queueItem,
+    candidate
+) {
+
+
+    const queueConfidence =
+        Number(
+            queueItem?.confidence
+        );
+
+
+
+    if(
+        Number.isFinite(
+            queueConfidence
+        )
+    ){
+
+        return queueConfidence;
+
+    }
+
+
+
+    const candidateConfidence =
+        Number(
+            candidate?.confidence
+        );
+
+
+
+    if(
+        Number.isFinite(
+            candidateConfidence
+        )
+    ){
+
+        return candidateConfidence;
+
+    }
+
+
+
+    return 0;
+
+}
 
 
 
@@ -190,8 +256,9 @@ function resolveTargetSkill(
 
 
 
+
     /*
-     * EXISTING SKILL UPDATE
+     * EXISTING SKILL
      */
 
 
@@ -237,6 +304,8 @@ function resolveTargetSkill(
         };
 
     }
+
+
 
 
 
@@ -312,17 +381,24 @@ function buildProposedExperience(
 
         category:
 
-            candidate.category || "general",
+            candidate.category ||
+
+            "general",
 
 
 
         workflow:
 
-            Array.isArray(candidate.workflow)
+            Array.isArray(
+                candidate.workflow
+            )
 
                 ? candidate.workflow
 
                 : [],
+
+
+
 
 
 
@@ -334,6 +410,9 @@ function buildProposedExperience(
 
 
 
+
+
+
         triggerPatterns:
 
             normalizeArray(
@@ -342,13 +421,20 @@ function buildProposedExperience(
 
 
 
+
+
         examples:
 
-            Array.isArray(candidate.examples)
+            Array.isArray(
+                candidate.examples
+            )
 
                 ? candidate.examples
 
                 : [],
+
+
+
 
 
 
@@ -360,11 +446,73 @@ function buildProposedExperience(
 
 
 
+
+
+        /*
+         * Новые поля автономного обучения
+         */
+
+
+        maturity:
+
+            Number(
+                candidate.maturity || 0
+            ),
+
+
+
+        occurrences:
+
+            Number(
+                candidate.occurrences || 0
+            ),
+
+
+
+        successRate:
+
+            Number(
+                candidate.successRate || 0
+            ),
+
+
+
+
+        failurePatterns:
+
+            normalizeArray(
+                candidate.failurePatterns
+            ),
+
+
+
+
+        avoidPatterns:
+
+            normalizeArray(
+                candidate.avoidPatterns
+            ),
+
+
+
+
+
+        requiredTools:
+
+            normalizeArray(
+                candidate.requiredTools
+            ),
+
+
+
+
+
         source:
 
             candidate.source ||
 
             "execution-learning"
+
 
     };
 
@@ -406,34 +554,12 @@ export function createLearningProposalFromQueue(
 
 
 
-    const event =
 
+    const event =
         extractEvent(
             queueItem
         );
 
-
-
-
-
-    const action =
-
-        queueItem.action ||
-
-        event.action ||
-
-        "IGNORE";
-
-
-
-
-
-    const targetSkill =
-
-        resolveTargetSkill(
-            queueItem,
-            event
-        );
 
 
 
@@ -452,12 +578,29 @@ export function createLearningProposalFromQueue(
 
 
 
+    const targetSkill =
+
+        resolveTargetSkill(
+            queueItem,
+            event
+        );
+
+
+
+
+
+
+
+
     return {
 
 
         id:
 
             randomUUID(),
+
+
+
 
 
 
@@ -468,9 +611,15 @@ export function createLearningProposalFromQueue(
 
 
 
+
+
+
         source:
 
             "learning_queue",
+
+
+
 
 
 
@@ -480,45 +629,60 @@ export function createLearningProposalFromQueue(
 
 
 
-        action,
+
+
+
+        action:
+
+            queueItem.action ||
+
+            event.action ||
+
+            "IGNORE",
+
+
+
 
 
 
         confidence:
 
-            Number(
-                queueItem.confidence ||
-                candidate.confidence ||
-                0
+            resolveConfidence(
+                queueItem,
+                candidate
             ),
 
 
 
 
-        /*
-         * Сохраняем исходный анализ.
-         *
-         * Нужен Autonomy Policy.
-         */
+
 
 
         analysis:
 
         {
 
+
             reusable:
 
-                event
-                    ?.reusable === true
-                    ||
-                    event
-                    ?.payload
-                    ?.reusable === true,
+                event.reusable === true
+                ||
+                event.payload?.reusable === true,
+
 
 
             reason:
 
                 event.reason || "",
+
+
+
+            confidence:
+
+                resolveConfidence(
+                    queueItem,
+                    candidate
+                ),
 
 
 
@@ -534,13 +698,16 @@ export function createLearningProposalFromQueue(
 
 
 
+
         targetSkill:
 
         {
 
+
             id:
 
                 targetSkill.id,
+
 
 
             version:
@@ -548,11 +715,15 @@ export function createLearningProposalFromQueue(
                 targetSkill.version,
 
 
+
             exists:
 
                 targetSkill.exists
 
+
         },
+
+
 
 
 
@@ -575,6 +746,7 @@ export function createLearningProposalFromQueue(
 
 
 
+
         createdAt:
 
             new Date()
@@ -582,9 +754,11 @@ export function createLearningProposalFromQueue(
 
 
 
+
         approvedAt:
 
             null,
+
 
 
         rejectedAt:
@@ -621,9 +795,7 @@ export function createLearningProposal({
 } = {}) {
 
 
-
     const cleanTask =
-
         normalizeText(
             task
         );
@@ -642,12 +814,14 @@ export function createLearningProposal({
 
 
 
+
     return {
 
 
         id:
 
             randomUUID(),
+
 
 
 
@@ -658,9 +832,11 @@ export function createLearningProposal({
 
 
 
+
         source:
 
             "manual",
+
 
 
 
@@ -670,15 +846,18 @@ export function createLearningProposal({
 
 
 
+
         task:
 
             cleanTask,
 
 
 
+
         confidence:
 
             0,
+
 
 
 
@@ -689,14 +868,21 @@ export function createLearningProposal({
             reusable:
                 false,
 
+
             reason:
+                "manual",
+
+
+            source:
                 "manual"
 
         },
 
 
 
+
         proposedExperience,
+
 
 
 
@@ -707,8 +893,10 @@ export function createLearningProposal({
 
 
 
+
         approvedAt:
             null,
+
 
 
         rejectedAt:
@@ -745,6 +933,7 @@ export function approveLearningProposal(
     );
 
 
+
     return {
 
 
@@ -757,15 +946,18 @@ export function approveLearningProposal(
                 .APPROVED,
 
 
+
         approvedAt:
 
             new Date()
                 .toISOString(),
 
 
+
         rejectedAt:
 
             null
+
 
     };
 
@@ -797,6 +989,7 @@ export function rejectLearningProposal(
     );
 
 
+
     return {
 
 
@@ -809,9 +1002,11 @@ export function rejectLearningProposal(
                 .REJECTED,
 
 
+
         approvedAt:
 
             null,
+
 
 
         rejectedAt:
@@ -870,4 +1065,4 @@ function validateProposal(
     }
 
 
-            }
+        }
