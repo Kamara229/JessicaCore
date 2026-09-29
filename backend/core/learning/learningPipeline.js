@@ -1,9 +1,9 @@
 /*
  * =========================================================
- * JESSICA LEARNING PIPELINE
+ * JESSICA LEARNING PIPELINE v3
  * =========================================================
  *
- * Полный цикл обработки обучения Jessica.
+ * Первый этап Learning Pipeline.
  *
  *
  * Flow:
@@ -13,20 +13,30 @@
  * Learning Worker
  *       ↓
  * Learning Proposal
- *       ↓
- * Learning Reviewer
- *       ↓
- * Approval
+ *
+ *
+ * Ответственность:
+ *
+ * - запустить Learning Worker;
+ * - получить созданные Proposal;
+ * - передать их дальше.
  *
  *
  * НЕ:
  *
+ * - принимает решение обучения;
+ * - вызывает Reviewer;
  * - создаёт Skill;
- * - изменяет Experience;
- * - пишет напрямую в память.
+ * - сохраняет Experience.
+ *
+ *
+ * Решение:
+ *
+ * Autonomy Policy
  *
  * =========================================================
  */
+
 
 
 import {
@@ -34,9 +44,7 @@ import {
 } from "./learningWorker.js";
 
 
-import {
-    reviewLearningProposal
-} from "./learningReviewer.js";
+
 
 
 
@@ -44,87 +52,48 @@ import {
 
 /*
  * =========================================================
- * PROCESS PROPOSALS
+ * EXTRACT PROPOSALS
  * =========================================================
  */
 
 
-function reviewWorkerResults(
+function extractProposals(
     workerResult
 ) {
 
 
-    const results =
-        Array.isArray(
+    if(
+        !Array.isArray(
             workerResult?.results
         )
-            ? workerResult.results
-            : [];
+    ){
+
+        return [];
+
+    }
 
 
 
-    return results.map(
+    return workerResult.results
 
-        item => {
+        .filter(
 
+            item =>
 
-            if (
-                !item.success ||
-                !item.proposal
-            ) {
+                item.success === true
+                &&
+                item.proposal
 
+        )
 
-                return {
+        .map(
 
-                    success:
-                        false,
+            item =>
 
-                    proposal:
-                        null,
+                item.proposal
 
-                    review:
-                        null,
+        );
 
-                    reason:
-                        item.reason ||
-                        "Proposal не создан"
-
-                };
-
-            }
-
-
-
-
-
-            const review =
-                reviewLearningProposal(
-                    item.proposal
-                );
-
-
-
-
-
-            return {
-
-                success:
-                    review.approved === true,
-
-
-                proposal:
-                    item.proposal,
-
-
-                review
-
-
-            };
-
-
-        }
-
-    );
 
 }
 
@@ -132,9 +101,13 @@ function reviewWorkerResults(
 
 
 
+
+
+
+
 /*
  * =========================================================
- * RUN LEARNING PIPELINE
+ * RUN PIPELINE
  * =========================================================
  */
 
@@ -145,28 +118,31 @@ export async function runLearningPipeline()
 
     /*
      * =====================================================
-     * 1. WORKER
+     * WORKER
      * =====================================================
      */
 
 
-    const workerResult =
-        await runLearningWorker();
+    let workerResult;
 
 
 
+    try {
 
 
-    if (
-        !workerResult?.success
-    ) {
+        workerResult =
+
+            await runLearningWorker();
+
+
+
+    } catch(error) {
 
 
         return {
 
 
-            success:
-                false,
+            success:false,
 
 
             stage:
@@ -174,11 +150,13 @@ export async function runLearningPipeline()
 
 
             error:
-                workerResult?.error ||
-                "Learning Worker failed"
+                error.message,
 
+
+            proposals:[]
 
         };
+
 
     }
 
@@ -186,17 +164,63 @@ export async function runLearningPipeline()
 
 
 
+
+
+    if(
+        !workerResult?.success
+    ){
+
+
+        return {
+
+
+            success:false,
+
+
+            stage:
+                "worker",
+
+
+            error:
+
+                workerResult?.error
+
+                ||
+
+                "Learning Worker failed",
+
+
+
+            proposals:[]
+
+        };
+
+
+    }
+
+
+
+
+
+
+
+
     /*
      * =====================================================
-     * 2. REVIEW
+     * PROPOSALS
      * =====================================================
      */
 
 
-    const reviewed =
-        reviewWorkerResults(
+    const proposals =
+
+        extractProposals(
             workerResult
         );
+
+
+
+
 
 
 
@@ -205,47 +229,28 @@ export async function runLearningPipeline()
     return {
 
 
-        success:
-            true,
+        success:true,
 
 
         stage:
-            "review",
+            "proposal",
+
 
 
         processed:
+
             workerResult.processed || 0,
 
 
-        approvedReady:
 
-            reviewed.filter(
-                item =>
-                    item.review?.status ===
-                    "APPROVE_READY"
-            ).length,
+        created:
+
+            proposals.length,
 
 
-        clarificationNeeded:
 
-            reviewed.filter(
-                item =>
-                    item.review?.status ===
-                    "NEEDS_CLARIFICATION"
-            ).length,
+        proposals
 
-
-        rejected:
-
-            reviewed.filter(
-                item =>
-                    item.review?.status ===
-                    "REJECT"
-            ).length,
-
-
-        results:
-            reviewed
 
 
     };
