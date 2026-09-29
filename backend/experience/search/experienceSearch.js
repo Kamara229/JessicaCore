@@ -1,44 +1,18 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE SEARCH v0.5
+ * JESSICA EXPERIENCE SEARCH v0.6
  * =========================================================
  *
- * Центральный координатор поиска Experience.
- *
- *
- * Flow:
- *
- * Task
- *   ↓
- * Experience Profile
- *   ↓
- * Experience Matcher
- *   ↓
- * Skill Ranking
- *   ↓
- * Confidence Threshold
- *   ↓
- * Experience Match
- *
- *
- * Ответственность:
- *
- * - подготовить Skills к поиску;
- * - выбрать лучший Skill;
- * - вернуть confidence;
- * - вернуть причины совпадения.
- *
+ * Ranking layer for Experience Skills.
  *
  * НЕ:
  *
- * - читает Storage;
- * - сохраняет Skills;
- * - изменяет Experience;
- * - вызывает AI.
+ * - Storage
+ * - Learning
+ * - AI
  *
  * =========================================================
  */
-
 
 
 import {
@@ -54,18 +28,12 @@ import {
 
 
 
-
-
-/*
- * =========================================================
- * CONFIG
- * =========================================================
- */
-
-
 const MIN_MATCH_CONFIDENCE =
     0.35;
 
+
+const MIN_CONFIDENCE_GAP =
+    0.05;
 
 
 const MAX_RANKING_ITEMS =
@@ -77,37 +45,22 @@ const MAX_RANKING_ITEMS =
 
 
 
-/*
- * =========================================================
- * EMPTY MATCH
- * =========================================================
- */
 
 
 function emptyMatch()
 {
 
-
     return {
 
+        confidence:0,
 
-        confidence:
-            0,
+        matchedTerms:[],
 
+        matchedPhrases:[],
 
-        matchedTerms:
-            [],
-
-
-        matchedPhrases:
-            [],
-
-
-        reasons:
-            []
+        reasons:[]
 
     };
-
 
 }
 
@@ -118,61 +71,38 @@ function emptyMatch()
 
 
 
-/*
- * =========================================================
- * EMPTY RESULT
- * =========================================================
- */
 
-
-function notFoundResult(
-
+function notFound(
     match = emptyMatch(),
-
     ranking = []
-
-)
-{
-
+){
 
     return {
 
+        found:false,
 
-        found:
-            false,
-
-
-        experience:
-            null,
-
+        experience:null,
 
         confidence:
             Number(
                 match.confidence || 0
             ),
 
-
         matchedTerms:
             match.matchedTerms || [],
-
 
         matchedPhrases:
             match.matchedPhrases || [],
 
-
         matchReasons:
             match.reasons || [],
 
-
         ranking,
-
 
         source:
             "experience-search"
 
-
     };
-
 
 }
 
@@ -182,31 +112,21 @@ function notFoundResult(
 
 
 
-
-
-/*
- * =========================================================
- * VALID EXPERIENCE
- * =========================================================
- */
 
 
 function isUsableExperience(
-    experience
-)
-{
-
+    skill
+){
 
     return Boolean(
 
-        experience &&
+        skill &&
 
-        typeof experience === "object" &&
+        typeof skill === "object" &&
 
-        experience.enabled !== false
+        skill.enabled !== false
 
     );
-
 
 }
 
@@ -218,63 +138,92 @@ function isUsableExperience(
 
 
 
-/*
- * =========================================================
- * RANK EXPERIENCES
- * =========================================================
- */
+function calculateSkillQuality(
+    skill
+){
+
+    const confidence =
+        Number(
+            skill.confidence || 0
+        );
+
+
+    const success =
+        Number(
+            skill.usage?.successfulRuns || 0
+        );
+
+
+    const failed =
+        Number(
+            skill.usage?.failedRuns || 0
+        );
+
+
+    const total =
+        success + failed;
+
+
+
+    let reliability = 0;
+
+
+
+    if(
+        total > 0
+    ){
+
+        reliability =
+            success / total;
+
+    }
+
+
+
+    return (
+
+        confidence * 0.7
+
+        +
+
+        reliability * 0.3
+
+    );
+
+}
+
+
+
+
+
+
+
 
 
 function rankExperiences(
-
     task,
-
     experiences
-
-)
-{
-
+){
 
     return experiences
-
 
         .filter(
             isUsableExperience
         )
-
 
         .map(
 
             experience => {
 
 
-                /*
-                 * Создаем поисковый профиль.
-                 *
-                 * Здесь объединяются:
-                 *
-                 * name
-                 * description
-                 * workflow
-                 * examples
-                 * validationRules
-                 * triggerPatterns
-                 *
-                 */
-
-
                 const profile =
-
                     buildExperienceProfile(
                         experience
                     );
 
 
 
-
-
                 const match =
-
                     calculateExperienceMatch(
 
                         task,
@@ -286,28 +235,42 @@ function rankExperiences(
 
 
 
+                const baseConfidence =
+                    Number(
+                        match?.confidence || 0
+                    );
+
+
+
+                const quality =
+                    calculateSkillQuality(
+                        experience
+                    );
+
+
+
+                const rankingScore =
+
+                    baseConfidence * 0.8
+
+                    +
+
+                    quality * 0.2;
+
 
 
                 return {
 
-
                     experience,
-
 
                     profile,
 
-
                     match,
 
-
-
                     confidence:
+                        baseConfidence,
 
-                        Number(
-                            match?.confidence || 0
-                        )
-
-
+                    rankingScore
 
                 };
 
@@ -319,14 +282,12 @@ function rankExperiences(
 
         .sort(
 
-            (a,b) =>
+            (a,b)=>
 
-                b.confidence -
-
-                a.confidence
+                b.rankingScore -
+                a.rankingScore
 
         );
-
 
 }
 
@@ -338,18 +299,9 @@ function rankExperiences(
 
 
 
-/*
- * =========================================================
- * PUBLIC RANKING
- * =========================================================
- */
-
-
 function buildPublicRanking(
     ranking
-)
-{
-
+){
 
     return ranking
 
@@ -358,59 +310,33 @@ function buildPublicRanking(
             MAX_RANKING_ITEMS
         )
 
-
         .map(
 
             item => ({
 
-
                 skillId:
-
-                    item
-                        .experience
-                        ?.id
-
-                    ||
-
-                    null,
-
+                    item.experience?.id || null,
 
 
                 name:
-
-                    item
-                        .experience
-                        ?.name
-
-                    ||
-
-                    "",
-
+                    item.experience?.name || "",
 
 
                 confidence:
-
                     item.confidence,
 
 
+                rankingScore:
+                    item.rankingScore,
+
 
                 matchedTerms:
-
-                    item
-                        .match
-                        ?.matchedTerms
-
-                    ||
-
-                    []
-
-
+                    item.match?.matchedTerms || []
 
             })
 
         );
 
-
 }
 
 
@@ -419,103 +345,6 @@ function buildPublicRanking(
 
 
 
-
-
-/*
- * =========================================================
- * FOUND RESULT
- * =========================================================
- */
-
-
-function foundResult(
-
-    item,
-
-    ranking
-
-)
-{
-
-
-    return {
-
-
-        found:
-            true,
-
-
-
-        experience:
-
-            item.experience,
-
-
-
-        confidence:
-
-            item.confidence,
-
-
-
-        matchedTerms:
-
-            item.match?.matchedTerms
-
-            ||
-
-            [],
-
-
-
-        matchedPhrases:
-
-            item.match?.matchedPhrases
-
-            ||
-
-            [],
-
-
-
-        matchReasons:
-
-            item.match?.reasons
-
-            ||
-
-            [],
-
-
-
-        ranking,
-
-
-
-        source:
-
-            "experience-search"
-
-
-
-    };
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * SEARCH EXPERIENCE
- * =========================================================
- */
 
 
 export function searchExperience(
@@ -524,11 +353,9 @@ export function searchExperience(
 
     experiences = []
 
-)
-{
+){
 
-
-    if (
+    if(
 
         typeof task !== "string"
 
@@ -538,20 +365,15 @@ export function searchExperience(
 
         ||
 
-        !Array.isArray(
-            experiences
-        )
+        !Array.isArray(experiences)
 
         ||
 
         experiences.length === 0
 
-    )
-    {
+    ){
 
-
-        return notFoundResult();
-
+        return notFound();
 
     }
 
@@ -561,85 +383,43 @@ export function searchExperience(
 
 
 
-    /*
-     * =====================================================
-     * RANK
-     * =====================================================
-     */
-
-
     const ranking =
-
         rankExperiences(
-
             task,
-
             experiences
-
         );
 
 
 
 
-
     const publicRanking =
-
         buildPublicRanking(
             ranking
         );
 
 
 
-
-
     const top =
-
         ranking[0];
 
 
 
 
 
-
-
-
-
-    /*
-     * =====================================================
-     * NOTHING FOUND
-     * =====================================================
-     */
-
-
     if(
         !top
-    )
-    {
+    ){
 
-
-        return notFoundResult(
-
+        return notFound(
             emptyMatch(),
-
             publicRanking
-
         );
-
 
     }
 
 
 
 
-
-
-
-
-    /*
-     * =====================================================
-     * CONFIDENCE CHECK
-     * =====================================================
-     */
 
 
     if(
@@ -648,11 +428,9 @@ export function searchExperience(
 
         MIN_MATCH_CONFIDENCE
 
-    )
-    {
+    ){
 
-
-        return notFoundResult(
+        return notFound(
 
             top.match,
 
@@ -660,6 +438,40 @@ export function searchExperience(
 
         );
 
+    }
+
+
+
+
+
+
+    const second =
+        ranking[1];
+
+
+
+
+
+    if(
+
+        second &&
+
+        (
+            top.rankingScore -
+            second.rankingScore
+        )
+        <
+        MIN_CONFIDENCE_GAP
+
+    ){
+
+        return notFound(
+
+            top.match,
+
+            publicRanking
+
+        );
 
     }
 
@@ -671,20 +483,42 @@ export function searchExperience(
 
 
 
-    /*
-     * =====================================================
-     * SUCCESS
-     * =====================================================
-     */
+    return {
 
 
-    return foundResult(
+        found:true,
 
-        top,
 
-        publicRanking
+        experience:
+            top.experience,
 
-    );
+
+        confidence:
+            top.confidence,
+
+
+        matchedTerms:
+            top.match?.matchedTerms || [],
+
+
+        matchedPhrases:
+            top.match?.matchedPhrases || [],
+
+
+        matchReasons:
+            top.match?.reasons || [],
+
+
+        ranking:
+
+            publicRanking,
+
+
+        source:
+            "experience-search"
+
+
+    };
 
 
 }
