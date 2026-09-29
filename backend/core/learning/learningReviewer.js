@@ -1,9 +1,12 @@
 /*
  * =========================================================
- * JESSICA LEARNING REVIEWER
+ * JESSICA LEARNING REVIEWER v2
  * =========================================================
  *
- * Проверка Learning Proposal перед Approval.
+ * Технический валидатор Learning Proposal.
+ *
+ *
+ * НЕ принимает решение обучения.
  *
  *
  * Flow:
@@ -12,34 +15,25 @@
  *        ↓
  * Reviewer
  *        ↓
- * Review Decision
+ * Validation Result
+ *        ↓
+ * Approval Runner
  *
  *
- * Возможные решения:
+ * Решение:
  *
- * APPROVE_READY
- *      ↓
- * можно передавать дальше
- *
- *
- * NEEDS_CLARIFICATION
- *      ↓
- * данных недостаточно
- *
- *
- * REJECT
- *      ↓
- * обучение не имеет ценности
+ * Learning Autonomy Policy
  *
  *
  * НЕ:
  *
  * - создаёт Skill;
  * - сохраняет Experience;
- * - изменяет Supabase.
+ * - меняет память.
  *
  * =========================================================
  */
+
 
 
 
@@ -48,17 +42,12 @@
 export const REVIEW_STATUS = {
 
 
-    APPROVE_READY:
-        "APPROVE_READY",
+    VALID:
+        "VALID",
 
 
-    NEEDS_CLARIFICATION:
-        "NEEDS_CLARIFICATION",
-
-
-    REJECT:
-        "REJECT"
-
+    INVALID:
+        "INVALID"
 
 };
 
@@ -66,25 +55,26 @@ export const REVIEW_STATUS = {
 
 
 
+
+
+
+
 /*
  * =========================================================
- * VALIDATE PROPOSAL
+ * CHECK OBJECT
  * =========================================================
  */
 
 
-function isValidProposal(
-    proposal
-) {
-
+function isObject(
+    value
+){
 
     return (
 
-        proposal &&
+        value &&
 
-        typeof proposal === "object" &&
-
-        proposal.proposedExperience
+        typeof value === "object"
 
     );
 
@@ -94,64 +84,86 @@ function isValidProposal(
 
 
 
+
+
+
+
 /*
  * =========================================================
- * REVIEW EXPERIENCE
+ * VALIDATE EXPERIENCE
  * =========================================================
  */
 
 
-function reviewExperience(
+function validateExperience(
     experience
-) {
+){
+
+    const errors = [];
 
 
-    const problems =
-        [];
 
 
+    if(
+        !experience.name ||
+        typeof experience.name !== "string"
+    ){
 
-    if (
-        !experience.name
-    ) {
-
-        problems.push(
-            "Отсутствует название навыка"
+        errors.push(
+            "Experience name отсутствует"
         );
 
     }
 
 
 
-    if (
-        !experience.workflow ||
+
+
+    if(
+        !Array.isArray(
+            experience.workflow
+        )
+        ||
         experience.workflow.length === 0
-    ) {
+    ){
 
-        problems.push(
-            "Отсутствует описание процесса"
+        errors.push(
+            "Workflow отсутствует"
         );
 
     }
 
 
 
-    if (
-        !experience.examples ||
+
+
+
+    if(
+        !Array.isArray(
+            experience.examples
+        )
+        ||
         experience.examples.length === 0
-    ) {
+    ){
 
-        problems.push(
-            "Нет примеров использования"
+        errors.push(
+            "Examples отсутствуют"
         );
 
     }
 
 
 
-    return problems;
+
+
+
+    return errors;
 
 }
+
+
+
+
 
 
 
@@ -166,29 +178,28 @@ function reviewExperience(
 
 export function reviewLearningProposal(
     proposal
-) {
+){
 
-
-    if (
-        !isValidProposal(
+    if(
+        !isObject(
             proposal
         )
-    ) {
-
+    ){
 
         return {
 
 
             status:
-                REVIEW_STATUS.REJECT,
+                REVIEW_STATUS.INVALID,
 
 
-            approved:
+            valid:
                 false,
 
 
             reason:
-                "Некорректный Learning Proposal"
+                "Proposal отсутствует"
+
 
 
         };
@@ -199,45 +210,82 @@ export function reviewLearningProposal(
 
 
 
-    const problems =
-        reviewExperience(
+
+    if(
+        !proposal.proposedExperience ||
+        !isObject(
             proposal.proposedExperience
+        )
+    ){
+
+        return {
+
+
+            status:
+                REVIEW_STATUS.INVALID,
+
+
+            valid:
+                false,
+
+
+            reason:
+                "Нет proposedExperience"
+
+
+
+        };
+
+    }
+
+
+
+
+
+
+    const errors =
+
+        validateExperience(
+
+            proposal.proposedExperience
+
         );
 
 
 
 
 
-    if (
-        problems.length > 0
-    ) {
 
+
+    if(
+        errors.length > 0
+    ){
 
         return {
 
 
             status:
-                REVIEW_STATUS
-                    .NEEDS_CLARIFICATION,
+                REVIEW_STATUS.INVALID,
 
 
-            approved:
+            valid:
                 false,
 
 
+            errors,
+
+
             reason:
-                problems.join(
-                    "; "
-                ),
-
-
-            problems
+                errors.join("; ")
 
 
 
         };
 
     }
+
+
+
 
 
 
@@ -247,20 +295,34 @@ export function reviewLearningProposal(
 
 
         status:
-            REVIEW_STATUS
-                .APPROVE_READY,
+            REVIEW_STATUS.VALID,
 
 
-        approved:
+        valid:
             true,
 
 
+
+        proposalId:
+            proposal.id || null,
+
+
+
+        action:
+            proposal.action || null,
+
+
+
         confidence:
-            proposal.confidence || 0,
+            Number(
+                proposal.confidence || 0
+            ),
+
 
 
         reason:
-            "Proposal готов к Approval"
+            "Learning Proposal структура корректна"
+
 
 
     };
