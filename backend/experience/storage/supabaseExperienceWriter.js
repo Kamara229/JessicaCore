@@ -6,7 +6,7 @@ import {
 
 /*
  * =========================================================
- * JESSICA EXPERIENCE WRITER
+ * JESSICA EXPERIENCE WRITER v2
  * =========================================================
  *
  * Атомарное сохранение Experience Skill.
@@ -26,8 +26,7 @@ import {
  * НЕ:
  *
  * - анализирует обучение;
- * - создаёт Skill;
- * - ищет версии;
+ * - принимает решения;
  * - работает с Planner.
  *
  * =========================================================
@@ -42,16 +41,11 @@ const SAVE_SKILL_RPC =
 
 
 
-/*
- * =========================================================
- * NORMALIZE
- * =========================================================
- */
 
 
 function normalizeText(
     value
-) {
+){
 
     return String(
         value || ""
@@ -64,19 +58,22 @@ function normalizeText(
 
 
 
+
+
 function normalizeVersion(
     value
-) {
+){
 
     const version =
         Number(value);
 
 
-    if (
+
+    if(
         !Number.isInteger(version)
         ||
         version < 1
-    ) {
+    ){
 
         return null;
 
@@ -91,9 +88,11 @@ function normalizeVersion(
 
 
 
+
+
 function normalizeBoolean(
     value
-) {
+){
 
     return value !== false;
 
@@ -103,22 +102,62 @@ function normalizeBoolean(
 
 
 
-/*
- * =========================================================
- * SAVE EXPERIENCE ATOMIC
- * =========================================================
- */
+
+
+function validateVersionChain(
+    experience
+){
+
+    const version =
+        normalizeVersion(
+            experience.version
+        );
+
+
+    const previous =
+        normalizeVersion(
+            experience.previousVersion
+        );
+
+
+
+    if(
+        !previous
+        ||
+        version === 1
+    ){
+
+        return true;
+
+    }
+
+
+
+    return (
+
+        version ===
+        previous + 1
+
+    );
+
+}
+
+
+
+
+
+
+
 
 
 export async function saveExperienceAtomic(
     experience
-) {
+){
 
-
-    if (
+    if(
         !experience ||
         typeof experience !== "object"
-    ) {
+    ){
 
         throw new Error(
             "Experience отсутствует"
@@ -130,24 +169,23 @@ export async function saveExperienceAtomic(
 
 
 
+
+
     const skillId =
+
         normalizeText(
+
             experience.id ||
+
             experience.skillId
+
         );
 
 
 
-    const version =
-        normalizeVersion(
-            experience.version
-        );
-
-
-
-    if (
+    if(
         !skillId
-    ) {
+    ){
 
         throw new Error(
             "Skill ID отсутствует"
@@ -157,9 +195,20 @@ export async function saveExperienceAtomic(
 
 
 
-    if (
+
+
+
+    const version =
+
+        normalizeVersion(
+            experience.version
+        );
+
+
+
+    if(
         !version
-    ) {
+    ){
 
         throw new Error(
             "Версия Skill некорректна"
@@ -172,7 +221,27 @@ export async function saveExperienceAtomic(
 
 
 
+    if(
+        !validateVersionChain(
+            experience
+        )
+    ){
+
+        throw new Error(
+            "Нарушена цепочка версий Experience"
+        );
+
+    }
+
+
+
+
+
+
+
+
     const payload = {
+
 
         ...experience,
 
@@ -185,11 +254,15 @@ export async function saveExperienceAtomic(
 
 
         enabled:
+
             normalizeBoolean(
                 experience.enabled
             )
 
+
     };
+
+
 
 
 
@@ -201,14 +274,44 @@ export async function saveExperienceAtomic(
         ...(experience.metadata || {}),
 
 
+
         previousVersion:
-            experience.previousVersion ||
+
+            experience.previousVersion
+            ||
             null,
 
 
+
         mode:
-            experience.mode ||
-            "create"
+
+            experience.mode
+            ||
+            "create",
+
+
+
+        learningMode:
+
+            experience.metadata?.learningMode
+            ||
+            "autonomous",
+
+
+
+        createdBy:
+
+            experience.metadata?.createdBy
+            ||
+            "jessica-learning",
+
+
+
+        storedAt:
+
+            new Date()
+                .toISOString()
+
 
     };
 
@@ -218,17 +321,26 @@ export async function saveExperienceAtomic(
 
 
 
+
+
     const supabase =
+
         getSupabaseClient();
 
 
 
 
 
+
+
     const {
+
         data,
+
         error
+
     } =
+
         await supabase.rpc(
 
             SAVE_SKILL_RPC,
@@ -237,33 +349,45 @@ export async function saveExperienceAtomic(
 
 
                 p_skill_id:
+
                     skillId,
 
 
+
                 p_version:
+
                     version,
 
 
+
                 p_previous_version:
-                    experience.previousVersion ||
+
+                    experience.previousVersion
+                    ||
                     null,
 
 
+
                 p_mode:
+
                     metadata.mode,
 
 
+
                 p_enabled:
+
                     payload.enabled,
 
 
 
                 p_payload:
+
                     payload,
 
 
 
                 p_metadata:
+
                     metadata
 
 
@@ -277,10 +401,11 @@ export async function saveExperienceAtomic(
 
 
 
-    if (
-        error
-    ) {
 
+
+    if(
+        error
+    ){
 
         throw new Error(
 
@@ -300,10 +425,20 @@ export async function saveExperienceAtomic(
 
 
 
+
     const rpcResult =
+
         Array.isArray(data)
-            ? data[0]
-            : data;
+
+        ?
+
+        data[0]
+
+        :
+
+        data;
+
+
 
 
 
@@ -324,10 +459,10 @@ export async function saveExperienceAtomic(
 
 
 
-    if (
-        !success
-    ) {
 
+    if(
+        !success
+    ){
 
         return {
 
@@ -354,6 +489,7 @@ export async function saveExperienceAtomic(
 
 
 
+
     return {
 
 
@@ -361,7 +497,11 @@ export async function saveExperienceAtomic(
 
 
         id:
-            rpcResult?.id ||
+
+            rpcResult?.id
+
+            ||
+
             skillId,
 
 
@@ -371,6 +511,7 @@ export async function saveExperienceAtomic(
 
 
         version:
+
             Number(
 
                 rpcResult?.version
@@ -384,17 +525,23 @@ export async function saveExperienceAtomic(
 
 
         historyId:
-            rpcResult?.historyId ||
+
+            rpcResult?.historyId
+
+            ||
+
             null,
 
 
 
         enabled:
+
             rpcResult?.enabled !== false,
 
 
 
         experience:
+
             payload
 
 
