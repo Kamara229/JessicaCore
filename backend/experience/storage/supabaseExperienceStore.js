@@ -3,21 +3,18 @@ import {
 } from "../../storage/supabaseClient.js";
 
 
-
 /*
  * =========================================================
- * JESSICA SUPABASE EXPERIENCE STORE v3
+ * JESSICA SUPABASE EXPERIENCE STORE v4
  * =========================================================
  *
  * Активная память Experience.
  *
- *
  * Отвечает:
  *
- * - загрузка актуальных Skills;
- * - получение Skill;
+ * - загрузка опубликованных и включённых Skills;
+ * - получение активного Skill;
  * - отключение Skill.
- *
  *
  * НЕ:
  *
@@ -29,311 +26,168 @@ import {
  */
 
 
-
 const EXPERIENCE_TABLE =
     "jessica_experience_skills";
 
 
+const ACTIVE_STATUS =
+    "published";
 
 
-
-
-
-
-
-function normalizeArray(
-    value
-){
+function normalizeArray(value) {
 
     return Array.isArray(value)
-
-        ?
-
-        value.filter(Boolean)
-
-        :
-
-        [];
+        ? value.filter(Boolean)
+        : [];
 
 }
 
 
+function normalizeSkill(value) {
 
-
-
-
-
-
-
-function normalizeSkill(
-    value
-){
-
-    if(
+    if (
         !value ||
         typeof value !== "object"
-    ){
-
+    ) {
         return null;
-
     }
-
 
 
     const id =
-
         String(
-
             value.id ||
-
             value.skillId ||
-
             ""
-
-        )
-        .trim();
+        ).trim();
 
 
-
-
-
-    if(
-        !id
-    ){
-
+    if (!id) {
         return null;
-
     }
-
-
-
-
-
 
 
     return {
 
-
         ...value,
-
-
 
         id,
 
-
-
         version:
-
             Number(
                 value.version || 1
             ),
 
-
+        status:
+            String(
+                value.status || ""
+            )
+            .trim()
+            .toLowerCase(),
 
         enabled:
-
-            value.enabled !== false,
-
-
+            value.enabled === true,
 
         confidence:
-
             Number(
                 value.confidence || 0
             ),
 
-
-
-
-
-
-
         category:
-
             value.category ||
             "general",
 
-
-
-
-
-
-
         workflow:
-
             normalizeArray(
                 value.workflow
             ),
 
-
-
         keywords:
-
             normalizeArray(
                 value.keywords
             ),
 
-
-
         tags:
-
             normalizeArray(
                 value.tags
             ),
 
-
-
         triggerPatterns:
-
             normalizeArray(
                 value.triggerPatterns
             ),
 
-
-
         validationRules:
-
             normalizeArray(
                 value.validationRules
             ),
 
-
-
         constraints:
-
             normalizeArray(
                 value.constraints
             ),
 
-
-
         strategy:
-
             normalizeArray(
                 value.strategy
             ),
 
-
-
         sourcePriority:
-
             normalizeArray(
                 value.sourcePriority
             ),
 
-
-
         successfulPatterns:
-
             normalizeArray(
                 value.successfulPatterns
             ),
 
-
-
         failurePatterns:
-
             normalizeArray(
                 value.failurePatterns
             ),
 
-
-
         avoidPatterns:
-
             normalizeArray(
                 value.avoidPatterns
             ),
 
-
-
-
-
-
-
-        statistics:
-
-        {
-
+        statistics: {
 
             successfulRuns:
-
                 Number(
-
                     value.statistics
-                    ?.successfulRuns
-
+                        ?.successfulRuns
                     ||
-
                     0
-
                 ),
-
-
 
             failedRuns:
-
                 Number(
-
                     value.statistics
-                    ?.failedRuns
-
+                        ?.failedRuns
                     ||
-
                     0
-
                 ),
 
-
-
             lastUsedAt:
-
                 value.statistics
-                ?.lastUsedAt
-
+                    ?.lastUsedAt
                 ||
-
                 null,
 
-
-
             lastResult:
-
                 value.statistics
-                ?.lastResult
-
+                    ?.lastResult
                 ||
-
                 null
-
-
         },
 
-
-
-
-
-
-
-        metadata:
-
-        {
-
+        metadata: {
             ...(value.metadata || {})
-
         }
-
-
     };
 
 }
-
-
-
-
-
-
-
 
 
 /*
@@ -343,274 +197,169 @@ function normalizeSkill(
  */
 
 
-export async function loadExperiences()
-{
-
+export async function loadExperiences() {
 
     const supabase =
-
         getSupabaseClient();
-
-
-
 
 
     const {
         data,
         error
-    }
+    } =
+        await supabase
 
-    =
+            .from(
+                EXPERIENCE_TABLE
+            )
 
-    await supabase
+            .select(`
+                id,
+                payload,
+                enabled,
+                version,
+                status
+            `)
 
-        .from(
-            EXPERIENCE_TABLE
-        )
+            .eq(
+                "enabled",
+                true
+            )
 
-        .select(
-            `
-            id,
-            payload,
-            enabled,
-            version
-            `
-        )
+            .eq(
+                "status",
+                ACTIVE_STATUS
+            )
 
-        .order(
-            "version",
-            {
-                ascending:false
-            }
-        );
-
-
-
-
-
+            .order(
+                "version",
+                {
+                    ascending: false
+                }
+            );
 
 
-    if(
-        error
-    ){
+    if (error) {
 
         throw new Error(
-
             `Experience load error: ${error.message}`
-
         );
 
     }
 
 
-
-
-
-
-
-
-    if(
-        !Array.isArray(data)
-    ){
-
+    if (!Array.isArray(data)) {
         return [];
-
     }
-
-
-
-
-
-
 
 
     const latest =
         new Map();
 
 
-
-
-
-
-
-
-
-    for(
-        const row of data
-    ){
-
+    for (const row of data) {
 
         const skill =
-
             normalizeSkill({
 
                 ...(row.payload || {}),
 
-
-
                 id:
-
                     row.id,
 
-
-
                 version:
-
                     row.version,
 
-
-
                 enabled:
+                    row.enabled,
 
-                    row.enabled
-
-
+                status:
+                    row.status
             });
 
 
-
-
-
-        if(
-            !skill
-        ){
-
+        if (!skill) {
             continue;
-
         }
 
 
-
-
-
-
+        /*
+         * Defense in depth.
+         *
+         * Даже если запрос к БД когда-нибудь изменится,
+         * Store не должен отдавать неактивный Skill.
+         */
+        if (
+            skill.enabled !== true ||
+            skill.status !== ACTIVE_STATUS
+        ) {
+            continue;
+        }
 
 
         const current =
-
             latest.get(
                 skill.id
             );
 
 
-
-
-
-        if(
-            !current
-            ||
+        if (
+            !current ||
             skill.version > current.version
-        ){
+        ) {
 
             latest.set(
-
                 skill.id,
-
                 skill
-
             );
 
         }
-
-
     }
 
 
-
-
-
-
-
-
-
     return Array.from(
-
         latest.values()
-
-    )
-
-    .filter(
-
-        skill =>
-
-            skill.enabled === true
-
     );
-
 
 }
 
 
-
-
-
-
-
-
-
 /*
  * =========================================================
- * LOAD SINGLE
+ * LOAD SINGLE ACTIVE SKILL
  * =========================================================
  */
 
 
 export async function loadExperienceSkill(
     skillId
-){
+) {
 
     const id =
-
         String(
             skillId || ""
-        )
-        .trim();
+        ).trim();
 
 
-
-
-
-    if(
-        !id
-    ){
-
+    if (!id) {
         return null;
-
     }
 
 
-
-
-
-
-
     const skills =
-
         await loadExperiences();
 
 
-
-
-
-    return skills.find(
-
-        skill =>
-
-            skill.id === id
-
-    )
-    ||
-    null;
-
+    return (
+        skills.find(
+            skill =>
+                skill.id === id
+        )
+        ||
+        null
+    );
 
 }
-
-
-
-
-
-
-
 
 
 /*
@@ -622,22 +371,15 @@ export async function loadExperienceSkill(
 
 export async function disableExperience(
     skillId
-){
+) {
 
     const id =
-
         String(
             skillId || ""
-        )
-        .trim();
+        ).trim();
 
 
-
-
-
-    if(
-        !id
-    ){
+    if (!id) {
 
         throw new Error(
             "Skill ID отсутствует"
@@ -646,99 +388,69 @@ export async function disableExperience(
     }
 
 
-
-
-
-
-
     const supabase =
-
         getSupabaseClient();
-
-
-
-
-
-
 
 
     const {
         data,
         error
-    }
+    } =
+        await supabase
 
-    =
+            .from(
+                EXPERIENCE_TABLE
+            )
 
-    await supabase
+            .update({
 
-        .from(
-            EXPERIENCE_TABLE
-        )
+                enabled: false,
 
-        .update({
+                status: "disabled",
 
-            enabled:false,
+                updated_at:
+                    new Date()
+                        .toISOString()
 
+            })
 
-            updated_at:
+            .eq(
+                "id",
+                id
+            )
 
-                new Date()
-                .toISOString()
-
-
-        })
-
-        .eq(
-            "id",
-            id
-        )
-
-        .select(
-            "id"
-        );
+            .select(
+                "id, status, enabled"
+            );
 
 
-
-
-
-
-
-
-
-    if(
-        error
-    ){
+    if (error) {
 
         throw new Error(
-
             `Disable Experience error: ${error.message}`
-
         );
 
     }
-
-
-
-
-
 
 
     return {
 
-
         success:
-
             Array.isArray(data)
-
             &&
-
             data.length > 0,
 
+        id,
 
+        status:
+            data?.[0]?.status
+            ||
+            null,
 
-        id
-
-
+        enabled:
+            data?.[0]?.enabled
+            ??
+            null
     };
 
 }
