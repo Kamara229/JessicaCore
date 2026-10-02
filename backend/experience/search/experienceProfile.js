@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE PROFILE BUILDER v0.2
+ * JESSICA EXPERIENCE PROFILE BUILDER v0.3
  * =========================================================
  *
  * Создаёт поисковый профиль Experience Skill.
@@ -26,7 +26,7 @@
 
 import {
     normalizeExperienceStringArray
-} from "./experienceText.js";
+} from "./experienceSearch/experienceText.js";
 
 
 
