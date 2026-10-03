@@ -1,35 +1,34 @@
 /*
  * =========================================================
- * JESSICA LEARNING ROUTER v3
+ * JESSICA LEARNING ROUTER v4
  * =========================================================
  *
- * Преобразует результат Experience Analyzer
- * в Learning Event.
+ * Преобразует Experience Analysis
+ * в Learning Event Decision.
  *
  *
- * Flow:
+ * Actions:
+ *
+ * NEW_SKILL
+ * SKILL_IMPROVEMENT
+ * PATTERN_DISCOVERY
+ * IGNORE
+ *
+ *
+ * PATTERN_DISCOVERY:
  *
  * Execution Trace
- *        ↓
- * Experience Analyzer
- *        ↓
- * Learning Router
- *        ↓
+ *      ↓
+ * compact Pattern Evidence
+ *      ↓
  * Learning Queue
- *        ↓
- * Learning Proposal
- *
- *
- * Ответственность:
- *
- * - создать Learning Event;
- * - сохранить кандидата обучения;
- * - подготовить данные для Proposal.
+ *      ↓
+ * Background Pattern Discovery Worker
  *
  *
  * НЕ:
  *
- * - анализирует опыт;
+ * - вызывает AI;
  * - создаёт Skill;
  * - сохраняет Experience;
  * - принимает Approval.
@@ -38,27 +37,27 @@
  */
 
 
+import {
+    buildPatternEvidence
+} from "./patternExtraction/patternEvidence.js";
 
-/*
- * =========================================================
- * NORMALIZE
- * =========================================================
- */
+
+
 
 
 function normalizeNumber(
     value
-){
+) {
 
     const number =
         Number(value);
 
 
     return Number.isFinite(number)
-        ?
-        number
-        :
-        0;
+
+        ? number
+
+        : 0;
 
 }
 
@@ -66,14 +65,14 @@ function normalizeNumber(
 
 
 
-
 function normalizeObject(
     value
-){
+) {
 
     if(
         !value ||
-        typeof value !== "object"
+        typeof value !== "object" ||
+        Array.isArray(value)
     ){
 
         return {};
@@ -89,10 +88,6 @@ function normalizeObject(
 
 
 
-
-
-
-
 /*
  * =========================================================
  * IGNORE
@@ -102,15 +97,21 @@ function normalizeObject(
 
 function createIgnoreEvent(
     reason
-){
+) {
 
     return {
 
 
         action:
-
             "IGNORE",
 
+
+        reusable:
+            false,
+
+
+        confidence:
+            0,
 
 
         reason:
@@ -120,20 +121,17 @@ function createIgnoreEvent(
             "Обучение не требуется",
 
 
+        payload: {},
+
 
         createdAt:
 
             new Date()
                 .toISOString()
 
-
     };
 
 }
-
-
-
-
 
 
 
@@ -148,17 +146,29 @@ function createIgnoreEvent(
 
 function createBaseEvent(
     analysis
-){
+) {
 
     const candidate =
 
         normalizeObject(
-
             analysis?.skillCandidate
-
         );
 
 
+
+    const candidateConfidence =
+
+        normalizeNumber(
+            candidate?.confidence
+        );
+
+
+
+    const analysisConfidence =
+
+        normalizeNumber(
+            analysis?.metrics?.confidence
+        );
 
 
 
@@ -167,14 +177,15 @@ function createBaseEvent(
 
         confidence:
 
-            normalizeNumber(
+            candidateConfidence
 
-                candidate.confidence
+            ||
 
-            ),
+            analysisConfidence
 
+            ||
 
-
+            0,
 
 
         reusable:
@@ -182,21 +193,12 @@ function createBaseEvent(
             analysis?.reusable === true,
 
 
-
-
-
         reason:
 
             analysis?.reason || "",
 
 
-
-
-
-
-        payload:
-
-        {
+        payload: {
 
 
             skillCandidate:
@@ -204,16 +206,11 @@ function createBaseEvent(
                 candidate,
 
 
-
             source:
 
                 "experience-analyzer"
 
-
-
         },
-
-
 
 
         createdAt:
@@ -221,7 +218,6 @@ function createBaseEvent(
             new Date()
                 .toISOString()
 
-
     };
 
 }
@@ -230,34 +226,28 @@ function createBaseEvent(
 
 
 
-
-
-
-
 /*
  * =========================================================
- * NEW SKILL EVENT
+ * NEW SKILL
  * =========================================================
  */
 
 
 function createNewSkillEvent(
     analysis
-){
+) {
+
 
     return {
 
 
         action:
-
             "NEW_SKILL",
-
 
 
         ...createBaseEvent(
             analysis
         )
-
 
     };
 
@@ -267,20 +257,16 @@ function createNewSkillEvent(
 
 
 
-
-
-
-
 /*
  * =========================================================
- * SKILL IMPROVEMENT EVENT
+ * SKILL IMPROVEMENT
  * =========================================================
  */
 
 
 function createSkillImprovementEvent(
     analysis
-){
+) {
 
     const base =
 
@@ -290,37 +276,33 @@ function createSkillImprovementEvent(
 
 
 
-
     return {
 
 
         action:
-
             "SKILL_IMPROVEMENT",
-
 
 
         ...base,
 
 
-
-        payload:
-
-        {
+        payload: {
 
 
             ...base.payload,
-
 
 
             skills:
 
                 analysis
                     ?.skillCandidate
-                    ?.skills || []
+                    ?.skills
+
+                ||
+
+                []
 
         }
-
 
     };
 
@@ -329,6 +311,111 @@ function createSkillImprovementEvent(
 
 
 
+
+/*
+ * =========================================================
+ * PATTERN DISCOVERY
+ * =========================================================
+ */
+
+
+function createPatternDiscoveryEvent(
+    trace,
+    analysis
+) {
+
+
+    const metrics =
+
+        normalizeObject(
+            analysis?.metrics
+        );
+
+
+
+    const evidence =
+
+        buildPatternEvidence({
+
+            trace,
+
+            metrics
+
+        });
+
+
+
+    return {
+
+
+        action:
+
+            "PATTERN_DISCOVERY",
+
+
+
+        reusable:
+
+            false,
+
+
+
+        confidence:
+
+            normalizeNumber(
+                metrics?.confidence
+            ),
+
+
+
+        reason:
+
+            analysis?.reason
+
+            ||
+
+            "Требуется самостоятельное извлечение Experience Pattern",
+
+
+
+        payload: {
+
+
+            source:
+
+                "pattern-discovery",
+
+
+
+            discovery: {
+
+
+                evidence,
+
+
+                metrics,
+
+
+                traceId:
+
+                    trace?.id ||
+
+                    null
+
+            }
+
+        },
+
+
+
+        createdAt:
+
+            new Date()
+                .toISOString()
+
+    };
+
+}
 
 
 
@@ -343,10 +430,11 @@ function createSkillImprovementEvent(
 
 export function routeLearningEvent({
 
+    trace = null,
+
     analysis = null
 
 } = {}) {
-
 
 
     if(
@@ -355,16 +443,10 @@ export function routeLearningEvent({
     ){
 
         return createIgnoreEvent(
-
             "Нет результата анализа"
-
         );
 
     }
-
-
-
-
 
 
 
@@ -373,62 +455,45 @@ export function routeLearningEvent({
     ){
 
 
-
         case "NEW_SKILL":
 
-
             return createNewSkillEvent(
-
                 analysis
-
             );
-
-
-
 
 
 
         case "SKILL_IMPROVEMENT":
 
-
             return createSkillImprovementEvent(
-
                 analysis
-
             );
 
 
 
+        case "PATTERN_DISCOVERY":
 
+            return createPatternDiscoveryEvent(
+                trace,
+                analysis
+            );
 
 
 
         case "IGNORE":
 
-
             return createIgnoreEvent(
-
                 analysis.reason
-
             );
-
-
-
-
 
 
 
         default:
 
-
             return createIgnoreEvent(
-
                 "Неизвестный тип Learning Action"
-
             );
-
 
     }
 
-
-}
+        }
