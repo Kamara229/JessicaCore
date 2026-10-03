@@ -1,47 +1,82 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE ANALYZER v4
+ * JESSICA EXPERIENCE ANALYZER v5
  * =========================================================
  *
- * Главный координатор анализа опыта.
+ * Главный координатор анализа Experience.
  *
  *
  * Flow:
  *
  * Execution Trace
  *        ↓
- * Experience Analyzer
- *
+ * Trace Validation
  *        ↓
- * Pattern Matcher
- *
+ * Learning Evidence
  *        ↓
- * Confidence Calculator
  *
+ * ┌─────────────────────────────────────┐
+ * │ Existing Experience was used?       │
+ * └─────────────────────────────────────┘
+ *        │
+ *       YES
  *        ↓
- * Candidate Builder
+ * SKILL_IMPROVEMENT
  *
+ *
+ * Если Existing Experience не использовался:
+ *
+ * Execution Trace
  *        ↓
- * Learning Candidate
+ * Known Pattern Matcher
+ *        ↓
+ * NEW_SKILL Candidate
+ *
+ *
+ * Если известный Pattern не найден:
+ *
+ * DISCOVERY REQUIRED
+ *
+ * На текущем этапе такой Trace
+ * НЕ превращается автоматически
+ * в Skill эвристикой.
+ *
+ * Следующий этап архитектуры:
+ *
+ * AI Pattern Extraction
+ *        ↓
+ * Grounding
+ *        ↓
+ * Generalization
+ *        ↓
+ * Dynamic NEW_SKILL Candidate
  *
  *
  * Ответственность:
  *
  * - принять Execution Trace;
- * - определить тип обучения;
- * - собрать результат анализа.
+ * - определить качество Execution;
+ * - собрать Learning Metrics;
+ * - определить использование Existing Skill;
+ * - определить известный Pattern;
+ * - выбрать Learning Action;
+ * - сформировать Skill Candidate;
+ * - сохранить диагностический контекст анализа.
  *
  *
  * НЕ:
  *
- * - хранит паттерны;
- * - считает confidence;
- * - создаёт Skill;
- * - пишет в память.
+ * - сохраняет Experience;
+ * - работает с Supabase;
+ * - принимает AUTO_APPROVE;
+ * - управляет версиями;
+ * - накапливает KEEP_CANDIDATE;
+ * - вызывает AI;
+ * - самостоятельно придумывает
+ *   новый Skill без Grounding.
  *
  * =========================================================
  */
-
 
 
 import {
@@ -54,7 +89,8 @@ import {
     getExamples,
     calculateSuccessRate,
     calculateExperienceConfidence,
-    calculateExperienceMaturity
+    calculateExperienceMaturity,
+    resolveExperienceMaturityLevel
 } from "./experienceConfidence.js";
 
 
@@ -67,26 +103,24 @@ import {
 
 
 
-
-
-
-
 /*
  * =========================================================
- * VALIDATE TRACE
+ * NORMALIZE
  * =========================================================
  */
 
 
-function isValidTrace(
-    trace
+function isObject(
+    value
 ) {
 
     return (
 
-        trace &&
+        value &&
 
-        typeof trace === "object"
+        typeof value === "object" &&
+
+        !Array.isArray(value)
 
     );
 
@@ -96,52 +130,257 @@ function isValidTrace(
 
 
 
+function normalizeNumber(
+    value
+) {
+
+    const number =
+        Number(value);
+
+
+    return Number.isFinite(number)
+
+        ? number
+
+        : 0;
+
+}
+
+
+
+
+
+function normalizeText(
+    value
+) {
+
+    return String(
+        value || ""
+    )
+    .trim();
+
+}
+
 
 
 
 
 /*
  * =========================================================
- * ANALYZE EXISTING SKILL
+ * IGNORE RESULT
  * =========================================================
  */
 
 
-function analyzeExistingSkill(
+function buildIgnoreResult({
+
+    reason,
+
+    analysisType = "NONE",
+
+    discoveryRequired = false,
+
+    metrics = null,
+
+    metadata = {}
+
+} = {}) {
+
+
+    return {
+
+
+        action:
+            "IGNORE",
+
+
+
+        reusable:
+            false,
+
+
+
+        reason:
+
+            normalizeText(
+                reason
+            )
+
+            ||
+
+            "Нет пригодного опыта для обучения",
+
+
+
+        skillCandidate:
+            null,
+
+
+
+        analysisType,
+
+
+
+        discoveryRequired:
+
+            discoveryRequired === true,
+
+
+
+        metrics:
+
+            metrics || null,
+
+
+
+        metadata:
+
+            isObject(
+                metadata
+            )
+
+                ? metadata
+
+                : {}
+
+    };
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * TRACE SUCCESS
+ * =========================================================
+ *
+ * Learning Analyzer не должен зависеть
+ * только от trace.stats.completed.
+ *
+ * Execution Trace сейчас существует
+ * в нескольких представлениях.
+ *
+ * Поэтому принимаем несколько
+ * подтверждённых признаков успеха.
+ *
+ * =========================================================
+ */
+
+
+function isSuccessfulTrace(
     trace
 ) {
 
 
-    const usage =
-        trace?.experienceUsage;
-
+    /*
+     * Terminal Result
+     */
 
 
     if(
-        !usage ||
-        usage.used !== true
+        typeof trace?.result?.success ===
+        "boolean"
     ){
 
-        return null;
+        return trace.result.success;
 
     }
 
 
 
+    /*
+     * Direct flag
+     */
+
 
     if(
-        !Array.isArray(
-            usage.skills
+        typeof trace?.success ===
+        "boolean"
+    ){
+
+        return trace.success;
+
+    }
+
+
+
+    /*
+     * Legacy / outer stats
+     */
+
+
+    const completed =
+
+        normalizeNumber(
+
+            trace?.stats?.completed
+
+            ??
+
+            trace?.statistics?.completed
+
+        );
+
+
+
+    if(
+        completed > 0
+    ){
+
+        return true;
+
+    }
+
+
+
+    /*
+     * Context / Result status
+     */
+
+
+    const status =
+
+        normalizeText(
+            trace?.status
         )
-        ||
-        usage.skills.length === 0
+        .toUpperCase();
+
+
+
+    if(
+        status === "COMPLETED"
     ){
 
-        return null;
+        return true;
 
     }
 
 
+
+    return false;
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD LEARNING METRICS
+ * =========================================================
+ */
+
+
+function buildLearningMetrics({
+
+    trace,
+
+    matchScore
+
+}) {
 
 
     const occurrences =
@@ -172,12 +411,9 @@ function analyzeExistingSkill(
 
         calculateExperienceConfidence({
 
-            matchScore:
-                1,
-
+            matchScore,
 
             successRate,
-
 
             occurrences
 
@@ -193,7 +429,267 @@ function analyzeExistingSkill(
 
 
 
+    const maturityLevel =
 
+        resolveExperienceMaturityLevel(
+            occurrences
+        );
+
+
+
+    return {
+
+
+        occurrences,
+
+
+
+        examples,
+
+
+
+        successRate,
+
+
+
+        confidence,
+
+
+
+        maturity,
+
+
+
+        maturityLevel,
+
+
+
+        matchScore:
+
+            Math.max(
+
+                0,
+
+                Math.min(
+
+                    1,
+
+                    normalizeNumber(
+                        matchScore
+                    )
+
+                )
+
+            )
+
+    };
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * EXPERIENCE USAGE
+ * =========================================================
+ */
+
+
+function getExperienceUsage(
+    trace
+) {
+
+
+    if(
+        !isObject(
+            trace?.experienceUsage
+        )
+    ){
+
+        return null;
+
+    }
+
+
+
+    return trace.experienceUsage;
+
+}
+
+
+
+
+
+function getUsedSkills(
+    trace
+) {
+
+
+    const usage =
+
+        getExperienceUsage(
+            trace
+        );
+
+
+
+    if(
+        !usage ||
+        usage.used !== true
+    ){
+
+        return [];
+
+    }
+
+
+
+    if(
+        !Array.isArray(
+            usage.skills
+        )
+    ){
+
+        return [];
+
+    }
+
+
+
+    return usage.skills.filter(
+
+        item =>
+            item &&
+            typeof item === "object"
+
+    );
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * ANALYZE EXISTING SKILL
+ * =========================================================
+ *
+ * Если Existing Experience реально
+ * участвовал в Execution,
+ * новый успешный Execution является
+ * дополнительным evidence.
+ *
+ *
+ * На текущем этапе:
+ *
+ * SKILL_IMPROVEMENT
+ * =
+ * EVIDENCE_REINFORCEMENT
+ *
+ *
+ * Семантическое изменение workflow,
+ * constraints и validationRules
+ * будет отдельным следующим слоем:
+ *
+ * Experience Improvement Analyzer.
+ *
+ * =========================================================
+ */
+
+
+function analyzeExistingSkill(
+    trace
+) {
+
+
+    const skills =
+
+        getUsedSkills(
+            trace
+        );
+
+
+
+    if(
+        skills.length === 0
+    ){
+
+        return null;
+
+    }
+
+
+
+    const metrics =
+
+        buildLearningMetrics({
+
+            trace,
+
+            /*
+             * Existing Experience уже был
+             * найден и применён.
+             *
+             * Поэтому соответствие Skill
+             * текущему execution считаем
+             * максимальным.
+             */
+
+            matchScore:
+                1
+
+        });
+
+
+
+    const skillCandidate =
+
+        buildSkillImprovementCandidate({
+
+            skills,
+
+            trace,
+
+            confidence:
+                metrics.confidence,
+
+            maturity:
+                metrics.maturity,
+
+            occurrences:
+                metrics.occurrences
+
+        });
+
+
+
+    if(
+        !skillCandidate
+    ){
+
+        return buildIgnoreResult({
+
+            reason:
+                "Не удалось сформировать Improvement Candidate",
+
+            analysisType:
+                "EXISTING_SKILL",
+
+            metrics,
+
+            metadata: {
+
+                usedSkills:
+                    skills.length
+
+            }
+
+        });
+
+    }
 
 
 
@@ -214,33 +710,73 @@ function analyzeExistingSkill(
 
         reason:
 
-            "Существующий Skill получил успешный новый опыт",
+            "Существующий Experience Skill получил новый подтверждённый опыт",
 
 
 
-        skillCandidate:
-
-            buildSkillImprovementCandidate({
-
-                skills:
-                    usage.skills,
+        skillCandidate,
 
 
-                trace,
+
+        analysisType:
+
+            "EXISTING_SKILL",
 
 
-                confidence,
+
+        improvementType:
+
+            "EVIDENCE_REINFORCEMENT",
 
 
-                maturity,
+
+        metrics,
 
 
-                occurrences
 
-            })
+        metadata: {
+
+
+            experienceUsed:
+                true,
+
+
+            experienceSource:
+
+                normalizeText(
+                    trace
+                        ?.experienceUsage
+                        ?.source
+                )
+
+                ||
+
+                null,
+
+
+            usedSkills:
+                skills.length,
+
+
+            targetSkillId:
+
+                skillCandidate.targetSkillId
+
+                ||
+
+                skills[0]?.id
+
+                ||
+
+                skills[0]?.skillId
+
+                ||
+
+                null
+
+        }
 
     };
-
 
 }
 
@@ -248,18 +784,23 @@ function analyzeExistingSkill(
 
 
 
-
-
-
-
 /*
  * =========================================================
- * ANALYZE NEW SKILL
+ * ANALYZE KNOWN PATTERN
+ * =========================================================
+ *
+ * Использует только seed / known patterns.
+ *
+ * Это быстрый deterministic путь.
+ *
+ * Он НЕ является пределом будущего
+ * самообучения Jessica.
+ *
  * =========================================================
  */
 
 
-function analyzeNewSkill(
+function analyzeKnownPattern(
     trace
 ) {
 
@@ -267,13 +808,14 @@ function analyzeNewSkill(
     const matched =
 
         matchExperiencePattern(
-            trace.task
+            trace?.task
         );
 
 
 
     if(
-        !matched
+        !matched ||
+        !matched.pattern
     ){
 
         return null;
@@ -282,58 +824,85 @@ function analyzeNewSkill(
 
 
 
+    const metrics =
 
+        buildLearningMetrics({
 
-    const occurrences =
-
-        getOccurrences(
-            trace
-        );
-
-
-
-    const examples =
-
-        getExamples(
-            trace
-        );
-
-
-
-    const successRate =
-
-        calculateSuccessRate(
-            examples
-        );
-
-
-
-    const confidence =
-
-        calculateExperienceConfidence({
+            trace,
 
             matchScore:
 
-                matched.matchScore,
-
-
-            successRate,
-
-
-            occurrences
+                matched.matchScore
 
         });
 
 
 
-    const maturity =
+    const skillCandidate =
 
-        calculateExperienceMaturity(
-            occurrences
-        );
+        buildNewSkillCandidate({
+
+            pattern:
+
+                matched.pattern,
 
 
 
+            trace,
+
+
+
+            confidence:
+
+                metrics.confidence,
+
+
+
+            maturity:
+
+                metrics.maturity,
+
+
+
+            occurrences:
+
+                metrics.occurrences
+
+        });
+
+
+
+    if(
+        !skillCandidate
+    ){
+
+        return buildIgnoreResult({
+
+            reason:
+                "Known Pattern найден, но Candidate не сформирован",
+
+            analysisType:
+                "KNOWN_PATTERN",
+
+            metrics,
+
+            metadata: {
+
+                patternId:
+
+                    matched
+                        ?.pattern
+                        ?.id
+
+                    ||
+
+                    null
+
+            }
+
+        });
+
+    }
 
 
 
@@ -354,40 +923,189 @@ function analyzeNewSkill(
 
         reason:
 
-            "Обнаружен повторяемый сценарий, пригодный для Skill",
+            "Обнаружен известный повторяемый сценарий, пригодный для Experience Skill",
 
 
 
-        skillCandidate:
-
-            buildNewSkillCandidate({
-
-                pattern:
-
-                    matched.pattern,
+        skillCandidate,
 
 
-                trace,
+
+        analysisType:
+
+            "KNOWN_PATTERN",
 
 
-                confidence,
+
+        metrics,
 
 
-                maturity,
+
+        metadata: {
 
 
-                occurrences
+            patternId:
 
-            })
+                matched
+                    ?.pattern
+                    ?.id
+
+                ||
+
+                null,
+
+
+            patternName:
+
+                matched
+                    ?.pattern
+                    ?.name
+
+                ||
+
+                null,
+
+
+            matchedKeywords:
+
+                Array.isArray(
+                    matched.matchedKeywords
+                )
+
+                    ?
+
+                    matched.matchedKeywords
+
+                    :
+
+                    [],
+
+
+            matchScore:
+
+                metrics.matchScore
+
+        }
 
     };
-
 
 }
 
 
 
 
+
+/*
+ * =========================================================
+ * BUILD DISCOVERY REQUIRED RESULT
+ * =========================================================
+ *
+ * Успешный Execution есть,
+ * Existing Skill не использовался,
+ * Known Pattern не найден.
+ *
+ *
+ * Такой Execution НЕ должен просто
+ * исчезать как "нечему учиться".
+ *
+ * Он является кандидатом на
+ * самостоятельное открытие нового Skill.
+ *
+ *
+ * Пока AI Pattern Extractor
+ * ещё не подключён, action остаётся IGNORE,
+ * чтобы не создавать ложные Skills
+ * эвристикой.
+ *
+ *
+ * Но discoveryRequired=true позволяет
+ * следующему этапу архитектуры явно
+ * отличить:
+ *
+ * "обучаться нечему"
+ *
+ * от
+ *
+ * "нужен новый Pattern Discovery".
+ *
+ * =========================================================
+ */
+
+
+function buildDiscoveryRequiredResult(
+    trace
+) {
+
+
+    const metrics =
+
+        buildLearningMetrics({
+
+            trace,
+
+            /*
+             * Pattern ещё неизвестен,
+             * поэтому match quality
+             * пока не определён.
+             */
+
+            matchScore:
+                0
+
+        });
+
+
+
+    return buildIgnoreResult({
+
+        reason:
+
+            "Успешный Execution не соответствует известному Experience Pattern; требуется самостоятельное извлечение нового Pattern",
+
+
+
+        analysisType:
+
+            "PATTERN_DISCOVERY_REQUIRED",
+
+
+
+        discoveryRequired:
+
+            true,
+
+
+
+        metrics,
+
+
+
+        metadata: {
+
+
+            task:
+
+                normalizeText(
+                    trace?.task
+                ),
+
+
+            traceId:
+
+                trace?.id ||
+
+                null,
+
+
+            existingExperienceUsed:
+
+                false
+
+        }
+
+    });
+
+}
 
 
 
@@ -405,95 +1123,94 @@ export function analyzeExecutionTrace(
 ) {
 
 
-    if(
-        !isValidTrace(
-            trace
-        )
-    ){
-
-        return {
-
-
-            action:
-
-                "IGNORE",
-
-
-
-            reusable:
-
-                false,
-
-
-
-            reason:
-
-                "Execution Trace отсутствует",
-
-
-
-            skillCandidate:
-
-                null
-
-        };
-
-    }
-
-
-
-
-
-
-
     /*
-     * Анализируем только успешные выполнения
+     * =====================================================
+     * 1. VALIDATE TRACE
+     * =====================================================
      */
 
 
     if(
-        (trace.stats?.completed || 0) <= 0
+        !isObject(
+            trace
+        )
     ){
 
-        return {
-
-
-            action:
-
-                "IGNORE",
-
-
-
-            reusable:
-
-                false,
-
-
+        return buildIgnoreResult({
 
             reason:
+                "Execution Trace отсутствует",
 
-                "Нет успешного выполнения",
+            analysisType:
+                "INVALID_TRACE"
 
-
-
-            skillCandidate:
-
-                null
-
-        };
+        });
 
     }
 
 
 
+    /*
+     * =====================================================
+     * 2. SUCCESS CHECK
+     * =====================================================
+     *
+     * Пока Learning создаёт и улучшает
+     * Experience только из успешных
+     * executions.
+     *
+     *
+     * Failure Learning будет отдельным
+     * следующим каналом:
+     *
+     * failurePatterns
+     * avoidPatterns
+     * constraints
+     *
+     * =====================================================
+     */
 
 
+    if(
+        !isSuccessfulTrace(
+            trace
+        )
+    ){
 
+        return buildIgnoreResult({
+
+            reason:
+                "Execution не подтверждён как успешный",
+
+            analysisType:
+                "UNSUCCESSFUL_EXECUTION",
+
+            metadata: {
+
+                failureLearningRequired:
+                    true
+
+            }
+
+        });
+
+    }
 
 
 
     /*
-     * 1. Улучшение существующего Skill
+     * =====================================================
+     * 3. EXISTING EXPERIENCE
+     * =====================================================
+     *
+     * Existing Skill всегда имеет
+     * приоритет над созданием нового.
+     *
+     * Если Jessica уже использовала Skill,
+     * новый Execution должен развивать
+     * именно эту линию Experience.
+     *
+     * =====================================================
      */
 
 
@@ -515,72 +1232,56 @@ export function analyzeExecutionTrace(
 
 
 
-
-
-
-
-
-
     /*
-     * 2. Новый Skill
+     * =====================================================
+     * 4. KNOWN PATTERN
+     * =====================================================
      */
 
 
-    const newSkill =
+    const knownPattern =
 
-        analyzeNewSkill(
+        analyzeKnownPattern(
             trace
         );
 
 
 
     if(
-        newSkill
+        knownPattern
     ){
 
-        return newSkill;
+        return knownPattern;
 
     }
 
 
 
-
-
-
-
-
-
     /*
-     * 3. Нечему учиться
+     * =====================================================
+     * 5. UNKNOWN SUCCESSFUL EXPERIENCE
+     * =====================================================
+     *
+     * Раньше здесь было:
+     *
+     * "Повторяемый сценарий не найден"
+     * → IGNORE
+     *
+     *
+     * Теперь такой Execution явно
+     * помечается как требующий
+     * Pattern Discovery.
+     *
+     * Следующий этап:
+     *
+     * AI Experience Pattern Extractor.
+     *
+     * =====================================================
      */
 
 
-    return {
+    return buildDiscoveryRequiredResult(
+        trace
+    );
 
-
-        action:
-
-            "IGNORE",
-
-
-
-        reusable:
-
-            false,
-
-
-
-        reason:
-
-            "Повторяемый сценарий не найден",
-
-
-
-        skillCandidate:
-
-            null
-
-    };
-
-
-}
+                }
