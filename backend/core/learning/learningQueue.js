@@ -1,40 +1,22 @@
 /*
  * =========================================================
- * JESSICA LEARNING QUEUE
+ * JESSICA LEARNING QUEUE v2
  * =========================================================
  *
- * Очередь событий обучения Jessica.
+ * Создаёт Queue Item
+ * из Learning Event.
  *
  *
- * Flow:
+ * Actions:
  *
- * Learning Event
- *        ↓
- * Queue Item
- *        ↓
- * Learning Worker
- *        ↓
- * Approval
+ * NEW_SKILL
+ * SKILL_IMPROVEMENT
+ * PATTERN_DISCOVERY
  *
  *
- * НЕ:
+ * IGNORE не сохраняется
+ * Learning Coordinator'ом.
  *
- * - сохраняет Skill;
- * - изменяет Experience;
- * - пишет в Supabase.
- *
- * Только управляет очередью обучения.
- *
- * =========================================================
- */
-
-
-
-
-
-/*
- * =========================================================
- * VALID ACTIONS
  * =========================================================
  */
 
@@ -45,6 +27,8 @@ const VALID_ACTIONS = [
 
     "SKILL_IMPROVEMENT",
 
+    "PATTERN_DISCOVERY",
+
     "IGNORE"
 
 ];
@@ -53,23 +37,15 @@ const VALID_ACTIONS = [
 
 
 
-
-/*
- * =========================================================
- * CREATE QUEUE ITEM
- * =========================================================
- */
-
-
 export function createLearningQueueItem(
     learningEvent
 ) {
 
 
-    if (
+    if(
         !learningEvent ||
         typeof learningEvent !== "object"
-    ) {
+    ){
 
         return null;
 
@@ -77,40 +53,23 @@ export function createLearningQueueItem(
 
 
 
-
-
     const action =
+
         VALID_ACTIONS.includes(
             learningEvent.action
         )
+
             ? learningEvent.action
+
             : "IGNORE";
 
 
 
-
-
-
-    /*
-     * Получаем Skill ID
-     *
-     * NEW_SKILL:
-     * payload.skillCandidate.skillId
-     *
-     * SKILL_IMPROVEMENT:
-     * payload.skills[0].id
-     *
-     */
-
-
     const skillId =
+
         resolveSkillId(
             learningEvent
         );
-
-
-
-
 
 
 
@@ -118,8 +77,8 @@ export function createLearningQueueItem(
 
 
         id:
-            createQueueId(),
 
+            createQueueId(),
 
 
         status:
@@ -127,13 +86,10 @@ export function createLearningQueueItem(
             "PENDING",
 
 
-
         action,
 
 
-
         skillId,
-
 
 
         confidence:
@@ -143,11 +99,9 @@ export function createLearningQueueItem(
             ),
 
 
-
         event:
 
             learningEvent,
-
 
 
         createdAt:
@@ -156,30 +110,16 @@ export function createLearningQueueItem(
                 .toISOString(),
 
 
-
         reviewedAt:
 
             null
 
-
     };
-
 
 }
 
 
 
-
-
-
-
-
-
-/*
- * =========================================================
- * RESOLVE SKILL ID
- * =========================================================
- */
 
 
 function resolveSkillId(
@@ -188,20 +128,21 @@ function resolveSkillId(
 
 
     /*
-     * Новый Skill
+     * NEW SKILL
      */
 
 
     const candidate =
+
         event
             ?.payload
             ?.skillCandidate;
 
 
 
-    if (
+    if(
         candidate?.skillId
-    ) {
+    ){
 
         return candidate.skillId;
 
@@ -209,63 +150,57 @@ function resolveSkillId(
 
 
 
-
-
-
-
     /*
-     * Улучшение Skill
+     * SKILL IMPROVEMENT
      */
 
 
     const skills =
+
         event
             ?.payload
             ?.skills;
 
 
 
-    if (
-        Array.isArray(skills) &&
+    if(
+        Array.isArray(skills)
+        &&
         skills.length > 0
-    ) {
-
+    ){
 
         return (
 
-            skills[0]?.id ||
+            skills[0]?.id
 
-            skills[0]?.skillId ||
+            ||
+
+            skills[0]?.skillId
+
+            ||
 
             null
 
         );
 
-
     }
 
 
 
+    /*
+     * PATTERN_DISCOVERY
+     *
+     * На этом этапе Skill ещё
+     * не существует.
+     */
 
 
     return null;
-
 
 }
 
 
 
-
-
-
-
-
-
-/*
- * =========================================================
- * UPDATE STATUS
- * =========================================================
- */
 
 
 export function updateLearningQueueStatus(
@@ -277,9 +212,9 @@ export function updateLearningQueueStatus(
 ) {
 
 
-    if (
+    if(
         !item
-    ) {
+    ){
 
         return null;
 
@@ -292,41 +227,31 @@ export function updateLearningQueueStatus(
 
 
 
-
-    if (
-        status === "APPROVED" ||
+    if(
+        status === "APPROVED"
+        ||
         status === "REJECTED"
-    ) {
-
+        ||
+        status === "IGNORED"
+        ||
+        status === "FAILED"
+    ){
 
         item.reviewedAt =
+
             new Date()
                 .toISOString();
-
 
     }
 
 
 
-
     return item;
-
 
 }
 
 
 
-
-
-
-
-
-
-/*
- * =========================================================
- * VALID ACTION
- * =========================================================
- */
 
 
 export function isValidLearningAction(
@@ -344,39 +269,26 @@ export function isValidLearningAction(
 
 
 
-
-
-
-
-/*
- * =========================================================
- * ID
- * =========================================================
- */
-
-
-function createQueueId() {
-
+function createQueueId()
+{
 
     try {
 
 
-        if (
-            typeof crypto !== "undefined" &&
+        if(
+            typeof crypto !== "undefined"
+            &&
             crypto.randomUUID
-        ) {
-
+        ){
 
             return crypto.randomUUID();
-
 
         }
 
 
-    } catch(error) {
+    }catch(error){
 
     }
-
 
 
 
@@ -395,6 +307,5 @@ function createQueueId() {
             .substring(2)
 
     );
-
 
 }
