@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE PATTERN EXTRACTOR v2
+ * JESSICA EXPERIENCE PATTERN EXTRACTOR v3
  * =========================================================
  *
  * Центральный координатор автономного
@@ -9,9 +9,9 @@
  *
  * Flow:
  *
- * Execution Trace
+ * Trace / Prepared Evidence
  *        ↓
- * Evidence Builder
+ * Evidence
  *        ↓
  * AI Request
  *        ↓
@@ -27,6 +27,7 @@
  * Ответственность:
  *
  * - координировать Pattern Extraction;
+ * - принимать Trace или готовый Evidence;
  * - передавать данные между слоями;
  * - возвращать унифицированный результат.
  *
@@ -35,9 +36,7 @@
  *
  * - строит Prompt;
  * - вызывает AI напрямую;
- * - анализирует Trace самостоятельно;
- * - парсит AI JSON;
- * - нормализует Pattern;
+ * - парсит JSON;
  * - сохраняет Experience;
  * - принимает AUTO_APPROVE.
  *
@@ -73,13 +72,6 @@ import {
 
 
 
-/*
- * =========================================================
- * HELPERS
- * =========================================================
- */
-
-
 function isObject(
     value
 ) {
@@ -113,13 +105,6 @@ function normalizeText(
 
 
 
-
-
-/*
- * =========================================================
- * FAILURE RESULT
- * =========================================================
- */
 
 
 function buildFailureResult({
@@ -187,6 +172,62 @@ function buildFailureResult({
 
 /*
  * =========================================================
+ * RESOLVE EVIDENCE
+ * =========================================================
+ */
+
+
+function resolveEvidence({
+
+    trace,
+
+    evidence,
+
+    metrics
+
+}) {
+
+
+    if(
+        isObject(
+            evidence
+        )
+    ){
+
+        return evidence;
+
+    }
+
+
+
+    if(
+        !isObject(
+            trace
+        )
+    ){
+
+        return null;
+
+    }
+
+
+
+    return buildPatternEvidence({
+
+        trace,
+
+        metrics
+
+    });
+
+}
+
+
+
+
+
+/*
+ * =========================================================
  * EXTRACT EXPERIENCE PATTERN
  * =========================================================
  */
@@ -194,7 +235,9 @@ function buildFailureResult({
 
 export async function extractExperiencePattern({
 
-    trace,
+    trace = null,
+
+    evidence = null,
 
     metrics = {}
 
@@ -203,14 +246,28 @@ export async function extractExperiencePattern({
 
     /*
      * =====================================================
-     * 1. INPUT
+     * 1. EVIDENCE
      * =====================================================
      */
 
 
+    const resolvedEvidence =
+
+        resolveEvidence({
+
+            trace,
+
+            evidence,
+
+            metrics
+
+        });
+
+
+
     if(
         !isObject(
-            trace
+            resolvedEvidence
         )
     ){
 
@@ -220,7 +277,7 @@ export async function extractExperiencePattern({
                 "input",
 
             reason:
-                "Execution Trace отсутствует"
+                "Learning Evidence отсутствует"
 
         });
 
@@ -230,7 +287,7 @@ export async function extractExperiencePattern({
 
     if(
         !normalizeText(
-            trace?.task
+            resolvedEvidence.task
         )
     ){
 
@@ -240,7 +297,10 @@ export async function extractExperiencePattern({
                 "input",
 
             reason:
-                "Task отсутствует"
+                "Task отсутствует в Learning Evidence",
+
+            evidence:
+                resolvedEvidence
 
         });
 
@@ -250,26 +310,7 @@ export async function extractExperiencePattern({
 
     /*
      * =====================================================
-     * 2. EVIDENCE
-     * =====================================================
-     */
-
-
-    const evidence =
-
-        buildPatternEvidence({
-
-            trace,
-
-            metrics
-
-        });
-
-
-
-    /*
-     * =====================================================
-     * 3. AI REQUEST
+     * 2. AI REQUEST
      * =====================================================
      */
 
@@ -277,7 +318,7 @@ export async function extractExperiencePattern({
     const requestResult =
 
         await requestPatternExtraction(
-            evidence
+            resolvedEvidence
         );
 
 
@@ -299,7 +340,8 @@ export async function extractExperiencePattern({
 
                 "Pattern Extractor request failed",
 
-            evidence
+            evidence:
+                resolvedEvidence
 
         });
 
@@ -317,7 +359,7 @@ export async function extractExperiencePattern({
 
     /*
      * =====================================================
-     * 4. PARSE
+     * 3. PARSE
      * =====================================================
      */
 
@@ -347,7 +389,8 @@ export async function extractExperiencePattern({
 
                 "Pattern Extractor вернул некорректный JSON",
 
-            evidence,
+            evidence:
+                resolvedEvidence,
 
             rawText
 
@@ -359,7 +402,7 @@ export async function extractExperiencePattern({
 
     /*
      * =====================================================
-     * 5. REUSABILITY
+     * 4. REUSABILITY
      * =====================================================
      */
 
@@ -398,7 +441,8 @@ export async function extractExperiencePattern({
                 null,
 
 
-            evidence,
+            evidence:
+                resolvedEvidence,
 
 
             rawText
@@ -411,7 +455,7 @@ export async function extractExperiencePattern({
 
     /*
      * =====================================================
-     * 6. NORMALIZE PATTERN
+     * 5. NORMALIZE
      * =====================================================
      */
 
@@ -424,7 +468,9 @@ export async function extractExperiencePattern({
 
                 parsed.data?.pattern,
 
-            evidence
+            evidence:
+
+                resolvedEvidence
 
         });
 
@@ -442,7 +488,8 @@ export async function extractExperiencePattern({
             reason:
                 "Не удалось нормализовать Experience Pattern",
 
-            evidence,
+            evidence:
+                resolvedEvidence,
 
             rawText
 
@@ -454,7 +501,7 @@ export async function extractExperiencePattern({
 
     /*
      * =====================================================
-     * 7. VALIDATE PATTERN
+     * 6. VALIDATION
      * =====================================================
      */
 
@@ -489,7 +536,8 @@ export async function extractExperiencePattern({
 
                 "Experience Pattern не прошёл проверку",
 
-            evidence,
+            evidence:
+                resolvedEvidence,
 
             rawText
 
@@ -501,7 +549,7 @@ export async function extractExperiencePattern({
 
     /*
      * =====================================================
-     * 8. SUCCESS
+     * 7. SUCCESS
      * =====================================================
      */
 
@@ -535,7 +583,8 @@ export async function extractExperiencePattern({
         pattern,
 
 
-        evidence,
+        evidence:
+            resolvedEvidence,
 
 
         validation,
