@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING WORKER v2
+ * JESSICA LEARNING WORKER v3
  * =========================================================
  *
  * Обработчик Learning Queue.
@@ -10,34 +10,41 @@
  *
  * Learning Queue
  *        ↓
- * Learning Worker
+ *
+ * NEW_SKILL
+ * SKILL_IMPROVEMENT
  *        ↓
  * Learning Proposal
+ *
+ *
+ * PATTERN_DISCOVERY
  *        ↓
- * Autonomy Policy
+ * Pattern Discovery Worker
  *        ↓
- * Approval Runner
+ * NEW_SKILL
+ *        ↓
+ * Learning Proposal
  *
  *
  * Ответственность:
  *
- * - получить ожидающие события;
- * - проверить возможность обучения;
+ * - получить ожидающие Queue Items;
+ * - маршрутизировать Pattern Discovery;
  * - создать Proposal;
  * - сохранить Proposal;
- * - изменить статус Queue.
+ * - обновить Queue Status.
  *
  *
  * НЕ:
  *
- * - анализирует опыт;
- * - принимает решение обучения;
- * - создаёт Skill;
+ * - анализирует Experience самостоятельно;
+ * - вызывает AI напрямую;
+ * - принимает AUTO_APPROVE;
+ * - создаёт Experience Skill;
  * - сохраняет Experience.
  *
  * =========================================================
  */
-
 
 
 import {
@@ -56,18 +63,26 @@ import {
 } from "./learningProposalStorage.js";
 
 
+import {
+    processPatternDiscovery
+} from "./patternDiscoveryWorker.js";
 
 
 
 
 
+const VALID_ACTIONS = [
+
+    "NEW_SKILL",
+
+    "SKILL_IMPROVEMENT",
+
+    "PATTERN_DISCOVERY"
+
+];
 
 
-/*
- * =========================================================
- * VALID QUEUE ITEM
- * =========================================================
- */
+
 
 
 function validateQueueItem(
@@ -86,17 +101,7 @@ function validateQueueItem(
 
 
 
-    const allowedActions = [
-
-        "NEW_SKILL",
-
-        "SKILL_IMPROVEMENT"
-
-    ];
-
-
-
-    return allowedActions.includes(
+    return VALID_ACTIONS.includes(
         item.action
     );
 
@@ -105,6 +110,231 @@ function validateQueueItem(
 
 
 
+
+/*
+ * =========================================================
+ * MARK FAILED
+ * =========================================================
+ */
+
+
+async function markFailed(
+    item
+) {
+
+
+    try {
+
+
+        if(
+            item?.id
+        ){
+
+            await updateLearningQueueItemStatus(
+
+                item.id,
+
+                "FAILED"
+
+            );
+
+        }
+
+
+    }catch(error){
+
+
+        console.error(
+
+            "Learning Queue FAILED update error:",
+
+            error
+
+        );
+
+    }
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * PREPARE ITEM
+ * =========================================================
+ */
+
+
+async function prepareQueueItem(
+    item
+) {
+
+
+    if(
+        item.action !==
+        "PATTERN_DISCOVERY"
+    ){
+
+        return {
+
+
+            success:
+                true,
+
+
+            ignored:
+                false,
+
+
+            queueItem:
+                item,
+
+
+            discovery:
+                null
+
+        };
+
+    }
+
+
+
+    const discovery =
+
+        await processPatternDiscovery(
+            item
+        );
+
+
+
+    if(
+        !discovery?.success
+    ){
+
+        return {
+
+
+            success:
+                false,
+
+
+            ignored:
+                false,
+
+
+            queueItem:
+                null,
+
+
+            reason:
+
+                discovery?.reason
+
+                ||
+
+                "Pattern Discovery failed",
+
+
+            discovery
+
+        };
+
+    }
+
+
+
+    if(
+        discovery.ignored === true
+    ){
+
+        return {
+
+
+            success:
+                true,
+
+
+            ignored:
+                true,
+
+
+            queueItem:
+                null,
+
+
+            reason:
+
+                discovery.reason
+
+                ||
+
+                "Pattern Discovery не обнаружил reusable Experience",
+
+
+            discovery
+
+        };
+
+    }
+
+
+
+    if(
+        !discovery.resolved
+        ||
+        !discovery.queueItem
+    ){
+
+        return {
+
+
+            success:
+                false,
+
+
+            ignored:
+                false,
+
+
+            queueItem:
+                null,
+
+
+            reason:
+                "Pattern Discovery не создал NEW_SKILL Queue Item",
+
+
+            discovery
+
+        };
+
+    }
+
+
+
+    return {
+
+
+        success:
+            true,
+
+
+        ignored:
+            false,
+
+
+        queueItem:
+
+            discovery.queueItem,
+
+
+        discovery
+
+    };
+
+}
 
 
 
@@ -131,16 +361,19 @@ async function processQueueItem(
         return {
 
 
-            success:false,
+            success:
+                false,
 
 
             queueItemId:
-                item?.id || null,
+
+                item?.id ||
+
+                null,
 
 
             reason:
-                "Queue item не требует обучения"
-
+                "Queue Item не поддерживается Learning Worker"
 
         };
 
@@ -148,44 +381,77 @@ async function processQueueItem(
 
 
 
-
-
-
-
     try {
-
-
-
 
 
         /*
          * =================================================
-         * CREATE PROPOSAL
+         * 1. PREPARE
          * =================================================
          */
 
 
-        const proposal =
+        const prepared =
 
-            createLearningProposalFromQueue(
+            await prepareQueueItem(
                 item
             );
 
 
 
+        if(
+            !prepared.success
+        ){
 
+            await markFailed(
+                item
+            );
+
+
+
+            return {
+
+
+                success:
+                    false,
+
+
+                queueItemId:
+                    item.id,
+
+
+                reason:
+                    prepared.reason,
+
+
+                discovery:
+                    prepared.discovery ||
+
+                    null
+
+            };
+
+        }
+
+
+
+        /*
+         * Pattern Extractor решил,
+         * что reusable Experience нет.
+         *
+         * Это корректный terminal outcome.
+         */
 
 
         if(
-            !proposal
+            prepared.ignored === true
         ){
-
 
             await updateLearningQueueItemStatus(
 
                 item.id,
 
-                "FAILED"
+                "IGNORED"
 
             );
 
@@ -194,7 +460,73 @@ async function processQueueItem(
             return {
 
 
-                success:false,
+                success:
+                    true,
+
+
+                queueItemId:
+                    item.id,
+
+
+                ignored:
+                    true,
+
+
+                proposal:
+                    null,
+
+
+                reason:
+                    prepared.reason,
+
+
+                discovery:
+                    prepared.discovery ||
+
+                    null
+
+            };
+
+        }
+
+
+
+        const effectiveItem =
+
+            prepared.queueItem;
+
+
+
+        /*
+         * =================================================
+         * 2. CREATE PROPOSAL
+         * =================================================
+         */
+
+
+        const proposal =
+
+            createLearningProposalFromQueue(
+                effectiveItem
+            );
+
+
+
+        if(
+            !proposal
+        ){
+
+            await markFailed(
+                item
+            );
+
+
+
+            return {
+
+
+                success:
+                    false,
 
 
                 queueItemId:
@@ -204,22 +536,15 @@ async function processQueueItem(
                 reason:
                     "Proposal не создан"
 
-
             };
 
         }
 
 
 
-
-
-
-
-
-
         /*
          * =================================================
-         * SAVE PROPOSAL
+         * 3. SAVE PROPOSAL
          * =================================================
          */
 
@@ -232,20 +557,12 @@ async function processQueueItem(
 
 
 
-
-
-
         if(
             !saved?.success
         ){
 
-
-            await updateLearningQueueItemStatus(
-
-                item.id,
-
-                "FAILED"
-
+            await markFailed(
+                item
             );
 
 
@@ -253,7 +570,8 @@ async function processQueueItem(
             return {
 
 
-                success:false,
+                success:
+                    false,
 
 
                 queueItemId:
@@ -262,10 +580,11 @@ async function processQueueItem(
 
                 reason:
 
-                    saved?.error ||
+                    saved?.error
+
+                    ||
 
                     "Proposal не сохранён"
-
 
             };
 
@@ -273,15 +592,9 @@ async function processQueueItem(
 
 
 
-
-
-
-
-
-
         /*
          * =================================================
-         * UPDATE QUEUE
+         * 4. UPDATE QUEUE
          * =================================================
          */
 
@@ -298,18 +611,15 @@ async function processQueueItem(
 
 
 
-
-
-
         if(
             !updated?.success
         ){
 
-
             return {
 
 
-                success:false,
+                success:
+                    false,
 
 
                 proposal,
@@ -322,23 +632,24 @@ async function processQueueItem(
                 reason:
                     "Proposal создан, Queue не обновлена"
 
-
             };
 
         }
 
 
 
-
-
-
-
+        /*
+         * =================================================
+         * 5. SUCCESS
+         * =================================================
+         */
 
 
         return {
 
 
-            success:true,
+            success:
+                true,
 
 
             queueItemId:
@@ -353,18 +664,22 @@ async function processQueueItem(
                 proposal.action,
 
 
-            proposal
+            proposal,
 
+
+            discovery:
+
+                prepared.discovery
+
+                ||
+
+                null
 
         };
 
 
 
-
-
-
-    } catch(error){
-
+    }catch(error){
 
 
         console.error(
@@ -377,61 +692,39 @@ async function processQueueItem(
 
 
 
-        try{
-
-
-            await updateLearningQueueItemStatus(
-
-                item.id,
-
-                "FAILED"
-
-            );
-
-
-        }catch(updateError){
-
-
-            console.error(
-
-                "Learning Queue update error:",
-
-                updateError
-
-            );
-
-
-        }
-
-
+        await markFailed(
+            item
+        );
 
 
 
         return {
 
 
-            success:false,
+            success:
+                false,
 
 
             queueItemId:
-                item?.id || null,
+
+                item?.id ||
+
+                null,
 
 
             reason:
-                error.message || "Worker error"
 
+                error?.message
+
+                ||
+
+                "Worker error"
 
         };
 
-
     }
 
-
 }
-
-
-
-
 
 
 
@@ -454,8 +747,6 @@ export async function runLearningWorker()
 
 
 
-
-
     if(
         !queueResult?.success
     ){
@@ -463,25 +754,25 @@ export async function runLearningWorker()
         return {
 
 
-            success:false,
+            success:
+                false,
 
 
-            processed:0,
+            processed:
+                0,
 
 
             error:
 
-                queueResult?.error ||
+                queueResult?.error
+
+                ||
 
                 "Ошибка получения Learning Queue"
-
 
         };
 
     }
-
-
-
 
 
 
@@ -491,24 +782,13 @@ export async function runLearningWorker()
             queueResult.items
         )
 
-        ?
+            ? queueResult.items
 
-        queueResult.items
-
-        :
-
-        [];
-
-
-
-
-
+            : [];
 
 
 
     const results = [];
-
-
 
 
 
@@ -532,20 +812,16 @@ export async function runLearningWorker()
 
 
 
-
-
-
-
-
     return {
 
 
-        success:true,
+        success:
+            true,
 
 
         processed:
-            items.length,
 
+            items.length,
 
 
         successful:
@@ -555,8 +831,19 @@ export async function runLearningWorker()
                 item =>
                     item.success === true
 
-            ).length,
+            )
+            .length,
 
+
+        ignored:
+
+            results.filter(
+
+                item =>
+                    item.ignored === true
+
+            )
+            .length,
 
 
         failed:
@@ -566,14 +853,12 @@ export async function runLearningWorker()
                 item =>
                     item.success === false
 
-            ).length,
-
+            )
+            .length,
 
 
         results
 
-
     };
-
 
 }
