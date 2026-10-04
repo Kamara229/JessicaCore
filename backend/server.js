@@ -3,21 +3,23 @@
  * JESSICA CORE BACKEND
  * =========================================================
  *
- * Главная точка запуска backend.
+ * Главная точка запуска Jessica Backend.
  *
  *
- * Здесь остаётся только:
+ * Ответственность:
  *
  * - Environment;
  * - Express;
  * - Tools initialization;
  * - HTTP routes;
- * - запуск сервера;
- * - необязательные startup diagnostics.
+ * - HTTP server;
+ * - Learning Daemon;
+ * - startup diagnostics;
+ * - graceful shutdown.
  *
  *
- * Вся конкретная логика вынесена
- * в отдельные модули.
+ * Вся бизнес-логика находится
+ * в специализированных модулях.
  *
  * =========================================================
  */
@@ -26,11 +28,6 @@
 /*
  * =========================================================
  * ENVIRONMENT
- * =========================================================
- *
- * Environment загружается до Jessica Tools
- * и остальных модулей.
- *
  * =========================================================
  */
 
@@ -50,17 +47,17 @@ import express from "express";
 
 /*
  * =========================================================
- * TOOLS INITIALIZATION
- * =========================================================
- *
- * При импорте регистрируются все инструменты
- * Jessica в Tool Registry.
- *
+ * TOOLS
  * =========================================================
  */
 
 
 import "./tools/initTools.js";
+
+
+import {
+    listTools
+} from "./tools/toolRegistry.js";
 
 
 /*
@@ -77,42 +74,20 @@ import {
 
 /*
  * =========================================================
- * TOOL REGISTRY
- * =========================================================
- *
- * Здесь нужен только для стартового лога.
- *
+ * LEARNING DAEMON
  * =========================================================
  */
 
 
 import {
-    listTools
-} from "./tools/toolRegistry.js";
+    startLearningDaemon,
+    stopLearningDaemon
+} from "./core/learning/learningDaemon.js";
 
 
 /*
  * =========================================================
- * STARTUP LEARNING TEST
- * =========================================================
- *
- * Безопасный диагностический тест
- * создания Learning Proposal.
- *
- *
- * Управляется переменной:
- *
- * RUN_LEARNING_TEST_ON_START=true
- *
- *
- * Этот тест:
- *
- * - анализирует исправление;
- * - создаёт Proposal;
- * - запускает Validators;
- *
- * Но НЕ сохраняет Skill.
- *
+ * STARTUP DIAGNOSTICS
  * =========================================================
  */
 
@@ -122,42 +97,12 @@ import {
 } from "./scripts/startupLearningTest.js";
 
 
-/*
- * =========================================================
- * STARTUP LEARNING APPROVAL TEST
- * =========================================================
- *
- * Диагностический тест полного
- * подтверждённого обучения.
- *
- *
- * Управляется отдельной переменной:
- *
- * RUN_LEARNING_APPROVAL_TEST_ON_START=true
- *
- *
- * ВАЖНО:
- *
- * этот тест способен реально:
- *
- * - подтвердить Learning Proposal;
- * - создать Experience Skill;
- * - определить его версию;
- * - сохранить Skill в Supabase;
- * - записать History + Current.
- *
- *
- * Поэтому этот флаг должен оставаться
- * false, пока сохранение явно
- * не подтверждено пользователем.
- *
- * =========================================================
- */
-
-
 import {
     runStartupLearningApprovalTest
 } from "./scripts/startupLearningApprovalTest.js";
+
+
+
 
 
 /*
@@ -169,6 +114,9 @@ import {
 
 const app =
     express();
+
+
+
 
 
 /*
@@ -190,9 +138,12 @@ app.use(
 );
 
 
+
+
+
 /*
  * =========================================================
- * ROUTE CHAIN
+ * ROUTES
  * =========================================================
  */
 
@@ -202,179 +153,439 @@ registerRoutes(
 );
 
 
+
+
+
 /*
  * =========================================================
- * PORT
+ * SERVER CONFIG
  * =========================================================
  */
 
 
 const port =
+
     Number(
         process.env.PORT
-    ) || 3000;
+    )
+
+    ||
+
+    3000;
+
+
+/*
+ * Render Web Service должен видеть
+ * внешний TCP listener.
+ */
+
+
+const host =
+
+    process.env.HOST
+
+    ||
+
+    "0.0.0.0";
+
+
+
 
 
 /*
  * =========================================================
- * START
+ * LEARNING DAEMON CONFIG
  * =========================================================
  */
 
 
-app.listen(
-    port,
-    () => {
+function resolveLearningDaemonInterval()
+{
+
+    const configured =
+
+        Number(
+            process.env.LEARNING_DAEMON_INTERVAL_MS
+        );
 
 
-        /*
-         * =================================================
-         * TOOLS
-         * =================================================
-         */
+    if(
+        Number.isFinite(
+            configured
+        )
+        &&
+        configured >= 60_000
+    ){
+
+        return configured;
+
+    }
 
 
-        const tools =
-            listTools()
-                .map(
-                    tool =>
-                        tool.name
+    /*
+     * Default:
+     *
+     * 15 minutes
+     */
+
+
+    return 15 * 60 * 1000;
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * STARTUP DIAGNOSTICS
+ * =========================================================
+ */
+
+
+function runStartupDiagnostics()
+{
+
+    /*
+     * Safe Learning diagnostic.
+     *
+     * RUN_LEARNING_TEST_ON_START=true
+     */
+
+
+    runStartupLearningTest()
+
+        .catch(
+            error => {
+
+
+                console.error(
+
+                    "Jessica startup Learning diagnostic error:",
+
+                    error
+
+                );
+
+            }
+        );
+
+
+    /*
+     * Full Approval diagnostic.
+     *
+     * RUN_LEARNING_APPROVAL_TEST_ON_START=true
+     *
+     * Может реально записывать Experience
+     * в Supabase, поэтому обычно false.
+     */
+
+
+    runStartupLearningApprovalTest()
+
+        .catch(
+            error => {
+
+
+                console.error(
+
+                    "Jessica startup Learning Approval diagnostic error:",
+
+                    error
+
+                );
+
+            }
+        );
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * START HTTP SERVER
+ * =========================================================
+ */
+
+
+const server =
+
+    app.listen(
+
+        port,
+
+        host,
+
+        () => {
+
+
+            /*
+             * =============================================
+             * HTTP
+             * =============================================
+             */
+
+
+            console.log(
+
+                `Jessica Core started on ${host}:${port}`
+
+            );
+
+
+            /*
+             * =============================================
+             * TOOLS
+             * =============================================
+             */
+
+
+            const tools =
+
+                listTools()
+
+                    .map(
+                        tool =>
+                            tool.name
+                    );
+
+
+            console.log(
+
+                `Jessica tools (${tools.length}):`,
+
+                tools.join(
+                    ", "
+                )
+
+            );
+
+
+            /*
+             * =============================================
+             * LEARNING DAEMON
+             * =============================================
+             */
+
+
+            const learningInterval =
+
+                resolveLearningDaemonInterval();
+
+
+            const daemon =
+
+                startLearningDaemon(
+                    learningInterval
                 );
 
 
-        console.log(
-            `Jessica Core started on port ${port}`
+            if(
+                daemon?.started === true
+            ){
+
+                console.log(
+
+                    `Jessica Learning Daemon interval: ${learningInterval} ms`
+
+                );
+
+            }else{
+
+
+                console.warn(
+
+                    "Jessica Learning Daemon was not started:",
+
+                    daemon?.reason
+
+                    ||
+
+                    "unknown reason"
+
+                );
+
+            }
+
+
+            /*
+             * =============================================
+             * DIAGNOSTICS
+             * =============================================
+             */
+
+
+            runStartupDiagnostics();
+
+        }
+
+    );
+
+
+
+
+
+/*
+ * =========================================================
+ * SERVER ERROR
+ * =========================================================
+ */
+
+
+server.on(
+
+    "error",
+
+    error => {
+
+
+        console.error(
+
+            "Jessica HTTP Server error:",
+
+            error
+
         );
-
-
-        console.log(
-
-            `Jessica tools (${tools.length}):`,
-
-            tools.join(
-                ", "
-            )
-
-        );
-
-
-        /*
-         * =================================================
-         * SAFE STARTUP LEARNING TEST
-         * =================================================
-         *
-         * Проверяет:
-         *
-         * RUN_LEARNING_TEST_ON_START
-         *
-         *
-         * Если значение:
-         *
-         * false
-         *
-         * функция просто завершится.
-         *
-         *
-         * Используется для проверки:
-         *
-         * Analyzer
-         * → Parser
-         * → Structure Validator
-         * → Grounding Validator
-         * → Generalization Validator
-         * → Proposal
-         *
-         *
-         * Skill не сохраняется.
-         *
-         * =================================================
-         */
-
-
-        runStartupLearningTest()
-            .catch(
-                error => {
-
-
-                    /*
-                     * Ошибка диагностики
-                     * никогда не должна
-                     * останавливать backend.
-                     */
-
-
-                    console.error(
-                        "Jessica startup Learning diagnostic error:",
-                        error
-                    );
-
-
-                }
-            );
-
-
-        /*
-         * =================================================
-         * STARTUP LEARNING APPROVAL TEST
-         * =================================================
-         *
-         * Проверяет отдельный флаг:
-         *
-         * RUN_LEARNING_APPROVAL_TEST_ON_START
-         *
-         *
-         * По умолчанию этот флаг
-         * должен быть false.
-         *
-         *
-         * При false:
-         *
-         * - Proposal не подтверждается;
-         * - Experience не сохраняется;
-         * - Supabase не изменяется.
-         *
-         *
-         * При true тест может пройти:
-         *
-         * createLearning()
-         *        ↓
-         * Safety Validators
-         *        ↓
-         * PENDING_APPROVAL
-         *        ↓
-         * approveLearning()
-         *        ↓
-         * Skill Builder
-         *        ↓
-         * Atomic Experience Storage
-         *        ↓
-         * Supabase
-         *
-         * =================================================
-         */
-
-
-        runStartupLearningApprovalTest()
-            .catch(
-                error => {
-
-
-                    /*
-                     * Ошибка Approval Test
-                     * также не должна влиять
-                     * на работу Jessica Core.
-                     */
-
-
-                    console.error(
-                        "Jessica startup Learning Approval diagnostic error:",
-                        error
-                    );
-
-
-                }
-            );
-
 
     }
+
+);
+
+
+
+
+
+/*
+ * =========================================================
+ * GRACEFUL SHUTDOWN
+ * =========================================================
+ */
+
+
+let shuttingDown =
+    false;
+
+
+function shutdown(
+    signal
+) {
+
+    if(
+        shuttingDown
+    ){
+
+        return;
+
+    }
+
+
+    shuttingDown =
+        true;
+
+
+    console.log(
+
+        `Jessica shutdown requested: ${signal}`
+
+    );
+
+
+    /*
+     * Stop background Learning timer.
+     */
+
+
+    try {
+
+
+        stopLearningDaemon();
+
+
+    }catch(error){
+
+
+        console.error(
+
+            "Jessica Learning Daemon stop error:",
+
+            error
+
+        );
+
+    }
+
+
+    /*
+     * Stop accepting new HTTP requests.
+     */
+
+
+    server.close(
+
+        error => {
+
+
+            if(
+                error
+            ){
+
+                console.error(
+
+                    "Jessica HTTP Server shutdown error:",
+
+                    error
+
+                );
+
+
+                process.exitCode =
+                    1;
+
+            }
+
+
+            console.log(
+
+                "Jessica Core stopped"
+
+            );
+
+        }
+
+    );
+
+}
+
+
+/*
+ * Render normally sends SIGTERM
+ * before stopping/redeploying instance.
+ */
+
+
+process.on(
+
+    "SIGTERM",
+
+    () =>
+        shutdown(
+            "SIGTERM"
+        )
+
+);
+
+
+process.on(
+
+    "SIGINT",
+
+    () =>
+        shutdown(
+            "SIGINT"
+        )
+
 );
