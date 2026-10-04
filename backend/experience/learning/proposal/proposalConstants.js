@@ -1,11 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING PROPOSAL CONSTANTS
- * =========================================================
- *
- * Общие Actions и Status
- * Learning Proposal.
- *
+ * JESSICA LEARNING PROPOSAL CONSTANTS v2
  * =========================================================
  */
 
@@ -15,11 +10,20 @@ export const LEARNING_PROPOSAL_STATUS = {
     PENDING_APPROVAL:
         "PENDING_APPROVAL",
 
+    PROCESSING:
+        "PROCESSING",
+
     APPROVED:
         "APPROVED",
 
+    KEEP_CANDIDATE:
+        "KEEP_CANDIDATE",
+
     REJECTED:
-        "REJECTED"
+        "REJECTED",
+
+    FAILED:
+        "FAILED"
 
 };
 
