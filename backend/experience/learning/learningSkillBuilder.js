@@ -1,283 +1,144 @@
-import {
-    randomUUID
-} from "node:crypto";
-
-
-
 /*
  * =========================================================
- * JESSICA LEARNING SKILL BUILDER v3
+ * JESSICA LEARNING SKILL BUILDER v4
  * =========================================================
  *
- * Создание Experience Skill.
+ * Центральный Builder
+ * финального Experience Skill.
  *
  *
  * Flow:
  *
- * Learning Proposal
+ * Proposed Experience
  *        ↓
- * Autonomy Approval
+ * Validation
  *        ↓
- * Skill Builder
+ * Identity / Version
+ *        ↓
+ * Knowledge Builder
+ *        ↓
+ * Learning Metrics Builder
+ *        ↓
+ * Metadata Builder
+ *        ↓
+ * Experience Skill
  *        ↓
  * Experience Storage
  *
  *
+ * Ответственность:
+ *
+ * - координировать построение Skill;
+ * - сформировать Identity;
+ * - сформировать Version;
+ * - объединить специализированные блоки;
+ * - вернуть канонический Experience Skill.
+ *
+ *
  * НЕ:
  *
- * - принимает решение обучения;
- * - работает с БД;
+ * - принимает Learning Decision;
+ * - вызывает AI;
  * - ищет версии;
- * - вызывает AI.
+ * - объединяет Candidate;
+ * - работает с Supabase;
+ * - принимает AUTO_APPROVE.
  *
  * =========================================================
  */
 
 
+import {
+    normalizeText,
+    normalizeVersion
+} from "./skill/skillUtils.js";
+
+
+import {
+    buildLearningSkillId
+} from "./skill/skillId.js";
+
+
+import {
+    buildSkillKnowledge
+} from "./skill/skillKnowledgeBuilder.js";
+
+
+import {
+    buildSkillLearning,
+    buildInitialRuntimeStatistics
+} from "./skill/skillLearningBuilder.js";
+
+
+import {
+    buildSkillMetadata
+} from "./skill/skillMetadataBuilder.js";
+
+
+import {
+    validateSkillBuildInput,
+    validateBuiltExperienceSkill
+} from "./skill/skillValidation.js";
 
 
 
-const TRANSLITERATION = {
 
-    а:"a",
-    б:"b",
-    в:"v",
-    г:"g",
-    д:"d",
-    е:"e",
-    ё:"e",
-    ж:"zh",
-    з:"z",
-    и:"i",
-    й:"y",
-    к:"k",
-    л:"l",
-    м:"m",
-    н:"n",
-    о:"o",
-    п:"p",
-    р:"r",
-    с:"s",
-    т:"t",
-    у:"u",
-    ф:"f",
-    х:"h",
-    ц:"ts",
-    ч:"ch",
-    ш:"sh",
-    щ:"sch",
-    ъ:"",
-    ы:"y",
-    ь:"",
-    э:"e",
-    ю:"yu",
-    я:"ya"
 
+/*
+ * =========================================================
+ * PUBLIC ID BUILDER
+ * =========================================================
+ *
+ * Re-export сохраняет совместимость:
+ *
+ * patternNormalizer.js
+ * и другие существующие импорты
+ * менять не требуется.
+ *
+ * =========================================================
+ */
+
+
+export {
+    buildLearningSkillId
 };
 
 
 
 
 
-
-
-
-
-function normalizeText(
-    value
-){
-
-    return String(
-        value || ""
-    )
-    .trim();
-
-}
-
-
-
-
-
-
-
-
-
-function normalizeArray(
-    value
-){
-
-    if(
-        !Array.isArray(value)
-    ){
-
-        return [];
-
-    }
-
-
-    return value
-
-        .map(
-            item =>
-                normalizeText(item)
-        )
-
-        .filter(
-            Boolean
-        );
-
-}
-
-
-
-
-
-
-
-
-
-function normalizeConfidence(
-    value
-){
-
-    const number =
-        Number(value);
-
-
-    if(
-        !Number.isFinite(number)
-    ){
-
-        return 0.7;
-
-    }
-
-
-    return Math.max(
-        0,
-        Math.min(
-            1,
-            number
-        )
-    );
-
-}
-
-
-
-
-
-
-
-
-
-function normalizeVersion(
-    value
-){
-
-    const version =
-        Number(value);
-
-
-    if(
-        !Number.isInteger(version)
-        ||
-        version < 1
-    ){
-
-        return 1;
-
-    }
-
-
-    return version;
-
-}
-
-
-
-
-
-
-
-
-
 /*
  * =========================================================
- * BUILD SKILL ID
+ * MODE
  * =========================================================
  */
 
 
-export function buildLearningSkillId(
+function normalizeMode(
     value
-){
+) {
 
-    const normalized =
+
+    const mode =
 
         normalizeText(
             value
         )
-
-        .toLowerCase()
-
-        .split("")
-
-        .map(
-            char =>
-                TRANSLITERATION[char]
-                ??
-                char
-        )
-
-        .join("")
-
-        .replace(
-            /[^a-z0-9]+/g,
-            "-"
-        )
-
-        .replace(
-            /^-+|-+$/g,
-            ""
-        )
-
-        .slice(
-            0,
-            80
-        );
-
+        .toLowerCase();
 
 
     if(
-        normalized
+        mode === "update"
     ){
 
-        return normalized;
+        return "update";
 
     }
 
 
-
-    return (
-
-        "skill-"
-
-        +
-
-        randomUUID()
-            .slice(
-                0,
-                8
-            )
-
-    );
+    return "create";
 
 }
-
-
-
-
 
 
 
@@ -302,28 +163,31 @@ export function buildExperienceSkill({
 
     mode = "create",
 
-    confidence = 0.7,
+    confidence = null,
 
     metadata = {}
 
 } = {}) {
 
 
+    /*
+     * =====================================================
+     * 1. VALIDATE INPUT
+     * =====================================================
+     */
 
-    if(
-        !proposedExperience
-        ||
-        typeof proposedExperience !== "object"
-    ){
 
-        throw new Error(
-            "proposedExperience отсутствует"
-        );
-
-    }
+    validateSkillBuildInput(
+        proposedExperience
+    );
 
 
 
+    /*
+     * =====================================================
+     * 2. IDENTITY
+     * =====================================================
+     */
 
 
     const name =
@@ -331,23 +195,6 @@ export function buildExperienceSkill({
         normalizeText(
             proposedExperience.name
         );
-
-
-
-    if(
-        !name
-    ){
-
-        throw new Error(
-            "Название Skill отсутствует"
-        );
-
-    }
-
-
-
-
-
 
 
     const id =
@@ -358,26 +205,127 @@ export function buildExperienceSkill({
 
         ||
 
+        normalizeText(
+            proposedExperience.id
+        )
+
+        ||
+
+        buildLearningSkillId(
+            name
+        );
+
+
+    const normalizedName =
+
         buildLearningSkillId(
             name
         );
 
 
 
+    /*
+     * =====================================================
+     * 3. VERSION
+     * =====================================================
+     */
+
+
+    const normalizedVersion =
+
+        normalizeVersion(
+            version
+        );
+
+
+    const normalizedPreviousVersion =
+
+        previousVersion !== null
+        &&
+        previousVersion !== undefined
+
+            ? normalizeVersion(
+                previousVersion
+            )
+
+            : null;
+
+
+    const normalizedMode =
+
+        normalizeMode(
+            mode
+        );
 
 
 
+    /*
+     * =====================================================
+     * 4. KNOWLEDGE
+     * =====================================================
+     */
+
+
+    const knowledge =
+
+        buildSkillKnowledge(
+            proposedExperience
+        );
 
 
 
-    return {
+    /*
+     * =====================================================
+     * 5. LEARNING
+     * =====================================================
+     */
+
+
+    const learning =
+
+        buildSkillLearning({
+
+            proposedExperience,
+
+            confidence
+
+        });
 
 
 
+    /*
+     * =====================================================
+     * 6. METADATA
+     * =====================================================
+     */
+
+
+    const skillMetadata =
+
+        buildSkillMetadata({
+
+            proposedExperience,
+
+            metadata
+
+        });
+
+
+
+    /*
+     * =====================================================
+     * 7. BUILD
+     * =====================================================
+     */
+
+
+    const skill = {
 
 
         /*
+         * =================================================
          * IDENTITY
+         * =================================================
          */
 
 
@@ -387,12 +335,7 @@ export function buildExperienceSkill({
         name,
 
 
-        normalizedName:
-
-            buildLearningSkillId(
-                name
-            ),
-
+        normalizedName,
 
 
         category:
@@ -400,9 +343,10 @@ export function buildExperienceSkill({
             normalizeText(
                 proposedExperience.category
             )
-            ||
-            "general",
 
+            ||
+
+            "general",
 
 
         description:
@@ -412,275 +356,128 @@ export function buildExperienceSkill({
             ),
 
 
+        source:
 
+            normalizeText(
+                proposedExperience.source
+            )
 
+            ||
+
+            "execution-learning",
 
 
 
         /*
+         * =================================================
          * VERSION
+         * =================================================
          */
 
 
         version:
 
-            normalizeVersion(
-                version
-            ),
-
+            normalizedVersion,
 
 
         previousVersion:
 
-            previousVersion
-            ?
-            normalizeVersion(
-                previousVersion
-            )
-            :
-            null,
+            normalizedPreviousVersion,
 
 
+        mode:
 
-        mode,
-
-
-
-
-
-
+            normalizedMode,
 
 
 
         /*
+         * =================================================
          * STATUS
+         * =================================================
          */
 
 
-        enabled:true,
+        enabled:
 
+            true,
+
+
+        /*
+         * Legacy-compatible top-level confidence.
+         *
+         * Канонический источник:
+         *
+         * skill.learning.confidence
+         */
 
 
         confidence:
 
-            normalizeConfidence(
-                confidence
-            ),
-
-
-
-
+            learning.confidence,
 
 
 
         /*
+         * =================================================
          * KNOWLEDGE
+         * =================================================
          */
 
 
-        workflow:
-
-            Array.isArray(
-                proposedExperience.workflow
-            )
-
-            ?
-
-            proposedExperience.workflow
-
-            :
-
-            [],
-
-
-
-        triggerPatterns:
-
-            normalizeArray(
-                proposedExperience.triggerPatterns
-            ),
-
-
-
-        keywords:
-
-            normalizeArray(
-                proposedExperience.keywords
-            ),
-
-
-
-        tags:
-
-            normalizeArray(
-                proposedExperience.tags
-            ),
-
-
-
-        validationRules:
-
-            normalizeArray(
-                proposedExperience.validationRules
-            ),
-
-
-
-        constraints:
-
-            normalizeArray(
-                proposedExperience.constraints
-            ),
-
-
-
-        strategy:
-
-            normalizeArray(
-                proposedExperience.strategy
-            ),
-
-
-
-        sourcePriority:
-
-            normalizeArray(
-                proposedExperience.sourcePriority
-            ),
-
-
-
-        successfulPatterns:
-
-            normalizeArray(
-                proposedExperience.successfulPatterns
-            ),
-
-
-
-        failurePatterns:
-
-            normalizeArray(
-                proposedExperience.failurePatterns
-            ),
-
-
-
-        avoidPatterns:
-
-            normalizeArray(
-                proposedExperience.avoidPatterns
-            ),
-
-
-
-        examples:
-
-            Array.isArray(
-                proposedExperience.examples
-            )
-
-            ?
-
-            proposedExperience.examples
-
-            :
-
-            [],
-
-
-
-
+        ...knowledge,
 
 
 
         /*
+         * =================================================
+         * LEARNING MEMORY
+         * =================================================
+         */
+
+
+        learning,
+
+
+
+        /*
+         * =================================================
          * RUNTIME MEMORY
+         * =================================================
+         *
+         * Runtime конкретной версии.
+         *
+         * Не путать с накопленным
+         * skill.learning.
+         *
+         * =================================================
          */
 
 
-        statistics:{
+        statistics:
 
-
-            successfulRuns:0,
-
-
-            failedRuns:0,
-
-
-            lastUsedAt:null,
-
-
-            lastResult:null
-
-
-        },
-
-
-
-
-
-
+            buildInitialRuntimeStatistics(),
 
 
 
         /*
-         * LEARNING META
+         * =================================================
+         * META
+         * =================================================
          */
 
 
-        metadata:{
+        metadata:
 
-
-            proposalId:
-
-                metadata.proposalId ||
-                null,
-
-
-            queueItemId:
-
-                metadata.queueItemId ||
-                null,
-
-
-            learnedFrom:
-
-                metadata.learnedFrom ||
-                "learning_pipeline",
+            skillMetadata,
 
 
 
-            learning:
-
-
-                metadata.learning
-                ||
-                null,
-
-
-
-            createdBy:
-
-                metadata.createdBy
-                ||
-                "jessica-learning",
-
-
-
-            sourceExperience:
-
-                metadata.sourceExperience
-                ||
-                null
-
-
-        },
-
-
-
-
-
+        /*
+         * =================================================
+         * SYSTEM
+         * =================================================
+         */
 
 
         learnedAt:
@@ -689,12 +486,26 @@ export function buildExperienceSkill({
                 .toISOString(),
 
 
-
         builderVersion:
 
-            "v3"
-
+            "v4"
 
     };
+
+
+
+    /*
+     * =====================================================
+     * 8. FINAL VALIDATION
+     * =====================================================
+     */
+
+
+    validateBuiltExperienceSkill(
+        skill
+    );
+
+
+    return skill;
 
 }
