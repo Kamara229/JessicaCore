@@ -1,46 +1,47 @@
 /*
  * =========================================================
- * JESSICA LEARNING DAEMON v5
+ * JESSICA LEARNING DAEMON v6
  * =========================================================
  *
- * Фоновый процесс автономного обучения Jessica.
+ * Фоновый процесс
+ * автономного обучения Jessica.
  *
  *
  * Flow:
  *
  * Timer
- *   ↓
+ *      ↓
  * Learning Pipeline
- *   ↓
- * Learning Proposal
- *   ↓
+ *      ↓
+ * Persisted PENDING Proposals
+ *      ↓
  * Approval Runner
- *   ↓
- * Autonomy Policy
- *   ↓
- * Learning Approval
- *   ↓
- * Experience Memory
+ *      ↓
+ * Reviewer
+ *      ↓
+ * Quality Gate
+ *      ↓
+ * Autonomy
+ *      ↓
+ * Experience / Candidate Memory
  *
  *
- * Ответственность:
+ * ВАЖНО:
  *
- * - запускать цикл обучения;
- * - координировать Pipeline;
- * - передавать Proposal в Approval Runner;
- * - возвращать статистику обучения.
+ * Proposal поступают в Approval
+ * из persistent storage,
+ * а не напрямую из Worker Memory.
  *
  *
  * НЕ:
  *
- * - анализирует опыт;
+ * - анализирует Execution;
  * - создаёт Proposal;
  * - создаёт Skill;
- * - работает с БД.
+ * - работает с Supabase напрямую.
  *
  * =========================================================
  */
-
 
 
 import {
@@ -51,10 +52,6 @@ import {
 import {
     runLearningApproval
 } from "./learningApprovalRunner.js";
-
-
-
-
 
 
 
@@ -71,13 +68,35 @@ let daemonTimer =
     null;
 
 
-
 let running =
     false;
 
 
 
 
+
+/*
+ * =========================================================
+ * NUMBER
+ * =========================================================
+ */
+
+
+function normalizeNumber(
+    value
+) {
+
+    const number =
+        Number(value);
+
+
+    return Number.isFinite(number)
+
+        ? number
+
+        : 0;
+
+}
 
 
 
@@ -93,96 +112,67 @@ let running =
 function createEmptyCycleResult(
     reason,
     pipeline = null
-){
+) {
 
     return {
-
 
         success:
             true,
 
 
-
         reason:
 
-            reason ||
+            reason
+
+            ||
 
             "nothing-to-learn",
 
 
-
         pipeline,
 
+
+        created:
+
+            normalizeNumber(
+                pipeline?.created
+            ),
+
+
+        pending:
+            0,
 
 
         proposals:
             0,
 
 
-
         learned:
             0,
-
 
 
         candidates:
             0,
 
 
+        rejected:
+            0,
+
 
         failed:
             0,
 
 
+        candidateMemoryErrors:
+            0,
+
 
         approval:
             null
 
-
     };
 
-
 }
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * NORMALIZE NUMBER
- * =========================================================
- */
-
-
-function normalizeNumber(
-    value
-){
-
-    const number =
-        Number(value);
-
-
-
-    return Number.isFinite(number)
-
-        ?
-
-        number
-
-        :
-
-        0;
-
-}
-
-
-
-
 
 
 
@@ -198,6 +188,20 @@ function normalizeNumber(
 export async function runLearningDaemonCycle()
 {
 
+    /*
+     * =====================================================
+     * LOCAL PROCESS LOCK
+     * =====================================================
+     *
+     * Защищает один Node process
+     * от overlapping timer cycles.
+     *
+     * Distributed locking для нескольких
+     * Render instances — отдельный этап.
+     *
+     * =====================================================
+     */
+
 
     if(
         running
@@ -205,36 +209,22 @@ export async function runLearningDaemonCycle()
 
         return {
 
-
             success:
                 false,
 
-
             reason:
-
                 "Learning cycle already running"
-
 
         };
 
     }
 
 
-
-
-
-
-
     running =
         true;
 
 
-
-
-
-
     try {
-
 
 
         /*
@@ -249,26 +239,25 @@ export async function runLearningDaemonCycle()
             await runLearningPipeline();
 
 
-
-
-
-
-
         if(
             !pipelineResult?.success
         ){
 
             return {
 
-
                 success:
                     false,
 
-
                 stage:
+
+                    pipelineResult?.stage
+
+                    ||
+
                     "pipeline",
 
-
+                pipeline:
+                    pipelineResult,
 
                 error:
 
@@ -278,17 +267,17 @@ export async function runLearningDaemonCycle()
 
                     "Learning Pipeline failed"
 
-
-
             };
 
         }
 
 
 
-
-
-
+        /*
+         * =================================================
+         * 2. PERSISTED PROPOSALS
+         * =================================================
+         */
 
 
         const proposals =
@@ -297,26 +286,9 @@ export async function runLearningDaemonCycle()
                 pipelineResult.proposals
             )
 
-            ?
+                ? pipelineResult.proposals
 
-            pipelineResult.proposals
-
-            :
-
-            [];
-
-
-
-
-
-
-
-
-        /*
-         * =================================================
-         * NOTHING TO APPROVE
-         * =================================================
-         */
+                : [];
 
 
         if(
@@ -325,7 +297,7 @@ export async function runLearningDaemonCycle()
 
             return createEmptyCycleResult(
 
-                "no-proposals",
+                "no-pending-proposals",
 
                 pipelineResult
 
@@ -335,21 +307,14 @@ export async function runLearningDaemonCycle()
 
 
 
-
-
-
-
-
-
         /*
          * =================================================
-         * 2. APPROVAL RUNNER
+         * 3. APPROVAL RUNNER
          * =================================================
          */
 
 
         let approvalResult;
-
 
 
         try {
@@ -362,120 +327,190 @@ export async function runLearningDaemonCycle()
                 );
 
 
-
         }catch(error){
 
 
             return {
 
-
                 success:
                     false,
-
 
                 stage:
                     "approval",
 
-
-
                 pipeline:
                     pipelineResult,
-
-
 
                 proposals:
                     proposals.length,
 
-
-
                 error:
-                    error.message
 
+                    error?.message
 
+                    ||
+
+                    "Learning Approval failed"
 
             };
-
 
         }
 
 
 
+        /*
+         * Approval Runner сам должен
+         * вернуть корректный batch result.
+         */
 
 
+        if(
+            approvalResult?.success !== true
+        ){
 
+            return {
+
+                success:
+                    false,
+
+                stage:
+                    "approval",
+
+                pipeline:
+                    pipelineResult,
+
+                proposals:
+                    proposals.length,
+
+                approval:
+                    approvalResult,
+
+                error:
+
+                    approvalResult?.error
+
+                    ||
+
+                    "Learning Approval Runner failed"
+
+            };
+
+        }
 
 
 
         /*
          * =================================================
-         * FINAL RESULT
+         * 4. FINAL RESULT
          * =================================================
          */
 
 
         return {
 
-
             success:
                 true,
-
 
 
             pipeline:
                 pipelineResult,
 
 
+            /*
+             * Worker production
+             */
 
-            proposals:
+
+            created:
+
+                normalizeNumber(
+                    pipelineResult.created
+                ),
+
+
+            /*
+             * Persistent Proposal workload
+             */
+
+
+            pending:
+
                 proposals.length,
 
+
+            proposals:
+
+                proposals.length,
+
+
+            /*
+             * Approval outcomes
+             */
 
 
             learned:
 
                 normalizeNumber(
-
-                    approvalResult?.learned
-
+                    approvalResult.learned
                 ),
-
 
 
             candidates:
 
                 normalizeNumber(
-
-                    approvalResult?.candidates
-
+                    approvalResult.candidates
                 ),
 
+
+            rejected:
+
+                normalizeNumber(
+                    approvalResult.rejected
+                ),
 
 
             failed:
 
                 normalizeNumber(
-
-                    approvalResult?.failed
-
+                    approvalResult.failed
                 ),
 
+
+            candidateMemoryErrors:
+
+                normalizeNumber(
+                    approvalResult.candidateMemoryErrors
+                ),
+
+
+            /*
+             * Worker мог иметь ошибку,
+             * но Recovery старых Proposal
+             * всё равно мог выполниться.
+             */
+
+
+            workerSuccess:
+
+                pipelineResult.workerSuccess !== false,
+
+
+            workerError:
+
+                pipelineResult.workerError
+
+                ||
+
+                null,
 
 
             approval:
                 approvalResult
 
-
-
         };
 
 
-
-
-
-
-
     }catch(error){
-
 
 
         console.error(
@@ -487,23 +522,20 @@ export async function runLearningDaemonCycle()
         );
 
 
-
         return {
-
 
             success:
                 false,
 
-
             error:
-                error.message
 
+                error?.message
 
+                ||
+
+                "Learning Daemon failed"
 
         };
-
-
-
 
 
     }finally{
@@ -512,15 +544,9 @@ export async function runLearningDaemonCycle()
         running =
             false;
 
-
     }
 
-
 }
-
-
-
-
 
 
 
@@ -535,7 +561,7 @@ export async function runLearningDaemonCycle()
 
 export function startLearningDaemon(
     interval = 15 * 60 * 1000
-){
+) {
 
     if(
         daemonTimer
@@ -543,25 +569,15 @@ export function startLearningDaemon(
 
         return {
 
-
             started:
                 false,
 
-
             reason:
-
                 "Daemon already started"
-
-
 
         };
 
     }
-
-
-
-
-
 
 
     daemonTimer =
@@ -573,32 +589,28 @@ export function startLearningDaemon(
 
                 runLearningDaemonCycle()
 
-                    .catch(error => {
+                    .catch(
+
+                        error => {
 
 
-                        console.error(
+                            console.error(
 
-                            "Learning Daemon cycle error:",
+                                "Learning Daemon cycle error:",
 
-                            error
+                                error
 
-                        );
+                            );
 
+                        }
 
-                    });
-
-
+                    );
 
             },
 
             interval
 
         );
-
-
-
-
-
 
 
     console.log(
@@ -608,30 +620,16 @@ export function startLearningDaemon(
     );
 
 
-
-
-
-
-
     return {
-
 
         started:
             true,
 
-
         interval
-
-
 
     };
 
-
 }
-
-
-
-
 
 
 
@@ -647,27 +645,18 @@ export function startLearningDaemon(
 export function stopLearningDaemon()
 {
 
-
     if(
         !daemonTimer
     ){
 
         return {
 
-
             stopped:
                 false
-
-
 
         };
 
     }
-
-
-
-
-
 
 
     clearInterval(
@@ -675,24 +664,15 @@ export function stopLearningDaemon()
     );
 
 
-
     daemonTimer =
         null;
 
 
-
-
-
-
     return {
-
 
         stopped:
             true
 
-
-
     };
-
 
 }
