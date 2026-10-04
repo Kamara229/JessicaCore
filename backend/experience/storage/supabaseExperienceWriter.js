@@ -3,46 +3,54 @@ import {
 } from "../../storage/supabaseClient.js";
 
 
-
 /*
  * =========================================================
- * JESSICA EXPERIENCE WRITER v4
+ * JESSICA EXPERIENCE WRITER v5
  * =========================================================
  *
- * Атомарное сохранение Experience Skill.
+ * Low-level adapter
+ * Atomic Experience Persistence.
  *
  *
  * Experience Skill
  *        ↓
  * Writer
  *        ↓
- * PostgreSQL RPC
+ * save_jessica_experience_skill_v2
  *        ↓
- * Current + History
+ * PostgreSQL Transaction
+ *        ↓
+ * Current + Immutable History
+ *
+ *
+ * Дополнительно:
+ *
+ * - version-chain validation;
+ * - proposalId idempotency;
+ * - concurrent-save protection.
  *
  *
  * НЕ:
  *
  * - анализирует обучение;
- * - принимает решения;
+ * - рассчитывает следующую версию;
+ * - принимает Approval;
  * - вызывает AI.
  *
  * =========================================================
  */
 
 
-
 const SAVE_SKILL_RPC =
-    "save_jessica_experience_skill";
+    "save_jessica_experience_skill_v2";
 
 
 
 
 
-
-
-function normalizeText(value)
-{
+function normalizeText(
+    value
+) {
 
     return String(
         value || ""
@@ -52,13 +60,9 @@ function normalizeText(value)
 }
 
 
-
-
-
-
-
-function normalizeVersion(value)
-{
+function normalizeVersion(
+    value
+) {
 
     const version =
         Number(value);
@@ -80,26 +84,18 @@ function normalizeVersion(value)
 }
 
 
-
-
-
-
-
-function normalizeBoolean(value)
-{
+function normalizeBoolean(
+    value
+) {
 
     return value !== false;
 
 }
 
 
-
-
-
-
-
-function normalizePreviousVersion(value)
-{
+function normalizePreviousVersion(
+    value
+) {
 
     if(
         value === null
@@ -119,26 +115,22 @@ function normalizePreviousVersion(value)
 }
 
 
-
-
-
-
-
 function validateVersionChain(
     experience
-){
+) {
 
     const version =
+
         normalizeVersion(
             experience.version
         );
 
 
     const previous =
+
         normalizePreviousVersion(
             experience.previousVersion
         );
-
 
 
     if(
@@ -150,7 +142,6 @@ function validateVersionChain(
     }
 
 
-
     if(
         previous === null
     ){
@@ -160,32 +151,27 @@ function validateVersionChain(
     }
 
 
-
     return (
-
         version === previous + 1
-
     );
 
 }
 
 
-
-
-
-
-
+/*
+ * =========================================================
+ * METADATA
+ * =========================================================
+ */
 
 
 function buildMetadata(
     experience
-){
+) {
 
     return {
 
-
         ...(experience.metadata || {}),
-
 
 
         previousVersion:
@@ -195,29 +181,31 @@ function buildMetadata(
             ),
 
 
-
         mode:
 
             experience.mode
-            ||
-            "create",
 
+            ||
+
+            "create",
 
 
         learningMode:
 
             experience.metadata?.learningMode
-            ||
-            "autonomous",
 
+            ||
+
+            "autonomous",
 
 
         createdBy:
 
             experience.metadata?.createdBy
-            ||
-            "jessica-learning",
 
+            ||
+
+            "jessica-learning",
 
 
         storage:
@@ -225,11 +213,9 @@ function buildMetadata(
             "experience-writer",
 
 
-
         storageVersion:
 
-            "v4",
-
+            "v5",
 
 
         storedAt:
@@ -237,27 +223,28 @@ function buildMetadata(
             new Date()
                 .toISOString()
 
-
     };
 
 }
 
 
-
-
-
-
-
+/*
+ * =========================================================
+ * SAVE
+ * =========================================================
+ */
 
 
 export async function saveExperienceAtomic(
     experience
-){
+) {
 
     if(
         !experience
         ||
         typeof experience !== "object"
+        ||
+        Array.isArray(experience)
     ){
 
         throw new Error(
@@ -265,12 +252,6 @@ export async function saveExperienceAtomic(
         );
 
     }
-
-
-
-
-
-
 
 
     const skillId =
@@ -286,8 +267,6 @@ export async function saveExperienceAtomic(
         );
 
 
-
-
     if(
         !skillId
     ){
@@ -299,18 +278,11 @@ export async function saveExperienceAtomic(
     }
 
 
-
-
-
-
-
     const version =
 
         normalizeVersion(
             experience.version
         );
-
-
 
 
     if(
@@ -322,11 +294,6 @@ export async function saveExperienceAtomic(
         );
 
     }
-
-
-
-
-
 
 
     if(
@@ -342,12 +309,6 @@ export async function saveExperienceAtomic(
     }
 
 
-
-
-
-
-
-
     const previousVersion =
 
         normalizePreviousVersion(
@@ -355,32 +316,19 @@ export async function saveExperienceAtomic(
         );
 
 
-
-
-
-
-
-
-
     const payload = {
-
 
         ...experience,
 
 
-
         id:
-
             skillId,
-
 
 
         version,
 
 
-
         previousVersion,
-
 
 
         enabled:
@@ -389,16 +337,7 @@ export async function saveExperienceAtomic(
                 experience.enabled
             )
 
-
-
     };
-
-
-
-
-
-
-
 
 
     const metadata =
@@ -408,90 +347,48 @@ export async function saveExperienceAtomic(
         );
 
 
-
-
-
-
-
-
-
-    const supabase =
-
-        getSupabaseClient();
-
-
-
-
-
-
-
-
-
     const {
         data,
         error
-    }
+    } =
 
-    =
+        await getSupabaseClient()
 
-    await supabase.rpc(
+            .rpc(
 
-        SAVE_SKILL_RPC,
+                SAVE_SKILL_RPC,
 
-        {
+                {
 
+                    p_skill_id:
+                        skillId,
 
-            p_skill_id:
+                    p_version:
+                        version,
 
-                skillId,
+                    p_previous_version:
+                        previousVersion,
 
+                    p_mode:
 
+                        metadata.mode
 
-            p_version:
+                        ||
 
-                version,
+                        "create",
 
+                    p_enabled:
+                        payload.enabled,
 
+                    p_payload:
+                        payload,
 
-            p_previous_version:
+                    p_metadata:
+                        metadata
 
-                previousVersion,
+                }
 
-
-
-            p_mode:
-
-                metadata.mode,
-
-
-
-            p_enabled:
-
-                payload.enabled,
-
-
-
-            p_payload:
-
-                payload,
-
-
-
-            p_metadata:
-
-                metadata
-
-
-        }
-
-    );
-
-
-
-
-
-
-
+            );
 
 
     if(
@@ -511,31 +408,13 @@ export async function saveExperienceAtomic(
     }
 
 
-
-
-
-
-
-
-
     const rpcResult =
 
         Array.isArray(data)
 
-        ?
+            ? data[0]
 
-        data[0]
-
-        :
-
-        data;
-
-
-
-
-
-
-
+            : data;
 
 
     const success =
@@ -547,22 +426,14 @@ export async function saveExperienceAtomic(
         rpcResult?.success === "true";
 
 
-
-
-
-
-
-
-
     if(
         !success
     ){
 
         return {
 
-
-            success:false,
-
+            success:
+                false,
 
             error:
 
@@ -572,62 +443,93 @@ export async function saveExperienceAtomic(
 
                 "RPC не подтвердил сохранение"
 
-
         };
 
     }
 
 
+    const storedVersion =
 
+        normalizeVersion(
+            rpcResult?.version
+        )
 
+        ||
 
-
-
+        version;
 
 
     return {
 
+        success:
+            true,
 
-        success:true,
 
+        /*
+         * true =
+         *
+         * этот Proposal уже был сохранён
+         * предыдущим execution.
+         */
+
+
+        existing:
+
+            rpcResult?.existing === true
+
+            ||
+
+            rpcResult?.existing === "true",
 
 
         id:
 
-            rpcResult?.id
+            normalizeText(
+                rpcResult?.id
+            )
 
             ||
 
             skillId,
 
 
+        skillId:
 
-        skillId,
+            normalizeText(
+                rpcResult?.skillId
+            )
 
+            ||
+
+            normalizeText(
+                rpcResult?.id
+            )
+
+            ||
+
+            skillId,
 
 
         version:
 
-            Number(
-
-                rpcResult?.version
-
-                ||
-
-                version
-
-            ),
+            storedVersion,
 
 
+        proposalId:
 
-        historyId:
+            normalizeText(
+                rpcResult?.proposalId
+            )
 
-            rpcResult?.historyId
+            ||
+
+            normalizeText(
+                metadata.proposalId
+            )
 
             ||
 
             null,
-
 
 
         enabled:
@@ -635,14 +537,42 @@ export async function saveExperienceAtomic(
             rpcResult?.enabled !== false,
 
 
+        status:
+
+            normalizeText(
+                rpcResult?.status
+            )
+
+            ||
+
+            null,
+
+
+        auditId:
+
+            rpcResult?.auditId
+
+            ??
+
+            rpcResult?.audit_id
+
+            ??
+
+            null,
+
 
         experience:
 
-            payload
+            (
+                rpcResult?.experience
+                &&
+                typeof rpcResult.experience === "object"
+            )
 
+                ? rpcResult.experience
 
+                : payload
 
     };
-
 
 }
