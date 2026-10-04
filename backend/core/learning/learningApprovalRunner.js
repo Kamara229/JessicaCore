@@ -1,9 +1,10 @@
 /*
  * =========================================================
- * JESSICA LEARNING APPROVAL RUNNER v5
+ * JESSICA LEARNING APPROVAL RUNNER v6
  * =========================================================
  *
- * Финальный координатор автономного обучения.
+ * Финальный координатор
+ * автономного Learning Decision.
  *
  *
  * Flow:
@@ -12,35 +13,39 @@
  *        ↓
  * Reviewer
  *        ↓
+ * Quality Gate
+ *        ↓
  * Autonomy Policy
  *        ↓
  *
- * AUTO_APPROVE
- *        ↓
- * Learning Approval
- *        ↓
- * Experience Skill
- *
- *
- * KEEP_CANDIDATE
- *        ↓
- * ожидание опыта
+ * ┌───────────────────┬───────────────────┐
+ * ↓                   ↓                   ↓
+ * REJECT          KEEP_CANDIDATE      AUTO_APPROVE
+ * ↓                   ↓                   ↓
+ * Proposal Status     Proposal Status     Save Skill
+ *                                         ↓
+ *                                     Proposal Status
  *
  *
  * НЕ:
  *
- * - создаёт Proposal;
  * - анализирует Execution Trace;
- * - вызывает AI.
+ * - строит Skill;
+ * - вызывает AI;
+ * - работает с Supabase напрямую.
  *
  * =========================================================
  */
 
 
-
 import {
     reviewLearningProposal
 } from "./learningReviewer.js";
+
+
+import {
+    validateLearningQuality
+} from "./learningQualityGate.js";
 
 
 import {
@@ -53,11 +58,52 @@ import {
 } from "../../experience/learning/learningApproval.js";
 
 
+import {
+    persistProposalStatus
+} from "./approval/approvalPersistence.js";
 
 
+import {
+    APPROVAL_ACTION,
+    APPROVAL_RESULT_STATUS
+} from "./approval/approvalConstants.js";
 
 
+async function persistStatus(
+    proposal,
+    status
+) {
 
+    const result =
+
+        await persistProposalStatus({
+
+            proposal,
+
+            status
+
+        });
+
+
+    return {
+
+        success:
+            result?.success === true,
+
+        error:
+
+            result?.success === true
+
+                ? null
+
+                : (
+                    result?.error ||
+                    "Proposal status не сохранён"
+                )
+
+    };
+
+}
 
 
 /*
@@ -69,7 +115,8 @@ import {
 
 async function processProposal(
     proposal
-){
+) {
+
 
     if(
         !proposal ||
@@ -78,9 +125,14 @@ async function processProposal(
 
         return {
 
-            success:false,
+            success:
+                false,
 
-            learned:false,
+            learned:
+                false,
+
+            status:
+                APPROVAL_RESULT_STATUS.FAILED,
 
             reason:
                 "Proposal отсутствует"
@@ -88,12 +140,6 @@ async function processProposal(
         };
 
     }
-
-
-
-
-
-
 
 
     /*
@@ -110,52 +156,101 @@ async function processProposal(
         );
 
 
-
-
-
-
     if(
         review.valid !== true
     ){
 
+        const persistence =
+
+            await persistStatus(
+
+                proposal,
+
+                APPROVAL_RESULT_STATUS.REJECTED
+
+            );
+
+
         return {
 
+            success:
+                true,
 
-            success:true,
-
-
-            learned:false,
-
+            learned:
+                false,
 
             status:
-                "REJECT",
-
-
+                APPROVAL_RESULT_STATUS.REJECTED,
 
             reason:
-
                 review.reason,
 
+            review,
 
-
-            review
-
+            persistence
 
         };
 
     }
 
 
+    /*
+     * =====================================================
+     * 2. QUALITY GATE
+     * =====================================================
+     */
 
 
+    const quality =
+
+        validateLearningQuality(
+            proposal
+        );
 
 
+    if(
+        quality.passed !== true
+    ){
 
+        const persistence =
+
+            await persistStatus(
+
+                proposal,
+
+                APPROVAL_RESULT_STATUS.REJECTED
+
+            );
+
+
+        return {
+
+            success:
+                true,
+
+            learned:
+                false,
+
+            status:
+                APPROVAL_RESULT_STATUS.REJECTED,
+
+            reason:
+                quality.reason,
+
+            review,
+
+            quality,
+
+            persistence
+
+        };
+
+    }
 
 
     /*
      * =====================================================
-     * 2. AUTONOMY POLICY
+     * 3. AUTONOMY
      * =====================================================
      */
 
@@ -167,57 +262,52 @@ async function processProposal(
         );
 
 
-
-
-
-
-
     if(
         autonomy.action !==
-        "AUTO_APPROVE"
+        APPROVAL_ACTION.AUTO_APPROVE
     ){
+
+        const persistence =
+
+            await persistStatus(
+
+                proposal,
+
+                APPROVAL_RESULT_STATUS.KEEP_CANDIDATE
+
+            );
+
 
         return {
 
+            success:
+                true,
 
-            success:true,
-
-
-            learned:false,
-
+            learned:
+                false,
 
             status:
-                "KEEP_CANDIDATE",
-
-
+                APPROVAL_RESULT_STATUS.KEEP_CANDIDATE,
 
             reason:
-
                 autonomy.reason,
 
+            review,
 
+            quality,
 
             autonomy,
 
-
-            review
-
+            persistence
 
         };
 
     }
 
 
-
-
-
-
-
-
-
     /*
      * =====================================================
-     * 3. SAVE EXPERIENCE
+     * 4. SAVE EXPERIENCE
      * =====================================================
      */
 
@@ -231,44 +321,114 @@ async function processProposal(
 
                 proposal,
 
-
                 autonomy,
-
 
                 confidence:
 
-                    proposal.confidence || 0
+                    autonomy.confidence
 
+                    ??
+
+                    proposal.confidence
+
+                    ??
+
+                    null
 
             });
 
 
+        if(
+            result?.success !== true
+        ){
+
+            const persistence =
+
+                await persistStatus(
+
+                    proposal,
+
+                    APPROVAL_RESULT_STATUS.FAILED
+
+                );
 
 
+            return {
+
+                ...result,
+
+                success:
+                    false,
+
+                learned:
+                    false,
+
+                status:
+                    APPROVAL_RESULT_STATUS.FAILED,
+
+                review,
+
+                quality,
+
+                autonomy,
+
+                persistence
+
+            };
+
+        }
+
+
+        /*
+         * Skill уже сохранён.
+         *
+         * Теперь Proposal должен
+         * получить финальный статус
+         * в persistent storage.
+         */
+
+
+        const persistence =
+
+            await persistStatus(
+
+                proposal,
+
+                APPROVAL_RESULT_STATUS.APPROVED
+
+            );
 
 
         return {
 
-
             ...result,
 
+            success:
+                true,
 
             learned:
+                true,
 
-                result.success === true,
+            status:
+                APPROVAL_RESULT_STATUS.APPROVED,
 
+            proposalStateUpdated:
 
+                persistence.success,
+
+            proposalStateError:
+
+                persistence.error,
+
+            review,
+
+            quality,
 
             autonomy,
 
-
-            review
-
+            persistence
 
         };
-
-
-
 
 
     }catch(error){
@@ -283,46 +443,49 @@ async function processProposal(
         );
 
 
+        const persistence =
+
+            await persistStatus(
+
+                proposal,
+
+                APPROVAL_RESULT_STATUS.FAILED
+
+            );
+
 
         return {
 
+            success:
+                false,
 
-            success:false,
-
-
-            learned:false,
-
+            learned:
+                false,
 
             status:
-                "FAILED",
-
-
+                APPROVAL_RESULT_STATUS.FAILED,
 
             reason:
-                error.message,
 
+                error?.message
 
+                ||
+
+                "Learning Approval failed",
+
+            review,
+
+            quality,
 
             autonomy,
 
-
-            review
-
+            persistence
 
         };
 
-
     }
 
-
 }
-
-
-
-
-
-
-
 
 
 /*
@@ -334,51 +497,44 @@ async function processProposal(
 
 export async function runLearningApproval(
     proposals = []
-){
+) {
+
 
     if(
-        !Array.isArray(proposals)
+        !Array.isArray(
+            proposals
+        )
     ){
 
         return {
 
+            success:
+                false,
 
-            success:false,
+            processed:
+                0,
 
+            learned:
+                0,
 
-            processed:0,
+            candidates:
+                0,
 
+            rejected:
+                0,
 
-            learned:0,
-
-
-            candidates:0,
-
-
-            failed:0,
-
+            failed:
+                0,
 
             error:
                 "Invalid proposals"
-
-
 
         };
 
     }
 
 
-
-
-
-
-
     const results = [];
-
-
-
-
-
 
 
     for(
@@ -400,24 +556,13 @@ export async function runLearningApproval(
     }
 
 
-
-
-
-
-
-
     return {
 
-
-        success:true,
-
-
+        success:
+            true,
 
         processed:
-
             proposals.length,
-
-
 
         learned:
 
@@ -429,20 +574,16 @@ export async function runLearningApproval(
             )
             .length,
 
-
-
         candidates:
 
             results.filter(
 
                 item =>
                     item.status ===
-                    "KEEP_CANDIDATE"
+                    APPROVAL_RESULT_STATUS.KEEP_CANDIDATE
 
             )
             .length,
-
-
 
         rejected:
 
@@ -450,27 +591,23 @@ export async function runLearningApproval(
 
                 item =>
                     item.status ===
-                    "REJECT"
+                    APPROVAL_RESULT_STATUS.REJECTED
 
             )
             .length,
-
-
 
         failed:
 
             results.filter(
 
                 item =>
-                    item.success === false
+                    item.status ===
+                    APPROVAL_RESULT_STATUS.FAILED
 
             )
             .length,
 
-
-
         results
-
 
     };
 
