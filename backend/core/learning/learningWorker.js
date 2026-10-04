@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING WORKER v3
+ * JESSICA LEARNING WORKER v4
  * =========================================================
  *
  * Обработчик Learning Queue.
@@ -10,26 +10,45 @@
  *
  * Learning Queue
  *        ↓
- *
- * NEW_SKILL
- * SKILL_IMPROVEMENT
+ * Prepare Queue Item
  *        ↓
- * Learning Proposal
- *
  *
  * PATTERN_DISCOVERY
  *        ↓
  * Pattern Discovery Worker
  *        ↓
  * NEW_SKILL
+ *
+ *
+ * NEW_SKILL
+ *        ↓
+ * Candidate Memory
+ *        ↓
+ * create / exact match / similarity match
+ *        ↓
+ * merge evidence
+ *        ↓
+ * recalculated Candidate
+ *
+ *
+ * SKILL_IMPROVEMENT
+ *        ↓
+ * Candidate Memory v1 не применяется
+ *
+ *
  *        ↓
  * Learning Proposal
+ *        ↓
+ * Proposal Storage
+ *        ↓
+ * Queue → PROPOSED
  *
  *
  * Ответственность:
  *
- * - получить ожидающие Queue Items;
- * - маршрутизировать Pattern Discovery;
+ * - получить Pending Queue Items;
+ * - выполнить Pattern Discovery;
+ * - накопить NEW_SKILL Candidate Memory;
  * - создать Proposal;
  * - сохранить Proposal;
  * - обновить Queue Status.
@@ -37,7 +56,7 @@
  *
  * НЕ:
  *
- * - анализирует Experience самостоятельно;
+ * - анализирует Execution Trace;
  * - вызывает AI напрямую;
  * - принимает AUTO_APPROVE;
  * - создаёт Experience Skill;
@@ -68,6 +87,11 @@ import {
 } from "./patternDiscoveryWorker.js";
 
 
+import {
+    observeLearningCandidate
+} from "./learningCandidateMemory.js";
+
+
 
 
 
@@ -85,10 +109,16 @@ const VALID_ACTIONS = [
 
 
 
+/*
+ * =========================================================
+ * VALIDATE
+ * =========================================================
+ */
+
+
 function validateQueueItem(
     item
 ) {
-
 
     if(
         !item ||
@@ -98,7 +128,6 @@ function validateQueueItem(
         return false;
 
     }
-
 
 
     return VALID_ACTIONS.includes(
@@ -121,7 +150,6 @@ function validateQueueItem(
 async function markFailed(
     item
 ) {
-
 
     try {
 
@@ -162,15 +190,20 @@ async function markFailed(
 
 /*
  * =========================================================
- * PREPARE ITEM
+ * PATTERN DISCOVERY
+ * =========================================================
+ *
+ * PATTERN_DISCOVERY должен быть
+ * преобразован в обычный NEW_SKILL
+ * до Candidate Memory.
+ *
  * =========================================================
  */
 
 
-async function prepareQueueItem(
+async function prepareDiscovery(
     item
 ) {
-
 
     if(
         item.action !==
@@ -179,18 +212,14 @@ async function prepareQueueItem(
 
         return {
 
-
             success:
                 true,
-
 
             ignored:
                 false,
 
-
             queueItem:
                 item,
-
 
             discovery:
                 null
@@ -200,13 +229,11 @@ async function prepareQueueItem(
     }
 
 
-
     const discovery =
 
         await processPatternDiscovery(
             item
         );
-
 
 
     if(
@@ -215,18 +242,14 @@ async function prepareQueueItem(
 
         return {
 
-
             success:
                 false,
-
 
             ignored:
                 false,
 
-
             queueItem:
                 null,
-
 
             reason:
 
@@ -236,13 +259,20 @@ async function prepareQueueItem(
 
                 "Pattern Discovery failed",
 
-
             discovery
 
         };
 
     }
 
+
+    /*
+     * Pattern Extractor может корректно
+     * решить, что reusable Skill
+     * из данного Execution извлечь нельзя.
+     *
+     * Это не техническая ошибка.
+     */
 
 
     if(
@@ -251,18 +281,14 @@ async function prepareQueueItem(
 
         return {
 
-
             success:
                 true,
-
 
             ignored:
                 true,
 
-
             queueItem:
                 null,
-
 
             reason:
 
@@ -272,13 +298,11 @@ async function prepareQueueItem(
 
                 "Pattern Discovery не обнаружил reusable Experience",
 
-
             discovery
 
         };
 
     }
-
 
 
     if(
@@ -289,22 +313,17 @@ async function prepareQueueItem(
 
         return {
 
-
             success:
                 false,
-
 
             ignored:
                 false,
 
-
             queueItem:
                 null,
 
-
             reason:
                 "Pattern Discovery не создал NEW_SKILL Queue Item",
-
 
             discovery
 
@@ -313,24 +332,193 @@ async function prepareQueueItem(
     }
 
 
-
     return {
-
 
         success:
             true,
 
-
         ignored:
             false,
 
-
         queueItem:
-
             discovery.queueItem,
 
-
         discovery
+
+    };
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * CANDIDATE MEMORY
+ * =========================================================
+ *
+ * Candidate Memory v1 применяется
+ * только к NEW_SKILL.
+ *
+ *
+ * Первый Execution:
+ *
+ * candidate
+ *      ↓
+ * ACTIVE Memory
+ *
+ *
+ * Следующий похожий Execution:
+ *
+ * ACTIVE Memory
+ *      +
+ * incoming candidate
+ *      ↓
+ * merged candidate
+ *      ↓
+ * occurrences / confidence / maturity ↑
+ *
+ * =========================================================
+ */
+
+
+async function prepareCandidateMemory(
+    queueItem
+) {
+
+    if(
+        queueItem?.action !==
+        "NEW_SKILL"
+    ){
+
+        return {
+
+            success:
+                true,
+
+            observed:
+                false,
+
+            queueItem,
+
+            memory:
+                null,
+
+            candidate:
+                null
+
+        };
+
+    }
+
+
+    const observation =
+
+        await observeLearningCandidate(
+            queueItem
+        );
+
+
+    if(
+        !observation?.success
+    ){
+
+        return {
+
+            success:
+                false,
+
+            observed:
+                false,
+
+            queueItem:
+                null,
+
+            memory:
+                observation?.memory || null,
+
+            candidate:
+                observation?.candidate || null,
+
+            reason:
+
+                observation?.error
+
+                ||
+
+                "Candidate Memory observation failed",
+
+            observation
+
+        };
+
+    }
+
+
+    if(
+        !observation.queueItem
+    ){
+
+        return {
+
+            success:
+                false,
+
+            observed:
+                observation.observed === true,
+
+            queueItem:
+                null,
+
+            memory:
+                observation.memory || null,
+
+            candidate:
+                observation.candidate || null,
+
+            reason:
+                "Candidate Memory не вернул Queue Item",
+
+            observation
+
+        };
+
+    }
+
+
+    return {
+
+        success:
+            true,
+
+        observed:
+            observation.observed === true,
+
+        created:
+            observation.created === true,
+
+        merged:
+            observation.merged === true,
+
+        similarity:
+
+            observation.similarity
+
+            ??
+
+            null,
+
+        queueItem:
+            observation.queueItem,
+
+        memory:
+            observation.memory || null,
+
+        candidate:
+            observation.candidate || null,
+
+        observation
 
     };
 
@@ -351,7 +539,6 @@ async function processQueueItem(
     item
 ) {
 
-
     if(
         !validateQueueItem(
             item
@@ -360,17 +547,16 @@ async function processQueueItem(
 
         return {
 
-
             success:
                 false,
 
-
             queueItemId:
 
-                item?.id ||
+                item?.id
+
+                ||
 
                 null,
-
 
             reason:
                 "Queue Item не поддерживается Learning Worker"
@@ -380,27 +566,25 @@ async function processQueueItem(
     }
 
 
-
     try {
 
 
         /*
          * =================================================
-         * 1. PREPARE
+         * 1. PATTERN DISCOVERY
          * =================================================
          */
 
 
-        const prepared =
+        const discoveryResult =
 
-            await prepareQueueItem(
+            await prepareDiscovery(
                 item
             );
 
 
-
         if(
-            !prepared.success
+            !discoveryResult.success
         ){
 
             await markFailed(
@@ -408,98 +592,161 @@ async function processQueueItem(
             );
 
 
-
             return {
-
 
                 success:
                     false,
 
-
                 queueItemId:
                     item.id,
 
-
                 reason:
-                    prepared.reason,
-
+                    discoveryResult.reason,
 
                 discovery:
-                    prepared.discovery ||
-
-                    null
+                    discoveryResult.discovery || null
 
             };
 
         }
 
 
-
         /*
-         * Pattern Extractor решил,
-         * что reusable Experience нет.
-         *
-         * Это корректный terminal outcome.
+         * =================================================
+         * 2. DISCOVERY IGNORED
+         * =================================================
          */
 
 
         if(
-            prepared.ignored === true
+            discoveryResult.ignored === true
         ){
 
-            await updateLearningQueueItemStatus(
+            const updated =
 
-                item.id,
+                await updateLearningQueueItemStatus(
 
-                "IGNORED"
+                    item.id,
 
-            );
+                    "IGNORED"
 
+                );
 
 
             return {
 
-
                 success:
-                    true,
-
+                    updated?.success === true,
 
                 queueItemId:
                     item.id,
 
-
                 ignored:
                     true,
-
 
                 proposal:
                     null,
 
-
                 reason:
-                    prepared.reason,
-
+                    discoveryResult.reason,
 
                 discovery:
-                    prepared.discovery ||
+                    discoveryResult.discovery || null,
 
-                    null
+                queueUpdated:
+                    updated?.success === true,
+
+                queueUpdateError:
+
+                    updated?.success === true
+
+                        ? null
+
+                        : (
+                            updated?.error ||
+                            "Queue status не обновлён"
+                        )
 
             };
 
         }
 
 
+        /*
+         * После Pattern Discovery
+         * здесь уже может быть NEW_SKILL.
+         */
 
-        const effectiveItem =
 
-            prepared.queueItem;
+        let effectiveItem =
+
+            discoveryResult.queueItem;
 
 
 
         /*
          * =================================================
-         * 2. CREATE PROPOSAL
+         * 3. CANDIDATE MEMORY
+         * =================================================
+         */
+
+
+        const memoryResult =
+
+            await prepareCandidateMemory(
+                effectiveItem
+            );
+
+
+        if(
+            !memoryResult.success
+        ){
+
+            await markFailed(
+                item
+            );
+
+
+            return {
+
+                success:
+                    false,
+
+                queueItemId:
+                    item.id,
+
+                reason:
+                    memoryResult.reason,
+
+                discovery:
+                    discoveryResult.discovery || null,
+
+                candidateMemory:
+                    memoryResult.observation || null
+
+            };
+
+        }
+
+
+        /*
+         * КРИТИЧНО:
+         *
+         * Proposal должен создаваться уже
+         * из Queue Item, обогащённого
+         * накопленным Candidate.
+         */
+
+
+        effectiveItem =
+
+            memoryResult.queueItem;
+
+
+
+        /*
+         * =================================================
+         * 4. CREATE PROPOSAL
          * =================================================
          */
 
@@ -511,7 +758,6 @@ async function processQueueItem(
             );
 
 
-
         if(
             !proposal
         ){
@@ -521,20 +767,19 @@ async function processQueueItem(
             );
 
 
-
             return {
-
 
                 success:
                     false,
 
-
                 queueItemId:
                     item.id,
 
-
                 reason:
-                    "Proposal не создан"
+                    "Proposal не создан",
+
+                candidateMemory:
+                    memoryResult.observation || null
 
             };
 
@@ -544,7 +789,7 @@ async function processQueueItem(
 
         /*
          * =================================================
-         * 3. SAVE PROPOSAL
+         * 5. SAVE PROPOSAL
          * =================================================
          */
 
@@ -556,7 +801,6 @@ async function processQueueItem(
             );
 
 
-
         if(
             !saved?.success
         ){
@@ -566,17 +810,13 @@ async function processQueueItem(
             );
 
 
-
             return {
-
 
                 success:
                     false,
 
-
                 queueItemId:
                     item.id,
-
 
                 reason:
 
@@ -584,7 +824,12 @@ async function processQueueItem(
 
                     ||
 
-                    "Proposal не сохранён"
+                    "Proposal не сохранён",
+
+                proposal,
+
+                candidateMemory:
+                    memoryResult.observation || null
 
             };
 
@@ -594,7 +839,7 @@ async function processQueueItem(
 
         /*
          * =================================================
-         * 4. UPDATE QUEUE
+         * 6. UPDATE QUEUE
          * =================================================
          */
 
@@ -610,27 +855,28 @@ async function processQueueItem(
             );
 
 
-
         if(
             !updated?.success
         ){
 
             return {
 
-
                 success:
                     false,
 
-
                 proposal,
-
 
                 queueItemId:
                     item.id,
 
-
                 reason:
-                    "Proposal создан, Queue не обновлена"
+                    "Proposal создан, Queue не обновлена",
+
+                discovery:
+                    discoveryResult.discovery || null,
+
+                candidateMemory:
+                    memoryResult.observation || null
 
             };
 
@@ -640,43 +886,81 @@ async function processQueueItem(
 
         /*
          * =================================================
-         * 5. SUCCESS
+         * 7. SUCCESS
          * =================================================
          */
 
 
         return {
 
-
             success:
                 true,
-
 
             queueItemId:
                 item.id,
 
-
             proposalId:
                 proposal.id,
-
 
             action:
                 proposal.action,
 
-
             proposal,
 
-
             discovery:
+                discoveryResult.discovery || null,
 
-                prepared.discovery
+            candidateMemory:
 
-                ||
+                memoryResult.observed === true
 
-                null
+                    ? {
+
+                        id:
+
+                            memoryResult.memory?.id
+
+                            ||
+
+                            null,
+
+                        created:
+
+                            memoryResult.created === true,
+
+                        merged:
+
+                            memoryResult.merged === true,
+
+                        similarity:
+
+                            memoryResult.similarity,
+
+                        occurrences:
+
+                            memoryResult
+                                ?.candidate
+                                ?.occurrences
+
+                            ??
+
+                            null,
+
+                        confidence:
+
+                            memoryResult
+                                ?.candidate
+                                ?.confidence
+
+                            ??
+
+                            null
+
+                    }
+
+                    : null
 
         };
-
 
 
     }catch(error){
@@ -691,26 +975,23 @@ async function processQueueItem(
         );
 
 
-
         await markFailed(
             item
         );
 
 
-
         return {
-
 
             success:
                 false,
 
-
             queueItemId:
 
-                item?.id ||
+                item?.id
+
+                ||
 
                 null,
-
 
             reason:
 
@@ -740,11 +1021,9 @@ async function processQueueItem(
 export async function runLearningWorker()
 {
 
-
     const queueResult =
 
         await getPendingLearningItems();
-
 
 
     if(
@@ -753,14 +1032,20 @@ export async function runLearningWorker()
 
         return {
 
-
             success:
                 false,
-
 
             processed:
                 0,
 
+            successful:
+                0,
+
+            ignored:
+                0,
+
+            failed:
+                0,
 
             error:
 
@@ -775,7 +1060,6 @@ export async function runLearningWorker()
     }
 
 
-
     const items =
 
         Array.isArray(
@@ -787,9 +1071,7 @@ export async function runLearningWorker()
             : [];
 
 
-
     const results = [];
-
 
 
     for(
@@ -811,18 +1093,13 @@ export async function runLearningWorker()
     }
 
 
-
     return {
-
 
         success:
             true,
 
-
         processed:
-
             items.length,
-
 
         successful:
 
@@ -834,7 +1111,6 @@ export async function runLearningWorker()
             )
             .length,
 
-
         ignored:
 
             results.filter(
@@ -844,7 +1120,6 @@ export async function runLearningWorker()
 
             )
             .length,
-
 
         failed:
 
@@ -856,9 +1131,8 @@ export async function runLearningWorker()
             )
             .length,
 
-
         results
 
     };
 
-}
+            }
