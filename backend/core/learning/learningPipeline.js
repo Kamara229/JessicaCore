@@ -1,25 +1,31 @@
 /*
  * =========================================================
- * JESSICA LEARNING PIPELINE v6
+ * JESSICA LEARNING PIPELINE v7
  * =========================================================
  *
- * Persistent + Atomic Learning Pipeline.
+ * Persistent + Recoverable +
+ * Atomic Learning Pipeline.
  *
  *
  * Flow:
  *
  * Learning Queue
  *       ↓
- * Learning Worker
+ * Worker
  *       ↓
  * Proposal Storage
  *
  *
- * затем:
+ * PROCESSING stale
+ *       ↓
+ * Recovery
+ *       ↓
+ * PENDING_APPROVAL
+ *
  *
  * PENDING_APPROVAL
  *       ↓
- * ATOMIC CLAIM
+ * Atomic Claim
  *       ↓
  * PROCESSING
  *       ↓
@@ -28,14 +34,6 @@
  *
  * Persistent Storage является
  * источником истины.
- *
- *
- * Atomic Claim гарантирует:
- *
- * один Proposal
- *      ↓
- * один одновременно работающий
- * Approval Cycle
  *
  *
  * НЕ:
@@ -54,6 +52,7 @@ import {
 
 
 import {
+    recoverStaleLearningProposals,
     claimPendingLearningProposals
 } from "./learningProposalStorage.js";
 
@@ -213,12 +212,6 @@ export async function runLearningPipeline()
      * =====================================================
      * 1. PRODUCE NEW PROPOSALS
      * =====================================================
-     *
-     * Worker failure не должен
-     * блокировать Approval уже сохранённых
-     * Proposal.
-     *
-     * =====================================================
      */
 
 
@@ -267,7 +260,76 @@ export async function runLearningPipeline()
 
     /*
      * =====================================================
-     * 2. ATOMIC CLAIM
+     * 2. RECOVER STALE PROCESSING
+     * =====================================================
+     *
+     * Recovery failure не должен
+     * блокировать обычные новые Proposal.
+     *
+     * Он фиксируется отдельно.
+     *
+     * =====================================================
+     */
+
+
+    let recoveryResult;
+
+
+    try {
+
+
+        recoveryResult =
+
+            await recoverStaleLearningProposals();
+
+
+    }catch(error){
+
+
+        recoveryResult = {
+
+            success:
+                false,
+
+            recovered:
+                0,
+
+            error:
+
+                error?.message
+
+                ||
+
+                "Learning Proposal recovery failed"
+
+        };
+
+    }
+
+
+    if(
+        recoveryResult?.success !== true
+    ){
+
+        console.error(
+
+            "Jessica Learning Pipeline recovery warning:",
+
+            recoveryResult?.error
+
+            ||
+
+            "unknown recovery error"
+
+        );
+
+    }
+
+
+
+    /*
+     * =====================================================
+     * 3. ATOMIC CLAIM
      * =====================================================
      */
 
@@ -298,6 +360,9 @@ export async function runLearningPipeline()
                 workerResult,
 
             workerError,
+
+            recovery:
+                recoveryResult,
 
             proposals:
                 [],
@@ -332,6 +397,9 @@ export async function runLearningPipeline()
 
             workerError,
 
+            recovery:
+                recoveryResult,
+
             proposals:
                 [],
 
@@ -363,7 +431,7 @@ export async function runLearningPipeline()
 
     /*
      * =====================================================
-     * 3. WORKER FAILED + NOTHING CLAIMED
+     * 4. WORKER FAILED + NOTHING CLAIMED
      * =====================================================
      */
 
@@ -387,6 +455,9 @@ export async function runLearningPipeline()
 
             workerError,
 
+            recovery:
+                recoveryResult,
+
             proposals:
                 [],
 
@@ -401,7 +472,7 @@ export async function runLearningPipeline()
 
     /*
      * =====================================================
-     * 4. RESULT
+     * 5. RESULT
      * =====================================================
      */
 
@@ -432,14 +503,7 @@ export async function runLearningPipeline()
 
 
         worker:
-
             workerResult,
-
-
-        /*
-         * Proposal произведены
-         * текущим Worker cycle.
-         */
 
 
         created:
@@ -450,8 +514,25 @@ export async function runLearningPipeline()
 
 
         /*
-         * Proposal успешно и эксклюзивно
-         * забраны этим Daemon cycle.
+         * Crash Recovery.
+         */
+
+
+        recovered:
+
+            Number(
+                recoveryResult?.recovered || 0
+            ),
+
+
+        recovery:
+
+            recoveryResult,
+
+
+        /*
+         * Эксклюзивно захвачены
+         * данным Daemon Cycle.
          */
 
 
