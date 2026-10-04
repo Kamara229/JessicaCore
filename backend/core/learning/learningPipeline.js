@@ -1,9 +1,9 @@
 /*
  * =========================================================
- * JESSICA LEARNING PIPELINE v5
+ * JESSICA LEARNING PIPELINE v6
  * =========================================================
  *
- * Persistent Learning Pipeline.
+ * Persistent + Atomic Learning Pipeline.
  *
  *
  * Flow:
@@ -15,28 +15,27 @@
  * Proposal Storage
  *
  *
- * затем независимо:
+ * затем:
  *
- * learning_proposals
- *       ↓
  * PENDING_APPROVAL
  *       ↓
- * Runtime Proposal
+ * ATOMIC CLAIM
+ *       ↓
+ * PROCESSING
  *       ↓
  * Approval Runner
  *
  *
- * ВАЖНО:
- *
  * Persistent Storage является
- * источником истины для Approval.
+ * источником истины.
  *
  *
- * Поэтому:
+ * Atomic Claim гарантирует:
  *
- * - рестарт процесса не теряет Proposal;
- * - старые PENDING Proposal восстанавливаются;
- * - Approval не зависит от Worker memory.
+ * один Proposal
+ *      ↓
+ * один одновременно работающий
+ * Approval Cycle
  *
  *
  * НЕ:
@@ -55,7 +54,7 @@ import {
 
 
 import {
-    getPendingLearningProposals
+    claimPendingLearningProposals
 } from "./learningProposalStorage.js";
 
 
@@ -212,12 +211,12 @@ export async function runLearningPipeline()
 
     /*
      * =====================================================
-     * 1. RUN WORKER
+     * 1. PRODUCE NEW PROPOSALS
      * =====================================================
      *
      * Worker failure не должен
-     * автоматически блокировать
-     * уже сохранённые Pending Proposals.
+     * блокировать Approval уже сохранённых
+     * Proposal.
      *
      * =====================================================
      */
@@ -268,25 +267,20 @@ export async function runLearningPipeline()
 
     /*
      * =====================================================
-     * 2. READ PERSISTED PROPOSALS
-     * =====================================================
-     *
-     * Это канонический источник
-     * Proposal для Approval.
-     *
+     * 2. ATOMIC CLAIM
      * =====================================================
      */
 
 
-    let pendingResult;
+    let claimResult;
 
 
     try {
 
 
-        pendingResult =
+        claimResult =
 
-            await getPendingLearningProposals();
+            await claimPendingLearningProposals();
 
 
     }catch(error){
@@ -298,7 +292,7 @@ export async function runLearningPipeline()
                 false,
 
             stage:
-                "proposal-storage",
+                "proposal-claim",
 
             worker:
                 workerResult,
@@ -314,7 +308,7 @@ export async function runLearningPipeline()
 
                 ||
 
-                "Pending Proposal Storage failed"
+                "Learning Proposal claim failed"
 
         };
 
@@ -322,7 +316,7 @@ export async function runLearningPipeline()
 
 
     if(
-        pendingResult?.success !== true
+        claimResult?.success !== true
     ){
 
         return {
@@ -331,7 +325,7 @@ export async function runLearningPipeline()
                 false,
 
             stage:
-                "proposal-storage",
+                "proposal-claim",
 
             worker:
                 workerResult,
@@ -343,11 +337,11 @@ export async function runLearningPipeline()
 
             error:
 
-                pendingResult?.error
+                claimResult?.error
 
                 ||
 
-                "Не удалось получить Pending Learning Proposals"
+                "Не удалось atomically claim Learning Proposals"
 
         };
 
@@ -358,10 +352,10 @@ export async function runLearningPipeline()
     const proposals =
 
         Array.isArray(
-            pendingResult.proposals
+            claimResult.proposals
         )
 
-            ? pendingResult.proposals
+            ? claimResult.proposals
 
             : [];
 
@@ -369,7 +363,7 @@ export async function runLearningPipeline()
 
     /*
      * =====================================================
-     * 3. WORKER FAILED + NOTHING TO RECOVER
+     * 3. WORKER FAILED + NOTHING CLAIMED
      * =====================================================
      */
 
@@ -419,14 +413,7 @@ export async function runLearningPipeline()
 
 
         stage:
-            "proposal",
-
-
-        /*
-         * Worker мог упасть,
-         * но Recovery всё равно может
-         * продолжить Approval старых Proposal.
-         */
+            "proposal-claimed",
 
 
         workerSuccess:
@@ -450,8 +437,8 @@ export async function runLearningPipeline()
 
 
         /*
-         * Сколько Proposal было произведено
-         * Worker в текущем цикле.
+         * Proposal произведены
+         * текущим Worker cycle.
          */
 
 
@@ -463,12 +450,12 @@ export async function runLearningPipeline()
 
 
         /*
-         * Сколько Proposal реально ждут
-         * Approval в persistent storage.
+         * Proposal успешно и эксклюзивно
+         * забраны этим Daemon cycle.
          */
 
 
-        pending:
+        claimed:
 
             proposals.length,
 
