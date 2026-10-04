@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING PROPOSAL STORAGE v5
+ * JESSICA LEARNING PROPOSAL STORAGE v6
  * =========================================================
  *
  * Public facade
@@ -16,6 +16,7 @@
  * - Writer
  * - Status
  * - Claim
+ * - Recovery
  *
  * =========================================================
  */
@@ -46,3 +47,10 @@ export {
     claimPendingLearningProposals
 
 } from "./proposalStorage/proposalStorageClaim.js";
+
+
+export {
+
+    recoverStaleLearningProposals
+
+} from "./proposalStorage/proposalStorageRecovery.js";
