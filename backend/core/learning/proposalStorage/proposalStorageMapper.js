@@ -1,13 +1,11 @@
 /*
  * =========================================================
- * JESSICA PROPOSAL STORAGE MAPPER
+ * JESSICA PROPOSAL STORAGE MAPPER v2
  * =========================================================
  *
  * Runtime Proposal
  *        ↓
  * Supabase Payload
- *
- * и обратно:
  *
  * Supabase Row
  *        ↓
@@ -88,6 +86,7 @@ export function buildProposalInsertPayload(
     return {
 
         id:
+
             proposal.id,
 
 
@@ -171,6 +170,15 @@ export function buildProposalInsertPayload(
                 .toISOString(),
 
 
+        processing_at:
+
+            proposal.processingAt
+
+            ||
+
+            null,
+
+
         approved_at:
 
             proposal.approvedAt
@@ -227,12 +235,6 @@ export function normalizeDatabaseProposal(
         normalizeObject(
             analysis.provenance
         );
-
-
-    /*
-     * Candidate Memory может быть
-     * восстановлена и после рестарта.
-     */
 
 
     const candidateMemory =
@@ -411,6 +413,19 @@ export function normalizeDatabaseProposal(
             null,
 
 
+        processingAt:
+
+            row.processing_at
+
+            ??
+
+            row.processingAt
+
+            ??
+
+            null,
+
+
         approvedAt:
 
             row.approved_at
@@ -466,6 +481,15 @@ export function normalizeDatabaseProposal(
         created_at:
 
             row.created_at
+
+            ??
+
+            null,
+
+
+        processing_at:
+
+            row.processing_at
 
             ??
 
