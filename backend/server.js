@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CORE BACKEND
+ * JESSICA CORE BACKEND v2
  * =========================================================
  *
  * Главная точка запуска Jessica Backend.
@@ -29,6 +29,11 @@
  * =========================================================
  * ENVIRONMENT
  * =========================================================
+ *
+ * Environment должен быть загружен
+ * раньше остальных модулей Jessica.
+ *
+ * =========================================================
  */
 
 
@@ -47,7 +52,12 @@ import express from "express";
 
 /*
  * =========================================================
- * TOOLS
+ * TOOLS INITIALIZATION
+ * =========================================================
+ *
+ * Импорт регистрирует инструменты
+ * в Tool Registry.
+ *
  * =========================================================
  */
 
@@ -62,7 +72,7 @@ import {
 
 /*
  * =========================================================
- * ROUTES
+ * HTTP ROUTES
  * =========================================================
  */
 
@@ -75,6 +85,10 @@ import {
 /*
  * =========================================================
  * LEARNING DAEMON
+ * =========================================================
+ *
+ * Автономный фоновый Learning Pipeline.
+ *
  * =========================================================
  */
 
@@ -92,14 +106,60 @@ import {
  */
 
 
+/*
+ * Correction Learning diagnostic.
+ *
+ * Не сохраняет Experience.
+ */
+
+
 import {
     runStartupLearningTest
 } from "./scripts/startupLearningTest.js";
 
 
+/*
+ * Старый correction-based
+ * Approval diagnostic.
+ *
+ * Может сохранять Experience.
+ */
+
+
 import {
     runStartupLearningApprovalTest
 } from "./scripts/startupLearningApprovalTest.js";
+
+
+/*
+ * Новый Autonomous Learning E2E.
+ *
+ * Проверяет цепочку:
+ *
+ * Execution Trace
+ *      ↓
+ * Learning Trigger
+ *      ↓
+ * Queue
+ *      ↓
+ * Worker
+ *      ↓
+ * Proposal
+ *      ↓
+ * Atomic Claim
+ *      ↓
+ * Approval
+ *      ↓
+ * Experience
+ *
+ * Запускается только отдельным
+ * environment flag.
+ */
+
+
+import {
+    runStartupAutonomousLearningTest
+} from "./scripts/startupAutonomousLearningTest.js";
 
 
 
@@ -175,14 +235,23 @@ const port =
 
 
 /*
- * Render Web Service должен видеть
- * внешний TCP listener.
+ * Render Web Service должен
+ * слушать внешний интерфейс.
  */
 
 
 const host =
 
-    process.env.HOST
+    String(
+
+        process.env.HOST
+
+        ||
+
+        "0.0.0.0"
+
+    )
+    .trim()
 
     ||
 
@@ -209,6 +278,14 @@ function resolveLearningDaemonInterval()
         );
 
 
+    /*
+     * Минимум 60 секунд.
+     *
+     * Это защита от случайной
+     * слишком частой конфигурации.
+     */
+
+
     if(
         Number.isFinite(
             configured
@@ -225,7 +302,7 @@ function resolveLearningDaemonInterval()
     /*
      * Default:
      *
-     * 15 minutes
+     * 15 minutes.
      */
 
 
@@ -241,6 +318,15 @@ function resolveLearningDaemonInterval()
  * =========================================================
  * STARTUP DIAGNOSTICS
  * =========================================================
+ *
+ * Каждый диагностический тест
+ * самостоятельно проверяет свой флаг.
+ *
+ *
+ * Поэтому вызовы безопасно присутствуют
+ * постоянно.
+ *
+ * =========================================================
  */
 
 
@@ -248,9 +334,18 @@ function runStartupDiagnostics()
 {
 
     /*
-     * Safe Learning diagnostic.
+     * =====================================================
+     * 1. CORRECTION LEARNING TEST
+     * =====================================================
+     *
+     * ENV:
      *
      * RUN_LEARNING_TEST_ON_START=true
+     *
+     *
+     * Experience НЕ сохраняется.
+     *
+     * =====================================================
      */
 
 
@@ -273,12 +368,23 @@ function runStartupDiagnostics()
 
 
     /*
-     * Full Approval diagnostic.
+     * =====================================================
+     * 2. CORRECTION APPROVAL TEST
+     * =====================================================
+     *
+     * ENV:
      *
      * RUN_LEARNING_APPROVAL_TEST_ON_START=true
      *
-     * Может реально записывать Experience
-     * в Supabase, поэтому обычно false.
+     *
+     * ВАЖНО:
+     *
+     * этот тест может реально
+     * сохранить Experience.
+     *
+     * Обычно должен быть false.
+     *
+     * =====================================================
      */
 
 
@@ -291,6 +397,63 @@ function runStartupDiagnostics()
                 console.error(
 
                     "Jessica startup Learning Approval diagnostic error:",
+
+                    error
+
+                );
+
+            }
+        );
+
+
+    /*
+     * =====================================================
+     * 3. AUTONOMOUS LEARNING E2E
+     * =====================================================
+     *
+     * ENV:
+     *
+     * RUN_AUTONOMOUS_LEARNING_E2E_TEST_ON_START=true
+     *
+     *
+     * Проверяет новую автономную цепочку:
+     *
+     * Synthetic Execution Trace
+     *          ↓
+     * Learning Trigger
+     *          ↓
+     * Learning Queue
+     *          ↓
+     * Worker
+     *          ↓
+     * Candidate / Proposal
+     *          ↓
+     * Atomic Claim
+     *          ↓
+     * PROCESSING
+     *          ↓
+     * Reviewer / Quality / Autonomy
+     *          ↓
+     * Experience Persistence
+     *          ↓
+     * published Experience
+     *
+     *
+     * По умолчанию должен быть false.
+     *
+     * =====================================================
+     */
+
+
+    runStartupAutonomousLearningTest()
+
+        .catch(
+            error => {
+
+
+                console.error(
+
+                    "Jessica Autonomous Learning E2E startup error:",
 
                     error
 
@@ -325,7 +488,7 @@ const server =
 
             /*
              * =============================================
-             * HTTP
+             * HTTP READY
              * =============================================
              */
 
@@ -377,7 +540,7 @@ const server =
                 resolveLearningDaemonInterval();
 
 
-            const daemon =
+            const daemonResult =
 
                 startLearningDaemon(
                     learningInterval
@@ -385,7 +548,7 @@ const server =
 
 
             if(
-                daemon?.started === true
+                daemonResult?.started === true
             ){
 
                 console.log(
@@ -401,7 +564,7 @@ const server =
 
                     "Jessica Learning Daemon was not started:",
 
-                    daemon?.reason
+                    daemonResult?.reason
 
                     ||
 
@@ -414,7 +577,15 @@ const server =
 
             /*
              * =============================================
-             * DIAGNOSTICS
+             * STARTUP DIAGNOSTICS
+             * =============================================
+             *
+             * Запускаем только после:
+             *
+             * - открытия HTTP port;
+             * - инициализации Tools;
+             * - запуска Learning Daemon.
+             *
              * =============================================
              */
 
@@ -431,7 +602,7 @@ const server =
 
 /*
  * =========================================================
- * SERVER ERROR
+ * HTTP SERVER ERROR
  * =========================================================
  */
 
@@ -474,6 +645,12 @@ function shutdown(
     signal
 ) {
 
+    /*
+     * Повторный сигнал
+     * не должен запускать shutdown дважды.
+     */
+
+
     if(
         shuttingDown
     ){
@@ -495,14 +672,31 @@ function shutdown(
 
 
     /*
-     * Stop background Learning timer.
+     * =====================================================
+     * STOP LEARNING DAEMON
+     * =====================================================
      */
 
 
     try {
 
 
-        stopLearningDaemon();
+        const daemonResult =
+
+            stopLearningDaemon();
+
+
+        if(
+            daemonResult?.stopped === true
+        ){
+
+            console.log(
+
+                "Jessica Learning Daemon stopped"
+
+            );
+
+        }
 
 
     }catch(error){
@@ -520,7 +714,9 @@ function shutdown(
 
 
     /*
-     * Stop accepting new HTTP requests.
+     * =====================================================
+     * STOP HTTP SERVER
+     * =====================================================
      */
 
 
@@ -545,6 +741,8 @@ function shutdown(
                 process.exitCode =
                     1;
 
+                return;
+
             }
 
 
@@ -561,9 +759,20 @@ function shutdown(
 }
 
 
+
+
+
 /*
- * Render normally sends SIGTERM
- * before stopping/redeploying instance.
+ * =========================================================
+ * PROCESS SIGNALS
+ * =========================================================
+ *
+ * Render при redeploy / shutdown
+ * обычно отправляет SIGTERM.
+ *
+ * SIGINT нужен для локального запуска.
+ *
+ * =========================================================
  */
 
 
@@ -571,10 +780,13 @@ process.on(
 
     "SIGTERM",
 
-    () =>
+    () => {
+
         shutdown(
             "SIGTERM"
-        )
+        );
+
+    }
 
 );
 
@@ -583,9 +795,12 @@ process.on(
 
     "SIGINT",
 
-    () =>
+    () => {
+
         shutdown(
             "SIGINT"
-        )
+        );
+
+    }
 
 );
