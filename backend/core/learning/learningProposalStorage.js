@@ -1,13 +1,11 @@
 /*
  * =========================================================
- * JESSICA LEARNING PROPOSAL STORAGE v4
+ * JESSICA LEARNING PROPOSAL STORAGE v5
  * =========================================================
  *
  * Public facade
  * Persistent Learning Proposal Storage.
  *
- *
- * Внутренняя реализация разделена:
  *
  * proposalStorage/
  *
@@ -15,16 +13,9 @@
  * - Utils
  * - Mapper
  * - Reader
- * - Status
  * - Writer
- *
- *
- * Благодаря этому остальные части Jessica
- * продолжают импортировать:
- *
- * ./learningProposalStorage.js
- *
- * и не знают внутреннюю структуру Storage.
+ * - Status
+ * - Claim
  *
  * =========================================================
  */
@@ -48,3 +39,10 @@ export {
     getPendingLearningProposals
 
 } from "./proposalStorage/proposalStorageReader.js";
+
+
+export {
+
+    claimPendingLearningProposals
+
+} from "./proposalStorage/proposalStorageClaim.js";
