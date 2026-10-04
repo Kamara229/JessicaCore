@@ -1,37 +1,41 @@
 /*
  * =========================================================
- * JESSICA LEARNING APPROVAL v6
+ * JESSICA LEARNING APPROVAL v7
  * =========================================================
  *
- * Финальный исполнитель создания
- * и сохранения Experience Skill.
+ * Финальный исполнитель
+ * Autonomous Learning Approval.
  *
  *
  * Flow:
  *
- * Approved Learning Proposal
+ * AUTO_APPROVE Proposal
  *        ↓
- * Resolve Skill ID
+ * proposalId idempotency lookup
  *        ↓
- * Experience History
- *        ↓
- * Resolve Version
- *        ↓
- * Build Experience Skill
- *        ↓
- * Experience Storage
- *        ↓
- * In-memory Proposal Approval
+ *
+ * already saved?
+ *      ├── YES → return existing
+ *      │
+ *      └── NO
+ *           ↓
+ *       Experience History
+ *           ↓
+ *       Version State
+ *           ↓
+ *       Build Experience
+ *           ↓
+ *       Atomic Save
+ *           ↓
+ *       Published Experience
  *
  *
  * НЕ:
  *
- * - принимает Learning Decision;
  * - запускает Reviewer;
  * - запускает Quality Gate;
- * - запускает Autonomy Policy;
- * - обновляет Proposal в Supabase;
- * - вызывает AI.
+ * - принимает Autonomy Decision;
+ * - обновляет persistent Proposal status.
  *
  * =========================================================
  */
@@ -50,8 +54,17 @@ import {
 
 import {
     getExperienceHistory,
+    getExperienceByProposalId,
     saveExperienceSkill
 } from "../storage/experienceStorage.js";
+
+
+import {
+    resolveExperienceVersionState
+} from "../storage/experiencePersistence/experienceVersioning.js";
+
+
+
 
 
 function normalizeText(
@@ -91,13 +104,15 @@ function buildFailure({
 
 } = {}) {
 
-
     return {
 
         success:
             false,
 
         learned:
+            false,
+
+        existing:
             false,
 
         stage,
@@ -112,6 +127,9 @@ function buildFailure({
     };
 
 }
+
+
+
 
 
 /*
@@ -173,183 +191,91 @@ function resolveSkillId(
 }
 
 
-/*
- * =========================================================
- * HISTORY
- * =========================================================
- */
 
-
-function normalizeHistory(
-    value
-) {
-
-    return Array.isArray(
-        value
-    )
-
-        ? value
-
-        : [];
-
-}
-
-
-function resolveHistoryVersion(
-    item
-) {
-
-    const version =
-
-        Number(
-
-            item?.version
-
-            ??
-
-            item?.payload?.version
-
-        );
-
-
-    return (
-
-        Number.isInteger(version) &&
-        version > 0
-
-    )
-
-        ? version
-
-        : null;
-
-}
-
-
-function resolveVersionState(
-    history
-) {
-
-    const versions =
-
-        normalizeHistory(
-            history
-        )
-
-        .map(
-            resolveHistoryVersion
-        )
-
-        .filter(
-            Number.isInteger
-        );
-
-
-    if(
-        versions.length === 0
-    ){
-
-        return {
-
-            version:
-                1,
-
-            previousVersion:
-                null,
-
-            historyCount:
-                0
-
-        };
-
-    }
-
-
-    const latestVersion =
-
-        Math.max(
-            ...versions
-        );
-
-
-    return {
-
-        version:
-
-            latestVersion + 1,
-
-        previousVersion:
-
-            latestVersion,
-
-        historyCount:
-
-            versions.length
-
-    };
-
-}
 
 
 /*
  * =========================================================
- * VALIDATE HISTORY AGAINST ACTION
+ * EXISTING RESULT
  * =========================================================
  */
 
 
-function validateHistoryForAction({
+function buildExistingResult({
 
     proposal,
 
-    history
+    existing
 
 }) {
 
-
-    const action =
-        proposal?.action;
-
-
-    const hasHistory =
-
-        Array.isArray(history) &&
-        history.length > 0;
-
-
-    /*
-     * Improvement без существующего Skill
-     * не должен случайно создать v1.
-     */
-
-
-    if(
-        action === "SKILL_IMPROVEMENT"
-        &&
-        !hasHistory
-    ){
-
-        return {
-
-            valid:
-                false,
-
-            reason:
-                "SKILL_IMPROVEMENT не имеет существующей Experience history"
-
-        };
-
-    }
-
-
     return {
 
-        valid:
-            true
+        success:
+            true,
+
+        learned:
+            true,
+
+        existing:
+            true,
+
+        stage:
+            "already-saved",
+
+        proposal,
+
+        experience:
+
+            existing.payload
+
+            ||
+
+            null,
+
+        skillId:
+
+            existing.skillId
+
+            ||
+
+            existing.payload?.id
+
+            ||
+
+            proposal?.targetSkill?.id
+
+            ||
+
+            null,
+
+        version:
+
+            Number(
+                existing.version
+            ),
+
+        previousVersion:
+
+            existing.previousVersion
+
+            ??
+
+            existing.payload?.previousVersion
+
+            ??
+
+            null,
+
+        action:
+            proposal.action
 
     };
 
 }
+
+
+
 
 
 /*
@@ -397,7 +323,8 @@ export async function approveAndSaveLearningProposal({
 
 
     if(
-        !autonomy ||
+        !autonomy
+        ||
         autonomy.action !== "AUTO_APPROVE"
     ){
 
@@ -437,9 +364,72 @@ export async function approveAndSaveLearningProposal({
     }
 
 
+
     /*
      * =====================================================
-     * 2. SKILL ID
+     * 2. IDEMPOTENCY BEFORE VERSIONING
+     * =====================================================
+     */
+
+
+    if(
+        proposal.id
+    ){
+
+        try {
+
+
+            const existing =
+
+                await getExperienceByProposalId(
+                    proposal.id
+                );
+
+
+            if(
+                existing
+            ){
+
+                return buildExistingResult({
+
+                    proposal,
+
+                    existing
+
+                });
+
+            }
+
+
+        }catch(error){
+
+
+            return buildFailure({
+
+                stage:
+                    "idempotency",
+
+                proposal,
+
+                error:
+
+                    error?.message
+
+                    ||
+
+                    "Experience idempotency lookup failed"
+
+            });
+
+        }
+
+    }
+
+
+
+    /*
+     * =====================================================
+     * 3. SKILL ID
      * =====================================================
      */
 
@@ -470,9 +460,10 @@ export async function approveAndSaveLearningProposal({
     }
 
 
+
     /*
      * =====================================================
-     * 3. HISTORY
+     * 4. HISTORY
      * =====================================================
      */
 
@@ -485,12 +476,8 @@ export async function approveAndSaveLearningProposal({
 
         history =
 
-            normalizeHistory(
-
-                await getExperienceHistory(
-                    skillId
-                )
-
+            await getExperienceHistory(
+                skillId
             );
 
 
@@ -517,19 +504,34 @@ export async function approveAndSaveLearningProposal({
     }
 
 
-    const historyValidation =
 
-        validateHistoryForAction({
+    /*
+     * =====================================================
+     * 5. VERSION STATE
+     * =====================================================
+     */
 
-            proposal,
 
+    const versionState =
+
+        resolveExperienceVersionState(
             history
+        );
 
-        });
+
+    /*
+     * Improvement без History
+     * не должен создать v1.
+     */
 
 
     if(
-        !historyValidation.valid
+        proposal.action ===
+        "SKILL_IMPROVEMENT"
+
+        &&
+
+        versionState.exists !== true
     ){
 
         return buildFailure({
@@ -540,23 +542,17 @@ export async function approveAndSaveLearningProposal({
             proposal,
 
             error:
-                historyValidation.reason
+                "SKILL_IMPROVEMENT не имеет существующей Experience History"
 
         });
 
     }
 
 
-    const versionState =
-
-        resolveVersionState(
-            history
-        );
-
 
     /*
      * =====================================================
-     * 4. BUILD EXPERIENCE
+     * 6. BUILD
      * =====================================================
      */
 
@@ -575,15 +571,19 @@ export async function approveAndSaveLearningProposal({
 
                     proposal.proposedExperience,
 
+
                 skillId,
+
 
                 version:
 
-                    versionState.version,
+                    versionState.nextVersion,
+
 
                 previousVersion:
 
                     versionState.previousVersion,
+
 
                 mode:
 
@@ -594,12 +594,6 @@ export async function approveAndSaveLearningProposal({
 
                         : "create",
 
-                /*
-                 * Нет искусственного 0.7.
-                 *
-                 * Skill Builder сам умеет
-                 * читать proposedExperience.learning.
-                 */
 
                 confidence:
 
@@ -613,25 +607,35 @@ export async function approveAndSaveLearningProposal({
 
                     null,
 
+
                 metadata: {
 
                     proposalId:
 
-                        proposal.id ||
+                        proposal.id
+
+                        ||
 
                         null,
+
 
                     queueItemId:
 
-                        proposal.queueItemId ||
+                        proposal.queueItemId
+
+                        ||
 
                         null,
+
 
                     traceId:
 
-                        proposal.traceId ||
+                        proposal.traceId
+
+                        ||
 
                         null,
+
 
                     learnedFrom:
 
@@ -640,6 +644,7 @@ export async function approveAndSaveLearningProposal({
                         ||
 
                         "learning_pipeline",
+
 
                     candidateType:
 
@@ -655,6 +660,7 @@ export async function approveAndSaveLearningProposal({
 
                         null,
 
+
                     improvementType:
 
                         proposal
@@ -664,6 +670,7 @@ export async function approveAndSaveLearningProposal({
                         ||
 
                         null,
+
 
                     baseVersion:
 
@@ -681,11 +688,13 @@ export async function approveAndSaveLearningProposal({
 
                         null,
 
+
                     dynamicPattern:
 
                         proposal
                             ?.provenance
                             ?.dynamicPattern === true,
+
 
                     learning: {
 
@@ -693,13 +702,20 @@ export async function approveAndSaveLearningProposal({
 
                             proposal.action,
 
+
                         autonomy:
 
                             autonomy.action,
 
+
                         reason:
 
-                            autonomy.reason || "",
+                            autonomy.reason
+
+                            ||
+
+                            "",
+
 
                         metrics:
 
@@ -745,9 +761,10 @@ export async function approveAndSaveLearningProposal({
     }
 
 
+
     /*
      * =====================================================
-     * 5. SAVE EXPERIENCE
+     * 7. SAVE
      * =====================================================
      */
 
@@ -789,7 +806,7 @@ export async function approveAndSaveLearningProposal({
 
 
     if(
-        !saved?.success
+        saved?.success !== true
     ){
 
         return buildFailure({
@@ -812,14 +829,58 @@ export async function approveAndSaveLearningProposal({
     }
 
 
+
     /*
      * =====================================================
-     * 6. IN-MEMORY PROPOSAL APPROVAL
+     * 8. ACTUAL SAVED STATE
      * =====================================================
      *
-     * Persistent status обновит
-     * Learning Approval Runner.
+     * Не используем versionState.nextVersion.
      *
+     * RPC могла определить:
+     *
+     * existing=true
+     *
+     * и вернуть ранее сохранённую
+     * фактическую версию.
+     *
+     * =====================================================
+     */
+
+
+    const actualSkillId =
+
+        saved.skillId
+
+        ||
+
+        saved.experience?.id
+
+        ||
+
+        skillId;
+
+
+    const actualVersion =
+
+        Number(
+            saved.version
+        );
+
+
+    const actualExperience =
+
+        saved.experience
+
+        ||
+
+        experience;
+
+
+
+    /*
+     * =====================================================
+     * 9. IN-MEMORY APPROVAL
      * =====================================================
      */
 
@@ -841,10 +902,7 @@ export async function approveAndSaveLearningProposal({
 
 
         /*
-         * Skill уже сохранён.
-         *
-         * Поэтому нельзя возвращать
-         * learned=false.
+         * Experience уже сохранён.
          */
 
 
@@ -856,23 +914,31 @@ export async function approveAndSaveLearningProposal({
             learned:
                 true,
 
+            existing:
+
+                saved.existing === true,
+
             stage:
                 "saved",
 
             proposal,
 
-            experience,
+            experience:
+                actualExperience,
 
-            skillId,
+            skillId:
+                actualSkillId,
 
             version:
-                versionState.version,
+                actualVersion,
 
             previousVersion:
-                versionState.previousVersion,
 
-            previousVersions:
-                versionState.historyCount,
+                actualExperience?.previousVersion
+
+                ??
+
+                null,
 
             proposalStateUpdated:
                 false,
@@ -883,16 +949,17 @@ export async function approveAndSaveLearningProposal({
 
                 ||
 
-                "Skill сохранён, но Proposal object не обновлён"
+                "Experience сохранён, но Proposal object не обновлён"
 
         };
 
     }
 
 
+
     /*
      * =====================================================
-     * 7. SUCCESS
+     * 10. SUCCESS
      * =====================================================
      */
 
@@ -905,24 +972,41 @@ export async function approveAndSaveLearningProposal({
         learned:
             true,
 
+        existing:
+
+            saved.existing === true,
+
         stage:
-            "completed",
+
+            saved.existing === true
+
+                ? "already-saved"
+
+                : "completed",
 
         proposal:
             approvedProposal,
 
-        experience,
+        experience:
+            actualExperience,
 
-        skillId,
+        skillId:
+            actualSkillId,
 
         version:
-            versionState.version,
+            actualVersion,
 
         previousVersion:
-            versionState.previousVersion,
+
+            actualExperience?.previousVersion
+
+            ??
+
+            null,
 
         previousVersions:
-            versionState.historyCount,
+
+            history.length,
 
         action:
             proposal.action
