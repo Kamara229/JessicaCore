@@ -1,9 +1,9 @@
 /*
  * =========================================================
- * JESSICA LEARNING PIPELINE v4
+ * JESSICA LEARNING PIPELINE v5
  * =========================================================
  *
- * Координатор первого этапа обучения.
+ * Persistent Learning Pipeline.
  *
  *
  * Flow:
@@ -12,22 +12,36 @@
  *       ↓
  * Learning Worker
  *       ↓
- * Learning Proposal
+ * Proposal Storage
+ *
+ *
+ * затем независимо:
+ *
+ * learning_proposals
+ *       ↓
+ * PENDING_APPROVAL
+ *       ↓
+ * Runtime Proposal
  *       ↓
  * Approval Runner
  *
  *
- * Ответственность:
+ * ВАЖНО:
  *
- * - запустить Worker;
- * - получить Proposal;
- * - передать дальше.
+ * Persistent Storage является
+ * источником истины для Approval.
+ *
+ *
+ * Поэтому:
+ *
+ * - рестарт процесса не теряет Proposal;
+ * - старые PENDING Proposal восстанавливаются;
+ * - Approval не зависит от Worker memory.
  *
  *
  * НЕ:
  *
- * - анализирует опыт;
- * - принимает решение;
+ * - принимает Learning Decision;
  * - создаёт Skill;
  * - сохраняет Experience.
  *
@@ -35,14 +49,14 @@
  */
 
 
-
 import {
     runLearningWorker
 } from "./learningWorker.js";
 
 
-
-
+import {
+    getPendingLearningProposals
+} from "./learningProposalStorage.js";
 
 
 
@@ -50,14 +64,14 @@ import {
 
 /*
  * =========================================================
- * EXTRACT PROPOSALS
+ * WORKER PROPOSAL COUNT
  * =========================================================
  */
 
 
-function extractProposals(
+function countWorkerProposals(
     workerResult
-){
+) {
 
     if(
         !Array.isArray(
@@ -65,11 +79,9 @@ function extractProposals(
         )
     ){
 
-        return [];
+        return 0;
 
     }
-
-
 
 
     return workerResult.results
@@ -79,24 +91,16 @@ function extractProposals(
             item =>
 
                 item?.success === true
+
                 &&
-                item?.proposal
+
+                item?.proposalId
 
         )
 
-        .map(
-
-            item =>
-                item.proposal
-
-        );
-
+        .length;
 
 }
-
-
-
-
 
 
 
@@ -104,68 +108,92 @@ function extractProposals(
 
 /*
  * =========================================================
- * STATS
+ * WORKER STATS
  * =========================================================
  */
 
 
-function buildStats(
+function buildWorkerStats(
     workerResult
-){
+) {
 
     const results =
 
         Array.isArray(
             workerResult?.results
         )
-        ?
-        workerResult.results
-        :
-        [];
 
+            ? workerResult.results
+
+            : [];
 
 
     return {
 
-
         processed:
+
+            Number(
+                workerResult?.processed
+            )
+
+            ||
 
             results.length,
 
 
-
         successful:
+
+            Number(
+                workerResult?.successful
+            )
+
+            ||
 
             results.filter(
 
                 item =>
-                    item.success === true
+                    item?.success === true
 
             )
             .length,
 
 
+        ignored:
 
-        failed:
+            Number(
+                workerResult?.ignored
+            )
+
+            ||
 
             results.filter(
 
                 item =>
-                    item.success !== true
+                    item?.ignored === true
+
+            )
+            .length,
+
+
+        failed:
+
+            Number(
+                workerResult?.failed
+            )
+
+            ||
+
+            results.filter(
+
+                item =>
+                    item?.success === false
 
             )
             .length
 
-
-
     };
 
-
 }
-
-
-
-
 
 
 
@@ -182,11 +210,25 @@ export async function runLearningPipeline()
 {
 
 
-    let workerResult;
+    /*
+     * =====================================================
+     * 1. RUN WORKER
+     * =====================================================
+     *
+     * Worker failure не должен
+     * автоматически блокировать
+     * уже сохранённые Pending Proposals.
+     *
+     * =====================================================
+     */
 
 
+    let workerResult = null;
 
-    try{
+    let workerError = null;
+
+
+    try {
 
 
         workerResult =
@@ -194,111 +236,212 @@ export async function runLearningPipeline()
             await runLearningWorker();
 
 
+        if(
+            workerResult?.success !== true
+        ){
+
+            workerError =
+
+                workerResult?.error
+
+                ||
+
+                "Learning Worker failed";
+
+        }
+
+
+    }catch(error){
+
+
+        workerError =
+
+            error?.message
+
+            ||
+
+            "Learning Worker failed";
+
+    }
+
+
+
+    /*
+     * =====================================================
+     * 2. READ PERSISTED PROPOSALS
+     * =====================================================
+     *
+     * Это канонический источник
+     * Proposal для Approval.
+     *
+     * =====================================================
+     */
+
+
+    let pendingResult;
+
+
+    try {
+
+
+        pendingResult =
+
+            await getPendingLearningProposals();
+
 
     }catch(error){
 
 
         return {
 
-
-            success:false,
-
+            success:
+                false,
 
             stage:
-                "worker",
+                "proposal-storage",
 
+            worker:
+                workerResult,
 
+            workerError,
+
+            proposals:
+                [],
 
             error:
-                error.message,
 
+                error?.message
 
+                ||
 
-            proposals:[]
+                "Pending Proposal Storage failed"
 
         };
-
 
     }
 
 
-
-
-
-
-
-
-
     if(
-        !workerResult ||
-        workerResult.success !== true
+        pendingResult?.success !== true
     ){
 
         return {
 
-
-            success:false,
-
+            success:
+                false,
 
             stage:
-                "worker",
+                "proposal-storage",
 
+            worker:
+                workerResult,
 
+            workerError,
+
+            proposals:
+                [],
 
             error:
 
-                workerResult?.error
+                pendingResult?.error
 
                 ||
 
-                "Learning Worker failed",
-
-
-
-            proposals:[]
-
+                "Не удалось получить Pending Learning Proposals"
 
         };
 
     }
-
-
-
-
-
-
 
 
 
     const proposals =
 
-        extractProposals(
-            workerResult
-        );
+        Array.isArray(
+            pendingResult.proposals
+        )
+
+            ? pendingResult.proposals
+
+            : [];
 
 
 
+    /*
+     * =====================================================
+     * 3. WORKER FAILED + NOTHING TO RECOVER
+     * =====================================================
+     */
 
+
+    if(
+        workerError
+        &&
+        proposals.length === 0
+    ){
+
+        return {
+
+            success:
+                false,
+
+            stage:
+                "worker",
+
+            worker:
+                workerResult,
+
+            workerError,
+
+            proposals:
+                [],
+
+            error:
+                workerError
+
+        };
+
+    }
+
+
+
+    /*
+     * =====================================================
+     * 4. RESULT
+     * =====================================================
+     */
 
 
     return {
 
-
-        success:true,
+        success:
+            true,
 
 
         stage:
             "proposal",
 
 
+        /*
+         * Worker мог упасть,
+         * но Recovery всё равно может
+         * продолжить Approval старых Proposal.
+         */
+
+
+        workerSuccess:
+
+            workerError === null,
+
+
+        workerError,
+
 
         stats:
 
-            buildStats(
+            buildWorkerStats(
                 workerResult
             ),
-
-
 
 
         worker:
@@ -306,20 +449,32 @@ export async function runLearningPipeline()
             workerResult,
 
 
+        /*
+         * Сколько Proposal было произведено
+         * Worker в текущем цикле.
+         */
 
 
         created:
 
+            countWorkerProposals(
+                workerResult
+            ),
+
+
+        /*
+         * Сколько Proposal реально ждут
+         * Approval в persistent storage.
+         */
+
+
+        pending:
+
             proposals.length,
-
-
 
 
         proposals
 
-
-
     };
-
 
 }
