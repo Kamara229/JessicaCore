@@ -5,7 +5,7 @@ import {
 
 /*
  * =========================================================
- * JESSICA LEARNING PROPOSAL v5
+ * JESSICA LEARNING PROPOSAL v6
  * =========================================================
  *
  * Центральный координатор
@@ -22,7 +22,9 @@ import {
  *      ↓
  * Proposed Experience Builder
  *      ↓
- * Proposal
+ * Proposal Analysis
+ *      ↓
+ * Learning Proposal
  *
  *
  * Proposal != Experience Skill
@@ -32,15 +34,17 @@ import {
  *
  * - координировать создание Proposal;
  * - создать Proposal ID;
- * - собрать Proposal из модулей;
+ * - сохранить Target Skill;
+ * - сохранить Candidate Memory reference;
+ * - сохранить provenance;
  * - менять in-memory статус Proposal.
  *
  *
  * НЕ:
  *
- * - разбирает Queue Item вручную;
+ * - рассчитывает Candidate similarity;
+ * - объединяет Candidate Memory;
  * - рассчитывает Learning Metrics;
- * - строит Experience Schema;
  * - сохраняет Proposal;
  * - сохраняет Skill;
  * - принимает AUTO_APPROVE;
@@ -94,11 +98,6 @@ import {
  * =========================================================
  * PUBLIC CONSTANTS
  * =========================================================
- *
- * Re-export сохраняет совместимость
- * со старыми импортами.
- *
- * =========================================================
  */
 
 
@@ -109,6 +108,162 @@ export {
     LEARNING_PROPOSAL_ACTION
 
 };
+
+
+
+
+
+/*
+ * =========================================================
+ * TRACE ID
+ * =========================================================
+ */
+
+
+function resolveTraceId(
+    event
+) {
+
+    return (
+
+        event?.traceId
+
+        ||
+
+        event
+            ?.payload
+            ?.discovery
+            ?.traceId
+
+        ||
+
+        event
+            ?.analysis
+            ?.metadata
+            ?.traceId
+
+        ||
+
+        null
+
+    );
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * CANDIDATE MEMORY REF
+ * =========================================================
+ */
+
+
+function resolveCandidateMemory(
+    event
+) {
+
+    const memory =
+
+        event
+            ?.payload
+            ?.candidateMemory;
+
+
+    if(
+        !isObject(
+            memory
+        )
+    ){
+
+        return null;
+
+    }
+
+
+    if(
+        !memory.id
+    ){
+
+        return null;
+
+    }
+
+
+    return {
+
+        id:
+
+            memory.id,
+
+
+        key:
+
+            normalizeText(
+                memory.key
+            )
+
+            ||
+
+            null,
+
+
+        status:
+
+            normalizeText(
+                memory.status
+            )
+
+            ||
+
+            null,
+
+
+        matchType:
+
+            normalizeText(
+                memory.matchType
+            )
+
+            ||
+
+            null,
+
+
+        similarity:
+
+            Number.isFinite(
+                Number(
+                    memory.similarity
+                )
+            )
+
+                ? Number(
+                    memory.similarity
+                )
+
+                : null,
+
+
+        occurrences:
+
+            Number.isFinite(
+                Number(
+                    memory.occurrences
+                )
+            )
+
+                ? Number(
+                    memory.occurrences
+                )
+
+                : null
+
+    };
+
+}
 
 
 
@@ -140,9 +295,7 @@ export function createLearningProposalFromQueue(
     ){
 
         throw new Error(
-
             "Learning Proposal: Queue Item отсутствует"
-
         );
 
     }
@@ -170,9 +323,7 @@ export function createLearningProposalFromQueue(
     ){
 
         throw new Error(
-
             "Learning Proposal: Learning Event отсутствует"
-
         );
 
     }
@@ -217,9 +368,7 @@ export function createLearningProposalFromQueue(
     ){
 
         throw new Error(
-
             "Learning Proposal: Skill Candidate отсутствует в event.payload"
-
         );
 
     }
@@ -251,7 +400,7 @@ export function createLearningProposalFromQueue(
 
     /*
      * =====================================================
-     * 6. VALIDATE TRANSPORT CONTRACT
+     * 6. VALIDATE
      * =====================================================
      */
 
@@ -335,25 +484,44 @@ export function createLearningProposalFromQueue(
 
     /*
      * =====================================================
-     * 10. PROPOSAL
+     * 10. REFERENCES
+     * =====================================================
+     */
+
+
+    const traceId =
+
+        resolveTraceId(
+            event
+        );
+
+
+    const candidateMemory =
+
+        resolveCandidateMemory(
+            event
+        );
+
+
+
+    /*
+     * =====================================================
+     * 11. PROPOSAL
      * =====================================================
      */
 
 
     return {
 
-
         id:
 
             randomUUID(),
-
 
 
         status:
 
             LEARNING_PROPOSAL_STATUS
                 .PENDING_APPROVAL,
-
 
 
         source:
@@ -367,82 +535,71 @@ export function createLearningProposalFromQueue(
             "learning_queue",
 
 
-
         queueItemId:
 
-            queueItem.id ||
-
-            null,
-
-
-
-        traceId:
-
-            event.traceId
+            queueItem.id
 
             ||
 
             null,
 
 
+        traceId,
+
 
         action,
-
 
 
         confidence,
 
 
-
         analysis,
-
 
 
         targetSkill: {
 
-
             id:
-
                 targetSkill.id,
 
-
             version:
-
                 targetSkill.version,
 
-
             exists:
-
                 targetSkill.exists
 
         },
 
 
+        /*
+         * Persistent Candidate lineage.
+         */
+
+
+        candidateMemory,
+
 
         proposedExperience,
 
 
-
         provenance: {
-
 
             queueItemId:
 
-                queueItem.id ||
+                queueItem.id
+
+                ||
 
                 null,
 
 
-            traceId:
-
-                event.traceId ||
-
-                null,
+            traceId,
 
 
             eventId:
 
-                event.id ||
+                event.id
+
+                ||
 
                 null,
 
@@ -474,10 +631,27 @@ export function createLearningProposalFromQueue(
                 event
                     ?.payload
                     ?.source ===
-                    "ai-pattern-discovery"
+                    "ai-pattern-discovery",
+
+
+            candidateMemoryId:
+
+                candidateMemory?.id
+
+                ||
+
+                null,
+
+
+            candidateMemoryKey:
+
+                candidateMemory?.key
+
+                ||
+
+                null
 
         },
-
 
 
         createdAt:
@@ -486,15 +660,11 @@ export function createLearningProposalFromQueue(
                 .toISOString(),
 
 
-
         approvedAt:
-
             null,
 
 
-
         rejectedAt:
-
             null
 
     };
@@ -508,18 +678,6 @@ export function createLearningProposalFromQueue(
 /*
  * =========================================================
  * INTERNAL PROPOSAL
- * =========================================================
- *
- * Только для:
- *
- * - внутренних тестов;
- * - обратной совместимости;
- * - служебных сценариев.
- *
- *
- * Это НЕ пользовательский механизм
- * обучения Jessica.
- *
  * =========================================================
  */
 
@@ -545,9 +703,7 @@ export function createLearningProposal({
     ){
 
         throw new Error(
-
             "Learning Proposal: задача не указана"
-
         );
 
     }
@@ -555,11 +711,9 @@ export function createLearningProposal({
 
     return {
 
-
         id:
 
             randomUUID(),
-
 
 
         status:
@@ -568,23 +722,16 @@ export function createLearningProposal({
                 .PENDING_APPROVAL,
 
 
-
         source:
-
             "internal",
 
 
-
         queueItemId:
-
             null,
-
 
 
         traceId:
-
             null,
-
 
 
         action:
@@ -593,47 +740,36 @@ export function createLearningProposal({
                 .NEW_SKILL,
 
 
-
         task:
 
             cleanTask,
 
 
-
         confidence:
-
             0,
-
 
 
         analysis: {
 
-
             reusable:
-
                 false,
 
-
             reason:
-
                 "internal-proposal",
 
-
             confidence:
-
                 0,
 
-
             source:
+                "internal",
 
-                "internal"
+            candidateMemory:
+                null
 
         },
 
 
-
         targetSkill: {
-
 
             id:
 
@@ -647,18 +783,17 @@ export function createLearningProposal({
 
                 null,
 
-
             version:
-
                 null,
 
-
             exists:
-
                 false
 
         },
 
+
+        candidateMemory:
+            null,
 
 
         proposedExperience:
@@ -672,21 +807,21 @@ export function createLearningProposal({
                 : null,
 
 
-
         provenance: {
 
-
             source:
-
                 "internal",
 
-
             dynamicPattern:
+                false,
 
-                false
+            candidateMemoryId:
+                null,
+
+            candidateMemoryKey:
+                null
 
         },
-
 
 
         createdAt:
@@ -695,15 +830,11 @@ export function createLearningProposal({
                 .toISOString(),
 
 
-
         approvedAt:
-
             null,
 
 
-
         rejectedAt:
-
             null
 
     };
@@ -718,20 +849,12 @@ export function createLearningProposal({
  * =========================================================
  * APPROVE
  * =========================================================
- *
- * Только изменение объекта.
- *
- * Persistence выполняется
- * отдельным Storage Layer.
- *
- * =========================================================
  */
 
 
 export function approveLearningProposal(
     proposal
 ) {
-
 
     validatePendingProposal(
         proposal
@@ -740,24 +863,19 @@ export function approveLearningProposal(
 
     return {
 
-
         ...proposal,
-
 
         status:
 
             LEARNING_PROPOSAL_STATUS
                 .APPROVED,
 
-
         approvedAt:
 
             new Date()
                 .toISOString(),
 
-
         rejectedAt:
-
             null
 
     };
@@ -779,7 +897,6 @@ export function rejectLearningProposal(
     proposal
 ) {
 
-
     validatePendingProposal(
         proposal
     );
@@ -787,20 +904,15 @@ export function rejectLearningProposal(
 
     return {
 
-
         ...proposal,
-
 
         status:
 
             LEARNING_PROPOSAL_STATUS
                 .REJECTED,
 
-
         approvedAt:
-
             null,
-
 
         rejectedAt:
 
