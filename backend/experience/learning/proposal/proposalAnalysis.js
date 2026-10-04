@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING PROPOSAL ANALYSIS
+ * JESSICA LEARNING PROPOSAL ANALYSIS v2
  * =========================================================
  *
  * Формирует диагностический контекст
@@ -9,18 +9,39 @@
  *
  * Здесь хранится:
  *
- * - откуда пришёл Candidate;
- * - почему Experience признан reusable;
- * - какие были Learning Metrics;
- * - был ли Dynamic Pattern Discovery;
- * - какой Improvement выполняется.
+ * - источник Candidate;
+ * - причина Learning;
+ * - актуальные Learning Metrics;
+ * - Pattern Discovery;
+ * - Candidate Memory;
+ * - Improvement Context.
+ *
+ *
+ * ВАЖНО:
+ *
+ * Experience Analyzer выполняется
+ * ДО Candidate Memory.
+ *
+ * Поэтому после accumulation:
+ *
+ * candidate.metrics
+ *
+ * являются более свежими,
+ * чем:
+ *
+ * event.analysis.metrics
+ *
+ *
+ * Актуальные Candidate metrics
+ * должны иметь приоритет.
  *
  *
  * НЕ:
  *
  * - создаёт Skill;
  * - принимает Approval;
- * - меняет Candidate.
+ * - изменяет Candidate;
+ * - работает с Supabase.
  *
  * =========================================================
  */
@@ -32,6 +53,373 @@ import {
     normalizeUnit,
     normalizePositiveInteger
 } from "./proposalUtils.js";
+
+
+
+
+
+/*
+ * =========================================================
+ * OPTIONAL NUMBER
+ * =========================================================
+ */
+
+
+function optionalNumber(
+    value
+) {
+
+    if(
+        value === undefined
+        ||
+        value === null
+    ){
+
+        return null;
+
+    }
+
+
+    const number =
+        Number(value);
+
+
+    return Number.isFinite(number)
+
+        ? number
+
+        : null;
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * CURRENT METRICS
+ * =========================================================
+ *
+ * Base:
+ *
+ * Analyzer metrics
+ *
+ *
+ * Override:
+ *
+ * Candidate Memory / Candidate Builder
+ *
+ *
+ * Благодаря этому accumulation
+ * сразу виден Reviewer / Quality Gate /
+ * Autonomy / Diagnostics.
+ *
+ * =========================================================
+ */
+
+
+function buildCurrentMetrics({
+
+    originalAnalysis,
+
+    candidate,
+
+    confidence
+
+}) {
+
+    const originalMetrics =
+
+        isObject(
+            originalAnalysis?.metrics
+        )
+
+            ? originalAnalysis.metrics
+
+            : {};
+
+
+    const candidateOccurrences =
+
+        optionalNumber(
+            candidate?.occurrences
+        );
+
+
+    const candidateSuccessCount =
+
+        optionalNumber(
+            candidate?.successCount
+        );
+
+
+    const candidateFailureCount =
+
+        optionalNumber(
+            candidate?.failureCount
+        );
+
+
+    const candidateSuccessRate =
+
+        optionalNumber(
+            candidate?.successRate
+        );
+
+
+    const candidateMaturity =
+
+        optionalNumber(
+            candidate?.maturity
+        );
+
+
+    const candidateMatchScore =
+
+        optionalNumber(
+            candidate?.matchScore
+        );
+
+
+    const candidateConfidence =
+
+        optionalNumber(
+            candidate?.confidence
+        );
+
+
+    return {
+
+
+        ...originalMetrics,
+
+
+        occurrences:
+
+            candidateOccurrences !== null
+
+                ? Math.max(
+                    Math.floor(
+                        candidateOccurrences
+                    ),
+                    0
+                )
+
+                : normalizePositiveInteger(
+                    originalMetrics.occurrences
+                ),
+
+
+        successCount:
+
+            candidateSuccessCount !== null
+
+                ? Math.max(
+                    candidateSuccessCount,
+                    0
+                )
+
+                : Math.max(
+                    Number(
+                        originalMetrics.successCount || 0
+                    ),
+                    0
+                ),
+
+
+        failureCount:
+
+            candidateFailureCount !== null
+
+                ? Math.max(
+                    candidateFailureCount,
+                    0
+                )
+
+                : Math.max(
+                    Number(
+                        originalMetrics.failureCount || 0
+                    ),
+                    0
+                ),
+
+
+        successRate:
+
+            candidateSuccessRate !== null
+
+                ? normalizeUnit(
+                    candidateSuccessRate
+                )
+
+                : normalizeUnit(
+                    originalMetrics.successRate
+                ),
+
+
+        maturity:
+
+            candidateMaturity !== null
+
+                ? normalizeUnit(
+                    candidateMaturity
+                )
+
+                : normalizeUnit(
+                    originalMetrics.maturity
+                ),
+
+
+        maturityLevel:
+
+            normalizeText(
+                candidate?.maturityLevel
+            )
+
+            ||
+
+            normalizeText(
+                originalMetrics.maturityLevel
+            )
+
+            ||
+
+            null,
+
+
+        matchScore:
+
+            candidateMatchScore !== null
+
+                ? normalizeUnit(
+                    candidateMatchScore
+                )
+
+                : normalizeUnit(
+                    originalMetrics.matchScore
+                ),
+
+
+        confidence:
+
+            candidateConfidence !== null
+
+                ? normalizeUnit(
+                    candidateConfidence
+                )
+
+                : normalizeUnit(
+                    confidence
+                )
+
+    };
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * CANDIDATE MEMORY
+ * =========================================================
+ */
+
+
+function buildCandidateMemoryAnalysis(
+    event
+) {
+
+    const memory =
+
+        event
+            ?.payload
+            ?.candidateMemory;
+
+
+    if(
+        !isObject(
+            memory
+        )
+    ){
+
+        return null;
+
+    }
+
+
+    return {
+
+        id:
+
+            memory.id
+
+            ||
+
+            null,
+
+
+        key:
+
+            normalizeText(
+                memory.key
+            )
+
+            ||
+
+            null,
+
+
+        status:
+
+            normalizeText(
+                memory.status
+            )
+
+            ||
+
+            null,
+
+
+        matchType:
+
+            normalizeText(
+                memory.matchType
+            )
+
+            ||
+
+            null,
+
+
+        similarity:
+
+            optionalNumber(
+                memory.similarity
+            ),
+
+
+        occurrences:
+
+            optionalNumber(
+                memory.occurrences
+            )
+
+    };
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * BUILD ANALYSIS
+ * =========================================================
+ */
 
 
 export function buildProposalAnalysis({
@@ -76,37 +464,24 @@ export function buildProposalAnalysis({
             : null;
 
 
-    const fallbackMetrics = {
+    const candidateMemory =
+
+        buildCandidateMemoryAnalysis(
+            event
+        );
 
 
-        occurrences:
+    const metrics =
 
-            normalizePositiveInteger(
-                candidate?.occurrences
-            ),
+        buildCurrentMetrics({
 
+            originalAnalysis,
 
-        successRate:
+            candidate,
 
-            normalizeUnit(
-                candidate?.successRate
-            ),
+            confidence
 
-
-        maturity:
-
-            normalizeUnit(
-                candidate?.maturity
-            ),
-
-
-        confidence:
-
-            normalizeUnit(
-                confidence
-            )
-
-    };
+        });
 
 
     return {
@@ -138,9 +513,7 @@ export function buildProposalAnalysis({
 
         confidence:
 
-            normalizeUnit(
-                confidence
-            ),
+            metrics.confidence,
 
 
 
@@ -185,22 +558,27 @@ export function buildProposalAnalysis({
 
 
 
+        /*
+         * Если Dynamic Discovery уже
+         * успешно завершён, Proposal
+         * больше не "requires discovery".
+         */
+
+
         discoveryRequired:
 
-            originalAnalysis
-                ?.discoveryRequired === true,
+            discovery?.resolved === true
+
+                ? false
+
+                : (
+                    originalAnalysis
+                        ?.discoveryRequired === true
+                ),
 
 
 
-        metrics:
-
-            isObject(
-                originalAnalysis?.metrics
-            )
-
-                ? originalAnalysis.metrics
-
-                : fallbackMetrics,
+        metrics,
 
 
 
@@ -220,17 +598,22 @@ export function buildProposalAnalysis({
 
 
 
+        /*
+         * =================================================
+         * PATTERN DISCOVERY
+         * =================================================
+         */
+
+
         discovery:
 
             discovery
 
                 ? {
 
-
                     resolved:
 
                         discovery.resolved === true,
-
 
 
                     traceId:
@@ -244,7 +627,6 @@ export function buildProposalAnalysis({
                         ||
 
                         null,
-
 
 
                     patternId:
@@ -262,7 +644,6 @@ export function buildProposalAnalysis({
                         null,
 
 
-
                     validation:
 
                         isObject(
@@ -275,7 +656,18 @@ export function buildProposalAnalysis({
 
                 }
 
-                : null
+                : null,
+
+
+
+        /*
+         * =================================================
+         * CANDIDATE MEMORY
+         * =================================================
+         */
+
+
+        candidateMemory
 
     };
 
