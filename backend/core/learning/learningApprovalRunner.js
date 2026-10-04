@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING APPROVAL RUNNER v6
+ * JESSICA LEARNING APPROVAL RUNNER v7
  * =========================================================
  *
  * Финальный координатор
@@ -18,19 +18,38 @@
  * Autonomy Policy
  *        ↓
  *
- * ┌───────────────────┬───────────────────┐
- * ↓                   ↓                   ↓
- * REJECT          KEEP_CANDIDATE      AUTO_APPROVE
- * ↓                   ↓                   ↓
- * Proposal Status     Proposal Status     Save Skill
- *                                         ↓
- *                                     Proposal Status
+ * ┌──────────────────────────────────────────────┐
+ * │                                              │
+ * ↓                                              ↓
+ *
+ * KEEP_CANDIDATE                            AUTO_APPROVE
+ *      ↓                                         ↓
+ * Proposal Status                           Save Skill
+ *      ↓                                         ↓
+ * Candidate ACTIVE                          Proposal APPROVED
+ *                                                ↓
+ *                                         Candidate PROMOTED
+ *
+ *
+ * Structural / Quality Reject
+ *        ↓
+ * Proposal REJECTED
+ *        ↓
+ * Candidate REJECTED
+ *
+ *
+ * Technical Failure
+ *        ↓
+ * Proposal FAILED
+ *        ↓
+ * Candidate remains ACTIVE
  *
  *
  * НЕ:
  *
  * - анализирует Execution Trace;
- * - строит Skill;
+ * - строит Experience Skill;
+ * - объединяет Candidates;
  * - вызывает AI;
  * - работает с Supabase напрямую.
  *
@@ -69,6 +88,23 @@ import {
 } from "./approval/approvalConstants.js";
 
 
+import {
+    promoteCandidateMemory,
+    rejectCandidateMemory,
+    keepCandidateMemoryActive
+} from "./approval/approvalCandidateMemory.js";
+
+
+
+
+
+/*
+ * =========================================================
+ * PROPOSAL STATUS
+ * =========================================================
+ */
+
+
 async function persistStatus(
     proposal,
     status
@@ -97,13 +133,298 @@ async function persistStatus(
                 ? null
 
                 : (
-                    result?.error ||
+                    result?.error
+
+                    ||
+
                     "Proposal status не сохранён"
                 )
 
     };
 
 }
+
+
+
+
+
+/*
+ * =========================================================
+ * REJECT RESULT
+ * =========================================================
+ */
+
+
+async function buildRejectedResult({
+
+    proposal,
+
+    reason,
+
+    review = null,
+
+    quality = null
+
+}) {
+
+
+    /*
+     * Proposal и Candidate Memory
+     * являются независимыми persistence
+     * операциями.
+     *
+     * Ошибка одной не должна скрывать
+     * результат другой.
+     */
+
+
+    const persistence =
+
+        await persistStatus(
+
+            proposal,
+
+            APPROVAL_RESULT_STATUS.REJECTED
+
+        );
+
+
+    const candidateMemory =
+
+        await rejectCandidateMemory({
+
+            proposal,
+
+            reason
+
+        });
+
+
+    return {
+
+        success:
+            true,
+
+        learned:
+            false,
+
+        status:
+            APPROVAL_RESULT_STATUS.REJECTED,
+
+        reason,
+
+        review,
+
+        quality,
+
+        persistence,
+
+        candidateMemory
+
+    };
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * KEEP CANDIDATE RESULT
+ * =========================================================
+ */
+
+
+async function buildKeepCandidateResult({
+
+    proposal,
+
+    reason,
+
+    review,
+
+    quality,
+
+    autonomy
+
+}) {
+
+
+    const persistence =
+
+        await persistStatus(
+
+            proposal,
+
+            APPROVAL_RESULT_STATUS.KEEP_CANDIDATE
+
+        );
+
+
+    /*
+     * ACTIVE уже сохранён
+     * Candidate Memory Storage.
+     *
+     * Здесь только фиксируем semantic
+     * состояние в результате Runner.
+     */
+
+
+    const candidateMemory =
+
+        keepCandidateMemoryActive(
+            proposal
+        );
+
+
+    return {
+
+        success:
+            true,
+
+        learned:
+            false,
+
+        status:
+            APPROVAL_RESULT_STATUS.KEEP_CANDIDATE,
+
+        reason,
+
+        review,
+
+        quality,
+
+        autonomy,
+
+        persistence,
+
+        candidateMemory
+
+    };
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * FAILED RESULT
+ * =========================================================
+ */
+
+
+async function buildFailedResult({
+
+    proposal,
+
+    reason,
+
+    review = null,
+
+    quality = null,
+
+    autonomy = null,
+
+    sourceResult = null
+
+}) {
+
+
+    const persistence =
+
+        proposal?.id
+
+            ?
+
+            await persistStatus(
+
+                proposal,
+
+                APPROVAL_RESULT_STATUS.FAILED
+
+            )
+
+            :
+
+            {
+
+                success:
+                    false,
+
+                error:
+                    "Proposal ID отсутствует"
+
+            };
+
+
+    /*
+     * Техническая ошибка НЕ должна
+     * переводить Candidate в REJECTED.
+     *
+     * Он остаётся ACTIVE и может быть
+     * использован повторно.
+     */
+
+
+    const candidateMemory =
+
+        proposal
+
+            ? keepCandidateMemoryActive(
+                proposal
+            )
+
+            : {
+
+                success:
+                    true,
+
+                updated:
+                    false,
+
+                skipped:
+                    true,
+
+                reason:
+                    "Proposal отсутствует"
+
+            };
+
+
+    return {
+
+        ...(sourceResult || {}),
+
+        success:
+            false,
+
+        learned:
+            false,
+
+        status:
+            APPROVAL_RESULT_STATUS.FAILED,
+
+        reason,
+
+        review,
+
+        quality,
+
+        autonomy,
+
+        persistence,
+
+        candidateMemory
+
+    };
+
+}
+
+
+
 
 
 /*
@@ -116,6 +437,13 @@ async function persistStatus(
 async function processProposal(
     proposal
 ) {
+
+
+    /*
+     * =====================================================
+     * 0. INPUT
+     * =====================================================
+     */
 
 
     if(
@@ -142,6 +470,7 @@ async function processProposal(
     }
 
 
+
     /*
      * =====================================================
      * 1. REVIEW
@@ -160,38 +489,24 @@ async function processProposal(
         review.valid !== true
     ){
 
-        const persistence =
+        return buildRejectedResult({
 
-            await persistStatus(
-
-                proposal,
-
-                APPROVAL_RESULT_STATUS.REJECTED
-
-            );
-
-
-        return {
-
-            success:
-                true,
-
-            learned:
-                false,
-
-            status:
-                APPROVAL_RESULT_STATUS.REJECTED,
+            proposal,
 
             reason:
-                review.reason,
 
-            review,
+                review.reason
 
-            persistence
+                ||
 
-        };
+                "Proposal не прошёл Reviewer",
+
+            review
+
+        });
 
     }
+
 
 
     /*
@@ -212,45 +527,31 @@ async function processProposal(
         quality.passed !== true
     ){
 
-        const persistence =
+        return buildRejectedResult({
 
-            await persistStatus(
-
-                proposal,
-
-                APPROVAL_RESULT_STATUS.REJECTED
-
-            );
-
-
-        return {
-
-            success:
-                true,
-
-            learned:
-                false,
-
-            status:
-                APPROVAL_RESULT_STATUS.REJECTED,
+            proposal,
 
             reason:
-                quality.reason,
+
+                quality.reason
+
+                ||
+
+                "Proposal не прошёл Quality Gate",
 
             review,
 
-            quality,
+            quality
 
-            persistence
-
-        };
+        });
 
     }
 
 
+
     /*
      * =====================================================
-     * 3. AUTONOMY
+     * 3. AUTONOMY POLICY
      * =====================================================
      */
 
@@ -267,42 +568,28 @@ async function processProposal(
         APPROVAL_ACTION.AUTO_APPROVE
     ){
 
-        const persistence =
+        return buildKeepCandidateResult({
 
-            await persistStatus(
-
-                proposal,
-
-                APPROVAL_RESULT_STATUS.KEEP_CANDIDATE
-
-            );
-
-
-        return {
-
-            success:
-                true,
-
-            learned:
-                false,
-
-            status:
-                APPROVAL_RESULT_STATUS.KEEP_CANDIDATE,
+            proposal,
 
             reason:
-                autonomy.reason,
+
+                autonomy.reason
+
+                ||
+
+                "Недостаточно Evidence для AUTO_APPROVE",
 
             review,
 
             quality,
 
-            autonomy,
+            autonomy
 
-            persistence
-
-        };
+        });
 
     }
+
 
 
     /*
@@ -312,10 +599,13 @@ async function processProposal(
      */
 
 
+    let result;
+
+
     try {
 
 
-        const result =
+        result =
 
             await approveAndSaveLearningProposal({
 
@@ -338,99 +628,6 @@ async function processProposal(
             });
 
 
-        if(
-            result?.success !== true
-        ){
-
-            const persistence =
-
-                await persistStatus(
-
-                    proposal,
-
-                    APPROVAL_RESULT_STATUS.FAILED
-
-                );
-
-
-            return {
-
-                ...result,
-
-                success:
-                    false,
-
-                learned:
-                    false,
-
-                status:
-                    APPROVAL_RESULT_STATUS.FAILED,
-
-                review,
-
-                quality,
-
-                autonomy,
-
-                persistence
-
-            };
-
-        }
-
-
-        /*
-         * Skill уже сохранён.
-         *
-         * Теперь Proposal должен
-         * получить финальный статус
-         * в persistent storage.
-         */
-
-
-        const persistence =
-
-            await persistStatus(
-
-                proposal,
-
-                APPROVAL_RESULT_STATUS.APPROVED
-
-            );
-
-
-        return {
-
-            ...result,
-
-            success:
-                true,
-
-            learned:
-                true,
-
-            status:
-                APPROVAL_RESULT_STATUS.APPROVED,
-
-            proposalStateUpdated:
-
-                persistence.success,
-
-            proposalStateError:
-
-                persistence.error,
-
-            review,
-
-            quality,
-
-            autonomy,
-
-            persistence
-
-        };
-
-
     }catch(error){
 
 
@@ -443,27 +640,9 @@ async function processProposal(
         );
 
 
-        const persistence =
+        return buildFailedResult({
 
-            await persistStatus(
-
-                proposal,
-
-                APPROVAL_RESULT_STATUS.FAILED
-
-            );
-
-
-        return {
-
-            success:
-                false,
-
-            learned:
-                false,
-
-            status:
-                APPROVAL_RESULT_STATUS.FAILED,
+            proposal,
 
             reason:
 
@@ -477,15 +656,174 @@ async function processProposal(
 
             quality,
 
-            autonomy,
+            autonomy
 
-            persistence
-
-        };
+        });
 
     }
 
+
+
+    /*
+     * =====================================================
+     * 5. EXPERIENCE SAVE FAILED
+     * =====================================================
+     */
+
+
+    if(
+        result?.success !== true
+    ){
+
+        return buildFailedResult({
+
+            proposal,
+
+            reason:
+
+                result?.error
+
+                ||
+
+                result?.reason
+
+                ||
+
+                "Experience Skill не сохранён",
+
+            review,
+
+            quality,
+
+            autonomy,
+
+            sourceResult:
+                result
+
+        });
+
+    }
+
+
+
+    /*
+     * =====================================================
+     * 6. PROPOSAL → APPROVED
+     * =====================================================
+     */
+
+
+    const persistence =
+
+        await persistStatus(
+
+            proposal,
+
+            APPROVAL_RESULT_STATUS.APPROVED
+
+        );
+
+
+
+    /*
+     * =====================================================
+     * 7. CANDIDATE → PROMOTED
+     * =====================================================
+     *
+     * Skill уже физически сохранён.
+     *
+     * Если здесь произойдёт ошибка,
+     * нельзя говорить, что Learning
+     * не состоялся.
+     *
+     * Ошибка будет явно возвращена
+     * как Candidate Memory
+     * finalization problem.
+     *
+     * =====================================================
+     */
+
+
+    const candidateMemory =
+
+        await promoteCandidateMemory({
+
+            proposal,
+
+            skillId:
+
+                result.skillId
+
+                ||
+
+                result
+                    ?.experience
+                    ?.id
+
+                ||
+
+                null
+
+        });
+
+
+
+    /*
+     * =====================================================
+     * 8. SUCCESS
+     * =====================================================
+     */
+
+
+    return {
+
+        ...result,
+
+        success:
+            true,
+
+        learned:
+            true,
+
+        status:
+            APPROVAL_RESULT_STATUS.APPROVED,
+
+        proposalStateUpdated:
+
+            persistence.success,
+
+        proposalStateError:
+
+            persistence.error,
+
+        candidateMemoryStateUpdated:
+
+            candidateMemory.success,
+
+        candidateMemoryStateError:
+
+            candidateMemory.success
+
+                ? null
+
+                : candidateMemory.error,
+
+        review,
+
+        quality,
+
+        autonomy,
+
+        persistence,
+
+        candidateMemory
+
+    };
+
 }
+
+
+
 
 
 /*
@@ -564,6 +902,12 @@ export async function runLearningApproval(
         processed:
             proposals.length,
 
+
+        /*
+         * Skill действительно сохранён.
+         */
+
+
         learned:
 
             results.filter(
@@ -573,6 +917,13 @@ export async function runLearningApproval(
 
             )
             .length,
+
+
+        /*
+         * Candidate продолжает
+         * накапливать Evidence.
+         */
+
 
         candidates:
 
@@ -585,6 +936,7 @@ export async function runLearningApproval(
             )
             .length,
 
+
         rejected:
 
             results.filter(
@@ -596,6 +948,7 @@ export async function runLearningApproval(
             )
             .length,
 
+
         failed:
 
             results.filter(
@@ -606,6 +959,36 @@ export async function runLearningApproval(
 
             )
             .length,
+
+
+        /*
+         * Skill сохранён, но возникла
+         * проблема финализации
+         * Candidate Memory.
+         */
+
+
+        candidateMemoryErrors:
+
+            results.filter(
+
+                item =>
+
+                    item.learned === true
+
+                    &&
+
+                    item.candidateMemoryStateUpdated === false
+
+                    &&
+
+                    item
+                        ?.candidateMemory
+                        ?.skipped !== true
+
+            )
+            .length,
+
 
         results
 
