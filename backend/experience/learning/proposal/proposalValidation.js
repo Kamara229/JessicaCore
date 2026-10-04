@@ -1,19 +1,22 @@
 /*
  * =========================================================
- * JESSICA LEARNING PROPOSAL VALIDATION
+ * JESSICA LEARNING PROPOSAL VALIDATION v2
  * =========================================================
  *
- * Проверяет:
- *
- * - transport contract Candidate;
- * - наличие Target Skill;
- * - допустимость состояния Proposal.
+ * Structural validation
+ * Learning Proposal.
  *
  *
- * Семантическое качество Experience
- * здесь НЕ проверяется.
+ * ACTIVE proposal states:
  *
- * Для этого существует Learning Reviewer.
+ * PENDING_APPROVAL
+ * PROCESSING
+ *
+ *
+ * PROCESSING означает:
+ *
+ * Proposal атомарно захвачен
+ * текущим Approval Cycle.
  *
  * =========================================================
  */
@@ -29,6 +32,9 @@ import {
     isObject,
     normalizeText
 } from "./proposalUtils.js";
+
+
+
 
 
 /*
@@ -56,9 +62,7 @@ export function validateCandidateForProposal({
     ){
 
         throw new Error(
-
             "Learning Proposal: Skill Candidate отсутствует"
-
         );
 
     }
@@ -71,9 +75,7 @@ export function validateCandidateForProposal({
     ){
 
         throw new Error(
-
             "Learning Proposal: Candidate name отсутствует"
-
         );
 
     }
@@ -88,9 +90,7 @@ export function validateCandidateForProposal({
     ){
 
         throw new Error(
-
             "Learning Proposal: Candidate workflow отсутствует"
-
         );
 
     }
@@ -105,9 +105,7 @@ export function validateCandidateForProposal({
     ){
 
         throw new Error(
-
             "Learning Proposal: Candidate examples отсутствуют"
-
         );
 
     }
@@ -118,9 +116,7 @@ export function validateCandidateForProposal({
     ){
 
         throw new Error(
-
             "Learning Proposal: Target Skill ID отсутствует"
-
         );
 
     }
@@ -136,9 +132,7 @@ export function validateCandidateForProposal({
     ){
 
         throw new Error(
-
             "Learning Proposal: Existing Skill не определён для Improvement"
-
         );
 
     }
@@ -149,9 +143,12 @@ export function validateCandidateForProposal({
 }
 
 
+
+
+
 /*
  * =========================================================
- * PROPOSAL STATE
+ * ACTIVE PROPOSAL STATE
  * =========================================================
  */
 
@@ -174,9 +171,19 @@ export function validatePendingProposal(
     }
 
 
+    const activeStates = [
+
+        LEARNING_PROPOSAL_STATUS.PENDING_APPROVAL,
+
+        LEARNING_PROPOSAL_STATUS.PROCESSING
+
+    ];
+
+
     if(
-        proposal.status !==
-        LEARNING_PROPOSAL_STATUS.PENDING_APPROVAL
+        !activeStates.includes(
+            proposal.status
+        )
     ){
 
         throw new Error(
