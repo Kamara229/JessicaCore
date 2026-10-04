@@ -1,465 +1,59 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE STORAGE v4
+ * JESSICA EXPERIENCE STORAGE v5
  * =========================================================
  *
- * Единый слой хранения Experience Skills.
+ * Public facade
+ * Experience Persistence.
  *
  *
- * Flow:
+ * Read:
  *
- * Experience Skill
- *        ↓
- * Experience Storage
- *        ↓
- * Atomic Writer
- *        ↓
- * Supabase
+ * loadExperienceSkills
+ * getExperienceHistory
+ * getExperienceVersion
+ * getLatestExperienceVersion
  *
  *
- * Отвечает:
+ * Write:
  *
- * - загрузка Skills;
- * - сохранение версий;
- * - история;
- * - получение версии;
- * - отключение Skill.
+ * saveExperienceSkill
  *
  *
- * НЕ:
+ * Lifecycle:
  *
- * - обучает;
- * - принимает решения;
- * - вызывает AI.
+ * disableExperienceSkill
  *
  * =========================================================
  */
 
 
-
 import {
-    loadExperiences,
     disableExperience
 } from "./supabaseExperienceStore.js";
 
 
 import {
-    loadExperienceHistory,
-    loadExperienceVersion
-} from "./supabaseExperienceHistoryStore.js";
+    readActiveExperienceSkills,
+    readExperienceHistory,
+    readExperienceVersion,
+    readLatestExperienceVersion
+} from "./experiencePersistence/experienceReader.js";
 
 
 import {
-    saveExperienceAtomic
-} from "./supabaseExperienceWriter.js";
+    persistExperienceSkill
+} from "./experiencePersistence/experienceWriter.js";
 
 
+import {
+    findExperienceByProposalId
+} from "./experiencePersistence/experienceIdempotency.js";
 
 
-
-
-
-
-
-function normalizeText(value)
-{
-
-    return String(
-        value || ""
-    )
-    .trim();
-
-}
-
-
-
-
-
-
-
-
-
-function normalizeVersion(value)
-{
-
-    const version =
-        Number(value);
-
-
-    if(
-        !Number.isInteger(version)
-        ||
-        version < 1
-    ){
-
-        return 1;
-
-    }
-
-
-    return version;
-
-}
-
-
-
-
-
-
-
-
-
-function normalizeConfidence(value)
-{
-
-    const number =
-        Number(value);
-
-
-    if(
-        !Number.isFinite(number)
-    ){
-
-        return 0;
-
-    }
-
-
-    return Math.max(
-        0,
-        Math.min(
-            1,
-            number
-        )
-    );
-
-}
-
-
-
-
-
-
-
-
-
-function normalizeArray(value)
-{
-
-    if(
-        !Array.isArray(value)
-    ){
-
-        return [];
-
-    }
-
-
-    return value
-
-        .map(
-            item =>
-                normalizeText(item)
-        )
-
-        .filter(Boolean);
-
-}
-
-
-
-
-
-
-
-
-
-function normalizeUsage(value)
-{
-
-    return {
-
-
-        successfulRuns:
-
-            Number(
-                value?.successfulRuns || 0
-            ),
-
-
-
-        failedRuns:
-
-            Number(
-                value?.failedRuns || 0
-            ),
-
-
-
-        lastUsedAt:
-
-            value?.lastUsedAt
-            ||
-            null,
-
-
-
-        lastResult:
-
-            value?.lastResult
-            ||
-            null
-
-
-    };
-
-}
-
-
-
-
-
-
-
-
-
-function normalizeExperience(
-    experience
-){
-
-    if(
-        !experience
-        ||
-        typeof experience !== "object"
-    ){
-
-        return null;
-
-    }
-
-
-
-    return {
-
-
-        ...experience,
-
-
-
-        id:
-
-            normalizeText(
-
-                experience.id
-
-                ||
-
-                experience.skillId
-
-            ),
-
-
-
-        name:
-
-            normalizeText(
-                experience.name
-            ),
-
-
-
-        description:
-
-            normalizeText(
-                experience.description
-            ),
-
-
-
-        version:
-
-            normalizeVersion(
-                experience.version
-            ),
-
-
-
-        previousVersion:
-
-            experience.previousVersion
-
-            ?
-
-            normalizeVersion(
-                experience.previousVersion
-            )
-
-            :
-
-            null,
-
-
-
-        enabled:
-
-            experience.enabled !== false,
-
-
-
-        confidence:
-
-            normalizeConfidence(
-                experience.confidence
-            ),
-
-
-
-
-
-
-
-
-        category:
-
-            normalizeText(
-                experience.category
-            ),
-
-
-
-
-
-        tags:
-
-            normalizeArray(
-                experience.tags
-            ),
-
-
-
-        triggerPatterns:
-
-            normalizeArray(
-                experience.triggerPatterns
-            ),
-
-
-
-        keywords:
-
-            normalizeArray(
-                experience.keywords
-            ),
-
-
-
-        workflow:
-
-            normalizeArray(
-                experience.workflow
-            ),
-
-
-
-        strategy:
-
-            normalizeArray(
-                experience.strategy
-            ),
-
-
-
-        sourcePriority:
-
-            normalizeArray(
-                experience.sourcePriority
-            ),
-
-
-
-        validationRules:
-
-            normalizeArray(
-                experience.validationRules
-            ),
-
-
-
-        constraints:
-
-            normalizeArray(
-                experience.constraints
-            ),
-
-
-
-        successfulPatterns:
-
-            normalizeArray(
-                experience.successfulPatterns
-            ),
-
-
-
-        failurePatterns:
-
-            normalizeArray(
-                experience.failurePatterns
-            ),
-
-
-
-        avoidPatterns:
-
-            normalizeArray(
-                experience.avoidPatterns
-            ),
-
-
-
-        examples:
-
-            Array.isArray(
-                experience.examples
-            )
-
-            ?
-
-            experience.examples
-
-            :
-
-            [],
-
-
-
-
-        usage:
-
-            normalizeUsage(
-                experience.usage
-            ),
-
-
-
-
-
-        metadata:
-
-        {
-
-            ...(experience.metadata || {})
-
-        }
-
-
-    };
-
-}
-
-
-
-
+import {
+    normalizeExperienceText
+} from "./experiencePersistence/experienceNormalizer.js";
 
 
 
@@ -467,7 +61,7 @@ function normalizeExperience(
 
 /*
  * =========================================================
- * LOAD ACTIVE SKILLS
+ * ACTIVE SKILLS
  * =========================================================
  */
 
@@ -475,42 +69,7 @@ function normalizeExperience(
 export async function loadExperienceSkills()
 {
 
-    try{
-
-
-        const skills =
-
-            await loadExperiences();
-
-
-
-        return Array.isArray(skills)
-
-            ?
-
-            skills
-
-            :
-
-            [];
-
-
-    }
-    catch(error){
-
-
-        console.error(
-
-            "Experience load error:",
-
-            error
-
-        );
-
-
-        return [];
-
-    }
+    return readActiveExperienceSkills();
 
 }
 
@@ -518,256 +77,26 @@ export async function loadExperienceSkills()
 
 
 
-
-
-
-
 /*
  * =========================================================
- * SAVE EXPERIENCE
+ * SAVE
  * =========================================================
  */
 
 
 export async function saveExperienceSkill(
     experience
-){
+) {
 
-    const normalized =
+    try {
 
-        normalizeExperience(
+
+        return await persistExperienceSkill(
             experience
         );
 
 
-
-
-
-    if(
-        !normalized
-    ){
-
-        return {
-
-            success:false,
-
-            error:
-                "Experience отсутствует"
-
-        };
-
-    }
-
-
-
-
-
-    if(
-        !normalized.id
-    ){
-
-        return {
-
-            success:false,
-
-            error:
-                "Skill ID отсутствует"
-
-        };
-
-    }
-
-
-
-
-
-    if(
-        !normalized.name
-    ){
-
-        return {
-
-            success:false,
-
-            error:
-                "Skill name отсутствует"
-
-        };
-
-    }
-
-
-
-
-
-    try{
-
-
-        const history =
-
-            await getExperienceHistory(
-                normalized.id
-            );
-
-
-
-
-
-        const exists =
-
-            history.some(
-
-                item =>
-
-                    Number(
-                        item.version
-                    )
-
-                    ===
-
-                    Number(
-                        normalized.version
-                    )
-
-            );
-
-
-
-
-
-        if(
-            exists
-        ){
-
-            return {
-
-                success:false,
-
-                error:
-                    "Версия Experience уже существует",
-
-                skillId:
-                    normalized.id,
-
-                version:
-                    normalized.version
-
-            };
-
-        }
-
-
-
-
-
-
-
-
-        normalized.metadata = {
-
-
-            ...normalized.metadata,
-
-
-
-            storage:
-
-                "experience-storage",
-
-
-
-            storageVersion:
-
-                "v4",
-
-
-
-            storedAt:
-
-                new Date()
-                    .toISOString()
-
-
-        };
-
-
-
-
-
-
-
-
-
-        const result =
-
-            await saveExperienceAtomic(
-                normalized
-            );
-
-
-
-
-
-        if(
-            !result?.success
-        ){
-
-            return {
-
-                success:false,
-
-                error:
-
-                    result?.error
-                    ||
-                    "Ошибка сохранения"
-
-
-            };
-
-        }
-
-
-
-
-
-
-
-        return {
-
-
-            success:true,
-
-
-            skillId:
-
-                normalized.id,
-
-
-
-            version:
-
-                normalized.version,
-
-
-
-            experience:
-
-                normalized,
-
-
-
-            storage:
-
-                result
-
-
-        };
-
-
-
-    }
-    catch(error){
+    }catch(error){
 
 
         console.error(
@@ -779,19 +108,21 @@ export async function saveExperienceSkill(
         );
 
 
-
         return {
 
+            success:
+                false,
 
-            success:false,
-
+            existing:
+                false,
 
             error:
 
-                error.message
-                ||
-                "Storage error"
+                error?.message
 
+                ||
+
+                "Experience Storage error"
 
         };
 
@@ -803,19 +134,43 @@ export async function saveExperienceSkill(
 
 
 
+/*
+ * =========================================================
+ * IDEMPOTENCY LOOKUP
+ * =========================================================
+ */
 
 
+export async function getExperienceByProposalId(
+    proposalId
+) {
+
+    return findExperienceByProposalId(
+        proposalId
+    );
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * DISABLE
+ * =========================================================
+ */
 
 
 export async function disableExperienceSkill(
     skillId
-){
+) {
 
     const id =
-        normalizeText(
+
+        normalizeExperienceText(
             skillId
         );
-
 
 
     if(
@@ -824,7 +179,8 @@ export async function disableExperienceSkill(
 
         return {
 
-            success:false,
+            success:
+                false,
 
             error:
                 "Skill ID отсутствует"
@@ -834,8 +190,7 @@ export async function disableExperienceSkill(
     }
 
 
-
-    return await disableExperience(
+    return disableExperience(
         id
     );
 
@@ -845,179 +200,46 @@ export async function disableExperienceSkill(
 
 
 
-
-
+/*
+ * =========================================================
+ * HISTORY
+ * =========================================================
+ */
 
 
 export async function getExperienceHistory(
     skillId
-){
+) {
 
-    const id =
-        normalizeText(
-            skillId
-        );
-
-
-
-    if(
-        !id
-    ){
-
-        return [];
-
-    }
-
-
-
-    try{
-
-
-        const history =
-
-            await loadExperienceHistory(
-                id
-            );
-
-
-
-        return Array.isArray(history)
-
-            ?
-
-            history
-
-            :
-
-            [];
-
-
-    }
-    catch(error){
-
-
-        console.error(
-
-            "Experience history error:",
-
-            error
-
-        );
-
-
-        return [];
-
-    }
+    return readExperienceHistory(
+        skillId
+    );
 
 }
-
-
-
-
-
-
-
 
 
 export async function getExperienceVersion(
     skillId,
     version
-){
+) {
 
-    const id =
-        normalizeText(
-            skillId
-        );
+    return readExperienceVersion(
 
+        skillId,
 
+        version
 
-    if(
-        !id
-    ){
-
-        return null;
-
-    }
-
-
-
-    try{
-
-
-        return await loadExperienceVersion(
-
-            id,
-
-            normalizeVersion(
-                version
-            )
-
-        );
-
-
-    }
-    catch(error){
-
-
-        console.error(
-
-            "Experience version error:",
-
-            error
-
-        );
-
-
-        return null;
-
-    }
+    );
 
 }
 
 
-
-
-
-
-
-
-
 export async function getLatestExperienceVersion(
     skillId
-){
+) {
 
-    const history =
-
-        await getExperienceHistory(
-            skillId
-        );
-
-
-
-    if(
-        history.length === 0
-    ){
-
-        return null;
-
-    }
-
-
-
-    return history.sort(
-
-        (a,b)=>
-
-            Number(
-                b.version || 0
-            )
-
-            -
-
-            Number(
-                a.version || 0
-            )
-
-    )[0];
+    return readLatestExperienceVersion(
+        skillId
+    );
 
 }
