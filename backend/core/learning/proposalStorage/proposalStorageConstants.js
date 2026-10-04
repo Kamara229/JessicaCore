@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA PROPOSAL STORAGE CONSTANTS
+ * JESSICA PROPOSAL STORAGE CONSTANTS v2
  * =========================================================
  */
 
@@ -17,6 +17,9 @@ export const PROPOSAL_STORAGE_STATUS = {
 
     PENDING_APPROVAL:
         "PENDING_APPROVAL",
+
+    PROCESSING:
+        "PROCESSING",
 
     APPROVED:
         "APPROVED",
@@ -36,6 +39,8 @@ export const PROPOSAL_STORAGE_STATUS = {
 export const ALLOWED_PROPOSAL_STATUSES = [
 
     PROPOSAL_STORAGE_STATUS.PENDING_APPROVAL,
+
+    PROPOSAL_STORAGE_STATUS.PROCESSING,
 
     PROPOSAL_STORAGE_STATUS.APPROVED,
 
