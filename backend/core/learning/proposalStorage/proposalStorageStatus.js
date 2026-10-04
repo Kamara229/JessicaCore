@@ -1,10 +1,10 @@
 /*
  * =========================================================
- * JESSICA PROPOSAL STORAGE STATUS
+ * JESSICA PROPOSAL STORAGE STATUS v2
  * =========================================================
  *
- * Формирует DB update
- * для изменения Proposal Status.
+ * Формирует DB payload
+ * изменения Proposal Status.
  *
  * =========================================================
  */
@@ -48,6 +48,37 @@ export function buildProposalStatusUpdate(
 
     /*
      * =====================================================
+     * PROCESSING
+     * =====================================================
+     */
+
+
+    if(
+        normalizedStatus ===
+        PROPOSAL_STORAGE_STATUS.PROCESSING
+    ){
+
+        return {
+
+            status:
+                normalizedStatus,
+
+            processing_at:
+                now,
+
+            approved_at:
+                null,
+
+            rejected_at:
+                null
+
+        };
+
+    }
+
+
+    /*
+     * =====================================================
      * APPROVED
      * =====================================================
      */
@@ -62,6 +93,9 @@ export function buildProposalStatusUpdate(
 
             status:
                 normalizedStatus,
+
+            processing_at:
+                null,
 
             approved_at:
                 now,
@@ -91,6 +125,9 @@ export function buildProposalStatusUpdate(
             status:
                 normalizedStatus,
 
+            processing_at:
+                null,
+
             approved_at:
                 null,
 
@@ -103,11 +140,11 @@ export function buildProposalStatusUpdate(
 
 
     /*
+     * =====================================================
      * KEEP_CANDIDATE
      * FAILED
      * PENDING_APPROVAL
-     *
-     * не являются approval/rejection.
+     * =====================================================
      */
 
 
@@ -115,6 +152,9 @@ export function buildProposalStatusUpdate(
 
         status:
             normalizedStatus,
+
+        processing_at:
+            null,
 
         approved_at:
             null,
