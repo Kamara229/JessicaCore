@@ -1,224 +1,311 @@
 /*
  * =========================================================
- * JESSICA LEARNING QUALITY GATE
+ * JESSICA LEARNING QUALITY GATE v2
  * =========================================================
  *
- * Проверяет качество будущего обучения.
+ * Проверяет пригодность Learning Evidence.
  *
  *
- * Решает:
+ * Reviewer:
+ * структурная корректность
  *
- * - сохранять опыт;
- * - отправить на подтверждение;
- * - отклонить.
+ * Quality Gate:
+ * целостность evidence и metrics
+ *
+ * Autonomy Policy:
+ * достаточно ли evidence для обучения
  *
  *
  * НЕ:
  *
- * - пишет в Supabase;
- * - создаёт Skill;
- * - вызывает AI.
+ * - принимает AUTO_APPROVE;
+ * - сохраняет Skill;
+ * - работает с Supabase.
  *
  * =========================================================
  */
 
 
-
-/*
- * =========================================================
- * MINIMUM CONDITIONS
- * =========================================================
- */
+import {
+    getApprovalExperience,
+    getApprovalMetrics
+} from "./approval/approvalMetrics.js";
 
 
-const MIN_CONFIDENCE =
-    0.6;
-
-
-
-const MIN_SUCCESS_COUNT =
-    1;
-
-
-
-
-/*
- * =========================================================
- * CHECK TRACE QUALITY
- * =========================================================
- */
-
-
-function checkExecutionQuality(
-    trace
+function isFiniteUnit(
+    value
 ) {
 
+    return (
 
-    const completed =
-        trace?.stats?.completed || 0;
+        Number.isFinite(value) &&
+        value >= 0 &&
+        value <= 1
 
-
-
-    if (
-        completed < MIN_SUCCESS_COUNT
-    ) {
-
-        return {
-
-            passed:false,
-
-            reason:
-                "Нет успешных выполнений"
-
-        };
-
-    }
-
-
-
-    return {
-
-        passed:true
-
-    };
-
+    );
 
 }
-
-
-
-
-
-/*
- * =========================================================
- * CHECK SKILL QUALITY
- * =========================================================
- */
-
-
-function checkSkillCandidate(
-    candidate
-) {
-
-
-    if (
-        !candidate
-    ) {
-
-        return {
-
-            passed:false,
-
-            reason:
-                "Нет кандидата Skill"
-
-        };
-
-    }
-
-
-
-    if (
-        candidate.confidence <
-        MIN_CONFIDENCE
-    ) {
-
-        return {
-
-            passed:false,
-
-            reason:
-                "Недостаточная уверенность"
-
-        };
-
-    }
-
-
-
-    return {
-
-        passed:true
-
-    };
-
-
-}
-
-
-
-
-
-/*
- * =========================================================
- * QUALITY CHECK
- * =========================================================
- */
 
 
 export function validateLearningQuality(
-    trace,
-    analysis
+    proposal
 ) {
 
 
-    const execution =
-        checkExecutionQuality(
-            trace
-        );
-
-
-
-    if (
-        !execution.passed
-    ) {
+    if(
+        !proposal ||
+        typeof proposal !== "object"
+    ){
 
         return {
 
-            approved:false,
+            passed:
+                false,
 
             reason:
-                execution.reason
+                "Proposal отсутствует"
 
         };
 
     }
 
 
-
-
-    const skill =
-        checkSkillCandidate(
-            analysis?.skillCandidate
-        );
-
-
-
-    if (
-        !skill.passed
-    ) {
+    if(
+        proposal?.analysis?.reusable !== true
+    ){
 
         return {
 
-            approved:false,
+            passed:
+                false,
 
             reason:
-                skill.reason
+                "Experience не признан reusable"
 
         };
 
     }
 
+
+    const experience =
+
+        getApprovalExperience(
+            proposal
+        );
+
+
+    const metrics =
+
+        getApprovalMetrics(
+            proposal
+        );
+
+
+    if(
+        !Array.isArray(
+            experience.examples
+        )
+        ||
+        experience.examples.length === 0
+    ){
+
+        return {
+
+            passed:
+                false,
+
+            reason:
+                "Learning Evidence отсутствует"
+
+        };
+
+    }
+
+
+    const successfulExamples =
+
+        experience.examples.filter(
+
+            item =>
+                item?.success === true
+
+        )
+        .length;
+
+
+    if(
+        successfulExamples < 1
+    ){
+
+        return {
+
+            passed:
+                false,
+
+            reason:
+                "Нет подтверждённого успешного Example"
+
+        };
+
+    }
+
+
+    if(
+        !isFiniteUnit(
+            metrics.confidence
+        )
+    ){
+
+        return {
+
+            passed:
+                false,
+
+            reason:
+                "Confidence отсутствует или некорректен"
+
+        };
+
+    }
+
+
+    if(
+        !isFiniteUnit(
+            metrics.successRate
+        )
+    ){
+
+        return {
+
+            passed:
+                false,
+
+            reason:
+                "Success Rate отсутствует или некорректен"
+
+        };
+
+    }
+
+
+    if(
+        !isFiniteUnit(
+            metrics.maturity
+        )
+    ){
+
+        return {
+
+            passed:
+                false,
+
+            reason:
+                "Maturity отсутствует или некорректна"
+
+        };
+
+    }
+
+
+    if(
+        !Number.isFinite(
+            metrics.occurrences
+        )
+        ||
+        metrics.occurrences < 1
+    ){
+
+        return {
+
+            passed:
+                false,
+
+            reason:
+                "Occurrences отсутствует или некорректен"
+
+        };
+
+    }
+
+
+    /*
+     * =====================================================
+     * DYNAMIC PATTERN
+     * =====================================================
+     *
+     * AI-created Pattern обязан
+     * предварительно пройти
+     * Pattern Validator.
+     *
+     * =====================================================
+     */
+
+
+    if(
+        proposal
+            ?.provenance
+            ?.dynamicPattern === true
+    ){
+
+        const discovery =
+
+            proposal
+                ?.analysis
+                ?.discovery;
+
+
+        if(
+            discovery?.resolved !== true
+        ){
+
+            return {
+
+                passed:
+                    false,
+
+                reason:
+                    "Dynamic Pattern Discovery не завершён"
+
+            };
+
+        }
+
+
+        const validation =
+
+            discovery?.validation;
+
+
+        if(
+            !validation ||
+            validation.valid !== true
+        ){
+
+            return {
+
+                passed:
+                    false,
+
+                reason:
+                    "Dynamic Pattern не прошёл Validation"
+
+            };
+
+        }
+
+    }
 
 
     return {
 
-        approved:true,
+        passed:
+            true,
 
         reason:
-            "Опыт прошёл проверку качества"
+            "Learning Evidence прошёл Quality Gate",
+
+        metrics
 
     };
-
 
 }
