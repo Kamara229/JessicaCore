@@ -1,34 +1,21 @@
 /*
  * =========================================================
- * JESSICA LEARNING FACADE v1
+ * JESSICA LEARNING FACADE v2
  * =========================================================
  *
- * Единая точка входа Learning Layer.
+ * Единая асинхронная точка входа
+ * Learning Layer.
  *
  *
  * Flow:
  *
- * Execution Result
+ * Execution Trace
  *        ↓
  * Learning Facade
  *        ↓
  * Learning Coordinator
  *        ↓
  * Learning Queue
- *
- *
- * Используется:
- *
- * - Jessica Core
- * - Execution Layer
- *
- *
- * НЕ:
- *
- * - создаёт Skills;
- * - изменяет Experience;
- * - хранит память;
- * - принимает решение обучения.
  *
  * =========================================================
  */
@@ -39,16 +26,9 @@ import {
 } from "./learningCoordinator.js";
 
 
-
-
-
-
-
-
-
 /*
  * =========================================================
- * EMPTY RESULT
+ * EMPTY
  * =========================================================
  */
 
@@ -56,33 +36,23 @@ import {
 function buildEmptyLearningResult()
 {
 
-
     return {
-
 
         success:
             false,
 
-
         queued:
             false,
 
-
         reason:
-            "Learning skipped"
+            "Learning skipped",
 
+        result:
+            null
 
     };
 
-
 }
-
-
-
-
-
-
-
 
 
 /*
@@ -92,75 +62,67 @@ function buildEmptyLearningResult()
  */
 
 
-export function processExecutionLearning(
-
+export async function processExecutionLearning(
     executionTrace
-
-)
-{
-
+) {
 
     if(
         !executionTrace
-    )
-    {
-
+    ){
 
         return buildEmptyLearningResult();
 
     }
 
 
+    try {
 
 
-
-
-
-    try
-    {
+        /*
+         * processLearning является async.
+         *
+         * Раньше Promise ошибочно
+         * обрабатывался как готовый Result.
+         */
 
 
         const result =
 
-            processLearning(
-
+            await processLearning(
                 executionTrace
-
             );
 
 
-
-
-
         return {
-
 
             success:
 
                 result?.success === true,
 
-
-
             queued:
 
                 result?.queued === true,
 
+            reason:
 
+                result?.reason
+
+                ||
+
+                null,
 
             result:
 
-                result || null
+                result
 
+                ||
 
+                null
 
         };
 
 
-
-    }
-
-    catch(error)
-    {
+    }catch(error){
 
 
         console.error(
@@ -172,27 +134,27 @@ export function processExecutionLearning(
         );
 
 
-
-
         return {
-
 
             success:
                 false,
 
-
             queued:
                 false,
 
-
             reason:
-                "Learning execution error"
 
+                error?.message
+
+                ||
+
+                "Learning execution error",
+
+            result:
+                null
 
         };
 
-
     }
-
 
 }
