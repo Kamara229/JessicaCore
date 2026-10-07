@@ -1,9 +1,10 @@
 /*
  * =========================================================
- * JESSICA TRACE RESULT v1
+ * JESSICA TRACE RESULT v2
  * =========================================================
  *
- * Синхронизация Execution Result с Trace.
+ * Синхронизация Execution Result
+ * с внешним Execution Trace.
  *
  *
  * Ответственность:
@@ -17,12 +18,17 @@
  * - Execution statistics.
  *
  *
- * НЕ:
+ * КРИТИЧНО:
  *
- * - создаёт Trace;
- * - выполняет Execution;
- * - принимает решения;
- * - завершает Trace.
+ * Subtask возвращает Experience так:
+ *
+ * result.experience
+ *
+ * Старый контракт мог возвращать:
+ *
+ * result.executionMeta.experience
+ *
+ * Поддерживаем оба формата.
  *
  * =========================================================
  */
@@ -33,31 +39,58 @@ import {
 } from "./traceEvents.js";
 
 
-
 /*
  * =========================================================
- * SAFE ARRAY
+ * HELPERS
  * =========================================================
  */
 
 
 function safeArray(
-
     value
+) {
 
-){
+    return Array.isArray(value)
 
+        ? value
 
-    return Array.isArray(
-        value
-    )
-        ?
-        value
-        :
-        [];
+        : [];
 
 }
 
+
+function safeNumber(
+    value
+) {
+
+    const number =
+        Number(value);
+
+
+    return Number.isFinite(number)
+
+        ? number
+
+        : 0;
+
+}
+
+
+function isObject(
+    value
+) {
+
+    return Boolean(
+
+        value
+        &&
+        typeof value === "object"
+        &&
+        !Array.isArray(value)
+
+    );
+
+}
 
 
 /*
@@ -68,34 +101,132 @@ function safeArray(
 
 
 function getSkillId(
-
     skill
-
-){
-
+) {
 
     if(
         typeof skill === "string"
     ){
 
-        return skill;
+        return skill.trim();
 
     }
 
 
+    return String(
 
-    return (
+        skill?.id
 
-        skill?.id ||
+        ||
 
-        skill?.name ||
+        skill?.skillId
+
+        ||
+
+        skill?.name
+
+        ||
 
         ""
 
-    );
+    )
+    .trim();
 
 }
 
+
+/*
+ * =========================================================
+ * EXPERIENCE SOURCE
+ * =========================================================
+ */
+
+
+function resolveResultExperience(
+    result
+) {
+
+    /*
+     * Новый канонический контракт
+     * executeSubtask().
+     */
+
+
+    if(
+        isObject(
+            result?.experience
+        )
+    ){
+
+        return result.experience;
+
+    }
+
+
+    /*
+     * Старый compatibility contract.
+     */
+
+
+    if(
+        isObject(
+            result?.executionMeta?.experience
+        )
+    ){
+
+        return result.executionMeta.experience;
+
+    }
+
+
+    /*
+     * Fallback для flattened executionMeta.
+     */
+
+
+    const meta =
+        result?.executionMeta;
+
+
+    if(
+        isObject(meta)
+        &&
+        (
+            meta.experienceUsed !== undefined
+            ||
+            meta.experienceFound !== undefined
+            ||
+            meta.experienceSource !== undefined
+        )
+    ){
+
+        return {
+
+            used:
+                meta.experienceUsed === true,
+
+            found:
+                meta.experienceFound === true,
+
+            source:
+                meta.experienceSource || null,
+
+            confidence:
+                safeNumber(
+                    meta.experienceConfidence
+                ),
+
+            skills:
+                []
+
+        };
+
+    }
+
+
+    return null;
+
+}
 
 
 /*
@@ -111,41 +242,53 @@ function collectExperience(
 
     result
 
-){
-
+) {
 
     const experience =
 
-        result?.executionMeta?.experience;
-
-
-
-    if(!experience)
-        return;
-
+        resolveResultExperience(
+            result
+        );
 
 
     if(
-        !trace.experienceUsage ||
-        typeof trace.experienceUsage !== "object"
+        !experience
+    ){
+
+        return;
+
+    }
+
+
+    if(
+        !isObject(
+            trace.experienceUsage
+        )
     ){
 
         trace.experienceUsage = {
 
-            used:false,
+            used:
+                false,
 
-            source:null,
+            found:
+                false,
 
-            confidence:0,
+            source:
+                null,
 
-            skills:[],
+            confidence:
+                0,
 
-            skillIds:[]
+            skills:
+                [],
+
+            skillIds:
+                []
 
         };
 
     }
-
 
 
     if(
@@ -159,7 +302,6 @@ function collectExperience(
     }
 
 
-
     if(
         !Array.isArray(
             trace.experienceUsage.skillIds
@@ -171,49 +313,80 @@ function collectExperience(
     }
 
 
+    /*
+     * Experience считается использованным,
+     * если хотя бы один Child Execution
+     * использовал Experience.
+     */
+
 
     trace.experienceUsage.used =
 
-        trace.experienceUsage.used
+        trace.experienceUsage.used === true
 
         ||
 
         experience.used === true;
 
 
+    trace.experienceUsage.found =
 
-    trace.experienceUsage.source =
+        trace.experienceUsage.found === true
 
-        experience.source ||
+        ||
 
-        trace.experienceUsage.source;
+        experience.found === true;
 
+
+    /*
+     * Не затираем уже известный Source
+     * пустым значением.
+     */
+
+
+    if(
+        experience.source
+    ){
+
+        trace.experienceUsage.source =
+            experience.source;
+
+    }
+
+
+    /*
+     * Для агрегированного Trace сохраняем
+     * максимальную уверенность найденного
+     * Experience.
+     */
 
 
     trace.experienceUsage.confidence =
 
-        Number(
+        Math.max(
 
-            experience.confidence || 0
+            safeNumber(
+                trace.experienceUsage.confidence
+            ),
+
+            safeNumber(
+                experience.confidence
+            )
 
         );
-
 
 
     const skills =
 
         safeArray(
-
             experience.skills
-
         );
 
 
-
     for(
-        const skill of skills
+        const skill
+        of skills
     ){
-
 
         const id =
 
@@ -222,35 +395,48 @@ function collectExperience(
             );
 
 
+        if(
+            !id
+        ){
 
-        if(!id)
             continue;
 
+        }
 
 
         if(
-            !trace.experienceUsage
+            trace.experienceUsage
                 .skillIds
                 .includes(id)
         ){
 
-
-            trace.experienceUsage
-                .skillIds
-                .push(id);
-
-
-
-            trace.experienceUsage
-                .skills
-                .push(skill);
+            continue;
 
         }
+
+
+        trace.experienceUsage
+            .skillIds
+            .push(id);
+
+
+        trace.experienceUsage
+            .skills
+            .push(
+
+                isObject(skill)
+
+                    ? {
+                        ...skill
+                    }
+
+                    : skill
+
+            );
 
     }
 
 }
-
 
 
 /*
@@ -266,59 +452,83 @@ function collectMeta(
 
     result
 
-){
-
+) {
 
     const meta =
 
         result?.executionMeta;
 
 
-
-    if(!meta)
-        return;
-
-
-
     if(
-        !trace.statistics ||
-        typeof trace.statistics !== "object"
+        !isObject(meta)
     ){
 
-        trace.statistics = {
-
-            attempts:0,
-
-            retries:0,
-
-            replans:0
-
-        };
+        return;
 
     }
 
 
+    if(
+        !isObject(
+            trace.statistics
+        )
+    ){
 
-    trace.statistics.retries =
+        trace.statistics = {};
 
-        Number(
-
-            meta.retryCount || 0
-
-        );
+    }
 
 
+    /*
+     * Compatibility:
+     *
+     * некоторые Execution Result ещё
+     * передают retryCount/replanCount.
+     */
 
-    trace.statistics.replans =
 
-        Number(
+    if(
+        meta.retryCount !== undefined
+    ){
 
-            meta.replanCount || 0
+        trace.statistics.retries =
 
-        );
+            Math.max(
+
+                safeNumber(
+                    trace.statistics.retries
+                ),
+
+                safeNumber(
+                    meta.retryCount
+                )
+
+            );
+
+    }
+
+
+    if(
+        meta.replanCount !== undefined
+    ){
+
+        trace.statistics.replans =
+
+            Math.max(
+
+                safeNumber(
+                    trace.statistics.replans
+                ),
+
+                safeNumber(
+                    meta.replanCount
+                )
+
+            );
+
+    }
 
 }
-
 
 
 /*
@@ -334,8 +544,7 @@ function collectFailure(
 
     result
 
-){
-
+) {
 
     if(
         !result?.failure
@@ -344,7 +553,6 @@ function collectFailure(
         return;
 
     }
-
 
 
     if(
@@ -358,21 +566,145 @@ function collectFailure(
     }
 
 
-
     trace.failures.push({
 
         ...result.failure,
 
-
         timestamp:
 
             new Date()
-            .toISOString()
+                .toISOString()
 
     });
 
 }
 
+
+/*
+ * =========================================================
+ * SUCCESS
+ * =========================================================
+ */
+
+
+function isSuccessfulResult(
+    result
+) {
+
+    if(
+        result?.success === true
+    ){
+
+        return true;
+
+    }
+
+
+    return (
+
+        String(
+            result?.status || ""
+        )
+        .trim()
+        .toUpperCase()
+
+        ===
+
+        "COMPLETED"
+
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * OUTCOME STATISTICS
+ * =========================================================
+ */
+
+
+function setOutcomeStatistics(
+
+    trace,
+
+    results
+
+) {
+
+    const safeResults =
+
+        safeArray(
+            results
+        );
+
+
+    const completed =
+
+        safeResults.filter(
+            isSuccessfulResult
+        )
+        .length;
+
+
+    const failed =
+
+        safeResults.length
+        -
+        completed;
+
+
+    trace.statistics = {
+
+        ...(trace.statistics || {}),
+
+        completed,
+
+        failed
+
+    };
+
+
+    /*
+     * Compatibility alias.
+     *
+     * Часть старого Learning кода
+     * ещё читает trace.stats.
+     *
+     * Каноническое поле:
+     * trace.statistics.
+     */
+
+
+    trace.stats = {
+
+        ...(trace.stats || {}),
+
+        completed,
+
+        failed,
+
+        attempts:
+
+            safeNumber(
+                trace.statistics.attempts
+            ),
+
+        retries:
+
+            safeNumber(
+                trace.statistics.retries
+            ),
+
+        replans:
+
+            safeNumber(
+                trace.statistics.replans
+            )
+
+    };
+
+}
 
 
 /*
@@ -388,18 +720,17 @@ export function updateTraceFromResult(
 
     result
 
-){
-
+) {
 
     if(
-        !trace ||
+        !trace
+        ||
         !result
     ){
 
         return trace;
 
     }
-
 
 
     trace.result = {
@@ -409,21 +740,22 @@ export function updateTraceFromResult(
     };
 
 
-
     trace.validation =
 
-        result.validation ||
+        result.validation
+
+        ||
 
         null;
-
 
 
     trace.terminal =
 
-        result.terminal ||
+        result.terminal
+
+        ||
 
         null;
-
 
 
     addTraceEvent(
@@ -435,17 +767,12 @@ export function updateTraceFromResult(
         {
 
             status:
-
                 result.status,
 
-
             success:
-
                 result.success,
 
-
             verified:
-
                 result.verified
 
         }
@@ -453,41 +780,38 @@ export function updateTraceFromResult(
     );
 
 
-
     collectFailure(
-
         trace,
-
         result
-
     );
-
 
 
     collectExperience(
-
         trace,
-
         result
-
     );
-
 
 
     collectMeta(
+        trace,
+        result
+    );
+
+
+    setOutcomeStatistics(
 
         trace,
 
-        result
+        [
+            result
+        ]
 
     );
-
 
 
     return trace;
 
 }
-
 
 
 /*
@@ -503,18 +827,17 @@ export function updateTraceFromSummary(
 
     summary
 
-){
-
+) {
 
     if(
-        !trace ||
+        !trace
+        ||
         !summary
     ){
 
         return trace;
 
     }
-
 
 
     trace.result = {
@@ -524,31 +847,29 @@ export function updateTraceFromSummary(
     };
 
 
-
     trace.validation =
 
-        summary.validation ||
+        summary.validation
+
+        ||
 
         null;
-
 
 
     trace.terminal =
 
-        summary.terminal ||
+        summary.terminal
+
+        ||
 
         null;
-
 
 
     const results =
 
         safeArray(
-
             summary.results
-
         );
-
 
 
     addTraceEvent(
@@ -561,14 +882,15 @@ export function updateTraceFromSummary(
 
             status:
 
-                summary.status ||
-                null,
+                summary.status
 
+                ||
+
+                null,
 
             success:
 
                 summary.success === true,
-
 
             resultsCount:
 
@@ -579,59 +901,41 @@ export function updateTraceFromSummary(
     );
 
 
-
     /*
-     * =====================================================
-     * SUMMARY META
-     * =====================================================
+     * Summary-level metadata.
      */
 
 
     collectFailure(
-
         trace,
-
         summary
-
     );
-
 
 
     collectExperience(
-
         trace,
-
         summary
-
     );
-
 
 
     collectMeta(
-
         trace,
-
         summary
-
     );
 
 
-
     /*
-     * =====================================================
-     * CHILD RESULTS
-     * =====================================================
+     * Child results.
      */
 
 
     for(
-        const result of results
+        const result
+        of results
     ){
 
-
         if(
-            !result ||
-            typeof result !== "object"
+            !isObject(result)
         ){
 
             continue;
@@ -639,37 +943,48 @@ export function updateTraceFromSummary(
         }
 
 
-
         collectFailure(
-
             trace,
-
             result
-
         );
-
 
 
         collectExperience(
-
             trace,
-
             result
-
         );
 
 
-
         collectMeta(
-
             trace,
-
             result
-
         );
 
     }
 
+
+    /*
+     * Если есть Child Results,
+     * они являются источником
+     * completed / failed.
+     *
+     * Если их нет — используем Summary.
+     */
+
+
+    setOutcomeStatistics(
+
+        trace,
+
+        results.length > 0
+
+            ? results
+
+            : [
+                summary
+            ]
+
+    );
 
 
     return trace;
