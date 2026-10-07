@@ -13,10 +13,14 @@ import {
 } from "../../experience/experienceCore.js";
 
 
+import {
+    buildExecutionExperienceContext
+} from "./subtaskExperienceContext.js";
+
 
 /*
  * =========================================================
- * JESSICA EXECUTE SUBTASK v2
+ * JESSICA EXECUTE SUBTASK v3
  * =========================================================
  *
  * Выполнение одной подзадачи.
@@ -34,9 +38,21 @@ import {
  *      ↓
  * Planner
  *      ↓
+ * Experience Adapter
+ *      ↓
  * Execution Cycle
  *      ↓
  * Result
+ *
+ *
+ * ВАЖНО:
+ *
+ * Experience передаётся:
+ *
+ * - Planner;
+ * - Execution Context;
+ * - Execution Trace;
+ * - Learning.
  *
  * =========================================================
  */
@@ -66,7 +82,6 @@ function buildFailedResult({
     planningContext = null
 
 }) {
-
 
     return {
 
@@ -98,7 +113,6 @@ function buildFailedResult({
 }
 
 
-
 /*
  * =========================================================
  * BUILD MEMORY EXPERIENCE
@@ -110,18 +124,20 @@ function buildMemoryExperience(
     subtask
 ) {
 
-
     const hints =
+
         Array.isArray(
             subtask?.memoryHints
         )
+
             ? subtask.memoryHints
+
             : [];
 
 
-    if (
+    if(
         hints.length === 0
-    ) {
+    ){
 
         return null;
 
@@ -134,21 +150,46 @@ function buildMemoryExperience(
             "memory-context",
 
         skills:
+
             hints.map(
 
                 item => ({
 
                     id:
-                        item?.id || null,
+
+                        item?.id
+
+                        ||
+
+                        null,
 
                     name:
-                        item?.name || "",
+
+                        item?.name
+
+                        ||
+
+                        "",
 
                     workflow:
-                        item?.workflow || [],
+
+                        Array.isArray(
+                            item?.workflow
+                        )
+
+                            ? item.workflow
+
+                            : [],
 
                     constraints:
-                        item?.constraints || []
+
+                        Array.isArray(
+                            item?.constraints
+                        )
+
+                            ? item.constraints
+
+                            : []
 
                 })
 
@@ -157,7 +198,6 @@ function buildMemoryExperience(
     };
 
 }
-
 
 
 /*
@@ -175,11 +215,9 @@ function mergeExperienceContext(
 
 ) {
 
-
-    if (
+    if(
         memoryExperience
-    ) {
-
+    ){
 
         return {
 
@@ -225,21 +263,9 @@ function mergeExperienceContext(
 }
 
 
-
 /*
  * =========================================================
  * BUILD PLANNING CONTEXT
- * =========================================================
- *
- * Experience Core уже умеет строить полноценный
- * PlanningContext.
- *
- * Если он существует — используем его как основной
- * источник контекста Planner.
- *
- * Memory Context пока передаётся через experience,
- * поскольку он имеет отдельный формат.
- *
  * =========================================================
  */
 
@@ -254,22 +280,24 @@ function buildInitialPlanningContext({
 
 }) {
 
-
     const resolvedContext =
 
-        experienceResult?.planningContext &&
-
+        experienceResult?.planningContext
+        &&
         typeof experienceResult.planningContext === "object"
+        &&
+        !Array.isArray(
+            experienceResult.planningContext
+        )
 
             ? experienceResult.planningContext
 
             : null;
 
 
-    if (
+    if(
         resolvedContext
-    ) {
-
+    ){
 
         return {
 
@@ -278,8 +306,13 @@ function buildInitialPlanningContext({
             metadata: {
 
                 ...(
-                    resolvedContext.metadata &&
+                    resolvedContext.metadata
+                    &&
                     typeof resolvedContext.metadata === "object"
+                    &&
+                    !Array.isArray(
+                        resolvedContext.metadata
+                    )
 
                         ? resolvedContext.metadata
 
@@ -307,9 +340,15 @@ function buildInitialPlanningContext({
             taskText,
 
             experienceSource:
-                experienceResult?.source || "none",
+
+                experienceResult?.source
+
+                ||
+
+                "none",
 
             experienceConfidence:
+
                 Number(
                     experienceResult?.confidence || 0
                 )
@@ -319,7 +358,6 @@ function buildInitialPlanningContext({
     };
 
 }
-
 
 
 /*
@@ -333,12 +371,12 @@ export async function executeSubtask(
     subtask
 ) {
 
-
     const subtaskId =
         subtask?.id ?? null;
 
 
     const taskText =
+
         typeof subtask?.text === "string"
 
             ? subtask.text.trim()
@@ -353,10 +391,9 @@ export async function executeSubtask(
      */
 
 
-    if (
+    if(
         !taskText
-    ) {
-
+    ){
 
         return buildFailedResult({
 
@@ -377,7 +414,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 1. EXPERIENCE CONTEXT
+     * 1. EXPERIENCE RESOLUTION
      * =====================================================
      */
 
@@ -394,26 +431,26 @@ export async function executeSubtask(
 
 
         memoryExperience =
+
             buildMemoryExperience(
                 subtask
             );
 
 
         /*
-         * Если Decomposer уже передал опыт,
-         * дополнительный поиск не выполняется.
-         *
-         * Если опыта нет —
-         * ищем в Experience Storage.
+         * Если Decomposer уже передал
+         * Memory Experience,
+         * повторный Storage lookup
+         * не выполняем.
          */
 
 
-        if (
+        if(
             !memoryExperience
-        ) {
-
+        ){
 
             resolverResult =
+
                 await resolveExperience(
                     taskText
                 );
@@ -421,7 +458,7 @@ export async function executeSubtask(
         }
 
 
-    } catch(error) {
+    }catch(error){
 
 
         console.error(
@@ -456,6 +493,7 @@ export async function executeSubtask(
 
 
     const experienceResult =
+
         mergeExperienceContext(
 
             resolverResult,
@@ -467,12 +505,34 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * PLANNING CONTEXT
+     * 2. EXECUTION EXPERIENCE
+     * =====================================================
+     *
+     * Resolver format != Execution format.
+     *
+     * Здесь выполняется единственная
+     * каноническая адаптация.
+     *
+     * =====================================================
+     */
+
+
+    const executionExperience =
+
+        buildExecutionExperienceContext(
+            experienceResult
+        );
+
+
+    /*
+     * =====================================================
+     * 3. PLANNING CONTEXT
      * =====================================================
      */
 
 
     const initialPlanningContext =
+
         buildInitialPlanningContext({
 
             experienceResult,
@@ -491,19 +551,31 @@ export async function executeSubtask(
         {
 
             found:
-                experienceResult.found,
+                executionExperience.found,
+
+            used:
+                executionExperience.used,
 
             source:
-                experienceResult.source,
+                executionExperience.source,
 
             confidence:
-                experienceResult.confidence,
+                executionExperience.confidence,
 
-            skill:
-                experienceResult
-                    ?.planningContext
-                    ?.experience
-                    ?.name || null
+            skills:
+
+                executionExperience.skills
+
+                    .map(
+                        skill =>
+                            skill?.id
+                            ||
+                            skill?.skillId
+                            ||
+                            skill?.name
+                    )
+
+                    .filter(Boolean)
 
         }
 
@@ -512,7 +584,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 2. CREATE PLAN
+     * 4. CREATE PLAN
      * =====================================================
      */
 
@@ -524,6 +596,7 @@ export async function executeSubtask(
 
 
         planResult =
+
             await createPlan(
 
                 taskText,
@@ -533,7 +606,7 @@ export async function executeSubtask(
             );
 
 
-    } catch(error) {
+    }catch(error){
 
 
         console.error(
@@ -558,7 +631,7 @@ export async function executeSubtask(
                 "Ошибка создания плана",
 
             experience:
-                experienceResult,
+                executionExperience,
 
             planningContext:
                 initialPlanningContext
@@ -568,11 +641,11 @@ export async function executeSubtask(
     }
 
 
-    if (
-        !planResult?.success ||
+    if(
+        !planResult?.success
+        ||
         !planResult?.plan
-    ) {
-
+    ){
 
         return buildFailedResult({
 
@@ -584,11 +657,15 @@ export async function executeSubtask(
                 "planner",
 
             message:
-                planResult?.text ||
+
+                planResult?.text
+
+                ||
+
                 "План не создан",
 
             experience:
-                experienceResult,
+                executionExperience,
 
             planningContext:
                 initialPlanningContext
@@ -600,16 +677,20 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 3. EFFECTIVE CONTEXT
+     * 5. EFFECTIVE PLANNING CONTEXT
      * =====================================================
      */
 
 
     const effectivePlanningContext =
 
-        planResult.context &&
-
+        planResult.context
+        &&
         typeof planResult.context === "object"
+        &&
+        !Array.isArray(
+            planResult.context
+        )
 
             ? planResult.context
 
@@ -618,7 +699,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 4. EXECUTION
+     * 6. EXECUTION
      * =====================================================
      */
 
@@ -629,19 +710,32 @@ export async function executeSubtask(
     try {
 
 
+        /*
+         * КРИТИЧЕСКО:
+         *
+         * четвёртый аргумент —
+         * канонический Experience Context.
+         *
+         * Раньше здесь Experience терялся.
+         */
+
+
         executionResult =
+
             await executePlanCycle(
 
                 taskText,
 
                 planResult.plan,
 
-                effectivePlanningContext
+                effectivePlanningContext,
+
+                executionExperience
 
             );
 
 
-    } catch(error) {
+    }catch(error){
 
 
         console.error(
@@ -666,7 +760,7 @@ export async function executeSubtask(
                 "Ошибка цикла выполнения",
 
             experience:
-                experienceResult,
+                executionExperience,
 
             plan:
                 planResult.plan,
@@ -681,7 +775,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 5. FINAL RESULT
+     * 7. FINAL RESULT
      * =====================================================
      */
 
@@ -697,29 +791,41 @@ export async function executeSubtask(
         experience: {
 
             found:
-                experienceResult.found,
+                executionExperience.found,
+
+            used:
+                executionExperience.used,
 
             source:
-                experienceResult.source,
+                executionExperience.source,
 
             confidence:
-                experienceResult.confidence,
+                executionExperience.confidence,
 
-            skills:
+            skills: [
 
-                experienceResult
-                    ?.experience
-                    ?.skills || []
+                ...executionExperience.skills
+
+            ]
 
         },
 
         executionMeta: {
 
             experienceUsed:
-                experienceResult.found,
+                executionExperience.used,
+
+            experienceFound:
+                executionExperience.found,
 
             experienceSource:
-                experienceResult.source,
+                executionExperience.source,
+
+            experienceConfidence:
+                executionExperience.confidence,
+
+            experienceSkills:
+                executionExperience.skills.length,
 
             plannerUsed:
                 true,
