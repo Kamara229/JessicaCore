@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING TRIGGER v4
+ * JESSICA LEARNING TRIGGER v5
  * =========================================================
  *
  * Точка входа Learning Pipeline.
@@ -19,45 +19,12 @@
  * Learning Event
  *
  *
- * Возможные решения:
+ * Actions:
  *
  * NEW_SKILL
- *      ↓
- * кандидат нового Experience Skill
- *
- *
  * SKILL_IMPROVEMENT
- *      ↓
- * кандидат новой версии
- * существующего Experience Skill
- *
- *
+ * PATTERN_DISCOVERY
  * IGNORE
- *      ↓
- * опыт не передаётся в Learning Queue
- *
- *
- * Ответственность:
- *
- * - принять Execution Trace;
- * - запустить Experience Analyzer;
- * - передать Analysis в Learning Router;
- * - сформировать полный Learning Event;
- * - сохранить Learning Payload без потери данных;
- * - определить Skill ID для следующих слоёв.
- *
- *
- * НЕ отвечает за:
- *
- * - сохранение в Supabase;
- * - создание Experience Skill;
- * - изменение существующего Experience;
- * - накопление Learning Candidates;
- * - Quality Gate;
- * - Approval;
- * - Autonomy Policy;
- * - версии Skill;
- * - запись Experience Memory.
  *
  * =========================================================
  */
@@ -73,9 +40,6 @@ import {
 } from "./learningRouter.js";
 
 
-
-
-
 /*
  * =========================================================
  * NORMALIZE
@@ -87,20 +51,21 @@ function isObject(
     value
 ) {
 
-    return (
+    return Boolean(
 
-        value &&
+        value
 
-        typeof value === "object" &&
+        &&
+
+        typeof value === "object"
+
+        &&
 
         !Array.isArray(value)
 
     );
 
 }
-
-
-
 
 
 function normalizeNumber(
@@ -120,9 +85,6 @@ function normalizeNumber(
 }
 
 
-
-
-
 function normalizeText(
     value
 ) {
@@ -135,24 +97,23 @@ function normalizeText(
 }
 
 
-
-
-
 /*
  * =========================================================
  * SHOULD ANALYZE
  * =========================================================
  *
- * На текущем этапе Experience Analyzer
- * обучается только на успешных Execution.
+ * Канонический источник:
  *
- * В будущем сюда НЕ нужно добавлять
- * логику Failure Learning.
+ * trace.statistics.completed
  *
- * Когда Analyzer научится анализировать
- * неудачные выполнения, ограничение
- * по completed должно быть перенесено
- * непосредственно в Analyzer.
+ *
+ * Compatibility:
+ *
+ * trace.stats.completed
+ *
+ *
+ * Дополнительно поддерживаем
+ * успешный terminal Trace.
  *
  * =========================================================
  */
@@ -162,11 +123,8 @@ function shouldAnalyze(
     trace
 ) {
 
-
     if(
-        !isObject(
-            trace
-        )
+        !isObject(trace)
     ){
 
         return false;
@@ -174,11 +132,10 @@ function shouldAnalyze(
     }
 
 
-
     /*
-     * Текущий Experience Analyzer
-     * требует хотя бы одно
-     * успешное выполнение.
+     * =====================================================
+     * COMPLETED EXECUTIONS
+     * =====================================================
      */
 
 
@@ -186,50 +143,110 @@ function shouldAnalyze(
 
         normalizeNumber(
 
+            trace?.statistics?.completed
+
+            ??
+
             trace?.stats?.completed
 
         );
 
 
-
     if(
-        completed <= 0
+        completed > 0
     ){
 
-        return false;
+        return true;
 
     }
 
 
+    /*
+     * =====================================================
+     * TRACE STATUS
+     * =====================================================
+     */
 
-    return true;
+
+    const traceStatus =
+
+        normalizeText(
+            trace?.status
+        )
+        .toUpperCase();
+
+
+    if(
+        traceStatus ===
+        "COMPLETED"
+    ){
+
+        return true;
+
+    }
+
+
+    /*
+     * =====================================================
+     * RESULT STATUS
+     * =====================================================
+     */
+
+
+    const resultStatus =
+
+        normalizeText(
+            trace?.result?.status
+        )
+        .toUpperCase();
+
+
+    if(
+        resultStatus ===
+        "COMPLETED"
+    ){
+
+        return true;
+
+    }
+
+
+    /*
+     * Explicit success fallback.
+     *
+     * Не считаем semantic terminal states
+     * успешными Learning executions.
+     */
+
+
+    if(
+        trace?.result?.success === true
+
+        &&
+
+        ![
+            "NO_VERIFIED_RESULT",
+            "NEEDS_CLARIFICATION",
+            "FAILED"
+        ]
+        .includes(
+            resultStatus
+        )
+    ){
+
+        return true;
+
+    }
+
+
+    return false;
 
 }
-
-
-
 
 
 /*
  * =========================================================
  * NORMALIZE PAYLOAD
- * =========================================================
- *
- * Learning Router является основным
- * источником Payload.
- *
- * Trigger обязан передать Payload дальше
- * без потери:
- *
- * - skillCandidate;
- * - skills;
- * - source;
- * - будущих Learning полей.
- *
- *
- * Fallback через Analysis нужен только
- * для устойчивости контракта.
- *
  * =========================================================
  */
 
@@ -242,7 +259,6 @@ function normalizeLearningPayload({
 
 }) {
 
-
     const routerPayload =
 
         isObject(
@@ -252,7 +268,6 @@ function normalizeLearningPayload({
             ? decision.payload
 
             : {};
-
 
 
     const analysisCandidate =
@@ -266,7 +281,6 @@ function normalizeLearningPayload({
             : null;
 
 
-
     const payload = {
 
         ...routerPayload
@@ -274,9 +288,8 @@ function normalizeLearningPayload({
     };
 
 
-
     /*
-     * Candidate fallback
+     * Candidate fallback.
      */
 
 
@@ -294,12 +307,8 @@ function normalizeLearningPayload({
     }
 
 
-
     /*
-     * Existing Skills fallback
-     *
-     * Используется для
-     * SKILL_IMPROVEMENT.
+     * Existing Skills fallback.
      */
 
 
@@ -319,9 +328,8 @@ function normalizeLearningPayload({
     }
 
 
-
     /*
-     * Source
+     * Source.
      */
 
 
@@ -337,35 +345,14 @@ function normalizeLearningPayload({
     }
 
 
-
     return payload;
 
 }
 
 
-
-
-
 /*
  * =========================================================
  * RESOLVE SKILL ID
- * =========================================================
- *
- * NEW_SKILL:
- *
- * payload.skillCandidate.skillId
- *
- *
- * SKILL_IMPROVEMENT:
- *
- * payload.skills[0].id
- * payload.skills[0].skillId
- *
- *
- * Fallback:
- *
- * decision.skillId
- *
  * =========================================================
  */
 
@@ -378,9 +365,8 @@ function resolveSkillId({
 
 }) {
 
-
     /*
-     * NEW SKILL
+     * NEW SKILL.
      */
 
 
@@ -393,7 +379,6 @@ function resolveSkillId({
             ? payload.skillCandidate
 
             : null;
-
 
 
     const candidateSkillId =
@@ -409,7 +394,6 @@ function resolveSkillId({
         );
 
 
-
     if(
         candidateSkillId
     ){
@@ -419,9 +403,8 @@ function resolveSkillId({
     }
 
 
-
     /*
-     * EXISTING SKILL
+     * EXISTING SKILL.
      */
 
 
@@ -434,7 +417,6 @@ function resolveSkillId({
             ? payload.skills
 
             : [];
-
 
 
     if(
@@ -454,7 +436,6 @@ function resolveSkillId({
             );
 
 
-
         if(
             existingSkillId
         ){
@@ -464,12 +445,6 @@ function resolveSkillId({
         }
 
     }
-
-
-
-    /*
-     * ROUTER FALLBACK
-     */
 
 
     return (
@@ -485,9 +460,6 @@ function resolveSkillId({
     );
 
 }
-
-
-
 
 
 /*
@@ -507,7 +479,6 @@ function resolveConfidence({
 
 }) {
 
-
     const values = [
 
         decision?.confidence,
@@ -523,7 +494,6 @@ function resolveConfidence({
     ];
 
 
-
     for(
         const value
         of values
@@ -533,19 +503,19 @@ function resolveConfidence({
             Number(value);
 
 
-
         if(
-            Number.isFinite(
-                number
-            )
+            Number.isFinite(number)
         ){
 
             return Math.max(
+
                 0,
+
                 Math.min(
                     1,
                     number
                 )
+
             );
 
         }
@@ -553,35 +523,14 @@ function resolveConfidence({
     }
 
 
-
     return 0;
 
 }
 
 
-
-
-
 /*
  * =========================================================
- * BUILD LEARNING EVENT
- * =========================================================
- *
- * Learning Event является транспортным
- * контрактом между:
- *
- * Analyzer / Router
- *        ↓
- * Learning Queue
- *        ↓
- * Worker
- *        ↓
- * Learning Proposal
- *
- *
- * Поэтому Event обязан содержать
- * полный Payload Router.
- *
+ * BUILD EVENT
  * =========================================================
  */
 
@@ -596,7 +545,6 @@ function buildLearningEvent({
 
 }) {
 
-
     const payload =
 
         normalizeLearningPayload({
@@ -608,7 +556,6 @@ function buildLearningEvent({
         });
 
 
-
     const skillId =
 
         resolveSkillId({
@@ -618,7 +565,6 @@ function buildLearningEvent({
             payload
 
         });
-
 
 
     const confidence =
@@ -634,7 +580,6 @@ function buildLearningEvent({
         });
 
 
-
     const reusable =
 
         decision?.reusable === true
@@ -642,7 +587,6 @@ function buildLearningEvent({
         ||
 
         analysis?.reusable === true;
-
 
 
     const reason =
@@ -662,121 +606,82 @@ function buildLearningEvent({
         "";
 
 
-
     return {
 
-
         /*
-         * =================================================
-         * IDENTITY
-         * =================================================
+         * Identity.
          */
 
 
         id:
 
-            trace?.id ||
+            trace?.id
+
+            ||
 
             null,
-
 
 
         traceId:
 
-            trace?.id ||
+            trace?.id
+
+            ||
+
+            trace?.traceId
+
+            ||
 
             null,
 
 
-
         /*
-         * =================================================
-         * LEARNING DECISION
-         * =================================================
+         * Decision.
          */
 
 
         action:
 
-            decision?.action ||
+            decision?.action
 
-            analysis?.action ||
+            ||
+
+            analysis?.action
+
+            ||
 
             "IGNORE",
-
 
 
         skillId,
 
 
-
         confidence,
-
 
 
         reusable,
 
 
-
         reason,
 
 
-
         /*
-         * =================================================
-         * LEARNING PAYLOAD
-         * =================================================
-         *
-         * КРИТИЧНО:
-         *
-         * Queue и Proposal читают Candidate
-         * именно отсюда.
-         *
-         * NEW_SKILL:
-         *
-         * payload.skillCandidate
-         *
-         *
-         * SKILL_IMPROVEMENT:
-         *
-         * payload.skillCandidate
-         * payload.skills
-         *
-         * =================================================
+         * Payload.
          */
 
 
         payload,
 
 
-
         /*
-         * =================================================
-         * DIAGNOSTIC CONTEXT
-         * =================================================
-         *
-         * Analysis и Decision сохраняются
-         * для диагностики, Learning History
-         * и будущего переанализа.
-         *
-         * Но следующие слои не должны
-         * извлекать Candidate из
-         * decision.payload.
-         *
-         * Канонический путь:
-         *
-         * event.payload
-         *
-         * =================================================
+         * Diagnostic context.
          */
 
 
         analysis,
 
 
-
         decision,
-
 
 
         source:
@@ -784,24 +689,19 @@ function buildLearningEvent({
             "learning-trigger",
 
 
-
         createdAt:
 
             new Date()
                 .toISOString()
-
 
     };
 
 }
 
 
-
-
-
 /*
  * =========================================================
- * EMPTY RESULT
+ * EMPTY
  * =========================================================
  */
 
@@ -810,57 +710,39 @@ function buildEmptyResult(
     reason
 ) {
 
-
     return {
-
 
         triggered:
             false,
 
-
-
         reason:
 
-            normalizeText(
-                reason
-            )
+            normalizeText(reason)
 
             ||
 
             "Learning не запущен",
 
-
-
         analysis:
             null,
-
-
 
         decision:
             null,
 
-
-
         learningEvent:
             null,
 
-
-
         traceId:
             null
-
 
     };
 
 }
 
 
-
-
-
 /*
  * =========================================================
- * ERROR RESULT
+ * ERROR
  * =========================================================
  */
 
@@ -873,19 +755,13 @@ function buildErrorResult({
 
 }) {
 
-
     return {
-
 
         triggered:
             false,
 
-
-
         reason:
             "Ошибка Learning Pipeline",
-
-
 
         error:
 
@@ -897,41 +773,35 @@ function buildErrorResult({
 
             "unknown error",
 
-
-
         analysis:
             null,
-
-
 
         decision:
             null,
 
-
-
         learningEvent:
             null,
 
-
-
         traceId:
 
-            trace?.id ||
+            trace?.id
+
+            ||
+
+            trace?.traceId
+
+            ||
 
             null
-
 
     };
 
 }
 
 
-
-
-
 /*
  * =========================================================
- * LOG EVENT
+ * LOG
  * =========================================================
  */
 
@@ -939,7 +809,6 @@ function buildErrorResult({
 function logLearningEvent(
     learningEvent
 ) {
-
 
     console.log(
 
@@ -949,30 +818,31 @@ function logLearningEvent(
 
             action:
 
-                learningEvent?.action ||
+                learningEvent?.action
+
+                ||
+
                 "IGNORE",
-
-
 
             skillId:
 
-                learningEvent?.skillId ||
+                learningEvent?.skillId
+
+                ||
+
                 null,
-
-
 
             confidence:
 
-                learningEvent?.confidence ||
+                learningEvent?.confidence
+
+                ||
+
                 0,
-
-
 
             reusable:
 
                 learningEvent?.reusable === true,
-
-
 
             hasCandidate:
 
@@ -982,8 +852,6 @@ function logLearningEvent(
                         ?.skillCandidate
                 ),
 
-
-
             existingSkills:
 
                 Array.isArray(
@@ -992,16 +860,12 @@ function logLearningEvent(
                         ?.skills
                 )
 
-                    ?
-
-                    learningEvent
+                    ? learningEvent
                         .payload
                         .skills
                         .length
 
-                    :
-
-                    0
+                    : 0
 
         })
 
@@ -1010,12 +874,9 @@ function logLearningEvent(
 }
 
 
-
-
-
 /*
  * =========================================================
- * RUN LEARNING TRIGGER
+ * RUN
  * =========================================================
  */
 
@@ -1024,11 +885,8 @@ export function runLearningTrigger(
     trace
 ) {
 
-
     /*
-     * =====================================================
-     * 1. CHECK TRACE
-     * =====================================================
+     * 1. Eligibility.
      */
 
 
@@ -1047,15 +905,11 @@ export function runLearningTrigger(
     }
 
 
-
     try {
 
 
-
         /*
-         * =================================================
-         * 2. ANALYZE EXECUTION EXPERIENCE
-         * =================================================
+         * 2. Analyze.
          */
 
 
@@ -1064,7 +918,6 @@ export function runLearningTrigger(
             analyzeExecutionTrace(
                 trace
             );
-
 
 
         if(
@@ -1082,11 +935,8 @@ export function runLearningTrigger(
         }
 
 
-
         /*
-         * =================================================
-         * 3. ROUTE LEARNING ACTION
-         * =================================================
+         * 3. Route.
          */
 
 
@@ -1099,7 +949,6 @@ export function runLearningTrigger(
                 analysis
 
             });
-
 
 
         if(
@@ -1117,11 +966,8 @@ export function runLearningTrigger(
         }
 
 
-
         /*
-         * =================================================
-         * 4. BUILD LEARNING EVENT
-         * =================================================
+         * 4. Event.
          */
 
 
@@ -1138,11 +984,8 @@ export function runLearningTrigger(
             });
 
 
-
         /*
-         * =================================================
-         * 5. LOG
-         * =================================================
+         * 5. Log.
          */
 
 
@@ -1151,47 +994,38 @@ export function runLearningTrigger(
         );
 
 
-
         /*
-         * =================================================
-         * 6. RESULT
-         * =================================================
+         * 6. Result.
          */
 
 
         return {
 
-
             triggered:
                 true,
 
-
-
             analysis,
-
-
 
             decision,
 
-
-
             learningEvent,
-
-
 
             traceId:
 
-                trace?.id ||
+                trace?.id
+
+                ||
+
+                trace?.traceId
+
+                ||
 
                 null
-
 
         };
 
 
-
     }catch(error){
-
 
 
         console.error(
@@ -1203,7 +1037,6 @@ export function runLearningTrigger(
         );
 
 
-
         return buildErrorResult({
 
             trace,
@@ -1211,7 +1044,6 @@ export function runLearningTrigger(
             error
 
         });
-
 
     }
 
