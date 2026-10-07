@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA TRACE LEARNING v1
+ * JESSICA TRACE LEARNING v2
  * =========================================================
  *
  * Подготовка Execution Trace
@@ -9,7 +9,9 @@
  *
  * Ответственность:
  *
- * - сформировать Learning Payload.
+ * - сформировать Learning Payload;
+ * - сохранить canonical Experience Usage;
+ * - сохранить compatibility contract.
  *
  *
  * НЕ:
@@ -23,6 +25,33 @@
  */
 
 
+/*
+ * =========================================================
+ * SAFE OBJECT
+ * =========================================================
+ */
+
+
+function safeObject(
+    value
+) {
+
+    return (
+
+        value
+        &&
+        typeof value === "object"
+        &&
+        !Array.isArray(value)
+
+    )
+
+        ? value
+
+        : {};
+
+}
+
 
 /*
  * =========================================================
@@ -32,77 +61,127 @@
 
 
 export function buildLearningPayload(
-
     trace
+) {
 
-){
+    if(
+        !trace
+    ){
 
-
-    if(!trace)
         return null;
 
+    }
+
+
+    const experienceUsage = {
+
+        ...safeObject(
+            trace.experienceUsage
+        )
+
+    };
 
 
     return {
 
+        /*
+         * =================================================
+         * IDENTITY
+         * =================================================
+         */
+
 
         executionId:
-
             trace.id,
 
 
-        task:
+        /*
+         * Канонический traceId нужен
+         * Candidate Memory для дедупликации
+         * evidence.
+         */
 
+
+        traceId:
+            trace.id,
+
+
+        /*
+         * =================================================
+         * EXECUTION
+         * =================================================
+         */
+
+
+        task:
             trace.task,
 
 
         status:
-
             trace.status,
 
 
         statistics:
-
             trace.statistics,
 
 
-        experience:
+        /*
+         * =================================================
+         * EXPERIENCE
+         * =================================================
+         */
 
-            trace.experienceUsage,
+
+        experienceUsage,
+
+
+        /*
+         * Compatibility alias.
+         *
+         * Старые Learning-модули могут
+         * пока читать payload.experience.
+         *
+         * После полной миграции alias
+         * можно будет удалить.
+         */
+
+
+        experience:
+            experienceUsage,
+
+
+        /*
+         * =================================================
+         * EXECUTION EVIDENCE
+         * =================================================
+         */
 
 
         failures:
-
             trace.failures,
 
 
         replans:
-
             trace.replans,
 
 
         terminal:
-
             trace.terminal,
 
 
         validation:
-
             trace.validation,
 
 
         steps:
-
             trace.steps,
 
 
         events:
-
             trace.events,
 
 
         result:
-
             trace.result
 
     };
