@@ -1,12 +1,24 @@
 /*
  * =========================================================
- * JESSICA AUTONOMOUS LEARNING TEST TRACE
+ * JESSICA AUTONOMOUS LEARNING TEST TRACE v2
  * =========================================================
  *
- * Создаёт synthetic successful Execution Trace.
+ * Второе независимое synthetic execution.
  *
- * Он должен выглядеть как обычный успешный
- * runtime execution для Learning Analyzer.
+ *
+ * Цель:
+ *
+ * existing Candidate
+ *        +
+ * new independent evidence
+ *        ↓
+ * Candidate Merge
+ *        ↓
+ * occurrences = 2
+ *        ↓
+ * confidence ≈ 0.82
+ *        ↓
+ * AUTO_APPROVE
  *
  * =========================================================
  */
@@ -14,7 +26,8 @@
 
 import {
     AUTONOMOUS_TEST_TASK,
-    AUTONOMOUS_TEST_TRACE_ID
+    AUTONOMOUS_TEST_TRACE_ID,
+    AUTONOMOUS_TEST_RESULT
 } from "./autonomousTestConstants.js";
 
 
@@ -22,11 +35,19 @@ export function createAutonomousLearningTestTrace()
 {
 
     const now =
+
         new Date()
             .toISOString();
 
 
     return {
+
+        /*
+         * =================================================
+         * TRACE IDENTITY
+         * =================================================
+         */
+
 
         id:
             AUTONOMOUS_TEST_TRACE_ID,
@@ -36,8 +57,22 @@ export function createAutonomousLearningTestTrace()
             AUTONOMOUS_TEST_TRACE_ID,
 
 
+        /*
+         * =================================================
+         * TASK
+         * =================================================
+         */
+
+
         task:
             AUTONOMOUS_TEST_TASK,
+
+
+        /*
+         * =================================================
+         * EXECUTION STATE
+         * =================================================
+         */
 
 
         status:
@@ -57,9 +92,9 @@ export function createAutonomousLearningTestTrace()
 
 
         /*
-         * Learning Analyzer сейчас
-         * использует completed > 0
-         * как один из сигналов успешности.
+         * =================================================
+         * EXECUTION STATS
+         * =================================================
          */
 
 
@@ -75,11 +110,17 @@ export function createAutonomousLearningTestTrace()
 
 
         /*
-         * Existing Experience намеренно
-         * считаем не использованным.
+         * =================================================
+         * EXPERIENCE USAGE
+         * =================================================
          *
-         * Нам нужен NEW_SKILL /
-         * pattern path, а не improvement.
+         * Нам нужен ещё один NEW_SKILL evidence
+         * для существующего Candidate.
+         *
+         * Published Experience пока нет,
+         * поэтому existing Skill не использовался.
+         *
+         * =================================================
          */
 
 
@@ -104,7 +145,9 @@ export function createAutonomousLearningTestTrace()
 
 
         /*
-         * Успешный проверенный результат.
+         * =================================================
+         * VERIFIED RESULT
+         * =================================================
          */
 
 
@@ -117,7 +160,7 @@ export function createAutonomousLearningTestTrace()
                 "COMPLETED",
 
             answer:
-                "Официальный сайт Blender: https://www.blender.org/"
+                AUTONOMOUS_TEST_RESULT
 
         },
 
@@ -134,6 +177,13 @@ export function createAutonomousLearningTestTrace()
                 "Diagnostic execution result is verified"
 
         },
+
+
+        /*
+         * =================================================
+         * TOOLS
+         * =================================================
+         */
 
 
         usedTools: [
@@ -154,9 +204,17 @@ export function createAutonomousLearningTestTrace()
         ],
 
 
+        /*
+         * =================================================
+         * EXECUTION STEPS
+         * =================================================
+         */
+
+
         steps: [
 
             {
+
                 type:
                     "search",
 
@@ -167,10 +225,12 @@ export function createAutonomousLearningTestTrace()
                     true,
 
                 description:
-                    "Поиск официального источника"
+                    "Поиск официального сайта Python"
+
             },
 
             {
+
                 type:
                     "verification",
 
@@ -181,10 +241,18 @@ export function createAutonomousLearningTestTrace()
                     true,
 
                 description:
-                    "Проверка официального сайта"
+                    "Проверка официального домена python.org"
+
             }
 
         ],
+
+
+        /*
+         * =================================================
+         * FAILURE SIGNALS
+         * =================================================
+         */
 
 
         failures:
