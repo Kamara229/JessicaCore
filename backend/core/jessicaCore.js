@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CORE v2
+ * JESSICA CORE v3
  * =========================================================
  *
  * Центральный координатор Jessica.
@@ -10,30 +10,29 @@
  *
  * User Task
  *      ↓
- * Memory Facade
+ * Memory
  *      ↓
- * Task Decomposer
+ * Decomposition
  *      ↓
  * Execution Router
  *      ↓
- * Trace Facade
+ * Outer Execution Trace
  *      ↓
- * Response Facade
+ * Response
  *      ↓
- * Learning Facade
+ * Learning
  *
  *
  * НЕ:
  *
  * - выполняет Tools;
  * - создаёт Plan;
- * - валидирует результат;
+ * - валидирует Result;
  * - хранит Experience;
  * - создаёт Skills.
  *
  * =========================================================
  */
-
 
 
 import {
@@ -69,13 +68,6 @@ import {
 } from "./learning/learningFacade.js";
 
 
-
-
-
-
-
-
-
 /*
  * =========================================================
  * FAILURE
@@ -91,48 +83,28 @@ function buildCoreFailure(
 
     trace
 
-)
-{
-
+) {
 
     completeExecutionTrace(
-
         trace
-
     );
-
 
 
     return {
 
-
         success:
-
             false,
-
 
         stage,
 
-
         text,
 
-
         executionTrace:
-
             trace
-
 
     };
 
-
 }
-
-
-
-
-
-
-
 
 
 /*
@@ -143,44 +115,23 @@ function buildCoreFailure(
 
 
 export async function executeJessicaTask(
-
     task
-
-)
-{
-
+) {
 
     const normalizedTask =
 
         typeof task === "string"
 
-            ?
+            ? task.trim()
 
-            task.trim()
-
-            :
-
-            "";
-
-
-
-
+            : "";
 
 
     const executionTrace =
 
         createJessicaExecutionTrace(
-
             normalizedTask
-
         );
-
-
-
-
-
-
-
 
 
     /*
@@ -192,9 +143,7 @@ export async function executeJessicaTask(
 
     if(
         !normalizedTask
-    )
-    {
-
+    ){
 
         return buildCoreFailure(
 
@@ -209,13 +158,6 @@ export async function executeJessicaTask(
     }
 
 
-
-
-
-
-
-
-
     /*
      * =====================================================
      * MEMORY
@@ -226,17 +168,8 @@ export async function executeJessicaTask(
     const memoryResult =
 
         await buildExecutionMemoryContext(
-
             normalizedTask
-
         );
-
-
-
-
-
-
-
 
 
     /*
@@ -249,9 +182,7 @@ export async function executeJessicaTask(
     let decompositionResult;
 
 
-
-    try
-    {
+    try {
 
 
         decompositionResult =
@@ -259,22 +190,15 @@ export async function executeJessicaTask(
             await decomposeTask({
 
                 task:
-
                     normalizedTask,
 
-
                 memoryContext:
-
                     memoryResult.memoryContext
-
 
             });
 
 
-    }
-
-    catch(error)
-    {
+    }catch(error){
 
 
         console.error(
@@ -284,7 +208,6 @@ export async function executeJessicaTask(
             error
 
         );
-
 
 
         return buildCoreFailure(
@@ -297,28 +220,20 @@ export async function executeJessicaTask(
 
         );
 
-
     }
-
-
-
-
-
-
-
 
 
     if(
         !decompositionResult?.success
-    )
-    {
-
+    ){
 
         return buildCoreFailure(
 
             "decomposer",
 
-            decompositionResult?.text ||
+            decompositionResult?.text
+
+            ||
 
             "Ошибка декомпозиции",
 
@@ -326,14 +241,7 @@ export async function executeJessicaTask(
 
         );
 
-
     }
-
-
-
-
-
-
 
 
     const decomposition =
@@ -341,16 +249,9 @@ export async function executeJessicaTask(
         decompositionResult.decomposition;
 
 
-
-
-
-
-
-
-
     /*
      * =====================================================
-     * EXECUTION ROUTER
+     * EXECUTION
      * =====================================================
      */
 
@@ -358,24 +259,17 @@ export async function executeJessicaTask(
     let executionResult;
 
 
-
-    try
-    {
+    try {
 
 
         executionResult =
 
             await executeByRoute(
-
                 decomposition
-
             );
 
 
-    }
-
-    catch(error)
-    {
+    }catch(error){
 
 
         console.error(
@@ -385,7 +279,6 @@ export async function executeJessicaTask(
             error
 
         );
-
 
 
         return buildCoreFailure(
@@ -398,35 +291,21 @@ export async function executeJessicaTask(
 
         );
 
-
     }
-
-
-
-
-
-
-
 
 
     /*
      * =====================================================
-     * TRACE UPDATE
+     * OUTER TRACE UPDATE
      * =====================================================
      */
 
 
     if(
-
         Array.isArray(
-
             executionResult?.results
-
         )
-
-    )
-    {
-
+    ){
 
         recordExecutionSummary(
 
@@ -436,12 +315,7 @@ export async function executeJessicaTask(
 
         );
 
-
-    }
-
-    else
-    {
-
+    }else{
 
         recordExecutionResult(
 
@@ -451,28 +325,18 @@ export async function executeJessicaTask(
 
         );
 
-
     }
 
 
-
-
-
-
+    /*
+     * Trace должен быть полностью
+     * завершён ДО Learning.
+     */
 
 
     completeExecutionTrace(
-
         executionTrace
-
     );
-
-
-
-
-
-
-
 
 
     /*
@@ -487,53 +351,111 @@ export async function executeJessicaTask(
         await buildJessicaResponse({
 
             task:
-
                 normalizedTask,
-
 
             decomposition,
 
-
             executionResult,
-
 
             executionTrace
 
-
         });
-
-
-
-
-
-
-
 
 
     /*
      * =====================================================
      * LEARNING
      * =====================================================
+     *
+     * Раньше Learning Promise
+     * не ожидался.
+     *
+     * Теперь Queue persistence
+     * завершается до возврата Response.
+     *
+     * =====================================================
      */
 
 
-    response.learning =
+    const learningResult =
 
-        processExecutionLearning(
-
+        await processExecutionLearning(
             executionTrace
-
         );
 
 
+    response.learning =
+        learningResult;
 
 
+    /*
+     * Диагностический лог.
+     *
+     * Не содержит полного Candidate
+     * или пользовательского контента.
+     */
 
 
+    console.log(
 
+        "Jessica Learning result:",
+
+        {
+
+            success:
+                learningResult?.success === true,
+
+            queued:
+                learningResult?.queued === true,
+
+            reason:
+                learningResult?.reason || null,
+
+            traceStatus:
+                executionTrace?.status || null,
+
+            completed:
+
+                executionTrace
+                    ?.statistics
+                    ?.completed
+
+                ??
+
+                executionTrace
+                    ?.stats
+                    ?.completed
+
+                ??
+
+                0,
+
+            experienceUsed:
+
+                executionTrace
+                    ?.experienceUsage
+                    ?.used === true,
+
+            experienceSkills:
+
+                Array.isArray(
+                    executionTrace
+                        ?.experienceUsage
+                        ?.skills
+                )
+
+                    ? executionTrace
+                        .experienceUsage
+                        .skills
+                        .length
+
+                    : 0
+
+        }
+
+    );
 
 
     return response;
-
 
 }
