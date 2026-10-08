@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA TRACE RESULT v2
+ * JESSICA TRACE RESULT v3
  * =========================================================
  *
  * Синхронизация Execution Result
@@ -15,20 +15,17 @@
  * - Terminal;
  * - Failure metadata;
  * - Experience usage;
- * - Execution statistics.
+ * - Execution statistics;
+ * - фактически выполненные Tools.
  *
  *
  * КРИТИЧНО:
  *
- * Subtask возвращает Experience так:
+ * Planner Plan и фактический Execution —
+ * разные сущности.
  *
- * result.experience
- *
- * Старый контракт мог возвращать:
- *
- * result.executionMeta.experience
- *
- * Поддерживаем оба формата.
+ * Поэтому executedTools собираются
+ * только из реальных Tool Result.
  *
  * =========================================================
  */
@@ -37,6 +34,11 @@
 import {
     addTraceEvent
 } from "./traceEvents.js";
+
+
+import {
+    collectTraceExecutedTools
+} from "./traceToolEvidence.js";
 
 
 /*
@@ -203,20 +205,33 @@ function resolveResultExperience(
         return {
 
             used:
+
                 meta.experienceUsed === true,
 
+
             found:
+
                 meta.experienceFound === true,
 
+
             source:
-                meta.experienceSource || null,
+
+                meta.experienceSource
+
+                ||
+
+                null,
+
 
             confidence:
+
                 safeNumber(
                     meta.experienceConfidence
                 ),
 
+
             skills:
+
                 []
 
         };
@@ -237,11 +252,8 @@ function resolveResultExperience(
 
 
 function collectExperience(
-
     trace,
-
     result
-
 ) {
 
     const experience =
@@ -269,21 +281,32 @@ function collectExperience(
         trace.experienceUsage = {
 
             used:
+
                 false,
+
 
             found:
+
                 false,
 
+
             source:
+
                 null,
 
+
             confidence:
+
                 0,
 
+
             skills:
+
                 [],
 
+
             skillIds:
+
                 []
 
         };
@@ -314,19 +337,10 @@ function collectExperience(
 
 
     /*
-     * Experience считается использованным,
+     * Experience считается найденным,
      * если хотя бы один Child Execution
-     * использовал Experience.
+     * получил подходящий Skill.
      */
-
-
-    trace.experienceUsage.used =
-
-        trace.experienceUsage.used === true
-
-        ||
-
-        experience.used === true;
 
 
     trace.experienceUsage.found =
@@ -339,8 +353,27 @@ function collectExperience(
 
 
     /*
-     * Не затираем уже известный Source
-     * пустым значением.
+     * Compatibility field.
+     *
+     * Пока означает:
+     * Experience был передан/использован
+     * Execution Layer.
+     *
+     * Позже введём отдельный applied.
+     */
+
+
+    trace.experienceUsage.used =
+
+        trace.experienceUsage.used === true
+
+        ||
+
+        experience.used === true;
+
+
+    /*
+     * Source.
      */
 
 
@@ -355,9 +388,8 @@ function collectExperience(
 
 
     /*
-     * Для агрегированного Trace сохраняем
-     * максимальную уверенность найденного
-     * Experience.
+     * Для агрегированного Trace
+     * сохраняем максимальную confidence.
      */
 
 
@@ -447,11 +479,8 @@ function collectExperience(
 
 
 function collectMeta(
-
     trace,
-
     result
-
 ) {
 
     const meta =
@@ -474,7 +503,33 @@ function collectMeta(
         )
     ){
 
-        trace.statistics = {};
+        trace.statistics = {
+
+            attempts:
+
+                0,
+
+
+            retries:
+
+                0,
+
+
+            replans:
+
+                0,
+
+
+            completed:
+
+                0,
+
+
+            failed:
+
+                0
+
+        };
 
     }
 
@@ -482,7 +537,7 @@ function collectMeta(
     /*
      * Compatibility:
      *
-     * некоторые Execution Result ещё
+     * некоторые Execution Result
      * передают retryCount/replanCount.
      */
 
@@ -528,6 +583,27 @@ function collectMeta(
 
     }
 
+
+    if(
+        meta.attemptCount !== undefined
+    ){
+
+        trace.statistics.attempts =
+
+            Math.max(
+
+                safeNumber(
+                    trace.statistics.attempts
+                ),
+
+                safeNumber(
+                    meta.attemptCount
+                )
+
+            );
+
+    }
+
 }
 
 
@@ -539,11 +615,8 @@ function collectMeta(
 
 
 function collectFailure(
-
     trace,
-
     result
-
 ) {
 
     if(
@@ -569,6 +642,7 @@ function collectFailure(
     trace.failures.push({
 
         ...result.failure,
+
 
         timestamp:
 
@@ -625,11 +699,8 @@ function isSuccessfulResult(
 
 
 function setOutcomeStatistics(
-
     trace,
-
     results
-
 ) {
 
     const safeResults =
@@ -641,10 +712,11 @@ function setOutcomeStatistics(
 
     const completed =
 
-        safeResults.filter(
-            isSuccessfulResult
-        )
-        .length;
+        safeResults
+            .filter(
+                isSuccessfulResult
+            )
+            .length;
 
 
     const failed =
@@ -658,7 +730,9 @@ function setOutcomeStatistics(
 
         ...(trace.statistics || {}),
 
+
         completed,
+
 
         failed
 
@@ -668,10 +742,11 @@ function setOutcomeStatistics(
     /*
      * Compatibility alias.
      *
-     * Часть старого Learning кода
-     * ещё читает trace.stats.
+     * Старые Learning-модули
+     * ещё могут читать trace.stats.
      *
-     * Каноническое поле:
+     * Канонический источник:
+     *
      * trace.statistics.
      */
 
@@ -680,9 +755,12 @@ function setOutcomeStatistics(
 
         ...(trace.stats || {}),
 
+
         completed,
 
+
         failed,
+
 
         attempts:
 
@@ -690,11 +768,13 @@ function setOutcomeStatistics(
                 trace.statistics.attempts
             ),
 
+
         retries:
 
             safeNumber(
                 trace.statistics.retries
             ),
+
 
         replans:
 
@@ -715,11 +795,8 @@ function setOutcomeStatistics(
 
 
 export function updateTraceFromResult(
-
     trace,
-
     result
-
 ) {
 
     if(
@@ -731,6 +808,13 @@ export function updateTraceFromResult(
         return trace;
 
     }
+
+
+    /*
+     * =====================================================
+     * RESULT
+     * =====================================================
+     */
 
 
     trace.result = {
@@ -758,6 +842,13 @@ export function updateTraceFromResult(
         null;
 
 
+    /*
+     * =====================================================
+     * EVENT
+     * =====================================================
+     */
+
+
     addTraceEvent(
 
         trace,
@@ -767,17 +858,29 @@ export function updateTraceFromResult(
         {
 
             status:
+
                 result.status,
 
+
             success:
+
                 result.success,
 
+
             verified:
+
                 result.verified
 
         }
 
     );
+
+
+    /*
+     * =====================================================
+     * FAILURE
+     * =====================================================
+     */
 
 
     collectFailure(
@@ -786,16 +889,50 @@ export function updateTraceFromResult(
     );
 
 
+    /*
+     * =====================================================
+     * EXPERIENCE
+     * =====================================================
+     */
+
+
     collectExperience(
         trace,
         result
     );
 
 
+    /*
+     * =====================================================
+     * META
+     * =====================================================
+     */
+
+
     collectMeta(
         trace,
         result
     );
+
+
+    /*
+     * =====================================================
+     * ACTUAL EXECUTED TOOLS
+     * =====================================================
+     */
+
+
+    collectTraceExecutedTools(
+        trace,
+        result
+    );
+
+
+    /*
+     * =====================================================
+     * OUTCOME
+     * =====================================================
+     */
 
 
     setOutcomeStatistics(
@@ -822,11 +959,8 @@ export function updateTraceFromResult(
 
 
 export function updateTraceFromSummary(
-
     trace,
-
     summary
-
 ) {
 
     if(
@@ -838,6 +972,13 @@ export function updateTraceFromSummary(
         return trace;
 
     }
+
+
+    /*
+     * =====================================================
+     * SUMMARY RESULT
+     * =====================================================
+     */
 
 
     trace.result = {
@@ -872,6 +1013,13 @@ export function updateTraceFromSummary(
         );
 
 
+    /*
+     * =====================================================
+     * EVENT
+     * =====================================================
+     */
+
+
     addTraceEvent(
 
         trace,
@@ -888,9 +1036,11 @@ export function updateTraceFromSummary(
 
                 null,
 
+
             success:
 
                 summary.success === true,
+
 
             resultsCount:
 
@@ -902,7 +1052,9 @@ export function updateTraceFromSummary(
 
 
     /*
-     * Summary-level metadata.
+     * =====================================================
+     * SUMMARY META
+     * =====================================================
      */
 
 
@@ -925,7 +1077,21 @@ export function updateTraceFromSummary(
 
 
     /*
-     * Child results.
+     * Summary иногда уже содержит
+     * вложенные Tool Results.
+     */
+
+
+    collectTraceExecutedTools(
+        trace,
+        summary
+    );
+
+
+    /*
+     * =====================================================
+     * CHILD RESULTS
+     * =====================================================
      */
 
 
@@ -960,15 +1126,28 @@ export function updateTraceFromSummary(
             result
         );
 
+
+        collectTraceExecutedTools(
+            trace,
+            result
+        );
+
     }
 
 
     /*
+     * =====================================================
+     * OUTCOME
+     * =====================================================
+     *
      * Если есть Child Results,
-     * они являются источником
+     * именно они являются источником
      * completed / failed.
      *
-     * Если их нет — используем Summary.
+     * Если их нет —
+     * используем Summary.
+     *
+     * =====================================================
      */
 
 
