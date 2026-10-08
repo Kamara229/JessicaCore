@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA TRACE FACTORY v1
+ * JESSICA TRACE FACTORY v2
  * =========================================================
  *
  * Создание Execution Trace.
@@ -29,7 +29,6 @@ import {
 } from "node:crypto";
 
 
-
 /*
  * =========================================================
  * CREATE TRACE
@@ -38,13 +37,16 @@ import {
 
 
 export function createExecutionTrace(
-
     task
-
-){
-
+) {
 
     return {
+
+        /*
+         * =================================================
+         * IDENTITY
+         * =================================================
+         */
 
 
         id:
@@ -52,23 +54,18 @@ export function createExecutionTrace(
             randomUUID(),
 
 
-
         task:
 
             String(
-
                 task || ""
-
             )
             .trim(),
-
 
 
         startedAt:
 
             new Date()
-            .toISOString(),
-
+                .toISOString(),
 
 
         finishedAt:
@@ -76,11 +73,9 @@ export function createExecutionTrace(
             null,
 
 
-
         status:
 
             "RUNNING",
-
 
 
         /*
@@ -90,20 +85,55 @@ export function createExecutionTrace(
          */
 
 
-        events:[],
+        events:
+
+            [],
 
 
-        attempts:[],
+        attempts:
+
+            [],
 
 
-        steps:[],
+        steps:
+
+            [],
 
 
-        failures:[],
+        /*
+         * =================================================
+         * ACTUAL TOOL EVIDENCE
+         * =================================================
+         *
+         * Здесь хранятся только инструменты,
+         * которые действительно были выполнены.
+         *
+         * Это НЕ список tools из Planner Plan.
+         *
+         * Пример:
+         *
+         * [
+         *   "web_search",
+         *   "web_fetch"
+         * ]
+         *
+         * =================================================
+         */
 
 
-        replans:[],
+        executedTools:
 
+            [],
+
+
+        failures:
+
+            [],
+
+
+        replans:
+
+            [],
 
 
         /*
@@ -113,14 +143,19 @@ export function createExecutionTrace(
          */
 
 
-        result:null,
+        result:
+
+            null,
 
 
-        validation:null,
+        validation:
+
+            null,
 
 
-        terminal:null,
+        terminal:
 
+            null,
 
 
         /*
@@ -130,49 +165,76 @@ export function createExecutionTrace(
          */
 
 
-        contextSnapshot:
+        contextSnapshot: {
 
-        {
+            executionId:
 
-            executionId:null,
-
-
-            initialPlan:null,
+                null,
 
 
-            currentPlan:null
+            initialPlan:
+
+                null,
+
+
+            currentPlan:
+
+                null
 
         },
-
 
 
         /*
          * =================================================
          * EXPERIENCE
          * =================================================
+         *
+         * found:
+         * Experience был найден.
+         *
+         * used:
+         * текущее compatibility-поле.
+         *
+         * Позже отдельно введём applied,
+         * который будет означать фактическое
+         * выполнение требований Experience.
+         *
+         * =================================================
          */
 
 
-        experienceUsage:
+        experienceUsage: {
 
-        {
+            used:
 
-            used:false,
-
-
-            source:null,
+                false,
 
 
-            confidence:0,
+            found:
+
+                false,
 
 
-            skills:[],
+            source:
+
+                null,
 
 
-            skillIds:[]
+            confidence:
+
+                0,
+
+
+            skills:
+
+                [],
+
+
+            skillIds:
+
+                []
 
         },
-
 
 
         /*
@@ -182,20 +244,33 @@ export function createExecutionTrace(
          */
 
 
-        statistics:
+        statistics: {
 
-        {
+            attempts:
 
-            attempts:0,
-
-
-            retries:0,
+                0,
 
 
-            replans:0
+            retries:
+
+                0,
+
+
+            replans:
+
+                0,
+
+
+            completed:
+
+                0,
+
+
+            failed:
+
+                0
 
         },
-
 
 
         /*
@@ -205,10 +280,10 @@ export function createExecutionTrace(
          */
 
 
-        learningReady:false
+        learningReady:
 
+            false
 
     };
-
 
 }
