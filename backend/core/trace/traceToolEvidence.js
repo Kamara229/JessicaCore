@@ -1,34 +1,47 @@
 /*
  * =========================================================
- * JESSICA TRACE TOOL EVIDENCE v1
+ * JESSICA TRACE TOOL EVIDENCE v2
  * =========================================================
  *
- * Извлекает из Execution Result только
- * ФАКТИЧЕСКИ выполненные инструменты.
+ * Определяет инструменты, которые
+ * ФАКТИЧЕСКИ были выполнены Execution Layer.
  *
  *
- * Важно:
+ * Источники доказательства:
  *
- * Plan Step:
+ * 1. executionMeta.usedTools
  *
- * {
- *   id,
- *   tool,
- *   arguments
- * }
+ *    Канонический источник текущего
+ *    Execution Result.
  *
- * НЕ считается доказательством выполнения.
+ *    Это список, сформированный Execution,
+ *    а не Planner.
  *
  *
- * Tool Result:
+ * 2. Реальные вложенные Tool Result
  *
- * {
- *   tool,
- *   success,
- *   data / result / output / error
- * }
+ *    {
+ *      tool,
+ *      success,
+ *      data / result / output / error
+ *    }
  *
- * считается фактическим Execution Evidence.
+ *    Используются как дополнительный
+ *    compatibility / evidence source.
+ *
+ *
+ * НЕ используем:
+ *
+ * - plan.steps;
+ * - currentPlan.steps;
+ * - initialPlan.steps;
+ * - reasoning;
+ * - AI declarations;
+ * - experienceUsed внутри Plan.
+ *
+ *
+ * Поэтому Planner не может самостоятельно
+ * объявить инструмент выполненным.
  *
  * =========================================================
  */
@@ -70,9 +83,220 @@ function normalizeText(
 }
 
 
+function normalizeToolArray(
+    value
+) {
+
+    if(
+        !Array.isArray(value)
+    ){
+
+        return [];
+
+    }
+
+
+    const result = [];
+
+
+    for(
+        const item
+        of value
+    ){
+
+        const tool =
+
+            normalizeText(
+                item
+            );
+
+
+        if(
+            !tool
+        ){
+
+            continue;
+
+        }
+
+
+        if(
+            !result.includes(
+                tool
+            )
+        ){
+
+            result.push(
+                tool
+            );
+
+        }
+
+    }
+
+
+    return result;
+
+}
+
+
+function mergeTools(
+    ...collections
+) {
+
+    const result = [];
+
+
+    for(
+        const collection
+        of collections
+    ){
+
+        const tools =
+
+            normalizeToolArray(
+                collection
+            );
+
+
+        for(
+            const tool
+            of tools
+        ){
+
+            if(
+                !result.includes(
+                    tool
+                )
+            ){
+
+                result.push(
+                    tool
+                );
+
+            }
+
+        }
+
+    }
+
+
+    return result;
+
+}
+
+
 /*
  * =========================================================
- * EXECUTION RESULT DETECTION
+ * CANONICAL EXECUTION META
+ * =========================================================
+ *
+ * Текущий Execution Layer уже формирует:
+ *
+ * result.executionMeta.usedTools
+ *
+ * Например:
+ *
+ * {
+ *   executionMeta: {
+ *     usedTools: [
+ *       "web_search"
+ *     ]
+ *   }
+ * }
+ *
+ *
+ * Это основной источник,
+ * потому что список формируется после
+ * реального TaskRunner Execution.
+ *
+ * =========================================================
+ */
+
+
+function extractExecutionMetaTools(
+    executionResult
+) {
+
+    if(
+        !isObject(
+            executionResult
+        )
+    ){
+
+        return [];
+
+    }
+
+
+    const direct =
+
+        normalizeToolArray(
+
+            executionResult
+                ?.executionMeta
+                ?.usedTools
+
+        );
+
+
+    /*
+     * Compatibility:
+     *
+     * некоторые aggregated results
+     * могут сами содержать children.
+     *
+     * Каждый Child Result обрабатывается
+     * также отдельно traceResult.js,
+     * но здесь поддерживаем вложенность
+     * для устойчивости контракта.
+     */
+
+
+    const childResults =
+
+        Array.isArray(
+            executionResult?.results
+        )
+
+            ? executionResult.results
+
+            : [];
+
+
+    const nested = [];
+
+
+    for(
+        const child
+        of childResults
+    ){
+
+        nested.push(
+
+            ...extractExecutionMetaTools(
+                child
+            )
+
+        );
+
+    }
+
+
+    return mergeTools(
+
+        direct,
+
+        nested
+
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * TOOL RESULT DETECTION
  * =========================================================
  */
 
@@ -82,7 +306,9 @@ function isExecutedToolResult(
 ) {
 
     if(
-        !isObject(value)
+        !isObject(
+            value
+        )
     ){
 
         return false;
@@ -107,8 +333,16 @@ function isExecutedToolResult(
 
 
     /*
-     * Самый сильный признак:
-     * ToolRunner вернул explicit success.
+     * Plan Step обычно выглядит так:
+     *
+     * {
+     *   id,
+     *   tool,
+     *   arguments
+     * }
+     *
+     * Само наличие tool + arguments
+     * НЕ является доказательством выполнения.
      */
 
 
@@ -122,12 +356,9 @@ function isExecutedToolResult(
 
 
     /*
-     * Compatibility для Tool Result,
-     * если success отсутствует.
-     *
-     * Само наличие arguments НЕ является
-     * доказательством выполнения:
-     * это может быть просто Plan Step.
+     * Реальный Tool Result может
+     * не иметь explicit success,
+     * но иметь execution output.
      */
 
 
@@ -136,9 +367,9 @@ function isExecutedToolResult(
         ||
         value.output !== undefined
         ||
-        value.error !== undefined
-        ||
         value.result !== undefined
+        ||
+        value.error !== undefined
     ){
 
         return true;
@@ -153,15 +384,19 @@ function isExecutedToolResult(
 
 /*
  * =========================================================
- * RECURSIVE COLLECTOR
+ * RECURSIVE OBJECT COLLECTION
  * =========================================================
  */
 
 
 function collectObjects(
+
     value,
+
     output,
+
     visited
+
 ) {
 
     if(
@@ -178,7 +413,9 @@ function collectObjects(
 
 
     if(
-        visited.has(value)
+        visited.has(
+            value
+        )
     ){
 
         return;
@@ -186,14 +423,20 @@ function collectObjects(
     }
 
 
-    visited.add(value);
+    visited.add(
+        value
+    );
 
 
     if(
-        !Array.isArray(value)
+        !Array.isArray(
+            value
+        )
     ){
 
-        output.push(value);
+        output.push(
+            value
+        );
 
     }
 
@@ -229,16 +472,17 @@ function collectObjects(
 
 /*
  * =========================================================
- * EXTRACT
+ * NESTED TOOL RESULTS
  * =========================================================
  */
 
 
-export function extractExecutedTools(
+function extractNestedToolResults(
     executionResult
 ) {
 
     const objects = [];
+
 
     collectObjects(
 
@@ -280,10 +524,14 @@ export function extractExecutedTools(
         if(
             tool
             &&
-            !tools.includes(tool)
+            !tools.includes(
+                tool
+            )
         ){
 
-            tools.push(tool);
+            tools.push(
+                tool
+            );
 
         }
 
@@ -291,6 +539,61 @@ export function extractExecutedTools(
 
 
     return tools;
+
+}
+
+
+/*
+ * =========================================================
+ * EXTRACT EXECUTED TOOLS
+ * =========================================================
+ */
+
+
+export function extractExecutedTools(
+    executionResult
+) {
+
+    if(
+        !executionResult
+    ){
+
+        return [];
+
+    }
+
+
+    /*
+     * Канонический источник.
+     */
+
+
+    const metaTools =
+
+        extractExecutionMetaTools(
+            executionResult
+        );
+
+
+    /*
+     * Дополнительное фактическое evidence.
+     */
+
+
+    const resultTools =
+
+        extractNestedToolResults(
+            executionResult
+        );
+
+
+    return mergeTools(
+
+        metaTools,
+
+        resultTools
+
+    );
 
 }
 
@@ -337,24 +640,15 @@ export function collectTraceExecutedTools(
         );
 
 
-    for(
-        const tool
-        of tools
-    ){
+    trace.executedTools =
 
-        if(
-            !trace.executedTools.includes(
-                tool
-            )
-        ){
+        mergeTools(
 
-            trace.executedTools.push(
-                tool
-            );
+            trace.executedTools,
 
-        }
+            tools
 
-    }
+        );
 
 
     return trace;
