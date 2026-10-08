@@ -1,33 +1,19 @@
 /*
  * =========================================================
- * JESSICA TRACE LEARNING v2
+ * JESSICA TRACE LEARNING v3
  * =========================================================
  *
  * Подготовка Execution Trace
  * для Learning слоя.
  *
  *
- * Ответственность:
+ * Канонически сохраняет:
  *
- * - сформировать Learning Payload;
- * - сохранить canonical Experience Usage;
- * - сохранить compatibility contract.
+ * - Experience Usage;
+ * - реальные выполненные Tools;
+ * - Execution Evidence;
+ * - Statistics.
  *
- *
- * НЕ:
- *
- * - анализирует Learning;
- * - создаёт Skill;
- * - сохраняет Experience;
- * - изменяет Trace.
- *
- * =========================================================
- */
-
-
-/*
- * =========================================================
- * SAFE OBJECT
  * =========================================================
  */
 
@@ -49,6 +35,21 @@ function safeObject(
         ? value
 
         : {};
+
+}
+
+
+function safeArray(
+    value
+) {
+
+    return Array.isArray(value)
+
+        ? [
+            ...value
+        ]
+
+        : [];
 
 }
 
@@ -82,12 +83,17 @@ export function buildLearningPayload(
     };
 
 
+    const executedTools =
+
+        safeArray(
+            trace.executedTools
+        );
+
+
     return {
 
         /*
-         * =================================================
          * IDENTITY
-         * =================================================
          */
 
 
@@ -95,21 +101,12 @@ export function buildLearningPayload(
             trace.id,
 
 
-        /*
-         * Канонический traceId нужен
-         * Candidate Memory для дедупликации
-         * evidence.
-         */
-
-
         traceId:
             trace.id,
 
 
         /*
-         * =================================================
          * EXECUTION
-         * =================================================
          */
 
 
@@ -126,9 +123,7 @@ export function buildLearningPayload(
 
 
         /*
-         * =================================================
          * EXPERIENCE
-         * =================================================
          */
 
 
@@ -137,12 +132,6 @@ export function buildLearningPayload(
 
         /*
          * Compatibility alias.
-         *
-         * Старые Learning-модули могут
-         * пока читать payload.experience.
-         *
-         * После полной миграции alias
-         * можно будет удалить.
          */
 
 
@@ -151,9 +140,18 @@ export function buildLearningPayload(
 
 
         /*
-         * =================================================
+         * ACTUAL TOOL EVIDENCE
+         *
+         * Это реальные выполненные Tools,
+         * а не инструменты из Planner Plan.
+         */
+
+
+        executedTools,
+
+
+        /*
          * EXECUTION EVIDENCE
-         * =================================================
          */
 
 
