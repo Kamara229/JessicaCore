@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE CANDIDATE BUILDER v2
+ * JESSICA EXPERIENCE CANDIDATE BUILDER v3
  * =========================================================
  *
  * Создаёт Learning Candidate
@@ -23,29 +23,24 @@
  * Возможные Candidate:
  *
  * NEW_SKILL
- *
  * SKILL_IMPROVEMENT
  *
  *
- * Ответственность:
+ * NEW_SKILL:
  *
- * - сформировать полный Candidate;
- * - сохранить Evidence;
- * - сохранить Learning Metrics;
- * - подготовить полноценный
- *   proposed Experience;
- * - при Improvement сохранить
- *   знания существующего Skill.
+ * фактически выполненные Tools
+ * из Execution Trace автоматически
+ * становятся частью requiredTools.
  *
  *
- * НЕ:
+ * Важно:
  *
- * - сохраняет Skill;
- * - вызывает AI;
- * - ищет похожие Candidate;
- * - принимает Learning Decision;
- * - выполняет AUTO_APPROVE;
- * - создаёт новую версию в Supabase.
+ * инструмент считается наблюдаемым
+ * только если он был реально выполнен
+ * и попал в trace.executedTools.
+ *
+ * Planner Plan сам по себе
+ * не является доказательством.
  *
  * =========================================================
  */
@@ -59,9 +54,6 @@ import {
 } from "./experienceConfidence.js";
 
 
-
-
-
 /*
  * =========================================================
  * NORMALIZE
@@ -73,12 +65,15 @@ function isObject(
     value
 ) {
 
-
     return (
 
-        value &&
+        value
 
-        typeof value === "object" &&
+        &&
+
+        typeof value === "object"
+
+        &&
 
         !Array.isArray(value)
 
@@ -87,30 +82,24 @@ function isObject(
 }
 
 
-
-
-
 function normalizeArray(
     value
 ) {
 
-
     return Array.isArray(value)
 
-        ? [...value]
+        ? [
+            ...value
+        ]
 
         : [];
 
 }
 
 
-
-
-
 function normalizeText(
     value
 ) {
-
 
     return String(
         value || ""
@@ -120,17 +109,12 @@ function normalizeText(
 }
 
 
-
-
-
 function normalizeNumber(
     value
 ) {
 
-
     const number =
         Number(value);
-
 
 
     return Number.isFinite(number)
@@ -142,13 +126,9 @@ function normalizeNumber(
 }
 
 
-
-
-
 function normalizeUnit(
     value
 ) {
-
 
     return Math.max(
 
@@ -169,9 +149,6 @@ function normalizeUnit(
 }
 
 
-
-
-
 /*
  * =========================================================
  * NORMALIZE STRING ARRAY
@@ -182,7 +159,6 @@ function normalizeUnit(
 function normalizeStringArray(
     value
 ) {
-
 
     if(
         !Array.isArray(
@@ -195,9 +171,7 @@ function normalizeStringArray(
     }
 
 
-
     const result = [];
-
 
 
     for(
@@ -205,13 +179,11 @@ function normalizeStringArray(
         of value
     ){
 
-
         const normalized =
 
             normalizeText(
                 item
             );
-
 
 
         if(
@@ -221,7 +193,6 @@ function normalizeStringArray(
             continue;
 
         }
-
 
 
         if(
@@ -239,13 +210,9 @@ function normalizeStringArray(
     }
 
 
-
     return result;
 
 }
-
-
-
 
 
 /*
@@ -259,14 +226,16 @@ function mergeStringArrays(
     ...arrays
 ) {
 
-
     return normalizeStringArray(
 
         arrays.flatMap(
 
             value =>
+
                 Array.isArray(value)
+
                     ? value
+
                     : []
 
         )
@@ -276,7 +245,38 @@ function mergeStringArrays(
 }
 
 
+/*
+ * =========================================================
+ * OBSERVED TOOLS
+ * =========================================================
+ *
+ * Только фактически выполненные Tools.
+ *
+ * Источник:
+ *
+ * trace.executedTools
+ *
+ *
+ * НЕ используем:
+ *
+ * - Planner steps;
+ * - reasoning;
+ * - текст validationRules;
+ * - предположения AI.
+ *
+ * =========================================================
+ */
 
+
+function resolveObservedTools(
+    trace
+) {
+
+    return normalizeStringArray(
+        trace?.executedTools
+    );
+
+}
 
 
 /*
@@ -290,7 +290,6 @@ function resolveTraceSuccess(
     trace
 ) {
 
-
     if(
         typeof trace?.result?.success ===
         "boolean"
@@ -299,7 +298,6 @@ function resolveTraceSuccess(
         return trace.result.success;
 
     }
-
 
 
     if(
@@ -312,16 +310,15 @@ function resolveTraceSuccess(
     }
 
 
-
     const completed =
 
         Number(
 
-            trace?.stats?.completed
+            trace?.statistics?.completed
 
             ??
 
-            trace?.statistics?.completed
+            trace?.stats?.completed
 
             ??
 
@@ -330,10 +327,11 @@ function resolveTraceSuccess(
         );
 
 
-
     return (
 
-        Number.isFinite(completed)
+        Number.isFinite(
+            completed
+        )
 
         &&
 
@@ -342,9 +340,6 @@ function resolveTraceSuccess(
     );
 
 }
-
-
-
 
 
 /*
@@ -358,9 +353,7 @@ function buildTraceExample(
     trace
 ) {
 
-
     return {
-
 
         task:
 
@@ -369,11 +362,13 @@ function buildTraceExample(
             ),
 
 
-
         result:
 
-            trace?.result || null,
+            trace?.result
 
+            ||
+
+            null,
 
 
         success:
@@ -383,11 +378,33 @@ function buildTraceExample(
             ),
 
 
-
         traceId:
 
-            trace?.id || null,
+            trace?.id
 
+            ||
+
+            trace?.traceId
+
+            ||
+
+            null,
+
+
+        /*
+         * Фактически использованные Tools
+         * сохраняем также внутри Example.
+         *
+         * Это пригодится для последующего
+         * анализа Evidence и Improvement.
+         */
+
+
+        executedTools:
+
+            resolveObservedTools(
+                trace
+            ),
 
 
         createdAt:
@@ -395,13 +412,9 @@ function buildTraceExample(
             new Date()
                 .toISOString()
 
-
     };
 
 }
-
-
-
 
 
 /*
@@ -414,7 +427,6 @@ function buildTraceExample(
 function buildExamples(
     trace
 ) {
-
 
     if(
         Array.isArray(
@@ -433,7 +445,6 @@ function buildExamples(
     }
 
 
-
     return [
 
         buildTraceExample(
@@ -443,9 +454,6 @@ function buildExamples(
     ];
 
 }
-
-
-
 
 
 /*
@@ -459,16 +467,15 @@ function buildExampleKey(
     example
 ) {
 
-
     if(
-        !example ||
+        !example
+        ||
         typeof example !== "object"
     ){
 
         return "";
 
     }
-
 
 
     if(
@@ -490,7 +497,6 @@ function buildExampleKey(
     }
 
 
-
     const task =
 
         normalizeText(
@@ -498,9 +504,7 @@ function buildExampleKey(
         );
 
 
-
     let result = "";
-
 
 
     try {
@@ -525,7 +529,6 @@ function buildExampleKey(
     }
 
 
-
     return (
 
         task
@@ -543,9 +546,6 @@ function buildExampleKey(
 }
 
 
-
-
-
 /*
  * =========================================================
  * MERGE EXAMPLES
@@ -557,18 +557,15 @@ function mergeExamples(
     ...exampleSets
 ) {
 
-
     const result = [];
 
     const known = new Set();
-
 
 
     for(
         const set
         of exampleSets
     ){
-
 
         if(
             !Array.isArray(
@@ -581,22 +578,20 @@ function mergeExamples(
         }
 
 
-
         for(
             const example
             of set
         ){
 
-
             if(
-                !example ||
+                !example
+                ||
                 typeof example !== "object"
             ){
 
                 continue;
 
             }
-
 
 
             const key =
@@ -606,9 +601,9 @@ function mergeExamples(
                 );
 
 
-
             if(
-                key &&
+                key
+                &&
                 known.has(
                     key
                 )
@@ -617,7 +612,6 @@ function mergeExamples(
                 continue;
 
             }
-
 
 
             if(
@@ -631,7 +625,6 @@ function mergeExamples(
             }
 
 
-
             result.push({
 
                 ...example
@@ -643,13 +636,9 @@ function mergeExamples(
     }
 
 
-
     return result;
 
 }
-
-
-
 
 
 /*
@@ -678,7 +667,6 @@ function resolveSkillData(
     skill
 ) {
 
-
     if(
         !isObject(
             skill
@@ -688,7 +676,6 @@ function resolveSkillData(
         return null;
 
     }
-
 
 
     if(
@@ -702,13 +689,9 @@ function resolveSkillData(
     }
 
 
-
     return skill;
 
 }
-
-
-
 
 
 /*
@@ -730,7 +713,6 @@ function buildLearningMetrics({
 
 }) {
 
-
     const normalizedExamples =
 
         Array.isArray(
@@ -742,13 +724,11 @@ function buildLearningMetrics({
             : [];
 
 
-
     const successCount =
 
         calculateSuccessCount(
             normalizedExamples
         );
-
 
 
     const failureCount =
@@ -758,7 +738,6 @@ function buildLearningMetrics({
         );
 
 
-
     const successRate =
 
         calculateSuccessRate(
@@ -766,15 +745,16 @@ function buildLearningMetrics({
         );
 
 
-
     const normalizedOccurrences =
 
         Math.max(
 
             Math.floor(
+
                 normalizeNumber(
                     occurrences
                 )
+
             ),
 
             normalizedExamples.length,
@@ -784,26 +764,20 @@ function buildLearningMetrics({
         );
 
 
-
     return {
-
 
         occurrences:
 
             normalizedOccurrences,
 
 
-
         successCount,
-
 
 
         failureCount,
 
 
-
         successRate,
-
 
 
         maturity:
@@ -813,13 +787,11 @@ function buildLearningMetrics({
             ),
 
 
-
         maturityLevel:
 
             resolveExperienceMaturityLevel(
                 normalizedOccurrences
             ),
-
 
 
         confidence:
@@ -831,9 +803,6 @@ function buildLearningMetrics({
     };
 
 }
-
-
-
 
 
 /*
@@ -857,7 +826,6 @@ export function buildNewSkillCandidate({
 
 }) {
 
-
     if(
         !isObject(
             pattern
@@ -867,7 +835,6 @@ export function buildNewSkillCandidate({
         return null;
 
     }
-
 
 
     const skillId =
@@ -883,7 +850,6 @@ export function buildNewSkillCandidate({
         );
 
 
-
     const name =
 
         normalizeText(
@@ -891,9 +857,9 @@ export function buildNewSkillCandidate({
         );
 
 
-
     if(
-        !skillId ||
+        !skillId
+        ||
         !name
     ){
 
@@ -902,13 +868,11 @@ export function buildNewSkillCandidate({
     }
 
 
-
     const examples =
 
         buildExamples(
             trace
         );
-
 
 
     const metrics =
@@ -926,9 +890,37 @@ export function buildNewSkillCandidate({
         });
 
 
+    /*
+     * =====================================================
+     * OBSERVED EXECUTION TOOLS
+     * =====================================================
+     *
+     * Для NEW_SKILL Jessica имеет право
+     * учиться на реально успешном маршруте.
+     *
+     * Поэтому requiredTools состоят из:
+     *
+     * - semantic pattern.requiredTools;
+     * - фактически выполненных Tools.
+     *
+     * =====================================================
+     */
+
+
+    const requiredTools =
+
+        mergeStringArrays(
+
+            pattern.requiredTools,
+
+            resolveObservedTools(
+                trace
+            )
+
+        );
+
 
     return {
-
 
         /*
          * =================================================
@@ -940,9 +932,7 @@ export function buildNewSkillCandidate({
         skillId,
 
 
-
         name,
-
 
 
         category:
@@ -956,13 +946,11 @@ export function buildNewSkillCandidate({
             "general",
 
 
-
         description:
 
             normalizeText(
                 pattern.description
             ),
-
 
 
         /*
@@ -979,13 +967,11 @@ export function buildNewSkillCandidate({
             ),
 
 
-
         validationRules:
 
             normalizeStringArray(
                 pattern.validationRules
             ),
-
 
 
         triggerPatterns:
@@ -1001,13 +987,11 @@ export function buildNewSkillCandidate({
             ),
 
 
-
         keywords:
 
             normalizeStringArray(
                 pattern.keywords
             ),
-
 
 
         tags:
@@ -1017,13 +1001,11 @@ export function buildNewSkillCandidate({
             ),
 
 
-
         constraints:
 
             normalizeStringArray(
                 pattern.constraints
             ),
-
 
 
         strategy:
@@ -1033,13 +1015,11 @@ export function buildNewSkillCandidate({
             ),
 
 
-
         sourcePriority:
 
             normalizeStringArray(
                 pattern.sourcePriority
             ),
-
 
 
         successfulPatterns:
@@ -1049,13 +1029,11 @@ export function buildNewSkillCandidate({
             ),
 
 
-
         failurePatterns:
 
             normalizeStringArray(
                 pattern.failurePatterns
             ),
-
 
 
         avoidPatterns:
@@ -1065,13 +1043,18 @@ export function buildNewSkillCandidate({
             ),
 
 
+        /*
+         * КРИТИЧНО:
+         *
+         * это больше не только поле,
+         * которое должен угадать Pattern.
+         *
+         * Здесь есть фактический
+         * successful Execution Evidence.
+         */
 
-        requiredTools:
 
-            normalizeStringArray(
-                pattern.requiredTools
-            ),
-
+        requiredTools,
 
 
         /*
@@ -1084,7 +1067,6 @@ export function buildNewSkillCandidate({
         examples,
 
 
-
         /*
          * =================================================
          * LEARNING METRICS
@@ -1093,7 +1075,6 @@ export function buildNewSkillCandidate({
 
 
         ...metrics,
-
 
 
         /*
@@ -1108,18 +1089,13 @@ export function buildNewSkillCandidate({
             "NEW_SKILL",
 
 
-
         source:
 
             "execution-trace"
 
-
     };
 
 }
-
-
-
 
 
 /*
@@ -1132,22 +1108,25 @@ export function buildNewSkillCandidate({
  * а не только новый Example.
  *
  *
- * Важно:
+ * ВАЖНО:
  *
- * skillId намеренно НЕ записывается
- * в корень Candidate.
+ * На этом этапе фактически выполненные
+ * Tools НЕ добавляются автоматически
+ * в requiredTools существующего Skill.
  *
- * Текущий Learning Proposal Resolver
- * использует наличие candidate.skillId
- * как признак NEW_SKILL.
+ * Причина:
  *
- * Existing Skill передаётся отдельно:
+ * пока ещё нет строгого applied=true.
  *
- * candidate.skills
- *        ↓
- * Learning Router
- *        ↓
- * event.payload.skills
+ * Поэтому плохой или случайный Execution
+ * не должен расширять контракт Skill.
+ *
+ *
+ * Позже:
+ *
+ * applied=true
+ *      ↓
+ * Improvement Knowledge Merge
  *
  * =========================================================
  */
@@ -1167,7 +1146,6 @@ export function buildSkillImprovementCandidate({
 
 }) {
 
-
     const skillList =
 
         Array.isArray(
@@ -1181,7 +1159,6 @@ export function buildSkillImprovementCandidate({
             : [];
 
 
-
     if(
         skillList.length === 0
     ){
@@ -1191,11 +1168,9 @@ export function buildSkillImprovementCandidate({
     }
 
 
-
     const rawExistingSkill =
 
         skillList[0];
-
 
 
     const existingSkill =
@@ -1203,7 +1178,6 @@ export function buildSkillImprovementCandidate({
         resolveSkillData(
             rawExistingSkill
         );
-
 
 
     if(
@@ -1215,13 +1189,11 @@ export function buildSkillImprovementCandidate({
     }
 
 
-
     const newExamples =
 
         buildExamples(
             trace
         );
-
 
 
     const examples =
@@ -1237,7 +1209,6 @@ export function buildSkillImprovementCandidate({
         );
 
 
-
     const metrics =
 
         buildLearningMetrics({
@@ -1251,7 +1222,6 @@ export function buildSkillImprovementCandidate({
             confidence
 
         });
-
 
 
     const targetSkillId =
@@ -1279,35 +1249,12 @@ export function buildSkillImprovementCandidate({
         null;
 
 
-
-    /*
-     * Сейчас Improvement является
-     * evidence reinforcement:
-     *
-     * существующее Knowledge сохраняется,
-     * а новый Execution добавляет Evidence.
-     *
-     *
-     * Позже AI Improvement Analyzer
-     * сможет дополнительно менять:
-     *
-     * workflow
-     * constraints
-     * validationRules
-     * failurePatterns
-     * strategy
-     *
-     * Но даже до появления AI merge
-     * Candidate уже является полноценным
-     * Experience и проходит Reviewer.
-     */
-
-
     return {
 
-
         /*
-         * Existing Skill transport
+         * =================================================
+         * EXISTING SKILL TRANSPORT
+         * =================================================
          */
 
 
@@ -1316,9 +1263,7 @@ export function buildSkillImprovementCandidate({
             skillList,
 
 
-
         targetSkillId,
-
 
 
         baseVersion:
@@ -1330,7 +1275,6 @@ export function buildSkillImprovementCandidate({
             ||
 
             null,
-
 
 
         /*
@@ -1351,15 +1295,10 @@ export function buildSkillImprovementCandidate({
             (
                 targetSkillId
 
-                    ?
+                    ? `Jessica Skill ${targetSkillId}`
 
-                    `Jessica Skill ${targetSkillId}`
-
-                    :
-
-                    "Jessica Experience Skill"
+                    : "Jessica Experience Skill"
             ),
-
 
 
         category:
@@ -1373,7 +1312,6 @@ export function buildSkillImprovementCandidate({
             "general",
 
 
-
         description:
 
             normalizeText(
@@ -1381,10 +1319,18 @@ export function buildSkillImprovementCandidate({
             ),
 
 
-
         /*
          * =================================================
          * KNOWLEDGE
+         * =================================================
+         *
+         * Improvement сейчас остаётся
+         * Evidence Reinforcement.
+         *
+         * Knowledge существующего Skill
+         * не расширяется наблюдаемыми Tools,
+         * пока нет applied contract.
+         *
          * =================================================
          */
 
@@ -1396,13 +1342,11 @@ export function buildSkillImprovementCandidate({
             ),
 
 
-
         validationRules:
 
             normalizeStringArray(
                 existingSkill.validationRules
             ),
-
 
 
         triggerPatterns:
@@ -1416,13 +1360,11 @@ export function buildSkillImprovementCandidate({
             ),
 
 
-
         keywords:
 
             normalizeStringArray(
                 existingSkill.keywords
             ),
-
 
 
         tags:
@@ -1432,13 +1374,11 @@ export function buildSkillImprovementCandidate({
             ),
 
 
-
         constraints:
 
             normalizeStringArray(
                 existingSkill.constraints
             ),
-
 
 
         strategy:
@@ -1448,13 +1388,11 @@ export function buildSkillImprovementCandidate({
             ),
 
 
-
         sourcePriority:
 
             normalizeStringArray(
                 existingSkill.sourcePriority
             ),
-
 
 
         successfulPatterns:
@@ -1464,13 +1402,11 @@ export function buildSkillImprovementCandidate({
             ),
 
 
-
         failurePatterns:
 
             normalizeStringArray(
                 existingSkill.failurePatterns
             ),
-
 
 
         avoidPatterns:
@@ -1480,13 +1416,11 @@ export function buildSkillImprovementCandidate({
             ),
 
 
-
         requiredTools:
 
             normalizeStringArray(
                 existingSkill.requiredTools
             ),
-
 
 
         /*
@@ -1499,7 +1433,6 @@ export function buildSkillImprovementCandidate({
         examples,
 
 
-
         /*
          * =================================================
          * LEARNING METRICS
@@ -1508,7 +1441,6 @@ export function buildSkillImprovementCandidate({
 
 
         ...metrics,
-
 
 
         /*
@@ -1523,17 +1455,14 @@ export function buildSkillImprovementCandidate({
             "SKILL_IMPROVEMENT",
 
 
-
         improvementType:
 
             "EVIDENCE_REINFORCEMENT",
 
 
-
         source:
 
             "execution-trace"
-
 
     };
 
