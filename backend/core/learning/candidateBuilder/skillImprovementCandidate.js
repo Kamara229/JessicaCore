@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA SKILL IMPROVEMENT CANDIDATE BUILDER
+ * JESSICA SKILL IMPROVEMENT CANDIDATE BUILDER v2
  * =========================================================
  *
  * Existing Experience
@@ -10,18 +10,14 @@
  * SKILL_IMPROVEMENT Candidate
  *
  *
- * Сейчас Improvement:
+ * Improvement:
  *
- * - сохраняет Knowledge;
- * - добавляет Evidence;
- * - обновляет Learning Metrics;
+ * - сохраняет существующий Knowledge;
+ * - добавляет новый Example;
+ * - пересчитывает Learning Metrics;
  * - может восстановить requiredTools
- *   у legacy Skill с пустым контрактом.
- *
- *
- * Семантическое изменение workflow,
- * validationRules и constraints
- * здесь НЕ выполняется.
+ *   старого Skill по нескольким
+ *   независимым Execution.
  *
  * =========================================================
  */
@@ -168,7 +164,7 @@ export function buildSkillImprovementCandidate({
 
     /*
      * =====================================================
-     * TARGET
+     * TARGET SKILL
      * =====================================================
      */
 
@@ -202,6 +198,21 @@ export function buildSkillImprovementCandidate({
      * =====================================================
      * TOOL KNOWLEDGE
      * =====================================================
+     *
+     * Здесь используются ВСЕ накопленные
+     * examples существующего Skill
+     * плюс текущий Execution.
+     *
+     *
+     * Благодаря legacy fallback:
+     *
+     * result.executionMeta.usedTools
+     *
+     * можно использовать и старые Examples,
+     * созданные до появления
+     * example.executedTools.
+     *
+     * =====================================================
      */
 
 
@@ -211,7 +222,7 @@ export function buildSkillImprovementCandidate({
 
             existingSkill,
 
-            trace
+            examples
 
         });
 
@@ -226,7 +237,7 @@ export function buildSkillImprovementCandidate({
     return {
 
         /*
-         * Existing Skill transport.
+         * EXISTING SKILL TRANSPORT
          */
 
 
@@ -250,9 +261,7 @@ export function buildSkillImprovementCandidate({
 
 
         /*
-         * =================================================
          * IDENTITY
-         * =================================================
          */
 
 
@@ -292,9 +301,7 @@ export function buildSkillImprovementCandidate({
 
 
         /*
-         * =================================================
          * KNOWLEDGE
-         * =================================================
          */
 
 
@@ -358,6 +365,11 @@ export function buildSkillImprovementCandidate({
             ),
 
 
+        requiredTools:
+
+            toolKnowledge.requiredTools,
+
+
         successfulPatterns:
 
             normalizeStringArray(
@@ -379,15 +391,8 @@ export function buildSkillImprovementCandidate({
             ),
 
 
-        requiredTools:
-
-            toolKnowledge.requiredTools,
-
-
         /*
-         * =================================================
          * EVIDENCE
-         * =================================================
          */
 
 
@@ -395,9 +400,7 @@ export function buildSkillImprovementCandidate({
 
 
         /*
-         * =================================================
-         * METRICS
-         * =================================================
+         * LEARNING METRICS
          */
 
 
@@ -405,9 +408,7 @@ export function buildSkillImprovementCandidate({
 
 
         /*
-         * =================================================
          * IMPROVEMENT META
-         * =================================================
          */
 
 
