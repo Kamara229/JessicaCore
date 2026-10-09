@@ -1,13 +1,18 @@
 /*
  * =========================================================
- * JESSICA NEW SKILL CANDIDATE BUILDER
+ * JESSICA NEW SKILL CANDIDATE BUILDER v2
  * =========================================================
  *
  * Pattern
  *   +
- * Successful Execution Trace
+ * Successful Execution Evidence
  *        ↓
  * NEW_SKILL Candidate
+ *
+ *
+ * requiredTools формируются не из
+ * одного Execution, а из накопленного
+ * подтверждённого Tool Evidence.
  *
  * =========================================================
  */
@@ -99,11 +104,25 @@ export function buildNewSkillCandidate({
     }
 
 
+    /*
+     * =====================================================
+     * EVIDENCE
+     * =====================================================
+     */
+
+
     const examples =
 
         buildCandidateExamples(
             trace
         );
+
+
+    /*
+     * =====================================================
+     * METRICS
+     * =====================================================
+     */
 
 
     const metrics =
@@ -121,23 +140,42 @@ export function buildNewSkillCandidate({
         });
 
 
-    const requiredTools =
+    /*
+     * =====================================================
+     * TOOL KNOWLEDGE
+     * =====================================================
+     *
+     * Один Execution ещё не превращает
+     * Tool в requiredTools.
+     *
+     * Candidate Memory позже объединит
+     * независимые Examples и повторно
+     * рассчитает requiredTools.
+     *
+     * =====================================================
+     */
+
+
+    const toolKnowledge =
 
         resolveNewSkillRequiredTools({
 
-            pattern,
-
-            trace
+            examples
 
         });
+
+
+    /*
+     * =====================================================
+     * RESULT
+     * =====================================================
+     */
 
 
     return {
 
         /*
-         * =================================================
          * IDENTITY
-         * =================================================
          */
 
 
@@ -166,9 +204,7 @@ export function buildNewSkillCandidate({
 
 
         /*
-         * =================================================
          * KNOWLEDGE
-         * =================================================
          */
 
 
@@ -234,6 +270,11 @@ export function buildNewSkillCandidate({
             ),
 
 
+        requiredTools:
+
+            toolKnowledge.requiredTools,
+
+
         successfulPatterns:
 
             normalizeStringArray(
@@ -255,13 +296,8 @@ export function buildNewSkillCandidate({
             ),
 
 
-        requiredTools,
-
-
         /*
-         * =================================================
          * EVIDENCE
-         * =================================================
          */
 
 
@@ -269,9 +305,7 @@ export function buildNewSkillCandidate({
 
 
         /*
-         * =================================================
          * LEARNING METRICS
-         * =================================================
          */
 
 
@@ -279,9 +313,7 @@ export function buildNewSkillCandidate({
 
 
         /*
-         * =================================================
          * META
-         * =================================================
          */
 
 
