@@ -1,63 +1,81 @@
 /*
  * =========================================================
- * JESSICA CANDIDATE TOOL KNOWLEDGE
+ * JESSICA CANDIDATE TOOL KNOWLEDGE v2
  * =========================================================
  *
- * Управляет машинным знанием
- * Experience о необходимых Tools.
+ * Определяет обязательные Tools Experience
+ * на основании независимых успешных Execution.
  *
  *
- * NEW_SKILL:
+ * Главный принцип:
  *
- * pattern.requiredTools
- *        +
- * trace.executedTools
+ * executedTools
+ * = инструменты конкретного выполнения.
+ *
+ * requiredTools
+ * = инструменты, устойчиво необходимые
+ *   в нескольких подтверждённых выполнениях.
  *
  *
- * SKILL_IMPROVEMENT:
+ * requiredTools НЕ строится:
  *
- * существующий requiredTools сохраняется.
+ * - из Planner steps;
+ * - из текста validationRules;
+ * - из одного случайного Execution;
+ * - простым union всех использованных Tools.
  *
- * Если старый Skill имеет requiredTools=[],
- * возможен controlled bootstrap из
- * подтверждённого успешного Execution.
+ *
+ * Алгоритм:
+ *
+ * verified successful examples
+ *        ↓
+ * actual used tools
+ *        ↓
+ * минимум 2 независимых execution
+ *        ↓
+ * intersection
+ *        ↓
+ * requiredTools
  *
  * =========================================================
  */
 
 
 import {
-    isObject,
     normalizeStringArray,
-    normalizeText,
-    mergeStringArrays,
-    resolveObservedTools,
-    resolveTraceSuccess
+    mergeStringArrays
 } from "./candidateUtils.js";
 
 
 /*
  * =========================================================
- * NEW SKILL TOOLS
+ * CONFIG
  * =========================================================
  */
 
 
-export function resolveNewSkillRequiredTools({
+const MIN_REQUIRED_TOOL_EVIDENCE =
+    2;
 
-    pattern,
 
-    trace
+/*
+ * =========================================================
+ * OBJECT
+ * =========================================================
+ */
 
-}) {
 
-    return mergeStringArrays(
+function isObject(
+    value
+) {
 
-        pattern?.requiredTools,
+    return Boolean(
 
-        resolveObservedTools(
-            trace
-        )
+        value
+        &&
+        typeof value === "object"
+        &&
+        !Array.isArray(value)
 
     );
 
@@ -66,19 +84,167 @@ export function resolveNewSkillRequiredTools({
 
 /*
  * =========================================================
- * VERIFIED EXECUTION
+ * EXAMPLE IDENTITY
+ * =========================================================
+ *
+ * Нужна для защиты от повторной обработки
+ * одного и того же Execution.
+ *
  * =========================================================
  */
 
 
-function isVerifiedLearningExecution(
-    trace
+function buildEvidenceIdentity(
+    example
 ) {
 
     if(
-        !resolveTraceSuccess(
-            trace
+        !isObject(example)
+    ){
+
+        return "";
+
+    }
+
+
+    if(
+        example.traceId
+    ){
+
+        return (
+            "trace:"
+            +
+            String(
+                example.traceId
+            )
+        );
+
+    }
+
+
+    const result =
+
+        isObject(
+            example.result
         )
+
+            ? example.result
+
+            : {};
+
+
+    if(
+        result?.executionMeta?.traceId
+    ){
+
+        return (
+            "execution-trace:"
+            +
+            String(
+                result.executionMeta.traceId
+            )
+        );
+
+    }
+
+
+    if(
+        result?.executionMeta?.executionId
+    ){
+
+        return (
+            "execution:"
+            +
+            String(
+                result.executionMeta.executionId
+            )
+        );
+
+    }
+
+
+    const task =
+
+        String(
+            example.task || ""
+        )
+        .trim();
+
+
+    const createdAt =
+
+        String(
+            example.createdAt || ""
+        )
+        .trim();
+
+
+    if(
+        task
+        &&
+        createdAt
+    ){
+
+        return (
+            "fallback:"
+            +
+            task
+            +
+            "::"
+            +
+            createdAt
+        );
+
+    }
+
+
+    return "";
+
+}
+
+
+/*
+ * =========================================================
+ * VERIFIED SUCCESS
+ * =========================================================
+ */
+
+
+function isVerifiedSuccessfulExample(
+    example
+) {
+
+    if(
+        !isObject(example)
+    ){
+
+        return false;
+
+    }
+
+
+    if(
+        example.success !== true
+    ){
+
+        return false;
+
+    }
+
+
+    const result =
+
+        isObject(
+            example.result
+        )
+
+            ? example.result
+
+            : null;
+
+
+    if(
+        !result
     ){
 
         return false;
@@ -87,13 +253,12 @@ function isVerifiedLearningExecution(
 
 
     /*
-     * Execution Result должен быть
-     * реально верифицирован.
+     * Execution Layer должен подтвердить Result.
      */
 
 
     if(
-        trace?.result?.verified !== true
+        result.verified !== true
     ){
 
         return false;
@@ -103,15 +268,13 @@ function isVerifiedLearningExecution(
 
     const validation =
 
-        trace?.validation
+        isObject(
+            result.validation
+        )
 
-        ||
+            ? result.validation
 
-        trace?.result?.validation
-
-        ||
-
-        null;
+            : null;
 
 
     if(
@@ -126,22 +289,16 @@ function isVerifiedLearningExecution(
 
 
     /*
-     * no_verified_result не является
-     * основанием для машинного bootstrap.
+     * Корректный NO_VERIFIED_RESULT
+     * не является доказательством
+     * обязательного Tool contract.
      */
 
 
-    const outcomeType =
-
-        normalizeText(
-            validation.outcomeType
-        );
-
-
     if(
-        outcomeType
+        validation.outcomeType
         &&
-        outcomeType !== "result"
+        validation.outcomeType !== "result"
     ){
 
         return false;
@@ -156,41 +313,47 @@ function isVerifiedLearningExecution(
 
 /*
  * =========================================================
- * EXPERIENCE SELECTED
+ * EXAMPLE TOOLS
+ * =========================================================
+ *
+ * Новый формат:
+ *
+ * example.executedTools
+ *
+ *
+ * Legacy fallback:
+ *
+ * example.result.executionMeta.usedTools
+ *
+ *
+ * Это позволяет использовать старую
+ * накопленную историю Experience.
+ *
  * =========================================================
  */
 
 
-function wasExperienceSelected(
-    trace
+export function resolveExampleExecutedTools(
+    example
 ) {
 
-    const usage =
+    if(
+        !isObject(example)
+    ){
 
-        isObject(
-            trace?.experienceUsage
-        )
+        return [];
 
-            ? trace.experienceUsage
-
-            : (
-                isObject(
-                    trace?.experience
-                )
-
-                    ? trace.experience
-
-                    : {}
-            );
+    }
 
 
-    return (
+    return mergeStringArrays(
 
-        usage.found === true
+        example.executedTools,
 
-        &&
-
-        usage.used === true
+        example
+            ?.result
+            ?.executionMeta
+            ?.usedTools
 
     );
 
@@ -199,18 +362,318 @@ function wasExperienceSelected(
 
 /*
  * =========================================================
- * IMPROVEMENT TOOLS
+ * TOOL EVIDENCE
+ * =========================================================
+ */
+
+
+function collectToolEvidence(
+    examples
+) {
+
+    const source =
+
+        Array.isArray(examples)
+
+            ? examples
+
+            : [];
+
+
+    const knownExecutions =
+        new Set();
+
+
+    const evidence = [];
+
+
+    for(
+        const example
+        of source
+    ){
+
+        if(
+            !isVerifiedSuccessfulExample(
+                example
+            )
+        ){
+
+            continue;
+
+        }
+
+
+        const identity =
+
+            buildEvidenceIdentity(
+                example
+            );
+
+
+        /*
+         * Для machine contract
+         * нам нужна независимая
+         * Execution identity.
+         */
+
+
+        if(
+            !identity
+        ){
+
+            continue;
+
+        }
+
+
+        if(
+            knownExecutions.has(
+                identity
+            )
+        ){
+
+            continue;
+
+        }
+
+
+        const tools =
+
+            resolveExampleExecutedTools(
+                example
+            );
+
+
+        /*
+         * Пустой список здесь считаем
+         * отсутствием надёжной telemetry,
+         * а не доказательством того,
+         * что Tools не нужны.
+         */
+
+
+        if(
+            tools.length === 0
+        ){
+
+            continue;
+
+        }
+
+
+        knownExecutions.add(
+            identity
+        );
+
+
+        evidence.push({
+
+            identity,
+
+            tools
+
+        });
+
+    }
+
+
+    return evidence;
+
+}
+
+
+/*
+ * =========================================================
+ * INTERSECTION
+ * =========================================================
+ */
+
+
+function intersectToolSets(
+    evidence
+) {
+
+    if(
+        !Array.isArray(evidence)
+        ||
+        evidence.length === 0
+    ){
+
+        return [];
+
+    }
+
+
+    let required =
+
+        normalizeStringArray(
+            evidence[0]?.tools
+        );
+
+
+    for(
+        let index = 1;
+        index < evidence.length;
+        index++
+    ){
+
+        const current =
+
+            new Set(
+
+                normalizeStringArray(
+                    evidence[index]?.tools
+                )
+
+            );
+
+
+        required =
+
+            required.filter(
+                tool =>
+                    current.has(tool)
+            );
+
+
+        if(
+            required.length === 0
+        ){
+
+            break;
+
+        }
+
+    }
+
+
+    return required;
+
+}
+
+
+/*
+ * =========================================================
+ * INFER REQUIRED TOOLS
+ * =========================================================
+ */
+
+
+export function inferRequiredToolsFromExamples(
+
+    examples,
+
+    {
+        minEvidence =
+            MIN_REQUIRED_TOOL_EVIDENCE
+    } = {}
+
+) {
+
+    const evidence =
+
+        collectToolEvidence(
+            examples
+        );
+
+
+    const requiredEvidence =
+
+        Math.max(
+
+            Number(
+                minEvidence
+            )
+            || MIN_REQUIRED_TOOL_EVIDENCE,
+
+            2
+
+        );
+
+
+    /*
+     * Один успешный запуск ещё
+     * не создаёт обязательный contract.
+     */
+
+
+    if(
+        evidence.length
+        <
+        requiredEvidence
+    ){
+
+        return {
+
+            requiredTools:
+                [],
+
+            evidenceCount:
+                evidence.length,
+
+            sufficientEvidence:
+                false
+
+        };
+
+    }
+
+
+    const requiredTools =
+
+        intersectToolSets(
+            evidence
+        );
+
+
+    return {
+
+        requiredTools,
+
+        evidenceCount:
+            evidence.length,
+
+        sufficientEvidence:
+            true
+
+    };
+
+}
+
+
+/*
+ * =========================================================
+ * NEW SKILL
+ * =========================================================
+ */
+
+
+export function resolveNewSkillRequiredTools({
+
+    examples
+
+} = {}) {
+
+    return inferRequiredToolsFromExamples(
+        examples
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * IMPROVEMENT
  * =========================================================
  *
- * Важное правило:
- *
- * non-empty requiredTools никогда
- * автоматически не расширяется.
+ * Уже сформированный non-empty contract
+ * автоматически не расширяем и не меняем.
  *
  *
- * Bootstrap разрешён только старым Skill,
- * которые появились до поддержки
- * executedTools и имеют requiredTools=[].
+ * Legacy Skill с requiredTools=[]
+ * может получить bootstrap только тогда,
+ * когда накоплено минимум два
+ * независимых verified Execution.
  *
  * =========================================================
  */
@@ -220,9 +683,9 @@ export function resolveImprovementRequiredTools({
 
     existingSkill,
 
-    trace
+    examples
 
-}) {
+} = {}) {
 
     const existingTools =
 
@@ -232,8 +695,10 @@ export function resolveImprovementRequiredTools({
 
 
     /*
-     * Уже сформированный контракт
-     * сохраняем как есть.
+     * Existing machine contract стабилен.
+     *
+     * Его изменение позже должен выполнять
+     * отдельный semantic Improvement Policy.
      */
 
 
@@ -247,102 +712,49 @@ export function resolveImprovementRequiredTools({
                 existingTools,
 
             bootstrapped:
-                false
+                false,
+
+            evidenceCount:
+                0,
+
+            sufficientEvidence:
+                true
 
         };
 
     }
 
 
-    /*
-     * Skill должен реально участвовать
-     * в выполнении.
-     */
+    const inferred =
 
-
-    if(
-        !wasExperienceSelected(
-            trace
-        )
-    ){
-
-        return {
-
-            requiredTools:
-                existingTools,
-
-            bootstrapped:
-                false
-
-        };
-
-    }
-
-
-    /*
-     * Execution должен быть
-     * подтверждённым успешным результатом.
-     */
-
-
-    if(
-        !isVerifiedLearningExecution(
-            trace
-        )
-    ){
-
-        return {
-
-            requiredTools:
-                existingTools,
-
-            bootstrapped:
-                false
-
-        };
-
-    }
-
-
-    const observedTools =
-
-        resolveObservedTools(
-            trace
+        inferRequiredToolsFromExamples(
+            examples
         );
-
-
-    if(
-        observedTools.length === 0
-    ){
-
-        return {
-
-            requiredTools:
-                existingTools,
-
-            bootstrapped:
-                false
-
-        };
-
-    }
 
 
     return {
 
         requiredTools:
 
-            mergeStringArrays(
+            inferred.requiredTools,
 
-                existingTools,
-
-                observedTools
-
-            ),
 
         bootstrapped:
-            true
+
+            inferred.sufficientEvidence === true
+            &&
+            inferred.requiredTools.length > 0,
+
+
+        evidenceCount:
+
+            inferred.evidenceCount,
+
+
+        sufficientEvidence:
+
+            inferred.sufficientEvidence
 
     };
 
-}
+            }
