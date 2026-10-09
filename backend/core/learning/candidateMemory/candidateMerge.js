@@ -1,12 +1,7 @@
 /*
  * =========================================================
- * JESSICA CANDIDATE MERGE v1
+ * JESSICA CANDIDATE MERGE v2
  * =========================================================
- *
- * Объединяет накопленный
- * Learning Candidate
- * с новым наблюдением.
- *
  *
  * Existing Candidate
  *        +
@@ -14,20 +9,39 @@
  *        ↓
  * Evidence Merge
  *        ↓
- * Occurrences
+ * Metrics
  *        ↓
- * Success Rate
+ * Tool Evidence Aggregation
  *        ↓
- * Maturity
- *        ↓
- * Confidence
+ * Candidate Memory
  *
  *
- * НЕ:
+ * Важно:
  *
- * - работает с Supabase;
- * - принимает AUTO_APPROVE;
- * - создаёт Skill.
+ * requiredTools больше НЕ объединяются
+ * через union.
+ *
+ *
+ * Вместо:
+ *
+ * web_search
+ * +
+ * web_search + web_fetch
+ *
+ *        ↓
+ *
+ * web_search + web_fetch
+ *
+ *
+ * используем подтверждённое пересечение:
+ *
+ * web_search
+ * ∩
+ * web_search + web_fetch
+ *
+ *        ↓
+ *
+ * web_search
  *
  * =========================================================
  */
@@ -38,6 +52,11 @@ import {
     calculateExperienceMaturity,
     resolveExperienceMaturityLevel
 } from "../experienceConfidence.js";
+
+
+import {
+    inferRequiredToolsFromExamples
+} from "../candidateBuilder/candidateToolKnowledge.js";
 
 
 function normalizeNumber(
@@ -100,9 +119,7 @@ function mergeStringArrays(
     ){
 
         if(
-            !Array.isArray(
-                values
-            )
+            !Array.isArray(values)
         ){
 
             continue;
@@ -124,8 +141,11 @@ function mergeStringArrays(
 
 
             if(
-                text &&
-                !result.includes(text)
+                text
+                &&
+                !result.includes(
+                    text
+                )
             ){
 
                 result.push(
@@ -156,7 +176,8 @@ function buildExampleKey(
 ) {
 
     if(
-        !example ||
+        !example
+        ||
         typeof example !== "object"
     ){
 
@@ -170,15 +191,29 @@ function buildExampleKey(
     ){
 
         return (
-
             "trace:"
-
             +
-
             String(
                 example.traceId
             )
+        );
 
+    }
+
+
+    if(
+        example
+            ?.result
+            ?.executionMeta
+            ?.traceId
+    ){
+
+        return (
+            "execution-trace:"
+            +
+            String(
+                example.result.executionMeta.traceId
+            )
         );
 
     }
@@ -255,9 +290,9 @@ function mergeExamples(
         incoming = false
     ) => {
 
-
         if(
-            !example ||
+            !example
+            ||
             typeof example !== "object"
         ){
 
@@ -274,7 +309,8 @@ function mergeExamples(
 
 
         if(
-            key &&
+            key
+            &&
             keys.has(
                 key
             )
@@ -297,7 +333,9 @@ function mergeExamples(
 
 
         result.push({
+
             ...example
+
         });
 
 
@@ -316,7 +354,9 @@ function mergeExamples(
         const example
         of (
             Array.isArray(existingExamples)
+
                 ? existingExamples
+
                 : []
         )
     ){
@@ -333,7 +373,9 @@ function mergeExamples(
         const example
         of (
             Array.isArray(incomingExamples)
+
                 ? incomingExamples
+
                 : []
         )
     ){
@@ -407,7 +449,8 @@ function calculateExampleMetrics(
             ? Number(
 
                 (
-                    successCount /
+                    successCount
+                    /
                     safeExamples.length
                 )
                 .toFixed(2)
@@ -433,20 +476,6 @@ function calculateExampleMetrics(
 /*
  * =========================================================
  * INFER MATCH SCORE
- * =========================================================
- *
- * Старый Candidate ещё может
- * не содержать matchScore.
- *
- * В таком случае восстанавливаем его
- * из старой Confidence formula:
- *
- * confidence =
- *
- * match * 0.3
- * + successRate * 0.4
- * + repetition * 0.3
- *
  * =========================================================
  */
 
@@ -527,7 +556,7 @@ function inferMatchScore(
 
 /*
  * =========================================================
- * MERGE CANDIDATE
+ * MERGE
  * =========================================================
  */
 
@@ -543,7 +572,6 @@ export function mergeLearningCandidates({
     similarity = 0
 
 } = {}) {
-
 
     if(
         !existing
@@ -567,6 +595,13 @@ export function mergeLearningCandidates({
     }
 
 
+    /*
+     * =====================================================
+     * EXAMPLES
+     * =====================================================
+     */
+
+
     const mergedExamples =
 
         mergeExamples(
@@ -576,6 +611,13 @@ export function mergeLearningCandidates({
             incoming.examples
 
         );
+
+
+    /*
+     * =====================================================
+     * OCCURRENCES
+     * =====================================================
+     */
 
 
     const previousOccurrences =
@@ -599,20 +641,12 @@ export function mergeLearningCandidates({
         );
 
 
-    /*
-     * Повторная обработка того же Trace
-     * не должна увеличивать occurrences.
-     */
-
-
     const occurrences =
 
         Math.max(
 
             previousOccurrences
-
             +
-
             mergedExamples.added,
 
             mergedExamples.examples.length,
@@ -622,11 +656,25 @@ export function mergeLearningCandidates({
         );
 
 
+    /*
+     * =====================================================
+     * SUCCESS
+     * =====================================================
+     */
+
+
     const exampleMetrics =
 
         calculateExampleMetrics(
             mergedExamples.examples
         );
+
+
+    /*
+     * =====================================================
+     * MATCH
+     * =====================================================
+     */
 
 
     const existingMatchScore =
@@ -641,17 +689,6 @@ export function mergeLearningCandidates({
         inferMatchScore(
             incoming
         );
-
-
-    /*
-     * Exact key означает:
-     *
-     * оба наблюдения относятся
-     * к одной и той же Candidate lineage.
-     *
-     * После повторного подтверждения
-     * pattern identity считаем сильной.
-     */
 
 
     const matchScore =
@@ -673,6 +710,13 @@ export function mergeLearningCandidates({
             );
 
 
+    /*
+     * =====================================================
+     * MATURITY + CONFIDENCE
+     * =====================================================
+     */
+
+
     const maturity =
 
         calculateExperienceMaturity(
@@ -687,7 +731,6 @@ export function mergeLearningCandidates({
             matchScore,
 
             successRate:
-
                 exampleMetrics.successRate,
 
             occurrences
@@ -695,13 +738,41 @@ export function mergeLearningCandidates({
         });
 
 
+    /*
+     * =====================================================
+     * TOOL KNOWLEDGE
+     * =====================================================
+     *
+     * Пересчитывается из полного
+     * накопленного Evidence.
+     *
+     * НЕ:
+     *
+     * merge(existing.requiredTools,
+     *       incoming.requiredTools)
+     *
+     * =====================================================
+     */
+
+
+    const toolKnowledge =
+
+        inferRequiredToolsFromExamples(
+            mergedExamples.examples
+        );
+
+
+    /*
+     * =====================================================
+     * RESULT
+     * =====================================================
+     */
+
+
     return {
 
-
         /*
-         * =================================================
          * STABLE IDENTITY
-         * =================================================
          */
 
 
@@ -757,20 +828,8 @@ export function mergeLearningCandidates({
             "",
 
 
-
         /*
-         * =================================================
          * KNOWLEDGE
-         * =================================================
-         *
-         * Workflow первой lineage сохраняем
-         * стабильным.
-         *
-         * Его семантическое изменение
-         * позже выполняет отдельный
-         * Skill Improvement Analyzer.
-         *
-         * =================================================
          */
 
 
@@ -782,14 +841,18 @@ export function mergeLearningCandidates({
             &&
             existing.workflow.length > 0
 
-                ? [...existing.workflow]
+                ? [
+                    ...existing.workflow
+                ]
 
                 : (
                     Array.isArray(
                         incoming.workflow
                     )
 
-                        ? [...incoming.workflow]
+                        ? [
+                            ...incoming.workflow
+                        ]
 
                         : []
                 ),
@@ -872,15 +935,17 @@ export function mergeLearningCandidates({
             ),
 
 
+        /*
+         * КРИТИЧНО:
+         *
+         * requiredTools выводится
+         * из фактического Evidence.
+         */
+
+
         requiredTools:
 
-            mergeStringArrays(
-
-                existing.requiredTools,
-
-                incoming.requiredTools
-
-            ),
+            toolKnowledge.requiredTools,
 
 
         successfulPatterns:
@@ -916,11 +981,8 @@ export function mergeLearningCandidates({
             ),
 
 
-
         /*
-         * =================================================
          * EVIDENCE
-         * =================================================
          */
 
 
@@ -929,11 +991,8 @@ export function mergeLearningCandidates({
             mergedExamples.examples,
 
 
-
         /*
-         * =================================================
          * METRICS
-         * =================================================
          */
 
 
@@ -971,11 +1030,8 @@ export function mergeLearningCandidates({
         confidence,
 
 
-
         /*
-         * =================================================
          * META
-         * =================================================
          */
 
 
@@ -998,4 +1054,4 @@ export function mergeLearningCandidates({
 
     };
 
-      }
+}
