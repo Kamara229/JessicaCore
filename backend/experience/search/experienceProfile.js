@@ -1,27 +1,44 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE PROFILE BUILDER v0.3
+ * JESSICA EXPERIENCE PROFILE BUILDER v0.4
  * =========================================================
  *
  * Создаёт поисковый профиль Experience Skill.
  *
  *
+ * Experience Skill
+ *      ↓
+ * Search Profile
+ *      ↓
+ * Matcher
+ *
+ *
  * Ответственность:
  *
- * - подготовка данных для Matcher;
- * - нормализация полей поиска;
- * - сохранение оригинального Skill.
+ * - подготовка поисковых полей;
+ * - нормализация текстовых массивов;
+ * - сохранение полного оригинального Skill.
+ *
+ *
+ * ВАЖНО:
+ *
+ * Profile не должен разрушать
+ * структурированные поля Experience.
+ *
+ * В частности:
+ *
+ * examples остаётся массивом объектов.
  *
  *
  * НЕ:
  *
- * - ищет;
+ * - выбирает Skill;
  * - считает confidence;
- * - работает с Storage.
+ * - работает с Storage;
+ * - изменяет Experience.
  *
  * =========================================================
  */
-
 
 
 import {
@@ -32,21 +49,24 @@ import {
 
 
 
+/*
+ * =========================================================
+ * SAFE ARRAY
+ * =========================================================
+ */
 
 
 function safeArray(
     value
 ){
 
-    return Array.isArray(value)
-
-        ?
-
+    return Array.isArray(
         value
+    )
 
-        :
+        ? value
 
-        [];
+        : [];
 
 }
 
@@ -54,8 +74,61 @@ function safeArray(
 
 
 
+/*
+ * =========================================================
+ * OBJECT ARRAY
+ * =========================================================
+ */
 
 
+function safeObjectArray(
+    value
+){
+
+    if(
+        !Array.isArray(
+            value
+        )
+    ){
+
+        return [];
+
+    }
+
+
+    return value
+
+        .filter(
+
+            item =>
+
+                item
+                &&
+                typeof item === "object"
+                &&
+                !Array.isArray(item)
+
+        )
+
+        .map(
+
+            item => ({
+                ...item
+            })
+
+        );
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * NORMALIZE SEARCH FIELD
+ * =========================================================
+ */
 
 
 function normalizeField(
@@ -72,8 +145,11 @@ function normalizeField(
 
 
 
-
-
+/*
+ * =========================================================
+ * BUILD PROFILE
+ * =========================================================
+ */
 
 
 export function buildExperienceProfile(
@@ -81,171 +157,143 @@ export function buildExperienceProfile(
 ){
 
     if(
+
         !experience
+
         ||
+
         typeof experience !== "object"
+
+        ||
+
+        Array.isArray(
+            experience
+        )
+
     ){
 
         return {
 
-            keywords:[],
+            keywords:
+                [],
 
-            triggerPatterns:[],
+            triggerPatterns:
+                [],
 
-            workflow:[],
+            workflow:
+                [],
 
-            successfulPatterns:[]
+            successfulPatterns:
+                [],
+
+            failurePatterns:
+                [],
+
+            examples:
+                [],
+
+            searchTerms:
+                []
 
         };
 
     }
 
 
-
-
-
-
+    /*
+     * =====================================================
+     * PROFILE
+     * =====================================================
+     *
+     * Начинаем с полного Experience.
+     *
+     * Поэтому новые поля Skill автоматически
+     * проходят через Search Profile,
+     * если отдельно не нормализуются ниже.
+     *
+     * =====================================================
+     */
 
 
     return {
 
-
-        /*
-         * Сохраняем оригинальные данные
-         */
-
-
         ...experience,
 
 
-
-
-
-
-
-
         /*
-         * Основные ключи поиска
+         * =================================================
+         * SEARCHABLE KNOWLEDGE
+         * =================================================
          */
 
 
         keywords:
 
             normalizeField(
-
                 experience.keywords
-
             ),
-
-
-
-
-
-
-
-
-        /*
-         * Сценарии запуска
-         */
 
 
         triggerPatterns:
 
             normalizeField(
-
                 experience.triggerPatterns
-
             ),
-
-
-
-
-
-
-
-
-        /*
-         * Этапы процесса
-         */
 
 
         workflow:
 
             normalizeField(
-
                 experience.workflow
-
             ),
-
-
-
-
-
-
-
-
-        /*
-         * Подтверждённые успешные случаи
-         */
 
 
         successfulPatterns:
 
             normalizeField(
-
                 experience.successfulPatterns
-
             ),
-
-
-
-
-
-
-
-
-        /*
-         * Ошибочные сценарии
-         */
 
 
         failurePatterns:
 
             normalizeField(
-
                 experience.failurePatterns
-
             ),
 
 
-
-
-
-
-
-
         /*
-         * Примеры
+         * =================================================
+         * STRUCTURED EVIDENCE
+         * =================================================
+         *
+         * КРИТИЧНО:
+         *
+         * Старый код применял
+         * normalizeExperienceStringArray()
+         * к массиву объектов examples.
+         *
+         * В результате получалось:
+         *
+         * ["[object Object]"]
+         *
+         * Теперь структура сохраняется.
+         *
+         * =================================================
          */
 
 
         examples:
 
-            normalizeField(
-
+            safeObjectArray(
                 experience.examples
-
             ),
 
 
-
-
-
-
-
-
         /*
-         * Дополнительные поисковые признаки
+         * =================================================
+         * ADDITIONAL SEARCH TERMS
+         * =================================================
          */
 
 
@@ -253,12 +301,9 @@ export function buildExperienceProfile(
 
             normalizeExperienceStringArray([
 
-
                 experience.name,
 
-
                 experience.category,
-
 
                 ...safeArray(
                     experience.tags
@@ -267,6 +312,5 @@ export function buildExperienceProfile(
             ])
 
     };
-
 
 }
