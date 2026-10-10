@@ -1,15 +1,44 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE SEARCH v0.6
+ * JESSICA EXPERIENCE SEARCH v0.7
  * =========================================================
  *
  * Ranking layer for Experience Skills.
  *
+ *
+ * Ответственность:
+ *
+ * - построить поисковый профиль;
+ * - вычислить Match;
+ * - учесть качество Skill;
+ * - выбрать лучший Experience Skill;
+ * - вернуть ОРИГИНАЛЬНЫЙ полный Skill.
+ *
+ *
+ * ВАЖНО:
+ *
+ * Search не имеет права превращать
+ * Experience Skill в сокращённый DTO.
+ *
+ * Полный объект Skill должен пройти дальше
+ * без потери:
+ *
+ * - examples;
+ * - requiredTools;
+ * - learning;
+ * - statistics;
+ * - metadata;
+ * - sourcePriority;
+ * - patterns;
+ * - будущих полей.
+ *
+ *
  * НЕ:
  *
- * - Storage
- * - Learning
- * - AI
+ * - Storage;
+ * - Learning;
+ * - AI;
+ * - изменение Experience.
  *
  * =========================================================
  */
@@ -43,8 +72,11 @@ const MAX_RANKING_ITEMS =
 
 
 
-
-
+/*
+ * =========================================================
+ * EMPTY MATCH
+ * =========================================================
+ */
 
 
 function emptyMatch()
@@ -52,13 +84,20 @@ function emptyMatch()
 
     return {
 
-        confidence:0,
+        confidence:
+            0,
 
-        matchedTerms:[],
+        matchedTerms:
+            [],
 
-        matchedPhrases:[],
+        matchedPhrases:
+            [],
 
-        reasons:[]
+        reasons:
+            [],
+
+        details:
+            {}
 
     };
 
@@ -68,8 +107,11 @@ function emptyMatch()
 
 
 
-
-
+/*
+ * =========================================================
+ * NOT FOUND
+ * =========================================================
+ */
 
 
 function notFound(
@@ -79,23 +121,59 @@ function notFound(
 
     return {
 
-        found:false,
+        found:
+            false,
 
-        experience:null,
+        experience:
+            null,
 
         confidence:
+
             Number(
-                match.confidence || 0
+                match?.confidence || 0
             ),
 
         matchedTerms:
-            match.matchedTerms || [],
+
+            Array.isArray(
+                match?.matchedTerms
+            )
+
+                ? match.matchedTerms
+
+                : [],
 
         matchedPhrases:
-            match.matchedPhrases || [],
+
+            Array.isArray(
+                match?.matchedPhrases
+            )
+
+                ? match.matchedPhrases
+
+                : [],
 
         matchReasons:
-            match.reasons || [],
+
+            Array.isArray(
+                match?.reasons
+            )
+
+                ? match.reasons
+
+                : [],
+
+        matchDetails:
+
+            match?.details
+
+            &&
+
+            typeof match.details === "object"
+
+                ? match.details
+
+                : {},
 
         ranking,
 
@@ -110,8 +188,11 @@ function notFound(
 
 
 
-
-
+/*
+ * =========================================================
+ * USABLE EXPERIENCE
+ * =========================================================
+ */
 
 
 function isUsableExperience(
@@ -120,9 +201,17 @@ function isUsableExperience(
 
     return Boolean(
 
-        skill &&
+        skill
 
-        typeof skill === "object" &&
+        &&
+
+        typeof skill === "object"
+
+        &&
+
+        !Array.isArray(skill)
+
+        &&
 
         skill.enabled !== false
 
@@ -134,8 +223,70 @@ function isUsableExperience(
 
 
 
+/*
+ * =========================================================
+ * RUNTIME STATISTICS
+ * =========================================================
+ *
+ * Канонический контракт:
+ *
+ * skill.statistics
+ *
+ *
+ * skill.usage временно поддерживаем
+ * только для старых сохранённых версий.
+ *
+ * =========================================================
+ */
 
 
+function getRuntimeStatistics(
+    skill
+){
+
+    if(
+        skill?.statistics
+        &&
+        typeof skill.statistics === "object"
+        &&
+        !Array.isArray(
+            skill.statistics
+        )
+    ){
+
+        return skill.statistics;
+
+    }
+
+
+    if(
+        skill?.usage
+        &&
+        typeof skill.usage === "object"
+        &&
+        !Array.isArray(
+            skill.usage
+        )
+    ){
+
+        return skill.usage;
+
+    }
+
+
+    return {};
+
+}
+
+
+
+
+
+/*
+ * =========================================================
+ * SKILL QUALITY
+ * =========================================================
+ */
 
 
 function calculateSkillQuality(
@@ -143,20 +294,54 @@ function calculateSkillQuality(
 ){
 
     const confidence =
-        Number(
-            skill.confidence || 0
+
+        Math.max(
+
+            0,
+
+            Math.min(
+
+                1,
+
+                Number(
+                    skill?.confidence || 0
+                )
+
+            )
+
+        );
+
+
+    const statistics =
+
+        getRuntimeStatistics(
+            skill
         );
 
 
     const success =
-        Number(
-            skill.usage?.successfulRuns || 0
+
+        Math.max(
+
+            Number(
+                statistics?.successfulRuns || 0
+            ),
+
+            0
+
         );
 
 
     const failed =
-        Number(
-            skill.usage?.failedRuns || 0
+
+        Math.max(
+
+            Number(
+                statistics?.failedRuns || 0
+            ),
+
+            0
+
         );
 
 
@@ -164,29 +349,39 @@ function calculateSkillQuality(
         success + failed;
 
 
+    /*
+     * Если runtime history ещё отсутствует,
+     * не штрафуем новый Skill.
+     *
+     * Его качество определяется
+     * накопленным learning confidence.
+     */
 
-    let reliability = 0;
 
+    const reliability =
 
-
-    if(
         total > 0
-    ){
 
-        reliability =
-            success / total;
+            ? success / total
 
-    }
+            : confidence;
 
 
+    return Math.max(
 
-    return (
+        0,
 
-        confidence * 0.7
+        Math.min(
 
-        +
+            1,
 
-        reliability * 0.3
+            (
+                confidence * 0.7
+                +
+                reliability * 0.3
+            )
+
+        )
 
     );
 
@@ -196,8 +391,11 @@ function calculateSkillQuality(
 
 
 
-
-
+/*
+ * =========================================================
+ * RANK EXPERIENCES
+ * =========================================================
+ */
 
 
 function rankExperiences(
@@ -216,14 +414,24 @@ function rankExperiences(
             experience => {
 
 
+                /*
+                 * Profile используется ТОЛЬКО
+                 * для Match.
+                 *
+                 * Оригинальный experience
+                 * остаётся неизменным.
+                 */
+
+
                 const profile =
+
                     buildExperienceProfile(
                         experience
                     );
 
 
-
                 const match =
+
                     calculateExperienceMatch(
 
                         task,
@@ -233,20 +441,18 @@ function rankExperiences(
                     );
 
 
-
-
                 const baseConfidence =
+
                     Number(
                         match?.confidence || 0
                     );
 
 
-
                 const quality =
+
                     calculateSkillQuality(
                         experience
                     );
-
 
 
                 const rankingScore =
@@ -258,8 +464,15 @@ function rankExperiences(
                     quality * 0.2;
 
 
-
                 return {
+
+                    /*
+                     * КРИТИЧНО:
+                     *
+                     * здесь хранится полный
+                     * оригинальный Skill.
+                     */
+
 
                     experience,
 
@@ -274,17 +487,18 @@ function rankExperiences(
 
                 };
 
-
             }
 
         )
 
-
         .sort(
 
-            (a,b)=>
+            (a, b) =>
 
-                b.rankingScore -
+                b.rankingScore
+
+                -
+
                 a.rankingScore
 
         );
@@ -295,8 +509,11 @@ function rankExperiences(
 
 
 
-
-
+/*
+ * =========================================================
+ * PUBLIC RANKING
+ * =========================================================
+ */
 
 
 function buildPublicRanking(
@@ -315,23 +532,30 @@ function buildPublicRanking(
             item => ({
 
                 skillId:
-                    item.experience?.id || null,
 
+                    item.experience?.id
+                    ||
+                    null,
 
                 name:
-                    item.experience?.name || "",
 
+                    item.experience?.name
+                    ||
+                    "",
 
                 confidence:
+
                     item.confidence,
 
-
                 rankingScore:
+
                     item.rankingScore,
 
-
                 matchedTerms:
-                    item.match?.matchedTerms || []
+
+                    item.match?.matchedTerms
+                    ||
+                    []
 
             })
 
@@ -343,8 +567,11 @@ function buildPublicRanking(
 
 
 
-
-
+/*
+ * =========================================================
+ * SEARCH
+ * =========================================================
+ */
 
 
 export function searchExperience(
@@ -365,7 +592,9 @@ export function searchExperience(
 
         ||
 
-        !Array.isArray(experiences)
+        !Array.isArray(
+            experiences
+        )
 
         ||
 
@@ -378,32 +607,33 @@ export function searchExperience(
     }
 
 
-
-
-
+    /*
+     * =====================================================
+     * RANK
+     * =====================================================
+     */
 
 
     const ranking =
+
         rankExperiences(
+
             task,
+
             experiences
+
         );
 
 
-
-
     const publicRanking =
+
         buildPublicRanking(
             ranking
         );
 
 
-
     const top =
         ranking[0];
-
-
-
 
 
     if(
@@ -411,20 +641,28 @@ export function searchExperience(
     ){
 
         return notFound(
+
             emptyMatch(),
+
             publicRanking
+
         );
 
     }
 
 
-
-
+    /*
+     * =====================================================
+     * MIN CONFIDENCE
+     * =====================================================
+     */
 
 
     if(
 
-        top.confidence <
+        top.confidence
+
+        <
 
         MIN_MATCH_CONFIDENCE
 
@@ -441,26 +679,31 @@ export function searchExperience(
     }
 
 
-
-
+    /*
+     * =====================================================
+     * AMBIGUITY
+     * =====================================================
+     */
 
 
     const second =
         ranking[1];
 
 
-
-
-
     if(
 
-        second &&
+        second
+
+        &&
 
         (
-            top.rankingScore -
+            top.rankingScore
+            -
             second.rankingScore
         )
+
         <
+
         MIN_CONFIDENCE_GAP
 
     ){
@@ -476,49 +719,67 @@ export function searchExperience(
     }
 
 
-
-
-
-
-
+    /*
+     * =====================================================
+     * SUCCESS
+     * =====================================================
+     *
+     * КРИТИЧНО:
+     *
+     * Возвращаем top.experience,
+     * а НЕ profile.
+     *
+     * Это полный канонический Skill
+     * из Experience Storage.
+     *
+     * =====================================================
+     */
 
 
     return {
 
-
-        found:true,
-
+        found:
+            true,
 
         experience:
             top.experience,
 
-
         confidence:
             top.confidence,
 
-
         matchedTerms:
-            top.match?.matchedTerms || [],
-
+            top.match?.matchedTerms
+            ||
+            [],
 
         matchedPhrases:
-            top.match?.matchedPhrases || [],
-
+            top.match?.matchedPhrases
+            ||
+            [],
 
         matchReasons:
-            top.match?.reasons || [],
+            top.match?.reasons
+            ||
+            [],
 
+        matchDetails:
+
+            top.match?.details
+
+            &&
+
+            typeof top.match.details === "object"
+
+                ? top.match.details
+
+                : {},
 
         ranking:
-
             publicRanking,
-
 
         source:
             "experience-search"
 
-
     };
-
 
 }
