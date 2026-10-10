@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA SUBTASK EXPERIENCE CONTEXT v1
+ * JESSICA SUBTASK EXPERIENCE CONTEXT v2
  * =========================================================
  *
  * Адаптирует результат Experience Resolver
@@ -13,8 +13,8 @@
  *   found,
  *   source,
  *   confidence,
- *   experience,
- *   planningContext
+ *   experience,        // FULL canonical Skill
+ *   planningContext    // compact Planner DTO
  * }
  *
  *        ↓
@@ -26,9 +26,43 @@
  *   found,
  *   source,
  *   confidence,
- *   skills,
- *   context
+ *   skills,            // FULL canonical Skills
+ *   context            // compact PlanningContext
  * }
+ *
+ *
+ * КРИТИЧЕСКОЕ ПРАВИЛО:
+ *
+ * experienceResult.experience
+ *
+ * и
+ *
+ * experienceResult.planningContext.experience
+ *
+ * — это НЕ один и тот же контракт.
+ *
+ *
+ * Первый:
+ *
+ * полный Experience Skill,
+ * необходимый Runtime / Trace / Learning.
+ *
+ *
+ * Второй:
+ *
+ * сокращённый DTO для AI Planner.
+ *
+ *
+ * Planner DTO нельзя использовать
+ * как источник Skill для Learning,
+ * иначе теряются:
+ *
+ * - examples;
+ * - learning;
+ * - statistics;
+ * - requiredTools;
+ * - metadata;
+ * - другие накопленные знания.
  *
  *
  * НЕ:
@@ -38,6 +72,13 @@
  * - принимает Learning Decision;
  * - работает с Supabase.
  *
+ * =========================================================
+ */
+
+
+/*
+ * =========================================================
+ * OBJECT
  * =========================================================
  */
 
@@ -59,6 +100,13 @@ function isObject(
 }
 
 
+/*
+ * =========================================================
+ * NORMALIZE TEXT
+ * =========================================================
+ */
+
+
 function normalizeText(
     value
 ) {
@@ -66,9 +114,16 @@ function normalizeText(
     return String(
         value || ""
     )
-    .trim();
+        .trim();
 
 }
+
+
+/*
+ * =========================================================
+ * NORMALIZE NUMBER
+ * =========================================================
+ */
 
 
 function normalizeNumber(
@@ -84,6 +139,49 @@ function normalizeNumber(
         ? number
 
         : 0;
+
+}
+
+
+/*
+ * =========================================================
+ * SKILL IDENTITY
+ * =========================================================
+ */
+
+
+function hasSkillIdentity(
+    skill
+) {
+
+    if(
+        !isObject(skill)
+    ){
+
+        return false;
+
+    }
+
+
+    return Boolean(
+
+        normalizeText(
+            skill.id
+        )
+
+        ||
+
+        normalizeText(
+            skill.skillId
+        )
+
+        ||
+
+        normalizeText(
+            skill.name
+        )
+
+    );
 
 }
 
@@ -141,7 +239,15 @@ function buildSkillKey(
         name
     ){
 
-        return `name:${name.toLowerCase()}`;
+        return (
+
+            "name:"
+
+            +
+
+            name.toLowerCase()
+
+        );
 
     }
 
@@ -154,6 +260,29 @@ function buildSkillKey(
 /*
  * =========================================================
  * COLLECT SKILLS
+ * =========================================================
+ *
+ * ПОРЯДОК ИМЕЕТ ЗНАЧЕНИЕ.
+ *
+ *
+ * 1. FULL Resolver Skill
+ *
+ *    experienceResult.experience
+ *
+ *
+ * 2. Уже канонический skills[]
+ *
+ *
+ * 3. Legacy wrapper experience.skills[]
+ *
+ *
+ * 4. PlanningContext fallbacks
+ *
+ *
+ * Благодаря дедупликации по Skill ID
+ * полный Resolver Skill всегда имеет
+ * приоритет над Planner DTO.
+ *
  * =========================================================
  */
 
@@ -168,12 +297,21 @@ function collectExperienceSkills(
         new Set();
 
 
+    /*
+     * =====================================================
+     * PUSH
+     * =====================================================
+     */
+
+
     const pushSkill = (
         skill
     ) => {
 
         if(
             !isObject(skill)
+            ||
+            !hasSkillIdentity(skill)
         ){
 
             return;
@@ -186,6 +324,15 @@ function collectExperienceSkills(
             buildSkillKey(
                 skill
             );
+
+
+        /*
+         * Skill с тем же ID уже сохранён.
+         *
+         * Так как FULL Skill собирается первым,
+         * компактный Planner DTO позже
+         * не сможет его перезаписать.
+         */
 
 
         if(
@@ -210,15 +357,110 @@ function collectExperienceSkills(
         }
 
 
+        /*
+         * Только shallow copy.
+         *
+         * Мы не нормализуем Skill здесь,
+         * потому что полный canonical payload
+         * должен дойти до Learning без потерь.
+         */
+
+
         result.push({
+
             ...skill
+
         });
 
     };
 
 
     /*
-     * Уже канонический формат.
+     * =====================================================
+     * 1. FULL RESOLVER EXPERIENCE
+     * =====================================================
+     *
+     * Текущий Experience Core возвращает:
+     *
+     * {
+     *   found: true,
+     *   experience: FULL_SKILL,
+     *   planningContext: ...
+     * }
+     *
+     *
+     * Это главный источник для Learning.
+     * =====================================================
+     */
+
+
+    const resolverExperience =
+
+        experienceResult
+            ?.experience;
+
+
+    if(
+        isObject(
+            resolverExperience
+        )
+    ){
+
+        /*
+         * Текущий формат:
+         *
+         * experience = Skill
+         */
+
+
+        if(
+            hasSkillIdentity(
+                resolverExperience
+            )
+        ){
+
+            pushSkill(
+                resolverExperience
+            );
+
+        }
+
+
+        /*
+         * Legacy compatibility:
+         *
+         * experience = {
+         *     skills:[...]
+         * }
+         */
+
+
+        if(
+            Array.isArray(
+                resolverExperience.skills
+            )
+        ){
+
+            for(
+                const skill
+                of resolverExperience.skills
+            ){
+
+                pushSkill(
+                    skill
+                );
+
+            }
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
+     * 2. CANONICAL TOP-LEVEL SKILLS
+     * =====================================================
      */
 
 
@@ -243,37 +485,16 @@ function collectExperienceSkills(
 
 
     /*
-     * Experience Resolver:
+     * =====================================================
+     * 3. PLANNING CONTEXT SKILLS
+     * =====================================================
      *
-     * result.experience.skills
-     */
-
-
-    if(
-        Array.isArray(
-            experienceResult
-                ?.experience
-                ?.skills
-        )
-    ){
-
-        for(
-            const skill
-            of experienceResult.experience.skills
-        ){
-
-            pushSkill(
-                skill
-            );
-
-        }
-
-    }
-
-
-    /*
-     * Некоторые Planning Context
-     * могут содержать skills.
+     * Compatibility fallback.
+     *
+     * Они могут быть сокращёнными,
+     * поэтому идут ТОЛЬКО после
+     * resolverExperience.
+     * =====================================================
      */
 
 
@@ -287,7 +508,9 @@ function collectExperienceSkills(
 
         for(
             const skill
-            of experienceResult.planningContext.skills
+            of experienceResult
+                .planningContext
+                .skills
         ){
 
             pushSkill(
@@ -300,7 +523,17 @@ function collectExperienceSkills(
 
 
     /*
-     * Или один выбранный Experience.
+     * =====================================================
+     * 4. PLANNER EXPERIENCE DTO
+     * =====================================================
+     *
+     * Последний fallback.
+     *
+     * В нормальном современном flow
+     * он НЕ должен становиться источником
+     * Learning Skill, потому что FULL Skill
+     * уже был добавлен выше.
+     * =====================================================
      */
 
 
@@ -334,37 +567,15 @@ function collectExperienceSkills(
 
             }
 
-        }else{
+        }else if(
+            hasSkillIdentity(
+                planningExperience
+            )
+        ){
 
-
-            const hasIdentity =
-
-                normalizeText(
-                    planningExperience.id
-                )
-
-                ||
-
-                normalizeText(
-                    planningExperience.skillId
-                )
-
-                ||
-
-                normalizeText(
-                    planningExperience.name
-                );
-
-
-            if(
-                hasIdentity
-            ){
-
-                pushSkill(
-                    planningExperience
-                );
-
-            }
+            pushSkill(
+                planningExperience
+            );
 
         }
 
@@ -386,6 +597,13 @@ function collectExperienceSkills(
 export function buildExecutionExperienceContext(
     experienceResult
 ) {
+
+    /*
+     * =====================================================
+     * INVALID RESULT
+     * =====================================================
+     */
+
 
     if(
         !isObject(
@@ -418,9 +636,23 @@ export function buildExecutionExperienceContext(
     }
 
 
+    /*
+     * =====================================================
+     * FOUND
+     * =====================================================
+     */
+
+
     const found =
 
         experienceResult.found === true;
+
+
+    /*
+     * =====================================================
+     * FULL SKILLS
+     * =====================================================
+     */
 
 
     const skills =
@@ -431,14 +663,21 @@ export function buildExecutionExperienceContext(
 
 
     /*
-     * Здесь used означает:
+     * =====================================================
+     * USED
+     * =====================================================
      *
-     * Experience был передан Planner
-     * и Execution Context.
+     * used означает:
      *
-     * Это не утверждение,
-     * что каждый элемент Skill
-     * причинно повлиял на ответ.
+     * Experience был найден и передан
+     * в Planning / Execution pipeline.
+     *
+     *
+     * Это не утверждает,
+     * что каждый отдельный элемент Skill
+     * причинно повлиял на финальный ответ.
+     *
+     * =====================================================
      */
 
 
@@ -448,7 +687,54 @@ export function buildExecutionExperienceContext(
 
         ||
 
-        found;
+        (
+            found
+            &&
+            skills.length > 0
+        );
+
+
+    /*
+     * =====================================================
+     * CONTEXT
+     * =====================================================
+     *
+     * context — только Planner Context.
+     *
+     * FULL Skill сюда больше
+     * намеренно НЕ подставляем.
+     *
+     * Полный Skill хранится в skills[].
+     *
+     * Это предотвращает смешивание:
+     *
+     * Planner DTO
+     *
+     * и
+     *
+     * Learning Skill.
+     * =====================================================
+     */
+
+
+    const context =
+
+        experienceResult.planningContext
+
+        ??
+
+        experienceResult.context
+
+        ??
+
+        null;
+
+
+    /*
+     * =====================================================
+     * RESULT
+     * =====================================================
+     */
 
 
     return {
@@ -475,22 +761,8 @@ export function buildExecutionExperienceContext(
 
         skills,
 
-        context:
-
-            experienceResult.planningContext
-
-            ??
-
-            experienceResult.experience
-
-            ??
-
-            experienceResult.context
-
-            ??
-
-            null
+        context
 
     };
 
-    }
+            }
