@@ -5,44 +5,49 @@ import {
 
 /*
  * =========================================================
- * JESSICA EXPERIENCE WRITER v5
+ * JESSICA EXPERIENCE WRITER v6
  * =========================================================
  *
  * Low-level adapter
- * Atomic Experience Persistence.
+ * Atomic Experience + Evidence Persistence.
  *
  *
  * Experience Skill
+ *        +
+ * Embedded Evidence Window
  *        ↓
  * Writer
  *        ↓
- * save_jessica_experience_skill_v2
+ * save_jessica_experience_skill_v3
  *        ↓
  * PostgreSQL Transaction
- *        ↓
- * Current + Immutable History
+ *        │
+ *        ├── Evidence Store
+ *        │
+ *        └── save_jessica_experience_skill_v2
+ *              │
+ *              ├── Current Skill
+ *              └── Immutable History
  *
  *
- * Дополнительно:
+ * ВАЖНО:
  *
- * - version-chain validation;
- * - proposalId idempotency;
- * - concurrent-save protection.
+ * На этапе Evidence Store v1
+ * payload Skill пока НЕ меняется.
  *
+ * examples сохраняются как раньше.
  *
- * НЕ:
- *
- * - анализирует обучение;
- * - рассчитывает следующую версию;
- * - принимает Approval;
- * - вызывает AI.
+ * Evidence Store работает параллельно
+ * и позволяет безопасно проверить
+ * новую архитектуру до ограничения
+ * размера examples.
  *
  * =========================================================
  */
 
 
 const SAVE_SKILL_RPC =
-    "save_jessica_experience_skill_v2";
+    "save_jessica_experience_skill_v3";
 
 
 
@@ -58,6 +63,9 @@ function normalizeText(
     .trim();
 
 }
+
+
+
 
 
 function normalizeVersion(
@@ -84,6 +92,9 @@ function normalizeVersion(
 }
 
 
+
+
+
 function normalizeBoolean(
     value
 ) {
@@ -91,6 +102,9 @@ function normalizeBoolean(
     return value !== false;
 
 }
+
+
+
 
 
 function normalizePreviousVersion(
@@ -113,6 +127,9 @@ function normalizePreviousVersion(
     );
 
 }
+
+
+
 
 
 function validateVersionChain(
@@ -156,6 +173,84 @@ function validateVersionChain(
     );
 
 }
+
+
+
+
+
+/*
+ * =========================================================
+ * EVIDENCE
+ * =========================================================
+ */
+
+
+function normalizeEvidence(
+    value
+) {
+
+    if(
+        !Array.isArray(
+            value
+        )
+    ){
+
+        return [];
+
+    }
+
+
+    return value
+
+        .filter(
+            item =>
+                item
+                &&
+                typeof item === "object"
+                &&
+                !Array.isArray(item)
+        )
+
+        .map(
+            item => ({
+                ...item
+            })
+        );
+
+}
+
+
+
+
+
+function buildEvidence(
+    experience
+) {
+
+    /*
+     * Сейчас examples являются
+     * единственным каноническим Evidence
+     * внутри Experience Skill.
+     *
+     * RPC дедуплицирует их по
+     * skill_id + evidence_key.
+     *
+     * Поэтому безопасно отправлять
+     * текущее окно целиком.
+     *
+     * После перехода на bounded examples
+     * сюда будут попадать только
+     * последние/репрезентативные examples.
+     */
+
+    return normalizeEvidence(
+        experience.examples
+    );
+
+}
+
+
+
 
 
 /*
@@ -215,7 +310,12 @@ function buildMetadata(
 
         storageVersion:
 
-            "v5",
+            "v6",
+
+
+        evidenceStorage:
+
+            "jessica_experience_evidence",
 
 
         storedAt:
@@ -226,6 +326,9 @@ function buildMetadata(
     };
 
 }
+
+
+
 
 
 /*
@@ -316,6 +419,13 @@ export async function saveExperienceAtomic(
         );
 
 
+    /*
+     * =====================================================
+     * PAYLOAD
+     * =====================================================
+     */
+
+
     const payload = {
 
         ...experience,
@@ -340,11 +450,39 @@ export async function saveExperienceAtomic(
     };
 
 
+    /*
+     * =====================================================
+     * EVIDENCE
+     * =====================================================
+     */
+
+
+    const evidence =
+
+        buildEvidence(
+            payload
+        );
+
+
+    /*
+     * =====================================================
+     * METADATA
+     * =====================================================
+     */
+
+
     const metadata =
 
         buildMetadata(
             payload
         );
+
+
+    /*
+     * =====================================================
+     * RPC
+     * =====================================================
+     */
 
 
     const {
@@ -384,7 +522,10 @@ export async function saveExperienceAtomic(
                         payload,
 
                     p_metadata:
-                        metadata
+                        metadata,
+
+                    p_evidence:
+                        evidence
 
                 }
 
@@ -459,18 +600,17 @@ export async function saveExperienceAtomic(
         version;
 
 
+    /*
+     * =====================================================
+     * RESULT
+     * =====================================================
+     */
+
+
     return {
 
         success:
             true,
-
-
-        /*
-         * true =
-         *
-         * этот Proposal уже был сохранён
-         * предыдущим execution.
-         */
 
 
         existing:
@@ -559,6 +699,51 @@ export async function saveExperienceAtomic(
             ??
 
             null,
+
+
+        /*
+         * Evidence diagnostics.
+         */
+
+
+        evidenceReceived:
+
+            Number(
+                rpcResult?.evidenceReceived
+                ??
+                0
+            ),
+
+
+        evidenceInserted:
+
+            Number(
+                rpcResult?.evidenceInserted
+                ??
+                0
+            ),
+
+
+        evidenceStorage:
+
+            normalizeText(
+                rpcResult?.evidenceStorage
+            )
+
+            ||
+
+            "jessica_experience_evidence",
+
+
+        writerVersion:
+
+            normalizeText(
+                rpcResult?.writerVersion
+            )
+
+            ||
+
+            "v3",
 
 
         experience:
