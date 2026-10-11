@@ -1,18 +1,13 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * FAILURE DECISION v3
+ * FAILURE DECISION v4
  * =========================================================
- *
- * Выбор следующего Execution Action.
- *
- *
- * Flow:
  *
  * Failure
  *      ↓
  * Decision
- *      ↓
+ *
  *
  * RETRY
  * REPLAN
@@ -20,11 +15,10 @@
  * FINISH
  *
  *
- * НЕ:
+ * КРИТИЧЕСКО:
  *
- * - выполняет действие;
- * - меняет Context;
- * - запускает Execution.
+ * presentation failure
+ * не должен повторять Execution Route.
  *
  * =========================================================
  */
@@ -45,11 +39,11 @@ import {
 } from "./failureActions.js";
 
 
-
-
-
-
-
+/*
+ * =========================================================
+ * BUILD DECISION
+ * =========================================================
+ */
 
 
 function buildDecision(
@@ -60,29 +54,19 @@ function buildDecision(
 
     context
 
-){
+) {
 
     return {
 
-
         action,
 
-
         type:
-
             action,
 
-
-
         reason:
-
             failure.reason || "",
 
-
-
         failure,
-
-
 
         canContinue:
 
@@ -92,80 +76,53 @@ function buildDecision(
 
             action === FAILURE_ACTION.REPLAN,
 
-
-
-        metadata:
-
-        {
+        metadata: {
 
             executionId:
-
                 context?.executionId || null,
-
 
             attempt:
 
                 Number(
-
                     context?.attempt || 0
-
                 ),
-
-
 
             retryCount:
 
                 Number(
-
                     context?.retryCount || 0
-
                 ),
-
-
 
             replanCount:
 
                 Number(
-
                     context?.replanCount || 0
-
                 ),
 
-
-
             failureType:
-
                 failure.failureType || null,
 
-
-
             category:
-
                 failure.category || null
 
-
         }
-
 
     };
 
 }
 
 
-
-
-
-
-
+/*
+ * =========================================================
+ * RETRY
+ * =========================================================
+ */
 
 
 function canRetry(
-
     context,
-
     failure
-
-){
+) {
 
     return shouldRetryExecution(
 
@@ -178,11 +135,11 @@ function canRetry(
 }
 
 
-
-
-
-
-
+/*
+ * =========================================================
+ * DECIDE
+ * =========================================================
+ */
 
 
 export function decideFailureAction(
@@ -191,20 +148,25 @@ export function decideFailureAction(
 
     failure = {}
 
-){
+) {
 
     /*
+     * =====================================================
      * USER INPUT
+     * =====================================================
      */
 
-    if(
 
-        failure.needsClarification === true
+    if(
+        failure.needsClarification
+        ===
+        true
 
         ||
 
-        failure.category === "clarification"
-
+        failure.category
+        ===
+        "clarification"
     ){
 
         return buildDecision(
@@ -220,25 +182,23 @@ export function decideFailureAction(
     }
 
 
-
-
-
-
-
-
-
     /*
+     * =====================================================
      * NO VERIFIED RESULT
+     * =====================================================
      */
 
-    if(
 
-        failure.noVerifiedResult === true
+    if(
+        failure.noVerifiedResult
+        ===
+        true
 
         ||
 
-        failure.category === "no_verified"
-
+        failure.category
+        ===
+        "no_verified"
     ){
 
         return buildDecision(
@@ -254,19 +214,47 @@ export function decideFailureAction(
     }
 
 
+    /*
+     * =====================================================
+     * PRESENTATION FAILURE
+     * =====================================================
+     *
+     * AI Composer уже выполнил
+     * собственный technical retry.
+     *
+     * Повторять Tools / Plan нельзя.
+     *
+     * =====================================================
+     */
 
 
+    if(
+        failure.category
+        ===
+        "presentation"
+    ){
 
+        return buildDecision(
 
+            FAILURE_ACTION.FINISH,
 
+            failure,
+
+            context
+
+        );
+
+    }
 
 
     /*
+     * =====================================================
      * RETRY
+     * =====================================================
      */
 
-    if(
 
+    if(
         canRetry(
 
             context,
@@ -274,7 +262,6 @@ export function decideFailureAction(
             failure
 
         )
-
     ){
 
         return buildDecision(
@@ -290,29 +277,23 @@ export function decideFailureAction(
     }
 
 
-
-
-
-
-
-
-
     /*
+     * =====================================================
      * REPLAN
+     * =====================================================
      */
 
+
     if(
-
         canReplan(
-
             context
-
         )
 
         &&
 
-        failure.category !== "temporary"
-
+        failure.category
+        !==
+        "temporary"
     ){
 
         return buildDecision(
@@ -328,16 +309,12 @@ export function decideFailureAction(
     }
 
 
-
-
-
-
-
-
-
     /*
+     * =====================================================
      * FINISH
+     * =====================================================
      */
+
 
     return buildDecision(
 
@@ -348,6 +325,5 @@ export function decideFailureAction(
         context
 
     );
-
 
 }
