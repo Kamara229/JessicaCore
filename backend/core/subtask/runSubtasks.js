@@ -9,33 +9,36 @@ import {
 
 
 import {
-    resolveDependencyState
+    resolveDependencyState,
+    collectDependencyResults
 } from "./subtaskDependencies.js";
 
 
 /*
  * =========================================================
- * JESSICA RUN SUBTASKS v2
+ * JESSICA RUN SUBTASKS v3
  * =========================================================
  *
- * Последовательный Dependency-aware
- * Subtask Runner.
+ * Последовательный Dependency-aware Runner.
  *
  *
  * Flow:
  *
- * decomposition
- *      ↓
  * subtask
- *      ↓
- * dependency check
- *      ↓
+ *    ↓
+ * dependency state
+ *    ↓
  *
  * satisfied
- *   → executeSubtask()
+ *    ↓
+ * attach prerequisite results
+ *    ↓
+ * executeSubtask
+ *
  *
  * failed prerequisite
- *   → BLOCKED
+ *    ↓
+ * BLOCKED
  *
  * =========================================================
  */
@@ -127,7 +130,7 @@ function buildBlockedSubtaskResult(
 
         result:
 
-            "Подзадача не выполнена, потому что обязательная предыдущая подзадача не дала пригодного результата",
+            "Подзадача заблокирована: необходимый результат предыдущей подзадачи отсутствует или не подтверждён",
 
         dependencies:
 
@@ -148,7 +151,7 @@ function buildBlockedSubtaskResult(
 
 /*
  * =========================================================
- * RUN SUBTASKS
+ * RUN
  * =========================================================
  */
 
@@ -168,13 +171,6 @@ export async function runSubtasks(
             : [];
 
 
-    /*
-     * =====================================================
-     * EMPTY
-     * =====================================================
-     */
-
-
     if(
         subtasks.length === 0
     ){
@@ -189,17 +185,28 @@ export async function runSubtasks(
     const results = [];
 
 
-    /*
-     * =====================================================
-     * EXECUTION
-     * =====================================================
-     */
-
-
     for(
         const subtask
         of subtasks
     ){
+
+        /*
+         * =================================================
+         * DEPENDENCY STATE
+         * =================================================
+         */
+
+
+        const dependencyState =
+
+            resolveDependencyState({
+
+                subtask,
+
+                results
+
+            });
+
 
         console.log(
 
@@ -214,16 +221,7 @@ export async function runSubtasks(
                     subtask?.text,
 
                 dependsOn:
-
-                    subtask?.dependsOn
-
-                    ??
-
-                    subtask?.dependencies
-
-                    ??
-
-                    []
+                    dependencyState.dependencies
 
             }
 
@@ -232,20 +230,9 @@ export async function runSubtasks(
 
         /*
          * =================================================
-         * DEPENDENCY CHECK
+         * BLOCKED
          * =================================================
          */
-
-
-        const dependencyState =
-
-            resolveDependencyState({
-
-                subtask,
-
-                results
-
-            });
 
 
         if(
@@ -272,9 +259,6 @@ export async function runSubtasks(
                     id:
                         subtask?.id,
 
-                    dependencies:
-                        dependencyState.dependencies,
-
                     blockedBy:
                         dependencyState.blockedBy,
 
@@ -298,6 +282,33 @@ export async function runSubtasks(
 
         /*
          * =================================================
+         * PREREQUISITE RESULTS
+         * =================================================
+         */
+
+
+        const dependencyResults =
+
+            collectDependencyResults({
+
+                subtask,
+
+                results
+
+            });
+
+
+        const executableSubtask = {
+
+            ...subtask,
+
+            dependencyResults
+
+        };
+
+
+        /*
+         * =================================================
          * EXECUTE
          * =================================================
          */
@@ -309,7 +320,7 @@ export async function runSubtasks(
             const result =
 
                 await executeSubtask(
-                    subtask
+                    executableSubtask
                 );
 
 
@@ -345,13 +356,6 @@ export async function runSubtasks(
         }
 
     }
-
-
-    /*
-     * =====================================================
-     * SUMMARY
-     * =====================================================
-     */
 
 
     return buildSubtaskSummary(
