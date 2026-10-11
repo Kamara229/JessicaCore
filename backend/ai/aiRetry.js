@@ -1,21 +1,27 @@
 /*
  * =========================================================
- * JESSICA AI RETRY
+ * JESSICA AI RETRY v2
  * =========================================================
  *
  * Общая техническая политика повторов AI-запросов.
  *
- * Повторяем только действительно временные ошибки.
  *
- * ВАЖНО:
+ * Повторяем только временные provider failures:
  *
- * - TPM rate limit с коротким Retry-After → retry;
- * - timeout / 5xx → retry;
- * - дневная квота / долгий Retry-After → НЕ retry;
- * - x-should-retry: false → НЕ retry.
+ * - TPM / RPM rate limit;
+ * - timeout;
+ * - network;
+ * - 5xx.
  *
- * Semantic retry здесь НЕ выполняется.
- * Semantic retry = Validator → Replanner.
+ *
+ * НЕ повторяем:
+ *
+ * - semantic failures;
+ * - invalid request;
+ * - долгосрочные quota limits;
+ * - provider x-should-retry=false.
+ *
+ * =========================================================
  */
 
 
@@ -34,12 +40,12 @@ const DEFAULT_RETRY_DELAY_MS =
     1000;
 
 
-/*
- * Не держим пользовательский запрос
- * десятки минут из-за квоты провайдера.
- */
 const MAX_IMMEDIATE_RETRY_WAIT_MS =
     30_000;
+
+
+const RETRY_SAFETY_MARGIN_MS =
+    350;
 
 
 /*
@@ -54,13 +60,16 @@ export function sleep(
 ) {
 
     const delay =
+
         Number.isFinite(
             milliseconds
         )
+
             ? Math.max(
                 0,
                 milliseconds
             )
+
             : 0;
 
 
@@ -70,6 +79,58 @@ export function sleep(
                 resolve,
                 delay
             )
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * SAFE STRING
+ * =========================================================
+ */
+
+
+function safeString(
+    value
+) {
+
+    return typeof value === "string"
+
+        ? value.trim()
+
+        : "";
+
+}
+
+
+/*
+ * =========================================================
+ * ERROR MESSAGE
+ * =========================================================
+ */
+
+
+function getErrorMessage(
+    error
+) {
+
+    return safeString(
+
+        error?.message
+
+        ||
+
+        error?.error?.message
+
+        ||
+
+        error?.response?.data?.error?.message
+
+        ||
+
+        error?.response?.data?.message
+
     );
 
 }
@@ -91,7 +152,9 @@ function getHeader(
         error?.headers;
 
 
-    if (!headers) {
+    if(
+        !headers
+    ){
 
         return null;
 
@@ -100,9 +163,10 @@ function getHeader(
 
     try {
 
-        if (
+
+        if(
             typeof headers.get === "function"
-        ) {
+        ){
 
             return headers.get(
                 name
@@ -112,12 +176,25 @@ function getHeader(
 
 
         return (
-            headers[name] ??
-            headers[name.toLowerCase()] ??
+
+            headers[name]
+
+            ??
+
+            headers[
+                String(name)
+                    .toLowerCase()
+            ]
+
+            ??
+
             null
+
         );
 
-    } catch {
+
+    }catch(error){
+
 
         return null;
 
@@ -137,17 +214,67 @@ function getErrorStatus(
     error
 ) {
 
-    const status =
-        Number(
-            error?.status
-        );
+    const candidates = [
+
+        error?.status,
+
+        error?.statusCode,
+
+        error?.response?.status
+
+    ];
 
 
-    return Number.isFinite(
-        status
+    for(
+        const candidate
+        of candidates
+    ){
+
+        const status =
+            Number(candidate);
+
+
+        if(
+            Number.isFinite(
+                status
+            )
+            &&
+            status > 0
+        ){
+
+            return status;
+
+        }
+
+    }
+
+
+    return 0;
+
+}
+
+
+/*
+ * =========================================================
+ * ERROR CODE
+ * =========================================================
+ */
+
+
+function getErrorCode(
+    error
+) {
+
+    return safeString(
+
+        error?.code
+
+        ||
+
+        error?.error?.code
+
     )
-        ? status
-        : 0;
+        .toLowerCase();
 
 }
 
@@ -164,22 +291,21 @@ function providerAllowsRetry(
 ) {
 
     const value =
-        String(
+
+        safeString(
+
             getHeader(
                 error,
                 "x-should-retry"
-            ) || ""
+            )
+
         )
-            .trim()
             .toLowerCase();
 
 
-    /*
-     * Провайдер явно запретил повтор.
-     */
-    if (
+    if(
         value === "false"
-    ) {
+    ){
 
         return false;
 
@@ -187,6 +313,250 @@ function providerAllowsRetry(
 
 
     return true;
+
+}
+
+
+/*
+ * =========================================================
+ * RETRY-AFTER HEADER
+ * =========================================================
+ */
+
+
+function getRetryAfterFromHeader(
+    error
+) {
+
+    const value =
+
+        getHeader(
+            error,
+            "retry-after"
+        );
+
+
+    if(
+        value === null
+        ||
+        value === undefined
+        ||
+        value === ""
+    ){
+
+        return null;
+
+    }
+
+
+    /*
+     * Seconds
+     */
+
+
+    const seconds =
+        Number(value);
+
+
+    if(
+        Number.isFinite(
+            seconds
+        )
+        &&
+        seconds >= 0
+    ){
+
+        return Math.ceil(
+            seconds * 1000
+        );
+
+    }
+
+
+    /*
+     * HTTP date
+     */
+
+
+    const timestamp =
+
+        Date.parse(
+            String(value)
+        );
+
+
+    if(
+        Number.isFinite(
+            timestamp
+        )
+    ){
+
+        return Math.max(
+
+            0,
+
+            timestamp - Date.now()
+
+        );
+
+    }
+
+
+    return null;
+
+}
+
+
+/*
+ * =========================================================
+ * RETRY-AFTER MESSAGE
+ * =========================================================
+ *
+ * Groq иногда сообщает delay только текстом:
+ *
+ * "Please try again in 11.19s"
+ *
+ * Поэтому одного HTTP header недостаточно.
+ *
+ * =========================================================
+ */
+
+
+function getRetryAfterFromMessage(
+    error
+) {
+
+    const message =
+
+        getErrorMessage(
+            error
+        );
+
+
+    if(
+        !message
+    ){
+
+        return null;
+
+    }
+
+
+    /*
+     * milliseconds
+     */
+
+
+    const millisecondsMatch =
+
+        message.match(
+            /try\s+again\s+in\s+([\d.]+)\s*ms\b/i
+        );
+
+
+    if(
+        millisecondsMatch
+    ){
+
+        const value =
+
+            Number(
+                millisecondsMatch[1]
+            );
+
+
+        if(
+            Number.isFinite(value)
+            &&
+            value >= 0
+        ){
+
+            return Math.ceil(
+                value
+            );
+
+        }
+
+    }
+
+
+    /*
+     * seconds
+     */
+
+
+    const secondsMatch =
+
+        message.match(
+            /try\s+again\s+in\s+([\d.]+)\s*(?:s|sec|secs|second|seconds)\b/i
+        );
+
+
+    if(
+        secondsMatch
+    ){
+
+        const value =
+
+            Number(
+                secondsMatch[1]
+            );
+
+
+        if(
+            Number.isFinite(value)
+            &&
+            value >= 0
+        ){
+
+            return Math.ceil(
+                value * 1000
+            );
+
+        }
+
+    }
+
+
+    /*
+     * minutes
+     */
+
+
+    const minutesMatch =
+
+        message.match(
+            /try\s+again\s+in\s+([\d.]+)\s*(?:m|min|mins|minute|minutes)\b/i
+        );
+
+
+    if(
+        minutesMatch
+    ){
+
+        const value =
+
+            Number(
+                minutesMatch[1]
+            );
+
+
+        if(
+            Number.isFinite(value)
+            &&
+            value >= 0
+        ){
+
+            return Math.ceil(
+                value * 60_000
+            );
+
+        }
+
+    }
+
+
+    return null;
 
 }
 
@@ -202,77 +572,108 @@ function getRetryAfterMilliseconds(
     error
 ) {
 
-    const value =
-        getHeader(
-            error,
-            "retry-after"
+    const headerValue =
+
+        getRetryAfterFromHeader(
+            error
         );
 
 
-    if (
-        value === null ||
-        value === undefined ||
-        value === ""
-    ) {
+    if(
+        headerValue !== null
+    ){
 
-        return null;
+        return headerValue;
 
     }
 
 
-    /*
-     * Retry-After в секундах.
-     */
+    return getRetryAfterFromMessage(
+        error
+    );
+
+}
 
 
-    const seconds =
-        Number(
-            value
-        );
+/*
+ * =========================================================
+ * RATE LIMIT
+ * =========================================================
+ */
 
 
-    if (
-        Number.isFinite(
-            seconds
-        ) &&
-        seconds >= 0
-    ) {
+function isRateLimitError(
+    error
+) {
 
-        return Math.ceil(
-            seconds * 1000
-        );
-
-    }
-
-
-    /*
-     * HTTP также допускает дату.
-     */
-
-
-    const timestamp =
-        Date.parse(
-            String(
-                value
-            )
-        );
-
-
-    if (
-        Number.isFinite(
-            timestamp
+    if(
+        getErrorStatus(
+            error
         )
-    ) {
+        ===
+        429
+    ){
 
-        return Math.max(
-            0,
-            timestamp - Date.now()
-        );
+        return true;
 
     }
 
 
-    return null;
+    const code =
+
+        getErrorCode(
+            error
+        );
+
+
+    if(
+        code === "rate_limit_exceeded"
+    ){
+
+        return true;
+
+    }
+
+
+    const message =
+
+        getErrorMessage(
+            error
+        )
+            .toLowerCase();
+
+
+    return (
+
+        message.includes(
+            "rate limit"
+        )
+
+        ||
+
+        message.includes(
+            "tokens per minute"
+        )
+
+        ||
+
+        message.includes(
+            "(tpm)"
+        )
+
+        ||
+
+        message.includes(
+            "requests per minute"
+        )
+
+        ||
+
+        message.includes(
+            "(rpm)"
+        )
+
+    );
 
 }
 
@@ -289,27 +690,41 @@ function isLongRateLimit(
 ) {
 
     const message =
-        String(
-            error?.message ||
-            error?.error?.message ||
-            ""
+
+        getErrorMessage(
+            error
         )
             .toLowerCase();
 
 
     /*
-     * Дневные / долгосрочные квоты.
+     * Daily / long quota.
      */
 
 
-    if (
+    if(
         message.includes(
             "tokens per day"
-        ) ||
+        )
+
+        ||
+
         message.includes(
             "(tpd)"
         )
-    ) {
+
+        ||
+
+        message.includes(
+            "requests per day"
+        )
+
+        ||
+
+        message.includes(
+            "(rpd)"
+        )
+    ){
 
         return true;
 
@@ -317,22 +732,18 @@ function isLongRateLimit(
 
 
     const retryAfter =
+
         getRetryAfterMilliseconds(
             error
         );
 
 
-    /*
-     * Если провайдер просит ждать больше
-     * 30 секунд, не блокируем текущую задачу.
-     */
-
-
-    if (
-        retryAfter !== null &&
+    if(
+        retryAfter !== null
+        &&
         retryAfter >
-            MAX_IMMEDIATE_RETRY_WAIT_MS
-    ) {
+        MAX_IMMEDIATE_RETRY_WAIT_MS
+    ){
 
         return true;
 
@@ -356,26 +767,19 @@ export function isRetryableAIError(
 ) {
 
     /*
-     * Сначала уважаем прямое указание
-     * самого AI-провайдера.
+     * Provider explicit prohibition.
      */
 
 
-    if (
+    if(
         !providerAllowsRetry(
             error
         )
-    ) {
+    ){
 
         return false;
 
     }
-
-
-    const status =
-        getErrorStatus(
-            error
-        );
 
 
     /*
@@ -383,22 +787,17 @@ export function isRetryableAIError(
      */
 
 
-    if (
-        status === 429
-    ) {
+    if(
+        isRateLimitError(
+            error
+        )
+    ){
 
-        /*
-         * Долгосрочную квоту внутри
-         * пользовательского запроса
-         * повторять бессмысленно.
-         */
-
-
-        if (
+        if(
             isLongRateLimit(
                 error
             )
-        ) {
+        ){
 
             return false;
 
@@ -410,14 +809,23 @@ export function isRetryableAIError(
     }
 
 
+    const status =
+
+        getErrorStatus(
+            error
+        );
+
+
     /*
      * Request timeout.
      */
 
 
-    if (
+    if(
         status === 408
-    ) {
+        ||
+        status === 408
+    ){
 
         return true;
 
@@ -429,10 +837,11 @@ export function isRetryableAIError(
      */
 
 
-    if (
-        status >= 500 &&
+    if(
+        status >= 500
+        &&
         status <= 599
-    ) {
+    ){
 
         return true;
 
@@ -440,28 +849,38 @@ export function isRetryableAIError(
 
 
     /*
-     * Network errors without HTTP status.
+     * Network.
      */
 
 
     const code =
-        String(
-            error?.code || ""
+
+        safeString(
+            error?.code
         )
-            .trim()
             .toUpperCase();
 
 
     const retryableCodes =
+
         new Set([
+
             "ECONNRESET",
+
             "ECONNREFUSED",
+
             "ETIMEDOUT",
+
             "EAI_AGAIN",
+
             "ENETUNREACH",
+
             "UND_ERR_CONNECT_TIMEOUT",
+
             "UND_ERR_HEADERS_TIMEOUT",
+
             "UND_ERR_SOCKET"
+
         ]);
 
 
@@ -485,25 +904,31 @@ export function getAIRetryDelay(
 ) {
 
     const retryAfter =
+
         getRetryAfterMilliseconds(
             error
         );
 
 
-    if (
+    if(
         retryAfter !== null
-    ) {
+    ){
 
         return Math.min(
-            retryAfter + 250,
+
+            retryAfter
+            +
+            RETRY_SAFETY_MARGIN_MS,
+
             MAX_IMMEDIATE_RETRY_WAIT_MS
+
         );
 
     }
 
 
     /*
-     * Exponential backoff:
+     * Exponential backoff.
      *
      * attempt 1 → 1 sec
      * attempt 2 → 2 sec
@@ -512,6 +937,7 @@ export function getAIRetryDelay(
 
 
     const multiplier =
+
         Math.max(
             0,
             attempt - 1
@@ -519,13 +945,18 @@ export function getAIRetryDelay(
 
 
     return Math.min(
-        DEFAULT_RETRY_DELAY_MS *
-            Math.pow(
-                2,
-                multiplier
-            ),
+
+        DEFAULT_RETRY_DELAY_MS
+
+        *
+
+        Math.pow(
+            2,
+            multiplier
+        ),
 
         MAX_IMMEDIATE_RETRY_WAIT_MS
+
     );
 
 }
@@ -539,13 +970,16 @@ export function getAIRetryDelay(
 
 
 export async function executeAIWithRetry(
+
     operation,
+
     options = {}
+
 ) {
 
-    if (
+    if(
         typeof operation !== "function"
-    ) {
+    ){
 
         throw new Error(
             "AI retry operation не является функцией"
@@ -555,18 +989,26 @@ export async function executeAIWithRetry(
 
 
     const label =
-        String(
-            options.label ||
-            "AI request"
-        );
+
+        safeString(
+            options.label
+        )
+
+        ||
+
+        "AI request";
 
 
     const maxAttempts =
+
         Number.isInteger(
             options.maxAttempts
-        ) &&
+        )
+        &&
         options.maxAttempts > 0
+
             ? options.maxAttempts
+
             : MAX_AI_ATTEMPTS;
 
 
@@ -574,33 +1016,87 @@ export async function executeAIWithRetry(
         null;
 
 
-    for (
+    for(
         let attempt = 1;
+
         attempt <= maxAttempts;
+
         attempt++
-    ) {
+    ){
 
         try {
 
+
             return await operation();
 
-        } catch (error) {
+
+        }catch(error){
+
 
             lastError =
                 error;
 
 
             const retryable =
+
                 isRetryableAIError(
                     error
                 );
 
 
+            const delay =
+
+                retryable
+                &&
+                attempt < maxAttempts
+
+                    ? getAIRetryDelay(
+                        error,
+                        attempt
+                    )
+
+                    : 0;
+
+
             console.warn(
-                `${label} failed ` +
-                `[${attempt}/${maxAttempts}]:`,
-                error?.message ||
-                error
+
+                `${label} failed [${attempt}/${maxAttempts}]:`,
+
+                {
+
+                    status:
+
+                        getErrorStatus(
+                            error
+                        ),
+
+                    code:
+
+                        getErrorCode(
+                            error
+                        )
+
+                        ||
+
+                        null,
+
+                    retryable,
+
+                    retryDelay:
+                        delay,
+
+                    message:
+
+                        getErrorMessage(
+                            error
+                        )
+
+                        ||
+
+                        String(error)
+
+                }
+
             );
 
 
@@ -611,12 +1107,14 @@ export async function executeAIWithRetry(
              */
 
 
-            if (
+            if(
                 !retryable
-            ) {
+            ){
 
                 console.warn(
+
                     `${label}: provider error is not immediately retryable`
+
                 );
 
 
@@ -632,10 +1130,9 @@ export async function executeAIWithRetry(
              */
 
 
-            if (
-                attempt >=
-                maxAttempts
-            ) {
+            if(
+                attempt >= maxAttempts
+            ){
 
                 throw error;
 
@@ -649,15 +1146,10 @@ export async function executeAIWithRetry(
              */
 
 
-            const delay =
-                getAIRetryDelay(
-                    error,
-                    attempt
-                );
-
-
             console.log(
+
                 `${label} technical retry in ${delay}ms`
+
             );
 
 
@@ -671,10 +1163,15 @@ export async function executeAIWithRetry(
 
 
     throw (
-        lastError ||
+
+        lastError
+
+        ||
+
         new Error(
             `${label} failed`
         )
+
     );
 
 }
