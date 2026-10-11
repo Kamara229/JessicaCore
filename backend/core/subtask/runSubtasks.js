@@ -8,49 +8,37 @@ import {
 } from "./subtaskSummary.js";
 
 
+import {
+    resolveDependencyState
+} from "./subtaskDependencies.js";
+
 
 /*
  * =========================================================
- * JESSICA RUN SUBTASKS
+ * JESSICA RUN SUBTASKS v2
  * =========================================================
  *
- * Выполнение нескольких подзадач Jessica.
+ * Последовательный Dependency-aware
+ * Subtask Runner.
  *
  *
  * Flow:
  *
  * decomposition
  *      ↓
- * subtasks[]
+ * subtask
  *      ↓
- * executeSubtask()
+ * dependency check
  *      ↓
- * results[]
- *      ↓
- * summary
  *
+ * satisfied
+ *   → executeSubtask()
  *
- * Ответственность:
- *
- * - последовательный запуск;
- * - обработка ошибок;
- * - сбор результатов.
- *
- *
- * НЕ отвечает за:
- *
- * - Planner;
- * - Experience;
- * - Tools;
- * - Response;
- * - Learning;
- * - Trace.
+ * failed prerequisite
+ *   → BLOCKED
  *
  * =========================================================
  */
-
-
-
 
 
 /*
@@ -65,56 +53,97 @@ function buildFailedSubtaskResult(
     error
 ) {
 
-
     return {
 
-
         id:
-            subtask?.id || null,
-
-
+            subtask?.id ?? null,
 
         text:
+
             typeof subtask?.text === "string"
+
                 ? subtask.text
+
                 : "",
-
-
 
         success:
             false,
 
-
-
         status:
             "FAILED",
-
-
 
         stage:
             "subtask",
 
-
-
         result:
             "Непредвиденная ошибка выполнения подзадачи",
 
-
-
         error:
-            error?.message ||
+
+            error?.message
+
+            ||
+
             "unknown error"
 
-
     };
-
 
 }
 
 
+/*
+ * =========================================================
+ * BLOCKED RESULT
+ * =========================================================
+ */
 
 
+function buildBlockedSubtaskResult(
+    subtask,
+    dependencyState
+) {
 
+    return {
+
+        id:
+            subtask?.id ?? null,
+
+        text:
+
+            typeof subtask?.text === "string"
+
+                ? subtask.text
+
+                : "",
+
+        success:
+            false,
+
+        status:
+            "BLOCKED",
+
+        stage:
+            "dependency",
+
+        result:
+
+            "Подзадача не выполнена, потому что обязательная предыдущая подзадача не дала пригодного результата",
+
+        dependencies:
+
+            dependencyState.dependencies,
+
+        blockedBy:
+
+            dependencyState.blockedBy,
+
+        missingDependencies:
+
+            dependencyState.missing
+
+    };
+
+}
 
 
 /*
@@ -128,16 +157,15 @@ export async function runSubtasks(
     decomposition
 ) {
 
-
     const subtasks =
+
         Array.isArray(
             decomposition?.subtasks
         )
+
             ? decomposition.subtasks
+
             : [];
-
-
-
 
 
     /*
@@ -147,50 +175,31 @@ export async function runSubtasks(
      */
 
 
-    if (
+    if(
         subtasks.length === 0
-    ) {
-
+    ){
 
         return buildSubtaskSummary(
             []
         );
 
-
     }
 
 
-
-
-
-
     const results = [];
-
-
-
-
 
 
     /*
      * =====================================================
      * EXECUTION
      * =====================================================
-     *
-     * Последовательный запуск.
-     *
-     * Позже можно заменить
-     * на очередь / worker pool.
-     *
-     * =====================================================
      */
 
 
-    for (
+    for(
         const subtask
         of subtasks
-    ) {
-
-
+    ){
 
         console.log(
 
@@ -201,26 +210,107 @@ export async function runSubtasks(
                 id:
                     subtask?.id,
 
-
                 text:
-                    subtask?.text
+                    subtask?.text,
+
+                dependsOn:
+
+                    subtask?.dependsOn
+
+                    ??
+
+                    subtask?.dependencies
+
+                    ??
+
+                    []
 
             }
 
         );
 
 
+        /*
+         * =================================================
+         * DEPENDENCY CHECK
+         * =================================================
+         */
 
+
+        const dependencyState =
+
+            resolveDependencyState({
+
+                subtask,
+
+                results
+
+            });
+
+
+        if(
+            !dependencyState.satisfied
+        ){
+
+            const blockedResult =
+
+                buildBlockedSubtaskResult(
+
+                    subtask,
+
+                    dependencyState
+
+                );
+
+
+            console.warn(
+
+                "Jessica subtask blocked:",
+
+                {
+
+                    id:
+                        subtask?.id,
+
+                    dependencies:
+                        dependencyState.dependencies,
+
+                    blockedBy:
+                        dependencyState.blockedBy,
+
+                    missing:
+                        dependencyState.missing
+
+                }
+
+            );
+
+
+            results.push(
+                blockedResult
+            );
+
+
+            continue;
+
+        }
+
+
+        /*
+         * =================================================
+         * EXECUTE
+         * =================================================
+         */
 
 
         try {
 
 
             const result =
+
                 await executeSubtask(
                     subtask
                 );
-
 
 
             results.push(
@@ -228,9 +318,7 @@ export async function runSubtasks(
             );
 
 
-
-        } catch(error) {
-
+        }catch(error){
 
 
             console.error(
@@ -242,28 +330,21 @@ export async function runSubtasks(
             );
 
 
-
             results.push(
 
                 buildFailedSubtaskResult(
+
                     subtask,
+
                     error
+
                 )
 
             );
 
-
         }
 
-
-
     }
-
-
-
-
-
-
 
 
     /*
@@ -276,7 +357,5 @@ export async function runSubtasks(
     return buildSubtaskSummary(
         results
     );
-
-
 
 }
