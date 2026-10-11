@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA AI RETRY v2
+ * JESSICA AI RETRY v3
  * =========================================================
  *
  * Общая техническая политика повторов AI-запросов.
@@ -10,16 +10,21 @@
  *
  * - TPM / RPM rate limit;
  * - timeout;
- * - network;
- * - 5xx.
+ * - network failures;
+ * - 5xx;
+ * - известный временный Groq/model protocol glitch.
  *
  *
  * НЕ повторяем:
  *
  * - semantic failures;
- * - invalid request;
+ * - обычные 400 invalid request;
  * - долгосрочные quota limits;
- * - provider x-should-retry=false.
+ * - provider x-should-retry=false,
+ *   кроме явно известного model protocol glitch.
+ *
+ *
+ * Semantic retry здесь НЕ выполняется.
  *
  * =========================================================
  */
@@ -42,6 +47,15 @@ const DEFAULT_RETRY_DELAY_MS =
 
 const MAX_IMMEDIATE_RETRY_WAIT_MS =
     30_000;
+
+
+/*
+ * Небольшой запас после provider Retry-After.
+ *
+ * Если Groq говорит 11.19s,
+ * запрос уйдёт примерно через 11.54s,
+ * а не ровно на границе rate-limit окна.
+ */
 
 
 const RETRY_SAFETY_MARGIN_MS =
@@ -138,73 +152,6 @@ function getErrorMessage(
 
 /*
  * =========================================================
- * HEADER
- * =========================================================
- */
-
-
-function getHeader(
-    error,
-    name
-) {
-
-    const headers =
-        error?.headers;
-
-
-    if(
-        !headers
-    ){
-
-        return null;
-
-    }
-
-
-    try {
-
-
-        if(
-            typeof headers.get === "function"
-        ){
-
-            return headers.get(
-                name
-            );
-
-        }
-
-
-        return (
-
-            headers[name]
-
-            ??
-
-            headers[
-                String(name)
-                    .toLowerCase()
-            ]
-
-            ??
-
-            null
-
-        );
-
-
-    }catch(error){
-
-
-        return null;
-
-    }
-
-}
-
-
-/*
- * =========================================================
  * STATUS
  * =========================================================
  */
@@ -235,9 +182,7 @@ function getErrorStatus(
 
 
         if(
-            Number.isFinite(
-                status
-            )
+            Number.isFinite(status)
             &&
             status > 0
         ){
@@ -275,6 +220,149 @@ function getErrorCode(
 
     )
         .toLowerCase();
+
+}
+
+
+/*
+ * =========================================================
+ * HEADER
+ * =========================================================
+ */
+
+
+function getHeader(
+    error,
+    name
+) {
+
+    const headers =
+        error?.headers;
+
+
+    if(
+        !headers
+    ){
+
+        return null;
+
+    }
+
+
+    try {
+
+
+        if(
+            typeof headers.get === "function"
+        ){
+
+            return headers.get(
+                name
+            );
+
+        }
+
+
+        const normalizedName =
+
+            String(name)
+                .toLowerCase();
+
+
+        return (
+
+            headers[name]
+
+            ??
+
+            headers[normalizedName]
+
+            ??
+
+            null
+
+        );
+
+
+    }catch(error){
+
+
+        return null;
+
+    }
+
+}
+
+
+/*
+ * =========================================================
+ * KNOWN MODEL PROTOCOL ERROR
+ * =========================================================
+ *
+ * Groq + GPT OSS иногда возвращает:
+ *
+ * 400 Tool choice is none,
+ * but model called a tool
+ *
+ *
+ * При этом Jessica Planner:
+ *
+ * - не передаёт tools;
+ * - не разрешает tool execution;
+ * - ожидает обычный JSON.
+ *
+ *
+ * Поэтому это не ошибка Execution Plan
+ * и не повод запускать Replanner.
+ *
+ * Это ограниченно повторяемый transport /
+ * model-generation glitch.
+ *
+ * =========================================================
+ */
+
+
+function isTransientModelProtocolError(
+    error
+) {
+
+    const status =
+
+        getErrorStatus(
+            error
+        );
+
+
+    if(
+        status !== 400
+    ){
+
+        return false;
+
+    }
+
+
+    const message =
+
+        getErrorMessage(
+            error
+        )
+            .toLowerCase();
+
+
+    return (
+
+        message.includes(
+            "tool choice is none"
+        )
+
+        &&
+
+        message.includes(
+            "model called a tool"
+        )
+
+    );
 
 }
 
@@ -319,6 +407,177 @@ function providerAllowsRetry(
 
 /*
  * =========================================================
+ * RETRY AFTER FROM HEADER
+ * =========================================================
+ */
+
+
+function parseRetryDuration(
+    value
+) {
+
+    const text =
+
+        safeString(
+            value
+        )
+            .toLowerCase();
+
+
+    if(
+        !text
+    ){
+
+        return null;
+
+    }
+
+
+    /*
+     * Plain seconds:
+     *
+     * Retry-After: 11.19
+     */
+
+
+    const plainNumber =
+        Number(text);
+
+
+    if(
+        Number.isFinite(plainNumber)
+        &&
+        plainNumber >= 0
+    ){
+
+        return Math.ceil(
+            plainNumber * 1000
+        );
+
+    }
+
+
+    /*
+     * 250ms
+     */
+
+
+    const millisecondsMatch =
+
+        text.match(
+            /^([\d.]+)\s*ms$/
+        );
+
+
+    if(
+        millisecondsMatch
+    ){
+
+        const amount =
+
+            Number(
+                millisecondsMatch[1]
+            );
+
+
+        if(
+            Number.isFinite(amount)
+            &&
+            amount >= 0
+        ){
+
+            return Math.ceil(
+                amount
+            );
+
+        }
+
+    }
+
+
+    /*
+     * 11.19s
+     */
+
+
+    const secondsMatch =
+
+        text.match(
+            /^([\d.]+)\s*s$/
+        );
+
+
+    if(
+        secondsMatch
+    ){
+
+        const amount =
+
+            Number(
+                secondsMatch[1]
+            );
+
+
+        if(
+            Number.isFinite(amount)
+            &&
+            amount >= 0
+        ){
+
+            return Math.ceil(
+                amount * 1000
+            );
+
+        }
+
+    }
+
+
+    /*
+     * 1.5m
+     */
+
+
+    const minutesMatch =
+
+        text.match(
+            /^([\d.]+)\s*m$/
+        );
+
+
+    if(
+        minutesMatch
+    ){
+
+        const amount =
+
+            Number(
+                minutesMatch[1]
+            );
+
+
+        if(
+            Number.isFinite(amount)
+            &&
+            amount >= 0
+        ){
+
+            return Math.ceil(
+                amount * 60_000
+            );
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/*
+ * =========================================================
  * RETRY-AFTER HEADER
  * =========================================================
  */
@@ -350,31 +609,28 @@ function getRetryAfterFromHeader(
 
 
     /*
-     * Seconds
+     * seconds / duration
      */
 
 
-    const seconds =
-        Number(value);
+    const duration =
+
+        parseRetryDuration(
+            value
+        );
 
 
     if(
-        Number.isFinite(
-            seconds
-        )
-        &&
-        seconds >= 0
+        duration !== null
     ){
 
-        return Math.ceil(
-            seconds * 1000
-        );
+        return duration;
 
     }
 
 
     /*
-     * HTTP date
+     * HTTP-date
      */
 
 
@@ -409,14 +665,89 @@ function getRetryAfterFromHeader(
 
 /*
  * =========================================================
- * RETRY-AFTER MESSAGE
+ * GROQ RATE-LIMIT RESET HEADERS
+ * =========================================================
+ */
+
+
+function getRateLimitResetFromHeaders(
+    error
+) {
+
+    const headerNames = [
+
+        "x-ratelimit-reset-tokens",
+
+        "x-ratelimit-reset-requests"
+
+    ];
+
+
+    const delays = [];
+
+
+    for(
+        const headerName
+        of headerNames
+    ){
+
+        const value =
+
+            getHeader(
+                error,
+                headerName
+            );
+
+
+        const duration =
+
+            parseRetryDuration(
+                value
+            );
+
+
+        if(
+            duration !== null
+        ){
+
+            delays.push(
+                duration
+            );
+
+        }
+
+    }
+
+
+    if(
+        delays.length === 0
+    ){
+
+        return null;
+
+    }
+
+
+    /*
+     * Берём максимальное ограничение.
+     */
+
+
+    return Math.max(
+        ...delays
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * RETRY-AFTER FROM MESSAGE
  * =========================================================
  *
- * Groq иногда сообщает delay только текстом:
+ * Groq может вернуть время только текстом:
  *
  * "Please try again in 11.19s"
- *
- * Поэтому одного HTTP header недостаточно.
  *
  * =========================================================
  */
@@ -458,7 +789,7 @@ function getRetryAfterFromMessage(
         millisecondsMatch
     ){
 
-        const value =
+        const amount =
 
             Number(
                 millisecondsMatch[1]
@@ -466,13 +797,13 @@ function getRetryAfterFromMessage(
 
 
         if(
-            Number.isFinite(value)
+            Number.isFinite(amount)
             &&
-            value >= 0
+            amount >= 0
         ){
 
             return Math.ceil(
-                value
+                amount
             );
 
         }
@@ -496,7 +827,7 @@ function getRetryAfterFromMessage(
         secondsMatch
     ){
 
-        const value =
+        const amount =
 
             Number(
                 secondsMatch[1]
@@ -504,13 +835,13 @@ function getRetryAfterFromMessage(
 
 
         if(
-            Number.isFinite(value)
+            Number.isFinite(amount)
             &&
-            value >= 0
+            amount >= 0
         ){
 
             return Math.ceil(
-                value * 1000
+                amount * 1000
             );
 
         }
@@ -534,7 +865,7 @@ function getRetryAfterFromMessage(
         minutesMatch
     ){
 
-        const value =
+        const amount =
 
             Number(
                 minutesMatch[1]
@@ -542,13 +873,13 @@ function getRetryAfterFromMessage(
 
 
         if(
-            Number.isFinite(value)
+            Number.isFinite(amount)
             &&
-            value >= 0
+            amount >= 0
         ){
 
             return Math.ceil(
-                value * 60_000
+                amount * 60_000
             );
 
         }
@@ -572,24 +903,46 @@ function getRetryAfterMilliseconds(
     error
 ) {
 
-    const headerValue =
+    const values = [
 
         getRetryAfterFromHeader(
             error
+        ),
+
+        getRateLimitResetFromHeaders(
+            error
+        ),
+
+        getRetryAfterFromMessage(
+            error
+        )
+
+    ]
+        .filter(
+            value =>
+                Number.isFinite(value)
+                &&
+                value >= 0
         );
 
 
     if(
-        headerValue !== null
+        values.length === 0
     ){
 
-        return headerValue;
+        return null;
 
     }
 
 
-    return getRetryAfterFromMessage(
-        error
+    /*
+     * Используем самое консервативное
+     * ограничение.
+     */
+
+
+    return Math.max(
+        ...values
     );
 
 }
@@ -619,15 +972,12 @@ function isRateLimitError(
     }
 
 
-    const code =
-
+    if(
         getErrorCode(
             error
-        );
-
-
-    if(
-        code === "rate_limit_exceeded"
+        )
+        ===
+        "rate_limit_exceeded"
     ){
 
         return true;
@@ -680,7 +1030,7 @@ function isRateLimitError(
 
 /*
  * =========================================================
- * LONG-LIVED RATE LIMIT
+ * LONG RATE LIMIT
  * =========================================================
  */
 
@@ -698,7 +1048,7 @@ function isLongRateLimit(
 
 
     /*
-     * Daily / long quota.
+     * Daily quota.
      */
 
 
@@ -738,19 +1088,71 @@ function isLongRateLimit(
         );
 
 
-    if(
+    /*
+     * Не держим один пользовательский
+     * запрос слишком долго.
+     */
+
+
+    return (
+
         retryAfter !== null
+
         &&
+
         retryAfter >
         MAX_IMMEDIATE_RETRY_WAIT_MS
-    ){
 
-        return true;
+    );
 
-    }
+}
 
 
-    return false;
+/*
+ * =========================================================
+ * NETWORK
+ * =========================================================
+ */
+
+
+function isRetryableNetworkError(
+    error
+) {
+
+    const code =
+
+        safeString(
+            error?.code
+        )
+            .toUpperCase();
+
+
+    const retryableCodes =
+
+        new Set([
+
+            "ECONNRESET",
+
+            "ECONNREFUSED",
+
+            "ETIMEDOUT",
+
+            "EAI_AGAIN",
+
+            "ENETUNREACH",
+
+            "UND_ERR_CONNECT_TIMEOUT",
+
+            "UND_ERR_HEADERS_TIMEOUT",
+
+            "UND_ERR_SOCKET"
+
+        ]);
+
+
+    return retryableCodes.has(
+        code
+    );
 
 }
 
@@ -767,7 +1169,27 @@ export function isRetryableAIError(
 ) {
 
     /*
-     * Provider explicit prohibition.
+     * Известный model protocol glitch.
+     *
+     * Проверяем до x-should-retry:
+     * HTTP 400 в данном конкретном случае
+     * не означает некорректный Jessica request.
+     */
+
+
+    if(
+        isTransientModelProtocolError(
+            error
+        )
+    ){
+
+        return true;
+
+    }
+
+
+    /*
+     * Уважаем явный запрет provider.
      */
 
 
@@ -823,8 +1245,6 @@ export function isRetryableAIError(
 
     if(
         status === 408
-        ||
-        status === 408
     ){
 
         return true;
@@ -833,7 +1253,7 @@ export function isRetryableAIError(
 
 
     /*
-     * Temporary provider errors.
+     * Temporary provider failures.
      */
 
 
@@ -853,39 +1273,8 @@ export function isRetryableAIError(
      */
 
 
-    const code =
-
-        safeString(
-            error?.code
-        )
-            .toUpperCase();
-
-
-    const retryableCodes =
-
-        new Set([
-
-            "ECONNRESET",
-
-            "ECONNREFUSED",
-
-            "ETIMEDOUT",
-
-            "EAI_AGAIN",
-
-            "ENETUNREACH",
-
-            "UND_ERR_CONNECT_TIMEOUT",
-
-            "UND_ERR_HEADERS_TIMEOUT",
-
-            "UND_ERR_SOCKET"
-
-        ]);
-
-
-    return retryableCodes.has(
-        code
+    return isRetryableNetworkError(
+        error
     );
 
 }
@@ -928,11 +1317,11 @@ export function getAIRetryDelay(
 
 
     /*
-     * Exponential backoff.
+     * Exponential backoff:
      *
-     * attempt 1 → 1 sec
-     * attempt 2 → 2 sec
-     * attempt 3 → 4 sec
+     * attempt 1 → 1s
+     * attempt 2 → 2s
+     * attempt 3 → 4s
      */
 
 
@@ -940,7 +1329,7 @@ export function getAIRetryDelay(
 
         Math.max(
             0,
-            attempt - 1
+            Number(attempt || 1) - 1
         );
 
 
@@ -1044,11 +1433,16 @@ export async function executeAIWithRetry(
                 );
 
 
-            const delay =
+            const canRetry =
 
                 retryable
                 &&
-                attempt < maxAttempts
+                attempt < maxAttempts;
+
+
+            const delay =
+
+                canRetry
 
                     ? getAIRetryDelay(
                         error,
@@ -1131,7 +1525,7 @@ export async function executeAIWithRetry(
 
 
             if(
-                attempt >= maxAttempts
+                !canRetry
             ){
 
                 throw error;
@@ -1141,37 +1535,4 @@ export async function executeAIWithRetry(
 
             /*
              * =================================================
-             * WAIT
-             * =================================================
-             */
-
-
-            console.log(
-
-                `${label} technical retry in ${delay}ms`
-
-            );
-
-
-            await sleep(
-                delay
-            );
-
-        }
-
-    }
-
-
-    throw (
-
-        lastError
-
-        ||
-
-        new Error(
-            `${label} failed`
-        )
-
-    );
-
-}
+             
