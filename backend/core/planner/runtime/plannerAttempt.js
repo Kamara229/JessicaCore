@@ -3,7 +3,7 @@
  * JESSICA PLANNER ATTEMPT v2
  * =========================================================
  *
- * Выполняет ОДНУ попытку построения плана.
+ * Выполняет одну попытку Planner.
  *
  *
  * Flow:
@@ -17,11 +17,6 @@
  * Validate
  *      ↓
  * Result
- *
- *
- * Validator дополнительно получает
- * исходную Task для deterministic
- * Source Content Policy.
  *
  * =========================================================
  */
@@ -45,47 +40,6 @@ import {
 import {
     validatePlan
 } from "../planValidator.js";
-
-
-/*
- * =========================================================
- * VALIDATION CONTEXT
- * =========================================================
- */
-
-
-function buildValidationContext(
-    context,
-    task
-) {
-
-    const source =
-
-        context
-        &&
-        typeof context === "object"
-        &&
-        !Array.isArray(context)
-
-            ? context
-
-            : {};
-
-
-    return {
-
-        ...source,
-
-        task:
-
-            String(
-                task || ""
-            )
-                .trim()
-
-    };
-
-}
 
 
 /*
@@ -181,6 +135,17 @@ export async function runPlannerAttempt({
      * =====================================================
      * VALIDATE
      * =====================================================
+     *
+     * КРИТИЧЕСКО:
+     *
+     * исходный task теперь передаётся
+     * Validator'у.
+     *
+     * Это позволяет Evidence Policy
+     * определить минимально допустимый
+     * уровень доказательств.
+     *
+     * =====================================================
      */
 
 
@@ -190,13 +155,9 @@ export async function runPlannerAttempt({
 
             normalizedPlan,
 
-            buildValidationContext(
+            context,
 
-                context,
-
-                task
-
-            )
+            task
 
         );
 
