@@ -1,17 +1,10 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * FAILURE CLASSIFIER v3
+ * FAILURE CLASSIFIER v4
  * =========================================================
  *
  * Определение категории Execution Failure.
- *
- *
- * Flow:
- *
- * Normalized Failure
- *        ↓
- * Category
  *
  *
  * Categories:
@@ -23,64 +16,59 @@
  * data
  * clarification
  * no_verified
+ * presentation
  * execution
  *
  *
- * НЕ:
+ * Presentation:
  *
- * - делает Retry;
- * - делает Replan;
- * - создаёт Decision.
+ * ответ уже должен быть сформирован
+ * на основании результатов Execution,
+ * но presentation layer не смог
+ * собрать пользовательский текст.
+ *
+ *
+ * Presentation failure НЕ является
+ * причиной менять Execution Route.
  *
  * =========================================================
  */
 
 
-
-
-
-
-
 function getFailureType(
-
     failure
-
 ) {
-
 
     return String(
 
-        failure?.failureType ||
+        failure?.failureType
+
+        ||
 
         ""
 
     )
-    .toLowerCase()
-    .trim();
+        .toLowerCase()
+        .trim();
 
 }
 
 
-
-
-
-
-
+/*
+ * =========================================================
+ * CLASSIFY
+ * =========================================================
+ */
 
 
 export function classifyFailure(
-
     failure
-
 ) {
 
-
     if(
-
-        !failure ||
-
+        !failure
+        ||
         typeof failure !== "object"
-
     ){
 
         return "execution";
@@ -88,67 +76,44 @@ export function classifyFailure(
     }
 
 
-
-
-
-
-
-
-
     /*
-     * Если категория уже определена
+     * =====================================================
+     * EXPLICIT CATEGORY
+     * =====================================================
      */
 
 
     if(
-
         failure.category
-
     ){
 
         return String(
-
             failure.category
-
         )
-        .toLowerCase()
-        .trim();
+            .toLowerCase()
+            .trim();
 
     }
-
-
-
-
-
-
-
 
 
     const type =
 
         getFailureType(
-
             failure
-
         );
 
 
-
-
-
-
-
-
-
     /*
+     * =====================================================
      * USER INPUT
+     * =====================================================
      */
 
 
     if(
-
-        failure.needsClarification === true
-
+        failure.needsClarification
+        ===
+        true
     ){
 
         return "clarification";
@@ -156,22 +121,17 @@ export function classifyFailure(
     }
 
 
-
-
-
-
-
-
-
     /*
-     * RESULT NOT VERIFIED
+     * =====================================================
+     * NO VERIFIED RESULT
+     * =====================================================
      */
 
 
     if(
-
-        failure.noVerifiedResult === true
-
+        failure.noVerifiedResult
+        ===
+        true
     ){
 
         return "no_verified";
@@ -179,30 +139,69 @@ export function classifyFailure(
     }
 
 
-
-
-
-
-
-
-
     /*
-     * VALIDATION
+     * =====================================================
+     * PRESENTATION
+     * =====================================================
+     *
+     * Проверяем раньше generic execution.
+     *
+     * =====================================================
      */
 
 
     if(
-
-        type.includes("validation")
-
-        ||
-
-        type.includes("verify")
+        type.includes(
+            "composer"
+        )
 
         ||
 
-        type.includes("check")
+        type.includes(
+            "presentation"
+        )
 
+        ||
+
+        type.includes(
+            "answer-generation"
+        )
+
+        ||
+
+        type.includes(
+            "answer-composition"
+        )
+    ){
+
+        return "presentation";
+
+    }
+
+
+    /*
+     * =====================================================
+     * VALIDATION
+     * =====================================================
+     */
+
+
+    if(
+        type.includes(
+            "validation"
+        )
+
+        ||
+
+        type.includes(
+            "verify"
+        )
+
+        ||
+
+        type.includes(
+            "check"
+        )
     ){
 
         return "validation";
@@ -210,30 +209,29 @@ export function classifyFailure(
     }
 
 
-
-
-
-
-
-
-
     /*
+     * =====================================================
      * TOOL
+     * =====================================================
      */
 
 
     if(
-
-        type.includes("tool")
-
-        ||
-
-        type.includes("api")
+        type.includes(
+            "tool"
+        )
 
         ||
 
-        type.includes("connector")
+        type.includes(
+            "api"
+        )
 
+        ||
+
+        type.includes(
+            "connector"
+        )
     ){
 
         return "tool";
@@ -241,50 +239,59 @@ export function classifyFailure(
     }
 
 
-
-
-
-
-
-
-
     /*
+     * =====================================================
      * TEMPORARY
+     * =====================================================
      */
 
 
     if(
-
-        type.includes("timeout")
-
-        ||
-
-        type.includes("network")
+        type.includes(
+            "timeout"
+        )
 
         ||
 
-        type.includes("temporary")
+        type.includes(
+            "network"
+        )
 
         ||
 
-        type.includes("rate")
+        type.includes(
+            "temporary"
+        )
 
         ||
 
-        type.includes("service")
+        type.includes(
+            "rate"
+        )
 
         ||
 
-        type.includes("unavailable")
+        type.includes(
+            "service"
+        )
 
         ||
 
-        type.includes("connection")
+        type.includes(
+            "unavailable"
+        )
 
         ||
 
-        type.includes("busy")
+        type.includes(
+            "connection"
+        )
 
+        ||
+
+        type.includes(
+            "busy"
+        )
     ){
 
         return "temporary";
@@ -292,34 +299,35 @@ export function classifyFailure(
     }
 
 
-
-
-
-
-
-
-
     /*
+     * =====================================================
      * PLANNER
+     * =====================================================
      */
 
 
     if(
-
-        type.includes("planner")
-
-        ||
-
-        type.includes("strategy")
+        type.includes(
+            "planner"
+        )
 
         ||
 
-        type.includes("plan")
+        type.includes(
+            "strategy"
+        )
 
         ||
 
-        type.includes("route")
+        type.includes(
+            "plan"
+        )
 
+        ||
+
+        type.includes(
+            "route"
+        )
     ){
 
         return "planner";
@@ -327,38 +335,41 @@ export function classifyFailure(
     }
 
 
-
-
-
-
-
-
-
     /*
+     * =====================================================
      * DATA
+     * =====================================================
      */
 
 
     if(
-
-        type.includes("data")
-
-        ||
-
-        type.includes("schema")
+        type.includes(
+            "data"
+        )
 
         ||
 
-        type.includes("argument")
+        type.includes(
+            "schema"
+        )
 
         ||
 
-        type.includes("parameter")
+        type.includes(
+            "argument"
+        )
 
         ||
 
-        type.includes("format")
+        type.includes(
+            "parameter"
+        )
 
+        ||
+
+        type.includes(
+            "format"
+        )
     ){
 
         return "data";
@@ -366,14 +377,6 @@ export function classifyFailure(
     }
 
 
-
-
-
-
-
-
-
     return "execution";
-
 
 }
