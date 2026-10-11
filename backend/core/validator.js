@@ -1,12 +1,12 @@
 /*
  * =========================================================
- * JESSICA RESULT VALIDATOR
+ * JESSICA RESULT VALIDATOR v2
  * =========================================================
  *
  * Главный координатор проверки результата.
  *
  *
- * Основной flow:
+ * Flow:
  *
  * Result
  *   ↓
@@ -26,46 +26,25 @@
  * SUCCESS
  *
  *
- * none / search_results:
+ * При технической недоступности
+ * specialized validator:
  *
- * AI Semantic Validator
- *
- *
- * AI Semantic Validator также используется
- * как fallback, если специализированный
- * AI Validator временно недоступен.
+ * Semantic AI Fallback
  *
  *
- * Дополнительно Validator возвращает:
+ * Дополнительно результат содержит:
  *
- * outcomeType
- *
- * result
- * → искомый результат подтверждён.
- *
- * no_verified_result
- * → ответ корректный, но подтверждённого
- *   искомого результата нет.
+ * validationMode
+ * degraded
  *
  *
- * Важно:
+ * Это позволяет Learning отличать:
  *
- * valid и outcomeType — разные понятия.
+ * fully verified execution
  *
- * valid=true + outcomeType=no_verified_result
+ * от:
  *
- * означает:
- *
- * ответ Jessica корректен,
- * но положительный результат не подтверждён.
- *
- *
- * Этот файл НЕ:
- *
- * - содержит AI prompts;
- * - проверяет claims самостоятельно;
- * - выполняет инструменты;
- * - строит новые планы.
+ * technically degraded validation path.
  *
  * =========================================================
  */
@@ -75,17 +54,21 @@ import {
     validateBasicResult
 } from "./validator/basicResultValidator.js";
 
+
 import {
     validateEvidenceResult
 } from "./validator/evidenceResultValidator.js";
+
 
 import {
     validateSourceContent
 } from "./validator/sourceContentValidator.js";
 
+
 import {
     validateClaimEvidence
 } from "./validator/claimEvidenceValidator.js";
+
 
 import {
     validateWithAI
@@ -109,6 +92,37 @@ const OUTCOME_NO_VERIFIED_RESULT =
 
 /*
  * =========================================================
+ * VALIDATION MODES
+ * =========================================================
+ */
+
+
+const MODE_BASIC =
+    "basic";
+
+
+const MODE_TOOL_DIRECT =
+    "tool_direct";
+
+
+const MODE_SEMANTIC =
+    "semantic";
+
+
+const MODE_SPECIALIZED =
+    "specialized";
+
+
+const MODE_SEMANTIC_FALLBACK =
+    "semantic_fallback";
+
+
+const MODE_UNAVAILABLE_FALLBACK =
+    "unavailable_fallback";
+
+
+/*
+ * =========================================================
  * NORMALIZE OUTCOME TYPE
  * =========================================================
  */
@@ -118,10 +132,10 @@ function normalizeOutcomeType(
     value
 ) {
 
-    if (
+    if(
         value ===
         OUTCOME_NO_VERIFIED_RESULT
-    ) {
+    ){
 
         return OUTCOME_NO_VERIFIED_RESULT;
 
@@ -141,10 +155,23 @@ function normalizeOutcomeType(
 
 
 function buildValidationResult(
-    validation
+
+    validation,
+
+    {
+
+        validationMode =
+            MODE_BASIC,
+
+        degraded =
+            false
+
+    } = {}
+
 ) {
 
     const valid =
+
         validation?.valid === true;
 
 
@@ -158,33 +185,40 @@ function buildValidationResult(
 
 
         shouldRetry:
+
             validation?.shouldRetry === true,
 
 
         needsClarification:
+
             validation?.needsClarification === true,
 
 
-        /*
-         * outcomeType имеет смысл только
-         * для корректно принятого результата.
-         *
-         * Для validation failure ставим null,
-         * потому что результат ещё не является
-         * terminal semantic outcome.
-         */
-
         outcomeType:
+
             valid
+
                 ? normalizeOutcomeType(
                     validation?.outcomeType
                 )
+
                 : null,
 
 
+        validationMode,
+
+
+        degraded:
+
+            degraded === true,
+
+
         reason:
+
             typeof validation?.reason === "string"
+
                 ? validation.reason.trim()
+
                 : ""
 
     };
@@ -200,8 +234,22 @@ function buildValidationResult(
 
 
 function buildSuccessResult(
+
     reason,
-    outcomeType = OUTCOME_RESULT
+
+    outcomeType =
+        OUTCOME_RESULT,
+
+    {
+
+        validationMode =
+            MODE_BASIC,
+
+        degraded =
+            false
+
+    } = {}
+
 ) {
 
     return {
@@ -223,13 +271,26 @@ function buildSuccessResult(
 
 
         outcomeType:
+
             normalizeOutcomeType(
                 outcomeType
             ),
 
 
+        validationMode,
+
+
+        degraded:
+
+            degraded === true,
+
+
         reason:
-            reason ||
+
+            reason
+
+            ||
+
             "Проверка результата пройдена"
 
     };
@@ -249,6 +310,7 @@ function getEvidenceMode(
 ) {
 
     const mode =
+
         String(
             plan?.evidence?.mode || "none"
         )
@@ -256,10 +318,11 @@ function getEvidenceMode(
             .toLowerCase();
 
 
-    if (
-        mode === "source_content" ||
+    if(
+        mode === "source_content"
+        ||
         mode === "search_results"
-    ) {
+    ){
 
         return mode;
 
@@ -273,7 +336,7 @@ function getEvidenceMode(
 
 /*
  * =========================================================
- * AI SEMANTIC FALLBACK
+ * AI SEMANTIC VALIDATION
  * =========================================================
  */
 
@@ -286,11 +349,19 @@ async function runSemanticValidation(
 
     taskRunResult,
 
-    answerResult
+    answerResult,
+
+    {
+
+        fallbackFromSpecialized =
+            false
+
+    } = {}
 
 ) {
 
     const aiValidation =
+
         await validateWithAI(
 
             task,
@@ -305,26 +376,48 @@ async function runSemanticValidation(
 
 
     console.log(
+
         "Jessica Validator AI:",
+
         JSON.stringify(
             aiValidation
         )
+
     );
 
 
     /*
      * =====================================================
-     * AI VALIDATION SUCCESS
+     * AI SUCCESS
      * =====================================================
      */
 
 
-    if (
+    if(
         aiValidation?.success === true
-    ) {
+    ){
 
         return buildValidationResult(
-            aiValidation
+
+            aiValidation,
+
+            {
+
+                validationMode:
+
+                    fallbackFromSpecialized
+
+                        ? MODE_SEMANTIC_FALLBACK
+
+                        : MODE_SEMANTIC,
+
+
+                degraded:
+
+                    fallbackFromSpecialized
+
+            }
+
         );
 
     }
@@ -332,34 +425,43 @@ async function runSemanticValidation(
 
     /*
      * =====================================================
-     * AI VALIDATOR UNAVAILABLE
+     * AI UNAVAILABLE
      * =====================================================
      *
-     * Basic + Evidence к этому моменту
-     * уже пройдены.
+     * Basic + Evidence уже пройдены.
      *
-     * Поэтому техническая недоступность
-     * semantic AI не должна ломать задачу.
+     * Задачу не ломаем технической
+     * недоступностью Validator AI.
      *
-     *
-     * outcomeType здесь оставляем result.
-     *
-     * Мы НЕ можем надёжно объявить
-     * no_verified_result без semantic проверки.
-     *
+     * Но явно маркируем результат
+     * как degraded.
      * =====================================================
      */
 
 
     return buildSuccessResult(
 
-        "AI semantic validation unavailable: " +
+        "AI semantic validation unavailable: "
+        +
         (
-            aiValidation?.reason ||
+            aiValidation?.reason
+
+            ||
+
             "validator unavailable"
         ),
 
-        OUTCOME_RESULT
+        OUTCOME_RESULT,
+
+        {
+
+            validationMode:
+                MODE_UNAVAILABLE_FALLBACK,
+
+            degraded:
+                true
+
+        }
 
     );
 
@@ -393,6 +495,7 @@ export async function validateResult(
 
 
     const basic =
+
         validateBasicResult(
 
             taskRunResult,
@@ -403,19 +506,34 @@ export async function validateResult(
 
 
     console.log(
+
         "Jessica Validator basic:",
+
         JSON.stringify(
             basic
         )
+
     );
 
 
-    if (
+    if(
         basic.valid !== true
-    ) {
+    ){
 
         return buildValidationResult(
-            basic
+
+            basic,
+
+            {
+
+                validationMode:
+                    MODE_BASIC,
+
+                degraded:
+                    false
+
+            }
+
         );
 
     }
@@ -429,6 +547,7 @@ export async function validateResult(
 
 
     const evidence =
+
         validateEvidenceResult(
 
             plan,
@@ -439,25 +558,41 @@ export async function validateResult(
 
 
     console.log(
+
         "Jessica Validator evidence:",
+
         JSON.stringify(
             evidence
         )
+
     );
 
 
-    if (
+    if(
         evidence.valid !== true
-    ) {
+    ){
 
         return buildValidationResult(
-            evidence
+
+            evidence,
+
+            {
+
+                validationMode:
+                    MODE_BASIC,
+
+                degraded:
+                    false
+
+            }
+
         );
 
     }
 
 
     const evidenceMode =
+
         getEvidenceMode(
             plan
         );
@@ -467,28 +602,14 @@ export async function validateResult(
      * =====================================================
      * 3. DIRECT TOOL ANSWER
      * =====================================================
-     *
-     * Если ответ пришёл напрямую от инструмента
-     * и конкретный source_content не требуется,
-     * дополнительный AI Validator не нужен.
-     *
-     * Например:
-     *
-     * - текущее время;
-     * - вычисление;
-     * - структурированный tool-result.
-     *
-     *
-     * Такой результат считаем обычным result.
-     *
-     * =====================================================
      */
 
 
-    if (
-        answerResult?.source === "tool" &&
+    if(
+        answerResult?.source === "tool"
+        &&
         evidenceMode !== "source_content"
-    ) {
+    ){
 
         console.log(
             "Jessica Validator semantic skipped: direct tool answer"
@@ -499,7 +620,17 @@ export async function validateResult(
 
             "Ответ получен напрямую от инструмента",
 
-            OUTCOME_RESULT
+            OUTCOME_RESULT,
+
+            {
+
+                validationMode:
+                    MODE_TOOL_DIRECT,
+
+                degraded:
+                    false
+
+            }
 
         );
 
@@ -510,21 +641,12 @@ export async function validateResult(
      * =====================================================
      * 4. SOURCE CONTENT VALIDATION
      * =====================================================
-     *
-     * Для source_content используем
-     * специализированную цепочку:
-     *
-     * source relevance
-     *      ↓
-     * claim evidence
-     *
-     * =====================================================
      */
 
 
-    if (
+    if(
         evidenceMode === "source_content"
-    ) {
+    ){
 
         /*
          * -----------------------------------------------
@@ -534,6 +656,7 @@ export async function validateResult(
 
 
         const sourceContent =
+
             await validateSourceContent(
 
                 task,
@@ -546,26 +669,36 @@ export async function validateResult(
 
 
         console.log(
+
             "Jessica Validator source content:",
+
             JSON.stringify(
                 sourceContent
             )
+
         );
 
 
-        /*
-         * Validator успешно отработал
-         * и нашёл реальную проблему.
-         */
-
-
-        if (
-            sourceContent?.success === true &&
+        if(
+            sourceContent?.success === true
+            &&
             sourceContent?.valid !== true
-        ) {
+        ){
 
             return buildValidationResult(
-                sourceContent
+
+                sourceContent,
+
+                {
+
+                    validationMode:
+                        MODE_SPECIALIZED,
+
+                    degraded:
+                        false
+
+                }
+
             );
 
         }
@@ -579,6 +712,7 @@ export async function validateResult(
 
 
         const claims =
+
             await validateClaimEvidence(
 
                 task,
@@ -593,26 +727,36 @@ export async function validateResult(
 
 
         console.log(
+
             "Jessica Validator claims:",
+
             JSON.stringify(
                 claims
             )
+
         );
 
 
-        /*
-         * Claims Validator успешно отработал
-         * и обнаружил неподтверждённые факты.
-         */
-
-
-        if (
-            claims?.success === true &&
+        if(
+            claims?.success === true
+            &&
             claims?.valid !== true
-        ) {
+        ){
 
             return buildValidationResult(
-                claims
+
+                claims,
+
+                {
+
+                    validationMode:
+                        MODE_SPECIALIZED,
+
+                    degraded:
+                        false
+
+                }
+
             );
 
         }
@@ -620,39 +764,30 @@ export async function validateResult(
 
         /*
          * -----------------------------------------------
-         * SPECIALIZED VALIDATION PASSED
+         * SPECIALIZED SUCCESS
          * -----------------------------------------------
          */
 
 
         const sourceConfirmed =
 
-            sourceContent?.success === true &&
+            sourceContent?.success === true
+            &&
             sourceContent?.valid === true;
 
 
         const claimsConfirmed =
 
-            claims?.success === true &&
+            claims?.success === true
+            &&
             claims?.valid === true;
 
 
-        if (
-            sourceConfirmed &&
+        if(
+            sourceConfirmed
+            &&
             claimsConfirmed
-        ) {
-
-            /*
-             * Здесь есть:
-             *
-             * - подтверждённый источник;
-             * - подтверждённые claims.
-             *
-             * Поэтому semantic outcome однозначно:
-             *
-             * result.
-             */
-
+        ){
 
             console.log(
                 "Jessica Validator AI skipped: source and claims confirmed"
@@ -663,7 +798,17 @@ export async function validateResult(
 
                 "Источник и утверждения ответа подтверждены",
 
-                OUTCOME_RESULT
+                OUTCOME_RESULT,
+
+                {
+
+                    validationMode:
+                        MODE_SPECIALIZED,
+
+                    degraded:
+                        false
+
+                }
 
             );
 
@@ -672,17 +817,7 @@ export async function validateResult(
 
         /*
          * -----------------------------------------------
-         * SPECIALIZED VALIDATOR UNAVAILABLE
-         * -----------------------------------------------
-         *
-         * Один из специализированных AI Validator
-         * оказался недоступен.
-         *
-         * Тогда используем общий semantic Validator.
-         *
-         * Он сможет определить не только valid,
-         * но и outcomeType.
-         *
+         * SPECIALIZED UNAVAILABLE
          * -----------------------------------------------
          */
 
@@ -700,7 +835,14 @@ export async function validateResult(
 
             taskRunResult,
 
-            answerResult
+            answerResult,
+
+            {
+
+                fallbackFromSpecialized:
+                    true
+
+            }
 
         );
 
@@ -710,24 +852,6 @@ export async function validateResult(
     /*
      * =====================================================
      * 5. SEARCH RESULTS / NONE
-     * =====================================================
-     *
-     * Здесь специализированной проверки
-     * содержимого источника нет.
-     *
-     * Поэтому общий AI Validator определяет:
-     *
-     * - valid;
-     * - retry;
-     * - clarification;
-     * - outcomeType.
-     *
-     *
-     * Именно здесь наш Quasar-тест должен дать:
-     *
-     * valid=true
-     * outcomeType=no_verified_result
-     *
      * =====================================================
      */
 
@@ -740,7 +864,14 @@ export async function validateResult(
 
         taskRunResult,
 
-        answerResult
+        answerResult,
+
+        {
+
+            fallbackFromSpecialized:
+                false
+
+        }
 
     );
 
