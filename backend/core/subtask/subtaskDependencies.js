@@ -1,22 +1,23 @@
 /*
  * =========================================================
- * JESSICA SUBTASK DEPENDENCIES v1
+ * JESSICA SUBTASK DEPENDENCIES v2
  * =========================================================
  *
- * Машинный контракт зависимостей Subtask.
+ * Управляет Runtime dependency contract.
  *
  *
- * Example:
+ * Decomposer:
  *
- * {
- *     id: 2,
- *     text: "...",
- *     dependsOn: [1]
- * }
+ * dependsOn:[1]
  *
+ *        ↓
  *
- * Runtime НЕ пытается угадывать
- * зависимости из текста.
+ * Runner:
+ *
+ * prerequisite success?
+ *
+ * YES → execute
+ * NO  → BLOCKED
  *
  * =========================================================
  */
@@ -24,7 +25,7 @@
 
 /*
  * =========================================================
- * NORMALIZE ID
+ * ID
  * =========================================================
  */
 
@@ -80,21 +81,13 @@ export function resolveSubtaskDependencies(
         [];
 
 
-    const values =
+    const source =
 
         Array.isArray(raw)
 
             ? raw
 
-            : (
-                raw === null
-                ||
-                raw === undefined
-
-                    ? []
-
-                    : [raw]
-            );
+            : [raw];
 
 
     const result = [];
@@ -102,7 +95,7 @@ export function resolveSubtaskDependencies(
 
     for(
         const value
-        of values
+        of source
     ){
 
         const id =
@@ -115,7 +108,9 @@ export function resolveSubtaskDependencies(
         if(
             id
             &&
-            !result.includes(id)
+            !result.includes(
+                id
+            )
         ){
 
             result.push(
@@ -134,7 +129,7 @@ export function resolveSubtaskDependencies(
 
 /*
  * =========================================================
- * RESULT OUTCOME
+ * OUTCOME
  * =========================================================
  */
 
@@ -179,7 +174,7 @@ function resolveOutcomeType(
 
 /*
  * =========================================================
- * SATISFIED
+ * SATISFIED RESULT
  * =========================================================
  */
 
@@ -200,7 +195,7 @@ export function isSubtaskDependencySatisfied(
 
 
     if(
-        result.success !== true
+        result.success === false
     ){
 
         return false;
@@ -224,9 +219,9 @@ export function isSubtaskDependencySatisfied(
             "NEEDS_CLARIFICATION",
             "NO_VERIFIED_RESULT"
         ]
-        .includes(
-            status
-        )
+            .includes(
+                status
+            )
     ){
 
         return false;
@@ -238,7 +233,8 @@ export function isSubtaskDependencySatisfied(
         resolveOutcomeType(
             result
         )
-        === "no_verified_result"
+        ===
+        "no_verified_result"
     ){
 
         return false;
@@ -246,14 +242,74 @@ export function isSubtaskDependencySatisfied(
     }
 
 
-    return true;
+    return (
+
+        result.success === true
+
+        ||
+
+        status === "COMPLETED"
+
+    );
 
 }
 
 
 /*
  * =========================================================
- * STATE
+ * RESULT MAP
+ * =========================================================
+ */
+
+
+function buildResultMap(
+    results
+) {
+
+    const map =
+        new Map();
+
+
+    for(
+        const result
+        of (
+            Array.isArray(results)
+
+                ? results
+
+                : []
+        )
+    ){
+
+        const id =
+
+            normalizeId(
+                result?.id
+            );
+
+
+        if(
+            id
+        ){
+
+            map.set(
+                id,
+                result
+            );
+
+        }
+
+    }
+
+
+    return map;
+
+}
+
+
+/*
+ * =========================================================
+ * DEPENDENCY STATE
  * =========================================================
  */
 
@@ -300,39 +356,10 @@ export function resolveDependencyState({
 
 
     const resultMap =
-        new Map();
 
-
-    for(
-        const result
-        of (
-            Array.isArray(results)
-
-                ? results
-
-                : []
-        )
-    ){
-
-        const id =
-
-            normalizeId(
-                result?.id
-            );
-
-
-        if(
-            id
-        ){
-
-            resultMap.set(
-                id,
-                result
-            );
-
-        }
-
-    }
+        buildResultMap(
+            results
+        );
 
 
     const blockedBy = [];
@@ -360,16 +387,13 @@ export function resolveDependencyState({
         }
 
 
-        const dependencyResult =
-
-            resultMap.get(
-                dependencyId
-            );
-
-
         if(
             !isSubtaskDependencySatisfied(
-                dependencyResult
+
+                resultMap.get(
+                    dependencyId
+                )
+
             )
         ){
 
@@ -401,4 +425,56 @@ export function resolveDependencyState({
 
     };
 
-      }
+}
+
+
+/*
+ * =========================================================
+ * COLLECT RESULTS
+ * =========================================================
+ */
+
+
+export function collectDependencyResults({
+
+    subtask,
+
+    results
+
+} = {}) {
+
+    const dependencies =
+
+        resolveSubtaskDependencies(
+            subtask
+        );
+
+
+    if(
+        dependencies.length === 0
+    ){
+
+        return [];
+
+    }
+
+
+    const resultMap =
+
+        buildResultMap(
+            results
+        );
+
+
+    return dependencies
+
+        .map(
+            dependencyId =>
+                resultMap.get(
+                    dependencyId
+                )
+        )
+
+        .filter(Boolean);
+
+}
