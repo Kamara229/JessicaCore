@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA PLANNER ATTEMPT
+ * JESSICA PLANNER ATTEMPT v2
  * =========================================================
  *
  * Выполняет ОДНУ попытку построения плана.
@@ -19,12 +19,9 @@
  * Result
  *
  *
- * НЕ:
- *
- * - управляет retry loop;
- * - делает sleep;
- * - классифицирует network errors;
- * - решает количество попыток.
+ * Validator дополнительно получает
+ * исходную Task для deterministic
+ * Source Content Policy.
  *
  * =========================================================
  */
@@ -52,6 +49,47 @@ import {
 
 /*
  * =========================================================
+ * VALIDATION CONTEXT
+ * =========================================================
+ */
+
+
+function buildValidationContext(
+    context,
+    task
+) {
+
+    const source =
+
+        context
+        &&
+        typeof context === "object"
+        &&
+        !Array.isArray(context)
+
+            ? context
+
+            : {};
+
+
+    return {
+
+        ...source,
+
+        task:
+
+            String(
+                task || ""
+            )
+                .trim()
+
+    };
+
+}
+
+
+/*
+ * =========================================================
  * ATTEMPT
  * =========================================================
  */
@@ -69,7 +107,6 @@ export async function runPlannerAttempt({
 
 }) {
 
-
     /*
      * =====================================================
      * REQUEST
@@ -78,6 +115,7 @@ export async function runPlannerAttempt({
 
 
     const rawResponse =
+
         await requestPlan(
 
             task,
@@ -97,15 +135,15 @@ export async function runPlannerAttempt({
 
 
     const parsedPlan =
+
         parsePlan(
             rawResponse
         );
 
 
-    if (
+    if(
         !parsedPlan
-    ) {
-
+    ){
 
         throw new Error(
             "planner_parse_failed"
@@ -122,15 +160,15 @@ export async function runPlannerAttempt({
 
 
     const normalizedPlan =
+
         normalizePlan(
             parsedPlan
         );
 
 
-    if (
+    if(
         !normalizedPlan
-    ) {
-
+    ){
 
         throw new Error(
             "planner_normalize_failed"
@@ -147,19 +185,25 @@ export async function runPlannerAttempt({
 
 
     const validation =
+
         validatePlan(
 
             normalizedPlan,
 
-            context
+            buildValidationContext(
+
+                context,
+
+                task
+
+            )
 
         );
 
 
-    if (
+    if(
         !validation.success
-    ) {
-
+    ){
 
         return {
 
@@ -174,7 +218,9 @@ export async function runPlannerAttempt({
 
             feedback:
 
-                validation.text ||
+                validation.text
+
+                ||
 
                 "planner_validation_failed",
 
