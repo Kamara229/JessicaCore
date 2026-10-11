@@ -1,28 +1,27 @@
 /*
  * =========================================================
  * JESSICA REPLANNER
- * RETRY HISTORY
+ * RETRY HISTORY v2
  * =========================================================
  *
- * Собирает компактную историю предыдущих попыток
- * выполнения задачи.
+ * Собирает компактную историю предыдущих
+ * маршрутов Execution.
  *
  *
- * Используется Replanner для понимания:
+ * Теперь сохраняет:
  *
- * - какой intent уже использовался;
- * - какие инструменты уже запускались;
- * - какие поисковые запросы уже пробовали;
- * - какой маршрут уже оказался неэффективным.
+ * - search queries;
+ * - реально использованные tools;
+ * - failed tools;
+ * - реально открытые source URLs;
+ * - накопительную историю source URLs;
+ * - evidence mode предыдущего плана.
  *
  *
- * Этот модуль НЕ:
+ * Главная задача:
  *
- * - вызывает Planner;
- * - вызывает AI;
- * - создаёт инструкции;
- * - изменяет PlanningContext;
- * - выполняет инструменты.
+ * не позволять Replanner ходить
+ * по одним и тем же источникам по кругу.
  *
  * =========================================================
  */
@@ -39,6 +38,10 @@ const MAX_TRIED_SEARCH_QUERIES =
     8;
 
 
+const MAX_TRIED_SOURCE_URLS =
+    12;
+
+
 /*
  * =========================================================
  * SAFE STRING
@@ -51,7 +54,9 @@ function safeString(
 ) {
 
     return typeof value === "string"
+
         ? value.trim()
+
         : "";
 
 }
@@ -68,11 +73,11 @@ function uniqueStrings(
     values
 ) {
 
-    if (
+    if(
         !Array.isArray(
             values
         )
-    ) {
+    ){
 
         return [];
 
@@ -105,28 +110,6 @@ function uniqueStrings(
  * =========================================================
  * EXTRACT SEARCH QUERIES
  * =========================================================
- *
- * Извлекает web_search query из плана.
- *
- *
- * Например:
- *
- * [
- *   {
- *     tool: "web_search",
- *     arguments: {
- *       query: "Godot Engine official website"
- *     }
- *   }
- * ]
- *
- * →
- *
- * [
- *   "Godot Engine official website"
- * ]
- *
- * =========================================================
  */
 
 
@@ -134,11 +117,11 @@ export function extractSearchQueries(
     plan
 ) {
 
-    if (
+    if(
         !Array.isArray(
             plan?.steps
         )
-    ) {
+    ){
 
         return [];
 
@@ -146,6 +129,7 @@ export function extractSearchQueries(
 
 
     const queries =
+
         plan.steps
 
             .filter(
@@ -174,11 +158,6 @@ export function extractSearchQueries(
  * =========================================================
  * EXTRACT USED TOOLS
  * =========================================================
- *
- * Берём только реально выполненные инструменты
- * из TaskRunner results.
- *
- * =========================================================
  */
 
 
@@ -186,11 +165,11 @@ export function extractUsedTools(
     runResult
 ) {
 
-    if (
+    if(
         !Array.isArray(
             runResult?.results
         )
-    ) {
+    ){
 
         return [];
 
@@ -213,20 +192,6 @@ export function extractUsedTools(
  * =========================================================
  * EXTRACT FAILED TOOLS
  * =========================================================
- *
- * Если конкретный Tool успел выполниться
- * и вернул success=false,
- * сохраняем его отдельно.
- *
- *
- * Важно:
- *
- * при Source Selector reject здесь может быть [],
- * потому что web_fetch ещё не запускался.
- *
- * Это нормальная ситуация.
- *
- * =========================================================
  */
 
 
@@ -234,11 +199,11 @@ export function extractFailedTools(
     runResult
 ) {
 
-    if (
+    if(
         !Array.isArray(
             runResult?.results
         )
-    ) {
+    ){
 
         return [];
 
@@ -266,14 +231,179 @@ export function extractFailedTools(
 
 /*
  * =========================================================
- * BUILD PREVIOUS ATTEMPT
+ * EXTRACT FETCHED URL
+ * =========================================================
+ */
+
+
+function extractResultUrl(
+    result
+) {
+
+    if(
+        !result
+        ||
+        typeof result !== "object"
+    ){
+
+        return "";
+
+    }
+
+
+    const candidates = [
+
+        result?.data?.url,
+
+        result?.url,
+
+        result?.arguments?.url,
+
+        result?.input?.url,
+
+        result?.resolvedArguments?.url
+
+    ];
+
+
+    for(
+        const candidate
+        of candidates
+    ){
+
+        const url =
+
+            safeString(
+                candidate
+            );
+
+
+        if(
+            url
+        ){
+
+            return url;
+
+        }
+
+    }
+
+
+    return "";
+
+}
+
+
+/*
+ * =========================================================
+ * EXTRACT FETCHED URLS
  * =========================================================
  *
- * Компактное описание предыдущей попытки.
+ * Берём фактически выполненные web_fetch.
  *
- * Полный plan и полный TaskRunner result
- * сюда намеренно не копируем.
+ * Это важнее URL из Plan,
+ * потому что Plan может содержать $from.
  *
+ * =========================================================
+ */
+
+
+export function extractFetchedUrls(
+    runResult
+) {
+
+    if(
+        !Array.isArray(
+            runResult?.results
+        )
+    ){
+
+        return [];
+
+    }
+
+
+    return uniqueStrings(
+
+        runResult.results
+
+            .filter(
+                item =>
+                    item?.tool === "web_fetch"
+            )
+
+            .map(
+                extractResultUrl
+            )
+
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * EXTRACT PLAN FETCH URLS
+ * =========================================================
+ *
+ * Fallback для прямых URL,
+ * указанных самим Planner.
+ *
+ * $from здесь автоматически
+ * не превращается в строку.
+ *
+ * =========================================================
+ */
+
+
+export function extractPlanFetchUrls(
+    plan
+) {
+
+    if(
+        !Array.isArray(
+            plan?.steps
+        )
+    ){
+
+        return [];
+
+    }
+
+
+    return uniqueStrings(
+
+        plan.steps
+
+            .filter(
+                step =>
+                    step?.tool === "web_fetch"
+            )
+
+            .map(
+                step => {
+
+                    const value =
+                        step?.arguments?.url;
+
+
+                    return typeof value === "string"
+
+                        ? value
+
+                        : "";
+
+                }
+            )
+
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * PREVIOUS ATTEMPT
  * =========================================================
  */
 
@@ -283,35 +413,71 @@ export function buildPreviousAttempt(
     previousRunResult
 ) {
 
+    const fetchedUrls =
+
+        uniqueStrings([
+
+            ...extractFetchedUrls(
+                previousRunResult
+            ),
+
+            ...extractPlanFetchUrls(
+                previousPlan
+            )
+
+        ]);
+
+
     return {
 
         intent:
+
             safeString(
                 previousPlan?.intent
             ),
 
 
+        evidenceMode:
+
+            safeString(
+                previousPlan
+                    ?.evidence
+                    ?.mode
+            ),
+
+
         stepsCount:
+
             Array.isArray(
                 previousPlan?.steps
             )
+
                 ? previousPlan.steps.length
+
                 : 0,
 
 
         searchQueries:
+
             extractSearchQueries(
                 previousPlan
             ),
 
 
+        sourceUrls:
+
+            fetchedUrls,
+
+
         usedTools:
+
             extractUsedTools(
                 previousRunResult
             ),
 
 
         failedTools:
+
             extractFailedTools(
                 previousRunResult
             )
@@ -323,34 +489,7 @@ export function buildPreviousAttempt(
 
 /*
  * =========================================================
- * BUILD TRIED SEARCH QUERIES
- * =========================================================
- *
- * Накапливает поисковые запросы между Replan.
- *
- *
- * Например:
- *
- * Attempt 1:
- *
- * "Quasar Banana Engine ZX-9100 official website"
- *
- *
- * Attempt 2:
- *
- * "Quasar Banana Engine ZX-9100 developer"
- *
- *
- * После этого история:
- *
- * [
- *   "Quasar Banana Engine ZX-9100 official website",
- *   "Quasar Banana Engine ZX-9100 developer"
- * ]
- *
- *
- * Это позволяет Planner не ходить по кругу.
- *
+ * TRIED SEARCH QUERIES
  * =========================================================
  */
 
@@ -361,18 +500,22 @@ export function buildTriedSearchQueries(
 ) {
 
     const existing =
+
         Array.isArray(
             planningContext
                 ?.metadata
                 ?.triedSearchQueries
         )
+
             ? planningContext
                 .metadata
                 .triedSearchQueries
+
             : [];
 
 
     const current =
+
         extractSearchQueries(
             previousPlan
         );
@@ -394,11 +537,68 @@ export function buildTriedSearchQueries(
 
 /*
  * =========================================================
- * BUILD RETRY HISTORY
+ * TRIED SOURCE URLS
  * =========================================================
- *
- * Единая точка входа для Replanner.
- *
+ */
+
+
+export function buildTriedSourceUrls(
+
+    planningContext,
+
+    previousPlan,
+
+    previousRunResult
+
+) {
+
+    const existing =
+
+        Array.isArray(
+            planningContext
+                ?.metadata
+                ?.triedSourceUrls
+        )
+
+            ? planningContext
+                .metadata
+                .triedSourceUrls
+
+            : [];
+
+
+    const current =
+
+        uniqueStrings([
+
+            ...extractFetchedUrls(
+                previousRunResult
+            ),
+
+            ...extractPlanFetchUrls(
+                previousPlan
+            )
+
+        ]);
+
+
+    return uniqueStrings([
+
+        ...existing,
+
+        ...current
+
+    ])
+        .slice(
+            -MAX_TRIED_SOURCE_URLS
+        );
+
+}
+
+
+/*
+ * =========================================================
+ * BUILD RETRY HISTORY
  * =========================================================
  */
 
@@ -417,6 +617,7 @@ export function buildRetryHistory({
     return {
 
         previousAttempt:
+
             buildPreviousAttempt(
 
                 previousPlan,
@@ -427,11 +628,25 @@ export function buildRetryHistory({
 
 
         triedSearchQueries:
+
             buildTriedSearchQueries(
 
                 planningContext,
 
                 previousPlan
+
+            ),
+
+
+        triedSourceUrls:
+
+            buildTriedSourceUrls(
+
+                planningContext,
+
+                previousPlan,
+
+                previousRunResult
 
             )
 
