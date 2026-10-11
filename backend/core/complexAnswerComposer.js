@@ -1,39 +1,36 @@
 import OpenAI from "openai";
 
 
+import {
+    executeAIWithRetry
+} from "../ai/aiRetry.js";
+
 
 /*
  * =========================================================
- * JESSICA COMPLEX ANSWER COMPOSER
+ * JESSICA COMPLEX ANSWER COMPOSER v2
  * =========================================================
  *
  * Объединяет результаты нескольких подзадач
- * в единый пользовательский текст.
+ * в единый пользовательский ответ.
  *
  *
- * Ответственность:
+ * v2:
  *
- * - структурировать готовые результаты;
- * - сохранить факты;
- * - показать ошибки и уточнения.
- *
- *
- * НЕ:
- *
- * - решает задачи;
- * - вызывает Tools;
- * - меняет результаты;
- * - определяет success.
+ * - использует общую AI Retry Policy;
+ * - 429 / timeout / 5xx не приводят
+ *   сразу к fallback;
+ * - semantic содержание результатов
+ *   никогда не пересчитывается.
  *
  * =========================================================
  */
 
 
-
-
-
 const groq =
+
     process.env.GROQ_API_KEY
+
         ? new OpenAI({
 
             apiKey:
@@ -43,13 +40,8 @@ const groq =
                 "https://api.groq.com/openai/v1"
 
         })
+
         : null;
-
-
-
-
-
-
 
 
 /*
@@ -63,52 +55,44 @@ function formatResults(
     results
 ) {
 
-
-    if (
-        !Array.isArray(results) ||
+    if(
+        !Array.isArray(results)
+        ||
         results.length === 0
-    ) {
+    ){
 
         return "Результаты отсутствуют.";
 
     }
 
 
-
     return results
+
         .map(
-
             item => {
-
 
                 return (
 
-                    `Подзадача ${item.id ?? "?"}\n` +
+                    `Подзадача ${item.id ?? "?"}\n`
 
-                    `Статус: ${item.status}\n` +
+                    +
+
+                    `Статус: ${item.status}\n`
+
+                    +
 
                     `Результат:\n${item.result || ""}`
 
                 );
 
-
             }
-
         )
+
         .join(
-
             "\n\n---\n\n"
-
         );
 
-
 }
-
-
-
-
-
-
 
 
 /*
@@ -122,36 +106,34 @@ function fallbackAnswer(
     subtaskRunResult
 ) {
 
-
     const results =
+
         Array.isArray(
             subtaskRunResult?.results
         )
+
             ? subtaskRunResult.results
+
             : [];
 
 
-
-    if (
+    if(
         results.length === 0
-    ) {
+    ){
 
         return "Нет результатов выполнения.";
 
     }
 
 
-
     return results
-        .map(
 
+        .map(
             item => {
 
-
-                if (
+                if(
                     item.status === "COMPLETED"
-                ) {
-
+                ){
 
                     return (
 
@@ -162,11 +144,9 @@ function fallbackAnswer(
                 }
 
 
-
-                if (
+                if(
                     item.status === "NEEDS_CLARIFICATION"
-                ) {
-
+                ){
 
                     return (
 
@@ -177,27 +157,33 @@ function fallbackAnswer(
                 }
 
 
+                if(
+                    item.status === "BLOCKED"
+                ){
+
+                    return (
+
+                        `${item.id}) Не выполнено: зависимая подзадача была заблокирована. ${item.result || ""}`
+
+                    );
+
+                }
+
 
                 return (
 
-                    `${item.id}) Не выполнено: ${item.result}`
+                    `${item.id}) Не выполнено: ${item.result || ""}`
 
                 );
 
-
             }
-
         )
-        .join("\n\n");
 
+        .join(
+            "\n\n"
+        );
 
 }
-
-
-
-
-
-
 
 
 /*
@@ -208,103 +194,102 @@ function fallbackAnswer(
 
 
 export async function composeComplexAnswer(
+
     originalTask,
+
     decomposition,
+
     subtaskRunResult
+
 ) {
 
-
     const results =
+
         Array.isArray(
             subtaskRunResult?.results
         )
+
             ? subtaskRunResult.results
+
             : [];
 
 
-
-
-
     /*
-     * Один результат
+     * =====================================================
+     * SINGLE RESULT
+     * =====================================================
      */
 
 
-    if (
-        results.length === 1 &&
+    if(
+        results.length === 1
+        &&
         results[0]?.status === "COMPLETED"
-    ) {
-
+    ){
 
         return {
 
             text:
                 results[0].result || "",
 
-
             source:
                 "single-result"
 
         };
 
-
     }
 
 
-
-
-
-
-
     /*
-     * Нет AI
+     * =====================================================
+     * NO AI
+     * =====================================================
      */
 
 
-    if (
+    if(
         !groq
-    ) {
-
+    ){
 
         return {
 
             text:
+
                 fallbackAnswer(
                     subtaskRunResult
                 ),
-
 
             source:
                 "fallback"
 
         };
 
-
     }
 
 
-
-
-
-
+    /*
+     * =====================================================
+     * AI
+     * =====================================================
+     */
 
 
     try {
 
 
-
         const response =
-            await groq.responses.create({
 
+            await executeAIWithRetry(
 
-                model:
-                    "openai/gpt-oss-20b",
+                () =>
+                    groq.responses.create({
 
+                        model:
+                            "openai/gpt-oss-20b",
 
+                        instructions:
 
-                instructions:
-
-                    `
+                            `
 Ты являешься модулем сборки ответа Jessica Core.
 
 Тебе переданы уже готовые результаты подзадач.
@@ -319,18 +304,17 @@ export async function composeComplexAnswer(
 6. COMPLETED показывай как выполненный результат.
 7. NEEDS_CLARIFICATION показывай как требующий уточнения.
 8. FAILED показывай как не выполненный пункт.
-9. Не скрывай ошибки.
-10. Не показывай внутреннюю архитектуру Jessica.
+9. BLOCKED показывай как заблокированный зависимостью пункт.
+10. Не скрывай ошибки.
+11. Не показывай внутреннюю архитектуру Jessica.
 
 Ответ должен быть понятным пользователю.
 Язык ответа — язык пользователя.
 `,
 
+                        input:
 
-
-                input:
-
-                    `
+                            `
 Исходная задача:
 
 ${originalTask}
@@ -356,97 +340,101 @@ ${subtaskRunResult.needsClarification || 0}
 ${subtaskRunResult.failed || 0}
 `
 
+                    }),
 
+                {
 
-            });
+                    label:
+                        "Jessica Complex Composer",
 
+                    maxAttempts:
+                        3
 
+                }
 
-
+            );
 
 
         const text =
+
             response.output_text
                 ?.trim();
 
 
-
-
-
-        if (
+        if(
             !text
-        ) {
-
+        ){
 
             return {
 
                 text:
+
                     fallbackAnswer(
                         subtaskRunResult
                     ),
-
 
                 source:
                     "fallback"
 
             };
 
-
         }
-
-
-
-
 
 
         return {
 
-
             text,
-
 
             source:
                 "groq"
 
-
         };
 
 
-
-
-
-    } catch(error) {
-
+    }catch(error){
 
 
         console.error(
 
-            "Jessica Complex Composer error:",
+            "Jessica Complex Composer final error:",
 
-            error
+            {
+
+                status:
+                    error?.status || 0,
+
+                code:
+                    error?.code || null,
+
+                message:
+                    error?.message || String(error)
+
+            }
 
         );
 
 
+        /*
+         * Очень важно:
+         *
+         * сбой Composer не уничтожает
+         * уже готовые результаты Subtasks.
+         */
+
 
         return {
 
-
             text:
+
                 fallbackAnswer(
                     subtaskRunResult
                 ),
 
-
-
             source:
                 "fallback"
 
-
         };
 
-
     }
-
 
 }
