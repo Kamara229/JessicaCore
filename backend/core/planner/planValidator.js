@@ -14,8 +14,8 @@ import {
 
 
 import {
-    validateSourceContentPolicy
-} from "./sourceContentPolicy.js";
+    validatePlannerEvidencePolicy
+} from "./plannerEvidencePolicy.js";
 
 
 /*
@@ -31,22 +31,11 @@ import {
  * - структуру;
  * - intent;
  * - requiresTools;
- * - evidence;
- * - Source Content Policy;
+ * - evidence structure;
+ * - evidence strength for user task;
  * - доступные инструменты;
  * - уникальность шагов;
  * - зависимости $from.
- *
- *
- * Критическая гарантия:
- *
- * source_content ⇄ web_fetch
- *
- *
- * Если пользователь явно требует
- * проверку содержимого страницы,
- * план с одним web_search
- * больше не проходит validation.
  *
  * =========================================================
  */
@@ -54,52 +43,6 @@ import {
 
 const MAX_STEPS =
     15;
-
-
-/*
- * =========================================================
- * TASK FROM CONTEXT
- * =========================================================
- */
-
-
-function resolveTask(
-    context
-) {
-
-    if(
-        !context
-        ||
-        typeof context !== "object"
-        ||
-        Array.isArray(context)
-    ){
-
-        return "";
-
-    }
-
-
-    return String(
-
-        context.task
-
-        ||
-
-        context.userTask
-
-        ||
-
-        context.originalTask
-
-        ||
-
-        ""
-
-    )
-        .trim();
-
-}
 
 
 /*
@@ -505,7 +448,9 @@ export function validatePlan(
 
     plan,
 
-    context = {}
+    context = {},
+
+    task = ""
 
 ) {
 
@@ -534,7 +479,7 @@ export function validatePlan(
 
     /*
      * =====================================================
-     * 2. EVIDENCE BASE CONTRACT
+     * 2. EVIDENCE INTERNAL CONSISTENCY
      * =====================================================
      */
 
@@ -557,38 +502,50 @@ export function validatePlan(
 
     /*
      * =====================================================
-     * 3. SOURCE CONTENT POLICY
+     * 3. EVIDENCE STRENGTH POLICY
+     * =====================================================
+     *
+     * Здесь проверяем уже не сам Plan,
+     * а достаточность evidence
+     * для исходной пользовательской задачи.
+     *
      * =====================================================
      */
 
 
-    const sourceContentPolicy =
+    const evidencePolicy =
 
-        validateSourceContentPolicy({
-
-            plan,
+        validatePlannerEvidencePolicy({
 
             task:
 
-                resolveTask(
-                    context
-                )
+                task
+
+                ||
+
+                context?.task
+
+                ||
+
+                "",
+
+            plan
 
         });
 
 
     if(
-        !sourceContentPolicy.success
+        !evidencePolicy.success
     ){
 
-        return sourceContentPolicy;
+        return evidencePolicy;
 
     }
 
 
     /*
      * =====================================================
-     * 4. NO TOOL PLAN
+     * 4. NO TOOLS
      * =====================================================
      */
 
