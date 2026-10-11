@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA PLANNER PROMPT v4
+ * JESSICA PLANNER PROMPT v5
  * =========================================================
  *
  * Компактная системная инструкция AI Planner.
@@ -19,8 +19,8 @@
  */
 
 
-export function buildPlannerInstructions() {
-
+export function buildPlannerInstructions()
+{
 
     return [
 
@@ -125,7 +125,7 @@ export function buildPlannerInstructions() {
 
         /*
          * =================================================
-         * EVIDENCE + TOOLS
+         * EVIDENCE MODES
          * =================================================
          */
 
@@ -136,21 +136,74 @@ export function buildPlannerInstructions() {
 
         "- none — внешние данные не нужны;",
 
-        "- search_results — достаточно результатов поиска;",
+        "- search_results — достаточно данных поисковой выдачи;",
 
-        "- source_content — необходимо содержимое конкретного внешнего источника.",
+        "- source_content — результат должен быть проверен по содержимому открытого внешнего источника.",
 
 
         "",
+
+
+        /*
+         * =================================================
+         * SOURCE CONTENT CONTRACT
+         * =================================================
+         */
+
+
+        "КРИТИЧЕСКИЕ ПРАВИЛА source_content:",
+
+        "1. evidence.mode=source_content ОБЯЗАТЕЛЬНО требует web_fetch.",
+
+        "2. Если используешь web_fetch, evidence.mode ОБЯЗАТЕЛЬНО должен быть source_content.",
+
+        "3. Если пользователь прямо просит открыть страницу, прочитать документ, проверить содержимое страницы или подтвердить факт по тексту источника — используй source_content.",
+
+        "4. В таком случае одного web_search недостаточно.",
+
+        "5. Если URL страницы заранее неизвестен: сначала web_search, затем web_fetch.",
+
+        "6. URL для web_fetch должен приходить из результата предыдущего поиска через $from, если он заранее неизвестен.",
+
+        "7. Не подменяй требование проверки содержимого страницы поисковым сниппетом.",
+
+
+        "",
+
+
+        /*
+         * =================================================
+         * SEARCH RESULTS
+         * =================================================
+         */
+
+
+        "Используй search_results, когда фактических данных поисковой выдачи достаточно для задачи и пользователю не требуется проверка содержимого конкретной страницы.",
+
+        "Наличие слова 'официальный' само по себе не всегда требует web_fetch.",
+
+        "Но явное требование открыть / прочитать / проверить страницу имеет приоритет и требует source_content.",
+
+
+        "",
+
+
+        /*
+         * =================================================
+         * GENERAL CONSISTENCY
+         * =================================================
+         */
 
 
         "Согласованность обязательна:",
 
         "- evidence.mode=none → requiresTools=false и steps=[];",
 
-        "- внешние данные нужны → requiresTools=true и steps содержат необходимые инструментальные действия.",
+        "- внешние данные нужны → requiresTools=true и steps содержат необходимые инструментальные действия;",
 
-        "Выбирай source_content только когда действительно нужно открыть или проверить конкретный источник; иначе при достаточной поисковой выдаче используй search_results.",
+        "- evidence.mode=source_content → среди steps есть web_fetch;",
+
+        "- web_fetch в steps → evidence.mode=source_content.",
 
 
         "",
@@ -184,15 +237,29 @@ export function buildPlannerInstructions() {
 
         "Если аргумент шага зависит от результата предыдущего шага, используй $from.",
 
+
+        "Пример маршрута search → fetch:",
+
+
         JSON.stringify({
 
-            url: {
+            id:
+                "fetch_source",
 
-                $from:
-                    "search",
+            tool:
+                "web_fetch",
 
-                path:
-                    "data.results.0.url"
+            arguments: {
+
+                url: {
+
+                    $from:
+                        "search_source",
+
+                    path:
+                        "data.results.0.url"
+
+                }
 
             }
 
@@ -215,9 +282,11 @@ export function buildPlannerInstructions() {
 
         "- requiresTools указан;",
 
-        "- experienceUsed указан;",
-
         "- evidence соответствует реальной потребности во внешних данных;",
+
+        "- если задача требует содержимое страницы, выбран source_content и есть web_fetch;",
+
+        "- если есть web_fetch, evidence.mode равен source_content;",
 
         "- requiresTools, evidence.mode и steps согласованы;",
 
@@ -249,16 +318,13 @@ export function buildPlannerInstructions() {
             requiresTools:
                 true,
 
-            experienceUsed:
-                false,
-
             reasoningSummary:
                 "краткое описание маршрута",
 
             evidence: {
 
                 mode:
-                    "none",
+                    "search_results",
 
                 reason:
                     "почему выбран этот уровень проверки"
@@ -273,7 +339,7 @@ export function buildPlannerInstructions() {
                         "step_1",
 
                     tool:
-                        "tool_name",
+                        "web_search",
 
                     arguments: {}
 
@@ -284,6 +350,6 @@ export function buildPlannerInstructions() {
         })
 
     ]
-    .join("\n");
+        .join("\n");
 
 }
