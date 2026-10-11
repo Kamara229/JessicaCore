@@ -1,43 +1,15 @@
 /*
  * =========================================================
- * JESSICA EXECUTION
- * REPLAN EXECUTOR v5
+ * JESSICA EXECUTION REPLAN EXECUTOR v6
  * =========================================================
  *
  * Выполнение уже принятого Replan решения.
  *
  *
- * Flow:
+ * Дополнительная гарантия v6:
  *
- * Replan Decision
- *        ↓
- * Alternative Plan
- *        ↓
- * Apply Alternative Plan
- *        ↓
- * Register Replan
- *        ↓
- * Reset Execution Pass
- *        ↓
- * Continue Execution
- *
- *
- * Ответственность:
- *
- * - запросить Alternative Plan;
- * - применить Alternative Plan;
- * - зарегистрировать успешный Replan;
- * - подготовить новый Execution Pass;
- * - зафиксировать lifecycle events в Trace.
- *
- *
- * НЕ:
- *
- * - принимает решение Replan;
- * - анализирует Failure;
- * - запускает Execution;
- * - хранит Replan history в Trace;
- * - изменяет счётчики напрямую.
+ * Alternative Plan не может быть
+ * идентичен текущему failed route.
  *
  * =========================================================
  */
@@ -60,11 +32,10 @@ import {
 } from "../../trace/executionTrace.js";
 
 
-
-
-
-
-
+import {
+    areExecutionPlansEquivalent,
+    buildPlanFingerprint
+} from "../replan/planFingerprint.js";
 
 
 /*
@@ -75,13 +46,9 @@ import {
 
 
 export async function executeReplan(
-
     context,
-
     decision
-
 ) {
-
 
     /*
      * =====================================================
@@ -90,25 +57,15 @@ export async function executeReplan(
      */
 
 
-    if (
-
-        !context ||
-
+    if(
+        !context
+        ||
         !decision
-
-    ) {
-
+    ){
 
         return false;
 
     }
-
-
-
-
-
-
-
 
 
     /*
@@ -128,30 +85,24 @@ export async function executeReplan(
 
             failure:
 
-                decision.failure || null
+                decision.failure
+
+                ||
+
+                null
 
         }
 
     );
 
 
-
-
-
-
-
-
-
     const previousPlan =
 
-        context.plan || null;
+        context.plan
 
+        ||
 
-
-
-
-
-
+        null;
 
 
     /*
@@ -162,7 +113,6 @@ export async function executeReplan(
 
 
     let alternative;
-
 
 
     try {
@@ -179,9 +129,7 @@ export async function executeReplan(
             );
 
 
-    }
-
-    catch(error){
+    }catch(error){
 
 
         addTraceEvent(
@@ -193,35 +141,24 @@ export async function executeReplan(
             {
 
                 stage:
-
                     "create-alternative-plan",
-
-
 
                 reason:
 
-                    error?.message ||
+                    error?.message
+
+                    ||
 
                     "Alternative plan creation failed"
-
 
             }
 
         );
 
 
-
         return false;
 
-
     }
-
-
-
-
-
-
-
 
 
     /*
@@ -231,14 +168,11 @@ export async function executeReplan(
      */
 
 
-    if (
-
-        !alternative?.success ||
-
+    if(
+        !alternative?.success
+        ||
         !alternative.plan
-
-    ) {
-
+    ){
 
         addTraceEvent(
 
@@ -249,22 +183,29 @@ export async function executeReplan(
             {
 
                 stage:
-
                     "create-alternative-plan",
-
-
 
                 reason:
 
-                    alternative?.reason ||
+                    alternative?.reason
 
-                    "Alternative plan not created"
+                    ||
 
+                    "Alternative plan not created",
+
+                rejectedFingerprints:
+
+                    Array.isArray(
+                        alternative?.rejectedFingerprints
+                    )
+
+                        ? alternative.rejectedFingerprints
+
+                        : []
 
             }
 
         );
-
 
 
         return false;
@@ -272,11 +213,54 @@ export async function executeReplan(
     }
 
 
+    /*
+     * =====================================================
+     * FINAL DUPLICATE GUARD
+     * =====================================================
+     */
 
 
+    if(
+        previousPlan
+        &&
+        areExecutionPlansEquivalent(
+
+            previousPlan,
+
+            alternative.plan
+
+        )
+    ){
+
+        addTraceEvent(
+
+            context.trace,
+
+            "REPLAN_REJECTED",
+
+            {
+
+                stage:
+                    "diversity-check",
+
+                reason:
+
+                    "Alternative Plan повторяет текущий failed Execution route",
+
+                fingerprint:
+
+                    buildPlanFingerprint(
+                        alternative.plan
+                    )
+
+            }
+
+        );
 
 
+        return false;
 
+    }
 
 
     /*
@@ -297,19 +281,9 @@ export async function executeReplan(
         );
 
 
-
-
-
-
-
-
-
-    if (
-
+    if(
         !applied
-
-    ) {
-
+    ){
 
         addTraceEvent(
 
@@ -320,20 +294,14 @@ export async function executeReplan(
             {
 
                 stage:
-
                     "apply-alternative-plan",
 
-
-
                 reason:
-
                     "Alternative plan was not applied"
-
 
             }
 
         );
-
 
 
         return false;
@@ -341,27 +309,9 @@ export async function executeReplan(
     }
 
 
-
-
-
-
-
-
-
     /*
      * =====================================================
      * REGISTER REPLAN
-     * =====================================================
-     *
-     * Context является единственным
-     * источником истины для Replan history.
-     *
-     * Trace получит эту историю позже через:
-     *
-     * traceContextAdapter
-     *      ↓
-     * syncTraceReplans()
-     *
      * =====================================================
      */
 
@@ -374,70 +324,45 @@ export async function executeReplan(
 
             previousPlan,
 
-
             newPlan:
-
                 context.plan,
-
-
 
             failure:
 
-                decision.failure || null
+                decision.failure
 
+                ||
+
+                null,
+
+            diversification:
+
+                alternative.diversification
+
+                ||
+
+                null
 
         }
 
     );
 
 
-
-
-
-
-
-
-
     /*
      * =====================================================
      * RESET EXECUTION PASS
-     * =====================================================
-     *
-     * Сбрасываем только локальные counters
-     * текущего маршрута:
-     *
-     * attempt
-     * retryCount
-     *
-     * replanCount НЕ сбрасывается.
-     *
      * =====================================================
      */
 
 
     resetExecutionAfterReplan(
-
         context
-
     );
-
-
-
-
-
-
-
 
 
     /*
      * =====================================================
-     * TRACE EVENT
-     * =====================================================
-     *
-     * Здесь Trace хранит только lifecycle event.
-     *
-     * Сам Replan history находится в Context.
-     *
+     * TRACE
      * =====================================================
      */
 
@@ -451,34 +376,24 @@ export async function executeReplan(
         {
 
             replanCount:
-
                 context.replanCount,
 
-
-
-            previousPlan:
-
-
-
-                previousPlan,
-
-
+            previousPlan,
 
             newPlan:
+                context.plan,
 
-                context.plan
+            diversification:
 
+                alternative.diversification
+
+                ||
+
+                null
 
         }
 
     );
-
-
-
-
-
-
-
 
 
     return true;
