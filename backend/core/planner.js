@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA PLANNER CORE v4
+ * JESSICA PLANNER CORE v5
  * =========================================================
  *
  * Центральный координатор Planner.
@@ -19,19 +19,12 @@
  * Execution Plan
  *
  *
- * Этот файл отвечает только за:
+ * v5:
  *
- * - orchestration;
- * - retry loop;
- * - итоговый результат.
- *
- *
- * Детали вынесены в:
- *
- * planner/runtime/plannerContext.js
- * planner/runtime/plannerAttempt.js
- * planner/runtime/plannerPlanResult.js
- * planner/plannerRetry.js
+ * - semantic failures больше не скрываются;
+ * - логируется validation feedback каждой попытки;
+ * - логируется финальный отказ Planner;
+ * - trace остаётся канонической историей попыток.
  *
  * =========================================================
  */
@@ -90,6 +83,7 @@ export async function createPlan(
 
 
     const cleanTask =
+
         String(
             task || ""
         )
@@ -103,10 +97,9 @@ export async function createPlan(
      */
 
 
-    if (
+    if(
         !cleanTask
-    ) {
-
+    ){
 
         return {
 
@@ -114,17 +107,19 @@ export async function createPlan(
                 false,
 
             text:
-                "Задача Planner пустая"
+                "Задача Planner пустая",
+
+            trace:
+                []
 
         };
 
     }
 
 
-    if (
+    if(
         !process.env.GROQ_API_KEY
-    ) {
-
+    ){
 
         return {
 
@@ -132,7 +127,10 @@ export async function createPlan(
                 false,
 
             text:
-                "GROQ_API_KEY отсутствует"
+                "GROQ_API_KEY отсутствует",
+
+            trace:
+                []
 
         };
 
@@ -147,6 +145,7 @@ export async function createPlan(
 
 
     const baseContext =
+
         buildPlannerContext(
             context
         );
@@ -156,6 +155,7 @@ export async function createPlan(
      * Только semantic feedback
      * передаётся обратно AI.
      */
+
 
     let plannerFeedback =
         "";
@@ -176,7 +176,7 @@ export async function createPlan(
      */
 
 
-    for (
+    for(
 
         let attempt = 1;
 
@@ -184,10 +184,11 @@ export async function createPlan(
 
         attempt++
 
-    ) {
+    ){
 
 
         const planningContext =
+
             buildPlannerAttemptContext(
 
                 baseContext,
@@ -208,6 +209,7 @@ export async function createPlan(
 
 
             const attemptResult =
+
                 await runPlannerAttempt({
 
                     task:
@@ -231,14 +233,16 @@ export async function createPlan(
              */
 
 
-            if (
+            if(
                 !attemptResult.success
-            ) {
+            ){
 
 
                 lastError =
 
-                    attemptResult.feedback ||
+                    attemptResult.feedback
+
+                    ||
 
                     "planner_validation_failed";
 
@@ -247,10 +251,14 @@ export async function createPlan(
                     lastError;
 
 
-                trace.push({
+                const traceEntry = {
 
                     stage:
-                        attemptResult.stage ||
+
+                        attemptResult.stage
+
+                        ||
+
                         "validation",
 
                     attempt,
@@ -264,7 +272,39 @@ export async function createPlan(
                     reason:
                         lastError
 
-                });
+                };
+
+
+                trace.push(
+                    traceEntry
+                );
+
+
+                /*
+                 * КРИТИЧНО:
+                 *
+                 * раньше эта ветка была полностью
+                 * невидима в runtime logs.
+                 */
+
+
+                console.warn(
+
+                    "Jessica Planner semantic rejection:",
+
+                    {
+
+                        attempt,
+
+                        stage:
+                            traceEntry.stage,
+
+                        reason:
+                            lastError
+
+                    }
+
+                );
 
 
                 continue;
@@ -280,6 +320,7 @@ export async function createPlan(
 
 
             const finalPlan =
+
                 enrichPlan(
 
                     attemptResult.plan,
@@ -316,6 +357,16 @@ export async function createPlan(
                     steps:
                         finalPlan.steps.length,
 
+                    evidenceMode:
+
+                        finalPlan
+                            ?.evidence
+                            ?.mode
+
+                        ||
+
+                        "none",
+
                     attempt
 
                 }
@@ -339,7 +390,7 @@ export async function createPlan(
             };
 
 
-        } catch(error) {
+        }catch(error){
 
 
             /*
@@ -351,7 +402,9 @@ export async function createPlan(
 
             const errorMessage =
 
-                error?.message ||
+                error?.message
+
+                ||
 
                 "planner_error";
 
@@ -361,18 +414,21 @@ export async function createPlan(
 
 
             const technical =
+
                 isTechnicalPlannerError(
                     error
                 );
 
 
             const semantic =
+
                 isSemanticPlannerError(
                     error
                 );
 
 
             const retryable =
+
                 isRetryablePlannerError(
                     error
                 );
@@ -383,15 +439,12 @@ export async function createPlan(
              *
              * модель получила запрос,
              * но сформировала плохой результат.
-             *
-             * Поэтому feedback нужен.
              */
 
 
-            if (
+            if(
                 semantic
-            ) {
-
+            ){
 
                 plannerFeedback =
                     errorMessage;
@@ -404,15 +457,15 @@ export async function createPlan(
              *
              * 429 / 5xx / network.
              *
-             * Это НЕ ошибка маршрута,
-             * поэтому AI не должен её видеть.
+             * AI не должен воспринимать
+             * технический сбой как feedback
+             * к содержанию плана.
              */
 
 
-            if (
+            if(
                 technical
-            ) {
-
+            ){
 
                 plannerFeedback =
                     "";
@@ -429,7 +482,9 @@ export async function createPlan(
 
             const canRetry =
 
-                retryable &&
+                retryable
+
+                &&
 
                 attempt <
                 MAX_PLANNER_ATTEMPTS;
@@ -526,15 +581,13 @@ export async function createPlan(
              */
 
 
-            if (
+            if(
                 canRetry
-            ) {
+            ){
 
-
-                if (
+                if(
                     delay > 0
-                ) {
-
+                ){
 
                     await sleep(
                         delay
@@ -562,16 +615,52 @@ export async function createPlan(
      */
 
 
+    const failureText =
+
+        "Planner не смог создать корректный план: "
+
+        +
+
+        (
+            lastError
+
+            ||
+
+            "unknown planner failure"
+        );
+
+
+    console.error(
+
+        "Jessica Planner exhausted attempts:",
+
+        {
+
+            attempts:
+                trace.length,
+
+            lastError:
+
+                lastError
+
+                ||
+
+                null,
+
+            trace
+
+        }
+
+    );
+
+
     return {
 
         success:
             false,
 
         text:
-
-            "Planner не смог создать корректный план: "
-            +
-            lastError,
+            failureText,
 
         trace
 
@@ -597,6 +686,7 @@ export async function planTask(
 
 
     const result =
+
         await createPlan(
 
             task,
@@ -606,10 +696,9 @@ export async function planTask(
         );
 
 
-    if (
+    if(
         result.success
-    ) {
-
+    ){
 
         return result.plan;
 
