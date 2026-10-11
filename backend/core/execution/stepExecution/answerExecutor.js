@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * ANSWER EXECUTOR v2
+ * ANSWER EXECUTOR v3
  * =========================================================
  *
  * Создание пользовательского ответа.
@@ -16,19 +16,25 @@
  * Answer Result
  *
  *
- * Ответственность:
+ * КРИТИЧЕСКО:
  *
- * - вызвать Answer Composer;
- * - сохранить результат ответа;
- * - нормализовать ошибку.
+ * ошибка Composer является Presentation Failure,
+ * а не ошибкой Execution Route.
  *
  *
- * НЕ:
+ * Поэтому:
  *
- * - выполняет Tools;
- * - делает Retry;
- * - делает Replan;
- * - выполняет Validation.
+ * composer failure
+ *      ≠
+ * tool failure
+ *
+ * composer failure
+ *      ≠
+ * validation failure
+ *
+ * composer failure
+ *      ≠
+ * reason for replan
  *
  * =========================================================
  */
@@ -39,11 +45,15 @@ import {
 } from "../../answerComposer.js";
 
 
+/*
+ * =========================================================
+ * CONSTANTS
+ * =========================================================
+ */
 
 
-
-
-
+const PRESENTATION_CATEGORY =
+    "presentation";
 
 
 /*
@@ -65,43 +75,38 @@ function buildFailure(
 
 ) {
 
-
     return {
 
+        success:
+            false,
 
-        success:false,
-
-
-        failure:
-
-        {
-
+        failure: {
 
             stage,
 
-
             failureType,
 
+            category:
+                PRESENTATION_CATEGORY,
 
             reason,
 
+            shouldRetry:
+                false,
+
+            needsClarification:
+                false,
+
+            noVerifiedResult:
+                false,
 
             ...extra
 
-
         }
-
 
     };
 
 }
-
-
-
-
-
-
-
 
 
 /*
@@ -112,51 +117,79 @@ function buildFailure(
 
 
 function normalizeAnswerFailure(
-
     answerResult
-
 ) {
-
 
     return {
 
-
         stage:
 
-            answerResult?.stage ||
+            answerResult?.stage
+
+            ||
 
             "composer",
 
 
-
         failureType:
 
-            answerResult?.failureType ||
+            answerResult?.failureType
+
+            ||
 
             "composer-failure",
 
 
+        /*
+         * КРИТИЧЕСКО:
+         *
+         * это Presentation Failure.
+         *
+         * Execution route уже построен
+         * и повторно планировать его
+         * только из-за Composer нельзя.
+         */
+
+
+        category:
+            PRESENTATION_CATEGORY,
+
 
         reason:
 
-            answerResult?.reason ||
+            answerResult?.reason
 
-            answerResult?.text ||
+            ||
+
+            answerResult?.text
+
+            ||
 
             "Ответ не создан",
 
 
+        /*
+         * AI technical retry уже выполняется
+         * внутри composerRequest → aiRetry.
+         *
+         * Execution Retry здесь запрещён.
+         */
+
 
         shouldRetry:
-
-            answerResult?.shouldRetry === true,
-
+            false,
 
 
         needsClarification:
 
-            answerResult?.needsClarification === true,
+            answerResult
+                ?.needsClarification
+            ===
+            true,
 
+
+        noVerifiedResult:
+            false,
 
 
         answerResult
@@ -164,13 +197,6 @@ function normalizeAnswerFailure(
     };
 
 }
-
-
-
-
-
-
-
 
 
 /*
@@ -181,18 +207,19 @@ function normalizeAnswerFailure(
 
 
 export async function executeAnswer(
-
     context
-
 ) {
 
+    /*
+     * =====================================================
+     * CONTEXT
+     * =====================================================
+     */
 
-    if (
 
+    if(
         !context
-
-    ) {
-
+    ){
 
         return buildFailure(
 
@@ -207,11 +234,11 @@ export async function executeAnswer(
     }
 
 
-
-
-
-
-
+    /*
+     * =====================================================
+     * COMPOSE
+     * =====================================================
+     */
 
 
     try {
@@ -230,9 +257,7 @@ export async function executeAnswer(
             );
 
 
-    }
-
-    catch(error){
+    }catch(error){
 
 
         return buildFailure(
@@ -241,70 +266,68 @@ export async function executeAnswer(
 
             "composer-exception",
 
-            error?.message ||
+            error?.message
 
-            "Ошибка создания ответа"
+            ||
+
+            "Ошибка создания ответа",
+
+            {
+
+                error:
+                    error || null
+
+            }
 
         );
-
 
     }
 
 
+    /*
+     * =====================================================
+     * COMPOSER FAILURE
+     * =====================================================
+     */
 
 
-
-
-
-
-
-    if (
-
-        context.answerResult?.success !== true
-
-    ) {
-
+    if(
+        context.answerResult?.success
+        !==
+        true
+    ){
 
         return {
 
-
-            success:false,
-
+            success:
+                false,
 
             failure:
 
                 normalizeAnswerFailure(
-
                     context.answerResult
-
                 )
 
-
         };
-
 
     }
 
 
-
-
-
-
-
+    /*
+     * =====================================================
+     * SUCCESS
+     * =====================================================
+     */
 
 
     return {
 
-
-        success:true,
-
+        success:
+            true,
 
         answerResult:
-
             context.answerResult
 
-
     };
-
 
 }
