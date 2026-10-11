@@ -18,41 +18,27 @@ import {
 } from "./subtaskExperienceContext.js";
 
 
+import {
+    buildSubtaskDependencyContext
+} from "./subtaskDependencyContext.js";
+
+
 /*
  * =========================================================
- * JESSICA EXECUTE SUBTASK v3
+ * JESSICA EXECUTE SUBTASK v4
  * =========================================================
- *
- * Выполнение одной подзадачи.
- *
- *
- * Flow:
  *
  * Subtask
  *      ↓
- * Memory Context
+ * Prerequisite Context
  *      ↓
- * Experience Resolver
+ * Experience
  *      ↓
  * Planning Context
  *      ↓
  * Planner
  *      ↓
- * Experience Adapter
- *      ↓
  * Execution Cycle
- *      ↓
- * Result
- *
- *
- * ВАЖНО:
- *
- * Experience передаётся:
- *
- * - Planner;
- * - Execution Context;
- * - Execution Trace;
- * - Learning.
  *
  * =========================================================
  */
@@ -115,7 +101,7 @@ function buildFailedResult({
 
 /*
  * =========================================================
- * BUILD MEMORY EXPERIENCE
+ * MEMORY EXPERIENCE
  * =========================================================
  */
 
@@ -152,7 +138,6 @@ function buildMemoryExperience(
         skills:
 
             hints.map(
-
                 item => ({
 
                     id:
@@ -192,7 +177,6 @@ function buildMemoryExperience(
                             : []
 
                 })
-
             )
 
     };
@@ -265,7 +249,35 @@ function mergeExperienceContext(
 
 /*
  * =========================================================
- * BUILD PLANNING CONTEXT
+ * ARRAY
+ * =========================================================
+ */
+
+
+function normalizeStringArray(
+    value
+) {
+
+    return Array.isArray(value)
+
+        ? value
+            .map(
+                item =>
+                    String(
+                        item || ""
+                    )
+                        .trim()
+            )
+            .filter(Boolean)
+
+        : [];
+
+}
+
+
+/*
+ * =========================================================
+ * PLANNING CONTEXT
  * =========================================================
  */
 
@@ -276,7 +288,9 @@ function buildInitialPlanningContext({
 
     subtaskId,
 
-    taskText
+    taskText,
+
+    dependencyContext
 
 }) {
 
@@ -295,6 +309,28 @@ function buildInitialPlanningContext({
             : null;
 
 
+    /*
+     * Dependency data передаём как plannerHint.
+     *
+     * Это важно:
+     *
+     * prerequisite result помогает Planner,
+     * но не имеет большего приоритета,
+     * чем текущая пользовательская задача.
+     */
+
+
+    const dependencyHints =
+
+        dependencyContext
+
+            ? [
+                dependencyContext
+            ]
+
+            : [];
+
+
     if(
         resolvedContext
     ){
@@ -302,6 +338,16 @@ function buildInitialPlanningContext({
         return {
 
             ...resolvedContext,
+
+            plannerHints: [
+
+                ...normalizeStringArray(
+                    resolvedContext.plannerHints
+                ),
+
+                ...dependencyHints
+
+            ],
 
             metadata: {
 
@@ -319,7 +365,13 @@ function buildInitialPlanningContext({
                         : {}
                 ),
 
-                subtaskId
+                subtaskId,
+
+                dependencyContextUsed:
+
+                    Boolean(
+                        dependencyContext
+                    )
 
             }
 
@@ -333,11 +385,20 @@ function buildInitialPlanningContext({
         experience:
             experienceResult,
 
+        plannerHints:
+            dependencyHints,
+
         metadata: {
 
             subtaskId,
 
             taskText,
+
+            dependencyContextUsed:
+
+                Boolean(
+                    dependencyContext
+                ),
 
             experienceSource:
 
@@ -362,7 +423,7 @@ function buildInitialPlanningContext({
 
 /*
  * =========================================================
- * EXECUTE SUBTASK
+ * EXECUTE
  * =========================================================
  */
 
@@ -414,7 +475,21 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 1. EXPERIENCE RESOLUTION
+     * 1. DEPENDENCY CONTEXT
+     * =====================================================
+     */
+
+
+    const dependencyContext =
+
+        buildSubtaskDependencyContext(
+            subtask
+        );
+
+
+    /*
+     * =====================================================
+     * 2. EXPERIENCE RESOLUTION
      * =====================================================
      */
 
@@ -435,14 +510,6 @@ export async function executeSubtask(
             buildMemoryExperience(
                 subtask
             );
-
-
-        /*
-         * Если Decomposer уже передал
-         * Memory Experience,
-         * повторный Storage lookup
-         * не выполняем.
-         */
 
 
         if(
@@ -505,14 +572,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 2. EXECUTION EXPERIENCE
-     * =====================================================
-     *
-     * Resolver format != Execution format.
-     *
-     * Здесь выполняется единственная
-     * каноническая адаптация.
-     *
+     * 3. EXECUTION EXPERIENCE
      * =====================================================
      */
 
@@ -526,7 +586,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 3. PLANNING CONTEXT
+     * 4. PLANNING CONTEXT
      * =====================================================
      */
 
@@ -539,7 +599,9 @@ export async function executeSubtask(
 
             subtaskId,
 
-            taskText
+            taskText,
+
+            dependencyContext
 
         });
 
@@ -575,7 +637,13 @@ export async function executeSubtask(
                             skill?.name
                     )
 
-                    .filter(Boolean)
+                    .filter(Boolean),
+
+            dependencyContext:
+
+                Boolean(
+                    dependencyContext
+                )
 
         }
 
@@ -584,7 +652,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 4. CREATE PLAN
+     * 5. CREATE PLAN
      * =====================================================
      */
 
@@ -677,7 +745,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 5. EFFECTIVE PLANNING CONTEXT
+     * 6. EFFECTIVE CONTEXT
      * =====================================================
      */
 
@@ -699,7 +767,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 6. EXECUTION
+     * 7. EXECUTION
      * =====================================================
      */
 
@@ -708,16 +776,6 @@ export async function executeSubtask(
 
 
     try {
-
-
-        /*
-         * КРИТИЧЕСКО:
-         *
-         * четвёртый аргумент —
-         * канонический Experience Context.
-         *
-         * Раньше здесь Experience терялся.
-         */
 
 
         executionResult =
@@ -775,7 +833,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 7. FINAL RESULT
+     * 8. RESULT
      * =====================================================
      */
 
@@ -787,6 +845,18 @@ export async function executeSubtask(
 
         text:
             taskText,
+
+        dependsOn:
+
+            Array.isArray(
+                subtask?.dependsOn
+            )
+
+                ? [
+                    ...subtask.dependsOn
+                ]
+
+                : [],
 
         experience: {
 
@@ -803,9 +873,7 @@ export async function executeSubtask(
                 executionExperience.confidence,
 
             skills: [
-
                 ...executionExperience.skills
-
             ]
 
         },
@@ -826,6 +894,12 @@ export async function executeSubtask(
 
             experienceSkills:
                 executionExperience.skills.length,
+
+            dependencyContextUsed:
+
+                Boolean(
+                    dependencyContext
+                ),
 
             plannerUsed:
                 true,
