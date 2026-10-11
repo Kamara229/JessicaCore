@@ -1,72 +1,42 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE ANALYZER v5
+ * JESSICA EXPERIENCE ANALYZER v6
  * =========================================================
  *
  * Центральный координатор анализа опыта
  * после выполнения пользовательской задачи.
  *
  *
- * Flow:
+ * КРИТИЧЕСКОЕ РАЗДЕЛЕНИЕ:
  *
- * Execution Trace
- *        ↓
- * Validate Execution
- *        ↓
+ * Execution completed
  *
- * Existing Experience used?
+ * !=
  *
- * YES
- *  ↓
- * SKILL_IMPROVEMENT
+ * Positive Learning Evidence
  *
  *
- * NO
- *  ↓
- * Known Experience Pattern?
+ * Positive Experience reinforcement
+ * разрешён только если:
  *
- * YES
- *  ↓
- * NEW_SKILL
- *
- *
- * NO
- *  ↓
- * PATTERN_DISCOVERY
- *  ↓
- * Learning Queue
- *  ↓
- * Background AI Pattern Extraction
+ * - execution завершён;
+ * - semantic outcome = result;
+ * - validation не degraded;
+ * - validation не failed;
+ * - результат не NO_VERIFIED_RESULT.
  *
  *
- * Возможные Actions:
+ * NO_VERIFIED_RESULT:
  *
- * NEW_SKILL
- * SKILL_IMPROVEMENT
- * PATTERN_DISCOVERY
- * IGNORE
+ * корректный terminal outcome,
+ * но НЕ положительное reinforcement.
  *
  *
- * Ответственность:
+ * DEGRADED_VALIDATION:
  *
- * - принять Execution Trace;
- * - определить успешность Execution;
- * - определить использование Existing Experience;
- * - найти известный Experience Pattern;
- * - рассчитать Learning Metrics;
- * - сформировать Learning Candidate;
- * - определить необходимость Pattern Discovery.
- *
- *
- * НЕ:
- *
- * - вызывает AI;
- * - сохраняет Experience;
- * - работает с Supabase;
- * - принимает AUTO_APPROVE;
- * - создаёт версии Skill;
- * - накапливает KEEP_CANDIDATE;
- * - выполняет Pattern Extraction.
+ * задача может считаться выполненной,
+ * но не используется как сильное
+ * autonomous learning evidence.
  *
  * =========================================================
  */
@@ -93,7 +63,10 @@ import {
 } from "./experienceCandidateBuilder.js";
 
 
-
+import {
+    classifyLearningOutcome,
+    LEARNING_OUTCOME
+} from "./learningOutcomePolicy.js";
 
 
 /*
@@ -109,18 +82,15 @@ function isObject(
 
     return (
 
-        value &&
-
-        typeof value === "object" &&
-
+        value
+        &&
+        typeof value === "object"
+        &&
         !Array.isArray(value)
 
     );
 
 }
-
-
-
 
 
 function normalizeText(
@@ -130,12 +100,9 @@ function normalizeText(
     return String(
         value || ""
     )
-    .trim();
+        .trim();
 
 }
-
-
-
 
 
 function normalizeNumber(
@@ -153,9 +120,6 @@ function normalizeNumber(
         : 0;
 
 }
-
-
-
 
 
 function normalizeUnit(
@@ -181,9 +145,6 @@ function normalizeUnit(
 }
 
 
-
-
-
 /*
  * =========================================================
  * IGNORE RESULT
@@ -203,21 +164,13 @@ function buildIgnoreResult({
 
 } = {}) {
 
-
     return {
 
-
         action:
-
             "IGNORE",
 
-
-
         reusable:
-
             false,
-
-
 
         reason:
 
@@ -229,29 +182,16 @@ function buildIgnoreResult({
 
             "Нет пригодного опыта для обучения",
 
-
-
         skillCandidate:
-
             null,
-
-
 
         analysisType,
 
-
-
         discoveryRequired:
-
             false,
 
-
-
         metrics:
-
             metrics || null,
-
-
 
         metadata:
 
@@ -266,153 +206,6 @@ function buildIgnoreResult({
     };
 
 }
-
-
-
-
-
-/*
- * =========================================================
- * TRACE SUCCESS
- * =========================================================
- *
- * Execution Trace может приходить
- * из разных уровней Runtime.
- *
- * Поэтому не привязываемся только
- * к одному полю stats.completed.
- *
- * =========================================================
- */
-
-
-function isSuccessfulTrace(
-    trace
-) {
-
-
-    /*
-     * Terminal Execution Result
-     */
-
-
-    if(
-        typeof trace?.result?.success ===
-        "boolean"
-    ){
-
-        return trace.result.success;
-
-    }
-
-
-
-    /*
-     * Direct success
-     */
-
-
-    if(
-        typeof trace?.success ===
-        "boolean"
-    ){
-
-        return trace.success;
-
-    }
-
-
-
-    /*
-     * Legacy / outer statistics
-     */
-
-
-    const completed =
-
-        normalizeNumber(
-
-            trace?.stats?.completed
-
-            ??
-
-            trace?.statistics?.completed
-
-        );
-
-
-
-    if(
-        completed > 0
-    ){
-
-        return true;
-
-    }
-
-
-
-    /*
-     * Terminal / context status
-     */
-
-
-    const status =
-
-        normalizeText(
-
-            trace?.result?.status
-
-            ||
-
-            trace?.status
-
-        )
-        .toUpperCase();
-
-
-
-    if(
-        status === "COMPLETED"
-    ){
-
-        return true;
-
-    }
-
-
-
-    /*
-     * NO_VERIFIED_RESULT в новой модели
-     * может быть корректным успешным
-     * semantic outcome.
-     *
-     * Если Result уже содержит success=true,
-     * мы попадём в первый branch.
-     *
-     * Этот fallback оставляем для
-     * совместимости переходного периода.
-     */
-
-
-    if(
-        status === "NO_VERIFIED_RESULT"
-        &&
-        trace?.result?.validation?.valid === true
-    ){
-
-        return true;
-
-    }
-
-
-
-    return false;
-
-}
-
-
-
 
 
 /*
@@ -430,13 +223,11 @@ function buildLearningMetrics({
 
 }) {
 
-
     const occurrences =
 
         getOccurrences(
             trace
         );
-
 
 
     const examples =
@@ -446,13 +237,11 @@ function buildLearningMetrics({
         );
 
 
-
     const successRate =
 
         calculateSuccessRate(
             examples
         );
-
 
 
     const normalizedMatchScore =
@@ -462,23 +251,18 @@ function buildLearningMetrics({
         );
 
 
-
     const confidence =
 
         calculateExperienceConfidence({
 
             matchScore:
-
                 normalizedMatchScore,
 
-
             successRate,
-
 
             occurrences
 
         });
-
 
 
     const maturity =
@@ -488,7 +272,6 @@ function buildLearningMetrics({
         );
 
 
-
     const maturityLevel =
 
         resolveExperienceMaturityLevel(
@@ -496,38 +279,26 @@ function buildLearningMetrics({
         );
 
 
-
     return {
-
 
         occurrences,
 
-
         examples,
-
 
         successRate,
 
-
         confidence,
-
 
         maturity,
 
-
         maturityLevel,
 
-
         matchScore:
-
             normalizedMatchScore
 
     };
 
 }
-
-
-
 
 
 /*
@@ -541,7 +312,6 @@ function getExperienceUsage(
     trace
 ) {
 
-
     if(
         !isObject(
             trace?.experienceUsage
@@ -553,19 +323,14 @@ function getExperienceUsage(
     }
 
 
-
     return trace.experienceUsage;
 
 }
 
 
-
-
-
 function getUsedSkills(
     trace
 ) {
-
 
     const usage =
 
@@ -574,16 +339,15 @@ function getUsedSkills(
         );
 
 
-
     if(
-        !usage ||
+        !usage
+        ||
         usage.used !== true
     ){
 
         return [];
 
     }
-
 
 
     if(
@@ -597,13 +361,12 @@ function getUsedSkills(
     }
 
 
-
     return usage.skills.filter(
 
         item =>
 
-            item &&
-
+            item
+            &&
             typeof item === "object"
 
     );
@@ -611,37 +374,199 @@ function getUsedSkills(
 }
 
 
+/*
+ * =========================================================
+ * NON-POSITIVE OUTCOME
+ * =========================================================
+ */
 
+
+function analyzeNonPositiveOutcome(
+    trace,
+    classification
+) {
+
+    const commonMetadata = {
+
+        learningOutcome:
+
+            classification.outcome,
+
+        outcomeType:
+
+            classification.outcomeType,
+
+        degraded:
+
+            classification.degraded === true,
+
+        validationMode:
+
+            classification.validationMode,
+
+        completed:
+
+            classification.completed === true,
+
+        positiveReinforcementAllowed:
+
+            false,
+
+        experienceUsed:
+
+            getExperienceUsage(trace)?.used === true
+
+    };
+
+
+    /*
+     * =====================================================
+     * NO VERIFIED RESULT
+     * =====================================================
+     *
+     * Это НЕ failure.
+     *
+     * Jessica могла правильно установить,
+     * что искомого подтверждённого результата
+     * в evidence нет.
+     *
+     * Пока сохраняем как neutral outcome
+     * и не усиливаем Skill.
+     *
+     * В будущем может использоваться
+     * отдельным Outcome Learning.
+     * =====================================================
+     */
+
+
+    if(
+        classification.outcome ===
+        LEARNING_OUTCOME.NO_VERIFIED_RESULT
+    ){
+
+        return buildIgnoreResult({
+
+            reason:
+
+                "NO_VERIFIED_RESULT не используется как положительное Experience reinforcement",
+
+            analysisType:
+
+                "NO_VERIFIED_RESULT",
+
+            metadata: {
+
+                ...commonMetadata,
+
+                neutralLearningEvidence:
+                    true,
+
+                failureLearningRequired:
+                    false
+
+            }
+
+        });
+
+    }
+
+
+    /*
+     * =====================================================
+     * DEGRADED VALIDATION
+     * =====================================================
+     */
+
+
+    if(
+        classification.outcome ===
+        LEARNING_OUTCOME.DEGRADED_VALIDATION
+    ){
+
+        return buildIgnoreResult({
+
+            reason:
+
+                "Execution прошёл через degraded validation и не используется для положительного reinforcement",
+
+            analysisType:
+
+                "DEGRADED_VALIDATION",
+
+            metadata: {
+
+                ...commonMetadata,
+
+                neutralLearningEvidence:
+                    true,
+
+                failureLearningRequired:
+                    false,
+
+                revalidationUseful:
+                    true
+
+            }
+
+        });
+
+    }
+
+
+    /*
+     * =====================================================
+     * FAILURE-LIKE OUTCOMES
+     * =====================================================
+     */
+
+
+    return buildIgnoreResult({
+
+        reason:
+
+            classification.reason
+
+            ||
+
+            "Execution не является положительным Learning Evidence",
+
+        analysisType:
+
+            classification.outcome
+
+            ||
+
+            "UNSUCCESSFUL_EXECUTION",
+
+        metadata: {
+
+            ...commonMetadata,
+
+            neutralLearningEvidence:
+                false,
+
+            failureLearningRequired:
+
+                (
+                    classification.outcome ===
+                    LEARNING_OUTCOME.EXECUTION_FAILED
+
+                    ||
+
+                    classification.outcome ===
+                    LEARNING_OUTCOME.VALIDATION_FAILED
+                )
+
+        }
+
+    });
+
+}
 
 
 /*
  * =========================================================
  * EXISTING SKILL ANALYSIS
- * =========================================================
- *
- * Если Experience уже участвовал
- * в успешном Execution,
- * новый Execution становится
- * дополнительным evidence.
- *
- *
- * На текущем этапе:
- *
- * SKILL_IMPROVEMENT
- *
- * означает прежде всего
- * EVIDENCE_REINFORCEMENT.
- *
- *
- * Позже отдельный Semantic Improvement
- * Analyzer сможет изменять:
- *
- * - workflow;
- * - constraints;
- * - validationRules;
- * - failurePatterns;
- * - strategy.
- *
  * =========================================================
  */
 
@@ -650,13 +575,11 @@ function analyzeExistingSkill(
     trace
 ) {
 
-
     const skills =
 
         getUsedSkills(
             trace
         );
-
 
 
     if(
@@ -668,14 +591,12 @@ function analyzeExistingSkill(
     }
 
 
-
     /*
-     * Skill уже был найден
-     * Experience Resolver'ом
+     * Skill уже был найден Resolver'ом
      * и реально использовался.
      *
-     * Поэтому semantic match
-     * текущему Experience = 1.
+     * Поэтому semantic match текущему
+     * Experience = 1.
      */
 
 
@@ -691,33 +612,24 @@ function analyzeExistingSkill(
         });
 
 
-
     const skillCandidate =
 
         buildSkillImprovementCandidate({
 
             skills,
 
-
             trace,
 
-
             confidence:
-
                 metrics.confidence,
 
-
             maturity:
-
                 metrics.maturity,
 
-
             occurrences:
-
                 metrics.occurrences
 
         });
-
 
 
     if(
@@ -730,20 +642,16 @@ function analyzeExistingSkill(
 
                 "Existing Experience использовался, но Improvement Candidate не сформирован",
 
-
             analysisType:
 
                 "EXISTING_SKILL_ERROR",
 
-
             metrics,
-
 
             metadata: {
 
                 experienceUsed:
                     true,
-
 
                 usedSkills:
                     skills.length
@@ -755,62 +663,35 @@ function analyzeExistingSkill(
     }
 
 
-
     return {
 
-
         action:
-
             "SKILL_IMPROVEMENT",
 
-
-
         reusable:
-
             true,
-
-
 
         reason:
 
-            "Существующий Experience Skill получил новый подтверждённый опыт",
-
-
+            "Существующий Experience Skill получил новый подтверждённый положительный опыт",
 
         skillCandidate,
 
-
-
         analysisType:
-
             "EXISTING_SKILL",
 
-
-
         improvementType:
-
             "EVIDENCE_REINFORCEMENT",
 
-
-
         discoveryRequired:
-
             false,
-
-
 
         metrics,
 
-
-
         metadata: {
 
-
             experienceUsed:
-
                 true,
-
-
 
             experienceSource:
 
@@ -824,13 +705,8 @@ function analyzeExistingSkill(
 
                 null,
 
-
-
             usedSkills:
-
                 skills.length,
-
-
 
             targetSkillId:
 
@@ -846,7 +722,10 @@ function analyzeExistingSkill(
 
                 ||
 
-                null
+                null,
+
+            positiveReinforcementAllowed:
+                true
 
         }
 
@@ -855,21 +734,9 @@ function analyzeExistingSkill(
 }
 
 
-
-
-
 /*
  * =========================================================
  * KNOWN PATTERN ANALYSIS
- * =========================================================
- *
- * EXPERIENCE_PATTERNS являются
- * seed knowledge.
- *
- * Это быстрый deterministic path,
- * но НЕ граница способности Jessica
- * к обучению.
- *
  * =========================================================
  */
 
@@ -878,7 +745,6 @@ function analyzeKnownPattern(
     trace
 ) {
 
-
     const matched =
 
         matchExperiencePattern(
@@ -886,16 +752,15 @@ function analyzeKnownPattern(
         );
 
 
-
     if(
-        !matched ||
+        !matched
+        ||
         !matched.pattern
     ){
 
         return null;
 
     }
-
 
 
     const metrics =
@@ -911,35 +776,25 @@ function analyzeKnownPattern(
         });
 
 
-
     const skillCandidate =
 
         buildNewSkillCandidate({
 
             pattern:
-
                 matched.pattern,
-
 
             trace,
 
-
             confidence:
-
                 metrics.confidence,
 
-
             maturity:
-
                 metrics.maturity,
 
-
             occurrences:
-
                 metrics.occurrences
 
         });
-
 
 
     if(
@@ -952,14 +807,11 @@ function analyzeKnownPattern(
 
                 "Known Experience Pattern найден, но NEW_SKILL Candidate не сформирован",
 
-
             analysisType:
 
                 "KNOWN_PATTERN_ERROR",
 
-
             metrics,
-
 
             metadata: {
 
@@ -980,50 +832,29 @@ function analyzeKnownPattern(
     }
 
 
-
     return {
 
-
         action:
-
             "NEW_SKILL",
 
-
-
         reusable:
-
             true,
-
-
 
         reason:
 
-            "Обнаружен известный переиспользуемый сценарий, пригодный для Experience Skill",
-
-
+            "Обнаружен известный переиспользуемый сценарий с подтверждённым положительным результатом",
 
         skillCandidate,
 
-
-
         analysisType:
-
             "KNOWN_PATTERN",
 
-
-
         discoveryRequired:
-
             false,
-
-
 
         metrics,
 
-
-
         metadata: {
-
 
             patternId:
 
@@ -1035,8 +866,6 @@ function analyzeKnownPattern(
 
                 null,
 
-
-
             patternName:
 
                 matched
@@ -1047,27 +876,21 @@ function analyzeKnownPattern(
 
                 null,
 
-
-
             matchedKeywords:
 
                 Array.isArray(
                     matched.matchedKeywords
                 )
 
-                    ?
+                    ? matched.matchedKeywords
 
-                    matched.matchedKeywords
-
-                    :
-
-                    [],
-
-
+                    : [],
 
             matchScore:
+                metrics.matchScore,
 
-                metrics.matchScore
+            positiveReinforcementAllowed:
+                true
 
         }
 
@@ -1076,49 +899,9 @@ function analyzeKnownPattern(
 }
 
 
-
-
-
 /*
  * =========================================================
  * PATTERN DISCOVERY
- * =========================================================
- *
- * Успешный Execution:
- *
- * - Existing Experience не использовался;
- * - Known Pattern не найден.
- *
- *
- * Раньше такой опыт:
- *
- * IGNORE
- *
- *
- * Теперь:
- *
- * PATTERN_DISCOVERY
- *
- *
- * Дальше:
- *
- * Learning Router
- *      ↓
- * Queue
- *      ↓
- * Background Pattern Discovery Worker
- *      ↓
- * AI Experience Pattern Extractor
- *
- *
- * reusable=false здесь намеренно.
- *
- * Мы ещё НЕ доказали,
- * что Execution действительно содержит
- * reusable Skill.
- *
- * Это должен решить Pattern Extractor.
- *
  * =========================================================
  */
 
@@ -1126,18 +909,6 @@ function analyzeKnownPattern(
 function analyzePatternDiscovery(
     trace
 ) {
-
-
-    /*
-     * Pattern пока неизвестен,
-     * поэтому matchScore = 0.
-     *
-     * После успешного AI extraction
-     * Pattern Discovery Worker
-     * пересчитает Confidence
-     * уже с matchScore = 1.
-     */
-
 
     const metrics =
 
@@ -1151,60 +922,38 @@ function analyzePatternDiscovery(
         });
 
 
-
     return {
 
-
         action:
-
             "PATTERN_DISCOVERY",
 
-
-
         reusable:
-
             false,
-
-
 
         reason:
 
-            "Успешный Execution не соответствует известному Experience Pattern; требуется самостоятельное извлечение нового Pattern",
-
-
+            "Положительный Execution не соответствует известному Experience Pattern; требуется самостоятельное извлечение нового Pattern",
 
         skillCandidate:
-
             null,
 
-
-
         analysisType:
-
             "PATTERN_DISCOVERY",
 
-
-
         discoveryRequired:
-
             true,
-
-
 
         metrics,
 
-
-
         metadata: {
-
 
             traceId:
 
-                trace?.id ||
+                trace?.id
+
+                ||
 
                 null,
-
-
 
             task:
 
@@ -1212,26 +961,20 @@ function analyzePatternDiscovery(
                     trace?.task
                 ),
 
-
-
             existingExperienceUsed:
-
                 false,
 
-
-
             knownPatternMatched:
+                false,
 
-                false
+            positiveReinforcementAllowed:
+                true
 
         }
 
     };
 
 }
-
-
-
 
 
 /*
@@ -1244,7 +987,6 @@ function analyzePatternDiscovery(
 export function analyzeExecutionTrace(
     trace
 ) {
-
 
     /*
      * =====================================================
@@ -1262,18 +1004,14 @@ export function analyzeExecutionTrace(
         return buildIgnoreResult({
 
             reason:
-
                 "Execution Trace отсутствует",
 
-
             analysisType:
-
                 "INVALID_TRACE"
 
         });
 
     }
-
 
 
     /*
@@ -1295,7 +1033,6 @@ export function analyzeExecutionTrace(
 
                 "Execution Trace не содержит Task",
 
-
             analysisType:
 
                 "INVALID_TRACE"
@@ -1305,78 +1042,49 @@ export function analyzeExecutionTrace(
     }
 
 
-
     /*
      * =====================================================
-     * 3. SUCCESS CHECK
-     * =====================================================
-     *
-     * Пока активный Learning path
-     * создаёт Experience только
-     * из успешных executions.
-     *
-     *
-     * Неудачные executions НЕ считаются
-     * бесполезными.
-     *
-     * В будущем они должны идти
-     * в отдельный Failure Learning:
-     *
-     * - failurePatterns;
-     * - avoidPatterns;
-     * - constraints;
-     * - strategy corrections.
-     *
+     * 3. LEARNING OUTCOME POLICY
      * =====================================================
      */
 
 
-    if(
-        !isSuccessfulTrace(
+    const classification =
+
+        classifyLearningOutcome(
             trace
-        )
+        );
+
+
+    /*
+     * Execution может быть корректно завершён,
+     * но не являться положительным Evidence.
+     *
+     * Например:
+     *
+     * NO_VERIFIED_RESULT
+     * DEGRADED_VALIDATION
+     */
+
+
+    if(
+        classification.positive !== true
     ){
 
-        return buildIgnoreResult({
+        return analyzeNonPositiveOutcome(
 
-            reason:
+            trace,
 
-                "Execution не подтверждён как успешный",
+            classification
 
-
-            analysisType:
-
-                "UNSUCCESSFUL_EXECUTION",
-
-
-            metadata: {
-
-                failureLearningRequired:
-
-                    true
-
-            }
-
-        });
+        );
 
     }
-
 
 
     /*
      * =====================================================
      * 4. EXISTING EXPERIENCE
-     * =====================================================
-     *
-     * Existing Skill имеет максимальный
-     * приоритет.
-     *
-     * Если Jessica уже использовала
-     * Experience для решения задачи,
-     * новый результат должен развивать
-     * именно эту Experience lineage,
-     * а не создавать дублирующий Skill.
-     *
      * =====================================================
      */
 
@@ -1388,7 +1096,6 @@ export function analyzeExecutionTrace(
         );
 
 
-
     if(
         existing
     ){
@@ -1396,7 +1103,6 @@ export function analyzeExecutionTrace(
         return existing;
 
     }
-
 
 
     /*
@@ -1413,7 +1119,6 @@ export function analyzeExecutionTrace(
         );
 
 
-
     if(
         knownPattern
     ){
@@ -1423,18 +1128,9 @@ export function analyzeExecutionTrace(
     }
 
 
-
     /*
      * =====================================================
      * 6. DYNAMIC PATTERN DISCOVERY
-     * =====================================================
-     *
-     * Новый тип успешной задачи
-     * больше НЕ выбрасывается.
-     *
-     * Он отправляется в фоновый
-     * AI Pattern Extraction.
-     *
      * =====================================================
      */
 
@@ -1443,4 +1139,4 @@ export function analyzeExecutionTrace(
         trace
     );
 
-        }
+}
