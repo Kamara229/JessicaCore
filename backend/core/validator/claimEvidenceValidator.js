@@ -2,401 +2,70 @@ import {
     executeAIWithRetry
 } from "../../ai/aiRetry.js";
 
+
 import {
     validatorChat
 } from "../../ai/validatorClient.js";
+
 
 import {
     buildClaimEvidenceInstructions
 } from "./claim/claimEvidencePrompt.js";
 
 
+import {
+    buildClaimEvidenceContext
+} from "./claim/claimEvidenceContext.js";
+
+
+import {
+    parseClaimEvidenceResponse
+} from "./claim/claimEvidenceResponse.js";
+
+
 /*
  * =========================================================
- * JESSICA CLAIM EVIDENCE VALIDATOR
+ * JESSICA CLAIM EVIDENCE VALIDATOR v2
  * =========================================================
  *
- * Проверяет существенные фактические утверждения
- * итогового ответа по реально загруженным источникам.
+ * Проверяет существенные утверждения
+ * итогового ответа по реально
+ * загруженным источникам.
  *
  *
- * Ответственность:
+ * Flow:
  *
+ * Task
+ * +
  * Answer
- *    +
- * Source Content
- *          ↓
- * Claim Validation
- *          ↓
- * подтверждён / не подтверждён
+ * +
+ * web_fetch Sources
+ *        ↓
+ * Claim Evidence Context
+ *        ↓
+ * deterministic relevance selection
+ *        ↓
+ * compact source snippets
+ *        ↓
+ * Claim AI Validation
+ *        ↓
+ * local evidence verification
  *
  *
- * НЕ отвечает за:
+ * Важно:
  *
- * - создание AI клиента;
- * - выбор модели;
- * - API ключи;
- * - выполнение инструментов;
- * - поиск источников.
+ * Полные web_fetch documents
+ * больше НЕ отправляются AI.
  *
+ * Это защищает:
  *
- * AI:
- *
- * validatorClient.js
- *
- * Retry:
- *
- * ai/aiRetry.js
+ * - от Groq ITPM overflow;
+ * - от лишних токенов;
+ * - от низкого signal/noise;
+ * - от больших HTML/text payload.
  *
  * =========================================================
  */
-
-
-/*
- * =========================================================
- * CONFIG
- * =========================================================
- */
-
-
-const MAX_CONTENT_LENGTH =
-    20000;
-
-
-const MAX_EVIDENCE_LENGTH =
-    500;
-
-
-
-/*
- * =========================================================
- * CLEAN JSON
- * =========================================================
- */
-
-
-function cleanJsonText(
-    text
-) {
-
-    let value =
-        String(
-            text || ""
-        )
-        .replace(
-            /```json/gi,
-            ""
-        )
-        .replace(
-            /```/g,
-            ""
-        )
-        .trim();
-
-
-    const firstBrace =
-        value.indexOf(
-            "{"
-        );
-
-
-    const lastBrace =
-        value.lastIndexOf(
-            "}"
-        );
-
-
-    if (
-        firstBrace !== -1 &&
-        lastBrace > firstBrace
-    ) {
-
-        value =
-            value.slice(
-                firstBrace,
-                lastBrace + 1
-            );
-
-    }
-
-
-    return value.trim();
-
-}
-
-
-
-/*
- * =========================================================
- * FIND FETCH RESULTS
- * =========================================================
- */
-
-
-function findFetchResults(
-    taskRunResult
-) {
-
-    const results =
-        Array.isArray(
-            taskRunResult?.results
-        )
-            ? taskRunResult.results
-            : [];
-
-
-    return results.filter(
-        result =>
-
-            result?.tool === "web_fetch" &&
-
-            result?.success === true &&
-
-            typeof result?.data?.content === "string" &&
-
-            result.data.content.trim()
-
-    );
-
-}
-
-
-
-/*
- * =========================================================
- * BUILD SOURCE TEXT
- * =========================================================
- */
-
-
-function buildSourceText(
-    fetchResults
-) {
-
-    const parts =
-        [];
-
-
-    fetchResults.forEach(
-        (
-            result,
-            index
-        ) => {
-
-
-            parts.push(
-
-                [
-
-                    `SOURCE ${index + 1}`,
-
-                    `URL: ${
-                        String(
-                            result?.data?.url || ""
-                        )
-                    }`,
-
-
-                    `TITLE: ${
-                        String(
-                            result?.data?.title || ""
-                        )
-                    }`,
-
-
-                    "",
-
-
-                    String(
-                        result?.data?.content || ""
-                    )
-
-                ]
-
-                .join(
-                    "\n"
-                )
-
-            );
-
-        }
-
-    );
-
-
-    return parts
-        .join(
-            "\n\n====================\n\n"
-        )
-        .slice(
-            0,
-            MAX_CONTENT_LENGTH
-        );
-
-}
-
-
-
-/*
- * =========================================================
- * NORMALIZE CLAIM
- * =========================================================
- */
-
-
-function normalizeClaim(
-    claim
-) {
-
-    if (
-        !claim ||
-        typeof claim !== "object"
-    ) {
-
-        return null;
-
-    }
-
-
-    const text =
-        typeof claim.claim === "string"
-            ? claim.claim.trim()
-            : "";
-
-
-    if (!text) {
-
-        return null;
-
-    }
-
-
-    return {
-
-        claim:
-            text,
-
-
-        supported:
-            claim.supported === true,
-
-
-        evidence:
-            typeof claim.evidence === "string"
-                ? claim.evidence
-                    .trim()
-                    .slice(
-                        0,
-                        MAX_EVIDENCE_LENGTH
-                    )
-                : "",
-
-
-        sourceUrl:
-            typeof claim.sourceUrl === "string"
-                ? claim.sourceUrl.trim()
-                : "",
-
-
-        reason:
-            typeof claim.reason === "string"
-                ? claim.reason.trim()
-                : ""
-
-    };
-
-}
-
-
-
-/*
- * =========================================================
- * VERIFY EVIDENCE TEXT
- * =========================================================
- */
-
-
-function verifyEvidenceText(
-    claim,
-    sourceText
-) {
-
-
-    if (
-        claim.supported !== true
-    ) {
-
-        return claim;
-
-    }
-
-
-    if (
-        !claim.evidence
-    ) {
-
-        return {
-
-            ...claim,
-
-            supported:
-                false,
-
-            reason:
-                claim.reason ||
-                "Не указан подтверждающий фрагмент"
-
-        };
-
-    }
-
-
-    const source =
-        sourceText
-            .toLowerCase()
-            .replace(
-                /\s+/g,
-                " "
-            )
-            .trim();
-
-
-    const evidence =
-        claim.evidence
-            .toLowerCase()
-            .replace(
-                /\s+/g,
-                " "
-            )
-            .trim();
-
-
-
-    if (
-        !source.includes(
-            evidence
-        )
-    ) {
-
-        return {
-
-            ...claim,
-
-            supported:
-                false,
-
-            reason:
-                "Evidence отсутствует в загруженном источнике"
-
-        };
-
-    }
-
-
-    return claim;
-
-}
-
 
 
 /*
@@ -416,10 +85,9 @@ async function requestClaimValidation(
 
 ) {
 
-
     const instructions =
-        buildClaimEvidenceInstructions();
 
+        buildClaimEvidenceInstructions();
 
 
     return await executeAIWithRetry(
@@ -463,21 +131,22 @@ async function requestClaimValidation(
 
                                 "ИТОГОВЫЙ ОТВЕТ:",
 
-                                answer,
+                                String(
+                                    answer || ""
+                                ),
 
 
                                 "",
 
 
-                                "РЕАЛЬНО ЗАГРУЖЕННЫЕ ИСТОЧНИКИ:",
+                                "РЕЛЕВАНТНЫЕ ФРАГМЕНТЫ РЕАЛЬНО ЗАГРУЖЕННЫХ ИСТОЧНИКОВ:",
 
                                 sourceText
 
                             ]
-
-                            .join(
-                                "\n"
-                            )
+                                .join(
+                                    "\n"
+                                )
 
                     }
 
@@ -501,6 +170,49 @@ async function requestClaimValidation(
 }
 
 
+/*
+ * =========================================================
+ * UNAVAILABLE
+ * =========================================================
+ */
+
+
+function buildUnavailableResult(
+    reason,
+    status = 0
+) {
+
+    return {
+
+        success:
+            false,
+
+        unavailable:
+            true,
+
+        valid:
+            true,
+
+        shouldRetry:
+            false,
+
+        claims:
+            [],
+
+        status,
+
+        reason:
+
+            reason
+
+            ||
+
+            "Claim Evidence Validator unavailable"
+
+    };
+
+}
+
 
 /*
  * =========================================================
@@ -521,11 +233,17 @@ export async function validateClaimEvidence(
 
 ) {
 
+    /*
+     * =====================================================
+     * MODE
+     * =====================================================
+     */
 
-    if (
+
+    if(
         plan?.evidence?.mode !==
         "source_content"
-    ) {
+    ){
 
         return {
 
@@ -549,49 +267,24 @@ export async function validateClaimEvidence(
     }
 
 
-
-    const fetchResults =
-        findFetchResults(
-            taskRunResult
-        );
-
-
-    if (
-        fetchResults.length === 0
-    ) {
-
-        return {
-
-            success:
-                true,
-
-            valid:
-                false,
-
-            shouldRetry:
-                true,
-
-            claims:
-                [],
-
-            reason:
-                "Нет загруженного источника"
-
-        };
-
-    }
-
+    /*
+     * =====================================================
+     * ANSWER
+     * =====================================================
+     */
 
 
     const answer =
+
         String(
             answerResult?.text || ""
         )
-        .trim();
+            .trim();
 
 
-
-    if (!answer) {
+    if(
+        !answer
+    ){
 
         return {
 
@@ -615,31 +308,131 @@ export async function validateClaimEvidence(
     }
 
 
+    /*
+     * =====================================================
+     * COMPACT SOURCE CONTEXT
+     * =====================================================
+     */
 
-    const sourceText =
-        buildSourceText(
-            fetchResults
-        );
 
+    const context =
+
+        buildClaimEvidenceContext({
+
+            task,
+
+            answer,
+
+            taskRunResult
+
+        });
+
+
+    console.log(
+
+        "Jessica Validator claim context:",
+
+        JSON.stringify({
+
+            sourceCount:
+                context.sourceCount,
+
+            chunkCount:
+                context.chunkCount,
+
+            sourceChars:
+                context.sourceChars,
+
+            queryTerms:
+                context.queryTerms.length
+
+        })
+
+    );
+
+
+    /*
+     * Нет web_fetch source.
+     */
+
+
+    if(
+        context.sourceCount === 0
+    ){
+
+        return {
+
+            success:
+                true,
+
+            valid:
+                false,
+
+            shouldRetry:
+                true,
+
+            claims:
+                [],
+
+            reason:
+                "Нет загруженного источника"
+
+        };
+
+    }
+
+
+    if(
+        !context.sourceText
+    ){
+
+        return {
+
+            success:
+                true,
+
+            valid:
+                false,
+
+            shouldRetry:
+                true,
+
+            claims:
+                [],
+
+            reason:
+                "Не удалось сформировать Source Context"
+
+        };
+
+    }
+
+
+    /*
+     * =====================================================
+     * AI VALIDATION
+     * =====================================================
+     */
 
 
     try {
 
 
         const response =
+
             await requestClaimValidation(
 
                 task,
 
                 answer,
 
-                sourceText
+                context.sourceText
 
             );
 
 
-
         const raw =
+
             response
                 ?.choices
                 ?.[0]
@@ -647,102 +440,66 @@ export async function validateClaimEvidence(
                 ?.content;
 
 
-
-        if (!raw) {
-
-            return {
-
-                success:
-                    false,
-
-                valid:
-                    true,
-
-                shouldRetry:
-                    false,
-
-                claims:
-                    [],
-
-                reason:
-                    "Validator вернул пустой ответ"
-
-            };
-
-        }
+        /*
+         * =================================================
+         * PARSE
+         * =================================================
+         */
 
 
+        const parsed =
 
-        let parsed;
+            parseClaimEvidenceResponse(
 
+                raw,
 
-        try {
+                context.sourceText
 
-
-            parsed =
-                JSON.parse(
-                    cleanJsonText(
-                        raw
-                    )
-                );
+            );
 
 
-        } catch {
+        /*
+         * AI технически ответил,
+         * но ответ невозможно использовать.
+         *
+         * Это считается unavailable,
+         * чтобы Validator Coordinator
+         * мог включить semantic fallback.
+         */
 
 
-            return {
+        if(
+            parsed.success !== true
+        ){
 
-                success:
-                    false,
+            return buildUnavailableResult(
 
-                valid:
-                    true,
+                parsed.error
 
-                shouldRetry:
-                    false,
+                ||
 
-                claims:
-                    [],
+                "Некорректный ответ Claim Evidence Validator"
 
-                reason:
-                    "Validator вернул некорректный JSON"
-
-            };
+            );
 
         }
-
 
 
         const claims =
-            Array.isArray(
-                parsed?.claims
-            )
 
-                ? parsed.claims
-
-                    .map(
-                        normalizeClaim
-                    )
-
-                    .filter(
-                        Boolean
-                    )
-
-                    .map(
-                        claim =>
-                            verifyEvidenceText(
-                                claim,
-                                sourceText
-                            )
-                    )
-
-                : [];
+            parsed.claims;
 
 
+        /*
+         * =================================================
+         * NO CLAIMS
+         * =================================================
+         */
 
-        if (
+
+        if(
             claims.length === 0
-        ) {
+        ){
 
             return {
 
@@ -765,18 +522,24 @@ export async function validateClaimEvidence(
         }
 
 
+        /*
+         * =================================================
+         * UNSUPPORTED CLAIMS
+         * =================================================
+         */
+
 
         const unsupported =
+
             claims.filter(
                 claim =>
                     claim.supported !== true
             );
 
 
-
-        if (
+        if(
             unsupported.length > 0
-        ) {
+        ){
 
             return {
 
@@ -792,12 +555,19 @@ export async function validateClaimEvidence(
                 claims,
 
                 reason:
+
                     `Не подтверждено утверждений: ${unsupported.length}`
 
             };
 
         }
 
+
+        /*
+         * =================================================
+         * SUCCESS
+         * =================================================
+         */
 
 
         return {
@@ -819,40 +589,29 @@ export async function validateClaimEvidence(
         };
 
 
-    } catch (error) {
+    }catch(error){
 
 
         console.error(
+
             "Claim Evidence Validator error:",
+
             error
+
         );
 
 
-        return {
+        return buildUnavailableResult(
 
-            success:
-                false,
+            error?.message
 
-            unavailable:
-                true,
+            ||
 
-            valid:
-                true,
+            "Ошибка Claim Evidence Validator",
 
-            shouldRetry:
-                false,
+            error?.status || 0
 
-            claims:
-                [],
-
-            status:
-                error?.status || 0,
-
-            reason:
-                error?.message ||
-                "Ошибка Claim Evidence Validator"
-
-        };
+        );
 
     }
 
