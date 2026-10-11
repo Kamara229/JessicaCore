@@ -10,13 +10,8 @@ import {
 /*
  * =========================================================
  * JESSICA REPLANNER
- * RETRY CONTEXT
+ * RETRY CONTEXT v2
  * =========================================================
- *
- * Собирает PlanningContext для повторного планирования.
- *
- *
- * Flow:
  *
  * Previous PlanningContext
  *        +
@@ -33,13 +28,12 @@ import {
  * Updated PlanningContext
  *
  *
- * Этот модуль НЕ:
+ * v2:
  *
- * - вызывает Planner;
- * - вызывает AI;
- * - выполняет инструменты;
- * - принимает решение о retry;
- * - хранит полный execution result.
+ * - сохраняет triedSearchQueries;
+ * - сохраняет triedSourceUrls;
+ * - передаёт Planner историю
+ *   реально проверенных источников.
  *
  * =========================================================
  */
@@ -57,7 +51,9 @@ function safeString(
 ) {
 
     return typeof value === "string"
+
         ? value.trim()
+
         : "";
 
 }
@@ -74,11 +70,15 @@ function normalizeBaseContext(
     planningContext
 ) {
 
-    if (
-        !planningContext ||
-        typeof planningContext !== "object" ||
-        Array.isArray(planningContext)
-    ) {
+    if(
+        !planningContext
+        ||
+        typeof planningContext !== "object"
+        ||
+        Array.isArray(
+            planningContext
+        )
+    ){
 
         return {};
 
@@ -89,11 +89,14 @@ function normalizeBaseContext(
 
         ...planningContext,
 
+
         metadata: {
 
             ...(
-                planningContext.metadata &&
-                typeof planningContext.metadata === "object" &&
+                planningContext.metadata
+                &&
+                typeof planningContext.metadata === "object"
+                &&
                 !Array.isArray(
                     planningContext.metadata
                 )
@@ -104,6 +107,7 @@ function normalizeBaseContext(
             )
 
         },
+
 
         instructions:
 
@@ -124,7 +128,7 @@ function normalizeBaseContext(
 
 /*
  * =========================================================
- * BUILD RETRY METADATA
+ * RETRY METADATA
  * =========================================================
  */
 
@@ -136,22 +140,34 @@ function buildRetryMetadata(
     return {
 
         stage:
+
             safeString(
                 failureResult?.stage
             ),
 
+
         failureType:
+
             safeString(
                 failureResult?.failureType
             ),
 
+
         reason:
+
             safeString(
-                failureResult?.reason ||
+
+                failureResult?.reason
+
+                ||
+
                 failureResult?.text
+
             ),
 
+
         timestamp:
+
             new Date()
                 .toISOString()
 
@@ -172,17 +188,21 @@ function getNextReplanCount(
 ) {
 
     const current =
+
         Number(
+
             planningContext
                 ?.metadata
                 ?.replanCount
+
         );
 
 
-    if (
-        !Number.isFinite(current) ||
+    if(
+        !Number.isFinite(current)
+        ||
         current < 0
-    ) {
+    ){
 
         return 1;
 
@@ -190,7 +210,13 @@ function getNextReplanCount(
 
 
     return (
-        Math.floor(current) + 1
+
+        Math.floor(current)
+
+        +
+
+        1
+
     );
 
 }
@@ -224,6 +250,7 @@ export function buildRetryContext({
 
 
     const baseContext =
+
         normalizeBaseContext(
             planningContext
         );
@@ -237,6 +264,7 @@ export function buildRetryContext({
 
 
     const retryHistory =
+
         buildRetryHistory({
 
             planningContext:
@@ -257,6 +285,7 @@ export function buildRetryContext({
 
 
     const instructions =
+
         buildRetryInstructions({
 
             planningContext:
@@ -277,12 +306,14 @@ export function buildRetryContext({
 
 
     const retry =
+
         buildRetryMetadata(
             failureResult
         );
 
 
     const replanCount =
+
         getNextReplanCount(
             baseContext
         );
@@ -291,20 +322,6 @@ export function buildRetryContext({
     /*
      * =====================================================
      * RESULT
-     * =====================================================
-     *
-     * Сохраняем существующие:
-     *
-     * - Experience;
-     * - sourceRules;
-     * - constraints;
-     * - plannerHints;
-     * - другие metadata.
-     *
-     *
-     * Обновляем только данные,
-     * относящиеся к текущему Replan.
-     *
      * =====================================================
      */
 
@@ -326,31 +343,45 @@ export function buildRetryContext({
              * Текущая причина Replan.
              */
 
+
             retry,
 
 
             /*
-             * Компактное описание
-             * непосредственно предыдущей попытки.
+             * Предыдущий маршрут.
              */
 
+
             previousAttempt:
+
                 retryHistory.previousAttempt,
 
 
             /*
-             * Накопительная история
-             * поисковых запросов.
+             * Накопительная история Search.
              */
 
+
             triedSearchQueries:
+
                 retryHistory.triedSearchQueries,
 
 
             /*
-             * Сколько раз Execution Cycle
-             * уже запрашивал новый маршрут.
+             * Накопительная история
+             * реально проверенных Source URLs.
              */
+
+
+            triedSourceUrls:
+
+                retryHistory.triedSourceUrls,
+
+
+            /*
+             * Replan counter.
+             */
+
 
             replanCount
 
