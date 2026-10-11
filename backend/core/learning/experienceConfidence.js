@@ -1,65 +1,39 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE CONFIDENCE v2
+ * JESSICA EXPERIENCE CONFIDENCE v3
  * =========================================================
  *
  * Расчёт evidence-метрик Experience.
  *
  *
- * Flow:
- *
- * Execution Trace
- *        ↓
- * Examples
- *        ↓
- * Occurrences
- *        ↓
- * Success Rate
- *        ↓
- * Confidence
- *        ↓
- * Maturity
- *
- *
- * Ответственность:
- *
- * - определить количество наблюдений;
- * - нормализовать Examples;
- * - определить Success Rate;
- * - рассчитать Confidence;
- * - рассчитать числовую Maturity.
- *
- *
- * НЕ:
- *
- * - ищет Experience Pattern;
- * - создаёт Candidate;
- * - создаёт Skill;
- * - принимает Learning Decision;
- * - сохраняет Experience;
- * - работает с Supabase.
- *
- *
  * ВАЖНО:
  *
- * maturity всегда число:
+ * Success для Learning
  *
- * 0.0 ... 1.0
+ * !=
  *
- * Текстовые состояния:
+ * техническое завершение Task.
  *
- * NEW
- * LEARNING
- * READY
  *
- * являются только отображением уровня зрелости
- * и не используются как числовая метрика.
+ * Positive success определяется
+ * через learningOutcomePolicy.js.
+ *
+ * Поэтому:
+ *
+ * no_verified_result
+ * degraded validation
+ * failed validation
+ *
+ * не считаются положительным
+ * Experience Evidence.
  *
  * =========================================================
  */
 
 
-
+import {
+    isPositiveLearningTrace
+} from "./learningOutcomePolicy.js";
 
 
 /*
@@ -73,10 +47,8 @@ function normalizeNumber(
     value
 ) {
 
-
     const number =
         Number(value);
-
 
 
     return Number.isFinite(number)
@@ -86,9 +58,6 @@ function normalizeNumber(
         : 0;
 
 }
-
-
-
 
 
 /*
@@ -102,26 +71,25 @@ function clampUnit(
     value
 ) {
 
-
     const number =
+
         normalizeNumber(
             value
         );
 
 
-
     return Math.max(
+
         0,
+
         Math.min(
             1,
             number
         )
+
     );
 
 }
-
-
-
 
 
 /*
@@ -135,14 +103,15 @@ function normalizePositiveInteger(
     value
 ) {
 
-
     const number =
+
         Math.floor(
+
             normalizeNumber(
                 value
             )
-        );
 
+        );
 
 
     return number > 0
@@ -152,9 +121,6 @@ function normalizePositiveInteger(
         : 0;
 
 }
-
-
-
 
 
 /*
@@ -168,99 +134,11 @@ function resolveTraceSuccess(
     trace
 ) {
 
-
-    /*
-     * Явный Execution Result
-     */
-
-
-    if(
-        typeof trace?.result?.success ===
-        "boolean"
-    ){
-
-        return trace.result.success;
-
-    }
-
-
-
-    /*
-     * Явное поле самого Trace
-     */
-
-
-    if(
-        typeof trace?.success ===
-        "boolean"
-    ){
-
-        return trace.success;
-
-    }
-
-
-
-    /*
-     * Execution statistics
-     */
-
-
-    const completed =
-
-        normalizeNumber(
-
-            trace?.stats?.completed
-
-            ??
-
-            trace?.statistics?.completed
-
-        );
-
-
-
-    if(
-        completed > 0
-    ){
-
-        return true;
-
-    }
-
-
-
-    /*
-     * Status fallback
-     */
-
-
-    const status =
-
-        String(
-            trace?.status || ""
-        )
-        .trim()
-        .toUpperCase();
-
-
-
-    if(
-        status === "COMPLETED"
-    ){
-
-        return true;
-
-    }
-
-
-
-    return false;
+    return isPositiveLearningTrace(
+        trace
+    );
 
 }
-
-
-
 
 
 /*
@@ -274,7 +152,6 @@ function resolveExampleSuccess(
     example
 ) {
 
-
     if(
         typeof example?.success ===
         "boolean"
@@ -283,7 +160,6 @@ function resolveExampleSuccess(
         return example.success;
 
     }
-
 
 
     if(
@@ -296,15 +172,78 @@ function resolveExampleSuccess(
     }
 
 
+    const outcomeType =
+
+        String(
+
+            example
+                ?.result
+                ?.validation
+                ?.outcomeType
+
+            ||
+
+            example
+                ?.validation
+                ?.outcomeType
+
+            ||
+
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if(
+        outcomeType ===
+        "no_verified_result"
+    ){
+
+        return false;
+
+    }
+
+
+    const degraded =
+
+        example
+            ?.result
+            ?.validation
+            ?.degraded === true
+
+        ||
+
+        example
+            ?.validation
+            ?.degraded === true;
+
+
+    if(
+        degraded
+    ){
+
+        return false;
+
+    }
+
 
     const status =
 
         String(
-            example?.status || ""
-        )
-        .trim()
-        .toUpperCase();
 
+            example?.status
+
+            ||
+
+            example?.result?.status
+
+            ||
+
+            ""
+        )
+            .trim()
+            .toUpperCase();
 
 
     if(
@@ -316,11 +255,16 @@ function resolveExampleSuccess(
     }
 
 
-
     if(
         status === "FAILED"
+
         ||
+
         status === "NEEDS_CLARIFICATION"
+
+        ||
+
+        status === "NO_VERIFIED_RESULT"
     ){
 
         return false;
@@ -328,19 +272,9 @@ function resolveExampleSuccess(
     }
 
 
-
-    /*
-     * Неизвестный Example больше
-     * НЕ считается успешным автоматически.
-     */
-
-
     return false;
 
 }
-
-
-
 
 
 /*
@@ -354,9 +288,9 @@ function normalizeExample(
     example
 ) {
 
-
     if(
-        !example ||
+        !example
+        ||
         typeof example !== "object"
     ){
 
@@ -365,20 +299,16 @@ function normalizeExample(
     }
 
 
-
     return {
 
-
         ...example,
-
 
         task:
 
             String(
                 example.task || ""
             )
-            .trim(),
-
+                .trim(),
 
         success:
 
@@ -389,9 +319,6 @@ function normalizeExample(
     };
 
 }
-
-
-
 
 
 /*
@@ -405,20 +332,15 @@ export function getOccurrences(
     trace
 ) {
 
-
     /*
-     * Explicit Learning occurrence
+     * Explicit Learning occurrence.
      */
-
 
     const explicit =
 
         normalizePositiveInteger(
-
             trace?.experienceOccurrences
-
         );
-
 
 
     if(
@@ -430,11 +352,9 @@ export function getOccurrences(
     }
 
 
-
     /*
-     * Trace statistics
+     * Trace statistics.
      */
-
 
     const traceOccurrences =
 
@@ -449,7 +369,6 @@ export function getOccurrences(
         );
 
 
-
     if(
         traceOccurrences > 0
     ){
@@ -459,17 +378,17 @@ export function getOccurrences(
     }
 
 
-
     /*
-     * Aggregated Examples
+     * Aggregated Examples.
      */
-
 
     if(
         Array.isArray(
             trace?.examples
         )
+
         &&
+
         trace.examples.length > 1
     ){
 
@@ -478,17 +397,9 @@ export function getOccurrences(
     }
 
 
-
     /*
-     * Existing Experience usage
-     *
-     * Runtime statistics относятся
-     * к предыдущим использованиям Skill.
-     *
-     * Текущий Execution является
-     * ещё одним occurrence.
+     * Existing Experience usage.
      */
-
 
     const usedSkills =
 
@@ -501,30 +412,32 @@ export function getOccurrences(
             : [];
 
 
-
     const usedSkill =
 
-        usedSkills[0] || null;
+        usedSkills[0]
 
+        ||
+
+        null;
 
 
     if(
         usedSkill
     ){
 
-
         const storedOccurrences =
 
             normalizePositiveInteger(
 
-                usedSkill?.learning?.occurrences
+                usedSkill
+                    ?.learning
+                    ?.occurrences
 
                 ??
 
                 usedSkill?.occurrences
 
             );
-
 
 
         if(
@@ -534,7 +447,6 @@ export function getOccurrences(
             return storedOccurrences + 1;
 
         }
-
 
 
         const successfulRuns =
@@ -548,7 +460,6 @@ export function getOccurrences(
             );
 
 
-
         const failedRuns =
 
             normalizePositiveInteger(
@@ -560,12 +471,13 @@ export function getOccurrences(
             );
 
 
-
         const runtimeOccurrences =
 
-            successfulRuns +
-            failedRuns;
+            successfulRuns
 
+            +
+
+            failedRuns;
 
 
         if(
@@ -579,19 +491,9 @@ export function getOccurrences(
     }
 
 
-
-    /*
-     * Минимум одно наблюдение:
-     * текущий Execution.
-     */
-
-
     return 1;
 
 }
-
-
-
 
 
 /*
@@ -605,15 +507,15 @@ export function getExamples(
     trace
 ) {
 
-
     if(
         Array.isArray(
             trace?.examples
         )
+
         &&
+
         trace.examples.length > 0
     ){
-
 
         return trace.examples
 
@@ -628,16 +530,6 @@ export function getExamples(
     }
 
 
-
-    /*
-     * Fallback Example строится
-     * из самого Execution Trace.
-     *
-     * success определяется из Trace,
-     * а НЕ выставляется true автоматически.
-     */
-
-
     return [
 
         {
@@ -647,13 +539,15 @@ export function getExamples(
                 String(
                     trace?.task || ""
                 )
-                .trim(),
-
+                    .trim(),
 
             result:
 
-                trace?.result || null,
+                trace?.result
 
+                ||
+
+                null,
 
             success:
 
@@ -668,9 +562,6 @@ export function getExamples(
 }
 
 
-
-
-
 /*
  * =========================================================
  * SUCCESS COUNT
@@ -681,7 +572,6 @@ export function getExamples(
 export function calculateSuccessCount(
     examples = []
 ) {
-
 
     if(
         !Array.isArray(
@@ -694,21 +584,19 @@ export function calculateSuccessCount(
     }
 
 
-
     return examples.filter(
 
         item =>
+
             resolveExampleSuccess(
                 item
-            ) === true
+            )
+            === true
 
     )
-    .length;
+        .length;
 
 }
-
-
-
 
 
 /*
@@ -722,7 +610,6 @@ export function calculateFailureCount(
     examples = []
 ) {
 
-
     if(
         !Array.isArray(
             examples
@@ -734,21 +621,19 @@ export function calculateFailureCount(
     }
 
 
-
     return examples.filter(
 
         item =>
+
             resolveExampleSuccess(
                 item
-            ) === false
+            )
+            === false
 
     )
-    .length;
+        .length;
 
 }
-
-
-
 
 
 /*
@@ -762,19 +647,19 @@ export function calculateSuccessRate(
     examples = []
 ) {
 
-
     if(
         !Array.isArray(
             examples
         )
+
         ||
+
         examples.length === 0
     ){
 
         return 0;
 
     }
-
 
 
     const successCount =
@@ -784,60 +669,23 @@ export function calculateSuccessRate(
         );
 
 
-
     return Number(
 
         (
-            successCount /
+            successCount
+            /
             examples.length
         )
-        .toFixed(2)
+            .toFixed(2)
 
     );
 
 }
 
 
-
-
-
 /*
  * =========================================================
  * CONFIDENCE
- * =========================================================
- *
- * Формула:
- *
- * Match quality     30%
- * Success rate      40%
- * Repetition        30%
- *
- *
- * Repetition достигает 1.0
- * после пяти подтверждённых наблюдений.
- *
- *
- * Пример:
- *
- * matchScore   = 1
- * successRate  = 1
- * occurrences  = 1
- *
- * confidence = 0.76
- *
- *
- * occurrences = 2
- *
- * confidence = 0.82
- *
- *
- * Это позволяет:
- *
- * - не превращать каждый первый
- *   успешный Execution сразу в Skill;
- *
- * - повышать доверие при повторении.
- *
  * =========================================================
  */
 
@@ -852,7 +700,6 @@ export function calculateExperienceConfidence({
 
 } = {}) {
 
-
     const normalizedMatch =
 
         clampUnit(
@@ -860,13 +707,11 @@ export function calculateExperienceConfidence({
         );
 
 
-
     const normalizedSuccessRate =
 
         clampUnit(
             successRate
         );
-
 
 
     const normalizedOccurrences =
@@ -882,7 +727,6 @@ export function calculateExperienceConfidence({
         );
 
 
-
     const repeatScore =
 
         Math.min(
@@ -892,7 +736,6 @@ export function calculateExperienceConfidence({
             1
 
         );
-
 
 
     return Number(
@@ -910,38 +753,16 @@ export function calculateExperienceConfidence({
             repeatScore * 0.30
 
         )
-        .toFixed(2)
+            .toFixed(2)
 
     );
 
 }
 
 
-
-
-
 /*
  * =========================================================
  * MATURITY
- * =========================================================
- *
- * Канонический контракт:
- *
- * maturity = число 0..1
- *
- *
- * 1 occurrence  → 0.50
- * 2 occurrences → 0.63
- * 3 occurrences → 0.75
- * 4 occurrences → 0.88
- * 5+            → 1.00
- *
- *
- * Первый качественный опыт уже имеет
- * минимальную зрелость для анализа,
- * но Confidence самостоятельно решает,
- * достаточно ли evidence для AUTO_APPROVE.
- *
  * =========================================================
  */
 
@@ -949,7 +770,6 @@ export function calculateExperienceConfidence({
 export function calculateExperienceMaturity(
     occurrences
 ) {
-
 
     const count =
 
@@ -962,7 +782,6 @@ export function calculateExperienceMaturity(
             1
 
         );
-
 
 
     const maturity =
@@ -981,32 +800,22 @@ export function calculateExperienceMaturity(
         0.125;
 
 
-
     return Number(
 
         Math.min(
             maturity,
             1
         )
-        .toFixed(2)
+            .toFixed(2)
 
     );
 
 }
 
 
-
-
-
 /*
  * =========================================================
  * MATURITY LEVEL
- * =========================================================
- *
- * Человекочитаемый label.
- *
- * Не используется вместо числовой maturity.
- *
  * =========================================================
  */
 
@@ -1014,7 +823,6 @@ export function calculateExperienceMaturity(
 export function resolveExperienceMaturityLevel(
     occurrences
 ) {
-
 
     const count =
 
@@ -1029,7 +837,6 @@ export function resolveExperienceMaturityLevel(
         );
 
 
-
     if(
         count >= 5
     ){
@@ -1039,7 +846,6 @@ export function resolveExperienceMaturityLevel(
     }
 
 
-
     if(
         count >= 2
     ){
@@ -1047,7 +853,6 @@ export function resolveExperienceMaturityLevel(
         return "LEARNING";
 
     }
-
 
 
     return "NEW";
