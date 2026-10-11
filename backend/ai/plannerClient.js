@@ -1,28 +1,35 @@
 /*
  * =========================================================
- * JESSICA PLANNER CLIENT v2
+ * JESSICA PLANNER CLIENT v3
  * =========================================================
  *
- * AI-клиент Planner.
+ * AI transport Planner.
+ *
  *
  * Ответственность:
  *
- * - выбор модели Planner;
- * - параметры генерации;
+ * - model configuration;
  * - JSON output mode;
- * - проверка входных messages;
- * - отправка запроса в Groq;
- * - возврат сырого ответа Planner.
+ * - message validation;
+ * - Groq request;
+ * - technical AI retry.
+ *
  *
  * НЕ отвечает за:
  *
- * - построение prompt;
+ * - prompt construction;
  * - PlanningContext;
- * - parsing JSON;
- * - нормализацию плана;
- * - validation;
- * - retry;
- * - выполнение плана.
+ * - plan parsing;
+ * - semantic plan validation;
+ * - Execution Retry;
+ * - Execution Replan.
+ *
+ *
+ * КРИТИЧЕСКО:
+ *
+ * Provider/network failure
+ * не должен автоматически становиться
+ * Execution Replan.
  *
  * =========================================================
  */
@@ -31,6 +38,11 @@
 import {
     getGroqClient
 } from "./groqClient.js";
+
+
+import {
+    executeAIWithRetry
+} from "./aiRetry.js";
 
 
 /*
@@ -44,36 +56,16 @@ const PLANNER_MODEL =
     "openai/gpt-oss-20b";
 
 
-/*
- * План — компактный JSON.
- *
- * 800 токенов оставляют запас для:
- *
- * - многошагового плана;
- * - arguments;
- * - $from зависимостей;
- * - evidence;
- * - reasoningSummary.
- *
- * При этом лимит меньше прежних 1200,
- * что снижает максимальный token budget
- * одного Planner-запроса.
- */
-
-
 const PLANNER_MAX_COMPLETION_TOKENS =
     800;
 
 
-/*
- * Planner занимается маршрутизацией,
- * поэтому высокий reasoning effort
- * здесь не требуется.
- */
-
-
 const PLANNER_REASONING_EFFORT =
     "low";
+
+
+const PLANNER_AI_ATTEMPTS =
+    3;
 
 
 /*
@@ -87,9 +79,11 @@ function validateMessages(
     messages
 ) {
 
-    if (
-        !Array.isArray(messages)
-    ) {
+    if(
+        !Array.isArray(
+            messages
+        )
+    ){
 
         throw new Error(
             "Planner messages должны быть массивом"
@@ -98,9 +92,9 @@ function validateMessages(
     }
 
 
-    if (
+    if(
         messages.length === 0
-    ) {
+    ){
 
         throw new Error(
             "Planner messages пустые"
@@ -109,47 +103,60 @@ function validateMessages(
     }
 
 
-    for (
+    for(
         let index = 0;
+
         index < messages.length;
+
         index++
-    ) {
+    ){
 
         const message =
             messages[index];
 
 
-        if (
-            !message ||
+        if(
+            !message
+            ||
             typeof message !== "object"
-        ) {
+            ||
+            Array.isArray(message)
+        ){
 
             throw new Error(
+
                 `Planner message ${index + 1} некорректен`
+
             );
 
         }
 
 
-        if (
-            typeof message.role !== "string" ||
+        if(
+            typeof message.role !== "string"
+            ||
             !message.role.trim()
-        ) {
+        ){
 
             throw new Error(
+
                 `Planner message ${index + 1} не содержит role`
+
             );
 
         }
 
 
-        if (
-            typeof message.content !== "string" ||
+        if(
+            typeof message.content !== "string"
+            ||
             !message.content.trim()
-        ) {
+        ){
 
             throw new Error(
+
                 `Planner message ${index + 1} не содержит content`
+
             );
 
         }
@@ -181,44 +188,43 @@ function buildPlannerRequestOptions(
          * детерминированным.
          */
 
+
         temperature:
             0,
 
 
         /*
-         * Для маршрутизации достаточно
-         * минимального reasoning effort.
+         * Низкий reasoning budget.
          */
+
 
         reasoning_effort:
             PLANNER_REASONING_EFFORT,
 
 
         /*
-         * Внутреннее reasoning модели
-         * в ответ API не включаем.
+         * Внутреннее reasoning
+         * не возвращаем.
          */
+
 
         include_reasoning:
             false,
 
 
         /*
-         * Ограничиваем максимальный
-         * размер генерируемого плана.
+         * Ограничиваем JSON Plan.
          */
+
 
         max_completion_tokens:
             PLANNER_MAX_COMPLETION_TOKENS,
 
 
         /*
-         * Planner обязан вернуть JSON.
-         *
-         * Полная JSON Schema здесь
-         * намеренно не используется:
-         * arguments инструментов динамические.
+         * Только JSON object.
          */
+
 
         response_format: {
 
@@ -226,6 +232,18 @@ function buildPlannerRequestOptions(
                 "json_object"
 
         },
+
+
+        /*
+         * Planner описывает tools в JSON,
+         * но сам tools НЕ вызывает.
+         *
+         * Явно фиксируем контракт.
+         */
+
+
+        tool_choice:
+            "none",
 
 
         messages
@@ -252,21 +270,61 @@ export async function plannerChat(
 
 
     const groq =
+
         getGroqClient();
 
 
     const requestOptions =
+
         buildPlannerRequestOptions(
             messages
         );
 
 
-    return await groq
-        .chat
-        .completions
-        .create(
-            requestOptions
-        );
+    /*
+     * =====================================================
+     * TECHNICAL AI RETRY
+     * =====================================================
+     *
+     * Здесь ловятся:
+     *
+     * - 429 TPM/RPM;
+     * - 408;
+     * - 5xx;
+     * - network;
+     * - известный Groq GPT-OSS tool-call glitch.
+     *
+     *
+     * Semantic invalid Plan сюда не попадает.
+     *
+     * =====================================================
+     */
+
+
+    return await executeAIWithRetry(
+
+        async () => {
+
+            return await groq
+                .chat
+                .completions
+                .create(
+                    requestOptions
+                );
+
+        },
+
+        {
+
+            label:
+                "Jessica Planner AI",
+
+            maxAttempts:
+                PLANNER_AI_ATTEMPTS
+
+        }
+
+    );
 
 }
 
@@ -278,7 +336,8 @@ export async function plannerChat(
  */
 
 
-export function getPlannerModel() {
+export function getPlannerModel()
+{
 
     return PLANNER_MODEL;
 
@@ -292,7 +351,8 @@ export function getPlannerModel() {
  */
 
 
-export function getPlannerMaxCompletionTokens() {
+export function getPlannerMaxCompletionTokens()
+{
 
     return PLANNER_MAX_COMPLETION_TOKENS;
 
