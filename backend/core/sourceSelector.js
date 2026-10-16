@@ -1,8 +1,8 @@
-import OpenAI from "openai";
-
 import {
-    executeAIWithRetry
-} from "../ai/aiRetry.js";
+    isSourceSelectorAvailable,
+    requestSourceSelection
+} from "../ai/sourceSelectorClient.js";
+
 
 import {
     buildSourceSelectionInstructions
@@ -11,39 +11,26 @@ import {
 
 /*
  * =========================================================
- * JESSICA SOURCE SELECTOR
+ * JESSICA SOURCE SELECTOR v2
  * =========================================================
  *
- * Координатор выбора источника.
+ * Search Results
+ *      ↓
+ * Normalize
+ *      ↓
+ * AI Source Selector Client
+ *      ↓
+ * Parse
+ *      ↓
+ * Selected Source
  *
- * Детальная политика оценки источников
- * вынесена в:
  *
- * core/source/sourceSelectionPrompt.js
+ * AI transport:
+ *
+ * backend/ai/sourceSelectorClient.js
+ *
+ * =========================================================
  */
-
-
-/*
- * =========================================================
- * AI CLIENT
- * =========================================================
- */
-
-
-const groq =
-    process.env.GROQ_API_KEY
-        ? new OpenAI({
-            apiKey:
-                process.env.GROQ_API_KEY,
-
-            baseURL:
-                "https://api.groq.com/openai/v1"
-        })
-        : null;
-
-
-const SOURCE_SELECTOR_MODEL =
-    "openai/gpt-oss-20b";
 
 
 /*
@@ -58,7 +45,10 @@ function cleanJsonText(
 ) {
 
     let value =
-        String(text || "")
+
+        String(
+            text || ""
+        )
             .replace(
                 /```json/gi,
                 ""
@@ -78,15 +68,20 @@ function cleanJsonText(
         value.lastIndexOf("}");
 
 
-    if (
-        firstBrace !== -1 &&
+    if(
+        firstBrace !== -1
+        &&
         lastBrace > firstBrace
-    ) {
+    ){
 
         value =
+
             value.slice(
+
                 firstBrace,
+
                 lastBrace + 1
+
             );
 
     }
@@ -108,11 +103,11 @@ function normalizeResults(
     results
 ) {
 
-    if (
+    if(
         !Array.isArray(
             results
         )
-    ) {
+    ){
 
         return [];
 
@@ -120,29 +115,39 @@ function normalizeResults(
 
 
     return results
+
         .map(
             (
                 item,
                 index
             ) => ({
+
                 index,
 
                 title:
+
                     String(
                         item?.title || ""
-                    ).trim(),
+                    )
+                        .trim(),
 
                 url:
+
                     String(
                         item?.url || ""
-                    ).trim(),
+                    )
+                        .trim(),
 
                 snippet:
+
                     String(
                         item?.snippet || ""
-                    ).trim()
+                    )
+                        .trim()
+
             })
         )
+
         .filter(
             item =>
                 item.url
@@ -163,6 +168,7 @@ function noSuitableSource(
 ) {
 
     return {
+
         success:
             false,
 
@@ -176,85 +182,19 @@ function noSuitableSource(
             null,
 
         reason:
+
             String(
-                reason ||
+
+                reason
+
+                ||
+
                 "Подходящий источник не найден"
-            ).trim()
+
+            )
+                .trim()
+
     };
-
-}
-
-
-/*
- * =========================================================
- * AI REQUEST
- * =========================================================
- */
-
-
-async function requestSelection(
-    task,
-    results
-) {
-
-    const instructions =
-        buildSourceSelectionInstructions();
-
-
-    return await executeAIWithRetry(
-        async () => {
-
-            return await groq
-                .chat
-                .completions
-                .create({
-
-                    model:
-                        SOURCE_SELECTOR_MODEL,
-
-                    temperature:
-                        0,
-
-                    messages: [
-                        {
-                            role:
-                                "system",
-
-                            content:
-                                instructions
-                        },
-
-                        {
-                            role:
-                                "user",
-
-                            content: [
-                                "ЗАДАЧА:",
-                                String(
-                                    task || ""
-                                ).trim(),
-
-                                "",
-                                "РЕЗУЛЬТАТЫ ПОИСКА:",
-                                JSON.stringify(
-                                    results,
-                                    null,
-                                    2
-                                )
-                            ].join(
-                                "\n"
-                            )
-                        }
-                    ]
-
-                });
-
-        },
-        {
-            label:
-                "Source Selector"
-        }
-    );
 
 }
 
@@ -271,7 +211,9 @@ function parseSelection(
     results
 ) {
 
-    if (!raw) {
+    if(
+        !raw
+    ){
 
         return noSuitableSource(
             "Source Selector вернул пустой ответ"
@@ -285,29 +227,41 @@ function parseSelection(
 
     try {
 
+
         parsed =
+
             JSON.parse(
+
                 cleanJsonText(
                     raw
                 )
+
             );
 
-    } catch {
+
+    }catch(error){
+
 
         console.error(
+
             "Source Selector invalid JSON:",
+
             raw
+
         );
 
 
         return noSuitableSource(
+
             "Source Selector не смог надёжно оценить поисковую выдачу"
+
         );
 
     }
 
 
     const decision =
+
         String(
             parsed?.decision || ""
         )
@@ -322,13 +276,18 @@ function parseSelection(
      */
 
 
-    if (
+    if(
         decision === "reject"
-    ) {
+    ){
 
         return noSuitableSource(
-            parsed?.reason ||
+
+            parsed?.reason
+
+            ||
+
             "Ни один найденный источник не удовлетворяет задаче"
+
         );
 
     }
@@ -341,39 +300,45 @@ function parseSelection(
      */
 
 
-    if (
+    if(
         decision !== "select"
-    ) {
+    ){
 
         return noSuitableSource(
+
             "Source Selector вернул неизвестное решение"
+
         );
 
     }
 
 
     const index =
+
         Number(
             parsed?.index
         );
 
 
-    if (
-        !Number.isInteger(
-            index
-        ) ||
-        index < 0 ||
+    if(
+        !Number.isInteger(index)
+        ||
+        index < 0
+        ||
         index >= results.length
-    ) {
+    ){
 
         return noSuitableSource(
+
             "Source Selector указал некорректный источник"
+
         );
 
     }
 
 
     return {
+
         success:
             true,
 
@@ -386,9 +351,13 @@ function parseSelection(
             results[index],
 
         reason:
+
             typeof parsed?.reason === "string"
+
                 ? parsed.reason.trim()
+
                 : ""
+
     };
 
 }
@@ -407,6 +376,7 @@ export async function selectSource(
 ) {
 
     const results =
+
         normalizeResults(
             searchResults
         );
@@ -414,14 +384,14 @@ export async function selectSource(
 
     /*
      * =====================================================
-     * NO SEARCH RESULTS
+     * NO RESULTS
      * =====================================================
      */
 
 
-    if (
+    if(
         results.length === 0
-    ) {
+    ){
 
         return noSuitableSource(
             "Поиск не вернул источники"
@@ -432,12 +402,14 @@ export async function selectSource(
 
     /*
      * =====================================================
-     * AI REQUIRED
+     * AI AVAILABILITY
      * =====================================================
      */
 
 
-    if (!groq) {
+    if(
+        !isSourceSelectorAvailable()
+    ){
 
         return noSuitableSource(
             "Source Selector недоступен"
@@ -448,21 +420,36 @@ export async function selectSource(
 
     /*
      * =====================================================
-     * SOURCE EVALUATION
+     * REQUEST
      * =====================================================
      */
 
 
     try {
 
+
         const response =
-            await requestSelection(
-                task,
+
+            await requestSourceSelection({
+
+                instructions:
+
+                    buildSourceSelectionInstructions(),
+
+                task:
+
+                    String(
+                        task || ""
+                    )
+                        .trim(),
+
                 results
-            );
+
+            });
 
 
         const raw =
+
             response
                 ?.choices
                 ?.[0]
@@ -471,9 +458,13 @@ export async function selectSource(
 
 
         const selection =
+
             parseSelection(
+
                 raw,
+
                 results
+
             );
 
 
@@ -484,13 +475,16 @@ export async function selectSource(
          */
 
 
-        if (
+        if(
             selection.success
-        ) {
+        ){
 
             console.log(
+
                 "Jessica Source Selector:",
+
                 JSON.stringify({
+
                     decision:
                         "select",
 
@@ -505,20 +499,28 @@ export async function selectSource(
 
                     reason:
                         selection.reason || ""
+
                 })
+
             );
 
-        } else {
+        }else{
+
 
             console.warn(
+
                 "Jessica Source Selector:",
+
                 JSON.stringify({
+
                     decision:
                         "reject",
 
                     reason:
                         selection.reason || ""
+
                 })
+
             );
 
         }
@@ -527,17 +529,42 @@ export async function selectSource(
         return selection;
 
 
-    } catch (error) {
+    }catch(error){
+
 
         console.error(
+
             "Source Selector final error:",
-            error
+
+            {
+
+                status:
+                    error?.status || 0,
+
+                code:
+                    error?.code || null,
+
+                message:
+
+                    error?.message
+
+                    ||
+
+                    String(error)
+
+            }
+
         );
 
 
         return noSuitableSource(
-            error?.message ||
+
+            error?.message
+
+            ||
+
             "Не удалось выбрать надёжный источник"
+
         );
 
     }
