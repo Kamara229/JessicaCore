@@ -1,3 +1,44 @@
+/*
+ * =========================================================
+ * JESSICA CURRENT TIME TOOL v2
+ * =========================================================
+ *
+ * Flow:
+ *
+ * location
+ *      ↓
+ * already valid IANA?
+ *      │
+ *      ├── yes
+ *      │
+ *      └── no
+ *           ↓
+ * Timezone Resolver AI
+ *           ↓
+ * IANA validation
+ *           ↓
+ * server Date
+ *           ↓
+ * exact current time
+ *
+ *
+ * КРИТИЧЕСКО:
+ *
+ * AI никогда не определяет текущее время.
+ *
+ * AI используется только как resolver:
+ *
+ * geographic name → IANA timezone
+ *
+ *
+ * AI transport:
+ *
+ * backend/ai/timezoneResolverClient.js
+ *
+ * =========================================================
+ */
+
+
 import {
     registerTool
 } from "./toolRegistry.js";
@@ -7,44 +48,6 @@ import {
     isTimezoneResolverAvailable,
     requestTimezoneResolution
 } from "../ai/timezoneResolverClient.js";
-
-
-/*
- * =========================================================
- * CURRENT TIME TOOL v2
- * =========================================================
- *
- * Flow:
- *
- * location
- *      ↓
- * already IANA?
- *      │
- *      ├── yes
- *      │
- *      └── no
- *           ↓
- * Timezone Resolver AI
- *           ↓
- * validated IANA timezone
- *           ↓
- * server Date
- *           ↓
- * Intl.DateTimeFormat
- *           ↓
- * exact current time
- *
- *
- * КРИТИЧЕСКО:
- *
- * AI никогда не определяет текущее время.
- *
- * AI используется только для преобразования
- * свободного географического названия
- * в IANA timezone.
- *
- * =========================================================
- */
 
 
 /*
@@ -408,7 +411,7 @@ async function resolveTimeZone(
 
         /*
          * =================================================
-         * TIMEZONE
+         * VALIDATE TIMEZONE
          * =================================================
          */
 
@@ -449,6 +452,13 @@ async function resolveTimeZone(
             };
 
         }
+
+
+        /*
+         * =================================================
+         * SUCCESS
+         * =================================================
+         */
 
 
         return {
@@ -540,6 +550,13 @@ async function executeCurrentTime(
             ? args.location.trim()
 
             : "";
+
+
+    /*
+     * =====================================================
+     * LOCATION
+     * =====================================================
+     */
 
 
     if(
@@ -716,7 +733,7 @@ async function executeCurrentTime(
 
 /*
  * =========================================================
- * REGISTER
+ * REGISTER TOOL
  * =========================================================
  */
 
