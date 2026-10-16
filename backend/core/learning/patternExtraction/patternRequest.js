@@ -1,16 +1,22 @@
 /*
  * =========================================================
- * JESSICA PATTERN REQUEST v1
+ * JESSICA PATTERN REQUEST v2
  * =========================================================
  *
- * AI запрос для автономного
+ * Координатор AI-запроса для автономного
  * Experience Pattern Extraction.
+ *
+ *
+ * AI transport:
+ *
+ * backend/ai/patternExtractionClient.js
  *
  *
  * НЕ:
  *
+ * - создаёт AI client;
  * - анализирует Execution Trace;
- * - парсит JSON;
+ * - парсит Pattern JSON;
  * - валидирует Pattern;
  * - сохраняет Experience.
  *
@@ -18,65 +24,10 @@
  */
 
 
-import OpenAI from "openai";
-
-
-
-
-
-const MODEL =
-
-    process.env.JESSICA_LEARNING_MODEL
-
-    ||
-
-    process.env.GROQ_MODEL
-
-    ||
-
-    "openai/gpt-oss-20b";
-
-
-
-
-
-/*
- * =========================================================
- * CLIENT
- * =========================================================
- */
-
-
-function createClient()
-{
-
-    if(
-        !process.env.GROQ_API_KEY
-    ){
-
-        return null;
-
-    }
-
-
-
-    return new OpenAI({
-
-        apiKey:
-
-            process.env.GROQ_API_KEY,
-
-
-        baseURL:
-
-            "https://api.groq.com/openai/v1"
-
-    });
-
-}
-
-
-
+import {
+    isPatternExtractionAvailable,
+    requestPatternExtractionAI
+} from "../../../ai/patternExtractionClient.js";
 
 
 /*
@@ -108,9 +59,6 @@ function safeJson(
     }
 
 }
-
-
-
 
 
 /*
@@ -204,9 +152,6 @@ retry или replan.
 }
 
 
-
-
-
 /*
  * =========================================================
  * REQUEST
@@ -218,26 +163,24 @@ export async function requestPatternExtraction(
     evidence
 ) {
 
-    const client =
-
-        createClient();
-
+    /*
+     * =====================================================
+     * AVAILABILITY
+     * =====================================================
+     */
 
 
     if(
-        !client
+        !isPatternExtractionAvailable()
     ){
 
         return {
 
-
             success:
                 false,
 
-
             error:
                 "GROQ_API_KEY отсутствует",
-
 
             rawText:
                 ""
@@ -247,58 +190,41 @@ export async function requestPatternExtraction(
     }
 
 
+    /*
+     * =====================================================
+     * EVIDENCE
+     * =====================================================
+     */
+
+
+    const evidenceText =
+
+        safeJson(
+            evidence
+        );
+
+
+    /*
+     * =====================================================
+     * AI REQUEST
+     * =====================================================
+     */
+
 
     try {
 
 
         const response =
 
-            await client
-                .chat
-                .completions
-                .create({
+            await requestPatternExtractionAI({
 
-                    model:
-                        MODEL,
+                systemPrompt:
 
+                    buildSystemPrompt(),
 
-                    temperature:
-                        0.1,
+                evidenceText
 
-
-                    messages: [
-
-                        {
-
-                            role:
-                                "system",
-
-                            content:
-                                buildSystemPrompt()
-
-                        },
-
-                        {
-
-                            role:
-                                "user",
-
-                            content:
-
-                                "Execution Evidence:\n"
-
-                                +
-
-                                safeJson(
-                                    evidence
-                                )
-
-                        }
-
-                    ]
-
-                });
-
+            });
 
 
         const rawText =
@@ -314,21 +240,17 @@ export async function requestPatternExtraction(
             "";
 
 
-
         if(
             !rawText
         ){
 
             return {
 
-
                 success:
                     false,
 
-
                 error:
                     "Pattern Extractor вернул пустой ответ",
-
 
                 rawText:
                     ""
@@ -338,13 +260,10 @@ export async function requestPatternExtraction(
         }
 
 
-
         return {
-
 
             success:
                 true,
-
 
             rawText
 
@@ -354,12 +273,35 @@ export async function requestPatternExtraction(
     }catch(error){
 
 
-        return {
+        console.error(
 
+            "Jessica Pattern Extractor final error:",
+
+            {
+
+                status:
+                    error?.status || 0,
+
+                code:
+                    error?.code || null,
+
+                message:
+
+                    error?.message
+
+                    ||
+
+                    String(error)
+
+            }
+
+        );
+
+
+        return {
 
             success:
                 false,
-
 
             error:
 
@@ -368,7 +310,6 @@ export async function requestPatternExtraction(
                 ||
 
                 "Pattern Extractor request failed",
-
 
             rawText:
                 ""
