@@ -15,8 +15,8 @@
  * НЕ:
  *
  * - создаёт AI client;
+ * - управляет technical retry;
  * - анализирует Execution Trace;
- * - парсит Pattern JSON;
  * - валидирует Pattern;
  * - сохраняет Experience.
  *
