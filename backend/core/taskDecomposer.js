@@ -1,6 +1,3 @@
-import OpenAI from "openai";
-
-
 import {
     buildTaskDecomposerInstructions
 } from "./decomposer/decomposerPrompt.js";
@@ -11,16 +8,24 @@ import {
 } from "./decomposer/decompositionValidator.js";
 
 
+import {
+    isDecomposerAvailable,
+    requestDecomposition
+} from "../ai/decomposerClient.js";
+
+
 /*
  * =========================================================
- * JESSICA TASK DECOMPOSER v2
+ * JESSICA TASK DECOMPOSER v3
  * =========================================================
  *
  * User Task
  *      +
  * Memory Context
  *          ↓
- * AI Decomposer
+ * Decomposer AI Client
+ *          ↓
+ * Parse
  *          ↓
  * Structural Validator
  *          ↓
@@ -32,34 +37,12 @@ import {
  * Subtask != Tool Step.
  *
  *
- * Decomposer отвечает за смысловые цели.
+ * AI transport находится в:
  *
- * Planner отвечает за:
- *
- * web_search
- * web_fetch
- * tools
- * validation route
+ * backend/ai/decomposerClient.js
  *
  * =========================================================
  */
-
-
-const groq =
-
-    process.env.GROQ_API_KEY
-
-        ? new OpenAI({
-
-            apiKey:
-                process.env.GROQ_API_KEY,
-
-            baseURL:
-                "https://api.groq.com/openai/v1"
-
-        })
-
-        : null;
 
 
 /*
@@ -175,6 +158,7 @@ function normalizeMemoryContext(
 
                     null,
 
+
                 name:
 
                     skill?.name
@@ -183,6 +167,7 @@ function normalizeMemoryContext(
 
                     "",
 
+
                 description:
 
                     skill?.description
@@ -190,6 +175,7 @@ function normalizeMemoryContext(
                     ||
 
                     "",
+
 
                 workflow:
 
@@ -200,6 +186,7 @@ function normalizeMemoryContext(
                         ? skill.workflow
 
                         : [],
+
 
                 constraints:
 
@@ -229,7 +216,41 @@ function normalizeMemoryContext(
 
 /*
  * =========================================================
+ * MEMORY CONTEXT
+ * =========================================================
+ */
+
+
+function buildEffectiveMemoryContext(
+    normalizedMemory
+) {
+
+    return {
+
+        hasExperience:
+
+            normalizedMemory.length > 0,
+
+        skills:
+            normalizedMemory
+
+    };
+
+}
+
+
+/*
+ * =========================================================
  * FALLBACK
+ * =========================================================
+ *
+ * AI Decomposer unavailable / failed:
+ *
+ * не ломаем задачу.
+ *
+ * Вся исходная задача становится
+ * одной самостоятельной подзадачей.
+ *
  * =========================================================
  */
 
@@ -292,6 +313,121 @@ function createFallback(
 
 /*
  * =========================================================
+ * FALLBACK WITH LOG
+ * =========================================================
+ */
+
+
+function createLoggedFallback({
+
+    task,
+
+    memoryContext,
+
+    reason
+
+}) {
+
+    console.warn(
+
+        "Jessica Task Decomposer fallback:",
+
+        reason
+
+        ||
+
+        "unknown reason"
+
+    );
+
+
+    return createFallback(
+
+        task,
+
+        memoryContext
+
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * PARSE RESPONSE
+ * =========================================================
+ */
+
+
+function parseDecomposerResponse(
+    response
+) {
+
+    const raw =
+
+        response
+            ?.output_text
+            ?.trim();
+
+
+    if(
+        !raw
+    ){
+
+        return {
+
+            success:
+                false,
+
+            reason:
+                "AI Decomposer вернул пустой ответ"
+
+        };
+
+    }
+
+
+    try {
+
+
+        return {
+
+            success:
+                true,
+
+            data:
+
+                JSON.parse(
+
+                    cleanJsonText(
+                        raw
+                    )
+
+                )
+
+        };
+
+
+    }catch(error){
+
+
+        return {
+
+            success:
+                false,
+
+            reason:
+                "AI Decomposer вернул некорректный JSON"
+
+        };
+
+    }
+
+}
+
+
+/*
+ * =========================================================
  * DECOMPOSE TASK
  * =========================================================
  */
@@ -305,6 +441,13 @@ export async function decomposeTask({
 
 } = {}) {
 
+    /*
+     * =====================================================
+     * INPUT
+     * =====================================================
+     */
+
+
     const normalizedTask =
 
         typeof task === "string"
@@ -312,13 +455,6 @@ export async function decomposeTask({
             ? task.trim()
 
             : "";
-
-
-    /*
-     * =====================================================
-     * INPUT
-     * =====================================================
-     */
 
 
     if(
@@ -338,6 +474,13 @@ export async function decomposeTask({
     }
 
 
+    /*
+     * =====================================================
+     * MEMORY
+     * =====================================================
+     */
+
+
     const normalizedMemory =
 
         normalizeMemoryContext(
@@ -345,16 +488,11 @@ export async function decomposeTask({
         );
 
 
-    const effectiveMemoryContext = {
+    const effectiveMemoryContext =
 
-        hasExperience:
-
-            normalizedMemory.length > 0,
-
-        skills:
+        buildEffectiveMemoryContext(
             normalizedMemory
-
-    };
+        );
 
 
     /*
@@ -365,8 +503,85 @@ export async function decomposeTask({
 
 
     if(
-        !groq
+        !isDecomposerAvailable()
     ){
+
+        return createLoggedFallback({
+
+            task:
+                normalizedTask,
+
+            memoryContext:
+                effectiveMemoryContext,
+
+            reason:
+                "AI Decomposer недоступен"
+
+        });
+
+    }
+
+
+    /*
+     * =====================================================
+     * AI REQUEST
+     * =====================================================
+     */
+
+
+    let response;
+
+
+    try {
+
+
+        response =
+
+            await requestDecomposition({
+
+                instructions:
+
+                    buildTaskDecomposerInstructions(),
+
+                task:
+                    normalizedTask,
+
+                memory:
+                    normalizedMemory
+
+            });
+
+
+    }catch(error){
+
+
+        console.error(
+
+            "Jessica Task Decomposer AI error:",
+
+            {
+
+                status:
+                    error?.status || 0,
+
+                code:
+                    error?.code || null,
+
+                message:
+                    error?.message || String(error)
+
+            }
+
+        );
+
+
+        /*
+         * AI Retry уже исчерпан.
+         *
+         * Decomposer не должен ломать
+         * весь пользовательский запрос.
+         */
+
 
         return createFallback(
 
@@ -381,221 +596,124 @@ export async function decomposeTask({
 
     /*
      * =====================================================
-     * AI DECOMPOSITION
+     * PARSE
      * =====================================================
      */
 
 
-    try {
+    const parsed =
 
-
-        const response =
-
-            await groq.responses.create({
-
-                model:
-                    "openai/gpt-oss-20b",
-
-                instructions:
-
-                    buildTaskDecomposerInstructions(),
-
-                input:
-
-                    JSON.stringify({
-
-                        task:
-                            normalizedTask,
-
-                        memory:
-                            normalizedMemory
-
-                    }),
-
-                reasoning: {
-
-                    effort:
-                        "medium"
-
-                }
-
-            });
-
-
-        const raw =
-
-            response.output_text
-                ?.trim();
-
-
-        if(
-            !raw
-        ){
-
-            return createFallback(
-
-                normalizedTask,
-
-                effectiveMemoryContext
-
-            );
-
-        }
-
-
-        /*
-         * =================================================
-         * PARSE
-         * =================================================
-         */
-
-
-        let parsed;
-
-
-        try {
-
-
-            parsed =
-
-                JSON.parse(
-
-                    cleanJsonText(
-                        raw
-                    )
-
-                );
-
-
-        }catch(error){
-
-
-            console.warn(
-
-                "Jessica Task Decomposer parse failed"
-
-            );
-
-
-            return createFallback(
-
-                normalizedTask,
-
-                effectiveMemoryContext
-
-            );
-
-        }
-
-
-        /*
-         * =================================================
-         * VALIDATE
-         * =================================================
-         */
-
-
-        const validated =
-
-            validateDecomposition({
-
-                data:
-                    parsed,
-
-                originalTask:
-                    normalizedTask,
-
-                memoryContext:
-                    effectiveMemoryContext
-
-            });
-
-
-        if(
-            !validated.success
-        ){
-
-            console.warn(
-
-                "Jessica Task Decomposer validation failed:",
-
-                validated.text
-
-            );
-
-
-            return createFallback(
-
-                normalizedTask,
-
-                effectiveMemoryContext
-
-            );
-
-        }
-
-
-        /*
-         * =================================================
-         * LOG
-         * =================================================
-         */
-
-
-        console.log(
-
-            "Jessica Task Decomposition:",
-
-            {
-
-                subtasks:
-
-                    validated
-                        .decomposition
-                        .subtasks
-                        .map(
-                            subtask => ({
-
-                                id:
-                                    subtask.id,
-
-                                dependsOn:
-                                    subtask.dependsOn,
-
-                                text:
-                                    subtask.text
-
-                            })
-                        )
-
-            }
-
+        parseDecomposerResponse(
+            response
         );
 
 
-        return validated;
+    if(
+        !parsed.success
+    ){
 
+        return createLoggedFallback({
 
-    }catch(error){
+            task:
+                normalizedTask,
 
+            memoryContext:
+                effectiveMemoryContext,
 
-        console.error(
+            reason:
+                parsed.reason
 
-            "Jessica Task Decomposer error:",
-
-            error
-
-        );
-
-
-        return createFallback(
-
-            normalizedTask,
-
-            effectiveMemoryContext
-
-        );
+        });
 
     }
 
-            }
+
+    /*
+     * =====================================================
+     * VALIDATE
+     * =====================================================
+     */
+
+
+    const validated =
+
+        validateDecomposition({
+
+            data:
+                parsed.data,
+
+            originalTask:
+                normalizedTask,
+
+            memoryContext:
+                effectiveMemoryContext
+
+        });
+
+
+    if(
+        !validated.success
+    ){
+
+        return createLoggedFallback({
+
+            task:
+                normalizedTask,
+
+            memoryContext:
+                effectiveMemoryContext,
+
+            reason:
+
+                validated.text
+
+                ||
+
+                "Некорректная decomposition"
+
+        });
+
+    }
+
+
+    /*
+     * =====================================================
+     * LOG
+     * =====================================================
+     */
+
+
+    console.log(
+
+        "Jessica Task Decomposition:",
+
+        {
+
+            subtasks:
+
+                validated
+                    .decomposition
+                    .subtasks
+                    .map(
+                        subtask => ({
+
+                            id:
+                                subtask.id,
+
+                            dependsOn:
+                                subtask.dependsOn,
+
+                            text:
+                                subtask.text
+
+                        })
+                    )
+
+        }
+
+    );
+
+
+    return validated;
+
+}
