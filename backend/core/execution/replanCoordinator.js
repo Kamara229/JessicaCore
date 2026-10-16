@@ -1,39 +1,37 @@
 /*
  * =========================================================
- * JESSICA REPLAN COORDINATOR v11
+ * JESSICA REPLAN COORDINATOR v12
  * =========================================================
  *
- * Координатор перестроения Execution Plan.
- *
- *
- * Flow:
- *
- * Failure Decision
- *        ↓
- * Known Failed Routes
- *        ↓
+ * Failure
+ *      ↓
+ * Failed / Tried Routes
+ *      ↓
  * Replanner
- *        ↓
+ *      ↓
  * Alternative Plan
- *        ↓
+ *      ↓
  * Diversity Policy
- *        ↓
+ *
  *
  * unique
- *   → Apply
+ *      → Apply
  *
  * duplicate
- *   → reject
- *   → ask Replanner for another strategy
+ *      → extract query / URL / route
+ *      → add hard constraints
+ *      → ask Planner again
  *
  *
- * Ответственность:
+ * КРИТИЧЕСКО:
  *
- * - подготовить запрос Replanner;
- * - не допустить повтор уже проваленного маршрута;
- * - получить реальный Alternative Plan;
- * - применить новый Plan;
- * - очистить результаты предыдущего маршрута.
+ * SHA fingerprint используется машиной.
+ *
+ * Planner получает человекочитаемые:
+ *
+ * - forbidden search queries;
+ * - forbidden source URLs;
+ * - rejected route summaries.
  *
  * =========================================================
  */
@@ -53,6 +51,9 @@ import {
 
 import {
     collectKnownPlanFingerprints,
+    extractPlanSearchQueries,
+    extractPlanSourceUrls,
+    buildPlanRouteSummary,
     validateAlternativePlanDiversity
 } from "./replan/replanDiversityPolicy.js";
 
@@ -68,20 +69,13 @@ export const MAX_REPLAN_COUNT =
     3;
 
 
-/*
- * Количество попыток получить
- * действительно новую стратегию
- * внутри одного Replan.
- */
-
-
 const MAX_ALTERNATIVE_GENERATION_ATTEMPTS =
     3;
 
 
 /*
  * =========================================================
- * SAFE STRING
+ * SAFE
  * =========================================================
  */
 
@@ -94,6 +88,56 @@ function safeString(
         value || ""
     )
         .trim();
+
+}
+
+
+function safeArray(
+    value
+) {
+
+    return Array.isArray(
+        value
+    )
+
+        ? value
+
+        : [];
+
+}
+
+
+/*
+ * =========================================================
+ * UNIQUE
+ * =========================================================
+ */
+
+
+function uniqueStrings(
+    values
+) {
+
+    return [
+
+        ...new Set(
+
+            safeArray(
+                values
+            )
+
+                .map(
+                    value =>
+                        safeString(
+                            value
+                        )
+                )
+
+                .filter(Boolean)
+
+        )
+
+    ];
 
 }
 
@@ -121,6 +165,7 @@ function normalizeFailure(
 
             "execution",
 
+
         failureType:
 
             safeString(
@@ -130,6 +175,7 @@ function normalizeFailure(
             ||
 
             "execution-error",
+
 
         category:
 
@@ -141,6 +187,7 @@ function normalizeFailure(
 
             "execution",
 
+
         reason:
 
             safeString(
@@ -151,17 +198,21 @@ function normalizeFailure(
 
             "Execution plan failed",
 
+
         shouldRetry:
 
             failure?.shouldRetry === true,
+
 
         needsClarification:
 
             failure?.needsClarification === true,
 
+
         noVerifiedResult:
 
             failure?.noVerifiedResult === true,
+
 
         validation:
 
@@ -171,6 +222,7 @@ function normalizeFailure(
 
             null,
 
+
         source:
 
             failure?.source
@@ -178,6 +230,7 @@ function normalizeFailure(
             ||
 
             null,
+
 
         details:
 
@@ -221,6 +274,7 @@ function buildReplanRequest(
 
             "",
 
+
         previousPlan:
 
             context?.plan
@@ -229,7 +283,9 @@ function buildReplanRequest(
 
             null,
 
+
         failure,
+
 
         runResult:
 
@@ -239,6 +295,7 @@ function buildReplanRequest(
 
             null,
 
+
         executionState: {
 
             attempt:
@@ -247,11 +304,13 @@ function buildReplanRequest(
                     counters?.attempt || 0
                 ),
 
+
             retryCount:
 
                 Number(
                     counters?.retryCount || 0
                 ),
+
 
             replanCount:
 
@@ -260,6 +319,7 @@ function buildReplanRequest(
                 )
 
         },
+
 
         planningContext:
 
@@ -276,7 +336,107 @@ function buildReplanRequest(
 
 /*
  * =========================================================
- * DIVERSIFICATION FAILURE
+ * REJECTED PLAN FACTS
+ * =========================================================
+ */
+
+
+function collectRejectedPlanFacts(
+    rejectedPlans
+) {
+
+    const plans =
+
+        safeArray(
+            rejectedPlans
+        );
+
+
+    const searchQueries =
+        [];
+
+
+    const sourceUrls =
+        [];
+
+
+    const routeSummaries =
+        [];
+
+
+    for(
+        const plan
+        of plans
+    ){
+
+        searchQueries.push(
+
+            ...extractPlanSearchQueries(
+                plan
+            )
+
+        );
+
+
+        sourceUrls.push(
+
+            ...extractPlanSourceUrls(
+                plan
+            )
+
+        );
+
+
+        const summary =
+
+            buildPlanRouteSummary(
+                plan
+            );
+
+
+        if(
+            summary
+        ){
+
+            routeSummaries.push(
+                summary
+            );
+
+        }
+
+    }
+
+
+    return {
+
+        searchQueries:
+
+            uniqueStrings(
+                searchQueries
+            ),
+
+
+        sourceUrls:
+
+            uniqueStrings(
+                sourceUrls
+            ),
+
+
+        routeSummaries:
+
+            uniqueStrings(
+                routeSummaries
+            )
+
+    };
+
+}
+
+
+/*
+ * =========================================================
+ * DIVERSIFIED FAILURE
  * =========================================================
  */
 
@@ -287,66 +447,127 @@ function buildDiversifiedFailure({
 
     generationAttempt,
 
-    rejectedFingerprints
+    rejectedFingerprints,
+
+    rejectedPlans
 
 }) {
 
+    const rejectedFacts =
+
+        collectRejectedPlanFacts(
+            rejectedPlans
+        );
+
+
+    const reasonParts = [
+
+        failure.reason
+
+    ];
+
+
+    /*
+     * Первый generation attempt уже является Replan.
+     *
+     * Поэтому diversificationRequired=true
+     * с первой попытки.
+     */
+
+
     if(
-        generationAttempt <= 1
+        generationAttempt > 1
     ){
 
-        return failure;
+        reasonParts.push(
+
+            "",
+
+            (
+                "Предыдущая предложенная альтернативная стратегия " +
+                "была отклонена, потому что повторяла уже " +
+                "испробованный Execution route."
+            ),
+
+            (
+                "Следующий Plan обязан отличаться " +
+                "по содержательной стратегии."
+            ),
+
+            (
+                `Отклонённых альтернатив в текущем Replan: ` +
+                `${rejectedFingerprints.length}.`
+            )
+
+        );
 
     }
+
+
+    const existingDetails =
+
+        failure?.details
+        &&
+        typeof failure.details === "object"
+        &&
+        !Array.isArray(
+            failure.details
+        )
+
+            ? failure.details
+
+            : {};
 
 
     return {
 
         ...failure,
 
+
         reason:
 
-            [
-                failure.reason,
-
-                "",
-
-                "Предыдущая предложенная альтернативная стратегия была отклонена, потому что повторяла уже испробованный Execution route.",
-
-                "Не повторяй тот же набор инструментов с теми же аргументами и источниками.",
-
-                "Измени способ получения или проверки результата.",
-
-                `Отклонённых альтернатив в текущем Replan: ${rejectedFingerprints.length}.`
-
-            ]
+            reasonParts
                 .filter(Boolean)
                 .join("\n"),
 
+
         details: {
 
-            ...(
-                failure?.details
-                &&
-                typeof failure.details === "object"
-                &&
-                !Array.isArray(
-                    failure.details
-                )
+            ...existingDetails,
 
-                    ? failure.details
 
-                    : {}
-            ),
+            /*
+             * HARD REPLAN CONTRACT
+             */
+
 
             diversificationRequired:
                 true,
 
+
             generationAttempt,
 
+
             rejectedPlanFingerprints: [
+
                 ...rejectedFingerprints
-            ]
+
+            ],
+
+
+            forbiddenSearchQueries:
+
+                rejectedFacts.searchQueries,
+
+
+            forbiddenSourceUrls:
+
+                rejectedFacts.sourceUrls,
+
+
+            rejectedRouteSummaries:
+
+                rejectedFacts.routeSummaries
 
         }
 
@@ -366,6 +587,13 @@ export async function createAlternativePlan(
     context,
     failure
 ) {
+
+    /*
+     * =====================================================
+     * CONTEXT
+     * =====================================================
+     */
+
 
     if(
         !context
@@ -430,7 +658,7 @@ export async function createAlternativePlan(
 
     /*
      * =====================================================
-     * KNOWN FAILED / TRIED ROUTES
+     * KNOWN EXECUTION ROUTES
      * =====================================================
      */
 
@@ -440,22 +668,33 @@ export async function createAlternativePlan(
         collectKnownPlanFingerprints({
 
             currentPlan:
-                context?.plan || null,
+
+                context?.plan
+
+                ||
+
+                null,
+
 
             initialPlan:
 
                 getInitialPlan(
                     context
                 )
+
                 ||
+
                 null,
+
 
             replans:
 
                 getExecutionReplans(
                     context
                 )
+
                 ||
+
                 []
 
         });
@@ -465,9 +704,13 @@ export async function createAlternativePlan(
         [];
 
 
+    const rejectedPlans =
+        [];
+
+
     /*
      * =====================================================
-     * GENERATE DIVERSE ALTERNATIVE
+     * GENERATE ALTERNATIVE
      * =====================================================
      */
 
@@ -482,6 +725,13 @@ export async function createAlternativePlan(
         generationAttempt++
     ){
 
+        /*
+         * =================================================
+         * FAILURE + HARD DIVERSIFICATION CONTEXT
+         * =================================================
+         */
+
+
         const effectiveFailure =
 
             buildDiversifiedFailure({
@@ -491,12 +741,21 @@ export async function createAlternativePlan(
 
                 generationAttempt,
 
-                rejectedFingerprints
+                rejectedFingerprints,
+
+                rejectedPlans
 
             });
 
 
         let result;
+
+
+        /*
+         * =================================================
+         * REPLANNER
+         * =================================================
+         */
 
 
         try {
@@ -518,28 +777,47 @@ export async function createAlternativePlan(
 
                         ...request.planningContext,
 
+
                         replanContext: {
 
                             previousPlan:
                                 request.previousPlan,
 
+
                             failure:
                                 effectiveFailure,
+
 
                             executionState:
                                 request.executionState,
 
+
                             diversification: {
 
-                                required:
+                                /*
+                                 * Любой Replan обязан
+                                 * изменить неудачную стратегию.
+                                 */
 
-                                    generationAttempt > 1,
+                                required:
+                                    true,
+
 
                                 generationAttempt,
 
+
                                 rejectedPlanFingerprints: [
+
                                     ...rejectedFingerprints
-                                ]
+
+                                ],
+
+
+                                rejectedPlans:
+
+                                    collectRejectedPlanFacts(
+                                        rejectedPlans
+                                    )
 
                             }
 
@@ -606,7 +884,7 @@ export async function createAlternativePlan(
 
         /*
          * =================================================
-         * DIVERSITY
+         * DIVERSITY VALIDATION
          * =================================================
          */
 
@@ -623,6 +901,13 @@ export async function createAlternativePlan(
             });
 
 
+        /*
+         * =================================================
+         * NEW ROUTE
+         * =================================================
+         */
+
+
         if(
             diversity.success
         ){
@@ -632,11 +917,14 @@ export async function createAlternativePlan(
                 success:
                     true,
 
+
                 plan:
                     result.plan,
 
+
                 failure:
                     effectiveFailure,
+
 
                 planningContext:
 
@@ -648,12 +936,19 @@ export async function createAlternativePlan(
 
                         : request.planningContext,
 
+
                 diversification: {
 
                     generationAttempt,
 
+
                     fingerprint:
                         diversity.fingerprint,
+
+
+                    routeSummary:
+                        diversity.routeSummary,
+
 
                     rejectedCount:
                         rejectedFingerprints.length
@@ -666,8 +961,15 @@ export async function createAlternativePlan(
 
 
         /*
-         * Duplicate route.
+         * =================================================
+         * DUPLICATE ROUTE
+         * =================================================
          */
+
+
+        rejectedPlans.push(
+            result.plan
+        );
 
 
         if(
@@ -694,6 +996,7 @@ export async function createAlternativePlan(
 
                 generationAttempt,
 
+
                 fingerprint:
 
                     diversity.fingerprint
@@ -701,6 +1004,34 @@ export async function createAlternativePlan(
                     ||
 
                     null,
+
+
+                searchQueries:
+
+                    diversity.searchQueries
+
+                    ||
+
+                    [],
+
+
+                sourceUrls:
+
+                    diversity.sourceUrls
+
+                    ||
+
+                    [],
+
+
+                routeSummary:
+
+                    diversity.routeSummary
+
+                    ||
+
+                    null,
+
 
                 reason:
 
@@ -729,11 +1060,23 @@ export async function createAlternativePlan(
         success:
             false,
 
+
         reason:
 
-            "Replanner не смог сформировать новый Execution route: все предложенные планы повторяли уже испробованные стратегии",
+            (
+                "Replanner не смог сформировать новый Execution route: " +
+                "все предложенные планы повторяли уже испробованные стратегии"
+            ),
 
-        rejectedFingerprints
+
+        rejectedFingerprints,
+
+
+        rejectedRoutes:
+
+            collectRejectedPlanFacts(
+                rejectedPlans
+            )
 
     };
 
@@ -782,8 +1125,8 @@ export function applyAlternativePlan(
 
 
     /*
-     * Старые результаты принадлежат
-     * предыдущему маршруту.
+     * Результаты относятся
+     * к предыдущему маршруту.
      */
 
 
@@ -847,4 +1190,4 @@ export function canReplan(
 
     );
 
-}
+            }
