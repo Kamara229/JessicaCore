@@ -1,15 +1,23 @@
 /*
  * =========================================================
- * JESSICA PLANNING CONTEXT TEXT v2
+ * JESSICA PLANNING CONTEXT TEXT v3
  * =========================================================
  *
- * Компактный renderer PlanningContext для AI Planner.
+ * Renderer PlanningContext для AI Planner.
  *
- * Важно:
- * PlanningContext не изменяется.
  *
- * Этот модуль только выбирает данные,
- * действительно необходимые Planner.
+ * PRIORITY:
+ *
+ * 1. instructions;
+ * 2. constraints;
+ * 3. Experience;
+ * 4. plannerHints.
+ *
+ *
+ * Это критично для Replan:
+ *
+ * retry / diversification instructions
+ * не должны быть вытеснены длинным Experience.
  *
  * =========================================================
  */
@@ -21,9 +29,27 @@ import {
 } from "./planningContext.js";
 
 
-const MAX_CONTEXT_LENGTH = 4500;
+/*
+ * =========================================================
+ * LIMITS
+ * =========================================================
+ */
 
-const MAX_ARRAY_ITEMS = 10;
+
+const MAX_CONTEXT_LENGTH =
+    4500;
+
+
+const MAX_DEFAULT_ARRAY_ITEMS =
+    10;
+
+
+const MAX_INSTRUCTION_ITEMS =
+    24;
+
+
+const MAX_CONSTRAINT_ITEMS =
+    16;
 
 
 /*
@@ -53,12 +79,15 @@ function safeString(
 
 
 function formatArray(
-    value
+    value,
+    maxItems = MAX_DEFAULT_ARRAY_ITEMS
 ) {
 
-    if (
-        !Array.isArray(value)
-    ) {
+    if(
+        !Array.isArray(
+            value
+        )
+    ){
 
         return "";
 
@@ -66,20 +95,23 @@ function formatArray(
 
 
     return value
+
         .slice(
             0,
-            MAX_ARRAY_ITEMS
+            maxItems
         )
+
         .map(
             safeString
         )
-        .filter(
-            Boolean
-        )
+
+        .filter(Boolean)
+
         .map(
             item =>
                 `- ${item}`
         )
+
         .join("\n");
 
 }
@@ -94,16 +126,21 @@ function formatArray(
 
 function formatSection(
     title,
-    value
+    value,
+    maxItems = MAX_DEFAULT_ARRAY_ITEMS
 ) {
 
     const text =
+
         formatArray(
-            value
+            value,
+            maxItems
         );
 
 
-    if (!text) {
+    if(
+        !text
+    ){
 
         return "";
 
@@ -111,8 +148,11 @@ function formatSection(
 
 
     return [
+
         title,
+
         text
+
     ]
         .join("\n");
 
@@ -130,40 +170,38 @@ function formatExperience(
     experience
 ) {
 
-    if (
-        !experience ||
+    if(
+        !experience
+        ||
         typeof experience !== "object"
-    ) {
+    ){
 
         return "";
 
     }
 
 
-    const blocks = [];
+    const blocks =
+        [];
 
 
     /*
-     * -----------------------------------------------------
+     * =====================================================
      * IDENTITY
-     * -----------------------------------------------------
-     *
-     * Planner достаточно понимать,
-     * какой Skill применяется.
-     *
-     * Внутренние ID, version и confidence
-     * остаются в PlanningContext,
-     * но в AI prompt не передаются.
+     * =====================================================
      */
 
 
     const name =
+
         safeString(
             experience.name
         );
 
 
-    if (name) {
+    if(
+        name
+    ){
 
         blocks.push(
             `Skill: ${name}`
@@ -173,90 +211,128 @@ function formatExperience(
 
 
     /*
-     * -----------------------------------------------------
+     * =====================================================
      * DESCRIPTION
-     * -----------------------------------------------------
+     * =====================================================
      */
 
 
     const description =
+
         safeString(
             experience.description
         );
 
 
-    if (description) {
+    if(
+        description
+    ){
 
         blocks.push(
+
             [
+
                 "Описание:",
+
                 description
+
             ]
                 .join("\n")
+
         );
 
     }
 
 
     /*
-     * -----------------------------------------------------
-     * EXECUTION KNOWLEDGE
-     * -----------------------------------------------------
+     * =====================================================
+     * KNOWLEDGE
+     * =====================================================
      */
 
 
     blocks.push(
+
         formatSection(
+
             "Стратегия:",
+
             experience.strategy
+
         )
+
     );
 
 
     blocks.push(
+
         formatSection(
+
             "Приоритет источников:",
+
             experience.sourcePriority
+
         )
+
     );
 
 
     blocks.push(
+
         formatSection(
+
             "Правила проверки:",
+
             experience.validationRules
+
         )
+
     );
 
 
     blocks.push(
+
         formatSection(
+
             "Известные ошибки:",
+
             experience.failurePatterns
+
         )
+
     );
 
 
     blocks.push(
+
         formatSection(
+
             "Успешные подходы:",
+
             experience.successfulPatterns
+
         )
+
     );
 
 
     blocks.push(
+
         formatSection(
+
             "Избегать:",
+
             experience.avoidPatterns
+
         )
+
     );
 
 
     return blocks
-        .filter(
-            Boolean
-        )
+
+        .filter(Boolean)
+
         .join("\n\n");
 
 }
@@ -264,7 +340,7 @@ function formatExperience(
 
 /*
  * =========================================================
- * BUILD CONTEXT TEXT
+ * BUILD
  * =========================================================
  */
 
@@ -273,11 +349,11 @@ export function buildPlanningContextText(
     context
 ) {
 
-    if (
+    if(
         !hasPlanningContext(
             context
         )
-    ) {
+    ){
 
         return "";
 
@@ -285,77 +361,46 @@ export function buildPlanningContextText(
 
 
     const normalized =
+
         normalizePlanningContext(
             context
         );
 
 
-    const blocks = [];
+    const blocks =
+        [];
 
 
     /*
      * =====================================================
-     * EXPERIENCE
-     * =====================================================
-     */
-
-
-    const experienceText =
-        formatExperience(
-            normalized.experience
-        );
-
-
-    if (experienceText) {
-
-        blocks.push(
-            [
-                "=== EXPERIENCE ===",
-                experienceText
-            ]
-                .join("\n\n")
-        );
-
-    }
-
-
-    /*
-     * =====================================================
-     * CONTEXT-LEVEL RULES
+     * 1. INSTRUCTIONS
      * =====================================================
      *
-     * sourceRules намеренно НЕ выводим отдельно.
+     * Ставим первыми.
      *
-     * Они формируются из sourcePriority Experience
-     * и иначе дублируют уже переданную информацию.
+     * Retry / Replan constraints
+     * должны пережить общий length limit.
+     *
      * =====================================================
      */
-
-
-    const constraints =
-        formatSection(
-            "=== ОГРАНИЧЕНИЯ ===",
-            normalized.constraints
-        );
-
-
-    if (constraints) {
-
-        blocks.push(
-            constraints
-        );
-
-    }
 
 
     const instructions =
+
         formatSection(
+
             "=== ИНСТРУКЦИИ ===",
-            normalized.instructions
+
+            normalized.instructions,
+
+            MAX_INSTRUCTION_ITEMS
+
         );
 
 
-    if (instructions) {
+    if(
+        instructions
+    ){
 
         blocks.push(
             instructions
@@ -364,14 +409,92 @@ export function buildPlanningContextText(
     }
 
 
-    const hints =
+    /*
+     * =====================================================
+     * 2. CONSTRAINTS
+     * =====================================================
+     */
+
+
+    const constraints =
+
         formatSection(
-            "=== PLANNER HINTS ===",
-            normalized.plannerHints
+
+            "=== ОГРАНИЧЕНИЯ ===",
+
+            normalized.constraints,
+
+            MAX_CONSTRAINT_ITEMS
+
         );
 
 
-    if (hints) {
+    if(
+        constraints
+    ){
+
+        blocks.push(
+            constraints
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * 3. EXPERIENCE
+     * =====================================================
+     */
+
+
+    const experienceText =
+
+        formatExperience(
+            normalized.experience
+        );
+
+
+    if(
+        experienceText
+    ){
+
+        blocks.push(
+
+            [
+
+                "=== EXPERIENCE ===",
+
+                experienceText
+
+            ]
+                .join("\n\n")
+
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * 4. PLANNER HINTS
+     * =====================================================
+     */
+
+
+    const hints =
+
+        formatSection(
+
+            "=== PLANNER HINTS ===",
+
+            normalized.plannerHints
+
+        );
+
+
+    if(
+        hints
+    ){
 
         blocks.push(
             hints
@@ -382,14 +505,14 @@ export function buildPlanningContextText(
 
     /*
      * =====================================================
-     * NO CONTEXT
+     * EMPTY
      * =====================================================
      */
 
 
-    if (
+    if(
         blocks.length === 0
-    ) {
+    ){
 
         return "";
 
@@ -398,18 +521,30 @@ export function buildPlanningContextText(
 
     /*
      * =====================================================
-     * FINAL TEXT
+     * FINAL
      * =====================================================
      */
 
 
     let result =
+
         [
+
             "КОНТЕКСТ JESSICA:",
+
             "",
-            blocks.join("\n\n"),
+
+            blocks.join(
+                "\n\n"
+            ),
+
             "",
-            "Experience является рекомендацией; применяй только релевантные правила."
+
+            (
+                "Experience является рекомендацией; " +
+                "явные инструкции и ограничения текущей задачи имеют приоритет."
+            )
+
         ]
             .join("\n")
             .trim();
@@ -422,19 +557,27 @@ export function buildPlanningContextText(
      */
 
 
-    if (
-        result.length >
+    if(
+        result.length
+        >
         MAX_CONTEXT_LENGTH
-    ) {
+    ){
 
         result =
+
             (
                 result.slice(
+
                     0,
+
                     MAX_CONTEXT_LENGTH
+
                 )
+
                 +
+
                 "\n\n[Контекст сокращён]"
+
             );
 
     }
