@@ -1,10 +1,12 @@
 import {
-    getGroqClient
-} from "../../ai/groqClient.js";
+    requestLearningAnalyzerAI
+} from "../../ai/learningAnalyzerClient.js";
+
 
 import {
     LEARNING_ANALYZER_SYSTEM_PROMPT
 } from "./learningAnalyzerPrompt.js";
+
 
 import {
     LEARNING_ANALYZER_RESPONSE_FORMAT
@@ -13,54 +15,45 @@ import {
 
 /*
  * =========================================================
- * JESSICA LEARNING ANALYZER REQUEST
+ * JESSICA LEARNING ANALYZER REQUEST v2
  * =========================================================
  *
- * Отвечает только за обращение к AI-модели.
+ * Подготавливает semantic input
+ * для Learning Analyzer.
  *
  *
- * Цепочка:
+ * Flow:
  *
  * correction
  *      ↓
  * Learning Analyzer Request
  *      ↓
- * Groq Structured Output
+ * Learning Analyzer AI Client
+ *      ↓
+ * Structured Output
  *      ↓
  * JSON string
  *      ↓
  * Parser
  *
  *
- * НЕ отвечает за:
+ * AI transport:
  *
- * - анализ смысла;
- * - validation;
- * - создание Skill;
- * - сохранение Experience;
- * - approval.
+ * backend/ai/learningAnalyzerClient.js
+ *
+ *
+ * НЕ:
+ *
+ * - создаёт Groq client;
+ * - управляет technical retry;
+ * - анализирует смысл результата;
+ * - валидирует Proposal;
+ * - создаёт Skill;
+ * - сохраняет Experience;
+ * - выполняет approval.
  *
  * =========================================================
  */
-
-
-/*
- * =========================================================
- * CONFIG
- * =========================================================
- */
-
-
-const LEARNING_ANALYZER_MODEL =
-    "openai/gpt-oss-20b";
-
-
-const LEARNING_ANALYZER_TEMPERATURE =
-    0;
-
-
-const LEARNING_ANALYZER_MAX_TOKENS =
-    4000;
 
 
 /*
@@ -76,7 +69,8 @@ function normalizeText(
 
     return String(
         value || ""
-    ).trim();
+    )
+        .trim();
 
 }
 
@@ -100,18 +94,25 @@ function buildLearningPrompt({
 
 }) {
 
+    const parts = [
 
-    const parts =
-        [
+        "ИСХОДНАЯ ЗАДАЧА:",
 
-            "ИСХОДНАЯ ЗАДАЧА:",
+        task
 
-            task
-
-        ];
+    ];
 
 
-    if (previousAnswer) {
+    /*
+     * =====================================================
+     * PREVIOUS ANSWER
+     * =====================================================
+     */
+
+
+    if(
+        previousAnswer
+    ){
 
         parts.push(
 
@@ -126,6 +127,13 @@ function buildLearningPrompt({
     }
 
 
+    /*
+     * =====================================================
+     * USER CORRECTION
+     * =====================================================
+     */
+
+
     parts.push(
 
         "",
@@ -137,7 +145,16 @@ function buildLearningPrompt({
     );
 
 
-    if (correctedAnswer) {
+    /*
+     * =====================================================
+     * CORRECTED ANSWER
+     * =====================================================
+     */
+
+
+    if(
+        correctedAnswer
+    ){
 
         parts.push(
 
@@ -150,6 +167,13 @@ function buildLearningPrompt({
         );
 
     }
+
+
+    /*
+     * =====================================================
+     * ANALYSIS INSTRUCTION
+     * =====================================================
+     */
 
 
     parts.push(
@@ -191,6 +215,40 @@ export async function requestLearningAnalysis({
 
 } = {}) {
 
+    /*
+     * =====================================================
+     * NORMALIZE INPUT
+     * =====================================================
+     */
+
+
+    const cleanTask =
+
+        normalizeText(
+            task
+        );
+
+
+    const cleanPreviousAnswer =
+
+        normalizeText(
+            previousAnswer
+        );
+
+
+    const cleanCorrection =
+
+        normalizeText(
+            correction
+        );
+
+
+    const cleanCorrectedAnswer =
+
+        normalizeText(
+            correctedAnswer
+        );
+
 
     /*
      * =====================================================
@@ -199,31 +257,9 @@ export async function requestLearningAnalysis({
      */
 
 
-    const cleanTask =
-        normalizeText(
-            task
-        );
-
-
-    const cleanPreviousAnswer =
-        normalizeText(
-            previousAnswer
-        );
-
-
-    const cleanCorrection =
-        normalizeText(
-            correction
-        );
-
-
-    const cleanCorrectedAnswer =
-        normalizeText(
-            correctedAnswer
-        );
-
-
-    if (!cleanTask) {
+    if(
+        !cleanTask
+    ){
 
         throw new Error(
             "Learning Analyzer: исходная задача не указана"
@@ -232,7 +268,9 @@ export async function requestLearningAnalysis({
     }
 
 
-    if (!cleanCorrection) {
+    if(
+        !cleanCorrection
+    ){
 
         throw new Error(
             "Learning Analyzer: исправление пользователя не указано"
@@ -243,16 +281,13 @@ export async function requestLearningAnalysis({
 
     /*
      * =====================================================
-     * GROQ
+     * USER PROMPT
      * =====================================================
      */
 
 
-    const groq =
-        getGroqClient();
-
-
     const userPrompt =
+
         buildLearningPrompt({
 
             task:
@@ -270,68 +305,40 @@ export async function requestLearningAnalysis({
         });
 
 
+    /*
+     * =====================================================
+     * AI REQUEST
+     * =====================================================
+     */
+
 
     try {
 
 
+        const response =
+
+            await requestLearningAnalyzerAI({
+
+                systemPrompt:
+                    LEARNING_ANALYZER_SYSTEM_PROMPT,
+
+                userPrompt,
+
+                responseFormat:
+                    LEARNING_ANALYZER_RESPONSE_FORMAT
+
+            });
+
+
         /*
          * =================================================
-         * STRUCTURED OUTPUT REQUEST
+         * CONTENT
          * =================================================
          */
 
 
-        const response =
-            await groq
-                .chat
-                .completions
-                .create({
-
-                    model:
-                        LEARNING_ANALYZER_MODEL,
-
-
-                    temperature:
-                        LEARNING_ANALYZER_TEMPERATURE,
-
-
-                    max_completion_tokens:
-                        LEARNING_ANALYZER_MAX_TOKENS,
-
-
-                    response_format:
-                        LEARNING_ANALYZER_RESPONSE_FORMAT,
-
-
-                    messages: [
-
-                        {
-
-                            role:
-                                "system",
-
-                            content:
-                                LEARNING_ANALYZER_SYSTEM_PROMPT
-
-                        },
-
-                        {
-
-                            role:
-                                "user",
-
-                            content:
-                                userPrompt
-
-                        }
-
-                    ]
-
-                });
-
-
-
         const content =
+
             response
                 ?.choices
                 ?.[0]
@@ -339,7 +346,9 @@ export async function requestLearningAnalysis({
                 ?.content;
 
 
-        if (!content) {
+        if(
+            !content
+        ){
 
             throw new Error(
                 "Learning Analyzer: AI вернул пустой ответ"
@@ -351,23 +360,38 @@ export async function requestLearningAnalysis({
         return content;
 
 
-    } catch (error) {
+    }catch(error){
+
+
+        /*
+         * Technical AI retry уже был выполнен
+         * внутри learningAnalyzerClient.
+         *
+         * Здесь ошибка только логируется
+         * и передаётся вызывающему модулю.
+         */
 
 
         console.error(
+
             "Jessica Learning Analyzer request failed:",
+
             {
 
+                status:
+                    error?.status || 0,
+
                 message:
-                    error?.message,
+                    error?.message || String(error),
 
                 code:
-                    error?.code,
+                    error?.code || null,
 
                 type:
-                    error?.type
+                    error?.type || null
 
             }
+
         );
 
 
