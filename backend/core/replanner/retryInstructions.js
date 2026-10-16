@@ -1,30 +1,22 @@
 /*
  * =========================================================
  * JESSICA REPLANNER
- * RETRY INSTRUCTIONS v2
+ * RETRY INSTRUCTIONS v3
  * =========================================================
  *
  * Формирует инструкции Planner
  * после неудачного Execution.
  *
  *
- * v2:
+ * v3:
  *
- * - учитывает rejected source URLs;
- * - распознаёт source-validation failure;
- * - запрещает повторно использовать
- *   недостаточный источник;
- * - заставляет искать источник,
- *   содержащий именно нужный факт;
- * - сохраняет требуемый evidence strength.
+ * - hard diversification constraints;
+ * - forbidden search queries;
+ * - forbidden source URLs;
+ * - rejected route summaries;
+ * - source validation handling;
+ * - защита от повторения semantic route.
  *
- * =========================================================
- */
-
-
-/*
- * =========================================================
- * CONFIG
  * =========================================================
  */
 
@@ -33,9 +25,13 @@ const MAX_REASON_LENGTH =
     900;
 
 
+const MAX_ROUTE_SUMMARY_LENGTH =
+    500;
+
+
 /*
  * =========================================================
- * SAFE STRING
+ * SAFE
  * =========================================================
  */
 
@@ -53,9 +49,24 @@ function safeString(
 }
 
 
+function safeArray(
+    value
+) {
+
+    return Array.isArray(
+        value
+    )
+
+        ? value
+
+        : [];
+
+}
+
+
 /*
  * =========================================================
- * UNIQUE STRINGS
+ * UNIQUE
  * =========================================================
  */
 
@@ -64,22 +75,13 @@ function uniqueStrings(
     values
 ) {
 
-    if(
-        !Array.isArray(
-            values
-        )
-    ){
-
-        return [];
-
-    }
-
-
     return [
 
         ...new Set(
 
-            values
+            safeArray(
+                values
+            )
 
                 .map(
                     item =>
@@ -99,7 +101,7 @@ function uniqueStrings(
 
 /*
  * =========================================================
- * LIMIT TEXT
+ * LIMIT
  * =========================================================
  */
 
@@ -143,7 +145,7 @@ function limitText(
 
 /*
  * =========================================================
- * RETRY INSTRUCTION DETECTION
+ * INTERNAL RETRY INSTRUCTION
  * =========================================================
  */
 
@@ -176,13 +178,13 @@ function isRetryInstruction(
 
         "Причина предыдущей ошибки:",
 
+        "Предыдущий evidence.mode:",
+
         "Уже использованные поисковые запросы:",
 
         "Уже проверенные источники:",
 
         "В предыдущей попытке использовались инструменты:",
-
-        "Предыдущий evidence.mode:",
 
         "Не повторяй уже неудачный маршрут",
 
@@ -200,7 +202,21 @@ function isRetryInstruction(
 
         "Для новой попытки сохрани",
 
-        "Не считай официальный домен"
+        "Не считай официальный домен",
+
+        "ОБЯЗАТЕЛЬНО сформируй новый Execution route.",
+
+        "ЗАПРЕЩЕНО повторять поисковые запросы:",
+
+        "ЗАПРЕЩЕНО повторно использовать источники:",
+
+        "Отклонённые альтернативные маршруты:",
+
+        "Новая стратегия должна отличаться",
+
+        "Не считай изменением маршрута",
+
+        "Не подставляй неподтверждённое"
 
     ];
 
@@ -253,7 +269,7 @@ function getBaseInstructions(
 
 /*
  * =========================================================
- * FORMAT VALUES
+ * FORMAT
  * =========================================================
  */
 
@@ -262,10 +278,15 @@ function formatQuoted(
     values
 ) {
 
+    const normalized =
+
+        uniqueStrings(
+            values
+        );
+
+
     if(
-        !Array.isArray(values)
-        ||
-        values.length === 0
+        normalized.length === 0
     ){
 
         return "";
@@ -273,13 +294,13 @@ function formatQuoted(
     }
 
 
-    return uniqueStrings(
-        values
-    )
+    return normalized
+
         .map(
             value =>
                 `"${value}"`
         )
+
         .join("; ");
 
 }
@@ -289,21 +310,245 @@ function formatTools(
     tools
 ) {
 
-    if(
-        !Array.isArray(tools)
-        ||
-        tools.length === 0
-    ){
-
-        return "";
-
-    }
-
-
     return uniqueStrings(
         tools
     )
         .join(", ");
+
+}
+
+
+/*
+ * =========================================================
+ * FAILURE DETAILS
+ * =========================================================
+ */
+
+
+function getFailureDetails(
+    failureResult
+) {
+
+    const details =
+        failureResult?.details;
+
+
+    if(
+        !details
+        ||
+        typeof details !== "object"
+        ||
+        Array.isArray(
+            details
+        )
+    ){
+
+        return {};
+
+    }
+
+
+    return details;
+
+}
+
+
+/*
+ * =========================================================
+ * HARD DIVERSIFICATION
+ * =========================================================
+ */
+
+
+function buildDiversificationInstructions({
+
+    failureResult,
+
+    retryHistory
+
+}) {
+
+    const details =
+
+        getFailureDetails(
+            failureResult
+        );
+
+
+    if(
+        details.diversificationRequired
+        !==
+        true
+    ){
+
+        return [];
+
+    }
+
+
+    const forbiddenQueries =
+
+        uniqueStrings([
+
+            ...safeArray(
+                retryHistory?.triedSearchQueries
+            ),
+
+            ...safeArray(
+                details?.forbiddenSearchQueries
+            )
+
+        ]);
+
+
+    const forbiddenUrls =
+
+        uniqueStrings([
+
+            ...safeArray(
+                retryHistory?.triedSourceUrls
+            ),
+
+            ...safeArray(
+                details?.forbiddenSourceUrls
+            )
+
+        ]);
+
+
+    const rejectedRoutes =
+
+        uniqueStrings(
+            details?.rejectedRouteSummaries
+        )
+            .map(
+                route =>
+                    limitText(
+                        route,
+                        MAX_ROUTE_SUMMARY_LENGTH
+                    )
+            );
+
+
+    const instructions = [
+
+        (
+            "ОБЯЗАТЕЛЬНО сформируй новый Execution route. " +
+            "Предыдущая стратегия уже признана неуспешной."
+        )
+
+    ];
+
+
+    /*
+     * =====================================================
+     * FORBIDDEN QUERIES
+     * =====================================================
+     */
+
+
+    if(
+        forbiddenQueries.length > 0
+    ){
+
+        instructions.push(
+
+            (
+                "ЗАПРЕЩЕНО повторять поисковые запросы: "
+                +
+                formatQuoted(
+                    forbiddenQueries
+                )
+            )
+
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * FORBIDDEN URLS
+     * =====================================================
+     */
+
+
+    if(
+        forbiddenUrls.length > 0
+    ){
+
+        instructions.push(
+
+            (
+                "ЗАПРЕЩЕНО повторно использовать источники: "
+                +
+                formatQuoted(
+                    forbiddenUrls
+                )
+            )
+
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * REJECTED ROUTES
+     * =====================================================
+     */
+
+
+    if(
+        rejectedRoutes.length > 0
+    ){
+
+        instructions.push(
+
+            (
+                "Отклонённые альтернативные маршруты: "
+                +
+                rejectedRoutes.join(
+                    " || "
+                )
+            )
+
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * SEMANTIC DIVERSITY
+     * =====================================================
+     */
+
+
+    instructions.push(
+
+        (
+            "Новая стратегия должна отличаться хотя бы по одному " +
+            "содержательному параметру: поисковому запросу, целевому " +
+            "источнику, типу страницы, последовательности действий " +
+            "или способу получения требуемого факта."
+        ),
+
+        (
+            "Не считай изменением маршрута только новый reasoningSummary, " +
+            "другие имена step.id, перестановку слов без изменения смысла " +
+            "или повтор тех же arguments."
+        ),
+
+        (
+            "Не подставляй неподтверждённое конкретное значение " +
+            "только для того, чтобы сформировать другой поисковый запрос."
+        )
+
+    );
+
+
+    return instructions;
 
 }
 
@@ -330,7 +575,7 @@ function isSourceValidationFailure({
         safeString(
             failureType
         )
-        .toLowerCase();
+            .toLowerCase();
 
 
     const normalizedReason =
@@ -338,7 +583,7 @@ function isSourceValidationFailure({
         safeString(
             reason
         )
-        .toLowerCase();
+            .toLowerCase();
 
 
     const previousEvidenceMode =
@@ -350,12 +595,7 @@ function isSourceValidationFailure({
                 ?.evidenceMode
 
         )
-        .toLowerCase();
-
-
-    /*
-     * Явные типы.
-     */
+            .toLowerCase();
 
 
     if(
@@ -369,14 +609,6 @@ function isSourceValidationFailure({
         return true;
 
     }
-
-
-    /*
-     * Если предыдущий Plan требовал source_content,
-     * а Validator сообщил, что содержимого
-     * недостаточно — это source failure,
-     * даже если общий failureType = validation-error.
-     */
 
 
     if(
@@ -412,18 +644,12 @@ function isSourceValidationFailure({
         ];
 
 
-        if(
-            patterns.some(
-                pattern =>
-                    normalizedReason.includes(
-                        pattern
-                    )
-            )
-        ){
-
-            return true;
-
-        }
+        return patterns.some(
+            pattern =>
+                normalizedReason.includes(
+                    pattern
+                )
+        );
 
     }
 
@@ -464,7 +690,7 @@ function buildSearchFailureInstructions(
 
         (
             "Сформируй другой поисковый запрос: " +
-            "не повторяй уже использованную формулировку без изменений."
+            "измени смысловую стратегию поиска, а не только порядок слов."
         ),
 
         (
@@ -479,7 +705,7 @@ function buildSearchFailureInstructions(
 
 /*
  * =========================================================
- * SOURCE FAILURE INSTRUCTIONS
+ * SOURCE FAILURE
  * =========================================================
  */
 
@@ -511,7 +737,7 @@ function buildSourceFailureInstructions({
     }
 
 
-    const instructions = [
+    return [
 
         (
             "Предыдущий источник не содержал фактических данных, " +
@@ -525,12 +751,12 @@ function buildSourceFailureInstructions({
 
         (
             "Найди другой источник или более конкретную страницу, " +
-            "где требуемый факт явно присутствует в содержимом."
+            "где требуемый факт непосредственно присутствует."
         ),
 
         (
             "Не считай официальный домен достаточным доказательством сам по себе: " +
-            "страница должна непосредственно подтверждать требуемое утверждение."
+            "страница должна подтверждать именно требуемое утверждение."
         ),
 
         (
@@ -540,39 +766,12 @@ function buildSourceFailureInstructions({
 
     ];
 
-
-    const previousUrls =
-
-        formatQuoted(
-            retryHistory?.triedSourceUrls
-        );
-
-
-    if(
-        previousUrls
-    ){
-
-        instructions.push(
-
-            (
-                "Уже проверенные источники: "
-                +
-                previousUrls
-            )
-
-        );
-
-    }
-
-
-    return instructions;
-
 }
 
 
 /*
  * =========================================================
- * BUILD RETRY INSTRUCTIONS
+ * BUILD
  * =========================================================
  */
 
@@ -587,7 +786,6 @@ export function buildRetryInstructions({
 
 } = {}) {
 
-
     /*
      * =====================================================
      * BASE
@@ -600,13 +798,6 @@ export function buildRetryInstructions({
         getBaseInstructions(
             planningContext
         );
-
-
-    /*
-     * =====================================================
-     * FAILURE
-     * =====================================================
-     */
 
 
     const failureType =
@@ -627,6 +818,13 @@ export function buildRetryInstructions({
             failureResult?.text
 
         );
+
+
+    /*
+     * =====================================================
+     * CORE FAILURE
+     * =====================================================
+     */
 
 
     instructions.push(
@@ -664,7 +862,33 @@ export function buildRetryInstructions({
 
     /*
      * =====================================================
-     * PREVIOUS EVIDENCE MODE
+     * HARD DIVERSIFICATION
+     * =====================================================
+     *
+     * Намеренно ставим ДО обычной истории,
+     * чтобы эти правила первыми попали
+     * в ограниченный Planning Context.
+     *
+     * =====================================================
+     */
+
+
+    instructions.push(
+
+        ...buildDiversificationInstructions({
+
+            failureResult,
+
+            retryHistory
+
+        })
+
+    );
+
+
+    /*
+     * =====================================================
+     * EVIDENCE MODE
      * =====================================================
      */
 
@@ -695,7 +919,7 @@ export function buildRetryInstructions({
 
     /*
      * =====================================================
-     * SEARCH HISTORY
+     * HISTORY
      * =====================================================
      */
 
@@ -724,13 +948,6 @@ export function buildRetryInstructions({
     }
 
 
-    /*
-     * =====================================================
-     * SOURCE HISTORY
-     * =====================================================
-     */
-
-
     const triedSourceUrls =
 
         formatQuoted(
@@ -753,13 +970,6 @@ export function buildRetryInstructions({
         );
 
     }
-
-
-    /*
-     * =====================================================
-     * USED TOOLS
-     * =====================================================
-     */
 
 
     const usedTools =
@@ -808,7 +1018,7 @@ export function buildRetryInstructions({
 
     /*
      * =====================================================
-     * FAILURE-SPECIFIC RULES
+     * FAILURE-SPECIFIC
      * =====================================================
      */
 
@@ -835,13 +1045,6 @@ export function buildRetryInstructions({
         })
 
     );
-
-
-    /*
-     * =====================================================
-     * RESULT
-     * =====================================================
-     */
 
 
     return uniqueStrings(
