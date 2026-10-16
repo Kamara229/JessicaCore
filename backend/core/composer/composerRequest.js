@@ -1,68 +1,44 @@
 /*
  * =========================================================
- * JESSICA COMPOSER REQUEST v2
+ * JESSICA COMPOSER REQUEST v3
  * =========================================================
  *
- * AI transport layer Answer Composer.
+ * Координатор запроса Answer Composer.
  *
  *
- * Ответственность:
+ * AI transport:
  *
- * - модель Composer;
- * - системный prompt;
- * - AI request;
- * - technical AI retry.
+ * backend/ai/composerClient.js
  *
  *
- * Общий Groq client:
+ * Этот файл:
  *
- * backend/ai/groqClient.js
+ * - получает Composer prompt;
+ * - проверяет input;
+ * - вызывает AI client.
  *
  *
  * НЕ:
  *
- * - создаёт собственный OpenAI client;
- * - подготавливает factual context;
+ * - создаёт OpenAI client;
+ * - управляет retry;
  * - выполняет tools;
- * - валидирует результат;
- * - определяет semantic outcome.
+ * - валидирует факты.
  *
  * =========================================================
  */
 
 
 import {
-    getGroqClient
-} from "../../ai/groqClient.js";
-
-
-import {
-    executeAIWithRetry
-} from "../../ai/aiRetry.js";
+    isComposerClientAvailable,
+    requestComposerAI,
+    getComposerModel
+} from "../../ai/composerClient.js";
 
 
 import {
     getComposerInstructions
 } from "./composerPrompt.js";
-
-
-/*
- * =========================================================
- * CONFIG
- * =========================================================
- */
-
-
-const COMPOSER_MODEL =
-    "openai/gpt-oss-20b";
-
-
-const COMPOSER_TEMPERATURE =
-    0.2;
-
-
-const COMPOSER_AI_ATTEMPTS =
-    3;
 
 
 /*
@@ -75,9 +51,7 @@ const COMPOSER_AI_ATTEMPTS =
 export function isComposerAvailable()
 {
 
-    return Boolean(
-        process.env.GROQ_API_KEY
-    );
+    return isComposerClientAvailable();
 
 }
 
@@ -119,23 +93,9 @@ export async function requestComposerAnswer(
     input
 ) {
 
-    /*
-     * =====================================================
-     * INPUT
-     * =====================================================
-     */
-
-
     validateComposerInput(
         input
     );
-
-
-    /*
-     * =====================================================
-     * AVAILABILITY
-     * =====================================================
-     */
 
 
     if(
@@ -149,82 +109,15 @@ export async function requestComposerAnswer(
     }
 
 
-    /*
-     * =====================================================
-     * CLIENT
-     * =====================================================
-     */
+    return await requestComposerAI({
 
+        instructions:
 
-    const groq =
-        getGroqClient();
+            getComposerInstructions(),
 
+        input
 
-    const instructions =
-        getComposerInstructions();
-
-
-    /*
-     * =====================================================
-     * AI REQUEST
-     * =====================================================
-     */
-
-
-    return await executeAIWithRetry(
-
-        async () => {
-
-            return await groq
-                .chat
-                .completions
-                .create({
-
-                    model:
-                        COMPOSER_MODEL,
-
-                    temperature:
-                        COMPOSER_TEMPERATURE,
-
-                    messages: [
-
-                        {
-
-                            role:
-                                "system",
-
-                            content:
-                                instructions
-
-                        },
-
-                        {
-
-                            role:
-                                "user",
-
-                            content:
-                                input
-
-                        }
-
-                    ]
-
-                });
-
-        },
-
-        {
-
-            label:
-                "Jessica Answer Composer AI",
-
-            maxAttempts:
-                COMPOSER_AI_ATTEMPTS
-
-        }
-
-    );
+    });
 
 }
 
@@ -236,9 +129,6 @@ export async function requestComposerAnswer(
  */
 
 
-export function getComposerModel()
-{
-
-    return COMPOSER_MODEL;
-
-}
+export {
+    getComposerModel
+};
