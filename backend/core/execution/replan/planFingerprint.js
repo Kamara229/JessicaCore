@@ -1,27 +1,27 @@
 /*
  * =========================================================
- * JESSICA EXECUTION PLAN FINGERPRINT v1
+ * JESSICA EXECUTION PLAN FINGERPRINT v2
  * =========================================================
  *
- * Определяет семантическую идентичность
- * Execution Plan на уровне маршрута.
- *
- *
- * Используется для защиты от:
- *
- * Failed Plan
- *      ↓
- * Replan
- *      ↓
- * фактически тот же Failed Plan
+ * Определяет идентичность Execution Plan
+ * на уровне исполняемого маршрута.
  *
  *
  * В fingerprint входят:
  *
  * - evidence.mode;
+ * - requiresTools;
  * - tool sequence;
  * - tool arguments;
  * - зависимости $from.
+ *
+ *
+ * Нормализуются:
+ *
+ * - произвольные step IDs;
+ * - whitespace;
+ * - регистр search query;
+ * - URL hostname / fragment.
  *
  *
  * НЕ входят:
@@ -30,8 +30,7 @@
  * - metadata;
  * - generatedAt;
  * - plannerAttempt;
- * - Experience diagnostics;
- * - step.id как произвольное имя.
+ * - Experience diagnostics.
  *
  * =========================================================
  */
@@ -63,15 +62,154 @@ function normalizeText(
 
 /*
  * =========================================================
+ * NORMALIZE STRING
+ * =========================================================
+ */
+
+
+function normalizeStringValue(
+    value
+) {
+
+    return normalizeText(
+        value
+    )
+        .replace(
+            /\s+/g,
+            " "
+        );
+
+}
+
+
+/*
+ * =========================================================
+ * NORMALIZE SEARCH QUERY
+ * =========================================================
+ *
+ * Search query сравниваем без учёта:
+ *
+ * - регистра;
+ * - лишних пробелов.
+ *
+ * Поэтому:
+ *
+ * PostgreSQL Latest Release
+ *
+ * и
+ *
+ * postgresql   latest release
+ *
+ * считаются одним query.
+ *
+ * =========================================================
+ */
+
+
+function normalizeSearchQuery(
+    value
+) {
+
+    return normalizeStringValue(
+        value
+    )
+        .toLowerCase();
+
+}
+
+
+/*
+ * =========================================================
+ * NORMALIZE URL
+ * =========================================================
+ */
+
+
+function normalizeUrl(
+    value
+) {
+
+    const text =
+        normalizeStringValue(
+            value
+        );
+
+
+    if(
+        !text
+    ){
+
+        return "";
+
+    }
+
+
+    try {
+
+
+        const url =
+            new URL(
+                text
+            );
+
+
+        /*
+         * Fragment не меняет содержимое
+         * загружаемого HTTP resource.
+         */
+
+
+        url.hash =
+            "";
+
+
+        /*
+         * Scheme и hostname
+         * регистронезависимы.
+         */
+
+
+        url.protocol =
+            url.protocol.toLowerCase();
+
+
+        url.hostname =
+            url.hostname.toLowerCase();
+
+
+        return url.toString();
+
+
+    }catch(error){
+
+
+        /*
+         * Если это не абсолютный URL,
+         * не уничтожаем исходное значение.
+         */
+
+
+        return text;
+
+    }
+
+}
+
+
+/*
+ * =========================================================
  * STEP ID MAP
  * =========================================================
  *
  * AI может назвать одинаковые шаги:
  *
- * step_1 / search / find_source
+ * step_1
+ * search
+ * find_source
  *
- * Поэтому реальные ID заменяем
- * на стабильные positional IDs.
+ * Поэтому реальные IDs заменяются
+ * на positional IDs.
+ *
  * =========================================================
  */
 
@@ -86,7 +224,9 @@ function buildStepIdMap(
 
     const source =
 
-        Array.isArray(steps)
+        Array.isArray(
+            steps
+        )
 
             ? steps
 
@@ -131,42 +271,7 @@ function buildStepIdMap(
 
 /*
  * =========================================================
- * NORMALIZE STRING VALUE
- * =========================================================
- */
-
-
-function normalizeStringValue(
-    value
-) {
-
-    const text =
-
-        normalizeText(
-            value
-        );
-
-
-    /*
-     * Стабилизируем whitespace,
-     * но НЕ меняем регистр обычного текста:
-     *
-     * path / URL / query теоретически
-     * могут быть case-sensitive.
-     */
-
-
-    return text.replace(
-        /\s+/g,
-        " "
-    );
-
-}
-
-
-/*
- * =========================================================
- * CANONICALIZE
+ * CANONICALIZE VALUE
  * =========================================================
  */
 
@@ -176,19 +281,38 @@ function canonicalizeValue(
     stepIdMap
 ) {
 
+    /*
+     * =====================================================
+     * ARRAY
+     * =====================================================
+     */
+
+
     if(
-        Array.isArray(value)
+        Array.isArray(
+            value
+        )
     ){
 
         return value.map(
             item =>
                 canonicalizeValue(
+
                     item,
+
                     stepIdMap
+
                 )
         );
 
     }
+
+
+    /*
+     * =====================================================
+     * OBJECT
+     * =====================================================
+     */
 
 
     if(
@@ -199,11 +323,14 @@ function canonicalizeValue(
 
         const keys =
 
-            Object.keys(value)
+            Object.keys(
+                value
+            )
                 .sort();
 
 
-        const result = {};
+        const result =
+            {};
 
 
         for(
@@ -212,15 +339,11 @@ function canonicalizeValue(
         ){
 
             let item =
-
                 value[key];
 
 
             /*
-             * Нормализация $from.
-             *
-             * search_source и step_1
-             * становятся одним positional reference.
+             * Нормализуем dependency reference.
              */
 
 
@@ -266,6 +389,13 @@ function canonicalizeValue(
     }
 
 
+    /*
+     * =====================================================
+     * STRING
+     * =====================================================
+     */
+
+
     if(
         typeof value === "string"
     ){
@@ -275,6 +405,13 @@ function canonicalizeValue(
         );
 
     }
+
+
+    /*
+     * =====================================================
+     * PRIMITIVE
+     * =====================================================
+     */
 
 
     if(
@@ -291,6 +428,100 @@ function canonicalizeValue(
 
 
     return null;
+
+}
+
+
+/*
+ * =========================================================
+ * CANONICALIZE STEP ARGUMENTS
+ * =========================================================
+ */
+
+
+function canonicalizeStepArguments(
+    step,
+    stepIdMap
+) {
+
+    const tool =
+
+        normalizeText(
+            step?.tool
+        )
+            .toLowerCase();
+
+
+    const argumentsObject =
+
+        canonicalizeValue(
+
+            step?.arguments || {},
+
+            stepIdMap
+
+        );
+
+
+    if(
+        !argumentsObject
+        ||
+        typeof argumentsObject !== "object"
+        ||
+        Array.isArray(
+            argumentsObject
+        )
+    ){
+
+        return {};
+    }
+
+
+    /*
+     * =====================================================
+     * WEB SEARCH
+     * =====================================================
+     */
+
+
+    if(
+        tool === "web_search"
+        &&
+        typeof argumentsObject.query === "string"
+    ){
+
+        argumentsObject.query =
+
+            normalizeSearchQuery(
+                argumentsObject.query
+            );
+
+    }
+
+
+    /*
+     * =====================================================
+     * WEB FETCH
+     * =====================================================
+     */
+
+
+    if(
+        tool === "web_fetch"
+        &&
+        typeof argumentsObject.url === "string"
+    ){
+
+        argumentsObject.url =
+
+            normalizeUrl(
+                argumentsObject.url
+            );
+
+    }
+
+
+    return argumentsObject;
 
 }
 
@@ -333,9 +564,11 @@ export function buildCanonicalExecutionPlan(
             )
                 .toLowerCase(),
 
+
         requiresTools:
 
             plan?.requiresTools === true,
+
 
         steps:
 
@@ -349,11 +582,12 @@ export function buildCanonicalExecutionPlan(
                         )
                             .toLowerCase(),
 
+
                     arguments:
 
-                        canonicalizeValue(
+                        canonicalizeStepArguments(
 
-                            step?.arguments || {},
+                            step,
 
                             stepIdMap
 
