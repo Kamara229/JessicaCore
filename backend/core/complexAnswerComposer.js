@@ -1,47 +1,47 @@
-import OpenAI from "openai";
-
-
 import {
-    executeAIWithRetry
-} from "../ai/aiRetry.js";
+    isComplexComposerAvailable,
+    requestComplexComposerAnswer
+} from "../ai/complexComposerClient.js";
 
 
 /*
  * =========================================================
- * JESSICA COMPLEX ANSWER COMPOSER v2
+ * JESSICA COMPLEX ANSWER COMPOSER v3
  * =========================================================
  *
- * Объединяет результаты нескольких подзадач
- * в единый пользовательский ответ.
+ * Объединяет готовые результаты нескольких
+ * подзадач в единый пользовательский ответ.
  *
  *
- * v2:
+ * Flow:
  *
- * - использует общую AI Retry Policy;
- * - 429 / timeout / 5xx не приводят
- *   сразу к fallback;
- * - semantic содержание результатов
- *   никогда не пересчитывается.
+ * Completed Subtask Results
+ *          ↓
+ * Complex Composer AI
+ *          ↓
+ * Final Text
+ *
+ *
+ * Если AI недоступен:
+ *
+ * Completed Subtask Results
+ *          ↓
+ * Deterministic Fallback
+ *
+ *
+ * КРИТИЧЕСКО:
+ *
+ * Complex Composer:
+ *
+ * - не решает задачи заново;
+ * - не вызывает Tools;
+ * - не меняет факты;
+ * - не меняет statuses;
+ * - не создаёт AI client;
+ * - не управляет AI retry.
  *
  * =========================================================
  */
-
-
-const groq =
-
-    process.env.GROQ_API_KEY
-
-        ? new OpenAI({
-
-            apiKey:
-                process.env.GROQ_API_KEY,
-
-            baseURL:
-                "https://api.groq.com/openai/v1"
-
-        })
-
-        : null;
 
 
 /*
@@ -71,19 +71,20 @@ function formatResults(
         .map(
             item => {
 
-                return (
+                return [
 
-                    `Подзадача ${item.id ?? "?"}\n`
+                    `Подзадача ${item?.id ?? "?"}`,
 
-                    +
+                    `Статус: ${item?.status || "UNKNOWN"}`,
 
-                    `Статус: ${item.status}\n`
+                    "Результат:",
 
-                    +
+                    String(
+                        item?.result || ""
+                    )
 
-                    `Результат:\n${item.result || ""}`
-
-                );
+                ]
+                    .join("\n");
 
             }
         )
@@ -97,7 +98,143 @@ function formatResults(
 
 /*
  * =========================================================
- * FALLBACK
+ * FALLBACK ITEM
+ * =========================================================
+ */
+
+
+function buildFallbackItem(
+    item
+) {
+
+    const id =
+        item?.id ?? "?";
+
+
+    const status =
+
+        String(
+            item?.status || ""
+        )
+            .trim()
+            .toUpperCase();
+
+
+    const result =
+
+        String(
+            item?.result || ""
+        )
+            .trim();
+
+
+    /*
+     * =====================================================
+     * COMPLETED
+     * =====================================================
+     */
+
+
+    if(
+        status === "COMPLETED"
+    ){
+
+        return (
+
+            `${id}) ${result || "Выполнено."}`
+
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * NEEDS CLARIFICATION
+     * =====================================================
+     */
+
+
+    if(
+        status === "NEEDS_CLARIFICATION"
+    ){
+
+        return (
+
+            `${id}) Требуется уточнение: `
+
+            +
+
+            (
+                result
+
+                ||
+
+                "недостаточно данных."
+            )
+
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * BLOCKED
+     * =====================================================
+     */
+
+
+    if(
+        status === "BLOCKED"
+    ){
+
+        return (
+
+            `${id}) Не выполнено: зависимая подзадача была заблокирована.`
+
+            +
+
+            (
+                result
+                    ? ` ${result}`
+                    : ""
+            )
+
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * FAILED / OTHER
+     * =====================================================
+     */
+
+
+    return (
+
+        `${id}) Не выполнено: `
+
+        +
+
+        (
+            result
+
+            ||
+
+            "задача завершилась с ошибкой."
+        )
+
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * FALLBACK ANSWER
  * =========================================================
  */
 
@@ -129,59 +266,95 @@ function fallbackAnswer(
     return results
 
         .map(
-            item => {
-
-                if(
-                    item.status === "COMPLETED"
-                ){
-
-                    return (
-
-                        `${item.id}) ${item.result}`
-
-                    );
-
-                }
-
-
-                if(
-                    item.status === "NEEDS_CLARIFICATION"
-                ){
-
-                    return (
-
-                        `${item.id}) Требуется уточнение: ${item.result}`
-
-                    );
-
-                }
-
-
-                if(
-                    item.status === "BLOCKED"
-                ){
-
-                    return (
-
-                        `${item.id}) Не выполнено: зависимая подзадача была заблокирована. ${item.result || ""}`
-
-                    );
-
-                }
-
-
-                return (
-
-                    `${item.id}) Не выполнено: ${item.result || ""}`
-
-                );
-
-            }
+            buildFallbackItem
         )
 
         .join(
             "\n\n"
         );
+
+}
+
+
+/*
+ * =========================================================
+ * INSTRUCTIONS
+ * =========================================================
+ */
+
+
+function buildComplexComposerInstructions()
+{
+
+    return `
+Ты являешься модулем сборки ответа Jessica Core.
+
+Тебе переданы уже готовые результаты подзадач.
+
+Твои правила:
+
+1. Не решай задачи заново.
+2. Не используй внешние знания.
+3. Не добавляй отсутствующие данные.
+4. Не исправляй URL, email, телефоны, даты и числа.
+5. Не меняй смысл результатов.
+6. COMPLETED показывай как выполненный результат.
+7. NEEDS_CLARIFICATION показывай как требующий уточнения.
+8. FAILED показывай как не выполненный пункт.
+9. BLOCKED показывай как заблокированный зависимостью пункт.
+10. Не скрывай ошибки.
+11. Не показывай внутреннюю архитектуру Jessica.
+
+Ответ должен быть понятным пользователю.
+
+Язык ответа — язык пользователя.
+`.trim();
+
+}
+
+
+/*
+ * =========================================================
+ * INPUT
+ * =========================================================
+ */
+
+
+function buildComplexComposerInput({
+
+    originalTask,
+
+    subtaskRunResult,
+
+    results
+
+}) {
+
+    return `
+Исходная задача:
+
+${String(originalTask || "").trim()}
+
+
+Результаты подзадач:
+
+${formatResults(results)}
+
+
+Статистика:
+
+Всего:
+${Number(subtaskRunResult?.total || 0)}
+
+Выполнено:
+${Number(subtaskRunResult?.completed || 0)}
+
+Уточнение:
+${Number(subtaskRunResult?.needsClarification || 0)}
+
+Ошибки:
+${Number(subtaskRunResult?.failed || 0)}
+`.trim();
 
 }
 
@@ -216,7 +389,7 @@ export async function composeComplexAnswer(
 
     /*
      * =====================================================
-     * SINGLE RESULT
+     * SINGLE COMPLETED RESULT
      * =====================================================
      */
 
@@ -230,7 +403,10 @@ export async function composeComplexAnswer(
         return {
 
             text:
-                results[0].result || "",
+
+                String(
+                    results[0]?.result || ""
+                ),
 
             source:
                 "single-result"
@@ -248,7 +424,7 @@ export async function composeComplexAnswer(
 
 
     if(
-        !groq
+        !isComplexComposerAvailable()
     ){
 
         return {
@@ -269,7 +445,7 @@ export async function composeComplexAnswer(
 
     /*
      * =====================================================
-     * AI
+     * AI REQUEST
      * =====================================================
      */
 
@@ -279,86 +455,39 @@ export async function composeComplexAnswer(
 
         const response =
 
-            await executeAIWithRetry(
+            await requestComplexComposerAnswer({
 
-                () =>
-                    groq.responses.create({
+                instructions:
 
-                        model:
-                            "openai/gpt-oss-20b",
+                    buildComplexComposerInstructions(),
 
-                        instructions:
+                input:
 
-                            `
-Ты являешься модулем сборки ответа Jessica Core.
+                    buildComplexComposerInput({
 
-Тебе переданы уже готовые результаты подзадач.
+                        originalTask,
 
-Твои правила:
+                        subtaskRunResult,
 
-1. Не решай задачи заново.
-2. Не используй внешние знания.
-3. Не добавляй отсутствующие данные.
-4. Не исправляй URL, email, телефоны, даты и числа.
-5. Не меняй смысл результатов.
-6. COMPLETED показывай как выполненный результат.
-7. NEEDS_CLARIFICATION показывай как требующий уточнения.
-8. FAILED показывай как не выполненный пункт.
-9. BLOCKED показывай как заблокированный зависимостью пункт.
-10. Не скрывай ошибки.
-11. Не показывай внутреннюю архитектуру Jessica.
+                        results
 
-Ответ должен быть понятным пользователю.
-Язык ответа — язык пользователя.
-`,
+                    })
 
-                        input:
-
-                            `
-Исходная задача:
-
-${originalTask}
-
-
-Результаты подзадач:
-
-${formatResults(results)}
-
-
-Статистика:
-
-Всего:
-${subtaskRunResult.total || 0}
-
-Выполнено:
-${subtaskRunResult.completed || 0}
-
-Уточнение:
-${subtaskRunResult.needsClarification || 0}
-
-Ошибки:
-${subtaskRunResult.failed || 0}
-`
-
-                    }),
-
-                {
-
-                    label:
-                        "Jessica Complex Composer",
-
-                    maxAttempts:
-                        3
-
-                }
-
-            );
+            });
 
 
         const text =
 
-            response.output_text
+            response
+                ?.output_text
                 ?.trim();
+
+
+        /*
+         * =================================================
+         * EMPTY RESPONSE
+         * =================================================
+         */
 
 
         if(
@@ -379,6 +508,13 @@ ${subtaskRunResult.failed || 0}
             };
 
         }
+
+
+        /*
+         * =================================================
+         * SUCCESS
+         * =================================================
+         */
 
 
         return {
@@ -407,7 +543,12 @@ ${subtaskRunResult.failed || 0}
                     error?.code || null,
 
                 message:
-                    error?.message || String(error)
+
+                    error?.message
+
+                    ||
+
+                    String(error)
 
             }
 
@@ -415,10 +556,10 @@ ${subtaskRunResult.failed || 0}
 
 
         /*
-         * Очень важно:
+         * AI transport retry уже исчерпан.
          *
-         * сбой Composer не уничтожает
-         * уже готовые результаты Subtasks.
+         * Готовые результаты Subtasks
+         * не уничтожаем.
          */
 
 
