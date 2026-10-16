@@ -6,24 +6,28 @@
  * Координатор запроса Answer Composer.
  *
  *
+ * Flow:
+ *
+ * Composer Context
+ *      ↓
+ * Composer Prompt
+ *      ↓
+ * Composer AI Client
+ *
+ *
  * AI transport:
  *
  * backend/ai/composerClient.js
  *
  *
- * Этот файл:
- *
- * - получает Composer prompt;
- * - проверяет input;
- * - вызывает AI client.
- *
- *
  * НЕ:
  *
  * - создаёт OpenAI client;
- * - управляет retry;
+ * - знает Groq baseURL;
+ * - управляет technical retry;
  * - выполняет tools;
- * - валидирует факты.
+ * - валидирует факты;
+ * - определяет semantic outcome.
  *
  * =========================================================
  */
@@ -93,9 +97,23 @@ export async function requestComposerAnswer(
     input
 ) {
 
+    /*
+     * =====================================================
+     * INPUT
+     * =====================================================
+     */
+
+
     validateComposerInput(
         input
     );
+
+
+    /*
+     * =====================================================
+     * AVAILABILITY
+     * =====================================================
+     */
 
 
     if(
@@ -107,6 +125,13 @@ export async function requestComposerAnswer(
         );
 
     }
+
+
+    /*
+     * =====================================================
+     * AI CLIENT
+     * =====================================================
+     */
 
 
     return await requestComposerAI({
