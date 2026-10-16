@@ -1,38 +1,45 @@
 /*
  * =========================================================
- * JESSICA COMPOSER REQUEST
+ * JESSICA COMPOSER REQUEST v2
  * =========================================================
  *
  * AI transport layer Answer Composer.
  *
  *
- * Отвечает только за:
+ * Ответственность:
  *
- * - создание AI client;
  * - модель Composer;
  * - системный prompt;
  * - AI request;
- * - retry AI-запроса.
+ * - technical AI retry.
  *
  *
- * НЕ отвечает за:
+ * Общий Groq client:
  *
- * - подготовку factual context;
- * - direct tool answer;
- * - parsing бизнес-результата;
- * - validation;
- * - execution;
- * - semantic outcome.
+ * backend/ai/groqClient.js
+ *
+ *
+ * НЕ:
+ *
+ * - создаёт собственный OpenAI client;
+ * - подготавливает factual context;
+ * - выполняет tools;
+ * - валидирует результат;
+ * - определяет semantic outcome.
  *
  * =========================================================
  */
 
 
-import OpenAI from "openai";
+import {
+    getGroqClient
+} from "../../ai/groqClient.js";
+
 
 import {
     executeAIWithRetry
 } from "../../ai/aiRetry.js";
+
 
 import {
     getComposerInstructions
@@ -54,27 +61,8 @@ const COMPOSER_TEMPERATURE =
     0.2;
 
 
-/*
- * =========================================================
- * AI CLIENT
- * =========================================================
- */
-
-
-const groq =
-    process.env.GROQ_API_KEY
-
-        ? new OpenAI({
-
-            apiKey:
-                process.env.GROQ_API_KEY,
-
-            baseURL:
-                "https://api.groq.com/openai/v1"
-
-        })
-
-        : null;
+const COMPOSER_AI_ATTEMPTS =
+    3;
 
 
 /*
@@ -84,10 +72,11 @@ const groq =
  */
 
 
-export function isComposerAvailable() {
+export function isComposerAvailable()
+{
 
     return Boolean(
-        groq
+        process.env.GROQ_API_KEY
     );
 
 }
@@ -104,10 +93,11 @@ function validateComposerInput(
     input
 ) {
 
-    if (
-        typeof input !== "string" ||
+    if(
+        typeof input !== "string"
+        ||
         !input.trim()
-    ) {
+    ){
 
         throw new Error(
             "Answer Composer получил пустой контекст"
@@ -129,12 +119,28 @@ export async function requestComposerAnswer(
     input
 ) {
 
+    /*
+     * =====================================================
+     * INPUT
+     * =====================================================
+     */
+
+
     validateComposerInput(
         input
     );
 
 
-    if (!groq) {
+    /*
+     * =====================================================
+     * AVAILABILITY
+     * =====================================================
+     */
+
+
+    if(
+        !isComposerAvailable()
+    ){
 
         throw new Error(
             "Groq Answer Composer не настроен"
@@ -143,8 +149,26 @@ export async function requestComposerAnswer(
     }
 
 
+    /*
+     * =====================================================
+     * CLIENT
+     * =====================================================
+     */
+
+
+    const groq =
+        getGroqClient();
+
+
     const instructions =
         getComposerInstructions();
+
+
+    /*
+     * =====================================================
+     * AI REQUEST
+     * =====================================================
+     */
 
 
     return await executeAIWithRetry(
@@ -159,10 +183,8 @@ export async function requestComposerAnswer(
                     model:
                         COMPOSER_MODEL,
 
-
                     temperature:
                         COMPOSER_TEMPERATURE,
-
 
                     messages: [
 
@@ -195,7 +217,10 @@ export async function requestComposerAnswer(
         {
 
             label:
-                "Answer Composer"
+                "Jessica Answer Composer AI",
+
+            maxAttempts:
+                COMPOSER_AI_ATTEMPTS
 
         }
 
@@ -211,7 +236,8 @@ export async function requestComposerAnswer(
  */
 
 
-export function getComposerModel() {
+export function getComposerModel()
+{
 
     return COMPOSER_MODEL;
 
