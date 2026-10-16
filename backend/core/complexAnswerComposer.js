@@ -1,9 +1,3 @@
-import {
-    isComplexComposerAvailable,
-    requestComplexComposerAnswer
-} from "../ai/complexComposerClient.js";
-
-
 /*
  * =========================================================
  * JESSICA COMPLEX ANSWER COMPOSER v3
@@ -15,17 +9,17 @@ import {
  *
  * Flow:
  *
- * Completed Subtask Results
- *          ↓
+ * Subtask Results
+ *      ↓
  * Complex Composer AI
- *          ↓
- * Final Text
+ *      ↓
+ * Final Answer
  *
  *
  * Если AI недоступен:
  *
- * Completed Subtask Results
- *          ↓
+ * Subtask Results
+ *      ↓
  * Deterministic Fallback
  *
  *
@@ -34,14 +28,24 @@ import {
  * Complex Composer:
  *
  * - не решает задачи заново;
- * - не вызывает Tools;
- * - не меняет факты;
- * - не меняет statuses;
+ * - не выполняет tools;
+ * - не меняет результаты subtasks;
  * - не создаёт AI client;
  * - не управляет AI retry.
  *
+ *
+ * AI transport:
+ *
+ * backend/ai/complexComposerClient.js
+ *
  * =========================================================
  */
+
+
+import {
+    isComplexComposerAvailable,
+    requestComplexComposerAnswer
+} from "../ai/complexComposerClient.js";
 
 
 /*
@@ -234,7 +238,7 @@ function buildFallbackItem(
 
 /*
  * =========================================================
- * FALLBACK ANSWER
+ * FALLBACK
  * =========================================================
  */
 
@@ -556,7 +560,7 @@ export async function composeComplexAnswer(
 
 
         /*
-         * AI transport retry уже исчерпан.
+         * AI Retry уже исчерпан.
          *
          * Готовые результаты Subtasks
          * не уничтожаем.
