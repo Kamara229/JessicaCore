@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * ANSWER EXECUTOR v3
+ * ANSWER EXECUTOR v4
  * =========================================================
  *
  * Создание пользовательского ответа.
@@ -207,7 +207,8 @@ function normalizeAnswerFailure(
 
 
 export async function executeAnswer(
-    context
+    context,
+    options = {}
 ) {
 
     /*
@@ -252,7 +253,9 @@ export async function executeAnswer(
 
                 context.plan,
 
-                context.runResult
+                context.runResult,
+
+                options
 
             );
 
