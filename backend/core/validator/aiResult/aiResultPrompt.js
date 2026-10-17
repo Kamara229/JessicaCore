@@ -1,66 +1,29 @@
 /*
  * =========================================================
- * JESSICA AI RESULT PROMPT
+ * JESSICA AI RESULT PROMPT v2
  * =========================================================
  *
- * Формирует компактный prompt
- * для AI Result Validator.
+ * Формирует компактный prompt для AI Result Validator.
  *
+ * Дополнительно требует failureScope, чтобы отличать:
  *
- * Отвечает за:
- *
- * - подготовку входных данных;
- * - ограничение размеров;
- * - использование compact TaskRunner result;
- * - system prompt;
- * - user prompt;
- * - диагностику размера input.
- *
- *
- * НЕ отвечает за:
- *
- * - вызов AI;
- * - retry;
- * - parsing ответа;
- * - semantic normalization результата.
+ * presentation
+ * execution
+ * evidence
+ * clarification
  *
  * =========================================================
  */
-
 
 import {
     buildCompactValidatorInput
 } from "../validatorInput.js";
 
 
-/*
- * =========================================================
- * INPUT LIMITS
- * =========================================================
- */
-
-
-const MAX_TASK_LENGTH =
-    3000;
-
-
-const MAX_PLAN_LENGTH =
-    5000;
-
-
-const MAX_RUN_RESULT_LENGTH =
-    12000;
-
-
-const MAX_ANSWER_LENGTH =
-    5000;
-
-
-/*
- * =========================================================
- * LIMIT TEXT
- * =========================================================
- */
+const MAX_TASK_LENGTH = 3000;
+const MAX_PLAN_LENGTH = 5000;
+const MAX_RUN_RESULT_LENGTH = 12000;
+const MAX_ANSWER_LENGTH = 5000;
 
 
 function limitText(
@@ -74,9 +37,9 @@ function limitText(
         ).trim();
 
 
-    if (
+    if(
         text.length <= maxLength
-    ) {
+    ){
 
         return text;
 
@@ -87,18 +50,12 @@ function limitText(
         text.slice(
             0,
             maxLength
-        ) +
+        )
+        +
         "…"
     );
 
 }
-
-
-/*
- * =========================================================
- * SAFE JSON
- * =========================================================
- */
 
 
 function safeJson(
@@ -122,13 +79,6 @@ function safeJson(
 }
 
 
-/*
- * =========================================================
- * LIMIT JSON
- * =========================================================
- */
-
-
 function limitJson(
     value,
     maxLength
@@ -140,9 +90,9 @@ function limitJson(
         );
 
 
-    if (
+    if(
         json.length <= maxLength
-    ) {
+    ){
 
         return json;
 
@@ -153,18 +103,12 @@ function limitJson(
         json.slice(
             0,
             maxLength
-        ) +
+        )
+        +
         "\n...[truncated]"
     );
 
 }
-
-
-/*
- * =========================================================
- * PREPARE INPUT
- * =========================================================
- */
 
 
 function prepareInput(
@@ -188,20 +132,17 @@ function prepareInput(
                 MAX_TASK_LENGTH
             ),
 
-
         plan:
             limitJson(
                 plan,
                 MAX_PLAN_LENGTH
             ),
 
-
         runResult:
             limitJson(
                 compactRunResult,
                 MAX_RUN_RESULT_LENGTH
             ),
-
 
         answer:
             limitText(
@@ -212,20 +153,6 @@ function prepareInput(
     };
 
 }
-
-
-/*
- * =========================================================
- * LOG INPUT SIZE
- * =========================================================
- *
- * Это количество символов, НЕ tokens.
- *
- * Лог нужен для диагностики случаев,
- * подобных Groq 413.
- *
- * =========================================================
- */
 
 
 function logInputSize(
@@ -250,9 +177,12 @@ function logInputSize(
 
             totalChars:
                 (
-                    input.task.length +
-                    input.plan.length +
-                    input.runResult.length +
+                    input.task.length
+                    +
+                    input.plan.length
+                    +
+                    input.runResult.length
+                    +
                     input.answer.length
                 )
 
@@ -262,14 +192,8 @@ function logInputSize(
 }
 
 
-/*
- * =========================================================
- * SYSTEM PROMPT
- * =========================================================
- */
-
-
-function buildSystemPrompt() {
+function buildSystemPrompt()
+{
 
     return [
 
@@ -282,7 +206,6 @@ function buildSystemPrompt() {
         "",
 
         "Ты НЕ:",
-
         "- отвечаешь пользователю;",
         "- выполняешь инструменты;",
         "- ищешь новую информацию;",
@@ -291,47 +214,73 @@ function buildSystemPrompt() {
         "",
 
         "Проверь:",
-
-        "- решает ли ответ исходную задачу;",
-        "- соответствует ли ответ фактическим данным выполнения;",
-        "- есть ли критические ошибки;",
-        "- нужна ли повторная попытка;",
+        "- решает ли итоговый ответ исходную задачу;",
+        "- соответствует ли итоговый ответ данным выполнения;",
+        "- корректны ли сами данные выполнения;",
+        "- достаточно ли evidence;",
         "- требуется ли уточнение пользователя.",
+
+        "",
+
+        "Если valid=false, обязательно определи failureScope.",
+
+        "",
+
+        "Допустимые failureScope:",
+
+        "presentation:",
+        "- данные выполнения достаточны и корректны;",
+        "- проблема только в итоговом тексте;",
+        "- ответ пропустил, исказил или отрицает уже полученный результат;",
+        "- для исправления НЕ нужно повторять Planner, Tools или Execution.",
+
+        "",
+
+        "execution:",
+        "- ошибка находится в самом результате выполнения, вычислении или логике решения;",
+        "- одного переписывания итогового текста недостаточно.",
+
+        "",
+
+        "evidence:",
+        "- результат или утверждение не имеет требуемого подтверждения;",
+        "- отсутствует, недостаточен или противоречив evidence.",
+
+        "",
+
+        "clarification:",
+        "- исходная задача действительно требует дополнительного ввода пользователя.",
+
+        "",
+
+        "КРИТИЧЕСКО:",
+        "- если вычисление/результат уже корректно присутствует в Plan или Run Result, а итоговый ответ его отрицает или не сообщает, failureScope=presentation;",
+        "- не назначай execution только потому, что итоговый текст неправильный;",
+        "- если failureScope=presentation, shouldRetry=false: повтор Execution не нужен;",
+        "- если failureScope=clarification, needsClarification=true;",
+        "- если valid=true, failureScope должен быть null.",
 
         "",
 
         "Также определи outcomeType.",
 
-        "",
-
-        "Допустимы только два outcomeType:",
-
-        "",
-
-        "1. result",
-
-        "Используй result, если в данных выполнения есть достаточные основания считать, что искомый пользователем результат найден, установлен или подтверждён.",
+        "Допустимы только:",
+        "result",
+        "no_verified_result",
 
         "",
 
-        "2. no_verified_result",
+        "result используй, если искомый результат найден, установлен или подтверждён.",
 
-        "Используй no_verified_result, если итоговый ответ корректно сообщает, что искомый результат не удалось найти, подтвердить или установить по имеющимся данным.",
+        "no_verified_result используй, если корректный итоговый ответ сообщает, что результат не удалось установить по имеющимся данным.",
 
         "",
 
         "Важно:",
-
-        "- no_verified_result НЕ означает, что ответ неправильный;",
+        "- no_verified_result не означает ошибку;",
         "- valid может быть true одновременно с outcomeType=no_verified_result;",
         "- отсутствие подтверждения нельзя превращать в выдуманный положительный результат;",
-        "- наличие поисковой выдачи само по себе не означает подтверждённый результат;",
-        "- сторонний или неподтверждённый источник не считается подтверждением;",
-        "- если искомый результат подтверждён имеющимися данными, используй result.",
-
-        "",
-
-        "Не отклоняй короткий корректный ответ.",
+        "- не отклоняй короткий корректный ответ.",
 
         "",
 
@@ -340,13 +289,16 @@ function buildSystemPrompt() {
         JSON.stringify({
 
             valid:
-                true,
+                false,
 
             shouldRetry:
                 false,
 
             needsClarification:
                 false,
+
+            failureScope:
+                "presentation",
 
             outcomeType:
                 "result",
@@ -364,13 +316,6 @@ function buildSystemPrompt() {
 }
 
 
-/*
- * =========================================================
- * USER PROMPT
- * =========================================================
- */
-
-
 function buildUserPrompt(
     input
 ) {
@@ -378,31 +323,21 @@ function buildUserPrompt(
     return [
 
         "ИСХОДНАЯ ЗАДАЧА:",
-
         input.task,
 
-
         "",
-
 
         "ПЛАН:",
-
         input.plan,
 
-
         "",
-
 
         "КОМПАКТНЫЙ РЕЗУЛЬТАТ ВЫПОЛНЕНИЯ:",
-
         input.runResult,
-
 
         "",
 
-
         "ИТОГОВЫЙ ОТВЕТ:",
-
         input.answer
 
     ]
@@ -411,13 +346,6 @@ function buildUserPrompt(
         );
 
 }
-
-
-/*
- * =========================================================
- * PUBLIC
- * =========================================================
- */
 
 
 export function buildAIResultValidatorMessages(
@@ -462,7 +390,6 @@ export function buildAIResultValidatorMessages(
                 buildSystemPrompt()
 
         },
-
 
         {
 
