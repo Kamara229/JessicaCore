@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA NATIVE SKILL PLANNER v1
+ * JESSICA NATIVE SKILL PLANNER v2
  * =========================================================
  *
  * Skill-first planning без AI.
@@ -43,14 +43,10 @@ import {
 } from "../native/dateUtils.js";
 
 
-const NATIVE_OFFICIAL_SOURCE_SKILLS =
-    new Set([
-
-        "official-source-verification",
-
-        "official-website-verification"
-
-    ]);
+import {
+    EXECUTION_STRATEGY,
+    resolveSkillExecutionProgram
+} from "../../experience/execution/executionProgram.js";
 
 
 /*
@@ -487,27 +483,44 @@ function buildOfficialSourceSearchQuery(
 }
 
 
-function findOfficialSourceSkill(
-    executionExperience
+function findExecutableSkill(
+    executionExperience,
+    strategy
 ) {
 
     return getSkills(
         executionExperience
     )
         .find(
-            skill =>
+            skill => {
 
-                NATIVE_OFFICIAL_SOURCE_SKILLS.has(
-                    normalizeSkillId(
+                if(
+                    !isReadySkill(
                         skill
                     )
-                )
+                ){
 
-                &&
+                    return false;
 
-                isReadySkill(
-                    skill
-                )
+                }
+
+
+                const program =
+
+                    resolveSkillExecutionProgram(
+                        skill
+                    );
+
+
+                return (
+
+                    program?.strategy
+                    ===
+                    strategy
+
+                );
+
+            }
         )
 
         ||
@@ -527,12 +540,31 @@ function buildOfficialSourcePlan({
 
     const skill =
 
-        findOfficialSourceSkill(
-            executionExperience
+        findExecutableSkill(
+
+            executionExperience,
+
+            EXECUTION_STRATEGY
+                .OFFICIAL_SOURCE_LOOKUP
+
         );
 
 
     if(!skill){
+
+        return null;
+
+    }
+
+
+    const program =
+
+        resolveSkillExecutionProgram(
+            skill
+        );
+
+
+    if(!program){
 
         return null;
 
@@ -579,10 +611,10 @@ function buildOfficialSourcePlan({
         evidence: {
 
             mode:
-                "source_content",
+                program.evidenceMode,
 
             reason:
-                "Искомый актуальный факт должен быть проверен по содержимому официального источника."
+                "Executable Experience требует проверки факта по содержимому официального источника."
 
         },
 
@@ -873,7 +905,14 @@ export function tryCreateNativeSkillPlan({
                 officialSourcePlan,
 
             source:
-                "experience:official-source-verification"
+
+                (
+                    "experience:"
+                    +
+                    normalizeSkillId(
+                        skill
+                    )
+                )
 
         });
 
