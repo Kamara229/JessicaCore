@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION STEP RUNNER v9
+ * JESSICA EXECUTION STEP RUNNER v10
  * =========================================================
  *
  * Координатор одного Execution Pass.
@@ -184,7 +184,9 @@ async function executeStage(
 
     stage,
 
-    executor
+    executor,
+
+    options = {}
 
 ) {
 
@@ -252,13 +254,41 @@ async function executeStage(
     ) {
 
 
+        let failureStatus =
+            "FAILED";
+
+
+        if(
+            typeof options?.failureStatusResolver === "function"
+        ){
+
+            const resolvedStatus =
+                options.failureStatusResolver(
+                    result
+                );
+
+
+            if(
+                typeof resolvedStatus === "string"
+                &&
+                resolvedStatus.trim()
+            ){
+
+                failureStatus =
+                    resolvedStatus.trim();
+
+            }
+
+        }
+
+
         markStep(
 
             context,
 
             stage,
 
-            "FAILED",
+            failureStatus,
 
             {
 
