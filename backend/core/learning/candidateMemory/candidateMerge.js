@@ -59,6 +59,11 @@ import {
 } from "../candidateBuilder/candidateToolKnowledge.js";
 
 
+import {
+    normalizeExecutionProgram
+} from "../../../experience/execution/executionProgram.js";
+
+
 function normalizeNumber(
     value
 ) {
@@ -946,6 +951,19 @@ export function mergeLearningCandidates({
         requiredTools:
 
             toolKnowledge.requiredTools,
+
+
+        executionProgram:
+
+            normalizeExecutionProgram(
+                existing.executionProgram
+            )
+
+            ||
+
+            normalizeExecutionProgram(
+                incoming.executionProgram
+            ),
 
 
         successfulPatterns:
