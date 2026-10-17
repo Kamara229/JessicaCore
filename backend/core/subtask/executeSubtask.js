@@ -1279,7 +1279,7 @@ export async function executeSubtask(
                 executionExperience.found,
 
             used:
-                executionExperience.used,
+                effectiveExecutionExperience.used,
 
             source:
                 executionExperience.source,
