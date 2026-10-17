@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA COMPOSER CONTEXT v2
+ * JESSICA COMPOSER CONTEXT v3
  * =========================================================
  *
  * Подготавливает безопасный контекст
@@ -513,7 +513,8 @@ function buildFactualContext(
 export function buildComposerContext(
     task,
     plan,
-    taskRunResult
+    taskRunResult,
+    repairContext = null
 ) {
 
     const evidenceMode =
@@ -575,6 +576,65 @@ export function buildComposerContext(
 
             factualContext
         ];
+
+
+    if(
+        repairContext &&
+        typeof repairContext === "object"
+    ){
+
+        const previousAnswer =
+            limitText(
+                repairContext.previousAnswer,
+                4000
+            );
+
+
+        const validatorReason =
+            limitText(
+                repairContext.validatorReason,
+                3000
+            );
+
+
+        if(
+            previousAnswer ||
+            validatorReason
+        ){
+
+            sections.push(
+                "",
+                "КОРРЕКЦИЯ ИТОГОВОГО ОТВЕТА:",
+                "Предыдущий итоговый ответ не прошёл semantic validation.",
+                "Исправь только пользовательский ответ на основании тех же фактических данных.",
+                "Не выполняй новый поиск, не меняй решение задачи и не придумывай новые факты."
+            );
+
+
+            if(previousAnswer){
+
+                sections.push(
+                    "",
+                    "ПРЕДЫДУЩИЙ ОТВЕТ:",
+                    previousAnswer
+                );
+
+            }
+
+
+            if(validatorReason){
+
+                sections.push(
+                    "",
+                    "ПРИЧИНА ОТКЛОНЕНИЯ:",
+                    validatorReason
+                );
+
+            }
+
+        }
+
+    }
 
 
     return sections
