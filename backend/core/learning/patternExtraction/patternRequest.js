@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA PATTERN REQUEST v2
+ * JESSICA PATTERN REQUEST v3
  * =========================================================
  *
  * Координатор AI-запроса для автономного
@@ -182,6 +182,12 @@ export async function requestPatternExtraction(
             error:
                 "GROQ_API_KEY отсутствует",
 
+            providerUnavailable:
+                true,
+
+            retryLater:
+                true,
+
             rawText:
                 ""
 
@@ -298,6 +304,22 @@ export async function requestPatternExtraction(
         );
 
 
+        const providerUnavailable =
+
+            error?.providerCooldown === true
+
+            ||
+
+            Number(
+                error?.status || 0
+            ) === 429
+
+            ||
+
+            error?.code ===
+            "AI_PROVIDER_COOLDOWN";
+
+
         return {
 
             success:
@@ -310,6 +332,19 @@ export async function requestPatternExtraction(
                 ||
 
                 "Pattern Extractor request failed",
+
+            status:
+                Number(
+                    error?.status || 0
+                ),
+
+            code:
+                error?.code || null,
+
+            providerUnavailable,
+
+            retryLater:
+                providerUnavailable,
 
             rawText:
                 ""
