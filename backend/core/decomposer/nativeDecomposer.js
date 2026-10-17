@@ -146,7 +146,7 @@ function splitExplicitSequence(
 
         text
             .split(
-                /(?:[.!?]\s*)?(?=\b(?:затем|после\s+этого|далее|после\s+чего|then|after\s+that|next)\b)/giu
+                /(?:[.!?]\s*)?(?=(?:затем|после\s+этого|далее|после\s+чего)(?:\s|[,;:]|$)|\b(?:then|after\s+that|next)\b)/giu
             )
             .map(
                 item =>
