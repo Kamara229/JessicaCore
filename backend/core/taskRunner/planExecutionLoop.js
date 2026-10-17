@@ -1,30 +1,26 @@
 /*
  * =========================================================
  * JESSICA TASK RUNNER
- * PLAN EXECUTION LOOP v2
+ * PLAN EXECUTION LOOP v3
  * =========================================================
  *
- * Выполнение списка шагов плана.
- *
- *
- * Flow:
- *
- * Plan Steps
+ * Plan
  *      ↓
- * Step Iterator
+ * Runtime Source Selection Context
  *      ↓
- * Execute Step
+ * Steps
  *      ↓
- * Collect Results
+ * executeStep()
  *
  *
- * НЕ:
+ * Runtime context содержит только:
  *
- * - проверяет инструменты;
- * - разрешает arguments;
- * - выполняет Tools;
- * - делает Retry;
- * - делает Replan.
+ * - task;
+ * - excludedSourceUrls;
+ * - replanConstraints.
+ *
+ * Полный PlanningContext сюда
+ * намеренно не передаётся.
  *
  * =========================================================
  */
@@ -35,62 +31,199 @@ import {
 } from "./executeStep.js";
 
 
+/*
+ * =========================================================
+ * SAFE
+ * =========================================================
+ */
 
 
+function safeString(
+    value
+) {
+
+    return String(
+        value ?? ""
+    )
+        .trim();
+
+}
 
 
+function safeArray(
+    value
+) {
 
+    return Array.isArray(
+        value
+    )
+        ? value
+        : [];
+
+}
+
+
+function uniqueStrings(
+    values
+) {
+
+    return [
+
+        ...new Set(
+
+            safeArray(
+                values
+            )
+
+                .map(
+                    safeString
+                )
+
+                .filter(Boolean)
+
+        )
+
+    ];
+
+}
 
 
 /*
  * =========================================================
- * BUILD CONTEXT
+ * TASK TEXT
+ * =========================================================
+ */
+
+
+function buildTaskText(
+    plan,
+    task
+) {
+
+    const explicitTask =
+
+        safeString(
+            task
+        );
+
+
+    if(
+        explicitTask
+    ){
+
+        return explicitTask;
+
+    }
+
+
+    return [
+
+        plan?.intent,
+
+        plan?.reasoningSummary,
+
+        plan?.evidence?.reason
+
+    ]
+        .map(
+            safeString
+        )
+        .filter(Boolean)
+        .join("\n");
+
+}
+
+
+/*
+ * =========================================================
+ * SELECTION CONTEXT
  * =========================================================
  */
 
 
 function buildSelectionContext(
-
     plan,
-
     task
-
 ) {
 
+    const runtime =
 
-    return (
+        plan
+            ?.metadata
+            ?.runtime;
 
-        String(
-            task || ""
+
+    const runtimeObject =
+
+        runtime
+        &&
+        typeof runtime === "object"
+        &&
+        !Array.isArray(
+            runtime
         )
-        .trim()
 
-        ||
+            ? runtime
 
-        [
+            : {};
 
-            plan?.intent,
 
-            plan?.reasoningSummary,
+    const constraints =
 
-            plan?.evidence?.reason
+        runtimeObject
+            ?.replanConstraints;
 
-        ]
 
-        .filter(Boolean)
+    const constraintObject =
 
-        .join("\n")
+        constraints
+        &&
+        typeof constraints === "object"
+        &&
+        !Array.isArray(
+            constraints
+        )
 
-    );
+            ? constraints
+
+            : {};
+
+
+    const excludedSourceUrls =
+
+        uniqueStrings([
+
+            ...safeArray(
+                runtimeObject.triedSourceUrls
+            ),
+
+            ...safeArray(
+                constraintObject.forbiddenSourceUrls
+            )
+
+        ]);
+
+
+    return {
+
+        task:
+
+            buildTaskText(
+                plan,
+                task
+            ),
+
+
+        excludedSourceUrls,
+
+
+        replanConstraints:
+
+            constraintObject
+
+    };
 
 }
-
-
-
-
-
-
-
 
 
 /*
@@ -110,47 +243,31 @@ export async function executePlanSteps({
 
 }) {
 
-
-    if (
-
+    if(
         !Array.isArray(
             plan?.steps
         )
-
-    ) {
-
+    ){
 
         return {
 
-
-            success:false,
-
+            success:
+                false,
 
             stage:
                 "runner",
 
-
             failureType:
                 "invalid-steps",
-
 
             reason:
                 "В плане отсутствуют шаги",
 
-
             results
-
 
         };
 
     }
-
-
-
-
-
-
-
 
 
     const selectionContext =
@@ -164,35 +281,51 @@ export async function executePlanSteps({
         );
 
 
+    /*
+     * Runtime diagnostics.
+     */
 
 
+    if(
+        selectionContext
+            .excludedSourceUrls
+            .length > 0
+    ){
+
+        console.log(
+
+            "Jessica Source Exclusions:",
+
+            JSON.stringify({
+
+                count:
+
+                    selectionContext
+                        .excludedSourceUrls
+                        .length,
+
+                urls:
+
+                    selectionContext
+                        .excludedSourceUrls
+
+            })
+
+        );
+
+    }
 
 
-
-
-
-    for (
-
+    for(
         let index = 0;
 
         index < plan.steps.length;
 
         index++
-
-    ) {
-
-
+    ){
 
         const step =
-
             plan.steps[index];
-
-
-
-
-
-
-
 
 
         const result =
@@ -207,51 +340,27 @@ export async function executePlanSteps({
 
                 selectionContext
 
-
             });
 
 
-
-
-
-
-
-
-
-        if (
-
+        if(
             result?.success !== true
-
-        ) {
-
+        ){
 
             return result;
 
-
         }
-
-
 
     }
 
 
-
-
-
-
-
-
-
     return {
 
-
-        success:true,
-
+        success:
+            true,
 
         results
 
-
     };
-
 
 }
