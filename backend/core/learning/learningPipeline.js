@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING PIPELINE v7
+ * JESSICA LEARNING PIPELINE v8
  * =========================================================
  *
  * Persistent + Recoverable +
@@ -168,6 +168,23 @@ function buildWorkerStats(
 
                 item =>
                     item?.ignored === true
+
+            )
+            .length,
+
+
+        deferred:
+
+            Number(
+                workerResult?.deferred
+            )
+
+            ||
+
+            results.filter(
+
+                item =>
+                    item?.deferred === true
 
             )
             .length,
