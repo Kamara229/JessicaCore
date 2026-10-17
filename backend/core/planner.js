@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA PLANNER CORE v6
+ * JESSICA PLANNER CORE v7
  * =========================================================
  *
  * Task
@@ -42,6 +42,17 @@ import {
 import {
     buildPlannerAttemptFeedback
 } from "./planner/runtime/plannerAttemptFeedback.js";
+
+
+import {
+
+    createPlannerRepairMemory,
+
+    rememberPlannerRejection,
+
+    buildPlannerRepairMemoryText
+
+} from "./planner/runtime/plannerRepairMemory.js";
 
 
 import {
@@ -158,6 +169,10 @@ export async function createPlan(
 
     let plannerFeedback =
         "";
+
+
+    const repairMemory =
+        createPlannerRepairMemory();
 
 
     let lastError =
@@ -305,7 +320,16 @@ export async function createPlan(
                     MAX_PLANNER_ATTEMPTS
                 ){
 
-                    plannerFeedback =
+                    rememberPlannerRejection(
+
+                        repairMemory,
+
+                        lastError
+
+                    );
+
+
+                    const currentRepair =
 
                         buildPlannerAttemptFeedback({
 
@@ -318,6 +342,28 @@ export async function createPlan(
                             attempt
 
                         });
+
+
+                    const persistentRepair =
+
+                        buildPlannerRepairMemoryText(
+                            repairMemory
+                        );
+
+
+                    plannerFeedback =
+
+                        [
+
+                            persistentRepair,
+
+                            currentRepair
+
+                        ]
+                            .filter(Boolean)
+                            .join(
+                                "\n\n"
+                            );
 
 
                     console.warn(
@@ -478,19 +524,40 @@ export async function createPlan(
                 semantic
             ){
 
+                rememberPlannerRejection(
+
+                    repairMemory,
+
+                    errorMessage
+
+                );
+
+
                 plannerFeedback =
 
-                    buildPlannerAttemptFeedback({
+                    [
 
-                        reason:
-                            errorMessage,
+                        buildPlannerRepairMemoryText(
+                            repairMemory
+                        ),
 
-                        rejectedPlan:
-                            null,
+                        buildPlannerAttemptFeedback({
 
-                        attempt
+                            reason:
+                                errorMessage,
 
-                    });
+                            rejectedPlan:
+                                null,
+
+                            attempt
+
+                        })
+
+                    ]
+                        .filter(Boolean)
+                        .join(
+                            "\n\n"
+                        );
 
             }
 
@@ -510,8 +577,18 @@ export async function createPlan(
                 technical
             ){
 
+                /*
+                 * Provider failure не создаёт новую
+                 * semantic instruction, но уже
+                 * накопленные machine constraints
+                 * терять нельзя.
+                 */
+
                 plannerFeedback =
-                    "";
+
+                    buildPlannerRepairMemoryText(
+                        repairMemory
+                    );
 
             }
 
