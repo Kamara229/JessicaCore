@@ -44,6 +44,11 @@ import {
 } from "./proposalUtils.js";
 
 
+import {
+    normalizeExecutionProgram
+} from "../../execution/executionProgram.js";
+
+
 /*
  * =========================================================
  * LEARNING METRICS
@@ -386,6 +391,13 @@ export function buildProposedExperience({
 
             normalizeStringArray(
                 candidate.requiredTools
+            ),
+
+
+        executionProgram:
+
+            normalizeExecutionProgram(
+                candidate.executionProgram
             ),
 
 
