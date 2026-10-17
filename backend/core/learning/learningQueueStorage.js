@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING QUEUE STORAGE v3
+ * JESSICA LEARNING QUEUE STORAGE v4
  * =========================================================
  *
  * Persistent Storage для Learning Queue.
@@ -78,6 +78,22 @@ const TABLE_NAME =
     "learning_queue";
 
 
+const MAX_EVENT_BYTES =
+    512 * 1024;
+
+
+const QUEUE_WRITE_ATTEMPTS =
+    2;
+
+
+const QUEUE_WRITE_TIMEOUT_MS =
+    15000;
+
+
+const QUEUE_RETRY_DELAY_MS =
+    750;
+
+
 
 
 
@@ -142,6 +158,373 @@ function getClient()
 {
 
     return getSupabaseClient();
+
+}
+
+
+/*
+ * =========================================================
+ * STORAGE SAFETY
+ * =========================================================
+ */
+
+
+function getJsonBytes(
+    value
+) {
+
+    try {
+
+        return Buffer.byteLength(
+
+            JSON.stringify(
+                value ?? null
+            ),
+
+            "utf8"
+
+        );
+
+    }catch(error){
+
+        return Number.POSITIVE_INFINITY;
+
+    }
+
+}
+
+
+function sleep(
+    milliseconds
+) {
+
+    return new Promise(
+
+        resolve =>
+            setTimeout(
+                resolve,
+                milliseconds
+            )
+
+    );
+
+}
+
+
+function withTimeout(
+    promise,
+    milliseconds
+) {
+
+    let timer = null;
+
+
+    const timeout =
+
+        new Promise(
+
+            (_, reject) => {
+
+                timer =
+
+                    setTimeout(
+
+                        () => {
+
+                            const error =
+                                new Error(
+                                    "Learning Queue storage timeout"
+                                );
+
+
+                            error.code =
+                                "LEARNING_QUEUE_TIMEOUT";
+
+
+                            reject(
+                                error
+                            );
+
+                        },
+
+                        milliseconds
+
+                    );
+
+            }
+
+        );
+
+
+    return Promise
+        .race([
+            promise,
+            timeout
+        ])
+        .finally(
+            () => {
+
+                if(timer){
+
+                    clearTimeout(
+                        timer
+                    );
+
+                }
+
+            }
+        );
+
+}
+
+
+function getStorageErrorMessage(
+    error
+) {
+
+    return String(
+
+        error?.message
+
+        ||
+
+        error?.error
+
+        ||
+
+        error
+
+        ||
+
+        ""
+
+    )
+        .trim();
+
+}
+
+
+function isRetryableStorageError(
+    error
+) {
+
+    const message =
+
+        getStorageErrorMessage(
+            error
+        )
+            .toLowerCase();
+
+
+    const code =
+
+        String(
+            error?.code || ""
+        )
+            .trim()
+            .toUpperCase();
+
+
+    return (
+
+        code === "57014"
+
+        ||
+
+        code === "LEARNING_QUEUE_TIMEOUT"
+
+        ||
+
+        message.includes(
+            "bad gateway"
+        )
+
+        ||
+
+        message.includes(
+            "gateway timeout"
+        )
+
+        ||
+
+        message.includes(
+            "statement timeout"
+        )
+
+        ||
+
+        message.includes(
+            "service unavailable"
+        )
+
+        ||
+
+        message.includes(
+            "fetch failed"
+        )
+
+        ||
+
+        message.includes(
+            "network"
+        )
+
+        ||
+
+        message.includes(
+            "connection"
+        )
+
+    );
+
+}
+
+
+async function writeQueuePayload(
+    payload
+) {
+
+    let lastError =
+        null;
+
+
+    for(
+        let attempt = 1;
+
+        attempt <= QUEUE_WRITE_ATTEMPTS;
+
+        attempt++
+    ){
+
+        try {
+
+            const response =
+
+                await withTimeout(
+
+                    getClient()
+
+                        .from(
+                            TABLE_NAME
+                        )
+
+                        /*
+                         * Queue Item id стабилен в рамках
+                         * одного Learning Event.
+                         *
+                         * upsert делает повтор после timeout /
+                         * Bad Gateway идемпотентным.
+                         */
+
+                        .upsert(
+
+                            payload,
+
+                            {
+                                onConflict:
+                                    "id"
+                            }
+
+                        )
+
+                        .select()
+
+                        .single(),
+
+                    QUEUE_WRITE_TIMEOUT_MS
+
+                );
+
+
+            if(
+                !response?.error
+            ){
+
+                return {
+
+                    success:
+                        true,
+
+                    data:
+                        response?.data || null,
+
+                    attempt
+
+                };
+
+            }
+
+
+            lastError =
+                response.error;
+
+        }catch(error){
+
+            lastError =
+                error;
+
+        }
+
+
+        console.error(
+
+            "Jessica Learning Queue write attempt failed:",
+
+            {
+
+                attempt,
+
+                maxAttempts:
+                    QUEUE_WRITE_ATTEMPTS,
+
+                retryable:
+
+                    isRetryableStorageError(
+                        lastError
+                    ),
+
+                error:
+
+                    getStorageErrorMessage(
+                        lastError
+                    )
+
+            }
+
+        );
+
+
+        if(
+            attempt >= QUEUE_WRITE_ATTEMPTS
+
+            ||
+
+            !isRetryableStorageError(
+                lastError
+            )
+        ){
+
+            break;
+
+        }
+
+
+        await sleep(
+            QUEUE_RETRY_DELAY_MS
+        );
+
+    }
+
+
+    return {
+
+        success:
+            false,
+
+        error:
+            lastError
+
+    };
 
 }
 
@@ -685,32 +1068,83 @@ export async function saveLearningQueueItem(
 
 
 
+    const eventBytes =
+
+        getJsonBytes(
+            payload.event_json
+        );
+
+
+    if(
+        !Number.isFinite(
+            eventBytes
+        )
+
+        ||
+
+        eventBytes > MAX_EVENT_BYTES
+    ){
+
+        console.error(
+
+            "Jessica Learning Queue payload rejected:",
+
+            {
+
+                id:
+                    payload.id || null,
+
+                action:
+                    payload.action || null,
+
+                eventBytes,
+
+                maxEventBytes:
+                    MAX_EVENT_BYTES
+
+            }
+
+        );
+
+
+        return {
+
+            success:
+                false,
+
+            error:
+
+                "Learning Queue event payload слишком большой"
+
+        };
+
+    }
+
+
     try {
 
 
-        const {
-            data,
-            error
-        } =
+        const writeResult =
 
-            await getClient()
-
-                .from(
-                    TABLE_NAME
-                )
-
-                .insert(
-                    payload
-                )
-
-                .select()
-                .single();
-
+            await writeQueuePayload(
+                payload
+            );
 
 
         if(
-            error
+            writeResult?.success !== true
         ){
+
+            const error =
+
+                writeResult?.error
+
+                ||
+
+                new Error(
+                    "Learning Queue write failed"
+                );
+
 
             console.error(
 
@@ -721,21 +1155,29 @@ export async function saveLearningQueueItem(
             );
 
 
-
             return {
-
 
                 success:
                     false,
 
-
                 error:
-                    error.message
+
+                    getStorageErrorMessage(
+                        error
+                    )
+
+                    ||
+
+                    "Learning Queue write failed"
 
             };
 
         }
 
+
+        const data =
+
+            writeResult.data;
 
 
         const normalized =
@@ -744,6 +1186,36 @@ export async function saveLearningQueueItem(
                 data
             );
 
+
+        console.log(
+
+            "Jessica Learning Queue stored:",
+
+            {
+
+                id:
+
+                    normalized?.id
+
+                    ||
+
+                    data?.id
+
+                    ||
+
+                    null,
+
+                action:
+                    payload.action,
+
+                eventBytes,
+
+                attempt:
+                    writeResult.attempt
+
+            }
+
+        );
 
 
         return {
@@ -772,7 +1244,12 @@ export async function saveLearningQueueItem(
 
                 ||
 
-                data
+                data,
+
+            eventBytes,
+
+            attempt:
+                writeResult.attempt
 
         };
 
