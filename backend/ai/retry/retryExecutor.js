@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * JESSICA AI RETRY
- * EXECUTOR v2
+ * EXECUTOR v3
  * =========================================================
  *
  * Выполняет technical AI retry loop.
@@ -53,6 +53,12 @@ import {
     getAIRetryDelay,
     sleep
 } from "./retryDelay.js";
+
+
+import {
+    registerAIProviderLimit,
+    throwIfAIProviderCoolingDown
+} from "../providerAvailability.js";
 
 
 /*
@@ -154,6 +160,20 @@ export async function executeAIWithRetry(
         null;
 
 
+    /*
+     * Provider circuit breaker.
+     *
+     * Если предыдущий AI request уже получил
+     * long/daily quota cooldown, новый сетевой
+     * вызов не отправляем.
+     */
+
+
+    throwIfAIProviderCoolingDown(
+        label
+    );
+
+
     for(
         let attempt = 1;
 
@@ -187,6 +207,29 @@ export async function executeAIWithRetry(
                 isRetryableAIError(
                     error
                 );
+
+
+            /*
+             * Long/daily quota открывает общий cooldown.
+             *
+             * Short TPM/RPM retry остаётся локальным
+             * и circuit breaker не включает.
+             */
+
+
+            if(
+                !retryable
+                &&
+                getAIErrorStatus(
+                    error
+                ) === 429
+            ){
+
+                registerAIProviderLimit(
+                    error
+                );
+
+            }
 
 
             const canRetry =
