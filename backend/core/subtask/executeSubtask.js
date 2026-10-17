@@ -9,6 +9,16 @@ import {
 
 
 import {
+    tryCreateNativeCapabilityPlan
+} from "../planner/nativeCapabilityPlanner.js";
+
+
+import {
+    getAIProviderAvailability
+} from "../../ai/providerAvailability.js";
+
+
+import {
     executePlanCycle
 } from "../execution/executionCycle.js";
 
@@ -766,56 +776,226 @@ export async function executeSubtask(
 
         /*
          * =================================================
-         * AI PLANNER FALLBACK
+         * PROVIDER COOLDOWN
+         * =================================================
+         *
+         * Если Groq уже находится в cooldown,
+         * даже не пытаемся отправлять новый AI request.
+         * Сначала используем собственные capabilities.
          * =================================================
          */
 
 
-        try {
+        const providerState =
+
+            getAIProviderAvailability();
 
 
-            planResult =
+        if(
+            providerState.blocked === true
+        ){
 
-                await createPlan(
+            const capabilityFallback =
 
-                    taskText,
+                tryCreateNativeCapabilityPlan({
 
-                    initialPlanningContext
+                    task:
+                        taskText,
+
+                    planningContext:
+                        initialPlanningContext
+
+                });
+
+
+            if(
+                capabilityFallback?.handled === true
+                &&
+                capabilityFallback?.plan
+            ){
+
+                planResult = {
+
+                    success:
+                        true,
+
+                    plan:
+                        capabilityFallback.plan,
+
+                    context:
+                        initialPlanningContext,
+
+                    source:
+                        capabilityFallback.source,
+
+                    native:
+                        true,
+
+                    degraded:
+                        true
+
+                };
+
+
+                console.log(
+
+                    `Jessica Native Capability Planner ${subtaskId}:`,
+
+                    {
+
+                        source:
+                            capabilityFallback.source,
+
+                        reason:
+                            "ai-provider-cooldown",
+
+                        intent:
+                            capabilityFallback.plan.intent,
+
+                        steps:
+                            capabilityFallback.plan.steps.length
+
+                    }
+
+                );
+
+            }
+
+        }
+
+
+        /*
+         * =================================================
+         * AI PLANNER
+         * =================================================
+         */
+
+
+        if(!planResult){
+
+            try {
+
+
+                planResult =
+
+                    await createPlan(
+
+                        taskText,
+
+                        initialPlanningContext
+
+                    );
+
+
+            }catch(error){
+
+
+                console.error(
+
+                    `Jessica Planner error ${subtaskId}:`,
+
+                    error
 
                 );
 
 
-        }catch(error){
+                /*
+                 * AI недоступен — используем доступные
+                 * native capabilities вместо немедленного
+                 * падения всей задачи.
+                 */
 
 
-            console.error(
+                const capabilityFallback =
 
-                `Jessica Planner error ${subtaskId}:`,
+                    tryCreateNativeCapabilityPlan({
 
-                error
+                        task:
+                            taskText,
 
-            );
+                        planningContext:
+                            initialPlanningContext
+
+                    });
 
 
-            return buildFailedResult({
+                if(
+                    capabilityFallback?.handled === true
+                    &&
+                    capabilityFallback?.plan
+                ){
 
-                subtaskId,
+                    planResult = {
 
-                taskText,
+                        success:
+                            true,
 
-                stage:
-                    "planner",
+                        plan:
+                            capabilityFallback.plan,
 
-                message:
-                    "Ошибка создания плана",
+                        context:
+                            initialPlanningContext,
 
-                experience:
-                    executionExperience,
+                        source:
+                            capabilityFallback.source,
 
-                planningContext:
-                    initialPlanningContext
+                        native:
+                            true,
 
-            });
+                        degraded:
+                            true
+
+                    };
+
+
+                    console.log(
+
+                        `Jessica Native Capability Planner ${subtaskId}:`,
+
+                        {
+
+                            source:
+                                capabilityFallback.source,
+
+                            reason:
+                                "ai-planner-failed",
+
+                            intent:
+                                capabilityFallback.plan.intent,
+
+                            steps:
+                                capabilityFallback.plan.steps.length
+
+                        }
+
+                    );
+
+                }
+                else{
+
+                    return buildFailedResult({
+
+                        subtaskId,
+
+                        taskText,
+
+                        stage:
+                            "planner",
+
+                        message:
+                            "Доступных локальных навыков недостаточно для построения безопасного плана",
+
+                        experience:
+                            executionExperience,
+
+                        planningContext:
+                            initialPlanningContext
+
+                    });
+
+                }
+
+            }
 
         }
 
@@ -828,30 +1008,106 @@ export async function executeSubtask(
         !planResult?.plan
     ){
 
-        return buildFailedResult({
+        /*
+         * Semantic/technical AI Planner failure:
+         * последняя попытка выполнить задачу
+         * собственными возможностями Jessica.
+         */
 
-            subtaskId,
 
-            taskText,
+        const capabilityFallback =
 
-            stage:
-                "planner",
+            tryCreateNativeCapabilityPlan({
 
-            message:
+                task:
+                    taskText,
 
-                planResult?.text
+                planningContext:
+                    initialPlanningContext
 
-                ||
+            });
 
-                "План не создан",
 
-            experience:
-                executionExperience,
+        if(
+            capabilityFallback?.handled === true
+            &&
+            capabilityFallback?.plan
+        ){
 
-            planningContext:
-                initialPlanningContext
+            planResult = {
 
-        });
+                success:
+                    true,
+
+                plan:
+                    capabilityFallback.plan,
+
+                context:
+                    initialPlanningContext,
+
+                source:
+                    capabilityFallback.source,
+
+                native:
+                    true,
+
+                degraded:
+                    true
+
+            };
+
+
+            console.log(
+
+                `Jessica Native Capability Planner ${subtaskId}:`,
+
+                {
+
+                    source:
+                        capabilityFallback.source,
+
+                    reason:
+                        "ai-plan-unusable",
+
+                    intent:
+                        capabilityFallback.plan.intent,
+
+                    steps:
+                        capabilityFallback.plan.steps.length
+
+                }
+
+            );
+
+        }
+        else{
+
+            return buildFailedResult({
+
+                subtaskId,
+
+                taskText,
+
+                stage:
+                    "planner",
+
+                message:
+
+                    planResult?.text
+
+                    ||
+
+                    "Доступных локальных навыков недостаточно для безопасного выполнения задачи",
+
+                experience:
+                    executionExperience,
+
+                planningContext:
+                    initialPlanningContext
+
+            });
+
+        }
 
     }
 
