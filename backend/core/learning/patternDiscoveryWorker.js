@@ -189,13 +189,33 @@ function buildTraceFromEvidence({
         },
 
 
+        executedTools:
+
+            Array.isArray(
+                evidence?.tools
+            )
+
+                ? [
+                    ...evidence.tools
+                ]
+
+                : [],
+
+
+        /*
+         * Legacy compatibility for older diagnostics.
+         */
+
+
         usedTools:
 
             Array.isArray(
                 evidence?.tools
             )
 
-                ? evidence.tools
+                ? [
+                    ...evidence.tools
+                ]
 
                 : [],
 
