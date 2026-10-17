@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA PATTERN DISCOVERY WORKER v1
+ * JESSICA PATTERN DISCOVERY WORKER v2
  * =========================================================
  *
  * Фоновая обработка
@@ -385,6 +385,10 @@ export async function processPatternDiscovery(
                 ||
 
                 "Dynamic Pattern extraction failed",
+
+
+            retryLater:
+                extraction?.retryLater === true,
 
 
             extraction
