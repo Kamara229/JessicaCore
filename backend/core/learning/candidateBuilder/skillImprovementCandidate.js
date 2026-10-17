@@ -49,6 +49,11 @@ import {
 } from "./candidateToolKnowledge.js";
 
 
+import {
+    resolveSkillExecutionProgram
+} from "../../../experience/execution/executionProgram.js";
+
+
 /*
  * =========================================================
  * COMPACT SKILL REFERENCE
@@ -467,6 +472,13 @@ export function buildSkillImprovementCandidate({
         requiredTools:
 
             toolKnowledge.requiredTools,
+
+
+        executionProgram:
+
+            resolveSkillExecutionProgram(
+                existingSkill
+            ),
 
 
         successfulPatterns:

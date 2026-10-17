@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA PATTERN EVIDENCE v1
+ * JESSICA PATTERN EVIDENCE v2
  * =========================================================
  *
  * Формирует Evidence для автономного
@@ -216,6 +216,18 @@ function extractUsedTools(
 
 
     const directTools = [
+
+        /*
+         * Canonical runtime telemetry.
+         */
+
+        ...(Array.isArray(trace?.executedTools)
+            ? trace.executedTools
+            : []),
+
+        /*
+         * Legacy compatibility.
+         */
 
         ...(Array.isArray(trace?.usedTools)
             ? trace.usedTools

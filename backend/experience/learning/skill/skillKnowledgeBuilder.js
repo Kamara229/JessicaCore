@@ -28,6 +28,11 @@ import {
 } from "./skillUtils.js";
 
 
+import {
+    normalizeExecutionProgram
+} from "../../execution/executionProgram.js";
+
+
 export function buildSkillKnowledge(
     proposedExperience
 ) {
@@ -109,6 +114,13 @@ export function buildSkillKnowledge(
 
             normalizeStringArray(
                 proposedExperience?.requiredTools
+            ),
+
+
+        executionProgram:
+
+            normalizeExecutionProgram(
+                proposedExperience?.executionProgram
             ),
 
 

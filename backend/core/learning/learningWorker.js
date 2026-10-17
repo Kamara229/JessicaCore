@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING WORKER v4
+ * JESSICA LEARNING WORKER v5
  * =========================================================
  *
  * Обработчик Learning Queue.
@@ -258,6 +258,9 @@ async function prepareDiscovery(
                 ||
 
                 "Pattern Discovery failed",
+
+            retryLater:
+                discovery?.retryLater === true,
 
             discovery
 
@@ -586,6 +589,61 @@ async function processQueueItem(
         if(
             !discoveryResult.success
         ){
+
+            /*
+             * Provider quota / temporary AI unavailability
+             * не является Learning failure.
+             *
+             * Queue Item остаётся PENDING и будет
+             * повторно обработан следующим daemon cycle.
+             */
+
+
+            if(
+                discoveryResult.retryLater === true
+            ){
+
+                console.log(
+
+                    "Jessica Learning deferred:",
+
+                    {
+
+                        queueItemId:
+                            item.id,
+
+                        action:
+                            item.action,
+
+                        reason:
+                            discoveryResult.reason
+
+                    }
+
+                );
+
+
+                return {
+
+                    success:
+                        true,
+
+                    deferred:
+                        true,
+
+                    queueItemId:
+                        item.id,
+
+                    reason:
+                        discoveryResult.reason,
+
+                    discovery:
+                        discoveryResult.discovery || null
+
+                };
+
+            }
+
 
             await markFailed(
                 item
@@ -1117,6 +1175,16 @@ export async function runLearningWorker()
 
                 item =>
                     item.ignored === true
+
+            )
+            .length,
+
+        deferred:
+
+            results.filter(
+
+                item =>
+                    item.deferred === true
 
             )
             .length,

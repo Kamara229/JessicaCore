@@ -9,9 +9,14 @@ import {
 } from "./source/sourceSelectionPrompt.js";
 
 
+import {
+    selectSourceMachine
+} from "./source/machineSourceSelector.js";
+
+
 /*
  * =========================================================
- * JESSICA SOURCE SELECTOR v3
+ * JESSICA SOURCE SELECTOR v4
  * =========================================================
  *
  * Search Results
@@ -20,9 +25,11 @@ import {
  *      ↓
  * MACHINE EXCLUSION
  *      ↓
- * AI chooses candidate
+ * Machine high-confidence selector
  *      ↓
- * Parse
+ * AI only when ambiguity remains
+ *      ↓
+ * Machine best-effort fallback if AI unavailable
  *
  *
  * КРИТИЧЕСКО:
@@ -627,6 +634,94 @@ function parseSelection(
 
 /*
  * =========================================================
+ * MACHINE SELECTION RESULT
+ * =========================================================
+ */
+
+
+function buildMachineSelection(
+    machine,
+    source
+) {
+
+    if(
+        machine?.selected !== true
+        ||
+        !machine?.result?.url
+    ){
+
+        return null;
+
+    }
+
+
+    const selection = {
+
+        success:
+            true,
+
+        noSuitableSource:
+            false,
+
+        index:
+            machine.index,
+
+        result:
+            machine.result,
+
+        reason:
+
+            (
+                machine.reason
+                ||
+                "Источник выбран машинным селектором"
+            )
+
+    };
+
+
+    console.log(
+
+        "Jessica Source Selector:",
+
+        JSON.stringify({
+
+            decision:
+                "select",
+
+            selector:
+                source,
+
+            index:
+                selection.index,
+
+            title:
+                selection.result?.title || "",
+
+            url:
+                selection.result?.url || "",
+
+            score:
+                machine.score ?? null,
+
+            margin:
+                machine.margin ?? null,
+
+            reason:
+                selection.reason
+
+        })
+
+    );
+
+
+    return selection;
+
+}
+
+
+/*
+ * =========================================================
  * SELECT SOURCE
  * =========================================================
  */
@@ -725,6 +820,51 @@ export async function selectSource(
 
     /*
      * =====================================================
+     * MACHINE FIRST
+     * =====================================================
+     *
+     * Высокая machine confidence:
+     * Groq вообще не вызывается.
+     * =====================================================
+     */
+
+
+    const machineStrong =
+
+        selectSourceMachine(
+
+            context.task,
+
+            filtered.results,
+
+            {
+                allowWeak:
+                    false
+            }
+
+        );
+
+
+    const strongSelection =
+
+        buildMachineSelection(
+
+            machineStrong,
+
+            "machine-primary"
+
+        );
+
+
+    if(strongSelection){
+
+        return strongSelection;
+
+    }
+
+
+    /*
+     * =====================================================
      * AI
      * =====================================================
      */
@@ -734,8 +874,38 @@ export async function selectSource(
         !isSourceSelectorAvailable()
     ){
 
-        return noSuitableSource(
-            "Source Selector недоступен"
+        const machineFallback =
+
+            selectSourceMachine(
+
+                context.task,
+
+                filtered.results,
+
+                {
+                    allowWeak:
+                        true
+                }
+
+            );
+
+
+        return (
+
+            buildMachineSelection(
+
+                machineFallback,
+
+                "machine-fallback-no-ai"
+
+            )
+
+            ||
+
+            noSuitableSource(
+                "Source Selector недоступен и machine confidence недостаточен"
+            )
+
         );
 
     }
@@ -872,11 +1042,41 @@ export async function selectSource(
         );
 
 
-        return noSuitableSource(
+        const machineFallback =
 
-            error?.message
+            selectSourceMachine(
+
+                context.task,
+
+                filtered.results,
+
+                {
+                    allowWeak:
+                        true
+                }
+
+            );
+
+
+        return (
+
+            buildMachineSelection(
+
+                machineFallback,
+
+                "machine-fallback-ai-error"
+
+            )
+
             ||
-            "Не удалось выбрать надёжный источник"
+
+            noSuitableSource(
+
+                error?.message
+                ||
+                "Не удалось выбрать надёжный источник"
+
+            )
 
         );
 

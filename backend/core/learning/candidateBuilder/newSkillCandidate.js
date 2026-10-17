@@ -41,6 +41,11 @@ import {
 } from "./candidateToolKnowledge.js";
 
 
+import {
+    normalizeExecutionProgram
+} from "../../../experience/execution/executionProgram.js";
+
+
 /*
  * =========================================================
  * BUILD
@@ -273,6 +278,13 @@ export function buildNewSkillCandidate({
         requiredTools:
 
             toolKnowledge.requiredTools,
+
+
+        executionProgram:
+
+            normalizeExecutionProgram(
+                pattern.executionProgram
+            ),
 
 
         successfulPatterns:

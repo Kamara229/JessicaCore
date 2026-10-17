@@ -4,6 +4,21 @@ import {
 
 
 import {
+    tryCreateNativeSkillPlan
+} from "../planner/nativeSkillPlanner.js";
+
+
+import {
+    tryCreateNativeCapabilityPlan
+} from "../planner/nativeCapabilityPlanner.js";
+
+
+import {
+    getAIProviderAvailability
+} from "../../ai/providerAvailability.js";
+
+
+import {
     executePlanCycle
 } from "../execution/executionCycle.js";
 
@@ -25,7 +40,7 @@ import {
 
 /*
  * =========================================================
- * JESSICA EXECUTE SUBTASK v4
+ * JESSICA EXECUTE SUBTASK v5
  * =========================================================
  *
  * Subtask
@@ -199,6 +214,27 @@ function mergeExperienceContext(
 
 ) {
 
+    /*
+     * FULL Resolver Experience имеет приоритет.
+     *
+     * Memory hints от Decomposer компактные и
+     * не содержат полного learning/maturity contract.
+     * Они остаются fallback, если Storage/Resolver
+     * не смог вернуть Skill.
+     */
+
+
+    if(
+        resolverExperience?.found === true
+        &&
+        resolverExperience?.experience
+    ){
+
+        return resolverExperience;
+
+    }
+
+
     if(
         memoryExperience
     ){
@@ -218,6 +254,8 @@ function mergeExperienceContext(
                 memoryExperience,
 
             planningContext:
+                resolverExperience?.planningContext
+                ||
                 null
 
         };
@@ -512,17 +550,20 @@ export async function executeSubtask(
             );
 
 
-        if(
-            !memoryExperience
-        ){
+        /*
+         * Full Experience нужен не только AI Planner,
+         * но и Native Skill Planner / Learning.
+         *
+         * Поэтому compact memoryHints больше
+         * не отменяют обычный Experience Resolver.
+         */
 
-            resolverResult =
 
-                await resolveExperience(
-                    taskText
-                );
+        resolverResult =
 
-        }
+            await resolveExperience(
+                taskText
+            );
 
 
     }catch(error){
@@ -652,7 +693,14 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 5. CREATE PLAN
+     * 5. SKILL-FIRST PLAN
+     * =====================================================
+     *
+     * Сначала Jessica пытается решить маршрут
+     * своими native capabilities / READY Skills.
+     *
+     * Groq Planner вызывается только если
+     * безопасного machine route нет.
      * =====================================================
      */
 
@@ -660,51 +708,296 @@ export async function executeSubtask(
     let planResult;
 
 
-    try {
+    const nativePlan =
 
+        tryCreateNativeSkillPlan({
 
-        planResult =
-
-            await createPlan(
-
+            task:
                 taskText,
 
-                initialPlanningContext
+            executionExperience,
 
-            );
-
-
-    }catch(error){
-
-
-        console.error(
-
-            `Jessica Planner error ${subtaskId}:`,
-
-            error
-
-        );
-
-
-        return buildFailedResult({
-
-            subtaskId,
-
-            taskText,
-
-            stage:
-                "planner",
-
-            message:
-                "Ошибка создания плана",
-
-            experience:
-                executionExperience,
+            dependencyContext,
 
             planningContext:
                 initialPlanningContext
 
         });
+
+
+    if(
+        nativePlan?.handled === true
+        &&
+        nativePlan?.plan
+    ){
+
+        planResult = {
+
+            success:
+                true,
+
+            plan:
+                nativePlan.plan,
+
+            context:
+                initialPlanningContext,
+
+            source:
+                nativePlan.source,
+
+            native:
+                true
+
+        };
+
+
+        console.log(
+
+            `Jessica Native Skill Planner ${subtaskId}:`,
+
+            {
+
+                source:
+                    nativePlan.source,
+
+                intent:
+                    nativePlan.plan.intent,
+
+                steps:
+                    nativePlan.plan.steps.length
+
+            }
+
+        );
+
+    }
+    else{
+
+
+        /*
+         * =================================================
+         * PROVIDER COOLDOWN
+         * =================================================
+         *
+         * Если Groq уже находится в cooldown,
+         * даже не пытаемся отправлять новый AI request.
+         * Сначала используем собственные capabilities.
+         * =================================================
+         */
+
+
+        const providerState =
+
+            getAIProviderAvailability();
+
+
+        if(
+            providerState.blocked === true
+        ){
+
+            const capabilityFallback =
+
+                tryCreateNativeCapabilityPlan({
+
+                    task:
+                        taskText,
+
+                    planningContext:
+                        initialPlanningContext
+
+                });
+
+
+            if(
+                capabilityFallback?.handled === true
+                &&
+                capabilityFallback?.plan
+            ){
+
+                planResult = {
+
+                    success:
+                        true,
+
+                    plan:
+                        capabilityFallback.plan,
+
+                    context:
+                        initialPlanningContext,
+
+                    source:
+                        capabilityFallback.source,
+
+                    native:
+                        true,
+
+                    degraded:
+                        true
+
+                };
+
+
+                console.log(
+
+                    `Jessica Native Capability Planner ${subtaskId}:`,
+
+                    {
+
+                        source:
+                            capabilityFallback.source,
+
+                        reason:
+                            "ai-provider-cooldown",
+
+                        intent:
+                            capabilityFallback.plan.intent,
+
+                        steps:
+                            capabilityFallback.plan.steps.length
+
+                    }
+
+                );
+
+            }
+
+        }
+
+
+        /*
+         * =================================================
+         * AI PLANNER
+         * =================================================
+         */
+
+
+        if(!planResult){
+
+            try {
+
+
+                planResult =
+
+                    await createPlan(
+
+                        taskText,
+
+                        initialPlanningContext
+
+                    );
+
+
+            }catch(error){
+
+
+                console.error(
+
+                    `Jessica Planner error ${subtaskId}:`,
+
+                    error
+
+                );
+
+
+                /*
+                 * AI недоступен — используем доступные
+                 * native capabilities вместо немедленного
+                 * падения всей задачи.
+                 */
+
+
+                const capabilityFallback =
+
+                    tryCreateNativeCapabilityPlan({
+
+                        task:
+                            taskText,
+
+                        planningContext:
+                            initialPlanningContext
+
+                    });
+
+
+                if(
+                    capabilityFallback?.handled === true
+                    &&
+                    capabilityFallback?.plan
+                ){
+
+                    planResult = {
+
+                        success:
+                            true,
+
+                        plan:
+                            capabilityFallback.plan,
+
+                        context:
+                            initialPlanningContext,
+
+                        source:
+                            capabilityFallback.source,
+
+                        native:
+                            true,
+
+                        degraded:
+                            true
+
+                    };
+
+
+                    console.log(
+
+                        `Jessica Native Capability Planner ${subtaskId}:`,
+
+                        {
+
+                            source:
+                                capabilityFallback.source,
+
+                            reason:
+                                "ai-planner-failed",
+
+                            intent:
+                                capabilityFallback.plan.intent,
+
+                            steps:
+                                capabilityFallback.plan.steps.length
+
+                        }
+
+                    );
+
+                }
+                else{
+
+                    return buildFailedResult({
+
+                        subtaskId,
+
+                        taskText,
+
+                        stage:
+                            "planner",
+
+                        message:
+                            "Доступных локальных навыков недостаточно для построения безопасного плана",
+
+                        experience:
+                            executionExperience,
+
+                        planningContext:
+                            initialPlanningContext
+
+                    });
+
+                }
+
+            }
+
+        }
 
     }
 
@@ -715,30 +1008,106 @@ export async function executeSubtask(
         !planResult?.plan
     ){
 
-        return buildFailedResult({
+        /*
+         * Semantic/technical AI Planner failure:
+         * последняя попытка выполнить задачу
+         * собственными возможностями Jessica.
+         */
 
-            subtaskId,
 
-            taskText,
+        const capabilityFallback =
 
-            stage:
-                "planner",
+            tryCreateNativeCapabilityPlan({
 
-            message:
+                task:
+                    taskText,
 
-                planResult?.text
+                planningContext:
+                    initialPlanningContext
 
-                ||
+            });
 
-                "План не создан",
 
-            experience:
-                executionExperience,
+        if(
+            capabilityFallback?.handled === true
+            &&
+            capabilityFallback?.plan
+        ){
 
-            planningContext:
-                initialPlanningContext
+            planResult = {
 
-        });
+                success:
+                    true,
+
+                plan:
+                    capabilityFallback.plan,
+
+                context:
+                    initialPlanningContext,
+
+                source:
+                    capabilityFallback.source,
+
+                native:
+                    true,
+
+                degraded:
+                    true
+
+            };
+
+
+            console.log(
+
+                `Jessica Native Capability Planner ${subtaskId}:`,
+
+                {
+
+                    source:
+                        capabilityFallback.source,
+
+                    reason:
+                        "ai-plan-unusable",
+
+                    intent:
+                        capabilityFallback.plan.intent,
+
+                    steps:
+                        capabilityFallback.plan.steps.length
+
+                }
+
+            );
+
+        }
+        else{
+
+            return buildFailedResult({
+
+                subtaskId,
+
+                taskText,
+
+                stage:
+                    "planner",
+
+                message:
+
+                    planResult?.text
+
+                    ||
+
+                    "Доступных локальных навыков недостаточно для безопасного выполнения задачи",
+
+                experience:
+                    executionExperience,
+
+                planningContext:
+                    initialPlanningContext
+
+            });
+
+        }
 
     }
 
@@ -767,7 +1136,53 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 7. EXECUTION
+     * 7. EFFECTIVE EXPERIENCE USAGE
+     * =====================================================
+     *
+     * Native capability != Experience Skill.
+     *
+     * Нельзя усиливать случайно найденный Skill,
+     * если фактически был использован только
+     * встроенный machine capability.
+     * =====================================================
+     */
+
+
+    const nativeExperienceUsed =
+
+        planResult?.native === true
+
+        &&
+
+        String(
+            planResult?.source || ""
+        )
+            .startsWith(
+                "experience:"
+            );
+
+
+    const effectiveExecutionExperience =
+
+        planResult?.native === true
+        &&
+        !nativeExperienceUsed
+
+            ? {
+
+                ...executionExperience,
+
+                used:
+                    false
+
+            }
+
+            : executionExperience;
+
+
+    /*
+     * =====================================================
+     * 8. EXECUTION
      * =====================================================
      */
 
@@ -788,7 +1203,7 @@ export async function executeSubtask(
 
                 effectivePlanningContext,
 
-                executionExperience
+                effectiveExecutionExperience
 
             );
 
@@ -833,7 +1248,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 8. RESULT
+     * 9. RESULT
      * =====================================================
      */
 
@@ -864,7 +1279,7 @@ export async function executeSubtask(
                 executionExperience.found,
 
             used:
-                executionExperience.used,
+                effectiveExecutionExperience.used,
 
             source:
                 executionExperience.source,
@@ -881,7 +1296,7 @@ export async function executeSubtask(
         executionMeta: {
 
             experienceUsed:
-                executionExperience.used,
+                effectiveExecutionExperience.used,
 
             experienceFound:
                 executionExperience.found,
@@ -902,7 +1317,13 @@ export async function executeSubtask(
                 ),
 
             plannerUsed:
-                true,
+                planResult?.native !== true,
+
+            nativePlannerUsed:
+                planResult?.native === true,
+
+            plannerSource:
+                planResult?.source || "ai",
 
             executionStarted:
                 true

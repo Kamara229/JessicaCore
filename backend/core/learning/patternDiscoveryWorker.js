@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA PATTERN DISCOVERY WORKER v1
+ * JESSICA PATTERN DISCOVERY WORKER v2
  * =========================================================
  *
  * Фоновая обработка
@@ -189,13 +189,33 @@ function buildTraceFromEvidence({
         },
 
 
+        executedTools:
+
+            Array.isArray(
+                evidence?.tools
+            )
+
+                ? [
+                    ...evidence.tools
+                ]
+
+                : [],
+
+
+        /*
+         * Legacy compatibility for older diagnostics.
+         */
+
+
         usedTools:
 
             Array.isArray(
                 evidence?.tools
             )
 
-                ? evidence.tools
+                ? [
+                    ...evidence.tools
+                ]
 
                 : [],
 
@@ -385,6 +405,10 @@ export async function processPatternDiscovery(
                 ||
 
                 "Dynamic Pattern extraction failed",
+
+
+            retryLater:
+                extraction?.retryLater === true,
 
 
             extraction

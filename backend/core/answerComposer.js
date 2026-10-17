@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA ANSWER COMPOSER v2
+ * JESSICA ANSWER COMPOSER v3
  * =========================================================
  *
  * Центральный координатор формирования
@@ -62,6 +62,11 @@ import {
     isComposerAvailable,
     requestComposerAnswer
 } from "./composer/composerRequest.js";
+
+
+import {
+    buildNativeComposerFallback
+} from "./composer/nativeComposerFallback.js";
 
 
 /*
@@ -396,8 +401,43 @@ export async function composeAnswer(
         !isComposerAvailable()
     ) {
 
+        const fallback =
+
+            buildNativeComposerFallback(
+
+                task,
+
+                taskRunResult
+
+            );
+
+
+        if(fallback){
+
+            console.log(
+
+                "Jessica Answer Composer native fallback:",
+
+                {
+
+                    reason:
+                        "composer-unavailable",
+
+                    source:
+                        fallback.source
+
+                }
+
+            );
+
+
+            return fallback;
+
+        }
+
+
         return buildComposerFailure(
-            "Groq Answer Composer не настроен"
+            "Answer Composer недоступен"
         );
 
     }
@@ -440,8 +480,66 @@ export async function composeAnswer(
      */
 
 
-    return await generateComposerAnswer(
-        contextResult.input
-    );
+    const generated =
+
+        await generateComposerAnswer(
+            contextResult.input
+        );
+
+
+    if(
+        generated?.success === true
+    ){
+
+        return generated;
+
+    }
+
+
+    /*
+     * Technical AI failure не уничтожает
+     * уже полученные Tool Results.
+     */
+
+
+    const fallback =
+
+        buildNativeComposerFallback(
+
+            task,
+
+            taskRunResult
+
+        );
+
+
+    if(fallback){
+
+        console.log(
+
+            "Jessica Answer Composer native fallback:",
+
+            {
+
+                reason:
+                    "composer-technical-failure",
+
+                status:
+                    generated?.status || 0,
+
+                source:
+                    fallback.source
+
+            }
+
+        );
+
+
+        return fallback;
+
+    }
+
+
+    return generated;
 
 }

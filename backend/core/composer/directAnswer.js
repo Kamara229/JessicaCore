@@ -35,7 +35,9 @@
 const DIRECT_ANSWER_TOOLS =
     new Set([
 
-        "current_time"
+        "current_time",
+
+        "date_diff"
 
     ]);
 

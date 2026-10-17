@@ -18,6 +18,12 @@ import "./timeTool.js";
 
 
 /*
+ * Разница между датами.
+ */
+import "./dateDiffTool.js";
+
+
+/*
  * Интернет-поиск.
  */
 import "./webSearchTool.js";

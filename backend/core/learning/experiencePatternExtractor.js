@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE PATTERN EXTRACTOR v3
+ * JESSICA EXPERIENCE PATTERN EXTRACTOR v4
  * =========================================================
  *
  * Центральный координатор автономного
@@ -115,7 +115,9 @@ function buildFailureResult({
 
     evidence = null,
 
-    rawText = ""
+    rawText = "",
+
+    retryLater = false
 
 } = {}) {
 
@@ -160,7 +162,10 @@ function buildFailureResult({
 
             normalizeText(
                 rawText
-            )
+            ),
+
+        retryLater:
+            retryLater === true
 
     };
 
@@ -341,7 +346,10 @@ export async function extractExperiencePattern({
                 "Pattern Extractor request failed",
 
             evidence:
-                resolvedEvidence
+                resolvedEvidence,
+
+            retryLater:
+                requestResult?.retryLater === true
 
         });
 

@@ -22,6 +22,11 @@ import {
 } from "../../../experience/learning/learningSkillBuilder.js";
 
 
+import {
+    inferExecutionProgramFromPattern
+} from "../../../experience/execution/executionProgram.js";
+
+
 
 
 
@@ -349,6 +354,18 @@ export function normalizeExtractedPattern({
 
 
 
+    const executionProgram =
+
+        inferExecutionProgramFromPattern({
+
+            pattern,
+
+            evidence
+
+        });
+
+
+
     return {
 
 
@@ -422,6 +439,9 @@ export function normalizeExtractedPattern({
                 evidence?.tools
 
             ),
+
+
+        executionProgram,
 
 
 

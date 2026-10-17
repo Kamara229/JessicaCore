@@ -14,9 +14,14 @@ import {
 } from "../ai/decomposerClient.js";
 
 
+import {
+    tryNativeDecomposition
+} from "./decomposer/nativeDecomposer.js";
+
+
 /*
  * =========================================================
- * JESSICA TASK DECOMPOSER v3
+ * JESSICA TASK DECOMPOSER v4
  * =========================================================
  *
  * User Task
@@ -493,6 +498,93 @@ export async function decomposeTask({
         buildEffectiveMemoryContext(
             normalizedMemory
         );
+
+
+    /*
+     * =====================================================
+     * NATIVE DECOMPOSITION FIRST
+     * =====================================================
+     *
+     * Явная последовательность задач не требует LLM.
+     * Это экономит токены и остаётся доступным
+     * при исчерпанной квоте Groq.
+     * =====================================================
+     */
+
+
+    const native =
+
+        tryNativeDecomposition({
+
+            task:
+                normalizedTask,
+
+            memoryContext:
+                effectiveMemoryContext
+
+        });
+
+
+    if(
+        native?.handled === true
+        &&
+        native?.decomposition
+    ){
+
+        console.log(
+
+            "Jessica Task Decomposition:",
+
+            {
+
+                source:
+                    native.source,
+
+                subtasks:
+
+                    native
+                        .decomposition
+                        .subtasks
+                        .map(
+                            subtask => ({
+
+                                id:
+                                    subtask.id,
+
+                                dependsOn:
+                                    subtask.dependsOn,
+
+                                text:
+                                    subtask.text
+
+                            })
+                        )
+
+            }
+
+        );
+
+
+        return {
+
+            success:
+                true,
+
+            fallback:
+                false,
+
+            native:
+                true,
+
+            source:
+                native.source,
+
+            decomposition:
+                native.decomposition
+
+        };
+
+    }
 
 
     /*
