@@ -1,6 +1,11 @@
+import {
+    normalizeExecutionProgram
+} from "../../execution/executionProgram.js";
+
+
 /*
  * =========================================================
- * JESSICA EXPERIENCE NORMALIZER v1
+ * JESSICA EXPERIENCE NORMALIZER v2
  * =========================================================
  *
  * Каноническая нормализация
@@ -537,6 +542,13 @@ export function normalizeExperienceSkill(
 
             normalizeExperienceStringArray(
                 experience.requiredTools
+            ),
+
+
+        executionProgram:
+
+            normalizeExecutionProgram(
+                experience.executionProgram
             ),
 
 
