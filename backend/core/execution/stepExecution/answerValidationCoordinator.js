@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA ANSWER VALIDATION COORDINATOR v1
+ * JESSICA ANSWER VALIDATION COORDINATOR v2
  * =========================================================
  *
  * Локальный semantic repair итогового ответа.
@@ -146,7 +146,19 @@ export async function executeAnswerValidation(
 
             "validator",
 
-            executeValidation
+            executeValidation,
+
+            {
+
+                failureStatusResolver:
+                    result =>
+                        isPresentationFailure(
+                            result
+                        )
+                            ? "REPAIR_REQUIRED"
+                            : "FAILED"
+
+            }
 
         );
 
@@ -180,6 +192,21 @@ export async function executeAnswerValidation(
     ){
 
         repairCount += 1;
+
+
+        context.metadata =
+            context.metadata &&
+            typeof context.metadata === "object"
+                ? context.metadata
+                : {};
+
+
+        context.metadata.answerRepairCount =
+            Number(
+                context.metadata.answerRepairCount || 0
+            )
+            +
+            1;
 
 
         const repairContext =
