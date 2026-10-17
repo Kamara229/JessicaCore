@@ -2,6 +2,7 @@ import {
     createPlan
 } from "./planner.js";
 
+
 import {
     buildRetryContext
 } from "./replanner/retryContext.js";
@@ -9,40 +10,18 @@ import {
 
 /*
  * =========================================================
- * JESSICA REPLANNER
+ * JESSICA REPLANNER v2
  * =========================================================
  *
- * Центральный координатор повторного планирования.
- *
- *
- * Flow:
- *
  * Failure
- *   ↓
- * buildRetryContext()
- *   ↓
- * createPlan()
- *   ↓
- * New Plan
- *
- *
- * Replanner НЕ:
- *
- * - вызывает AI напрямую;
- * - строит prompt;
- * - анализирует историю самостоятельно;
- * - выполняет инструменты;
- * - валидирует план самостоятельно;
- * - хранит полный Execution Result.
- *
- *
- * Вспомогательная логика вынесена в:
- *
- * replanner/
- *
- * - retryHistory.js
- * - retryInstructions.js
- * - retryContext.js
+ *      ↓
+ * Retry Context
+ *      ↓
+ * Planner
+ *      ↓
+ * Validated Alternative Plan
+ *      ↓
+ * Runtime Replan Metadata
  *
  * =========================================================
  */
@@ -50,7 +29,33 @@ import {
 
 /*
  * =========================================================
- * LOG RETRY CONTEXT
+ * SAFE CONTEXT
+ * =========================================================
+ */
+
+
+function isObject(
+    value
+) {
+
+    return Boolean(
+
+        value
+        &&
+        typeof value === "object"
+        &&
+        !Array.isArray(
+            value
+        )
+
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * LOG
  * =========================================================
  */
 
@@ -72,18 +77,183 @@ function logRetryContext(
             replanCount:
                 metadata.replanCount || 0,
 
+
             retry:
                 metadata.retry || null,
+
 
             previousAttempt:
                 metadata.previousAttempt || null,
 
+
             triedSearchQueries:
-                metadata.triedSearchQueries || []
+                metadata.triedSearchQueries || [],
+
+
+            triedSourceUrls:
+                metadata.triedSourceUrls || [],
+
+
+            replanConstraints:
+                metadata.replanConstraints || null
 
         })
 
     );
+
+}
+
+
+/*
+ * =========================================================
+ * MERGE EFFECTIVE CONTEXT
+ * =========================================================
+ */
+
+
+function mergeEffectiveContext(
+    retryContext,
+    plannerContext
+) {
+
+    if(
+        !isObject(
+            plannerContext
+        )
+    ){
+
+        return retryContext;
+    }
+
+
+    return {
+
+        ...retryContext,
+
+        ...plannerContext,
+
+
+        metadata: {
+
+            ...(
+                isObject(
+                    retryContext?.metadata
+                )
+
+                    ? retryContext.metadata
+
+                    : {}
+            ),
+
+            ...(
+                isObject(
+                    plannerContext?.metadata
+                )
+
+                    ? plannerContext.metadata
+
+                    : {}
+            )
+
+        }
+
+    };
+
+}
+
+
+/*
+ * =========================================================
+ * ATTACH MACHINE RUNTIME METADATA
+ * =========================================================
+ *
+ * TaskRunner не должен знать весь PlanningContext.
+ *
+ * Поэтому в Plan переносим только минимум,
+ * необходимый во время выполнения.
+ *
+ * Fingerprint metadata не учитывает.
+ *
+ * =========================================================
+ */
+
+
+function attachRuntimeMetadata(
+    plan,
+    context
+) {
+
+    const metadata =
+
+        isObject(
+            plan?.metadata
+        )
+
+            ? plan.metadata
+
+            : {};
+
+
+    const contextMetadata =
+
+        isObject(
+            context?.metadata
+        )
+
+            ? context.metadata
+
+            : {};
+
+
+    return {
+
+        ...plan,
+
+
+        metadata: {
+
+            ...metadata,
+
+
+            runtime: {
+
+                replanConstraints:
+
+                    contextMetadata.replanConstraints
+                    ||
+                    null,
+
+
+                triedSearchQueries:
+
+                    Array.isArray(
+                        contextMetadata.triedSearchQueries
+                    )
+
+                        ? [
+                            ...contextMetadata.triedSearchQueries
+                        ]
+
+                        : [],
+
+
+                triedSourceUrls:
+
+                    Array.isArray(
+                        contextMetadata.triedSourceUrls
+                    )
+
+                        ? [
+                            ...contextMetadata.triedSourceUrls
+                        ]
+
+                        : []
+
+            }
+
+        }
+
+    };
 
 }
 
@@ -109,15 +279,13 @@ export async function replanTask(
 
 ) {
 
-
     /*
-     * =====================================================
-     * 1. BUILD RETRY CONTEXT
-     * =====================================================
+     * 1. Retry context.
      */
 
 
     const retryContext =
+
         buildRetryContext({
 
             planningContext,
@@ -137,9 +305,7 @@ export async function replanTask(
 
 
     /*
-     * =====================================================
-     * 2. CREATE NEW PLAN
-     * =====================================================
+     * 2. Planner.
      */
 
 
@@ -147,6 +313,7 @@ export async function replanTask(
 
 
         const result =
+
             await createPlan(
 
                 task,
@@ -156,17 +323,11 @@ export async function replanTask(
             );
 
 
-        /*
-         * =================================================
-         * PLANNER FAILURE
-         * =================================================
-         */
-
-
-        if (
-            !result?.success ||
+        if(
+            !result?.success
+            ||
             !result?.plan
-        ) {
+        ){
 
             return {
 
@@ -174,7 +335,9 @@ export async function replanTask(
                     false,
 
                 reason:
-                    result?.text ||
+
+                    result?.text
+                    ||
                     "Planner не смог создать альтернативный маршрут"
 
             };
@@ -183,10 +346,36 @@ export async function replanTask(
 
 
         /*
-         * =================================================
-         * LOG NEW PLAN
-         * =================================================
+         * Planner context не должен
+         * потерять retry metadata.
          */
+
+
+        const effectiveContext =
+
+            mergeEffectiveContext(
+
+                retryContext,
+
+                result?.context
+
+            );
+
+
+        /*
+         * Runtime-only metadata для TaskRunner.
+         */
+
+
+        const runtimePlan =
+
+            attachRuntimeMetadata(
+
+                result.plan,
+
+                effectiveContext
+
+            );
 
 
         console.log(
@@ -194,46 +383,10 @@ export async function replanTask(
             "Jessica Replanner new plan:",
 
             JSON.stringify(
-                result.plan
+                runtimePlan
             )
 
         );
-
-
-        /*
-         * =================================================
-         * EFFECTIVE CONTEXT
-         * =================================================
-         *
-         * Planner может нормализовать или дополнить
-         * PlanningContext.
-         *
-         * Поэтому возвращаем result.context.
-         *
-         * Если Planner его не вернул —
-         * используем retryContext.
-         *
-         * =================================================
-         */
-
-
-        const effectiveContext =
-            result?.context &&
-            typeof result.context === "object" &&
-            !Array.isArray(
-                result.context
-            )
-
-                ? result.context
-
-                : retryContext;
-
-
-        /*
-         * =================================================
-         * SUCCESS
-         * =================================================
-         */
 
 
         return {
@@ -242,7 +395,7 @@ export async function replanTask(
                 true,
 
             plan:
-                result.plan,
+                runtimePlan,
 
             context:
                 effectiveContext
@@ -250,14 +403,7 @@ export async function replanTask(
         };
 
 
-    } catch (error) {
-
-
-        /*
-         * =================================================
-         * UNEXPECTED ERROR
-         * =================================================
-         */
+    }catch(error){
 
 
         console.error(
@@ -275,7 +421,9 @@ export async function replanTask(
                 false,
 
             reason:
-                error?.message ||
+
+                error?.message
+                ||
                 "Ошибка Replanner"
 
         };
