@@ -2,6 +2,7 @@ import {
     buildRetryHistory
 } from "./retryHistory.js";
 
+
 import {
     buildRetryInstructions
 } from "./retryInstructions.js";
@@ -10,30 +11,11 @@ import {
 /*
  * =========================================================
  * JESSICA REPLANNER
- * RETRY CONTEXT v2
+ * RETRY CONTEXT v3
  * =========================================================
  *
- * Previous PlanningContext
- *        +
- * Previous Plan
- *        +
- * Previous Run Result
- *        +
- * Failure
- *        ↓
- * Retry History
- *        ↓
- * Retry Instructions
- *        ↓
- * Updated PlanningContext
- *
- *
- * v2:
- *
- * - сохраняет triedSearchQueries;
- * - сохраняет triedSourceUrls;
- * - передаёт Planner историю
- *   реально проверенных источников.
+ * Кроме текстовых instructions теперь создаёт
+ * машинный replanConstraints.
  *
  * =========================================================
  */
@@ -41,7 +23,7 @@ import {
 
 /*
  * =========================================================
- * SAFE STRING
+ * SAFE
  * =========================================================
  */
 
@@ -51,17 +33,53 @@ function safeString(
 ) {
 
     return typeof value === "string"
-
         ? value.trim()
-
         : "";
+
+}
+
+
+function safeArray(
+    value
+) {
+
+    return Array.isArray(
+        value
+    )
+        ? value
+        : [];
+
+}
+
+
+function uniqueStrings(
+    values
+) {
+
+    return [
+
+        ...new Set(
+
+            safeArray(
+                values
+            )
+
+                .map(
+                    safeString
+                )
+
+                .filter(Boolean)
+
+        )
+
+    ];
 
 }
 
 
 /*
  * =========================================================
- * NORMALIZE CONTEXT
+ * BASE CONTEXT
  * =========================================================
  */
 
@@ -81,7 +99,6 @@ function normalizeBaseContext(
     ){
 
         return {};
-
     }
 
 
@@ -128,6 +145,112 @@ function normalizeBaseContext(
 
 /*
  * =========================================================
+ * FAILURE DETAILS
+ * =========================================================
+ */
+
+
+function getFailureDetails(
+    failureResult
+) {
+
+    const details =
+        failureResult?.details;
+
+
+    if(
+        !details
+        ||
+        typeof details !== "object"
+        ||
+        Array.isArray(
+            details
+        )
+    ){
+
+        return {};
+    }
+
+
+    return details;
+
+}
+
+
+/*
+ * =========================================================
+ * MACHINE REPLAN CONSTRAINTS
+ * =========================================================
+ */
+
+
+function buildReplanConstraints({
+
+    failureResult,
+
+    retryHistory
+
+}) {
+
+    const details =
+
+        getFailureDetails(
+            failureResult
+        );
+
+
+    return {
+
+        diversificationRequired:
+
+            details?.diversificationRequired
+            ===
+            true,
+
+
+        forbiddenSearchQueries:
+
+            uniqueStrings([
+
+                ...safeArray(
+                    retryHistory?.triedSearchQueries
+                ),
+
+                ...safeArray(
+                    details?.forbiddenSearchQueries
+                )
+
+            ]),
+
+
+        forbiddenSourceUrls:
+
+            uniqueStrings([
+
+                ...safeArray(
+                    retryHistory?.triedSourceUrls
+                ),
+
+                ...safeArray(
+                    details?.forbiddenSourceUrls
+                )
+
+            ]),
+
+
+        rejectedRouteSummaries:
+
+            uniqueStrings(
+                details?.rejectedRouteSummaries
+            )
+
+    };
+
+}
+
+
+/*
+ * =========================================================
  * RETRY METADATA
  * =========================================================
  */
@@ -158,9 +281,7 @@ function buildRetryMetadata(
             safeString(
 
                 failureResult?.reason
-
                 ||
-
                 failureResult?.text
 
             ),
@@ -199,7 +320,9 @@ function getNextReplanCount(
 
 
     if(
-        !Number.isFinite(current)
+        !Number.isFinite(
+            current
+        )
         ||
         current < 0
     ){
@@ -211,7 +334,9 @@ function getNextReplanCount(
 
     return (
 
-        Math.floor(current)
+        Math.floor(
+            current
+        )
 
         +
 
@@ -224,7 +349,7 @@ function getNextReplanCount(
 
 /*
  * =========================================================
- * BUILD RETRY CONTEXT
+ * BUILD
  * =========================================================
  */
 
@@ -241,14 +366,6 @@ export function buildRetryContext({
 
 } = {}) {
 
-
-    /*
-     * =====================================================
-     * BASE CONTEXT
-     * =====================================================
-     */
-
-
     const baseContext =
 
         normalizeBaseContext(
@@ -257,9 +374,7 @@ export function buildRetryContext({
 
 
     /*
-     * =====================================================
-     * RETRY HISTORY
-     * =====================================================
+     * History.
      */
 
 
@@ -278,9 +393,23 @@ export function buildRetryContext({
 
 
     /*
-     * =====================================================
-     * RETRY INSTRUCTIONS
-     * =====================================================
+     * Machine constraints.
+     */
+
+
+    const replanConstraints =
+
+        buildReplanConstraints({
+
+            failureResult,
+
+            retryHistory
+
+        });
+
+
+    /*
+     * Human-readable Planner instructions.
      */
 
 
@@ -298,13 +427,6 @@ export function buildRetryContext({
         });
 
 
-    /*
-     * =====================================================
-     * RETRY METADATA
-     * =====================================================
-     */
-
-
     const retry =
 
         buildRetryMetadata(
@@ -317,13 +439,6 @@ export function buildRetryContext({
         getNextReplanCount(
             baseContext
         );
-
-
-    /*
-     * =====================================================
-     * RESULT
-     * =====================================================
-     */
 
 
     return {
@@ -339,17 +454,7 @@ export function buildRetryContext({
             ...(baseContext.metadata || {}),
 
 
-            /*
-             * Текущая причина Replan.
-             */
-
-
             retry,
-
-
-            /*
-             * Предыдущий маршрут.
-             */
 
 
             previousAttempt:
@@ -357,20 +462,9 @@ export function buildRetryContext({
                 retryHistory.previousAttempt,
 
 
-            /*
-             * Накопительная история Search.
-             */
-
-
             triedSearchQueries:
 
                 retryHistory.triedSearchQueries,
-
-
-            /*
-             * Накопительная история
-             * реально проверенных Source URLs.
-             */
 
 
             triedSourceUrls:
@@ -379,8 +473,14 @@ export function buildRetryContext({
 
 
             /*
-             * Replan counter.
+             * КРИТИЧЕСКО:
+             *
+             * структурированные ограничения
+             * для машинных policy layers.
              */
+
+
+            replanConstraints,
 
 
             replanCount
