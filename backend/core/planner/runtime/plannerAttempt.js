@@ -1,12 +1,7 @@
 /*
  * =========================================================
- * JESSICA PLANNER ATTEMPT v2
+ * JESSICA PLANNER ATTEMPT v3
  * =========================================================
- *
- * Выполняет одну попытку Planner.
- *
- *
- * Flow:
  *
  * Planner Request
  *      ↓
@@ -16,7 +11,18 @@
  *      ↓
  * Validate
  *      ↓
- * Result
+ *
+ * success
+ *      → Plan
+ *
+ * semantic failure
+ *      → Validation feedback
+ *      → Rejected Plan
+ *
+ *
+ * Rejected Plan нужен только
+ * следующему Planner attempt
+ * для построения repair feedback.
  *
  * =========================================================
  */
@@ -135,17 +141,6 @@ export async function runPlannerAttempt({
      * =====================================================
      * VALIDATE
      * =====================================================
-     *
-     * КРИТИЧЕСКО:
-     *
-     * исходный task теперь передаётся
-     * Validator'у.
-     *
-     * Это позволяет Evidence Policy
-     * определить минимально допустимый
-     * уровень доказательств.
-     *
-     * =====================================================
      */
 
 
@@ -160,6 +155,13 @@ export async function runPlannerAttempt({
             task
 
         );
+
+
+    /*
+     * =====================================================
+     * SEMANTIC FAILURE
+     * =====================================================
+     */
 
 
     if(
@@ -180,13 +182,25 @@ export async function runPlannerAttempt({
             feedback:
 
                 validation.text
-
                 ||
-
                 "planner_validation_failed",
 
-            plan:
-                null,
+
+            /*
+             * КРИТИЧЕСКО:
+             *
+             * Plan не выполняется.
+             *
+             * Он передаётся только
+             * Feedback Builder'у,
+             * чтобы следующий attempt
+             * понимал, что именно
+             * нельзя повторять.
+             */
+
+
+            rejectedPlan:
+                normalizedPlan,
 
             attempt
 
@@ -215,6 +229,9 @@ export async function runPlannerAttempt({
 
         feedback:
             "",
+
+        rejectedPlan:
+            null,
 
         plan:
             normalizedPlan,
