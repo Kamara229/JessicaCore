@@ -1,30 +1,17 @@
 /*
  * =========================================================
  * JESSICA TASK RUNNER
- * FETCH SOURCE RESOLVER v2
+ * FETCH SOURCE RESOLVER v3
  * =========================================================
  *
- * Выбор источника для web_fetch.
+ * web_fetch source resolution.
  *
  *
- * Flow:
+ * Защита:
  *
- * web_search result
- *        ↓
- * Search Candidates
- *        ↓
- * Source Selector
- *        ↓
- * Selected URL
- *
- *
- * НЕ:
- *
- * - выполняет web_fetch;
- * - выполняет Tools;
- * - делает Retry;
- * - делает Replan;
- * - меняет Execution Context.
+ * - direct rejected URL cannot be reused;
+ * - dynamic Source Selector получает
+ *   excludedSourceUrls.
  *
  * =========================================================
  */
@@ -39,13 +26,6 @@ import {
     findPreviousSearchResult,
     extractSearchCandidates
 } from "./stepResultResolver.js";
-
-
-
-
-
-
-
 
 
 /*
@@ -67,83 +47,49 @@ function buildFailure({
 
 }) {
 
-
     return {
 
-
         success:
-
             false,
 
-
-
         stage:
-
             "source-selection",
-
-
 
         failureType,
 
-
-
         text,
 
-
-
         reason:
-
             text,
 
-
-
         shouldRetry:
-
             shouldRetry === true,
 
-
-
         needsClarification:
-
             needsClarification === true
-
 
     };
 
 }
 
 
-
-
-
-
-
-
-
 /*
  * =========================================================
- * DIRECT URL CHECK
+ * DIRECT URL
  * =========================================================
  */
 
 
 function isDirectUrl(
-
     url
-
 ) {
-
 
     return (
 
         typeof url === "string"
-
         &&
-
         /^https?:\/\/\S+$/i.test(
-
             url.trim()
-
         )
 
     );
@@ -151,16 +97,137 @@ function isDirectUrl(
 }
 
 
+/*
+ * =========================================================
+ * NORMALIZE URL
+ * =========================================================
+ */
 
 
+function normalizeUrl(
+    value
+) {
+
+    const text =
+
+        String(
+            value || ""
+        )
+            .trim();
 
 
+    if(
+        !text
+    ){
 
+        return "";
+
+    }
+
+
+    try {
+
+
+        const url =
+            new URL(
+                text
+            );
+
+
+        url.hash =
+            "";
+
+
+        url.protocol =
+            url.protocol.toLowerCase();
+
+
+        url.hostname =
+            url.hostname.toLowerCase();
+
+
+        if(
+            url.pathname.length > 1
+            &&
+            url.pathname.endsWith("/")
+        ){
+
+            url.pathname =
+                url.pathname.slice(
+                    0,
+                    -1
+                );
+
+        }
+
+
+        return url.toString();
+
+
+    }catch(error){
+
+
+        return text;
+
+    }
+
+}
 
 
 /*
  * =========================================================
- * RESOLVE FETCH SOURCE
+ * EXCLUDED URLS
+ * =========================================================
+ */
+
+
+function getExcludedUrls(
+    selectionContext
+) {
+
+    if(
+        !selectionContext
+        ||
+        typeof selectionContext !== "object"
+        ||
+        Array.isArray(
+            selectionContext
+        )
+    ){
+
+        return new Set();
+    }
+
+
+    const values =
+
+        Array.isArray(
+            selectionContext.excludedSourceUrls
+        )
+
+            ? selectionContext.excludedSourceUrls
+
+            : [];
+
+
+    return new Set(
+
+        values
+
+            .map(
+                normalizeUrl
+            )
+
+            .filter(Boolean)
+
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * RESOLVE
  * =========================================================
  */
 
@@ -175,6 +242,12 @@ export async function resolveFetchSource(
 
 ) {
 
+    const excludedUrls =
+
+        getExcludedUrls(
+            selectionContext
+        );
+
 
     /*
      * =====================================================
@@ -183,47 +256,62 @@ export async function resolveFetchSource(
      */
 
 
-    if (
-
+    if(
         isDirectUrl(
-
             originalArgs?.url
-
         )
+    ){
 
-    ) {
+        const directUrl =
+
+            originalArgs.url.trim();
+
+
+        if(
+            excludedUrls.has(
+                normalizeUrl(
+                    directUrl
+                )
+            )
+        ){
+
+            return buildFailure({
+
+                failureType:
+                    "rejected-source-reuse",
+
+                shouldRetry:
+                    true,
+
+                text:
+
+                    (
+                        "Execution Plan попытался повторно использовать "
+                        +
+                        `уже отклонённый источник: ${directUrl}`
+                    )
+
+            });
+
+        }
 
 
         return {
 
-
             success:
-
                 true,
 
-
-
             url:
-
-                originalArgs.url.trim()
-
+                directUrl
 
         };
-
 
     }
 
 
-
-
-
-
-
-
-
     /*
      * =====================================================
-     * FIND SEARCH RESULT
+     * PREVIOUS SEARCH
      * =====================================================
      */
 
@@ -231,67 +319,33 @@ export async function resolveFetchSource(
     const searchResult =
 
         findPreviousSearchResult(
-
             results
-
         );
 
 
-
-
-
-
-
-
-    /*
-     * Нет предыдущего поиска.
-     *
-     * Для web_fetch это ошибка маршрута,
-     * а не отсутствие аргумента.
-     */
-
-
-    if (
-
+    if(
         !searchResult
-
-    ) {
-
+    ){
 
         return buildFailure({
 
             failureType:
-
                 "missing-fetch-source",
 
-
-
             shouldRetry:
-
                 false,
 
-
-
             text:
-
                 "Для web_fetch не найден результат web_search"
 
         });
 
-
     }
-
-
-
-
-
-
-
 
 
     /*
      * =====================================================
-     * EXTRACT CANDIDATES
+     * CANDIDATES
      * =====================================================
      */
 
@@ -299,54 +353,28 @@ export async function resolveFetchSource(
     const candidates =
 
         extractSearchCandidates(
-
             searchResult
-
         );
 
 
-
-
-
-
-
-
-    if (
-
+    if(
         candidates.length === 0
-
-    ) {
-
+    ){
 
         return buildFailure({
 
             failureType:
-
                 "no-search-results",
 
-
-
             shouldRetry:
-
                 true,
 
-
-
             text:
-
                 "Поиск не вернул ссылок для загрузки"
 
         });
 
-
     }
-
-
-
-
-
-
-
 
 
     /*
@@ -357,7 +385,6 @@ export async function resolveFetchSource(
 
 
     let selection;
-
 
 
     try {
@@ -374,9 +401,7 @@ export async function resolveFetchSource(
             );
 
 
-    }
-
-    catch(error){
+    }catch(error){
 
 
         console.error(
@@ -388,77 +413,49 @@ export async function resolveFetchSource(
         );
 
 
-
         return buildFailure({
 
             failureType:
-
                 "source-selector-error",
 
-
-
             text:
-
                 "Ошибка выбора источника"
 
         });
 
-
     }
-
-
-
-
-
-
-
 
 
     /*
      * =====================================================
-     * NO SUITABLE SOURCE
+     * NO SOURCE
      * =====================================================
      */
 
 
-    if (
-
-        selection?.noSuitableSource === true
-
-    ) {
-
+    if(
+        selection?.noSuitableSource
+        ===
+        true
+    ){
 
         return buildFailure({
 
             failureType:
-
                 "no-suitable-source",
 
-
-
             shouldRetry:
-
                 true,
-
-
 
             text:
 
-                selection.reason ||
-
+                selection.reason
+                ||
                 "Не найден подходящий источник"
 
         });
 
-
     }
-
-
-
-
-
-
-
 
 
     /*
@@ -468,42 +465,26 @@ export async function resolveFetchSource(
      */
 
 
-    if (
-
+    if(
         selection?.success !== true
-
         ||
-
         !selection?.result?.url
-
-    ) {
-
+    ){
 
         return buildFailure({
 
             failureType:
-
                 "source-selector-error",
-
-
 
             text:
 
-                selection?.reason ||
-
+                selection?.reason
+                ||
                 "Источник не выбран"
 
         });
 
-
     }
-
-
-
-
-
-
-
 
 
     /*
@@ -515,19 +496,12 @@ export async function resolveFetchSource(
 
     return {
 
-
         success:
-
             true,
 
-
-
         url:
-
             selection.result.url
 
-
     };
-
 
 }
