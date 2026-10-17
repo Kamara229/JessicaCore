@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXECUTION STEP RUNNER v8
+ * JESSICA EXECUTION STEP RUNNER v10
  * =========================================================
  *
  * Координатор одного Execution Pass.
@@ -46,13 +46,8 @@ import {
 
 
 import {
-    executeAnswer
-} from "./stepExecution/answerExecutor.js";
-
-
-import {
-    executeValidation
-} from "./stepExecution/validationExecutor.js";
+    executeAnswerValidation
+} from "./stepExecution/answerValidationCoordinator.js";
 
 
 import {
@@ -189,7 +184,9 @@ async function executeStage(
 
     stage,
 
-    executor
+    executor,
+
+    options = {}
 
 ) {
 
@@ -257,13 +254,41 @@ async function executeStage(
     ) {
 
 
+        let failureStatus =
+            "FAILED";
+
+
+        if(
+            typeof options?.failureStatusResolver === "function"
+        ){
+
+            const resolvedStatus =
+                options.failureStatusResolver(
+                    result
+                );
+
+
+            if(
+                typeof resolvedStatus === "string"
+                &&
+                resolvedStatus.trim()
+            ){
+
+                failureStatus =
+                    resolvedStatus.trim();
+
+            }
+
+        }
+
+
         markStep(
 
             context,
 
             stage,
 
-            "FAILED",
+            failureStatus,
 
             {
 
@@ -375,80 +400,36 @@ export async function executeExecutionStep(
 
     /*
      * =====================================================
-     * ANSWER
+     * ANSWER + VALIDATION
+     * =====================================================
+     *
+     * Presentation semantic repair выполняется локально
+     * и не повторяет Task Runner / Tools / Plan.
      * =====================================================
      */
 
 
-    const answer =
+    const answerValidation =
 
-        await executeStage(
+        await executeAnswerValidation(
 
             context,
 
-            "composer",
-
-            executeAnswer
+            executeStage
 
         );
 
 
-
     if (
 
-        answer.success !== true
+        answerValidation.success !== true
 
     ) {
 
 
-        return answer;
+        return answerValidation;
 
     }
-
-
-
-
-
-
-
-
-
-    /*
-     * =====================================================
-     * VALIDATION
-     * =====================================================
-     */
-
-
-    const validation =
-
-        await executeStage(
-
-            context,
-
-            "validator",
-
-            executeValidation
-
-        );
-
-
-
-    if (
-
-        validation.success !== true
-
-    ) {
-
-
-        return validation;
-
-    }
-
-
-
-
-
 
 
 

@@ -1,37 +1,13 @@
 /*
  * =========================================================
  * JESSICA EXECUTION
- * VALIDATION EXECUTOR v2
+ * VALIDATION EXECUTOR v3
  * =========================================================
  *
  * Проверка результата выполнения.
  *
- *
- * Flow:
- *
- * Task
- * Plan
- * Run Result
- * Answer Result
- *        ↓
- * Validator
- *        ↓
- * Validation Result
- *
- *
- * Ответственность:
- *
- * - вызвать Validator;
- * - сохранить Validation Result;
- * - нормализовать ошибку проверки.
- *
- *
- * НЕ:
- *
- * - выполняет Tools;
- * - создаёт Answer;
- * - делает Retry;
- * - делает Replan.
+ * Дополнительно сохраняет failureScope/category,
+ * чтобы presentation failure не уходил в Execution Replan.
  *
  * =========================================================
  */
@@ -40,20 +16,6 @@
 import {
     validateResult
 } from "../../validator.js";
-
-
-
-
-
-
-
-
-
-/*
- * =========================================================
- * FAILURE
- * =========================================================
- */
 
 
 function buildFailure(
@@ -68,102 +30,158 @@ function buildFailure(
 
 ) {
 
-
     return {
 
+        success:
+            false,
 
-        success:false,
-
-
-        failure:
-
-        {
-
+        failure: {
 
             stage,
 
-
             failureType,
-
 
             reason,
 
-
             ...extra
 
-
         }
-
 
     };
 
 }
 
 
+function getFailureCategory(
+    validation
+) {
+
+    const scope =
+        String(
+            validation?.failureScope || ""
+        )
+            .trim()
+            .toLowerCase();
 
 
+    if(
+        scope === "presentation"
+    ){
+
+        return "presentation";
+
+    }
 
 
+    if(
+        scope === "clarification"
+    ){
+
+        return "clarification";
+
+    }
 
 
+    return "validation";
 
-/*
- * =========================================================
- * NORMALIZE VALIDATION FAILURE
- * =========================================================
- */
+}
+
+
+function getFailureType(
+    validation
+) {
+
+    const scope =
+        String(
+            validation?.failureScope || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if(
+        scope === "presentation"
+    ){
+
+        return "answer-validation-error";
+
+    }
+
+
+    if(
+        scope === "evidence"
+    ){
+
+        return "evidence-validation-error";
+
+    }
+
+
+    if(
+        scope === "clarification"
+    ){
+
+        return "clarification-required";
+
+    }
+
+
+    return "validation-error";
+
+}
 
 
 function normalizeValidationFailure(
-
     validation
-
 ) {
+
+    const category =
+        getFailureCategory(
+            validation
+        );
 
 
     return {
 
-
         stage:
-
-            validation?.stage ||
-
+            validation?.stage
+            ||
             "validator",
 
 
-
         failureType:
+            validation?.failureType
+            ||
+            getFailureType(
+                validation
+            ),
 
-            validation?.failureType ||
 
-            "validation-error",
+        category,
 
+
+        failureScope:
+            validation?.failureScope
+            ||
+            null,
 
 
         reason:
-
-            validation?.reason ||
-
+            validation?.reason
+            ||
             "Результат не прошёл проверку",
 
 
-
         shouldRetry:
-
             validation?.shouldRetry === true,
 
 
-
         needsClarification:
-
             validation?.needsClarification === true,
 
 
-
         noVerifiedResult:
-
             validation?.noVerifiedResult === true,
-
 
 
         validation
@@ -173,33 +191,13 @@ function normalizeValidationFailure(
 }
 
 
-
-
-
-
-
-
-
-/*
- * =========================================================
- * EXECUTE VALIDATION
- * =========================================================
- */
-
-
 export async function executeValidation(
-
     context
-
 ) {
 
-
-    if (
-
+    if(
         !context
-
-    ) {
-
+    ){
 
         return buildFailure(
 
@@ -214,22 +212,12 @@ export async function executeValidation(
     }
 
 
-
-
-
-
-
-
-
     let validation;
-
 
 
     try {
 
-
         validation =
-
             await validateResult(
 
                 context.task,
@@ -242,11 +230,7 @@ export async function executeValidation(
 
             );
 
-
-    }
-
-    catch(error){
-
+    } catch(error){
 
         return buildFailure(
 
@@ -254,82 +238,46 @@ export async function executeValidation(
 
             "validator-exception",
 
-            error?.message ||
-
+            error?.message
+            ||
             "Ошибка проверки результата"
 
         );
 
-
     }
-
-
-
-
-
-
-
 
 
     context.validationResult =
-
         validation;
 
 
-
-
-
-
-
-
-
-    if (
-
+    if(
         validation?.valid !== true
-
-    ) {
-
+    ){
 
         return {
 
-
-            success:false,
-
+            success:
+                false,
 
             failure:
-
                 normalizeValidationFailure(
-
                     validation
-
                 )
-
 
         };
 
-
     }
-
-
-
-
-
-
-
 
 
     return {
 
-
-        success:true,
-
+        success:
+            true,
 
         validationResult:
-
             validation
 
-
     };
-
 
 }

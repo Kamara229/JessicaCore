@@ -1,50 +1,19 @@
 /*
  * =========================================================
- * JESSICA RESULT VALIDATOR v2
+ * JESSICA RESULT VALIDATOR v3
  * =========================================================
  *
  * Главный координатор проверки результата.
  *
+ * Дополнительно сохраняет failureScope:
  *
- * Flow:
+ * presentation
+ * execution
+ * evidence
+ * clarification
  *
- * Result
- *   ↓
- * Basic Validator
- *   ↓
- * Evidence Validator
- *   ↓
- * Conditional Validation
- *
- *
- * source_content:
- *
- * Source Content Validator
- *   ↓
- * Claim Evidence Validator
- *   ↓
- * SUCCESS
- *
- *
- * При технической недоступности
- * specialized validator:
- *
- * Semantic AI Fallback
- *
- *
- * Дополнительно результат содержит:
- *
- * validationMode
- * degraded
- *
- *
- * Это позволяет Learning отличать:
- *
- * fully verified execution
- *
- * от:
- *
- * technically degraded validation path.
+ * Это позволяет отличать ошибку итогового текста
+ * от ошибки Execution Route.
  *
  * =========================================================
  */
@@ -75,26 +44,12 @@ import {
 } from "./validator/aiResultValidator.js";
 
 
-/*
- * =========================================================
- * OUTCOME TYPES
- * =========================================================
- */
-
-
 const OUTCOME_RESULT =
     "result";
 
 
 const OUTCOME_NO_VERIFIED_RESULT =
     "no_verified_result";
-
-
-/*
- * =========================================================
- * VALIDATION MODES
- * =========================================================
- */
 
 
 const MODE_BASIC =
@@ -121,11 +76,21 @@ const MODE_UNAVAILABLE_FALLBACK =
     "unavailable_fallback";
 
 
-/*
- * =========================================================
- * NORMALIZE OUTCOME TYPE
- * =========================================================
- */
+const FAILURE_SCOPE = {
+
+    PRESENTATION:
+        "presentation",
+
+    EXECUTION:
+        "execution",
+
+    EVIDENCE:
+        "evidence",
+
+    CLARIFICATION:
+        "clarification"
+
+};
 
 
 function normalizeOutcomeType(
@@ -147,11 +112,54 @@ function normalizeOutcomeType(
 }
 
 
-/*
- * =========================================================
- * RESULT BUILDER
- * =========================================================
- */
+function normalizeFailureScope(
+    validation,
+    fallback
+) {
+
+    if(
+        validation?.valid === true
+    ){
+
+        return null;
+
+    }
+
+
+    if(
+        validation?.needsClarification === true
+    ){
+
+        return FAILURE_SCOPE.CLARIFICATION;
+
+    }
+
+
+    const scope =
+        String(
+            validation?.failureScope || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if(
+        Object.values(
+            FAILURE_SCOPE
+        )
+            .includes(
+                scope
+            )
+    ){
+
+        return scope;
+
+    }
+
+
+    return fallback || FAILURE_SCOPE.EXECUTION;
+
+}
 
 
 function buildValidationResult(
@@ -164,14 +172,16 @@ function buildValidationResult(
             MODE_BASIC,
 
         degraded =
-            false
+            false,
+
+        failureScope =
+            FAILURE_SCOPE.EXECUTION
 
     } = {}
 
 ) {
 
     const valid =
-
         validation?.valid === true;
 
 
@@ -185,13 +195,18 @@ function buildValidationResult(
 
 
         shouldRetry:
-
             validation?.shouldRetry === true,
 
 
         needsClarification:
-
             validation?.needsClarification === true,
+
+
+        failureScope:
+            normalizeFailureScope(
+                validation,
+                failureScope
+            ),
 
 
         outcomeType:
@@ -209,7 +224,6 @@ function buildValidationResult(
 
 
         degraded:
-
             degraded === true,
 
 
@@ -224,13 +238,6 @@ function buildValidationResult(
     };
 
 }
-
-
-/*
- * =========================================================
- * SUCCESS RESULT
- * =========================================================
- */
 
 
 function buildSuccessResult(
@@ -257,40 +264,31 @@ function buildSuccessResult(
         success:
             true,
 
-
         valid:
             true,
-
 
         shouldRetry:
             false,
 
-
         needsClarification:
             false,
 
+        failureScope:
+            null,
 
         outcomeType:
-
             normalizeOutcomeType(
                 outcomeType
             ),
 
-
         validationMode,
 
-
         degraded:
-
             degraded === true,
 
-
         reason:
-
             reason
-
             ||
-
             "Проверка результата пройдена"
 
     };
@@ -298,19 +296,11 @@ function buildSuccessResult(
 }
 
 
-/*
- * =========================================================
- * EVIDENCE MODE
- * =========================================================
- */
-
-
 function getEvidenceMode(
     plan
 ) {
 
     const mode =
-
         String(
             plan?.evidence?.mode || "none"
         )
@@ -334,13 +324,6 @@ function getEvidenceMode(
 }
 
 
-/*
- * =========================================================
- * AI SEMANTIC VALIDATION
- * =========================================================
- */
-
-
 async function runSemanticValidation(
 
     task,
@@ -361,7 +344,6 @@ async function runSemanticValidation(
 ) {
 
     const aiValidation =
-
         await validateWithAI(
 
             task,
@@ -386,13 +368,6 @@ async function runSemanticValidation(
     );
 
 
-    /*
-     * =====================================================
-     * AI SUCCESS
-     * =====================================================
-     */
-
-
     if(
         aiValidation?.success === true
     ){
@@ -413,8 +388,11 @@ async function runSemanticValidation(
 
 
                 degraded:
+                    fallbackFromSpecialized,
 
-                    fallbackFromSpecialized
+
+                failureScope:
+                    FAILURE_SCOPE.EXECUTION
 
             }
 
@@ -424,20 +402,10 @@ async function runSemanticValidation(
 
 
     /*
-     * =====================================================
-     * AI UNAVAILABLE
-     * =====================================================
-     *
      * Basic + Evidence уже пройдены.
-     *
-     * Задачу не ломаем технической
-     * недоступностью Validator AI.
-     *
-     * Но явно маркируем результат
-     * как degraded.
-     * =====================================================
+     * Техническая недоступность AI Validator
+     * не должна ломать Execution.
      */
-
 
     return buildSuccessResult(
 
@@ -445,9 +413,7 @@ async function runSemanticValidation(
         +
         (
             aiValidation?.reason
-
             ||
-
             "validator unavailable"
         ),
 
@@ -466,13 +432,6 @@ async function runSemanticValidation(
     );
 
 }
-
-
-/*
- * =========================================================
- * VALIDATE RESULT
- * =========================================================
- */
 
 
 export async function validateResult(
@@ -495,7 +454,6 @@ export async function validateResult(
 
 
     const basic =
-
         validateBasicResult(
 
             taskRunResult,
@@ -530,7 +488,10 @@ export async function validateResult(
                     MODE_BASIC,
 
                 degraded:
-                    false
+                    false,
+
+                failureScope:
+                    FAILURE_SCOPE.EXECUTION
 
             }
 
@@ -547,7 +508,6 @@ export async function validateResult(
 
 
     const evidence =
-
         validateEvidenceResult(
 
             plan,
@@ -582,7 +542,10 @@ export async function validateResult(
                     MODE_BASIC,
 
                 degraded:
-                    false
+                    false,
+
+                failureScope:
+                    FAILURE_SCOPE.EVIDENCE
 
             }
 
@@ -592,7 +555,6 @@ export async function validateResult(
 
 
     const evidenceMode =
-
         getEvidenceMode(
             plan
         );
@@ -648,15 +610,7 @@ export async function validateResult(
         evidenceMode === "source_content"
     ){
 
-        /*
-         * -----------------------------------------------
-         * SOURCE CONTENT
-         * -----------------------------------------------
-         */
-
-
         const sourceContent =
-
             await validateSourceContent(
 
                 task,
@@ -695,7 +649,10 @@ export async function validateResult(
                         MODE_SPECIALIZED,
 
                     degraded:
-                        false
+                        false,
+
+                    failureScope:
+                        FAILURE_SCOPE.EVIDENCE
 
                 }
 
@@ -704,15 +661,7 @@ export async function validateResult(
         }
 
 
-        /*
-         * -----------------------------------------------
-         * CLAIM EVIDENCE
-         * -----------------------------------------------
-         */
-
-
         const claims =
-
             await validateClaimEvidence(
 
                 task,
@@ -737,6 +686,12 @@ export async function validateResult(
         );
 
 
+        const sourceConfirmed =
+            sourceContent?.success === true
+            &&
+            sourceContent?.valid === true;
+
+
         if(
             claims?.success === true
             &&
@@ -753,7 +708,26 @@ export async function validateResult(
                         MODE_SPECIALIZED,
 
                     degraded:
-                        false
+                        false,
+
+                    /*
+                     * Если Source Content уже подтверждён
+                     * как достаточный для задачи, а claims
+                     * итогового ответа не подтверждаются,
+                     * проблема принадлежит presentation:
+                     * Execution / evidence повторять не нужно.
+                     *
+                     * Если сам source не подтверждён,
+                     * сохраняем evidence scope.
+                     */
+
+                    failureScope:
+
+                        sourceConfirmed
+
+                            ? FAILURE_SCOPE.PRESENTATION
+
+                            : FAILURE_SCOPE.EVIDENCE
 
                 }
 
@@ -762,22 +736,7 @@ export async function validateResult(
         }
 
 
-        /*
-         * -----------------------------------------------
-         * SPECIALIZED SUCCESS
-         * -----------------------------------------------
-         */
-
-
-        const sourceConfirmed =
-
-            sourceContent?.success === true
-            &&
-            sourceContent?.valid === true;
-
-
         const claimsConfirmed =
-
             claims?.success === true
             &&
             claims?.valid === true;
@@ -813,13 +772,6 @@ export async function validateResult(
             );
 
         }
-
-
-        /*
-         * -----------------------------------------------
-         * SPECIALIZED UNAVAILABLE
-         * -----------------------------------------------
-         */
 
 
         console.log(

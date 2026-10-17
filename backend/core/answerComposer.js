@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA ANSWER COMPOSER
+ * JESSICA ANSWER COMPOSER v2
  * =========================================================
  *
  * Центральный координатор формирования
@@ -173,7 +173,8 @@ function extractAnswerText(
 function prepareComposerContext(
     task,
     plan,
-    taskRunResult
+    taskRunResult,
+    repairContext = null
 ) {
 
     try {
@@ -190,7 +191,9 @@ function prepareComposerContext(
 
                     plan,
 
-                    taskRunResult
+                    taskRunResult,
+
+                    repairContext
 
                 )
 
@@ -356,7 +359,9 @@ export async function composeAnswer(
 
     plan,
 
-    taskRunResult
+    taskRunResult,
+
+    options = {}
 
 ) {
 
@@ -412,7 +417,9 @@ export async function composeAnswer(
 
             plan,
 
-            taskRunResult
+            taskRunResult,
+
+            options?.repairContext || null
 
         );
 

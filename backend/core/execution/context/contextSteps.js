@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CONTEXT STEPS v3
+ * JESSICA CONTEXT STEPS v4
  * =========================================================
  *
  * Управление историей Execution Steps.
@@ -56,7 +56,12 @@ const STEP_STATUS = {
 
     FAILED:
 
-        "FAILED"
+        "FAILED",
+
+
+    REPAIR_REQUIRED:
+
+        "REPAIR_REQUIRED"
 
 
 };

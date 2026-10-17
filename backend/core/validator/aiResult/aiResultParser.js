@@ -1,35 +1,11 @@
 /*
  * =========================================================
- * JESSICA AI RESULT PARSER
+ * JESSICA AI RESULT PARSER v2
  * =========================================================
  *
- * Разбирает ответ AI Result Validator.
+ * Разбирает ответ AI Result Validator
+ * и сохраняет semantic failureScope.
  *
- *
- * Отвечает за:
- *
- * - извлечение content из AI response;
- * - очистку JSON;
- * - JSON.parse;
- * - нормализацию outcomeType;
- * - формирование единого validation result.
- *
- *
- * НЕ отвечает за:
- *
- * - построение prompt;
- * - вызов AI;
- * - retry;
- * - выполнение инструментов;
- * - semantic validation самостоятельно.
- *
- * =========================================================
- */
-
-
-/*
- * =========================================================
- * OUTCOME TYPES
  * =========================================================
  */
 
@@ -45,11 +21,21 @@ export const AI_RESULT_OUTCOME = {
 };
 
 
-/*
- * =========================================================
- * CLEAN JSON TEXT
- * =========================================================
- */
+export const AI_RESULT_FAILURE_SCOPE = {
+
+    PRESENTATION:
+        "presentation",
+
+    EXECUTION:
+        "execution",
+
+    EVIDENCE:
+        "evidence",
+
+    CLARIFICATION:
+        "clarification"
+
+};
 
 
 function cleanJsonText(
@@ -79,10 +65,11 @@ function cleanJsonText(
         value.lastIndexOf("}");
 
 
-    if (
-        firstBrace !== -1 &&
+    if(
+        firstBrace !== -1
+        &&
         lastBrace > firstBrace
-    ) {
+    ){
 
         value =
             value.slice(
@@ -98,21 +85,14 @@ function cleanJsonText(
 }
 
 
-/*
- * =========================================================
- * NORMALIZE OUTCOME TYPE
- * =========================================================
- */
-
-
 function normalizeOutcomeType(
     value
 ) {
 
-    if (
+    if(
         value ===
         AI_RESULT_OUTCOME.NO_VERIFIED_RESULT
-    ) {
+    ){
 
         return AI_RESULT_OUTCOME.NO_VERIFIED_RESULT;
 
@@ -124,29 +104,75 @@ function normalizeOutcomeType(
 }
 
 
-/*
- * =========================================================
- * NORMALIZE REASON
- * =========================================================
- */
-
-
 function normalizeReason(
     value
 ) {
 
     return typeof value === "string"
+
         ? value.trim()
+
         : "";
 
 }
 
 
-/*
- * =========================================================
- * NORMALIZE VALIDATION
- * =========================================================
- */
+function normalizeFailureScope(
+    validation
+) {
+
+    if(
+        validation?.valid === true
+    ){
+
+        return null;
+
+    }
+
+
+    if(
+        validation?.needsClarification === true
+    ){
+
+        return AI_RESULT_FAILURE_SCOPE.CLARIFICATION;
+
+    }
+
+
+    const value =
+        String(
+            validation?.failureScope || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if(
+        Object.values(
+            AI_RESULT_FAILURE_SCOPE
+        )
+            .includes(
+                value
+            )
+    ){
+
+        return value;
+
+    }
+
+
+    /*
+     * Conservative fallback:
+     *
+     * если Validator не указал scope,
+     * нельзя автоматически считать ошибку
+     * presentation и скрывать проблему
+     * Execution.
+     */
+
+    return AI_RESULT_FAILURE_SCOPE.EXECUTION;
+
+}
 
 
 function normalizeValidation(
@@ -171,6 +197,12 @@ function normalizeValidation(
             validation?.needsClarification === true,
 
 
+        failureScope:
+            normalizeFailureScope(
+                validation
+            ),
+
+
         outcomeType:
             normalizeOutcomeType(
                 validation?.outcomeType
@@ -187,14 +219,8 @@ function normalizeValidation(
 }
 
 
-/*
- * =========================================================
- * EMPTY RESPONSE
- * =========================================================
- */
-
-
-function buildEmptyResponseResult() {
+function buildEmptyResponseResult()
+{
 
     return {
 
@@ -212,14 +238,8 @@ function buildEmptyResponseResult() {
 }
 
 
-/*
- * =========================================================
- * INVALID JSON
- * =========================================================
- */
-
-
-function buildInvalidJsonResult() {
+function buildInvalidJsonResult()
+{
 
     return {
 
@@ -237,21 +257,15 @@ function buildInvalidJsonResult() {
 }
 
 
-/*
- * =========================================================
- * PARSE CONTENT
- * =========================================================
- */
-
-
 function parseContent(
     raw
 ) {
 
-    if (
-        typeof raw !== "string" ||
+    if(
+        typeof raw !== "string"
+        ||
         !raw.trim()
-    ) {
+    ){
 
         return buildEmptyResponseResult();
 
@@ -277,13 +291,15 @@ function parseContent(
     }
 
 
-    if (
-        !validation ||
-        typeof validation !== "object" ||
+    if(
+        !validation
+        ||
+        typeof validation !== "object"
+        ||
         Array.isArray(
             validation
         )
-    ) {
+    ){
 
         return buildInvalidJsonResult();
 
@@ -295,13 +311,6 @@ function parseContent(
     );
 
 }
-
-
-/*
- * =========================================================
- * PUBLIC
- * =========================================================
- */
 
 
 export function parseAIResultValidatorResponse(
