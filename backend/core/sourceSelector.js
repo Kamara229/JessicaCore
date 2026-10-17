@@ -11,23 +11,25 @@ import {
 
 /*
  * =========================================================
- * JESSICA SOURCE SELECTOR v2
+ * JESSICA SOURCE SELECTOR v3
  * =========================================================
  *
  * Search Results
  *      ↓
  * Normalize
  *      ↓
- * AI Source Selector Client
+ * MACHINE EXCLUSION
+ *      ↓
+ * AI chooses candidate
  *      ↓
  * Parse
- *      ↓
- * Selected Source
  *
  *
- * AI transport:
+ * КРИТИЧЕСКО:
  *
- * backend/ai/sourceSelectorClient.js
+ * rejected URL удаляется ДО AI.
+ *
+ * AI reason не является evidence.
  *
  * =========================================================
  */
@@ -94,6 +96,171 @@ function cleanJsonText(
 
 /*
  * =========================================================
+ * NORMALIZE URL
+ * =========================================================
+ */
+
+
+function normalizeUrl(
+    value
+) {
+
+    const text =
+
+        String(
+            value || ""
+        )
+            .trim();
+
+
+    if(
+        !text
+    ){
+
+        return "";
+
+    }
+
+
+    try {
+
+
+        const url =
+            new URL(
+                text
+            );
+
+
+        url.hash =
+            "";
+
+
+        url.protocol =
+            url.protocol.toLowerCase();
+
+
+        url.hostname =
+            url.hostname.toLowerCase();
+
+
+        if(
+            url.pathname.length > 1
+            &&
+            url.pathname.endsWith("/")
+        ){
+
+            url.pathname =
+                url.pathname.slice(
+                    0,
+                    -1
+                );
+
+        }
+
+
+        return url.toString();
+
+
+    }catch(error){
+
+
+        return text;
+
+    }
+
+}
+
+
+/*
+ * =========================================================
+ * NORMALIZE SELECTION CONTEXT
+ * =========================================================
+ *
+ * Backward compatible:
+ *
+ * string
+ *      → task only
+ *
+ * object
+ *      → task + exclusions
+ *
+ * =========================================================
+ */
+
+
+function normalizeSelectionContext(
+    context
+) {
+
+    if(
+        typeof context === "string"
+    ){
+
+        return {
+
+            task:
+                context.trim(),
+
+            excludedSourceUrls:
+                []
+
+        };
+
+    }
+
+
+    if(
+        !context
+        ||
+        typeof context !== "object"
+        ||
+        Array.isArray(
+            context
+        )
+    ){
+
+        return {
+
+            task:
+                "",
+
+            excludedSourceUrls:
+                []
+
+        };
+
+    }
+
+
+    return {
+
+        task:
+
+            String(
+                context.task || ""
+            )
+                .trim(),
+
+
+        excludedSourceUrls:
+
+            Array.isArray(
+                context.excludedSourceUrls
+            )
+
+                ? [
+                    ...context.excludedSourceUrls
+                ]
+
+                : []
+
+    };
+
+}
+
+
+/*
+ * =========================================================
  * NORMALIZE RESULTS
  * =========================================================
  */
@@ -117,12 +284,7 @@ function normalizeResults(
     return results
 
         .map(
-            (
-                item,
-                index
-            ) => ({
-
-                index,
+            item => ({
 
                 title:
 
@@ -158,7 +320,102 @@ function normalizeResults(
 
 /*
  * =========================================================
- * NO SUITABLE SOURCE
+ * MACHINE FILTER
+ * =========================================================
+ */
+
+
+function filterExcludedResults(
+    results,
+    excludedUrls
+) {
+
+    const excluded =
+
+        new Set(
+
+            excludedUrls
+
+                .map(
+                    normalizeUrl
+                )
+
+                .filter(Boolean)
+
+        );
+
+
+    const filtered =
+        [];
+
+
+    let excludedCount =
+        0;
+
+
+    for(
+        const item
+        of results
+    ){
+
+        if(
+            excluded.has(
+                normalizeUrl(
+                    item.url
+                )
+            )
+        ){
+
+            excludedCount++;
+
+            continue;
+
+        }
+
+
+        filtered.push(
+            item
+        );
+
+    }
+
+
+    /*
+     * AI indexes filtered array.
+     */
+
+
+    const indexed =
+
+        filtered.map(
+            (
+                item,
+                index
+            ) => ({
+
+                index,
+
+                ...item
+
+            })
+        );
+
+
+    return {
+
+        results:
+            indexed,
+
+        excludedCount
+
+    };
+
+}
+
+
+/*
+ * =========================================================
+ * NO SOURCE
  * =========================================================
  */
 
@@ -186,9 +443,7 @@ function noSuitableSource(
             String(
 
                 reason
-
                 ||
-
                 "Подходящий источник не найден"
 
             )
@@ -201,7 +456,7 @@ function noSuitableSource(
 
 /*
  * =========================================================
- * PARSE DECISION
+ * PARSE
  * =========================================================
  */
 
@@ -270,9 +525,7 @@ function parseSelection(
 
 
     /*
-     * =====================================================
-     * REJECT
-     * =====================================================
+     * REJECT.
      */
 
 
@@ -283,9 +536,7 @@ function parseSelection(
         return noSuitableSource(
 
             parsed?.reason
-
             ||
-
             "Ни один найденный источник не удовлетворяет задаче"
 
         );
@@ -294,9 +545,7 @@ function parseSelection(
 
 
     /*
-     * =====================================================
-     * SELECT
-     * =====================================================
+     * SELECT.
      */
 
 
@@ -321,7 +570,9 @@ function parseSelection(
 
 
     if(
-        !Number.isInteger(index)
+        !Number.isInteger(
+            index
+        )
         ||
         index < 0
         ||
@@ -335,6 +586,17 @@ function parseSelection(
         );
 
     }
+
+
+    /*
+     * Не используем AI reason как evidence.
+     *
+     * Даже если модель написала:
+     *
+     * "страница содержит дату"
+     *
+     * это не переносится дальше.
+     */
 
 
     return {
@@ -352,11 +614,11 @@ function parseSelection(
 
         reason:
 
-            typeof parsed?.reason === "string"
-
-                ? parsed.reason.trim()
-
-                : ""
+            (
+                "Выбран кандидат по title, URL и snippet поисковой выдачи; "
+                +
+                "содержимое страницы ещё не проверено."
+            )
 
     };
 
@@ -371,11 +633,18 @@ function parseSelection(
 
 
 export async function selectSource(
-    task,
+    selectionContext,
     searchResults
 ) {
 
-    const results =
+    const context =
+
+        normalizeSelectionContext(
+            selectionContext
+        );
+
+
+    const normalizedResults =
 
         normalizeResults(
             searchResults
@@ -384,13 +653,13 @@ export async function selectSource(
 
     /*
      * =====================================================
-     * NO RESULTS
+     * NO SEARCH RESULTS
      * =====================================================
      */
 
 
     if(
-        results.length === 0
+        normalizedResults.length === 0
     ){
 
         return noSuitableSource(
@@ -402,7 +671,61 @@ export async function selectSource(
 
     /*
      * =====================================================
-     * AI AVAILABILITY
+     * MACHINE EXCLUSION
+     * =====================================================
+     */
+
+
+    const filtered =
+
+        filterExcludedResults(
+
+            normalizedResults,
+
+            context.excludedSourceUrls
+
+        );
+
+
+    if(
+        filtered.excludedCount > 0
+    ){
+
+        console.log(
+
+            "Jessica Source Selector exclusions applied:",
+
+            JSON.stringify({
+
+                excluded:
+                    filtered.excludedCount,
+
+                remaining:
+                    filtered.results.length
+
+            })
+
+        );
+
+    }
+
+
+    if(
+        filtered.results.length === 0
+    ){
+
+        return noSuitableSource(
+
+            "Все найденные источники уже были проверены и отклонены"
+
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * AI
      * =====================================================
      */
 
@@ -418,13 +741,6 @@ export async function selectSource(
     }
 
 
-    /*
-     * =====================================================
-     * REQUEST
-     * =====================================================
-     */
-
-
     try {
 
 
@@ -438,12 +754,11 @@ export async function selectSource(
 
                 task:
 
-                    String(
-                        task || ""
-                    )
-                        .trim(),
+                    context.task,
 
-                results
+                results:
+
+                    filtered.results
 
             });
 
@@ -463,7 +778,7 @@ export async function selectSource(
 
                 raw,
 
-                results
+                filtered.results
 
             );
 
@@ -547,10 +862,10 @@ export async function selectSource(
                 message:
 
                     error?.message
-
                     ||
-
-                    String(error)
+                    String(
+                        error
+                    )
 
             }
 
@@ -560,9 +875,7 @@ export async function selectSource(
         return noSuitableSource(
 
             error?.message
-
             ||
-
             "Не удалось выбрать надёжный источник"
 
         );
