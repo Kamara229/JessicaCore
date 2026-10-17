@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA PLANNER GROUNDING POLICY v1
+ * JESSICA PLANNER GROUNDING POLICY v2
  * =========================================================
  *
  * Машинная защита Planner от:
@@ -339,12 +339,78 @@ function buildGroundedText(
  *
  * 16.3
  * v2.4.1
+ * PostgreSQL 16 release
+ * version 17
  * 2026-10-01
  * 01.10.2026
  * длинные ID
  *
  * =========================================================
  */
+
+
+function extractContextualMajorVersions(
+    source
+) {
+
+    const values =
+        new Set();
+
+
+    const patterns = [
+
+        /\bv(\d{1,4})\b/gi,
+
+        /\b(?:version|release|major|series|branch)\s+v?(\d{1,4})\b/gi,
+
+        /(?:верси\p{L}*|релиз\p{L}*)\s+v?(\d{1,4})/giu,
+
+        /(?:^|[^\p{L}\p{N}_])[\p{L}][\p{L}\p{N}.+#_-]{2,}\s+v?(\d{1,4})(?=\s+(?:release|version|stable|lts|rc|beta|alpha|official|docs?|documentation|релиз\p{L}*|верси\p{L}*|стабильн\p{L}*|официальн\p{L}*|документац\p{L}*))/giu,
+
+        /\/(?:release|releases|version|versions)\/v?(\d{1,4})(?=\/|$|[?#.-])/gi
+
+    ];
+
+
+    for(
+        const pattern
+        of patterns
+    ){
+
+        for(
+            const match
+            of source.matchAll(
+                pattern
+            )
+        ){
+
+            const value =
+                safeString(
+                    match?.[1]
+                )
+                    .toLowerCase();
+
+
+            if(
+                value
+            ){
+
+                values.add(
+                    value
+                );
+
+            }
+
+        }
+
+    }
+
+
+    return [
+        ...values
+    ];
+
+}
 
 
 function extractConcreteValues(
@@ -372,36 +438,11 @@ function extractConcreteValues(
 
     const patterns = [
 
-        /*
-         * Version-like values:
-         *
-         * 16.3
-         * 16.13
-         * v2.4.1
-         */
-
         /\bv?\d{1,3}(?:\.\d{1,4}){1,3}(?:[-+][0-9a-z.-]+)?\b/gi,
-
-
-        /*
-         * ISO date.
-         */
 
         /\b\d{4}-\d{2}-\d{2}\b/g,
 
-
-        /*
-         * Numeric date.
-         */
-
         /\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b/g,
-
-
-        /*
-         * Long numeric identifier.
-         *
-         * Обычный год 2026 сюда не попадёт.
-         */
 
         /\b\d{5,}\b/g
 
@@ -442,9 +483,132 @@ function extractConcreteValues(
     }
 
 
+    for(
+        const value
+        of extractContextualMajorVersions(
+            source
+        )
+    ){
+
+        values.add(
+            value
+        );
+
+    }
+
+
     return [
         ...values
     ];
+
+}
+
+
+function escapeRegExp(
+    value
+) {
+
+    return safeString(
+        value
+    )
+        .replace(
+            /[-/\\^$*+?.()|[\]{}]/g,
+            "\\$&"
+        );
+
+}
+
+
+function groundedTextContainsValue(
+    groundedText,
+    value
+) {
+
+    const cleanValue =
+        safeString(
+            value
+        )
+            .toLowerCase();
+
+
+    if(
+        !cleanValue
+    ){
+
+        return false;
+
+    }
+
+
+    const variants =
+        new Set([
+            cleanValue
+        ]);
+
+
+    if(
+        /^v\d/i.test(
+            cleanValue
+        )
+    ){
+
+        variants.add(
+            cleanValue.slice(1)
+        );
+
+    }
+    else if(
+        /^\d{1,4}(?:\.\d+)*$/i.test(
+            cleanValue
+        )
+    ){
+
+        variants.add(
+            "v" + cleanValue
+        );
+
+    }
+
+
+    for(
+        const variant
+        of variants
+    ){
+
+        const escaped =
+            escapeRegExp(
+                variant
+            );
+
+
+        const pattern =
+            new RegExp(
+
+                "(^|[^0-9a-zа-яё])"
+                +
+                escaped
+                +
+                "($|[^0-9a-zа-яё])",
+
+                "iu"
+
+            );
+
+
+        if(
+            pattern.test(
+                groundedText
+            )
+        ){
+
+            return true;
+
+        }
+
+    }
+
+
+    return false;
 
 }
 
@@ -844,7 +1008,8 @@ function validateUnknownConcreteValues(
         ){
 
             if(
-                groundedText.includes(
+                groundedTextContainsValue(
+                    groundedText,
                     value
                 )
             ){
