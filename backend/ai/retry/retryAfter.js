@@ -1,29 +1,33 @@
 /*
  * =========================================================
  * JESSICA AI RETRY
- * RETRY-AFTER v1
+ * RETRY-AFTER v2
  * =========================================================
  *
- * Извлекает provider retry delay из:
- *
- * - Retry-After header;
- * - Groq rate-limit reset headers;
- * - provider error message.
+ * Извлекает provider retry delay.
  *
  *
- * Поддерживает:
+ * PRIORITY:
  *
- * 250ms
- * 11.19s
- * 1.5m
- * HTTP-date
+ * 1. Retry-After header
+ * 2. explicit provider message:
+ *      "Please try again in 1.5525s"
+ * 3. rate-limit reset header,
+ *    соответствующий реально сработавшему limit
+ * 4. conservative reset fallback
  *
  *
- * НЕ:
+ * ВАЖНО:
  *
- * - определяет retryable;
- * - выполняет sleep;
- * - выполняет запрос.
+ * x-ratelimit-reset-tokens
+ * и
+ * x-ratelimit-reset-requests
+ *
+ * не являются автоматически
+ * одновременно активными ограничениями.
+ *
+ * Поэтому нельзя всегда брать Math.max()
+ * между ними и explicit provider message.
  *
  * =========================================================
  */
@@ -67,8 +71,8 @@ export function parseRetryDuration(
     /*
      * Plain number.
      *
-     * Retry-After HTTP header
-     * трактуется как seconds.
+     * HTTP Retry-After without unit
+     * means seconds.
      */
 
 
@@ -118,7 +122,9 @@ export function parseRetryDuration(
 
 
         if(
-            Number.isFinite(amount)
+            Number.isFinite(
+                amount
+            )
             &&
             amount >= 0
         ){
@@ -156,7 +162,9 @@ export function parseRetryDuration(
 
 
         if(
-            Number.isFinite(amount)
+            Number.isFinite(
+                amount
+            )
             &&
             amount >= 0
         ){
@@ -194,7 +202,9 @@ export function parseRetryDuration(
 
 
         if(
-            Number.isFinite(amount)
+            Number.isFinite(
+                amount
+            )
             &&
             amount >= 0
         ){
@@ -246,7 +256,7 @@ function getRetryAfterFromHeader(
 
 
     /*
-     * Duration / seconds.
+     * Seconds / duration.
      */
 
 
@@ -274,7 +284,9 @@ function getRetryAfterFromHeader(
     const timestamp =
 
         Date.parse(
-            String(value)
+            String(
+                value
+            )
         );
 
 
@@ -302,91 +314,12 @@ function getRetryAfterFromHeader(
 
 /*
  * =========================================================
- * GROQ RESET HEADERS
- * =========================================================
- */
-
-
-function getRateLimitResetFromHeaders(
-    error
-) {
-
-    const headerNames = [
-
-        "x-ratelimit-reset-tokens",
-
-        "x-ratelimit-reset-requests"
-
-    ];
-
-
-    const delays = [];
-
-
-    for(
-        const headerName
-        of headerNames
-    ){
-
-        const value =
-
-            getAIErrorHeader(
-                error,
-                headerName
-            );
-
-
-        const duration =
-
-            parseRetryDuration(
-                value
-            );
-
-
-        if(
-            duration !== null
-        ){
-
-            delays.push(
-                duration
-            );
-
-        }
-
-    }
-
-
-    if(
-        delays.length === 0
-    ){
-
-        return null;
-
-    }
-
-
-    /*
-     * Если действуют одновременно
-     * несколько ограничений,
-     * ждём наиболее консервативное.
-     */
-
-
-    return Math.max(
-        ...delays
-    );
-
-}
-
-
-/*
- * =========================================================
- * MESSAGE
+ * PROVIDER MESSAGE
  * =========================================================
  *
- * Пример Groq:
+ * Example:
  *
- * "Please try again in 11.19s"
+ * Please try again in 1.5525s
  *
  * =========================================================
  */
@@ -438,7 +371,9 @@ function getRetryAfterFromMessage(
 
 
     if(
-        !Number.isFinite(amount)
+        !Number.isFinite(
+            amount
+        )
         ||
         amount < 0
     ){
@@ -476,7 +411,9 @@ function getRetryAfterFromMessage(
             "minute",
             "minutes"
         ]
-            .includes(unit)
+            .includes(
+                unit
+            )
     ){
 
         return Math.ceil(
@@ -495,7 +432,357 @@ function getRetryAfterFromMessage(
 
 /*
  * =========================================================
- * PUBLIC
+ * RESET HEADER
+ * =========================================================
+ */
+
+
+function getResetHeaderDelay(
+    error,
+    headerName
+) {
+
+    const value =
+
+        getAIErrorHeader(
+            error,
+            headerName
+        );
+
+
+    return parseRetryDuration(
+        value
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * RATE LIMIT DIMENSION
+ * =========================================================
+ */
+
+
+function detectRateLimitDimension(
+    error
+) {
+
+    const message =
+
+        getAIErrorMessage(
+            error
+        )
+            .toLowerCase();
+
+
+    /*
+     * Token limit.
+     */
+
+
+    if(
+        message.includes(
+            "tokens per minute"
+        )
+        ||
+        message.includes(
+            "(tpm)"
+        )
+        ||
+        message.includes(
+            "tokens per day"
+        )
+        ||
+        message.includes(
+            "(tpd)"
+        )
+    ){
+
+        return "tokens";
+
+    }
+
+
+    /*
+     * Request limit.
+     */
+
+
+    if(
+        message.includes(
+            "requests per minute"
+        )
+        ||
+        message.includes(
+            "(rpm)"
+        )
+        ||
+        message.includes(
+            "requests per day"
+        )
+        ||
+        message.includes(
+            "(rpd)"
+        )
+    ){
+
+        return "requests";
+
+    }
+
+
+    return null;
+
+}
+
+
+/*
+ * =========================================================
+ * DETAILS
+ * =========================================================
+ */
+
+
+export function getRetryAfterDetails(
+    error
+) {
+
+    /*
+     * =====================================================
+     * 1. STANDARD RETRY-AFTER
+     * =====================================================
+     */
+
+
+    const retryAfterHeader =
+
+        getRetryAfterFromHeader(
+            error
+        );
+
+
+    if(
+        retryAfterHeader !== null
+    ){
+
+        return {
+
+            milliseconds:
+                retryAfterHeader,
+
+            source:
+                "retry-after"
+
+        };
+
+    }
+
+
+    /*
+     * =====================================================
+     * 2. EXPLICIT PROVIDER MESSAGE
+     * =====================================================
+     *
+     * Если provider сам написал:
+     *
+     * "Please try again in 1.5525s"
+     *
+     * это наиболее конкретная инструкция
+     * для текущего отказа.
+     * =====================================================
+     */
+
+
+    const messageDelay =
+
+        getRetryAfterFromMessage(
+            error
+        );
+
+
+    if(
+        messageDelay !== null
+    ){
+
+        return {
+
+            milliseconds:
+                messageDelay,
+
+            source:
+                "provider-message"
+
+        };
+
+    }
+
+
+    /*
+     * =====================================================
+     * 3. LIMIT-SPECIFIC RESET HEADER
+     * =====================================================
+     */
+
+
+    const tokenReset =
+
+        getResetHeaderDelay(
+
+            error,
+
+            "x-ratelimit-reset-tokens"
+
+        );
+
+
+    const requestReset =
+
+        getResetHeaderDelay(
+
+            error,
+
+            "x-ratelimit-reset-requests"
+
+        );
+
+
+    const dimension =
+
+        detectRateLimitDimension(
+            error
+        );
+
+
+    if(
+        dimension === "tokens"
+        &&
+        tokenReset !== null
+    ){
+
+        return {
+
+            milliseconds:
+                tokenReset,
+
+            source:
+                "x-ratelimit-reset-tokens"
+
+        };
+
+    }
+
+
+    if(
+        dimension === "requests"
+        &&
+        requestReset !== null
+    ){
+
+        return {
+
+            milliseconds:
+                requestReset,
+
+            source:
+                "x-ratelimit-reset-requests"
+
+        };
+
+    }
+
+
+    /*
+     * =====================================================
+     * 4. FALLBACK
+     * =====================================================
+     *
+     * Только когда неизвестно,
+     * какое именно ограничение сработало.
+     *
+     * Здесь консервативный max допустим.
+     * =====================================================
+     */
+
+
+    const available = [
+
+        tokenReset !== null
+
+            ? {
+
+                milliseconds:
+                    tokenReset,
+
+                source:
+                    "x-ratelimit-reset-tokens"
+
+            }
+
+            : null,
+
+
+        requestReset !== null
+
+            ? {
+
+                milliseconds:
+                    requestReset,
+
+                source:
+                    "x-ratelimit-reset-requests"
+
+            }
+
+            : null
+
+    ]
+        .filter(Boolean);
+
+
+    if(
+        available.length === 0
+    ){
+
+        return null;
+
+    }
+
+
+    return available.reduce(
+
+        (
+            longest,
+            current
+        ) => {
+
+            if(
+                !longest
+                ||
+                current.milliseconds
+                >
+                longest.milliseconds
+            ){
+
+                return current;
+
+            }
+
+
+            return longest;
+
+        },
+
+        null
+
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * PUBLIC DELAY
  * =========================================================
  */
 
@@ -504,40 +791,16 @@ export function getRetryAfterMilliseconds(
     error
 ) {
 
-    const values = [
+    const details =
 
-        getRetryAfterFromHeader(
+        getRetryAfterDetails(
             error
-        ),
-
-        getRateLimitResetFromHeaders(
-            error
-        ),
-
-        getRetryAfterFromMessage(
-            error
-        )
-
-    ]
-        .filter(
-            value =>
-                Number.isFinite(value)
-                &&
-                value >= 0
         );
 
 
-    if(
-        values.length === 0
-    ){
-
-        return null;
-
-    }
-
-
-    return Math.max(
-        ...values
-    );
+    return details
+        ?.milliseconds
+        ??
+        null;
 
 }
