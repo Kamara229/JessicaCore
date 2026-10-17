@@ -4,6 +4,11 @@ import {
 
 
 import {
+    tryCreateNativeSkillPlan
+} from "../planner/nativeSkillPlanner.js";
+
+
+import {
     executePlanCycle
 } from "../execution/executionCycle.js";
 
@@ -25,7 +30,7 @@ import {
 
 /*
  * =========================================================
- * JESSICA EXECUTE SUBTASK v4
+ * JESSICA EXECUTE SUBTASK v5
  * =========================================================
  *
  * Subtask
@@ -199,6 +204,27 @@ function mergeExperienceContext(
 
 ) {
 
+    /*
+     * FULL Resolver Experience имеет приоритет.
+     *
+     * Memory hints от Decomposer компактные и
+     * не содержат полного learning/maturity contract.
+     * Они остаются fallback, если Storage/Resolver
+     * не смог вернуть Skill.
+     */
+
+
+    if(
+        resolverExperience?.found === true
+        &&
+        resolverExperience?.experience
+    ){
+
+        return resolverExperience;
+
+    }
+
+
     if(
         memoryExperience
     ){
@@ -218,6 +244,8 @@ function mergeExperienceContext(
                 memoryExperience,
 
             planningContext:
+                resolverExperience?.planningContext
+                ||
                 null
 
         };
@@ -512,17 +540,20 @@ export async function executeSubtask(
             );
 
 
-        if(
-            !memoryExperience
-        ){
+        /*
+         * Full Experience нужен не только AI Planner,
+         * но и Native Skill Planner / Learning.
+         *
+         * Поэтому compact memoryHints больше
+         * не отменяют обычный Experience Resolver.
+         */
 
-            resolverResult =
 
-                await resolveExperience(
-                    taskText
-                );
+        resolverResult =
 
-        }
+            await resolveExperience(
+                taskText
+            );
 
 
     }catch(error){
@@ -652,7 +683,14 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 5. CREATE PLAN
+     * 5. SKILL-FIRST PLAN
+     * =====================================================
+     *
+     * Сначала Jessica пытается решить маршрут
+     * своими native capabilities / READY Skills.
+     *
+     * Groq Planner вызывается только если
+     * безопасного machine route нет.
      * =====================================================
      */
 
@@ -660,51 +698,126 @@ export async function executeSubtask(
     let planResult;
 
 
-    try {
+    const nativePlan =
 
+        tryCreateNativeSkillPlan({
 
-        planResult =
-
-            await createPlan(
-
+            task:
                 taskText,
 
-                initialPlanningContext
+            executionExperience,
 
-            );
-
-
-    }catch(error){
-
-
-        console.error(
-
-            `Jessica Planner error ${subtaskId}:`,
-
-            error
-
-        );
-
-
-        return buildFailedResult({
-
-            subtaskId,
-
-            taskText,
-
-            stage:
-                "planner",
-
-            message:
-                "Ошибка создания плана",
-
-            experience:
-                executionExperience,
+            dependencyContext,
 
             planningContext:
                 initialPlanningContext
 
         });
+
+
+    if(
+        nativePlan?.handled === true
+        &&
+        nativePlan?.plan
+    ){
+
+        planResult = {
+
+            success:
+                true,
+
+            plan:
+                nativePlan.plan,
+
+            context:
+                initialPlanningContext,
+
+            source:
+                nativePlan.source,
+
+            native:
+                true
+
+        };
+
+
+        console.log(
+
+            `Jessica Native Skill Planner ${subtaskId}:`,
+
+            {
+
+                source:
+                    nativePlan.source,
+
+                intent:
+                    nativePlan.plan.intent,
+
+                steps:
+                    nativePlan.plan.steps.length
+
+            }
+
+        );
+
+    }
+    else{
+
+
+        /*
+         * =================================================
+         * AI PLANNER FALLBACK
+         * =================================================
+         */
+
+
+        try {
+
+
+            planResult =
+
+                await createPlan(
+
+                    taskText,
+
+                    initialPlanningContext
+
+                );
+
+
+        }catch(error){
+
+
+            console.error(
+
+                `Jessica Planner error ${subtaskId}:`,
+
+                error
+
+            );
+
+
+            return buildFailedResult({
+
+                subtaskId,
+
+                taskText,
+
+                stage:
+                    "planner",
+
+                message:
+                    "Ошибка создания плана",
+
+                experience:
+                    executionExperience,
+
+                planningContext:
+                    initialPlanningContext
+
+            });
+
+        }
 
     }
 
@@ -902,7 +1015,13 @@ export async function executeSubtask(
                 ),
 
             plannerUsed:
-                true,
+                planResult?.native !== true,
+
+            nativePlannerUsed:
+                planResult?.native === true,
+
+            plannerSource:
+                planResult?.source || "ai",
 
             executionStarted:
                 true
