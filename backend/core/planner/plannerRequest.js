@@ -23,53 +23,30 @@ import {
 } from "./planningContext.js";
 
 
-
 /*
  * =========================================================
- * JESSICA PLANNER REQUEST v2
+ * JESSICA PLANNER REQUEST v3
  * =========================================================
  *
- * Формирует запрос AI Planner.
- *
- *
- * Flow:
- *
  * Task
- *   +
- * Normalized PlanningContext
- *   +
- * Experience Memory
- *   +
+ *      +
+ * Semantic Repair
+ *      +
+ * PlanningContext
+ *      +
  * Tools
- *   +
- * Retry Feedback
- *
- *        ↓
- *
+ *      ↓
  * Planner AI
  *
  *
- * Отвечает только за:
+ * Semantic Repair намеренно расположен
+ * сразу после Task.
  *
- * - сбор system prompt;
- * - сбор user prompt;
- * - добавление контекста;
- * - передачу ошибки предыдущей попытки.
- *
- *
- * НЕ:
- *
- * - создаёт план;
- * - парсит JSON;
- * - валидирует план;
- * - выполняет инструменты;
- * - изменяет Experience.
+ * Он не должен теряться после длинного
+ * Experience / PlanningContext.
  *
  * =========================================================
  */
-
-
-
 
 
 /*
@@ -91,11 +68,6 @@ const MAX_RETRY_LENGTH =
     3000;
 
 
-
-
-
-
-
 /*
  * =========================================================
  * SAFE STRING
@@ -115,11 +87,6 @@ function safeString(
 }
 
 
-
-
-
-
-
 /*
  * =========================================================
  * LIMIT TEXT
@@ -132,30 +99,27 @@ function limitText(
     limit
 ) {
 
-
     const text =
+
         safeString(
             value
         );
 
 
-
-    if (!text) {
+    if(
+        !text
+    ){
 
         return "";
-
     }
 
 
-
-    if (
+    if(
         text.length <= limit
-    ) {
+    ){
 
         return text;
-
     }
-
 
 
     return (
@@ -174,14 +138,9 @@ function limitText(
 }
 
 
-
-
-
-
-
 /*
  * =========================================================
- * RETRY CONTEXT
+ * SEMANTIC REPAIR BLOCK
  * =========================================================
  */
 
@@ -190,51 +149,86 @@ function buildRetryContext(
     previousError
 ) {
 
+    const feedback =
 
-    const error =
         limitText(
+
             previousError,
+
             MAX_RETRY_LENGTH
+
         );
 
 
-
-    if (!error) {
+    if(
+        !feedback
+    ){
 
         return "";
-
     }
-
 
 
     return [
 
-        "=== ОБРАТНАЯ СВЯЗЬ ПРЕДЫДУЩЕЙ ПОПЫТКИ ===",
+        "=== ОБЯЗАТЕЛЬНЫЙ РЕМОНТ ПРЕДЫДУЩЕЙ ПОПЫТКИ ===",
 
         "",
 
-        error,
+        (
+            "Предыдущий Execution Plan был отклонён машинным Validator."
+        ),
+
+        (
+            "Следующий Plan обязан исправить именно указанную semantic error."
+        ),
 
         "",
 
-        "Исправь маршрут.",
+        feedback,
 
-        "Не повторяй ошибочный план без изменений."
+        "",
+
+        "ПРАВИЛА СЛЕДУЮЩЕЙ ПОПЫТКИ:",
+
+        (
+            "- не копируй отклонённые tool arguments;"
+        ),
+
+        (
+            "- не маскируй старый Plan изменением reasoningSummary или step.id;"
+        ),
+
+        (
+            "- если Validator запретил неподтверждённое конкретное значение, "
+            +
+            "не заменяй его другим предполагаемым значением;"
+        ),
+
+        (
+            "- перестрой маршрут так, чтобы неизвестный факт был сначала найден, "
+            +
+            "а не предположен;"
+        ),
+
+        (
+            "- новый Plan всё равно обязан соблюдать все системные Evidence, "
+            +
+            "Grounding и Source Content contracts."
+        ),
+
+        "",
+
+        "Верни новый JSON Execution Plan."
 
     ]
-    .join("\n");
+        .join("\n");
 
 }
 
 
-
-
-
-
-
 /*
  * =========================================================
- * BUILD CONTEXT
+ * CONTEXT
  * =========================================================
  */
 
@@ -243,7 +237,6 @@ function buildContextBlock(
     context
 ) {
 
-
     const normalized =
 
         normalizePlanningContext(
@@ -251,13 +244,11 @@ function buildContextBlock(
         );
 
 
-
     const text =
 
         buildPlanningContextText(
             normalized
         );
-
 
 
     return limitText(
@@ -268,18 +259,12 @@ function buildContextBlock(
 
     );
 
-
 }
-
-
-
-
-
 
 
 /*
  * =========================================================
- * BUILD USER PROMPT
+ * USER PROMPT
  * =========================================================
  */
 
@@ -294,16 +279,14 @@ function buildUserPrompt({
 
 }) {
 
-
-    const parts = [];
-
-
-
-
+    const parts =
+        [];
 
 
     /*
+     * =====================================================
      * TASK
+     * =====================================================
      */
 
 
@@ -316,18 +299,43 @@ function buildUserPrompt({
             task
 
         ]
-        .join("\n")
+            .join("\n")
 
     );
 
 
+    /*
+     * =====================================================
+     * SEMANTIC REPAIR
+     * =====================================================
+     *
+     * Намеренно ДО общего Context.
+     * =====================================================
+     */
 
 
+    const retry =
 
+        buildRetryContext(
+            previousError
+        );
+
+
+    if(
+        retry
+    ){
+
+        parts.push(
+            retry
+        );
+
+    }
 
 
     /*
+     * =====================================================
      * EXPERIENCE + CONTEXT
+     * =====================================================
      */
 
 
@@ -338,11 +346,9 @@ function buildUserPrompt({
         );
 
 
-
-    if (
+    if(
         contextText
-    ) {
-
+    ){
 
         parts.push(
 
@@ -353,21 +359,17 @@ function buildUserPrompt({
                 contextText
 
             ]
-            .join("\n")
+                .join("\n")
 
         );
 
     }
 
 
-
-
-
-
-
-
     /*
+     * =====================================================
      * TOOLS
+     * =====================================================
      */
 
 
@@ -380,65 +382,21 @@ function buildUserPrompt({
             buildToolsText()
 
         ]
-        .join("\n")
+            .join("\n")
 
     );
-
-
-
-
-
-
-
-
-    /*
-     * RETRY
-     */
-
-
-    const retry =
-
-        buildRetryContext(
-            previousError
-        );
-
-
-
-    if (
-        retry
-    ) {
-
-
-        parts.push(
-            retry
-        );
-
-    }
-
-
-
-
-
 
 
     return parts.join(
-
         "\n\n"
-
     );
-
 
 }
 
 
-
-
-
-
-
 /*
  * =========================================================
- * REQUEST PLAN
+ * REQUEST
  * =========================================================
  */
 
@@ -453,7 +411,6 @@ export async function requestPlan(
 
 ) {
 
-
     const cleanTask =
 
         limitText(
@@ -467,17 +424,15 @@ export async function requestPlan(
         );
 
 
-
-    if (!cleanTask) {
+    if(
+        !cleanTask
+    ){
 
         throw new Error(
             "Planner task пустой"
         );
 
     }
-
-
-
 
 
     /*
@@ -490,11 +445,6 @@ export async function requestPlan(
     const instructions =
 
         buildPlannerInstructions();
-
-
-
-
-
 
 
     /*
@@ -518,14 +468,9 @@ export async function requestPlan(
         });
 
 
-
-
-
-
-
     /*
      * =====================================================
-     * AI REQUEST
+     * AI
      * =====================================================
      */
 
@@ -546,7 +491,6 @@ export async function requestPlan(
 
                 },
 
-
                 {
 
                     role:
@@ -560,11 +504,6 @@ export async function requestPlan(
             ]
 
         );
-
-
-
-
-
 
 
     /*
@@ -587,6 +526,5 @@ export async function requestPlan(
         ""
 
     );
-
 
 }
