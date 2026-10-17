@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA MACHINE SOURCE SELECTOR v1
+ * JESSICA MACHINE SOURCE SELECTOR v2
  * =========================================================
  *
  * Детерминированный выбор кандидата
@@ -240,6 +240,78 @@ function requiresOfficialSource(
 }
 
 
+function requiresFreshness(
+    task
+) {
+
+    return (
+
+        /(актуальн\p{L}*|текущ\p{L}*|последн\p{L}*|новейш\p{L}*|сейчас)/iu
+            .test(
+                task
+            )
+
+        ||
+
+        /\b(latest|current|currently|newest)\b/iu
+            .test(
+                task
+            )
+
+    );
+
+}
+
+
+function hasUngroundedVersionPath(
+    url,
+    task
+) {
+
+    const source =
+
+        normalizeText(
+            url
+        );
+
+
+    const taskText =
+
+        normalizeText(
+            task
+        );
+
+
+    const matches =
+
+        source.match(
+            /(?:release|releases|version|versions|docs\/release)[\/_-]*v?(\d{1,3}(?:\.\d{1,4}){0,3})/i
+        );
+
+
+    const version =
+
+        matches?.[1]
+
+        ||
+
+        null;
+
+
+    if(!version){
+
+        return false;
+
+    }
+
+
+    return !taskText.includes(
+        version.toLowerCase()
+    );
+
+}
+
+
 function countMatches(
     tokens,
     text
@@ -282,6 +354,10 @@ function scoreCandidate({
     taskTokens,
 
     officialRequired,
+
+    freshnessRequired,
+
+    task,
 
     candidate
 
@@ -420,6 +496,72 @@ function scoreCandidate({
     }
 
 
+    /*
+     * Для "актуальной / latest" версии нельзя
+     * предпочитать URL, в который уже зашит
+     * конкретный номер версии, отсутствующий
+     * в самой задаче.
+     *
+     * Такой URL может быть старым release note.
+     */
+
+
+    if(
+        freshnessRequired
+        &&
+        hasUngroundedVersionPath(
+
+            candidate?.url,
+
+            task
+
+        )
+    ){
+
+        score -= 12;
+
+    }
+
+
+    /*
+     * Для официального продукта generic homepage
+     * является безопасным стартом, если hostname
+     * хорошо совпадает с именем продукта.
+     */
+
+
+    if(
+        officialRequired
+        &&
+        hostTokenMatch
+    ){
+
+        try {
+
+            const parsed =
+
+                new URL(
+                    candidate?.url || ""
+                );
+
+
+            if(
+                parsed.pathname === "/"
+                ||
+                parsed.pathname === ""
+            ){
+
+                score += 3;
+
+            }
+
+        }catch(error){
+
+        }
+
+    }
+
+
     return {
 
         score,
@@ -503,6 +645,13 @@ export function selectSourceMachine(
         );
 
 
+    const freshnessRequired =
+
+        requiresFreshness(
+            task
+        );
+
+
     const ranked =
 
         candidates
@@ -523,6 +672,10 @@ export function selectSourceMachine(
                             taskTokens,
 
                             officialRequired,
+
+                            freshnessRequired,
+
+                            task,
 
                             candidate
 
