@@ -909,8 +909,14 @@ export function tryCreateNativeSkillPlan({
                 (
                     "experience:"
                     +
-                    normalizeSkillId(
-                        skill
+                    normalizeText(
+
+                        officialSourcePlan
+                            ?.experience
+                            ?.skills
+                            ?.[0]
+                            ?.id
+
                     )
                 )
 
