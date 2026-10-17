@@ -657,7 +657,7 @@ export async function executeSubtask(
                 executionExperience.found,
 
             used:
-                executionExperience.used,
+                effectiveExecutionExperience.used,
 
             source:
                 executionExperience.source,
@@ -1136,7 +1136,53 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 7. EXECUTION
+     * 7. EFFECTIVE EXPERIENCE USAGE
+     * =====================================================
+     *
+     * Native capability != Experience Skill.
+     *
+     * Нельзя усиливать случайно найденный Skill,
+     * если фактически был использован только
+     * встроенный machine capability.
+     * =====================================================
+     */
+
+
+    const nativeExperienceUsed =
+
+        planResult?.native === true
+
+        &&
+
+        String(
+            planResult?.source || ""
+        )
+            .startsWith(
+                "experience:"
+            );
+
+
+    const effectiveExecutionExperience =
+
+        planResult?.native === true
+        &&
+        !nativeExperienceUsed
+
+            ? {
+
+                ...executionExperience,
+
+                used:
+                    false
+
+            }
+
+            : executionExperience;
+
+
+    /*
+     * =====================================================
+     * 8. EXECUTION
      * =====================================================
      */
 
@@ -1157,7 +1203,7 @@ export async function executeSubtask(
 
                 effectivePlanningContext,
 
-                executionExperience
+                effectiveExecutionExperience
 
             );
 
@@ -1202,7 +1248,7 @@ export async function executeSubtask(
 
     /*
      * =====================================================
-     * 8. RESULT
+     * 9. RESULT
      * =====================================================
      */
 
@@ -1250,7 +1296,7 @@ export async function executeSubtask(
         executionMeta: {
 
             experienceUsed:
-                executionExperience.used,
+                effectiveExecutionExperience.used,
 
             experienceFound:
                 executionExperience.found,
