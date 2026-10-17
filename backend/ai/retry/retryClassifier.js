@@ -1,30 +1,31 @@
 /*
  * =========================================================
  * JESSICA AI RETRY
- * CLASSIFIER v1
+ * CLASSIFIER v2
  * =========================================================
  *
  * Определяет:
  *
- * AI provider error
+ * provider / network error
  *      ↓
- * retryable?
+ * immediately retryable?
  *
  *
- * Поддерживает:
+ * КРИТИЧЕСКО:
  *
- * - rate limit;
- * - timeout;
- * - provider 5xx;
- * - network errors;
- * - known temporary model protocol glitch.
+ * Rate-limit errors обрабатываются
+ * ДО общего x-should-retry veto.
  *
  *
- * НЕ:
+ * Если provider явно пишет:
  *
- * - вычисляет delay;
- * - делает sleep;
- * - выполняет retry loop.
+ * "Please try again in 1.5525s"
+ *
+ * и ожидание входит в допустимый
+ * immediate retry window,
+ *
+ * Jessica должна выполнить
+ * локальный технический retry.
  *
  * =========================================================
  */
@@ -87,21 +88,6 @@ function providerAllowsRetry(
 /*
  * =========================================================
  * TRANSIENT MODEL PROTOCOL ERROR
- * =========================================================
- *
- * Известный случай Groq + GPT OSS:
- *
- * HTTP 400
- *
- * "Tool choice is none,
- * but model called a tool"
- *
- *
- * Planner не передаёт executable tools.
- * Поэтому это не semantic error Plan.
- *
- * Ограниченный технический retry допустим.
- *
  * =========================================================
  */
 
@@ -230,12 +216,16 @@ function isRateLimitError(
 
 /*
  * =========================================================
- * LONG RATE LIMIT
+ * DAILY LIMIT
+ * =========================================================
+ *
+ * Не пытаемся делать immediate retry
+ * суточной квоты.
  * =========================================================
  */
 
 
-function isLongRateLimit(
+function isDailyRateLimit(
     error
 ) {
 
@@ -247,12 +237,8 @@ function isLongRateLimit(
             .toLowerCase();
 
 
-    /*
-     * Daily quota.
-     */
+    return (
 
-
-    if(
         message.includes(
             "tokens per day"
         )
@@ -274,9 +260,37 @@ function isLongRateLimit(
         message.includes(
             "(rpd)"
         )
+
+    );
+
+}
+
+
+/*
+ * =========================================================
+ * RATE LIMIT RETRY DECISION
+ * =========================================================
+ */
+
+
+function isImmediatelyRetryableRateLimit(
+    error
+) {
+
+    /*
+     * Daily quota:
+     *
+     * immediate retry бессмысленен.
+     */
+
+
+    if(
+        isDailyRateLimit(
+            error
+        )
     ){
 
-        return true;
+        return false;
 
     }
 
@@ -288,15 +302,38 @@ function isLongRateLimit(
         );
 
 
-    return (
+    /*
+     * Provider дал конкретное время.
+     *
+     * Оно является главным критерием.
+     */
 
+
+    if(
         retryAfter !== null
+    ){
 
-        &&
+        return (
 
-        retryAfter >
-        MAX_IMMEDIATE_RETRY_WAIT_MS
+            retryAfter
+            <=
+            MAX_IMMEDIATE_RETRY_WAIT_MS
 
+        );
+
+    }
+
+
+    /*
+     * 429 без конкретного времени.
+     *
+     * Разрешаем ограниченный backoff,
+     * если provider явно не запретил retry.
+     */
+
+
+    return providerAllowsRetry(
+        error
     );
 
 }
@@ -339,10 +376,9 @@ export function isRetryableAIError(
 ) {
 
     /*
-     * Known GPT-OSS protocol glitch.
-     *
-     * Проверяем отдельно,
-     * потому что сам HTTP status = 400.
+     * =====================================================
+     * KNOWN MODEL PROTOCOL GLITCH
+     * =====================================================
      */
 
 
@@ -358,7 +394,38 @@ export function isRetryableAIError(
 
 
     /*
-     * Provider explicitly forbids retry.
+     * =====================================================
+     * RATE LIMIT
+     * =====================================================
+     *
+     * Проверяем ДО providerAllowsRetry().
+     *
+     * Если provider прямо сказал:
+     *
+     * "try again in 1.55s"
+     *
+     * локальный retry допустим.
+     * =====================================================
+     */
+
+
+    if(
+        isRateLimitError(
+            error
+        )
+    ){
+
+        return isImmediatelyRetryableRateLimit(
+            error
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * GENERIC PROVIDER VETO
+     * =====================================================
      */
 
 
@@ -373,24 +440,6 @@ export function isRetryableAIError(
     }
 
 
-    /*
-     * Rate limit.
-     */
-
-
-    if(
-        isRateLimitError(
-            error
-        )
-    ){
-
-        return !isLongRateLimit(
-            error
-        );
-
-    }
-
-
     const status =
 
         getAIErrorStatus(
@@ -399,7 +448,9 @@ export function isRetryableAIError(
 
 
     /*
-     * Request timeout.
+     * =====================================================
+     * TIMEOUT
+     * =====================================================
      */
 
 
@@ -413,7 +464,9 @@ export function isRetryableAIError(
 
 
     /*
-     * Temporary provider failure.
+     * =====================================================
+     * 5XX
+     * =====================================================
      */
 
 
@@ -429,7 +482,9 @@ export function isRetryableAIError(
 
 
     /*
-     * Network.
+     * =====================================================
+     * NETWORK
+     * =====================================================
      */
 
 
