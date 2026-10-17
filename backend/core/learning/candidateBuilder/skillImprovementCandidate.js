@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA SKILL IMPROVEMENT CANDIDATE BUILDER v2
+ * JESSICA SKILL IMPROVEMENT CANDIDATE BUILDER v3
  * =========================================================
  *
  * Existing Experience
@@ -47,6 +47,92 @@ import {
 import {
     resolveImprovementRequiredTools
 } from "./candidateToolKnowledge.js";
+
+
+/*
+ * =========================================================
+ * COMPACT SKILL REFERENCE
+ * =========================================================
+ *
+ * Candidate не должен транспортировать
+ * полный Experience Skill обратно в Queue.
+ *
+ * Для Proposal достаточно identity/version.
+ * Полный Knowledge уже скопирован в поля
+ * самого Candidate выше по flow.
+ * =========================================================
+ */
+
+
+function buildSkillReference(
+    rawSkill,
+    resolvedSkill
+) {
+
+    const id =
+
+        normalizeText(
+
+            resolvedSkill?.id
+
+            ||
+
+            resolvedSkill?.skillId
+
+            ||
+
+            rawSkill?.id
+
+            ||
+
+            rawSkill?.skillId
+
+        );
+
+
+    if(
+        !id
+    ){
+
+        return null;
+
+    }
+
+
+    const version =
+
+        Number(
+
+            resolvedSkill?.version
+
+            ??
+
+            rawSkill?.version
+
+            ??
+
+            0
+
+        );
+
+
+    return {
+
+        id,
+
+        version:
+
+            Number.isFinite(version)
+            &&
+            version > 0
+
+                ? version
+
+                : null
+
+    };
+
+}
 
 
 /*
@@ -243,7 +329,20 @@ export function buildSkillImprovementCandidate({
 
         skills:
 
-            skillList,
+            [
+
+                buildSkillReference(
+
+                    rawExistingSkill,
+
+                    existingSkill
+
+                )
+
+            ]
+                .filter(
+                    Boolean
+                ),
 
 
         targetSkillId,

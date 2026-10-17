@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA LEARNING TRIGGER v5
+ * JESSICA LEARNING TRIGGER v6
  * =========================================================
  *
  * Точка входа Learning Pipeline.
@@ -530,6 +530,163 @@ function resolveConfidence({
 
 /*
  * =========================================================
+ * COMPACT DIAGNOSTICS
+ * =========================================================
+ *
+ * Learning Event сохраняется в Queue.
+ *
+ * Candidate уже находится в payload.skillCandidate,
+ * поэтому Analysis/Decision не должны повторно
+ * транспортировать тот же большой объект.
+ * =========================================================
+ */
+
+
+function compactAnalysisForEvent(
+    analysis
+) {
+
+    if(
+        !isObject(
+            analysis
+        )
+    ){
+
+        return null;
+
+    }
+
+
+    return {
+
+        action:
+
+            normalizeText(
+                analysis.action
+            )
+
+            ||
+
+            null,
+
+        reusable:
+            analysis.reusable === true,
+
+        reason:
+
+            normalizeText(
+                analysis.reason
+            ),
+
+        analysisType:
+
+            normalizeText(
+                analysis.analysisType
+            )
+
+            ||
+
+            null,
+
+        improvementType:
+
+            normalizeText(
+                analysis.improvementType
+            )
+
+            ||
+
+            null,
+
+        discoveryRequired:
+            analysis.discoveryRequired === true,
+
+        metrics:
+
+            isObject(
+                analysis.metrics
+            )
+
+                ? {
+                    ...analysis.metrics
+                }
+
+                : {},
+
+        metadata:
+
+            isObject(
+                analysis.metadata
+            )
+
+                ? {
+                    ...analysis.metadata
+                }
+
+                : {}
+
+    };
+
+}
+
+
+function compactDecisionForEvent(
+    decision
+) {
+
+    if(
+        !isObject(
+            decision
+        )
+    ){
+
+        return null;
+
+    }
+
+
+    return {
+
+        action:
+
+            normalizeText(
+                decision.action
+            )
+
+            ||
+
+            null,
+
+        confidence:
+
+            normalizeNumber(
+                decision.confidence
+            ),
+
+        reusable:
+            decision.reusable === true,
+
+        reason:
+
+            normalizeText(
+                decision.reason
+            ),
+
+        createdAt:
+
+            decision.createdAt
+
+            ||
+
+            null
+
+    };
+
+}
+
+
+/*
+ * =========================================================
  * BUILD EVENT
  * =========================================================
  */
@@ -678,10 +835,18 @@ function buildLearningEvent({
          */
 
 
-        analysis,
+        analysis:
+
+            compactAnalysisForEvent(
+                analysis
+            ),
 
 
-        decision,
+        decision:
+
+            compactDecisionForEvent(
+                decision
+            ),
 
 
         source:

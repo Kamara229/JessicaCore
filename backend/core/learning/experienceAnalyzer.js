@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE ANALYZER v6
+ * JESSICA EXPERIENCE ANALYZER v7
  * =========================================================
  *
  * Центральный координатор анализа опыта
@@ -281,9 +281,16 @@ function buildLearningMetrics({
 
     return {
 
-        occurrences,
+        /*
+         * examples используются локально
+         * для расчёта метрик, но НЕ входят
+         * в Analysis transport.
+         *
+         * Канонические Examples находятся
+         * только в Skill Candidate.
+         */
 
-        examples,
+        occurrences,
 
         successRate,
 
