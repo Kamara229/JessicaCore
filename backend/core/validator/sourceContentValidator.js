@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA SOURCE CONTENT VALIDATOR v2
+ * JESSICA SOURCE CONTENT VALIDATOR v3
  * =========================================================
  *
  * Проверяет качество реально загруженного источника.
@@ -38,6 +38,11 @@ import {
 import {
     executeAIWithRetry
 } from "../../ai/aiRetry.js";
+
+
+import {
+    buildClaimEvidenceContext
+} from "./claim/claimEvidenceContext.js";
 
 
 
@@ -399,8 +404,32 @@ export async function validateSourceContent(
 
 
 
+    const compactContext =
+
+        buildClaimEvidenceContext({
+
+            task,
+
+            answer:
+                "",
+
+            taskRunResult
+
+        });
+
+
     const content =
-        fetchResult.data.content.trim();
+
+        compactContext.sourceText
+
+        ||
+
+        fetchResult.data.content
+            .trim()
+            .slice(
+                0,
+                8000
+            );
 
 
     const url =
@@ -413,6 +442,29 @@ export async function validateSourceContent(
         String(
             fetchResult.data.title || ""
         );
+
+
+    console.log(
+
+        "Jessica Validator source context:",
+
+        JSON.stringify({
+
+            sourceCount:
+                compactContext.sourceCount,
+
+            chunkCount:
+                compactContext.chunkCount,
+
+            sourceChars:
+                content.length,
+
+            queryTerms:
+                compactContext.queryTerms.length
+
+        })
+
+    );
 
 
 
