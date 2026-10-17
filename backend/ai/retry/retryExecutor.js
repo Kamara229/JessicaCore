@@ -1,34 +1,26 @@
 /*
  * =========================================================
  * JESSICA AI RETRY
- * EXECUTOR v1
+ * EXECUTOR v2
  * =========================================================
  *
- * Выполняет технический AI retry loop.
+ * Выполняет technical AI retry loop.
  *
- *
- * Flow:
  *
  * AI operation
  *      ↓
- * success → return
+ * success
+ *      → return
  *
  * error
  *      ↓
- * retryClassifier
+ * classify
  *      ↓
- * retryDelay
+ * retry-after
  *      ↓
- * sleep
+ * delay
  *      ↓
- * repeat
- *
- *
- * НЕ:
- *
- * - знает бизнес-смысл AI request;
- * - делает semantic retry;
- * - делает Execution Replan.
+ * retry
  *
  * =========================================================
  */
@@ -53,6 +45,11 @@ import {
 
 
 import {
+    getRetryAfterDetails
+} from "./retryAfter.js";
+
+
+import {
     getAIRetryDelay,
     sleep
 } from "./retryDelay.js";
@@ -70,7 +67,9 @@ function resolveMaxAttempts(
 ) {
 
     if(
-        Number.isInteger(value)
+        Number.isInteger(
+            value
+        )
         &&
         value > 0
     ){
@@ -177,9 +176,9 @@ export async function executeAIWithRetry(
 
 
             /*
-             * =============================================
+             * =================================================
              * CLASSIFY
-             * =============================================
+             * =================================================
              */
 
 
@@ -198,9 +197,23 @@ export async function executeAIWithRetry(
 
 
             /*
-             * =============================================
+             * =================================================
+             * PROVIDER RETRY INFO
+             * =================================================
+             */
+
+
+            const retryAfter =
+
+                getRetryAfterDetails(
+                    error
+                );
+
+
+            /*
+             * =================================================
              * DELAY
-             * =============================================
+             * =================================================
              */
 
 
@@ -217,9 +230,9 @@ export async function executeAIWithRetry(
 
 
             /*
-             * =============================================
+             * =================================================
              * LOG
-             * =============================================
+             * =================================================
              */
 
 
@@ -235,6 +248,7 @@ export async function executeAIWithRetry(
                             error
                         ),
 
+
                     code:
 
                         getAIErrorCode(
@@ -245,10 +259,33 @@ export async function executeAIWithRetry(
 
                         null,
 
+
                     retryable,
+
+
+                    providerRetryAfterMs:
+
+                        retryAfter
+                            ?.milliseconds
+
+                        ??
+
+                        null,
+
+
+                    retryAfterSource:
+
+                        retryAfter
+                            ?.source
+
+                        ||
+
+                        null,
+
 
                     retryDelay:
                         delay,
+
 
                     message:
 
@@ -258,7 +295,9 @@ export async function executeAIWithRetry(
 
                         ||
 
-                        String(error)
+                        String(
+                            error
+                        )
 
                 }
 
@@ -266,9 +305,9 @@ export async function executeAIWithRetry(
 
 
             /*
-             * =============================================
+             * =================================================
              * NOT RETRYABLE
-             * =============================================
+             * =================================================
              */
 
 
@@ -289,9 +328,9 @@ export async function executeAIWithRetry(
 
 
             /*
-             * =============================================
+             * =================================================
              * EXHAUSTED
-             * =============================================
+             * =================================================
              */
 
 
@@ -305,9 +344,9 @@ export async function executeAIWithRetry(
 
 
             /*
-             * =============================================
+             * =================================================
              * WAIT
-             * =============================================
+             * =================================================
              */
 
 
