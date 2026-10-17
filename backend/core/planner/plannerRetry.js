@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA PLANNER RETRY POLICY v4
+ * JESSICA PLANNER RETRY POLICY v5
  * =========================================================
  *
  * Центральный публичный интерфейс retry-системы Planner.
@@ -180,7 +180,9 @@ export function getRetryInfo(
             MAX_PLANNER_ATTEMPTS,
 
         retryable:
-            technical || semantic,
+            isRetryablePlannerError(
+                error
+            ),
 
         type:
             technical
