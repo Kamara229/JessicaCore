@@ -18,24 +18,26 @@ import {
 } from "./plannerEvidencePolicy.js";
 
 
+import {
+    validatePlannerGrounding
+} from "./plannerGroundingPolicy.js";
+
+
 /*
  * =========================================================
- * JESSICA PLAN VALIDATOR v4
+ * JESSICA PLAN VALIDATOR v5
  * =========================================================
- *
- * Финальная проверка Execution Plan.
- *
  *
  * Проверяет:
  *
  * - структуру;
- * - intent;
- * - requiresTools;
- * - evidence structure;
- * - evidence strength for user task;
- * - доступные инструменты;
- * - уникальность шагов;
- * - зависимости $from.
+ * - evidence;
+ * - evidence strength;
+ * - grounding;
+ * - retry/replan constraints;
+ * - tools;
+ * - step ids;
+ * - references.
  *
  * =========================================================
  */
@@ -47,7 +49,7 @@ const MAX_STEPS =
 
 /*
  * =========================================================
- * BASIC VALIDATION
+ * BASIC
  * =========================================================
  */
 
@@ -61,7 +63,9 @@ function validateBasicStructure(
         ||
         typeof plan !== "object"
         ||
-        Array.isArray(plan)
+        Array.isArray(
+            plan
+        )
     ){
 
         return {
@@ -133,10 +137,8 @@ function validateBasicStructure(
 
 
     return {
-
         success:
             true
-
     };
 
 }
@@ -144,7 +146,7 @@ function validateBasicStructure(
 
 /*
  * =========================================================
- * NO TOOL PLAN
+ * NO TOOLS
  * =========================================================
  */
 
@@ -188,10 +190,8 @@ function validateNoToolsPlan(
 
 
     return {
-
         success:
             true
-
     };
 
 }
@@ -199,7 +199,7 @@ function validateNoToolsPlan(
 
 /*
  * =========================================================
- * TOOL VALIDATION
+ * TOOL STEPS
  * =========================================================
  */
 
@@ -413,7 +413,11 @@ function validateToolSteps(
 
                 text:
 
-                    `Ошибка зависимости ${step.id}: ${referenceResult.text}`
+                    (
+                        `Ошибка зависимости ${step.id}: `
+                        +
+                        referenceResult.text
+                    )
 
             };
 
@@ -428,10 +432,8 @@ function validateToolSteps(
 
 
     return {
-
         success:
             true
-
     };
 
 }
@@ -439,7 +441,7 @@ function validateToolSteps(
 
 /*
  * =========================================================
- * PUBLIC VALIDATOR
+ * PUBLIC
  * =========================================================
  */
 
@@ -455,9 +457,7 @@ export function validatePlan(
 ) {
 
     /*
-     * =====================================================
-     * 1. STRUCTURE
-     * =====================================================
+     * 1. Structure
      */
 
 
@@ -478,9 +478,7 @@ export function validatePlan(
 
 
     /*
-     * =====================================================
-     * 2. EVIDENCE INTERNAL CONSISTENCY
-     * =====================================================
+     * 2. Evidence consistency
      */
 
 
@@ -501,15 +499,7 @@ export function validatePlan(
 
 
     /*
-     * =====================================================
-     * 3. EVIDENCE STRENGTH POLICY
-     * =====================================================
-     *
-     * Здесь проверяем уже не сам Plan,
-     * а достаточность evidence
-     * для исходной пользовательской задачи.
-     *
-     * =====================================================
+     * 3. Evidence strength
      */
 
 
@@ -520,13 +510,9 @@ export function validatePlan(
             task:
 
                 task
-
                 ||
-
                 context?.task
-
                 ||
-
                 "",
 
             plan
@@ -544,9 +530,40 @@ export function validatePlan(
 
 
     /*
-     * =====================================================
-     * 4. NO TOOLS
-     * =====================================================
+     * 4. Grounding + Replan constraints
+     */
+
+
+    const grounding =
+
+        validatePlannerGrounding({
+
+            plan,
+
+            context,
+
+            task:
+
+                task
+                ||
+                context?.task
+                ||
+                ""
+
+        });
+
+
+    if(
+        !grounding.success
+    ){
+
+        return grounding;
+
+    }
+
+
+    /*
+     * 5. No tools
      */
 
 
@@ -562,9 +579,7 @@ export function validatePlan(
 
 
     /*
-     * =====================================================
-     * 5. TOOL PLAN
-     * =====================================================
+     * 6. Tool route
      */
 
 
