@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA PLANNER RETRY ERRORS
+ * JESSICA PLANNER RETRY ERRORS v2
  * =========================================================
  *
  * Классификация ошибок Planner:
@@ -293,18 +293,30 @@ export function isRetryablePlannerError(
 ) {
 
 
-    return (
+    /*
+     * Technical provider/network retries
+     * уже принадлежат AI transport layer:
+     *
+     * plannerClient
+     *   ↓
+     * executeAIWithRetry
+     *
+     * Если technical error вышла наружу,
+     * локальный AI retry уже либо исчерпан,
+     * либо provider прямо запретил immediate retry.
+     *
+     * Planner attempt loop НЕ должен запускать
+     * второй независимый technical retry loop.
+     *
+     * Здесь повторяем только semantic failures
+     * самого Planner pipeline:
+     *
+     * parse / normalize / semantic validation.
+     */
 
-        isTechnicalPlannerError(
-            error
-        )
 
-        ||
-
-        isSemanticPlannerError(
-            error
-        )
-
+    return isSemanticPlannerError(
+        error
     );
 
 }
