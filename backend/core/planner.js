@@ -1,30 +1,25 @@
 /*
  * =========================================================
- * JESSICA PLANNER CORE v5
+ * JESSICA PLANNER CORE v6
  * =========================================================
  *
- * Центральный координатор Planner.
- *
- *
- * Flow:
- *
  * Task
- *   ↓
- * Planner Context
- *   ↓
+ *      ↓
  * Planner Attempt
- *   ↓
- * Retry Policy
- *   ↓
- * Execution Plan
+ *      ↓
+ * Machine Validation
+ *      ↓
+ *
+ * success
+ *      → Execution Plan
+ *
+ * semantic rejection
+ *      → Structured Repair Feedback
+ *      → Next Planner Attempt
  *
  *
- * v5:
- *
- * - semantic failures больше не скрываются;
- * - логируется validation feedback каждой попытки;
- * - логируется финальный отказ Planner;
- * - trace остаётся канонической историей попыток.
+ * Technical AI retry остаётся
+ * отдельным механизмом.
  *
  * =========================================================
  */
@@ -42,6 +37,11 @@ import {
 import {
     runPlannerAttempt
 } from "./planner/runtime/plannerAttempt.js";
+
+
+import {
+    buildPlannerAttemptFeedback
+} from "./planner/runtime/plannerAttemptFeedback.js";
 
 
 import {
@@ -81,13 +81,12 @@ export async function createPlan(
 
 ) {
 
-
     const cleanTask =
 
         String(
             task || ""
         )
-        .trim();
+            .trim();
 
 
     /*
@@ -152,8 +151,8 @@ export async function createPlan(
 
 
     /*
-     * Только semantic feedback
-     * передаётся обратно AI.
+     * Semantic feedback
+     * следующей AI попытке.
      */
 
 
@@ -171,7 +170,7 @@ export async function createPlan(
 
     /*
      * =====================================================
-     * RETRY LOOP
+     * ATTEMPT LOOP
      * =====================================================
      */
 
@@ -185,7 +184,6 @@ export async function createPlan(
         attempt++
 
     ){
-
 
         const planningContext =
 
@@ -237,18 +235,11 @@ export async function createPlan(
                 !attemptResult.success
             ){
 
-
                 lastError =
 
                     attemptResult.feedback
-
                     ||
-
                     "planner_validation_failed";
-
-
-                plannerFeedback =
-                    lastError;
 
 
                 const traceEntry = {
@@ -256,9 +247,7 @@ export async function createPlan(
                     stage:
 
                         attemptResult.stage
-
                         ||
-
                         "validation",
 
                     attempt,
@@ -280,14 +269,6 @@ export async function createPlan(
                 );
 
 
-                /*
-                 * КРИТИЧНО:
-                 *
-                 * раньше эта ветка была полностью
-                 * невидима в runtime logs.
-                 */
-
-
                 console.warn(
 
                     "Jessica Planner semantic rejection:",
@@ -305,6 +286,60 @@ export async function createPlan(
                     }
 
                 );
+
+
+                /*
+                 * =================================================
+                 * STRUCTURED REPAIR
+                 * =================================================
+                 *
+                 * Только если впереди
+                 * действительно есть новая попытка.
+                 * =================================================
+                 */
+
+
+                if(
+                    attempt
+                    <
+                    MAX_PLANNER_ATTEMPTS
+                ){
+
+                    plannerFeedback =
+
+                        buildPlannerAttemptFeedback({
+
+                            reason:
+                                lastError,
+
+                            rejectedPlan:
+                                attemptResult.rejectedPlan,
+
+                            attempt
+
+                        });
+
+
+                    console.warn(
+
+                        "Jessica Planner semantic repair prepared:",
+
+                        {
+
+                            rejectedAttempt:
+                                attempt,
+
+                            nextAttempt:
+                                attempt + 1,
+
+                            feedback:
+                                plannerFeedback
+
+                        }
+
+                    );
+
+                }
 
 
                 continue;
@@ -389,8 +424,8 @@ export async function createPlan(
 
             };
 
-
-        }catch(error){
+        }
+        catch(error){
 
 
             /*
@@ -403,9 +438,7 @@ export async function createPlan(
             const errorMessage =
 
                 error?.message
-
                 ||
-
                 "planner_error";
 
 
@@ -435,10 +468,9 @@ export async function createPlan(
 
 
             /*
-             * Semantic error:
-             *
-             * модель получила запрос,
-             * но сформировала плохой результат.
+             * =================================================
+             * SEMANTIC EXCEPTION
+             * =================================================
              */
 
 
@@ -447,19 +479,30 @@ export async function createPlan(
             ){
 
                 plannerFeedback =
-                    errorMessage;
+
+                    buildPlannerAttemptFeedback({
+
+                        reason:
+                            errorMessage,
+
+                        rejectedPlan:
+                            null,
+
+                        attempt
+
+                    });
 
             }
 
 
             /*
-             * Technical error:
+             * =================================================
+             * TECHNICAL ERROR
+             * =================================================
              *
-             * 429 / 5xx / network.
-             *
-             * AI не должен воспринимать
-             * технический сбой как feedback
-             * к содержанию плана.
+             * Technical provider failure
+             * is not semantic feedback.
+             * =================================================
              */
 
 
@@ -475,7 +518,7 @@ export async function createPlan(
 
             /*
              * =================================================
-             * RETRY DELAY
+             * RETRY DECISION
              * =================================================
              */
 
@@ -486,7 +529,8 @@ export async function createPlan(
 
                 &&
 
-                attempt <
+                attempt
+                <
                 MAX_PLANNER_ATTEMPTS;
 
 
@@ -610,7 +654,7 @@ export async function createPlan(
 
     /*
      * =====================================================
-     * FAILED
+     * EXHAUSTED
      * =====================================================
      */
 
@@ -623,9 +667,7 @@ export async function createPlan(
 
         (
             lastError
-
             ||
-
             "unknown planner failure"
         );
 
@@ -642,9 +684,7 @@ export async function createPlan(
             lastError:
 
                 lastError
-
                 ||
-
                 null,
 
             trace
@@ -683,7 +723,6 @@ export async function planTask(
     context = {}
 
 ) {
-
 
     const result =
 
