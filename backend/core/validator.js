@@ -686,6 +686,12 @@ export async function validateResult(
         );
 
 
+        const sourceConfirmed =
+            sourceContent?.success === true
+            &&
+            sourceContent?.valid === true;
+
+
         if(
             claims?.success === true
             &&
@@ -704,20 +710,30 @@ export async function validateResult(
                     degraded:
                         false,
 
+                    /*
+                     * Если Source Content уже подтверждён
+                     * как достаточный для задачи, а claims
+                     * итогового ответа не подтверждаются,
+                     * проблема принадлежит presentation:
+                     * Execution / evidence повторять не нужно.
+                     *
+                     * Если сам source не подтверждён,
+                     * сохраняем evidence scope.
+                     */
+
                     failureScope:
-                        FAILURE_SCOPE.EVIDENCE
+
+                        sourceConfirmed
+
+                            ? FAILURE_SCOPE.PRESENTATION
+
+                            : FAILURE_SCOPE.EVIDENCE
 
                 }
 
             );
 
         }
-
-
-        const sourceConfirmed =
-            sourceContent?.success === true
-            &&
-            sourceContent?.valid === true;
 
 
         const claimsConfirmed =
