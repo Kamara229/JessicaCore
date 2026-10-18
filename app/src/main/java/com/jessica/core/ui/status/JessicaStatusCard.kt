@@ -1,5 +1,7 @@
 package com.jessica.core.ui.status
 
+import com.jessica.core.BuildConfig
+
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,7 +18,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun JessicaStatusCard(
 
-    version: String = "v0.1",
+    version: String = "v" + BuildConfig.VERSION_NAME,
 
     status: String = "Готова к работе"
 

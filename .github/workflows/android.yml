@@ -8,6 +8,13 @@ on:
       - main
 
 
+permissions:
+  contents: write
+
+concurrency:
+  group: jessica-android-release
+  cancel-in-progress: false
+
 jobs:
 
   build:
@@ -20,6 +27,8 @@ jobs:
       JESSICA_KEYSTORE_PASSWORD: ${{ secrets.JESSICA_KEYSTORE_PASSWORD }}
       JESSICA_KEY_PASSWORD: ${{ secrets.JESSICA_KEY_PASSWORD }}
       JESSICA_KEY_ALIAS: ${{ secrets.JESSICA_KEY_ALIAS }}
+      JESSICA_VERSION_CODE: ${{ github.run_number }}
+      JESSICA_VERSION_NAME: 0.1.${{ github.run_number }}
 
 
     steps:
@@ -112,3 +121,17 @@ jobs:
         with:
           name: JessicaCore
           path: JessicaCore.apk
+
+      - name: Generate SHA-256 checksum
+        run: sha256sum JessicaCore.apk > JessicaCore.apk.sha256
+
+      - name: Publish signed APK as a GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${JESSICA_VERSION_NAME}" \
+            JessicaCore.apk JessicaCore.apk.sha256 \
+            --title "Jessica Core v${JESSICA_VERSION_NAME}" \
+            --notes "Signed Android update for Jessica Core. Install over the existing app to preserve its data." \
+            --latest \
+            --target "${GITHUB_SHA}"

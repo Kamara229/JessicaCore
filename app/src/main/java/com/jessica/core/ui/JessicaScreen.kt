@@ -1,6 +1,11 @@
 package com.jessica.core.ui
 
 
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 
@@ -29,6 +34,7 @@ import com.jessica.core.navigation.JessicaPage
 
 import com.jessica.core.modules.blocks.BlockFileLoader
 import com.jessica.core.modules.updater.UpdateViewModel
+import com.jessica.core.modules.updater.UpdateState
 
 import com.jessica.core.ui.chat.ChatRoute
 import com.jessica.core.ui.chat.ChatViewModel
@@ -82,7 +88,7 @@ fun JessicaScreen() {
 
         remember {
 
-            UpdateViewModel()
+            UpdateViewModel(context.applicationContext)
 
         }
 
@@ -141,6 +147,54 @@ fun JessicaScreen() {
 
 
 
+
+    val installationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        updateViewModel.installationReturned()
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+            context.packageManager.canRequestPackageInstalls()
+        ) {
+            updateViewModel.checkUpdate()
+        } else {
+            updateViewModel.permissionDenied()
+        }
+    }
+
+    LaunchedEffect(updateState) {
+        if (updateState is UpdateState.ReadyToInstall) {
+            val intent = updateViewModel.prepareInstallation()
+            if (intent != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                    !context.packageManager.canRequestPackageInstalls()
+                ) {
+                    updateViewModel.waitingPermission()
+                    try {
+                        permissionLauncher.launch(
+                            Intent(
+                                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                Uri.parse("package:${context.packageName}")
+                            )
+                        )
+                    } catch (error: Exception) {
+                        updateViewModel.permissionDenied()
+                    }
+                } else {
+                    try {
+                        updateViewModel.installing()
+                        installationLauncher.launch(intent)
+                    } catch (error: Exception) {
+                        updateViewModel.installationReturned()
+                    }
+                }
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
 
