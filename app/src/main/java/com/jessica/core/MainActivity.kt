@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 
 import com.jessica.core.ui.JessicaScreen
+import com.jessica.core.ui.theme.JessicaTheme
 
 
 
@@ -26,7 +27,9 @@ class MainActivity : ComponentActivity() {
         setContent {
 
 
-            JessicaScreen()
+            JessicaTheme {
+                JessicaScreen()
+            }
 
 
         }
