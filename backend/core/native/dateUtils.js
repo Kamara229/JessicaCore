@@ -271,7 +271,7 @@ export function parseNativeDate(
 
     match =
         text.match(
-            /(?:^|[^\p{L}\p{N}])([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?[,]?\s+(\d{4})(?:[^\p{L}\p{N}]|$)/iu
+            /(?:^|[^\p{L}\p{N}])([a-z]+)\.?\s+(\d{1,2})(?:st|nd|rd|th)?[,]?\s+(\d{4})(?:[^\p{L}\p{N}]|$)/iu
         );
 
 
@@ -281,7 +281,7 @@ export function parseNativeDate(
             MONTHS.get(
                 String(
                     match[1] || ""
-                )
+                ).replace(/\./g, "")
                     .toLowerCase()
             );
 
@@ -368,7 +368,7 @@ export function extractNativeDates(
 
         /\b\d{1,2}\s+[\p{L}.]+\s+\d{4}(?:\s*г(?:ода|\.)?)?/giu,
 
-        /\b[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?[,]?\s+\d{4}\b/giu
+        /\b[a-z]+\.?\s+\d{1,2}(?:st|nd|rd|th)?[,]?\s+\d{4}\b/giu
 
     ];
 
