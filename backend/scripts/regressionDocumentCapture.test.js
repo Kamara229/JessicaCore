@@ -256,8 +256,15 @@ test("unverified second-source claims cannot validate comparative table",()=>{
         task:comparisonInput,plan:pairedPlan,
         taskRunResult:pairedRun,answer:sample,claims
     }).valid,false);
-    const verified=[...claims.slice(0,1),
-      {supported:true,sourceUrl:"https://opensource.org/license/apache-2.0"}];
+    const verified=[
+      ...claims,
+      {supported:true,sourceUrl:"https://opensource.org/license/apache-2.0"},
+      {supported:true,sourceUrl:"https://opensource.org/license/apache-2.0"}
+    ];
+    assert.equal(checkPairedClaimCoverage({
+        task:comparisonInput,plan:pairedPlan,
+        taskRunResult:pairedRun,answer:sample,claims:verified.slice(0,3)
+    }).valid,false);
     assert.equal(checkPairedClaimCoverage({
         task:comparisonInput,plan:pairedPlan,
         taskRunResult:pairedRun,answer:sample,claims:verified
