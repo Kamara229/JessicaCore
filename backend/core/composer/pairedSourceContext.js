@@ -5,8 +5,8 @@
  */
 const CHUNK=800;
 const STEP=680;
-const PER_SOURCE=5050;
-const MAX_WINDOWS=6;
+const PER_SOURCE=4300;
+const MAX_WINDOWS=5;
 
 function tokensFromTask(task) {
     const text=String(task || "").toLowerCase();
@@ -68,6 +68,6 @@ export function buildPairedSourceContext(task,taskRunResult) {
         return ["ИСТОЧНИК "+(i+1), "URL: "+String(d.url),
             "Название: "+String(d.title||""),
             "Ниже приведены дословные выдержки, а не полный документ.",
-            ...windows(d.content,terms)].join("\n").slice(0,PER_SOURCE+360);
+            ...windows(d.content,terms)].join("\n").slice(0,PER_SOURCE);
     }).join("\n\n--------------------\n\n");
 }
