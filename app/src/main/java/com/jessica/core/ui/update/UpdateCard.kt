@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.jessica.core.BuildConfig
 import com.jessica.core.modules.updater.UpdateState
 
 @Composable
@@ -34,7 +35,7 @@ fun UpdateCard(
         ) {
             Text("Обновление Jessica", style = MaterialTheme.typography.titleMedium)
             val message = when (state) {
-                UpdateState.Idle -> "Проверить наличие новой версии"
+                UpdateState.Idle -> "Установлена v${BuildConfig.VERSION_NAME}. Проверить наличие новой версии"
                 UpdateState.Checking -> "Этап 1/4 · Проверка обновлений на GitHub…"
                 is UpdateState.UpToDate -> "Установлена актуальная версия: ${state.version}"
                 is UpdateState.Downloading -> "Этап 2/4 · Загрузка обновления: ${state.progress}%"
