@@ -40,7 +40,8 @@ import {
 } from "./taskDecomposer.js";
 
 import {
-    contextualizeTask
+    contextualizeTask,
+    attachConversationToDecomposition
 } from "./chat/conversationContext.js";
 
 
@@ -253,9 +254,11 @@ export async function executeJessicaTask(
     }
 
 
-    const decomposition =
-
-        decompositionResult.decomposition;
+    const decomposition = attachConversationToDecomposition(
+        decompositionResult.decomposition,
+        normalizedTask,
+        conversation
+    );
 
 
     /*
