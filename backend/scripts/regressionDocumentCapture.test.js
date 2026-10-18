@@ -242,3 +242,33 @@ test("AI-planned two-source comparisons receive the same small evidence budget",
     assert.equal(usePairedComparisonContext("Сравни две лицензии",arbitraryPlan,
         {results:[pairedRun.results[0]]}),false);
 });
+
+import { checkPairedClaimCoverage } from "../core/validator/claim/pairedClaimCoverage.js";
+import { hasVerifiedPatternEvidence } from "../core/learning/patternExtraction/patternEvidencePolicy.js";
+
+test("unverified second-source claims cannot validate comparative table",()=>{
+    const claims=[
+      {supported:true,sourceUrl:"https://opensource.org/license/mit"},
+      {supported:true,sourceUrl:"https://opensource.org/license/mit"}
+    ];
+    const sample="| Criterion | MIT | Apache |\n|---|---|---|\n| Grant | Yes | Yes |\n| Patent | No | Yes |";
+    assert.equal(checkPairedClaimCoverage({
+        task:comparisonInput,plan:pairedPlan,
+        taskRunResult:pairedRun,answer:sample,claims
+    }).valid,false);
+    const verified=[...claims.slice(0,1),
+      {supported:true,sourceUrl:"https://opensource.org/license/apache-2.0"}];
+    assert.equal(checkPairedClaimCoverage({
+        task:comparisonInput,plan:pairedPlan,
+        taskRunResult:pairedRun,answer:sample,claims:verified
+    }).valid,true);
+});
+
+test("legacy comparison discovery requires two explicit source citations",()=>{
+    const evidence={task:comparisonInput,answer:"The licences differ",
+      result:{success:true,verified:true,status:"COMPLETED"},
+      validation:{valid:true,degraded:false}};
+    assert.equal(hasVerifiedPatternEvidence(evidence),false);
+    evidence.answer="Compared sources: https://opensource.org/license/mit and https://opensource.org/license/apache-2.0";
+    assert.equal(hasVerifiedPatternEvidence(evidence),true);
+});
