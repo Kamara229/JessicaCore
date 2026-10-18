@@ -2,6 +2,7 @@
  * Regression checks for autonomous Skill learning.
  * No credentials, network calls, or external dependencies.
  */
+import "../tools/dateDiffTool.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { executeReleaseFact } from "../tools/releaseFact/releaseFactExecutor.js";
