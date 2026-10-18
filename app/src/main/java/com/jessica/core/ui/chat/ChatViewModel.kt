@@ -1,416 +1,107 @@
 package com.jessica.core.ui.chat
 
-
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-
+import com.jessica.core.modules.chat.ChatContextWindow
+import com.jessica.core.modules.chat.ChatHistoryStore
 import com.jessica.core.modules.chat.ChatMessage
-
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-
-
-
-/*
- * =========================================================
- * JESSICA CHAT STATE
- * =========================================================
- *
- * Состояние экрана чата.
- *
- * Хранит только данные UI:
- *
- * - сообщения
- * - текст ввода
- * - состояние выполнения запроса
- *
- * =========================================================
- */
-
+import kotlinx.coroutines.withContext
 
 data class ChatState(
-
     val messages: List<ChatMessage> = emptyList(),
-
     val input: TextFieldValue = TextFieldValue(),
-
-    val isRunning: Boolean = false
-
+    val isRunning: Boolean = false,
+    val isLoading: Boolean = true,
+    val storageError: String? = null
 )
 
-
-
-/*
- * =========================================================
- * JESSICA CHAT VIEW MODEL
- * =========================================================
- *
- * Управляет состоянием чата.
- *
- * Отвечает за:
- *
- * - ввод текста
- * - отправку сообщения
- * - добавление сообщения пользователя
- * - получение ответа Jessica
- * - обработку ошибки
- * - повтор запроса
- *
- * Не содержит:
- *
- * - Planner
- * - Tool Registry
- * - сетевую реализацию
- * - AI Engine
- *
- * Выполнение запроса передаётся через messageExecutor.
- *
- * =========================================================
- */
-
-
 class ChatViewModel(
-
-    private val messageExecutor:
-        suspend (String) -> String = {
-
-            "Я получила сообщение. Ядро Jessica ещё не подключено к чату."
-
-        }
-
+    private val historyStore: ChatHistoryStore,
+    private val messageExecutor: suspend (String, List<ChatMessage>) -> String
 ) : ViewModel() {
 
+    private val _state = MutableStateFlow(ChatState())
+    val state: StateFlow<ChatState> = _state.asStateFlow()
 
-
-    private val _state =
-
-        MutableStateFlow(
-            ChatState()
-        )
-
-
-
-    val state: StateFlow<ChatState> =
-
-        _state.asStateFlow()
-
-
-
-    /*
-     * =====================================================
-     * INPUT
-     * =====================================================
-     */
-
-
-    fun updateInput(
-
-        value: TextFieldValue
-
-    ) {
-
-
-        _state.value =
-
-            _state.value.copy(
-
-                input = value
-
-            )
-
-
+    init {
+        viewModelScope.launch {
+            try {
+                val restored = withContext(Dispatchers.IO) { historyStore.load() }
+                _state.value = _state.value.copy(messages = restored, isLoading = false)
+            } catch (error: Exception) {
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    storageError = "Не удалось прочитать историю: ${error.message}"
+                )
+            }
+        }
     }
 
-
-
-    /*
-     * =====================================================
-     * SEND
-     * =====================================================
-     */
-
+    fun updateInput(value: TextFieldValue) {
+        _state.value = _state.value.copy(input = value)
+    }
 
     fun sendMessage() {
-
-
-        val text =
-
-            _state.value
-                .input
-                .text
-                .trim()
-
-
-
-        if (text.isBlank()) {
-
-            return
-
-        }
-
-
-
-        if (_state.value.isRunning) {
-
-            return
-
-        }
-
-
-
-        val userMessage =
-
-            ChatMessage(
-
-                text = text,
-
-                isUser = true
-
-            )
-
-
-
-        _state.value =
-
-            _state.value.copy(
-
-                messages =
-
-                    _state.value.messages +
-                        userMessage,
-
-                input =
-                    TextFieldValue(),
-
-                isRunning =
-                    true
-
-            )
-
-
-
-        executeMessage(
-            text
-        )
-
-
+        val current = _state.value
+        val text = current.input.text.trim()
+        if (text.isEmpty() || current.isRunning || current.isLoading) return
+        val history = ChatContextWindow.select(current.messages)
+        _state.value = current.copy(isRunning = true, storageError = null)
+        submit(ChatMessage(text = text, isUser = true), history, clearInput = true)
     }
 
+    fun retryMessage(message: ChatMessage) {
+        val current = _state.value
+        if (!message.isUser || message.text.isBlank() ||
+            current.isRunning || current.isLoading) return
+        val history = ChatContextWindow.select(current.messages)
+        _state.value = current.copy(isRunning = true, storageError = null)
+        submit(ChatMessage(text = message.text.trim(), isUser = true), history, clearInput = false)
+    }
 
-
-    /*
-     * =====================================================
-     * EXECUTION
-     * =====================================================
-     */
-
-
-    private fun executeMessage(
-
-        text: String
-
+    private fun submit(
+        userMessage: ChatMessage,
+        previous: List<ChatMessage>,
+        clearInput: Boolean
     ) {
-
-
         viewModelScope.launch {
-
-
             try {
-
-
-                val result =
-
-                    messageExecutor(
-                        text
-                    )
-
-
-
-                addJessicaMessage(
-
-                    text =
-                        result
-
+                withContext(Dispatchers.IO) { historyStore.append(userMessage) }
+            } catch (error: Exception) {
+                _state.value = _state.value.copy(
+                    isRunning = false,
+                    storageError = "Не удалось записать сообщение: ${error.message}"
                 )
-
-
-            } catch (
-
-                error: Exception
-
-            ) {
-
-
-                addJessicaMessage(
-
-                    text =
-                        error.message
-                            ?.takeIf {
-                                it.isNotBlank()
-                            }
-                            ?.let {
-                                "Не удалось выполнить запрос: $it"
-                            }
-                            ?: "Не удалось выполнить запрос."
-
-                )
-
-
+                return@launch
             }
 
-
-        }
-
-
-    }
-
-
-
-    /*
-     * =====================================================
-     * JESSICA MESSAGE
-     * =====================================================
-     */
-
-
-    private fun addJessicaMessage(
-
-        text: String
-
-    ) {
-
-
-        val answer =
-
-            ChatMessage(
-
-                text = text,
-
-                isUser = false
-
+            _state.value = _state.value.copy(
+                messages = _state.value.messages + userMessage,
+                input = if (clearInput) TextFieldValue() else _state.value.input
             )
-
-
-
-        _state.value =
-
-            _state.value.copy(
-
-                messages =
-
-                    _state.value.messages +
-                        answer,
-
-                isRunning =
-                    false
-
+            val result = try {
+                messageExecutor(userMessage.text, previous)
+            } catch (error: Exception) {
+                "Не удалось выполнить запрос: ${error.message ?: "неизвестная ошибка"}"
+            }
+            val answer = ChatMessage(text = result, isUser = false)
+            val writeError = try {
+                withContext(Dispatchers.IO) { historyStore.append(answer) }
+                null
+            } catch (error: Exception) {
+                "Ответ отображён, но не сохранён: ${error.message}"
+            }
+            _state.value = _state.value.copy(
+                messages = _state.value.messages + answer,
+                isRunning = false,
+                storageError = writeError
             )
-
-
+        }
     }
-
-
-
-    /*
-     * =====================================================
-     * RETRY
-     * =====================================================
-     *
-     * Повторно выполняет выбранный
-     * запрос пользователя.
-     *
-     * Теперь искать предыдущее сообщение
-     * больше не требуется:
-     *
-     * пользователь нажимает непосредственно
-     * на свой запрос → Повторить запрос.
-     *
-     * =====================================================
-     */
-
-
-    fun retryMessage(
-
-        message: ChatMessage
-
-    ) {
-
-
-        /*
-         * Повтор разрешён только
-         * для сообщения пользователя.
-         */
-
-
-        if (!message.isUser) {
-
-            return
-
-        }
-
-
-
-        /*
-         * Пока Jessica выполняет другой запрос,
-         * второй запуск не допускаем.
-         */
-
-
-        if (_state.value.isRunning) {
-
-            return
-
-        }
-
-
-
-        val text =
-
-            message.text
-                .trim()
-
-
-
-        if (text.isBlank()) {
-
-            return
-
-        }
-
-
-
-        /*
-         * Показываем ThinkingIndicator.
-         */
-
-
-        _state.value =
-
-            _state.value.copy(
-
-                isRunning =
-                    true
-
-            )
-
-
-
-        /*
-         * Повторно отправляем именно тот запрос,
-         * на котором пользователь выбрал
-         * "Повторить запрос".
-         */
-
-
-        executeMessage(
-            text
-        )
-
-
-    }
-
-
 }
