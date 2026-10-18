@@ -1,12 +1,19 @@
 /*
  * =========================================================
- * JESSICA RELEASE FACT TOOL v1
+ * JESSICA RELEASE FACT TOOL v2
  * =========================================================
  *
- * Детерминированно извлекает актуальную стабильную версию
- * и дату выпуска из уже загруженного официального источника.
+ * Детерминированно извлекает версию и дату релиза
+ * из уже загруженного официального источника.
  *
- * AI не используется.
+ * Главные правила:
+ *
+ * - AI не используется;
+ * - неизвестные значения не угадываются;
+ * - prerelease (alpha/beta/rc/preview) не считается stable;
+ * - предпочтение отдаётся секции Latest Releases / Releases;
+ * - related software/news не должен подменять сам продукт;
+ * - версия и дата должны быть подтверждены одним фрагментом.
  * =========================================================
  */
 
@@ -25,25 +32,47 @@ const MAX_CONTENT_LENGTH =
     50000;
 
 
+const MAX_SECTION_LENGTH =
+    10000;
+
+
 const RELEASE_SIGNAL =
     /(latest|current|stable|release|released|version|releases|релиз|выпуск|верси|стабильн|актуальн|текущ)/iu;
 
 
 const PRERELEASE_SIGNAL =
-    /(alpha|beta|preview|pre-release|prerelease|release\s+candidate|\brc\b|devel|development)/iu;
+    /(?:alpha|beta|preview|pre-release|prerelease|release\s+candidate|\brc\b|devel|development)/iu;
+
+
+const SEMVER_PATTERN =
+    /\b(\d{1,3}(?:\.\d{1,4}){1,3})\b/g;
+
+
+const SINGLE_MAJOR_PATTERN =
+    /\b(?:version|jdk|java\s+se|postgresql|python|rust|node(?:\.js)?)\s+(\d{1,3})\b/giu;
 
 
 const ISO_DATE_PATTERN =
     /\b(20\d{2})-(0[1-9]|1[0-2])-([0-2]\d|3[01])\b/g;
 
 
-const VERSION_PATTERN =
-    /\b(\d{1,3}(?:\.\d{1,4}){1,3})\b/g;
+const SUBJECT_STOPWORDS =
+    new Set([
+        "найди","найти","на","официальном","официальный","официального",
+        "сайте","сайт","дату","дата","выпуска","выпуск","релиза","релиз",
+        "актуальной","актуальная","актуальный","стабильной","стабильная",
+        "версии","версия","проверить","проверенную","укажи","определи",
+        "последнюю","последняя","текущую","текущая","затем","рассчитай",
+        "сколько","полных","дней","прошло","между","используй","найденную",
+        "первой","части","the","a","an","find","official","website","site",
+        "latest","current","stable","version","release","released","date",
+        "source","verify","check","determine","most","recent","provide"
+    ]);
 
 
 /*
  * =========================================================
- * TEXT
+ * NORMALIZATION
  * =========================================================
  */
 
@@ -84,9 +113,532 @@ function normalizeUrl(
 }
 
 
+function normalizeTitle(
+    value
+) {
+
+    return String(
+        value || ""
+    )
+        .replace(
+            /\s+/g,
+            " "
+        )
+        .trim();
+
+}
+
+
+function tokenize(
+    value
+) {
+
+    return String(
+        value || ""
+    )
+        .toLowerCase()
+        .match(
+            /[\p{L}\p{N}][\p{L}\p{N}._-]*/gu
+        )
+        || [];
+
+}
+
+
+function getSubjectTokens(
+    subject
+) {
+
+    const seen =
+        new Set();
+
+
+    const result = [];
+
+
+    for(
+        const token
+        of tokenize(
+            subject
+        )
+    ){
+
+        const clean =
+
+            token
+                .replace(
+                    /^[._-]+|[._-]+$/g,
+                    ""
+                );
+
+
+        if(
+            clean.length < 3
+            ||
+            SUBJECT_STOPWORDS.has(
+                clean
+            )
+            ||
+            /^\d+$/.test(
+                clean
+            )
+            ||
+            seen.has(
+                clean
+            )
+        ){
+
+            continue;
+
+        }
+
+
+        seen.add(
+            clean
+        );
+
+
+        result.push(
+            clean
+        );
+
+    }
+
+
+    return result.slice(
+        0,
+        8
+    );
+
+}
+
+
+function countSubjectMatches(
+    text,
+    tokens
+) {
+
+    if(
+        !text
+        ||
+        !Array.isArray(tokens)
+        ||
+        tokens.length === 0
+    ){
+
+        return 0;
+
+    }
+
+
+    const normalized =
+
+        String(
+            text
+        )
+            .toLowerCase();
+
+
+    let count = 0;
+
+
+    for(
+        const token
+        of tokens
+    ){
+
+        if(
+            normalized.includes(
+                token
+            )
+        ){
+
+            count++;
+
+        }
+
+    }
+
+
+    return count;
+
+}
+
+
 /*
  * =========================================================
- * VERSION
+ * RELEASE SECTION
+ * =========================================================
+ */
+
+
+function isReleaseHeading(
+    line
+) {
+
+    const value =
+
+        String(
+            line || ""
+        )
+            .replace(
+                /^#{1,6}\s*/,
+                ""
+            )
+            .trim();
+
+
+    return /^(latest\s+releases?|current\s+releases?|release\s+history|releases?|последн\p{L}*\s+релиз\p{L}*|актуальн\p{L}*\s+релиз\p{L}*|релиз\p{L}*)$/iu
+        .test(
+            value
+        );
+
+}
+
+
+function isMarkdownHeading(
+    line
+) {
+
+    return /^#{1,6}\s+\S/u.test(
+        String(
+            line || ""
+        )
+    );
+
+}
+
+
+function extractPreferredReleaseSection(
+    text
+) {
+
+    const lines =
+
+        text.split(
+            "\n"
+        );
+
+
+    let offset = 0;
+
+
+    for(
+        let index = 0;
+        index < lines.length;
+        index++
+    ){
+
+        const line =
+            lines[index];
+
+
+        if(
+            !isReleaseHeading(
+                line
+            )
+        ){
+
+            offset +=
+                line.length + 1;
+
+
+            continue;
+
+        }
+
+
+        const start =
+            offset;
+
+
+        let end =
+            Math.min(
+                text.length,
+                start + MAX_SECTION_LENGTH
+            );
+
+
+        let cursor =
+            offset + line.length + 1;
+
+
+        for(
+            let next = index + 1;
+            next < lines.length;
+            next++
+        ){
+
+            const nextLine =
+                lines[next];
+
+
+            if(
+                isMarkdownHeading(
+                    nextLine
+                )
+            ){
+
+                end =
+                    Math.min(
+                        end,
+                        cursor
+                    );
+
+
+                break;
+
+            }
+
+
+            cursor +=
+                nextLine.length + 1;
+
+        }
+
+
+        return {
+
+            text:
+
+                text.slice(
+                    start,
+                    end
+                ),
+
+            start,
+
+            preferred:
+                true
+
+        };
+
+    }
+
+
+    return {
+
+        text,
+
+        start:
+            0,
+
+        preferred:
+            false
+
+    };
+
+}
+
+
+/*
+ * =========================================================
+ * DATES
+ * =========================================================
+ */
+
+
+function pushParsedDate(
+    result,
+    seen,
+    raw,
+    index
+) {
+
+    const parsed =
+
+        parseNativeDate(
+            raw
+        );
+
+
+    if(
+        !parsed?.iso
+    ){
+
+        return;
+
+    }
+
+
+    const key =
+
+        parsed.iso
+        +
+        ":"
+        +
+        index;
+
+
+    if(
+        seen.has(
+            key
+        )
+    ){
+
+        return;
+
+    }
+
+
+    seen.add(
+        key
+    );
+
+
+    result.push({
+
+        value:
+            parsed.iso,
+
+        raw:
+
+            String(
+                raw || ""
+            )
+                .trim(),
+
+        index
+
+    });
+
+}
+
+
+function extractDates(
+    text
+) {
+
+    const result = [];
+
+    const seen =
+        new Set();
+
+
+    for(
+        const match
+        of text.matchAll(
+            ISO_DATE_PATTERN
+        )
+    ){
+
+        pushParsedDate(
+            result,
+            seen,
+            match[0],
+            match.index || 0
+        );
+
+    }
+
+
+    const dayFirstPattern =
+
+        /\b\d{1,2}\s+[\p{L}.]+\s+20\d{2}(?:\s*г(?:ода|\.)?)?/giu;
+
+
+    for(
+        const match
+        of text.matchAll(
+            dayFirstPattern
+        )
+    ){
+
+        pushParsedDate(
+            result,
+            seen,
+            match[0],
+            match.index || 0
+        );
+
+    }
+
+
+    const monthFirstPattern =
+
+        /\b[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?[,]?\s+20\d{2}\b/giu;
+
+
+    for(
+        const match
+        of text.matchAll(
+            monthFirstPattern
+        )
+    ){
+
+        pushParsedDate(
+            result,
+            seen,
+            match[0],
+            match.index || 0
+        );
+
+    }
+
+
+    return result;
+
+}
+
+
+function findNearestDate(
+    dates,
+    index,
+    maxDistance = 700
+) {
+
+    let best =
+        null;
+
+
+    for(
+        const date
+        of dates
+    ){
+
+        const distance =
+
+            Math.abs(
+                date.index - index
+            );
+
+
+        if(
+            distance > maxDistance
+        ){
+
+            continue;
+
+        }
+
+
+        if(
+            !best
+            ||
+            distance < best.distance
+        ){
+
+            best = {
+
+                ...date,
+
+                distance
+
+            };
+
+        }
+
+    }
+
+
+    return best;
+
+}
+
+
+/*
+ * =========================================================
+ * VERSIONS
  * =========================================================
  */
 
@@ -110,7 +662,7 @@ function parseVersion(
 
 
     if(
-        parts.length < 2
+        parts.length === 0
         ||
         parts.some(
             item =>
@@ -196,236 +748,7 @@ function compareVersions(
 }
 
 
-/*
- * =========================================================
- * DATE
- * =========================================================
- */
-
-
-function isValidIsoDate(
-    value
-) {
-
-    const match =
-
-        String(
-            value || ""
-        )
-            .match(
-                /^(20\d{2})-(\d{2})-(\d{2})$/
-            );
-
-
-    if(!match){
-
-        return false;
-
-    }
-
-
-    const year =
-        Number(
-            match[1]
-        );
-
-
-    const month =
-        Number(
-            match[2]
-        );
-
-
-    const day =
-        Number(
-            match[3]
-        );
-
-
-    const date =
-
-        new Date(
-            Date.UTC(
-                year,
-                month - 1,
-                day
-            )
-        );
-
-
-    return (
-
-        date.getUTCFullYear() === year
-
-        &&
-
-        date.getUTCMonth() === month - 1
-
-        &&
-
-        date.getUTCDate() === day
-
-    );
-
-}
-
-
-function extractDates(
-    text
-) {
-
-    const result = [];
-
-    const known =
-        new Set();
-
-
-    const push = (
-        raw,
-        index
-    ) => {
-
-        const parsed =
-
-            parseNativeDate(
-                raw
-            );
-
-
-        if(
-            !parsed?.iso
-            ||
-            known.has(
-                parsed.iso
-                +
-                ":"
-                +
-                index
-            )
-        ){
-
-            return;
-
-        }
-
-
-        const key =
-
-            parsed.iso
-            +
-            ":"
-            +
-            index;
-
-
-        known.add(
-            key
-        );
-
-
-        result.push({
-
-            value:
-                parsed.iso,
-
-            index
-
-        });
-
-    };
-
-
-    /*
-     * ISO.
-     */
-
-
-    for(
-        const match
-        of text.matchAll(
-            ISO_DATE_PATTERN
-        )
-    ){
-
-        if(
-            isValidIsoDate(
-                match[0]
-            )
-        ){
-
-            push(
-                match[0],
-                match.index || 0
-            );
-
-        }
-
-    }
-
-
-    /*
-     * 13 августа 2026 / 13 August 2026.
-     */
-
-
-    const dayFirstPattern =
-
-        /\b\d{1,2}\s+[\p{L}.]+\s+20\d{2}(?:\s*г(?:ода|\.)?)?/giu;
-
-
-    for(
-        const match
-        of text.matchAll(
-            dayFirstPattern
-        )
-    ){
-
-        push(
-            match[0],
-            match.index || 0
-        );
-
-    }
-
-
-    /*
-     * August 13, 2026.
-     */
-
-
-    const monthFirstPattern =
-
-        /\b[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?[,]?\s+20\d{2}\b/giu;
-
-
-    for(
-        const match
-        of text.matchAll(
-            monthFirstPattern
-        )
-    ){
-
-        push(
-            match[0],
-            match.index || 0
-        );
-
-    }
-
-
-    return result;
-
-}
-
-
-/*
- * =========================================================
- * PRE-RELEASE
- * =========================================================
- */
-
-
-function isPrereleaseVersion({
+function isPrereleaseBound({
 
     text,
 
@@ -441,7 +764,7 @@ function isPrereleaseVersion({
 
             Math.max(
                 0,
-                index - 24
+                index - 28
             ),
 
             index
@@ -457,47 +780,25 @@ function isPrereleaseVersion({
 
             Math.min(
                 text.length,
-                index + version.length + 24
+                index + version.length + 34
             )
 
         );
 
 
-    /*
-     * Pre-release marker must belong to THIS version,
-     * not merely appear elsewhere on the same line.
-     *
-     * Example:
-     *
-     * "19 Beta 3, 18.6, 17.11"
-     *
-     * Beta belongs to 19 and must not disqualify 18.6.
-     */
-
-
-    const afterPrerelease =
-
-        /^\s*(?:alpha|beta|preview|pre-release|prerelease|rc|devel|development)\b/iu
-            .test(
-                after
-            );
-
-
-    const beforePrerelease =
-
-        /(?:alpha|beta|preview|pre-release|prerelease|rc|devel|development)\s*$/iu
-            .test(
-                before
-            );
-
-
     return (
 
-        afterPrerelease
+        /^\s*(?:alpha|beta|preview|pre-release|prerelease|release\s+candidate|rc|devel|development)\b/iu
+            .test(
+                after
+            )
 
         ||
 
-        beforePrerelease
+        /(?:alpha|beta|preview|pre-release|prerelease|release\s+candidate|rc|devel|development)\s*$/iu
+            .test(
+                before
+            )
 
     );
 
@@ -506,7 +807,7 @@ function isPrereleaseVersion({
 
 /*
  * =========================================================
- * LINE CONTEXT
+ * CANDIDATE LINES
  * =========================================================
  */
 
@@ -575,100 +876,194 @@ function findLineForIndex(
 }
 
 
-function findNearestDate(
-    dates,
-    index,
-    maxDistance = 900
+function collectVersionMatches(
+    text
 ) {
 
-    let best =
-        null;
+    const result = [];
+
+    const seen =
+        new Set();
+
+
+    const push = (
+        version,
+        index
+    ) => {
+
+        const key =
+
+            version
+            +
+            ":"
+            +
+            index;
+
+
+        if(
+            seen.has(
+                key
+            )
+        ){
+
+            return;
+
+        }
+
+
+        seen.add(
+            key
+        );
+
+
+        result.push({
+
+            version,
+
+            index
+
+        });
+
+    };
 
 
     for(
-        const date
-        of dates
+        const match
+        of text.matchAll(
+            SEMVER_PATTERN
+        )
     ){
 
-        const distance =
-
-            Math.abs(
-                date.index - index
-            );
-
-
-        if(
-            distance > maxDistance
-        ){
-
-            continue;
-
-        }
-
-
-        if(
-            !best
-            ||
-            distance < best.distance
-        ){
-
-            best = {
-
-                ...date,
-
-                distance
-
-            };
-
-        }
+        push(
+            match[1],
+            match.index || 0
+        );
 
     }
 
 
-    return best;
+    for(
+        const match
+        of text.matchAll(
+            SINGLE_MAJOR_PATTERN
+        )
+    ){
+
+        const full =
+            match[0];
+
+
+        const version =
+            match[1];
+
+
+        const localIndex =
+
+            full.lastIndexOf(
+                version
+            );
+
+
+        push(
+
+            version,
+
+            (match.index || 0)
+            +
+            Math.max(
+                0,
+                localIndex
+            )
+
+        );
+
+    }
+
+
+    return result;
 
 }
 
 
 /*
  * =========================================================
- * CANDIDATES
+ * CANDIDATE SCORING
  * =========================================================
  */
 
 
-function extractVersionCandidates(
-    text,
-    dates,
-    ranges
-) {
+function buildCandidates({
 
-    const result = [];
+    section,
+
+    sourceTitle,
+
+    sourceUrl,
+
+    subjectTokens
+
+}) {
+
+    const text =
+        section.text;
+
+
+    const dates =
+
+        extractDates(
+            text
+        );
+
+
+    const ranges =
+
+        buildLineRanges(
+            text
+        );
+
+
+    const sourceIdentity =
+
+        [
+            sourceTitle,
+            sourceUrl
+        ]
+            .join(
+                " "
+            );
+
+
+    const sourceSubjectMatches =
+
+        countSubjectMatches(
+
+            sourceIdentity,
+
+            subjectTokens
+
+        );
+
+
+    const candidates = [];
 
 
     for(
-        const match
-        of text.matchAll(
-            VERSION_PATTERN
+        const item
+        of collectVersionMatches(
+            text
         )
     ){
 
-        const version =
-            match[1];
-
-
-        const index =
-            match.index || 0;
-
-
         if(
-            isPrereleaseVersion({
+            isPrereleaseBound({
 
                 text,
 
-                version,
+                version:
+                    item.version,
 
-                index
+                index:
+                    item.index
 
             })
         ){
@@ -682,7 +1077,7 @@ function extractVersionCandidates(
 
             findLineForIndex(
                 ranges,
-                index
+                item.index
             );
 
 
@@ -691,80 +1086,43 @@ function extractVersionCandidates(
             line?.text || "";
 
 
-        const nearbyText =
+        const nearby =
 
             text.slice(
 
                 Math.max(
                     0,
-                    index - 160
+                    item.index - 180
                 ),
 
                 Math.min(
                     text.length,
-                    index + 260
+                    item.index + item.version.length + 260
                 )
 
             );
 
 
-        let score = 0;
+        const lineSubjectMatches =
+
+            countSubjectMatches(
+
+                lineText,
+
+                subjectTokens
+
+            );
 
 
-        if(
-            RELEASE_SIGNAL.test(
-                lineText
-            )
-        ){
+        const nearbySubjectMatches =
 
-            score += 8;
+            countSubjectMatches(
 
-        }
+                nearby,
 
+                subjectTokens
 
-        if(
-            RELEASE_SIGNAL.test(
-                nearbyText
-            )
-        ){
-
-            score += 4;
-
-        }
-
-
-        if(
-            /latest releases?/iu.test(
-                nearbyText
-            )
-
-            ||
-
-            /последн\p{L}*\s+релиз/iu.test(
-                nearbyText
-            )
-        ){
-
-            score += 5;
-
-        }
-
-
-        if(
-            /release date/iu.test(
-                nearbyText
-            )
-
-            ||
-
-            /дата\s+(?:релиза|выпуска)/iu.test(
-                nearbyText
-            )
-        ){
-
-            score += 5;
-
-        }
+            );
 
 
         const nearestDate =
@@ -773,57 +1131,180 @@ function extractVersionCandidates(
 
                 dates,
 
-                index
+                item.index
 
             );
 
 
-        if(nearestDate){
+        if(!nearestDate){
 
-            score +=
-
-                nearestDate.distance <= 160
-
-                    ? 8
-
-                    : 4;
+            continue;
 
         }
 
 
-        result.push({
+        /*
+         * Outside a dedicated release section, the candidate
+         * must still be tied to the requested product by
+         * line/near context or by official page identity.
+         */
 
-            version,
 
-            index,
+        if(
+            section.preferred !== true
+            &&
+            subjectTokens.length > 0
+            &&
+            lineSubjectMatches === 0
+            &&
+            nearbySubjectMatches === 0
+            &&
+            sourceSubjectMatches === 0
+        ){
+
+            continue;
+
+        }
+
+
+        let score = 0;
+
+
+        if(
+            section.preferred === true
+        ){
+
+            score += 24;
+
+        }
+
+
+        if(
+            RELEASE_SIGNAL.test(
+                lineText
+            )
+        ){
+
+            score += 7;
+
+        }
+
+
+        if(
+            RELEASE_SIGNAL.test(
+                nearby
+            )
+        ){
+
+            score += 4;
+
+        }
+
+
+        score +=
+
+            Math.min(
+                12,
+                lineSubjectMatches * 8
+            );
+
+
+        score +=
+
+            Math.min(
+                8,
+                nearbySubjectMatches * 4
+            );
+
+
+        score +=
+
+            Math.min(
+                5,
+                sourceSubjectMatches * 3
+            );
+
+
+        if(
+            nearestDate.distance <= 80
+        ){
+
+            score += 12;
+
+        }
+        else if(
+            nearestDate.distance <= 220
+        ){
+
+            score += 7;
+
+        }
+        else{
+
+            score += 3;
+
+        }
+
+
+        if(
+            /(?:[·|]\s*20\d{2}-\d{2}-\d{2}|20\d{2}-\d{2}-\d{2}\s*[·|])/u
+                .test(
+                    lineText
+                )
+        ){
+
+            score += 8;
+
+        }
+
+
+        if(
+            /\bnotes?\b/iu.test(
+                lineText
+            )
+        ){
+
+            score += 3;
+
+        }
+
+
+        candidates.push({
+
+            version:
+                item.version,
+
+            index:
+                item.index,
 
             score,
 
-            nearestDate:
+            releaseDate:
+                nearestDate.value,
 
-                nearestDate?.value
+            rawDate:
+                nearestDate.raw,
 
-                ||
-
-                null,
-
-            distanceToDate:
-
-                nearestDate?.distance
-
-                ??
-
-                null,
+            dateIndex:
+                nearestDate.index,
 
             line:
-                lineText
+                lineText,
+
+            subjectMatches:
+
+                lineSubjectMatches
+                +
+                nearbySubjectMatches
+                +
+                sourceSubjectMatches
 
         });
 
     }
 
 
-    return result;
+    return candidates;
 
 }
 
@@ -845,7 +1326,7 @@ function selectCandidate(
     }
 
 
-    const ranked = [
+    return [
 
         ...candidates
 
@@ -890,35 +1371,16 @@ function selectCandidate(
                 }
 
 
-                const leftDistance =
-
-                    left.distanceToDate
-
-                    ??
-
-                    Number.MAX_SAFE_INTEGER;
-
-
-                const rightDistance =
-
-                    right.distanceToDate
-
-                    ??
-
-                    Number.MAX_SAFE_INTEGER;
-
-
                 return (
-                    leftDistance
+
+                    left.index
                     -
-                    rightDistance
+                    right.index
+
                 );
 
             }
-        );
-
-
-    return ranked[0]
+        )[0]
 
         ||
 
@@ -935,7 +1397,7 @@ function selectCandidate(
 
 
 function buildEvidenceFragment(
-    text,
+    sectionText,
     candidate
 ) {
 
@@ -946,23 +1408,39 @@ function buildEvidenceFragment(
     }
 
 
+    const firstIndex =
+
+        Math.min(
+            candidate.index,
+            candidate.dateIndex
+        );
+
+
+    const lastIndex =
+
+        Math.max(
+            candidate.index + candidate.version.length,
+            candidate.dateIndex + String(candidate.rawDate || "").length
+        );
+
+
     const start =
 
         Math.max(
             0,
-            candidate.index - 220
+            firstIndex - 220
         );
 
 
     const end =
 
         Math.min(
-            text.length,
-            candidate.index + 520
+            sectionText.length,
+            lastIndex + 420
         );
 
 
-    return text
+    return sectionText
 
         .slice(
             start,
@@ -973,6 +1451,36 @@ function buildEvidenceFragment(
             " "
         )
         .trim();
+
+}
+
+
+function verifyEvidence(
+    fragment,
+    candidate
+) {
+
+    if(
+        !fragment
+        ||
+        !fragment.includes(
+            candidate.version
+        )
+    ){
+
+        return false;
+
+    }
+
+
+    return extractDates(
+        fragment
+    )
+        .some(
+            date =>
+                date.value ===
+                candidate.releaseDate
+        );
 
 }
 
@@ -1002,6 +1510,20 @@ function executeReleaseFact(
         );
 
 
+    const sourceTitle =
+
+        normalizeTitle(
+            args?.sourceTitle
+        );
+
+
+    const subject =
+
+        normalizeText(
+            args?.subject
+        );
+
+
     if(!content){
 
         return {
@@ -1023,31 +1545,75 @@ function executeReleaseFact(
     }
 
 
-    const dates =
+    const subjectTokens =
 
-        extractDates(
+        getSubjectTokens(
+            subject
+        );
+
+
+    const preferredSection =
+
+        extractPreferredReleaseSection(
             content
         );
 
 
-    const ranges =
+    let candidates =
 
-        buildLineRanges(
-            content
-        );
+        buildCandidates({
+
+            section:
+                preferredSection,
+
+            sourceTitle,
+
+            sourceUrl,
+
+            subjectTokens
+
+        });
 
 
-    const candidates =
+    /*
+     * Если release section найден, но в нём нет
+     * подтверждаемого stable fact, разрешаем fallback
+     * на всю страницу, сохраняя subject identity checks.
+     */
 
-        extractVersionCandidates(
 
-            content,
+    if(
+        candidates.length === 0
+        &&
+        preferredSection.preferred === true
+    ){
 
-            dates,
+        candidates =
 
-            ranges
+            buildCandidates({
 
-        );
+                section: {
+
+                    text:
+                        content,
+
+                    start:
+                        0,
+
+                    preferred:
+                        false
+
+                },
+
+                sourceTitle,
+
+                sourceUrl,
+
+                subjectTokens
+
+            });
+
+    }
 
 
     const selected =
@@ -1060,9 +1626,7 @@ function executeReleaseFact(
     if(
         !selected
         ||
-        selected.score < 8
-        ||
-        !selected.nearestDate
+        selected.score < 15
     ){
 
         return {
@@ -1071,11 +1635,18 @@ function executeReleaseFact(
                 false,
 
             text:
-                "В источнике не удалось детерминированно подтвердить стабильную версию и дату выпуска.",
+                "В источнике не удалось детерминированно подтвердить стабильную версию и дату выпуска именно запрошенного продукта.",
 
             data: {
 
                 sourceUrl,
+
+                sourceTitle,
+
+                subjectTokens,
+
+                releaseSectionFound:
+                    preferredSection.preferred === true,
 
                 candidates:
                     candidates
@@ -1089,11 +1660,14 @@ function executeReleaseFact(
                                 version:
                                     item.version,
 
+                                releaseDate:
+                                    item.releaseDate,
+
                                 score:
                                     item.score,
 
-                                releaseDate:
-                                    item.nearestDate
+                                line:
+                                    item.line
 
                             })
                         )
@@ -1109,42 +1683,23 @@ function executeReleaseFact(
 
         buildEvidenceFragment(
 
-            content,
+            preferredSection.preferred === true
+
+                ? preferredSection.text
+
+                : content,
 
             selected
 
         );
 
 
-    const fragmentDates =
-
-        extractDates(
-            evidenceFragment
-        );
-
-
-    const evidenceVerified =
-
-        Boolean(
-            evidenceFragment
+    if(
+        !verifyEvidence(
+            evidenceFragment,
+            selected
         )
-
-        &&
-
-        evidenceFragment.includes(
-            selected.version
-        )
-
-        &&
-
-        fragmentDates.some(
-            item =>
-                item.value ===
-                selected.nearestDate
-        );
-
-
-    if(!evidenceVerified){
+    ){
 
         return {
 
@@ -1152,7 +1707,7 @@ function executeReleaseFact(
                 false,
 
             text:
-                "Извлечённые данные не удалось подтвердить в одном фрагменте источника.",
+                "Извлечённые версия и дата не подтверждаются одним фрагментом источника.",
 
             data: {
 
@@ -1162,13 +1717,22 @@ function executeReleaseFact(
                     selected.version,
 
                 releaseDate:
-                    selected.nearestDate
+                    selected.releaseDate
 
             }
 
         };
 
     }
+
+
+    const sourceText =
+
+        sourceUrl
+
+            ? " Источник: " + sourceUrl
+
+            : "";
 
 
     return {
@@ -1185,28 +1749,39 @@ function executeReleaseFact(
                 +
                 ". Дата выпуска — "
                 +
-                selected.nearestDate
+                selected.releaseDate
                 +
                 "."
+                +
+                sourceText
             ),
 
         data: {
+
+            subject,
+
+            subjectTokens,
 
             version:
                 selected.version,
 
             releaseDate:
-                selected.nearestDate,
+                selected.releaseDate,
 
             sourceUrl,
+
+            sourceTitle,
 
             evidenceVerified:
                 true,
 
             evidenceFragment,
 
+            releaseSectionFound:
+                preferredSection.preferred === true,
+
             extractor:
-                "release-fact-v1"
+                "release-fact-v2"
 
         }
 
@@ -1232,9 +1807,9 @@ registerTool({
         (
             "Детерминированно извлекает актуальную стабильную версию "
             +
-            "и дату выпуска из уже загруженного содержимого официального источника. "
+            "и дату выпуска запрошенного продукта из уже загруженного "
             +
-            "Не использует AI и не выполняет интернет-запрос."
+            "официального источника. Не использует AI."
         ),
 
     arguments: {
@@ -1243,7 +1818,13 @@ registerTool({
             "Текст уже загруженного официального источника.",
 
         sourceUrl:
-            "URL источника для provenance."
+            "URL источника для provenance.",
+
+        sourceTitle:
+            "Заголовок загруженной страницы.",
+
+        subject:
+            "Исходная формулировка искомого продукта или релиза."
 
     },
 
