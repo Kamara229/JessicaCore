@@ -1,6 +1,6 @@
-function hasSourceCitations(evidence) {
-    const task = String(evidence?.task || "");
-    const answer = String(evidence?.answer || "");
+export function hasComparisonSourceCitations(taskInput, answerInput) {
+    const task = String(taskInput || "");
+    const answer = String(answerInput || "");
     if (!/(?:сравн\p{L}*|сопостав\p{L}*|compare|comparison)/iu.test(task)) {
         return true;
     }
@@ -17,7 +17,7 @@ function hasSourceCitations(evidence) {
  * A complex-task summary marked COMPLETED is not sufficient evidence.
  */
 export function hasVerifiedPatternEvidence(evidence) {
-    return hasSourceCitations(evidence)
+    return hasComparisonSourceCitations(evidence?.task, evidence?.answer)
         && evidence?.result?.success === true
         && evidence?.result?.verified === true
         && evidence?.validation?.valid === true
