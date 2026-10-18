@@ -42,6 +42,8 @@ import {
     extractNativeDates
 } from "../native/dateUtils.js";
 
+import { hasVerifiedDateSkillEvidence } from "./youngDateSkill.js";
+
 
 import {
     EXECUTION_STRATEGY,
@@ -566,6 +568,13 @@ function buildOfficialSourceSearchQuery(
      */
 
 
+    // Neutral English query for an exact Python release index.
+    // No guessed version number is ever included.
+    if (/\bpython\b/iu.test(text)
+        && /(верси|релиз|выпуск|latest|release|version)/iu.test(text)) {
+        return "Python latest stable release date official downloads python.org";
+    }
+
     return text
 
         .replace(
@@ -640,17 +649,6 @@ function findExecutableSkill(
         .find(
             skill => {
 
-                if(
-                    !isReadySkill(
-                        skill
-                    )
-                ){
-
-                    return false;
-
-                }
-
-
                 const program =
 
                     resolveSkillExecutionProgram(
@@ -658,13 +656,15 @@ function findExecutableSkill(
                     );
 
 
-                return (
+                if (program?.strategy !== strategy) return false;
 
-                    program?.strategy
-                    ===
-                    strategy
+                // NEW/LEARNING date Skills are already deterministic;
+                // allow a trusted one to gain maturity through real executions.
+                if (strategy === EXECUTION_STRATEGY.DATE_DIFFERENCE) {
+                    return isReadySkill(skill) || hasVerifiedDateSkillEvidence(skill);
+                }
 
-                );
+                return isReadySkill(skill);
 
             }
         )

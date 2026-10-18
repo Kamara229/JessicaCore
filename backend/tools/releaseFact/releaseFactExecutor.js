@@ -19,6 +19,8 @@ import {
     verifyEvidence
 } from "./releaseFactEvidence.js";
 
+import { assessReleasePrecision } from "./releaseFactPrecision.js";
+
 
 export function executeReleaseFact(args) {
     const content = normalizeText(args?.content);
@@ -75,6 +77,24 @@ export function executeReleaseFact(args) {
                     score:item.score,
                     line:item.line
                 }))
+            }
+        };
+    }
+
+    // A branch table cannot prove a full Python release version.
+    const precision = assessReleasePrecision({
+        subject,
+        version: selected.version
+    });
+    if (!precision.precise) {
+        return {
+            success: false,
+            text: precision.reason,
+            data: {
+                sourceUrl,
+                branch: selected.version,
+                releaseDate: selected.releaseDate,
+                needsExactReleaseSource: true
             }
         };
     }

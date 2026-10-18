@@ -112,3 +112,75 @@ test("READY skill with unchanged knowledge is reinforced without version bump", 
     });
     assert.equal(result.mode, "REINFORCEMENT_ONLY");
 });
+
+/* Regression: distinguish branch versions from exact releases. */
+import { scoreReleaseSourcePreference } from "../core/source/releaseSourcePreference.js";
+import { hasVerifiedDateSkillEvidence } from "../core/planner/youngDateSkill.js";
+import { tryCreateNativeSkillPlan } from "../core/planner/nativeSkillPlanner.js";
+
+test("Python branch status must never be claimed as exact release", () => {
+    const result = executeReleaseFact({
+        content: "Status of Python versions\nBranch | Status | First release\nPython 3.15 | bugfix | 2026-10-09",
+        sourceUrl: "https://devguide.python.org/versions/",
+        sourceTitle: "Status of Python versions",
+        subject: "latest stable Python release date"
+    });
+    assert.equal(result.success, false);
+    assert.equal(result.data?.needsExactReleaseSource, true);
+});
+
+test("official Python downloads index outranks branch status page", () => {
+    const task = "Найди последний стабильный релиз Python";
+    assert.ok(
+        scoreReleaseSourcePreference(task, {url: "https://www.python.org/downloads/"})
+        > scoreReleaseSourcePreference(task, {url: "https://devguide.python.org/versions/"})
+    );
+});
+
+const verifiedYoungSkill = {
+    id: "date-difference-calculation",
+    enabled: true,
+    learning: {maturityLevel:"NEW", confidence:0.76, successCount:1},
+    executionProgram: {mode:"native",strategy:"date_difference",evidenceMode:"none"},
+    examples: [{
+        success:true,
+        result:{
+            success:true,verified:true,status:"COMPLETED",
+            validation:{valid:true,degraded:false},
+            executionMeta:{usedTools:["date_diff"]}
+        },
+        executedTools:["date_diff"]
+    }]
+};
+
+test("verified NEW date Skill can be reused instead of anonymous native capability", () => {
+    assert.equal(hasVerifiedDateSkillEvidence(verifiedYoungSkill), true);
+    const plan = tryCreateNativeSkillPlan({
+        task:"рассчитай, сколько полных дней прошло до 18 октября 2026 года",
+        dependencyContext:"Дата выпуска 2026-10-09",
+        executionExperience: {skills:[verifiedYoungSkill]},
+        planningContext:{}
+    });
+    assert.equal(plan.handled, true);
+    assert.equal(plan.source,"experience:date-difference-calculation");
+    assert.equal(plan.plan.experience.used,true);
+});
+
+test("unverified NEW date Skill cannot be reinforced as already applied", () => {
+    const corrupt={
+        ...verifiedYoungSkill,
+        examples:[{
+            ...verifiedYoungSkill.examples[0],
+            result:{...verifiedYoungSkill.examples[0].result, verified:false}
+        }]
+    };
+    assert.equal(hasVerifiedDateSkillEvidence(corrupt), false);
+    const plan = tryCreateNativeSkillPlan({
+        task:"рассчитай, сколько полных дней прошло до 18 октября 2026 года",
+        dependencyContext:"Дата выпуска 2026-10-09",
+        executionExperience:{skills:[corrupt]},
+        planningContext:{}
+    });
+    assert.equal(plan.handled,true);
+    assert.equal(plan.source,"native-date-diff");
+});

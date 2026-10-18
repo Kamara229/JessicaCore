@@ -20,6 +20,8 @@
  */
 
 
+import { scoreReleaseSourcePreference } from "./releaseSourcePreference.js";
+
 const STOP_WORDS =
     new Set([
 
@@ -494,6 +496,8 @@ function scoreCandidate({
         score += 2;
 
     }
+
+    score += scoreReleaseSourcePreference(task, candidate);
 
 
     /*
