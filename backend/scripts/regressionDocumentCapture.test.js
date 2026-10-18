@@ -84,3 +84,36 @@ test("AI fallback is not strong positive learning evidence",()=>{
     single.result.validation.degraded=false;
     assert.equal(shouldAnalyzeLearningTrace(single),true);
 });
+
+import "../tools/webFetchTool.js";
+import { buildNativeSourceComparisonPlan } from "../core/planner/nativeSourceComparisonPlan.js";
+import { tryCreateNativeSkillPlan } from "../core/planner/nativeSkillPlanner.js";
+
+test("two independent source URLs bypass Groq Planner for a comparison", () => {
+    const task="Сравни MIT License и Apache 2.0: https://opensource.org/license/mit и https://opensource.org/license/apache-2.0";
+    const plan=buildNativeSourceComparisonPlan(task);
+    assert.equal(plan?.intent,"native_two_source_comparison");
+    assert.deepEqual(plan.steps.map(x=>x.arguments.url),[
+        "https://opensource.org/license/mit",
+        "https://opensource.org/license/apache-2.0"
+    ]);
+    const routed=tryCreateNativeSkillPlan({task,executionExperience:{skills:[]},planningContext:{}});
+    assert.equal(routed.handled,true);
+    assert.equal(routed.source,"native-two-source-comparison");
+});
+
+test("two source comparison normalizes invisible URL artifacts without inventing URLs",()=>{
+    const task="Сравни документы https://opensource.org/license/mit\u2060\uFFFD и https://opensource.org/license/apache-2.0\u2060\uFFFD";
+    const plan=buildNativeSourceComparisonPlan(task);
+    assert.deepEqual(plan.steps.map(s=>s.arguments.url),[
+        "https://opensource.org/license/mit",
+        "https://opensource.org/license/apache-2.0"
+    ]);
+});
+
+test("ambiguous comparisons do not force a two-source machine plan",()=>{
+    assert.equal(buildNativeSourceComparisonPlan("Сравни лицензии MIT и Apache"),null);
+    assert.equal(buildNativeSourceComparisonPlan("Сравни две страницы https://a.com"),null);
+    assert.equal(buildNativeSourceComparisonPlan("Сравни https://a.com и https://a.com"),null);
+    assert.equal(buildNativeSourceComparisonPlan("Прочитай https://a.com и https://b.com"),null);
+});
