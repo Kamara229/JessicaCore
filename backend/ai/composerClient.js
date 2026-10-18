@@ -1,3 +1,4 @@
+import { resolveComposerModel } from "./composerModelPolicy.js";
 /*
  * =========================================================
  * JESSICA COMPOSER CLIENT v1
@@ -131,7 +132,7 @@ export async function requestComposerAI({
                 .create({
 
                     model:
-                        COMPOSER_MODEL,
+                        resolveComposerModel({pairedSources}),
 
                     temperature:
                         COMPOSER_TEMPERATURE,
