@@ -220,7 +220,8 @@ function normalizeClaim(
 
 function verifyEvidenceText(
     claim,
-    sourceText
+    sourceText,
+    originalSources=""
 ) {
 
     if(
@@ -256,7 +257,8 @@ function verifyEvidenceText(
     }
 
 
-    if (!matchesAttributedEvidence(claim, sourceText)) {
+    if (!matchesAttributedEvidence(claim, sourceText)
+        && !matchesAttributedEvidence(claim, originalSources)) {
         return {
             ...claim,
             supported: false,
@@ -280,7 +282,9 @@ export function parseClaimEvidenceResponse(
 
     raw,
 
-    sourceText
+    sourceText,
+
+    originalSources=""
 
 ) {
 
@@ -363,7 +367,8 @@ export function parseClaimEvidenceResponse(
 
                             claim,
 
-                            sourceText
+                            sourceText,
+                            originalSources
 
                         )
                 )
