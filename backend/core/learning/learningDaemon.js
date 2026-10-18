@@ -630,6 +630,26 @@ export function startLearningDaemon(
 
     );
 
+    // Process persisted work once on startup. Frequent deployments
+    // must not indefinitely postpone every 15-minute timer.
+    // The existing local cycle lock prevents overlap.
+    setImmediate(() => {
+        runLearningDaemonCycle()
+            .then(result => {
+                console.log("Jessica Learning startup cycle:", {
+                    success: result?.success === true,
+                    created: result?.created || 0,
+                    learned: result?.learned || 0,
+                    ignored: result?.pipeline?.stats?.ignored || 0,
+                    deferred: result?.pipeline?.stats?.deferred || 0,
+                    reason: result?.reason || result?.error || null
+                });
+            })
+            .catch(error => {
+                console.error("Jessica Learning startup cycle error:",
+                    error?.message || "unknown");
+            });
+    });
 
     return {
 
