@@ -501,3 +501,38 @@ test("candidate merge does not count a legacy uncited comparison as a new succes
     assert.equal(merged.successRate,0.5);
     assert.ok(merged.confidence<0.8,"unverified history must not trigger autonomous publication");
 });
+
+import { candidateProcedureFamily } from "../core/learning/candidateMemory/candidateFamily.js";
+import { findBestCandidateMatch, calculateCandidateSimilarity } from "../core/learning/candidateMemory/candidateMatcher.js";
+
+test("document comparisons match by proven procedure despite distinct category and Skill names",()=>{
+    const first={
+        name:"Document Comparison and Summary",
+        category:"information retrieval & analysis",
+        triggerPatterns:["compare two documents","compare two licenses"],
+        workflow:["Fetch each document independently","Define comparison criteria",
+          "Compile comparison table and verify citations"]
+    };
+    const second={
+        name:"Compare and Summarize Document Differences",
+        category:"document analysis",
+        triggerPatterns:["Compare two documents","Create comparison table for documents"],
+        workflow:["Retrieve each document","Identify comparison criteria",
+          "Populate a comparison table with references"]
+    };
+    const irrelevant={
+        name:"Official website verification",
+        category:"document analysis",
+        triggerPatterns:["Verify website ownership"],
+        workflow:["Fetch official website","Confirm current data"]
+    };
+    assert.equal(candidateProcedureFamily(first),"two-original-documents-comparison");
+    assert.equal(candidateProcedureFamily(second),"two-original-documents-comparison");
+    assert.equal(candidateProcedureFamily(irrelevant),null);
+    assert.ok(calculateCandidateSimilarity(first,second)>=0.75);
+    const matched=findBestCandidateMatch({candidate:second,candidates:[
+        {id:"irrelevant",candidate:irrelevant},
+        {id:"same-method",candidate:first}
+    ]});
+    assert.equal(matched?.memory?.id,"same-method");
+});
