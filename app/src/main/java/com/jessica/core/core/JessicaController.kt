@@ -2,6 +2,7 @@ package com.jessica.core.core
 
 
 import android.content.Context
+import com.jessica.core.BuildConfig
 
 import androidx.compose.runtime.mutableStateOf
 
@@ -136,7 +137,7 @@ class JessicaController(
     val message =
 
         mutableStateOf(
-            "Jessica Core v0.1 запущена"
+            "Jessica Core v${BuildConfig.VERSION_NAME} запущена"
         )
 
 
