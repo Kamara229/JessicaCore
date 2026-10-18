@@ -1,45 +1,20 @@
 /*
  * =========================================================
- * JESSICA LEARNING COORDINATOR
+ * JESSICA LEARNING COORDINATOR FACADE v2
  * =========================================================
  *
- * Центральный координатор Learning Pipeline.
- *
- *
- * Flow:
- *
- * ExecutionTrace
- *        ↓
+ * Execution Trace
+ *      ↓
  * Learning Trigger
- *        ↓
- * Learning Event
- *        ↓
- * Learning Queue Builder
- *        ↓
- * Learning Queue Storage
- *        ↓
- * Supabase
+ *      ↓
+ * one or more Learning Events
+ *      ↓
+ * Queue Batch Persistence
  *
- *
- * Ответственность:
- *
- * - принять Execution Trace;
- * - запустить анализ обучения;
- * - получить Learning Decision;
- * - создать Queue Item;
- * - сохранить Queue Item.
- *
- *
- * НЕ отвечает за:
- *
- * - создание Skill;
- * - Experience Approval;
- * - изменение памяти Jessica;
- * - обучение напрямую.
- *
+ * Один complex Trace может усиливать
+ * несколько реально применённых Skills.
  * =========================================================
  */
-
 
 
 import {
@@ -48,48 +23,27 @@ import {
 
 
 import {
-    createLearningQueueItem
-} from "./learningQueue.js";
-
-
-import {
-    saveLearningQueueItem
-} from "./learningQueueStorage.js";
-
-
-
-
-
-/*
- * =========================================================
- * VALIDATE TRACE
- * =========================================================
- */
+    persistLearningEvents
+} from "./coordinator/learningQueueBatch.js";
 
 
 function isValidTrace(
     trace
 ) {
 
-    return (
+    return Boolean(
 
-        trace &&
+        trace
 
+        &&
         typeof trace === "object"
+
+        &&
+        !Array.isArray(trace)
 
     );
 
 }
-
-
-
-
-
-/*
- * =========================================================
- * RESULT HELPERS
- * =========================================================
- */
 
 
 function buildFailureResult(
@@ -107,6 +61,9 @@ function buildFailureResult(
         queued:
             false,
 
+        queuedCount:
+            0,
+
         reason
 
     };
@@ -114,62 +71,15 @@ function buildFailureResult(
 }
 
 
-
-
-
-function buildIgnoredResult(
-    triggerResult
-) {
-
-    return {
-
-        success:
-            true,
-
-        type:
-            "LEARNING_EVENT",
-
-        queued:
-            false,
-
-        reason:
-            "Learning decision IGNORE",
-
-        trigger:
-            triggerResult
-
-    };
-
-}
-
-
-
-
-
-/*
- * =========================================================
- * PROCESS LEARNING
- * =========================================================
- */
-
-
 export async function processLearning(
     trace
 ) {
 
-
-    /*
-     * =====================================================
-     * VALIDATE
-     * =====================================================
-     */
-
-
-    if (
+    if(
         !isValidTrace(
             trace
         )
-    ) {
+    ){
 
         return buildFailureResult(
             "Invalid execution trace"
@@ -178,34 +88,25 @@ export async function processLearning(
     }
 
 
-
-
-
-    /*
-     * =====================================================
-     * TRIGGER
-     * =====================================================
-     */
-
-
     let triggerResult;
 
 
     try {
 
-
         triggerResult =
+
             runLearningTrigger(
                 trace
             );
 
-
-    } catch(error) {
-
+    }catch(error){
 
         console.error(
+
             "Jessica Learning Trigger error:",
+
             error
+
         );
 
 
@@ -216,20 +117,9 @@ export async function processLearning(
     }
 
 
-
-
-
-    /*
-     * =====================================================
-     * NOTHING TO LEARN
-     * =====================================================
-     */
-
-
-    if (
+    if(
         !triggerResult?.triggered
-    ) {
-
+    ){
 
         return {
 
@@ -242,8 +132,15 @@ export async function processLearning(
             queued:
                 false,
 
+            queuedCount:
+                0,
+
             reason:
-                triggerResult?.reason ||
+
+                triggerResult?.reason
+
+                ||
+
                 "Learning не запущен",
 
             trigger:
@@ -254,24 +151,30 @@ export async function processLearning(
     }
 
 
+    const learningEvents =
+
+        Array.isArray(
+            triggerResult.learningEvents
+        )
+        &&
+        triggerResult.learningEvents.length > 0
+
+            ? triggerResult.learningEvents
+
+            : (
+                triggerResult.learningEvent
+
+                    ? [
+                        triggerResult.learningEvent
+                    ]
+
+                    : []
+            );
 
 
-
-    /*
-     * =====================================================
-     * GET EVENT
-     * =====================================================
-     */
-
-
-    const learningEvent =
-        triggerResult.learningEvent;
-
-
-
-    if (
-        !learningEvent
-    ) {
+    if(
+        learningEvents.length === 0
+    ){
 
         return buildFailureResult(
             "Learning Event не создан"
@@ -280,186 +183,94 @@ export async function processLearning(
     }
 
 
+    const persistence =
 
-
-
-    /*
-     * =====================================================
-     * IGNORE
-     * =====================================================
-     */
-
-
-    if (
-        learningEvent.action ===
-        "IGNORE"
-    ) {
-
-
-        return buildIgnoredResult(
-            triggerResult
-        );
-
-    }
-
-
-
-
-
-    /*
-     * =====================================================
-     * CREATE QUEUE ITEM
-     * =====================================================
-     */
-
-
-    let queueItem;
-
-
-    try {
-
-
-        queueItem =
-            createLearningQueueItem(
-                learningEvent
-            );
-
-
-    } catch(error) {
-
-
-        console.error(
-            "Learning Queue Builder error:",
-            error
+        await persistLearningEvents(
+            learningEvents
         );
 
 
-        return buildFailureResult(
-            "Не удалось создать Queue Item"
-        );
+    const firstQueueItem =
 
-    }
+        persistence.queueItems[0]
 
+        ||
 
-
-
-
-    if (
-        !queueItem
-    ) {
-
-        return buildFailureResult(
-            "Queue Item пустой"
-        );
-
-    }
+        null;
 
 
+    console.log(
 
+        "Jessica Learning Batch:",
 
+        {
 
-    /*
-     * =====================================================
-     * SAVE TO SUPABASE
-     * =====================================================
-     */
-
-
-    let saveResult;
-
-
-    try {
-
-
-        saveResult =
-            await saveLearningQueueItem(
-                queueItem
-            );
-
-
-    } catch(error) {
-
-
-        console.error(
-            "Learning Queue Storage error:",
-            error
-        );
-
-
-        return buildFailureResult(
-            "Ошибка сохранения Learning Queue"
-        );
-
-    }
-
-
-
-
-
-    if (
-        !saveResult?.success
-    ) {
-
-
-        return {
-
-            success:
-                false,
-
-            type:
-                "LEARNING_EVENT",
+            events:
+                learningEvents.length,
 
             queued:
-                false,
+                persistence.queuedCount,
 
-            queueItem,
+            ignored:
+                persistence.ignoredCount,
 
-            reason:
-                saveResult?.error ||
-                "Learning Queue не сохранён"
+            failed:
+                persistence.failedCount,
 
-        };
+            skills:
 
-    }
+                learningEvents
+                    .map(
+                        event =>
+                            event?.skillId
+                    )
+                    .filter(Boolean)
 
+        }
 
-
-
-
-    /*
-     * =====================================================
-     * SUCCESS
-     * =====================================================
-     */
+    );
 
 
     return {
 
-
         success:
-            true,
-
+            persistence.success,
 
         type:
             "LEARNING_EVENT",
 
-
         queued:
-            true,
+            persistence.queuedCount > 0,
 
+        queuedCount:
+            persistence.queuedCount,
 
-        queueItem,
+        ignoredCount:
+            persistence.ignoredCount,
 
+        failedCount:
+            persistence.failedCount,
 
-        storage:
-            saveResult,
+        queueItem:
+            firstQueueItem,
 
+        queueItems:
+            persistence.queueItems,
+
+        batch:
+            persistence.results,
+
+        reason:
+
+            persistence.success
+
+                ? null
+
+                : "Не все Learning Events сохранены",
 
         trigger:
             triggerResult
 
-
     };
-
 
 }
