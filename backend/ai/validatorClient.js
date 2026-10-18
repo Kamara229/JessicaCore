@@ -225,7 +225,7 @@ export async function validatorChat(
 
 
             max_completion_tokens:
-                comparison ? 1800 : VALIDATOR_MAX_COMPLETION_TOKENS,
+                comparison ? 900 : VALIDATOR_MAX_COMPLETION_TOKENS,
 
 
             response_format: {
