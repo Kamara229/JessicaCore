@@ -327,7 +327,6 @@ test("Creative Commons version mismatch fails source lookup instead of trusting 
 });
 
 import { deriveVerifiedDiscoveryMetrics } from "../core/learning/confidence/verifiedDiscoveryMetrics.js";
-import { buildPatternEvidence } from "../core/learning/patternExtraction/patternEvidence.js";
 import { buildNewSkillCandidate } from "../core/learning/experienceCandidateBuilder.js";
 import { mergeLearningCandidates } from "../core/learning/candidateMemory/candidateMerge.js";
 
