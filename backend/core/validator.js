@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA RESULT VALIDATOR v3
+ * JESSICA RESULT VALIDATOR v4
  * =========================================================
  *
  * Главный координатор проверки результата.
@@ -294,6 +294,125 @@ function buildSuccessResult(
     };
 
 }
+
+
+function getDeterministicEvidenceProof(
+
+    taskRunResult,
+
+    answerResult
+
+) {
+
+    const results =
+
+        Array.isArray(
+            taskRunResult?.results
+        )
+
+            ? taskRunResult.results
+
+            : [];
+
+
+    const result =
+
+        [
+            ...results
+        ]
+            .reverse()
+            .find(
+                item =>
+                    item?.tool === "release_fact"
+                    &&
+                    item?.success === true
+                    &&
+                    item?.data?.evidenceVerified === true
+            );
+
+
+    if(!result){
+
+        return null;
+
+    }
+
+
+    const version =
+
+        String(
+            result?.data?.version || ""
+        )
+            .trim();
+
+
+    const releaseDate =
+
+        String(
+            result?.data?.releaseDate || ""
+        )
+            .trim();
+
+
+    const answerText =
+
+        String(
+            answerResult?.text || ""
+        );
+
+
+    if(
+        !version
+        ||
+        !releaseDate
+        ||
+        !answerText.includes(
+            version
+        )
+        ||
+        !answerText.includes(
+            releaseDate
+        )
+    ){
+
+        return null;
+
+    }
+
+
+    return {
+
+        tool:
+            "release_fact",
+
+        version,
+
+        releaseDate,
+
+        sourceUrl:
+
+            String(
+                result?.data?.sourceUrl || ""
+            )
+                .trim(),
+
+        extractor:
+
+            String(
+                result?.data?.extractor || ""
+            )
+                .trim()
+
+    };
+
+}
+
+
+/*
+ * =========================================================
+ * EVIDENCE MODE
+ * =========================================================
+ */
 
 
 function getEvidenceMode(
@@ -601,7 +720,79 @@ export async function validateResult(
 
     /*
      * =====================================================
-     * 4. SOURCE CONTENT VALIDATION
+     * 4. DETERMINISTIC SOURCE PROOF
+     * =====================================================
+     *
+     * A deterministic extractor may already have:
+     *
+     * - read fetched source content;
+     * - extracted structured values;
+     * - verified that those values coexist in one
+     *   source fragment;
+     * - produced the exact user-facing answer.
+     *
+     * In that case an additional AI Validator call
+     * adds tokens but no new evidence.
+     * =====================================================
+     */
+
+
+    if(
+        answerResult?.source === "tool"
+        &&
+        evidenceMode === "source_content"
+    ){
+
+        const proof =
+
+            getDeterministicEvidenceProof(
+
+                taskRunResult,
+
+                answerResult
+
+            );
+
+
+        if(proof){
+
+            console.log(
+
+                "Jessica Validator deterministic source proof:",
+
+                JSON.stringify(
+                    proof
+                )
+
+            );
+
+
+            return buildSuccessResult(
+
+                "Источник подтверждён детерминированным extractor",
+
+                OUTCOME_RESULT,
+
+                {
+
+                    validationMode:
+                        MODE_TOOL_DIRECT,
+
+                    degraded:
+                        false
+
+                }
+
+            );
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
+     * 5. SOURCE CONTENT VALIDATION
      * =====================================================
      */
 
@@ -803,7 +994,7 @@ export async function validateResult(
 
     /*
      * =====================================================
-     * 5. SEARCH RESULTS / NONE
+     * 6. SEARCH RESULTS / NONE
      * =====================================================
      */
 
