@@ -5,17 +5,19 @@
  */
 const CHUNK=800;
 const STEP=680;
-const PER_SOURCE=3600;
+const PER_SOURCE=5050;
+const MAX_WINDOWS=6;
 
 function tokensFromTask(task) {
     const text=String(task || "").toLowerCase();
     const terms=(text.match(/[a-z]{4,}/g)||[]).filter(t=>!["https","http","license","source"].includes(t));
     const aliases=[
-        [/патент/i,["patent","grant"]],
+        [/патент/i,["patent","grant","litigation","terminate","institute"]],
         [/прав[ао]|разреш/i,["permission","rights","grant"]],
         [/измен|модифиц/i,["modified","modification","change","derivative"]],
         [/распростран/i,["distribution","distribute"]],
-        [/уведомлен|копирайт/i,["notice","copyright"]]
+        [/уведомлен|копирайт/i,["notice","copyright","retain"]],
+        [/ограничен|товарн|знак|имя|бренд/i,["trademark","endorse","name"]]
     ];
     for(const [test,words] of aliases) if(test.test(text))terms.push(...words);
     return [...new Set(terms)];
@@ -39,10 +41,10 @@ function windows(content,terms) {
     const chosen=[first];
     // Preserve distinct requested evidence classes, including rare
     // clauses that would lose against repeated boilerplate notices.
-    const priorities=["patent","derivative","modification","modified",
-        "distribution","notice","copyright","permission","rights","grant"];
+    const priorities=["litigation","terminate","patent","trademark","endorse",
+        "notice","copyright","distribution","derivative","modification","permission","grant"];
     for(const term of priorities) {
-        if(chosen.length>=4)break;
+        if(chosen.length>=MAX_WINDOWS)break;
         if(!terms.includes(term))continue;
         if(chosen.some(x=>x.snippet.toLowerCase().includes(term)))continue;
         const found=ranked.find(x=>!chosen.includes(x)
@@ -50,7 +52,7 @@ function windows(content,terms) {
         if(found)chosen.push(found);
     }
     for(const candidate of ranked) {
-        if(chosen.length>=4)break;
+        if(chosen.length>=MAX_WINDOWS)break;
         if(!chosen.includes(candidate))chosen.push(candidate);
     }
     chosen.sort((a,b)=>a.i-b.i);
