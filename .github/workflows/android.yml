@@ -40,6 +40,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install backend regression dependencies
+        run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+
       - name: Regression tests for verified Learning and release dates
         run: node --test backend/scripts/regressionLearningSafety.test.js backend/scripts/regressionDocumentCapture.test.js
 
