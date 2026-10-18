@@ -1,6 +1,9 @@
 package com.jessica.core.modules
 
 import com.jessica.core.BuildConfig
+import com.jessica.core.modules.chat.ChatMessage
+import com.jessica.core.modules.chat.ChatContextWindow
+import org.json.JSONArray
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -44,8 +47,11 @@ class JessicaAIEngine : AIEngine {
     }
 
 
-    override suspend fun solve(
-        task: String
+    override suspend fun solve(task: String): AIResult = solve(task, emptyList())
+
+    suspend fun solve(
+        task: String,
+        history: List<ChatMessage>
     ): AIResult {
 
         if (task.isBlank()) {
@@ -76,7 +82,8 @@ class JessicaAIEngine : AIEngine {
             try {
 
                 sendRequest(
-                    task
+                    task,
+                    history
                 )
 
             } catch (e: SocketTimeoutException) {
@@ -106,7 +113,8 @@ class JessicaAIEngine : AIEngine {
 
 
     private fun sendRequest(
-        task: String
+        task: String,
+        history: List<ChatMessage>
     ): AIResult {
 
         val url =
@@ -163,6 +171,15 @@ class JessicaAIEngine : AIEngine {
                         "task",
                         task
                     )
+
+                    val conversation = JSONArray()
+                    ChatContextWindow.select(history).forEach { item ->
+                        conversation.put(JSONObject().apply {
+                            put("role", if (item.isUser) "user" else "assistant")
+                            put("content", item.text)
+                        })
+                    }
+                    put("conversation", conversation)
 
                 }
 
