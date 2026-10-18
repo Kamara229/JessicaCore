@@ -368,6 +368,21 @@ fun ChatScreen(
          */
 
 
+        if (state.isLoading) {
+            Text(
+                text = "Загружаю историю переписки…",
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+        }
+
+        if (state.storageError != null) {
+            Text(
+                text = state.storageError,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
+        }
+
         ChatInput(
 
             value =
@@ -380,6 +395,8 @@ fun ChatScreen(
 
             onSend =
                 onSend,
+
+            enabled = !state.isRunning && !state.isLoading,
 
 
             modifier =
