@@ -39,7 +39,7 @@ import {
     decomposeTask
 } from "./taskDecomposer.js";
 
-import { attachFilesToDecomposition } from "./files/attachmentContext.js";
+import { analyzeDocumentAttachments } from "./files/documentAnalysisFacade.js";
 
 import {
     contextualizeTask,
@@ -165,6 +165,31 @@ export async function executeJessicaTask(
 
     }
 
+    /*
+     * File-first route: the supplied document is already our source.
+     * Public web_search/web_fetch would search for the document TITLE rather
+     * than read the uploaded text. Never create Experience from a private file.
+     */
+    if (Array.isArray(attachments) && attachments.length > 0) {
+        const documentResult = await analyzeDocumentAttachments({
+            task: normalizedTask,
+            attachments
+        });
+        completeExecutionTrace(executionTrace);
+        return {
+            ...documentResult,
+            engine: "jessica-core",
+            executionTrace,
+            learning: {
+                success: false,
+                queued: false,
+                skipped: true,
+                reason: "user_provided_document"
+            }
+        };
+    }
+
+
 
     // Keep the canonical user request intact for Experience and Learning.
     // Only expand an ambiguous follow-up at execution/decomposition time.
@@ -256,13 +281,10 @@ export async function executeJessicaTask(
     }
 
 
-    const decomposition = attachFilesToDecomposition(
-        attachConversationToDecomposition(
-            decompositionResult.decomposition,
-            normalizedTask,
-            conversation
-        ),
-        attachments
+    const decomposition = attachConversationToDecomposition(
+        decompositionResult.decomposition,
+        normalizedTask,
+        conversation
     );
 
 
@@ -396,7 +418,7 @@ export async function executeJessicaTask(
 
     // A referential follow-up is not a standalone, reusable Skill.
     // Its trace lacks independent task grounding; do not publish it as Experience.
-    const learningResult = attachments.length > 0 || executionTask !== normalizedTask
+    const learningResult = executionTask !== normalizedTask
         ? {
             success: false,
             queued: false,
