@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA TRACE LIFECYCLE v1
+ * JESSICA TRACE LIFECYCLE v2
  * =========================================================
  *
  * Lifecycle Execution Trace.
@@ -61,6 +61,18 @@ export function finishExecutionTrace(
             trace.status =
 
                 "COMPLETED";
+
+
+            break;
+
+
+
+        case "PARTIAL":
+
+
+            trace.status =
+
+                "PARTIAL";
 
 
             break;

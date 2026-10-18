@@ -1,13 +1,18 @@
 /*
  * =========================================================
- * JESSICA DATE DIFF TOOL v1
+ * JESSICA DATE DIFF TOOL v2
  * =========================================================
  *
  * Детерминированный расчёт количества
  * полных календарных дней между двумя датами.
  *
- * AI не используется.
+ * Режимы:
  *
+ * difference — абсолютная разница между датами;
+ * elapsed    — сколько дней прошло от startDate к endDate.
+ *
+ * В elapsed конечная дата не может быть раньше начальной.
+ * AI не используется.
  * =========================================================
  */
 
@@ -24,6 +29,28 @@ import {
 
 const DAY_MS =
     24 * 60 * 60 * 1000;
+
+
+function normalizeMode(
+    value
+) {
+
+    const mode =
+
+        String(
+            value || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    return mode === "elapsed"
+
+        ? "elapsed"
+
+        : "difference";
+
+}
 
 
 function executeDateDiff(
@@ -44,6 +71,13 @@ function executeDateDiff(
         );
 
 
+    const mode =
+
+        normalizeMode(
+            args?.mode
+        );
+
+
     if(
         !start
         ||
@@ -59,7 +93,10 @@ function executeDateDiff(
                 true,
 
             text:
-                "Для расчёта нужны две корректные календарные даты."
+                "Для расчёта нужны две корректные календарные даты.",
+
+            data:
+                null
 
         };
 
@@ -82,11 +119,102 @@ function executeDateDiff(
         );
 
 
-    const absoluteDays =
+    if(
+        mode === "elapsed"
+        &&
+        signedDays < 0
+    ){
 
-        Math.abs(
-            signedDays
-        );
+        return {
+
+            success:
+                false,
+
+            needsClarification:
+                false,
+
+            text:
+
+                (
+                    "Конечная дата "
+                    +
+                    end.iso
+                    +
+                    " раньше начальной даты "
+                    +
+                    start.iso
+                    +
+                    ". Нельзя утверждать, что между ними уже прошло положительное число дней в заданном направлении."
+                ),
+
+            data: {
+
+                startDate:
+                    start.iso,
+
+                endDate:
+                    end.iso,
+
+                signedDays,
+
+                mode,
+
+                chronologyValid:
+                    false
+
+            }
+
+        };
+
+    }
+
+
+    const fullDays =
+
+        mode === "elapsed"
+
+            ? signedDays
+
+            : Math.abs(
+                signedDays
+            );
+
+
+    const text =
+
+        mode === "elapsed"
+
+            ? (
+                "От "
+                +
+                start.iso
+                +
+                " до "
+                +
+                end.iso
+                +
+                " прошло "
+                +
+                fullDays
+                +
+                " полных дней."
+            )
+
+            : (
+                "Между "
+                +
+                start.iso
+                +
+                " и "
+                +
+                end.iso
+                +
+                " "
+                +
+                fullDays
+                +
+                " полных дней."
+            );
 
 
     return {
@@ -104,28 +232,16 @@ function executeDateDiff(
 
             signedDays,
 
-            fullDays:
-                absoluteDays
+            fullDays,
+
+            mode,
+
+            chronologyValid:
+                true
 
         },
 
-        text:
-
-            (
-                "Между "
-                +
-                start.iso
-                +
-                " и "
-                +
-                end.iso
-                +
-                " прошло "
-                +
-                absoluteDays
-                +
-                " полных дней."
-            )
+        text
 
     };
 
@@ -144,7 +260,9 @@ registerTool({
             +
             "между двумя календарными датами без AI. "
             +
-            "Используй для разницы между датами, когда обе даты уже известны."
+            "Используй mode=elapsed, когда пользователь спрашивает, "
+            +
+            "сколько дней прошло от первой даты ко второй."
         ),
 
     arguments: {
@@ -153,7 +271,10 @@ registerTool({
             "Первая календарная дата.",
 
         endDate:
-            "Вторая календарная дата."
+            "Вторая календарная дата.",
+
+        mode:
+            "difference для абсолютной разницы или elapsed для направленного интервала."
 
     },
 

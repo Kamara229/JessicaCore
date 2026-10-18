@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA NATIVE SKILL PLANNER v3
+ * JESSICA NATIVE SKILL PLANNER v4
  * =========================================================
  *
  * Skill-first planning без AI.
@@ -238,7 +238,9 @@ function buildDateDiffPlan({
 
     task,
 
-    dependencyContext
+    dependencyContext,
+
+    executionExperience
 
 }) {
 
@@ -387,6 +389,33 @@ function buildDateDiffPlan({
     }
 
 
+    const skill =
+
+        findExecutableSkill(
+
+            executionExperience,
+
+            EXECUTION_STRATEGY
+                .DATE_DIFFERENCE
+
+        );
+
+
+    const skillId =
+
+        normalizeSkillId(
+            skill
+        );
+
+
+    const elapsedMode =
+
+        /(прошло|с\s+момента|elapsed|since)/iu
+            .test(
+                taskText
+            );
+
+
     return {
 
         intent:
@@ -408,6 +437,50 @@ function buildDateDiffPlan({
 
         },
 
+        experience:
+
+            skillId
+
+                ? {
+
+                    used:
+                        true,
+
+                    source:
+                        "native-skill",
+
+                    skills: [
+
+                        {
+
+                            id:
+                                skillId,
+
+                            name:
+
+                                normalizeText(
+                                    skill?.name
+                                )
+
+                        }
+
+                    ]
+
+                }
+
+                : {
+
+                    used:
+                        false,
+
+                    source:
+                        "native-capability",
+
+                    skills:
+                        []
+
+                },
+
         steps: [
 
             {
@@ -422,12 +495,23 @@ function buildDateDiffPlan({
 
                     startDate,
 
-                    endDate
+                    endDate,
+
+                    mode:
+
+                        elapsedMode
+
+                            ? "elapsed"
+
+                            : "difference"
 
                 },
 
                 experienceUsed:
-                    false
+
+                    Boolean(
+                        skillId
+                    )
 
             }
 
@@ -790,7 +874,20 @@ function buildOfficialSourcePlan({
                                     path:
                                         "data.url"
 
-                                }
+                                },
+
+                                sourceTitle: {
+
+                                    $from:
+                                        "native_fetch_source",
+
+                                    path:
+                                        "data.title"
+
+                                },
+
+                                subject:
+                                    task
 
                             },
 
@@ -962,7 +1059,9 @@ export function tryCreateNativeSkillPlan({
 
             task,
 
-            dependencyContext
+            dependencyContext,
+
+            executionExperience
 
         });
 
@@ -980,7 +1079,24 @@ export function tryCreateNativeSkillPlan({
                 datePlan,
 
             source:
-                "native-date-diff"
+
+                datePlan
+                    ?.experience
+                    ?.used === true
+
+                    ? (
+                        "experience:"
+                        +
+                        normalizeText(
+                            datePlan
+                                ?.experience
+                                ?.skills
+                                ?.[0]
+                                ?.id
+                        )
+                    )
+
+                    : "native-date-diff"
 
         });
 

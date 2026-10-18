@@ -41,7 +41,10 @@ const MODE_NATIVE =
 export const EXECUTION_STRATEGY = {
 
     OFFICIAL_SOURCE_LOOKUP:
-        "official_source_lookup"
+        "official_source_lookup",
+
+    DATE_DIFFERENCE:
+        "date_difference"
 
 };
 
@@ -65,6 +68,11 @@ const LEGACY_STRATEGIES =
         [
             "official-website-verification",
             EXECUTION_STRATEGY.OFFICIAL_SOURCE_LOOKUP
+        ],
+
+        [
+            "date-difference-calculation",
+            EXECUTION_STRATEGY.DATE_DIFFERENCE
         ]
 
     ]);
@@ -409,23 +417,6 @@ export function inferExecutionProgramFromPattern({
         );
 
 
-    if(
-        !tools.has(
-            "web_search"
-        )
-
-        ||
-
-        !tools.has(
-            "web_fetch"
-        )
-    ){
-
-        return null;
-
-    }
-
-
     const semanticText =
 
         [
@@ -463,6 +454,65 @@ export function inferExecutionProgramFromPattern({
                 " "
             )
             .toLowerCase();
+
+
+    /*
+     * date_diff является полностью детерминированным
+     * safe strategy и может становиться executable Skill
+     * без участия AI в Runtime.
+     */
+
+
+    if(
+        tools.has(
+            "date_diff"
+        )
+        &&
+        /(дн|дата|разниц|прошло|day|date|difference|elapsed)/iu
+            .test(
+                semanticText
+            )
+    ){
+
+        return normalizeExecutionProgram({
+
+            version:
+                PROGRAM_VERSION,
+
+            mode:
+                MODE_NATIVE,
+
+            strategy:
+                EXECUTION_STRATEGY.DATE_DIFFERENCE,
+
+            evidenceMode:
+                "none"
+
+        });
+
+    }
+
+
+    /*
+     * Official-source route требует оба web tools.
+     */
+
+
+    if(
+        !tools.has(
+            "web_search"
+        )
+
+        ||
+
+        !tools.has(
+            "web_fetch"
+        )
+    ){
+
+        return null;
+
+    }
 
 
     const officialSource =
