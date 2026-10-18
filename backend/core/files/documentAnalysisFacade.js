@@ -4,6 +4,7 @@ import {
     registerAIProviderLimit
 } from "../../ai/providerAvailability.js";
 import { createDocumentEvidence } from "./documentEvidence.js";
+import { identifyDocumentAnswer } from "./documentResponseIdentity.js";
 import {
     documentAnalysisInstructions,
     validateAndRenderDocumentAnswer
@@ -90,11 +91,14 @@ export async function analyzeDocumentAttachments(
                 "document-evidence"
             );
         }
+        const audit = identifyDocumentAnswer(checked.text, checked.kept, checked.rejected);
         console.log("Jessica document analysis completed:", {
             fileCount: bundle.docs.length,
             groundedClaims: checked.kept,
             unsupportedClaimsDropped: checked.rejected,
-            answerChars: checked.text.length
+            answerChars: checked.text.length,
+            responseId: audit.id,
+            responseSha256: audit.sha256
         });
         return {
             success: true,
@@ -103,7 +107,9 @@ export async function analyzeDocumentAttachments(
             evidenceChecked: true,
             groundedClaims: checked.kept,
             unsupportedClaimsDropped: checked.rejected,
-            text: checked.text
+            responseId: audit.id,
+            responseSha256: audit.sha256,
+            text: audit.text
         };
     } catch (error) {
         if (error?.status === 429) {

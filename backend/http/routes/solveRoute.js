@@ -150,6 +150,19 @@ export function registerSolveRoute(
                  */
 
 
+                // Trace the ACTUAL HTTP response, rather than only the
+                // result created inside the document-analysis facade.
+                res.set("Cache-Control", "no-store");
+                res.on("finish", () => {
+                    if (result?.mode === "document") {
+                        console.log("Jessica document HTTP response:", {
+                            status: res.statusCode,
+                            responseId: result.responseId || null,
+                            responseSha256: result.responseSha256 || null,
+                            success: result.success === true
+                        });
+                    }
+                });
                 return res
                     .status(
                         200

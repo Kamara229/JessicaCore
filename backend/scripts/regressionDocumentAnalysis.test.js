@@ -234,3 +234,17 @@ test("a numerical claim cannot cite a different quotation within the same paragr
     assert.equal(result.success, false);
     assert.equal(result.rejected, 1);
 });
+
+test("each generated document response carries a matching trace identity", async () => {
+    const success = await analyzeDocumentAttachments(
+        {task:"Перескажи документ",attachments:[file]},
+        async()=>verified()
+    );
+    assert.equal(success.success,true);
+    assert.match(success.responseId,/^JDOC-[A-F0-9]{10}$/);
+    assert.ok(success.responseSha256?.length === 64);
+    assert.match(success.text, /Код ответа: JDOC-[A-F0-9]{10}/);
+    assert.ok(success.text.includes(success.responseId));
+    const { createHash } = await import("node:crypto");
+    assert.equal(success.responseSha256, createHash("sha256").update(success.text).digest("hex"));
+});
