@@ -30,3 +30,26 @@ test("do not replace user URLs or invent mappings for unknown licenses", () => {
     assert.equal(buildKnownLicenseComparisonPlan("Сравни Apache License 2.0, BSD 3-Clause и MIT License"),null);
     assert.equal(buildKnownLicenseComparisonPlan("Сравни две неизвестные лицензии"),null);
 });
+
+test("verification covers known comparison cells and honestly unverified clauses", async () => {
+    const { checkPairedClaimCoverage } = await import("../core/validator/claim/pairedClaimCoverage.js");
+    const task = "Сравни лицензии: права, распространение, уведомления, патентные условия и ограничения";
+    const urls = ["https://www.apache.org/licenses/LICENSE-2.0.html",
+        "https://opensource.org/license/bsd-3-clause"];
+    const run = {results:urls.map(url => ({tool:"web_fetch",success:true,data:{url}}))};
+    const plan = {evidence:{mode:"source_content"}};
+    const answer=[
+        "| Критерий | Apache | BSD |",
+        "|---|---|---|",
+        "| Использование | Да | Да |",
+        "| Распространение | Да | Да |",
+        "| Уведомления | Да | Да |",
+        "| Патентные условия | Есть явный пункт | Не удалось подтвердить по прочитанному тексту |",
+        "| Ограничения | Есть | Есть |"
+    ].join("\n");
+    const claims = Array.from({length:9}, (_,i) => ({supported:true,
+        sourceUrl:urls[i%2]}));
+    assert.equal(checkPairedClaimCoverage({task,plan,taskRunResult:run,answer,claims}).valid,true);
+    const categorical=answer.replace("Не удалось подтвердить по прочитанному тексту", "Патентных условий нет");
+    assert.equal(checkPairedClaimCoverage({task,plan,taskRunResult:run,answer:categorical,claims}).valid,false);
+});
