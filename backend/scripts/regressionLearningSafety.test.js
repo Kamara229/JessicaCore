@@ -397,3 +397,65 @@ test("first verified discovery stays a candidate; independent second success rai
     assert.equal(duplicate.occurrences,2);
     assert.equal(duplicate.confidence,0.82);
 });
+
+import { inferExecutionProgramFromPattern } from "../experience/execution/executionProgram.js";
+import { createLearningProposalFromQueue } from "../experience/learning/learningProposal.js";
+import { evaluateApprovalProposal, APPROVAL_FLOW } from "../core/learning/approval/approvalEvaluation.js";
+
+test("document comparisons cannot inherit an unrelated source lookup execution program",()=>{
+    const pattern={
+        name:"Comparison of official document sources",
+        description:"Compare provisions and cite each official original document",
+        triggerPatterns:["compare two source documents"],
+        validationRules:["Validate the factual claims against both official sources"]
+    };
+    const actualTools={tools:["web_search","web_fetch"]};
+    assert.equal(inferExecutionProgramFromPattern({pattern,evidence:actualTools}),null);
+    assert.equal(inferExecutionProgramFromPattern({
+        pattern:{...pattern,name:"Official source verification",description:"Verify a fact from an official website",
+            triggerPatterns:["verify an official webpage"]},
+        evidence:actualTools
+    })?.strategy,"official_source_lookup");
+});
+
+test("verified comparative experience: first candidate is retained, second passes autonomy gate",()=>{
+    function build(id){
+        const trace={
+            ...makeVerifiedDiscoveryTrace(id),
+            executedTools:["web_search","web_fetch"]
+        };
+        const evidence=buildPatternEvidence({trace,metrics:{successRate:0,occurrences:1}});
+        const metrics=deriveVerifiedDiscoveryMetrics(evidence);
+        return buildNewSkillCandidate({
+            pattern:{...verifiedDiscoveryPattern,executionProgram:null},
+            trace,
+            confidence:metrics.confidence,
+            maturity:metrics.maturity,
+            occurrences:metrics.occurrences
+        });
+    }
+    function proposal(candidate){
+        const event={
+            action:"NEW_SKILL",reusable:true,confidence:candidate.confidence,
+            payload:{
+                source:"ai-pattern-discovery",
+                skillCandidate:candidate,
+                discovery:{resolved:true,validation:{valid:true}}
+            }
+        };
+        return createLearningProposalFromQueue({
+            id:"queue-"+candidate.occurrences,action:"NEW_SKILL",
+            skillId:candidate.skillId,confidence:candidate.confidence,event
+        });
+    }
+
+    const first=build("unique-execution-1");
+    const reviewFirst=evaluateApprovalProposal(proposal(first));
+    assert.equal(reviewFirst.flow,APPROVAL_FLOW.KEEP,JSON.stringify(reviewFirst));
+    assert.equal(first.confidence,0.76);
+    const second=build("unique-execution-2");
+    const merged=mergeLearningCandidates({existing:first,incoming:second,exactMatch:true});
+    const reviewSecond=evaluateApprovalProposal(proposal(merged));
+    assert.equal(merged.confidence,0.82);
+    assert.equal(reviewSecond.flow,APPROVAL_FLOW.SAVE_VERSION,JSON.stringify(reviewSecond));
+});
