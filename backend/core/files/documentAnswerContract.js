@@ -43,7 +43,7 @@ function checkNumbers(statement, evidence) {
 
 function sectionTitle(title) {
     // Titles are navigation labels, not additional fact-bearing claims.
-    const cleaned = String(title || "").trim().slice(0, 90);
+    const cleaned = String(title || "").replace(/[\\r\\n\\t*#]/g, " ").trim().slice(0, 90);
     return cleaned || "Основные положения";
 }
 
@@ -99,16 +99,16 @@ export function validateAndRenderDocumentAnswer(raw, bundle) {
             const text = String(finding?.text || "").trim().slice(0, 800);
             const kind = String(finding?.kind || "");
             const evidence = supportsEvidence(finding?.evidence, bundle.index);
-            if (!text || !labels[kind] || !evidence || !checkNumbers(text, evidence)) {
+            if (!text || !Object.prototype.hasOwnProperty.call(labels, kind) || !evidence || !checkNumbers(text, evidence)) {
                 rejected++;
                 continue;
             }
             const sources = [...new Set(evidence.map(x => x.ref))].map(x => `[${x}]`).join(" ");
             const quotes = evidence.map(x => `«${x.quote}»`).join("; ");
-            parts.push(`- **${labels[kind]}:** ${text} ${sources}\n  _Основание: ${quotes}_`);
+            parts.push(`• ${labels[kind]}: ${text} ${sources}\n  Основание: ${quotes}`);
             kept++;
         }
-        if (parts.length) rendered.push(`**${sectionTitle(section.heading)}**\n\n${parts.join("\n\n")}`);
+        if (parts.length) rendered.push(`${sectionTitle(section.heading)}\n\n${parts.join("\n\n")}`);
     }
     if (!kept) return {success: false, reason:"no_grounded_claims", kept, rejected};
     const limitations = [
@@ -129,7 +129,7 @@ export function validateAndRenderDocumentAnswer(raw, bundle) {
         text: [
             rendered.join("\n\n"),
             "",
-            "**Границы проверки:** " + limitations.join(" ")
+            "Границы проверки: " + limitations.join(" ")
         ].join("\n")
     };
 }
