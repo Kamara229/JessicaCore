@@ -30,6 +30,7 @@ import com.jessica.core.core.JessicaController
 import com.jessica.core.navigation.JessicaNavigator
 import com.jessica.core.navigation.JessicaPage
 import com.jessica.core.modules.chat.ChatThreadStore
+import com.jessica.core.modules.chat.ChatAttachmentStore
 import com.jessica.core.modules.updater.UpdateState
 import com.jessica.core.modules.updater.UpdateViewModel
 import com.jessica.core.ui.chat.ChatRoute
@@ -48,8 +49,9 @@ fun JessicaScreen() {
     val chatViewModel = remember {
         ChatViewModel(
             threadStore = ChatThreadStore(context.applicationContext),
-            messageExecutor = { request, history ->
-                controller.executeChatMessage(request, history)
+            attachmentStore = ChatAttachmentStore(context.applicationContext),
+            messageExecutor = { request, history, attachments ->
+                controller.executeChatMessage(request, history, attachments)
             }
         )
     }

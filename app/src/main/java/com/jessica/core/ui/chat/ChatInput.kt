@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,6 +27,7 @@ fun ChatInput(
     value: TextFieldValue,
     onValueChange: (TextFieldValue) -> Unit,
     onSend: () -> Unit,
+    onAttach: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
@@ -39,6 +41,13 @@ fun ChatInput(
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            FilledTonalIconButton(
+                onClick = onAttach,
+                enabled = enabled,
+                modifier = Modifier.padding(bottom = 8.dp).width(45.dp)
+            ) {
+                Text("＋", style = MaterialTheme.typography.titleLarge)
+            }
             TextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -58,7 +67,7 @@ fun ChatInput(
             )
             FilledIconButton(
                 onClick = onSend,
-                enabled = enabled && value.text.isNotBlank(),
+                enabled = enabled,
                 modifier = Modifier.padding(bottom = 8.dp).width(45.dp)
             ) {
                 Text("↑", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)

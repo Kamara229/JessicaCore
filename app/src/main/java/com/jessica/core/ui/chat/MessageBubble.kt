@@ -63,6 +63,16 @@ fun MessageBubble(
                             modifier = Modifier.padding(bottom = 6.dp)
                         )
                     }
+                    if (message.attachments.isNotEmpty()) {
+                        message.attachments.forEach { attachment ->
+                            Text(
+                                "📎 ${attachment.name} (${(attachment.sizeBytes + 1023) / 1024} КБ)",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            )
+                        }
+                    }
                     SelectionContainer {
                         Text(message.text, style = MaterialTheme.typography.bodyLarge)
                     }

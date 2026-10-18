@@ -13,7 +13,7 @@ const supported = new Set(["pdf", "docx", "txt", "md", "csv", "json", "xlsx"]);
 function cleanName(value) {
     const valueString = String(value || "");
     const fileName = valueString.split(/[\\/]/).pop() || "file";
-    return fileName.replace(/[\\r\\n\\t<>]/g, " ").slice(0, 100);
+    return fileName.replace(/[\r\n\t<>]/g, " ").slice(0, 100);
 }
 
 function getExtension(name) {
@@ -51,7 +51,7 @@ async function extractSpreadsheet(buffer) {
             lines.push(values.join(" | "));
         });
     });
-    return lines.join("\\n");
+    return lines.join("\n");
 }
 
 async function extractText(ext, buffer) {
@@ -83,7 +83,7 @@ export function registerDocumentExtractRoute(app) {
                     return res.status(413).json({success: false, text: "Размер файла должен быть от 1 байта до 5 МБ"});
                 }
                 ensureSignature(ext, buffer);
-                const complete = (await extractText(ext, buffer)).replace(/\\u0000/g, "").trim();
+                const complete = (await extractText(ext, buffer)).replace(/\u0000/g, "").trim();
                 if (!complete) {
                     return res.status(422).json({
                         success: false,

@@ -7,9 +7,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +31,8 @@ fun ChatScreen(
     state: ChatState,
     onInputChange: (TextFieldValue) -> Unit,
     onSend: () -> Unit,
+    onAttach: () -> Unit,
+    onRemoveAttachment: (String) -> Unit,
     onRetry: (ChatMessage) -> Unit = {}
 ) {
     val clipboard = LocalClipboardManager.current
@@ -97,11 +103,35 @@ fun ChatScreen(
                 style = MaterialTheme.typography.bodySmall
             )
         }
+        if (state.pendingAttachments.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                state.pendingAttachments.forEach { attachment ->
+                    AssistChip(
+                        onClick = { onRemoveAttachment(attachment.id) },
+                        label = { Text("📎 ${attachment.name}  ×", maxLines = 1) },
+                        enabled = !state.isRunning && !state.isImporting
+                    )
+                }
+            }
+        }
+        if (state.isImporting) {
+            Text(
+                "Прикрепляю файл…",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+        }
         ChatInput(
             value = state.input,
             onValueChange = onInputChange,
             onSend = onSend,
-            enabled = !state.isRunning && !state.isLoading,
+            onAttach = onAttach,
+            enabled = !state.isRunning && !state.isLoading && !state.isImporting,
             modifier = Modifier.fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 10.dp)
         )
