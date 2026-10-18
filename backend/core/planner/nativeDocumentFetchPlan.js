@@ -4,7 +4,7 @@ import { sanitizeSourceUrlInput } from "../../tools/sourceUrlInput.js";
  * or synthesis request as a fetch-only task. */
 export function buildNativeDocumentFetchPlan(task) {
     const text=String(task || "").trim();
-    if (!/^(?:собрать|получить|загрузить)\s+(?:полный\s+)?текст\b/iu.test(text)
+    if (!/^(?:собрать|получить|загрузить)\s+(?:полный\s+)?текст(?=\s|$)/iu.test(text)
         && !/^(?:fetch|retrieve|download)\s+(?:the\s+)?(?:full\s+)?(?:text|document)\b/i.test(text)) {
         return null;
     }
