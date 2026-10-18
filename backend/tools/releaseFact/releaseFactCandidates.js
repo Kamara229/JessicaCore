@@ -5,91 +5,21 @@
  */
 
 import {
-    RELEASE_SIGNAL
-} from "./releaseFactConstants.js";
-
-
-import {
-    countSubjectMatches,
-    getTitleIdentityText
-} from "./releaseFactText.js";
-
-
-import {
-    extractDates,
-    findNearestDate
-} from "./releaseFactDates.js";
-
-
-import {
     collectVersionMatches,
     compareVersions,
     isPrereleaseBound
 } from "./releaseFactVersions.js";
 
 
-function buildLineRanges(
-    text
-) {
-
-    const ranges = [];
-
-    let cursor = 0;
+import {
+    buildCandidateEnvironment,
+    buildCandidateContext
+} from "./releaseFactCandidateContext.js";
 
 
-    for(
-        const line
-        of text.split(
-            "\n"
-        )
-    ){
-
-        const start =
-            cursor;
-
-
-        const end =
-            start + line.length;
-
-
-        ranges.push({
-
-            text:
-                line.trim(),
-
-            start,
-
-            end
-
-        });
-
-
-        cursor =
-            end + 1;
-
-    }
-
-
-    return ranges;
-
-}
-
-
-function findLineForIndex(
-    ranges,
-    index
-) {
-
-    return ranges.find(
-        line =>
-            index >= line.start
-            &&
-            index <= line.end
-    )
-    ||
-    null;
-
-}
+import {
+    scoreCandidate
+} from "./releaseFactCandidateScore.js";
 
 
 export function buildCandidates({
@@ -104,44 +34,17 @@ export function buildCandidates({
 
 }) {
 
-    const text =
-        section.text;
+    const environment =
 
+        buildCandidateEnvironment({
 
-    const dates =
-
-        extractDates(
-            text
-        );
-
-
-    const ranges =
-
-        buildLineRanges(
-            text
-        );
-
-
-    const titleIdentity =
-
-        getTitleIdentityText(
+            section,
 
             sourceTitle,
 
             subjectTokens
 
-        );
-
-
-    const sourceSubjectMatches =
-
-        countSubjectMatches(
-
-            titleIdentity,
-
-            subjectTokens
-
-        );
+        });
 
 
     const candidates = [];
@@ -150,14 +53,15 @@ export function buildCandidates({
     for(
         const item
         of collectVersionMatches(
-            text
+            section.text
         )
     ){
 
         if(
             isPrereleaseBound({
 
-                text,
+                text:
+                    section.text,
 
                 version:
                     item.version,
@@ -173,101 +77,20 @@ export function buildCandidates({
         }
 
 
-        const line =
+        const context =
 
-            findLineForIndex(
-                ranges,
-                item.index
-            );
+            buildCandidateContext({
 
+                environment,
 
-        const lineText =
-
-            line?.text || "";
-
-
-        const nearby =
-
-            text.slice(
-
-                Math.max(
-                    0,
-                    item.index - 180
-                ),
-
-                Math.min(
-                    text.length,
-                    item.index + item.version.length + 260
-                )
-
-            );
-
-
-        const lineSubjectMatches =
-
-            countSubjectMatches(
-
-                lineText,
+                item,
 
                 subjectTokens
 
-            );
+            });
 
 
-        const nearbySubjectMatches =
-
-            countSubjectMatches(
-
-                nearby,
-
-                subjectTokens
-
-            );
-
-
-        const sameLineDate =
-
-            dates.find(
-                date =>
-                    line
-                    &&
-                    date.index >= line.start
-                    &&
-                    date.index <= line.end
-            )
-
-            ||
-
-            null;
-
-
-        if(
-            item.kind === "major"
-            &&
-            !sameLineDate
-        ){
-
-            continue;
-
-        }
-
-
-        const nearestDate =
-
-            sameLineDate
-
-            ||
-
-            findNearestDate(
-
-                dates,
-
-                item.index
-
-            );
-
-
-        if(!nearestDate){
+        if(!context){
 
             continue;
 
@@ -279,11 +102,11 @@ export function buildCandidates({
             &&
             subjectTokens.length > 0
             &&
-            lineSubjectMatches === 0
+            context.lineSubjectMatches === 0
             &&
-            nearbySubjectMatches === 0
+            context.nearbySubjectMatches === 0
             &&
-            sourceSubjectMatches === 0
+            context.sourceSubjectMatches === 0
         ){
 
             continue;
@@ -291,106 +114,15 @@ export function buildCandidates({
         }
 
 
-        let score = 0;
+        const score =
 
+            scoreCandidate({
 
-        if(
-            section.preferred === true
-        ){
+                section,
 
-            score += 24;
+                context
 
-        }
-
-
-        if(
-            RELEASE_SIGNAL.test(
-                lineText
-            )
-        ){
-
-            score += 7;
-
-        }
-
-
-        if(
-            RELEASE_SIGNAL.test(
-                nearby
-            )
-        ){
-
-            score += 4;
-
-        }
-
-
-        score +=
-
-            Math.min(
-                12,
-                lineSubjectMatches * 8
-            );
-
-
-        score +=
-
-            Math.min(
-                8,
-                nearbySubjectMatches * 4
-            );
-
-
-        score +=
-
-            Math.min(
-                5,
-                sourceSubjectMatches * 3
-            );
-
-
-        if(
-            nearestDate.distance <= 80
-        ){
-
-            score += 12;
-
-        }
-        else if(
-            nearestDate.distance <= 220
-        ){
-
-            score += 7;
-
-        }
-        else{
-
-            score += 3;
-
-        }
-
-
-        if(
-            /(?:[·|]\s*20\d{2}-\d{2}-\d{2}|20\d{2}-\d{2}-\d{2}\s*[·|])/u
-                .test(
-                    lineText
-                )
-        ){
-
-            score += 8;
-
-        }
-
-
-        if(
-            /\bnotes?\b/iu.test(
-                lineText
-            )
-        ){
-
-            score += 3;
-
-        }
+            });
 
 
         candidates.push({
@@ -407,24 +139,26 @@ export function buildCandidates({
             score,
 
             releaseDate:
-                nearestDate.value,
+                context.nearestDate.value,
 
             rawDate:
-                nearestDate.raw,
+                context.nearestDate.raw,
 
             dateIndex:
-                nearestDate.index,
+                context.nearestDate.index,
 
             line:
-                lineText,
+                context.lineText,
 
             subjectMatches:
 
-                lineSubjectMatches
+                context.lineSubjectMatches
                 +
-                nearbySubjectMatches
+                context.nearbySubjectMatches
                 +
-                sourceSubjectMatches
+                context.sourceSubjectMatches,
+
+            sourceUrl
 
         });
 
@@ -499,11 +233,9 @@ export function selectCandidate(
 
 
                 return (
-
                     left.index
                     -
                     right.index
-
                 );
 
             }
