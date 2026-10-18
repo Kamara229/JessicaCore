@@ -1,3 +1,4 @@
+import { buildComparisonClaimInstructions } from "./claim/comparisonClaimPrompt.js";
 import { usePairedComparisonContext } from "../composer/comparisonEvidencePolicy.js";
 import { buildOriginalSourceEvidenceContext } from "./claim/claimEvidenceMatcher.js";
 import { checkPairedClaimCoverage } from "./claim/pairedClaimCoverage.js";
@@ -91,7 +92,7 @@ async function requestClaimValidation(
 
     const instructions =
 
-        buildClaimEvidenceInstructions();
+        (comparison ? buildComparisonClaimInstructions() : buildClaimEvidenceInstructions());
 
 
     return await executeAIWithRetry(
