@@ -72,6 +72,11 @@ fun ChatInput(
                         bottom = 8.dp
                     ),
 
+            // Long pasted tasks scroll INSIDE the input, not the screen.
+            // Without a line cap this TextField grows past the send button.
+            minLines = 2,
+            maxLines = 5,
+
             placeholder = {
 
                 Text(
