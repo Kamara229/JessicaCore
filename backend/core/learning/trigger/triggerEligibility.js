@@ -52,6 +52,10 @@ export function shouldAnalyzeLearningTrace(
     }
 
 
+    if (trace?.result?.status === "PARTIAL") {
+        return false;
+    }
+
     const completed =
 
         normalizeNumber(
