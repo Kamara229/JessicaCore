@@ -71,6 +71,16 @@ export function shouldAnalyzeLearningTrace(
         return false;
     }
 
+    // A successful terminal marker without verified validation is
+    // insufficient to teach a Skill (e.g. unavailable AI Validator).
+    if (!Array.isArray(result?.results) && result?.status === "COMPLETED") {
+        if (result.verified !== true ||
+            result.validation?.valid !== true ||
+            result.validation?.degraded === true) {
+            return false;
+        }
+    }
+
     const completed =
 
         normalizeNumber(
