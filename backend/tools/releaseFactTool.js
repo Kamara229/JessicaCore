@@ -340,25 +340,70 @@ function isPrereleaseVersion({
 
 }) {
 
-    const near =
+    const before =
 
         text.slice(
 
             Math.max(
                 0,
-                index - 14
+                index - 24
             ),
+
+            index
+
+        );
+
+
+    const after =
+
+        text.slice(
+
+            index + version.length,
 
             Math.min(
                 text.length,
-                index + version.length + 20
+                index + version.length + 24
             )
 
         );
 
 
-    return PRERELEASE_SIGNAL.test(
-        near
+    /*
+     * Pre-release marker must belong to THIS version,
+     * not merely appear elsewhere on the same line.
+     *
+     * Example:
+     *
+     * "19 Beta 3, 18.6, 17.11"
+     *
+     * Beta belongs to 19 and must not disqualify 18.6.
+     */
+
+
+    const afterPrerelease =
+
+        /^\s*(?:alpha|beta|preview|pre-release|prerelease|rc|devel|development)\b/iu
+            .test(
+                after
+            );
+
+
+    const beforePrerelease =
+
+        /(?:alpha|beta|preview|pre-release|prerelease|rc|devel|development)\s*$/iu
+            .test(
+                before
+            );
+
+
+    return (
+
+        afterPrerelease
+
+        ||
+
+        beforePrerelease
+
     );
 
 }
