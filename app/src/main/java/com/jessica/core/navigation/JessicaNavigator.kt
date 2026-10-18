@@ -1,39 +1,16 @@
 package com.jessica.core.navigation
 
-
 import androidx.compose.runtime.mutableStateOf
 
-
+/** The conversation is the home of Jessica, not the old diagnostics screen. */
 class JessicaNavigator {
+    val currentPage = mutableStateOf(JessicaPage.CHAT)
 
-
-    val currentPage =
-
-        mutableStateOf(
-            JessicaPage.HOME
-        )
-
-
-    fun navigateTo(
-
-        page: JessicaPage
-
-    ) {
-
-
-        currentPage.value =
-            page
-
+    fun navigateTo(page: JessicaPage) {
+        currentPage.value = page
     }
-
 
     fun backHome() {
-
-
-        currentPage.value =
-            JessicaPage.HOME
-
+        currentPage.value = JessicaPage.CHAT
     }
-
-
 }
