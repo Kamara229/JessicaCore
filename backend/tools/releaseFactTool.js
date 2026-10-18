@@ -66,7 +66,8 @@ const SUBJECT_STOPWORDS =
         "сколько","полных","дней","прошло","между","используй","найденную",
         "первой","части","the","a","an","find","official","website","site",
         "latest","current","stable","version","release","released","date",
-        "source","verify","check","determine","most","recent","provide"
+        "source","verify","check","determine","most","recent","provide",
+        "and","or","of","to","from","with","for","in","on","at"
     ]);
 
 
