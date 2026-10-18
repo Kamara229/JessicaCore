@@ -170,7 +170,8 @@ function validateMessages(
 
 
 export async function validatorChat(
-    messages
+    messages,
+    {comparison=false}={}
 ) {
 
 
@@ -224,7 +225,7 @@ export async function validatorChat(
 
 
             max_completion_tokens:
-                VALIDATOR_MAX_COMPLETION_TOKENS,
+                comparison ? 1800 : VALIDATOR_MAX_COMPLETION_TOKENS,
 
 
             response_format: {
