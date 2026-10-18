@@ -1,3 +1,5 @@
+import { filterCreativeCommonsSources } from "./creativeCommonsScope.js";
+
 /*
  * Query-scoped source selection for multi-document research.
  * Pure functions: no provider calls or persistence.
@@ -25,6 +27,10 @@ function escapeRegex(value) {
 export function scopeCandidatesToSearchQuery(query, candidates) {
     const results = Array.isArray(candidates) ? candidates : [];
     const text = normalize(query);
+
+    // CC BY-SA 4.0 must not be substituted with CC BY 4.0 or CC BY-SA 3.0.
+    const ccScope = filterCreativeCommonsSources(text, results);
+    if (ccScope !== null) return ccScope;
 
     // Narrow only when the search explicitly names one license.
     // Other research searches retain the normal Source Selector behavior.

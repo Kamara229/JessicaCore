@@ -296,3 +296,32 @@ test("Apache 2.0 fetch cannot select MIT or obsolete generic Apache URLs",()=>{
 test("no matching named license yields empty candidates, not an unrelated source",()=>{
     assert.deepEqual(scopeCandidatesToSearchQuery("MIT License site:opensource.org",[bothLicenses[0],bothLicenses[2]]),[]);
 });
+
+import { requestedCreativeCommonsVariant, filterCreativeCommonsSources }
+    from "../core/taskRunner/argumentResolver/creativeCommonsScope.js";
+
+const ccResults=[
+    {title:"Deed - Attribution 4.0 International",url:"https://creativecommons.org/licenses/by/4.0/deed.en"},
+    {title:"Deed - Attribution-ShareAlike 4.0 International",url:"https://creativecommons.org/licenses/by-sa/4.0/deed.en"},
+    {title:"Deed - Attribution-ShareAlike 3.0 Unported",url:"https://creativecommons.org/licenses/by-sa/3.0/deed.en"},
+    {title:"Creative Commons licences",url:"https://creativecommons.org/licenses/"}
+];
+
+test("Creative Commons BY 4.0 fetch uses only exact BY 4.0",()=>{
+    const query="Creative Commons CC BY 4.0 license description official site";
+    assert.deepEqual(requestedCreativeCommonsVariant(query),{family:"by",version:"4.0"});
+    assert.deepEqual(scopeCandidatesToSearchQuery(query,ccResults).map(x=>x.url),
+        ["https://creativecommons.org/licenses/by/4.0/deed.en"]);
+});
+
+test("Creative Commons BY-SA 4.0 excludes both CC BY 4.0 and 3.0",()=>{
+    const query="Creative Commons BY-SA 4.0 license deed official site";
+    assert.deepEqual(requestedCreativeCommonsVariant(query),{family:"by-sa",version:"4.0"});
+    assert.deepEqual(filterCreativeCommonsSources(query,ccResults).map(x=>x.url),
+        ["https://creativecommons.org/licenses/by-sa/4.0/deed.en"]);
+});
+
+test("Creative Commons version mismatch fails source lookup instead of trusting a wrong licence",()=>{
+    const query="Creative Commons CC BY-SA 4.0 license";
+    assert.deepEqual(scopeCandidatesToSearchQuery(query,[ccResults[0],ccResults[2]]),[]);
+});
