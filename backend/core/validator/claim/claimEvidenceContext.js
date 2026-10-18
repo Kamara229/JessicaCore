@@ -57,7 +57,7 @@ const MAX_SOURCE_COUNT =
 
 
 const MAX_CONTEXT_LENGTH =
-    8000;
+    10800;
 
 
 const CHUNK_LENGTH =
@@ -69,7 +69,7 @@ const CHUNK_OVERLAP =
 
 
 const MAX_CHUNKS_PER_SOURCE =
-    3;
+    4;
 
 
 const MAX_QUERY_TERMS =
@@ -385,25 +385,13 @@ function buildQueryTerms(
     answer
 ) {
 
-    return [
-
-        ...new Set([
-
-            ...extractTerms(
-                task
-            ),
-
-            ...extractTerms(
-                answer
-            )
-
-        ])
-
-    ]
-    .slice(
-        0,
-        MAX_QUERY_TERMS
-    );
+    const combined = String(task || "") + " " + String(answer || "");
+    const aliases = [];
+    if (/патент|patent/iu.test(combined)) aliases.push("patent","litigation","institute","terminate","grant");
+    if (/ограничен|товарн|знак|бренд|trademark/iu.test(combined)) aliases.push("trademark","endorse");
+    if (/уведомлен|копирайт|copyright|notice/iu.test(combined)) aliases.push("copyright","notice","retain");
+    return [...new Set([...aliases, ...extractTerms(task), ...extractTerms(answer)])]
+        .slice(0, MAX_QUERY_TERMS);
 
 }
 
@@ -676,6 +664,15 @@ function scoreChunk(
 
     }
 
+
+    // Claims about patents need both the grant and its litigation
+    // termination conditions, not just the heading "Patent License".
+    if (terms.includes("patent") && /patent litigation|institute patent|terminate/.test(text)) {
+        score += 28;
+    }
+    if (terms.includes("trademark") && /trademark|trade name|product name/.test(text)) {
+        score += 12;
+    }
 
     /*
      * Первый fragment получает небольшой bonus:
