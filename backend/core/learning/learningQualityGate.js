@@ -1,35 +1,29 @@
 /*
  * =========================================================
- * JESSICA LEARNING QUALITY GATE v2
+ * JESSICA LEARNING QUALITY GATE FACADE v3
  * =========================================================
  *
- * Проверяет пригодность Learning Evidence.
- *
- *
- * Reviewer:
- * структурная корректность
- *
- * Quality Gate:
- * целостность evidence и metrics
- *
- * Autonomy Policy:
- * достаточно ли evidence для обучения
- *
- *
- * НЕ:
- *
- * - принимает AUTO_APPROVE;
- * - сохраняет Skill;
- * - работает с Supabase.
- *
+ * Proposal
+ *   ↓
+ * reusable
+ *   ↓
+ * metrics
+ *   ↓
+ * dynamic pattern validation
+ *   ↓
+ * Skill Quality Inspector
  * =========================================================
  */
 
 
 import {
-    getApprovalExperience,
-    getApprovalMetrics
-} from "./approval/approvalMetrics.js";
+    validateLearningMetricsQuality
+} from "./quality/qualityGateMetrics.js";
+
+
+import {
+    validateDynamicPatternQuality
+} from "./quality/dynamicPatternQuality.js";
 
 
 import {
@@ -37,17 +31,21 @@ import {
 } from "./quality/skillQualityInspector.js";
 
 
-function isFiniteUnit(
-    value
+function fail(
+    reason,
+    extra = {}
 ) {
 
-    return (
+    return {
 
-        Number.isFinite(value) &&
-        value >= 0 &&
-        value <= 1
+        passed:
+            false,
 
-    );
+        reason,
+
+        ...extra
+
+    };
 
 }
 
@@ -56,247 +54,71 @@ export function validateLearningQuality(
     proposal
 ) {
 
-
     if(
-        !proposal ||
+        !proposal
+        ||
         typeof proposal !== "object"
     ){
 
-        return {
-
-            passed:
-                false,
-
-            reason:
-                "Proposal отсутствует"
-
-        };
-
-    }
-
-
-    if(
-        proposal?.analysis?.reusable !== true
-    ){
-
-        return {
-
-            passed:
-                false,
-
-            reason:
-                "Experience не признан reusable"
-
-        };
-
-    }
-
-
-    const experience =
-
-        getApprovalExperience(
-            proposal
+        return fail(
+            "Proposal отсутствует"
         );
 
-
-    const metrics =
-
-        getApprovalMetrics(
-            proposal
-        );
-
-
-    if(
-        !Array.isArray(
-            experience.examples
-        )
-        ||
-        experience.examples.length === 0
-    ){
-
-        return {
-
-            passed:
-                false,
-
-            reason:
-                "Learning Evidence отсутствует"
-
-        };
-
     }
-
-
-    const successfulExamples =
-
-        experience.examples.filter(
-
-            item =>
-                item?.success === true
-
-        )
-        .length;
-
-
-    if(
-        successfulExamples < 1
-    ){
-
-        return {
-
-            passed:
-                false,
-
-            reason:
-                "Нет подтверждённого успешного Example"
-
-        };
-
-    }
-
-
-    if(
-        !isFiniteUnit(
-            metrics.confidence
-        )
-    ){
-
-        return {
-
-            passed:
-                false,
-
-            reason:
-                "Confidence отсутствует или некорректен"
-
-        };
-
-    }
-
-
-    if(
-        !isFiniteUnit(
-            metrics.successRate
-        )
-    ){
-
-        return {
-
-            passed:
-                false,
-
-            reason:
-                "Success Rate отсутствует или некорректен"
-
-        };
-
-    }
-
-
-    if(
-        !isFiniteUnit(
-            metrics.maturity
-        )
-    ){
-
-        return {
-
-            passed:
-                false,
-
-            reason:
-                "Maturity отсутствует или некорректна"
-
-        };
-
-    }
-
-
-    if(
-        !Number.isFinite(
-            metrics.occurrences
-        )
-        ||
-        metrics.occurrences < 1
-    ){
-
-        return {
-
-            passed:
-                false,
-
-            reason:
-                "Occurrences отсутствует или некорректен"
-
-        };
-
-    }
-
-
-    /*
-     * =====================================================
-     * DYNAMIC PATTERN
-     * =====================================================
-     *
-     * AI-created Pattern обязан
-     * предварительно пройти
-     * Pattern Validator.
-     *
-     * =====================================================
-     */
 
 
     if(
         proposal
-            ?.provenance
-            ?.dynamicPattern === true
+            ?.analysis
+            ?.reusable !== true
     ){
 
-        const discovery =
+        return fail(
+            "Experience не признан reusable"
+        );
 
+    }
+
+
+    const metricsQuality =
+
+        validateLearningMetricsQuality(
             proposal
-                ?.analysis
-                ?.discovery;
+        );
 
 
-        if(
-            discovery?.resolved !== true
-        ){
+    if(
+        metricsQuality.passed !== true
+    ){
 
-            return {
+        return metricsQuality;
 
-                passed:
-                    false,
-
-                reason:
-                    "Dynamic Pattern Discovery не завершён"
-
-            };
-
-        }
+    }
 
 
-        const validation =
+    const dynamicQuality =
 
-            discovery?.validation;
+        validateDynamicPatternQuality(
+            proposal
+        );
 
 
-        if(
-            !validation ||
-            validation.valid !== true
-        ){
+    if(
+        dynamicQuality.passed !== true
+    ){
 
-            return {
+        return fail(
 
-                passed:
-                    false,
+            dynamicQuality.reason,
 
-                reason:
-                    "Dynamic Pattern не прошёл Validation"
+            {
+                metrics:
+                    metricsQuality.metrics,
 
-            };
+                dynamicQuality
+            }
 
-        }
+        );
 
     }
 
@@ -312,24 +134,24 @@ export function validateLearningQuality(
         inspection.passed !== true
     ){
 
-        return {
+        return fail(
 
-            passed:
-                false,
+            inspection.reason
 
-            reason:
+            ||
 
-                inspection.reason
+            "Skill не прошёл Quality Inspector",
 
-                ||
+            {
+                metrics:
+                    metricsQuality.metrics,
 
-                "Skill не прошёл Quality Inspector",
+                dynamicQuality,
 
-            metrics,
+                inspection
+            }
 
-            inspection
-
-        };
+        );
 
     }
 
@@ -342,7 +164,10 @@ export function validateLearningQuality(
         reason:
             "Learning Evidence и Skill Quality прошли Quality Gate",
 
-        metrics,
+        metrics:
+            metricsQuality.metrics,
+
+        dynamicQuality,
 
         inspection
 
