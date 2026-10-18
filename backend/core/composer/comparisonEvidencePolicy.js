@@ -11,3 +11,11 @@ export function requiresVerifiedComparison(task, plan) {
         plan?.intent==="native_two_source_comparison"
     );
 }
+
+export function usePairedComparisonContext(task,plan,run) {
+    if (!requiresVerifiedComparison(task,plan)) return false;
+    const fetches=Array.isArray(run?.results)
+        ? run.results.filter(x=>x?.tool==="web_fetch"&&x?.success===true)
+        : [];
+    return fetches.length===2;
+}
