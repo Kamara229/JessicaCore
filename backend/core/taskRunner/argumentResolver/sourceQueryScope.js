@@ -1,4 +1,5 @@
 import { filterCreativeCommonsSources } from "./creativeCommonsScope.js";
+import { scopeOfficialLicenseCandidates } from "./officialLicenseScope.js";
 
 /*
  * Query-scoped source selection for multi-document research.
@@ -24,9 +25,13 @@ function escapeRegex(value) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function scopeCandidatesToSearchQuery(query, candidates) {
+export function scopeCandidatesToSearchQuery(query, candidates, originalTask = "") {
     const results = Array.isArray(candidates) ? candidates : [];
     const text = normalize(query);
+
+    // Publisher requested by the user is a hard provenance constraint.
+    const official = scopeOfficialLicenseCandidates(text, originalTask, results);
+    if (official !== null) return official;
 
     // CC BY-SA 4.0 must not be substituted with CC BY 4.0 or CC BY-SA 3.0.
     const ccScope = filterCreativeCommonsSources(text, results);
