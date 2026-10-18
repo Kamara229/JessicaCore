@@ -1,3 +1,4 @@
+import { checkPairedClaimCoverage } from "./claim/pairedClaimCoverage.js";
 import {
     executeAIWithRetry
 } from "../../ai/aiRetry.js";
@@ -562,6 +563,14 @@ export async function validateClaimEvidence(
 
         }
 
+
+        const coverage = checkPairedClaimCoverage({
+            task, plan, taskRunResult, answer, claims
+        });
+        if (!coverage.valid) {
+            return { success:true, valid:false, shouldRetry:false,
+                claims, reason:coverage.reason };
+        }
 
         /*
          * =================================================
