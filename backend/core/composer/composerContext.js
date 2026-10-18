@@ -1,4 +1,5 @@
 import { buildPairedSourceContext } from "./pairedSourceContext.js";
+import { usePairedComparisonContext } from "./comparisonEvidencePolicy.js";
 
 /*
  * =========================================================
@@ -542,7 +543,7 @@ export function buildComposerContext(
 
 
     const factualContext =
-        (plan?.intent === "native_two_source_comparison"
+        (usePairedComparisonContext(task,plan,taskRunResult)
             ? buildPairedSourceContext(task, taskRunResult)
             : null)
         || buildFactualContext(
