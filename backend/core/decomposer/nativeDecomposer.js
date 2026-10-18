@@ -197,6 +197,29 @@ export function tryNativeDecomposition({
 
 } = {}) {
 
+    // Keep a two-source comparison as one semantic task.
+    // Splitting at "then" loses the URLs needed for the comparison.
+    const input = String(task || "");
+    const urls = input.match(/https?:\/\/[^\s]+/gi) || [];
+    if (urls.length === 2 && /сравн|сопостав|compare/i.test(input)) {
+        return {
+            handled: true,
+            source: "native-source-pair",
+            decomposition: {
+                originalTask: input,
+                isComplex: false,
+                memoryContext,
+                subtasks: [{
+                    id: 1,
+                    text: input,
+                    dependsOn: [],
+                    contributesToFinalAnswer: true,
+                    memoryHints: normalizeMemoryHints(memoryContext)
+                }]
+            }
+        };
+    }
+
     const parts =
 
         splitExplicitSequence(
