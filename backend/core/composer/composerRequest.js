@@ -94,7 +94,8 @@ function validateComposerInput(
 
 
 export async function requestComposerAnswer(
-    input
+    input,
+    options = {}
 ) {
 
     /*
@@ -140,7 +141,9 @@ export async function requestComposerAnswer(
 
             getComposerInstructions(),
 
-        input
+        input,
+
+        pairedSources: options?.pairedSources === true
 
     });
 
