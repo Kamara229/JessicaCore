@@ -211,7 +211,7 @@ test("composer token budget applies only to paired sources",()=>{
 });
 
 import { scopeOfficialLicenseCandidates } from "../core/taskRunner/argumentResolver/officialLicenseScope.js";
-import { requiresVerifiedComparison } from "../core/composer/comparisonEvidencePolicy.js";
+import { requiresVerifiedComparison, usePairedComparisonContext } from "../core/composer/comparisonEvidencePolicy.js";
 
 test("strict OSI source matching separates BSD licence variants",()=>{
     const sources=[
@@ -230,4 +230,15 @@ test("strict OSI source matching separates BSD licence variants",()=>{
 test("source-based document comparisons cannot be deemed complete by a fallback",()=>{
     assert.equal(requiresVerifiedComparison("Сравни две лицензии",{evidence:{mode:"source_content"}}),true);
     assert.equal(requiresVerifiedComparison("Скачай документ",{evidence:{mode:"source_content"}}),false);
+});
+
+test("AI-planned two-source comparisons receive the same small evidence budget",()=>{
+    const arbitraryPlan={intent:"compare_bsd_licenses",evidence:{mode:"source_content"}};
+    assert.equal(usePairedComparisonContext("Сравни две лицензии",arbitraryPlan,pairedRun),true);
+    const context=buildComposerContext("Сравни две лицензии",arbitraryPlan,pairedRun);
+    assert.ok(context.includes("ИСТОЧНИК 1"));
+    assert.ok(context.includes("ИСТОЧНИК 2"));
+    assert.ok(context.length<10000);
+    assert.equal(usePairedComparisonContext("Сравни две лицензии",arbitraryPlan,
+        {results:[pairedRun.results[0]]}),false);
 });
