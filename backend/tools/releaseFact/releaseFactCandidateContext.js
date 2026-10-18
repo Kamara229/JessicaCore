@@ -10,10 +10,7 @@ import {
 } from "./releaseFactText.js";
 
 
-import {
-    extractDates,
-    findNearestDate
-} from "./releaseFactDates.js";
+import { extractDates } from "./releaseFactDates.js";
 
 
 function buildLineRanges(
@@ -189,50 +186,30 @@ export function buildCandidateContext({
         );
 
 
-    const sameLineDate =
-
-        dates.find(
-            date =>
-                line
-                &&
-                date.index >= line.start
-                &&
-                date.index <= line.end
-        )
-
-        ||
-
-        null;
-
-
-    if(
-        item.kind === "major"
-        &&
-        !sameLineDate
-    ){
-
-        return null;
-
-    }
-
-
-    const nearestDate =
-
-        sameLineDate
-
-        ||
-
-        findNearestDate(
-            dates,
-            item.index
-        );
-
-
-    if(!nearestDate){
-
-        return null;
-
-    }
+    // Do not associate this version with the date of a different release.
+    // Accept only a date in the same row or a labelled immediately following line.
+    const nextLine = ranges[ranges.indexOf(line) + 1];
+    const matching = dates.filter(date => {
+        const sameLine = line && date.index >= line.start && date.index <= line.end;
+        const adjacent = nextLine
+            && date.index >= nextLine.start && date.index <= nextLine.end
+            && (
+                /^(?:release\s+date|released(?:\s+on)?|дата\s+(?:выпуска|релиза))\s*[:—-]/iu.test(nextLine.text)
+                || (nextLine.text.length < 40 && /^\s*(?:20\d{2}-\d{2}-\d{2}|[a-z]+\.?\s+\d|\d{1,2}\s+[\p{L}.]+\s+20\d{2})/iu.test(nextLine.text))
+            );
+        if (!sameLine && !adjacent) return false;
+        const start = date.index < item.index
+            ? date.index + date.raw.length : item.index + item.version.length;
+        const end = date.index < item.index ? item.index : date.index;
+        if (/\b\d{1,3}(?:\.\d{1,4}){1,3}\b/u.test(text.slice(start, end))) return false;
+        return Math.abs(date.index - item.index) <= 220;
+    });
+    matching.sort((a,b) => Math.abs(a.index - item.index) - Math.abs(b.index - item.index));
+    if (!matching.length) return null;
+    const nearestDate = {
+        ...matching[0],
+        distance: Math.abs(matching[0].index - item.index)
+    };
 
 
     return {

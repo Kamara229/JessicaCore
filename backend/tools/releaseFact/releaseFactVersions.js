@@ -156,7 +156,7 @@ export function isPrereleaseBound({
 
     return (
 
-        /^\s*(?:alpha|beta|preview|pre-release|prerelease|release\s+candidate|rc|devel|development)\b/iu
+        /^\s*[-–]?\s*(?:a\d+|b\d+|alpha|beta|preview|pre-release|prerelease|release\s+candidate|rc\d*|devel|development)\b/iu
             .test(
                 after
             )

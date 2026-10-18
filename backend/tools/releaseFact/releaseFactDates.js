@@ -132,7 +132,7 @@ export function extractDates(
 
     const monthFirstPattern =
 
-        /\b[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?[,]?\s+20\d{2}\b/giu;
+        /\b[a-z]+\.?\s+\d{1,2}(?:st|nd|rd|th)?[,]?\s+20\d{2}\b/giu;
 
 
     for(

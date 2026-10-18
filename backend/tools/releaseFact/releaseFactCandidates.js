@@ -96,6 +96,11 @@ export function buildCandidates({
 
         }
 
+        // Planned and pre-release rows never represent a stable release.
+        if (/\b(?:pre-release|prerelease|alpha|beta|preview|planned|release candidate)\b/iu.test(context.lineText)) {
+            continue;
+        }
+
 
         if(
             section.preferred !== true
@@ -198,45 +203,13 @@ export function selectCandidate(
                 right
             ) => {
 
-                if(
-                    right.score !==
-                    left.score
-                ){
-
-                    return (
-                        right.score
-                        -
-                        left.score
-                    );
-
-                }
-
-
-                const versionCompare =
-
-                    compareVersions(
-
-                        right.version,
-
-                        left.version
-
-                    );
-
-
-                if(
-                    versionCompare !== 0
-                ){
-
-                    return versionCompare;
-
-                }
-
-
-                return (
-                    left.index
-                    -
-                    right.index
-                );
+                // Highest stable version takes precedence over heuristic score.
+                const byVersion = compareVersions(right.version, left.version);
+                if (byVersion !== 0) return byVersion;
+                const precision = right.version.split(".").length - left.version.split(".").length;
+                if (precision !== 0) return precision;
+                if (right.score !== left.score) return right.score - left.score;
+                return left.index - right.index;
 
             }
         )[0]
