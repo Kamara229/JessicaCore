@@ -14,7 +14,7 @@ export function numericTokens(text) {
 
 export function evidenceSupportsClaimNumbers(statement, evidence) {
     const sourceNumbers = new Set(
-        evidence.flatMap(x => numericTokens(x.sourceText))
+        evidence.flatMap(x => numericTokens(x.quote))
     );
     return numericTokens(statement).every(value => sourceNumbers.has(value));
 }

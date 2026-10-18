@@ -188,3 +188,49 @@ test("a document author's standards-compliance claim is not established legal tr
     assert.doesNotMatch(result.text,/В документе указано: Потолок CLIP/);
     assert.match(result.text,/независимые источники отдельно не проверялись/);
 });
+
+test("broad document summaries prioritize actual proposed changes over headers", () => {
+    const source = createDocumentEvidence([{
+        name: "technical-letter.txt",
+        text: [
+            "Название документа: О состоянии строительства.",
+            "Контактные данные: телефон и факс.",
+            "Детали: предлагается изменить потолок с целью экономии средств.",
+            "Стоимость работ составляет 500000 рублей.",
+            "Вспомогательные помещения также предлагается изменить."
+        ].join("\n\n")
+    }]);
+    const input = JSON.stringify({
+        sections: [{heading:"Содержание", findings:[
+            {text:"Название документа: О состоянии строительства",kind:"source_fact",evidence:[{ref:"Ф1:Ф1",quote:"Название документа: О состоянии строительства"}]},
+            {text:"Указаны контактные данные: телефон и факс",kind:"source_fact",evidence:[{ref:"Ф1:Ф2",quote:"Контактные данные: телефон и факс"}]},
+            {text:"Предлагается изменить потолок с целью экономии средств",kind:"author_claim",evidence:[{ref:"Ф1:Ф3",quote:"предлагается изменить потолок с целью экономии средств"}]},
+            {text:"Стоимость работ составляет 500000 рублей",kind:"source_fact",evidence:[{ref:"Ф1:Ф4",quote:"Стоимость работ составляет 500000 рублей"}]},
+            {text:"Вспомогательные помещения также предлагается изменить",kind:"author_claim",evidence:[{ref:"Ф1:Ф5",quote:"Вспомогательные помещения также предлагается изменить"}]}
+        ]}]
+    });
+    const summary = validateAndRenderDocumentAnswer(input, source, "Перескажи основные положения документа");
+    assert.equal(summary.success, true);
+    assert.equal(summary.kept, 3);
+    assert.equal(summary.omittedAsSecondary, 2);
+    assert.doesNotMatch(summary.text, /Указаны контактные данные/);
+    assert.match(summary.text, /Вспомогательные помещения также предлагается изменить/);
+    const contacts = validateAndRenderDocumentAnswer(input, source, "Укажи контакты, название и отправителя");
+    assert.equal(contacts.kept, 5);
+    assert.match(contacts.text, /контактные данные/);
+});
+
+test("a numerical claim cannot cite a different quotation within the same paragraph", () => {
+    const source = createDocumentEvidence([{
+        name:"expenses.txt",
+        text:"В письме приведена сумма 500000 рублей. Также описано согласование конструкции."
+    }]);
+    const output = JSON.stringify({sections:[{heading:"Расходы",findings:[{
+        text:"Стоимость конструкции составляет 500000 рублей",
+        kind:"source_fact",
+        evidence:[{ref:"Ф1:Ф1",quote:"Также описано согласование конструкции"}]
+    }]}]});
+    const result = validateAndRenderDocumentAnswer(output, source);
+    assert.equal(result.success, false);
+    assert.equal(result.rejected, 1);
+});
