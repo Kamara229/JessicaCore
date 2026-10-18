@@ -40,3 +40,10 @@ test("absence of context never changes task", () => {
     assert.equal(contextualizeTask("Дальше", null), "Дальше");
     assert.equal(contextualizeTask("Дальше", []), "Дальше");
 });
+
+test("short Russian confirmations and references use prior turns", () => {
+    const history = [{ role: "assistant", content: "Нужно проверить обновление" }];
+    for (const message of ["Давай", "Готово", "Что дальше?", "А теперь это поправь"]) {
+        assert.notEqual(contextualizeTask(message, history), message);
+    }
+});
