@@ -43,7 +43,7 @@ function checkNumbers(statement, evidence) {
 
 function sectionTitle(title) {
     // Titles are navigation labels, not additional fact-bearing claims.
-    const cleaned = String(title || "").replace(/[\\r\\n\\t*#]/g, " ").trim().slice(0, 90);
+    const cleaned = String(title || "").replace(/[\r\n\t*#]/g, " ").trim().slice(0, 90);
     return cleaned || "Основные положения";
 }
 
