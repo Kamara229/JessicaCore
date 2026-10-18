@@ -388,3 +388,29 @@ test("overlarge fixed quota requests do not retry or open a provider-wide cooldo
     const after=registerAIProviderLimit(impossible);
     assert.equal(after.blockedUntil,before.blockedUntil);
 });
+
+import { isUnsupportedNegativeComparisonClaim } from "../core/validator/claim/negativeComparisonClaim.js";
+
+test("a quote about extra restrictions cannot prove the absence of a ShareAlike requirement",()=>{
+    const source=[
+        "SOURCE 1","URL: https://example.org/license-a",
+        "SNIPPET 1: No additional restrictions — You may not apply legal terms or technological measures.",
+        "SOURCE 2","URL: https://example.org/license-b",
+        "SNIPPET 1: ShareAlike — If you remix, transform, you must distribute under the same license."
+    ].join("\n");
+    const quote="No additional restrictions — You may not apply legal terms or technological measures.";
+    const negative={claim:"License A не требует ShareAlike для производных работ",
+        supported:true,evidence:quote,sourceUrl:"https://example.org/license-a"};
+    assert.equal(isUnsupportedNegativeComparisonClaim(negative,true),true);
+    const parsed=parseClaimEvidenceResponse(JSON.stringify({claims:[negative]}),source);
+    assert.equal(parsed.claims[0].supported,false);
+    assert.equal(isUnsupportedNegativeComparisonClaim(negative,false),false);
+});
+
+test("explicit same-condition absence can be supported by its own quote",()=>{
+    const justified={
+        claim:"License A does not require ShareAlike",
+        evidence:"A ShareAlike license is not required for redistributed adaptations."
+    };
+    assert.equal(isUnsupportedNegativeComparisonClaim(justified,true),false);
+});
