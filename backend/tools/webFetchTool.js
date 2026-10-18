@@ -1,6 +1,7 @@
 import {
     registerTool
 } from "./toolRegistry.js";
+import { sanitizeSourceUrlInput } from "./sourceUrlInput.js";
 
 
 /*
@@ -70,7 +71,7 @@ function normalizeHttpUrl(
 
         const url =
             new URL(
-                value.trim()
+                sanitizeSourceUrlInput(value)
             );
 
 
@@ -108,9 +109,7 @@ async function executeWebFetch(
 ) {
 
     const rawUrl =
-        typeof args?.url === "string"
-            ? args.url.trim()
-            : "";
+        sanitizeSourceUrlInput(args?.url);
 
 
     /*
