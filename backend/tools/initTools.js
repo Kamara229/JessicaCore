@@ -24,6 +24,12 @@ import "./dateDiffTool.js";
 
 
 /*
+ * Извлечение версии и даты выпуска.
+ */
+import "./releaseFactTool.js";
+
+
+/*
  * Интернет-поиск.
  */
 import "./webSearchTool.js";
