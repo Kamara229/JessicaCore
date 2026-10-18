@@ -6,6 +6,7 @@ import {
 import {
     tryCreateNativeSkillPlan
 } from "../planner/nativeSkillPlanner.js";
+import { tryCreateKnownLicenseComparison } from "../planner/knownLicenseComparison.js";
 
 
 import {
@@ -708,7 +709,7 @@ export async function executeSubtask(
     let planResult;
 
 
-    const nativePlan =
+    const nativeSkillPlan =
 
         tryCreateNativeSkillPlan({
 
@@ -722,6 +723,15 @@ export async function executeSubtask(
             planningContext:
                 initialPlanningContext
 
+        });
+
+    // A resolved READY Skill retains precedence; a safe canonical
+    // source reference is used only when no executable Skill matches.
+    const nativePlan = nativeSkillPlan?.handled === true
+        ? nativeSkillPlan
+        : tryCreateKnownLicenseComparison({
+            task: taskText,
+            planningContext: initialPlanningContext
         });
 
 
