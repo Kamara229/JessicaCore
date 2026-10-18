@@ -209,41 +209,13 @@ export async function listActiveCandidatesByCategory(
     limit = 50
 ) {
 
-    const {
-        data,
-        error
-    } =
-
-        await getClient()
-
-            .from(
-                TABLE_NAME
-            )
-
-            .select("*")
-
-            .eq(
-                "status",
-                ACTIVE_STATUS
-            )
-
-            .eq(
-                "category",
-                category || "general"
-            )
-
-            .order(
-                "updated_at",
-                {
-                    ascending:
-                        false
-                }
-            )
-
-            .limit(
-                limit
-            );
-
+    let query=getClient().from(TABLE_NAME)
+        .select("*").eq("status",ACTIVE_STATUS);
+    // Null category permits cross-category matching only when the
+    // caller recognizes a narrow common procedural family.
+    if(category!==null) query=query.eq("category",category||"general");
+    const {data,error}=await query
+        .order("updated_at",{ascending:false}).limit(limit);
 
     if(
         error
