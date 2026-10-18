@@ -41,6 +41,8 @@
  */
 
 
+import { hasVerifiedPatternEvidence } from "./patternExtraction/patternEvidencePolicy.js";
+
 import {
     extractExperiencePattern
 } from "./experiencePatternExtractor.js";
@@ -372,13 +374,7 @@ export async function processPatternDiscovery(
      * Reject them before AI extraction: they cannot prove
      * a reusable successful procedure.
      */
-    const trustworthy = evidence.result?.success === true
-        && evidence.result?.verified === true
-        && evidence.validation?.valid === true
-        && evidence.validation?.degraded !== true
-        && String(evidence.result?.status || "").toUpperCase() === "COMPLETED"
-        && typeof evidence.answer === "string"
-        && evidence.answer.trim().length > 0;
+    const trustworthy = hasVerifiedPatternEvidence(evidence);
 
     if (!trustworthy) {
         return {

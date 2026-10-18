@@ -187,7 +187,7 @@ test("unverified NEW date Skill cannot be reinforced as already applied", () => 
 });
 
 import { buildPatternEvidence } from "../core/learning/patternExtraction/patternEvidence.js";
-import { processPatternDiscovery } from "../core/learning/patternDiscoveryWorker.js";
+import { hasVerifiedPatternEvidence } from "../core/learning/patternExtraction/patternEvidencePolicy.js";
 
 const verifiedFetch = {
     success:true,verified:true,status:"COMPLETED",
@@ -228,17 +228,18 @@ test("failed prerequisite cannot become positive discovery evidence", () => {
     assert.equal(evidence.validation.valid,false);
 });
 
-test("legacy empty pattern evidence is ignored without calling AI", async () => {
-    const result=await processPatternDiscovery({
-        action:"PATTERN_DISCOVERY",
-        event:{payload:{discovery:{traceId:"test", evidence:{
-            task:"Compare two licenses",
-            answer:"",result:{success:true,status:"COMPLETED"},
-            validation:{valid:false},
-            tools:["web_search","web_fetch"]
-        }}}}
-    });
-    assert.equal(result.success,true);
-    assert.equal(result.ignored,true);
-    assert.equal(result.resolved,false);
+test("legacy empty pattern evidence cannot pass quality gate", () => {
+    const evidence={
+        task:"Compare two licenses",
+        answer:"",
+        result:{success:true,status:"COMPLETED"},
+        validation:{valid:false},
+        tools:["web_search","web_fetch"]
+    };
+    assert.equal(hasVerifiedPatternEvidence(evidence),false);
+});
+
+test("verified complex discovery evidence passes quality gate", () => {
+    const evidence=buildPatternEvidence({trace:ccTrace});
+    assert.equal(hasVerifiedPatternEvidence(evidence),true);
 });
