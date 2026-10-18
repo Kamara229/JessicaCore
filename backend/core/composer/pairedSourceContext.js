@@ -36,7 +36,24 @@ function windows(content,terms) {
     }
     const first=chunks[0];
     const ranked=chunks.slice(1).sort((a,b)=>b.score-a.score||a.i-b.i);
-    const chosen=[first,...ranked.slice(0,3)].sort((a,b)=>a.i-b.i);
+    const chosen=[first];
+    // Preserve distinct requested evidence classes, including rare
+    // clauses that would lose against repeated boilerplate notices.
+    const priorities=["patent","derivative","modification","modified",
+        "distribution","notice","copyright","permission","rights","grant"];
+    for(const term of priorities) {
+        if(chosen.length>=4)break;
+        if(!terms.includes(term))continue;
+        if(chosen.some(x=>x.snippet.toLowerCase().includes(term)))continue;
+        const found=ranked.find(x=>!chosen.includes(x)
+            && x.snippet.toLowerCase().includes(term));
+        if(found)chosen.push(found);
+    }
+    for(const candidate of ranked) {
+        if(chosen.length>=4)break;
+        if(!chosen.includes(candidate))chosen.push(candidate);
+    }
+    chosen.sort((a,b)=>a.i-b.i);
     return chosen.map(({i,snippet})=>"[Отрывок с позиции "+i+"]\n"+snippet);
 }
 
