@@ -257,3 +257,42 @@ test("multiple discriminating keywords can match a genuine known pattern", () =>
     assert.equal(matched?.pattern?.id, "company-contact-finder");
     assert.ok(matched.matchScore >= 0.5);
 });
+
+import {
+    resolveReferencedSearchResult,
+    scopeCandidatesToSearchQuery,
+    selectionContextForSearch
+} from "../core/taskRunner/argumentResolver/sourceQueryScope.js";
+
+const makeSearch=(id,query,results)=>({
+    id, tool:"web_search",success:true,arguments:{query},data:{results}
+});
+const bothLicenses=[
+    {title:"Apache License, Version 2.0",url:"https://opensource.org/license/apache-2.0"},
+    {title:"The MIT License",url:"https://opensource.org/license/mit"},
+    {title:"Open Source Licenses by Category",url:"https://opensource.org/licenses-old/category"},
+    {title:"Apache Public Licenses",url:"https://opensource.org/licenses-old/apachepl-php"}
+];
+
+test("each fetch reference resolves its own search step rather than most recent",()=>{
+    const mit=makeSearch("search_mit","MIT License site:opensource.org",bothLicenses);
+    const apache=makeSearch("search_apache","Apache License 2.0 site:opensource.org",bothLicenses);
+    assert.equal(resolveReferencedSearchResult({$from:"search_mit"},[mit,apache]),mit);
+    assert.equal(resolveReferencedSearchResult({$from:"search_apache"},[mit,apache]),apache);
+    assert.equal(resolveReferencedSearchResult({$from:"unknown"},[mit,apache]),null);
+    assert.equal(selectionContextForSearch({task:"compare MIT and Apache"},mit).task,mit.arguments.query);
+});
+
+test("MIT fetch cannot select Apache page or generic index",()=>{
+    const scoped=scopeCandidatesToSearchQuery("MIT License site:opensource.org",bothLicenses);
+    assert.deepEqual(scoped.map(x=>x.url),["https://opensource.org/license/mit"]);
+});
+
+test("Apache 2.0 fetch cannot select MIT or obsolete generic Apache URLs",()=>{
+    const scoped=scopeCandidatesToSearchQuery("Apache License 2.0 site:opensource.org",bothLicenses);
+    assert.deepEqual(scoped.map(x=>x.url),["https://opensource.org/license/apache-2.0"]);
+});
+
+test("no matching named license yields empty candidates, not an unrelated source",()=>{
+    assert.deepEqual(scopeCandidatesToSearchQuery("MIT License site:opensource.org",[bothLicenses[0],bothLicenses[2]]),[]);
+});

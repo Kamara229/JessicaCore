@@ -23,9 +23,14 @@ import {
 
 
 import {
-    findPreviousSearchResult,
     extractSearchCandidates
 } from "./stepResultResolver.js";
+
+import {
+    resolveReferencedSearchResult,
+    scopeCandidatesToSearchQuery,
+    selectionContextForSearch
+} from "./sourceQueryScope.js";
 
 
 /*
@@ -318,7 +323,8 @@ export async function resolveFetchSource(
 
     const searchResult =
 
-        findPreviousSearchResult(
+        resolveReferencedSearchResult(
+            originalArgs?.url,
             results
         );
 
@@ -352,8 +358,9 @@ export async function resolveFetchSource(
 
     const candidates =
 
-        extractSearchCandidates(
-            searchResult
+        scopeCandidatesToSearchQuery(
+            searchResult?.arguments?.query,
+            extractSearchCandidates(searchResult)
         );
 
 
@@ -394,7 +401,7 @@ export async function resolveFetchSource(
 
             await selectSource(
 
-                selectionContext,
+                selectionContextForSearch(selectionContext, searchResult),
 
                 candidates
 
