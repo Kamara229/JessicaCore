@@ -21,3 +21,17 @@ test("absent attachments leave decomposition untouched", () => {
     const decomposition = {subtasks:[{text:"Hello"}]};
     assert.equal(attachFilesToDecomposition(decomposition, []), decomposition);
 });
+
+test("two or three files all retain source content under a common token budget", () => {
+    const docs = normalizeAttachmentContexts([
+        {name:"long.pdf",text:"А".repeat(30000)},
+        {name:"short.txt",text:"Второй источник: заключение."},
+        {name:"third.docx",text:"Третий источник: смета 500000 рублей."}
+    ]);
+    assert.equal(docs.length, 3);
+    assert.match(docs[1].text, /Второй источник/);
+    assert.match(docs[2].text, /Третий источник/);
+    assert.equal(docs[0].truncated, true);
+    assert.equal(docs[1].truncated, false);
+    assert.ok(docs.reduce((sum, x) => sum + x.text.length, 0) <= 16000);
+});
