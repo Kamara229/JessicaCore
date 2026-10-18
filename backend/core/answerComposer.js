@@ -238,14 +238,16 @@ function prepareComposerContext(
 
 
 async function generateComposerAnswer(
-    input
+    input,
+    options = {}
 ) {
 
     try {
 
         const response =
             await requestComposerAnswer(
-                input
+                input,
+                options
             );
 
 
@@ -502,7 +504,8 @@ export async function composeAnswer(
     const generated =
 
         await generateComposerAnswer(
-            contextResult.input
+            contextResult.input,
+            {pairedSources: plan?.intent === "native_two_source_comparison"}
         );
 
 
