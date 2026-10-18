@@ -37,7 +37,9 @@ const DIRECT_ANSWER_TOOLS =
 
         "current_time",
 
-        "date_diff"
+        "date_diff",
+
+        "release_fact"
 
     ]);
 
@@ -67,7 +69,7 @@ function normalizeAnswerText(
  */
 
 
-function getSingleToolResult(
+function getDirectToolResult(
     taskRunResult
 ) {
 
@@ -75,24 +77,49 @@ function getSingleToolResult(
         !taskRunResult ||
         !Array.isArray(
             taskRunResult.results
+        ) ||
+        taskRunResult.results.length === 0
+    ) {
+
+        return null;
+
+    }
+
+
+    /*
+     * Supporting steps may precede a deterministic
+     * final tool:
+     *
+     * web_search → web_fetch → release_fact
+     *
+     * The final direct tool may answer without Composer
+     * only when all previous steps also succeeded.
+     */
+
+
+    const results =
+        taskRunResult.results;
+
+
+    if(
+        results.some(
+            item =>
+                item?.success !== true
         )
-    ) {
+    ){
 
         return null;
 
     }
 
 
-    if (
-        taskRunResult.results.length !== 1
-    ) {
-
-        return null;
-
-    }
+    const result =
+        results[
+            results.length - 1
+        ];
 
 
-    return taskRunResult.results[0] || null;
+    return result || null;
 
 }
 
@@ -127,7 +154,7 @@ export function getDirectAnswer(
 ) {
 
     const result =
-        getSingleToolResult(
+        getDirectToolResult(
             taskRunResult
         );
 
