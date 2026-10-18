@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA COMPLEX ANSWER COMPOSER v3
+ * JESSICA COMPLEX ANSWER COMPOSER v4
  * =========================================================
  *
  * Объединяет готовые результаты нескольких
@@ -50,6 +50,54 @@ import {
 
 /*
  * =========================================================
+ * RESULT TEXT
+ * =========================================================
+ */
+
+
+function getResultText(
+    item
+) {
+
+    const candidates = [
+
+        item?.result,
+
+        item?.answer?.text
+
+    ];
+
+
+    for(
+        const value
+        of candidates
+    ){
+
+        const text =
+
+            typeof value === "string"
+
+                ? value.trim()
+
+                : "";
+
+
+        if(text){
+
+            return text;
+
+        }
+
+    }
+
+
+    return "";
+
+}
+
+
+/*
+ * =========================================================
  * FORMAT RESULTS
  * =========================================================
  */
@@ -83,8 +131,8 @@ function formatResults(
 
                     "Результат:",
 
-                    String(
-                        item?.result || ""
+                    getResultText(
+                        item
                     )
 
                 ]
@@ -126,10 +174,9 @@ function buildFallbackItem(
 
     const result =
 
-        String(
-            item?.result || ""
-        )
-            .trim();
+        getResultText(
+            item
+        );
 
 
     /*
@@ -408,12 +455,92 @@ export async function composeComplexAnswer(
 
             text:
 
-                String(
-                    results[0]?.result || ""
+                getResultText(
+                    results[0]
                 ),
 
             source:
                 "single-result"
+
+        };
+
+    }
+
+
+    /*
+     * =====================================================
+     * VERIFIED COMPLETED RESULTS
+     * =====================================================
+     *
+     * Если все подзадачи уже завершены и каждая содержит
+     * проверенный пользовательский ответ, дополнительный
+     * LLM Composer не добавляет фактов и только расходует
+     * токены.
+     *
+     * Поэтому объединяем готовые ответы детерминированно.
+     * =====================================================
+     */
+
+
+    const completedResults =
+
+        results.filter(
+            item =>
+                String(
+                    item?.status || ""
+                )
+                    .trim()
+                    .toUpperCase()
+                ===
+                "COMPLETED"
+        );
+
+
+    const allVerifiedCompleted =
+
+        results.length > 0
+
+        &&
+
+        completedResults.length ===
+        results.length
+
+        &&
+
+        completedResults.every(
+            item =>
+                item?.success === true
+                &&
+                item?.verified !== false
+                &&
+                Boolean(
+                    getResultText(
+                        item
+                    )
+                )
+        );
+
+
+    if(allVerifiedCompleted){
+
+        return {
+
+            text:
+
+                completedResults
+
+                    .map(
+                        getResultText
+                    )
+
+                    .filter(Boolean)
+
+                    .join(
+                        "\n\n"
+                    ),
+
+            source:
+                "deterministic-results"
 
         };
 
