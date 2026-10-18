@@ -347,16 +347,16 @@ import { registerAIProviderLimit,getAIProviderAvailability } from "../ai/provide
 test("compact claim references map SOURCE 1 and SOURCE 2 to original URLs",()=>{
     const originals=[
         "SOURCE 1","URL: https://example.com/source-one","SNIPPET 1: Redistribution is permitted.",
-        "SOURCE 2","URL: https://example.com/source-two","SNIPPET 1: Attribution is required."
+        "SOURCE 2","URL: https://example.com/source-two","SNIPPET 1: Attribution must be given for every redistribution."
     ].join("\n");
     assert.equal(resolveClaimSourceAlias("SOURCE 1",originals),"https://example.com/source-one");
     assert.equal(resolveClaimSourceAlias("SOURCE 2",originals),"https://example.com/source-two");
     assert.equal(resolveClaimSourceAlias("SOURCE 999",originals),"");
     const raw=JSON.stringify({claims:[
         {claim:"Source 2 requires attribution",supported:true,
-            evidence:"Attribution is required",sourceUrl:"SOURCE 2",reason:""},
+            evidence:"Attribution must be given for every redistribution",sourceUrl:"SOURCE 2",reason:""},
         {claim:"Incorrect source",supported:true,
-            evidence:"Attribution is required",sourceUrl:"SOURCE 1",reason:""}
+            evidence:"Attribution must be given for every redistribution",sourceUrl:"SOURCE 1",reason:""}
     ]});
     const parsed=parseClaimEvidenceResponse(raw,originals);
     assert.deepEqual(parsed.claims.map(x=>x.supported),[true,false]);
