@@ -1,3 +1,4 @@
+import { candidateProcedureFamily } from "./candidateFamily.js";
 /*
  * =========================================================
  * JESSICA CANDIDATE MATCHER v1
@@ -284,9 +285,10 @@ export function calculateCandidateSimilarity(
         workflowScore * 0.25;
 
 
-    return Number(
-        score.toFixed(3)
-    );
+    const fA=candidateProcedureFamily(left);
+    const fB=candidateProcedureFamily(right);
+    const finalScore=fA && fA===fB ? Math.max(score,0.75) : score;
+    return Number(finalScore.toFixed(3));
 
 }
 
