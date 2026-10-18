@@ -13,6 +13,7 @@
  * Возможные решения:
  *
  * AUTO_APPROVE
+ * REINFORCE_ONLY
  * KEEP_CANDIDATE
  *
  *
@@ -36,6 +37,12 @@ import {
 import {
     APPROVAL_ACTION
 } from "./approval/approvalConstants.js";
+
+
+import {
+    evaluateSkillEvolution,
+    EVOLUTION_MODE
+} from "./quality/skillEvolutionGuard.js";
 
 
 const NEW_SKILL_MIN_CONFIDENCE =
@@ -335,6 +342,41 @@ export function evaluateLearningAutonomy(
         }
 
 
+        const evolution =
+
+            evaluateSkillEvolution(
+                proposal
+            );
+
+
+        if(
+            evolution.mode ===
+            EVOLUTION_MODE.REINFORCEMENT_ONLY
+        ){
+
+            return {
+
+                action:
+                    APPROVAL_ACTION.REINFORCE_ONLY,
+
+                mode:
+                    "SKILL_REINFORCEMENT",
+
+                reason:
+                    evolution.reason,
+
+                confidence:
+                    metrics.confidence,
+
+                metrics,
+
+                evolution
+
+            };
+
+        }
+
+
         return {
 
             action:
@@ -344,12 +386,14 @@ export function evaluateLearningAutonomy(
                 "SKILL_IMPROVEMENT",
 
             reason:
-                "Existing Skill прошёл Autonomy Policy для новой версии",
+                evolution.reason,
 
             confidence:
                 metrics.confidence,
 
-            metrics
+            metrics,
+
+            evolution
 
         };
 
