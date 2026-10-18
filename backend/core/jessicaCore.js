@@ -386,11 +386,16 @@ export async function executeJessicaTask(
      */
 
 
-    const learningResult =
-
-        await processExecutionLearning(
-            executionTrace
-        );
+    // A referential follow-up is not a standalone, reusable Skill.
+    // Its trace lacks independent task grounding; do not publish it as Experience.
+    const learningResult = executionTask !== normalizedTask
+        ? {
+            success: false,
+            queued: false,
+            skipped: true,
+            reason: "context_dependent_chat_followup"
+        }
+        : await processExecutionLearning(executionTrace);
 
 
     response.learning =
