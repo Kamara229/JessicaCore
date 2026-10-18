@@ -37,7 +37,17 @@ export function checkPairedClaimCoverage({task,plan,taskRunResult,answer,claims}
         valid:false,reason:"Не подтверждены утверждения по каждому из двух исходных документов"
     };
     const rows=answerRows(answer);
-    const minimum=Math.max(2,rows.length*2);
+    // Explicit unknown cells are honest limitations, not factual claims.
+    // Only the two comparison columns count; categorical "no provision"
+    // does not qualify as uncertainty.
+    const unknownCells=rows.reduce((sum,row)=>{
+        const columns=row.split("|").slice(2,-1);
+        const unknown=columns.filter(cell=>
+            /не удалось (?:подтвердить|проверить|установить)|не подтверждено|not verified|unable to verify/i.test(cell)
+        ).length;
+        return sum+unknown;
+    },0);
+    const minimum=Math.max(2,rows.length*2-unknownCells);
     if((claims||[]).length<minimum) return {
         valid:false,reason:"Не проверены все существенные строки сравнительной таблицы ("+
             (claims||[]).length+" из "+minimum+")"
