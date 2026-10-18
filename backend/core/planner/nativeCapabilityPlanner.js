@@ -20,6 +20,7 @@
 import {
     validatePlan
 } from "./planValidator.js";
+import { sanitizeSourceUrlInput } from "../../tools/sourceUrlInput.js";
 
 
 function normalizeText(
@@ -53,13 +54,7 @@ function extractFirstUrl(
 
 
     return match?.[0]
-
-        ? match[0]
-            .replace(
-                /[.,;!?]+$/,
-                ""
-            )
-
+        ? sanitizeSourceUrlInput(match[0])
         : "";
 
 }
