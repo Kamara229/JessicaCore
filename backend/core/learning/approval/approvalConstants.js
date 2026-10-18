@@ -13,6 +13,9 @@ export const APPROVAL_ACTION = {
     KEEP_CANDIDATE:
         "KEEP_CANDIDATE",
 
+    REINFORCE_ONLY:
+        "REINFORCE_ONLY",
+
     REJECT:
         "REJECT"
 

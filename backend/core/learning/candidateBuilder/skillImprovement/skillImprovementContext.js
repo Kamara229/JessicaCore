@@ -29,6 +29,16 @@ import {
 } from "../candidateToolKnowledge.js";
 
 
+import {
+    resolveSkillExecutionProgram
+} from "../../../../experience/execution/executionProgram.js";
+
+
+import {
+    buildSkillEvolutionSnapshot
+} from "../../quality/skillEvolutionSnapshot.js";
+
+
 export function buildSkillImprovementContext({
 
     skills,
@@ -154,6 +164,41 @@ export function buildSkillImprovementContext({
         });
 
 
+    const executionProgram =
+
+        resolveSkillExecutionProgram(
+            existingSkill
+        );
+
+
+    const proposedKnowledge = {
+
+        ...existingSkill,
+
+        requiredTools:
+            toolKnowledge.requiredTools,
+
+        executionProgram,
+
+        examples
+
+    };
+
+
+    const evolution =
+
+        buildSkillEvolutionSnapshot({
+
+            existingSkill,
+
+            proposedKnowledge,
+
+            proposedMaturityLevel:
+                metrics.maturityLevel
+
+        });
+
+
     return {
 
         rawExistingSkill,
@@ -166,7 +211,11 @@ export function buildSkillImprovementContext({
 
         targetSkillId,
 
-        toolKnowledge
+        toolKnowledge,
+
+        executionProgram,
+
+        evolution
 
     };
 

@@ -151,6 +151,10 @@ function createEmptyCycleResult(
             0,
 
 
+        reinforced:
+            0,
+
+
         candidates:
             0,
 
@@ -452,6 +456,13 @@ export async function runLearningDaemonCycle()
 
                 normalizeNumber(
                     approvalResult.learned
+                ),
+
+
+            reinforced:
+
+                normalizeNumber(
+                    approvalResult.reinforced
                 ),
 
 
