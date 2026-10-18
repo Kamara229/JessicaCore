@@ -42,6 +42,7 @@
 
 
 import { hasVerifiedPatternEvidence } from "./patternExtraction/patternEvidencePolicy.js";
+import { deriveVerifiedDiscoveryMetrics } from "./confidence/verifiedDiscoveryMetrics.js";
 
 import {
     extractExperiencePattern
@@ -491,85 +492,11 @@ export async function processPatternDiscovery(
      */
 
 
-    const storedMetrics =
-
-        isObject(
-            discovery.metrics
-        )
-
-            ? discovery.metrics
-
-            : {};
-
-
-
-    const occurrences =
-
-        Math.max(
-
-            normalizeNumber(
-                storedMetrics.occurrences
-            ),
-
-            1
-
-        );
-
-
-
-    const successRate =
-
-        Math.max(
-
-            0,
-
-            Math.min(
-
-                1,
-
-                normalizeNumber(
-                    storedMetrics.successRate
-                )
-
-            )
-
-        );
-
-
-
-    /*
-     * Pattern успешно извлечён
-     * и прошёл Validation.
-     *
-     * Поэтому semantic match
-     * Dynamic Pattern текущему
-     * Execution считаем 1.
-     */
-
-
-    const confidence =
-
-        calculateExperienceConfidence({
-
-            matchScore:
-                1,
-
-
-            successRate,
-
-            occurrences
-
-        });
-
-
-
-    const maturity =
-
-        calculateExperienceMaturity(
-            occurrences
-        );
-
-
+    // The event may contain stale or unverified aggregate counters.
+    // This extraction is supported by exactly one verified trace.
+    // Independent additional successes accumulate only via Candidate Memory.
+    const verifiedMetrics = deriveVerifiedDiscoveryMetrics(evidence);
+    const {occurrences,successRate,confidence,maturity} = verifiedMetrics;
 
     /*
      * =====================================================
