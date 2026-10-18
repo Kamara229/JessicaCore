@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA SKILL IMPROVEMENT CANDIDATE BUILDER v3
+ * JESSICA SKILL IMPROVEMENT CANDIDATE BUILDER v4
  * =========================================================
  *
  * Existing Experience
@@ -423,14 +423,23 @@ export function buildSkillImprovementCandidate({
             ),
 
 
+        /*
+         * Trigger Patterns и Keywords — разные сигналы.
+         *
+         * Keywords могут быть широкими:
+         * "дата", "версия", "release".
+         *
+         * Автономный Improvement не должен каждый раз
+         * превращать такие общие keywords в triggers,
+         * иначе Skill постепенно начинает матчить
+         * слишком широкий класс задач.
+         */
+
+
         triggerPatterns:
 
-            mergeStringArrays(
-
-                existingSkill.triggerPatterns,
-
-                existingSkill.keywords
-
+            normalizeStringArray(
+                existingSkill.triggerPatterns
             ),
 
 
