@@ -155,11 +155,11 @@ function buildTraceFromEvidence({
 
         result: {
 
-
             success:
-
                 evidence?.result?.success === true,
 
+            verified:
+                evidence?.result?.verified === true,
 
             status:
 
@@ -365,6 +365,29 @@ export async function processPatternDiscovery(
     }
 
 
+
+    /*
+     * The queue may contain legacy "COMPLETED" events whose
+     * comparison answer and child validations were lost.
+     * Reject them before AI extraction: they cannot prove
+     * a reusable successful procedure.
+     */
+    const trustworthy = evidence.result?.success === true
+        && evidence.result?.verified === true
+        && evidence.validation?.valid === true
+        && evidence.validation?.degraded !== true
+        && String(evidence.result?.status || "").toUpperCase() === "COMPLETED"
+        && typeof evidence.answer === "string"
+        && evidence.answer.trim().length > 0;
+
+    if (!trustworthy) {
+        return {
+            success: true,
+            resolved: false,
+            ignored: true,
+            reason: "Discovery Evidence не содержит проверенного ответа и подтверждения выполнения; обучение запрещено"
+        };
+    }
 
     /*
      * =====================================================

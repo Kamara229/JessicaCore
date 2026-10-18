@@ -185,3 +185,60 @@ test("unverified NEW date Skill cannot be reinforced as already applied", () => 
     assert.equal(plan.handled,true);
     assert.equal(plan.source,"native-date-diff");
 });
+
+import { buildPatternEvidence } from "../core/learning/patternExtraction/patternEvidence.js";
+import { processPatternDiscovery } from "../core/learning/patternDiscoveryWorker.js";
+
+const verifiedFetch = {
+    success:true,verified:true,status:"COMPLETED",
+    validation:{valid:true, degraded:false, outcomeType:"result"},
+    answer:{text:"Read both verified primary sources"}
+};
+const verifiedComparison = {
+    success:true,verified:true,status:"COMPLETED",
+    validation:{valid:true, degraded:false, outcomeType:"result"},
+    answer:{text:"ShareAlike is mandatory when distributing adapted material."}
+};
+const ccTrace = {
+    task:"Compare the CC BY and CC BY-SA licenses",
+    status:"COMPLETED",
+    result:{
+        success:true,status:"COMPLETED",
+        results:[verifiedFetch,verifiedComparison]
+    },
+    executedTools:["web_search","web_fetch"]
+};
+
+test("autonomous discovery inherits verified answer from complex child", () => {
+    const evidence=buildPatternEvidence({trace:ccTrace});
+    assert.equal(evidence.answer,verifiedComparison.answer.text);
+    assert.equal(evidence.validation.valid,true);
+    assert.equal(evidence.result.verified,true);
+    assert.equal(evidence.result.success,true);
+});
+
+test("failed prerequisite cannot become positive discovery evidence", () => {
+    const evidence=buildPatternEvidence({trace:{
+        ...ccTrace,
+        result:{...ccTrace.result,results:[
+            {...verifiedFetch, verified:false},verifiedComparison
+        ]}
+    }});
+    assert.equal(evidence.result.verified,false);
+    assert.equal(evidence.validation.valid,false);
+});
+
+test("legacy empty pattern evidence is ignored without calling AI", async () => {
+    const result=await processPatternDiscovery({
+        action:"PATTERN_DISCOVERY",
+        event:{payload:{discovery:{traceId:"test", evidence:{
+            task:"Compare two licenses",
+            answer:"",result:{success:true,status:"COMPLETED"},
+            validation:{valid:false},
+            tools:["web_search","web_fetch"]
+        }}}}
+    });
+    assert.equal(result.success,true);
+    assert.equal(result.ignored,true);
+    assert.equal(result.resolved,false);
+});

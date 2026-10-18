@@ -104,6 +104,51 @@ function normalizeUnit(
 
 /*
  * =========================================================
+ * COMPLEX TRACE CHILDREN
+ * =========================================================
+ *
+ * A complex summary usually has no top-level answer/validation.
+ * Retrieve only independently verified child results, never
+ * treat the parent's COMPLETED status as proof of the answer.
+ */
+
+function childResults(trace) {
+    return Array.isArray(trace?.result?.results)
+        ? trace.result.results
+        : [];
+}
+
+function verifiedChild(result) {
+    return result?.success === true
+        && result?.verified === true
+        && result?.validation?.valid === true
+        && result?.validation?.degraded !== true
+        && String(result?.status || "").toUpperCase() === "COMPLETED";
+}
+
+function resolveEvidenceValidation(trace) {
+    const children = childResults(trace);
+    if (!children.length) {
+        return trace?.result?.validation || trace?.validation || {};
+    }
+
+    // All prerequisites must be verified; comparison without
+    // successful source retrieval is not positive learning evidence.
+    const valid = children.every(verifiedChild);
+    const last = [...children].reverse().find(result =>
+        verifiedChild(result) && normalizeText(result?.answer?.text || result?.text)
+    );
+    const source = last?.validation || {};
+    return {
+        valid,
+        degraded: children.some(item => item?.validation?.degraded === true),
+        outcomeType: valid ? (source.outcomeType || "result") : null,
+        reason: valid ? (source.reason || "All subtasks verified") : "Complex subtask validation incomplete"
+    };
+}
+
+/*
+ * =========================================================
  * ANSWER
  * =========================================================
  */
@@ -126,6 +171,14 @@ function extractAnswerText(
         trace?.resultText
 
     ];
+
+    // The combined trace is a summary. The final verified
+    // answer usually lives inside the last successful subtask.
+    const children = childResults(trace);
+    for (const result of [...children].reverse()) {
+        if (!verifiedChild(result)) continue;
+        values.push(result?.answer?.text, result?.text);
+    }
 
 
 
@@ -484,6 +537,13 @@ export function buildPatternEvidence({
 
 } = {}) {
 
+    const validation = resolveEvidenceValidation(trace);
+    const answer = extractAnswerText(trace);
+    const valid = validation.valid === true && validation.degraded !== true;
+    const verified = valid && Boolean(answer)
+        && (childResults(trace).length > 0
+            ? childResults(trace).every(verifiedChild)
+            : trace?.result?.verified === true);
 
     return {
 
@@ -497,24 +557,16 @@ export function buildPatternEvidence({
 
 
 
-        answer:
-
-            extractAnswerText(
-                trace
-            ),
+        answer,
 
 
 
         result: {
 
-
             success:
+                verified && (trace?.result?.success === true || trace?.success === true),
 
-                trace?.result?.success === true
-
-                ||
-
-                trace?.success === true,
+            verified,
 
 
             status:
@@ -556,61 +608,10 @@ export function buildPatternEvidence({
 
 
         validation: {
-
-
-            valid:
-
-                trace
-                    ?.result
-                    ?.validation
-                    ?.valid === true
-
-                ||
-
-                trace
-                    ?.validation
-                    ?.valid === true,
-
-
-            outcomeType:
-
-                normalizeText(
-
-                    trace
-                        ?.result
-                        ?.validation
-                        ?.outcomeType
-
-                    ||
-
-                    trace
-                        ?.validation
-                        ?.outcomeType,
-
-                    120
-
-                ),
-
-
-            reason:
-
-                normalizeText(
-
-                    trace
-                        ?.result
-                        ?.validation
-                        ?.reason
-
-                    ||
-
-                    trace
-                        ?.validation
-                        ?.reason,
-
-                    1000
-
-                )
-
+            valid,
+            degraded: validation.degraded === true,
+            outcomeType: normalizeText(validation.outcomeType, 120),
+            reason: normalizeText(validation.reason, 1000)
         },
 
 
