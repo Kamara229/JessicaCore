@@ -18,11 +18,14 @@
 
 
 const MAX_TOTAL_LENGTH =
-    3000;
+    7500;
 
 
 const MAX_RESULT_LENGTH =
     1200;
+
+const MAX_DOCUMENT_LENGTH =
+    3400;
 
 
 /*
@@ -122,7 +125,9 @@ function resolveResultValue(
 
             return text.slice(
                 0,
-                MAX_RESULT_LENGTH
+                result?.answer?.source === "document-receipt"
+                    ? MAX_DOCUMENT_LENGTH
+                    : MAX_RESULT_LENGTH
             );
 
         }
