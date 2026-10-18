@@ -1,415 +1,109 @@
 package com.jessica.core.ui.chat
 
-
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-
 import com.jessica.core.modules.chat.ChatMessage
-
-
-
-/*
- * =========================================================
- * JESSICA CHAT SCREEN
- * =========================================================
- *
- * Центральный UI-слой чата.
- *
- * Соединяет:
- *
- * - MessageBubble
- * - MessageActions
- * - ThinkingIndicator
- * - ChatInput
- *
- * Отвечает:
- *
- * - за отображение сообщений
- * - копирование текста
- * - повтор запроса
- * - ввод сообщения
- * - автоматическую прокрутку чата
- *
- * Не содержит:
- *
- * - AI Engine
- * - сеть
- * - память
- * - Planner
- * - backend-логику
- *
- * =========================================================
- */
-
 
 @Composable
 fun ChatScreen(
-
     state: ChatState,
-
     onInputChange: (TextFieldValue) -> Unit,
-
     onSend: () -> Unit,
-
-    onBack: () -> Unit,
-
     onRetry: (ChatMessage) -> Unit = {}
-
 ) {
+    val clipboard = LocalClipboardManager.current
+    val listState = rememberLazyListState()
 
-
-    /*
-     * =====================================================
-     * CLIPBOARD
-     * =====================================================
-     */
-
-
-    val clipboardManager =
-        LocalClipboardManager.current
-
-
-
-    /*
-     * =====================================================
-     * MESSAGE LIST STATE
-     * =====================================================
-     *
-     * Хранит текущее положение LazyColumn.
-     *
-     * Используется для автоматической прокрутки
-     * к последнему сообщению.
-     *
-     * =====================================================
-     */
-
-
-    val listState =
-        rememberLazyListState()
-
-
-
-    /*
-     * =====================================================
-     * AUTO SCROLL
-     * =====================================================
-     *
-     * Срабатывает когда:
-     *
-     * - пользователь отправил сообщение;
-     * - Jessica начала выполнение;
-     * - Jessica закончила выполнение;
-     * - появился новый ответ.
-     *
-     * =====================================================
-     */
-
-
-    LaunchedEffect(
-
-        state.messages.size,
-
-        state.isRunning
-
-    ) {
-
-
-        val totalItems =
-
-            state.messages.size +
-
-                if (state.isRunning) {
-
-                    1
-
-                } else {
-
-                    0
-
-                }
-
-
-
-        if (totalItems > 0) {
-
-
-            listState.animateScrollToItem(
-
-                index =
-                    totalItems - 1
-
-            )
-
-
-        }
-
-
+    LaunchedEffect(state.activeThreadId, state.messages.size, state.isRunning) {
+        val size = state.messages.size + if (state.isRunning) 1 else 0
+        if (size > 0) listState.scrollToItem(size - 1)
     }
 
-
-
-    /*
-     * =====================================================
-     * SCREEN
-     * =====================================================
-     */
-
-
-    Column(
-
-        modifier =
-            Modifier
-                .fillMaxSize()
-
-    ) {
-
-
-
-        /*
-         * ================================
-         * HEADER
-         * ================================
-         */
-
-
-        Row(
-
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal = 12.dp,
-                        vertical = 8.dp
-                    )
-
-        ) {
-
-
-
-            Button(
-
-                onClick =
-                    onBack
-
+    Column(modifier = Modifier.fillMaxSize().imePadding()) {
+        if (state.messages.isEmpty() && !state.isRunning) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-
-
-                Text(
-
-                    text =
-                        "Назад"
-
-                )
-
-
-            }
-
-
-
-            Spacer(
-
-                modifier =
-                    Modifier.weight(1f)
-
-            )
-
-
-
-            Text(
-
-                text =
-                    "Jessica",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-
-                modifier =
-                    Modifier.padding(
-                        top = 10.dp
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        "Jessica",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.headlineLarge
                     )
-
-            )
-
-
-        }
-
-
-
-        /*
-         * ================================
-         * MESSAGE LIST
-         * ================================
-         */
-
-
-        LazyColumn(
-
-            state =
-                listState,
-
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(
-                        horizontal = 12.dp
+                    Text("Чем займёмся?", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "Расскажи о задаче. Я помогу разобраться и сохранить контекст.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium
                     )
-
-        ) {
-
-
-
-            /*
-             * Сообщения диалога.
-             */
-
-
-            items(
-
-                items =
-                    state.messages
-
-            ) { message ->
-
-
-
-                MessageBubble(
-
-                    message =
-                        message,
-
-
-
-                    onCopy = { text ->
-
-
-                        clipboardManager
-                            .setText(
-
-                                AnnotatedString(
-                                    text
-                                )
-
-                            )
-
-
-                    },
-
-
-
-                    onRetry = { retryMessage ->
-
-
-                        onRetry(
-                            retryMessage
-                        )
-
-
-                    }
-
-                )
-
-
-            }
-
-
-
-            /*
-             * Jessica выполняет запрос.
-             */
-
-
-            if (state.isRunning) {
-
-
-                item {
-
-
-                    ThinkingIndicator()
-
-
                 }
-
-
             }
-
-
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                state = listState,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = 16.dp, vertical = 12.dp
+                )
+            ) {
+                items(state.messages) { message ->
+                    MessageBubble(
+                        message = message,
+                        onCopy = { clipboard.setText(AnnotatedString(it)) },
+                        onRetry = onRetry
+                    )
+                }
+                if (state.isRunning) {
+                    item { ThinkingIndicator() }
+                }
+            }
         }
-
-
-
-        /*
-         * ================================
-         * INPUT
-         * ================================
-         */
-
 
         if (state.isLoading) {
             Text(
-                text = "Загружаю историю переписки…",
-                modifier = Modifier.padding(horizontal = 12.dp)
+                "Загружаю историю…",
+                modifier = Modifier.padding(horizontal = 20.dp),
+                style = MaterialTheme.typography.bodySmall
             )
         }
-
         if (state.storageError != null) {
             Text(
-                text = state.storageError,
+                state.storageError,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.bodySmall
             )
         }
-
         ChatInput(
-
-            value =
-                state.input,
-
-
-            onValueChange =
-                onInputChange,
-
-
-            onSend =
-                onSend,
-
+            value = state.input,
+            onValueChange = onInputChange,
+            onSend = onSend,
             enabled = !state.isRunning && !state.isLoading,
-
-
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        12.dp
-                    )
-
+            modifier = Modifier.fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp)
         )
-
-
     }
-
-
 }
