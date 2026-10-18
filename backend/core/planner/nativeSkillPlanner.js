@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA NATIVE SKILL PLANNER v2
+ * JESSICA NATIVE SKILL PLANNER v3
  * =========================================================
  *
  * Skill-first planning без AI.
@@ -159,6 +159,20 @@ function isReadySkill(
     ){
 
         return false;
+
+    }
+
+
+    const bootstrapExecutable =
+
+        skill?.metadata
+            ?.bootstrap
+            ?.executable === true;
+
+
+    if(bootstrapExecutable){
+
+        return true;
 
     }
 
@@ -483,6 +497,54 @@ function buildOfficialSourceSearchQuery(
 }
 
 
+/*
+ * =========================================================
+ * RELEASE FACT SIGNAL
+ * =========================================================
+ */
+
+
+function shouldExtractReleaseFact(
+    task
+) {
+
+    const text =
+
+        normalizeText(
+            task
+        )
+            .toLowerCase();
+
+
+    const versionSignal =
+
+        /(верси|version|release|релиз|выпуск)/iu
+            .test(
+                text
+            );
+
+
+    const freshnessSignal =
+
+        /(актуальн|текущ|последн|стабильн|latest|current|stable)/iu
+            .test(
+                text
+            );
+
+
+    return (
+
+        versionSignal
+
+        &&
+
+        freshnessSignal
+
+    );
+
+}
+
+
 function findExecutableSkill(
     executionExperience,
     strategy
@@ -691,7 +753,56 @@ function buildOfficialSourcePlan({
                 experienceUsed:
                     true
 
-            }
+            },
+
+            ...(
+                shouldExtractReleaseFact(
+                    task
+                )
+
+                    ? [
+
+                        {
+
+                            id:
+                                "native_release_fact",
+
+                            tool:
+                                "release_fact",
+
+                            arguments: {
+
+                                content: {
+
+                                    $from:
+                                        "native_fetch_source",
+
+                                    path:
+                                        "data.content"
+
+                                },
+
+                                sourceUrl: {
+
+                                    $from:
+                                        "native_fetch_source",
+
+                                    path:
+                                        "data.url"
+
+                                }
+
+                            },
+
+                            experienceUsed:
+                                true
+
+                        }
+
+                    ]
+
+                    : []
+            )
 
         ],
 
