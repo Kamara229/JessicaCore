@@ -10,6 +10,7 @@ import com.jessica.core.modules.BlockManager
 import com.jessica.core.modules.BlockStorage
 import com.jessica.core.modules.ReportStorage
 import com.jessica.core.modules.JessicaAIEngine
+import com.jessica.core.modules.chat.ChatMessage
 
 
 
@@ -139,6 +140,11 @@ class JessicaController(
         )
 
 
+
+    init {
+        // Legacy blocks are loaded into Jessica automatically at startup.
+        loadBlocks()
+    }
 
     /*
      * =====================================================
@@ -293,7 +299,9 @@ class JessicaController(
 
     suspend fun executeChatMessage(
 
-        request: String
+        request: String,
+
+        history: List<ChatMessage> = emptyList()
 
     ): String {
 
@@ -323,7 +331,8 @@ class JessicaController(
         val result =
 
             aiEngine.solve(
-                task
+                task,
+                history
             )
 
 
