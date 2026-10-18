@@ -565,7 +565,7 @@ export async function validateClaimEvidence(
 
                 reason:
 
-                    `Не подтверждено утверждений: ${unsupported.length}`
+                    `Не подтверждено утверждений: ${unsupported.length}. Ошибочные утверждения: ${unsupported.slice(0, 4).map(x => JSON.stringify(x.claim) + (x.reason ? " (" + x.reason + ")" : "")).join("; ")}. При повторной генерации исключи эти тезисы либо прямо укажи, что условие не подтверждено; не делай вывод об отсутствии по молчанию источника.`
 
             };
 
