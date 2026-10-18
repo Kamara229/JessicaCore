@@ -7,6 +7,8 @@ data class ChatMessage(
 
     val isUser: Boolean,
 
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+
+    val attachments: List<ChatAttachment> = emptyList()
 
 )

@@ -71,6 +71,16 @@ class ChatThreadStore(context: Context) {
             put("text", message.text)
             put("isUser", message.isUser)
             put("timestamp", message.timestamp)
+            val attached = JSONArray()
+            message.attachments.forEach { a ->
+                attached.put(JSONObject().apply {
+                    put("id", a.id)
+                    put("name", a.name)
+                    put("mime", a.mime)
+                    put("sizeBytes", a.sizeBytes)
+                })
+            }
+            put("attachments", attached)
         }
         FileOutputStream(threadFile(id), true).use { stream ->
             stream.write((json.toString() + "\n").toByteArray(Charsets.UTF_8))
@@ -146,6 +156,23 @@ class ChatThreadStore(context: Context) {
         }
     }
 
+    private fun parseAttachments(array: JSONArray?): List<ChatAttachment> {
+        if (array == null) return emptyList()
+        return (0 until array.length()).mapNotNull { index ->
+            try {
+                val obj = array.getJSONObject(index)
+                ChatAttachment(
+                    id = obj.getString("id"),
+                    name = obj.getString("name"),
+                    mime = obj.optString("mime", "application/octet-stream"),
+                    sizeBytes = obj.optLong("sizeBytes", 0L)
+                )
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
     private fun readMessages(file: File): List<ChatMessage> {
         val result = mutableListOf<ChatMessage>()
         file.bufferedReader(Charsets.UTF_8).use { reader ->
@@ -156,7 +183,8 @@ class ChatThreadStore(context: Context) {
                         result.add(ChatMessage(
                             text = json.getString("text"),
                             isUser = json.getBoolean("isUser"),
-                            timestamp = json.optLong("timestamp", 0L)
+                            timestamp = json.optLong("timestamp", 0L),
+                            attachments = parseAttachments(json.optJSONArray("attachments"))
                         ))
                     }
                 } catch (_: Exception) {
