@@ -1,3 +1,4 @@
+import { getDocumentReceipt } from "./composer/documentReceipt.js";
 /*
  * =========================================================
  * JESSICA RESULT VALIDATOR v4
@@ -678,6 +679,25 @@ export async function validateResult(
             plan
         );
 
+
+    // Only verify source capture itself; never infer the content's
+    // conclusions without the later comparison and AI validation.
+    if (answerResult?.source === "document-receipt") {
+        const expected = getDocumentReceipt(task, plan, taskRunResult);
+        if (expected && answerResult?.url === expected.url
+            && answerResult?.length === expected.length
+            && answerResult?.text === expected.text) {
+            return buildSuccessResult(
+                "Исходный документ получен и проверен детерминированно",
+                OUTCOME_RESULT,
+                {validationMode:"document-receipt",degraded:false}
+            );
+        }
+        return buildValidationResult(
+            {valid:false,reason:"Документ или URL не подтверждены"},
+            {validationMode:MODE_BASIC,degraded:false,failureScope:FAILURE_SCOPE.EVIDENCE}
+        );
+    }
 
     /*
      * =====================================================
