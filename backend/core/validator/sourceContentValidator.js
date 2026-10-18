@@ -43,6 +43,7 @@ import {
 import {
     buildClaimEvidenceContext
 } from "./claim/claimEvidenceContext.js";
+import { verifyPairedSourceContent } from "./pairedSourceContent.js";
 
 
 
@@ -374,6 +375,15 @@ export async function validateSourceContent(
     }
 
 
+
+    // Verify both fetched documents without an extra LLM request.
+    // This is only an acquisition check: Claim Validator still checks
+    // the generated comparison against the actual source material.
+    const paired = verifyPairedSourceContent(plan, taskRunResult);
+    if (paired) {
+        console.log("Jessica paired-source evidence:", paired);
+        return paired;
+    }
 
     const fetchResult =
         findFetchResult(
