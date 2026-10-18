@@ -158,3 +158,33 @@ test("provider failure must never fabricate analysis", async () => {
     assert.equal(result.success,false);
     assert.match(result.text,/Не удалось завершить анализ/);
 });
+
+test("numeric evidence uses exact tokens rather than matching number substrings", () => {
+    const bundle = createDocumentEvidence([{
+        name:"quotation.txt",
+        text:"Стоимость монтажа составляет 15000 рублей, без учёта материалов."
+    }]);
+    const bad = JSON.stringify({sections:[{heading:"Стоимость",findings:[
+        {text:"Стоимость монтажа составляет 5000 рублей",kind:"source_fact",
+         evidence:[{ref:"Ф1:Ф1",quote:"Стоимость монтажа составляет 15000 рублей"}]}
+    ]}]});
+    const result=validateAndRenderDocumentAnswer(bad,bundle);
+    assert.equal(result.success,false);
+    assert.equal(result.rejected,1);
+});
+
+test("a document author's standards-compliance claim is not established legal truth", () => {
+    const bundle = createDocumentEvidence([{
+        name:"письмо.txt",
+        text:"По мнению автора, потолок CLIP не соответствует требованиям СП 2.13130.2020."
+    }]);
+    const payload=JSON.stringify({sections:[{heading:"Пожарная безопасность",findings:[
+        {text:"Потолок CLIP не соответствует требованиям СП 2.13130.2020",kind:"source_fact",
+         evidence:[{ref:"Ф1:Ф1",quote:"потолок CLIP не соответствует требованиям СП 2.13130.2020"}]}
+    ]}]});
+    const result=validateAndRenderDocumentAnswer(payload,bundle);
+    assert.equal(result.success,true);
+    assert.match(result.text,/Позиция автора: Потолок CLIP/);
+    assert.doesNotMatch(result.text,/В документе указано: Потолок CLIP/);
+    assert.match(result.text,/независимые источники отдельно не проверялись/);
+});

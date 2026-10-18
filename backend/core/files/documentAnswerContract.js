@@ -1,3 +1,5 @@
+import { attributedKind, evidenceSupportsClaimNumbers } from "./documentClaimChecks.js";
+
 const MAX_FINDINGS = 14;
 const MAX_SECTIONS = 6;
 const MAX_QUOTE_LENGTH = 260;
@@ -10,11 +12,6 @@ function normalizeText(input) {
         .replace(/[‐‑‒–—−]/g, "-")
         .trim()
         .toLocaleLowerCase("ru");
-}
-
-function referencedNumbers(text) {
-    return [...normalizeText(text).matchAll(/\d+(?:[.,]\d+)*/g)]
-        .map(match => match[0].replace(/,/g, "."));
 }
 
 function supportsEvidence(evidence, index) {
@@ -34,11 +31,6 @@ function supportsEvidence(evidence, index) {
         validated.push({ref, quote, sourceText: source.text});
     }
     return validated;
-}
-
-function checkNumbers(statement, evidence) {
-    const numericSource = normalizeText(evidence.map(e => e.sourceText).join(" "));
-    return referencedNumbers(statement).every(num => numericSource.includes(num));
 }
 
 function sectionTitle(title) {
@@ -62,6 +54,7 @@ export function documentAnalysisInstructions() {
         "Выбери глубину и структуру ответа по запросу: пересказ, критический анализ, сравнение, техническая или юридическая оценка.",
         "Не используй один жёсткий шаблон для любых документов.",
         "Не считай авторские утверждения доказанными фактами, особенно оценку норм, цены, безопасность или правомерность решений.",
+        "Любое утверждение о соответствии нормам, разрешённости, пожарной безопасности или обязательности требований в приложенном частном документе является позицией автора (author_claim), а не проверкой правового основания.",
         "Различай четыре типа пунктов: source_fact (что прямо написано), author_claim (позиция автора), inference (логический вывод по тексту), verify_external (вопрос для проверки независимо от документа).",
         "Приведи для КАЖДОГО пункта 1–3 доказательства: существующий ID фрагмента и точную дословную цитату из него до 260 символов.",
         "Не придумывай цитаты, ID фрагментов, числа и нормативные основания.",
@@ -99,13 +92,14 @@ export function validateAndRenderDocumentAnswer(raw, bundle) {
             const text = String(finding?.text || "").trim().slice(0, 800);
             const kind = String(finding?.kind || "");
             const evidence = supportsEvidence(finding?.evidence, bundle.index);
-            if (!text || !Object.prototype.hasOwnProperty.call(labels, kind) || !evidence || !checkNumbers(text, evidence)) {
+            if (!text || !Object.prototype.hasOwnProperty.call(labels, kind) || !evidence || !evidenceSupportsClaimNumbers(text, evidence)) {
                 rejected++;
                 continue;
             }
+            const displayKind = attributedKind(text, kind);
             const sources = [...new Set(evidence.map(x => x.ref))].map(x => `[${x}]`).join(" ");
             const quotes = evidence.map(x => `«${x.quote}»`).join("; ");
-            parts.push(`• ${labels[kind]}: ${text} ${sources}\n  Основание: ${quotes}`);
+            parts.push(`• ${labels[displayKind]}: ${text} ${sources}\n  Основание: ${quotes}`);
             kept++;
         }
         if (parts.length) rendered.push(`${sectionTitle(section.heading)}\n\n${parts.join("\n\n")}`);
