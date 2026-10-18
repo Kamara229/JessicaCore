@@ -95,6 +95,11 @@ import {
 } from "./approval/approvalCandidateMemory.js";
 
 
+import {
+    persistSkillReinforcement
+} from "./approval/reinforcementPersistence.js";
+
+
 
 
 
@@ -564,6 +569,24 @@ async function processProposal(
 
 
     if(
+        autonomy.action ===
+        APPROVAL_ACTION.REINFORCE_ONLY
+    ){
+
+        return await persistSkillReinforcement({
+
+            proposal,
+
+            quality,
+
+            autonomy
+
+        });
+
+    }
+
+
+    if(
         autonomy.action !==
         APPROVAL_ACTION.AUTO_APPROVE
     ){
@@ -914,6 +937,17 @@ export async function runLearningApproval(
 
                 item =>
                     item.learned === true
+
+            )
+            .length,
+
+
+        reinforced:
+
+            results.filter(
+
+                item =>
+                    item.reinforced === true
 
             )
             .length,
