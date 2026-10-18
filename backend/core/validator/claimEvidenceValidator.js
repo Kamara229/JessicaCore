@@ -1,4 +1,5 @@
 import { usePairedComparisonContext } from "../composer/comparisonEvidencePolicy.js";
+import { buildOriginalSourceEvidenceContext } from "./claim/claimEvidenceMatcher.js";
 import { checkPairedClaimCoverage } from "./claim/pairedClaimCoverage.js";
 import {
     executeAIWithRetry
@@ -458,7 +459,9 @@ export async function validateClaimEvidence(
 
                 raw,
 
-                context.sourceText
+                context.sourceText,
+
+                buildOriginalSourceEvidenceContext(taskRunResult)
 
             );
 
