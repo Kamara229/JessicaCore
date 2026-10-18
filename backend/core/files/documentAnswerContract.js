@@ -106,7 +106,7 @@ export function validateAndRenderDocumentAnswer(raw, bundle, task = "") {
             candidates.push({
                 heading: sectionTitle(section.heading),
                 text,
-                rendered: `• ${labels[displayKind]}: ${text} ${sources}\\n  Основание: ${quotes}`
+                rendered: `• ${labels[displayKind]}: ${text} ${sources}\n  Основание: ${quotes}`
             });
         }
     }
@@ -122,7 +122,7 @@ export function validateAndRenderDocumentAnswer(raw, bundle, task = "") {
         sections.get(finding.heading).push(finding.rendered);
     }
     const rendered = [...sections].map(([heading, points]) =>
-        `${heading}\\n\\n${points.join("\\n\\n")}`
+        `${heading}\n\n${points.join("\n\n")}`
     );
     const limitations = [
         "Основания приведены по тексту прикреплённых файлов; цитаты сверены с извлечённым текстом.",
