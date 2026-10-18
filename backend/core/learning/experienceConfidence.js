@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA EXPERIENCE CONFIDENCE v3
+ * JESSICA EXPERIENCE CONFIDENCE v4
  * =========================================================
  *
  * Расчёт evidence-метрик Experience.
@@ -34,6 +34,11 @@
 import {
     isPositiveLearningTrace
 } from "./learningOutcomePolicy.js";
+
+
+import {
+    resolveLearningExampleSuccess
+} from "./exampleSuccess.js";
 
 
 /*
@@ -148,135 +153,6 @@ function resolveTraceSuccess(
  */
 
 
-function resolveExampleSuccess(
-    example
-) {
-
-    if(
-        typeof example?.success ===
-        "boolean"
-    ){
-
-        return example.success;
-
-    }
-
-
-    if(
-        typeof example?.result?.success ===
-        "boolean"
-    ){
-
-        return example.result.success;
-
-    }
-
-
-    const outcomeType =
-
-        String(
-
-            example
-                ?.result
-                ?.validation
-                ?.outcomeType
-
-            ||
-
-            example
-                ?.validation
-                ?.outcomeType
-
-            ||
-
-            ""
-        )
-            .trim()
-            .toLowerCase();
-
-
-    if(
-        outcomeType ===
-        "no_verified_result"
-    ){
-
-        return false;
-
-    }
-
-
-    const degraded =
-
-        example
-            ?.result
-            ?.validation
-            ?.degraded === true
-
-        ||
-
-        example
-            ?.validation
-            ?.degraded === true;
-
-
-    if(
-        degraded
-    ){
-
-        return false;
-
-    }
-
-
-    const status =
-
-        String(
-
-            example?.status
-
-            ||
-
-            example?.result?.status
-
-            ||
-
-            ""
-        )
-            .trim()
-            .toUpperCase();
-
-
-    if(
-        status === "COMPLETED"
-    ){
-
-        return true;
-
-    }
-
-
-    if(
-        status === "FAILED"
-
-        ||
-
-        status === "NEEDS_CLARIFICATION"
-
-        ||
-
-        status === "NO_VERIFIED_RESULT"
-    ){
-
-        return false;
-
-    }
-
-
-    return false;
-
-}
-
-
 /*
  * =========================================================
  * NORMALIZE EXAMPLE
@@ -312,7 +188,7 @@ function normalizeExample(
 
         success:
 
-            resolveExampleSuccess(
+            resolveLearningExampleSuccess(
                 example
             )
 
@@ -588,7 +464,7 @@ export function calculateSuccessCount(
 
         item =>
 
-            resolveExampleSuccess(
+            resolveLearningExampleSuccess(
                 item
             )
             === true
@@ -625,7 +501,7 @@ export function calculateFailureCount(
 
         item =>
 
-            resolveExampleSuccess(
+            resolveLearningExampleSuccess(
                 item
             )
             === false
