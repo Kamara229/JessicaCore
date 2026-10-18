@@ -35,6 +35,14 @@ jobs:
           distribution: 'temurin'
 
 
+      - name: Setup Node.js for backend regression
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Regression tests for verified Learning and release dates
+        run: node --test backend/scripts/regressionLearningSafety.test.js
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
