@@ -1,43 +1,29 @@
 /*
  * =========================================================
- * JESSICA APPROVAL PROCESSOR
+ * JESSICA APPROVAL PROCESSOR FACADE
  * =========================================================
  *
  * Один Proposal:
- * Reviewer → Quality → Autonomy → Persistence.
+ * evaluation → persistence route.
  * =========================================================
  */
 
 
 import {
-    reviewLearningProposal
-} from "../learningReviewer.js";
-
-
-import {
-    validateLearningQuality
-} from "../learningQualityGate.js";
-
-
-import {
-    evaluateLearningAutonomy
-} from "../learningAutonomyPolicy.js";
-
-
-import {
-    approveAndSaveLearningProposal
-} from "../../../experience/learning/learningApproval.js";
-
-
-import {
-    APPROVAL_ACTION,
     APPROVAL_RESULT_STATUS
 } from "./approvalConstants.js";
 
 
 import {
-    promoteCandidateMemory
-} from "./approvalCandidateMemory.js";
+    APPROVAL_FLOW,
+    evaluateApprovalProposal
+} from "./approvalEvaluation.js";
+
+
+import {
+    buildRejectedResult,
+    buildKeepCandidateResult
+} from "./approvalResultBuilders.js";
 
 
 import {
@@ -46,11 +32,8 @@ import {
 
 
 import {
-    buildRejectedResult,
-    buildKeepCandidateResult,
-    buildFailedResult,
-    markProposalApproved
-} from "./approvalResultBuilders.js";
+    saveApprovedSkillVersion
+} from "./approvalSkillSave.js";
 
 
 export async function processLearningProposal(
@@ -85,15 +68,16 @@ export async function processLearningProposal(
     }
 
 
-    const review =
+    const evaluation =
 
-        reviewLearningProposal(
+        evaluateApprovalProposal(
             proposal
         );
 
 
     if(
-        review.valid !== true
+        evaluation.flow ===
+        APPROVAL_FLOW.REJECT
     ){
 
         return await buildRejectedResult({
@@ -101,71 +85,13 @@ export async function processLearningProposal(
             proposal,
 
             reason:
+                evaluation.reason,
 
-                review.reason
+            review:
+                evaluation.review,
 
-                ||
-
-                "Proposal не прошёл Reviewer",
-
-            review
-
-        });
-
-    }
-
-
-    const quality =
-
-        validateLearningQuality(
-            proposal
-        );
-
-
-    if(
-        quality.passed !== true
-    ){
-
-        return await buildRejectedResult({
-
-            proposal,
-
-            reason:
-
-                quality.reason
-
-                ||
-
-                "Proposal не прошёл Quality Gate",
-
-            review,
-
-            quality
-
-        });
-
-    }
-
-
-    const autonomy =
-
-        evaluateLearningAutonomy(
-            proposal
-        );
-
-
-    if(
-        autonomy.action ===
-        APPROVAL_ACTION.REINFORCE_ONLY
-    ){
-
-        return await persistSkillReinforcement({
-
-            proposal,
-
-            quality,
-
-            autonomy
+            quality:
+                evaluation.quality
 
         });
 
@@ -173,8 +99,8 @@ export async function processLearningProposal(
 
 
     if(
-        autonomy.action !==
-        APPROVAL_ACTION.AUTO_APPROVE
+        evaluation.flow ===
+        APPROVAL_FLOW.KEEP
     ){
 
         return await buildKeepCandidateResult({
@@ -182,79 +108,16 @@ export async function processLearningProposal(
             proposal,
 
             reason:
+                evaluation.reason,
 
-                autonomy.reason
+            review:
+                evaluation.review,
 
-                ||
+            quality:
+                evaluation.quality,
 
-                "Недостаточно Evidence для AUTO_APPROVE",
-
-            review,
-
-            quality,
-
-            autonomy
-
-        });
-
-    }
-
-
-    let result;
-
-
-    try {
-
-        result =
-
-            await approveAndSaveLearningProposal({
-
-                proposal,
-
-                autonomy,
-
-                confidence:
-
-                    autonomy.confidence
-
-                    ??
-
-                    proposal.confidence
-
-                    ??
-
-                    null
-
-            });
-
-    }catch(error){
-
-        console.error(
-
-            "Jessica Learning Approval Processor error:",
-
-            error
-
-        );
-
-
-        return await buildFailedResult({
-
-            proposal,
-
-            reason:
-
-                error?.message
-
-                ||
-
-                "Learning Approval failed",
-
-            review,
-
-            quality,
-
-            autonomy
+            autonomy:
+                evaluation.autonomy
 
         });
 
@@ -262,115 +125,38 @@ export async function processLearningProposal(
 
 
     if(
-        result?.success !== true
+        evaluation.flow ===
+        APPROVAL_FLOW.REINFORCE
     ){
 
-        return await buildFailedResult({
+        return await persistSkillReinforcement({
 
             proposal,
 
-            reason:
+            quality:
+                evaluation.quality,
 
-                result?.error
-
-                ||
-
-                result?.reason
-
-                ||
-
-                "Experience Skill не сохранён",
-
-            review,
-
-            quality,
-
-            autonomy,
-
-            sourceResult:
-                result
+            autonomy:
+                evaluation.autonomy
 
         });
 
     }
 
 
-    const persistence =
+    return await saveApprovedSkillVersion({
 
-        await markProposalApproved(
-            proposal
-        );
+        proposal,
 
+        review:
+            evaluation.review,
 
-    const candidateMemory =
+        quality:
+            evaluation.quality,
 
-        await promoteCandidateMemory({
+        autonomy:
+            evaluation.autonomy
 
-            proposal,
-
-            skillId:
-
-                result.skillId
-
-                ||
-
-                result
-                    ?.experience
-                    ?.id
-
-                ||
-
-                null
-
-        });
-
-
-    return {
-
-        ...result,
-
-        success:
-            true,
-
-        learned:
-            true,
-
-        reinforced:
-            false,
-
-        versionCreated:
-            true,
-
-        status:
-            APPROVAL_RESULT_STATUS.APPROVED,
-
-        proposalStateUpdated:
-            persistence.success,
-
-        proposalStateError:
-            persistence.error,
-
-        candidateMemoryStateUpdated:
-            candidateMemory.success,
-
-        candidateMemoryStateError:
-
-            candidateMemory.success
-
-                ? null
-
-                : candidateMemory.error,
-
-        review,
-
-        quality,
-
-        autonomy,
-
-        persistence,
-
-        candidateMemory
-
-    };
+    });
 
 }
