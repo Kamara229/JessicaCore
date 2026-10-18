@@ -38,6 +38,14 @@ const COMPOSER_TEMPERATURE =
 const COMPOSER_AI_ATTEMPTS =
     3;
 
+// Bounded output + low reasoning for fact-grounded source comparisons.
+// Other Composer tasks retain their existing model settings.
+export function resolveComposerBudget({pairedSources=false}={}) {
+    return pairedSources
+        ? {max_completion_tokens:1400,reasoning_effort:"low"}
+        : {};
+}
+
 
 /*
  * =========================================================
@@ -67,7 +75,9 @@ export async function requestComposerAI({
 
     instructions,
 
-    input
+    input,
+
+    pairedSources = false
 
 } = {}) {
 
@@ -125,6 +135,8 @@ export async function requestComposerAI({
 
                     temperature:
                         COMPOSER_TEMPERATURE,
+
+                    ...resolveComposerBudget({pairedSources}),
 
                     messages: [
 
