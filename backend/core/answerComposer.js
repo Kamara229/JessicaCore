@@ -58,7 +58,7 @@ import {
     getDirectAnswer
 } from "./composer/directAnswer.js";
 import { getDocumentReceipt } from "./composer/documentReceipt.js";
-import { requiresVerifiedComparison } from "./composer/comparisonEvidencePolicy.js";
+import { requiresVerifiedComparison, usePairedComparisonContext } from "./composer/comparisonEvidencePolicy.js";
 
 import {
     isComposerAvailable,
@@ -506,7 +506,7 @@ export async function composeAnswer(
 
         await generateComposerAnswer(
             contextResult.input,
-            {pairedSources: plan?.intent === "native_two_source_comparison"}
+            {pairedSources: usePairedComparisonContext(task,plan,taskRunResult)}
         );
 
 
