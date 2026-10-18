@@ -272,3 +272,10 @@ test("legacy comparison discovery requires two explicit source citations",()=>{
     evidence.answer="Compared sources: https://opensource.org/license/mit and https://opensource.org/license/apache-2.0";
     assert.equal(hasVerifiedPatternEvidence(evidence),true);
 });
+
+import { resolveComposerModel } from "../ai/composerModelPolicy.js";
+
+test("grounded comparisons use a separate model budget",()=>{
+    assert.equal(resolveComposerModel({pairedSources:false}),"openai/gpt-oss-20b");
+    assert.ok(["openai/gpt-oss-20b","openai/gpt-oss-120b"].includes(resolveComposerModel({pairedSources:true})));
+});
