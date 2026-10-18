@@ -213,6 +213,86 @@ function getSubjectTokens(
 }
 
 
+function getTitleIdentityText(
+    title,
+    subjectTokens
+) {
+
+    const normalized =
+
+        normalizeTitle(
+            title
+        );
+
+
+    if(!normalized){
+
+        return "";
+
+    }
+
+
+    const colonIndex =
+
+        normalized.indexOf(
+            ":"
+        );
+
+
+    if(
+        colonIndex > 0
+    ){
+
+        const prefix =
+
+            normalized
+                .slice(
+                    0,
+                    colonIndex
+                )
+                .toLowerCase();
+
+
+        const brandingOnly =
+
+            Array.isArray(
+                subjectTokens
+            )
+            &&
+            subjectTokens.some(
+                token =>
+                    prefix.includes(
+                        token
+                    )
+            );
+
+
+        if(brandingOnly){
+
+            return normalized
+
+                .slice(
+                    colonIndex + 1
+                )
+                .trim();
+
+        }
+
+    }
+
+
+    return normalized;
+
+}
+
+
+/*
+ * =========================================================
+ * SUBJECT MATCH
+ * =========================================================
+ */
+
+
 function countSubjectMatches(
     text,
     tokens
@@ -888,7 +968,8 @@ function collectVersionMatches(
 
     const push = (
         version,
-        index
+        index,
+        kind
     ) => {
 
         const key =
@@ -920,7 +1001,9 @@ function collectVersionMatches(
 
             version,
 
-            index
+            index,
+
+            kind
 
         });
 
@@ -936,7 +1019,8 @@ function collectVersionMatches(
 
         push(
             match[1],
-            match.index || 0
+            match.index || 0,
+            "semver"
         );
 
     }
@@ -973,7 +1057,9 @@ function collectVersionMatches(
             Math.max(
                 0,
                 localIndex
-            )
+            ),
+
+            "major"
 
         );
 
@@ -1022,22 +1108,22 @@ function buildCandidates({
         );
 
 
-    const sourceIdentity =
+    const titleIdentity =
 
-        [
+        getTitleIdentityText(
+
             sourceTitle,
-            sourceUrl
-        ]
-            .join(
-                " "
-            );
+
+            subjectTokens
+
+        );
 
 
     const sourceSubjectMatches =
 
         countSubjectMatches(
 
-            sourceIdentity,
+            titleIdentity,
 
             subjectTokens
 
@@ -1125,7 +1211,48 @@ function buildCandidates({
             );
 
 
+        const sameLineDate =
+
+            dates.find(
+                date =>
+                    line
+                    &&
+                    date.index >= line.start
+                    &&
+                    date.index <= line.end
+            )
+
+            ||
+
+            null;
+
+
+        /*
+         * Одночисловой major version разрешаем только
+         * когда дата находится в той же строке.
+         *
+         * Это не позволяет фразе вроде
+         * "PostgreSQL 19 is now available" забрать дату
+         * соседнего stable-релиза 18.6.
+         */
+
+
+        if(
+            item.kind === "major"
+            &&
+            !sameLineDate
+        ){
+
+            continue;
+
+        }
+
+
         const nearestDate =
+
+            sameLineDate
+
+            ||
 
             findNearestDate(
 
@@ -1273,6 +1400,9 @@ function buildCandidates({
 
             version:
                 item.version,
+
+            kind:
+                item.kind,
 
             index:
                 item.index,
