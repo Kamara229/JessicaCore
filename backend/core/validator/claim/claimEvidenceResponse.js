@@ -1,3 +1,4 @@
+import { isUnsupportedNegativeComparisonClaim } from "./negativeComparisonClaim.js";
 import { resolveClaimSourceAlias } from "./claimSourceAlias.js";
 import { matchesAttributedEvidence } from "./claimEvidenceMatcher.js";
 /*
@@ -267,6 +268,10 @@ function verifyEvidenceText(
         };
     }
 
+    const sourceCount=(String(sourceText||"").match(/^SOURCE\s+\d+\s*$/gm)||[]).length;
+    if(isUnsupportedNegativeComparisonClaim(claim,sourceCount===2)) {
+        return {...claim,supported:false,reason:"Отрицательный вывод не обоснован цитатой"};
+    }
     return claim;
 
 }
