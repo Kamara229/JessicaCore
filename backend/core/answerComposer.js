@@ -399,6 +399,16 @@ export async function composeAnswer(
         return buildComposerFailure("Документ не подтверждён, неполон либо адрес источника не совпадает.");
     }
 
+    // Collecting two documents is not the same as comparing them.
+    // When the semantic model is unavailable, do not present an
+    // arbitrary document fragment as a completed comparison.
+    if (plan?.intent === "native_two_source_comparison"
+        && !isComposerAvailable()) {
+        return buildComposerFailure(
+            "Оба документа можно получить без AI, но для подтверждённого сравнения сейчас недоступен Composer."
+        );
+    }
+
     /*
      * =====================================================
      * 2. AI AVAILABILITY
@@ -510,6 +520,11 @@ export async function composeAnswer(
      * уже полученные Tool Results.
      */
 
+    if (plan?.intent === "native_two_source_comparison") {
+        return buildComposerFailure(
+            "Документы загружены, но сравнение не выполнено: AI Composer недоступен."
+        );
+    }
 
     const fallback =
 
