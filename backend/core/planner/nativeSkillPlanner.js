@@ -44,6 +44,7 @@ import {
 
 import { hasVerifiedDateSkillEvidence } from "./youngDateSkill.js";
 import { buildNativeDocumentFetchPlan } from "./nativeDocumentFetchPlan.js";
+import { buildNativeSourceComparisonPlan } from "./nativeSourceComparisonPlan.js";
 
 
 import {
@@ -1053,6 +1054,14 @@ export function tryCreateNativeSkillPlan({
      * AI не нужен даже без Experience.
      */
 
+
+    const paired = buildNativeSourceComparisonPlan(task);
+    if (paired) {
+        return finalizeNativePlan({
+            task, context: planningContext, plan: paired,
+            source: "native-two-source-comparison"
+        });
+    }
 
     const documentPlan = buildNativeDocumentFetchPlan(task);
     if (documentPlan) {
