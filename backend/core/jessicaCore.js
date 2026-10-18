@@ -39,6 +39,10 @@ import {
     decomposeTask
 } from "./taskDecomposer.js";
 
+import {
+    contextualizeTask
+} from "./chat/conversationContext.js";
+
 
 import {
     buildExecutionMemoryContext
@@ -115,7 +119,8 @@ function buildCoreFailure(
 
 
 export async function executeJessicaTask(
-    task
+    task,
+    { conversation = [] } = {}
 ) {
 
     const normalizedTask =
@@ -158,6 +163,10 @@ export async function executeJessicaTask(
     }
 
 
+    // Keep the canonical user request intact for Experience and Learning.
+    // Only expand an ambiguous follow-up at execution/decomposition time.
+    const executionTask = contextualizeTask(normalizedTask, conversation);
+
     /*
      * =====================================================
      * MEMORY
@@ -190,7 +199,7 @@ export async function executeJessicaTask(
             await decomposeTask({
 
                 task:
-                    normalizedTask,
+                    executionTask,
 
                 memoryContext:
                     memoryResult.memoryContext
