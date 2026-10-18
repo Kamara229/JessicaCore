@@ -16,6 +16,11 @@ import {
 } from "./toolRegistry.js";
 
 
+import {
+    parseNativeDate
+} from "../core/native/dateUtils.js";
+
+
 const MAX_CONTENT_LENGTH =
     50000;
 
@@ -275,6 +280,66 @@ function extractDates(
         new Set();
 
 
+    const push = (
+        raw,
+        index
+    ) => {
+
+        const parsed =
+
+            parseNativeDate(
+                raw
+            );
+
+
+        if(
+            !parsed?.iso
+            ||
+            known.has(
+                parsed.iso
+                +
+                ":"
+                +
+                index
+            )
+        ){
+
+            return;
+
+        }
+
+
+        const key =
+
+            parsed.iso
+            +
+            ":"
+            +
+            index;
+
+
+        known.add(
+            key
+        );
+
+
+        result.push({
+
+            value:
+                parsed.iso,
+
+            index
+
+        });
+
+    };
+
+
+    /*
+     * ISO.
+     */
+
+
     for(
         const match
         of text.matchAll(
@@ -282,38 +347,68 @@ function extractDates(
         )
     ){
 
-        const value =
-            match[0];
-
-
         if(
-            !isValidIsoDate(
-                value
-            )
-            ||
-            known.has(
-                value
+            isValidIsoDate(
+                match[0]
             )
         ){
 
-            continue;
+            push(
+                match[0],
+                match.index || 0
+            );
 
         }
 
+    }
 
-        known.add(
-            value
+
+    /*
+     * 13 августа 2026 / 13 August 2026.
+     */
+
+
+    const dayFirstPattern =
+
+        /\b\d{1,2}\s+[\p{L}.]+\s+20\d{2}(?:\s*г(?:ода|\.)?)?/giu;
+
+
+    for(
+        const match
+        of text.matchAll(
+            dayFirstPattern
+        )
+    ){
+
+        push(
+            match[0],
+            match.index || 0
         );
 
+    }
 
-        result.push({
 
-            value,
+    /*
+     * August 13, 2026.
+     */
 
-            index:
-                match.index || 0
 
-        });
+    const monthFirstPattern =
+
+        /\b[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?[,]?\s+20\d{2}\b/giu;
+
+
+    for(
+        const match
+        of text.matchAll(
+            monthFirstPattern
+        )
+    ){
+
+        push(
+            match[0],
+            match.index || 0
+        );
 
     }
 
