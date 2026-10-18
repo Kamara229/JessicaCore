@@ -128,7 +128,8 @@ export function registerSolveRoute(
 
                 const result =
                     await executeJessicaTask(
-                        task
+                        task,
+                        { conversation: req.body?.conversation }
                     );
 
 
