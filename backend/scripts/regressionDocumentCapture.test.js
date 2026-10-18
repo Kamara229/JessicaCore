@@ -338,3 +338,46 @@ test("claim excerpt missing from compact context is verified against actual fetc
     const forged={...claim,sourceUrl:"https://example.com/source-b"};
     assert.equal(parseClaimEvidenceResponse(JSON.stringify({claims:[forged]}),compact,originals).claims[0].supported,false);
 });
+
+import { resolveClaimSourceAlias } from "../core/validator/claim/claimSourceAlias.js";
+import { buildComparisonClaimInstructions } from "../core/validator/claim/comparisonClaimPrompt.js";
+import { isRetryableAIError } from "../ai/retry/retryClassifier.js";
+import { registerAIProviderLimit,getAIProviderAvailability } from "../ai/providerAvailability.js";
+
+test("compact claim references map SOURCE 1 and SOURCE 2 to original URLs",()=>{
+    const originals=[
+        "SOURCE 1","URL: https://example.com/source-one","SNIPPET 1: Redistribution is permitted.",
+        "SOURCE 2","URL: https://example.com/source-two","SNIPPET 1: Attribution is required."
+    ].join("\n");
+    assert.equal(resolveClaimSourceAlias("SOURCE 1",originals),"https://example.com/source-one");
+    assert.equal(resolveClaimSourceAlias("SOURCE 2",originals),"https://example.com/source-two");
+    assert.equal(resolveClaimSourceAlias("SOURCE 999",originals),"");
+    const raw=JSON.stringify({claims:[
+        {claim:"Source 2 requires attribution",supported:true,
+            evidence:"Attribution is required",sourceUrl:"SOURCE 2",reason:""},
+        {claim:"Incorrect source",supported:true,
+            evidence:"Attribution is required",sourceUrl:"SOURCE 1",reason:""}
+    ]});
+    const parsed=parseClaimEvidenceResponse(raw,originals);
+    assert.deepEqual(parsed.claims.map(x=>x.supported),[true,false]);
+    assert.equal(parsed.claims[0].sourceUrl,"https://example.com/source-two");
+});
+
+test("comparison validator asks for compact output preserving eight claims",()=>{
+    const instructions=buildComparisonClaimInstructions();
+    assert.ok(instructions.includes("SOURCE 1"));
+    assert.ok(instructions.includes("8 проверяемых claims"));
+    assert.ok(instructions.includes("дословная"));
+});
+
+test("overlarge fixed quota requests do not retry or open a provider-wide cooldown",()=>{
+    const impossible={
+        status:429,code:"rate_limit_exceeded",
+        message:"429 Request too large: expected output tokens exceed the enforced limit; reduce max_tokens.",
+        headers:{"x-should-retry":"false","x-ratelimit-reset-tokens":"1ms"}
+    };
+    assert.equal(isRetryableAIError(impossible),false);
+    const before=getAIProviderAvailability();
+    const after=registerAIProviderLimit(impossible);
+    assert.equal(after.blockedUntil,before.blockedUntil);
+});
