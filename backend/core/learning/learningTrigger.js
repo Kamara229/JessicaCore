@@ -1,38 +1,23 @@
 /*
  * =========================================================
- * JESSICA LEARNING TRIGGER v6
+ * JESSICA LEARNING TRIGGER FACADE v7
  * =========================================================
- *
- * Точка входа Learning Pipeline.
- *
- *
- * Flow:
  *
  * Execution Trace
- *        ↓
- * shouldAnalyze()
- *        ↓
- * Experience Analyzer
- *        ↓
+ *      ↓
+ * eligibility
+ *      ↓
+ * multi-skill analysis
+ *      ↓
  * Learning Router
- *        ↓
- * Learning Event
+ *      ↓
+ * one or more Learning Events
  *
- *
- * Actions:
- *
- * NEW_SKILL
- * SKILL_IMPROVEMENT
- * PATTERN_DISCOVERY
- * IGNORE
- *
+ * Compatibility:
+ * learningEvent / analysis / decision still expose
+ * the first event for old callers.
  * =========================================================
  */
-
-
-import {
-    analyzeExecutionTrace
-} from "./experienceAnalyzer.js";
 
 
 import {
@@ -40,835 +25,24 @@ import {
 } from "./learningRouter.js";
 
 
-/*
- * =========================================================
- * NORMALIZE
- * =========================================================
- */
+import {
+    analyzeExecutionTraceBatch
+} from "./multiSkill/multiSkillAnalyzer.js";
 
 
-function isObject(
-    value
-) {
+import {
+    shouldAnalyzeLearningTrace
+} from "./trigger/triggerEligibility.js";
 
-    return Boolean(
 
-        value
+import {
+    buildLearningEvent
+} from "./trigger/learningEventBuilder.js";
 
-        &&
 
-        typeof value === "object"
-
-        &&
-
-        !Array.isArray(value)
-
-    );
-
-}
-
-
-function normalizeNumber(
-    value
-) {
-
-    const number =
-        Number(value);
-
-
-    return Number.isFinite(number)
-
-        ? number
-
-        : 0;
-
-}
-
-
-function normalizeText(
-    value
-) {
-
-    return String(
-        value || ""
-    )
-    .trim();
-
-}
-
-
-/*
- * =========================================================
- * SHOULD ANALYZE
- * =========================================================
- *
- * Канонический источник:
- *
- * trace.statistics.completed
- *
- *
- * Compatibility:
- *
- * trace.stats.completed
- *
- *
- * Дополнительно поддерживаем
- * успешный terminal Trace.
- *
- * =========================================================
- */
-
-
-function shouldAnalyze(
-    trace
-) {
-
-    if(
-        !isObject(trace)
-    ){
-
-        return false;
-
-    }
-
-
-    /*
-     * =====================================================
-     * COMPLETED EXECUTIONS
-     * =====================================================
-     */
-
-
-    const completed =
-
-        normalizeNumber(
-
-            trace?.statistics?.completed
-
-            ??
-
-            trace?.stats?.completed
-
-        );
-
-
-    if(
-        completed > 0
-    ){
-
-        return true;
-
-    }
-
-
-    /*
-     * =====================================================
-     * TRACE STATUS
-     * =====================================================
-     */
-
-
-    const traceStatus =
-
-        normalizeText(
-            trace?.status
-        )
-        .toUpperCase();
-
-
-    if(
-        traceStatus ===
-        "COMPLETED"
-    ){
-
-        return true;
-
-    }
-
-
-    /*
-     * =====================================================
-     * RESULT STATUS
-     * =====================================================
-     */
-
-
-    const resultStatus =
-
-        normalizeText(
-            trace?.result?.status
-        )
-        .toUpperCase();
-
-
-    if(
-        resultStatus ===
-        "COMPLETED"
-    ){
-
-        return true;
-
-    }
-
-
-    /*
-     * Explicit success fallback.
-     *
-     * Не считаем semantic terminal states
-     * успешными Learning executions.
-     */
-
-
-    if(
-        trace?.result?.success === true
-
-        &&
-
-        ![
-            "NO_VERIFIED_RESULT",
-            "NEEDS_CLARIFICATION",
-            "FAILED"
-        ]
-        .includes(
-            resultStatus
-        )
-    ){
-
-        return true;
-
-    }
-
-
-    return false;
-
-}
-
-
-/*
- * =========================================================
- * NORMALIZE PAYLOAD
- * =========================================================
- */
-
-
-function normalizeLearningPayload({
-
-    decision,
-
-    analysis
-
-}) {
-
-    const routerPayload =
-
-        isObject(
-            decision?.payload
-        )
-
-            ? decision.payload
-
-            : {};
-
-
-    const analysisCandidate =
-
-        isObject(
-            analysis?.skillCandidate
-        )
-
-            ? analysis.skillCandidate
-
-            : null;
-
-
-    const payload = {
-
-        ...routerPayload
-
-    };
-
-
-    /*
-     * Candidate fallback.
-     */
-
-
-    if(
-        !isObject(
-            payload.skillCandidate
-        )
-        &&
-        analysisCandidate
-    ){
-
-        payload.skillCandidate =
-            analysisCandidate;
-
-    }
-
-
-    /*
-     * Existing Skills fallback.
-     */
-
-
-    if(
-        !Array.isArray(
-            payload.skills
-        )
-        &&
-        Array.isArray(
-            analysisCandidate?.skills
-        )
-    ){
-
-        payload.skills =
-            analysisCandidate.skills;
-
-    }
-
-
-    /*
-     * Source.
-     */
-
-
-    if(
-        !normalizeText(
-            payload.source
-        )
-    ){
-
-        payload.source =
-            "experience-analyzer";
-
-    }
-
-
-    return payload;
-
-}
-
-
-/*
- * =========================================================
- * RESOLVE SKILL ID
- * =========================================================
- */
-
-
-function resolveSkillId({
-
-    decision,
-
-    payload
-
-}) {
-
-    /*
-     * NEW SKILL.
-     */
-
-
-    const candidate =
-
-        isObject(
-            payload?.skillCandidate
-        )
-
-            ? payload.skillCandidate
-
-            : null;
-
-
-    const candidateSkillId =
-
-        normalizeText(
-
-            candidate?.skillId
-
-            ||
-
-            candidate?.id
-
-        );
-
-
-    if(
-        candidateSkillId
-    ){
-
-        return candidateSkillId;
-
-    }
-
-
-    /*
-     * EXISTING SKILL.
-     */
-
-
-    const skills =
-
-        Array.isArray(
-            payload?.skills
-        )
-
-            ? payload.skills
-
-            : [];
-
-
-    if(
-        skills.length > 0
-    ){
-
-        const existingSkillId =
-
-            normalizeText(
-
-                skills[0]?.id
-
-                ||
-
-                skills[0]?.skillId
-
-            );
-
-
-        if(
-            existingSkillId
-        ){
-
-            return existingSkillId;
-
-        }
-
-    }
-
-
-    return (
-
-        normalizeText(
-            decision?.skillId
-        )
-
-        ||
-
-        null
-
-    );
-
-}
-
-
-/*
- * =========================================================
- * RESOLVE CONFIDENCE
- * =========================================================
- */
-
-
-function resolveConfidence({
-
-    decision,
-
-    analysis,
-
-    payload
-
-}) {
-
-    const values = [
-
-        decision?.confidence,
-
-        payload
-            ?.skillCandidate
-            ?.confidence,
-
-        analysis
-            ?.skillCandidate
-            ?.confidence
-
-    ];
-
-
-    for(
-        const value
-        of values
-    ){
-
-        const number =
-            Number(value);
-
-
-        if(
-            Number.isFinite(number)
-        ){
-
-            return Math.max(
-
-                0,
-
-                Math.min(
-                    1,
-                    number
-                )
-
-            );
-
-        }
-
-    }
-
-
-    return 0;
-
-}
-
-
-/*
- * =========================================================
- * COMPACT DIAGNOSTICS
- * =========================================================
- *
- * Learning Event сохраняется в Queue.
- *
- * Candidate уже находится в payload.skillCandidate,
- * поэтому Analysis/Decision не должны повторно
- * транспортировать тот же большой объект.
- * =========================================================
- */
-
-
-function compactAnalysisForEvent(
-    analysis
-) {
-
-    if(
-        !isObject(
-            analysis
-        )
-    ){
-
-        return null;
-
-    }
-
-
-    return {
-
-        action:
-
-            normalizeText(
-                analysis.action
-            )
-
-            ||
-
-            null,
-
-        reusable:
-            analysis.reusable === true,
-
-        reason:
-
-            normalizeText(
-                analysis.reason
-            ),
-
-        analysisType:
-
-            normalizeText(
-                analysis.analysisType
-            )
-
-            ||
-
-            null,
-
-        improvementType:
-
-            normalizeText(
-                analysis.improvementType
-            )
-
-            ||
-
-            null,
-
-        discoveryRequired:
-            analysis.discoveryRequired === true,
-
-        metrics:
-
-            isObject(
-                analysis.metrics
-            )
-
-                ? {
-                    ...analysis.metrics
-                }
-
-                : {},
-
-        metadata:
-
-            isObject(
-                analysis.metadata
-            )
-
-                ? {
-                    ...analysis.metadata
-                }
-
-                : {}
-
-    };
-
-}
-
-
-function compactDecisionForEvent(
-    decision
-) {
-
-    if(
-        !isObject(
-            decision
-        )
-    ){
-
-        return null;
-
-    }
-
-
-    return {
-
-        action:
-
-            normalizeText(
-                decision.action
-            )
-
-            ||
-
-            null,
-
-        confidence:
-
-            normalizeNumber(
-                decision.confidence
-            ),
-
-        reusable:
-            decision.reusable === true,
-
-        reason:
-
-            normalizeText(
-                decision.reason
-            ),
-
-        createdAt:
-
-            decision.createdAt
-
-            ||
-
-            null
-
-    };
-
-}
-
-
-/*
- * =========================================================
- * BUILD EVENT
- * =========================================================
- */
-
-
-function buildLearningEvent({
-
-    trace,
-
-    analysis,
-
-    decision
-
-}) {
-
-    const payload =
-
-        normalizeLearningPayload({
-
-            decision,
-
-            analysis
-
-        });
-
-
-    const skillId =
-
-        resolveSkillId({
-
-            decision,
-
-            payload
-
-        });
-
-
-    const confidence =
-
-        resolveConfidence({
-
-            decision,
-
-            analysis,
-
-            payload
-
-        });
-
-
-    const reusable =
-
-        decision?.reusable === true
-
-        ||
-
-        analysis?.reusable === true;
-
-
-    const reason =
-
-        normalizeText(
-            decision?.reason
-        )
-
-        ||
-
-        normalizeText(
-            analysis?.reason
-        )
-
-        ||
-
-        "";
-
-
-    return {
-
-        /*
-         * Identity.
-         */
-
-
-        id:
-
-            trace?.id
-
-            ||
-
-            null,
-
-
-        traceId:
-
-            trace?.id
-
-            ||
-
-            trace?.traceId
-
-            ||
-
-            null,
-
-
-        /*
-         * Decision.
-         */
-
-
-        action:
-
-            decision?.action
-
-            ||
-
-            analysis?.action
-
-            ||
-
-            "IGNORE",
-
-
-        skillId,
-
-
-        confidence,
-
-
-        reusable,
-
-
-        reason,
-
-
-        /*
-         * Payload.
-         */
-
-
-        payload,
-
-
-        /*
-         * Diagnostic context.
-         */
-
-
-        analysis:
-
-            compactAnalysisForEvent(
-                analysis
-            ),
-
-
-        decision:
-
-            compactDecisionForEvent(
-                decision
-            ),
-
-
-        source:
-
-            "learning-trigger",
-
-
-        createdAt:
-
-            new Date()
-                .toISOString()
-
-    };
-
-}
-
-
-/*
- * =========================================================
- * EMPTY
- * =========================================================
- */
+import {
+    logLearningEvents
+} from "./trigger/learningEventLogger.js";
 
 
 function buildEmptyResult(
@@ -882,11 +56,19 @@ function buildEmptyResult(
 
         reason:
 
-            normalizeText(reason)
+            String(
+                reason || "Learning не запущен"
+            )
+                .trim(),
 
-            ||
+        analyses:
+            [],
 
-            "Learning не запущен",
+        decisions:
+            [],
+
+        learningEvents:
+            [],
 
         analysis:
             null,
@@ -905,47 +87,23 @@ function buildEmptyResult(
 }
 
 
-/*
- * =========================================================
- * ERROR
- * =========================================================
- */
-
-
-function buildErrorResult({
-
+function buildErrorResult(
     trace,
-
     error
-
-}) {
+) {
 
     return {
 
-        triggered:
-            false,
-
-        reason:
-            "Ошибка Learning Pipeline",
+        ...buildEmptyResult(
+            "Ошибка Learning Pipeline"
+        ),
 
         error:
 
-            normalizeText(
-                error?.message
+            String(
+                error?.message || "unknown error"
             )
-
-            ||
-
-            "unknown error",
-
-        analysis:
-            null,
-
-        decision:
-            null,
-
-        learningEvent:
-            null,
+                .trim(),
 
         traceId:
 
@@ -964,107 +122,18 @@ function buildErrorResult({
 }
 
 
-/*
- * =========================================================
- * LOG
- * =========================================================
- */
-
-
-function logLearningEvent(
-    learningEvent
-) {
-
-    console.log(
-
-        "Jessica Learning Event:",
-
-        JSON.stringify({
-
-            action:
-
-                learningEvent?.action
-
-                ||
-
-                "IGNORE",
-
-            skillId:
-
-                learningEvent?.skillId
-
-                ||
-
-                null,
-
-            confidence:
-
-                learningEvent?.confidence
-
-                ||
-
-                0,
-
-            reusable:
-
-                learningEvent?.reusable === true,
-
-            hasCandidate:
-
-                isObject(
-                    learningEvent
-                        ?.payload
-                        ?.skillCandidate
-                ),
-
-            existingSkills:
-
-                Array.isArray(
-                    learningEvent
-                        ?.payload
-                        ?.skills
-                )
-
-                    ? learningEvent
-                        .payload
-                        .skills
-                        .length
-
-                    : 0
-
-        })
-
-    );
-
-}
-
-
-/*
- * =========================================================
- * RUN
- * =========================================================
- */
-
-
 export function runLearningTrigger(
     trace
 ) {
 
-    /*
-     * 1. Eligibility.
-     */
-
-
     if(
-        !shouldAnalyze(
+        !shouldAnalyzeLearningTrace(
             trace
         )
     ){
 
         return buildEmptyResult(
-
             "Недостаточно данных для обучения"
-
         );
 
     }
@@ -1072,96 +141,100 @@ export function runLearningTrigger(
 
     try {
 
+        const analyses =
 
-        /*
-         * 2. Analyze.
-         */
-
-
-        const analysis =
-
-            analyzeExecutionTrace(
+            analyzeExecutionTraceBatch(
                 trace
-            );
+            )
+                .filter(
+                    item =>
+                        item
+                        &&
+                        typeof item === "object"
+                        &&
+                        !Array.isArray(item)
+                );
 
 
         if(
-            !isObject(
-                analysis
-            )
+            analyses.length === 0
         ){
 
             return buildEmptyResult(
-
                 "Experience Analyzer не вернул результат"
-
             );
 
         }
 
 
-        /*
-         * 3. Route.
-         */
+        const decisions = [];
+
+        const learningEvents = [];
 
 
-        const decision =
+        for(
+            const analysis
+            of analyses
+        ){
 
-            routeLearningEvent({
+            const decision =
 
-                trace,
+                routeLearningEvent({
 
-                analysis
+                    trace,
 
-            });
+                    analysis
+
+                });
+
+
+            if(
+                !decision
+                ||
+                typeof decision !== "object"
+            ){
+
+                continue;
+
+            }
+
+
+            decisions.push(
+                decision
+            );
+
+
+            learningEvents.push(
+
+                buildLearningEvent({
+
+                    trace,
+
+                    analysis,
+
+                    decision
+
+                })
+
+            );
+
+        }
 
 
         if(
-            !isObject(
-                decision
-            )
+            learningEvents.length === 0
         ){
 
             return buildEmptyResult(
-
-                "Learning Router не вернул решение"
-
+                "Learning Router не вернул решений"
             );
 
         }
 
 
-        /*
-         * 4. Event.
-         */
-
-
-        const learningEvent =
-
-            buildLearningEvent({
-
-                trace,
-
-                analysis,
-
-                decision
-
-            });
-
-
-        /*
-         * 5. Log.
-         */
-
-
-        logLearningEvent(
-            learningEvent
+        logLearningEvents(
+            learningEvents
         );
-
-
-        /*
-         * 6. Result.
-         */
 
 
         return {
@@ -1169,11 +242,20 @@ export function runLearningTrigger(
             triggered:
                 true,
 
-            analysis,
+            analyses,
 
-            decision,
+            decisions,
 
-            learningEvent,
+            learningEvents,
+
+            analysis:
+                analyses[0] || null,
+
+            decision:
+                decisions[0] || null,
+
+            learningEvent:
+                learningEvents[0] || null,
 
             traceId:
 
@@ -1192,7 +274,6 @@ export function runLearningTrigger(
 
     }catch(error){
 
-
         console.error(
 
             "Jessica Learning Trigger error:",
@@ -1202,13 +283,10 @@ export function runLearningTrigger(
         );
 
 
-        return buildErrorResult({
-
+        return buildErrorResult(
             trace,
-
             error
-
-        });
+        );
 
     }
 
