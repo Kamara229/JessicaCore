@@ -1,4 +1,5 @@
 import { getDocumentReceipt } from "./composer/documentReceipt.js";
+import { requiresVerifiedComparison } from "./composer/comparisonEvidencePolicy.js";
 /*
  * =========================================================
  * JESSICA RESULT VALIDATOR v4
@@ -520,6 +521,17 @@ async function runSemanticValidation(
 
     }
 
+
+    // Comparison claims require real semantic verification. A missing
+    // validator is not a successful or independently verified result.
+    if (requiresVerifiedComparison(task, plan)) {
+        return buildValidationResult(
+            {valid:false,shouldRetry:false,
+             reason:"Сравнение не подтверждено: AI Validator недоступен"},
+            {validationMode:MODE_UNAVAILABLE_FALLBACK,
+             degraded:true,failureScope:FAILURE_SCOPE.PRESENTATION}
+        );
+    }
 
     /*
      * Basic + Evidence уже пройдены.
