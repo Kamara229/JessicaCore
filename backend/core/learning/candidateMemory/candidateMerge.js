@@ -62,6 +62,7 @@ import {
 import {
     normalizeExecutionProgram
 } from "../../../experience/execution/executionProgram.js";
+import { resolveLearningExampleSuccess } from "../exampleSuccess.js";
 
 
 function normalizeNumber(
@@ -425,26 +426,14 @@ function calculateExampleMetrics(
             : [];
 
 
-    const successCount =
+    // A technical success alone is not positive Learning evidence.
+    // Re-evaluate stored examples against the current verification policy
+    // so historical under-validated comparisons cannot be promoted.
+    const successCount = safeExamples.filter(
+        resolveLearningExampleSuccess
+    ).length;
 
-        safeExamples.filter(
-
-            item =>
-                item?.success === true
-
-        )
-        .length;
-
-
-    const failureCount =
-
-        safeExamples.filter(
-
-            item =>
-                item?.success === false
-
-        )
-        .length;
+    const failureCount = safeExamples.length - successCount;
 
 
     const successRate =
