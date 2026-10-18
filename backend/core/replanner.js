@@ -1,6 +1,7 @@
 import {
     createPlan
 } from "./planner.js";
+import { getAIProviderAvailability } from "../ai/providerAvailability.js";
 
 
 import {
@@ -278,6 +279,21 @@ export async function replanTask(
     planningContext = {}
 
 ) {
+
+    // A known provider quota outage is not a reason to attempt
+    // another AI plan. Stop immediately, preserving failed evidence.
+    const provider = getAIProviderAvailability();
+    if (provider.blocked) {
+        console.log("Jessica Replanner skipped: AI quota cooldown", {
+            reason: provider.reason,
+            blockedUntil: provider.blockedUntil
+        });
+        return {
+            success: false,
+            reason: "AI Planner недоступен из-за действующего ограничения провайдера",
+            providerCooldown: true
+        };
+    }
 
     /*
      * 1. Retry context.
