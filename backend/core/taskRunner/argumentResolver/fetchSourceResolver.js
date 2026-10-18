@@ -360,7 +360,8 @@ export async function resolveFetchSource(
 
         scopeCandidatesToSearchQuery(
             searchResult?.arguments?.query,
-            extractSearchCandidates(searchResult)
+            extractSearchCandidates(searchResult),
+            selectionContext?.task || ""
         );
 
 
