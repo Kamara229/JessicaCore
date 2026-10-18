@@ -37,7 +37,7 @@ export function checkPairedClaimCoverage({task,plan,taskRunResult,answer,claims}
         valid:false,reason:"Не подтверждены утверждения по каждому из двух исходных документов"
     };
     const rows=answerRows(answer);
-    const minimum=Math.max(2,rows.length);
+    const minimum=Math.max(2,rows.length*2);
     if((claims||[]).length<minimum) return {
         valid:false,reason:"Не проверены все существенные строки сравнительной таблицы ("+
             (claims||[]).length+" из "+minimum+")"
