@@ -1,3 +1,5 @@
+import { buildPairedSourceContext } from "./pairedSourceContext.js";
+
 /*
  * =========================================================
  * JESSICA COMPOSER CONTEXT v3
@@ -540,7 +542,10 @@ export function buildComposerContext(
 
 
     const factualContext =
-        buildFactualContext(
+        (plan?.intent === "native_two_source_comparison"
+            ? buildPairedSourceContext(task, taskRunResult)
+            : null)
+        || buildFactualContext(
             taskRunResult,
             evidenceMode
         );
