@@ -325,3 +325,76 @@ test("Creative Commons version mismatch fails source lookup instead of trusting 
     const query="Creative Commons CC BY-SA 4.0 license";
     assert.deepEqual(scopeCandidatesToSearchQuery(query,[ccResults[0],ccResults[2]]),[]);
 });
+
+import { deriveVerifiedDiscoveryMetrics } from "../core/learning/confidence/verifiedDiscoveryMetrics.js";
+import { buildPatternEvidence } from "../core/learning/patternExtraction/patternEvidence.js";
+import { buildNewSkillCandidate } from "../core/learning/experienceCandidateBuilder.js";
+import { mergeLearningCandidates } from "../core/learning/candidateMemory/candidateMerge.js";
+
+const verifiedDiscoveryPattern={
+    id:"two-document-condition-comparison",
+    name:"Document terms comparison",
+    category:"document-analysis",
+    description:"Retrieve original versions and compare clauses against explicit criteria",
+    workflow:["Fetch each original document","Verify versions","Compare clauses with citations"],
+    triggerPatterns:["compare two documents","сравни условия двух документов"],
+    validationRules:["Each conclusion cites a fetched source"],
+    constraints:["Do not invent clauses"],
+    requiredTools:["web_fetch"]
+};
+
+function makeVerifiedDiscoveryTrace(id) {
+    return {
+        id,task:"Сравни два документа",
+        status:"COMPLETED",success:true,
+        executedTools:["web_fetch"],
+        result:{
+            status:"COMPLETED",success:true,verified:true,
+            answer:{text:"Подтверждено сопоставление условий двух исходных документов."},
+            validation:{valid:true,degraded:false,outcomeType:"result"}
+        }
+    };
+}
+
+test("discovery cannot promote a Skill from unverified or degraded evidence",()=>{
+    const trace=makeVerifiedDiscoveryTrace("trace-good");
+    const evidence=buildPatternEvidence({trace,metrics:{successRate:0,occurrences:99}});
+    assert.equal(deriveVerifiedDiscoveryMetrics(evidence)?.confidence,0.76);
+    const invalid={...evidence,result:{...evidence.result,verified:false}};
+    assert.equal(deriveVerifiedDiscoveryMetrics(invalid),null);
+    const degraded={...evidence,validation:{...evidence.validation,degraded:true}};
+    assert.equal(deriveVerifiedDiscoveryMetrics(degraded),null);
+});
+
+test("first verified discovery stays a candidate; independent second success raises confidence",()=>{
+    function candidate(id) {
+        const trace=makeVerifiedDiscoveryTrace(id);
+        const evidence=buildPatternEvidence({trace,metrics:{occurrences:999,successRate:0}});
+        const m=deriveVerifiedDiscoveryMetrics(evidence);
+        return buildNewSkillCandidate({
+            pattern:verifiedDiscoveryPattern,
+            trace,
+            confidence:m.confidence,
+            maturity:m.maturity,
+            occurrences:m.occurrences
+        });
+    }
+    const first=candidate("trace-1");
+    assert.equal(first.examples.length,1);
+    assert.equal(first.examples[0].result.verified,true);
+    assert.equal(first.examples[0].result.validation.valid,true);
+    assert.equal(first.successCount,1);
+    assert.equal(first.successRate,1);
+    assert.equal(first.confidence,0.76);
+    const second=candidate("trace-2");
+    const merged=mergeLearningCandidates({existing:first,incoming:second,exactMatch:true});
+    assert.equal(merged.examples.length,2);
+    assert.equal(merged.successCount,2);
+    assert.equal(merged.failureCount,0);
+    assert.equal(merged.successRate,1);
+    assert.equal(merged.occurrences,2);
+    assert.equal(merged.confidence,0.82);
+    const duplicate=mergeLearningCandidates({existing:merged,incoming:second,exactMatch:true});
+    assert.equal(duplicate.occurrences,2);
+    assert.equal(duplicate.confidence,0.82);
+});
