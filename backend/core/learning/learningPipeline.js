@@ -49,6 +49,7 @@
 import {
     runLearningWorker
 } from "./learningWorker.js";
+import { consolidateLearningCandidates } from "./candidateMemory/candidateConsolidator.js";
 
 
 import {
@@ -345,6 +346,24 @@ export async function runLearningPipeline()
 
 
     /*
+     * 2.5. Autonomous reconciliation of earlier duplicate ACTIVE candidates.
+     * This doesn't publish a Skill; quality and autonomy gates remain the
+     * only routes to published Experience.
+     */
+    let consolidation = null;
+    try {
+        consolidation = await consolidateLearningCandidates();
+    } catch (error) {
+        // A temporary database error must not block the existing learning cycle.
+        consolidation = {
+            success: false, considered: 0, merged: 0,
+            error: error?.message || "Candidate consolidation failed"
+        };
+        console.warn("Jessica Candidate consolidation warning:", consolidation.error);
+    }
+
+
+    /*
      * =====================================================
      * 3. ATOMIC CLAIM
      * =====================================================
@@ -534,6 +553,8 @@ export async function runLearningPipeline()
          * Crash Recovery.
          */
 
+
+        consolidation,
 
         recovered:
 
