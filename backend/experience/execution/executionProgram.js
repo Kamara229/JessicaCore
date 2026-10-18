@@ -494,6 +494,19 @@ export function inferExecutionProgramFromPattern({
 
 
     /*
+     * Lookup is not document comparison.
+     * Never attach an official_source_lookup machine program to a
+     * two-document comparison Skill: that program only retrieves facts
+     * and cannot perform or validate a comparison.
+     */
+    const comparisonIntent =
+        /(?:сравн\p{L}*|сопостав\p{L}*|различи\p{L}*|compare|comparison|differences?)/iu
+            .test(semanticText);
+    if (comparisonIntent) {
+        return null;
+    }
+
+    /*
      * Official-source route требует оба web tools.
      */
 
