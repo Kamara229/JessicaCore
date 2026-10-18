@@ -45,9 +45,12 @@ function sourceSections(sourceText) {
 export function matchesAttributedEvidence(claim,sourceText) {
     if(!claim?.evidence || !claim?.sourceUrl) return false;
     const evidence=normalizeWords(claim.evidence);
-    // Extremely short quotes cannot prove an independent factual claim.
-    if(evidence.length<18 || evidence.split(" ").length<4) return false;
     const sections=sourceSections(sourceText);
+    // A one-token version identifier may be legitimate for a single-
+    // source lookup. A comparative claim needs a substantive quotation.
+    if((sections?.length || 0)>1
+        && (evidence.length<18 || evidence.split(" ").length<4)) return false;
+    if(!evidence) return false;
     if(sections){
         const url=canonical(claim.sourceUrl);
         const section=sections.find(s=>s.url===url);
