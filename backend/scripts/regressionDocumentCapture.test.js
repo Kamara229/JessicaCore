@@ -182,7 +182,7 @@ test("paired composer includes independently attributed excerpts from both sourc
     const context=buildComposerContext(comparisonInput,pairedPlan,pairedRun);
     assert.ok(context.includes("URL: https://opensource.org/license/mit"));
     assert.ok(context.includes("URL: https://opensource.org/license/apache-2.0"));
-    assert.ok(context.includes("permission"));
+    assert.ok(context.includes("Permission"));
     assert.ok(context.includes("Grant of Patent License"));
     assert.ok(context.length<10000);
     assert.equal(buildPairedSourceContext(comparisonInput,{results:[pairedRun.results[0]]}),null);
