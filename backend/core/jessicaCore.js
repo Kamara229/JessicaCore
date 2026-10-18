@@ -39,6 +39,8 @@ import {
     decomposeTask
 } from "./taskDecomposer.js";
 
+import { attachFilesToDecomposition } from "./files/attachmentContext.js";
+
 import {
     contextualizeTask,
     attachConversationToDecomposition
@@ -121,7 +123,7 @@ function buildCoreFailure(
 
 export async function executeJessicaTask(
     task,
-    { conversation = [] } = {}
+    { conversation = [], attachments = [] } = {}
 ) {
 
     const normalizedTask =
@@ -254,10 +256,13 @@ export async function executeJessicaTask(
     }
 
 
-    const decomposition = attachConversationToDecomposition(
-        decompositionResult.decomposition,
-        normalizedTask,
-        conversation
+    const decomposition = attachFilesToDecomposition(
+        attachConversationToDecomposition(
+            decompositionResult.decomposition,
+            normalizedTask,
+            conversation
+        ),
+        attachments
     );
 
 
@@ -391,7 +396,7 @@ export async function executeJessicaTask(
 
     // A referential follow-up is not a standalone, reusable Skill.
     // Its trace lacks independent task grounding; do not publish it as Experience.
-    const learningResult = executionTask !== normalizedTask
+    const learningResult = attachments.length > 0 || executionTask !== normalizedTask
         ? {
             success: false,
             queued: false,

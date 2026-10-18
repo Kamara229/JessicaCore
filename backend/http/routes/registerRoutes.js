@@ -17,6 +17,7 @@ import {
 import {
     registerSolveRoute
 } from "./solveRoute.js";
+import { registerDocumentExtractRoute } from "./documentExtractRoute.js";
 
 import {
     registerLearningTestRoute
@@ -96,6 +97,7 @@ export function registerRoutes(
      */
 
 
+    registerDocumentExtractRoute(app);
     registerSolveRoute(
         app
     );

@@ -53,7 +53,7 @@ jobs:
         run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
 
       - name: Regression tests for verified Learning and release dates
-        run: node --test backend/scripts/regressionLearningSafety.test.js backend/scripts/regressionDocumentCapture.test.js backend/scripts/regressionLocalConversation.test.js
+        run: node --test backend/scripts/regressionLearningSafety.test.js backend/scripts/regressionDocumentCapture.test.js backend/scripts/regressionLocalConversation.test.js backend/scripts/regressionDocumentAttachments.test.js
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4

@@ -217,8 +217,7 @@ export async function runSubtasks(
                 id:
                     subtask?.id,
 
-                text:
-                    subtask?.text,
+                textLength: typeof subtask?.text === "string" ? subtask.text.length : 0,
 
                 dependsOn:
                     dependencyState.dependencies
