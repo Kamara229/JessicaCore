@@ -57,6 +57,7 @@ import {
 import {
     getDirectAnswer
 } from "./composer/directAnswer.js";
+import { getDocumentReceipt } from "./composer/documentReceipt.js";
 
 import {
     isComposerAvailable,
@@ -389,6 +390,11 @@ export async function composeAnswer(
 
     }
 
+
+    // Source capture is a verified receipt, not a synthesized answer.
+    // Avoid Groq composition for a fetch-only prerequisite.
+    const receipt = getDocumentReceipt(task, plan, taskRunResult);
+    if (receipt) return receipt;
 
     /*
      * =====================================================
