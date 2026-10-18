@@ -1,8 +1,11 @@
 package com.jessica.core.ui.chat
 
+import android.net.Uri
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jessica.core.modules.chat.ChatAttachment
+import com.jessica.core.modules.chat.ChatAttachmentStore
 import com.jessica.core.modules.chat.ChatContextWindow
 import com.jessica.core.modules.chat.ChatMessage
 import com.jessica.core.modules.chat.ChatThread
@@ -19,6 +22,8 @@ data class ChatState(
     val threads: List<ChatThread> = emptyList(),
     val activeThreadId: String? = null,
     val input: TextFieldValue = TextFieldValue(),
+    val pendingAttachments: List<ChatAttachment> = emptyList(),
+    val isImporting: Boolean = false,
     val isRunning: Boolean = false,
     val isLoading: Boolean = true,
     val storageError: String? = null
@@ -26,9 +31,9 @@ data class ChatState(
 
 class ChatViewModel(
     private val threadStore: ChatThreadStore,
-    private val messageExecutor: suspend (String, List<ChatMessage>) -> String
+    private val attachmentStore: ChatAttachmentStore,
+    private val messageExecutor: suspend (String, List<ChatMessage>, List<ChatAttachment>) -> String
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(ChatState())
     val state: StateFlow<ChatState> = _state.asStateFlow()
 
@@ -61,10 +66,58 @@ class ChatViewModel(
         _state.value = _state.value.copy(input = value)
     }
 
+    fun attachFiles(uris: List<Uri>) {
+        val current = _state.value
+        if (current.isRunning || current.isLoading || current.isImporting) return
+        if (uris.isEmpty()) return
+        _state.value = current.copy(isImporting = true, storageError = null)
+        viewModelScope.launch {
+            val list = current.pendingAttachments.toMutableList()
+            var problem: String? = null
+            for (uri in uris) {
+                if (list.size >= 3) {
+                    problem = "Можно приложить не более 3 файлов к одному сообщению"
+                    break
+                }
+                try {
+                    list.add(attachmentStore.importUri(uri))
+                } catch (error: Exception) {
+                    problem = error.message ?: "Не удалось добавить файл"
+                    break
+                }
+            }
+            _state.value = _state.value.copy(
+                pendingAttachments = list,
+                isImporting = false,
+                storageError = problem
+            )
+        }
+    }
+
+    fun removeAttachment(id: String) {
+        val current = _state.value
+        if (current.isRunning || current.isImporting || current.isLoading) return
+        val removed = current.pendingAttachments.find { it.id == id } ?: return
+        _state.value = current.copy(
+            pendingAttachments = current.pendingAttachments.filterNot { it.id == id },
+            storageError = null
+        )
+        viewModelScope.launch(Dispatchers.IO) { attachmentStore.discard(removed) }
+    }
+
+    private fun discardPending() {
+        val old = _state.value.pendingAttachments
+        _state.value = _state.value.copy(pendingAttachments = emptyList())
+        viewModelScope.launch(Dispatchers.IO) {
+            old.forEach(attachmentStore::discard)
+        }
+    }
+
     fun newChat() {
         val previous = _state.value
-        if (previous.isRunning || previous.isLoading) return
-        _state.value = previous.copy(isLoading = true, storageError = null)
+        if (previous.isRunning || previous.isLoading || previous.isImporting) return
+        discardPending()
+        _state.value = _state.value.copy(isLoading = true, storageError = null)
         viewModelScope.launch {
             try {
                 val result = withContext(Dispatchers.IO) {
@@ -80,7 +133,7 @@ class ChatViewModel(
                     isLoading = false
                 )
             } catch (error: Exception) {
-                _state.value = previous.copy(
+                _state.value = _state.value.copy(
                     isLoading = false,
                     storageError = "Не удалось создать чат: ${error.message}"
                 )
@@ -89,10 +142,11 @@ class ChatViewModel(
     }
 
     fun openChat(id: String) {
-        val previous = _state.value
-        if (previous.isRunning || previous.isLoading || id == previous.activeThreadId) return
-        if (previous.threads.none { it.id == id }) return
-        _state.value = previous.copy(isLoading = true, storageError = null)
+        val current = _state.value
+        if (current.isRunning || current.isLoading || current.isImporting || id == current.activeThreadId) return
+        if (current.threads.none { it.id == id }) return
+        discardPending()
+        _state.value = _state.value.copy(isLoading = true, storageError = null)
         viewModelScope.launch {
             try {
                 val messages = withContext(Dispatchers.IO) {
@@ -107,7 +161,7 @@ class ChatViewModel(
                     isLoading = false
                 )
             } catch (error: Exception) {
-                _state.value = previous.copy(
+                _state.value = _state.value.copy(
                     isLoading = false,
                     storageError = "Не удалось открыть чат: ${error.message}"
                 )
@@ -116,25 +170,31 @@ class ChatViewModel(
     }
 
     fun sendMessage() {
-        val snapshot = _state.value
-        val text = snapshot.input.text.trim()
-        if (text.isBlank() || snapshot.isRunning || snapshot.isLoading) return
-        _state.value = snapshot.copy(isRunning = true, storageError = null)
-        submit(ChatMessage(text = text, isUser = true),
-            ChatContextWindow.select(snapshot.messages), clearInput = true)
+        val current = _state.value
+        val files = current.pendingAttachments
+        val entered = current.input.text.trim()
+        if ((entered.isEmpty() && files.isEmpty()) ||
+            current.isRunning || current.isLoading || current.isImporting) return
+        val task = entered.ifBlank { "Проанализируй приложенные файлы и расскажи об их содержании." }
+        val history = ChatContextWindow.select(current.messages)
+        _state.value = current.copy(isRunning = true, storageError = null)
+        submit(ChatMessage(text = task, isUser = true, attachments = files),
+            history, clearInput = true)
     }
 
     fun retryMessage(message: ChatMessage) {
-        val snapshot = _state.value
-        if (!message.isUser || message.text.isBlank() || snapshot.isRunning || snapshot.isLoading) return
-        _state.value = snapshot.copy(isRunning = true, storageError = null)
-        submit(ChatMessage(text = message.text.trim(), isUser = true),
-            ChatContextWindow.select(snapshot.messages), clearInput = false)
+        val current = _state.value
+        if (!message.isUser || message.text.isBlank() ||
+            current.isRunning || current.isLoading || current.isImporting) return
+        val history = ChatContextWindow.select(current.messages)
+        _state.value = current.copy(isRunning = true, storageError = null)
+        submit(message.copy(timestamp = System.currentTimeMillis()),
+            history, clearInput = false)
     }
 
     private fun submit(
         userMessage: ChatMessage,
-        previousMessages: List<ChatMessage>,
+        history: List<ChatMessage>,
         clearInput: Boolean
     ) {
         viewModelScope.launch {
@@ -162,15 +222,16 @@ class ChatViewModel(
                 activeThreadId = id,
                 threads = threads,
                 messages = _state.value.messages + userMessage,
+                pendingAttachments = emptyList(),
                 input = if (clearInput) TextFieldValue() else _state.value.input
             )
 
-            val text = try {
-                messageExecutor(userMessage.text, previousMessages)
+            val result = try {
+                messageExecutor(userMessage.text, history, userMessage.attachments)
             } catch (error: Exception) {
                 "Не удалось выполнить запрос: ${error.message ?: "неизвестная ошибка"}"
             }
-            val answer = ChatMessage(text = text, isUser = false)
+            val answer = ChatMessage(text = result, isUser = false)
             val stored = try {
                 withContext(Dispatchers.IO) {
                     threadStore.append(id, answer)

@@ -12,6 +12,9 @@ import com.jessica.core.modules.BlockStorage
 import com.jessica.core.modules.ReportStorage
 import com.jessica.core.modules.JessicaAIEngine
 import com.jessica.core.modules.chat.ChatMessage
+import com.jessica.core.modules.chat.ChatAttachment
+import com.jessica.core.modules.chat.ChatAttachmentStore
+import com.jessica.core.modules.chat.DocumentExtractionClient
 
 
 
@@ -116,6 +119,8 @@ class JessicaController(
     private val aiEngine =
 
         JessicaAIEngine()
+
+    private val attachmentExtractor = DocumentExtractionClient(ChatAttachmentStore(context))
 
 
 
@@ -302,7 +307,9 @@ class JessicaController(
 
         request: String,
 
-        history: List<ChatMessage> = emptyList()
+        history: List<ChatMessage> = emptyList(),
+
+        attachments: List<ChatAttachment> = emptyList()
 
     ): String {
 
@@ -329,11 +336,19 @@ class JessicaController(
 
 
 
+        val documents = try {
+            attachmentExtractor.extract(attachments)
+        } catch (error: Exception) {
+            message.value = "Ошибка чтения вложений"
+            return "Не удалось обработать вложение: ${error.message}"
+        }
+
         val result =
 
             aiEngine.solve(
                 task,
-                history
+                history,
+                documents
             )
 
 

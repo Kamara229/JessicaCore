@@ -2,6 +2,7 @@ package com.jessica.core.modules
 
 import com.jessica.core.BuildConfig
 import com.jessica.core.modules.chat.ChatMessage
+import com.jessica.core.modules.chat.DocumentContext
 import com.jessica.core.modules.chat.ChatContextWindow
 import org.json.JSONArray
 import kotlinx.coroutines.Dispatchers
@@ -51,7 +52,8 @@ class JessicaAIEngine : AIEngine {
 
     suspend fun solve(
         task: String,
-        history: List<ChatMessage>
+        history: List<ChatMessage>,
+        documents: List<DocumentContext> = emptyList()
     ): AIResult {
 
         if (task.isBlank()) {
@@ -83,7 +85,8 @@ class JessicaAIEngine : AIEngine {
 
                 sendRequest(
                     task,
-                    history
+                    history,
+                    documents
                 )
 
             } catch (e: SocketTimeoutException) {
@@ -114,7 +117,8 @@ class JessicaAIEngine : AIEngine {
 
     private fun sendRequest(
         task: String,
-        history: List<ChatMessage>
+        history: List<ChatMessage>,
+        documents: List<DocumentContext>
     ): AIResult {
 
         val url =
@@ -180,6 +184,16 @@ class JessicaAIEngine : AIEngine {
                         })
                     }
                     put("conversation", conversation)
+
+                    val attachments = JSONArray()
+                    documents.forEach { document ->
+                        attachments.put(JSONObject().apply {
+                            put("name", document.name)
+                            put("text", document.text)
+                            put("truncated", document.truncated)
+                        })
+                    }
+                    put("attachments", attachments)
 
                 }
 
