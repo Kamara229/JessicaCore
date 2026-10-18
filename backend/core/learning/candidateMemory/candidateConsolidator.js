@@ -46,7 +46,9 @@ export function planCandidateConsolidation(memories) {
                 similarity
             });
             claimed.add(duplicate.id);
+            claimed.add(canonical.id); // One update per canonical in each cycle.
             if (plan.length >= MAX_PER_CYCLE) return plan;
+            break;
         }
     }
     return plan;
@@ -81,14 +83,20 @@ export async function consolidateLearningCandidates() {
                 .map(x => x?.traceId || x?.result?.executionMeta?.traceId)
                 .filter(Boolean));
 
-            // One repeated trace cannot pretend to be independent evidence.
-            // Merging may still deduplicate metadata, but cannot imply learning.
-            if (newKeys.size <= oldKeys.size) {
+            // A prior cycle may have persisted the canonical merge but failed
+            // to retire the duplicate (e.g. before a DB constraint migration).
+            // Retrying must finish retirement WITHOUT inflating evidence twice.
+            const alreadyRecorded =
+                Array.isArray(canonical.metadata?.consolidatedFrom) &&
+                canonical.metadata.consolidatedFrom.includes(duplicate.id);
+            const addsIndependentTrace = newKeys.size > oldKeys.size;
+            if (!addsIndependentTrace && !alreadyRecorded) {
                 skipped++;
                 continue;
             }
 
-            await updateCandidateMemory({
+            if (addsIndependentTrace && !alreadyRecorded) {
+                await updateCandidateMemory({
                 id: canonical.id,
                 candidate: merged,
                 skillId: merged.skillId,
@@ -104,6 +112,7 @@ export async function consolidateLearningCandidates() {
                     ]
                 }
             });
+            }
 
             const retired = await updateCandidateMemoryStatus({
                 id: duplicate.id,

@@ -82,3 +82,15 @@ test("one ACTIVE candidate requires no consolidation", () => {
         id:"old",status:"ACTIVE",candidate:comparisonA
     }]).length,0);
 });
+
+test("does not attempt to consolidate the same canonical twice in one cycle", () => {
+    const memories=[
+        {id:"old",status:"ACTIVE",createdAt:"2026-10-18T14:43:00Z",candidate:comparisonA},
+        {id:"new",status:"ACTIVE",createdAt:"2026-10-18T15:33:00Z",candidate:comparisonB},
+        {id:"third",status:"ACTIVE",createdAt:"2026-10-18T15:38:00Z",
+            candidate:{...comparisonB,skillId:"third-document-comparison"}}
+    ];
+    const plan=planCandidateConsolidation(memories);
+    assert.equal(plan.length,1);
+    assert.equal(plan[0].canonical.id,"old");
+});
