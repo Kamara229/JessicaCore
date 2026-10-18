@@ -1116,6 +1116,13 @@ function executeReleaseFact(
         );
 
 
+    const fragmentDates =
+
+        extractDates(
+            evidenceFragment
+        );
+
+
     const evidenceVerified =
 
         Boolean(
@@ -1130,8 +1137,10 @@ function executeReleaseFact(
 
         &&
 
-        evidenceFragment.includes(
-            selected.nearestDate
+        fragmentDates.some(
+            item =>
+                item.value ===
+                selected.nearestDate
         );
 
 
