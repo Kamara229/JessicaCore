@@ -239,6 +239,15 @@ export function registerAIProviderLimit(
 
     }
 
+    // Provider rejects the requested output size regardless of waiting.
+    // This is a request-shape error, not a quota cooldown.
+    const detail=normalizeMessage(error);
+    if (detail.includes("request too large") ||
+        detail.includes("expected output tokens exceed") ||
+        detail.includes("reduce max_tokens")) {
+        return getAIProviderAvailability();
+    }
+
 
     const retryAfter =
 
