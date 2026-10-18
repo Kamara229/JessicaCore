@@ -173,3 +173,39 @@ test("pair acquisition rejects swapped or truncated documents", () => {
     ]};
     assert.equal(verifyPairedSourceContent(pairedPlan,truncated).valid,false);
 });
+
+import { buildComposerContext } from "../core/composer/composerContext.js";
+import { buildPairedSourceContext } from "../core/composer/pairedSourceContext.js";
+import { resolveComposerBudget } from "../ai/composerClient.js";
+
+test("paired composer includes independently attributed excerpts from both sources",()=>{
+    const context=buildComposerContext(comparisonInput,pairedPlan,pairedRun);
+    assert.ok(context.includes("URL: https://opensource.org/license/mit"));
+    assert.ok(context.includes("URL: https://opensource.org/license/apache-2.0"));
+    assert.ok(context.includes("permission"));
+    assert.ok(context.includes("Grant of Patent License"));
+    assert.ok(context.length<10000);
+    assert.equal(buildPairedSourceContext(comparisonInput,{results:[pairedRun.results[0]]}),null);
+});
+
+test("long source pairs retain relevant separate excerpts without copying every page",()=>{
+    const mit="MIT License Permission is hereby granted. "+("Other legal provisions ".repeat(190));
+    const apache="Apache License Version 2.0. "+("General definitions ".repeat(200))
+        +"Grant of Patent License with express patent terms. "+("Copyright notices ".repeat(150));
+    const large={results:[
+        {tool:"web_fetch",success:true,data:{url:"https://opensource.org/license/mit",content:mit}},
+        {tool:"web_fetch",success:true,data:{url:"https://opensource.org/license/apache-2.0",content:apache}}
+    ]};
+    const trimmed=buildPairedSourceContext(comparisonInput,large);
+    assert.ok(trimmed.includes("https://opensource.org/license/mit"));
+    assert.ok(trimmed.includes("https://opensource.org/license/apache-2.0"));
+    assert.ok(trimmed.includes("Grant of Patent License"));
+    assert.ok(trimmed.length<9000);
+});
+
+test("composer token budget applies only to paired sources",()=>{
+    assert.deepEqual(resolveComposerBudget({pairedSources:true}),{
+        max_completion_tokens:1400,reasoning_effort:"low"
+    });
+    assert.deepEqual(resolveComposerBudget({}),{});
+});
