@@ -6,7 +6,6 @@
 
 
 import {
-    normalizeText,
     normalizeStringArray,
     mergeStringArrays,
     resolveTraceSuccess,
@@ -19,12 +18,10 @@ import {
 } from "../../exampleSuccess.js";
 
 
-const MAX_TASK_LENGTH =
-    2000;
-
-
-const MAX_RESULT_TEXT_LENGTH =
-    2500;
+import {
+    compactCandidateResult,
+    limitCandidateTaskText
+} from "./candidateResultCompact.js";
 
 
 function isObject(
@@ -40,216 +37,6 @@ function isObject(
         !Array.isArray(value)
 
     );
-
-}
-
-
-function limitText(
-    value,
-    maxLength
-) {
-
-    const text =
-
-        normalizeText(
-            value
-        );
-
-
-    return text.length <= maxLength
-
-        ? text
-
-        : (
-            text.slice(
-                0,
-                maxLength
-            )
-            +
-            "…"
-        );
-
-}
-
-
-function compactValidation(
-    result
-) {
-
-    const validation =
-
-        isObject(
-            result?.validation
-        )
-
-            ? result.validation
-
-            : {};
-
-
-    return {
-
-        valid:
-            validation.valid === true,
-
-        outcomeType:
-
-            normalizeText(
-                validation.outcomeType
-            )
-
-            ||
-
-            null,
-
-        validationMode:
-
-            normalizeText(
-                validation.validationMode
-            )
-
-            ||
-
-            null,
-
-        degraded:
-            validation.degraded === true
-
-    };
-
-}
-
-
-function compactExecutionMeta(
-    result,
-    fallbackTraceId,
-    executedTools
-) {
-
-    const meta =
-
-        isObject(
-            result?.executionMeta
-        )
-
-            ? result.executionMeta
-
-            : {};
-
-
-    return {
-
-        traceId:
-
-            meta.traceId
-
-            ||
-
-            fallbackTraceId
-
-            ||
-
-            null,
-
-        executionId:
-
-            meta.executionId
-
-            ||
-
-            null,
-
-        usedTools:
-
-            mergeStringArrays(
-
-                executedTools,
-
-                meta.usedTools
-
-            )
-
-    };
-
-}
-
-
-function compactResult(
-    result,
-    fallbackTraceId,
-    executedTools
-) {
-
-    const source =
-
-        isObject(
-            result
-        )
-
-            ? result
-
-            : {};
-
-
-    return {
-
-        success:
-            source.success === true,
-
-        status:
-
-            normalizeText(
-                source.status
-            )
-
-            ||
-
-            null,
-
-        verified:
-            source.verified === true,
-
-        text:
-
-            limitText(
-
-                source?.answer?.text
-
-                ||
-
-                source?.text
-
-                ||
-
-                "",
-
-                MAX_RESULT_TEXT_LENGTH
-
-            )
-
-            ||
-
-            null,
-
-        validation:
-
-            compactValidation(
-                source
-            ),
-
-        executionMeta:
-
-            compactExecutionMeta(
-
-                source,
-
-                fallbackTraceId,
-
-                executedTools
-
-            )
-
-    };
 
 }
 
@@ -303,14 +90,13 @@ export function compactCandidateExample(
 
         task:
 
-            limitText(
-                example.task,
-                MAX_TASK_LENGTH
+            limitCandidateTaskText(
+                example.task
             ),
 
         result:
 
-            compactResult(
+            compactCandidateResult(
 
                 example.result,
 
