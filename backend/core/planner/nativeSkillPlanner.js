@@ -43,6 +43,7 @@ import {
 } from "../native/dateUtils.js";
 
 import { hasVerifiedDateSkillEvidence } from "./youngDateSkill.js";
+import { buildNativeDocumentFetchPlan } from "./nativeDocumentFetchPlan.js";
 
 
 import {
@@ -1052,6 +1053,16 @@ export function tryCreateNativeSkillPlan({
      * AI не нужен даже без Experience.
      */
 
+
+    const documentPlan = buildNativeDocumentFetchPlan(task);
+    if (documentPlan) {
+        return finalizeNativePlan({
+            task,
+            context: planningContext,
+            plan: documentPlan,
+            source: "native-document-capture"
+        });
+    }
 
     const datePlan =
 
