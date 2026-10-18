@@ -6,7 +6,7 @@
  * that very requirement.
  */
 function isNegativeRequirement(text) {
-    return /(?:не\s+(?:требует(?:ся)?|предусматрива(?:ет|ется)|содержит)|нет\s+(?:услови|обязательств|требован)|отсутств(?:ует|ие)|does\s+not\s+(?:require|contain|include)|not\s+required|no\s+requirement|without\s+(?:a\s+)?requirement)/iu
+    return /(?:не\s+(?:требует(?:ся)?|предусматрива(?:ет|ется)|содержит)|нет\s+(?:услови|обязательств|требован)|отсутств(?:ует|уют|ие|ия)|does\s+not\s+(?:require|contain|include)|not\s+required|no\s+requirement|without\s+(?:a\s+)?requirement)/iu
         .test(String(text || ""));
 }
 
