@@ -32,6 +32,11 @@ import {
 } from "./approval/approvalMetrics.js";
 
 
+import {
+    inspectLearningSkillQuality
+} from "./quality/skillQualityInspector.js";
+
+
 function isFiniteUnit(
     value
 ) {
@@ -296,15 +301,50 @@ export function validateLearningQuality(
     }
 
 
+    const inspection =
+
+        inspectLearningSkillQuality(
+            proposal
+        );
+
+
+    if(
+        inspection.passed !== true
+    ){
+
+        return {
+
+            passed:
+                false,
+
+            reason:
+
+                inspection.reason
+
+                ||
+
+                "Skill не прошёл Quality Inspector",
+
+            metrics,
+
+            inspection
+
+        };
+
+    }
+
+
     return {
 
         passed:
             true,
 
         reason:
-            "Learning Evidence прошёл Quality Gate",
+            "Learning Evidence и Skill Quality прошли Quality Gate",
 
-        metrics
+        metrics,
+
+        inspection
 
     };
 
