@@ -318,3 +318,23 @@ test("short exact version number remains valid for one source",()=>{
         supported:true,sourceUrl:"https://example.com/wrong",evidence:"v1.2.3"
     },original),false);
 });
+
+import { buildOriginalSourceEvidenceContext } from "../core/validator/claim/claimEvidenceMatcher.js";
+
+test("claim excerpt missing from compact context is verified against actual fetched source only",()=>{
+    const actual=[
+        {tool:"web_fetch",success:true,data:{url:"https://example.com/source-a",
+            content:"**Attribution** — You must give [appropriate credit](https://example.com/help), provide a link to the license, and indicate if changes were made."}},
+        {tool:"web_fetch",success:true,data:{url:"https://example.com/source-b",
+            content:"**ShareAlike** — You must distribute your contributions under the same license as the original."}}
+    ];
+    const originals=buildOriginalSourceEvidenceContext({results:actual});
+    const compact="SOURCE 1\nURL: https://example.com/source-a\nSNIPPET 1: License summary without specific attribution terms.\nSOURCE 2\nURL: https://example.com/source-b\nSNIPPET 1: Summary.";
+    const claim={claim:"Attribution is required",supported:true,
+        sourceUrl:"https://example.com/source-a",
+        evidence:"Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made."};
+    assert.equal(parseClaimEvidenceResponse(JSON.stringify({claims:[claim]}),compact).claims[0].supported,false);
+    assert.equal(parseClaimEvidenceResponse(JSON.stringify({claims:[claim]}),compact,originals).claims[0].supported,true);
+    const forged={...claim,sourceUrl:"https://example.com/source-b"};
+    assert.equal(parseClaimEvidenceResponse(JSON.stringify({claims:[forged]}),compact,originals).claims[0].supported,false);
+});
