@@ -395,6 +395,9 @@ export async function composeAnswer(
     // Avoid Groq composition for a fetch-only prerequisite.
     const receipt = getDocumentReceipt(task, plan, taskRunResult);
     if (receipt) return receipt;
+    if (plan?.intent === "native_document_capture") {
+        return buildComposerFailure("Документ не подтверждён, неполон либо адрес источника не совпадает.");
+    }
 
     /*
      * =====================================================
