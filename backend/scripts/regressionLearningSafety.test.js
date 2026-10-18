@@ -459,3 +459,17 @@ test("verified comparative experience: first candidate is retained, second passe
     assert.equal(merged.confidence,0.82);
     assert.equal(reviewSecond.flow,APPROVAL_FLOW.SAVE_VERSION,JSON.stringify(reviewSecond));
 });
+
+test("a legacy validated comparison without both citations cannot count as positive Experience",()=>{
+    const task="Сравни две лицензии: https://opensource.org/license/bsd-2-clause и https://opensource.org/license/bsd-3-clause";
+    const old={task,success:true,result:{
+        success:true,verified:true,status:"COMPLETED",
+        text:"BSD 2-Clause and BSD 3-Clause have different terms.",
+        validation:{valid:true,degraded:false}
+    }};
+    assert.equal(resolveLearningExampleSuccess(old),false);
+    const corrected={...old,result:{...old.result,text:old.result.text+
+        "\nhttps://opensource.org/license/bsd-2-clause"+
+        "\nhttps://opensource.org/license/bsd-3-clause"}};
+    assert.equal(resolveLearningExampleSuccess(corrected),true);
+});
