@@ -50,6 +50,7 @@ import {
 import {
     findBestCandidateMatch
 } from "./candidateMemory/candidateMatcher.js";
+import { candidateProcedureFamily } from "./candidateMemory/candidateFamily.js";
 
 
 import {
@@ -424,7 +425,7 @@ export async function observeLearningCandidate(
     const activeCandidates =
 
         await listActiveCandidatesByCategory(
-            category
+            candidateProcedureFamily(candidate) ? null : category
         );
 
 
