@@ -279,3 +279,32 @@ test("grounded comparisons use a separate model budget",()=>{
     assert.equal(resolveComposerModel({pairedSources:false}),"openai/gpt-oss-20b");
     assert.ok(["openai/gpt-oss-20b","openai/gpt-oss-120b"].includes(resolveComposerModel({pairedSources:true})));
 });
+
+import { parseClaimEvidenceResponse } from "../core/validator/claim/claimEvidenceResponse.js";
+import { matchesAttributedEvidence } from "../core/validator/claim/claimEvidenceMatcher.js";
+
+test("claim quotation accepts Markdown links and emphasis only in attributed source",()=>{
+    const first="SOURCE 1\nURL: https://creativecommons.org/licenses/by/4.0/deed.en\n"+
+        "TITLE: CC BY 4.0\nSNIPPET 1:\n**Attribution** — You must give [appropriate credit](https://example.org/credit), "+
+        "provide a link to the license, and [indicate if changes were made](https://example.org/changes).";
+    const second="SOURCE 2\nURL: https://creativecommons.org/licenses/by-sa/4.0/deed.en\n"+
+        "TITLE: CC BY-SA 4.0\nSNIPPET 1:\n**ShareAlike** — You must distribute your contributions under the same license.";
+    const cite="Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made.";
+    const found={claim:"CC BY requires attribution",supported:true,evidence:cite,
+        sourceUrl:"https://creativecommons.org/licenses/by/4.0/deed.en"};
+    assert.equal(matchesAttributedEvidence(found,first+"\n\n"+second),true);
+    const mistaken={...found,sourceUrl:"https://creativecommons.org/licenses/by-sa/4.0/deed.en"};
+    assert.equal(matchesAttributedEvidence(mistaken,first+"\n\n"+second),false);
+    const parsed=parseClaimEvidenceResponse(JSON.stringify({claims:[found,mistaken]}),first+"\n\n"+second);
+    assert.deepEqual(parsed.claims.map(c=>c.supported),[true,false]);
+});
+
+test("fabricated or very short source quotes do not become verified claims",()=>{
+    const text="SOURCE 1\nURL: https://example.com/a\nSNIPPET 1:\nThe material may be copied and distributed with credit.";
+    assert.equal(matchesAttributedEvidence({
+        supported:true,sourceUrl:"https://example.com/a",evidence:"Permission is granted to create patents"
+    },text),false);
+    assert.equal(matchesAttributedEvidence({
+        supported:true,sourceUrl:"https://example.com/a",evidence:"copied"
+    },text),false);
+});
