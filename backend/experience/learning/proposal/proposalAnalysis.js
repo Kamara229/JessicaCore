@@ -662,6 +662,27 @@ export function buildProposalAnalysis({
 
         /*
          * =================================================
+         * SKILL EVOLUTION
+         * =================================================
+         */
+
+
+        evolution:
+
+            isObject(
+                candidate?.evolution
+            )
+
+                ? {
+                    ...candidate.evolution
+                }
+
+                : null,
+
+
+
+        /*
+         * =================================================
          * CANDIDATE MEMORY
          * =================================================
          */
