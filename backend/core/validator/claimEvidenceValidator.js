@@ -1,3 +1,4 @@
+import { usePairedComparisonContext } from "../composer/comparisonEvidencePolicy.js";
 import { checkPairedClaimCoverage } from "./claim/pairedClaimCoverage.js";
 import {
     executeAIWithRetry
@@ -82,7 +83,8 @@ async function requestClaimValidation(
 
     answer,
 
-    sourceText
+    sourceText,
+    comparison=false
 
 ) {
 
@@ -151,7 +153,8 @@ async function requestClaimValidation(
 
                     }
 
-                ]
+                ],
+                {comparison}
 
             );
 
@@ -427,7 +430,8 @@ export async function validateClaimEvidence(
 
                 answer,
 
-                context.sourceText
+                context.sourceText,
+                usePairedComparisonContext(task,plan,taskRunResult)
 
             );
 
