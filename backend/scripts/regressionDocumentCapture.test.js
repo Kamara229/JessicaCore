@@ -1,0 +1,86 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { sanitizeSourceUrlInput } from "../tools/sourceUrlInput.js";
+import { buildNativeDocumentFetchPlan } from "../core/planner/nativeDocumentFetchPlan.js";
+import { getDocumentReceipt } from "../core/composer/documentReceipt.js";
+import { shouldAnalyzeLearningTrace } from "../core/learning/trigger/triggerEligibility.js";
+import { buildSubtaskDependencyContext } from "../core/subtask/subtaskDependencyContext.js";
+
+const url="https://opensource.org/license/mit";
+const task="Собрать полный текст MIT License, используя URL " + url;
+const text="MIT License\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software.\n"
+    + "The above copyright notice and this permission notice shall be included in all copies.\n".repeat(12);
+const plan=buildNativeDocumentFetchPlan(task);
+const run={success:true,results:[{tool:"web_fetch",success:true,data:{
+    url,title:"The MIT License",content:text,truncated:false
+}}]};
+
+test("fetch-only native plan is created without planning AI",()=>{
+    assert.equal(plan?.intent,"native_document_capture");
+    assert.equal(plan?.steps?.[0]?.tool,"web_fetch");
+    assert.equal(plan?.steps?.[0]?.arguments.url,url);
+    assert.equal(buildNativeDocumentFetchPlan("Сравни MIT и Apache: "+url),null);
+});
+
+test("clean invisible characters from a copied document URL",()=>{
+    const dirty=url+"\u2060\uFFFD";
+    assert.equal(sanitizeSourceUrlInput(dirty),url);
+    assert.equal(buildNativeDocumentFetchPlan(task+"\u2060\uFFFD")?.steps?.[0]?.arguments.url,url);
+});
+
+test("receipt uses only verified retrieved content without AI synthesis",()=>{
+    const receipt=getDocumentReceipt(task,plan,run);
+    assert.equal(receipt?.source,"document-receipt");
+    assert.equal(receipt?.url,url);
+    assert.ok(receipt?.text.includes("Permission is hereby granted"));
+});
+
+test("reject missing, truncated, misleading or wrong-source document",()=>{
+    assert.equal(getDocumentReceipt(task,plan,{results:[]}),null);
+    const badData=run.results[0].data;
+    for(const change of [
+        {truncated:true},{url:"https://opensource.org/license/apache-2.0"},
+        {content:"MIT License"}, {content:"Apache License\n"+("Other content ".repeat(60))}
+    ]){
+        const altered={success:true,results:[{tool:"web_fetch",success:true,data:{...badData,...change}}]};
+        assert.equal(getDocumentReceipt(task,plan,altered),null);
+    }
+});
+
+test("verified document excerpts survive as dependency context",()=>{
+    const receipt=getDocumentReceipt(task,plan,run);
+    const input=buildSubtaskDependencyContext({dependencyResults:[{
+        id:1,status:"COMPLETED",success:true,verified:true,
+        answer:{text:receipt.text,source:receipt.source}
+    }]});
+    assert.ok(input.includes("Permission is hereby granted"));
+    assert.ok(input.includes("The above copyright notice"));
+});
+
+const verified={status:"COMPLETED",success:true,verified:true,validation:{valid:true,degraded:false}};
+
+test("partial complex tasks never launch positive Pattern Discovery",()=>{
+    const trace={task:"Compare documents",result:{
+        success:true,status:"PARTIAL",results:[
+            verified,{status:"FAILED",success:false,verified:false}
+        ]
+    },statistics:{completed:1,failed:1}};
+    assert.equal(shouldAnalyzeLearningTrace(trace),false);
+});
+
+test("all child outcomes must independently verify success",()=>{
+    const trace={task:"Compare documents",result:{
+        success:true,status:"COMPLETED",results:[verified,{...verified,verified:false}]
+    },statistics:{completed:2}};
+    assert.equal(shouldAnalyzeLearningTrace(trace),false);
+    trace.result.results=[verified,{...verified}];
+    assert.equal(shouldAnalyzeLearningTrace(trace),true);
+});
+
+test("AI fallback is not strong positive learning evidence",()=>{
+    const single={result:{status:"COMPLETED",success:true,verified:true,
+        validation:{valid:true,degraded:true}},statistics:{completed:1}};
+    assert.equal(shouldAnalyzeLearningTrace(single),false);
+    single.result.validation.degraded=false;
+    assert.equal(shouldAnalyzeLearningTrace(single),true);
+});
