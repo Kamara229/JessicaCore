@@ -1,6 +1,6 @@
 /*
  * =========================================================
- * JESSICA CANDIDATE EXAMPLES v2
+ * JESSICA CANDIDATE EXAMPLES v3
  * =========================================================
  *
  * Формирует компактные Execution Examples
@@ -49,6 +49,11 @@ import {
     resolveTraceSuccess,
     resolveObservedTools
 } from "./candidateUtils.js";
+
+
+import {
+    resolveLearningExampleSuccess
+} from "../exampleSuccess.js";
 
 
 const MAX_TASK_LENGTH =
@@ -358,13 +363,9 @@ export function compactCandidateExample(
 
     const success =
 
-        typeof example.success === "boolean"
-
-            ? example.success
-
-            : (
-                example?.result?.success === true
-            );
+        resolveLearningExampleSuccess(
+            example
+        );
 
 
     return {
