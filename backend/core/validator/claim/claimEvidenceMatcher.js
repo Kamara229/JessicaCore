@@ -60,3 +60,21 @@ export function matchesAttributedEvidence(claim,sourceText) {
     // Legacy single-source validation may provide no section headers.
     return normalizeWords(sourceText).includes(evidence);
 }
+
+/*
+ * Full original sources are used only for deterministic quotation checks.
+ * They are never sent back to the AI model, keeping token use bounded.
+ */
+export function buildOriginalSourceEvidenceContext(taskRunResult) {
+    const sources=Array.isArray(taskRunResult?.results)
+        ? taskRunResult.results.filter(item=>
+            item?.tool==="web_fetch" && item?.success===true
+            && typeof item?.data?.content==="string"
+            && item?.data?.url).slice(0,4)
+        : [];
+    return sources.map((item,index)=>[
+        "SOURCE "+(index+1),
+        "URL: "+item.data.url,
+        "SNIPPET: "+item.data.content.slice(0,30000)
+    ].join("\n")).join("\n\n");
+}
