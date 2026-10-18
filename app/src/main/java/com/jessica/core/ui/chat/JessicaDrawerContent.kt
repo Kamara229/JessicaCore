@@ -42,8 +42,7 @@ fun JessicaDrawerContent(
                     NavigationDrawerItem(
                         label = { Text("＋  Новый чат") },
                         selected = false,
-                        enabled = !busy,
-                        onClick = onNewChat,
+                        onClick = { if (!busy) onNewChat() },
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
                 }
@@ -66,8 +65,7 @@ fun JessicaDrawerContent(
                             )
                         },
                         selected = activeThreadId == thread.id,
-                        enabled = !busy,
-                        onClick = { onThread(thread.id) },
+                        onClick = { if (!busy) onThread(thread.id) },
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
                 }
