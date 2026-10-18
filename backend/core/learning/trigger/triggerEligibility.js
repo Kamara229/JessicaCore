@@ -52,7 +52,22 @@ export function shouldAnalyzeLearningTrace(
     }
 
 
-    if (trace?.result?.status === "PARTIAL") {
+    // A completed child cannot justify learning from a failed parent.
+    const result = trace.result;
+    if (Array.isArray(result?.results) && result.results.length > 0) {
+        if (result.status !== "COMPLETED" || result.success !== true) {
+            return false;
+        }
+        if (result.results.some(child =>
+            child?.status !== "COMPLETED" ||
+            child?.success !== true ||
+            child?.verified !== true ||
+            child?.validation?.valid !== true ||
+            child?.validation?.degraded === true
+        )) {
+            return false;
+        }
+    } else if (result?.status === "PARTIAL" || result?.status === "FAILED") {
         return false;
     }
 
