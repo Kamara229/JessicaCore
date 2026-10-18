@@ -43,7 +43,9 @@ fun ChatInput(
 
     onSend: () -> Unit,
 
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+
+    enabled: Boolean = true
 
 ) {
 
@@ -74,6 +76,7 @@ fun ChatInput(
 
             // Long pasted tasks scroll INSIDE the input, not the screen.
             // Without a line cap this TextField grows past the send button.
+            enabled = enabled,
             minLines = 2,
             maxLines = 5,
 
@@ -92,6 +95,8 @@ fun ChatInput(
 
             onClick =
                 onSend,
+
+            enabled = enabled,
 
             modifier =
                 Modifier
