@@ -196,7 +196,7 @@ test("long source pairs retain relevant separate excerpts without copying every 
         {tool:"web_fetch",success:true,data:{url:"https://opensource.org/license/mit",content:mit}},
         {tool:"web_fetch",success:true,data:{url:"https://opensource.org/license/apache-2.0",content:apache}}
     ]};
-    const trimmed=buildPairedSourceContext(comparisonInput,large);
+    const trimmed=buildPairedSourceContext(comparisonInput+" Патентные условия, изменение файлов, уведомления.",large);
     assert.ok(trimmed.includes("https://opensource.org/license/mit"));
     assert.ok(trimmed.includes("https://opensource.org/license/apache-2.0"));
     assert.ok(trimmed.includes("Grant of Patent License"));
