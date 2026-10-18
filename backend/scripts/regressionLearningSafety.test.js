@@ -243,3 +243,17 @@ test("verified complex discovery evidence passes quality gate", () => {
     const evidence=buildPatternEvidence({trace:ccTrace});
     assert.equal(hasVerifiedPatternEvidence(evidence),true);
 });
+
+import { matchExperiencePattern } from "../core/learning/experiencePatternMatcher.js";
+
+test("one generic official-source keyword must not create an existing seed Skill", () => {
+    const task = "Сопоставь условия лицензий и приведи ссылку на источник.";
+    assert.equal(matchExperiencePattern(task), null);
+});
+
+test("multiple discriminating keywords can match a genuine known pattern", () => {
+    const task = "Найди телефон, email и почту поддержки; проверь контакт и адрес.";
+    const matched = matchExperiencePattern(task);
+    assert.equal(matched?.pattern?.id, "company-contact-finder");
+    assert.ok(matched.matchScore >= 0.5);
+});

@@ -162,6 +162,19 @@ export function matchExperiencePattern(
 
     }
 
+    /*
+     * Single generic keywords like "источник" or "сайт"
+     * cannot establish a reusable procedure identity.
+     *
+     * Weak matches must enter dynamic Pattern Discovery,
+     * not create a duplicate NEW_SKILL with a seed-pattern ID.
+     */
+    const candidateScore = bestScore / bestPattern.keywords.length;
+
+    if (bestScore < 2 || candidateScore < 0.50) {
+        return null;
+    }
+
 
 
 

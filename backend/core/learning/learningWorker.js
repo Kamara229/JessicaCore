@@ -91,6 +91,10 @@ import {
     observeLearningCandidate
 } from "./learningCandidateMemory.js";
 
+import {
+    getLatestExperienceVersion
+} from "../../experience/storage/experienceStorage.js";
+
 
 
 
@@ -741,6 +745,49 @@ async function processQueueItem(
             discoveryResult.queueItem;
 
 
+
+        /*
+         * =================================================
+         * NEW_SKILL IDENTITY GUARD
+         * =================================================
+         * An un-used existing Skill must not be overwritten
+         * by a generic seed Pattern sharing the same id.
+         * Existing Skills evolve through SKILL_IMPROVEMENT
+         * only after genuinely using that Skill.
+         */
+        if (effectiveItem?.action === "NEW_SKILL") {
+            const candidate =
+                effectiveItem?.event?.payload?.skillCandidate
+                || effectiveItem?.event_json?.payload?.skillCandidate;
+            const skillId = String(candidate?.skillId || "").trim();
+
+            if (skillId) {
+                let existing = null;
+                try {
+                    existing = await getLatestExperienceVersion(skillId);
+                } catch (error) {
+                    console.warn("Jessica identity guard deferred:", error?.message);
+                    return {
+                        success: true,
+                        deferred: true,
+                        queueItemId: item.id,
+                        reason: "Не удалось проверить существующую версию Skill"
+                    };
+                }
+
+                if (existing) {
+                    console.warn("Jessica duplicate NEW_SKILL rejected:", skillId);
+                    const updated = await updateLearningQueueItemStatus(item.id, "IGNORED");
+                    return {
+                        success: updated?.success === true,
+                        ignored: true,
+                        queueItemId: item.id,
+                        reason: "NEW_SKILL совпадает с существующим Skill ID; переобучение без применения запрещено",
+                        queueUpdated: updated?.success === true
+                    };
+                }
+            }
+        }
 
         /*
          * =================================================
