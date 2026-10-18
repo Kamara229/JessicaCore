@@ -1,3 +1,4 @@
+import { matchesAttributedEvidence } from "./claimEvidenceMatcher.js";
 /*
  * =========================================================
  * JESSICA CLAIM EVIDENCE RESPONSE v1
@@ -255,40 +256,13 @@ function verifyEvidenceText(
     }
 
 
-    const source =
-
-        normalizeMatchText(
-            sourceText
-        );
-
-
-    const evidence =
-
-        normalizeMatchText(
-            claim.evidence
-        );
-
-
-    if(
-        !source.includes(
-            evidence
-        )
-    ){
-
+    if (!matchesAttributedEvidence(claim, sourceText)) {
         return {
-
             ...claim,
-
-            supported:
-                false,
-
-            reason:
-                "Evidence отсутствует в переданном источнике"
-
+            supported: false,
+            reason: "Цитата не найдена в указанном первоисточнике"
         };
-
     }
-
 
     return claim;
 
