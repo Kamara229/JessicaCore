@@ -13,11 +13,6 @@ import {
 
 
 import {
-    resolveSkillExecutionProgram
-} from "../../../../experience/execution/executionProgram.js";
-
-
-import {
     buildSkillReference
 } from "./skillReference.js";
 
@@ -39,7 +34,9 @@ export function buildSkillImprovementResult(
         examples,
         metrics,
         targetSkillId,
-        toolKnowledge
+        toolKnowledge,
+        executionProgram,
+        evolution
     } = context;
 
 
@@ -162,11 +159,7 @@ export function buildSkillImprovementResult(
         requiredTools:
             toolKnowledge.requiredTools,
 
-        executionProgram:
-
-            resolveSkillExecutionProgram(
-                existingSkill
-            ),
+        executionProgram,
 
         successfulPatterns:
 
@@ -200,6 +193,8 @@ export function buildSkillImprovementResult(
                 ? "TOOL_REQUIREMENT_BOOTSTRAP"
 
                 : "EVIDENCE_REINFORCEMENT",
+
+        evolution,
 
         source:
             "execution-trace"
