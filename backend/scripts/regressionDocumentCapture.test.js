@@ -117,3 +117,59 @@ test("ambiguous comparisons do not force a two-source machine plan",()=>{
     assert.equal(buildNativeSourceComparisonPlan("Сравни https://a.com и https://a.com"),null);
     assert.equal(buildNativeSourceComparisonPlan("Прочитай https://a.com и https://b.com"),null);
 });
+
+import { tryNativeDecomposition } from "../core/decomposer/nativeDecomposer.js";
+import { verifyPairedSourceContent } from "../core/validator/pairedSourceContent.js";
+import { validateSourceContent } from "../core/validator/sourceContentValidator.js";
+
+const mitBody = "MIT License. Permission is hereby granted, free of charge, to any person obtaining a copy. "
+    + ("The above copyright notice and this permission notice shall be included in all copies. ").repeat(9);
+const apacheBody = "Apache License, Version 2.0. 3. Grant of Patent License. "
+    + ("You must give any other recipients of the Work or Derivative Works a copy of this License. ").repeat(9);
+const comparisonInput = "Сравни MIT License и Apache License 2.0. "
+    + "MIT: https://opensource.org/license/mit Apache: https://opensource.org/license/apache-2.0. "
+    + "Сначала получи оба документа, затем сравни положения и приведи источники.";
+const pairedPlan = buildNativeSourceComparisonPlan(comparisonInput);
+const pairedRun = {success:true,results:[
+    {tool:"web_fetch",success:true,data:{url:"https://opensource.org/license/mit",title:"MIT License",content:mitBody,truncated:false}},
+    {tool:"web_fetch",success:true,data:{url:"https://opensource.org/license/apache-2.0",title:"Apache License",content:apacheBody,truncated:false}}
+]};
+
+test("two URL comparison is not split by then or then-after wording", () => {
+    const decomposition=tryNativeDecomposition({task:comparisonInput});
+    assert.equal(decomposition.handled,true);
+    assert.equal(decomposition.decomposition.subtasks.length,1);
+    assert.equal(decomposition.decomposition.subtasks[0].text,comparisonInput);
+    assert.equal(decomposition.source,"native-source-pair");
+});
+
+test("pair acquisition checks both URLs and actual licence bodies", async () => {
+    const checked=verifyPairedSourceContent(pairedPlan,pairedRun);
+    assert.equal(checked.valid,true);
+    const content=await validateSourceContent(comparisonInput,pairedPlan,pairedRun);
+    assert.equal(content.valid,true);
+    assert.ok(content.reason.includes("документа"));
+});
+
+test("pair acquisition fails when MIT body is empty or only site navigation", () => {
+    for(const body of ["",("Menu Links Privacy About ".repeat(28))]){
+        const run={...pairedRun,results:[
+            {...pairedRun.results[0],data:{...pairedRun.results[0].data,content:body}},
+            pairedRun.results[1]
+        ]};
+        assert.equal(verifyPairedSourceContent(pairedPlan,run).valid,false);
+    }
+});
+
+test("pair acquisition rejects swapped or truncated documents", () => {
+    const wrong={...pairedRun,results:[
+        {...pairedRun.results[0],data:{...pairedRun.results[0].data,url:"https://opensource.org/license/apache-2.0"}},
+        pairedRun.results[1]
+    ]};
+    assert.equal(verifyPairedSourceContent(pairedPlan,wrong).valid,false);
+    const truncated={...pairedRun,results:[
+        pairedRun.results[0],
+        {...pairedRun.results[1],data:{...pairedRun.results[1].data,truncated:true}}
+    ]};
+    assert.equal(verifyPairedSourceContent(pairedPlan,truncated).valid,false);
+});
