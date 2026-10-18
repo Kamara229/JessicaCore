@@ -473,3 +473,31 @@ test("a legacy validated comparison without both citations cannot count as posit
         "\nhttps://opensource.org/license/bsd-3-clause"}};
     assert.equal(resolveLearningExampleSuccess(corrected),true);
 });
+
+test("candidate merge does not count a legacy uncited comparison as a new success",()=>{
+    const task="Сравни https://example.org/doc-a и https://example.org/doc-b";
+    const old={
+        task,traceId:"old-uncited-trace",success:true,
+        result:{success:true,verified:true,status:"COMPLETED",
+            text:"The documents differ in their distribution rules.",
+            validation:{valid:true,degraded:false}}
+    };
+    const good={...old,traceId:"new-verified-trace",
+        result:{...old.result,text:old.result.text+
+            " https://example.org/doc-a https://example.org/doc-b"}};
+    const base={
+        skillId:"document-comparison-and-summary",name:"Document comparison",
+        confidence:0.76,successRate:1,occurrences:1,
+        examples:[old],workflow:["Fetch both sources","Compare clauses"],
+        requiredTools:["web_fetch"]
+    };
+    const incoming={...base,examples:[good]};
+    assert.equal(resolveLearningExampleSuccess(old),false);
+    assert.equal(resolveLearningExampleSuccess(good),true);
+    const merged=mergeLearningCandidates({existing:base,incoming,exactMatch:true});
+    assert.equal(merged.occurrences,2);
+    assert.equal(merged.successCount,1);
+    assert.equal(merged.failureCount,1);
+    assert.equal(merged.successRate,0.5);
+    assert.ok(merged.confidence<0.8,"unverified history must not trigger autonomous publication");
+});
