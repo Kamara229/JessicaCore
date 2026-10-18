@@ -1,3 +1,5 @@
+import { hasComparisonSourceCitations } from "./patternExtraction/patternEvidencePolicy.js";
+
 /*
  * =========================================================
  * JESSICA LEARNING EXAMPLE SUCCESS
@@ -122,6 +124,13 @@ export function resolveLearningExampleSuccess(
 
     }
 
+
+    // A legacy example can contain valid:true even though the claim
+    // verifier reviewed only document A. Require source attribution
+    // before treating a two-URL comparison as reusable Experience.
+    const answer = example?.result?.text || example?.result?.answer?.text
+        || example?.answer?.text || "";
+    if (!hasComparisonSourceCitations(example?.task, answer)) return false;
 
     const status =
 
