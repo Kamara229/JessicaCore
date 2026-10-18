@@ -155,42 +155,16 @@ export function resolveLearningExampleSuccess(
     }
 
 
-    /*
-     * Strong positive evidence.
-     */
-
-
-    if(
-        example
-            ?.result
-            ?.verified === true
-
-        ||
-
-        validation.valid === true
-    ){
-
-        return true;
-
-    }
-
-
-    /*
-     * Explicit verified=false is not positive evidence
-     * unless a validator explicitly said valid=true above.
-     */
-
-
-    if(
-        example
-            ?.result
-            ?.verified === false
-    ){
-
+    // An explicit failed execution or negative verification takes precedence.
+    if (example?.success === false
+        || example?.result?.success === false
+        || example?.result?.verified === false) {
         return false;
-
     }
 
+    if (example?.result?.verified === true || validation.valid === true) {
+        return true;
+    }
 
     /*
      * Legacy examples created before canonical validation

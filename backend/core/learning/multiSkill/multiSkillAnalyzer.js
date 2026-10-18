@@ -158,16 +158,7 @@ export function analyzeExecutionTraceBatch(
     }
 
 
-    return result.length > 0
-
-        ? result
-
-        : [
-
-            analyzeExecutionTrace(
-                trace
-            )
-
-        ];
+    // Never reinforce a child Skill from parent-only execution evidence.
+    return result;
 
 }

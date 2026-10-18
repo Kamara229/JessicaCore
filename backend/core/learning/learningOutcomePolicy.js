@@ -597,7 +597,7 @@ export function classifyLearningOutcome(
     if(
         validation
         &&
-        validation.valid === false
+        (validation.valid === false || trace?.result?.verified === false)
     ){
 
         return {

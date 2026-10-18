@@ -115,7 +115,8 @@ export function inspectLearningSkillQuality(
             ),
 
             inspectSkillEvidence(
-                experience
+                experience,
+                proposal
             ),
 
             inspectExecutionProgram(

@@ -83,50 +83,6 @@ export function buildSkillTraceView(
     }
 
 
-    return {
-
-        ...trace,
-
-        experienceUsage: {
-
-            ...(trace?.experienceUsage || {}),
-
-            used:
-                true,
-
-            found:
-                true,
-
-            skills: [
-                skill
-            ],
-
-            skillIds: [
-                skillId
-            ]
-
-        },
-
-        experience: {
-
-            ...(trace?.experienceUsage || {}),
-
-            used:
-                true,
-
-            found:
-                true,
-
-            skills: [
-                skill
-            ],
-
-            skillIds: [
-                skillId
-            ]
-
-        }
-
-    };
-
+    // Absent child evidence must not inherit the parent's successful result.
+    return null;
 }

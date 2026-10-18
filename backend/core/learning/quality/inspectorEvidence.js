@@ -10,7 +10,8 @@ import {
 
 
 export function inspectSkillEvidence(
-    experience
+    experience,
+    proposal = null
 ) {
 
     const errors = [];
@@ -62,6 +63,16 @@ export function inspectSkillEvidence(
 
     }
 
+
+    // An older good example cannot justify an invalid new observation.
+    if (proposal?.action === "SKILL_IMPROVEMENT") {
+        const count = Number(proposal?.analysis?.evolution?.newEvidenceCount);
+        if (!Number.isInteger(count) || count < 1 || count > examples.length) {
+            errors.push("Improvement не содержит нового подтверждённого Evidence");
+        } else if (examples.slice(-count).some(item => !resolveLearningExampleSuccess(item))) {
+            errors.push("Новое Evidence не подтверждено: reinforcement запрещён");
+        }
+    }
 
     if(
         contradictoryExamples > 0
