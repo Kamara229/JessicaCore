@@ -276,6 +276,12 @@ function isDailyRateLimit(
 function isImmediatelyRetryableRateLimit(
     error
 ) {
+    // An output budget larger than the provider's hard OTPM ceiling
+    // cannot succeed on retry: the request shape must change.
+    const details = getAIErrorMessage(error).toLowerCase();
+    if (details.includes("request too large")
+        || details.includes("expected output tokens exceed")
+        || details.includes("reduce max_tokens")) return false;
 
     /*
      * Daily quota:
