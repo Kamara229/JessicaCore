@@ -1,3 +1,4 @@
+import { resolveClaimSourceAlias } from "./claimSourceAlias.js";
 import { matchesAttributedEvidence } from "./claimEvidenceMatcher.js";
 /*
  * =========================================================
@@ -361,16 +362,13 @@ export function parseClaimEvidenceResponse(
                 )
 
                 .map(
-                    claim =>
-
-                        verifyEvidenceText(
-
-                            claim,
-
-                            sourceText,
-                            originalSources
-
-                        )
+                    claim => {
+                        const attributed={
+                            ...claim,
+                            sourceUrl:resolveClaimSourceAlias(claim.sourceUrl,sourceText)
+                        };
+                        return verifyEvidenceText(attributed,sourceText,originalSources);
+                    }
                 )
 
             : [];
