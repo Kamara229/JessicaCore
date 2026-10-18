@@ -28,7 +28,6 @@ import {
     normalizeArray,
     normalizeText,
     normalizeStringArray,
-    mergeStringArrays,
     resolveSkillData
 } from "./candidateUtils.js";
 
