@@ -306,5 +306,15 @@ test("fabricated or very short source quotes do not become verified claims",()=>
     },text),false);
     assert.equal(matchesAttributedEvidence({
         supported:true,sourceUrl:"https://example.com/a",evidence:"copied"
-    },text),false);
+    },text+"\nSOURCE 2\nURL: https://example.com/b\nSNIPPET 1: Other text"),false);
+});
+
+test("short exact version number remains valid for one source",()=>{
+    const original="SOURCE 1\nURL: https://example.com/release\nSNIPPET 1:\nLatest version is v1.2.3";
+    assert.equal(matchesAttributedEvidence({
+        supported:true,sourceUrl:"https://example.com/release",evidence:"v1.2.3"
+    },original),true);
+    assert.equal(matchesAttributedEvidence({
+        supported:true,sourceUrl:"https://example.com/wrong",evidence:"v1.2.3"
+    },original),false);
 });
