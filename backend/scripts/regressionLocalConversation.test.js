@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
     contextualizeTask,
+    attachConversationToDecomposition,
     needsConversationContext,
     normalizeConversation
 } from "../core/chat/conversationContext.js";
@@ -46,4 +47,40 @@ test("short Russian confirmations and references use prior turns", () => {
     for (const message of ["Давай", "Готово", "Что дальше?", "А теперь это поправь"]) {
         assert.notEqual(contextualizeTask(message, history), message);
     }
+});
+
+test("decomposed follow-ups retain earlier evidence in executable subtasks", () => {
+    const original = {
+        originalTask: "А теперь назови тестовый код из предыдущего сообщения.",
+        subtasks: [{
+            id: 1,
+            text: "Предоставить тестовый код из предыдущего сообщения",
+            dependsOn: [],
+            memoryHints: []
+        }]
+    };
+    const context = [
+        { role: "user", content: "Для проверки памяти мой тестовый код — СИРИУС-47. Ответь Принято." },
+        { role: "assistant", content: "Принято" }
+    ];
+    const result = attachConversationToDecomposition(
+        original, original.originalTask, context
+    );
+    assert.equal(result.originalTask, original.originalTask);
+    assert.equal(result.subtasks[0].id, 1);
+    assert.deepEqual(result.subtasks[0].dependsOn, []);
+    assert.match(result.subtasks[0].text, /СИРИУС-47/);
+    assert.match(result.subtasks[0].text, /Предоставить тестовый код/);
+    assert.ok(!original.subtasks[0].text.includes("СИРИУС-47"));
+});
+
+test("unrelated tasks do not inherit the phone's private conversation", () => {
+    const task = "Найди официальную документацию PostgreSQL.";
+    const decomp = { subtasks: [{ id: 1, text: task }] };
+    assert.equal(
+        attachConversationToDecomposition(decomp, task, [
+            { role: "user", content: "СИРИУС-47" }
+        ]),
+        decomp
+    );
 });
