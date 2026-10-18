@@ -58,6 +58,7 @@ import {
     getDirectAnswer
 } from "./composer/directAnswer.js";
 import { getDocumentReceipt } from "./composer/documentReceipt.js";
+import { requiresVerifiedComparison } from "./composer/comparisonEvidencePolicy.js";
 
 import {
     isComposerAvailable,
@@ -404,7 +405,7 @@ export async function composeAnswer(
     // Collecting two documents is not the same as comparing them.
     // When the semantic model is unavailable, do not present an
     // arbitrary document fragment as a completed comparison.
-    if (plan?.intent === "native_two_source_comparison"
+    if (requiresVerifiedComparison(task, plan)
         && !isComposerAvailable()) {
         return buildComposerFailure(
             "Оба документа можно получить без AI, но для подтверждённого сравнения сейчас недоступен Composer."
@@ -523,9 +524,9 @@ export async function composeAnswer(
      * уже полученные Tool Results.
      */
 
-    if (plan?.intent === "native_two_source_comparison") {
+    if (requiresVerifiedComparison(task, plan)) {
         return buildComposerFailure(
-            "Документы загружены, но сравнение не выполнено: AI Composer недоступен."
+            "Документы получены, но подтверждённое сравнение не выполнено: AI Composer недоступен."
         );
     }
 
