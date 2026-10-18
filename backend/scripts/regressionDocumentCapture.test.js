@@ -209,3 +209,25 @@ test("composer token budget applies only to paired sources",()=>{
     });
     assert.deepEqual(resolveComposerBudget({}),{});
 });
+
+import { scopeOfficialLicenseCandidates } from "../core/taskRunner/argumentResolver/officialLicenseScope.js";
+import { requiresVerifiedComparison } from "../core/composer/comparisonEvidencePolicy.js";
+
+test("strict OSI source matching separates BSD licence variants",()=>{
+    const sources=[
+      {title:"BSD 2-Clause",url:"https://choosealicense.com/licenses/bsd-2-clause/"},
+      {title:"The 3-Clause BSD License",url:"https://opensource.org/license/bsd-3-clause"},
+      {title:"The 2-Clause BSD License",url:"https://opensource.org/license/bsd-2-clause"}
+    ];
+    const task="Используй официальные тексты Open Source Initiative";
+    assert.deepEqual(scopeOfficialLicenseCandidates("BSD 2-Clause",task,sources).map(x=>x.url),
+        ["https://opensource.org/license/bsd-2-clause"]);
+    assert.deepEqual(scopeOfficialLicenseCandidates("BSD 3-Clause",task,sources).map(x=>x.url),
+        ["https://opensource.org/license/bsd-3-clause"]);
+    assert.deepEqual(scopeOfficialLicenseCandidates("BSD 2-Clause",task,[sources[0]]),[]);
+});
+
+test("source-based document comparisons cannot be deemed complete by a fallback",()=>{
+    assert.equal(requiresVerifiedComparison("Сравни две лицензии",{evidence:{mode:"source_content"}}),true);
+    assert.equal(requiresVerifiedComparison("Скачай документ",{evidence:{mode:"source_content"}}),false);
+});
