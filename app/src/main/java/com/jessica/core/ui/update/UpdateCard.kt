@@ -35,18 +35,18 @@ fun UpdateCard(
             Text("Обновление Jessica", style = MaterialTheme.typography.titleMedium)
             val message = when (state) {
                 UpdateState.Idle -> "Проверить наличие новой версии"
-                UpdateState.Checking -> "Проверка обновлений на GitHub…"
+                UpdateState.Checking -> "Этап 1/4 · Проверка обновлений на GitHub…"
                 is UpdateState.UpToDate -> "Установлена актуальная версия: ${state.version}"
-                is UpdateState.Downloading -> "Скачивание обновления: ${state.progress}%"
-                UpdateState.Verifying -> "Проверка файла и контрольной суммы SHA-256…"
+                is UpdateState.Downloading -> "Этап 2/4 · Загрузка обновления: ${state.progress}%"
+                UpdateState.Verifying -> "Этап 3/4 · Проверка файла и контрольной суммы SHA-256…"
                 is UpdateState.ReadyToInstall ->
-                    "Версия ${state.version} скачана и проверена. Открываю установщик Android…"
+                    "Этап 4/4 · Версия ${state.version} готова. Открываю установщик Android…"
                 is UpdateState.WaitingPermission ->
-                    "Для установки версии ${state.version} требуется разрешение Android."
+                    "Этап 4/4 · Для версии ${state.version} требуется разрешение Android."
                 is UpdateState.Installing ->
-                    "Устанавливается версия ${state.version}. Подтвердите замену в Android."
+                    "Этап 4/4 · Установка версии ${state.version}. Подтвердите замену в Android."
                 is UpdateState.Installed ->
-                    "Обновление успешно установлено: ${state.version}"
+                    "✅ Все 4 этапа завершены. Установлена версия ${state.version}"
                 is UpdateState.Error -> "Ошибка: ${state.message}"
             }
             Text(message, style = MaterialTheme.typography.bodyMedium)

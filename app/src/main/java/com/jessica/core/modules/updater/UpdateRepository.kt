@@ -64,7 +64,8 @@ internal class UpdateRepository(private val context: Context) {
 
     fun download(
         release: UpdateRelease,
-        onProgress: (Int, Long, Long) -> Unit
+        onProgress: (Int, Long, Long) -> Unit,
+        onVerifying: () -> Unit
     ): File {
         val directory = File(context.cacheDir, "jessica_updates")
         if (!directory.exists() && !directory.mkdirs()) {
@@ -106,6 +107,7 @@ internal class UpdateRepository(private val context: Context) {
                 if (total > 0 && total != loaded) {
                     throw IOException("Загружен неполный APK")
                 }
+                onVerifying()
                 val actualHash = sha.digest().joinToString("") { "%02x".format(it) }
                 if (!actualHash.equals(release.sha256, ignoreCase = true)) {
                     throw IOException("Контрольная сумма APK не совпадает")

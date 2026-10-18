@@ -53,11 +53,16 @@ class UpdateManager(private val context: Context) {
                 target = latest
                 _state.value = UpdateState.Downloading(0, 0, latest.size)
                 val apk = withContext(Dispatchers.IO) {
-                    repository.download(latest) { percent, bytes, total ->
-                        _state.value = UpdateState.Downloading(percent, bytes, total)
-                    }
+                    repository.download(
+                        latest,
+                        onProgress = { percent, bytes, total ->
+                            _state.value = UpdateState.Downloading(percent, bytes, total)
+                        },
+                        onVerifying = {
+                            _state.value = UpdateState.Verifying
+                        }
+                    )
                 }
-                _state.value = UpdateState.Verifying
                 downloadedApk = apk
                 _state.value = UpdateState.ReadyToInstall(latest.versionName)
             } catch (error: Exception) {
