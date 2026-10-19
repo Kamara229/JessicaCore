@@ -3,6 +3,7 @@ import {isUnsupportedNegativeComparisonClaim} from "./negativeComparisonClaim.js
 import {unsupportedComparisonDuty} from "./comparisonDutyEvidence.js";
 import {unsupportedComparisonClaimTopic} from "./comparisonClaimRelevance.js";
 import {rejectsUnsupportedLegalEffect} from "./comparisonLegalEffectGate.js";
+import {unsupportedAbsolutePermission} from "./comparisonAbsolutePermissionGuard.js";
 
 /* Each supplied quote must be verbatim, source-attributed, and relevant.
  * Several independent facts in one cell require several supporting clauses.
@@ -38,6 +39,8 @@ export function verifyComparisonCellEvidence(cell,quotes,originalSources) {
     claim.reason="Отрицательный вывод не доказан";
   } else if(unsupportedComparisonDuty(statement,proof)){
     claim.reason="Цитаты не доказывают обязательное требование";
+  } else if(unsupportedAbsolutePermission(cell,quotes)){
+    claim.reason="Абсолютное разрешение не подтверждено текстом лицензии";
   } else if(rejectsUnsupportedLegalEffect(cell,quotes)){
     claim.reason="Цитата не подтверждает правовой смысл утверждения";
   } else if(unsupportedComparisonClaimTopic(statement,proof)||compoundClauseMissing(statement,proof)){
