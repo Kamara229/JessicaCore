@@ -1,5 +1,6 @@
 import {parseComparisonCellBatch} from "./comparisonCellQuoteParser.js";
 import {formatComparisonClauseIndex} from "./comparisonClauseIndex.js";
+import {validateCellClauseRefs} from "./comparisonReferenceCellSafety.js";
 
 /* Compact validator contract: IDs refer to immutable verbatim source
  * spans. Never accept citations belonging to another document.
@@ -50,18 +51,12 @@ export function resolveComparisonClauseReferences(raw,checks,index) {
   const out=[];
   for(const cell of checks){
     const refs=parsed.byId.get(cell.id)||[];
-    const quotes=[];
-    const seen=new Set();
-    for(const ref of refs){
-      if(!/^E\d+$/.test(ref)||seen.has(ref))
-        return {valid:false,reason:"Повторный или некорректный ID выдержки"};
-      const excerpt=byRef.get(ref);
-      if(!excerpt || excerpt.source!==cell.source ||
-        excerpt.criterion!==criterionType(cell.criterion))
-        return {valid:false,reason:"Источник выдержки не соответствует ячейке"};
-      seen.add(ref);
-      quotes.push(excerpt.quote);
-    }
+    const check=validateCellClauseRefs(refs,cell,byRef,criterionType);
+    if(!check.valid)return {valid:false,reason:check.reason};
+    if(check.misattributed)
+      console.warn("Jessica comparison citation downgraded:",{cellId:cell.id,
+        reason:"wrong source or criterion"});
+    const quotes=check.quotes;
     out.push([cell.id,quotes]);
   }
   return {valid:true,c:out};
