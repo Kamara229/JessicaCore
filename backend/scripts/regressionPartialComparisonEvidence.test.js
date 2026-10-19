@@ -8,8 +8,8 @@ const apache="https://www.apache.org/licenses/LICENSE-2.0.html";
 const bsd="https://opensource.org/license/bsd-3-clause";
 const task="Сравни использование, распространение, уведомления и патенты в Apache и BSD.";
 const fetches={results:[
-    {tool:"web_fetch",success:true,data:{url:apache,content:"Apache original terms"}},
-    {tool:"web_fetch",success:true,data:{url:bsd,content:"BSD original terms"}}
+    {tool:"web_fetch",success:true,data:{url:apache,content:"perpetual worldwide non exclusive patent license. You may reproduce and distribute copies."}},
+    {tool:"web_fetch",success:true,data:{url:bsd,content:"Redistribution and use in source and binary forms. Redistributions of source code must retain notices."}}
 ]};
 const claims=[
     {supported:true,sourceUrl:apache,evidence:"perpetual worldwide non exclusive patent license"},
