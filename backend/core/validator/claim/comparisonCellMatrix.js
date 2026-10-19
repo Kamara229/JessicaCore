@@ -2,7 +2,7 @@ import {tableTokens} from "./tableCellLocator.js";
 
 /* Extract every asserted fact from an actual 2-source Markdown table.
  * If a source column is ambiguous, fail rather than guessing. */
-const UNKNOWN=/не удалось (?:подтвердить|проверить|установить)|не (?:подтвержден[оаы]?|установлено)|not verified|unable to verify/iu;
+const UNKNOWN=/не удалось (?:подтвердить|проверить|установить)|не (?:подтвержден[оаы]?|установлено)|не удалось найти подтверждающ|not verified|unable to verify/iu;
 const ABSENCE=/не содержит|отсутств|не предусматрива|does not contain|no (?:patent|provision|requirement)/iu;
 function cells(line) {
   const value=String(line||"").trim();
