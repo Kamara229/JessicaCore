@@ -108,7 +108,7 @@ export function formatComparisonEvidenceLedger(ledger) {
         lines.push("Критерий: "+r.label);
         for(let i=0;i<2;i++) {
             if(r.excerpts[i].length) {
-                for(const q of r.excerpts[i])lines.push("  "+(i+1)+": «"+q+"»");
+                for(const q of r.excerpts[i].slice(0,r.id==="patents"?2:1))lines.push("  "+(i+1)+": «"+q+"»");
             }else{
                 lines.push("  "+(i+1)+": релевантная цитата не выделена, условие не проверено");
             }
