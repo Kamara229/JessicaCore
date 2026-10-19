@@ -47,6 +47,8 @@ export function buildComparisonCellMatrix(answer,urls) {
         sourceUrl:urls[source],source});
     }
   }
-  return totalRows>0&&checks.length>=2&&checks.length<=18
+  // A source-attributed table with only unknown cells is structurally
+  // parseable, but remains INVALID until the separate coverage gate passes.
+  return totalRows>0&&checks.length<=18
     ?{checks,criteria,totalRows,urls}:null;
 }
