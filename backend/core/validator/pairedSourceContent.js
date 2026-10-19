@@ -37,6 +37,21 @@ export function verifyPairedSourceContent(plan, taskRunResult) {
                 reason:"Неполное содержимое документа " + (index+1)};
         }
         const path = expected.toLowerCase();
+        // Do not mistake official how-to pages for the actual license.
+        // Recognize Apache's canonical /licenses/LICENSE-2.0.{html,txt}.
+        if (/\/licenses\/license-2\.0\.(?:html|txt)$/i.test(path) &&
+            (!/apache license/i.test(content)
+             || !/grant of patent license/i.test(content)
+             || !/(?:redistribution|reproduction and distribution)/i.test(content))) {
+            return {success:true,valid:false,shouldRetry:true,
+                reason:"Текст Apache License 2.0 не обнаружен или неполон"};
+        }
+        if (/\/(?:license|licenses)\/bsd-3-clause$/i.test(path) &&
+            (!/redistribution and use in source and binary forms/i.test(content)
+             || !/neither the name/i.test(content))) {
+            return {success:true,valid:false,shouldRetry:true,
+                reason:"Текст BSD 3-Clause не обнаружен или неполон"};
+        }
         if (path.endsWith("/license/mit") &&
             (!/permission is hereby granted/i.test(content)
              || !/copyright notice/i.test(content))) {
