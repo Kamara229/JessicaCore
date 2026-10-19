@@ -516,7 +516,7 @@ export async function validateSourceContent(
                     false,
 
                 valid:
-                    true,
+                false,
 
                 shouldRetry:
                     false,
@@ -551,7 +551,7 @@ export async function validateSourceContent(
                     false,
 
                 valid:
-                    true,
+                false,
 
                 shouldRetry:
                     false,
@@ -602,7 +602,7 @@ export async function validateSourceContent(
                 true,
 
             valid:
-                true,
+            false,
 
             shouldRetry:
                 false,

@@ -15,7 +15,7 @@ function canonical(value) {
 }
 
 export function verifyPairedSourceContent(plan, taskRunResult) {
-    if (plan?.intent !== "native_two_source_comparison") return null;
+    if (!["native_two_source_comparison","native_known_license_comparison"].includes(plan?.intent)) return null;
     const steps = (plan.steps || []).filter(s => s.tool === "web_fetch");
     const results = (taskRunResult?.results || []).filter(r => r.tool === "web_fetch");
     if (steps.length !== 2 || results.length !== 2) {

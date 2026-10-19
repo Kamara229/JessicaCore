@@ -197,7 +197,7 @@ function buildUnavailableResult(
             true,
 
         valid:
-            true,
+            false,
 
         shouldRetry:
             false,

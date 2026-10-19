@@ -59,6 +59,7 @@ import {
 } from "./composer/directAnswer.js";
 import { getDocumentReceipt } from "./composer/documentReceipt.js";
 import { requiresVerifiedComparison, usePairedComparisonContext } from "./composer/comparisonEvidencePolicy.js";
+import { guardComparisonUnknowns } from "./composer/comparisonUnknownGuard.js";
 
 import {
     isComposerAvailable,
@@ -513,7 +514,13 @@ export async function composeAnswer(
     if(
         generated?.success === true
     ){
-
+        if(usePairedComparisonContext(task,plan,taskRunResult)) {
+            const guarded=guardComparisonUnknowns(task,plan,taskRunResult,generated.text);
+            if(guarded.changes>0) {
+                console.log("Jessica Comparison Unknown Guard:", {changes:guarded.changes});
+                return {...generated,text:guarded.text};
+            }
+        }
         return generated;
 
     }
