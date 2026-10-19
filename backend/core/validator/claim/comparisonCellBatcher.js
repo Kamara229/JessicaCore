@@ -11,8 +11,10 @@ export function planComparisonBatches(matrix) {
   const count=Math.ceil(matrix.checks.length/5);
   const maxTokens=Math.floor(840/count);
   if(!count||maxTokens<160)return null;
+  const groupSize=Math.ceil(matrix.checks.length/count);
   const chunks=[];
-  for(let at=0;at<matrix.checks.length;at+=5)chunks.push(matrix.checks.slice(at,at+5));
+  for(let at=0;at<matrix.checks.length;at+=groupSize)
+    chunks.push(matrix.checks.slice(at,at+groupSize));
   return {chunks,maxTokens};
 }
 
