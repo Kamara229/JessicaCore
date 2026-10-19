@@ -5,6 +5,7 @@ import {
 import {
     requireJessicaAuthorization
 } from "../auth/jessicaAuth.js";
+import { saveChatDebugSnapshot } from "../../storage/chatDebugSnapshot.js";
 
 
 /*
@@ -48,7 +49,7 @@ export function registerSolveRoute(
             req,
             res
         ) => {
-
+            let chatMirrorInput = null;
             try {
 
 
@@ -113,6 +114,12 @@ export function registerSolveRoute(
                 }
 
 
+                chatMirrorInput = {
+                    task,
+                    conversation: req.body?.conversation,
+                    attachments: req.body?.attachments
+                };
+
                 console.log(
                     "Jessica task:",
                     task
@@ -131,6 +138,10 @@ export function registerSolveRoute(
                         task,
                         { conversation: req.body?.conversation, attachments: req.body?.attachments }
                     );
+
+                // Private owner-only diagnostic; failure must never
+                // prevent Jessica from replying to the Android client.
+                await saveChatDebugSnapshot({...chatMirrorInput,result});
 
 
                 /*
@@ -179,6 +190,13 @@ export function registerSolveRoute(
                     "/api/solve error:",
                     error
                 );
+
+                if (chatMirrorInput) {
+                    await saveChatDebugSnapshot({
+                        ...chatMirrorInput,
+                        result: {success:false,text:"Внутренняя ошибка Jessica Core"}
+                    });
+                }
 
 
                 return res
