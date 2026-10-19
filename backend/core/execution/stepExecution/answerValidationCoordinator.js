@@ -43,6 +43,8 @@ import {
     executeValidation
 } from "./validationExecutor.js";
 
+import { buildPartialComparisonEvidence } from "../../composer/partialComparisonEvidence.js";
+
 
 const MAX_PRESENTATION_REPAIRS =
     1;
@@ -315,6 +317,38 @@ export async function executeAnswerValidation(
      * как presentation и НЕ должен вызывать Replan.
      */
 
+
+    // Do not discard all the verified source excerpts when the model
+    // cannot repair a source-grounded comparison. A partial response
+    // explicitly stays unverified and cannot reinforce Experience.
+    if (isPresentationFailure(validation)) {
+        const partial = buildPartialComparisonEvidence(
+            context.task,
+            context.plan,
+            context.runResult,
+            validation?.failure?.validation?.claims
+        );
+        if (partial) {
+            context.answerResult = {
+                success: true,
+                source: "partial-source-excerpts",
+                text: partial.text
+            };
+            context.validationResult = {
+                success: true,
+                valid: true,
+                validationMode: "partial-source-excerpts",
+                degraded: true,
+                outcomeType: "no_verified_result",
+                reason: "Только цитаты подтверждены первоисточниками"
+            };
+            console.log("Jessica Partial Source Result:", {
+                excerpts: partial.quoteCounts,
+                degraded: true
+            });
+            return {success: true, validationResult: context.validationResult};
+        }
+    }
 
     return validation;
 
