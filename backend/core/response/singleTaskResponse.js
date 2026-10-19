@@ -75,6 +75,12 @@ function getFailureText(
     result
 ) {
 
+    // Validator repair instructions belong in diagnostics, not the
+    // user's chat. Present a clear failure without leaking model prompts.
+    if (result?.failure?.failureType === "answer-validation-error") {
+        return "Джессика получила источники, но не смогла подтвердить все выводы. Полное сравнение не завершено; неподтверждённые утверждения не следует использовать как факты.";
+    }
+
     if (
         typeof result?.failure?.reason === "string" &&
         result.failure.reason.trim()
