@@ -23,7 +23,7 @@ export async function tryFocusedComparisonRepair(task,run,repair){
  try {
    const response=await requestComposerAI({
      instructions,
-     input:"Задача: "+task+"\nТребуют исправления ТОЛЬКО:\n"+
+     input:"Задача: "+task+"\nДокументы по порядку: "+JSON.stringify(plan.urls)+"\nТребуют исправления ТОЛЬКО:\n"+
        JSON.stringify(plan.cells)+"\nПиши кратко, сохрани условия норм.",
      pairedSources:true
    });
