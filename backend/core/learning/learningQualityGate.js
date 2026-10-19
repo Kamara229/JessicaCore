@@ -29,6 +29,7 @@ import {
 import {
     inspectLearningSkillQuality
 } from "./quality/skillQualityInspector.js";
+import {validateGroundedComparisonLearning} from "./quality/groundedComparisonLearningGate.js";
 
 
 function fail(
@@ -95,6 +96,9 @@ export function validateLearningQuality(
 
     }
 
+
+    const sourceQuality=validateGroundedComparisonLearning(proposal);
+    if(!sourceQuality.passed)return fail(sourceQuality.reason,{metrics:metricsQuality.metrics});
 
     const dynamicQuality =
 
