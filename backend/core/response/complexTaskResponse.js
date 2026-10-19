@@ -265,7 +265,9 @@ export async function buildComplexTaskResponse(
         return {
 
 
-            success:true,
+            // Preserve a partial answer, but do not report a failed
+            // overall request as successful to Android or diagnostics.
+            success: !partial,
 
 
             status:
