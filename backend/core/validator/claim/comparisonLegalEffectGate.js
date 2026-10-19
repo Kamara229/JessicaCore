@@ -26,6 +26,8 @@ export function rejectsUnsupportedLegalEffect(cell,quotes) {
 
   const notices=/уведомлен|авторств|авторск|копирайт|copyright|notice|attribut/iu.test(topic);
   if(notices){
+    if(/сохран\S*\s+файл/i.test(value)&&/notice/i.test(value)&&
+       !/must retain.{0,140}notice file/i.test(citations))return true;
     if(duty.test(value)&&keep.test(value)
        &&!(retaining.test(citations)&&notification.test(citations)))return true;
     // Permission to add one's own copyright is not a duty to preserve
