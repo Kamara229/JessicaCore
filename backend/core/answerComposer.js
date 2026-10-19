@@ -485,7 +485,8 @@ export async function composeAnswer(
         );
         if(focused?.success){
             const guarded=guardComparisonUnknowns(
-                task,plan,taskRunResult,focused.text
+                task,plan,taskRunResult,
+                repairComparisonClaimMeaning(focused.text,taskRunResult).text
             );
             return {...focused,text:attributeComparisonSources(
                 guarded.text,taskRunResult).text};
