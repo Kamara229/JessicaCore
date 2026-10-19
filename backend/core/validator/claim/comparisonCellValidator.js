@@ -2,7 +2,7 @@ import {buildClaimEvidenceContext} from "./claimEvidenceContext.js";
 import {buildOriginalSourceEvidenceContext} from "./claimEvidenceMatcher.js";
 import {buildComparisonCellMatrix} from "./comparisonCellMatrix.js";
 import {checkRequestedComparisonCoverage} from "./comparisonRequestedCoverage.js";
-import {collectComparisonCellQuotes,planComparisonBatches} from "./comparisonCellBatcher.js";
+import {collectComparisonCellQuotes,planComparisonBatches} from "./comparisonEvidenceController.js";
 import {verifyComparisonCellProof} from "./comparisonCellProof.js";
 import {findAvoidableUnknownComparisonCell} from "./comparisonAvoidableUnknown.js";
 import {buildComparisonClauseIndex} from "./comparisonClauseIndex.js";
