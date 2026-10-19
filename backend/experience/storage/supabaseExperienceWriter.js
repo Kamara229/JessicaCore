@@ -1,6 +1,4 @@
-import {
-    getSupabaseClient
-} from "../../storage/supabaseClient.js";
+import {saveModuleAwareExperience} from "./skillModules/experienceModuleSaver.js";
 
 
 /*
@@ -46,8 +44,7 @@ import {
  */
 
 
-const SAVE_SKILL_RPC =
-    "save_jessica_experience_skill_v3";
+
 
 
 
@@ -485,52 +482,9 @@ export async function saveExperienceAtomic(
      */
 
 
-    const {
-        data,
-        error
-    } =
-
-        await getSupabaseClient()
-
-            .rpc(
-
-                SAVE_SKILL_RPC,
-
-                {
-
-                    p_skill_id:
-                        skillId,
-
-                    p_version:
-                        version,
-
-                    p_previous_version:
-                        previousVersion,
-
-                    p_mode:
-
-                        metadata.mode
-
-                        ||
-
-                        "create",
-
-                    p_enabled:
-                        payload.enabled,
-
-                    p_payload:
-                        payload,
-
-                    p_metadata:
-                        metadata,
-
-                    p_evidence:
-                        evidence
-
-                }
-
-            );
-
+    const {data,error,facade}=await saveModuleAwareExperience({
+        skillId,version,previousVersion,payload,metadata,evidence
+    });
 
     if(
         error
