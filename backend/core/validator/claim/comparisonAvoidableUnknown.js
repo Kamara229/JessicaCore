@@ -1,5 +1,6 @@
 import {locateComparisonCell} from "./tableCellLocator.js";
 import {selectOperativeSourceText} from "./operativeSourceScope.js";
+import {containsExplicitNoticeDuty} from "./comparisonExplicitDuties.js";
 
 /*
  * An unknown table cell is sometimes appropriate, but not when the
@@ -27,7 +28,12 @@ export function findAvoidableUnknownComparisonCell(task,answer,sources) {
       });
       if(!cell||!UNKNOWN.test(cell.value))continue;
       const primary=selectOperativeSourceText(sources[index]?.data?.content||"").replace(/\s+/g," ");
-      if(rule.proof.test(primary))return {
+      // A Markdown-formatted source can hide a duty from the compact
+      // regex. Cross-check the normalized operative text before treating
+      // a plainly stated requirement as unverified.
+      const directlyConfirmed=rule.claim==="сохранение уведомлений" &&
+        containsExplicitNoticeDuty(sources[index]?.data?.content);
+      if(rule.proof.test(primary)||directlyConfirmed)return {
         criterion:cell.criterion,sourceUrl:urls[index],
         reason:"По критерию «"+cell.criterion+"» указано «не удалось подтвердить», хотя первоисточник содержит явно относящееся к нему положение. Пересмотри соответствующую ячейку по тексту источника."
       };
