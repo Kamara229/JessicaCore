@@ -6,7 +6,7 @@ import {MODULE_FIELDS} from "./experienceModulePacker.js";
  * Older non-modular Skills continue to load exactly as before.
  */
 const TABLE="jessica_experience_skill_modules";
-export async function hydrateExperienceModules(skill,skillId,version) {
+export async function hydrateExperienceModules(skill,skillId,version,client=null) {
   const manifest=skill?.moduleManifest;
   if(!manifest)return skill;
   if(manifest.version!==1||!manifest.counts||typeof manifest.counts!=="object")
@@ -17,7 +17,7 @@ export async function hydrateExperienceModules(skill,skillId,version) {
     !Number.isInteger(expected[k])||expected[k]<1))throw new Error("Bad Skill module manifest");
   const count=keys.reduce((sum,k)=>sum+expected[k],0);
   if(count>100)throw new Error("Skill module count exceeds limit");
-  const {data,error}=await getSupabaseClient().from(TABLE)
+  const {data,error}=await (client||getSupabaseClient()).from(TABLE)
     .select("module_key,part_no,data")
     .eq("skill_id",String(skillId))
     .eq("version",Number(version))
