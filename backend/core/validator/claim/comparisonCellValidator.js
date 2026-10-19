@@ -4,6 +4,7 @@ import {buildComparisonCellMatrix} from "./comparisonCellMatrix.js";
 import {checkRequestedComparisonCoverage} from "./comparisonRequestedCoverage.js";
 import {collectComparisonCellQuotes,planComparisonBatches} from "./comparisonCellBatcher.js";
 import {verifyComparisonCellProof} from "./comparisonCellProof.js";
+import {findAvoidableUnknownComparisonCell} from "./comparisonAvoidableUnknown.js";
 
 /* Stable facade: every asserted cell must be checked against its own
  * primary source. No validator error is a positive learning signal. */
@@ -13,6 +14,9 @@ export async function validateComparisonCells(task,taskRunResult,answer) {
   const matrix=buildComparisonCellMatrix(answer,items.map(x=>String(x.data.url)));
   if(!matrix)return {success:true,valid:false,shouldRetry:false,claims:[],
     reason:"Не удалось сопоставить таблицу с двумя источниками"};
+  const avoidableUnknown=findAvoidableUnknownComparisonCell(task,answer,items);
+  if(avoidableUnknown)return {success:true,valid:false,shouldRetry:true,
+    claims:[],reason:avoidableUnknown.reason};
   const coverage=checkRequestedComparisonCoverage(task,matrix);
   if(!coverage.valid)return {success:true,valid:false,shouldRetry:true,
     claims:[],reason:coverage.reason};
