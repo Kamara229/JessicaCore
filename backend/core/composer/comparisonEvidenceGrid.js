@@ -133,7 +133,7 @@ export function renderComparisonEvidenceGrid(grid){
         header.push("КРИТЕРИЙ: "+row.title);
         row.excerpts.forEach((quotes,sourceIndex)=>{
             header.push(grid.sources[sourceIndex].id+": "+(quotes.length?
-                quotes.slice(0,["patents","notices"].includes(row.id)?2:1).map((quote,i)=>"["+grid.sources[sourceIndex].id+"-"+row.id+"-"+(i+1)+"] «"+
+                quotes.slice(0,["patents","notices"].includes(row.id)?2:1).map(quote=>"«"+
                     quote.replace(/\s+/g," ").slice(0,["use","distribution","restrictions","notices"].includes(row.id)?420:280)+"»").join("; "):
                 "Не удалось найти подтверждающую выдержку по этому критерию."));
         });
