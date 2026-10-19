@@ -1,6 +1,7 @@
 import { buildPairedSourceContext } from "./pairedSourceContext.js";
 import { buildComparisonEvidenceGrid, renderComparisonEvidenceGrid } from "./comparisonEvidenceGrid.js";
 import { usePairedComparisonContext } from "./comparisonEvidencePolicy.js";
+import {buildComparisonRepairHints} from "./comparisonRepairHints.js";
 
 /*
  * =========================================================
@@ -638,6 +639,9 @@ export function buildComposerContext(
                     "ПРИЧИНА ОТКЛОНЕНИЯ:",
                     validatorReason
                 );
+                if(usePairedComparisonContext(task,plan,taskRunResult)){
+                    sections.push("",buildComparisonRepairHints(validatorReason));
+                }
 
             }
 
