@@ -133,7 +133,7 @@ export function renderComparisonEvidenceGrid(grid){
         header.push("КРИТЕРИЙ: "+row.title);
         row.excerpts.forEach((quotes,sourceIndex)=>{
             header.push(grid.sources[sourceIndex].id+": "+(quotes.length?
-                quotes.slice(0,["patents","notices"].includes(row.id)?2:1).map(quote=>"«"+
+                quotes.slice(0,row.id==="notices"?3:row.id==="patents"?2:1).map(quote=>"«"+
                     quote.replace(/\s+/g," ").slice(0,["use","distribution","restrictions","notices"].includes(row.id)?420:280)+"»").join("; "):
                 "Не удалось найти подтверждающую выдержку по этому критерию."));
         });
@@ -141,6 +141,7 @@ export function renderComparisonEvidenceGrid(grid){
     header.push("ЮРИДИЧЕСКИЙ СМЫСЛ: выводи из действия в цитате (grants, may, must, does not grant, neither), а не из названия раздела.");
     header.push("Не повторяй только «описано в пункте», «текст определяет» или «указано в лицензии»: объясни конкретное разрешение, требование или запрет.");
     header.push("В таблице обязательства по сохранению уведомлений не заменяй разрешением добавить собственный copyright; право использовать не приравнивай к обязанности.");
+    header.push("Если сохранилось условие if/when или provided that — не превращай его в безусловную обязанность.");
     header.push("Ссылки вида S1-use-1 — служебные метки выдержек; изложи содержание своими словами и дай прямые ссылки на первоисточники.");
     header.push("Ответ строй из приведённых выдержек; если они не доказывают вывод, обозначь его как непроверенный. Не делай отрицательных выводов из отсутствия цитаты.");
     return header.join("\n");
