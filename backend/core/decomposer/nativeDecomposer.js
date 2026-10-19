@@ -1,3 +1,5 @@
+import { buildKnownLicenseComparisonPlan } from "../planner/knownLicenseComparison.js";
+
 /*
  * =========================================================
  * JESSICA NATIVE DECOMPOSER v1
@@ -205,6 +207,28 @@ export function tryNativeDecomposition({
         return {
             handled: true,
             source: "native-source-pair",
+            decomposition: {
+                originalTask: input,
+                isComplex: false,
+                memoryContext,
+                subtasks: [{
+                    id: 1,
+                    text: input,
+                    dependsOn: [],
+                    contributesToFinalAnswer: true,
+                    memoryHints: normalizeMemoryHints(memoryContext)
+                }]
+            }
+        };
+    }
+
+    // Source retrieval and comparison are ONE task when the user names
+    // two known licenses. Splitting the names away from the comparison
+    // loses identifiers and forces needless AI replanning.
+    if (buildKnownLicenseComparisonPlan(input)) {
+        return {
+            handled: true,
+            source: "native-known-license-cohesive",
             decomposition: {
                 originalTask: input,
                 isComplex: false,
