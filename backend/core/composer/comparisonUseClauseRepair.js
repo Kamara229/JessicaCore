@@ -3,7 +3,7 @@ import {selectOperativeSourceText} from "../validator/claim/operativeSourceScope
 /* Repair only an overstatement contradicted by the source's operative
  * permission. The underlying original source remains the authority.
  * No skill- or license-name-specific assertions are stored here. */
-const ABSOLUTE=/\bбез\s+(?:каких-либо\s+|любых\s+|дополнительных\s+)?ограничен\p{L}*/iu;
+const ABSOLUTE=/без\s+(?:каких-либо\s+|любых\s+|дополнительных\s+)?ограничен\p{L}*/iu;
 const SOURCE_RIGHTS=/\b(?:hereby grants to you|redistribution and use in source and binary forms)\b/iu;
 const CONDITIONAL=/\b(?:subject to the terms and conditions|provided that the following conditions|provided that you meet the following conditions)\b/iu;
 const REDISTRIBUTION_USE=/\bredistribution and use in source and binary forms\b[^.]{0,210}\bpermitted\b/iu;
