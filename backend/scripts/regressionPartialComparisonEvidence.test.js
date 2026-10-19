@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { buildPartialComparisonEvidence } from "../core/composer/partialComparisonEvidence.js";
 import { executeAnswerValidation } from "../core/execution/stepExecution/answerValidationCoordinator.js";
 import { classifyLearningOutcome } from "../core/learning/learningOutcomePolicy.js";
+import { buildSingleTaskResponse } from "../core/response/singleTaskResponse.js";
 
 const apache="https://www.apache.org/licenses/LICENSE-2.0.html";
 const bsd="https://opensource.org/license/bsd-3-clause";
@@ -63,4 +64,15 @@ test("one failed repair creates degraded source-excerpt result, never positive l
             validation:context.validationResult}
     });
     assert.equal(learning.positive,false);
+});
+
+
+test("validator repair instructions are not shown verbatim to the user",()=>{
+    const api=buildSingleTaskResponse({status:"FAILED",failure:{
+        failureType:"answer-validation-error",stage:"validator",
+        reason:"Не подтверждено утверждений: 3. При повторной генерации исключи эти тезисы"
+    }},null);
+    assert.equal(api.success,false);
+    assert.match(api.text,/не смогла подтвердить все выводы/);
+    assert.doesNotMatch(api.text,/При повторной генерации|Не подтверждено утверждений/);
 });
