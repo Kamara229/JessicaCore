@@ -1,4 +1,5 @@
 import { extractNoticeDutyExcerpts } from "./noticeDutyExcerpts.js";
+import { selectOperativeSourceText } from "./operativeSourceScope.js";
 
 /*
  * =========================================================
@@ -249,7 +250,14 @@ function findFetchResults(
         .slice(
             0,
             MAX_SOURCE_COUNT
-        );
+        )
+        .map(item=>({
+            ...item,
+            data:{
+                ...item.data,
+                content:selectOperativeSourceText(item.data.content)
+            }
+        }));
 
 }
 
