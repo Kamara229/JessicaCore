@@ -3,6 +3,7 @@ import { usePairedComparisonContext } from "../composer/comparisonEvidencePolicy
 import { buildOriginalSourceEvidenceContext } from "./claim/claimEvidenceMatcher.js";
 import { checkPairedClaimCoverage } from "./claim/pairedClaimCoverage.js";
 import { partitionComparisonClaims } from "./claim/claimUncertaintyScope.js";
+import { validateComparisonCells } from "./claim/comparisonCellValidator.js";
 import {
     executeAIWithRetry
 } from "../../ai/aiRetry.js";
@@ -314,6 +315,13 @@ export async function validateClaimEvidence(
 
     }
 
+
+    // The main comparison validator checks every asserted source cell;
+    // unchecked table rows must never become a successful Experience.
+    if (usePairedComparisonContext(task,plan,taskRunResult) &&
+        /таблиц|table/iu.test(String(task||""))) {
+        return await validateComparisonCells(task,taskRunResult,answer);
+    }
 
     /*
      * =====================================================
