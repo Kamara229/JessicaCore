@@ -185,11 +185,15 @@ export function buildSingleTaskResponse(
     if (
         result.status === "COMPLETED"
     ) {
+        const unverified = result?.validation?.outcomeType === "no_verified_result" || result?.answer?.source === "partial-source-excerpts";
 
         return {
 
             success:
-                true,
+                !unverified,
+
+            status: unverified ? "PARTIAL" : "COMPLETED",
+            partial: unverified,
 
             text:
                 getAnswerText(
@@ -203,7 +207,7 @@ export function buildSingleTaskResponse(
                 "single",
 
             validated:
-                result.verified === true,
+                !unverified && result.verified === true,
 
             answerSource:
                 result?.answer?.source ||

@@ -60,7 +60,7 @@ function bestEvidence(text,topic){
         // Prefer a provision discussing more than one relevant aspect.
         const coverage=matches.filter(Boolean).length;
         const anchor=matches[0]?3:0;
-        const conditional=topic.id==='notices' && /if[\\s\\S]{0,140}notice[\\s\\S]{0,80}file/i.test(item.text) ? 12 : 0;
+        const conditional=topic.id==='notices' && /if.{0,140}notice.{0,80}file/is.test(item.text) ? 12 : 0;
         const score=coverage*2+anchor+conditional;
         return {...item,score,coverage};
     }).filter(x=>x.coverage>0);
