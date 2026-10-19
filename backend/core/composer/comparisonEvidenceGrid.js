@@ -1,6 +1,7 @@
 import { extractNoticeDutyExcerpts } from "../validator/claim/noticeDutyExcerpts.js";
 import { extractPatentClauseExcerpts } from "../validator/claim/patentClauseExcerpts.js";
 import {extractLegalActionExcerpts} from "./sourceLegalActionExcerpts.js";
+import {comparisonCriterionGuidance} from "./comparisonCriterionGuidance.js";
 import { selectOperativeSourceText } from "../validator/claim/operativeSourceScope.js";
 
 /*
@@ -138,6 +139,7 @@ export function renderComparisonEvidenceGrid(grid){
                 "Не удалось найти подтверждающую выдержку по этому критерию."));
         });
     }
+    header.push(comparisonCriterionGuidance(grid.criteria));
     header.push("ЮРИДИЧЕСКИЙ СМЫСЛ: выводи из действия в цитате (grants, may, must, does not grant, neither), а не из названия раздела.");
     header.push("Не повторяй только «описано в пункте», «текст определяет» или «указано в лицензии»: объясни конкретное разрешение, требование или запрет.");
     header.push("В таблице обязательства по сохранению уведомлений не заменяй разрешением добавить собственный copyright; право использовать не приравнивай к обязанности.");
