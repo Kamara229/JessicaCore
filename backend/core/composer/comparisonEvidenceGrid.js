@@ -1,4 +1,5 @@
 import { extractNoticeDutyExcerpts } from "../validator/claim/noticeDutyExcerpts.js";
+import { extractPatentClauseExcerpts } from "../validator/claim/patentClauseExcerpts.js";
 import { selectOperativeSourceText } from "../validator/claim/operativeSourceScope.js";
 
 /*
@@ -58,6 +59,11 @@ function fragments(text){
     return out;
 }
 function bestEvidence(text,topic){
+    if(topic.id==="patents") {
+        const provisions=extractPatentClauseExcerpts(text,"патент");
+        if(provisions.length)return provisions.slice(0,2);
+    }
+
     // Evidence of obligations must come from operative source clauses,
     // not a neighboring copyright template or documentation appendix.
     if(topic.id==="notices") {
