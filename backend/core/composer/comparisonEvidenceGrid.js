@@ -95,7 +95,11 @@ export function buildComparisonEvidenceGrid(task,run){
     const sources=sourceList(run);
     if(!sources)return null;
     const requested=TOPICS.filter(t=>t.ask.test(String(task||"")));
-    const chosen=requested.length?requested:TOPICS.slice(0,5);
+    // "Условия использования" is not a request for an additional
+    // generic "Обязанности" row duplicating the entire comparison.
+    const explicitObligations=/обязанност|обязат|требован|\brequirements?\b|\bobligations?\b/iu.test(String(task||""));
+    const selected=requested.filter(t=>t.id!=="obligations"||explicitObligations);
+    const chosen=selected.length?selected:requested.length?requested:TOPICS.slice(0,5);
     const criteria=chosen.map(topic=>({
         id:topic.id,
         title:topic.title,
