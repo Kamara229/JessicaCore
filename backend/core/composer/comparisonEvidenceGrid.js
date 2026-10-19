@@ -15,10 +15,12 @@ const TOPICS=[
         terms:[/copyright|notice|attribution/iu,/retain|preserv|include.*cop(y|ies)|include.*license/iu,/redistribut|distribut/iu]},
     {id:"patents",title:"Патентные условия",
         ask:/патент|patent/iu,
-        terms:[/patent/iu,/litigation|terminat|institute/iu,/grant|license/iu]},
+        terms:[/patent/iu,/litigation|terminat|institute/iu,/grant|license/iu],
+        gate:/patent/iu},
     {id:"restrictions",title:"Ограничения",
         ask:/ограничен|бренд|имен|назван|товарн|знак|trademark|endorse|restrict/iu,
-        terms:[/trademark|trade\s+names?|endorse|promot/iu,/restric|permission|may\s+not|neither/iu,/patent|litigation/iu]},
+        terms:[/trademark|trade\s+names?|endorse|promot/iu,/restric|permission|may\s+not|neither/iu],
+        gate:/trademark|trade\s+names?|endorse|promot|restric|may\s+not|neither/iu},
     {id:"warranty",title:"Ответственность и гарантии",
         ask:/ответственн|гаранти|warrant|liabilit|disclaim/iu,
         terms:[/warrant|liabilit|disclaim/iu,/as\s+is|damages/iu]},
@@ -34,7 +36,7 @@ const MAX_EVIDENCE_PER_TOPIC=2;
 function sourceList(run){
     const items=Array.isArray(run?.results)?run.results:[];
     const fetched=items.filter(x=>x?.tool==="web_fetch"&&x?.success===true &&
-        typeof x?.data?.content==="string"&&x.data.content.trim()&&x.data.url);
+        typeof x?.data?.content==="string"&&x.data.content.trim()&&x.data.url&&x.data.truncated!==true);
     return fetched.length===2?fetched:null;
 }
 function fragments(text){
@@ -53,7 +55,7 @@ function fragments(text){
     return out;
 }
 function bestEvidence(text,topic){
-    const scored=fragments(text).map(item=>{
+    const scored=fragments(text).filter(item=>!topic.gate||topic.gate.test(item.text)).map(item=>{
         const matches=topic.terms.map(re=>re.test(item.text));
         // Prefer a provision discussing more than one relevant aspect.
         const coverage=matches.filter(Boolean).length;
@@ -91,14 +93,14 @@ export function renderComparisonEvidenceGrid(grid){
     const header=[
         "КАРТА ПЕРВОИСТОЧНИКОВ — дословные выдержки, НЕ итоговые выводы.",
         "Нет цитаты по критерию ≠ в оригинале отсутствует условие.",
-        ...grid.sources.map(s=>s.id+" URL: "+s.url+" Название: "+s.title)
+        ...grid.sources.map((s,i)=>"ИСТОЧНИК "+(i+1)+" ("+s.id+") URL: "+s.url+" Название: "+s.title)
     ];
     for(const row of grid.criteria){
         header.push("КРИТЕРИЙ: "+row.title);
         row.excerpts.forEach((quotes,sourceIndex)=>{
             header.push(grid.sources[sourceIndex].id+": "+(quotes.length?
-                quotes.map((quote,i)=>"["+grid.sources[sourceIndex].id+"-"+row.id+"-"+(i+1)+"] «"+
-                    quote.replace(/\s+/g," ").slice(0,WINDOW)+"»").join("; "):
+                quotes.slice(0,row.id==="patents"?2:1).map((quote,i)=>"["+grid.sources[sourceIndex].id+"-"+row.id+"-"+(i+1)+"] «"+
+                    quote.replace(/\s+/g," ").slice(0,240)+"»").join("; "):
                 "Не удалось найти подтверждающую выдержку по этому критерию."));
         });
     }
