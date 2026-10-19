@@ -60,7 +60,8 @@ function bestEvidence(text,topic){
         // Prefer a provision discussing more than one relevant aspect.
         const coverage=matches.filter(Boolean).length;
         const anchor=matches[0]?3:0;
-        const score=coverage*2+anchor;
+        const conditional=topic.id==='notices' && /if[\\s\\S]{0,140}notice[\\s\\S]{0,80}file/i.test(item.text) ? 12 : 0;
+        const score=coverage*2+anchor+conditional;
         return {...item,score,coverage};
     }).filter(x=>x.coverage>0);
     scored.sort((a,b)=>b.score-a.score||a.start-b.start);
@@ -99,8 +100,8 @@ export function renderComparisonEvidenceGrid(grid){
         header.push("КРИТЕРИЙ: "+row.title);
         row.excerpts.forEach((quotes,sourceIndex)=>{
             header.push(grid.sources[sourceIndex].id+": "+(quotes.length?
-                quotes.slice(0,row.id==="patents"?2:1).map((quote,i)=>"["+grid.sources[sourceIndex].id+"-"+row.id+"-"+(i+1)+"] «"+
-                    quote.replace(/\s+/g," ").slice(0,240)+"»").join("; "):
+                quotes.slice(0,["patents","notices"].includes(row.id)?2:1).map((quote,i)=>"["+grid.sources[sourceIndex].id+"-"+row.id+"-"+(i+1)+"] «"+
+                    quote.replace(/\s+/g," ").slice(0,row.id==="notices"?350:240)+"»").join("; "):
                 "Не удалось найти подтверждающую выдержку по этому критерию."));
         });
     }
