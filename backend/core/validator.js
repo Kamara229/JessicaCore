@@ -235,7 +235,12 @@ function buildValidationResult(
 
                 ? validation.reason.trim()
 
-                : ""
+                : "",
+
+        // Preserve evidence-verifier claim details for safe partial rendering
+        // after a failed semantic repair. Do not treat these as verified facts.
+        claims:
+            Array.isArray(validation?.claims) ? validation.claims : []
 
     };
 
