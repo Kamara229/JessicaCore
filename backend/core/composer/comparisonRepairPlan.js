@@ -1,4 +1,5 @@
 import {buildComparisonCellMatrix} from "../validator/claim/comparisonCellMatrix.js";
+import {comparisonUnknownRepairTargets} from "./comparisonUnknownRepairTargets.js";
 
 /* Translate Validator's attributed claims into a constrained editing plan.
  * The model should edit only rejected cells, not rewrite an already
@@ -14,7 +15,9 @@ export function buildComparisonRepairPlan(repair) {
     norm(c.sourceUrl)+"\n"+norm(c.criterion)));
   const missing=matrix.checks.filter(c=>
     !verified.has(norm(c.sourceUrl)+"\n"+norm(c.criterion)));
-  if(!missing.length)return "";
+  const unknown=comparisonUnknownRepairTargets(matrix,
+    repair.previousAnswer,repair.sourceUrls);
+  if(!missing.length&&!unknown.length)return "";
   const label=sourceIndex=>sourceIndex===0?"первого":"второго";
   return [
     "ПЛАН ТОЧЕЧНОГО ИСПРАВЛЕНИЯ (редактирование таблицы, не её пересоздание):",
@@ -22,6 +25,7 @@ export function buildComparisonRepairPlan(repair) {
     "Замени только следующие НЕПОДТВЕРЖДЁННЫЕ ячейки содержательными, доказуемыми формулировками:",
     ...missing.slice(0,15).map(c=>
       "- Строка «"+c.criterion+"», столбец "+label(c.source)+" источника."),
+    ...unknown.slice(0,12).map(x=>x.label),
     "Не добавляй другие юридические утверждения или дополнительные строки. Верни ту же Markdown-таблицу.",
     "Если не можешь подтвердить спорный фрагмент, используй осторожную формулировку, но не делай выводов об отсутствии нормы по молчанию источника."
   ].join("\n");
