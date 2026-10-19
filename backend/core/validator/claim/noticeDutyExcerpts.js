@@ -7,9 +7,21 @@ const NOTICE_QUESTION=/уведомлен|авторск|копирайт|copyri
 const DUTY=/\bmust\s+(?:retain|reproduce|give|include|cause|provide)\b|\bshall\s+(?:retain|include|provide)\b|\brequired\s+to\s+(?:retain|include|provide)\b/giu;
 const CONDITIONAL=/\bif\s+the\s+work\s+includes\s+a\s+.{0,35}notice\b/giu;
 function excerptAround(text,offset) {
-    const start=Math.max(0,offset-85);
-    const end=Math.min(text.length,offset+440);
-    return text.slice(start,end).trim();
+    let start=Math.max(0,offset-85);
+    let end=Math.min(text.length,offset+440);
+    // Do not start or end in the middle of a word.
+    if(start>0) {
+        const boundary=text.indexOf(" ",start);
+        if(boundary>=0 && boundary<offset)start=boundary+1;
+    }
+    if(end<text.length) {
+        const boundary=text.lastIndexOf(" ",end);
+        if(boundary>offset+140)end=boundary;
+    }
+    let excerpt=text.slice(start,end);
+    const appendix=excerpt.search(/\bhow to apply\b|\bappendix: how to apply\b/i);
+    if(appendix>180)excerpt=excerpt.slice(0,appendix);
+    return excerpt.trim();
 }
 export function extractNoticeDutyExcerpts(document,task) {
     if(!NOTICE_QUESTION.test(String(task||"")))return [];
@@ -32,7 +44,8 @@ export function extractNoticeDutyExcerpts(document,task) {
     found.sort((a,b)=>b.score-a.score||a.offset-b.offset);
     const selected=[];
     for(const entry of found) {
-        if(selected.some(x=>Math.abs(x.offset-entry.offset)<230))continue;
+        if(selected.some(x=>x.quote===entry.quote ||
+            Math.abs(x.offset-entry.offset)<160))continue;
         selected.push(entry);
         if(selected.length===3)break;
     }
