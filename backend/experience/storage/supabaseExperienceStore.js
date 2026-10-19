@@ -1,6 +1,7 @@
 import {
     getSupabaseClient
 } from "../../storage/supabaseClient.js";
+import {hydrateExperienceModules} from "./skillModules/experienceModuleHydrator.js";
 
 
 /*
@@ -258,11 +259,14 @@ export async function loadExperiences() {
 
 
     for (const row of data) {
+        const fullPayload=await hydrateExperienceModules(
+            row.payload,row.id,row.version
+        );
 
         const skill =
             normalizeSkill({
 
-                ...(row.payload || {}),
+                ...(fullPayload || {}),
 
                 id:
                     row.id,
