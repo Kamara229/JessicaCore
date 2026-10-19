@@ -1,4 +1,5 @@
 import { buildPairedSourceContext } from "./pairedSourceContext.js";
+import { buildComparisonEvidenceGrid, renderComparisonEvidenceGrid } from "./comparisonEvidenceGrid.js";
 import { usePairedComparisonContext } from "./comparisonEvidencePolicy.js";
 
 /*
@@ -544,7 +545,9 @@ export function buildComposerContext(
 
     const factualContext =
         (usePairedComparisonContext(task,plan,taskRunResult)
-            ? buildPairedSourceContext(task, taskRunResult)
+            ? (renderComparisonEvidenceGrid(
+                buildComparisonEvidenceGrid(task,taskRunResult)
+              ) || buildPairedSourceContext(task,taskRunResult))
             : null)
         || buildFactualContext(
             taskRunResult,
