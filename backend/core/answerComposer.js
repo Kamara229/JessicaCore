@@ -64,6 +64,7 @@ import {mergeVerifiedComparisonRepair} from "./composer/comparisonTablePatch.js"
 import {attributeComparisonSources} from "./composer/comparisonSourceAttribution.js";
 import {scaffoldComparisonTable} from "./composer/comparisonTableScaffold.js";
 import {tryFocusedComparisonRepair} from "./composer/focusedComparisonRepair.js";
+import {repairComparisonClaimMeaning} from "./composer/comparisonSemanticRepair.js";
 
 import {
     isComposerAvailable,
