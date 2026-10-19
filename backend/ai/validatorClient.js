@@ -171,7 +171,7 @@ function validateMessages(
 
 export async function validatorChat(
     messages,
-    {comparison=false}={}
+    {comparison=false,maxComparisonTokens=null}={}
 ) {
 
 
@@ -225,7 +225,10 @@ export async function validatorChat(
 
 
             max_completion_tokens:
-                comparison ? 900 : VALIDATOR_MAX_COMPLETION_TOKENS,
+                comparison
+                    ? (Number.isInteger(maxComparisonTokens) && maxComparisonTokens>=160
+                        ? Math.min(maxComparisonTokens,900) : 900)
+                    : VALIDATOR_MAX_COMPLETION_TOKENS,
 
 
             response_format: {
