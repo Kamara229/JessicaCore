@@ -11,7 +11,7 @@ function isNegativeRequirement(text) {
 }
 
 function explicitlyNegatesRequirement(text) {
-    return /(?:not\s+required|no\s+(?:requirement|obligation)|does\s+not\s+(?:require|contain|include)|not\s+obliged|не\s+требует(?:ся)?|требовани\p{L}*\s+отсутств\p{L}*)/iu
+    return /(?:not\s+required|no\s+(?:requirement|obligation)|does\s+not\s+(?:require|contain|include|grant)|no\s+permission\s+to|not\s+obliged|не\s+требует(?:ся)?|требовани\p{L}*\s+отсутств\p{L}*)/iu
         .test(String(text || ""));
 }
 
@@ -27,7 +27,8 @@ export function isUnsupportedNegativeComparisonClaim(claim, multiSource = false)
     if(!multiSource || !isNegativeRequirement(claim?.claim)) return false;
     const evidence=String(claim?.evidence || "");
     if(!explicitlyNegatesRequirement(evidence)) return true;
-    const terms=distinctiveTerms(claim.claim);
+    const sourceName=String(claim?.sourceUrl||"").toLowerCase();
+    const terms=distinctiveTerms(claim.claim).filter(t=>!sourceName.includes(t));
     // "Not required" about an unrelated provision is not evidence.
     if(terms.length && !terms.some(t=>evidence.toLowerCase().includes(t))) return true;
     return false;
