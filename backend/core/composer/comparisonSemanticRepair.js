@@ -1,10 +1,10 @@
 import {correctOverstatedUse} from "./comparisonUseClauseRepair.js";
-import {correctNoticeFileMeaning} from "./comparisonNoticeClauseRepair.js";
+import {correctNoticeFileClaim} from "./comparisonConditionalNoticeMeaning.js";
 import {criterionType} from "../validator/claim/comparisonClauseReferences.js";
 import {updateComparisonTableCells} from "./comparisonCellTableUpdater.js";
 export function repairComparisonCellValue(topic,value,source){
   if(topic==="use")return correctOverstatedUse(value,source);
-  if(topic==="notices")return correctNoticeFileMeaning(value,source);
+  if(topic==="notices")return correctNoticeFileClaim(value,source);
   return value;
 }
 
