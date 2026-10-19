@@ -30,9 +30,9 @@ export async function validateComparisonCells(task,taskRunResult,answer) {
   const clauseIndex=canUseComparisonClauseIndex(matrix,indexed)?indexed:null;
   console.log("Jessica Comparison Cell Verification:",{
     rows:matrix.totalRows,cells:matrix.checks.length,
-    batches:planComparisonBatches(matrix)?.chunks.length,
+    batches:planComparisonBatches(matrix,indexed)?.chunks.length,
     sourceChars:context.sourceChars,
-    evidenceMode:clauseIndex?"indexed-clauses":"verbatim-quote"
+    evidenceMode:"indexed-where-available"
   });
   try {
     const batch=await collectComparisonCellQuotes({
