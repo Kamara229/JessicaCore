@@ -1,5 +1,6 @@
 import { extractNoticeDutyExcerpts } from "../validator/claim/noticeDutyExcerpts.js";
 import { extractPatentClauseExcerpts } from "../validator/claim/patentClauseExcerpts.js";
+import {extractLegalActionExcerpts} from "./sourceLegalActionExcerpts.js";
 import { selectOperativeSourceText } from "../validator/claim/operativeSourceScope.js";
 
 /*
@@ -59,6 +60,11 @@ function fragments(text){
     return out;
 }
 function bestEvidence(text,topic){
+    // Primary-source actions are more relevant than a bare heading
+    // or a note about which translated text is authoritative.
+    const actions=extractLegalActionExcerpts(text,topic.id);
+    if(actions.length)return actions;
+
     if(topic.id==="patents") {
         const provisions=extractPatentClauseExcerpts(text,"патент");
         if(provisions.length)return provisions.slice(0,2);
@@ -128,10 +134,14 @@ export function renderComparisonEvidenceGrid(grid){
         row.excerpts.forEach((quotes,sourceIndex)=>{
             header.push(grid.sources[sourceIndex].id+": "+(quotes.length?
                 quotes.slice(0,["patents","notices"].includes(row.id)?2:1).map((quote,i)=>"["+grid.sources[sourceIndex].id+"-"+row.id+"-"+(i+1)+"] «"+
-                    quote.replace(/\s+/g," ").slice(0,row.id==="notices"?480:240)+"»").join("; "):
+                    quote.replace(/\s+/g," ").slice(0,["use","distribution","restrictions","notices"].includes(row.id)?420:280)+"»").join("; "):
                 "Не удалось найти подтверждающую выдержку по этому критерию."));
         });
     }
+    header.push("ЮРИДИЧЕСКИЙ СМЫСЛ: выводи из действия в цитате (grants, may, must, does not grant, neither), а не из названия раздела.");
+    header.push("Не повторяй только «описано в пункте», «текст определяет» или «указано в лицензии»: объясни конкретное разрешение, требование или запрет.");
+    header.push("В таблице обязательства по сохранению уведомлений не заменяй разрешением добавить собственный copyright; право использовать не приравнивай к обязанности.");
+    header.push("Ссылки вида S1-use-1 — служебные метки выдержек; изложи содержание своими словами и дай прямые ссылки на первоисточники.");
     header.push("Ответ строй из приведённых выдержек; если они не доказывают вывод, обозначь его как непроверенный. Не делай отрицательных выводов из отсутствия цитаты.");
     return header.join("\n");
 }
