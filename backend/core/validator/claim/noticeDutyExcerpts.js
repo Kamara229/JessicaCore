@@ -1,3 +1,5 @@
+import { selectOperativeSourceText } from "./operativeSourceScope.js";
+
 /*
  * Extract contiguous verbatim citation candidates for duties mentioned
  * in a comparison. This is retrieval, NOT verification of legal meaning.
@@ -25,7 +27,7 @@ function excerptAround(text,offset) {
 }
 export function extractNoticeDutyExcerpts(document,task) {
     if(!NOTICE_QUESTION.test(String(task||"")))return [];
-    const text=String(document||"").replace(/\s+/g," ").slice(0,30000);
+    const text=selectOperativeSourceText(document).replace(/\s+/g," ").slice(0,30000);
     const found=[];
     for(const [pattern,bonus] of [[DUTY,0],[CONDITIONAL,18]]) {
         pattern.lastIndex=0;
