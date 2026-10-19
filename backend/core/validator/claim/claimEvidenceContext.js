@@ -1,3 +1,5 @@
+import { extractNoticeDutyExcerpts } from "./noticeDutyExcerpts.js";
+
 /*
  * =========================================================
  * JESSICA CLAIM EVIDENCE CONTEXT v1
@@ -823,7 +825,8 @@ function selectSourceChunks(
 function formatSource(
     result,
     sourceIndex,
-    chunks
+    chunks,
+    task
 ) {
 
     const url =
@@ -850,6 +853,16 @@ function formatSource(
 
     ];
 
+
+    // Prioritize actual obligations from the fetched text. These are
+    // quotations, not independently verified interpretations.
+    const dutyExcerpts=extractNoticeDutyExcerpts(result?.data?.content,task);
+    if(dutyExcerpts.length) {
+        parts.push("", "PRIMARY SOURCE DUTY EXCERPTS — verify exact obligations and conditions:");
+        dutyExcerpts.forEach((quote,index)=>{
+            parts.push("DUTY EXCERPT "+(index+1)+": "+quote);
+        });
+    }
 
     chunks.forEach(
         (
@@ -992,7 +1005,9 @@ export function buildClaimEvidenceContext({
 
                 index,
 
-                chunks
+                chunks,
+
+                task
 
             )
 
