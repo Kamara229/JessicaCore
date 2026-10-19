@@ -62,6 +62,7 @@ import { requiresVerifiedComparison, usePairedComparisonContext } from "./compos
 import { guardComparisonUnknowns } from "./composer/comparisonUnknownGuard.js";
 import {mergeVerifiedComparisonRepair} from "./composer/comparisonTablePatch.js";
 import {attributeComparisonSources} from "./composer/comparisonSourceAttribution.js";
+import {scaffoldComparisonTable} from "./composer/comparisonTableScaffold.js";
 
 import {
     isComposerAvailable,
@@ -516,7 +517,12 @@ export async function composeAnswer(
     if(generated?.success === true) {
         if(!usePairedComparisonContext(task,plan,taskRunResult))
             return generated;
-        const guarded=guardComparisonUnknowns(task,plan,taskRunResult,generated.text);
+        const scaffold=scaffoldComparisonTable(task,taskRunResult,generated.text);
+        if(scaffold.applied)
+            console.log("Jessica Comparison Table Scaffold:",{
+                missing:scaffold.missing,preserved:scaffold.preserved
+            });
+        const guarded=guardComparisonUnknowns(task,plan,taskRunResult,scaffold.text);
         if(guarded.changes>0)
             console.log("Jessica Comparison Unknown Guard:",{changes:guarded.changes});
         const repair=options?.repairContext;
