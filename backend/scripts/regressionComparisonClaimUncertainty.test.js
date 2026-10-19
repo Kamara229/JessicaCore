@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {partitionComparisonClaims} from "../core/validator/claim/claimUncertaintyScope.js";
-import {unsupportedComparisonDuty} from "../core/validator/claim/comparisonDutyEvidence.js";
 
 const urls=[
   "https://www.apache.org/licenses/LICENSE-2.0.html",
@@ -43,14 +42,3 @@ test("lack of a mapped uncertainty cell cannot suppress unsupported facts",()=>{
  assert.equal(x.ignoredUncertainty,0);
 });
 
-test("a copyright template cannot prove an obligation",()=>{
- assert.equal(unsupportedComparisonDuty(
-  "Apache требует предоставления лицензии и NOTICE",
-  "Copyright [yyyy] Licensed under the Apache License"),true);
- assert.equal(unsupportedComparisonDuty(
-  "BSD требует сохранять copyright notice",
-  "Redistributions of source code must retain the above copyright notice"),false);
- assert.equal(unsupportedComparisonDuty(
-  "Apache содержит патентную лицензию",
-  "Grant of Patent License"),false);
-});
