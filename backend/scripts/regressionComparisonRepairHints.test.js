@@ -16,10 +16,10 @@ test("failed comparison receives separate substantive repair guidance",()=>{
    previousAnswer:"| Критерий | A | B |",
    validatorReason:"Распространение: цитата не подтверждает юридический смысл"});
  assert.match(result,/ПРИЧИНА ОТКЛОНЕНИЯ/);
- assert.match(result,/При исправлении сравнения проверяй смысл/);
+ assert.match(result,/РЕЖИМ ИСПРАВЛЕНИЯ СРАВНЕНИЯ/);
  assert.match(result,/Не смешивай разрешение и обязанность/);
 });
 test("fresh comparison does not receive repair instructions",()=>{
  const result=buildComposerContext(task,plan,run);
- assert.doesNotMatch(result,/При исправлении сравнения проверяй смысл/);
+ assert.doesNotMatch(result,/РЕЖИМ ИСПРАВЛЕНИЯ СРАВНЕНИЯ/);
 });
