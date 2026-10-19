@@ -36,7 +36,7 @@ export async function validateComparisonCells(task,taskRunResult,answer) {
   });
   try {
     const batch=await collectComparisonCellQuotes({
-      task,matrix,sourceText:context.sourceText,clauseIndex
+      task,matrix,sourceText:context.sourceText,clauseIndex,fallbackIndex:indexed
     });
     if(!batch.valid)return {success:true,valid:false,shouldRetry:false,
       claims:[],reason:batch.reason};
