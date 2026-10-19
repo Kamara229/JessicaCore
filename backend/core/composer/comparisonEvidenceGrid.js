@@ -1,3 +1,5 @@
+import { extractNoticeDutyExcerpts } from "../validator/claim/noticeDutyExcerpts.js";
+
 /*
  * Source-first evidence extraction for any two retrieved text documents.
  * These are verbatim EXCERPTS, never legal conclusions or verified claims.
@@ -55,6 +57,12 @@ function fragments(text){
     return out;
 }
 function bestEvidence(text,topic){
+    // Evidence of obligations must come from operative source clauses,
+    // not a neighboring copyright template or documentation appendix.
+    if(topic.id==="notices") {
+        const provisions=extractNoticeDutyExcerpts(text,"уведомления");
+        if(provisions.length)return provisions.slice(0,2);
+    }
     const scored=fragments(text).filter(item=>!topic.gate||topic.gate.test(item.text)).map(item=>{
         const matches=topic.terms.map(re=>re.test(item.text));
         // Prefer a provision discussing more than one relevant aspect.
@@ -109,7 +117,7 @@ export function renderComparisonEvidenceGrid(grid){
         row.excerpts.forEach((quotes,sourceIndex)=>{
             header.push(grid.sources[sourceIndex].id+": "+(quotes.length?
                 quotes.slice(0,["patents","notices"].includes(row.id)?2:1).map((quote,i)=>"["+grid.sources[sourceIndex].id+"-"+row.id+"-"+(i+1)+"] «"+
-                    quote.replace(/\s+/g," ").slice(0,row.id==="notices"?350:240)+"»").join("; "):
+                    quote.replace(/\s+/g," ").slice(0,row.id==="notices"?480:240)+"»").join("; "):
                 "Не удалось найти подтверждающую выдержку по этому критерию."));
         });
     }
