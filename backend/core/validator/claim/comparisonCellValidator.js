@@ -14,8 +14,8 @@ export async function validateComparisonCells(task,taskRunResult,answer) {
   const items=(taskRunResult?.results||[])
     .filter(x=>x?.tool==="web_fetch"&&x?.success===true&&x?.data?.url);
   const matrix=buildComparisonCellMatrix(answer,items.map(x=>String(x.data.url)));
-  if(!matrix)return {success:true,valid:false,shouldRetry:false,claims:[],
-    reason:"Не удалось сопоставить таблицу с двумя источниками"};
+  if(!matrix)return {success:true,valid:false,shouldRetry:true,claims:[],
+    reason:"Таблица не распознана. Нужны три Markdown-колонки с различимыми названиями двух загруженных документов и отдельными строками критериев. При исправлении сохрани источники и полный перечень критериев."};
   const avoidableUnknown=findAvoidableUnknownComparisonCell(task,answer,items);
   if(avoidableUnknown)return {success:true,valid:false,shouldRetry:true,
     claims:[],reason:avoidableUnknown.reason};
