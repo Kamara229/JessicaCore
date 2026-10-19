@@ -1,4 +1,5 @@
 import { buildComparisonEvidenceGrid } from "./comparisonEvidenceGrid.js";
+import {containsExplicitNoticeDuty} from "../validator/claim/comparisonExplicitDuties.js";
 
 /*
  * Deterministic presentation safety net. A missing topical excerpt is
@@ -63,8 +64,14 @@ function sourceMention(text,source,other) {
     const present=new Set(words(text));
     return distinctive.some(w=>present.has(w));
 }
-function missingTopic(row) {
-    return row.excerpts.map((quotes,index)=>quotes.length===0?index:-1).filter(i=>i>=0);
+function missingTopic(row,sourceItems) {
+    return row.excerpts.map((quotes,index)=>{
+        if(quotes.length)return -1;
+        if(row.id==="notices" &&
+            containsExplicitNoticeDuty(sourceItems[index]?.data?.content))
+            return -1;
+        return index;
+    }).filter(i=>i>=0);
 }
 
 /*
@@ -76,7 +83,9 @@ export function guardComparisonUnknowns(task,plan,run,text) {
     if(plan?.evidence?.mode!=="source_content") return {text,changes:0};
     const grid=buildComparisonEvidenceGrid(task,run);
     if(!grid || grid.sources.length!==2) return {text,changes:0};
-    const rows=grid.criteria.filter(row=>missingTopic(row).length);
+    const sources=(run?.results||[]).filter(x=>
+        x?.tool==="web_fetch"&&x?.success===true&&x?.data?.url);
+    const rows=grid.criteria.filter(row=>missingTopic(row,sources).length);
     if(!rows.length) return {text,changes:0};
 
     const lines=String(text||"").split("\n");
@@ -94,7 +103,7 @@ export function guardComparisonUnknowns(task,plan,run,text) {
             if(!mapping) return line;
             const row=rows.find(r=>TOPICS[r.id]?.test(cells[0]));
             if(!row) return line;
-            for(const i of missingTopic(row)) {
+            for(const i of missingTopic(row,sources)) {
                 const col=mapping[i];
                 if(col>=cells.length || /не удалось|не установлено|not verified|unable to verify/iu.test(cells[col]))continue;
                 cells[col]=UNKNOWN;
@@ -106,7 +115,7 @@ export function guardComparisonUnknowns(task,plan,run,text) {
         if(!line.trim()) {inTable=false;return line;}
         for(const row of rows) {
             if(!TOPICS[row.id]?.test(line)||!NEGATION.test(line))continue;
-            const index=missingTopic(row).find(i=>
+            const index=missingTopic(row,sources).find(i=>
                 sourceMention(line,grid.sources[i],grid.sources[1-i]));
             if(index===undefined)continue;
             changes++;
