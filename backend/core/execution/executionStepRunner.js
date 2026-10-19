@@ -455,7 +455,8 @@ export async function executeExecutionStep(
 
                 context.answerResult,
 
-                true
+                context.validationResult?.degraded !== true &&
+                context.validationResult?.outcomeType !== "no_verified_result"
 
             )
 
