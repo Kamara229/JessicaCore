@@ -1,3 +1,5 @@
+import { matchesAttributedEvidence } from "../validator/claim/claimEvidenceMatcher.js";
+
 /*
  * A bounded user-facing fallback after comparison presentation failure.
  * Claims marked "supported" have source-attributed verbatim quotes, but
@@ -35,6 +37,9 @@ export function buildPartialComparisonEvidence(task, plan, runResult, claims) {
         if (index<0) continue;
         const quote=safeExcerpt(claim.evidence);
         if (quote.length<20 || quote.split(" ").length<4) continue;
+        const source=fetched[index];
+        const sourceText="SOURCE 1\nURL: "+source.data.url+"\nSNIPPET: "+source.data.content;
+        if (!matchesAttributedEvidence({sourceUrl:source.data.url,evidence:quote},sourceText)) continue;
         if (!excerpts[index].includes(quote)) excerpts[index].push(quote);
     }
     if (excerpts.some(items=>items.length<2)) return null;
