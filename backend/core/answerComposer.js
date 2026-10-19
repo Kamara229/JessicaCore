@@ -60,6 +60,7 @@ import {
 import { getDocumentReceipt } from "./composer/documentReceipt.js";
 import { requiresVerifiedComparison, usePairedComparisonContext } from "./composer/comparisonEvidencePolicy.js";
 import { guardComparisonUnknowns } from "./composer/comparisonUnknownGuard.js";
+import {restoreVerifiedComparisonCells} from "./composer/comparisonVerifiedCellLock.js";
 
 import {
     isComposerAvailable,
@@ -511,18 +512,25 @@ export async function composeAnswer(
         );
 
 
-    if(
-        generated?.success === true
-    ){
-        if(usePairedComparisonContext(task,plan,taskRunResult)) {
-            const guarded=guardComparisonUnknowns(task,plan,taskRunResult,generated.text);
-            if(guarded.changes>0) {
-                console.log("Jessica Comparison Unknown Guard:", {changes:guarded.changes});
-                return {...generated,text:guarded.text};
-            }
-        }
-        return generated;
-
+    if(generated?.success === true) {
+        if(!usePairedComparisonContext(task,plan,taskRunResult))
+            return generated;
+        const guarded=guardComparisonUnknowns(task,plan,taskRunResult,generated.text);
+        if(guarded.changes>0)
+            console.log("Jessica Comparison Unknown Guard:",{changes:guarded.changes});
+        const repair=options?.repairContext;
+        const locked=restoreVerifiedComparisonCells(
+            guarded.text,repair?.verifiedCells,repair?.sourceUrls
+        );
+        if(!locked.complete)
+            return buildComposerFailure(
+                "Повторный ответ изменил структуру проверенной таблицы; подтверждённые ячейки сохранены от перезаписи."
+            );
+        if(locked.restored>0)
+            console.log("Jessica Verified Comparison Cells Locked:",{
+                restored:locked.restored
+            });
+        return {...generated,text:locked.text};
     }
 
 
