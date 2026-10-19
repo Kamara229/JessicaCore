@@ -29,5 +29,10 @@ test("resolve compact IDs only for matching source and topic",()=>{
   JSON.stringify({c:[[1,[b.id]],[2,[a.id]]]}),cells,index);
  assert.equal(mismatched.valid,true);
  assert.deepEqual(mismatched.c.map(([,quotes])=>quotes),[[],[]]);
+ const mixed=resolveComparisonClauseReferences(
+  JSON.stringify({c:[[1,[b.id]],[2,[b.id]]]}),cells,index);
+ assert.equal(mixed.valid,true);
+ assert.deepEqual(mixed.c[0],[1,[]]);
+ assert.deepEqual(mixed.c[1],[2,[b.quote]]);
  assert.equal(resolveComparisonClauseReferences(JSON.stringify({c:[[1,[a.id]]]}),cells,index).valid,false);
 });
