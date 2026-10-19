@@ -61,7 +61,15 @@ function bestEvidence(text,topic){
         const coverage=matches.filter(Boolean).length;
         const anchor=matches[0]?3:0;
         const conditional=topic.id==='notices' && /if.{0,140}notice.{0,80}file/is.test(item.text) ? 12 : 0;
-        const score=coverage*2+anchor+conditional;
+        const explicitDuty=topic.id==="notices" &&
+            /(?:must|shall)\s+(?:retain|reproduce|give|include|provide)\b/iu.test(item.text)
+            && /copyright|notice|attribut|license/iu.test(item.text) ? 24 : 0;
+        // Appendix templates and how-to explanations do not establish
+        // obligations in the operative document.
+        const appendixTemplate=topic.id==="notices" &&
+            /copyright\s*\[yyyy\]|how to apply.*license/iu.test(item.text)
+            && !/(?:must|shall)\s+(?:retain|include|give)\b/iu.test(item.text) ? 24 : 0;
+        const score=coverage*2+anchor+conditional+explicitDuty-appendixTemplate;
         return {...item,score,coverage};
     }).filter(x=>x.coverage>0);
     scored.sort((a,b)=>b.score-a.score||a.start-b.start);
