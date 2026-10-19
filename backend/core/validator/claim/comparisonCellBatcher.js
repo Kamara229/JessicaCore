@@ -2,6 +2,7 @@ import {executeAIWithRetry} from "../../../ai/aiRetry.js";
 import {validatorChat} from "../../../ai/validatorClient.js";
 import {buildComparisonCellCheckPrompt,buildComparisonCellCheckRequest} from "./comparisonCellCheckPrompt.js";
 import {parseComparisonCellBatch} from "./comparisonCellQuoteParser.js";
+import {planComparisonEvidenceRoutes} from "./comparisonEvidenceRouting.js";
 import {
   criterionType,buildComparisonReferencePrompt,
   buildComparisonReferenceRequest,resolveComparisonClauseReferences
