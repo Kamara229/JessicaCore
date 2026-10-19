@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { extractNoticeDutyExcerpts } from "../core/validator/claim/noticeDutyExcerpts.js";
 import { buildClaimEvidenceContext } from "../core/validator/claim/claimEvidenceContext.js";
 import { buildComparisonEvidenceGrid } from "../core/composer/comparisonEvidenceGrid.js";
+import { selectOperativeSourceText } from "../core/validator/claim/operativeSourceScope.js";
 
 const apache=[
   "Apache License Version 2.0. TERMS AND CONDITIONS.",
@@ -56,4 +57,33 @@ test("Composer sees original clauses rather than the copyright template",()=>{
   assert.ok(row);
   assert.ok(row.excerpts[0].some(x=>x.includes("You must retain")));
   assert.ok(row.excerpts[1].some(x=>x.includes("must retain")));
+});
+
+test("appended how-to and copyright templates cannot displace operative clauses",()=>{
+  const full=[
+    "Apache License Version 2.0",
+    "TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+    "Definitions: ".repeat(40),
+    "4. Redistribution. You must give recipients a copy of this License.",
+    "You must retain all copyright, patent and attribution notices from the Source.",
+    "If the Work includes a NOTICE text file, then derivative works must include notices.",
+    "END OF TERMS AND CONDITIONS",
+    "How to apply the Apache License",
+    "Copyright [yyyy] [name of copyright owner]"
+  ].join("\n");
+  const primary=selectOperativeSourceText(full);
+  assert.ok(primary.includes("You must retain"));
+  assert.ok(!primary.includes("Copyright [yyyy]"));
+  const altered=[{...sources[0],data:{...sources[0].data,content:full}},sources[1]];
+  const grid=buildComparisonEvidenceGrid(task,{results:altered});
+  assert.ok(!JSON.stringify(grid).includes("Copyright [yyyy]"));
+  const context=buildClaimEvidenceContext({task,answer:"copy and notice duties",taskRunResult:{results:altered}});
+  assert.ok(!context.sourceText.includes("Copyright [yyyy]"));
+  assert.ok(context.sourceText.includes("You must retain"));
+  assert.ok(context.sourceText.includes("SOURCE 2"));
+});
+
+test("docs with no explicit end marker remain unchanged",()=>{
+  const source="The following terms shall apply. Additional obligations must be retained.";
+  assert.equal(selectOperativeSourceText(source),source);
 });
