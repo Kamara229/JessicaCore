@@ -22,7 +22,7 @@ export function planComparisonBatches(matrix) {
   return {chunks,maxTokens};
 }
 
-export async function collectComparisonCellQuotes({task,matrix,sourceText,clauseIndex=null}) {
+export async function collectComparisonCellQuotes({task,matrix,sourceText,clauseIndex=null,fallbackIndex=null}) {
   const schedule=planComparisonBatches(matrix);
   if(!schedule)return {valid:false,reason:"Слишком много ячеек для безопасной проверки"};
   const all=new Map();
@@ -52,6 +52,31 @@ export async function collectComparisonCellQuotes({task,matrix,sourceText,clause
       const parsed=parseComparisonCellBatch(raw,checks.map(c=>c.id));
       if(!parsed.valid)return {valid:false,reason:parsed.reason};
       for(const [id,quotes] of parsed.byId)all.set(id,quotes);
+    }
+  }
+  // Focus a small second look on one missing proof when the initial
+  // broad response could not quote an indexed operative source passage.
+  if(!referenceMode&&Array.isArray(fallbackIndex)){
+    const cell=matrix.checks.find(c=>(all.get(c.id)||[]).length===0&&
+      fallbackIndex.some(e=>e.source===c.source&&
+        e.criterion===criterionType(c.criterion)));
+    if(cell){
+      const refs=fallbackIndex.filter(e=>e.source===cell.source&&
+        e.criterion===criterionType(cell.criterion)).slice(0,5);
+      try {
+        const response=await executeAIWithRetry(()=>validatorChat([
+          {role:"system",content:buildComparisonReferencePrompt()},
+          {role:"user",content:buildComparisonReferenceRequest(task,[cell],refs)}
+        ],{comparison:true,maxComparisonTokens:170}),
+        {label:"Focused Comparison Proof"});
+        const parsed=resolveComparisonClauseReferences(
+          response?.choices?.[0]?.message?.content||"",[cell],refs);
+        if(parsed.valid&&parsed.c[0]?.[1]?.length)
+          all.set(cell.id,parsed.c[0][1]);
+      }catch(error){
+        console.warn("Jessica focused proof unavailable:",
+          error?.status||error?.name||"error");
+      }
     }
   }
   if(all.size!==matrix.checks.length)
