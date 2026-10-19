@@ -60,7 +60,7 @@ import {
 import { getDocumentReceipt } from "./composer/documentReceipt.js";
 import { requiresVerifiedComparison, usePairedComparisonContext } from "./composer/comparisonEvidencePolicy.js";
 import { guardComparisonUnknowns } from "./composer/comparisonUnknownGuard.js";
-import {restoreVerifiedComparisonCells} from "./composer/comparisonVerifiedCellLock.js";
+import {mergeVerifiedComparisonRepair} from "./composer/comparisonTablePatch.js";
 
 import {
     isComposerAvailable,
@@ -519,18 +519,23 @@ export async function composeAnswer(
         if(guarded.changes>0)
             console.log("Jessica Comparison Unknown Guard:",{changes:guarded.changes});
         const repair=options?.repairContext;
-        const locked=restoreVerifiedComparisonCells(
-            guarded.text,repair?.verifiedCells,repair?.sourceUrls
-        );
-        if(!locked.complete)
-            return buildComposerFailure(
-                "Повторный ответ изменил структуру проверенной таблицы; подтверждённые ячейки сохранены от перезаписи."
+        if(repair?.previousAnswer && repair?.sourceUrls?.length===2) {
+            const merged=mergeVerifiedComparisonRepair(
+                repair.previousAnswer,guarded.text,
+                repair.verifiedCells,repair.sourceUrls
             );
-        if(locked.restored>0)
-            console.log("Jessica Verified Comparison Cells Locked:",{
-                restored:locked.restored
+            if(!merged.complete)
+                return buildComposerFailure(
+                    "Не удалось безопасно сопоставить источники в исходной таблице."
+                );
+            console.log("Jessica Comparison Surgical Repair:",{
+                patched:merged.patched,
+                preserved:merged.preserved,
+                eligible:merged.eligible
             });
-        return {...generated,text:locked.text};
+            return {...generated,text:merged.text};
+        }
+        return {...generated,text:guarded.text};
     }
 
 
