@@ -61,6 +61,7 @@ import { getDocumentReceipt } from "./composer/documentReceipt.js";
 import { requiresVerifiedComparison, usePairedComparisonContext } from "./composer/comparisonEvidencePolicy.js";
 import { guardComparisonUnknowns } from "./composer/comparisonUnknownGuard.js";
 import {mergeVerifiedComparisonRepair} from "./composer/comparisonTablePatch.js";
+import {attributeComparisonSources} from "./composer/comparisonSourceAttribution.js";
 
 import {
     isComposerAvailable,
@@ -533,9 +534,9 @@ export async function composeAnswer(
                 preserved:merged.preserved,
                 eligible:merged.eligible
             });
-            return {...generated,text:merged.text};
+            return {...generated,text:attributeComparisonSources(merged.text,taskRunResult).text};
         }
-        return {...generated,text:guarded.text};
+        return {...generated,text:attributeComparisonSources(guarded.text,taskRunResult).text};
     }
 
 
