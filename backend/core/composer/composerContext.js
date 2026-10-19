@@ -2,6 +2,7 @@ import { buildPairedSourceContext } from "./pairedSourceContext.js";
 import { buildComparisonEvidenceGrid, renderComparisonEvidenceGrid } from "./comparisonEvidenceGrid.js";
 import { usePairedComparisonContext } from "./comparisonEvidencePolicy.js";
 import {buildComparisonRepairHints} from "./comparisonRepairHints.js";
+import {buildComparisonRepairPlan} from "./comparisonRepairPlan.js";
 
 /*
  * =========================================================
@@ -641,6 +642,8 @@ export function buildComposerContext(
                 );
                 if(usePairedComparisonContext(task,plan,taskRunResult)){
                     sections.push("",buildComparisonRepairHints(validatorReason));
+                    const plan=buildComparisonRepairPlan(repairContext);
+                    if(plan)sections.push("",plan);
                 }
 
             }
