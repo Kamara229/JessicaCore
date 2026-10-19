@@ -1,4 +1,5 @@
 import { extractNoticeDutyExcerpts } from "../validator/claim/noticeDutyExcerpts.js";
+import { selectOperativeSourceText } from "../validator/claim/operativeSourceScope.js";
 
 /*
  * Source-first evidence extraction for any two retrieved text documents.
@@ -98,7 +99,7 @@ export function buildComparisonEvidenceGrid(task,run){
     const criteria=chosen.map(topic=>({
         id:topic.id,
         title:topic.title,
-        excerpts:sources.map(s=>bestEvidence(s.data.content,topic))
+        excerpts:sources.map(s=>bestEvidence(selectOperativeSourceText(s.data.content),topic))
     }));
     return {sources:sources.map((s,i)=>({
         id:"S"+(i+1),url:String(s.data.url),title:String(s.data.title||"")
