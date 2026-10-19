@@ -1,4 +1,5 @@
 import { extractNoticeDutyExcerpts } from "./noticeDutyExcerpts.js";
+import { extractPatentClauseExcerpts } from "./patentClauseExcerpts.js";
 import { selectOperativeSourceText } from "./operativeSourceScope.js";
 
 /*
@@ -871,6 +872,12 @@ function formatSource(
             parts.push("DUTY EXCERPT "+(index+1)+": "+quote);
         });
     }
+
+    // Supply separate source-backed grant/termination provisions;
+    // they are not interchangeable legal claims.
+    extractPatentClauseExcerpts(result?.data?.content,task).forEach((quote,index)=>{
+        parts.push("", "PATENT EXCERPT "+(index+1)+": "+quote);
+    });
 
     chunks.forEach(
         (
