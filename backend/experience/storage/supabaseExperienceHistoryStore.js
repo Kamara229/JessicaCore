@@ -1,6 +1,7 @@
 import {
     getSupabaseClient
 } from "../../storage/supabaseClient.js";
+import {hydrateExperienceModules} from "./skillModules/experienceModuleHydrator.js";
 
 
 /*
@@ -156,6 +157,15 @@ function normalizeHistoryItem(
 }
 
 
+async function hydrateHistoryRow(row) {
+    const item=normalizeHistoryItem(row);
+    if(!item)return null;
+    item.payload=await hydrateExperienceModules(
+        item.payload,item.skillId,item.version
+    );
+    return item;
+}
+
 /*
  * =========================================================
  * LOAD HISTORY
@@ -225,21 +235,8 @@ export async function loadExperienceHistory(
     }
 
 
-    return (
-
-        Array.isArray(data)
-
-            ? data
-
-            : []
-
-    )
-    .map(
-        normalizeHistoryItem
-    )
-    .filter(
-        Boolean
-    );
+    const rows=Array.isArray(data)?data:[];
+    return (await Promise.all(rows.map(hydrateHistoryRow))).filter(Boolean);
 
 }
 
@@ -324,11 +321,7 @@ export async function loadExperienceVersion(
     }
 
 
-    return data
-
-        ? normalizeHistoryItem(data)
-
-        : null;
+    return data ? hydrateHistoryRow(data) : null;
 
 }
 
@@ -418,11 +411,7 @@ export async function loadExperienceVersionByProposalId(
     }
 
 
-    return data
-
-        ? normalizeHistoryItem(data)
-
-        : null;
+    return data ? hydrateHistoryRow(data) : null;
 
 }
 
@@ -438,17 +427,18 @@ export async function loadLatestExperienceVersion(
     skillId
 ) {
 
-    const history =
-
-        await loadExperienceHistory(
-            skillId
-        );
-
-
-    return history.length > 0
-
-        ? history[0]
-
-        : null;
+    const id=normalizeSkillId(skillId);
+    if(!id)throw new Error("Skill ID отсутствует");
+    // Fetch only the newest version: earlier immutable Examples can be
+    // hundreds of KB and are not needed for normal evolution.
+    const {data,error}=await getSupabaseClient()
+        .from(EXPERIENCE_HISTORY_TABLE)
+        .select("*")
+        .eq("skill_id",id)
+        .order("version",{ascending:false})
+        .limit(1)
+        .maybeSingle();
+    if(error)throw new Error("Latest Skill version load failed: "+error.message);
+    return data ? hydrateHistoryRow(data) : null;
 
 }
