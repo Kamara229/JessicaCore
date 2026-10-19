@@ -5,6 +5,8 @@ import {checkRequestedComparisonCoverage} from "./comparisonRequestedCoverage.js
 import {collectComparisonCellQuotes,planComparisonBatches} from "./comparisonCellBatcher.js";
 import {verifyComparisonCellProof} from "./comparisonCellProof.js";
 import {findAvoidableUnknownComparisonCell} from "./comparisonAvoidableUnknown.js";
+import {buildComparisonClauseIndex} from "./comparisonClauseIndex.js";
+import {canUseComparisonClauseIndex} from "./comparisonClauseReferences.js";
 
 /* Stable facade: every asserted cell must be checked against its own
  * primary source. No validator error is a positive learning signal. */
@@ -24,14 +26,17 @@ export async function validateComparisonCells(task,taskRunResult,answer) {
   if(context.sourceCount!==2||!context.sourceText)return {
     success:true,valid:false,shouldRetry:false,claims:[],
     reason:"Нет достаточных данных двух первоисточников"};
+  const indexed=buildComparisonClauseIndex(taskRunResult);
+  const clauseIndex=canUseComparisonClauseIndex(matrix,indexed)?indexed:null;
   console.log("Jessica Comparison Cell Verification:",{
     rows:matrix.totalRows,cells:matrix.checks.length,
     batches:planComparisonBatches(matrix)?.chunks.length,
-    sourceChars:context.sourceChars
+    sourceChars:context.sourceChars,
+    evidenceMode:clauseIndex?"indexed-clauses":"verbatim-quote"
   });
   try {
     const batch=await collectComparisonCellQuotes({
-      task,matrix,sourceText:context.sourceText
+      task,matrix,sourceText:context.sourceText,clauseIndex
     });
     if(!batch.valid)return {success:true,valid:false,shouldRetry:false,
       claims:[],reason:batch.reason};
