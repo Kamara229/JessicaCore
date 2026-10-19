@@ -44,6 +44,7 @@ import {
 } from "./validationExecutor.js";
 
 import { buildPartialComparisonEvidence } from "../../composer/partialComparisonEvidence.js";
+import {freezeVerifiedComparisonCells} from "../../composer/comparisonVerifiedCellLock.js";
 
 
 const MAX_PRESENTATION_REPAIRS =
@@ -65,25 +66,21 @@ function isPresentationFailure(
 }
 
 
-function buildRepairContext(
-    context,
-    validationFailure
-) {
-
+function buildRepairContext(context,validationFailure) {
+    const previousAnswer=context?.answerResult?.text||"";
+    const sources=(context?.runResult?.results||[])
+        .filter(x=>x?.tool==="web_fetch"&&x?.success===true&&x?.data?.url);
+    const sourceUrls=sources.map(x=>String(x.data.url));
+    const claims=validationFailure?.validation?.claims||[];
+    const verifiedCells=sourceUrls.length===2
+        ?freezeVerifiedComparisonCells(previousAnswer,claims,sourceUrls)
+        :[];
     return {
-
-        previousAnswer:
-            context?.answerResult?.text
-            ||
-            "",
-
-        validatorReason:
-            validationFailure?.reason
-            ||
-            "Итоговый ответ не соответствует данным выполнения."
-
+        previousAnswer,
+        validatorReason:validationFailure?.reason||
+            "Итоговый ответ не соответствует данным выполнения.",
+        sourceUrls,verifiedCells
     };
-
 }
 
 
