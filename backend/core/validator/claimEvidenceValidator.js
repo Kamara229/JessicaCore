@@ -2,6 +2,7 @@ import { buildComparisonClaimInstructions } from "./claim/comparisonClaimPrompt.
 import { usePairedComparisonContext } from "../composer/comparisonEvidencePolicy.js";
 import { buildOriginalSourceEvidenceContext } from "./claim/claimEvidenceMatcher.js";
 import { checkPairedClaimCoverage } from "./claim/pairedClaimCoverage.js";
+import { partitionComparisonClaims } from "./claim/claimUncertaintyScope.js";
 import {
     executeAIWithRetry
 } from "../../ai/aiRetry.js";
@@ -494,9 +495,20 @@ export async function validateClaimEvidence(
         }
 
 
-        const claims =
-
-            parsed.claims;
+        const isComparison = usePairedComparisonContext(task,plan,taskRunResult);
+        const sourceUrls=(taskRunResult?.results||[])
+            .filter(item=>item?.tool==="web_fetch"&&item?.success===true)
+            .map(item=>String(item?.data?.url||""));
+        const normalized=isComparison
+            ? partitionComparisonClaims(parsed.claims,answer,sourceUrls)
+            : {claims:parsed.claims,ignoredUncertainty:0};
+        const claims=normalized.claims;
+        if(normalized.ignoredUncertainty) {
+            console.log("Jessica Uncertainty Claim Filter:", {
+                skipped:normalized.ignoredUncertainty,
+                kept:claims.length
+            });
+        }
 
 
         /*
