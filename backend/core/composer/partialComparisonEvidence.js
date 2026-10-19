@@ -1,4 +1,5 @@
 import { matchesAttributedEvidence } from "../validator/claim/claimEvidenceMatcher.js";
+import { createComparisonEvidenceLedger, renderComparisonEvidenceLedger } from "./comparisonEvidenceLedger.js";
 
 /*
  * A bounded user-facing fallback after comparison presentation failure.
@@ -43,6 +44,17 @@ export function buildPartialComparisonEvidence(task, plan, runResult, claims) {
         if (!excerpts[index].includes(quote)) excerpts[index].push(quote);
     }
     if (excerpts.some(items=>items.length<2)) return null;
+
+    // When the originals contain enough topical evidence, show a compact
+    // criterion-by-criterion table, rather than an unsorted list of quotes.
+    // This remains degraded: extracted quotations do NOT prove semantics.
+    const sourceLedger=renderComparisonEvidenceLedger(
+        createComparisonEvidenceLedger(task,runResult)
+    );
+    if (sourceLedger) {
+        return {text:sourceLedger.text, quoteCounts:excerpts.map(items=>items.length),
+            rows:sourceLedger.rows, degraded:true};
+    }
 
     const result=[
         "Частичный результат анализа документов",
