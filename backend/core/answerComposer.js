@@ -63,6 +63,7 @@ import { guardComparisonUnknowns } from "./composer/comparisonUnknownGuard.js";
 import {mergeVerifiedComparisonRepair} from "./composer/comparisonTablePatch.js";
 import {attributeComparisonSources} from "./composer/comparisonSourceAttribution.js";
 import {scaffoldComparisonTable} from "./composer/comparisonTableScaffold.js";
+import {tryFocusedComparisonRepair} from "./composer/focusedComparisonRepair.js";
 
 import {
     isComposerAvailable,
@@ -475,6 +476,20 @@ export async function composeAnswer(
      * =====================================================
      */
 
+
+    if(options?.repairContext?.previousAnswer &&
+       usePairedComparisonContext(task,plan,taskRunResult)) {
+        const focused=await tryFocusedComparisonRepair(
+            task,taskRunResult,options.repairContext
+        );
+        if(focused?.success){
+            const guarded=guardComparisonUnknowns(
+                task,plan,taskRunResult,focused.text
+            );
+            return {...focused,text:attributeComparisonSources(
+                guarded.text,taskRunResult).text};
+        }
+    }
 
     const contextResult =
         prepareComposerContext(
