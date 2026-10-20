@@ -1,4 +1,4 @@
-import { hasComparisonSourceCitations } from "./patternExtraction/patternEvidencePolicy.js";
+import { hasComparisonSourceCitations, hasRequestedOfficialComparisonCitations } from "./patternExtraction/patternEvidencePolicy.js";
 
 /*
  * =========================================================
@@ -130,7 +130,8 @@ export function resolveLearningExampleSuccess(
     // before treating a two-URL comparison as reusable Experience.
     const answer = example?.result?.text || example?.result?.answer?.text
         || example?.answer?.text || "";
-    if (!hasComparisonSourceCitations(example?.task, answer)) return false;
+    if (!hasComparisonSourceCitations(example?.task, answer)
+        || !hasRequestedOfficialComparisonCitations(example?.task, answer)) return false;
 
     const status =
 
