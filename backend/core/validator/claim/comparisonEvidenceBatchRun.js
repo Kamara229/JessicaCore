@@ -27,7 +27,7 @@ export async function runComparisonEvidenceBatch({
  if(byIndex) {
    const parsed=resolveComparisonClauseReferences(raw,checks,relevant);
    if(!parsed.valid)return {valid:false,reason:parsed.reason};
-   return {valid:true,pairs:parsed.c};
+   return {valid:true,pairs:parsed.c,misattributedIds:parsed.misattributedIds||[]};
  }
  const parsed=parseComparisonCellBatch(raw,checks.map(x=>x.id));
  if(!parsed.valid)return {valid:false,reason:parsed.reason};
