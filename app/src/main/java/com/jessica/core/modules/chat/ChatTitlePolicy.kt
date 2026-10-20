@@ -7,9 +7,9 @@ object ChatTitlePolicy {
         RegexOption.IGNORE_CASE
     )
     private val alternatePatterns = listOf(
-        Regex("""(?:этот|текущий)\\s+чат\\s+(?:назови|назвать|переименуй|переименовать)\\s*(?::|—|-|как\\b|в\\b)?\\s*["«]?([^\\n"»!?]{3,100})""", RegexOption.IGNORE_CASE),
-        Regex("""(?:пусть\\s+)?(?:этот\\s+)?чат\\s+(?:будет\\s+)?называется?\\s*[:—-]?\\s*["«]?([^\\n"»!?]{3,100})""", RegexOption.IGNORE_CASE),
-        Regex("""(?:создай|создать)\\s+чат\\s+(?:с\\s+)?названием\\s*[:—-]?\\s*["«]?([^\\n"»!?]{3,100})""", RegexOption.IGNORE_CASE)
+        Regex("""(?:этот|текущий)\s+чат\s+(?:назови|назвать|переименуй|переименовать)\s*(?::|—|-|как\b|в\b)?\s*["«]?([^\n"»!?]{3,100})""", RegexOption.IGNORE_CASE),
+        Regex("""(?:пусть\s+)?(?:этот\s+)?чат\s+(?:будет\s+)?(?:называется|называться)\s*[:—-]?\s*["«]?([^\n"»!?]{3,100})""", RegexOption.IGNORE_CASE),
+        Regex("""(?:создай|создать)\s+чат\s+(?:с\s+)?названием\s*[:—-]?\s*["«]?([^\n"»!?]{3,100})""", RegexOption.IGNORE_CASE)
     )
     fun explicit(text: String): String? {
         for (pattern in listOf(explicitPattern) + alternatePatterns) {
