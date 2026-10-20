@@ -28,11 +28,19 @@ export function scaffoldComparisonTable(task,run,answer){
    return {text:String(answer||""),applied:false,reason:"no-grid"};
  const lines=String(answer||"").split("\n");
  const urls=grid.sources.map(x=>x.url);
- const headers=lines.flatMap((line,i)=>{
+ // The license names can appear in factual cells; only the first row of
+ // each contiguous Markdown table is eligible to be its heading.
+ const headers=[];
+ let inTable=false;
+ for(const [index,line] of lines.entries()){
    const parts=parse(line);
-   const cols=parts&&columns(parts,urls);
-   return cols?[{index:i,parts,cols}]:[];
- });
+   if(!parts){inTable=false;continue;}
+   if(separator(parts))continue;
+   if(inTable)continue;
+   inTable=true;
+   const cols=columns(parts,urls);
+   if(cols)headers.push({index,parts,cols});
+ }
  if(headers.length!==1)return {text:String(answer||""),applied:false,reason:"ambiguous-header"};
  const header=headers[0];
  const byId=new Map(), seen=new Set();
