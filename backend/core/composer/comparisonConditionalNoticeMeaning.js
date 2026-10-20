@@ -17,7 +17,10 @@ export function correctNoticeFileClaim(value,document) {
   const clean=original.replace(/[\u00a0\u202f]/g," ").replace(/[\\*_`]/g,"");
   const assertion=clean.split("«",1)[0];
   const ACTION=/(?:сохран\p{L}*|включ\p{L}*|переда\p{L}*|хран\p{L}*|воспроизв\p{L}*|копир\p{L}*)/iu;
-  const FILE_OR_CONTENT=/(?:файл\s+NOTICE|NOTICE\s*[‐‑-]?файл|содержим\p{L}*|текст\p{L}*)/iu;
+  const FILE_OR_CONTENT=/(?:файл\p{L}*\s+NOTICE|NOTICE\s*[‐‑-]?файл\p{L}*|содерж(?:им|ан)\p{L}*|текст\p{L}*)/iu;
+  // Avoid rewriting already-qualified or explicitly denied requirements.
+  if(/без\s+(?:обязательств|требований)|не\s+(?:обязывает|требует|нужно)|нет\s+обязанности/iu.test(assertion))return original;
+  if(/(?:если|когда)/iu.test(assertion) && /читаем\p{L}*\s+копи\p{L}*/iu.test(assertion) && /атрибуц\p{L}*\s+уведомлен\p{L}*/iu.test(assertion))return original;
   const assertedWholeFile=FILE.test(assertion)&&ACTION.test(assertion)&&FILE_OR_CONTENT.test(assertion);
   if(!FILE.test(assertion)||
      !(assertedWholeFile||FILE_OVERCLAIM.test(assertion)||
