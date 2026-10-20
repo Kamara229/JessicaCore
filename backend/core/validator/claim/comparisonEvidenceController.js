@@ -1,5 +1,6 @@
 import {planComparisonEvidenceRoutes} from "./comparisonEvidenceRouting.js";
 import {runComparisonEvidenceBatch} from "./comparisonEvidenceBatchRun.js";
+import {recoverMisattributedComparisonReferences} from "./comparisonCitationRecovery.js";
 
 /* Small facade: select evidence mode per cell, then require complete,
  * attributed proof. No result is certified here; legal semantics are
@@ -17,7 +18,7 @@ export async function collectComparisonCellQuotes({
  const index=clauseIndex||fallbackIndex||[];
  const plan=planComparisonBatches(matrix,index);
  if(!plan)return {valid:false,reason:"Слишком много ячеек для проверки"};
- const all=new Map();
+ const all=new Map(),misattributedIds=new Set();
  console.log("Jessica Comparison Evidence Routing:",plan.routes.map(x=>({
    mode:x.mode,cells:x.checks.length
  })));
@@ -28,6 +29,21 @@ export async function collectComparisonCellQuotes({
    });
    if(!result.valid)return {valid:false,reason:result.reason};
    for(const [id,quotes] of result.pairs)all.set(id,quotes);
+   for(const id of result.misattributedIds||[])misattributedIds.add(id);
+ }
+ // Retry only proven routing mistakes. Never override already valid quotes.
+ if(misattributedIds.size){
+   const retry=await recoverMisattributedComparisonReferences({
+     task,matrix,index,sourceText,misattributedIds,
+     runBatch:runComparisonEvidenceBatch
+   });
+   for(const [id,quotes] of retry.restored){
+     if(!all.get(id)?.length)all.set(id,quotes);
+   }
+   console.log("Jessica comparison citation recheck:",{
+     misattributed:misattributedIds.size,attempted:retry.attempted,
+     restored:retry.restored.length
+   });
  }
  if(all.size!==matrix.checks.length)
    return {valid:false,reason:"Подтверждения получены не для всех ячеек"};
