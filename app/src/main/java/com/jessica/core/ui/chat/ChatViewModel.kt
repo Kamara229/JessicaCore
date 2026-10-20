@@ -317,7 +317,8 @@ class ChatViewModel(
     }
 
     fun undoDelete() {
-        (_state.value.previewDeletedThreadId ?: _state.value.undoThreadId)?.let { restoreChat(it) }
+        // Undo must apply only to a deleted chat that the user is viewing.
+        _state.value.previewDeletedThreadId?.let { restoreChat(it) }
     }
 
     fun restoreChat(id: String) {
