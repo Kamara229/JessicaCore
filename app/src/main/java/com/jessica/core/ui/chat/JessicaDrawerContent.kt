@@ -66,7 +66,7 @@ fun JessicaDrawerContent(
                         value = searchQuery,
                         onValueChange = onSearch,
                         label = { Text("Поиск по чатам") },
-                        placeholder = { Text("Название или сообщение") },
+                        placeholder = { Text("Название, текст или «Удалённые»") },
                         singleLine = true,
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) IconButton(onClick = { onSearch("") }) {
