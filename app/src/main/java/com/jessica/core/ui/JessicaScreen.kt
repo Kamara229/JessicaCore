@@ -150,6 +150,12 @@ fun JessicaScreen() {
                         navigate(JessicaPage.CHAT)
                     }
                 },
+                onPreviewDeleted = { id ->
+                    if (!chatBusy) {
+                        chatViewModel.previewDeletedChat(id)
+                        navigate(JessicaPage.CHAT)
+                    }
+                },
                 onRestore = { id ->
                     if (!chatBusy) {
                         chatViewModel.restoreChat(id)
@@ -167,7 +173,8 @@ fun JessicaScreen() {
                 TopAppBar(
                     title = {
                         Text(when (page) {
-                            JessicaPage.CHAT -> "Jessica"
+                            JessicaPage.CHAT -> if (chatState.previewDeletedThreadId != null)
+                                "Удалённый чат · просмотр" else "Jessica"
                             JessicaPage.TASKS -> "Задачи"
                             JessicaPage.REPORTS -> "Отчёты"
                             JessicaPage.HOME -> "Jessica Core"
@@ -186,7 +193,7 @@ fun JessicaScreen() {
                             ) {
                                 Text("＋")
                             }
-                            if (chatState.undoThreadId != null) {
+                            if (chatState.previewDeletedThreadId != null || chatState.undoThreadId != null) {
                                 IconButton(
                                     onClick = chatViewModel::undoDelete,
                                     enabled = !chatBusy,
@@ -199,7 +206,7 @@ fun JessicaScreen() {
                             } else {
                                 IconButton(
                                     onClick = { showDeleteDialog = true },
-                                    enabled = !chatBusy && chatState.activeThreadId != null,
+                                    enabled = !chatBusy && chatState.activeThreadId != null && chatState.previewDeletedThreadId == null,
                                     modifier = Modifier.semantics {
                                         contentDescription = "Удалить текущий чат"
                                     }
