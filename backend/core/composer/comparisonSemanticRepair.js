@@ -1,10 +1,11 @@
 import {correctOverstatedUse} from "./comparisonUseClauseRepair.js";
+import {correctCopyrightGrantPolarity} from "./comparisonGrantPolarity.js";
 import {correctNoticeFileClaim} from "./comparisonConditionalNoticeMeaning.js";
 import {removeUnsupportedAbsence} from "./comparisonUnsupportedAbsenceRepair.js";
 import {criterionType} from "../validator/claim/comparisonClauseReferences.js";
 import {updateComparisonTableCells} from "./comparisonCellTableUpdater.js";
 export function repairComparisonCellValue(topic,value,source){
-  if(topic==="use")return correctOverstatedUse(value,source);
+  if(topic==="use")return correctCopyrightGrantPolarity(correctOverstatedUse(value,source),source);
   if(topic==="notices")return removeUnsupportedAbsence(correctNoticeFileClaim(value,source),source);
   return value;
 }
