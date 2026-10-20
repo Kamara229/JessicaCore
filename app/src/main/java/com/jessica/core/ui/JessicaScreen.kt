@@ -42,6 +42,8 @@ import com.jessica.core.modules.updater.UpdateViewModel
 import com.jessica.core.ui.chat.ChatRoute
 import com.jessica.core.ui.chat.ChatViewModel
 import com.jessica.core.ui.chat.JessicaDrawerContent
+import com.jessica.core.ui.chat.ChatToolbarAction
+import com.jessica.core.ui.chat.chatToolbarAction
 import com.jessica.core.ui.home.HomeScreen
 import kotlinx.coroutines.launch
 
@@ -193,26 +195,34 @@ fun JessicaScreen() {
                             ) {
                                 Text("＋")
                             }
-                            if (chatState.previewDeletedThreadId != null || chatState.undoThreadId != null) {
-                                IconButton(
-                                    onClick = chatViewModel::undoDelete,
-                                    enabled = !chatBusy,
-                                    modifier = Modifier.semantics {
-                                        contentDescription = "Отменить удаление чата"
+                            when (chatToolbarAction(
+                                activeThreadId = chatState.activeThreadId,
+                                previewDeletedThreadId = chatState.previewDeletedThreadId
+                            )) {
+                                ChatToolbarAction.RESTORE -> {
+                                    val deletedChatId = chatState.previewDeletedThreadId!!
+                                    IconButton(
+                                        onClick = { chatViewModel.restoreChat(deletedChatId) },
+                                        enabled = !chatBusy,
+                                        modifier = Modifier.semantics {
+                                            contentDescription = "Восстановить этот удалённый чат"
+                                        }
+                                    ) {
+                                        Text("↶", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
                                     }
-                                ) {
-                                    Text("↶", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
                                 }
-                            } else {
-                                IconButton(
-                                    onClick = { showDeleteDialog = true },
-                                    enabled = !chatBusy && chatState.activeThreadId != null && chatState.previewDeletedThreadId == null,
-                                    modifier = Modifier.semantics {
-                                        contentDescription = "Удалить текущий чат"
+                                ChatToolbarAction.DELETE -> {
+                                    IconButton(
+                                        onClick = { showDeleteDialog = true },
+                                        enabled = !chatBusy,
+                                        modifier = Modifier.semantics {
+                                            contentDescription = "Удалить текущий чат"
+                                        }
+                                    ) {
+                                        Text("🗑")
                                     }
-                                ) {
-                                    Text("🗑")
                                 }
+                                ChatToolbarAction.NONE -> Unit
                             }
                         }
                     }
