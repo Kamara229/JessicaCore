@@ -7,7 +7,7 @@
  */
 import {selectOperativeSourceText} from "../validator/claim/operativeSourceScope.js";
 
-const NEGATIVE=/(?:\bне\s+(?:требу\p{L}*|содерж\p{L}*|предусматрива\p{L}*|упомина\p{L}*|име\p{L}*)\b|\b(?:нет|отсутств\p{L}*)\b)/iu;
+const NEGATIVE=/(?:не\s+(?:требу\p{L}*|содерж\p{L}*|предусматрива\p{L}*|упомина\p{L}*|име\p{L}*)|(?:нет|отсутств\p{L}*))/iu;
 const EXPLICIT_SOURCE_NEGATION=/\b(?:not required|no requirement|no obligation|does not require|shall not require|must not require)\b/iu;
 
 function separateClaimAndCitation(text){
