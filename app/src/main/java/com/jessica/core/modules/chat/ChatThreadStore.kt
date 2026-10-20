@@ -14,7 +14,8 @@ data class ChatThread(
     val title: String,
     val updatedAt: Long,
     val titleLocked: Boolean = false,
-    val autoTitleFinal: Boolean = false
+    val autoTitleFinal: Boolean = false,
+    val deletedAt: Long? = null
 )
 
 /**
@@ -34,7 +35,16 @@ class ChatThreadStore(context: Context) {
     @Synchronized
     fun list(): List<ChatThread> {
         ensureMigrated()
-        return readIndex().sortedByDescending { it.updatedAt }
+        purgeExpired()
+        return readIndex().filter { it.deletedAt == null }.sortedByDescending { it.updatedAt }
+    }
+
+    @Synchronized
+    fun deleted(): List<ChatThread> {
+        ensureMigrated()
+        purgeExpired()
+        return readIndex().filter { it.deletedAt != null }
+            .sortedByDescending { it.deletedAt ?: 0L }
     }
 
     @Synchronized
@@ -114,37 +124,81 @@ class ChatThreadStore(context: Context) {
         return true
     }
 
+    /** Soft deletion: neither messages nor attachments are touched for 60 minutes. */
     @Synchronized
     fun delete(id: String): List<ChatThread> {
-        val current = list()
-        if (current.none { it.id == id }) throw IOException("Чат не найден")
-        val original = threadFile(id)
-        val purgeLegacyBackup = isMigratedLegacyCopy(original)
-        val staged = File(threadsDir, "$id.deleting")
-        if (original.exists() && !original.renameTo(staged)) throw IOException("Не удалось подготовить удаление")
-        try {
-            writeIndex(current.filterNot { it.id == id })
-        } catch (error: Exception) {
-            if (staged.exists()) staged.renameTo(original)
-            throw error
-        }
-        staged.delete()
-        if (purgeLegacyBackup) File(root, "history.jsonl").delete()
+        val visible = list()
+        if (visible.none { it.id == id }) throw IOException("Чат не найден")
+        val all = readIndex()
+        val timestamp = System.currentTimeMillis()
+        writeIndex(all.map { if (it.id == id) it.copy(deletedAt = timestamp) else it })
         if (activeId() == id) {
             val next = list().firstOrNull()?.id
             if (!preferences.edit().putString("active_id", next).commit())
-                throw IOException("Не удалось обновить выбранный чат")
+                throw IOException("Чат скрыт, но не удалось сменить активный чат")
         }
+        // WorkManager runs after one hour, even if the app leaves the foreground.
+        // Android may defer execution; list/search also prune on next access.
+        try { ChatTrashScheduler.schedule(appContext, id) } catch (_: Exception) { }
         return list()
+    }
+
+    @Synchronized
+    fun restore(id: String): List<ChatThread> {
+        ensureMigrated()
+        purgeExpired()
+        val all = readIndex()
+        val target = all.find { it.id == id } ?: throw IOException("Удалённый чат не найден")
+        if (!ChatTrashPolicy.canRestore(target.deletedAt))
+            throw IOException("Срок восстановления чата истёк")
+        writeIndex(all.map { if (it.id == id) it.copy(deletedAt = null) else it })
+        try { ChatTrashScheduler.cancel(appContext, id) } catch (_: Exception) { }
+        return list()
+    }
+
+    /** Idempotent permanent cleanup; called by WorkManager and while opening the app. */
+    @Synchronized
+    fun purgeExpired(): Int {
+        ensureMigrated()
+        var deleted = 0
+        val now = System.currentTimeMillis()
+        for (thread in readIndex().filter { ChatTrashPolicy.isExpired(it.deletedAt, now) }) {
+            val original = threadFile(thread.id)
+            val staged = File(threadsDir, "${thread.id}.deleting")
+            val legacyCopy = isMigratedLegacyCopy(original)
+            if (original.exists() && !original.renameTo(staged)) continue
+            try {
+                writeIndex(readIndex().filterNot { it.id == thread.id && it.deletedAt != null })
+            } catch (error: Exception) {
+                if (staged.exists()) staged.renameTo(original)
+                throw error
+            }
+            val attachments = if (staged.isFile) readMessages(staged).flatMap { it.attachments } else emptyList()
+            if (!staged.exists() || staged.delete()) {
+                attachments.forEach { ChatAttachmentStore(appContext).discard(it) }
+            }
+            if (legacyCopy) File(root, "history.jsonl").delete()
+            deleted++
+        }
+        // Recover from process termination between atomic index update and file unlink.
+        threadsDir.listFiles()?.filter { it.name.endsWith(".deleting") }?.forEach { staged ->
+            if (staged.isFile && staged.delete()) {
+                // Files normally have been discarded above; orphan records are
+                // cleaned on the next successful delete while still accessible.
+            }
+        }
+        return deleted
     }
 
     @Synchronized
     fun search(query: String): List<ChatSearchResult> {
         val needle = query.trim()
         if (needle.isEmpty()) return emptyList()
-        return list().mapNotNull { thread ->
+        ensureMigrated()
+        purgeExpired()
+        return readIndex().sortedByDescending { it.updatedAt }.mapNotNull { thread ->
             val titleMatch = thread.title.contains(needle, ignoreCase = true)
-            val match = if (titleMatch) null else messages(thread.id)
+            val match = if (titleMatch) null else readMessages(threadFile(thread.id))
                 .firstOrNull { it.text.contains(needle, ignoreCase = true) }
             if (!titleMatch && match == null) return@mapNotNull null
             val text = match?.text.orEmpty()
@@ -226,7 +280,8 @@ class ChatThreadStore(context: Context) {
                 title = obj.getString("title"),
                 updatedAt = obj.getLong("updatedAt"),
                 titleLocked = obj.optBoolean("titleLocked", false),
-                autoTitleFinal = obj.optBoolean("autoTitleFinal", false)
+                autoTitleFinal = obj.optBoolean("autoTitleFinal", false),
+                deletedAt = obj.optLong("deletedAt", 0L).takeIf { it > 0L }
             )
         }
     }
@@ -240,6 +295,7 @@ class ChatThreadStore(context: Context) {
                 put("updatedAt", thread.updatedAt)
                 put("titleLocked", thread.titleLocked)
                 put("autoTitleFinal", thread.autoTitleFinal)
+                if (thread.deletedAt != null) put("deletedAt", thread.deletedAt)
             })
         }
         val stream = index.startWrite()
