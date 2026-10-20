@@ -370,10 +370,10 @@ test("compact claim references map SOURCE 1 and SOURCE 2 to original URLs",()=>{
     assert.equal(parsed.claims[0].sourceUrl,"https://example.com/source-two");
 });
 
-test("comparison validator asks for compact output preserving nine claims",()=>{
+test("comparison validator maps claims to actual cited cells",()=>{
     const instructions=buildComparisonClaimInstructions();
     assert.ok(instructions.includes("SOURCE 1"));
-    assert.ok(instructions.includes("9 проверяемых claims"));
+    assert.ok(instructions.includes("один claim на одну проверяемую фактическую ячейку"));
     assert.ok(instructions.includes("дословная"));
 });
 
