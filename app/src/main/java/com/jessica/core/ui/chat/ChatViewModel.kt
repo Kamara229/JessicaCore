@@ -10,17 +10,28 @@ import com.jessica.core.modules.chat.ChatContextWindow
 import com.jessica.core.modules.chat.ChatMessage
 import com.jessica.core.modules.chat.ChatThread
 import com.jessica.core.modules.chat.ChatThreadStore
+import com.jessica.core.modules.chat.ChatTitlePolicy
+import com.jessica.core.modules.chat.ChatTitleClient
+import com.jessica.core.modules.chat.ChatSearchResult
+import com.jessica.core.modules.chat.ChatDebugSyncClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 data class ChatState(
     val messages: List<ChatMessage> = emptyList(),
     val threads: List<ChatThread> = emptyList(),
     val activeThreadId: String? = null,
+    val searchQuery: String = "",
+    val searchResults: List<ChatSearchResult> = emptyList(),
+    val debugSyncError: String? = null,
     val input: TextFieldValue = TextFieldValue(),
     val pendingAttachments: List<ChatAttachment> = emptyList(),
     val isImporting: Boolean = false,
@@ -36,6 +47,10 @@ class ChatViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow(ChatState())
     val state: StateFlow<ChatState> = _state.asStateFlow()
+    private val syncMutex = Mutex()
+    private var searchJob: Job? = null
+    private val titleClient = ChatTitleClient()
+    private val syncClient = ChatDebugSyncClient()
 
     init {
         viewModelScope.launch {
@@ -53,6 +68,7 @@ class ChatViewModel(
                     messages = restored.third,
                     isLoading = false
                 )
+                scheduleDebugSync()
             } catch (error: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
@@ -61,6 +77,32 @@ class ChatViewModel(
             }
         }
     }
+
+    fun updateSearch(query: String) {
+        _state.value = _state.value.copy(searchQuery = query)
+        searchJob?.cancel()
+        if (query.isBlank()) {
+            _state.value = _state.value.copy(searchResults = emptyList())
+            return
+        }
+        searchJob = viewModelScope.launch {
+            delay(180)
+            val results = withContext(Dispatchers.IO) { threadStore.search(query) }
+            if (_state.value.searchQuery == query)
+                _state.value = _state.value.copy(searchResults = results)
+        }
+    }
+
+    private fun scheduleDebugSync() {
+        viewModelScope.launch {
+            syncMutex.withLock {
+                val error = syncClient.sync(threadStore)
+                _state.value = _state.value.copy(debugSyncError = error)
+            }
+        }
+    }
+
+    fun refreshChatDiagnostics() = scheduleDebugSync()
 
     fun updateInput(value: TextFieldValue) {
         _state.value = _state.value.copy(input = value)
@@ -132,6 +174,7 @@ class ChatViewModel(
                     input = TextFieldValue(),
                     isLoading = false
                 )
+                scheduleDebugSync()
             } catch (error: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
@@ -169,6 +212,39 @@ class ChatViewModel(
         }
     }
 
+
+    fun deleteActiveChat() {
+        val current = _state.value
+        val id = current.activeThreadId ?: return
+        if (current.isRunning || current.isLoading || current.isImporting) return
+        _state.value = current.copy(isLoading = true, storageError = null)
+        viewModelScope.launch {
+            try {
+                val replacement = withContext(Dispatchers.IO) {
+                    val attachments = threadStore.messages(id).flatMap { it.attachments }
+                    val remaining = threadStore.delete(id)
+                    attachments.forEach(attachmentStore::discard)
+                    val active = threadStore.activeId()
+                    Triple(remaining, active, active?.let { threadStore.messages(it) } ?: emptyList())
+                }
+                _state.value = _state.value.copy(
+                    threads = replacement.first,
+                    activeThreadId = replacement.second,
+                    messages = replacement.third,
+                    input = TextFieldValue(),
+                    isLoading = false
+                )
+                updateSearch(_state.value.searchQuery)
+                scheduleDebugSync()
+            } catch (error: Exception) {
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    storageError = "Не удалось удалить чат: " + error.message
+                )
+            }
+        }
+    }
+
     fun sendMessage() {
         val current = _state.value
         val files = current.pendingAttachments
@@ -197,6 +273,7 @@ class ChatViewModel(
         history: List<ChatMessage>,
         clearInput: Boolean
     ) {
+        val firstMessage = _state.value.messages.none { it.isUser }
         viewModelScope.launch {
             val id: String
             val threads: List<ChatThread>
@@ -248,6 +325,20 @@ class ChatViewModel(
                 threads = stored ?: _state.value.threads,
                 isRunning = false
             )
+            scheduleDebugSync()
+            if (firstMessage && ChatTitlePolicy.explicit(userMessage.text) == null) {
+                viewModelScope.launch {
+                    val title = titleClient.suggest(userMessage.text, result) ?: return@launch
+                    val changed = withContext(Dispatchers.IO) {
+                        if (threadStore.applyAutomaticTitle(id, title)) threadStore.list() else null
+                    }
+                    if (changed != null) {
+                        _state.value = _state.value.copy(threads = changed)
+                        updateSearch(_state.value.searchQuery)
+                        scheduleDebugSync()
+                    }
+                }
+            }
         }
     }
 }
