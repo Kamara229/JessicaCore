@@ -28,5 +28,5 @@ export function correctCopyrightGrantPolarity(value,document){
  if(!GRANT.test(source))return original;
  const corrected=original.replace(REVOCABLE,inflectIrrevocable);
  if(corrected===original)return original;
- return corrected.replace(EXCEPTION,"").replace(/\bоб\s+безотзывной\b/iu,"о безотзывной");
+ return corrected.replace(EXCEPTION,"").replace(/(?<![\p{L}])об\s+безотзывной/iu,"о безотзывной");
 }
