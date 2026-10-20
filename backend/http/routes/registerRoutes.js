@@ -18,6 +18,8 @@ import {
     registerSolveRoute
 } from "./solveRoute.js";
 import { registerDocumentExtractRoute } from "./documentExtractRoute.js";
+import {registerChatTitleRoute} from "./chatTitleRoute.js";
+import {registerChatDebugArchiveRoute} from "./chatDebugArchiveRoute.js";
 
 import {
     registerLearningTestRoute
@@ -98,6 +100,8 @@ export function registerRoutes(
 
 
     registerDocumentExtractRoute(app);
+    registerChatTitleRoute(app);
+    registerChatDebugArchiveRoute(app);
     registerSolveRoute(
         app
     );
