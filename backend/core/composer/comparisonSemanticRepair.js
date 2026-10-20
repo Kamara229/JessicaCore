@@ -3,12 +3,14 @@ import {narrowComparisonRightsClaim} from "./comparisonClauseScopedRows.js";
 import {correctCopyrightGrantPolarity} from "./comparisonGrantPolarity.js";
 import {correctNoticeFileClaim} from "./comparisonConditionalNoticeMeaning.js";
 import {removeUnsupportedAbsence} from "./comparisonUnsupportedAbsenceRepair.js";
+import {removeUnsupportedPromotion} from "./comparisonUnsupportedPromotion.js";
 import {criterionType} from "../validator/claim/comparisonClauseReferences.js";
 import {updateComparisonTableCells} from "./comparisonCellTableUpdater.js";
 export function repairComparisonCellValue(topic,value,source){
   if(topic==="use")return narrowComparisonRightsClaim(topic,correctCopyrightGrantPolarity(correctOverstatedUse(value,source),source),source);
   if(topic==="distribution")return narrowComparisonRightsClaim(topic,value,source);
   if(topic==="notices")return removeUnsupportedAbsence(correctNoticeFileClaim(value,source),source);
+  if(topic==="restrictions")return removeUnsupportedPromotion(value,source);
   return value;
 }
 
