@@ -5,6 +5,7 @@ import {unsupportedComparisonClaimTopic} from "./comparisonClaimRelevance.js";
 import {rejectsUnsupportedLegalEffect} from "./comparisonLegalEffectGate.js";
 import {unsupportedAbsolutePermission} from "./comparisonAbsolutePermissionGuard.js";
 import {contradictsExpressCopyrightGrant} from "./comparisonGrantPolarityGate.js";
+import {unsupportedEndorsementClaim} from "./comparisonEndorsementEvidence.js";
 
 /* Each supplied quote must be verbatim, source-attributed, and relevant.
  * Several independent facts in one cell require several supporting clauses.
@@ -44,6 +45,8 @@ export function verifyComparisonCellEvidence(cell,quotes,originalSources) {
     claim.reason="Абсолютное разрешение не подтверждено текстом лицензии";
   } else if(contradictsExpressCopyrightGrant(cell,quotes)){
     claim.reason="Утверждение об отзыве авторской лицензии противоречит первоисточнику";
+  } else if(unsupportedEndorsementClaim(cell.value,quotes)){
+    claim.reason="Цитата не подтверждает отдельный запрет заявлять об официальном одобрении";
   } else if(rejectsUnsupportedLegalEffect(cell,quotes)){
     claim.reason="Цитата не подтверждает правовой смысл утверждения";
   } else if(unsupportedComparisonClaimTopic(statement,proof)||compoundClauseMissing(statement,proof)){
