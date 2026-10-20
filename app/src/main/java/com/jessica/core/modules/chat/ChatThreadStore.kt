@@ -12,7 +12,9 @@ import java.util.UUID
 data class ChatThread(
     val id: String,
     val title: String,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val titleLocked: Boolean = false,
+    val autoTitleFinal: Boolean = false
 )
 
 /**
@@ -20,6 +22,8 @@ data class ChatThread(
  * Old history.jsonl is COPIED into its own thread during the first migration.
  * The original file is never deleted, so upgrading cannot destroy old history.
  */
+data class ChatSearchResult(val thread: ChatThread, val snippet: String)
+
 class ChatThreadStore(context: Context) {
     private val appContext = context.applicationContext
     private val root = File(appContext.filesDir, "jessica/chat")
@@ -47,7 +51,7 @@ class ChatThreadStore(context: Context) {
     @Synchronized
     fun create(): ChatThread {
         val existing = list()
-        val thread = ChatThread(UUID.randomUUID().toString(), "Новый чат", System.currentTimeMillis())
+        val thread = ChatThread(UUID.randomUUID().toString(), "Новый чат", 0L)
         writeIndex(existing + thread)
         return thread
     }
@@ -86,11 +90,68 @@ class ChatThreadStore(context: Context) {
             stream.write((json.toString() + "\n").toByteArray(Charsets.UTF_8))
             stream.fd.sync()
         }
-        val newTitle = if (message.isUser && thread.title == "Новый чат") {
-            message.text.trim().replace(Regex("\\s+"), " ").take(48).ifBlank { "Новый чат" }
-        } else thread.title
-        val updated = thread.copy(title = newTitle, updatedAt = System.currentTimeMillis())
+        val requestedName = if (message.isUser) ChatTitlePolicy.explicit(message.text) else null
+        val firstMessage = message.isUser && thread.title == "Новый чат" && !thread.titleLocked
+        val newTitle = requestedName ?: if (firstMessage) ChatTitlePolicy.fallback(message.text) else thread.title
+        val newTimestamp = maxOf(System.currentTimeMillis(), (threads.maxOfOrNull { it.updatedAt } ?: 0L) + 1L)
+        val updated = thread.copy(
+            title = newTitle,
+            updatedAt = newTimestamp,
+            titleLocked = thread.titleLocked || requestedName != null,
+            autoTitleFinal = if (requestedName != null) true else thread.autoTitleFinal
+        )
         writeIndex(threads.map { if (it.id == id) updated else it })
+    }
+
+    @Synchronized
+    fun applyAutomaticTitle(id: String, rawTitle: String): Boolean {
+        val threads = list()
+        val thread = threads.find { it.id == id } ?: return false
+        if (thread.titleLocked || thread.autoTitleFinal) return false
+        val title = ChatTitlePolicy.clean(rawTitle)
+        if (title.length < 3) return false
+        writeIndex(threads.map { if (it.id == id) thread.copy(title = title, autoTitleFinal = true) else it })
+        return true
+    }
+
+    @Synchronized
+    fun delete(id: String): List<ChatThread> {
+        val current = list()
+        if (current.none { it.id == id }) throw IOException("Чат не найден")
+        val original = threadFile(id)
+        val staged = File(threadsDir, "$id.deleting")
+        if (original.exists() && !original.renameTo(staged)) throw IOException("Не удалось подготовить удаление")
+        try {
+            writeIndex(current.filterNot { it.id == id })
+        } catch (error: Exception) {
+            if (staged.exists()) staged.renameTo(original)
+            throw error
+        }
+        staged.delete()
+        if (activeId() == id) {
+            val next = list().firstOrNull()?.id
+            if (!preferences.edit().putString("active_id", next).commit())
+                throw IOException("Не удалось обновить выбранный чат")
+        }
+        return list()
+    }
+
+    @Synchronized
+    fun search(query: String): List<ChatSearchResult> {
+        val needle = query.trim()
+        if (needle.isEmpty()) return emptyList()
+        return list().mapNotNull { thread ->
+            val titleMatch = thread.title.contains(needle, ignoreCase = true)
+            val match = if (titleMatch) null else messages(thread.id)
+                .firstOrNull { it.text.contains(needle, ignoreCase = true) }
+            if (!titleMatch && match == null) return@mapNotNull null
+            val text = match?.text.orEmpty()
+            val at = text.indexOf(needle, ignoreCase = true).coerceAtLeast(0)
+            val snippet = if (match == null) "" else text
+                .substring((at - 42).coerceAtLeast(0), (at + needle.length + 86).coerceAtMost(text.length))
+                .replace(Regex("\\s+"), " ")
+            ChatSearchResult(thread, snippet)
+        }
     }
 
     private fun threadFile(id: String): File {
@@ -132,7 +193,9 @@ class ChatThreadStore(context: Context) {
             ChatThread(
                 id = obj.getString("id"),
                 title = obj.getString("title"),
-                updatedAt = obj.getLong("updatedAt")
+                updatedAt = obj.getLong("updatedAt"),
+                titleLocked = obj.optBoolean("titleLocked", false),
+                autoTitleFinal = obj.optBoolean("autoTitleFinal", false)
             )
         }
     }
@@ -144,6 +207,8 @@ class ChatThreadStore(context: Context) {
                 put("id", thread.id)
                 put("title", thread.title)
                 put("updatedAt", thread.updatedAt)
+                put("titleLocked", thread.titleLocked)
+                put("autoTitleFinal", thread.autoTitleFinal)
             })
         }
         val stream = index.startWrite()
