@@ -22,6 +22,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.chat.ChatThread
 import com.jessica.core.modules.chat.ChatSearchResult
+import com.jessica.core.modules.chat.ChatTrashPolicy
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 /** Navigation only: thread data and chat persistence stay in the ViewModel. */
 @Composable
@@ -36,6 +39,7 @@ fun JessicaDrawerContent(
     busy: Boolean,
     onNewChat: () -> Unit,
     onThread: (String) -> Unit,
+    onRestore: (String) -> Unit,
     onTasks: () -> Unit,
     onReports: () -> Unit,
     onSettings: () -> Unit
@@ -91,23 +95,51 @@ fun JessicaDrawerContent(
                     else searchResults,
                     key = { it.thread.id }
                 ) { match ->
-                    NavigationDrawerItem(
-                        label = {
-                            Column {
-                                Text(match.thread.title, maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis)
-                                if (match.snippet.isNotBlank()) {
-                                    Text(match.snippet, maxLines = 2,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    val deleted = match.thread.deletedAt != null
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().padding(end = 6.dp)
+                    ) {
+                        NavigationDrawerItem(
+                            label = {
+                                Column {
+                                    Text(match.thread.title, maxLines = 1,
                                         overflow = TextOverflow.Ellipsis)
+                                    if (deleted) {
+                                        Text(
+                                            "Удалён · восстановление ещё " +
+                                                ChatTrashPolicy.minutesLeft(match.thread.deletedAt) + " мин",
+                                            color = MaterialTheme.colorScheme.error,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                    if (match.snippet.isNotBlank()) {
+                                        Text(match.snippet, maxLines = 2,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            overflow = TextOverflow.Ellipsis)
+                                    }
                                 }
-                            }
-                        },
-                        selected = activeThreadId == match.thread.id,
-                        onClick = { if (!busy) onThread(match.thread.id) },
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
+                            },
+                            selected = !deleted && activeThreadId == match.thread.id,
+                            onClick = {
+                                if (!busy) {
+                                    if (deleted) onRestore(match.thread.id)
+                                    else onThread(match.thread.id)
+                                }
+                            },
+                            modifier = Modifier.weight(1f).padding(start = 12.dp)
+                        )
+                        if (deleted) {
+                            IconButton(
+                                enabled = !busy,
+                                onClick = { onRestore(match.thread.id) },
+                                modifier = Modifier.semantics {
+                                    contentDescription = "Восстановить удалённый чат"
+                                }
+                            ) { Text("↶", style = MaterialTheme.typography.titleLarge) }
+                        }
+                    }
                 }
                 if (diagnosticError != null) {
                     item {
