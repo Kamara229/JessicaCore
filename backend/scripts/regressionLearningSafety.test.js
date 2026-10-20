@@ -495,10 +495,11 @@ test("candidate merge does not count a legacy uncited comparison as a new succes
     assert.equal(resolveLearningExampleSuccess(old),false);
     assert.equal(resolveLearningExampleSuccess(good),true);
     const merged=mergeLearningCandidates({existing:base,incoming,exactMatch:true});
-    assert.equal(merged.occurrences,2);
+    assert.equal(merged.occurrences,1);
     assert.equal(merged.successCount,1);
-    assert.equal(merged.failureCount,1);
-    assert.equal(merged.successRate,0.5);
+    assert.equal(merged.failureCount,0);
+    assert.equal(merged.successRate,1);
+    assert.equal(merged.examples.length,1);
     assert.ok(merged.confidence<0.8,"unverified history must not trigger autonomous publication");
 });
 
