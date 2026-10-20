@@ -37,3 +37,17 @@ test("fail closed if the source lacks the conditional readable-copy obligation",
  const absent=operative.replace(/must include a readable copy/iu,"may contain a copy");
  assert.equal(correctNoticeFileClaim(unsupported,absent),unsupported);
 });
+
+test("styled NOTICE content and inflected word формы are narrowed",()=>{
+ const incorrect="При распространении необходимо воспроизводить содержание файла **NOTICE** (если он присутствует) и сохранять копирайт‑уведомления.\\u202f(«reproducing the content of the NOTICE file» — S1)";
+ const corrected=correctNoticeFileClaim(incorrect,operative);
+ assert.ok(corrected.includes(notice));
+ assert.doesNotMatch(corrected,/воспроизводить содержание файла/iu);
+});
+
+test("do not rewrite supported conditional notices or denied duties",()=>{
+ const qualified="Если исходная работа содержит файл NOTICE, при распространении производной работы требуется включить читаемую копию относящихся к ней атрибуционных уведомлений из этого файла.";
+ assert.equal(correctNoticeFileClaim(qualified,operative),qualified);
+ const denied="Ссылка на NOTICE файл приведена без обязательств по его сохранению.";
+ assert.equal(correctNoticeFileClaim(denied,operative),denied);
+});
