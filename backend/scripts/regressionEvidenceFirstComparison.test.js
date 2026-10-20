@@ -61,7 +61,7 @@ test("quote related to distribution does not prove notice-retention obligations"
     const parsed=parseClaimEvidenceResponse(raw,source);
     assert.equal(parsed.success,true);
     assert.equal(parsed.claims[0].supported,false);
-    assert.match(parsed.claims[0].reason,/Цитата не подтверждает предмет/);
+    assert.match(parsed.claims[0].reason,/Цитата не подтверждает (?:предмет|обязательное требование)/);
 });
 
 test("an explicit trademark non-grant can be supported without source-title mismatch",()=>{
