@@ -125,8 +125,12 @@ fun JessicaDrawerContent(
                             selected = !deleted && activeThreadId == match.thread.id,
                             onClick = {
                                 if (!busy) {
-                                    if (deleted) onPreviewDeleted(match.thread.id)
-                                    else onThread(match.thread.id)
+                                    when (chatSearchSelection(match.thread)) {
+                                        ChatSearchSelection.PREVIEW_DELETED ->
+                                            onPreviewDeleted(match.thread.id)
+                                        ChatSearchSelection.OPEN_ACTIVE ->
+                                            onThread(match.thread.id)
+                                    }
                                 }
                             },
                             modifier = Modifier.weight(1f).padding(start = 12.dp)
