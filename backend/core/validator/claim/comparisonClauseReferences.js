@@ -48,16 +48,18 @@ export function resolveComparisonClauseReferences(raw,checks,index) {
   const parsed=parseComparisonCellBatch(raw,checks.map(x=>x.id));
   if(!parsed.valid)return {valid:false,reason:parsed.reason};
   const byRef=new Map(index.map(item=>[item.id,item]));
-  const out=[];
+  const out=[],misattributedIds=[];
   for(const cell of checks){
     const refs=parsed.byId.get(cell.id)||[];
     const check=validateCellClauseRefs(refs,cell,byRef,criterionType);
     if(!check.valid)return {valid:false,reason:check.reason};
-    if(check.misattributed)
+    if(check.misattributed){
+      misattributedIds.push(cell.id);
       console.warn("Jessica comparison citation downgraded:",{cellId:cell.id,
         reason:"wrong source or criterion"});
+    }
     const quotes=check.quotes;
     out.push([cell.id,quotes]);
   }
-  return {valid:true,c:out};
+  return {valid:true,c:out,misattributedIds};
 }
