@@ -119,6 +119,7 @@ class ChatThreadStore(context: Context) {
         val current = list()
         if (current.none { it.id == id }) throw IOException("Чат не найден")
         val original = threadFile(id)
+        val purgeLegacyBackup = isMigratedLegacyCopy(original)
         val staged = File(threadsDir, "$id.deleting")
         if (original.exists() && !original.renameTo(staged)) throw IOException("Не удалось подготовить удаление")
         try {
@@ -128,6 +129,7 @@ class ChatThreadStore(context: Context) {
             throw error
         }
         staged.delete()
+        if (purgeLegacyBackup) File(root, "history.jsonl").delete()
         if (activeId() == id) {
             val next = list().firstOrNull()?.id
             if (!preferences.edit().putString("active_id", next).commit())
@@ -152,6 +154,35 @@ class ChatThreadStore(context: Context) {
                 .replace(Regex("\\s+"), " ")
             ChatSearchResult(thread, snippet)
         }
+    }
+
+    /** The original pre-thread archive is a copy of the migrated conversation.
+     * It is removed only when that exact conversation is explicitly deleted.
+     */
+    private fun isMigratedLegacyCopy(file: File): Boolean {
+        val legacy = File(root, "history.jsonl")
+        if (!file.isFile || !legacy.isFile || legacy.length() <= 0 ||
+            file.length() < legacy.length()) return false
+        return try {
+            legacy.inputStream().use { a ->
+                file.inputStream().use { b ->
+                    val left = ByteArray(8192)
+                    val right = ByteArray(8192)
+                    while (true) {
+                        val count = a.read(left)
+                        if (count < 0) break
+                        var offset = 0
+                        while (offset < count) {
+                            val n = b.read(right, offset, count - offset)
+                            if (n <= 0) return false
+                            offset += n
+                        }
+                        if (!left.copyOf(count).contentEquals(right.copyOf(count))) return false
+                    }
+                    true
+                }
+            }
+        } catch (_: IOException) { false }
     }
 
     private fun threadFile(id: String): File {
