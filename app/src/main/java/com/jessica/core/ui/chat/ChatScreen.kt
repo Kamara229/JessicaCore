@@ -38,12 +38,21 @@ fun ChatScreen(
     val clipboard = LocalClipboardManager.current
     val listState = rememberLazyListState()
 
-    LaunchedEffect(state.activeThreadId, state.messages.size, state.isRunning) {
+    LaunchedEffect(state.activeThreadId, state.previewDeletedThreadId, state.messages.size, state.isRunning) {
         val size = state.messages.size + if (state.isRunning) 1 else 0
         if (size > 0) listState.scrollToItem(size - 1)
     }
 
     Column(modifier = Modifier.fillMaxSize().imePadding()) {
+        if (state.previewDeletedThreadId != null) {
+            Text(
+                "Удалённый чат «" + (state.previewDeletedTitle ?: "Чат") +
+                    "» · Только просмотр. Для восстановления нажми ↶ вверху справа.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)
+            )
+        }
         if (state.messages.isEmpty() && !state.isRunning) {
             Box(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -79,7 +88,7 @@ fun ChatScreen(
                     MessageBubble(
                         message = message,
                         onCopy = { clipboard.setText(AnnotatedString(it)) },
-                        onRetry = onRetry
+                        onRetry = if (state.previewDeletedThreadId != null) { _ -> } else onRetry
                     )
                 }
                 if (state.isRunning) {
@@ -126,7 +135,7 @@ fun ChatScreen(
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
         }
-        ChatInput(
+        if (state.previewDeletedThreadId == null) ChatInput(
             value = state.input,
             onValueChange = onInputChange,
             onSend = onSend,
