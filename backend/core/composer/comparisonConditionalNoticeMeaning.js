@@ -12,9 +12,16 @@ const DUTY=/\bmust include a readable copy\b[^.]{0,210}\battribution notices\b/i
 const KEEP=/\byou must retain\b[^.]{0,280}\b(?:copyright|attribution)\b[^.]{0,160}\bnotices\b/iu;
 export function correctNoticeFileClaim(value,document) {
   const original=String(value||"");
-  const clean=original.replace(/\*\*/g,"");
-  if(!FILE.test(clean)||
-     !(FILE_OVERCLAIM.test(clean)||WHOLE_CONTENT.test(clean)||UNQUALIFIED_NOTICES.test(clean)))return original;
+  // Ignore Markdown styling, nonbreaking spaces and explanatory quotations.
+  // What matters is the *asserted duty*, not a misleading cited excerpt.
+  const clean=original.replace(/[\u00a0\u202f]/g," ").replace(/[\\*_`]/g,"");
+  const assertion=clean.split("«",1)[0];
+  const ACTION=/(?:сохран\p{L}*|включ\p{L}*|переда\p{L}*|хран\p{L}*|воспроизв\p{L}*|копир\p{L}*)/iu;
+  const FILE_OR_CONTENT=/(?:файл\s+NOTICE|NOTICE\s*[‐‑-]?файл|содержим\p{L}*|текст\p{L}*)/iu;
+  const assertedWholeFile=FILE.test(assertion)&&ACTION.test(assertion)&&FILE_OR_CONTENT.test(assertion);
+  if(!FILE.test(assertion)||
+     !(assertedWholeFile||FILE_OVERCLAIM.test(assertion)||
+       WHOLE_CONTENT.test(assertion)||UNQUALIFIED_NOTICES.test(assertion)))return original;
   const source=selectOperativeSourceText(document).replace(/\s+/g," ");
   if(!CONDITION.test(source)||!DUTY.test(source))return original;
   const notice="Если исходная работа содержит файл NOTICE, при распространении производной работы требуется включить читаемую копию относящихся к ней атрибуционных уведомлений из этого файла.";
