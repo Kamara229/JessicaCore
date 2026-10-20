@@ -289,6 +289,7 @@ function mergeExamples(
 
 
     let added = 0;
+    let excludedExisting = 0;
 
 
     const push = (
@@ -306,6 +307,16 @@ function mergeExamples(
 
         }
 
+
+        // Older apparently successful traces without today's required
+        // evidence cannot contaminate a new reusable Experience. Retain
+        // genuine failures for diagnostic analysis, but never publish
+        // a falsely positive legacy example.
+        if ((example.success === true || example.result?.success === true)
+            && !resolveLearningExampleSuccess(example)) {
+            if (!incoming) excludedExisting += 1;
+            return;
+        }
 
         const key =
 
@@ -398,6 +409,8 @@ function mergeExamples(
 
         examples:
             result,
+
+        excludedExisting,
 
         added
 
@@ -639,7 +652,7 @@ export function mergeLearningCandidates({
 
         Math.max(
 
-            previousOccurrences
+            Math.max(0,previousOccurrences - mergedExamples.excludedExisting)
             +
             mergedExamples.added,
 
