@@ -166,7 +166,8 @@ class ChatThreadStore(context: Context) {
             val original = threadFile(thread.id)
             val staged = File(threadsDir, "${thread.id}.deleting")
             val legacyCopy = isMigratedLegacyCopy(original)
-            if (original.exists() && !original.renameTo(staged)) continue
+            if (original.exists() && !original.renameTo(staged))
+                throw IOException("Невозможно подготовить окончательное удаление чата")
             try {
                 writeIndex(readIndex().filterNot { it.id == thread.id && it.deletedAt != null })
             } catch (error: Exception) {
@@ -180,12 +181,20 @@ class ChatThreadStore(context: Context) {
             if (legacyCopy) File(root, "history.jsonl").delete()
             deleted++
         }
-        // Recover from process termination between atomic index update and file unlink.
+        // Recover after a crash between atomic index replacement and file unlink.
+        // Never erase an orphan whose index still points to an existing chat.
         threadsDir.listFiles()?.filter { it.name.endsWith(".deleting") }?.forEach { staged ->
-            if (staged.isFile && staged.delete()) {
-                // Files normally have been discarded above; orphan records are
-                // cleaned on the next successful delete while still accessible.
+            val id = staged.name.removeSuffix(".deleting")
+            val valid = try { UUID.fromString(id).toString() == id }
+                catch (_: Exception) { false }
+            if (!valid || !staged.isFile) return@forEach
+            val original = threadFile(id)
+            if (readIndex().any { it.id == id }) {
+                if (!original.exists()) staged.renameTo(original)
+                return@forEach
             }
+            val attachments = readMessages(staged).flatMap { it.attachments }
+            if (staged.delete()) attachments.forEach { ChatAttachmentStore(appContext).discard(it) }
         }
         return deleted
     }
