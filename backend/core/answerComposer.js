@@ -539,7 +539,10 @@ export async function composeAnswer(
             console.log("Jessica Comparison Table Scaffold:",{
                 missing:scaffold.missing,preserved:scaffold.preserved
             });
-        const guarded=guardComparisonUnknowns(task,plan,taskRunResult,scaffold.text);
+        const sourceBound=repairComparisonClaimMeaning(scaffold.text,taskRunResult);
+        if(sourceBound.changes>0)
+            console.log("Jessica Comparison Source-Bound Claim Repair:",{changes:sourceBound.changes});
+        const guarded=guardComparisonUnknowns(task,plan,taskRunResult,sourceBound.text);
         if(guarded.changes>0)
             console.log("Jessica Comparison Unknown Guard:",{changes:guarded.changes});
         const repair=options?.repairContext;
