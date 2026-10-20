@@ -33,7 +33,9 @@ export function buildComparisonCellMatrix(answer,urls) {
     const parts=cells(line);
     if(!parts){mapped=null;continue;}
     if(separator(parts))continue;
-    const header=columns(parts,urls);
+    // A source-named data cell is not another header of the same table.
+    // Recognize headings only before the first data row (or after a table break).
+    const header=!mapped?columns(parts,urls):null;
     if(header){mapped=header;continue;}
     if(!mapped)continue;
     if(!parts[0]||mapped.some(i=>i>=parts.length))return null;
