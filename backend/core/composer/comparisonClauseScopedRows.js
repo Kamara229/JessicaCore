@@ -8,7 +8,7 @@ import {selectOperativeSourceText} from "../validator/claim/operativeSourceScope
  */
 const COPYRIGHT_GRANT=/\bhereby grants to you\b[^.]{0,240}\birrevocable copyright license\b[^.]{0,200}\breproduce, prepare derivative works\b/iu;
 const REDISTRIBUTION=/\byou may reproduce and distribute copies of the work or derivative works thereof\b[^.]{0,340}\bin source or object form\b[^.]{0,115}\bprovided that you meet the following conditions\b/iu;
-const USE_DUTIES=/\b(?:при\s+распространении|требу\p{L}*\s+сохран\p{L}*|требу\p{L}*\s+предостав\p{L}*|помет\p{L}*\s+измен\p{L}*|уведомлен\p{L}*\s+о\s+внес)/iu;
+const USE_DUTIES=/(?:при\s+распространении|требу\p{L}*\s+сохран\p{L}*|требу\p{L}*\s+предостав\p{L}*|помет\p{L}*\s+измен\p{L}*|уведомлен\p{L}*\s+о\s+внес)/iu;
 const DISTRIBUTION_DUTIES=/(?:\([abcde]\)|\b(?:при\s+условии|условия)\s*:|\b(?:сохран\p{L}*|помет\p{L}*|включ\p{L}*|предостав\p{L}*)\b[^.;]{0,100}\b(?:уведомлен\p{L}*|лицензи\p{L}*|файл\p{L}*\s+notice)\b)/iu;
 
 export function narrowComparisonRightsClaim(topic,value,document){
