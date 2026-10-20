@@ -39,6 +39,7 @@ fun JessicaDrawerContent(
     busy: Boolean,
     onNewChat: () -> Unit,
     onThread: (String) -> Unit,
+    onPreviewDeleted: (String) -> Unit,
     onRestore: (String) -> Unit,
     onTasks: () -> Unit,
     onReports: () -> Unit,
@@ -124,7 +125,7 @@ fun JessicaDrawerContent(
                             selected = !deleted && activeThreadId == match.thread.id,
                             onClick = {
                                 if (!busy) {
-                                    if (deleted) onRestore(match.thread.id)
+                                    if (deleted) onPreviewDeleted(match.thread.id)
                                     else onThread(match.thread.id)
                                 }
                             },
