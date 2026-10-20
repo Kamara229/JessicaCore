@@ -1,3 +1,19 @@
+
+/*
+ * An official-source comparison must retain both direct source URLs in its
+ * *answer*. A task containing no pasted URLs does not waive attribution.
+ * This is evidence eligibility, not an assertion that the URLs are official.
+ */
+export function hasRequestedOfficialComparisonCitations(taskInput,answerInput){
+ const task=String(taskInput||"");
+ if(!/(?:сравн\p{L}*|сопостав\p{L}*|compare|comparison)/iu.test(task)
+    || !/(?:официальн\p{L}*|official)/iu.test(task)
+    || !/(?:источник\p{L}*|ссылк\p{L}*|подтверд\p{L}*|цитат\p{L}*|source|citat|referenc)/iu.test(task))return true;
+ const urls=String(answerInput||"").match(/https?:\/\/[^\s<>\])}"'«»]+/giu)||[];
+ const unique=new Set(urls.map(url=>url.replace(/[.,;]+$/g,"").toLowerCase()));
+ return unique.size>=2;
+}
+
 export function hasComparisonSourceCitations(taskInput, answerInput) {
     const task = String(taskInput || "");
     const answer = String(answerInput || "");
@@ -18,6 +34,7 @@ export function hasComparisonSourceCitations(taskInput, answerInput) {
  */
 export function hasVerifiedPatternEvidence(evidence) {
     return hasComparisonSourceCitations(evidence?.task, evidence?.answer)
+        && hasRequestedOfficialComparisonCitations(evidence?.task, evidence?.answer)
         && evidence?.result?.success === true
         && evidence?.result?.verified === true
         && evidence?.validation?.valid === true
