@@ -29,7 +29,8 @@ test("canonical Apache source is the complete official plain-text document",()=>
 });
 test("reject scraped license text that drops numbered NOTICE clauses",()=>{
  const truncated=apache.replace(/You must retain,[^.]+\./u,"")
-   .replace(/If the Work includes a NOTICE[^.]+\./u,"");
+   .replace(/If the Work includes a NOTICE[^.]+\./u,"")
+   +(" Background definitions and general information about a legal agreement. ".repeat(8));
  const checked=verifyPairedSourceContent(plan,run(truncated));
  assert.equal(checked.valid,false);
  assert.match(checked.reason,/уведомлен/iu);
