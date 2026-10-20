@@ -29,6 +29,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import com.jessica.core.core.JessicaController
 import com.jessica.core.navigation.JessicaNavigator
@@ -148,6 +150,12 @@ fun JessicaScreen() {
                         navigate(JessicaPage.CHAT)
                     }
                 },
+                onRestore = { id ->
+                    if (!chatBusy) {
+                        chatViewModel.restoreChat(id)
+                        navigate(JessicaPage.CHAT)
+                    }
+                },
                 onTasks = { navigate(JessicaPage.TASKS) },
                 onReports = { navigate(JessicaPage.REPORTS) },
                 onSettings = { navigate(JessicaPage.HOME) }
@@ -178,11 +186,26 @@ fun JessicaScreen() {
                             ) {
                                 Text("＋")
                             }
-                            IconButton(
-                                onClick = { showDeleteDialog = true },
-                                enabled = !chatBusy && chatState.activeThreadId != null
-                            ) {
-                                Text("🗑")
+                            if (chatState.undoThreadId != null) {
+                                IconButton(
+                                    onClick = chatViewModel::undoDelete,
+                                    enabled = !chatBusy,
+                                    modifier = Modifier.semantics {
+                                        contentDescription = "Отменить удаление чата"
+                                    }
+                                ) {
+                                    Text("↶", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
+                                }
+                            } else {
+                                IconButton(
+                                    onClick = { showDeleteDialog = true },
+                                    enabled = !chatBusy && chatState.activeThreadId != null,
+                                    modifier = Modifier.semantics {
+                                        contentDescription = "Удалить текущий чат"
+                                    }
+                                ) {
+                                    Text("🗑")
+                                }
                             }
                         }
                     }
@@ -212,7 +235,14 @@ fun JessicaScreen() {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Удалить чат?") },
-            text = { Text("Сообщения этого чата и его вложения будут удалены с телефона. Это действие нельзя отменить.") },
+            text = {
+                Text(
+                    "«" + (chatState.threads.firstOrNull { it.id == chatState.activeThreadId }?.title
+                        ?: "Выбранный чат") + "» исчезнет из списка. " +
+                    "В течение 60 минут его можно найти через поиск и восстановить стрелкой ↶. " +
+                    "После этого сообщения и вложения будут удалены окончательно."
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteDialog = false
