@@ -74,6 +74,22 @@ class ChatThreadStore(context: Context) {
         return readMessages(file)
     }
 
+    /**
+     * Read-only access for a soft-deleted chat. Does not reactivate it,
+     * update last activity or alter the active conversation.
+     */
+    @Synchronized
+    fun deletedMessages(id: String): List<ChatMessage> {
+        ensureMigrated()
+        purgeExpired()
+        val thread = readIndex().firstOrNull { it.id == id }
+            ?: throw IOException("Удалённый чат не найден")
+        if (!ChatTrashPolicy.canRestore(thread.deletedAt))
+            throw IOException("Срок восстановления чата истёк")
+        val file = threadFile(id)
+        return if (file.isFile) readMessages(file) else emptyList()
+    }
+
     @Synchronized
     fun append(id: String, message: ChatMessage) {
         val threads = list()
