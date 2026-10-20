@@ -191,7 +191,7 @@ function extractAnswerText(
 
             normalizeText(
                 value,
-                3000
+                12000
             );
 
 
