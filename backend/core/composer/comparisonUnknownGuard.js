@@ -9,6 +9,7 @@ import {containsExplicitNoticeDuty} from "../validator/claim/comparisonExplicitD
  * checks the complete final text against both original sources.
  */
 const UNKNOWN = "Не удалось подтвердить по прочитанному тексту";
+const UNSUPPORTED_ABSENCE=/отсутств\p{L}*|не\s+(?:содерж\p{L}*|предусматр\p{L}*|име\p{L}*)/iu;
 const NEGATION = /(?:не\s+(?:содерж\p{L}*|име\p{L}*|предусматр\p{L}*|включа\p{L}*|предоставл\p{L}*)|(?:нет|отсутств\p{L}*)\s+(?:\p{L}+\s+){0,3}(?:положени\p{L}*|услови\p{L}*|патент\p{L}*|лицензи\p{L}*|прав\p{L}*)|does\s+not\s+(?:contain|include|grant|provide)|no\s+(?:patent|license|provision|requirement))/iu;
 const TOPICS = {
     use:/использ|измен|модифиц|reproduc|modif|use/iu,
@@ -105,7 +106,8 @@ export function guardComparisonUnknowns(task,plan,run,text) {
             if(!row) return line;
             for(const i of missingTopic(row,sources)) {
                 const col=mapping[i];
-                if(col>=cells.length || /не удалось|не установлено|not verified|unable to verify/iu.test(cells[col]))continue;
+                if(col>=cells.length)continue;
+                if(/не удалось|не установлено|not verified|unable to verify/iu.test(cells[col]) && !UNSUPPORTED_ABSENCE.test(cells[col]))continue;
                 cells[col]=UNKNOWN;
                 changes++;
             }
