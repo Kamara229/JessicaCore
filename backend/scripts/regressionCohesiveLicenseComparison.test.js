@@ -38,7 +38,7 @@ test("explicit two user URLs retain their original higher priority", () => {
 
 test("official domain alone does not validate incomplete license content", () => {
  const plan=tryCreateKnownLicenseComparison({task}).plan;
- const apache="Apache License Version 2.0. Grant of Patent License. Redistribution.";
+ const apache="Apache License Version 2.0. Grant of Patent License. Redistribution. You must retain, in the Source form of any Derivative Works, all copyright, patent, trademark, and attribution notices. If the Work includes a NOTICE text file, then any Derivative Works must include a readable copy of the attribution notices.";
  const bsd="Redistribution and use in source and binary forms with or without modification. Neither the name of the organization.";
  const result=(first,second)=>({
   results:plan.steps.map((step,index)=>({
