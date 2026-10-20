@@ -52,11 +52,12 @@ export function locateComparisonCell({answer,sourceUrls,claim}={}) {
         const parts=cells(line);
         if(!parts) {columns=null;continue;}
         if(isSeparator(parts))continue;
-        const proposed=[matchColumn(parts,first),matchColumn(parts,second)];
-        if(proposed[0]>0&&proposed[1]>0&&proposed[0]!==proposed[1]) {
-            columns=proposed;continue;
+        if(!columns){
+            const proposed=[matchColumn(parts,first),matchColumn(parts,second)];
+            if(proposed[0]>0&&proposed[1]>0&&proposed[0]!==proposed[1])
+                columns=proposed;
+            continue;
         }
-        if(!columns)continue;
         if(!topic.test(parts[0]||""))continue;
         const col=columns[sourceIndex];
         if(col>=parts.length)return null;
