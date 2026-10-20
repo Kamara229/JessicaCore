@@ -198,7 +198,8 @@ class ChatThreadStore(context: Context) {
         purgeExpired()
         return readIndex().sortedByDescending { it.updatedAt }.mapNotNull { thread ->
             val titleMatch = thread.title.contains(needle, ignoreCase = true)
-            val match = if (titleMatch) null else readMessages(threadFile(thread.id))
+            val file = threadFile(thread.id)
+            val match = if (titleMatch || !file.isFile) null else readMessages(file)
                 .firstOrNull { it.text.contains(needle, ignoreCase = true) }
             if (!titleMatch && match == null) return@mapNotNull null
             val text = match?.text.orEmpty()
