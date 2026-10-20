@@ -46,6 +46,18 @@ export function verifyPairedSourceContent(plan, taskRunResult) {
             return {success:true,valid:false,shouldRetry:true,
                 reason:"Текст Apache License 2.0 не обнаружен или неполон"};
         }
+        // A legal comparison is not source-complete when HTML extraction
+        // silently drops numbered redistribution clauses. Check the actual
+        // source text, not merely its heading or broad license identity.
+        if (/\/licenses\/license-2\.0\.(?:html|txt)$/i.test(path)) {
+            const flat=content.replace(/\s+/g," ");
+            const copyrightNotices=/\byou must retain\b[^.]{0,360}\battribution notices\b/i.test(flat);
+            const conditionalNotice=/\bif the work includes a\b[^.]{0,110}\bnotice\b[^.]{0,350}\bmust include a readable copy\b[^.]{0,100}\battribution notices\b/i.test(flat);
+            if(!copyrightNotices||!conditionalNotice) {
+                return {success:true,valid:false,shouldRetry:true,
+                    reason:"В загруженном тексте лицензии отсутствуют обязательные положения о сохранении уведомлений; источник неполон"};
+            }
+        }
         if (/\/(?:license|licenses)\/bsd-3-clause$/i.test(path) &&
             (!/redistribution and use in source and binary forms/i.test(content)
              || !/neither the name/i.test(content))) {
