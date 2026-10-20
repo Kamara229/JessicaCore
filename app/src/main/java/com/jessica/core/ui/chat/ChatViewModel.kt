@@ -33,6 +33,8 @@ data class ChatState(
     val searchQuery: String = "",
     val searchResults: List<ChatSearchResult> = emptyList(),
     val undoThreadId: String? = null,
+    val previewDeletedThreadId: String? = null,
+    val previewDeletedTitle: String? = null,
     val debugSyncError: String? = null,
     val input: TextFieldValue = TextFieldValue(),
     val pendingAttachments: List<ChatAttachment> = emptyList(),
@@ -87,11 +89,21 @@ class ChatViewModel(
             while (true) {
                 delay(15_000L)
                 val current = _state.value
-                if (current.undoThreadId == null && current.searchQuery.isBlank()) continue
+                if (current.undoThreadId == null && current.previewDeletedThreadId == null && current.searchQuery.isBlank()) continue
                 val pending = withContext(Dispatchers.IO) { threadStore.deleted() }
                 val freshUndo = pending.firstOrNull()?.id
-                if (freshUndo != current.undoThreadId) {
-                    _state.value = _state.value.copy(undoThreadId = freshUndo)
+                val expiredPreview = current.previewDeletedThreadId != null &&
+                    pending.none { it.id == current.previewDeletedThreadId }
+                if (freshUndo != current.undoThreadId || expiredPreview) {
+                    val activeMessages = if (expiredPreview) withContext(Dispatchers.IO) {
+                        current.activeThreadId?.let { threadStore.messages(it) } ?: emptyList()
+                    } else null
+                    _state.value = _state.value.copy(
+                        undoThreadId = freshUndo,
+                        previewDeletedThreadId = if (expiredPreview) null else current.previewDeletedThreadId,
+                        previewDeletedTitle = if (expiredPreview) null else current.previewDeletedTitle,
+                        messages = activeMessages ?: current.messages
+                    )
                     scheduleDebugSync()
                 }
                 if (current.searchQuery.isNotBlank()) updateSearch(current.searchQuery)
@@ -126,12 +138,13 @@ class ChatViewModel(
     fun refreshChatDiagnostics() = scheduleDebugSync()
 
     fun updateInput(value: TextFieldValue) {
+        if (_state.value.previewDeletedThreadId != null) return
         _state.value = _state.value.copy(input = value)
     }
 
     fun attachFiles(uris: List<Uri>) {
         val current = _state.value
-        if (current.isRunning || current.isLoading || current.isImporting) return
+        if (current.isRunning || current.isLoading || current.isImporting || current.previewDeletedThreadId != null) return
         if (uris.isEmpty()) return
         _state.value = current.copy(isImporting = true, storageError = null)
         viewModelScope.launch {
@@ -159,7 +172,7 @@ class ChatViewModel(
 
     fun removeAttachment(id: String) {
         val current = _state.value
-        if (current.isRunning || current.isImporting || current.isLoading) return
+        if (current.isRunning || current.isImporting || current.isLoading || current.previewDeletedThreadId != null) return
         val removed = current.pendingAttachments.find { it.id == id } ?: return
         _state.value = current.copy(
             pendingAttachments = current.pendingAttachments.filterNot { it.id == id },
@@ -193,7 +206,9 @@ class ChatViewModel(
                     threads = result.second,
                     messages = emptyList(),
                     input = TextFieldValue(),
-                    isLoading = false
+                    isLoading = false,
+                    previewDeletedThreadId = null,
+                    previewDeletedTitle = null
                 )
                 scheduleDebugSync()
             } catch (error: Exception) {
@@ -207,7 +222,7 @@ class ChatViewModel(
 
     fun openChat(id: String) {
         val current = _state.value
-        if (current.isRunning || current.isLoading || current.isImporting || id == current.activeThreadId) return
+        if (current.isRunning || current.isLoading || current.isImporting || (id == current.activeThreadId && current.previewDeletedThreadId == null)) return
         if (current.threads.none { it.id == id }) return
         discardPending()
         _state.value = _state.value.copy(isLoading = true, storageError = null)
@@ -222,6 +237,8 @@ class ChatViewModel(
                     activeThreadId = id,
                     messages = messages,
                     input = TextFieldValue(),
+                    previewDeletedThreadId = null,
+                    previewDeletedTitle = null,
                     isLoading = false
                 )
             } catch (error: Exception) {
@@ -234,10 +251,40 @@ class ChatViewModel(
     }
 
 
+    /** Opening a deleted search result previews its history without undoing deletion. */
+    fun previewDeletedChat(id: String) {
+        val current = _state.value
+        if (current.isRunning || current.isLoading || current.isImporting) return
+        discardPending()
+        _state.value = _state.value.copy(isLoading = true, storageError = null)
+        viewModelScope.launch {
+            try {
+                val preview = withContext(Dispatchers.IO) {
+                    val thread = threadStore.deleted().firstOrNull { it.id == id }
+                        ?: throw IllegalStateException("Время восстановления этого чата истекло")
+                    Pair(thread.title, threadStore.deletedMessages(id))
+                }
+                _state.value = _state.value.copy(
+                    previewDeletedThreadId = id,
+                    previewDeletedTitle = preview.first,
+                    messages = preview.second,
+                    input = TextFieldValue(),
+                    isLoading = false
+                )
+            } catch (error: Exception) {
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    storageError = "Не удалось открыть удалённый чат: " + error.message
+                )
+                updateSearch(_state.value.searchQuery)
+            }
+        }
+    }
+
     fun deleteActiveChat() {
         val current = _state.value
         val id = current.activeThreadId ?: return
-        if (current.isRunning || current.isLoading || current.isImporting) return
+        if (current.isRunning || current.isLoading || current.isImporting || current.previewDeletedThreadId != null) return
         _state.value = current.copy(isLoading = true, storageError = null)
         viewModelScope.launch {
             try {
@@ -253,6 +300,8 @@ class ChatViewModel(
                     activeThreadId = result.second,
                     messages = result.third,
                     undoThreadId = id,
+                    previewDeletedThreadId = null,
+                    previewDeletedTitle = null,
                     input = TextFieldValue(),
                     isLoading = false
                 )
@@ -268,7 +317,7 @@ class ChatViewModel(
     }
 
     fun undoDelete() {
-        _state.value.undoThreadId?.let { restoreChat(it) }
+        (_state.value.previewDeletedThreadId ?: _state.value.undoThreadId)?.let { restoreChat(it) }
     }
 
     fun restoreChat(id: String) {
@@ -291,6 +340,8 @@ class ChatViewModel(
                     activeThreadId = id,
                     messages = restored.second,
                     undoThreadId = restored.third,
+                    previewDeletedThreadId = null,
+                    previewDeletedTitle = null,
                     input = TextFieldValue(),
                     isLoading = false
                 )
@@ -311,7 +362,7 @@ class ChatViewModel(
         val files = current.pendingAttachments
         val entered = current.input.text.trim()
         if ((entered.isEmpty() && files.isEmpty()) ||
-            current.isRunning || current.isLoading || current.isImporting) return
+            current.isRunning || current.isLoading || current.isImporting || current.previewDeletedThreadId != null) return
         val task = entered.ifBlank { "Проанализируй приложенные файлы и расскажи об их содержании." }
         val history = ChatContextWindow.select(current.messages)
         _state.value = current.copy(isRunning = true, storageError = null)
@@ -322,7 +373,7 @@ class ChatViewModel(
     fun retryMessage(message: ChatMessage) {
         val current = _state.value
         if (!message.isUser || message.text.isBlank() ||
-            current.isRunning || current.isLoading || current.isImporting) return
+            current.isRunning || current.isLoading || current.isImporting || current.previewDeletedThreadId != null) return
         val history = ChatContextWindow.select(current.messages)
         _state.value = current.copy(isRunning = true, storageError = null)
         submit(message.copy(timestamp = System.currentTimeMillis()),
