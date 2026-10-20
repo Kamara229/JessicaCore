@@ -370,10 +370,10 @@ test("compact claim references map SOURCE 1 and SOURCE 2 to original URLs",()=>{
     assert.equal(parsed.claims[0].sourceUrl,"https://example.com/source-two");
 });
 
-test("comparison validator asks for compact output preserving eight claims",()=>{
+test("comparison validator asks for compact output preserving nine claims",()=>{
     const instructions=buildComparisonClaimInstructions();
     assert.ok(instructions.includes("SOURCE 1"));
-    assert.ok(instructions.includes("8 проверяемых claims"));
+    assert.ok(instructions.includes("9 проверяемых claims"));
     assert.ok(instructions.includes("дословная"));
 });
 
