@@ -13,7 +13,7 @@ test("Apache-2.0 vs BSD-3-Clause reads canonical legal texts, not project PDF", 
     assert.equal(plan.steps.length, 2);
     assert.deepEqual(plan.steps.map(x => x.tool), ["web_fetch","web_fetch"]);
     assert.deepEqual(new Set(plan.steps.map(x => x.arguments.url)), new Set([
-        "https://www.apache.org/licenses/LICENSE-2.0.html",
+        "https://www.apache.org/licenses/LICENSE-2.0.txt",
         "https://opensource.org/license/bsd-3-clause"
     ]));
     assert.equal(plan.evidence.mode,"source_content");
