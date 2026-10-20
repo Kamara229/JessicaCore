@@ -26,5 +26,7 @@ export function correctCopyrightGrantPolarity(value,document){
  if(!REVOCABLE.test(claim)||!COPYRIGHT.test(claim))return original;
  const source=selectOperativeSourceText(document).replace(/\s+/g," ");
  if(!GRANT.test(source))return original;
- return original.replace(REVOCABLE,inflectIrrevocable).replace(EXCEPTION,"");
+ const corrected=original.replace(REVOCABLE,inflectIrrevocable);
+ if(corrected===original)return original;
+ return corrected.replace(EXCEPTION,"").replace(/\bоб\s+безотзывной\b/iu,"о безотзывной");
 }
