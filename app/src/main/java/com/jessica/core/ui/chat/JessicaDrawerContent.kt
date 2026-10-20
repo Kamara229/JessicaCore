@@ -10,18 +10,29 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.chat.ChatThread
+import com.jessica.core.modules.chat.ChatSearchResult
 
 /** Navigation only: thread data and chat persistence stay in the ViewModel. */
 @Composable
 fun JessicaDrawerContent(
     threads: List<ChatThread>,
     activeThreadId: String?,
+    searchQuery: String,
+    searchResults: List<ChatSearchResult>,
+    diagnosticError: String?,
+    onSearch: (String) -> Unit,
+    onDiagnosticSync: () -> Unit,
     busy: Boolean,
     onNewChat: () -> Unit,
     onThread: (String) -> Unit,
@@ -47,6 +58,21 @@ fun JessicaDrawerContent(
                     )
                 }
                 item {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = onSearch,
+                        label = { Text("Поиск по чатам") },
+                        placeholder = { Text("Название или сообщение") },
+                        singleLine = true,
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) IconButton(onClick = { onSearch("") }) {
+                                Text("×")
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp)
+                    )
+                }
+                item {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
                     Text(
                         "История диалогов",
@@ -55,19 +81,45 @@ fun JessicaDrawerContent(
                         modifier = Modifier.padding(start = 28.dp, bottom = 6.dp)
                     )
                 }
-                items(threads, key = { it.id }) { thread ->
+                if (searchQuery.isNotBlank() && searchResults.isEmpty()) {
+                    item { Text("Ничего не найдено",
+                        modifier = Modifier.padding(horizontal = 28.dp, vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
+                items(
+                    if (searchQuery.isBlank()) threads.map { ChatSearchResult(it, "") }
+                    else searchResults,
+                    key = { it.thread.id }
+                ) { match ->
                     NavigationDrawerItem(
                         label = {
-                            Text(
-                                thread.title,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Column {
+                                Text(match.thread.title, maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis)
+                                if (match.snippet.isNotBlank()) {
+                                    Text(match.snippet, maxLines = 2,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        overflow = TextOverflow.Ellipsis)
+                                }
+                            }
                         },
-                        selected = activeThreadId == thread.id,
-                        onClick = { if (!busy) onThread(thread.id) },
+                        selected = activeThreadId == match.thread.id,
+                        onClick = { if (!busy) onThread(match.thread.id) },
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
+                }
+                if (diagnosticError != null) {
+                    item {
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 24.dp)) {
+                            Text("Тестовый экран: " + diagnosticError,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.weight(1f))
+                            IconButton(onClick = onDiagnosticSync) { Text("↻") }
+                        }
+                    }
                 }
                 item {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
