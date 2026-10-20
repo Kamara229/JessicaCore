@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalNavigationDrawer
@@ -24,6 +26,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.jessica.core.core.JessicaController
@@ -59,6 +63,7 @@ fun JessicaScreen() {
     val chatState by chatViewModel.state.collectAsState()
     val updateState by updateViewModel.state.collectAsState()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
+    var showDeleteDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val page = navigator.currentPage.value
     val chatBusy = chatState.isRunning || chatState.isLoading
@@ -125,6 +130,11 @@ fun JessicaScreen() {
             JessicaDrawerContent(
                 threads = chatState.threads,
                 activeThreadId = chatState.activeThreadId,
+                searchQuery = chatState.searchQuery,
+                searchResults = chatState.searchResults,
+                diagnosticError = chatState.debugSyncError,
+                onSearch = chatViewModel::updateSearch,
+                onDiagnosticSync = chatViewModel::refreshChatDiagnostics,
                 busy = chatBusy,
                 onNewChat = {
                     if (!chatBusy) {
@@ -168,6 +178,12 @@ fun JessicaScreen() {
                             ) {
                                 Text("＋")
                             }
+                            IconButton(
+                                onClick = { showDeleteDialog = true },
+                                enabled = !chatBusy && chatState.activeThreadId != null
+                            ) {
+                                Text("🗑")
+                            }
                         }
                     }
                 )
@@ -191,5 +207,21 @@ fun JessicaScreen() {
                 }
             }
         }
+    }
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Удалить чат?") },
+            text = { Text("Сообщения этого чата и его вложения будут удалены с телефона. Это действие нельзя отменить.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    chatViewModel.deleteActiveChat()
+                }) { Text("Удалить") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Отмена") }
+            }
+        )
     }
 }
