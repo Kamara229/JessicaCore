@@ -14,6 +14,7 @@ import com.jessica.core.modules.chat.ChatTitlePolicy
 import com.jessica.core.modules.chat.ChatTitleClient
 import com.jessica.core.modules.chat.ChatSearchResult
 import com.jessica.core.modules.chat.ChatDebugSyncClient
+import com.jessica.core.modules.chat.ChatTrashPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +32,7 @@ data class ChatState(
     val activeThreadId: String? = null,
     val searchQuery: String = "",
     val searchResults: List<ChatSearchResult> = emptyList(),
+    val undoThreadId: String? = null,
     val debugSyncError: String? = null,
     val input: TextFieldValue = TextFieldValue(),
     val pendingAttachments: List<ChatAttachment> = emptyList(),
@@ -66,7 +68,8 @@ class ChatViewModel(
                     threads = restored.first,
                     activeThreadId = restored.second,
                     messages = restored.third,
-                    isLoading = false
+                    isLoading = false,
+                    undoThreadId = withContext(Dispatchers.IO) { threadStore.deleted().firstOrNull()?.id }
                 )
                 scheduleDebugSync()
             } catch (error: Exception) {
@@ -74,6 +77,24 @@ class ChatViewModel(
                     isLoading = false,
                     storageError = "Не удалось загрузить чаты: ${error.message}"
                 )
+            }
+        }
+    }
+
+    init {
+        // Refresh UI expiry and purge if the app stays open beyond 60 minutes.
+        viewModelScope.launch {
+            while (true) {
+                delay(15_000L)
+                val current = _state.value
+                if (current.undoThreadId == null && current.searchQuery.isBlank()) continue
+                val pending = withContext(Dispatchers.IO) { threadStore.deleted() }
+                val freshUndo = pending.firstOrNull()?.id
+                if (freshUndo != current.undoThreadId) {
+                    _state.value = _state.value.copy(undoThreadId = freshUndo)
+                    scheduleDebugSync()
+                }
+                if (current.searchQuery.isNotBlank()) updateSearch(current.searchQuery)
             }
         }
     }
@@ -220,17 +241,18 @@ class ChatViewModel(
         _state.value = current.copy(isLoading = true, storageError = null)
         viewModelScope.launch {
             try {
-                val replacement = withContext(Dispatchers.IO) {
-                    val attachments = threadStore.messages(id).flatMap { it.attachments }
+                val result = withContext(Dispatchers.IO) {
                     val remaining = threadStore.delete(id)
-                    attachments.forEach(attachmentStore::discard)
                     val active = threadStore.activeId()
                     Triple(remaining, active, active?.let { threadStore.messages(it) } ?: emptyList())
                 }
+                // The last deleted chat can be undone with the curved arrow.
+                // Its content and attachment files are NOT erased until expiry.
                 _state.value = _state.value.copy(
-                    threads = replacement.first,
-                    activeThreadId = replacement.second,
-                    messages = replacement.third,
+                    threads = result.first,
+                    activeThreadId = result.second,
+                    messages = result.third,
+                    undoThreadId = id,
                     input = TextFieldValue(),
                     isLoading = false
                 )
@@ -241,6 +263,45 @@ class ChatViewModel(
                     isLoading = false,
                     storageError = "Не удалось удалить чат: " + error.message
                 )
+            }
+        }
+    }
+
+    fun undoDelete() {
+        _state.value.undoThreadId?.let { restoreChat(it) }
+    }
+
+    fun restoreChat(id: String) {
+        val current = _state.value
+        if (current.isRunning || current.isLoading || current.isImporting) return
+        _state.value = current.copy(isLoading = true, storageError = null)
+        viewModelScope.launch {
+            try {
+                val restored = withContext(Dispatchers.IO) {
+                    threadStore.restore(id)
+                    threadStore.setActive(id)
+                    val threads = threadStore.list()
+                    val messages = threadStore.messages(id)
+                    val pending = threadStore.deleted()
+                    Triple(threads, messages, pending.firstOrNull()?.id)
+                }
+                discardPending()
+                _state.value = _state.value.copy(
+                    threads = restored.first,
+                    activeThreadId = id,
+                    messages = restored.second,
+                    undoThreadId = restored.third,
+                    input = TextFieldValue(),
+                    isLoading = false
+                )
+                updateSearch(_state.value.searchQuery)
+                scheduleDebugSync()
+            } catch (error: Exception) {
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    storageError = "Не удалось восстановить чат: " + error.message
+                )
+                updateSearch(_state.value.searchQuery)
             }
         }
     }
