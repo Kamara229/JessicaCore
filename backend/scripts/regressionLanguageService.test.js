@@ -235,3 +235,77 @@ test("Malformed segmented translation keeps original code and reports failure", 
     assert.equal(result.text,source);
     assert.equal(result.localizationStatus,"code-prose-adaptation-failed");
 });
+
+
+test("short English factorial introduction is localized without touching fenced source", async () => {
+    const ticks=String.fromCharCode(96).repeat(3);
+    const code=ticks+"python\\ndef factorial(n):\\n    return 1 if n==0 else n*factorial(n-1)\\n"+ticks;
+    const answer="Here is the function:\\n\\n"+code+"\\n\\nYou can use it like this.";
+    let payloads=[];
+    const result=await localizeResponse({mode:"single",success:true,text:answer},
+        "Напиши функцию факториала на Python","ru",async(prompt,payload,format)=>{
+            payloads.push({payload,format});
+            return JSON.stringify({parts:["Вот функция:","Использовать её можно так."]});
+        });
+    assert.equal(result.localizationStatus,"adapted");
+    assert.ok(result.text.includes("Вот функция:"));
+    assert.ok(result.text.includes("Использовать её можно так."));
+    assert.ok(result.text.includes(code));
+    assert.ok(!result.text.includes("Here is the function"));
+});
+
+test("malformed segmented JSON retries only narrative as plain text", async () => {
+    const ticks=String.fromCharCode(96).repeat(3);
+    const code=ticks+"python\\nprint(5)\\n"+ticks;
+    const src="Here is the function:\\n\\n"+code+"\\n\\nYou can use it like this.";
+    let plainCalls=0;
+    const result=await localizeResponse({success:true,text:src},"Напиши функцию","ru",
+        async(prompt,payload,format)=>{
+            if(format==="json") return "not-json";
+            plainCalls++;
+            assert.ok(!JSON.stringify(payload).includes("print(5)"));
+            return plainCalls===1 ? "Вот функция:" : "Её можно использовать следующим образом.";
+        });
+    assert.equal(result.localizationStatus,"adapted");
+    assert.equal(plainCalls,2);
+    assert.ok(result.text.includes(code));
+    assert.ok(result.text.includes("Вот функция:"));
+});
+
+test("English explanation with bare source stays Russian while source line is byte-identical", async () => {
+    const source="Here is the function:\\ndef factorial(n: int) -> int:\\n    return n * 2\\n";
+    let parts;
+    const result=await localizeResponse({success:true,mode:"code",text:source},
+        "Напиши функцию на Python","ru",async(prompt,payload,format)=>{
+            assert.equal(format,"json");
+            parts=payload.parts;
+            return JSON.stringify({parts:["Вот функция:"]});
+        });
+    assert.deepEqual(parts,["Here is the function:"]);
+    assert.equal(result.localizationStatus,"adapted");
+    assert.ok(result.text.includes("def factorial(n: int) -> int:\\n    return n * 2"));
+    assert.ok(!result.text.includes("Here is"));
+});
+
+test("short English words do not misidentify Russian explanation with identifiers", async () => {
+    const source="В Kotlin функция factorial возвращает Long и обрабатывает n.";
+    const result=await localizeResponse({success:true,text:source},"Объясни код","ru",
+       async()=>{throw Error("Russian answer already correct")});
+    assert.equal(result.text,source);
+});
+
+test("explicit user request for English text overrides Russian UI language", async () => {
+    const original="This response is in English, as explicitly requested by the user.";
+    const result=await localizeResponse({success:true,text:original},
+       "Ответь на английском языке","ru",async()=>original);
+    assert.equal(result.text,original);
+    assert.equal(result.outputLanguage,"ru");
+});
+
+test("English generated code blocks and identifiers cannot be rewritten by Russian language editor", async () => {
+    const ticks=String.fromCharCode(96).repeat(3);
+    const original="Here is the implementation:\\n\\n"+ticks+"kotlin\\nfun factorial(n: Int): Long = 1L\\n"+ticks;
+    const result=await localizeResponse({success:true,text:original},"Напиши Kotlin код","ru",
+       async() => JSON.stringify({parts:["Вот реализация:", "Не используйте этот код."]}));
+    assert.equal(result.text.includes(ticks+"kotlin\\nfun factorial(n: Int): Long = 1L\\n"+ticks),true);
+});
