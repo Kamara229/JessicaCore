@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.jessica.core.ui.language.uiText
 
 
 
@@ -20,7 +21,7 @@ fun JessicaStatusCard(
 
     version: String = "v" + BuildConfig.VERSION_NAME,
 
-    status: String = "Готова к работе"
+    status: String? = null
 
 ) {
 
@@ -63,7 +64,7 @@ fun JessicaStatusCard(
             Text(
 
                 text =
-                    "Версия: $version",
+                    uiText("Версия: ", "Version: ") + version,
 
                 style =
                     MaterialTheme
@@ -76,7 +77,7 @@ fun JessicaStatusCard(
             Text(
 
                 text =
-                    "Статус: $status",
+                    uiText("Статус: ", "Status: ") + (status ?: uiText("Готова к работе", "Ready to work")),
 
                 style =
                     MaterialTheme
