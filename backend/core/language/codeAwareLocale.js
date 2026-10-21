@@ -59,11 +59,27 @@ export async function translateCodeProse(text, task, language, translate) {
         const clean=String(raw||"").trim()
             .replace(/^\x60{3}json\s*/i,"").replace(/\x60{3}\s*$/,"");
         parsed=JSON.parse(clean);
-    } catch {
-        return null;
-    }
+    } catch {parsed=null;}
     if(!Array.isArray(parsed?.parts) || parsed.parts.length!==prose.length ||
-        parsed.parts.some(value=>typeof value!=="string" || /\x60{3}/.test(value))) return null;
+        parsed.parts.some(value=>typeof value!=="string" || /\x60{3}/.test(value))) {
+        // Fallback after a malformed JSON answer: translate narrative segments
+        // separately, never giving the model any fenced source code.
+        if(prose.length>8) return null;
+        const fixed=[];
+        for(const frame of prose) {
+            if(!frame.inner) { fixed.push(""); continue; }
+            const plain=await translate([
+                "Translate this single narrative passage into natural "+(language==="en"?"English":"Russian")+".",
+                "Keep all inline identifiers, citation URLs and numbers unchanged.",
+                "This is plain prose surrounding source code (not a request to execute code).",
+                "Return ONLY the translated passage, no JSON, no code block, no commentary."
+            ].join("\n"),{userTask:String(task||"").slice(0,900),passage:frame.inner},"plain");
+            if(typeof plain!=="string" || !plain.trim() || /^\s*[\{\[]/.test(plain) || /\x60{3}/.test(plain))
+                return null;
+            fixed.push(plain.trim());
+        }
+        parsed={parts:fixed};
+    }
 
     let index=0;
     const composed=source.map(segment=>{
@@ -83,7 +99,7 @@ export function visibleProse(value) {
 
 
 function looksLikeSourceLine(line) {
-    return /^\s*(?:def\s+\w+|async def\s+\w+|fun\s+\w+|function\s+\w+|class\s+\w+|return\b|raise\b|throw\b|if\s*[\s(]|else:|elif\s|for\s|while\s|var\s+\w+|let\s+\w+|const\s+\w+|import\s|from\s+\w+\s+import|#include|package\s|public\s|private\s|\/\*|\*\/|\/\/|[{}]|@Test\b|assert\w*\s*\(|print\s*\(|console\.\w+\s*\(|\w+\s*=\s*[\w"'\d([]|[\])}]+\s*[;,]?$)/u.test(String(line||""));
+    return /^\s*(?:def\s+\w+|async\s+def\s+\w+|fun\s+\w+|function\s+\w+|class\s+\w+|return\b|raise\b|throw\b|if\s*[\s(]|else:|elif\s|for\s|while\s|var\s+\w+|let\s+\w+|const\s+\w+|import\s|from\s+\w+\s+import|#include|package\s|public\s|private\s|\/\*|\*\/|\/\/|#(?!\s+\w)|\*\s+\w|[{}]\s*$|@Test\b|assert\w*\s*\(|print\s*\(|console\.\w+\s*\(|[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?\s*=\s*\S+)/u.test(String(line||""));
 }
 function englishWords(value) {
     const filtered=String(value||"")
