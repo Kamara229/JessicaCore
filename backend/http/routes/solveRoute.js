@@ -7,6 +7,7 @@ import {
 } from "../auth/jessicaAuth.js";
 import { saveChatDebugSnapshot } from "../../storage/chatDebugSnapshot.js";
 import { localizeResponse, normalizeOutputLanguage } from "../../core/language/responseLanguageService.js";
+import {withResponseLanguage} from "../../core/language/responseLanguageContext.js";
 import {containsCodeFence,hasForeignEnglishProse} from "../../core/language/codeAwareLocale.js";
 
 
@@ -137,10 +138,10 @@ export function registerSolveRoute(
 
 
                 const coreResult =
-                    await executeJessicaTask(
+                    await withResponseLanguage(outputLanguage, () => executeJessicaTask(
                         task,
                         { conversation: req.body?.conversation, attachments: req.body?.attachments, outputLanguage }
-                    );
+                    ));
 
                 const preserveBareCode = coreResult?.mode === "code" &&
                     !containsCodeFence(coreResult?.text) && !hasForeignEnglishProse(coreResult?.text);
