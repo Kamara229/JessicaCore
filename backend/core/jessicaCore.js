@@ -175,7 +175,7 @@ export async function executeJessicaTask(
      */
     if (Array.isArray(attachments) && attachments.length > 0) {
         const documentResult = await (isCodeAttachmentTask(normalizedTask,attachments)
-            ? analyzeCodeAttachments({task:normalizedTask,attachments})
+            ? analyzeCodeAttachments({task:normalizedTask,attachments,outputLanguage})
             : analyzeDocumentAttachments({task:normalizedTask,attachments}));
         completeExecutionTrace(executionTrace);
         return {
