@@ -19,6 +19,7 @@ import {
 } from "./solveRoute.js";
 import { registerDocumentExtractRoute } from "./documentExtractRoute.js";
 import {registerChatTitleRoute} from "./chatTitleRoute.js";
+import {registerCodexRoutes} from "./codexRoute.js";
 import {registerChatDebugArchiveRoute} from "./chatDebugArchiveRoute.js";
 
 import {
@@ -101,6 +102,7 @@ export function registerRoutes(
 
     registerDocumentExtractRoute(app);
     registerChatTitleRoute(app);
+    registerCodexRoutes(app);
     registerChatDebugArchiveRoute(app);
     registerSolveRoute(
         app
