@@ -8,7 +8,7 @@ import {
 import { saveChatDebugSnapshot } from "../../storage/chatDebugSnapshot.js";
 import { localizeResponse, normalizeOutputLanguage } from "../../core/language/responseLanguageService.js";
 import {withResponseLanguage} from "../../core/language/responseLanguageContext.js";
-import {containsCodeFence,hasForeignEnglishProse} from "../../core/language/codeAwareLocale.js";
+import {isBareSourceOnly} from "../../core/language/codeAwareLocale.js";
 
 
 /*
@@ -144,7 +144,7 @@ export function registerSolveRoute(
                     ));
 
                 const preserveBareCode = coreResult?.mode === "code" &&
-                    !containsCodeFence(coreResult?.text) && !hasForeignEnglishProse(coreResult?.text);
+                    isBareSourceOnly(coreResult?.text);
                 const result = coreResult?.mode === "translation"
                     ? {...coreResult, outputLanguage, localizationStatus:"explicit-translation"}
                     : preserveBareCode
