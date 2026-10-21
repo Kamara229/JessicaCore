@@ -141,7 +141,7 @@ export function registerSolveRoute(
                         { conversation: req.body?.conversation, attachments: req.body?.attachments, outputLanguage }
                     );
 
-                const result = coreResult?.mode === "translation"
+                const result = (coreResult?.mode === "translation" || coreResult?.mode === "code")
                     ? {...coreResult, outputLanguage, localizationStatus:"explicit-translation"}
                     : await localizeResponse(coreResult, task, outputLanguage);
 
