@@ -18,16 +18,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jessica.core.ui.language.uiText
 
-/** Day shift is the recommended API-free mode; the paid legacy mode remains opt-in. */
+/** Ordinary chat is explicit on-device automation; legacy modes remain available. */
 @Composable
 fun CodexScreen() {
-    var mode by remember { mutableStateOf("day") }
+    var mode by remember { mutableStateOf("ordinary") }
     Column(modifier=Modifier.fillMaxSize()) {
         Row(
             modifier=Modifier.horizontalScroll(rememberScrollState())
                 .padding(horizontal=16.dp,vertical=4.dp),
             horizontalArrangement=Arrangement.spacedBy(8.dp)
         ) {
+            FilterChip(
+                selected=mode=="ordinary", onClick={mode="ordinary"},
+                label={Text(uiText("Обычный чат","Ordinary chat"))}
+            )
             FilterChip(
                 selected=mode=="day", onClick={mode="day"},
                 label={Text(uiText("☀ Дневной режим","☀ Day shift"))}
@@ -42,6 +46,7 @@ fun CodexScreen() {
             )
         }
         when(mode) {
+            "ordinary" -> OrdinaryChatScreen()
             "day" -> DayCodexScreen()
             "phone" -> PhoneCodexScreen()
             else -> LegacyCodexScreen()

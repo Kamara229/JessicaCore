@@ -2,12 +2,14 @@ import {requireJessicaAuthorization} from "../auth/jessicaAuth.js";
 import {codexConfiguration,validCodexOwnerKey,startCodexSession,
     readCodexSession,stopCodexSession,codexGoals,startCodexDay} from "../../core/codex/codexSessionService.js";
 import {reviewCodexEngineering} from "../../core/codex/codexPeerReview.js";
+import {registerPhoneChatRoutes} from "./phoneChatRoute.js";
 
 /**
  * Privileged actions require a separate owner key; JESSICA_APP_TOKEN embedded
  * in APKs is not trusted as authorization to spend Codex credits or edit repos.
  */
 export function registerCodexRoutes(app) {
+    registerPhoneChatRoutes(app);
     app.get("/api/codex/config",requireJessicaAuthorization,(_req,res)=>
         res.set("Cache-Control","no-store").json(codexConfiguration()));
 
