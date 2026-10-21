@@ -3,7 +3,7 @@ import {needsConversationContext} from "../chat/conversationContext.js";
 /** Foundational semantics. No long-term memory mutations or external facts. */
 const CONTEXT_HEADER=/Контекст предыдущего диалога|КОНТЕКСТ ПРЕДЫДУЩЕГО ДИАЛОГА/i;
 const REFERENT=/(?:предыдущ(?:ий|ая|ее|его|ую|ем|их)|последн(?:ий|яя|ее|его|ую)|тот же|той же|этот ответ|эту функцию|этот код|в прошлом сообщении|вышеуказанн|выше|твой ответ|свой ответ|your (?:previous|last) (?:answer|reply|message)|earlier (?:answer|code)|the previous (?:answer|code)|same (?:thing|function))/iu;
-const FOLLOWUP=/^(?:а теперь|теперь|продолж\\w*|дальше|давай|готово|добавь|исправь|поправь|переделай|повтори|then|next|continue|modify|fix|update)(?=$|[\\s,.!?])/iu;
+const FOLLOWUP=/^(?:а теперь|теперь|продолж[а-яё]*|дальше|давай|готово|добавь|исправь|поправь|переделай|повтори|then|next|continue|modify|fix|update)(?=$|[ ,.!?])/iu;
 const ACK=/^(?:готово|давай|продолжай|что дальше\??|ok(?:ay)?|done|next)\s*[.!?]?$/iu;
 export function isContextualReference(task) {
     const text=String(task||"").trim();

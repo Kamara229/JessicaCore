@@ -50,4 +50,21 @@ class ChatTrashPolicyTest {
         )
         assertEquals(800,window.single().text.length)
     }
+
+    @Test fun referentialCodeFollowupKeepsMoreHistoryThanPlainRequest() {
+        val code = "class Example {" + "override fun run() = 1; ".repeat(65) + "}"
+        val history = listOf(ChatMessage(text=code,isUser=false))
+        val normal = ChatContextWindow.selectForTask(history,"Расскажи о компиляции")
+        val followup = ChatContextWindow.selectForTask(history,"Исправь предыдущий код")
+        assertEquals(800,normal.single().text.length)
+        assertTrue(followup.single().text.length > 800)
+        assertTrue(followup.single().text.startsWith("class Example"))
+    }
+    @Test fun followupContextUsesOnlyRecentMessagesInSameChat() {
+        val messages = (1..30).map { ChatMessage(text="Message " + it,isUser=false) }
+        val picked = ChatContextWindow.selectForTask(messages,"добавь еще один пример")
+        assertTrue(picked.size <= 10)
+        assertEquals("Message 30",picked.last().text)
+        assertFalse(picked.any { it.text == "Message 1" })
+    }
 }
