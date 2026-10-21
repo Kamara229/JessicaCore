@@ -4,7 +4,7 @@ const CODING_INTENT=/(?:\b(?:code|coding|debug|refactor|compile|compiler|script|
 const FENCES = /\x60{3}\s*([a-z0-9+#._-]+)?\s*\n/giu;
 
 function mentions(text,alias) {
-    const escaped=alias.replace(/[^\p{L}\p{N}\s]/gu,"\\$&");
+    const escaped=alias.replaceAll("+","\\+").replaceAll(".","\\.");
     return new RegExp("(^|[^\\p{L}\\p{N}_])"+escaped+"(?=$|[^\\p{L}\\p{N}_])","iu").test(text);
 }
 export function detectProgrammingLanguages(task,files=[]) {
