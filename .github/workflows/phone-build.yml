@@ -1,0 +1,41 @@
+name: Phone Chat Build and Tests
+on:
+  push:
+    branches: [codex/ordinary-chat-autopilot]
+  pull_request:
+    paths:
+      - 'app/src/**'
+      - 'backend/core/codex/**'
+      - 'backend/http/routes/phoneChatRoute.js'
+      - 'backend/scripts/regressionPhoneChat.test.js'
+      - '.github/phone/**'
+      - '.github/workflows/phone-build.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - run: npm install --prefix backend --package-lock=false --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionPhoneChat.test.js backend/scripts/regressionCodexCollaboration.test.js backend/scripts/regressionCodexDayMode.test.js
+      - run: gradle testDebugUnitTest assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ordinary-chat-debug-tests
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/test-results/testDebugUnitTest

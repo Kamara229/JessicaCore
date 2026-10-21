@@ -1,0 +1,37 @@
+name: Jessica Phone Verification
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: phone-verify-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  phone-verify:
+    if: startsWith(github.head_ref, 'phone-chat/') && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch candidate as data
+        env:
+          PHONE_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: git fetch origin "$PHONE_HEAD"
+      - name: Install only base-branch dependencies
+        run: npm install --prefix backend --package-lock=false --ignore-scripts --no-audit --no-fund
+      - name: Prepare unprivileged runtime
+        run: docker pull node:22-bookworm-slim
+      - name: Verify source boundary and baseline-to-fixed regression
+        env:
+          PHONE_HEAD: ${{ github.event.pull_request.head.sha }}
+          PHONE_BASE: ${{ github.event.pull_request.base.sha }}
+          PHONE_BRANCH: ${{ github.head_ref }}
+        run: node .github/phone/verify.mjs

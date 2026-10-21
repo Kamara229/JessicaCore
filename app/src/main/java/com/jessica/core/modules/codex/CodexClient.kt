@@ -14,6 +14,11 @@ class CodexClient {
 
     suspend fun configuration(): JSONObject = request("/api/codex/config", null)
 
+    suspend fun phone(action: String, ownerKey: String, data: JSONObject): JSONObject {
+        require(action in setOf("prepare", "submit", "status", "stop"))
+        return request("/api/codex/phone/" + action, data.put("ownerKey", ownerKey))
+    }
+
     /** Start an API-free day shift; no OpenAI/Codex billing key is sent or used. */
     suspend fun startDay(ownerKey: String, goal: String = "auto"): JSONObject =
         request("/api/codex/day/start", JSONObject().apply {
