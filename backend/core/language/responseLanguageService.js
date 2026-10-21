@@ -55,7 +55,7 @@ function numbersUnchanged(original, revised) {
     return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
-function requestedTranslation(task) {
+export function requestedTranslation(task) {
     const value=String(task || "");
     const direct=/\btranslat(?:e|ion|ing)\b|перев(?:еди|ести|од)|übersetz|tradu(?:is|ir|ce|ire)|翻译|翻譯|翻訳|ترجم|ترجمة|traduzir/iu;
     // A request for a different NATURAL language overrides the UI preference,
