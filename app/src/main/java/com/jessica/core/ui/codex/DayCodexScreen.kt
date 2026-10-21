@@ -1,6 +1,7 @@
 package com.jessica.core.ui.codex
 
 import android.content.Context
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -112,7 +113,10 @@ fun DayCodexScreen() {
             modifier=Modifier.fillMaxWidth()
         )
         if(issue<=0 || status=="closed") {
-            Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier=Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement=Arrangement.spacedBy(6.dp)
+            ) {
                 listOf(
                     "auto" to uiText("Авто","Auto"),
                     "language" to uiText("Языки","Language"),
