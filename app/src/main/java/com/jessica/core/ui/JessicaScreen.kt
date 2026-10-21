@@ -63,6 +63,7 @@ fun JessicaScreen() {
     val chatViewModel = remember {
         ChatViewModel(
             threadStore = ChatThreadStore(context.applicationContext),
+            languageProvider = languageStore::current,
             attachmentStore = ChatAttachmentStore(context.applicationContext),
             messageExecutor = { request, history, attachments ->
                 controller.executeChatMessage(request, history, attachments)
