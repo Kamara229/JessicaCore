@@ -40,6 +40,9 @@ class ChatAutomationTest {
         val prompt = ChatConnectivityProbe.prompt(id)
         assertTrue(prompt.contains("JESSICA_REPLY_$id"))
         assertTrue(prompt.contains("JESSICA_END_$id"))
+        // The request itself must never contain standalone delimiters. Only the
+        // actual assistant reply may be interpreted as successful.
+        assertNull(ChatUiPolicy.reply(prompt,id))
         assertTrue(ChatConnectivityProbe.accepts("""{"nonce":"$id","ok":true}""",id))
         assertFalse(ChatConnectivityProbe.accepts("""{"nonce":"different","ok":true}""",id))
         assertFalse(ChatConnectivityProbe.accepts("""{"nonce":"$id","ok":false}""",id))
