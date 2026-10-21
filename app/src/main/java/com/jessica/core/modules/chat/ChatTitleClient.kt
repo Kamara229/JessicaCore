@@ -8,7 +8,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /** One short AI title, after a new chat receives its first answer. */
-class ChatTitleClient {
+class ChatTitleClient(private val languageProvider: () -> String = { "ru" }) {
     suspend fun suggest(firstTask: String, firstAnswer: String): String? = withContext(Dispatchers.IO) {
         if (BuildConfig.JESSICA_APP_TOKEN.isBlank()) return@withContext null
         val connection = URL("https://jessicacore.onrender.com/api/chat/title")
@@ -23,6 +23,7 @@ class ChatTitleClient {
             val body = JSONObject().apply {
                 put("task", firstTask.take(1800))
                 put("answer", firstAnswer.take(1200))
+                put("language", languageProvider().takeIf { it == "en" } ?: "ru")
             }.toString()
             connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
             if (connection.responseCode !in 200..299) return@withContext null
