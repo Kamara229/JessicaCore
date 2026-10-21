@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import com.jessica.core.ui.language.uiText
 
 /** One compact composer with an always-visible send action. */
 @Composable
@@ -55,7 +56,7 @@ fun ChatInput(
                 enabled = enabled,
                 maxLines = 5,
                 minLines = 1,
-                placeholder = { Text("Сообщение для Jessica") },
+                placeholder = { Text(uiText("Сообщение для Jessica", "Message Jessica")) },
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,
