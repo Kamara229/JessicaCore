@@ -28,9 +28,12 @@ export function codexConfiguration() {
 /** The Android app token is shared with every APK; it is NOT owner authentication. */
 export function validCodexOwnerKey(candidate) {
     const expected=process.env.JESSICA_CODEX_OWNER_KEY||"";
-    if(typeof candidate!=="string" || candidate.length<16 ||
-        expected.length<24 || candidate.length!==expected.length) return false;
-    return timingSafeEqual(Buffer.from(candidate),Buffer.from(expected));
+    if(typeof candidate!=="string" || candidate.length<16 || expected.length<24 ||
+        candidate.length>256) return false;
+    const actualBytes=Buffer.from(candidate,"utf8");
+    const expectedBytes=Buffer.from(expected,"utf8");
+    if(actualBytes.length!==expectedBytes.length)return false;
+    return timingSafeEqual(actualBytes,expectedBytes);
 }
 
 export function validateCodexIssue(value) {
