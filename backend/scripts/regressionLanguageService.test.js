@@ -155,20 +155,21 @@ test("unrelated translation task is not intercepted by previous-answer handler",
         [{role:"assistant",content:"Hello"}],"en"),null);
 });
 
-test("localizing a coding answer must keep generated source blocks byte-for-byte", async () => {
+
+test("localizing a coding answer never rewrites preserved source blocks", async () => {
     const fence=String.fromCharCode(96).repeat(3);
     const code=fence+"python\ndef add(a,b):\n    return a+b\n"+fence;
     const original={mode:"single",success:true,text:"Объяснение:\n"+code};
     const changed=await localizeResponse(original,"Напиши код на Python","en",
-        async()=>"Explanation:\n"+code.replace("return a+b","return a-b"));
-    assert.equal(changed.localizationStatus,"code-block-mismatch");
+        async()=>JSON.stringify({parts:["Explanation:\n"+code.replace("return a+b","return a-b")]}));
+    assert.equal(changed.localizationStatus,"code-prose-adaptation-failed");
     assert.equal(changed.text,original.text);
     const correct=await localizeResponse(original,"Напиши код на Python","en",
-        async()=>"Explanation:\n"+code);
+        async()=>JSON.stringify({parts:["Explanation:"]}));
     assert.equal(correct.localizationStatus,"adapted");
+    assert.ok(correct.text.includes("Explanation:"));
     assert.ok(correct.text.endsWith(code));
 });
-
 
 test("Russian UI translates English programming prose but preserves Python source bytes", async () => {
     const ticks=String.fromCharCode(96).repeat(3);
