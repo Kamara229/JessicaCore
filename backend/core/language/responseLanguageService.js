@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { getGroqClient } from "../../ai/groqClient.js";
-import {containsCodeFence, translateCodeProse, visibleProse} from "./codeAwareLocale.js";
+import {containsCodeFence, translateCodeProse, translateForeignEnglishProse, hasForeignEnglishProse, visibleProse} from "./codeAwareLocale.js";
 
 /**
  * Presentation-only language adaptation. Never changes the solved task,
@@ -73,9 +73,11 @@ export async function localizeResponse(result, task, language, generate) {
     if (result.text.length > 14000) return {...result, outputLanguage: code, localizationStatus: "long-answer-original"};
     // Avoid unnecessary second-model rewriting of correct Russian answers.
     // Translation instructions in the request always override this shortcut.
-    if (code === "ru" && !requestedTranslation(task) && answerAlreadyInRussian(result.text))
+    const foreignProse = code === "ru" && !requestedTranslation(task) &&
+        hasForeignEnglishProse(result.text);
+    if (code === "ru" && !requestedTranslation(task) && answerAlreadyInRussian(result.text) && !foreignProse)
         return {...result, outputLanguage: code, localizationStatus: "already-russian"};
-    const run = generate ?? (async (prompt, payload) => {
+    const run = generate ?? (async (prompt, payload, format = null) => {
         if (!process.env.GROQ_API_KEY) return null;
         const response = await getGroqClient().chat.completions.create({
             model: "openai/gpt-oss-20b",
@@ -83,6 +85,7 @@ export async function localizeResponse(result, task, language, generate) {
             reasoning_effort: "low",
             include_reasoning: false,
             max_completion_tokens: 4600,
+            ...(format === "json" ? {response_format: {type: "json_object"}} : {}),
             messages: [
                 {role: "system", content: prompt},
                 {role: "user", content: JSON.stringify(payload)}
@@ -93,7 +96,9 @@ export async function localizeResponse(result, task, language, generate) {
     });
     let revised = "";
     try {
-        if (containsCodeFence(result.text)) {
+        if (foreignProse) {
+            revised = await translateForeignEnglishProse(result.text,task,run) || "";
+        } else if (containsCodeFence(result.text)) {
             revised = await translateCodeProse(result.text,task,code,run) || "";
         } else {
             revised = await run(buildLanguageInstructions(code), {
@@ -105,8 +110,8 @@ export async function localizeResponse(result, task, language, generate) {
         console.warn("Jessica language adaptation unavailable:", {status:error?.status||null});
     }
     if (typeof revised !== "string" || revised.length < 2)
-        return {...result, outputLanguage: code, localizationStatus: containsCodeFence(result.text)
-            ? "code-prose-adaptation-failed" : "original"};
+        return {...result, outputLanguage: code, localizationStatus: foreignProse ? "mixed-prose-adaptation-failed" :
+            containsCodeFence(result.text) ? "code-prose-adaptation-failed" : "original"};
     // A language model may accidentally reformat citations or identifiers.
     // Reject rather than silently corrupting evidence, URLs and inline code.
     const protectedTokens = protectedAnswerTokens(result);
