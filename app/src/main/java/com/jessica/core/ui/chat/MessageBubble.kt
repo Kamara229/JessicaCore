@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.chat.ChatMessage
+import com.jessica.core.ui.language.uiText
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -66,7 +67,7 @@ fun MessageBubble(
                     if (message.attachments.isNotEmpty()) {
                         message.attachments.forEach { attachment ->
                             Text(
-                                "📎 ${attachment.name} (${(attachment.sizeBytes + 1023) / 1024} КБ)",
+                                "📎 ${attachment.name} (${(attachment.sizeBytes + 1023) / 1024} " + uiText("КБ", "KB") + ")",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(bottom = 6.dp)
