@@ -10,6 +10,8 @@ import {
     translatePreviousReply
 } from "../core/language/responseLanguageService.js";
 import {isBareSourceOnly,hasForeignEnglishProse} from "../core/language/codeAwareLocale.js";
+import {enforcePresentationLanguage} from "../core/language/strictPresentationLanguage.js";
+import {requestedTranslation} from "../core/language/responseLanguageService.js";
 
 test("only Russian and English are valid interface locales", () => {
     assert.equal(normalizeOutputLanguage("en"),"en");
@@ -317,4 +319,43 @@ test("raw code without fenced Markdown may be preserved, but an English introduc
     assert.equal(isBareSourceOnly("Here is the solution:\ntry this."),false);
     assert.equal(hasForeignEnglishProse("Here is the function:"),true);
     assert.equal(hasForeignEnglishProse("В Kotlin функция возвращает Long."),false);
+});
+
+test("Russian locale never passes untranslated English narrative as a successful answer", () => {
+    const original={mode:"single",success:true,text:"Here is a simple Python implementation with error handling."};
+    const guarded=enforcePresentationLanguage(original,{task:"Напиши функцию на Python",language:"ru"});
+    assert.equal(guarded.success,false);
+    assert.equal(guarded.localizationStatus,"ru-narrative-not-verified");
+    assert.match(guarded.text,/Не удалось подготовить ответ на русском языке/);
+    assert.ok(!guarded.text.includes("Here is"));
+    assert.equal(original.success,true);
+    assert.equal(original.text,"Here is a simple Python implementation with error handling.");
+});
+
+test("Russian locale preserves fenced source even when accompanying English explanation cannot be translated",()=>{
+    const fence=String.fromCharCode(96).repeat(3);
+    const code=fence+"python\\ndef factorial(n):\\n    return n*factorial(n-1) if n else 1\\n"+fence;
+    const original={mode:"single",success:true,text:"Here is a simple factorial function:\\n\\n"+code+"\\n\\nYou can call this function with a number."};
+    const guarded=enforcePresentationLanguage(original,{task:"Напиши функцию на Python",language:"ru"});
+    assert.equal(guarded.success,false);
+    assert.ok(guarded.text.includes(code));
+    assert.ok(!guarded.text.includes("Here is a simple"));
+    assert.match(guarded.text,/не подтверждены/);
+});
+
+test("programming language alone is not an explicit request for English prose",()=>{
+    assert.equal(requestedTranslation("Напиши программу на Kotlin и объясни на русском"),false);
+    assert.equal(requestedTranslation("Напиши функцию на Python для факториала"),false);
+    assert.equal(requestedTranslation("Ответь на английском языке"),true);
+});
+
+test("explicit foreign-language response and English locale are not rewritten by Russian guard",()=>{
+    const english={mode:"single",success:true,text:"Here is the correct answer in English."};
+    assert.equal(enforcePresentationLanguage(english,{task:"Ответь на английском языке",language:"ru",override:true}),english);
+    assert.equal(enforcePresentationLanguage(english,{task:"Question",language:"en"}),english);
+});
+
+test("already Russian narrative remains untouched by strict fallback",()=>{
+    const answer={mode:"single",success:true,text:"Здесь приведён исправленный вариант функции с обработкой ошибок."};
+    assert.equal(enforcePresentationLanguage(answer,{language:"ru"}),answer);
 });
