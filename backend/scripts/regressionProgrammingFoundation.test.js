@@ -82,3 +82,8 @@ test("unexecuted code never turns into positive autonomous Experience", () => {
     assert.equal(needsProgrammingRuntimeEvidence("Write JavaScript code",
         {toolResults:[{tool:"run_tests",success:true,verified:false,validation:{valid:true}}]}),true);
 });
+
+test("Russian legal code references are not programming tasks", () => {
+    assert.equal(analyzeProgrammingTask("Объясни положения Гражданского кодекса РФ").relevant,false);
+    assert.equal(needsProgrammingRuntimeEvidence("Гражданский кодекс РФ статья 309",{}),false);
+});
