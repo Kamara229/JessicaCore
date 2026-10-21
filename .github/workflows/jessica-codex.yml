@@ -137,7 +137,8 @@ jobs:
           gh auth setup-git
           git push -u origin HEAD
           echo "Automatic Codex/Jessica improvement; peer review and regression checks completed. No auto-merge. Closes #$CODEX_ISSUE" > codex-pr-body.md
-          gh pr create --base main --head "codex/session-$CODEX_ISSUE" --title "[Jessica Codex] $CODEX_GOAL improvement" --body-file codex-pr-body.md
+          pr_url=$(gh pr create --base main --head "codex/session-$CODEX_ISSUE" --title "[Jessica Codex] $CODEX_GOAL improvement" --body-file codex-pr-body.md)
+          gh issue comment "$CODEX_ISSUE" --body "[System] Reviewable PR opened: $pr_url"
       - name: End bounded conversation
         if: always()
         env:
