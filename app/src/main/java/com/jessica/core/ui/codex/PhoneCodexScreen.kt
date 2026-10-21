@@ -27,6 +27,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.codex.PhoneCodexHandoff
 import com.jessica.core.ui.language.uiText
+import com.jessica.core.ui.language.LocalAppLanguage
+import com.jessica.core.ui.language.localeText
 
 /**
  * On-device (not Render) launch and handoff to the installed ChatGPT app.
@@ -35,6 +37,7 @@ import com.jessica.core.ui.language.uiText
 @Composable
 fun PhoneCodexScreen() {
     val context = LocalContext.current
+    val language = LocalAppLanguage.current
     val prefs = remember { context.getSharedPreferences("jessica_codex_phone", Context.MODE_PRIVATE) }
     var goal by remember { mutableStateOf(prefs.getString("goal","language") ?: "language") }
     var url by remember { mutableStateOf(prefs.getString("chat_link","") ?: "") }
@@ -87,7 +90,7 @@ fun PhoneCodexScreen() {
             Button(onClick={
                 val normalized = PhoneCodexHandoff.normalizePrivateChatLink(url)
                 if(url.isNotBlank() && normalized==null) {
-                    notice=uiText("Неверная ссылка на приватный чат ChatGPT", "Invalid private ChatGPT conversation link")
+                    notice=localeText(language,"Неверная ссылка на приватный чат ChatGPT", "Invalid private ChatGPT conversation link")
                     return@Button
                 }
                 prefs.edit().putString("chat_link",normalized ?: "").apply()
@@ -96,7 +99,7 @@ fun PhoneCodexScreen() {
                 running=true
                 val opened=PhoneCodexHandoff.openChatGPT(context,normalized)
                 notice=if(opened)
-                    uiText("Запрос скопирован. В ChatGPT открой нужный чат, вставь текст и отправь.", "Prompt copied. Open the intended ChatGPT chat, paste the text and send it.")
+                    localeText(language, "Запрос скопирован. В ChatGPT открой нужный чат, вставь текст и отправь.", "Prompt copied. Open the intended ChatGPT chat, paste the text and send it.")
                 else uiText("Запрос скопирован. ChatGPT открыть не удалось — открой его вручную.", "Prompt copied. ChatGPT could not be opened; please launch it manually.")
             },modifier=Modifier.fillMaxWidth()){
                 Text(uiText("▶ Запустить на телефоне","▶ Start on device"))
@@ -109,7 +112,7 @@ fun PhoneCodexScreen() {
                 OutlinedButton(onClick={
                     val clip=context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     clip.setPrimaryClip(ClipData.newPlainText("Jessica Codex request",prompt))
-                    notice=uiText("Запрос снова скопирован", "Prompt copied again")
+                    notice=localeText(language,"Запрос снова скопирован", "Prompt copied again")
                 }){Text(uiText("Копировать запрос","Copy prompt"))}
                 OutlinedButton(onClick={
                     PhoneCodexHandoff.openChatGPT(
@@ -118,7 +121,7 @@ fun PhoneCodexScreen() {
             }
             Button(onClick={
                 running=false
-                notice=uiText("Локальная сессия остановлена. Сообщения в ChatGPT не удаляются.", "Local handoff stopped. Messages in ChatGPT are unchanged.")
+                notice=localeText(language,"Локальная сессия остановлена. Сообщения в ChatGPT не удаляются.", "Local handoff stopped. Messages in ChatGPT are unchanged.")
             },modifier=Modifier.fillMaxWidth()){
                 Text(uiText("■ Остановить","■ Stop"))
             }
