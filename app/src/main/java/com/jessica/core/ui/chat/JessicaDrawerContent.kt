@@ -53,6 +53,7 @@ fun JessicaDrawerContent(
     onRestore: (String) -> Unit,
     onTasks: () -> Unit,
     onReports: () -> Unit,
+    onCodex: () -> Unit,
     onSettings: () -> Unit
 ) {
     var languageExpanded by remember { mutableStateOf(false) }
@@ -211,6 +212,14 @@ fun JessicaDrawerContent(
                         label = { Text(uiText("Отчёты", "Reports")) },
                         selected = false,
                         onClick = onReports,
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+                item {
+                    NavigationDrawerItem(
+                        label = { Text("🤖  Codex ↔ Jessica") },
+                        selected = false,
+                        onClick = onCodex,
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
                 }
