@@ -35,7 +35,7 @@ export async function localizeResponse(result, task, language, generate) {
     if (!result || typeof result.text !== "string" || !result.text.trim()) return result;
     const code = normalizeOutputLanguage(language);
     if (result.text.length > 14000) return {...result, outputLanguage: code, localizationStatus: "long-answer-original"};
-    const run = generate ?? async (prompt, payload) => {
+    const run = generate ?? (async (prompt, payload) => {
         if (!process.env.GROQ_API_KEY) return null;
         const response = await getGroqClient().chat.completions.create({
             model: "openai/gpt-oss-20b",
@@ -50,7 +50,7 @@ export async function localizeResponse(result, task, language, generate) {
         });
         if (response?.choices?.[0]?.finish_reason === "length") return null;
         return String(response?.choices?.[0]?.message?.content || "").trim();
-    };
+    });
     let revised = "";
     try {
         revised = await run(buildLanguageInstructions(code), {
