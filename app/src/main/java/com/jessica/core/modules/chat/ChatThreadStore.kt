@@ -221,7 +221,7 @@ class ChatThreadStore(context: Context) {
         if (needle.isEmpty()) return emptyList()
         ensureMigrated()
         purgeExpired()
-        val trashSearch = needle.lowercase() in setOf("удаленные", "удалённые", "корзина")
+        val trashSearch = needle.lowercase() in setOf("удаленные", "удалённые", "корзина", "deleted", "trash")
         return readIndex().sortedByDescending { it.updatedAt }.mapNotNull { thread ->
             if (trashSearch && thread.deletedAt == null) return@mapNotNull null
             if (trashSearch) return@mapNotNull ChatSearchResult(thread, "")
