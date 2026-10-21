@@ -13,7 +13,9 @@ import java.net.SocketTimeoutException
 import java.net.URL
 
 
-class JessicaAIEngine : AIEngine {
+class JessicaAIEngine(
+    private val languageProvider: () -> String = { "ru" }
+) : AIEngine {
 
     companion object {
 
@@ -175,6 +177,7 @@ class JessicaAIEngine : AIEngine {
                         "task",
                         task
                     )
+                    put("outputLanguage", languageProvider().takeIf { it == "en" } ?: "ru")
 
                     val conversation = JSONArray()
                     ChatContextWindow.select(history).forEach { item ->
