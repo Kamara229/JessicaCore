@@ -21,7 +21,9 @@ export function codexConfiguration() {
         ready:Boolean(process.env.JESSICA_CODEX_OWNER_KEY &&
             process.env.JESSICA_GITHUB_AUTOMATION_TOKEN),
         goals:codexGoals(),
-        githubRepo:REPO
+        githubRepo:REPO,
+        apiFreeDayMode:true,
+        apiFreeDayReady:Boolean(process.env.JESSICA_CODEX_OWNER_KEY && process.env.JESSICA_GITHUB_AUTOMATION_TOKEN)
     };
 }
 
@@ -63,6 +65,55 @@ async function github(path,{method="GET",body}={}) {
     return response.json();
 }
 const root="/repos/"+REPO;
+
+
+// API-free, bounded GitHub Actions day shift. It does NOT invoke Codex
+// or another paid language model. It adds only vetted regression tests.
+const DAY_GOALS=new Set(["auto","language","context","foundations"]);
+let dayStartInFlight=false;
+let latestDayStart=0;
+
+export async function startCodexDay(goal="auto",api=github) {
+    if(!DAY_GOALS.has(goal))return {ok:false,status:400,reason:"invalid-day-goal"};
+    if(!codexConfiguration().ready)
+        return {ok:false,status:503,reason:"day-github-not-configured"};
+    if(dayStartInFlight||Date.now()-latestDayStart<120000)
+        return {ok:false,status:429,reason:"day-start-cooldown"};
+    dayStartInFlight=true;
+    try{
+        const issues=await api(root+"/issues?state=open&per_page=60");
+        if(issues.some(item=>!item.pull_request && item.title?.startsWith(PREFIX)))
+            return {ok:false,status:409,reason:"codex-session-already-running"};
+        const issue=await api(root+"/issues",{method:"POST",body:{
+            title:PREFIX+" day:"+goal,
+            body:[
+                "Owner-requested API-free Jessica daytime self-audit.",
+                "Fixed objective: "+goal+".",
+                "No prompts, private chat messages, attachments or tokens are shared here.",
+                "This workflow runs deterministic checks and may propose ONE new test in a PR.",
+                "No OpenAI API, no model calls, no unattended production deploy or merge."
+            ].join("\n\n")
+        }});
+        try{
+            await api(root+"/actions/workflows/jessica-day.yml/dispatches",{
+                method:"POST",body:{ref:"main",inputs:{issue:String(issue.number),goal}}
+            });
+        }catch(error){
+            await api(root+"/issues/"+issue.number,{method:"PATCH",body:{
+                state:"closed",state_reason:"not_planned"
+            }}).catch(()=>{});
+            throw error;
+        }
+        latestDayStart=Date.now();
+        return {ok:true,status:202,issue:issue.number,url:issue.html_url,
+            goal,mode:"api-free-day",usesPaidModel:false};
+    }catch(error){
+        console.warn("Jessica day start failed",{code:error.message});
+        return {ok:false,status:502,reason:"day-dispatch-failed"};
+    }finally{
+        dayStartInFlight=false;
+    }
+}
 
 export async function startCodexSession(goal, api=github) {
     if(!Object.hasOwn(ALLOWED_GOALS,goal)) return {ok:false,status:400,reason:"invalid-goal"};
@@ -143,14 +194,21 @@ export async function stopCodexSession(issueNumber,api=github) {
         await api(root+"/issues/"+id,{
             method:"PATCH",body:{state:"closed",state_reason:"not_planned"}
         });
-        // Best effort: cancel the active GitHub Actions runner, not just PR publication.
+        // Best effort: cancel either legacy paid mode or the API-free day mode.
+        // Both jobs verify issue state before any repository write.
         try{
-            const runs=await api(root+"/actions/workflows/jessica-codex.yml/runs?per_page=40");
-            const active=(runs.workflow_runs||[]).filter(run=>
-                (run.status==="queued"||run.status==="in_progress"||run.status==="waiting") &&
-                String(run.display_title||"").startsWith("Jessica Codex #"+id+" / "));
-            for(const run of active.slice(0,2)){
-                await api(root+"/actions/runs/"+run.id+"/cancel",{method:"POST"}).catch(()=>{});
+            const workflows=[
+                ["jessica-codex.yml","Jessica Codex #"+id+" / "],
+                ["jessica-day.yml","Jessica Day #"+id+" / "]
+            ];
+            for(const [workflow,titlePrefix] of workflows){
+                const runs=await api(root+"/actions/workflows/"+workflow+"/runs?per_page=40");
+                const active=(runs.workflow_runs||[]).filter(run=>
+                    ["queued","in_progress","waiting"].includes(run.status) &&
+                    String(run.display_title||"").startsWith(titlePrefix));
+                for(const run of active.slice(0,2)){
+                    await api(root+"/actions/runs/"+run.id+"/cancel",{method:"POST"}).catch(()=>{});
+                }
             }
         }catch(error){
             console.warn("Codex runner cancellation unavailable",{code:error.message});

@@ -1,6 +1,6 @@
 import {requireJessicaAuthorization} from "../auth/jessicaAuth.js";
 import {codexConfiguration,validCodexOwnerKey,startCodexSession,
-    readCodexSession,stopCodexSession,codexGoals} from "../../core/codex/codexSessionService.js";
+    readCodexSession,stopCodexSession,codexGoals,startCodexDay} from "../../core/codex/codexSessionService.js";
 import {reviewCodexEngineering} from "../../core/codex/codexPeerReview.js";
 
 /**
@@ -16,6 +16,11 @@ export function registerCodexRoutes(app) {
             .json({success:false,reason:"owner-key-required"});
         next();
     };
+    // Owner-only free daytime checks. Legacy paid Codex flow stays opt-in.
+    app.post("/api/codex/day/start",requireJessicaAuthorization,onlyOwner,async(req,res)=>{
+        const result=await startCodexDay(req.body?.goal||"auto");
+        res.set("Cache-Control","no-store").status(result.status).json(result);
+    });
     app.post("/api/codex/start",requireJessicaAuthorization,onlyOwner,async(req,res)=>{
         const result=await startCodexSession(req.body?.goal||"foundations");
         res.set("Cache-Control","no-store").status(result.status).json(result);
