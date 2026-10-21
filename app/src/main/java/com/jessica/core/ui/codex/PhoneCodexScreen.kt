@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -41,7 +43,7 @@ fun PhoneCodexScreen() {
     val prompt = remember(goal) { PhoneCodexHandoff.buildPrompt(goal) }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(uiText("Codex на телефоне", "Codex on this phone"),
@@ -85,7 +87,7 @@ fun PhoneCodexScreen() {
             Button(onClick={
                 val normalized = PhoneCodexHandoff.normalizePrivateChatLink(url)
                 if(url.isNotBlank() && normalized==null) {
-                    notice=if(url.isNotBlank()) "Неверная ссылка на приватный чат ChatGPT" else ""
+                    notice=uiText("Неверная ссылка на приватный чат ChatGPT", "Invalid private ChatGPT conversation link")
                     return@Button
                 }
                 prefs.edit().putString("chat_link",normalized ?: "").apply()
@@ -94,8 +96,8 @@ fun PhoneCodexScreen() {
                 running=true
                 val opened=PhoneCodexHandoff.openChatGPT(context,normalized)
                 notice=if(opened)
-                    "Запрос скопирован. В ChatGPT открой нужный чат, вставь текст и отправь."
-                else "Запрос скопирован. ChatGPT открыть не удалось — открой его вручную."
+                    uiText("Запрос скопирован. В ChatGPT открой нужный чат, вставь текст и отправь.", "Prompt copied. Open the intended ChatGPT chat, paste the text and send it.")
+                else uiText("Запрос скопирован. ChatGPT открыть не удалось — открой его вручную.", "Prompt copied. ChatGPT could not be opened; please launch it manually.")
             },modifier=Modifier.fillMaxWidth()){
                 Text(uiText("▶ Запустить на телефоне","▶ Start on device"))
             }
@@ -107,7 +109,7 @@ fun PhoneCodexScreen() {
                 OutlinedButton(onClick={
                     val clip=context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     clip.setPrimaryClip(ClipData.newPlainText("Jessica Codex request",prompt))
-                    notice="Запрос снова скопирован"
+                    notice=uiText("Запрос снова скопирован", "Prompt copied again")
                 }){Text(uiText("Копировать запрос","Copy prompt"))}
                 OutlinedButton(onClick={
                     PhoneCodexHandoff.openChatGPT(
@@ -116,7 +118,7 @@ fun PhoneCodexScreen() {
             }
             Button(onClick={
                 running=false
-                notice="Локальная сессия остановлена. Сообщения в ChatGPT не удаляются."
+                notice=uiText("Локальная сессия остановлена. Сообщения в ChatGPT не удаляются.", "Local handoff stopped. Messages in ChatGPT are unchanged.")
             },modifier=Modifier.fillMaxWidth()){
                 Text(uiText("■ Остановить","■ Stop"))
             }
