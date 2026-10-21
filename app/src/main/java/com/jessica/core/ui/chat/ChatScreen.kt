@@ -25,6 +25,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.chat.ChatMessage
+import com.jessica.core.ui.language.uiText
 
 @Composable
 fun ChatScreen(
@@ -46,8 +47,9 @@ fun ChatScreen(
     Column(modifier = Modifier.fillMaxSize().imePadding()) {
         if (state.previewDeletedThreadId != null) {
             Text(
-                "Удалённый чат «" + (state.previewDeletedTitle ?: "Чат") +
-                    "» · Только просмотр. Для восстановления нажми ↶ вверху справа.",
+                uiText("Удалённый чат «", "Deleted chat “") + (state.previewDeletedTitle ?: uiText("Чат", "Chat")) +
+                    uiText("» · Только просмотр. Для восстановления нажми ↶ вверху справа.",
+                        "” · Read-only. Tap ↶ at the top right to restore."),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)
@@ -68,9 +70,10 @@ fun ChatScreen(
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.headlineLarge
                     )
-                    Text("Чем займёмся?", style = MaterialTheme.typography.titleLarge)
+                    Text(uiText("Чем займёмся?", "How can I help?"), style = MaterialTheme.typography.titleLarge)
                     Text(
-                        "Расскажи о задаче. Я помогу разобраться и сохранить контекст.",
+                        uiText("Расскажи о задаче. Я помогу разобраться и сохранить контекст.",
+                            "Tell me what you need. I can help and keep track of the conversation."),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -99,7 +102,7 @@ fun ChatScreen(
 
         if (state.isLoading) {
             Text(
-                "Загружаю историю…",
+                uiText("Загружаю историю…", "Loading chat history…"),
                 modifier = Modifier.padding(horizontal = 20.dp),
                 style = MaterialTheme.typography.bodySmall
             )
@@ -130,7 +133,7 @@ fun ChatScreen(
         }
         if (state.isImporting) {
             Text(
-                "Прикрепляю файл…",
+                uiText("Прикрепляю файл…", "Attaching file…"),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
