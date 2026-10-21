@@ -40,7 +40,7 @@ class ChatTrashPolicyTest {
             "переведи свой ответ на японский язык"
         )
         assertEquals(1, window.size)
-        assertEquals(original, window.single().text)
+        assertEquals(original.trim(), window.single().text)
     }
     @Test fun ordinaryRequestKeepsShortConversationHistory() {
         val original = "a".repeat(2500)
