@@ -1,6 +1,7 @@
 package com.jessica.core.ui.chat
 
 import android.net.Uri
+import com.jessica.core.ui.language.AppLanguage
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -47,13 +48,14 @@ data class ChatState(
 class ChatViewModel(
     private val threadStore: ChatThreadStore,
     private val attachmentStore: ChatAttachmentStore,
-    private val messageExecutor: suspend (String, List<ChatMessage>, List<ChatAttachment>) -> String
+    private val messageExecutor: suspend (String, List<ChatMessage>, List<ChatAttachment>) -> String,
+    private val languageProvider: () -> AppLanguage = { AppLanguage.RUSSIAN }
 ) : ViewModel() {
     private val _state = MutableStateFlow(ChatState())
     val state: StateFlow<ChatState> = _state.asStateFlow()
     private val syncMutex = Mutex()
     private var searchJob: Job? = null
-    private val titleClient = ChatTitleClient()
+    private val titleClient = ChatTitleClient { languageProvider().code }
     private val syncClient = ChatDebugSyncClient()
 
     init {
@@ -364,7 +366,11 @@ class ChatViewModel(
         val entered = current.input.text.trim()
         if ((entered.isEmpty() && files.isEmpty()) ||
             current.isRunning || current.isLoading || current.isImporting || current.previewDeletedThreadId != null) return
-        val task = entered.ifBlank { "Проанализируй приложенные файлы и расскажи об их содержании." }
+        val task = entered.ifBlank {
+            if (languageProvider() == AppLanguage.ENGLISH)
+                "Analyze the attached files and explain their contents."
+            else "Проанализируй приложенные файлы и расскажи об их содержании."
+        }
         val history = ChatContextWindow.select(current.messages)
         _state.value = current.copy(isRunning = true, storageError = null)
         submit(ChatMessage(text = task, isUser = true, attachments = files),
