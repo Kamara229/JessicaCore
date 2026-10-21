@@ -141,9 +141,11 @@ export function registerSolveRoute(
                         { conversation: req.body?.conversation, attachments: req.body?.attachments, outputLanguage }
                     );
 
-                const result = (coreResult?.mode === "translation" || coreResult?.mode === "code")
+                const result = coreResult?.mode === "translation"
                     ? {...coreResult, outputLanguage, localizationStatus:"explicit-translation"}
-                    : await localizeResponse(coreResult, task, outputLanguage);
+                    : coreResult?.mode === "code"
+                        ? {...coreResult, outputLanguage, localizationStatus:"code-preserved"}
+                        : await localizeResponse(coreResult, task, outputLanguage);
 
                 // Private owner-only diagnostic; failure must never
                 // prevent Jessica from replying to the Android client.
