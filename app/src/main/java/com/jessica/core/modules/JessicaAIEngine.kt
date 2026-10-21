@@ -17,6 +17,9 @@ class JessicaAIEngine(
     private val languageProvider: () -> String = { "ru" }
 ) : AIEngine {
 
+    private fun tr(ru: String, en: String): String =
+        if (languageProvider() == "en") en else ru
+
     companion object {
 
         private const val BACKEND_URL =
@@ -62,7 +65,7 @@ class JessicaAIEngine(
 
             return AIResult(
                 success = false,
-                text = "Задача пустая"
+                text = tr("Задача пустая", "The task is empty")
             )
 
         }
@@ -73,7 +76,7 @@ class JessicaAIEngine(
             return AIResult(
                 success = false,
                 text =
-                    "Ошибка конфигурации: JESSICA_APP_TOKEN отсутствует"
+                    tr("Ошибка конфигурации: JESSICA_APP_TOKEN отсутствует", "Configuration error: JESSICA_APP_TOKEN is missing")
             )
 
         }
@@ -96,7 +99,7 @@ class JessicaAIEngine(
                 AIResult(
                     success = false,
                     text =
-                        "Jessica не успела завершить задачу за отведённое время"
+                        tr("Jessica не успела завершить задачу за отведённое время", "Jessica could not complete the task before the timeout")
                 )
 
             } catch (e: Exception) {
@@ -104,9 +107,9 @@ class JessicaAIEngine(
                 AIResult(
                     success = false,
                     text =
-                        "Ошибка подключения к AI серверу: ${
+                        tr("Ошибка подключения к AI серверу: ", "Could not connect to the AI server: ") + "${
                             e.message
-                                ?: "неизвестная ошибка"
+                                ?: tr("неизвестная ошибка", "unknown error")
                         }"
                 )
 
@@ -277,13 +280,13 @@ class JessicaAIEngine(
                         when {
 
                             responseCode == 401 ->
-                                "Ошибка авторизации Jessica"
+                                tr("Ошибка авторизации Jessica", "Jessica authorization failed")
 
                             serverMessage.isNotBlank() ->
                                 serverMessage
 
                             else ->
-                                "Ошибка сервера: HTTP $responseCode"
+                                tr("Ошибка сервера: HTTP ", "Server error: HTTP ") + responseCode
 
                         }
                 )
@@ -324,7 +327,7 @@ class JessicaAIEngine(
 
                         } else {
 
-                            "AI сервер вернул ошибку"
+                            tr("AI сервер вернул ошибку", "AI server returned an error")
 
                         }
                 )
@@ -337,7 +340,7 @@ class JessicaAIEngine(
                 return AIResult(
                     success = false,
                     text =
-                        "AI сервер вернул пустой ответ"
+                        tr("AI сервер вернул пустой ответ", "AI server returned an empty answer")
                 )
 
             }
