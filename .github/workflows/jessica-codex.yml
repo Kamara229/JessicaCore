@@ -105,7 +105,7 @@ jobs:
       - name: Strict file scope and size guard
         run: node .github/codex/guard.mjs
       - name: Install trusted regression runtime
-        run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+        run: npm install --prefix backend --package-lock=false --ignore-scripts --no-audit --no-fund
       - name: Test source modifications
         run: node .github/codex/guard-tests.mjs
       - name: Prepare source diff
