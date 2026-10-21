@@ -9,7 +9,9 @@ object ChatTitlePolicy {
     private val alternatePatterns = listOf(
         Regex("""(?:этот|текущий)\s+чат\s+(?:назови|назвать|переименуй|переименовать)\s*(?::|—|-|как\b|в\b)?\s*["«]?([^\n"»!?]{3,100})""", RegexOption.IGNORE_CASE),
         Regex("""(?:пусть\s+)?(?:этот\s+)?чат\s+(?:будет\s+)?(?:называется|называться)\s*[:—-]?\s*["«]?([^\n"»!?]{3,100})""", RegexOption.IGNORE_CASE),
-        Regex("""(?:создай|создать)\s+чат\s+(?:с\s+)?названием\s*[:—-]?\s*["«]?([^\n"»!?]{3,100})""", RegexOption.IGNORE_CASE)
+        Regex("""(?:создай|создать)\s+чат\s+(?:с\s+)?названием\s*[:—-]?\s*["«]?([^\n"»!?]{3,100})""", RegexOption.IGNORE_CASE),
+        Regex("""(?:name|rename|call)\s+(?:this\s+|the\s+current\s+|my\s+)?chat\s*(?:to|as|:|—|-)?\s*["“«]?([^\n"”»!?]{3,100})""", RegexOption.IGNORE_CASE),
+        Regex("""(?:chat\s+(?:title|name)|(?:title|name)\s+(?:of\s+)?(?:this\s+)?chat)\s*[:—-]\s*["“«]?([^\n"”»!?]{3,100})""", RegexOption.IGNORE_CASE)
     )
     fun explicit(text: String): String? {
         for (pattern in listOf(explicitPattern) + alternatePatterns) {
