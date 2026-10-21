@@ -19,11 +19,27 @@ export function normalizeConversation(input, options = {}) {
         .slice(-10);
 }
 
+/** A pronoun may refer to an object introduced in the CURRENT request.
+ * Example: "Write a Python function. Explain how it works." This is not a
+ * reference to an earlier chat. Such tasks must not inherit unrelated
+ * evidence requirements or become context-dependent Learning outcomes.
+ */
+function hasLocalAntecedent(text) {
+    const explicitPast=/(?:предыдущ|прошл|последн|ранее|выше|в прошлом|your previous|your last|earlier|previous)/iu;
+    if (explicitPast.test(text)) return false;
+    const introductions=/(?:^|[.!?]\s*)(?:напиши|создай|разработай|составь|построй|сгенерируй|придумай|write|create|build|implement|generate)\s+[^.!?]{0,180}(?:функци\p{L}*|код|программ\p{L}*|скрипт\p{L}*|класс|алгоритм|пример|таблиц\p{L}*|документ|отч[её]т\p{L}*|function|program|script|class|algorithm|example|table|report)/iu;
+    return introductions.test(text);
+}
+
 export function needsConversationContext(task) {
-    const text = String(task || "").trim().toLowerCase();
-    if (text.length === 0 || text.length > 360) return false;
-    return /^(?:а |и |ну |окей[, ]*)?(?:добавь|исправь|поправь|измени|перепиши|fix|update|modify|перевед|перевести|перевод|translate|продолж|дальше|ещ[её]|то же|так же|сделай так|сделай ещ[её]|повтори|переделай|поправь|сравни с этим|поясни это|а что с |а как |перв(?:ый|ую|ое)|втор(?:ой|ую|ое)|давай|готово|что дальше|а теперь|по.другому)/iu.test(text) ||
-        /(?:^|[\s,.!?])(?:этот|этого|этих|эту|этом|его|её|их|предыдущ(?:ий|его|ая|ую|их)?|выше|упомянут(?:ый|ого|ое)?|тот же|той же|как ранее|как в прошлый раз)(?=$|[\s,.!?])/iu.test(text);
+    const text=String(task || "").trim().toLowerCase();
+    if (!text || text.length > 360) return false;
+    const startsAsFollowup=/^(?:а |и |ну |окей[, ]*)?(?:добавь|исправь|поправь|измени|перепиши|fix|update|modify|перевед|перевести|перевод|translate|продолж|дальше|ещ[её]|то же|так же|сделай так|сделай ещ[её]|повтори|переделай|поправь|сравни с этим|поясни это|а что с |а как |перв(?:ый|ую|ое)|втор(?:ой|ую|ое)|давай|готово|что дальше|а теперь|по.другому)/iu.test(text);
+    if (startsAsFollowup) return true;
+    const strong=/(?:^|[\s,.!?])(?:этот|этого|этих|эту|этом|предыдущ(?:ий|его|ая|ую|их)?|выше|упомянут(?:ый|ого|ое)?|тот же|той же|как ранее|как в прошлый раз)(?=$|[\s,.!?])/iu.test(text);
+    if (strong) return true;
+    const weak=/(?:^|[\s,.!?])(?:его|её|их)(?=$|[\s,.!?])/iu.test(text);
+    return weak && !hasLocalAntecedent(text);
 }
 
 export function contextualizeTask(task, input) {
