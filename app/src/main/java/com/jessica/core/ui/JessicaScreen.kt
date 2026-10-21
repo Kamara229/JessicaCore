@@ -263,8 +263,12 @@ fun JessicaScreen() {
             onDismissRequest = { showDeleteDialog = false },
             title = { Text(uiText("Удалить чат?", "Delete chat?")) },
             text = {
-                val name = chatState.threads.firstOrNull { it.id == chatState.activeThreadId }?.title
-                    ?: uiText("Выбранный чат", "Selected chat")
+                val actualName = chatState.threads.firstOrNull { it.id == chatState.activeThreadId }?.title
+                val name = when (actualName) {
+                    null -> uiText("Выбранный чат", "Selected chat")
+                    "Новый чат" -> uiText("Новый чат", "New chat")
+                    else -> actualName
+                }
                 Text(uiText(
                     "«$name» исчезнет из списка. В течение 60 минут его можно найти через поиск " +
                         "и восстановить стрелкой ↶. После этого сообщения и вложения будут удалены окончательно.",
