@@ -633,7 +633,7 @@ export async function decomposeTask({
 
                 instructions:
 
-                    buildTaskDecomposerInstructions(),
+                    buildTaskDecomposerInstructions(normalizedTask),
 
                 task:
                     normalizedTask,
