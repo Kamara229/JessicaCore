@@ -4,5 +4,6 @@ enum class JessicaPage {
     HOME,
     CHAT,
     REPORTS,
-    TASKS
+    TASKS,
+    CODEX
 }
