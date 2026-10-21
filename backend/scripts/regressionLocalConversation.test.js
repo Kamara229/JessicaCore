@@ -84,3 +84,44 @@ test("unrelated tasks do not inherit the phone's private conversation", () => {
         decomp
     );
 });
+
+test("code edit keeps only the latest correct function, not an unrelated earlier example", () => {
+    const oldFunction="def is_prime(n): return n > 1";
+    const lastFunction="def factorial(n): return 1 if n <= 1 else n*factorial(n-1)";
+    const conversation=[
+        {role:"user",content:"Напиши функцию проверки простых чисел"},
+        {role:"assistant",content:oldFunction},
+        {role:"user",content:"Напиши функцию факториала"},
+        {role:"assistant",content:lastFunction}
+    ];
+    const task="Теперь добавь обработку неправильного ввода и перепиши эту функцию на Kotlin.";
+    const edited=contextualizeTask(task,conversation);
+    assert.match(edited,/def factorial/);
+    assert.match(edited,/Напиши функцию факториала/);
+    assert.doesNotMatch(edited,/is_prime|простых чисел/);
+    assert.ok(edited.endsWith(task));
+});
+
+test("server error replies are skipped when choosing a code-edit target", () => {
+    const prev=[
+        {role:"user",content:"Напиши функцию факториала"},
+        {role:"assistant",content:"def factorial(n): return 1"},
+        {role:"user",content:"Теперь исправь функцию"},
+        {role:"assistant",content:"Ошибка сервера: HTTP 502"}
+    ];
+    const result=contextualizeTask("Теперь перепиши функцию на Kotlin",prev);
+    assert.match(result,/def factorial/);
+    assert.doesNotMatch(result,/HTTP 502/);
+});
+
+test("already contextualized code tasks are not duplicated in execution subtask", () => {
+    const history=[
+        {role:"user",content:"Напиши функцию факториала"},
+        {role:"assistant",content:"def factorial(n): return 1 if n<2 else n*factorial(n-1)"}
+    ];
+    const task="Теперь перепиши эту функцию на Kotlin";
+    const expanded=contextualizeTask(task,history);
+    const original={subtasks:[{id:1,text:expanded,dependsOn:[]}]};
+    const merged=attachConversationToDecomposition(original,task,history);
+    assert.equal(merged.subtasks[0].text,expanded);
+});

@@ -87,3 +87,20 @@ test("Russian legal code references are not programming tasks", () => {
     assert.equal(analyzeProgrammingTask("Объясни положения Гражданского кодекса РФ").relevant,false);
     assert.equal(needsProgrammingRuntimeEvidence("Гражданский кодекс РФ статья 309",{}),false);
 });
+
+test("code-edit followup keeps one semantic unit and avoids redundant LLM decomposition", async () => {
+    const {tryNativeDecomposition}=await import("../core/decomposer/nativeDecomposer.js");
+    const {contextualizeTask}=await import("../core/chat/conversationContext.js");
+    const original="Теперь добавь обработку неправильного ввода и перепиши эту функцию на Kotlin.";
+    const history=[
+        {role:"user",content:"Напиши функцию факториала"},
+        {role:"assistant",content:"def factorial(n):\\n    return 1"}
+    ];
+    const full=contextualizeTask(original,history);
+    const result=tryNativeDecomposition({task:full});
+    assert.equal(result.handled,true);
+    assert.equal(result.source,"native-code-followup");
+    assert.equal(result.decomposition.subtasks.length,1);
+    assert.ok(result.decomposition.subtasks[0].text.includes("factorial"));
+    assert.ok(result.decomposition.subtasks[0].text.endsWith(original));
+});
