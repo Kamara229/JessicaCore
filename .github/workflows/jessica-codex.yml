@@ -1,4 +1,5 @@
 name: Jessica Codex Collaboration
+run-name: Jessica Codex #${{ inputs.issue }} / ${{ inputs.goal }}
 on:
   workflow_dispatch:
     inputs:
