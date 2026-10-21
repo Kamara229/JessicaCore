@@ -139,10 +139,8 @@ test("translating your previous reply uses actual assistant message, not fabrica
     assert.equal(result.success,true);
     assert.match(result.text,/はい/);
     assert.equal(result.learning.skipped,true);
-    assert.equal(received[0].originalAnswer,undefined);
-    assert.equal(received[0].previousAnswer,undefined);
+    assert.equal(received[0].originalAnswer,conversation[1].content);
     assert.equal(received[0].userTask,"переведи свой ответ на японский язык");
-    assert.equal(received[0].originalAnswer,undefined);
 });
 test("no previous assistant answer is clarification rather than made-up translation", async ()=>{
     const response=await translatePreviousReply("Translate your last answer to English",
