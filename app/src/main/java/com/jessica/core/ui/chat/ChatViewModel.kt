@@ -373,7 +373,7 @@ class ChatViewModel(
                 "Analyze the attached files and explain their contents."
             else "Проанализируй приложенные файлы и расскажи об их содержании."
         }
-        val history = ChatContextWindow.select(current.messages)
+        val history = ChatContextWindow.selectForTask(current.messages, task)
         _state.value = current.copy(isRunning = true, storageError = null)
         submit(ChatMessage(text = task, isUser = true, attachments = files),
             history, clearInput = true)
@@ -383,7 +383,7 @@ class ChatViewModel(
         val current = _state.value
         if (!message.isUser || message.text.isBlank() ||
             current.isRunning || current.isLoading || current.isImporting || current.previewDeletedThreadId != null) return
-        val history = ChatContextWindow.select(current.messages)
+        val history = ChatContextWindow.selectForTask(current.messages, message.text)
         _state.value = current.copy(isRunning = true, storageError = null)
         submit(message.copy(timestamp = System.currentTimeMillis()),
             history, clearInput = false)
