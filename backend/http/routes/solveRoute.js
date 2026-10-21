@@ -138,12 +138,12 @@ export function registerSolveRoute(
                 const coreResult =
                     await executeJessicaTask(
                         task,
-                        { conversation: req.body?.conversation, attachments: req.body?.attachments }
+                        { conversation: req.body?.conversation, attachments: req.body?.attachments, outputLanguage }
                     );
 
-                const result = await localizeResponse(
-                    coreResult, task, outputLanguage
-                );
+                const result = coreResult?.mode === "translation"
+                    ? {...coreResult, outputLanguage, localizationStatus:"explicit-translation"}
+                    : await localizeResponse(coreResult, task, outputLanguage);
 
                 // Private owner-only diagnostic; failure must never
                 // prevent Jessica from replying to the Android client.
