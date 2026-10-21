@@ -32,4 +32,22 @@ class ChatTrashPolicyTest {
         assertEquals(1L, ChatTrashPolicy.minutesLeft(removed, removed + ChatTrashPolicy.RETENTION_MS - 1))
         assertEquals(0L, ChatTrashPolicy.minutesLeft(removed, removed + ChatTrashPolicy.RETENTION_MS))
     }
+
+    @Test fun translatingPreviousReplyIncludesMoreThanEightHundredCharacters() {
+        val original = "Jessica Core: " + "Detailed explanation. ".repeat(65)
+        val window = ChatContextWindow.selectForTask(
+            listOf(ChatMessage(text=original,isUser=false)),
+            "переведи свой ответ на японский язык"
+        )
+        assertEquals(1, window.size)
+        assertEquals(original, window.single().text)
+    }
+    @Test fun ordinaryRequestKeepsShortConversationHistory() {
+        val original = "a".repeat(2500)
+        val window = ChatContextWindow.selectForTask(
+            listOf(ChatMessage(text=original,isUser=false)),
+            "Расскажи о своем проекте"
+        )
+        assertEquals(800,window.single().text.length)
+    }
 }
