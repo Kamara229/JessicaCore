@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 const parsePdf = require("pdf-parse");
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_TEXT = 16000;
-const supported = new Set(["pdf", "docx", "txt", "md", "csv", "json", "xlsx"]);
+const supported = new Set(["pdf", "docx", "txt", "md", "csv", "json", "xlsx", "py", "pyw", "js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts", "java", "kt", "kts", "swift", "go", "rs", "c", "h", "cpp", "hpp", "cc", "cxx", "cs", "fs", "fsx", "m", "mm", "php", "rb", "dart", "scala", "sc", "hs", "erl", "ex", "exs", "clj", "cljs", "lua", "pl", "pm", "r", "jl", "sql", "sh", "bash", "ps1", "psm1", "fish", "bat", "cmd", "groovy", "gradle", "sol", "move", "cob", "cbl", "f", "for", "f90", "f95", "pas", "pp", "dpr", "asm", "s", "zig", "nim", "ml", "mli", "vb", "bas", "cls", "frm", "tf", "tfvars", "hcl", "yaml", "yml", "xml", "xsd", "xsl", "toml", "graphql", "gql", "proto", "dockerfile", "mk", "makefile", "cu", "cuh", "wat", "awk", "lisp", "lsp", "scm", "vue", "svelte", "ipynb", "html", "htm", "css", "scss", "sass", "less", "jsonl"]);
 
 function cleanName(value) {
     const valueString = String(value || "");
@@ -75,7 +75,7 @@ export function registerDocumentExtractRoute(app) {
                 if (!supported.has(ext)) {
                     return res.status(415).json({
                         success: false,
-                        text: "Поддерживаются PDF, DOCX, XLSX, TXT, MD, CSV, JSON"
+                        text: "Поддерживаются PDF, DOCX, XLSX и текстовые файлы исходного кода"
                     });
                 }
                 const buffer = req.body;
