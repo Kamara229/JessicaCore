@@ -116,7 +116,7 @@ function meaningfulEnglishParagraph(text) {
     const {latin,cyrillic,words,english}=englishWords(text);
     // Handle short English introductions ('Here is the function:') as well
     // as longer all-English paragraphs, without mistaking identifiers for prose.
-    return latin >= 18 && words >= 4 && english >= 2 && latin > cyrillic * 2;
+    return latin >= 12 && words >= 4 && english >= 2 && latin > cyrillic * 2;
 }
 
 export function hasForeignEnglishProse(value) {
