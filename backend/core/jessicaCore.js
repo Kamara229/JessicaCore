@@ -40,6 +40,7 @@ import {
 } from "./taskDecomposer.js";
 
 import { analyzeDocumentAttachments } from "./files/documentAnalysisFacade.js";
+import {analyzeCodeAttachments,isCodeAttachmentTask} from "./files/codeAnalysisFacade.js";
 import { translatePreviousReply } from "./language/responseLanguageService.js";
 
 import {
@@ -172,10 +173,9 @@ export async function executeJessicaTask(
      * than read the uploaded text. Never create Experience from a private file.
      */
     if (Array.isArray(attachments) && attachments.length > 0) {
-        const documentResult = await analyzeDocumentAttachments({
-            task: normalizedTask,
-            attachments
-        });
+        const documentResult = await (isCodeAttachmentTask(normalizedTask,attachments)
+            ? analyzeCodeAttachments({task:normalizedTask,attachments})
+            : analyzeDocumentAttachments({task:normalizedTask,attachments}));
         completeExecutionTrace(executionTrace);
         return {
             ...documentResult,
