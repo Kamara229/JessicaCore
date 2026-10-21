@@ -81,15 +81,26 @@ export function visibleProse(value) {
     return splitCodeSegments(value).filter(s=>s.kind==="prose").map(s=>s.text).join("");
 }
 
+
+function looksLikeSourceLine(line) {
+    return /^\s*(?:def\s+\w+|async def\s+\w+|fun\s+\w+|function\s+\w+|class\s+\w+|return\b|raise\b|throw\b|if\s*[\s(]|else:|elif\s|for\s|while\s|var\s+\w+|let\s+\w+|const\s+\w+|import\s|from\s+\w+\s+import|#include|package\s|public\s|private\s|\/\*|\*\/|\/\/|[{}]|@Test\b|assert\w*\s*\(|print\s*\(|console\.\w+\s*\(|\w+\s*=\s*[\w"'\d([]|[\])}]+\s*[;,]?$)/u.test(String(line||""));
+}
+function englishWords(value) {
+    const filtered=String(value||"")
+        .split("\n").filter(line=>!looksLikeSourceLine(line)).join(" ")
+        .replace(/\x60[^\x60\n]+\x60/g,"")
+        .replace(/https?:\/\/[^\s]+/g,"");
+    const latin=(filtered.match(/[A-Za-z]/g)||[]).length;
+    const cyrillic=(filtered.match(/[А-Яа-яЁё]/g)||[]).length;
+    const words=(filtered.match(/[A-Za-z]{2,}/g)||[]).length;
+    const english=(filtered.match(/\b(?:the|this|that|here|is|are|you|can|use|it|with|will|for|from|to|and|an|a|returns?|raises?|function|example|implementation|following|code|try|simple|output)\b/gi)||[]).length;
+    return {latin,cyrillic,words,english};
+}
 function meaningfulEnglishParagraph(text) {
-    // Strip inline code, which must never be used to infer human prose language.
-    const visible=String(text||"").replace(/\x60[^\x60\n]+\x60/g,"");
-    if (/(?:^|\n)\s*(?:def |fun |function |class |return |if\s*\(|var |let |const |import |from \w+ import|public |private |\/\/|#include)/m.test(visible))
-        return false;
-    const latin=(visible.match(/[A-Za-z]/g)||[]).length;
-    const cyrillic=(visible.match(/[А-Яа-яЁё]/g)||[]).length;
-    const words=(visible.match(/[A-Za-z]{3,}/g)||[]).length;
-    return latin>=48 && latin>cyrillic*3 && words>=7;
+    const {latin,cyrillic,words,english}=englishWords(text);
+    // Handle short English introductions ('Here is the function:') as well
+    // as longer all-English paragraphs, without mistaking identifiers for prose.
+    return latin >= 18 && words >= 4 && english >= 2 && latin > cyrillic * 2;
 }
 
 export function hasForeignEnglishProse(value) {
@@ -104,9 +115,16 @@ export function hasForeignEnglishProse(value) {
 export async function translateForeignEnglishProse(text,task,translate) {
     const chunks=splitCodeSegments(text).flatMap(segment=>{
         if(segment.kind==="code") return [segment];
-        return segment.text.split(/(\n\s*\n)/).map(value=>({
-            kind:meaningfulEnglishParagraph(value)?"foreign":"literal",text:value
-        }));
+        // Protect un-fenced source lines too: only isolated English narrative
+        // lines may go to the prose translation model.
+        return segment.text.split(/(\n\s*\n)/).flatMap(value=>{
+            if (!value.trim() || !value.split("\n").some(looksLikeSourceLine))
+                return [{kind:meaningfulEnglishParagraph(value)?"foreign":"literal",text:value}];
+            return value.split(/(\n)/).map(line=>({
+                kind:!looksLikeSourceLine(line) && meaningfulEnglishParagraph(line)?"foreign":"literal",
+                text:line
+            }));
+        });
     });
     const targets=chunks.filter(c=>c.kind==="foreign");
     if(!targets.length) return text;
@@ -121,9 +139,26 @@ export async function translateForeignEnglishProse(text,task,translate) {
     let parsed;
     try {
         parsed=JSON.parse(String(raw||"").trim().replace(/^\x60{3}json\s*/i,"").replace(/\x60{3}\s*$/,""));
-    }catch{return null;}
+    }catch{parsed=null;}
     if(!Array.isArray(parsed?.parts) || parsed.parts.length!==targets.length ||
-        parsed.parts.some(x=>typeof x!=="string" || !x.trim() || /\x60{3}/.test(x))) return null;
+        parsed.parts.some(x=>typeof x!=="string" || !x.trim() || /\x60{3}/.test(x))) {
+        // JSON-format response can fail even when translation is available.
+        // Retry each prose segment as plain text; never include source-code lines.
+        const fixed=[];
+        if(targets.length>8) return null;
+        for (const item of targets) {
+            const plain=await translate([
+                "Translate ONLY this user-facing narrative passage to natural Russian.",
+                "Do not change inline code, identifiers, citations, numbers, proper names or URLs.",
+                "Preserve the meaning and uncertainty. Do not add or remove claims.",
+                "Return ONLY translated text, not a JSON object or code block."
+            ].join("\n"),{userTask:String(task||"").slice(0,900),passage:item.text},"plain");
+            if(typeof plain!=="string" || !plain.trim() || /^\s*[\{\[]/.test(plain)
+                || /\x60{3}/.test(plain) || meaningfulEnglishParagraph(plain)) return null;
+            fixed.push(plain.trim());
+        }
+        parsed={parts:fixed};
+    }
     let index=0;
     return chunks.map(chunk=>{
         if(chunk.kind!=="foreign") return chunk.text;
