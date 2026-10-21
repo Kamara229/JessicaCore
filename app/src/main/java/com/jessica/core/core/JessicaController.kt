@@ -3,6 +3,7 @@ package com.jessica.core.core
 
 import android.content.Context
 import com.jessica.core.BuildConfig
+import com.jessica.core.ui.language.AppLanguageStore
 
 import androidx.compose.runtime.mutableStateOf
 
@@ -118,7 +119,7 @@ class JessicaController(
 
     private val aiEngine =
 
-        JessicaAIEngine()
+        JessicaAIEngine(languageProvider = { AppLanguageStore(context).current().code })
 
     private val attachmentExtractor = DocumentExtractionClient(ChatAttachmentStore(context))
 
