@@ -444,7 +444,7 @@ export async function requestPlan(
 
     const instructions =
 
-        buildPlannerInstructions();
+        buildPlannerInstructions(cleanTask);
 
 
     /*
