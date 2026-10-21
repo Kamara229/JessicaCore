@@ -1,7 +1,7 @@
 import {analyzeProgrammingTask} from "./programmingTaskContext.js";
 
 /** Never turn unexecuted, LLM-generated source into a validated programming Skill. */
-const CODE_ARTIFACT=/(?:\b(?:write|implement|fix|debug|refactor|compile|build|patch|generate|create|code|function|script|class|unit tests?)\b|напиши|реализуй|исправь|отлад|рефактор|скомпил|сгенерир|создай (?:код|скрипт|класс|функц)|код|скрипт|функцию)/iu;
+const CODE_ARTIFACT=/(?:\b(?:write|implement|fix|debug|refactor|compile|build|patch|generate|create|code|function|script|class|unit tests?)\b|напиши|реализуй|исправь|отлад|рефактор|скомпил|сгенерир|создай (?:код|скрипт|класс|функц)|(?<![\\p{L}\\p{N}])код(?:а|у|ом|е|ы|ов)?(?![\\p{L}\\p{N}])|скрипт|функцию)/iu;
 const VERIFIED_TOOLS=new Set(["run_code","compile_code","run_tests","code_test","program_test"]);
 
 function runResults(value) {
