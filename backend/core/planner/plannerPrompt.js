@@ -1,3 +1,5 @@
+import {buildProgrammingFoundation} from "../foundations/programmingPolicy.js";
+
 /*
  * =========================================================
  * JESSICA PLANNER PROMPT v6
@@ -22,7 +24,7 @@
  */
 
 
-export function buildPlannerInstructions()
+export function buildPlannerInstructions(task = "")
 {
 
     return [
@@ -408,6 +410,6 @@ export function buildPlannerInstructions()
         })
 
     ]
-        .join("\n");
+        .join("\n") + "\n" + buildProgrammingFoundation(task,{stage:"planner"});
 
 }
