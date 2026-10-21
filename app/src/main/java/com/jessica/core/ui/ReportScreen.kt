@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.ReportStorage
 import com.jessica.core.modules.TestReport
+import com.jessica.core.ui.language.uiText
 
 
 @Composable
@@ -55,7 +56,7 @@ fun ReportScreen(
 
             ) {
 
-                Text("Назад")
+                Text(uiText("Назад", "Back"))
 
             }
 
@@ -71,7 +72,7 @@ fun ReportScreen(
 
             Text(
 
-                text = "История тестирования",
+                text = uiText("История тестирования", "Test history"),
 
                 style =
                     MaterialTheme.typography.titleLarge
@@ -86,7 +87,7 @@ fun ReportScreen(
             item {
 
                 Text(
-                    "Отчётов пока нет"
+                    uiText("Отчётов пока нет", "No reports yet")
                 )
 
             }
@@ -131,7 +132,7 @@ fun ReportScreen(
 
 
                         Text(
-                            text = "Дата: ${report.date}"
+                            text = uiText("Дата: ", "Date: ") + report.date
                         )
 
 
@@ -141,7 +142,7 @@ fun ReportScreen(
 
 
                         Text(
-                            text = "Результат:"
+                            text = uiText("Результат:", "Result:")
                         )
 
 
