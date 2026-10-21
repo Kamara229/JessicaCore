@@ -1,4 +1,5 @@
 import { getGroqClient } from "../../ai/groqClient.js";
+import {buildProgrammingFoundation} from "../foundations/programmingPolicy.js";
 import {
     getAIProviderAvailability,
     registerAIProviderLimit
@@ -31,7 +32,7 @@ export function buildDocumentPrompt({ task, attachments }) {
     ].join("\n");
 }
 
-async function generateDocumentAnswer(prompt) {
+async function generateDocumentAnswer(prompt,task,attachments) {
     const client = getGroqClient();
     const answer = await client.chat.completions.create({
         model: "openai/gpt-oss-20b",
@@ -41,7 +42,7 @@ async function generateDocumentAnswer(prompt) {
         max_completion_tokens: 2200,
         response_format: { type: "json_object" },
         messages: [
-            { role: "system", content: documentAnalysisInstructions() },
+            { role: "system", content: documentAnalysisInstructions() + "\n" + buildProgrammingFoundation(task,{files:attachments,stage:"document"}) },
             { role: "user", content: prompt }
         ]
     });
@@ -77,7 +78,7 @@ export async function analyzeDocumentAttachments(
         );
     }
     try {
-        const raw = await generate(buildDocumentPrompt({task, attachments: bundle.docs}));
+        const raw = await generate(buildDocumentPrompt({task, attachments: bundle.docs}),task,bundle.docs);
         const checked = validateAndRenderDocumentAnswer(raw, bundle);
         if (!checked.success) {
             console.warn("Jessica document evidence rejected:", {
