@@ -56,8 +56,12 @@ function numbersUnchanged(original, revised) {
 }
 
 function requestedTranslation(task) {
-    return /\btranslat(?:e|ion|ing)\b|перев(?:еди|ести|од)|übersetz|tradu(?:is|ir|ce|ire)|翻译|翻譯|翻訳|ترجم|ترجمة|traduzir/iu
-        .test(String(task || ""));
+    const value=String(task || "");
+    const direct=/\btranslat(?:e|ion|ing)\b|перев(?:еди|ести|од)|übersetz|tradu(?:is|ir|ce|ire)|翻译|翻譯|翻訳|ترجم|ترجمة|traduzir/iu;
+    // A request for a different NATURAL language overrides the UI preference,
+    // but 'напиши функцию на Python' is a programming task, not English output.
+    const explicitAnswer=/(?:ответь|напиши ответ|дай ответ|пиши|respond|answer|reply|write the answer)\s+(?:мне\s+)?(?:на|in)\s+(?:английск|японск|китайск|немецк|французск|испанск|арабск|корейск|итальянск|португальск|english|japanese|chinese|german|french|spanish|arabic|korean|italian|portuguese)/iu;
+    return direct.test(value) || explicitAnswer.test(value);
 }
 
 function answerAlreadyInRussian(text) {
@@ -112,6 +116,24 @@ export async function localizeResponse(result, task, language, generate) {
     if (typeof revised !== "string" || revised.length < 2)
         return {...result, outputLanguage: code, localizationStatus: foreignProse ? "mixed-prose-adaptation-failed" :
             containsCodeFence(result.text) ? "code-prose-adaptation-failed" : "original"};
+    // Do not accept a model answer whose narration is still English while
+    // Russian was selected. A second attempt is limited to English narrative
+    // fragments; original fenced source bytes never enter the translator.
+    if(code === "ru" && !requestedTranslation(task) && hasForeignEnglishProse(revised)) {
+        try {
+            const repaired = await translateForeignEnglishProse(revised,task,run);
+            if(typeof repaired === "string" && repaired.trim() &&
+                !hasForeignEnglishProse(repaired)) {
+                revised = repaired;
+            } else {
+                return {...result, outputLanguage:code, localizationStatus:"untranslated-english-prose"};
+            }
+        }catch(error) {
+            console.warn("Jessica Russian explanation repair failed:",{status:error?.status||null});
+            return {...result, outputLanguage:code, localizationStatus:"untranslated-english-prose"};
+        }
+    }
+
     // A language model may accidentally reformat citations or identifiers.
     // Reject rather than silently corrupting evidence, URLs and inline code.
     const protectedTokens = protectedAnswerTokens(result);
