@@ -334,8 +334,8 @@ test("Russian locale never passes untranslated English narrative as a successful
 
 test("Russian locale preserves fenced source even when accompanying English explanation cannot be translated",()=>{
     const fence=String.fromCharCode(96).repeat(3);
-    const code=fence+"python\\ndef factorial(n):\\n    return n*factorial(n-1) if n else 1\\n"+fence;
-    const original={mode:"single",success:true,text:"Here is a simple factorial function:\\n\\n"+code+"\\n\\nYou can call this function with a number."};
+    const code=fence+"python\ndef factorial(n):\n    return n*factorial(n-1) if n else 1\n"+fence;
+    const original={mode:"single",success:true,text:"Here is a simple factorial function:\n\n"+code+"\n\nYou can call this function with a number."};
     const guarded=enforcePresentationLanguage(original,{task:"Напиши функцию на Python",language:"ru"});
     assert.equal(guarded.success,false);
     assert.ok(guarded.text.includes(code));
