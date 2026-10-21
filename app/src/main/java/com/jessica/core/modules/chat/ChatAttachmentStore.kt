@@ -14,14 +14,16 @@ import java.util.UUID
 class ChatAttachmentStore(context: Context) {
     private val resolver = context.applicationContext.contentResolver
     private val dir = File(context.applicationContext.filesDir, "jessica/chat/attachments")
-    private val allowed = setOf("pdf", "docx", "xlsx", "txt", "md", "csv", "json")
+    private val allowed = setOf("pdf", "docx", "xlsx", "txt", "md", "csv", "json") + setOf(
+        "py", "pyw", "js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts", "java", "kt", "kts", "swift", "go", "rs", "c", "h", "cpp", "hpp", "cc", "cxx", "cs", "fs", "fsx", "m", "mm", "php", "rb", "dart", "scala", "sc", "hs", "erl", "ex", "exs", "clj", "cljs", "lua", "pl", "pm", "r", "jl", "sql", "sh", "bash", "ps1", "psm1", "fish", "bat", "cmd", "groovy", "gradle", "sol", "move", "cob", "cbl", "f", "for", "f90", "f95", "pas", "pp", "dpr", "asm", "s", "zig", "nim", "ml", "mli", "vb", "bas", "cls", "frm", "tf", "tfvars", "hcl", "yaml", "yml", "xml", "xsd", "xsl", "toml", "graphql", "gql", "proto", "dockerfile", "mk", "makefile", "cu", "cuh", "wat", "awk", "lisp", "lsp", "scm", "vue", "svelte", "ipynb", "html", "htm", "css", "scss", "sass", "less", "jsonl"
+    )
     private val maxSize = 5L * 1024L * 1024L
 
     suspend fun importUri(uri: Uri): ChatAttachment = withContext(Dispatchers.IO) {
         val name = filename(uri)
-        val extension = name.substringAfterLast(".", "").lowercase()
+        val extension = name.substringAfterLast(".", name).lowercase()
         if (extension !in allowed) {
-            throw IOException("Формат $extension не поддерживается. Выбери PDF, DOCX, XLSX, TXT, MD, CSV или JSON")
+            throw IOException("Формат $extension не поддерживается. Выбери документ или текстовый файл исходного кода")
         }
         if (!dir.exists() && !dir.mkdirs()) throw IOException("Не удалось создать папку файлов")
         val id = UUID.randomUUID().toString()
