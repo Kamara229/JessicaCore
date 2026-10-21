@@ -63,7 +63,7 @@ export async function translateCodeProse(text, task, language, translate) {
         return null;
     }
     if(!Array.isArray(parsed?.parts) || parsed.parts.length!==prose.length ||
-        parsed.parts.some(value=>typeof value!=="string")) return null;
+        parsed.parts.some(value=>typeof value!=="string" || /\x60{3}/.test(value))) return null;
 
     let index=0;
     const composed=source.map(segment=>{
@@ -123,7 +123,7 @@ export async function translateForeignEnglishProse(text,task,translate) {
         parsed=JSON.parse(String(raw||"").trim().replace(/^\x60{3}json\s*/i,"").replace(/\x60{3}\s*$/,""));
     }catch{return null;}
     if(!Array.isArray(parsed?.parts) || parsed.parts.length!==targets.length ||
-        parsed.parts.some(x=>typeof x!=="string" || !x.trim())) return null;
+        parsed.parts.some(x=>typeof x!=="string" || !x.trim() || /\x60{3}/.test(x))) return null;
     let index=0;
     return chunks.map(chunk=>{
         if(chunk.kind!=="foreign") return chunk.text;
