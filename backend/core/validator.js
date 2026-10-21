@@ -1,5 +1,6 @@
 import { getDocumentReceipt } from "./composer/documentReceipt.js";
 import { requiresVerifiedComparison } from "./composer/comparisonEvidencePolicy.js";
+import {checkProgrammingAnswerSafety} from "./validator/programmingAnswerSafety.js";
 /*
  * =========================================================
  * JESSICA RESULT VALIDATOR v4
@@ -636,6 +637,19 @@ export async function validateResult(
 
     }
 
+
+    // Static language-specific invariants are checked BEFORE AI Validator,
+    // which can otherwise accept a plausible-looking yet incorrect program.
+    // Failure belongs to presentation and never certifies runtime execution.
+    const programmingSafety=checkProgrammingAnswerSafety(task,answerResult?.text);
+    if(programmingSafety) {
+        console.warn("Jessica programming answer safety rejected:",programmingSafety.reason);
+        return buildValidationResult(programmingSafety,{
+            validationMode:"programming-static-guard",
+            degraded:false,
+            failureScope:FAILURE_SCOPE.PRESENTATION
+        });
+    }
 
     /*
      * =====================================================
