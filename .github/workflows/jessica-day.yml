@@ -48,7 +48,7 @@ jobs:
       - name: Verify no protected files were modified
         run: node .github/day/guard.mjs
       - name: Install test dependencies without lifecycle scripts
-        run: npm ci --prefix backend --ignore-scripts --no-audit --no-fund
+        run: npm install --prefix backend --package-lock=false --ignore-scripts --no-audit --no-fund
       - name: Run fixed base regressions and new daytime checks
         run: |
           node .github/codex/guard-tests.mjs
