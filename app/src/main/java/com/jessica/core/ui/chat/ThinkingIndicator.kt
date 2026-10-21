@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.jessica.core.ui.language.uiText
 
 
 @Composable
@@ -47,7 +48,7 @@ fun ThinkingIndicator() {
 
         Text(
 
-            text = "Jessica думает…",
+            text = uiText("Jessica думает…", "Jessica is thinking…"),
 
             style =
                 MaterialTheme
