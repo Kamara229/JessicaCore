@@ -139,7 +139,7 @@ export async function requestComposerAnswer(
 
         instructions:
 
-            getComposerInstructions(),
+            getComposerInstructions(options?.task || ""),
 
         input,
 
