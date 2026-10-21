@@ -26,6 +26,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
     private var overlay: LinearLayout? = null
     private var confirmButton: Button? = null
     private var lastNotice = ""
+    private var lastHeartbeat = 0L
     private val client = CodexClient()
 
     override fun onServiceConnected() { PhoneChatRuntime.controller = this }
@@ -43,6 +44,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
         confirmed = false
         composed = false
         run = ChatRunState(SystemClock.elapsedRealtime())
+        lastHeartbeat = SystemClock.elapsedRealtime()
         showOverlay()
         val launch = PhoneChatRuntime.launch ?: return
         if (!PhoneCodexHandoff.openChatGPT(this, launch.chatUrl.ifBlank { null })) {
@@ -64,6 +66,13 @@ class ChatGptAccessibilityService : AccessibilityService() {
         if (state.expired(SystemClock.elapsedRealtime())) { finish("Время ожидания истекло. Результат не подтверждён."); return }
         if (getSystemService(KeyguardManager::class.java).isKeyguardLocked) {
             stopByUser("Телефон заблокирован. Сессия остановлена."); return
+        }
+        if (!launch.diagnostic && SystemClock.elapsedRealtime() - lastHeartbeat > 60000) {
+            lastHeartbeat = SystemClock.elapsedRealtime()
+            try { client.phone("status", launch.ownerKey, JSONObject().put("id", launch.id)) }
+            catch (e: CancellationException) { throw e }
+            catch (_: Exception) { stopByUser("Сервер потерял сессию. Новый запрос сам не запускается."); return }
+            if (PhoneChatRuntime.launch !== launch) return
         }
         val window = ChatWindowReader.read(this)
         if (window == null) {
@@ -120,7 +129,17 @@ class ChatGptAccessibilityService : AccessibilityService() {
     private suspend fun handleReply(launch: PhoneChatLaunch, text: String) {
         PhoneChatRuntime.saveReply(this, launch.id, text)
         notice("Ответ получен. Проверяю формат и исходную версию кода.")
-        val reply = try { JSONObject(text) } catch (_: Exception) { repairFormat(launch, "invalid-json"); return }
+        val reply = try { JSONObject(text) } catch (_: Exception) {
+            if (launch.diagnostic) finish("Ответ прочитан, но проверочный JSON неполный. Код не изменялся.")
+            else repairFormat(launch, "invalid-json")
+            return
+        }
+        if (launch.diagnostic) {
+            if (reply.optString("nonce") == launch.id && reply.optString("status") == "connected")
+                finish("Связь подтверждена: Джессика отправила запрос и получила ответ в выбранном обычном чате. Код не изменялся.")
+            else finish("Ответ получен, но проверочный формат не совпал. Код не изменялся.")
+            return
+        }
         try {
             val result = client.phone("submit", launch.ownerKey, JSONObject().put("id", launch.id).put("reply", reply))
             if (PhoneChatRuntime.launch !== launch) return
@@ -167,7 +186,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
         run?.stop()
         loop?.cancel()
         finish(message)
-        if (current != null) scope.launch {
+        if (current != null && !current.diagnostic) scope.launch {
             try {
                 val result = client.phone("stop", current.ownerKey, JSONObject().put("id", current.id))
                 if (PhoneChatRuntime.launch == null && result.optString("state") in setOf("applying", "merged", "application-status-unknown"))

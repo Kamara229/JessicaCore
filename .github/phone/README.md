@@ -17,6 +17,9 @@ token embedded in an APK is never accepted as owner authorization.
 
 After installing the updated signed APK, open Codex → **Обычный чат**.
 Enable **Jessica — обычный ChatGPT** in Android accessibility settings.
+First use **Проверить связь с обычным чатом — без ключей** to test one
+nonce-delimited request/response locally, without Render/GitHub credentials
+or any code changes. This is a diagnostic, not an improvement run.
 Read the data-access disclosure, enter the independent owner key, choose
 a goal, and start. An optional private `/c/<uuid>` URL opens the selected
 conversation; otherwise choose a dedicated ordinary chat after ChatGPT opens.
@@ -44,7 +47,8 @@ ambiguous, the assistant waits and reports the problem; it does not guess.
    demonstrate an assertion failure on the original source, and then pass
    with the correction alongside the fixed base regression suite.
 7. If the owner checked automatic application before launch, an exact-head
-   success may merge the PR, only while main still equals the reviewed base.
+   success may fast-forward main to the tested commit, only while main still equals the reviewed base.
+   A non-forced Git ref update rejects a concurrent change to main atomically.
    Existing Render/APK deployment workflows then run normally. Deployment
    success is not claimed from a merge result. Otherwise the verified PR waits.
 

@@ -66,6 +66,12 @@ fun OrdinaryChatScreen() {
                 Checkbox(checked = consent, onCheckedChange = { consent = it }, enabled = !busy)
                 Text("Разрешаю этой сессии вводить и отправлять сообщения в выбранном обычном чате, читать ответы и передавать только подготовленный код на проверку в мой репозиторий.", modifier = Modifier.padding(top = 10.dp))
             }
+            OutlinedButton(enabled = ready && consent && !busy, modifier = Modifier.fillMaxWidth(), onClick = {
+                val url = PhoneCodexHandoff.normalizePrivateChatLink(chatUrl)
+                if (chatUrl.isNotBlank() && url == null) { error = "Неверная ссылка на личный чат"; return@OutlinedButton }
+                try { error = ""; PhoneChatRuntime.checkConnection(context, url ?: "") }
+                catch (e: Exception) { error = e.message ?: "Проверка не запущена" }
+            }) { Text("Проверить связь с обычным чатом — без ключей") }
             Button(enabled = ready && consent && ownerKey.length >= 16 && !busy, modifier = Modifier.fillMaxWidth(), onClick = {
                 val url = PhoneCodexHandoff.normalizePrivateChatLink(chatUrl)
                 if (chatUrl.isNotBlank() && url == null) { error = "Нужна ссылка на личный чат вида https://chatgpt.com/c/…"; return@Button }

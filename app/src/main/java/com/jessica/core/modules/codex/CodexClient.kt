@@ -16,7 +16,7 @@ class CodexClient {
 
     suspend fun phone(action: String, ownerKey: String, data: JSONObject): JSONObject {
         require(action in setOf("prepare", "submit", "status", "stop"))
-        return request("/api/codex/phone/" + action, data.put("ownerKey", ownerKey))
+        return request("/api/codex/phone/" + action, data.put("ownerKey", ownerKey), 90_000)
     }
 
     /** Start an API-free day shift; no OpenAI/Codex billing key is sent or used. */
@@ -44,13 +44,13 @@ class CodexClient {
             put("issue", issue)
         })
 
-    private suspend fun request(path: String, payload: JSONObject?): JSONObject =
+    private suspend fun request(path: String, payload: JSONObject?, readTimeout: Int = 20_000): JSONObject =
         withContext(Dispatchers.IO) {
             val connection = URL(origin + path).openConnection() as HttpURLConnection
             try {
                 connection.requestMethod = if (payload == null) "GET" else "POST"
                 connection.connectTimeout = 12_000
-                connection.readTimeout = 20_000
+                connection.readTimeout = readTimeout
                 connection.setRequestProperty("X-Jessica-Token", BuildConfig.JESSICA_APP_TOKEN)
                 connection.setRequestProperty("Accept", "application/json")
                 connection.setRequestProperty("Cache-Control", "no-store")
