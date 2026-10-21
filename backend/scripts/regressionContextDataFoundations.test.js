@@ -31,6 +31,23 @@ test("followup retains precise earlier identifiers and is not used for unrelated
     assert.equal(independent,"Объясни историю Римского права");
     assert.ok(buildContextFoundation("А теперь исправь предыдущий ответ").includes("CURRENT user request"));
 });
+test("within-request pronouns do not pull unrelated chat history or evidence into a new programming task",()=>{
+    const previous=[
+        {role:"user",content:"Find the current Python release from the official website."},
+        {role:"assistant",content:"Current version requires a fresh web source."}
+    ];
+    const standalone="Напиши функцию на Python для вычисления факториала. Объясни её работу.";
+    assert.equal(contextualizeTask(standalone,previous),standalone);
+    assert.equal(classifyContextIntent(standalone).dependent,false);
+    assert.equal(contextualizeTask("Create a function in Python. Explain how it works.",previous),
+        "Create a function in Python. Explain how it works.");
+    assert.equal(contextualizeTask("Создай таблицу. Проверь её содержимое.",previous),
+        "Создай таблицу. Проверь её содержимое.");
+    const actual="Теперь исправь предыдущую функцию и добавь проверку отрицательных чисел.";
+    assert.match(contextualizeTask(actual,previous),/Контекст предыдущего диалога/);
+    assert.match(contextualizeTask("Объясни её работу",previous),/Контекст предыдущего диалога/);
+});
+
 test("extra context budget is opt-in, default remains safe", () => {
     const h=[{role:"user",content:"x".repeat(1200)}];
     assert.equal(normalizeConversation(h)[0].content.length,800);
