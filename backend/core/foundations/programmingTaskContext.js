@@ -25,7 +25,10 @@ export function analyzeProgrammingTask(task,files=[]) {
     const names=(Array.isArray(files)?files:[]).map(item=>String(typeof item==="string"?item:item?.name||""));
     const languages=detectProgrammingLanguages(text,names);
     const fenced=Array.from(text.matchAll(FENCES));
-    const codeFiles=names.some(name=>PROGRAMMING_LANGUAGES.some(lang=>lang.extensions.some(ext=>name.toLowerCase().endsWith(ext))));
+    // Configuration and data extensions alone are not proof of a coding task.
+    const dataOnly=new Set([".json",".jsonl",".yaml",".yml",".xml",".xsd",".xsl",".toml",".html",".htm",".css",".scss",".sass",".less",".tf",".tfvars",".hcl",".md",".txt",".csv"]);
+    const codeFiles=names.some(name=>PROGRAMMING_LANGUAGES.some(lang=>
+        lang.extensions.some(ext=>!dataOnly.has(ext)&&name.toLowerCase().endsWith(ext))));
     const syntax=/(?:^|\n)\s*(?:def |class |function |const |let |var |#include|import |package |fn |pub fn |SELECT |CREATE TABLE |<html|#!\/|using System|public static|func |int main\s*\()/im.test(text);
     const intended=CODING_INTENT.test(text);
     const relevant=(intended || fenced.length>0 || codeFiles || (syntax && languages.length>0));
