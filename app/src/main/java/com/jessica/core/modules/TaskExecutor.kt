@@ -1,6 +1,7 @@
 package com.jessica.core.modules
 
 import android.content.Context
+import com.jessica.core.ui.language.AppLanguageStore
 
 
 data class TaskExecutionResult(
@@ -17,7 +18,7 @@ class TaskExecutor(
         EventStorage(context)
 
     private val aiEngine: AIEngine =
-        JessicaAIEngine()
+        JessicaAIEngine(languageProvider = { AppLanguageStore(context).current().code })
 
 
     suspend fun execute(
