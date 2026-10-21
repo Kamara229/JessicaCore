@@ -196,3 +196,6 @@ export async function translateForeignEnglishProse(text,task,translate) {
         return parsed.parts[index++];
     }).join("");
 }
+
+/** Synthetic CI smoke marker; never intended for production merge. */
+export const PHONE_SANDBOX_SMOKE_MARKER = true;
