@@ -9,6 +9,7 @@ import {
     isPreviousReplyTranslation,
     translatePreviousReply
 } from "../core/language/responseLanguageService.js";
+import {isBareSourceOnly,hasForeignEnglishProse} from "../core/language/codeAwareLocale.js";
 
 test("only Russian and English are valid interface locales", () => {
     assert.equal(normalizeOutputLanguage("en"),"en");
@@ -308,4 +309,12 @@ test("English generated code blocks and identifiers cannot be rewritten by Russi
     const result=await localizeResponse({success:true,text:original},"Напиши Kotlin код","ru",
        async() => JSON.stringify({parts:["Вот реализация:", "Не используйте этот код."]}));
     assert.equal(result.text.includes(ticks+"kotlin\nfun factorial(n: Int): Long = 1L\n"+ticks),true);
+});
+
+test("raw code without fenced Markdown may be preserved, but an English introduction cannot", () => {
+    assert.equal(isBareSourceOnly("def factorial(n):\n    return n*2"),true);
+    assert.equal(isBareSourceOnly("Here is code:\ndef factorial(n):\n    return n*2"),false);
+    assert.equal(isBareSourceOnly("Here is the solution:\ntry this."),false);
+    assert.equal(hasForeignEnglishProse("Here is the function:"),true);
+    assert.equal(hasForeignEnglishProse("В Kotlin функция возвращает Long."),false);
 });
