@@ -13,6 +13,14 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.jessica.core.ui.language.AppLanguage
+import com.jessica.core.ui.language.uiText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,6 +42,8 @@ fun JessicaDrawerContent(
     searchQuery: String,
     searchResults: List<ChatSearchResult>,
     diagnosticError: String?,
+    selectedLanguage: AppLanguage,
+    onLanguageChange: (AppLanguage) -> Boolean,
     onSearch: (String) -> Unit,
     onDiagnosticSync: () -> Unit,
     busy: Boolean,
@@ -45,6 +55,7 @@ fun JessicaDrawerContent(
     onReports: () -> Unit,
     onSettings: () -> Unit
 ) {
+    var languageExpanded by remember { mutableStateOf(false) }
     ModalDrawerSheet {
         Column(modifier = Modifier.fillMaxSize()) {
             Text(
@@ -56,7 +67,7 @@ fun JessicaDrawerContent(
             LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 item {
                     NavigationDrawerItem(
-                        label = { Text("＋  Новый чат") },
+                        label = { Text(uiText("＋  Новый чат", "＋  New chat")) },
                         selected = false,
                         onClick = { if (!busy) onNewChat() },
                         modifier = Modifier.padding(horizontal = 12.dp)
@@ -66,8 +77,8 @@ fun JessicaDrawerContent(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = onSearch,
-                        label = { Text("Поиск по чатам") },
-                        placeholder = { Text("Название, текст или «Удалённые»") },
+                        label = { Text(uiText("Поиск по чатам", "Search chats")) },
+                        placeholder = { Text(uiText("Название, текст или «Удалённые»", "Title, messages or “Deleted”")) },
                         singleLine = true,
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) IconButton(onClick = { onSearch("") }) {
@@ -78,16 +89,36 @@ fun JessicaDrawerContent(
                     )
                 }
                 item {
+                    androidx.compose.foundation.layout.Box(modifier = Modifier.padding(horizontal = 12.dp)) {
+                        NavigationDrawerItem(
+                            label = { Text(uiText("🌐  Язык", "🌐  Language") + ": " + selectedLanguage.label + " ▾") },
+                            selected = false,
+                            onClick = { languageExpanded = true }
+                        )
+                        DropdownMenu(expanded = languageExpanded, onDismissRequest = { languageExpanded = false }) {
+                            AppLanguage.entries.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text((if (selectedLanguage == option) "✓  " else "") + option.label) },
+                                    onClick = {
+                                        onLanguageChange(option)
+                                        languageExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+                item {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
                     Text(
-                        "История диалогов",
+                        uiText("История диалогов", "Chat history"),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 28.dp, bottom = 6.dp)
                     )
                 }
                 if (searchQuery.isNotBlank() && searchResults.isEmpty()) {
-                    item { Text("Ничего не найдено",
+                    item { Text(uiText("Ничего не найдено", "No matches found"),
                         modifier = Modifier.padding(horizontal = 28.dp, vertical = 12.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
@@ -108,8 +139,8 @@ fun JessicaDrawerContent(
                                         overflow = TextOverflow.Ellipsis)
                                     if (deleted) {
                                         Text(
-                                            "Удалён · восстановление ещё " +
-                                                ChatTrashPolicy.minutesLeft(match.thread.deletedAt) + " мин",
+                                            uiText("Удалён · восстановление ещё ", "Deleted · recoverable for ") +
+                                                ChatTrashPolicy.minutesLeft(match.thread.deletedAt) + uiText(" мин", " min"),
                                             color = MaterialTheme.colorScheme.error,
                                             style = MaterialTheme.typography.labelSmall
                                         )
@@ -150,7 +181,7 @@ fun JessicaDrawerContent(
                     item {
                         Row(verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 24.dp)) {
-                            Text("Тестовый экран: " + diagnosticError,
+                            Text(uiText("Тестовый экран: ", "Diagnostics: ") + diagnosticError,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.weight(1f))
@@ -169,7 +200,7 @@ fun JessicaDrawerContent(
                 }
                 item {
                     NavigationDrawerItem(
-                        label = { Text("Задачи") },
+                        label = { Text(uiText("Задачи", "Tasks")) },
                         selected = false,
                         onClick = onTasks,
                         modifier = Modifier.padding(horizontal = 12.dp)
@@ -177,7 +208,7 @@ fun JessicaDrawerContent(
                 }
                 item {
                     NavigationDrawerItem(
-                        label = { Text("Отчёты") },
+                        label = { Text(uiText("Отчёты", "Reports")) },
                         selected = false,
                         onClick = onReports,
                         modifier = Modifier.padding(horizontal = 12.dp)
@@ -185,7 +216,7 @@ fun JessicaDrawerContent(
                 }
                 item {
                     NavigationDrawerItem(
-                        label = { Text("Настройки и обновление") },
+                        label = { Text(uiText("Настройки и обновление", "Settings and updates")) },
                         selected = false,
                         onClick = onSettings,
                         modifier = Modifier.padding(horizontal = 12.dp)
