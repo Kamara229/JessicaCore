@@ -5,7 +5,9 @@ import {
     normalizeOutputLanguage,
     buildLanguageInstructions,
     localizeResponse,
-    protectedAnswerTokens
+    protectedAnswerTokens,
+    isPreviousReplyTranslation,
+    translatePreviousReply
 } from "../core/language/responseLanguageService.js";
 
 test("only Russian and English are valid interface locales", () => {
@@ -118,4 +120,39 @@ test("English decimal punctuation may differ without changing numeric facts", as
     const translated=await localizeResponse(response,"Describe the concentration","en",
         async()=>"The concentration is 1.5 mg/L.");
     assert.equal(translated.localizationStatus,"adapted");
+});
+
+test("translating your previous reply uses actual assistant message, not fabricated JSON", async () => {
+    const conversation=[
+        {role:"user",content:"Скажи, понимаешь ли ты меня?"},
+        {role:"assistant",content:"Yes, I understand you. Jessica Core is ready."}
+    ];
+    const received=[];
+    const result=await translatePreviousReply(
+        "переведи свой ответ на японский язык",conversation,"ru",
+        async (prompt,payload)=>{
+            received.push(payload);
+            return "はい、理解しています。Jessica Core は準備ができています。";
+        }
+    );
+    assert.equal(result.mode,"translation");
+    assert.equal(result.success,true);
+    assert.match(result.text,/はい/);
+    assert.equal(result.learning.skipped,true);
+    assert.equal(received[0].originalAnswer,undefined);
+    assert.equal(received[0].previousAnswer,undefined);
+    assert.equal(received[0].userTask,"переведи свой ответ на японский язык");
+    assert.equal(received[0].originalAnswer,undefined);
+});
+test("no previous assistant answer is clarification rather than made-up translation", async ()=>{
+    const response=await translatePreviousReply("Translate your last answer to English",
+        [{role:"user",content:"Hello"}],"en",async()=>{throw Error("not expected");});
+    assert.equal(response.success,false);
+    assert.equal(response.needsClarification,true);
+    assert.match(response.text,/previous answer/);
+});
+test("unrelated translation task is not intercepted by previous-answer handler", async ()=>{
+    assert.equal(isPreviousReplyTranslation("Переведи этот текст на японский"),false);
+    assert.equal(await translatePreviousReply("Translate this document",
+        [{role:"assistant",content:"Hello"}],"en"),null);
 });
