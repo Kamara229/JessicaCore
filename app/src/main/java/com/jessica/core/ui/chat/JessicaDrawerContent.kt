@@ -135,7 +135,7 @@ fun JessicaDrawerContent(
                         NavigationDrawerItem(
                             label = {
                                 Column {
-                                    Text(match.thread.title, maxLines = 1,
+                                    Text(if (match.thread.title == "Новый чат") uiText("Новый чат", "New chat") else match.thread.title, maxLines = 1,
                                         overflow = TextOverflow.Ellipsis)
                                     if (deleted) {
                                         Text(
