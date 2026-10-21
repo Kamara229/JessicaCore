@@ -154,3 +154,17 @@ test("unrelated translation task is not intercepted by previous-answer handler",
     assert.equal(await translatePreviousReply("Translate this document",
         [{role:"assistant",content:"Hello"}],"en"),null);
 });
+
+test("localizing a coding answer must keep generated source blocks byte-for-byte", async () => {
+    const fence=String.fromCharCode(96).repeat(3);
+    const code=fence+"python\ndef add(a,b):\n    return a+b\n"+fence;
+    const original={mode:"single",success:true,text:"Объяснение:\n"+code};
+    const changed=await localizeResponse(original,"Напиши код на Python","en",
+        async()=>"Explanation:\n"+code.replace("return a+b","return a-b"));
+    assert.equal(changed.localizationStatus,"code-block-mismatch");
+    assert.equal(changed.text,original.text);
+    const correct=await localizeResponse(original,"Напиши код на Python","en",
+        async()=>"Explanation:\n"+code);
+    assert.equal(correct.localizationStatus,"adapted");
+    assert.ok(correct.text.endsWith(code));
+});
