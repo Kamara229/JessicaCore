@@ -40,6 +40,7 @@ import {
 } from "./taskDecomposer.js";
 
 import { analyzeDocumentAttachments } from "./files/documentAnalysisFacade.js";
+import { translatePreviousReply } from "./language/responseLanguageService.js";
 
 import {
     contextualizeTask,
@@ -123,7 +124,7 @@ function buildCoreFailure(
 
 export async function executeJessicaTask(
     task,
-    { conversation = [], attachments = [] } = {}
+    { conversation = [], attachments = [], outputLanguage = "ru" } = {}
 ) {
 
     const normalizedTask =
@@ -190,6 +191,16 @@ export async function executeJessicaTask(
     }
 
 
+
+    // A reference to the previous reply is not a new standalone task.
+    // Translate the real answer, never a fabricated document or JSON.
+    const previousTranslation = await translatePreviousReply(
+        normalizedTask, conversation, outputLanguage
+    );
+    if (previousTranslation) {
+        completeExecutionTrace(executionTrace);
+        return {...previousTranslation, engine:"jessica-core", executionTrace};
+    }
 
     // Keep the canonical user request intact for Experience and Learning.
     // Only expand an ambiguous follow-up at execution/decomposition time.
