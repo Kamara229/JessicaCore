@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jessica.core.BuildConfig
 import com.jessica.core.modules.updater.UpdateState
+import com.jessica.core.ui.language.uiText
 
 @Composable
 fun UpdateCard(
@@ -33,22 +34,22 @@ fun UpdateCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Обновление Jessica", style = MaterialTheme.typography.titleMedium)
+            Text(uiText("Обновление Jessica", "Jessica update"), style = MaterialTheme.typography.titleMedium)
             val message = when (state) {
-                UpdateState.Idle -> "Установлена v${BuildConfig.VERSION_NAME}. Проверить наличие новой версии"
-                UpdateState.Checking -> "Этап 1/4 · Проверка обновлений на GitHub…"
-                is UpdateState.UpToDate -> "Установлена актуальная версия: ${state.version}"
-                is UpdateState.Downloading -> "Этап 2/4 · Загрузка обновления: ${state.progress}%"
-                UpdateState.Verifying -> "Этап 3/4 · Проверка файла и контрольной суммы SHA-256…"
+                UpdateState.Idle -> uiText("Установлена v${BuildConfig.VERSION_NAME}. Проверить наличие новой версии", "Installed v${BuildConfig.VERSION_NAME}. Check for updates")
+                UpdateState.Checking -> uiText("Этап 1/4 · Проверка обновлений на GitHub…", "Step 1/4 · Checking GitHub for updates…")
+                is UpdateState.UpToDate -> uiText("Установлена актуальная версия: ${state.version}", "You have the latest version: ${state.version}")
+                is UpdateState.Downloading -> uiText("Этап 2/4 · Загрузка обновления: ${state.progress}%", "Step 2/4 · Downloading update: ${state.progress}%")
+                UpdateState.Verifying -> uiText("Этап 3/4 · Проверка файла и контрольной суммы SHA-256…", "Step 3/4 · Verifying file and SHA-256 checksum…")
                 is UpdateState.ReadyToInstall ->
-                    "Этап 4/4 · Версия ${state.version} готова. Открываю установщик Android…"
+                    uiText("Этап 4/4 · Версия ${state.version} готова. Открываю установщик Android…", "Step 4/4 · Version ${state.version} ready. Opening Android installer…")
                 is UpdateState.WaitingPermission ->
-                    "Этап 4/4 · Для версии ${state.version} требуется разрешение Android."
+                    uiText("Этап 4/4 · Для версии ${state.version} требуется разрешение Android.", "Step 4/4 · Android permission required to install ${state.version}.")
                 is UpdateState.Installing ->
-                    "Этап 4/4 · Установка версии ${state.version}. Подтвердите замену в Android."
+                    uiText("Этап 4/4 · Установка версии ${state.version}. Подтвердите замену в Android.", "Step 4/4 · Installing ${state.version}. Confirm replacement in Android.")
                 is UpdateState.Installed ->
-                    "✅ Все 4 этапа завершены. Установлена версия ${state.version}"
-                is UpdateState.Error -> "Ошибка: ${state.message}"
+                    uiText("✅ Все 4 этапа завершены. Установлена версия ${state.version}", "✅ All four steps completed. Installed ${state.version}")
+                is UpdateState.Error -> uiText("Ошибка: ", "Error: ") + state.message
             }
             Text(message, style = MaterialTheme.typography.bodyMedium)
             if (state is UpdateState.Downloading) {
@@ -58,13 +59,13 @@ fun UpdateCard(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Text(
-                        "${formatMegabytes(state.downloadedBytes)} / ${formatMegabytes(state.totalBytes)} МБ",
+                        "${formatMegabytes(state.downloadedBytes)} / ${formatMegabytes(state.totalBytes)}" + uiText(" МБ", " MB"),
                         style = MaterialTheme.typography.bodySmall
                     )
                 } else {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     Text(
-                        "Загружено: ${formatMegabytes(state.downloadedBytes)} МБ",
+                        uiText("Загружено: ", "Downloaded: ") + formatMegabytes(state.downloadedBytes) + uiText(" МБ", " MB"),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -73,9 +74,9 @@ fun UpdateCard(
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
             val buttonText = when (state) {
-                is UpdateState.Error -> "Повторить обновление"
-                is UpdateState.UpToDate, is UpdateState.Installed -> "Проверить снова"
-                else -> "🔄 Обновить Jessica"
+                is UpdateState.Error -> uiText("Повторить обновление", "Retry update")
+                is UpdateState.UpToDate, is UpdateState.Installed -> uiText("Проверить снова", "Check again")
+                else -> uiText("🔄 Обновить Jessica", "🔄 Update Jessica")
             }
             Button(
                 onClick = onUpdateClick,
