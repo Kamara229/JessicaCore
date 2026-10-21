@@ -119,3 +119,29 @@ export async function localizeResponse(result, task, language, generate) {
     }
     return adapted;
 }
+
+/** Conversational translation must use Jessica's real previous answer. */
+export function isPreviousReplyTranslation(task) {
+    const t=String(task||"").trim();
+    return t.length>0 && t.length<600 &&
+        /перевед|перевести|перевод|translate|tradu|übersetz/iu.test(t) &&
+        /свой ответ|твой ответ|последний ответ|предыдущий ответ|ответ выше|your answer|your reply|last answer|previous answer|previous reply|ta réponse|votre réponse|deine antwort/iu.test(t);
+}
+
+export async function translatePreviousReply(task,conversation,language,generate) {
+    if (!isPreviousReplyTranslation(task)) return null;
+    const source=Array.isArray(conversation)
+        ? conversation.slice(-12).reverse().find(x=>x?.role==="assistant" && typeof x.content==="string" && x.content.trim())?.content.trim()
+        : null;
+    const en=language==="en";
+    const base={mode:"translation",learning:{skipped:true,queued:false,reason:"context_dependent_translation"}};
+    if (!source) return {...base,success:false,needsClarification:true,
+        text:en?"I couldn't find the previous answer in this chat.":"Не удалось найти предыдущий ответ в этом чате."};
+    if (source.length>10000) return {...base,success:false,needsClarification:true,
+        text:en?"Choose a shorter passage to translate.":"Выбери более короткий фрагмент для перевода."};
+    const original={...base,success:true,text:source};
+    const result=await localizeResponse(original,task,language,generate);
+    if (result.localizationStatus!=="adapted") return {...base,success:false,
+        text:en?"Translation was not completed; the original answer is unchanged.":"Не удалось выполнить перевод; исходный ответ не изменён."};
+    return {...result,success:true,status:"COMPLETED",translationStatus:"completed"};
+}
