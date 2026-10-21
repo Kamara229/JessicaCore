@@ -168,3 +168,69 @@ test("localizing a coding answer must keep generated source blocks byte-for-byte
     assert.equal(correct.localizationStatus,"adapted");
     assert.ok(correct.text.endsWith(code));
 });
+
+
+test("Russian UI translates English programming prose but preserves Python source bytes", async () => {
+    const ticks=String.fromCharCode(96).repeat(3);
+    const code=ticks+"python\ndef factorial(n):\n    return n * factorial(n-1) if n else 1\n"+ticks;
+    const source="Here is a simple Python solution:\n\n"+code+
+        "\n\nYou can call the function to compute a factorial.";
+    let captures=[];
+    const translated=await localizeResponse({success:true,mode:"single",text:source},
+        "Напиши функцию для факториала","ru",async(system,payload,format)=>{
+            captures.push({system,payload,format});
+            return JSON.stringify({parts:[
+                "Вот простой вариант решения на Python:",
+                "Функцию можно использовать для вычисления факториала."
+            ]});
+        });
+    assert.equal(translated.localizationStatus,"adapted");
+    assert.ok(translated.text.includes("Вот простой вариант"));
+    assert.ok(translated.text.includes("Функцию можно использовать"));
+    assert.ok(translated.text.includes(code));
+    assert.equal(captures.length,1);
+    assert.equal(captures[0].format,"json");
+    assert.equal(captures[0].payload.parts.length,2);
+    assert.equal(captures[0].payload.parts.some(v=>v.includes("def factorial")),false);
+});
+test("Mixed Russian-English response translates only English explanation", async () => {
+    const ticks=String.fromCharCode(96).repeat(3);
+    const code=ticks+"kotlin\nfun factorial(n: Int): Long = if (n == 0) 1L else 2L\n"+ticks;
+    const russian="Исправленная функция на Kotlin возвращает значение и проверяет данные.";
+    const last="The function returns a Long and throws an exception for negative input.";
+    const source=russian+"\n\n"+code+"\n\n"+last;
+    let called=0;
+    const revised=await localizeResponse({success:true,text:source}, "Исправь функцию","ru",
+        async(prompt,payload,format)=>{
+            called++;
+            assert.equal(format,"json");
+            assert.deepEqual(payload.parts,[last]);
+            return JSON.stringify({parts:["Функция возвращает Long и выбрасывает исключение для отрицательного аргумента."]});
+        });
+    assert.equal(called,1);
+    assert.equal(revised.localizationStatus,"adapted");
+    assert.ok(revised.text.includes(russian));
+    assert.ok(revised.text.includes(code));
+    assert.ok(revised.text.includes("Функция возвращает Long"));
+    assert.equal(revised.text.includes("The function returns"),false);
+});
+test("Mixed-language localization must not be bypassed by Russian majority", async () => {
+    const source="Это пояснение достаточно длинное, чтобы быть определённо русским и правильным.\n\n"+
+        "The answer below explains how the factorial algorithm operates with input values.";
+    const revised=await localizeResponse({success:true,text:source},"Расскажи о факториале","ru",
+        async(prompt,payload,format)=>{
+            assert.equal(format,"json");
+            assert.equal(payload.parts.length,1);
+            return JSON.stringify({parts:["Ответ объясняет, как алгоритм вычисления факториала обрабатывает входные данные."]});
+        });
+    assert.equal(revised.localizationStatus,"adapted");
+    assert.equal(revised.text.includes("The answer below"),false);
+});
+test("Malformed segmented translation keeps original code and reports failure", async () => {
+    const ticks=String.fromCharCode(96).repeat(3);
+    const source="Here is the solution:\n\n"+ticks+"python\nprint(2)\n"+ticks+"\n\nTry it.";
+    const result=await localizeResponse({text:source,success:true},"Реши задачу","ru",
+        async()=>JSON.stringify({parts:["wrong count"]}));
+    assert.equal(result.text,source);
+    assert.equal(result.localizationStatus,"code-prose-adaptation-failed");
+});
