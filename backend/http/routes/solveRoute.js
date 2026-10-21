@@ -7,6 +7,7 @@ import {
 } from "../auth/jessicaAuth.js";
 import { saveChatDebugSnapshot } from "../../storage/chatDebugSnapshot.js";
 import { localizeResponse, normalizeOutputLanguage } from "../../core/language/responseLanguageService.js";
+import {containsCodeFence,hasForeignEnglishProse} from "../../core/language/codeAwareLocale.js";
 
 
 /*
@@ -141,11 +142,19 @@ export function registerSolveRoute(
                         { conversation: req.body?.conversation, attachments: req.body?.attachments, outputLanguage }
                     );
 
+                const preserveBareCode = coreResult?.mode === "code" &&
+                    !containsCodeFence(coreResult?.text) && !hasForeignEnglishProse(coreResult?.text);
                 const result = coreResult?.mode === "translation"
                     ? {...coreResult, outputLanguage, localizationStatus:"explicit-translation"}
-                    : coreResult?.mode === "code"
-                        ? {...coreResult, outputLanguage, localizationStatus:"code-preserved"}
+                    : preserveBareCode
+                        ? {...coreResult, outputLanguage, localizationStatus:"bare-code-preserved"}
                         : await localizeResponse(coreResult, task, outputLanguage);
+                console.log("Jessica response locale:", {
+                    requested: outputLanguage,
+                    mode: result?.mode || null,
+                    status: result?.localizationStatus || "none",
+                    textLength: String(result?.text || "").length
+                });
 
                 // Private owner-only diagnostic; failure must never
                 // prevent Jessica from replying to the Android client.
