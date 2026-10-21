@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,12 +46,17 @@ import com.jessica.core.ui.chat.JessicaDrawerContent
 import com.jessica.core.ui.chat.ChatToolbarAction
 import com.jessica.core.ui.chat.chatToolbarAction
 import com.jessica.core.ui.home.HomeScreen
+import com.jessica.core.ui.language.AppLanguageStore
+import com.jessica.core.ui.language.LocalAppLanguage
+import com.jessica.core.ui.language.uiText
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JessicaScreen() {
     val context = LocalContext.current
+    val languageStore = remember { AppLanguageStore(context.applicationContext) }
+    val selectedLanguage by languageStore.language.collectAsState()
     val controller = remember { JessicaController(context.applicationContext) }
     val navigator = remember { JessicaNavigator() }
     val updateViewModel = remember { UpdateViewModel(context.applicationContext) }
@@ -128,6 +134,7 @@ fun JessicaScreen() {
         scope.launch { drawerState.close() }
     }
 
+    CompositionLocalProvider(LocalAppLanguage provides selectedLanguage) {
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -166,6 +173,8 @@ fun JessicaScreen() {
                 },
                 onTasks = { navigate(JessicaPage.TASKS) },
                 onReports = { navigate(JessicaPage.REPORTS) },
+                selectedLanguage = selectedLanguage,
+                onLanguageChange = languageStore::set,
                 onSettings = { navigate(JessicaPage.HOME) }
             )
         }
@@ -176,9 +185,9 @@ fun JessicaScreen() {
                     title = {
                         Text(when (page) {
                             JessicaPage.CHAT -> if (chatState.previewDeletedThreadId != null)
-                                "Удалённый чат · просмотр" else "Jessica"
-                            JessicaPage.TASKS -> "Задачи"
-                            JessicaPage.REPORTS -> "Отчёты"
+                                uiText("Удалённый чат · просмотр", "Deleted chat · preview") else "Jessica"
+                            JessicaPage.TASKS -> uiText("Задачи", "Tasks")
+                            JessicaPage.REPORTS -> uiText("Отчёты", "Reports")
                             JessicaPage.HOME -> "Jessica Core"
                         })
                     },
@@ -205,7 +214,7 @@ fun JessicaScreen() {
                                         onClick = { chatViewModel.restoreChat(deletedChatId) },
                                         enabled = !chatBusy,
                                         modifier = Modifier.semantics {
-                                            contentDescription = "Восстановить этот удалённый чат"
+                                            contentDescription = "Restore this deleted chat"
                                         }
                                     ) {
                                         Text("↶", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
@@ -216,7 +225,7 @@ fun JessicaScreen() {
                                         onClick = { showDeleteDialog = true },
                                         enabled = !chatBusy,
                                         modifier = Modifier.semantics {
-                                            contentDescription = "Удалить текущий чат"
+                                            contentDescription = "Delete current chat"
                                         }
                                     ) {
                                         Text("🗑")
@@ -251,24 +260,27 @@ fun JessicaScreen() {
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Удалить чат?") },
+            title = { Text(uiText("Удалить чат?", "Delete chat?")) },
             text = {
-                Text(
-                    "«" + (chatState.threads.firstOrNull { it.id == chatState.activeThreadId }?.title
-                        ?: "Выбранный чат") + "» исчезнет из списка. " +
-                    "В течение 60 минут его можно найти через поиск и восстановить стрелкой ↶. " +
-                    "После этого сообщения и вложения будут удалены окончательно."
-                )
+                val name = chatState.threads.firstOrNull { it.id == chatState.activeThreadId }?.title
+                    ?: uiText("Выбранный чат", "Selected chat")
+                Text(uiText(
+                    "«$name» исчезнет из списка. В течение 60 минут его можно найти через поиск " +
+                        "и восстановить стрелкой ↶. После этого сообщения и вложения будут удалены окончательно.",
+                    "“$name” will disappear from the list. You can find and restore it with ↶ " +
+                        "for 60 minutes. Then the messages and attachments will be permanently deleted."
+                ))
             },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteDialog = false
                     chatViewModel.deleteActiveChat()
-                }) { Text("Удалить") }
+                }) { Text(uiText("Удалить", "Delete")) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Отмена") }
+                TextButton(onClick = { showDeleteDialog = false }) { Text(uiText("Отмена", "Cancel")) }
             }
         )
     }
+}
 }
