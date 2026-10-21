@@ -60,7 +60,7 @@ test("document diagnostic identifier stays stable and hash matches rendered answ
     const omitted=await localizeResponse(document,"Review", "en",
         async ()=>"Analysis complete");
     assert.equal(omitted.text,document.text);
-    assert.equal(omitted.localizationStatus,"original");
+    assert.equal(omitted.localizationStatus,"protected-token-mismatch");
 });
 
 test("translation outage and oversize responses preserve the original factual text", async () => {
