@@ -24,6 +24,7 @@ export function splitCodeSegments(value) {
 }
 
 function padding(text) {
+    if(!text.trim()) return {first:text,last:"",inner:""};
     const first=text.match(/^\s*/u)?.[0]||"";
     const last=text.match(/\s*$/u)?.[0]||"";
     const inner=text.slice(first.length,text.length-last.length);
