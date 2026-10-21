@@ -8,6 +8,7 @@ import {buildTaskDecomposerInstructions} from "../core/decomposer/decomposerProm
 import {getComposerInstructions} from "../core/composer/composerPrompt.js";
 import {buildAIResultValidatorMessages} from "../core/validator/aiResult/aiResultPrompt.js";
 import {isCodeAttachmentTask,buildCodeAnalysisPrompt,analyzeCodeAttachments} from "../core/files/codeAnalysisFacade.js";
+import {needsProgrammingRuntimeEvidence} from "../core/foundations/programmingLearningGate.js";
 
 test("stable programming vocabulary spans common and niche languages", () => {
     assert.ok(PROGRAMMING_LANGUAGES.length >= 55);
@@ -69,4 +70,15 @@ test("truncated source is labeled and empty source cannot create positive result
     assert.equal(result.truncated,true);
     const missing=await analyzeCodeAttachments({task:"Review",attachments:[]},async()=> "unreachable");
     assert.equal(missing.success,false);
+});
+
+test("unexecuted code never turns into positive autonomous Experience", () => {
+    assert.equal(needsProgrammingRuntimeEvidence("Напиши функцию на Python",
+        {status:"COMPLETED",validation:{valid:true},toolResults:[]}),true);
+    assert.equal(needsProgrammingRuntimeEvidence("Explain the principles of programming",
+        {status:"COMPLETED",toolResults:[]}),false);
+    assert.equal(needsProgrammingRuntimeEvidence("Напиши функцию на Python",
+        {toolResults:[{tool:"run_tests",success:true,verified:true,validation:{valid:true}}]}),false);
+    assert.equal(needsProgrammingRuntimeEvidence("Write JavaScript code",
+        {toolResults:[{tool:"run_tests",success:true,verified:false,validation:{valid:true}}]}),true);
 });
