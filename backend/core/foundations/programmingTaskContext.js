@@ -1,6 +1,6 @@
 import {PROGRAMMING_LANGUAGES} from "./programmingLanguageCatalog.js";
 
-const CODING_INTENT=/(?:\b(?:code|coding|debug|refactor|compile|compiler|script|source code|programming|function|class|method|syntax|implement|unit test|write a function|review code|fix code)\b|код|скрипт|программир|исходник|скомпил|отлад|рефактор|реализуй|исправь код|напиши (?:функци|класс|программ|скрипт|код)|синтаксис|функци[яию]|компиляц|тесты для кода)/iu;
+const CODING_INTENT=/(?:\b(?:code|coding|debug|refactor|compile|compiler|script|source code|programming|function|class|method|syntax|implement|unit test|write a function|review code|fix code)\b|(?<![\\p{L}\\p{N}])код(?:а|у|ом|е|ы|ов)?(?![\\p{L}\\p{N}])|скрипт|программир|исходник|скомпил|отлад|рефактор|реализуй|исправь код|напиши (?:функци|класс|программ|скрипт|код)|синтаксис|функци[яию]|компиляц|тесты для кода)/iu;
 const FENCES = /\x60{3}\s*([a-z0-9+#._-]+)?\s*\n/giu;
 
 function mentions(text,alias) {
