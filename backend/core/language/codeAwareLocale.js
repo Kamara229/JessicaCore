@@ -119,6 +119,21 @@ function meaningfulEnglishParagraph(text) {
     return latin >= 12 && words >= 4 && english >= 2 && latin > cyrillic * 2;
 }
 
+/**
+ * Preserve a model response only if it is actually raw source code.
+ * The presence of 'no long English paragraph' is NOT sufficient: even short
+ * English introductions must still be localized.
+ */
+export function isBareSourceOnly(value) {
+    const text=String(value||"").trim();
+    if(!text || containsCodeFence(text)) return false;
+    const lines=text.split("\n").map(line=>line.trim()).filter(Boolean);
+    if(!lines.length || !looksLikeSourceLine(lines[0])) return false;
+    const sourceLines=lines.filter(looksLikeSourceLine).length;
+    return sourceLines >= Math.max(1,Math.ceil(lines.length*0.55)) &&
+        !hasForeignEnglishProse(text);
+}
+
 export function hasForeignEnglishProse(value) {
     return splitCodeSegments(value).filter(x=>x.kind==="prose")
         .some(x=>x.text.split(/\n\s*\n/).some(meaningfulEnglishParagraph));
