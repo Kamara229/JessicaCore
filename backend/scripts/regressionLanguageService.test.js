@@ -4,7 +4,8 @@ import { createHash } from "node:crypto";
 import {
     normalizeOutputLanguage,
     buildLanguageInstructions,
-    localizeResponse
+    localizeResponse,
+    protectedAnswerTokens
 } from "../core/language/responseLanguageService.js";
 
 test("only Russian and English are valid interface locales", () => {
@@ -70,4 +71,44 @@ test("translation outage and oversize responses preserve the original factual te
     const large=await localizeResponse({...response,text:"A".repeat(14001)},"task","en",
         async ()=>{throw new Error("must not call")});
     assert.equal(large.localizationStatus,"long-answer-original");
+});
+
+test("source quotations and protected names stay intact in multilingual legal answers", async () => {
+    const source={
+        success:true,mode:"document",evidenceChecked:true,text:
+        "АО «АЛМАЗ» сообщает: «Договор подписан 21.10.2026». Ссылка: https://example.org/letter",
+        responseId:"JDOC-TEST1",responseSha256:"before"
+    };
+    const revised=await localizeResponse(source,"Summarize in English","en",
+        async()=>"ALMAZ Inc. reports that the contract was signed on October 21, 2026. https://example.org/letter");
+    assert.equal(revised.localizationStatus,"protected-token-mismatch");
+    assert.equal(revised.text,source.text);
+    assert.ok(protectedAnswerTokens(source).includes("«АЛМАЗ»"));
+    assert.ok(protectedAnswerTokens(source).includes("«Договор подписан 21.10.2026»"));
+});
+
+test("language adaptation rejects altered legal numbers", async () => {
+    const source={success:true,text:"Размер штрафа 1500 рублей."};
+    const changed=await localizeResponse(source,"Describe the fine","en",
+        async()=>"The fine is 15000 rubles.");
+    assert.equal(changed.localizationStatus,"numeric-mismatch");
+    assert.equal(changed.text,source.text);
+});
+
+test("keep Russian responses without spending another model request", async () => {
+    const source={success:true,text:"Результат проверки: все необходимые условия выполнены, существенных ошибок не обнаружено."};
+    const result=await localizeResponse(source,"Проверь результат","ru",
+        async()=>{throw new Error("translator must not be called");});
+    assert.equal(result.localizationStatus,"already-russian");
+    assert.equal(result.text,source.text);
+});
+
+test("an explicit translation request is honored even when UI is Russian", async () => {
+    const source={success:true,text:"Перевод: хорошая работа. Имя Jessica Core сохранено."};
+    let called=false;
+    const result=await localizeResponse(source,"Переведи на японский язык","ru",
+        async(prompt)=>{called=true; assert.ok(prompt.includes("non-UI world languages")); return "良い仕事です。Jessica Core";});
+    assert.equal(called,true);
+    assert.equal(result.localizationStatus,"adapted");
+    assert.ok(result.text.includes("Jessica Core"));
 });

@@ -225,7 +225,8 @@ class ChatThreadStore(context: Context) {
         return readIndex().sortedByDescending { it.updatedAt }.mapNotNull { thread ->
             if (trashSearch && thread.deletedAt == null) return@mapNotNull null
             if (trashSearch) return@mapNotNull ChatSearchResult(thread, "")
-            val titleMatch = thread.title.contains(needle, ignoreCase = true)
+            val titleMatch = thread.title.contains(needle, ignoreCase = true) ||
+                (thread.title == "Новый чат" && needle.equals("New chat", ignoreCase = true))
             val file = threadFile(thread.id)
             val match = if (titleMatch || !file.isFile) null else readMessages(file)
                 .firstOrNull { it.text.contains(needle, ignoreCase = true) }
