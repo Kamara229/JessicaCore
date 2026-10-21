@@ -6,8 +6,9 @@ import {
     requireJessicaAuthorization
 } from "../auth/jessicaAuth.js";
 import { saveChatDebugSnapshot } from "../../storage/chatDebugSnapshot.js";
-import { localizeResponse, normalizeOutputLanguage } from "../../core/language/responseLanguageService.js";
+import { localizeResponse, normalizeOutputLanguage, requestedTranslation } from "../../core/language/responseLanguageService.js";
 import {withResponseLanguage} from "../../core/language/responseLanguageContext.js";
+import {enforcePresentationLanguage} from "../../core/language/strictPresentationLanguage.js";
 import {isBareSourceOnly} from "../../core/language/codeAwareLocale.js";
 
 
@@ -145,11 +146,16 @@ export function registerSolveRoute(
 
                 const preserveBareCode = coreResult?.mode === "code" &&
                     isBareSourceOnly(coreResult?.text);
-                const result = coreResult?.mode === "translation"
+                const localized = coreResult?.mode === "translation"
                     ? {...coreResult, outputLanguage, localizationStatus:"explicit-translation"}
                     : preserveBareCode
                         ? {...coreResult, outputLanguage, localizationStatus:"bare-code-preserved"}
                         : await localizeResponse(coreResult, task, outputLanguage);
+                const result = enforcePresentationLanguage(localized, {
+                    task,
+                    language:outputLanguage,
+                    override:requestedTranslation(task)
+                });
                 console.log("Jessica response locale:", {
                     requested: outputLanguage,
                     mode: result?.mode || null,
