@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 
 import com.jessica.core.modules.chat.ChatMessage
+import com.jessica.core.ui.language.uiText
 
 
 /*
@@ -71,7 +72,7 @@ fun MessageActions(
             text = {
 
                 Text(
-                    text = "📋  Копировать"
+                    text = uiText("📋  Копировать", "📋  Copy")
                 )
 
             },
@@ -115,7 +116,7 @@ fun MessageActions(
                 text = {
 
                     Text(
-                        text = "🔄  Повторить запрос"
+                        text = uiText("🔄  Повторить запрос", "🔄  Retry request")
                     )
 
                 },
