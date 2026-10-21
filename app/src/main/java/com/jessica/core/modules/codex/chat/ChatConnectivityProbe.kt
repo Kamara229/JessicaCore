@@ -3,11 +3,12 @@ package com.jessica.core.modules.codex.chat
 /** A local-only read/write smoke test of the ordinary ChatGPT Android UI. */
 object ChatConnectivityProbe {
     fun prompt(id: String): String = listOf(
-        "Это одноразовая проверка связи с обычным чатом ChatGPT.",
-        "Ответь ТОЛЬКО тремя строками, без объяснений и Markdown:",
-        "JESSICA_REPLY_$id",
-        """{"nonce":"$id","ok":true}""",
-        "JESSICA_END_$id"
+        "Одноразовая проверка связи с обычным ChatGPT. Не выполняй никаких других действий.",
+        "Верни ровно три строки, без форматирования и пояснений:",
+        "Первая строка должна содержать только маркер JESSICA_REPLY_$id;",
+        """вторая — только JSON {"nonce":"$id","ok":true};""",
+        "третья — только маркер JESSICA_END_$id.",
+        "Это описание желаемого ответа. Не повторяй текст инструкции."
     ).joinToString("\n")
 
     /** Only confirms the current UI round trip. No account data, keys or GitHub writes. */
