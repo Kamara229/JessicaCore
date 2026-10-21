@@ -246,11 +246,11 @@ export function tryNativeDecomposition({
 
     // Editing the preceding program and converting it to another language is
     // one cohesive task. Do not split the code and its language requirements.
-    const followup = input.match(/Текущая задача пользователя \\(единственная задача к выполнению\\):\\s*([^\\n]+)$/u);
+    const followup = input.match(/Текущая задача пользователя \(единственная задача к выполнению\):\s*([^\n]+)$/u);
     const current = followup?.[1]?.trim() || "";
     if (current.length > 0 && current.length <= 360 &&
         /(?:функци|код|скрипт|python|kotlin|javascript|typescript|rust|function|script)/iu.test(current) &&
-        /^(?:а\\s+)?(?:теперь\\s+)?(?:добавь|исправь|перепиши|измени|доработай|fix|update|modify|refactor)/iu.test(current)) {
+        /^(?:а\s+)?(?:теперь\s+)?(?:добавь|исправь|перепиши|измени|доработай|fix|update|modify|refactor)/iu.test(current)) {
         return {
             handled:true,
             source:"native-code-followup",

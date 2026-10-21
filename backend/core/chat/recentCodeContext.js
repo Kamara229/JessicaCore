@@ -5,8 +5,8 @@
  */
 export function recentCodeEditContext(task,input) {
     const current=String(task||"").trim();
-    if(!/^(?:(?:а\\s+)?теперь\\s+)?(?:добавь|исправь|поправь|перепиши|измени|доработай|fix|update|modify|refactor)/iu.test(current)) return null;
-    if(!/(?:функци|код|скрипт|python|kotlin|javascript|typescript|java|rust|c\\+\\+|program|function|script|source|tests?|алгоритм)/iu.test(current)) return null;
+    if(!/^(?:(?:а\s+)?теперь\s+)?(?:добавь|исправь|поправь|перепиши|измени|доработай|fix|update|modify|refactor)/iu.test(current)) return null;
+    if(!/(?:функци|код|скрипт|python|kotlin|javascript|typescript|java|rust|c\+\+|program|function|script|source|tests?|алгоритм)/iu.test(current)) return null;
     if(!Array.isArray(input)) return null;
     const history=input.slice(-12).filter(item =>
         item && ["user","assistant"].includes(item.role) &&
@@ -18,7 +18,7 @@ export function recentCodeEditContext(task,input) {
     const response=history[index].content.trim();
     const query=history.slice(0,index).reverse().find(item=>item.role==="user")?.content.trim()||"";
     const summary=response.length>2200
-        ? response.slice(0,1600)+"\\n[...предыдущий ответ сокращён...]\\n"+response.slice(-480)
+        ? response.slice(0,1600)+"\n[...предыдущий ответ сокращён...]\n"+response.slice(-480)
         : response;
     return [
         ...(query?[{role:"user",content:query.slice(0,450)}]:[]),
