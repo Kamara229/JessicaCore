@@ -1,3 +1,5 @@
+import {buildProgrammingFoundation} from "../foundations/programmingPolicy.js";
+
 /*
  * =========================================================
  * JESSICA ANSWER COMPOSER PROMPT v3
@@ -302,8 +304,8 @@ const COMPOSER_INSTRUCTIONS =
 
 
 
-export function getComposerInstructions() {
+export function getComposerInstructions(task = "") {
 
-    return COMPOSER_INSTRUCTIONS;
+    return COMPOSER_INSTRUCTIONS + "\n" + buildProgrammingFoundation(task,{stage:"answer"});
 
 }
