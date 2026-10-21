@@ -53,7 +53,7 @@ export async function translateCodeProse(text, task, language, translate) {
     const raw=await translate(system,{
         userTask:String(task||"").slice(0,2200),
         parts:meaningful
-    });
+    },"json");
     let parsed;
     try {
         const clean=String(raw||"").trim()
