@@ -62,6 +62,13 @@ export async function localizeResponse(result, task, language, generate) {
     }
     if (typeof revised !== "string" || revised.length < 2)
         return {...result, outputLanguage: code, localizationStatus: "original"};
+    // A language model may accidentally reformat citations or identifiers.
+    // Reject rather than silently corrupting evidence, URLs and inline code.
+    const protectedTokens = [...result.text.matchAll(
+        /https?:\\/\\/[^\\s)\\]<>]+|JDOC-[A-Z0-9-]+|`[^`\\n]+`/g
+    )].map(match => match[0]);
+    if (protectedTokens.some(token => !revised.includes(token)))
+        return {...result, outputLanguage: code, localizationStatus: "protected-token-mismatch"};
     // Never permit losing a diagnostic document ID or verified source URLs/IDs.
     if (result.mode === "document") {
         const auditId = String(result.responseId || "");
