@@ -1,10 +1,12 @@
 package com.jessica.core.ui.codex
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,30 +18,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jessica.core.ui.language.uiText
 
-/**
- * Non-destructive migration: keep legacy GitHub Actions autonomy available.
- * Phone mode never silently uses Render and never falsely claims to drive
- * another app automatically.
- */
+/** Day shift is the recommended API-free mode; the paid legacy mode remains opt-in. */
 @Composable
 fun CodexScreen() {
-    var phone by remember { mutableStateOf(true) }
+    var mode by remember { mutableStateOf("day") }
     Column(modifier=Modifier.fillMaxSize()) {
         Row(
-            horizontalArrangement=Arrangement.spacedBy(8.dp),
-            modifier=Modifier.padding(horizontal=16.dp,vertical=4.dp)
+            modifier=Modifier.horizontalScroll(rememberScrollState())
+                .padding(horizontal=16.dp,vertical=4.dp),
+            horizontalArrangement=Arrangement.spacedBy(8.dp)
         ) {
             FilterChip(
-                selected=phone,
-                onClick={phone=true},
-                label={Text(uiText("На телефоне","On phone"))}
+                selected=mode=="day", onClick={mode="day"},
+                label={Text(uiText("☀ Дневной режим","☀ Day shift"))}
             )
             FilterChip(
-                selected=!phone,
-                onClick={phone=false},
-                label={Text(uiText("GitHub Actions (старый)","GitHub Actions (legacy)"))}
+                selected=mode=="phone", onClick={mode="phone"},
+                label={Text(uiText("Через ChatGPT","Via ChatGPT"))}
+            )
+            FilterChip(
+                selected=mode=="legacy", onClick={mode="legacy"},
+                label={Text(uiText("Codex API (платный)","Codex API (paid)"))}
             )
         }
-        if(phone) PhoneCodexScreen() else LegacyCodexScreen()
+        when(mode) {
+            "day" -> DayCodexScreen()
+            "phone" -> PhoneCodexScreen()
+            else -> LegacyCodexScreen()
+        }
     }
 }
