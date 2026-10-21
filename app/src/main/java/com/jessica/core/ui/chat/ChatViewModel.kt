@@ -2,6 +2,7 @@ package com.jessica.core.ui.chat
 
 import android.net.Uri
 import com.jessica.core.ui.language.AppLanguage
+import com.jessica.core.ui.language.localeText
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -57,6 +58,7 @@ class ChatViewModel(
     private var searchJob: Job? = null
     private val titleClient = ChatTitleClient { languageProvider().code }
     private val syncClient = ChatDebugSyncClient()
+    private fun tr(ru: String, en: String): String = localeText(languageProvider(), ru, en)
 
     init {
         viewModelScope.launch {
@@ -79,7 +81,7 @@ class ChatViewModel(
             } catch (error: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    storageError = "Не удалось загрузить чаты: ${error.message}"
+                    storageError = tr("Не удалось загрузить чаты: ", "Could not load chats: ") + error.message
                 )
             }
         }
@@ -154,13 +156,13 @@ class ChatViewModel(
             var problem: String? = null
             for (uri in uris) {
                 if (list.size >= 3) {
-                    problem = "Можно приложить не более 3 файлов к одному сообщению"
+                    problem = tr("Можно приложить не более 3 файлов к одному сообщению", "You can attach up to three files per message")
                     break
                 }
                 try {
                     list.add(attachmentStore.importUri(uri))
                 } catch (error: Exception) {
-                    problem = error.message ?: "Не удалось добавить файл"
+                    problem = error.message ?: tr("Не удалось добавить файл", "Could not attach file")
                     break
                 }
             }
@@ -216,7 +218,7 @@ class ChatViewModel(
             } catch (error: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    storageError = "Не удалось создать чат: ${error.message}"
+                    storageError = tr("Не удалось создать чат: ", "Could not create chat: ") + error.message
                 )
             }
         }
@@ -246,7 +248,7 @@ class ChatViewModel(
             } catch (error: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    storageError = "Не удалось открыть чат: ${error.message}"
+                    storageError = tr("Не удалось открыть чат: ", "Could not open chat: ") + error.message
                 )
             }
         }
@@ -263,7 +265,7 @@ class ChatViewModel(
             try {
                 val preview = withContext(Dispatchers.IO) {
                     val thread = threadStore.deleted().firstOrNull { it.id == id }
-                        ?: throw IllegalStateException("Время восстановления этого чата истекло")
+                        ?: throw IllegalStateException(tr("Время восстановления этого чата истекло", "This chat can no longer be restored"))
                     Pair(thread.title, threadStore.deletedMessages(id))
                 }
                 _state.value = _state.value.copy(
@@ -276,7 +278,7 @@ class ChatViewModel(
             } catch (error: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    storageError = "Не удалось открыть удалённый чат: " + error.message
+                    storageError = tr("Не удалось открыть удалённый чат: ", "Could not open deleted chat: ") + error.message
                 )
                 updateSearch(_state.value.searchQuery)
             }
@@ -312,7 +314,7 @@ class ChatViewModel(
             } catch (error: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    storageError = "Не удалось удалить чат: " + error.message
+                    storageError = tr("Не удалось удалить чат: ", "Could not delete chat: ") + error.message
                 )
             }
         }
@@ -353,7 +355,7 @@ class ChatViewModel(
             } catch (error: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    storageError = "Не удалось восстановить чат: " + error.message
+                    storageError = tr("Не удалось восстановить чат: ", "Could not restore chat: ") + error.message
                 )
                 updateSearch(_state.value.searchQuery)
             }
@@ -409,7 +411,7 @@ class ChatViewModel(
             } catch (error: Exception) {
                 _state.value = _state.value.copy(
                     isRunning = false,
-                    storageError = "Сообщение не отправлено: ${error.message}"
+                    storageError = tr("Сообщение не отправлено: ", "Message not sent: ") + error.message
                 )
                 return@launch
             }
@@ -425,7 +427,7 @@ class ChatViewModel(
             val result = try {
                 messageExecutor(userMessage.text, history, userMessage.attachments)
             } catch (error: Exception) {
-                "Не удалось выполнить запрос: ${error.message ?: "неизвестная ошибка"}"
+                tr("Не удалось выполнить запрос: ", "Could not complete the request: ") + (error.message ?: tr("неизвестная ошибка", "unknown error"))
             }
             val answer = ChatMessage(text = result, isUser = false)
             val stored = try {
@@ -435,7 +437,7 @@ class ChatViewModel(
                 }
             } catch (error: Exception) {
                 _state.value = _state.value.copy(
-                    storageError = "Ответ отображён, но не сохранён: ${error.message}"
+                    storageError = tr("Ответ отображён, но не сохранён: ", "The answer was shown but not saved: ") + error.message
                 )
                 null
             }
