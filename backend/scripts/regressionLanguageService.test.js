@@ -112,3 +112,10 @@ test("an explicit translation request is honored even when UI is Russian", async
     assert.equal(result.localizationStatus,"adapted");
     assert.ok(result.text.includes("Jessica Core"));
 });
+
+test("English decimal punctuation may differ without changing numeric facts", async () => {
+    const response={success:true,text:"Концентрация составляет 1,5 мг/л."};
+    const translated=await localizeResponse(response,"Describe the concentration","en",
+        async()=>"The concentration is 1.5 mg/L.");
+    assert.equal(translated.localizationStatus,"adapted");
+});

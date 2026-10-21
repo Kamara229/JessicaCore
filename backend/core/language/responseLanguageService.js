@@ -42,7 +42,9 @@ export function protectedAnswerTokens(result) {
 }
 
 function canonicalNumbers(text) {
-    return [...String(text || "").matchAll(/\d+(?:[.,]\d+)*/g)]
+    // Compare digit groups, allowing locale-specific commas, periods and spaces.
+    // Still reject invented/altered numbers in a translated answer.
+    return [...String(text || "").matchAll(/\d+/g)]
         .map(match => match[0]).sort();
 }
 
