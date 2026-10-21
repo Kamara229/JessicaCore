@@ -527,7 +527,7 @@ export async function composeAnswer(
 
         await generateComposerAnswer(
             contextResult.input,
-            {pairedSources: usePairedComparisonContext(task,plan,taskRunResult)}
+            {task, pairedSources: usePairedComparisonContext(task,plan,taskRunResult)}
         );
 
 
