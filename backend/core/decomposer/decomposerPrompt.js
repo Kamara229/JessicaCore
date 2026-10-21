@@ -1,3 +1,5 @@
+import {buildProgrammingFoundation} from "../foundations/programmingPolicy.js";
+
 /*
  * =========================================================
  * JESSICA TASK DECOMPOSER PROMPT v1
@@ -20,7 +22,7 @@
  */
 
 
-export function buildTaskDecomposerInstructions()
+export function buildTaskDecomposerInstructions(task = "")
 {
 
     return [
@@ -250,6 +252,6 @@ export function buildTaskDecomposerInstructions()
         })
 
     ]
-        .join("\n");
+        .join("\n") + "\n" + buildProgrammingFoundation(task,{stage:"decomposer"});
 
 }
