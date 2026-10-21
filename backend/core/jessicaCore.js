@@ -41,6 +41,7 @@ import {
 
 import { analyzeDocumentAttachments } from "./files/documentAnalysisFacade.js";
 import {analyzeCodeAttachments,isCodeAttachmentTask} from "./files/codeAnalysisFacade.js";
+import {needsProgrammingRuntimeEvidence} from "./foundations/programmingLearningGate.js";
 import { translatePreviousReply } from "./language/responseLanguageService.js";
 
 import {
@@ -429,6 +430,9 @@ export async function executeJessicaTask(
 
     // A referential follow-up is not a standalone, reusable Skill.
     // Its trace lacks independent task grounding; do not publish it as Experience.
+    const requiresCodeVerification = needsProgrammingRuntimeEvidence(
+        normalizedTask, executionResult
+    );
     const learningResult = executionTask !== normalizedTask
         ? {
             success: false,
@@ -436,7 +440,14 @@ export async function executeJessicaTask(
             skipped: true,
             reason: "context_dependent_chat_followup"
         }
-        : await processExecutionLearning(executionTrace);
+        : requiresCodeVerification
+            ? {
+                success: false,
+                queued: false,
+                skipped: true,
+                reason: "programming_code_not_runtime_verified"
+            }
+            : await processExecutionLearning(executionTrace);
 
 
     response.learning =
