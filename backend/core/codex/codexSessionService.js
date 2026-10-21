@@ -117,7 +117,10 @@ export async function readCodexSession(issueNumber,api=github) {
         const comments=await api(root+"/issues/"+id+"/comments?per_page=100");
         const conversation=comments.slice(-45).map(item=>{
             const raw=String(item.body||"").slice(0,3500);
-            const role=raw.startsWith("[Codex]")?"Codex":
+            // Public issues can receive external comments. Never let an external
+            // author masquerade as Codex or Jessica by prefixing a message.
+            const trusted=["github-actions[bot]","Kamara229"].includes(item.user?.login);
+            const role=!trusted?"External":raw.startsWith("[Codex]")?"Codex":
                 raw.startsWith("[Jessica]")?"Jessica":"System";
             return {role,text:raw.replace(/^\[(?:Codex|Jessica|System)\]\s*/,""),at:item.created_at};
         });
