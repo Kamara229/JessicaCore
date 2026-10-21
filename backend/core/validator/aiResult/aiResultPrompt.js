@@ -1,3 +1,5 @@
+import {buildProgrammingFoundation} from "../../foundations/programmingPolicy.js";
+
 /*
  * =========================================================
  * JESSICA AI RESULT PROMPT v2
@@ -192,7 +194,7 @@ function logInputSize(
 }
 
 
-function buildSystemPrompt()
+function buildSystemPrompt(task = "")
 {
 
     return [
@@ -311,7 +313,7 @@ function buildSystemPrompt()
     ]
         .join(
             "\n"
-        );
+        ) + "\n" + buildProgrammingFoundation(task,{stage:"validator"});
 
 }
 
@@ -387,7 +389,7 @@ export function buildAIResultValidatorMessages(
                 "system",
 
             content:
-                buildSystemPrompt()
+                buildSystemPrompt(task)
 
         },
 
