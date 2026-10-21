@@ -107,6 +107,14 @@ export async function localizeResponse(result, task, language, generate) {
         return {...result, outputLanguage: code, localizationStatus: "protected-token-mismatch"};
     if (!numbersUnchanged(result.text, revised))
         return {...result, outputLanguage: code, localizationStatus: "numeric-mismatch"};
+    // Never alter a fenced code block during bilingual presentation editing.
+    // A model may freely translate the surrounding explanation only.
+    const fences = text => [...String(text || "").matchAll(/\x60{3}[^\n]*\n[\s\S]*?\x60{3}/g)]
+        .map(match => match[0]);
+    const before = fences(result.text);
+    if (before.length && JSON.stringify(before) !== JSON.stringify(fences(revised))) {
+        return {...result, outputLanguage: code, localizationStatus: "code-block-mismatch"};
+    }
     // Never permit losing a diagnostic document ID or verified source URLs/IDs.
     if (result.mode === "document") {
         const auditId = String(result.responseId || "");
