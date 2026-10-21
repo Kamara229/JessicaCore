@@ -1,6 +1,8 @@
 package com.jessica.core.ui.codex
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -52,6 +54,7 @@ fun DayCodexScreen() {
     var messages by remember { mutableStateOf<List<Pair<String,String>>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
+    var githubNotice by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         try { configured=client.configuration().optBoolean("apiFreeDayReady",false) }
@@ -99,6 +102,27 @@ fun DayCodexScreen() {
             "This does not run a Codex model: arbitrary AI-generated code changes require a model. " +
                 "This mode performs deterministic regression improvements only."
         ),style=MaterialTheme.typography.bodySmall)
+        // GitHub owner can start the same workflow without any Render keys.
+        // The browser handles GitHub authentication; app never holds a PAT.
+        OutlinedButton(
+            onClick={
+                try{
+                    val address="https://github.com/Kamara229/JessicaCore/actions/workflows/jessica-day.yml"
+                    context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(address)))
+                    githubNotice=""
+                }catch(e:Exception){
+                    githubNotice=e.message ?: "Could not open GitHub"
+                }
+            },
+            modifier=Modifier.fillMaxWidth()
+        ) { Text(uiText("☀ Запустить через GitHub без ключей","☀ Start in GitHub without tokens")) }
+        Text(uiText(
+            "В GitHub выбери Run workflow → auto, Issue = 0. После запуска можешь закрыть браузер. " +
+                "Отчёт появится в Actions, проверенные изменения — в Pull Requests.",
+            "In GitHub choose Run workflow → auto, Issue = 0. Then close the browser. " +
+                "Read the report in Actions and any proposed change in Pull Requests."
+        ),style=MaterialTheme.typography.bodySmall)
+        if(githubNotice.isNotBlank()) Text(githubNotice,style=MaterialTheme.typography.bodySmall)
         if(configured==false) Text(uiText(
             "Для запуска один раз настрой в Render ключ владельца и GitHub-токен. OPENAI_API_KEY не нужен.",
             "One-time Render setup: owner secret and scoped GitHub token. OPENAI_API_KEY is not needed."

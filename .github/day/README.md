@@ -30,3 +30,12 @@ A single run is bounded to 18 minutes. Runs must be owner-authenticated.
 For private repos, check your Actions minutes quota before use.
 
 The older API-billed Codex workflow is **unchanged**, kept separate and opt-in.
+
+## No-credential launch from GitHub
+
+If Render keys are not configured, tap **Start in GitHub without tokens** from
+Jessica's day screen. Log in to GitHub as repository owner and select
+**Run workflow** (goal = auto, issue = 0). The Action authenticates
+`GITHUB_ACTOR=Kamara229` before running, writes its result to the Actions
+summary, and optionally opens a reviewable test PR. No owner key, PAT, OpenAI
+API, or background running Android app is needed for this manual launch.
