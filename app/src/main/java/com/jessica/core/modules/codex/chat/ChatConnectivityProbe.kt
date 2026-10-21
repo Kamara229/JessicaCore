@@ -10,11 +10,12 @@ object ChatConnectivityProbe {
         "JESSICA_END_$id"
     ).joinToString("\n")
 
-    /** Not a cryptographic proof: only confirms that the current UI round trip was captured. */
+    /** Only confirms the current UI round trip. No account data, keys or GitHub writes. */
     fun accepts(body: String, id: String): Boolean {
         val input = body.trim()
+        val nonce = Regex("\"nonce\"\\s*:\\s*\"${Regex.escape(id)}\"")
+        val ok = Regex("\"ok\"\\s*:\\s*true\\b")
         return input.startsWith("{") && input.endsWith("}") &&
-            Regex(""""nonce"\\s*:\\s*"${Regex.escape(id)}"""").containsMatchIn(input) &&
-            Regex(""""ok"\\s*:\\s*true\\b""").containsMatchIn(input)
+            nonce.containsMatchIn(input) && ok.containsMatchIn(input)
     }
 }
