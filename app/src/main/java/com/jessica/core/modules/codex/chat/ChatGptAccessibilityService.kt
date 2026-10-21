@@ -42,9 +42,9 @@ class ChatGptAccessibilityService : AccessibilityService() {
         loop?.cancel()
         confirmed = false
         composed = false
-        run = ChatRunState(SystemClock.elapsedRealtime())
-        showOverlay()
         val launch = PhoneChatRuntime.launch ?: return
+        run = ChatRunState(SystemClock.elapsedRealtime(), maxTurns = if (launch.connectivityOnly) 1 else 3)
+        showOverlay()
         if (!PhoneCodexHandoff.openChatGPT(this, launch.chatUrl.ifBlank { null })) {
             finish("ChatGPT не удалось открыть"); return
         }
@@ -108,16 +108,23 @@ class ChatGptAccessibilityService : AccessibilityService() {
             val send = window.send ?: run { notice("Кнопка отправки не распознана. Нажатия по координатам отключены."); return }
             if (!state.beginSend(SystemClock.elapsedRealtime())) { finish("Достигнут лимит сообщений этой сессии."); return }
             // Record BEFORE clicking. An ambiguous result must never cause a duplicate send.
-            notice("Отправляю запрос ${state.sends}/3. При перезапуске автоматической повторной отправки не будет.")
+            notice("Отправляю запрос ${state.sends}/${if (launch.connectivityOnly) 1 else 3}. При перезапуске повторной отправки не будет.")
             if (!send.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
                 finish("Отправка не подтверждена интерфейсом. Проверь чат; автоматического повтора нет."); return
             }
             composed = false
-            notice("Жду полный ответ ChatGPT (${state.sends}/3).")
+            notice("Жду полный ответ ChatGPT (${state.sends}/${if (launch.connectivityOnly) 1 else 3}).")
         } finally { window.release() }
     }
 
     private suspend fun handleReply(launch: PhoneChatLaunch, text: String) {
+        if (launch.connectivityOnly) {
+            val ok = ChatConnectivityProbe.accepts(text, launch.id)
+            finish(if (ok)
+                "✅ Связь подтверждена: Джессика отправила тестовое сообщение и получила ответ из обычного ChatGPT. Ключи и GitHub не использовались."
+                else "Ответ получен, но контрольная метка не совпала. Код не менялся.")
+            return
+        }
         PhoneChatRuntime.saveReply(this, launch.id, text)
         notice("Ответ получен. Проверяю формат и исходную версию кода.")
         val reply = try { JSONObject(text) } catch (_: Exception) { repairFormat(launch, "invalid-json"); return }
@@ -167,7 +174,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
         run?.stop()
         loop?.cancel()
         finish(message)
-        if (current != null) scope.launch {
+        if (current != null && !current.connectivityOnly) scope.launch {
             try {
                 val result = client.phone("stop", current.ownerKey, JSONObject().put("id", current.id))
                 if (PhoneChatRuntime.launch == null && result.optString("state") in setOf("applying", "merged", "application-status-unknown"))

@@ -8,7 +8,8 @@ import org.json.JSONObject
 import java.io.File
 
 data class PhoneChatStatus(val active: Boolean = false, val text: String = "Не запущено", val url: String = "")
-class PhoneChatLaunch(val id: String, val ownerKey: String, var prompt: String, val chatUrl: String)
+class PhoneChatLaunch(val id: String, val ownerKey: String, var prompt: String, val chatUrl: String,
+                      val connectivityOnly: Boolean = false)
 
 /** Only the active process holds the owner key. Never put it in a prompt, log, saved state or Intent. */
 object PhoneChatRuntime {
@@ -21,6 +22,15 @@ object PhoneChatRuntime {
         check(launch == null) { "Сессия уже запущена" }
         launch = PhoneChatLaunch(prepared.getString("id"), ownerKey, prepared.getString("prompt"), url)
         update(context, "Открываю обычный чат. Выбери режим «Чат», если он ещё не выбран.", true, "")
+        controller?.begin()
+    }
+    /** One opted-in on-device send/receive check; NO owner key, GitHub or backend request. */
+    fun startConnectivityProbe(context: Context, url: String) {
+        check(controller != null) { "Сначала включи службу Джессики в специальных возможностях" }
+        check(launch == null) { "Сессия уже запущена" }
+        val id = java.util.UUID.randomUUID().toString()
+        launch = PhoneChatLaunch(id, "", ChatConnectivityProbe.prompt(id), url, connectivityOnly = true)
+        update(context, "Пробная сессия без ключей: выбери обычный чат и подтверди его на панели.", true, "")
         controller?.begin()
     }
     fun update(context: Context, text: String, active: Boolean = true, url: String = status.value.url) {
