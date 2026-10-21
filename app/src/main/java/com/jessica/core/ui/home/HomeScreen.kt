@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.updater.UpdateState
 import com.jessica.core.ui.status.JessicaStatusCard
 import com.jessica.core.ui.update.UpdateCard
+import com.jessica.core.ui.language.uiText
+import com.jessica.core.BuildConfig
 
 /** Settings and app health, now reachable from the navigation drawer. */
 @Composable
@@ -30,7 +32,7 @@ fun HomeScreen(
         item { UpdateCard(state = updateState, onUpdateClick = onUpdate) }
         item {
             Text(
-                "О Jessica",
+                uiText("О Jessica", "About Jessica"),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
@@ -38,18 +40,20 @@ fun HomeScreen(
         }
         item {
             Text(
-                message,
+                uiText("Jessica Core v${BuildConfig.VERSION_NAME} запущена", "Jessica Core v${BuildConfig.VERSION_NAME} is running"),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
             )
             Text(
-                "История диалогов хранится на телефоне автоматически. " +
+                uiText("История диалогов хранится на телефоне автоматически. " +
                     "Обновление приложения сохраняет локальные данные.",
+                    "Chat history is stored on your phone automatically. Updates preserve local data."),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)
             )
             Text(
-                "Experience и Skills продолжают работать независимо от локальной истории.",
+                uiText("Experience и Skills продолжают работать независимо от локальной истории.",
+                    "Experience and Skills work independently of local chat history."),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 12.dp)
