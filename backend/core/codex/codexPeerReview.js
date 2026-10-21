@@ -19,7 +19,7 @@ export async function reviewCodexEngineering({goal,phase,content},generate) {
         "You cannot directly edit repository files or authorize deployment.",
         buildProgrammingFoundation("Проверь изменения JavaScript кода Джессики",{stage:"validator"})
     ].join("\n");
-    const run=generate||async (prompt,payload)=>{
+    const run=generate||(async (prompt,payload)=>{
         const response=await getGroqClient().chat.completions.create({
             model:"openai/gpt-oss-20b",temperature:0,reasoning_effort:"low",
             include_reasoning:false,max_completion_tokens:900,
@@ -30,7 +30,7 @@ export async function reviewCodexEngineering({goal,phase,content},generate) {
         });
         return response.choices?.[0]?.finish_reason==="length"?null:
             String(response.choices?.[0]?.message?.content||"").trim();
-    };
+    });
     try {
         const answer=await run(system,{goal:safeGoal,phase:safePhase,source:input});
         return {success:typeof answer==="string"&&!!answer.trim(),
