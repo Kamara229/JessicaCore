@@ -61,6 +61,7 @@ export function registerSolveRoute(
                  */
 
 
+                const outputLanguage = normalizeOutputLanguage(req.body?.outputLanguage);
                 const task =
                     typeof req.body?.task === "string"
                         ? req.body.task.trim()
@@ -79,7 +80,7 @@ export function registerSolveRoute(
                                 false,
 
                             text:
-                                "Задача не указана"
+                                (outputLanguage === "en" ? "Task not provided" : "Задача не указана")
 
                         });
 
@@ -108,7 +109,7 @@ export function registerSolveRoute(
                                 false,
 
                             text:
-                                "Задача слишком большого объёма"
+                                (outputLanguage === "en" ? "Task is too long" : "Задача слишком большого объёма")
 
                         });
 
@@ -141,7 +142,7 @@ export function registerSolveRoute(
                     );
 
                 const result = await localizeResponse(
-                    coreResult, task, normalizeOutputLanguage(req.body?.outputLanguage)
+                    coreResult, task, outputLanguage
                 );
 
                 // Private owner-only diagnostic; failure must never
@@ -217,7 +218,8 @@ export function registerSolveRoute(
                             "server",
 
                         text:
-                            "Внутренняя ошибка Jessica Core"
+                            (normalizeOutputLanguage(req.body?.outputLanguage) === "en"
+                                ? "Jessica Core internal error" : "Внутренняя ошибка Jessica Core")
 
                     });
 
