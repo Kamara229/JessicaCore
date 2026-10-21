@@ -46,6 +46,7 @@ import com.jessica.core.ui.chat.JessicaDrawerContent
 import com.jessica.core.ui.chat.ChatToolbarAction
 import com.jessica.core.ui.chat.chatToolbarAction
 import com.jessica.core.ui.home.HomeScreen
+import com.jessica.core.ui.codex.CodexScreen
 import com.jessica.core.ui.language.AppLanguageStore
 import com.jessica.core.ui.language.LocalAppLanguage
 import com.jessica.core.ui.language.uiText
@@ -174,6 +175,7 @@ fun JessicaScreen() {
                 },
                 onTasks = { navigate(JessicaPage.TASKS) },
                 onReports = { navigate(JessicaPage.REPORTS) },
+                onCodex = { navigate(JessicaPage.CODEX) },
                 selectedLanguage = selectedLanguage,
                 onLanguageChange = languageStore::set,
                 onSettings = { navigate(JessicaPage.HOME) }
@@ -190,6 +192,7 @@ fun JessicaScreen() {
                             JessicaPage.TASKS -> uiText("Задачи", "Tasks")
                             JessicaPage.REPORTS -> uiText("Отчёты", "Reports")
                             JessicaPage.HOME -> "Jessica Core"
+                            JessicaPage.CODEX -> "Codex ↔ Jessica"
                         })
                     },
                     navigationIcon = {
@@ -251,6 +254,7 @@ fun JessicaScreen() {
                         reportStorage = controller.reportStorage,
                         onBack = navigator::backHome
                     )
+                    JessicaPage.CODEX -> CodexScreen()
                     JessicaPage.TASKS -> TaskScreen(
                         onBack = navigator::backHome
                     )
