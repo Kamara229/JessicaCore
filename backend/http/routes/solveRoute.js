@@ -6,6 +6,7 @@ import {
     requireJessicaAuthorization
 } from "../auth/jessicaAuth.js";
 import { saveChatDebugSnapshot } from "../../storage/chatDebugSnapshot.js";
+import { localizeResponse, normalizeOutputLanguage } from "../../core/language/responseLanguageService.js";
 
 
 /*
@@ -133,11 +134,15 @@ export function registerSolveRoute(
                  */
 
 
-                const result =
+                const coreResult =
                     await executeJessicaTask(
                         task,
                         { conversation: req.body?.conversation, attachments: req.body?.attachments }
                     );
+
+                const result = await localizeResponse(
+                    coreResult, task, normalizeOutputLanguage(req.body?.outputLanguage)
+                );
 
                 // Private owner-only diagnostic; failure must never
                 // prevent Jessica from replying to the Android client.
