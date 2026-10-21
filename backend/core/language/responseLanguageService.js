@@ -64,9 +64,8 @@ export async function localizeResponse(result, task, language, generate) {
         return {...result, outputLanguage: code, localizationStatus: "original"};
     // A language model may accidentally reformat citations or identifiers.
     // Reject rather than silently corrupting evidence, URLs and inline code.
-    const protectedTokens = [...result.text.matchAll(
-        /https?:\\/\\/[^\\s)\\]<>]+|JDOC-[A-Z0-9-]+|`[^`\\n]+`/g
-    )].map(match => match[0]);
+    const tokenPattern = /https?:\/\/[^\s)<>]+|JDOC-[A-Z0-9-]+/g;
+    const protectedTokens = [...result.text.matchAll(tokenPattern)].map(match => match[0]);
     if (protectedTokens.some(token => !revised.includes(token)))
         return {...result, outputLanguage: code, localizationStatus: "protected-token-mismatch"};
     // Never permit losing a diagnostic document ID or verified source URLs/IDs.
