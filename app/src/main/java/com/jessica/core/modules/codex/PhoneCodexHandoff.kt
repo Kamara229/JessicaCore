@@ -40,13 +40,12 @@ object PhoneCodexHandoff {
     fun normalizePrivateChatLink(raw: String): String? {
         val trimmed = raw.trim()
         if (trimmed.isEmpty()) return null
-        val uri = try { Uri.parse(trimmed) } catch (_: Exception) { return null }
+        val uri = try { java.net.URI(trimmed) } catch (_: Exception) { return null }
         if (uri.scheme != "https" || uri.host !in setOf("chatgpt.com","www.chatgpt.com")) return null
-        if (uri.port != -1 || uri.userInfo != null) return null
-        val segments = uri.pathSegments
-        if (segments.size != 2 || segments[0] != "c") return null
-        if (!Regex("^[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}$").matches(segments[1])) return null
-        return "https://chatgpt.com/c/" + segments[1]
+        if (uri.port != -1 || uri.rawUserInfo != null || uri.rawQuery != null || uri.rawFragment != null) return null
+        val match = Regex("^/c/([a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12})$").matchEntire(uri.rawPath.orEmpty())
+            ?: return null
+        return "https://chatgpt.com/c/" + match.groupValues[1]
     }
 
     /** Open ChatGPT on this device; Android decides how the private URL opens. */
