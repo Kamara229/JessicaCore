@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { getGroqClient } from "../../ai/groqClient.js";
+import {containsCodeFence, translateCodeProse, visibleProse} from "./codeAwareLocale.js";
 
 /**
  * Presentation-only language adaptation. Never changes the solved task,
@@ -60,8 +61,9 @@ function requestedTranslation(task) {
 }
 
 function answerAlreadyInRussian(text) {
-    const cyrillic = (String(text || "").match(/[А-Яа-яЁё]/g) || []).length;
-    const latin = (String(text || "").match(/[A-Za-z]/g) || []).length;
+    const prose=visibleProse(text);
+    const cyrillic = (prose.match(/[А-Яа-яЁё]/g) || []).length;
+    const latin = (prose.match(/[A-Za-z]/g) || []).length;
     return cyrillic > 45 && cyrillic >= latin * 1.2;
 }
 
@@ -91,15 +93,20 @@ export async function localizeResponse(result, task, language, generate) {
     });
     let revised = "";
     try {
-        revised = await run(buildLanguageInstructions(code), {
-            userTask: String(task || "").slice(0,2500),
-            originalAnswer: result.text
-        });
+        if (containsCodeFence(result.text)) {
+            revised = await translateCodeProse(result.text,task,code,run) || "";
+        } else {
+            revised = await run(buildLanguageInstructions(code), {
+                userTask: String(task || "").slice(0,2500),
+                originalAnswer: result.text
+            });
+        }
     } catch (error) {
         console.warn("Jessica language adaptation unavailable:", {status:error?.status||null});
     }
     if (typeof revised !== "string" || revised.length < 2)
-        return {...result, outputLanguage: code, localizationStatus: "original"};
+        return {...result, outputLanguage: code, localizationStatus: containsCodeFence(result.text)
+            ? "code-prose-adaptation-failed" : "original"};
     // A language model may accidentally reformat citations or identifiers.
     // Reject rather than silently corrupting evidence, URLs and inline code.
     const protectedTokens = protectedAnswerTokens(result);
