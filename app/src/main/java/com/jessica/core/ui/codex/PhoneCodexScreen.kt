@@ -100,7 +100,7 @@ fun PhoneCodexScreen() {
                 val opened=PhoneCodexHandoff.openChatGPT(context,normalized)
                 notice=if(opened)
                     localeText(language, "Запрос скопирован. В ChatGPT открой нужный чат, вставь текст и отправь.", "Prompt copied. Open the intended ChatGPT chat, paste the text and send it.")
-                else uiText("Запрос скопирован. ChatGPT открыть не удалось — открой его вручную.", "Prompt copied. ChatGPT could not be opened; please launch it manually.")
+                else localeText(language, "Запрос скопирован. ChatGPT открыть не удалось — открой его вручную.", "Prompt copied. ChatGPT could not be opened; please launch it manually.")
             },modifier=Modifier.fillMaxWidth()){
                 Text(uiText("▶ Запустить на телефоне","▶ Start on device"))
             }
