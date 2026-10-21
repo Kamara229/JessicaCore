@@ -1,4 +1,6 @@
 import {buildProgrammingFoundation} from "../foundations/programmingPolicy.js";
+import {buildContextFoundation} from "../foundations/contextFoundation.js";
+import {buildDataFoundation} from "../foundations/dataFoundation.js";
 
 /*
  * =========================================================
@@ -306,6 +308,6 @@ const COMPOSER_INSTRUCTIONS =
 
 export function getComposerInstructions(task = "") {
 
-    return COMPOSER_INSTRUCTIONS + "\n" + buildProgrammingFoundation(task,{stage:"answer"});
+    return COMPOSER_INSTRUCTIONS + "\n" + buildProgrammingFoundation(task,{stage:"answer"}) + "\n" + buildContextFoundation(task,{stage:"answer"}) + "\n" + buildDataFoundation(task,{stage:"answer"});
 
 }

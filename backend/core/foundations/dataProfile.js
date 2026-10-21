@@ -7,11 +7,11 @@ function jsonFields(value,limit=MAX_FIELDS) {
     const fields=[],visited=new Set();
     function visit(current,prefix,depth) {
         if(fields.length>=limit||depth>3||!current||typeof current!=="object") return;
-        const source=Array.isArray(current)?current.slice(0,2):Object.entries(current).slice(0,80);
+        const source=Array.isArray(current)?current.slice(0,2).map((value,index)=>[String(index),value]):Object.entries(current).slice(0,80);
         for(const item of source) {
             if(fields.length>=limit) break;
-            const key=Array.isArray(current)?String(source.indexOf(item)):String(item[0]);
-            const data=Array.isArray(current)?item:item[1];
+            const key=String(item[0]);
+            const data=item[1];
             const field=prefix?prefix+"."+key:key;
             if(visited.has(field)) continue;
             visited.add(field);

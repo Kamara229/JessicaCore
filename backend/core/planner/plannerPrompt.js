@@ -1,4 +1,6 @@
 import {buildProgrammingFoundation} from "../foundations/programmingPolicy.js";
+import {buildContextFoundation} from "../foundations/contextFoundation.js";
+import {buildDataFoundation} from "../foundations/dataFoundation.js";
 
 /*
  * =========================================================
@@ -410,6 +412,6 @@ export function buildPlannerInstructions(task = "")
         })
 
     ]
-        .join("\n") + "\n" + buildProgrammingFoundation(task,{stage:"planner"});
+        .join("\n") + "\n" + buildProgrammingFoundation(task,{stage:"planner"}) + "\n" + buildContextFoundation(task,{stage:"planner"}) + "\n" + buildDataFoundation(task,{stage:"planner"});
 
 }

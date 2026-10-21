@@ -1,4 +1,6 @@
 import {buildProgrammingFoundation} from "../../foundations/programmingPolicy.js";
+import {buildContextFoundation} from "../../foundations/contextFoundation.js";
+import {buildDataFoundation} from "../../foundations/dataFoundation.js";
 
 /*
  * =========================================================
@@ -313,7 +315,7 @@ function buildSystemPrompt(task = "")
     ]
         .join(
             "\n"
-        ) + "\n" + buildProgrammingFoundation(task,{stage:"validator"});
+        ) + "\n" + buildProgrammingFoundation(task,{stage:"validator"}) + "\n" + buildContextFoundation(task,{stage:"validator"}) + "\n" + buildDataFoundation(task,{stage:"validator"});
 
 }
 

@@ -4,14 +4,15 @@
  * The server does not persist the excerpt as a conversation database.
  */
 
-export function normalizeConversation(input) {
+export function normalizeConversation(input, options = {}) {
+    const maxPerMessage=options?.followup===true?1400:800;
     if (!Array.isArray(input)) return [];
     return input.slice(-12)
         .filter(item => item && (item.role === "user" || item.role === "assistant"))
         .map(item => ({
             role: item.role,
             content: typeof item.content === "string"
-                ? item.content.trim().slice(-800)
+                ? item.content.trim().slice(-maxPerMessage)
                 : ""
         }))
         .filter(item => item.content.length > 0)
@@ -20,15 +21,16 @@ export function normalizeConversation(input) {
 
 export function needsConversationContext(task) {
     const text = String(task || "").trim().toLowerCase();
-    if (text.length === 0 || text.length > 180) return false;
-    return /^(?:а |и |ну |окей[, ]*)?(?:перевед|перевести|перевод|translate|продолж|дальше|ещ[её]|то же|так же|сделай так|сделай ещ[её]|повтори|переделай|поправь|сравни с этим|поясни это|а что с |а как |перв(?:ый|ую|ое)|втор(?:ой|ую|ое)|давай|готово|что дальше|а теперь|по.другому)/iu.test(text) ||
+    if (text.length === 0 || text.length > 360) return false;
+    return /^(?:а |и |ну |окей[, ]*)?(?:добавь|исправь|поправь|измени|перепиши|fix|update|modify|перевед|перевести|перевод|translate|продолж|дальше|ещ[её]|то же|так же|сделай так|сделай ещ[её]|повтори|переделай|поправь|сравни с этим|поясни это|а что с |а как |перв(?:ый|ую|ое)|втор(?:ой|ую|ое)|давай|готово|что дальше|а теперь|по.другому)/iu.test(text) ||
         /(?:^|[\s,.!?])(?:этот|этого|этих|эту|этом|его|её|их|предыдущ(?:ий|его|ая|ую|их)?|выше|упомянут(?:ый|ого|ое)?|тот же|той же|как ранее|как в прошлый раз)(?=$|[\s,.!?])/iu.test(text);
 }
 
 export function contextualizeTask(task, input) {
     const current = String(task || "").trim();
-    const conversation = normalizeConversation(input);
-    if (!needsConversationContext(current) || conversation.length === 0) {
+    const needsHistory = needsConversationContext(current) || /(?:предыдущ\w*|последн\w*|эту функцию|этот код|your last|your previous|earlier code|the previous)/iu.test(current);
+    const conversation = normalizeConversation(input,{followup:needsHistory});
+    if (!needsHistory || conversation.length === 0) {
         return current;
     }
 

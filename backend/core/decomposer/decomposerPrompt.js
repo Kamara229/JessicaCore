@@ -1,4 +1,6 @@
 import {buildProgrammingFoundation} from "../foundations/programmingPolicy.js";
+import {buildContextFoundation} from "../foundations/contextFoundation.js";
+import {buildDataFoundation} from "../foundations/dataFoundation.js";
 
 /*
  * =========================================================
@@ -252,6 +254,6 @@ export function buildTaskDecomposerInstructions(task = "")
         })
 
     ]
-        .join("\n") + "\n" + buildProgrammingFoundation(task,{stage:"decomposer"});
+        .join("\n") + "\n" + buildProgrammingFoundation(task,{stage:"decomposer"}) + "\n" + buildContextFoundation(task,{stage:"decomposer"}) + "\n" + buildDataFoundation(task,{stage:"decomposer"});
 
 }

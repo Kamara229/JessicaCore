@@ -1,5 +1,7 @@
 import { getGroqClient } from "../../ai/groqClient.js";
 import {buildProgrammingFoundation} from "../foundations/programmingPolicy.js";
+import {buildDataFoundation} from "../foundations/dataFoundation.js";
+import {profileStructuredAttachments} from "../foundations/dataProfile.js";
 import {
     getAIProviderAvailability,
     registerAIProviderLimit
@@ -25,6 +27,9 @@ export function buildDocumentPrompt({ task, attachments }) {
         "ПРИКРЕПЛЁННЫЕ ДОКУМЕНТЫ (все фрагменты помечены стабильными ID):",
         bundle.promptText,
         "",
+        "DETERMINISTIC STRUCTURE PROFILE (metadata only; not proof of semantic correctness or full-file coverage):",
+        JSON.stringify(profileStructuredAttachments(bundle.docs)),
+        "",
         bundle.partial
             ? "ВНИМАНИЕ: часть документа обрезана по лимитам извлечения; нельзя делать выводы о непрочитанном."
             : "Все доступные извлечённые фрагменты приведены выше.",
@@ -42,7 +47,7 @@ async function generateDocumentAnswer(prompt,task,attachments) {
         max_completion_tokens: 2200,
         response_format: { type: "json_object" },
         messages: [
-            { role: "system", content: documentAnalysisInstructions() + "\n" + buildProgrammingFoundation(task,{files:attachments,stage:"document"}) },
+            { role: "system", content: documentAnalysisInstructions() + "\n" + buildProgrammingFoundation(task,{files:attachments,stage:"document"}) + "\n" + buildDataFoundation(task,{files:attachments,stage:"document"}) },
             { role: "user", content: prompt }
         ]
     });
