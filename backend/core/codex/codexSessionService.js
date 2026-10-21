@@ -137,6 +137,18 @@ export async function stopCodexSession(issueNumber,api=github) {
         await api(root+"/issues/"+id,{
             method:"PATCH",body:{state:"closed",state_reason:"not_planned"}
         });
+        // Best effort: cancel the active GitHub Actions runner, not just PR publication.
+        try{
+            const runs=await api(root+"/actions/workflows/jessica-codex.yml/runs?per_page=40");
+            const active=(runs.workflow_runs||[]).filter(run=>
+                (run.status==="queued"||run.status==="in_progress"||run.status==="waiting") &&
+                String(run.display_title||"").startsWith("Jessica Codex #"+id+" / "));
+            for(const run of active.slice(0,2)){
+                await api(root+"/actions/runs/"+run.id+"/cancel",{method:"POST"}).catch(()=>{});
+            }
+        }catch(error){
+            console.warn("Codex runner cancellation unavailable",{code:error.message});
+        }
         return {ok:true,status:200,issue:id};
     }catch(error){
         console.warn("Codex session stop failed",{code:error.message});
