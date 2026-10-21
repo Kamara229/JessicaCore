@@ -12,6 +12,9 @@ import com.jessica.core.modules.CapabilityEngine
 import com.jessica.core.modules.EventStorage
 import com.jessica.core.modules.JessicaTask
 import com.jessica.core.modules.TaskStorage
+import com.jessica.core.ui.language.uiText
+import com.jessica.core.ui.language.LocalAppLanguage
+import com.jessica.core.ui.language.localeText
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -25,6 +28,9 @@ fun TaskScreen(
 
     val context =
         LocalContext.current
+
+    val appLanguage = LocalAppLanguage.current
+    fun t(ru: String, en: String) = localeText(appLanguage, ru, en)
 
 
     val taskStorage =
@@ -109,9 +115,7 @@ fun TaskScreen(
                 onClick = onBack
             ) {
 
-                Text(
-                    "Назад"
-                )
+                Text(uiText("Назад", "Back"))
 
             }
 
@@ -121,7 +125,7 @@ fun TaskScreen(
         item {
 
             Text(
-                text = "Задачи",
+                text = uiText("Задачи", "Tasks"),
                 style =
                     MaterialTheme.typography.titleLarge
             )
@@ -133,7 +137,7 @@ fun TaskScreen(
 
             Text(
                 text =
-                    "Создайте задачу для Jessica Core"
+                    uiText("Создайте задачу для Jessica Core", "Create a task for Jessica Core")
             )
 
         }
@@ -154,9 +158,7 @@ fun TaskScreen(
                     Modifier.fillMaxWidth(),
 
                 label = {
-                    Text(
-                        "Что нужно сделать?"
-                    )
+                    Text(uiText("Что нужно сделать?", "What needs to be done?"))
                 },
 
                 minLines = 3
@@ -179,7 +181,7 @@ fun TaskScreen(
                     if (text.isBlank()) {
 
                         message =
-                            "Введите текст задачи"
+                            t("Введите текст задачи", "Enter a task")
 
                     } else {
 
@@ -192,14 +194,14 @@ fun TaskScreen(
                         eventStorage.saveEvent(
                             type = "task",
                             message =
-                                "Создана задача ${task.id}"
+                                t("Создана задача ${task.id}", "Task ${task.id} created")
                         )
 
 
                         taskText = ""
 
                         message =
-                            "Задача создана"
+                            t("Задача создана", "Task created")
 
 
                         refreshTasks()
@@ -214,7 +216,7 @@ fun TaskScreen(
             ) {
 
                 Text(
-                    "Создать задачу"
+                    uiText("Создать задачу", "Create task")
                 )
 
             }
@@ -253,7 +255,7 @@ fun TaskScreen(
 
 
             Text(
-                text = "История задач",
+                text = uiText("История задач", "Task history"),
                 style =
                     MaterialTheme.typography.titleMedium
             )
@@ -266,7 +268,7 @@ fun TaskScreen(
             item {
 
                 Text(
-                    "Задач пока нет"
+                    uiText("Задач пока нет", "No tasks yet")
                 )
 
             }
@@ -300,7 +302,7 @@ fun TaskScreen(
 
 
                             message =
-                                "Выполнение задачи..."
+                                t("Выполнение задачи...", "Running task...")
 
 
                             coroutineScope.launch {
@@ -323,7 +325,7 @@ fun TaskScreen(
 
                                     message =
                                         e.message
-                                            ?: "Ошибка выполнения задачи"
+                                            ?: t("Ошибка выполнения задачи", "Could not complete the task")
 
                                 } finally {
 
@@ -353,12 +355,12 @@ fun TaskScreen(
                             eventStorage.saveEvent(
                                 type = "task",
                                 message =
-                                    "Удалена задача ${task.id}"
+                                    t("Удалена задача ${task.id}", "Task ${task.id} deleted")
                             )
 
 
                             message =
-                                "Задача удалена"
+                                t("Задача удалена", "Task deleted")
 
 
                             refreshTasks()
@@ -424,13 +426,18 @@ private fun TaskCard(
 
             Text(
                 text =
-                    "Статус: ${
+                    uiText("Статус: ", "Status: ") + "${
                         when {
                             isProcessing ->
-                                "PROCESSING"
+                                uiText("Выполняется", "In progress")
 
                             else ->
-                                task.status
+                                when (task.status) {
+                                    "COMPLETED" -> uiText("Завершена", "Completed")
+                                    "FAILED" -> uiText("Ошибка", "Failed")
+                                    "PROCESSING" -> uiText("Выполняется", "In progress")
+                                    else -> uiText("Ожидает", "Pending")
+                                }
                         }
                     }"
             )
@@ -438,7 +445,7 @@ private fun TaskCard(
 
             Text(
                 text =
-                    "Создана: ${
+                    uiText("Создана: ", "Created: ") + "${
                         formatTaskDate(
                             task.createdAt
                         )
@@ -464,7 +471,7 @@ private fun TaskCard(
 
 
                 Text(
-                    text = "Результат:",
+                    text = uiText("Результат:", "Result:"),
                     style =
                         MaterialTheme.typography.labelLarge
                 )
@@ -499,9 +506,9 @@ private fun TaskCard(
 
                     Text(
                         if (task.status == "FAILED") {
-                            "Повторить"
+                            uiText("Повторить", "Retry")
                         } else {
-                            "Решить"
+                            uiText("Решить", "Solve")
                         }
                     )
 
@@ -531,7 +538,7 @@ private fun TaskCard(
 
 
                 Text(
-                    "Jessica выполняет задачу..."
+                    uiText("Jessica выполняет задачу...", "Jessica is working on the task...")
                 )
 
 
@@ -557,7 +564,7 @@ private fun TaskCard(
             ) {
 
                 Text(
-                    "Удалить"
+                    uiText("Удалить", "Delete")
                 )
 
             }
