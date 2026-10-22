@@ -125,6 +125,12 @@ class ChatGptAccessibilityService : AccessibilityService() {
         invisibleSince = 0L
         var response: String? = null
         try {
+            if (ChatUiPolicy.conversationAtLimit(window.content)) {
+                finish("В выбранном чате ChatGPT достигнут предел длины обсуждения. " +
+                    "Продолжение возможно только в новом чате, который ты выберешь самостоятельно. " +
+                    "Джессика ничего не отправляла.")
+                return
+            }
             if (!confirmed) { notice("Открой подготовленный чат и нажми «Чат выбран»."); return }
             if (state.waiting) {
                 val now = SystemClock.elapsedRealtime()
@@ -153,7 +159,11 @@ class ChatGptAccessibilityService : AccessibilityService() {
                     }
                 }
             } else {
-                val composer = window.composer ?: run { notice("Не найдено однозначное поле сообщения. Отправки нет."); return }
+                val composer = window.composer ?: run {
+                    notice("Не удалось определить поле ввода ChatGPT (найдено полей: ${window.editorCandidates}). " +
+                        "Сообщение не отправлено. Проверь, что открыта переписка, а не поиск.")
+                    return
+                }
                 val text = composer.text?.toString().orEmpty()
                 val alreadyPosted = RelayProtocol.reply(window.content, launch.replyId) != null ||
                     ChatUiPolicy.alreadyPosted(window.content, launch.prompt, launch.replyId)
@@ -290,12 +300,16 @@ class ChatGptAccessibilityService : AccessibilityService() {
                 val window = ChatWindowReader.read(this@ChatGptAccessibilityService)
                 if (window == null) { notice("Сначала открой чат в приложении ChatGPT."); return@setOnClickListener }
                 try {
-                    if (window.composer != null) {
+                    if (ChatUiPolicy.conversationAtLimit(window.content)) {
+                        finish("В этом чате ChatGPT достигнут предел длины. " +
+                            "Джессика не отправит сообщение и не переключится в другой чат без твоего выбора.")
+                    } else if (window.composer != null) {
                         if (launch.conversation.plan.isBlank()) launch.conversation.plan = window.content.takeLast(12000)
                         confirmed = true
                         visibility = android.view.View.GONE
                         notice("Чат выбран. Джессика начинает переписку.")
-                    } else notice("Открой переписку с полем сообщения.")
+                    } else notice("Не удаётся определить поле сообщения (обнаружено: ${window.editorCandidates}). " +
+                        "Открой нужную переписку ChatGPT; отправка не выполнялась.")
                 } finally { window.release() }
             }
         }
