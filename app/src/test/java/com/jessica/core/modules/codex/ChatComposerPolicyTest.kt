@@ -97,4 +97,17 @@ class ChatComposerPolicyTest {
         assertNull(ChatComposerPolicy.choose(nodes,window,1f))
     }
 
+    @Test fun exactPreparedDraftSurvivesZeroSizeChatGptRootBounds() {
+        val invalidRoot = UiBox(0, 0, 0, 0)
+        val exact = candidate(6, 30, 560, 390, 760, matchesPrepared = true)
+        assertEquals(6, ChatComposerPolicy.choose(listOf(exact), invalidRoot, 1f))
+    }
+
+    @Test fun zeroSizeRootCannotResolveWrongOrMissingDraft() {
+        val invalidRoot = UiBox(0, 0, 0, 0)
+        val wrong = candidate(6, 30, 560, 390, 760)
+        assertNull(ChatComposerPolicy.choose(listOf(wrong), invalidRoot, 1f))
+        assertNull(ChatComposerPolicy.choose(emptyList(), invalidRoot, 1f))
+    }
+
 }
