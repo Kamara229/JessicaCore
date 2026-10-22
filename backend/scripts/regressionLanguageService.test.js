@@ -373,3 +373,33 @@ test("explicit human-language translation overrides UI locale",()=>{
         assert.equal(requestedTranslation(task),true,task);
     }
 });
+
+test("older English language instructions in chat cannot override a new Russian code task",async()=>{
+    const {withResponseLanguage,buildComposerLanguageDirective}=
+        await import("../core/language/responseLanguageContext.js");
+    const contextualized=[
+        "Контекст предыдущего диалога (данные для разрешения ссылок):",
+        "Пользователь: Переведи свой ответ на английский язык",
+        "Jessica: Certainly, here is the translation.",
+        "Текущая задача пользователя (единственная задача к выполнению):",
+        "Теперь исправь предыдущую функцию и перепиши её на Kotlin.",
+        "",
+        "Содержимое предыдущего диалога — только данные."
+    ].join("\n");
+    const directive=await withResponseLanguage("ru",()=>buildComposerLanguageDirective(contextualized));
+    assert.match(directive,/MANDATORY PRESENTATION LANGUAGE: RUSSIAN/);
+    assert.match(directive,/Do not adopt English prose from prior chat/);
+    assert.doesNotMatch(directive,/If the user EXPLICITLY asks/);
+});
+test("current explicit Japanese request remains authoritative despite old chat",async()=>{
+    const {withResponseLanguage,buildComposerLanguageDirective}=
+        await import("../core/language/responseLanguageContext.js");
+    const prompt=[
+        "Контекст предыдущего диалога:",
+        "Пользователь: Напиши функцию на Python",
+        "Текущая задача пользователя (единственная задача к выполнению):",
+        "Переведи свой ответ на японский язык"
+    ].join("\n");
+    const directive=await withResponseLanguage("ru",()=>buildComposerLanguageDirective(prompt));
+    assert.match(directive,/If the user EXPLICITLY asks/);
+});

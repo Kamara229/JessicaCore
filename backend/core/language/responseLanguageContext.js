@@ -1,4 +1,5 @@
 import {AsyncLocalStorage} from "node:async_hooks";
+import {requestedTranslation} from "./responseLanguageService.js";
 
 /**
  * Request-local language preference. Scoped to a single /api/solve request:
@@ -18,8 +19,16 @@ export function currentResponseLanguage() {
 
 export function buildComposerLanguageDirective(task = "") {
     const locale = currentResponseLanguage();
-    const request = String(task || "");
-    const alternate = /(?:переведи|перевести|перевод на|ответь на|ответ на|дай ответ на|напиши ответ на|translate (?:this|the)|respond in|answer in|reply in)\s+(?:.{0,45}\s+)?(?:английск|японск|немецк|французск|испанск|китайск|арабск|english|japanese|german|french|spanish|chinese|arabic)/iu.test(request);
+    // Composer may receive a quoted chat history ahead of the operative task.
+    // Older requests to "answer in English" must NEVER override a new Russian
+    // request. The latest task is explicitly marked by conversationContext.
+    const raw = String(task || "");
+    const marker = "Текущая задача пользователя (единственная задача к выполнению):";
+    const at = raw.lastIndexOf(marker);
+    const request = at >= 0
+        ? raw.slice(at + marker.length).split(/\n(?:\n|Содержимое предыдущего диалога)/u)[0].trim()
+        : raw;
+    const alternate = requestedTranslation(request);
     const language = locale === "en" ? "ENGLISH" : "RUSSIAN";
     return [
         "MANDATORY PRESENTATION LANGUAGE: " + language + ".",
