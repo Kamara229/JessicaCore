@@ -30,4 +30,27 @@ class RelayProtocolTest {
         state.stop()
         assertFalse(state.beginSend(18000))
     }
+    @Test fun acceptsReplyWithMarkdownMarkersFromChatGPTRenderedMessage() {
+        val body = "Проверка исправлена. Следующий тест: Сколько будет 2 + 2?"
+        val screen = "**JESSICA_REPLY_${id}**\n${body}\n**JESSICA_END_${id}**"
+        assertEquals(body, RelayProtocol.reply(screen,id))
+    }
+    @Test fun acceptsAccessibilitySplittingMarkerBeforeUuid() {
+        val body = "Следующий шаг — проверить тест Джессики."
+        val screen = "JESSICA_REPLY_\n${id}\n${body}\nJESSICA_END_\n${id}"
+        assertEquals(body,RelayProtocol.reply(screen,id))
+    }
+    @Test fun ignoresUserPromptMentioningMarkersInAnInstruction() {
+        val request = "Начни ответ отдельной строкой JESSICA_REPLY_${id}; закончи отдельной строкой JESSICA_END_${id}."
+        assertNull(RelayProtocol.reply(request,id))
+        assertNull(RelayProtocol.reply("JESSICA_REPLY_${id}\nНезавершённый ответ",id))
+    }
+    @Test fun choosesLatestCompleteReplyAndPreservesSourceBlocks() {
+        val first = "JESSICA_REPLY_${id}\nСтарый ответ\nJESSICA_END_${id}"
+        val quoted = "JESSICA_REPLY_other\nДругой ответ\nJESSICA_END_other"
+        val second = "JESSICA_REPLY_${id}\n" +
+            "Код:\n" + "```python\nprint(42)\n```" + "\nJESSICA_END_${id}"
+        assertEquals("Код:\n```python\nprint(42)\n```",RelayProtocol.reply(first+"\n"+quoted+"\n"+second,id))
+    }
+
 }
