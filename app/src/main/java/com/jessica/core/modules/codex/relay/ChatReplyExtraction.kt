@@ -23,6 +23,18 @@ object ChatReplyExtraction {
         return null
     }
 
+    /** In-progress response starting at its fresh marker; may lack END yet. */
+    fun openingTail(screen: String, id: String): String? {
+        if (screen.length > 120_000 || !uuid.matches(id)) return null
+        val lines = screen.replace("\r\n", "\n").lines()
+        var start = -1
+        for (i in lines.indices) {
+            if (markerEnd(lines, i, "JESSICA_REPLY_$id") != null) start = i
+        }
+        return if (start < 0) null else lines.subList(start, lines.size)
+            .joinToString("\n").take(55_000)
+    }
+
     fun read(screen: String, id: String): String? {
         if (screen.length > 120_000 || !uuid.matches(id)) return null
         val lines = screen.replace("\r\n", "\n").lines()
