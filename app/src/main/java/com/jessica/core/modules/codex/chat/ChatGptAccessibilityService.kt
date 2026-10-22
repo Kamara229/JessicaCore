@@ -2,6 +2,7 @@ package com.jessica.core.modules.codex.chat
 
 import android.accessibilityservice.AccessibilityService
 import android.app.KeyguardManager
+import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Bundle
 import android.os.SystemClock
@@ -29,12 +30,34 @@ class ChatGptAccessibilityService : AccessibilityService() {
     private var lastHeartbeat = 0L
     private val client = CodexClient()
 
-    override fun onServiceConnected() { PhoneChatRuntime.controller = this }
+    override fun onCreate() {
+        super.onCreate()
+        ChatServiceDiagnostics.record(this, "created")
+    }
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        PhoneChatRuntime.connected(this)
+        ChatServiceDiagnostics.record(this, "connected")
+    }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) { /* A bounded poll also handles quiet screens. */ }
-    override fun onInterrupt() { stopByUser() }
+    override fun onInterrupt() {
+        ChatServiceDiagnostics.record(this, "interrupted")
+        if (PhoneChatRuntime.controller === this && PhoneChatRuntime.launch != null) stopByUser()
+    }
+    override fun onUnbind(intent: Intent?): Boolean {
+        disconnect()
+        ChatServiceDiagnostics.record(this, "unbound")
+        return super.onUnbind(intent)
+    }
+    private fun disconnect() {
+        if (PhoneChatRuntime.controller === this) {
+            if (PhoneChatRuntime.launch != null) stopByUser("Android отключил службу. Сессия остановлена.")
+            PhoneChatRuntime.disconnected(this)
+        }
+    }
     override fun onDestroy() {
-        stopByUser()
-        PhoneChatRuntime.controller = null
+        disconnect()
+        ChatServiceDiagnostics.record(this, "destroyed")
         scope.cancel()
         super.onDestroy()
     }
@@ -46,7 +69,12 @@ class ChatGptAccessibilityService : AccessibilityService() {
         lastHeartbeat = SystemClock.elapsedRealtime()
         val launch = PhoneChatRuntime.launch ?: return
         run = ChatRunState(SystemClock.elapsedRealtime(), maxTurns = if (launch.connectivityOnly) 1 else 3)
-        showOverlay()
+        try { showOverlay() }
+        catch (error: Exception) {
+            ChatServiceDiagnostics.record(this, "overlay-failed:${error.javaClass.simpleName}")
+            finish("Не удалось показать панель Джессики. Открой диагностику службы.")
+            return
+        }
         if (!PhoneCodexHandoff.openChatGPT(this, launch.chatUrl.ifBlank { null })) {
             finish("ChatGPT не удалось открыть"); return
         }
@@ -201,7 +229,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
         run?.stop()
         PhoneChatRuntime.update(this, text, false)
         PhoneChatRuntime.clear()
-        overlay?.let { getSystemService(WindowManager::class.java).removeView(it) }
+        overlay?.let { view -> runCatching { getSystemService(WindowManager::class.java).removeView(view) } }
         overlay = null
     }
     private fun showOverlay() {

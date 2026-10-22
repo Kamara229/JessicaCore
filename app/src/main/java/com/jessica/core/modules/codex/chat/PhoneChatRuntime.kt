@@ -20,9 +20,14 @@ object PhoneChatRuntime {
     private val mutableStatus = MutableStateFlow(PhoneChatStatus())
     val status = mutableStatus.asStateFlow()
     var launch: PhoneChatLaunch? = null; private set
-    var controller: ChatGptAccessibilityService? = null
+    @Volatile var controller: ChatGptAccessibilityService? = null; private set
+    fun connected(service: ChatGptAccessibilityService) { controller = service }
+    fun disconnected(service: ChatGptAccessibilityService) {
+        // A late callback from an old instance must not clear its replacement.
+        if (controller === service) controller = null
+    }
     fun start(context: Context, prepared: JSONObject, ownerKey: String, url: String) {
-        check(controller != null) { "Сначала включи службу Джессики в специальных возможностях" }
+        check(controller != null) { ChatServiceDiagnostics.read(context).message }
         check(launch == null) { "Сессия уже запущена" }
         launch = PhoneChatLaunch(prepared.getString("id"), ownerKey, prepared.getString("prompt"), url)
         update(context, "Открываю обычный чат. Выбери режим «Чат», если он ещё не выбран.", true, "")
@@ -30,7 +35,7 @@ object PhoneChatRuntime {
     }
     /** One opted-in on-device send/receive check; NO owner key, GitHub or backend request. */
     fun startConnectivityProbe(context: Context, url: String) {
-        check(controller != null) { "Сначала включи службу Джессики в специальных возможностях" }
+        check(controller != null) { ChatServiceDiagnostics.read(context).message }
         check(launch == null) { "Сессия уже запущена" }
         val id = java.util.UUID.randomUUID().toString()
         launch = PhoneChatLaunch(id, "", ChatConnectivityProbe.prompt(id), url, connectivityOnly = true)
