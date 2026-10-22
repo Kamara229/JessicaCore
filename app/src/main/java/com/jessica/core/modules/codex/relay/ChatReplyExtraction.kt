@@ -9,7 +9,6 @@ object ChatReplyExtraction {
     private val uuid = Regex("[a-f0-9-]{36}")
     private fun markerPiece(line: String): String =
         line.trim().trim('`', '*', ' ').replace("\u00a0", "").trim()
-        line.trim().trim(''`', '*', '_', ' ').replace("\u00a0", "").trim()
 
     private fun markerEnd(lines: List<String>, at: Int, label: String): Int? {
         val line = markerPiece(lines[at])
