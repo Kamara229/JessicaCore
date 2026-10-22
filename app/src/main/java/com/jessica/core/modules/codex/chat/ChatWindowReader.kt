@@ -95,7 +95,9 @@ object ChatWindowReader {
             }
         }
         walk(root, -1, 0)
-        val editor = if (!truncated) ChatComposerPolicy.choose(composers, root.screenBox(), density) else null
+        val editor = if (!truncated) ChatComposerPolicy.choose(
+            composers, root.screenBox(), density,
+            recoveringPreparedDraft = preparedDraft != null) else null
         val diagnostic = when {
             truncated -> "дерево недоступно целиком"
             composers.isEmpty() -> "редактор не виден"
