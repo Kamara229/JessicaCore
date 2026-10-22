@@ -33,24 +33,26 @@ fun OrdinaryChatScreen() {
     var chatUrl by remember { mutableStateOf(prefs.getString("chat_url", "") ?: "") }
     var autoApply by remember { mutableStateOf(false) }
     var consent by remember { mutableStateOf(false) }
-    var connection by remember { mutableStateOf(ChatServiceDiagnostics.read(context)) }
+    var connection by remember { mutableStateOf(ChatServiceDiagnostics.inspect(context)) }
     val ready = connection.connected
     var diagnostics by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
-        while (true) { connection = ChatServiceDiagnostics.read(context); delay(1000) }
+        while (true) { connection = ChatServiceDiagnostics.inspect(context); delay(1000) }
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Сборка Jessica: v${com.jessica.core.BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelSmall)
         Text("Обычный ChatGPT · экспериментальный режим", style = MaterialTheme.typography.titleLarge)
         Text("Оставь телефон разблокированным и подключённым к питанию. Джессика отправит задание в выбранный чат, получит ответ и передаст исправление на тесты. До трёх сообщений и одного исправления за запуск.")
         Text("Сначала выбери в ChatGPT именно «Чат», затем нажми на плавающей панели «Чат выбран — начать». Режим «Работа» включать не нужно. Совместимость интерфейса проверяется на твоём телефоне.", style = MaterialTheme.typography.bodySmall)
         if (!ready) OutlinedButton(onClick = {
             context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }, modifier = Modifier.fillMaxWidth()) { Text("Открыть настройки службы Jessica") }
+        Text("Разрешение Android: ${if (connection.enabled) "включено" else "выключено"}", style = MaterialTheme.typography.labelLarge)
         Text(connection.message, style = MaterialTheme.typography.labelLarge)
-        if (!ready && connection.enabled == true) {
+        if (!ready && connection.enabled) {
             Text("Разрешение уже выдано. Нажми проверку ниже: при отсутствии подключения появится отчёт о запуске службы.", style = MaterialTheme.typography.bodySmall)
         }
         if (!status.active) {
@@ -77,7 +79,7 @@ fun OrdinaryChatScreen() {
             OutlinedButton(
                 enabled = consent && !busy, modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    connection = ChatServiceDiagnostics.read(context)
+                    connection = ChatServiceDiagnostics.inspect(context)
                     if (!connection.connected) {
                         error = connection.message + " Сообщение в ChatGPT не отправлено."
                         diagnostics = ChatServiceDiagnostics.report(context)

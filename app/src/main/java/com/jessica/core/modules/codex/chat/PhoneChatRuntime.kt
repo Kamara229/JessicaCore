@@ -23,11 +23,27 @@ object PhoneChatRuntime {
     @Volatile var controller: ChatGptAccessibilityService? = null; private set
     fun connected(service: ChatGptAccessibilityService) { controller = service }
     fun disconnected(service: ChatGptAccessibilityService) {
-        // A late callback from an old instance must not clear its replacement.
         if (controller === service) controller = null
     }
+    private fun requireConnected(context: Context) {
+        if (controller != null) return
+        val diagnostics = ChatServiceDiagnostics.inspect(context)
+        val problem = when (diagnostics.state) {
+            ChatServiceState.ENABLED_NOT_CONNECTED ->
+                "Разрешение уже включено, но служба Jessica не подключилась. " +
+                "Проверь раздел «Диагностика службы»."
+            ChatServiceState.NOT_REGISTERED ->
+                "Android не видит службу Jessica. Обнови приложение поверх установленного."
+            ChatServiceState.DISABLED ->
+                "Включи службу Jessica Core в специальных возможностях Android."
+            ChatServiceState.CONNECTED ->
+                "Подключение службы изменилось. Проверь состояние ещё раз."
+        }
+        throw IllegalStateException(problem)
+    }
+
     fun start(context: Context, prepared: JSONObject, ownerKey: String, url: String) {
-        check(controller != null) { ChatServiceDiagnostics.read(context).message }
+        requireConnected(context)
         check(launch == null) { "Сессия уже запущена" }
         launch = PhoneChatLaunch(prepared.getString("id"), ownerKey, prepared.getString("prompt"), url)
         update(context, "Открываю обычный чат. Выбери режим «Чат», если он ещё не выбран.", true, "")
@@ -35,7 +51,7 @@ object PhoneChatRuntime {
     }
     /** One opted-in on-device send/receive check; NO owner key, GitHub or backend request. */
     fun startConnectivityProbe(context: Context, url: String) {
-        check(controller != null) { ChatServiceDiagnostics.read(context).message }
+        requireConnected(context)
         check(launch == null) { "Сессия уже запущена" }
         val id = java.util.UUID.randomUUID().toString()
         launch = PhoneChatLaunch(id, "", ChatConnectivityProbe.prompt(id), url, connectivityOnly = true)
