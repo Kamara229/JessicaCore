@@ -21,8 +21,25 @@ object PhoneChatRuntime {
     val status = mutableStatus.asStateFlow()
     var launch: PhoneChatLaunch? = null; private set
     var controller: ChatGptAccessibilityService? = null
+    private fun requireConnected(context: Context) {
+        if (controller != null) return
+        val diagnostics = ChatServiceDiagnostics.inspect(context)
+        val problem = when (diagnostics.state) {
+            ChatServiceState.ENABLED_NOT_CONNECTED ->
+                "Разрешение уже включено, но служба Jessica не подключилась. " +
+                "Проверь раздел «Диагностика службы»."
+            ChatServiceState.NOT_REGISTERED ->
+                "Android не видит службу Jessica. Обнови приложение поверх установленного."
+            ChatServiceState.DISABLED ->
+                "Включи службу Jessica Core в специальных возможностях Android."
+            ChatServiceState.CONNECTED ->
+                "Подключение службы изменилось. Проверь состояние ещё раз."
+        }
+        throw IllegalStateException(problem)
+    }
+
     fun start(context: Context, prepared: JSONObject, ownerKey: String, url: String) {
-        check(controller != null) { "Сначала включи службу Джессики в специальных возможностях" }
+        requireConnected(context)
         check(launch == null) { "Сессия уже запущена" }
         launch = PhoneChatLaunch(prepared.getString("id"), ownerKey, prepared.getString("prompt"), url)
         update(context, "Открываю обычный чат. Выбери режим «Чат», если он ещё не выбран.", true, "")
@@ -30,7 +47,7 @@ object PhoneChatRuntime {
     }
     /** One opted-in on-device send/receive check; NO owner key, GitHub or backend request. */
     fun startConnectivityProbe(context: Context, url: String) {
-        check(controller != null) { "Сначала включи службу Джессики в специальных возможностях" }
+        requireConnected(context)
         check(launch == null) { "Сессия уже запущена" }
         val id = java.util.UUID.randomUUID().toString()
         launch = PhoneChatLaunch(id, "", ChatConnectivityProbe.prompt(id), url, connectivityOnly = true)
