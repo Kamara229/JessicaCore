@@ -12,7 +12,6 @@ class PhoneChatLaunch(context: Context) {
     val conversation = RelayConversation(context)
     // Random per-run diagnostics ID; no account, device or chat identifiers.
     val sessionId: String = UUID.randomUUID().toString()
-    val sessionId: String = UUID.randomUUID().toString()
     var replyId: String = UUID.randomUUID().toString()
     var previousReplyId: String = ""
     var message: String = RelayProtocol.introduction
