@@ -35,6 +35,12 @@ test("continuing a Jessica test requires explicit same-chat instruction, never m
     assert.equal(validateRelayDecision({...decision,continueThread:false},same).continueThread,false);
     assert.equal(validateRelayDecision({action:"reply",reply:"Продолжим",continueThread:true},same).continueThread,false);
     assert.equal(explicitSameTestChat("Новый тест в новом чате. " + task),false);
+    assert.equal(explicitSameTestChat("Продолжи в том же чате Джессики, но новый тест выполни в новом чате."),false);
+    assert.equal(explicitSameTestChat("Не продолжай в том же чате Джессики. " + task),false);
+    assert.equal(explicitSameTestChat("Не нужно продолжать в том же чате Джессики. " + task),false);
+    assert.equal(explicitSameTestChat("В том же чате не используй тот же чат для теста."),false);
+    assert.equal(explicitSameTestChat("Continue in the same Jessica test chat. Use a new chat instead."),false);
+    assert.equal(explicitSameTestChat("Do not reuse the same Jessica test chat."),false);
     const interpreted = await interpretRelayTurn({message:"Новый независимый тест: " + task},
         async()=>decision);
     assert.equal(interpreted.continueThread,false);
