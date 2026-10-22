@@ -42,7 +42,18 @@ object ChatWindowReader {
                 node.actionList.mapNotNull { it.label?.toString() }
             controls.add(ChatControl(parent, labels, node.viewIdResourceName.orEmpty(), node.isClickable,
                 node.isEnabled, node.isVisibleToUser, editor, node.screenBox()))
-            if (!editor && node.isVisibleToUser && node.text != null) conversation.add(node.text.toString())
+            if (!editor && node.isVisibleToUser) {
+                // Current ChatGPT builds sometimes expose the assistant's reply
+                // only via a semantic contentDescription, not the text property.
+                // Read descriptions only when they carry our exact session
+                // marker; toolbar labels and navigation are never dialogue.
+                val visibleText = node.text?.toString().orEmpty()
+                if (visibleText.isNotBlank()) conversation.add(visibleText)
+                val description = node.contentDescription?.toString().orEmpty()
+                if (description.length <= 55_000 &&
+                    (description.contains("JESSICA_REPLY_") || description.contains("JESSICA_END_")) &&
+                    description != visibleText) conversation.add(description)
+            }
             if (depth >= 40 && node.childCount > 0) { truncated = true; return }
             for (i in 0 until node.childCount) {
                 if (nodes.size >= 1500) { truncated = true; break }
@@ -52,7 +63,7 @@ object ChatWindowReader {
         walk(root, -1, 0)
         val editor = nodes.indices.filter { nodes[it].isVisibleToUser && nodes[it].isEditable && nodes[it].isEnabled }.singleOrNull()
         val send = if (truncated) null else ChatSendPolicy.targets(controls,editor,density).singleOrNull()
-        val content = conversation.distinct().joinToString("\n").takeLast(120000)
+        val content = conversation.joinToString("\n").takeLast(120000)
         return ChatWindow(root, nodes, if (truncated) null else editor?.let { nodes[it] }, send?.let { nodes[it] },
             ChatSendPolicy.targets(controls,editor,density,stop=true).isNotEmpty(), content)
     }
