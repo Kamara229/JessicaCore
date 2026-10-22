@@ -217,7 +217,7 @@ fun JessicaDrawerContent(
                 }
                 item {
                     NavigationDrawerItem(
-                        label = { Text("🤖  Codex ↔ Jessica") },
+                        label = { Text("🤖  Кодекс") },
                         selected = false,
                         onClick = onCodex,
                         modifier = Modifier.padding(horizontal = 12.dp)

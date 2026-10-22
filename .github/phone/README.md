@@ -73,6 +73,11 @@ can be managed through the ordinary chat list.
   actual local test-chat persistence, verbatim errors, contextual continuation,
   follow-up history and stopping without test execution, using injected model
   responses. It does not call a paid model or assume tests passed.
+- The release workflow runs `node backend/scripts/smokeCodexRelay.mjs` against
+  the deployed backend with the existing app authorization. It checks real-model
+  acknowledgement, exact test extraction and completion, without executing tests
+  or accessing ChatGPT. Its only credential destination is Jessica's fixed HTTPS
+  endpoint. This check uses the existing Groq provider and its usage limits.
 
 A successful build/emulator test does not prove compatibility with the owner's
 current native ChatGPT UI. On the phone, verify explicit selection, one readiness
