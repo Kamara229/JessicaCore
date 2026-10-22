@@ -90,7 +90,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
             }
             if (!confirmed) { notice("Выбери обычный чат и нажми «Чат выбран» на панели Джессики."); return }
             if (state.waiting) {
-                val response = ChatUiPolicy.reply(window.content.takeLast(60000), launch.id)
+                val response = ChatUiPolicy.reply(window.content.takeLast(60000), launch.replyId)
                 state.acceptReply(response, window.generating, SystemClock.elapsedRealtime())?.let { handleReply(launch, it) }
                 return
             }
@@ -99,7 +99,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
             if (text.isNotBlank() && text != launch.prompt) {
                 stopByUser("В поле есть другой текст. Джессика не будет его заменять."); return
             }
-            if (state.sends > 0 && !window.content.contains("JESSICA_REPLY_${launch.id}")) {
+            if (state.sends > 0 && !window.content.contains("JESSICA_REPLY_${launch.previousReplyId}")) {
                 stopByUser("Не видна текущая переписка Джессики. Сессия остановлена."); return
             }
             // UNKNOWN is accepted only after the user explicitly confirms the visible ordinary-chat screen.
@@ -171,9 +171,9 @@ class ChatGptAccessibilityService : AccessibilityService() {
 
     private fun repairFormat(launch: PhoneChatLaunch, reason: String) {
         if ((run?.sends ?: 3) >= 3) { finish("Формат ответа не подтверждён после трёх сообщений. Код не изменён."); return }
-        launch.prompt = "Исправь формат предыдущего ответа: $reason. Сохрани исходный baseSha, nonce и разрешённые пути. Верни полный JSON. " +
-            "Первая отдельная строка: JESSICA_REPLY_${launch.id}\nПоследняя отдельная строка: JESSICA_END_${launch.id}\n" +
-            "Если корректное исправление невозможно, верни status no_change и files []. Оставайся в обычном чате."
+        launch.previousReplyId = launch.replyId
+        launch.replyId = java.util.UUID.randomUUID().toString()
+        launch.prompt = ChatUiPolicy.repairPrompt(launch.id, launch.replyId, reason)
         composed = false
         notice("Запрашиваю исправление формата ответа.")
     }

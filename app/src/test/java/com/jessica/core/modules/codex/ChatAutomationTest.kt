@@ -36,6 +36,16 @@ class ChatAutomationTest {
         assertFalse(state.beginSend(23000))
         assertNull(state.acceptReply("{}", false, 24000))
     }
+    @Test fun repairCannotConsumeThePreviousAnswerStillVisibleInTheChat() {
+        val next = "23456789-abcd-4abc-8abc-123456789012"
+        val old = "JESSICA_REPLY_$id\n{\"nonce\":\"$id\",\"status\":\"bad\"}\nJESSICA_END_$id"
+        val prompt = ChatUiPolicy.repairPrompt(id, next, "invalid-json")
+        assertTrue(prompt.contains("nonce $id"))
+        assertNull(ChatUiPolicy.reply(old + "\n" + prompt, next))
+        val repaired = """{"nonce":"$id","status":"no_change","files":[]}"""
+        assertEquals(repaired, ChatUiPolicy.reply(old + "\n" + prompt +
+            "\nJESSICA_REPLY_$next\n$repaired\nJESSICA_END_$next", next))
+    }
     @Test fun noKeyConnectivityProbeMustMatchThisExactSession() {
         val prompt = ChatConnectivityProbe.prompt(id)
         assertTrue(prompt.contains("JESSICA_REPLY_$id"))
