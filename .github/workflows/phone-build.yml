@@ -1,7 +1,7 @@
 name: Phone Chat Build and Tests
 on:
   push:
-    branches: [codex/ordinary-chat-autopilot]
+    branches: [main, codex/ordinary-chat-autopilot]
   pull_request:
     paths:
       - 'app/src/**'
