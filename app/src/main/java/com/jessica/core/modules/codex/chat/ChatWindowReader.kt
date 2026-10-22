@@ -13,7 +13,8 @@ fun AccessibilityNodeInfo.screenBox(): UiBox {
 data class ChatWindow(val root: AccessibilityNodeInfo, val nodes: List<AccessibilityNodeInfo>,
                       val composer: AccessibilityNodeInfo?,
                       val send: AccessibilityNodeInfo?, val generating: Boolean, val content: String,
-                      val editorCandidates: Int = 0, val sendCandidates: Int = 0) {
+                      val editorCandidates: Int = 0, val sendCandidates: Int = 0,
+                      val composerDiagnostic: String = "") {
     fun release() { nodes.asReversed().forEach { @Suppress("DEPRECATION") it.recycle() } }
 }
 
@@ -95,11 +96,24 @@ object ChatWindowReader {
         }
         walk(root, -1, 0)
         val editor = if (!truncated) ChatComposerPolicy.choose(composers, root.screenBox(), density) else null
+        val diagnostic = when {
+            truncated -> "дерево недоступно целиком"
+            composers.isEmpty() -> "редактор не виден"
+            editor != null -> "редактор определён"
+            composers.size == 1 -> {
+                val candidate = composers.single()
+                val bounds = candidate.box
+                "одно поле, текст совпадает: ${candidate.matchesPrepared}, " +
+                    "фокус: ${candidate.focused}, размер: ${bounds.width}x${bounds.height}"
+            }
+            else -> "различных полей: ${composers.size}, точных совпадений: " +
+                composers.count { it.matchesPrepared }
+        }
         val sends = if (truncated) emptySet() else ChatSendPolicy.targets(controls,editor,density)
         val send = if (truncated) null else ChatSendPolicy.uniqueSendTarget(controls,editor,density)
         val content = conversation.joinToString("\n").takeLast(120000)
         return ChatWindow(root, nodes, if (truncated) null else editor?.let { nodes[it] }, send?.let { nodes[it] },
             ChatSendPolicy.targets(controls,editor,density,stop=true).isNotEmpty(), content,
-            composers.size, sends.size)
+            composers.size, sends.size, diagnostic)
     }
 }
