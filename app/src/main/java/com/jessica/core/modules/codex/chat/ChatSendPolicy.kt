@@ -27,6 +27,30 @@ object ChatSendPolicy {
         node.labels.any { label(it) in if (stop) stops else sends } || (!stop &&
             node.resourceId.substringAfterLast('/').lowercase(Locale.ROOT).replace(Regex("[-_]"), "") in sendIds)
 
+    /**
+     * ChatGPT can expose two sibling accessibility nodes for one visual send
+     * control. A truly different button remains ambiguous; only nearly
+     * identical visible bounds may be treated as one target.
+     */
+    fun uniqueSendTarget(nodes: List<ChatControl>, editor: Int?, density: Float): Int? {
+        val choices = targets(nodes,editor,density).toList()
+        if (choices.size == 1) return choices.single()
+        if (choices.isEmpty()) return null
+        val first = nodes[choices.first()].bounds
+        val tolerance = (8 * density).coerceAtLeast(6f)
+        val sameVisualControl = choices.all { index ->
+            val b = nodes[index].bounds
+            abs(b.left - first.left) <= tolerance &&
+                abs(b.right - first.right) <= tolerance &&
+                abs(b.top - first.top) <= tolerance &&
+                abs(b.bottom - first.bottom) <= tolerance
+        }
+        if (!sameVisualControl) return null
+        return choices.maxWithOrNull(compareBy<Int> {
+            nodes[it].resourceId.lowercase(Locale.ROOT).contains("send")
+        }.thenBy { nodes[it].labels.any { label -> label.isNotBlank() } }.thenBy { it })
+    }
+
     fun targets(nodes: List<ChatControl>, editor: Int?, density: Float, stop: Boolean = false): Set<Int> {
         val box = editor?.let { nodes.getOrNull(it)?.bounds }
         if (!stop && box == null) return emptySet()
