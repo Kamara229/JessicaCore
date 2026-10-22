@@ -65,6 +65,15 @@ class ChatAutomationTest {
         assertFalse(ChatConnectivityProbe.accepts("""{"nonce":"different","ok":true}""",id))
         assertFalse(ChatConnectivityProbe.accepts("""{"nonce":"$id","ok":false}""",id))
     }
+    @Test fun chatgptLengthLimitStopsSendingRatherThanTreatingBannerAsAComposer() {
+        val russian = "Вы достигли максимальной длины этого обсуждения, но можете продолжить обсуждение, начав новый чат."
+        val english = "You've reached the maximum length for this conversation, but you can continue by starting a new chat."
+        assertTrue(ChatUiPolicy.conversationAtLimit(russian))
+        assertTrue(ChatUiPolicy.conversationAtLimit(english))
+        assertFalse(ChatUiPolicy.conversationAtLimit("Какова максимальная длина обсуждения в ChatGPT?"))
+        assertFalse(ChatUiPolicy.conversationAtLimit("Это обычное сообщение в выбранном чате."))
+    }
+
     @Test fun sessionTimeoutAndMessageBudgetAreHardLimits() {
         val state = ChatRunState(0, maxTurns = 1)
         assertTrue(state.beginSend(1))
