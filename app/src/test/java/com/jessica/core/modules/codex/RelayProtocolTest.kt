@@ -81,6 +81,28 @@ class RelayProtocolTest {
         assertEquals(first + "\nСледующий тест: Сколько будет 2 + 2?", completed)
         assertEquals(completed,collector.observe("ChatGPT is idle",id))
     }
+    @Test fun firstChatGPTAnswerAdvancesToSecondTurnWithoutResendingTheFirst() {
+        val first = "12345678-abcd-4abc-8abc-123456789012"
+        val second = "23456789-abcd-4abc-8abc-123456789012"
+        val state = ChatRunState(0L,maxTurns=60,durationMs=8*60*60*1000L)
+        val collector = ChatReplyCollector()
+        assertTrue(state.beginSend(1000L))
+        val answer1 = "Готово. Выполни в своём чате: Сколько будет 2 + 2?"
+        val flat = "JESSICA_REPLY_$first: $answer1 JESSICA_END_$first"
+        assertEquals(answer1,collector.observe(flat,first))
+        assertNull(state.acceptReply(collector.observe(flat,first),false,7000L))
+        assertNull(state.acceptReply(collector.observe(flat,first),false,10000L))
+        assertEquals(answer1,state.acceptReply(collector.observe(flat,first),false,17000L))
+        assertTrue(state.beginSend(18000L))
+        assertNull(collector.observe(flat,second))
+        assertNull(state.acceptReply(null,false,26000L))
+        val answer2 = "Результат принят. Продолжай план."
+        val rendered = "JESSICA_REPLY_$second\n$answer2\nJESSICA_END_$second"
+        assertEquals(answer2,collector.observe(rendered,second))
+        assertNull(state.acceptReply(answer2,false,27500L))
+        assertEquals(answer2,state.acceptReply(answer2,false,34500L))
+        assertEquals(2,state.sends)
+    }
     @Test fun cannotJoinUnrelatedWindowTextOrReuseDifferentReplyId() {
         val collector=ChatReplyCollector()
         assertNull(collector.observe("JESSICA_REPLY_$id\nНачало ответа",id))
