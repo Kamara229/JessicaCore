@@ -36,6 +36,17 @@ class ChatAutomationTest {
         assertFalse(state.beginSend(23000))
         assertNull(state.acceptReply("{}", false, 24000))
     }
+    @Test fun noKeyConnectivityProbeMustMatchThisExactSession() {
+        val prompt = ChatConnectivityProbe.prompt(id)
+        assertTrue(prompt.contains("JESSICA_REPLY_$id"))
+        assertTrue(prompt.contains("JESSICA_END_$id"))
+        // The request itself must never contain standalone delimiters. Only the
+        // actual assistant reply may be interpreted as successful.
+        assertNull(ChatUiPolicy.reply(prompt,id))
+        assertTrue(ChatConnectivityProbe.accepts("""{"nonce":"$id","ok":true}""",id))
+        assertFalse(ChatConnectivityProbe.accepts("""{"nonce":"different","ok":true}""",id))
+        assertFalse(ChatConnectivityProbe.accepts("""{"nonce":"$id","ok":false}""",id))
+    }
     @Test fun sessionTimeoutAndMessageBudgetAreHardLimits() {
         val state = ChatRunState(0, maxTurns = 1)
         assertTrue(state.beginSend(1))

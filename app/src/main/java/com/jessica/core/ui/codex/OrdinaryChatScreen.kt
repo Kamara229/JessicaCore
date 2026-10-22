@@ -64,14 +64,24 @@ fun OrdinaryChatScreen() {
             }
             Row {
                 Checkbox(checked = consent, onCheckedChange = { consent = it }, enabled = !busy)
-                Text("Разрешаю этой сессии вводить и отправлять сообщения в выбранном обычном чате, читать ответы и передавать только подготовленный код на проверку в мой репозиторий.", modifier = Modifier.padding(top = 10.dp))
+                Text("Разрешаю Джессике отправлять сообщения в выбранном обычном чате и читать ответы. При запуске исправлений дополнительно разрешаю передачу подготовленного кода на проверку в мой GitHub. Проверка связи ничего не меняет в репозитории.", modifier = Modifier.padding(top = 10.dp))
             }
-            OutlinedButton(enabled = ready && consent && !busy, modifier = Modifier.fillMaxWidth(), onClick = {
-                val url = PhoneCodexHandoff.normalizePrivateChatLink(chatUrl)
-                if (chatUrl.isNotBlank() && url == null) { error = "Неверная ссылка на личный чат"; return@OutlinedButton }
-                try { error = ""; PhoneChatRuntime.checkConnection(context, url ?: "") }
-                catch (e: Exception) { error = e.message ?: "Проверка не запущена" }
-            }) { Text("Проверить связь с обычным чатом — без ключей") }
+            OutlinedButton(
+                enabled = ready && consent && !busy, modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    val url = PhoneCodexHandoff.normalizePrivateChatLink(chatUrl)
+                    if (chatUrl.isNotBlank() && url == null) {
+                        error = "Нужна ссылка на личный чат вида https://chatgpt.com/c/…"
+                    } else {
+                        try {
+                            prefs.edit().putString("chat_url", url ?: "").apply()
+                            PhoneChatRuntime.startConnectivityProbe(context, url ?: "")
+                            error = ""
+                        } catch (e: Exception) { error = "Проверка не запущена: ${e.message}" }
+                    }
+                }
+            ) { Text("🔎 Проверить связь с обычным чатом — без ключей") }
+            Text("Одно тестовое сообщение. Не использует GitHub, не применяет исправлений и не требует платного API.", style = MaterialTheme.typography.bodySmall)
             Button(enabled = ready && consent && ownerKey.length >= 16 && !busy, modifier = Modifier.fillMaxWidth(), onClick = {
                 val url = PhoneCodexHandoff.normalizePrivateChatLink(chatUrl)
                 if (chatUrl.isNotBlank() && url == null) { error = "Нужна ссылка на личный чат вида https://chatgpt.com/c/…"; return@Button }
