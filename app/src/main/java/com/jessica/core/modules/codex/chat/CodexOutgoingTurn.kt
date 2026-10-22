@@ -12,7 +12,7 @@ internal suspend fun CodexChatCoordinator.advanceOutgoing(window: ChatWindow, la
                     // Publish only a phase marker, never the text or chat title.
                     if (composed) reportPhase("editor_missing")
                     notice("Не удалось определить поле ввода ChatGPT (найдено полей: ${window.editorCandidates}). " +
-                        "Сообщение не отправлено; длинный черновик сохранён. Повторного ввода нет.")
+                        "Причина: ${window.composerDiagnostic}. Сообщение не отправлено.")
                     return
                 }
                 val text = composer.text?.toString().orEmpty()
