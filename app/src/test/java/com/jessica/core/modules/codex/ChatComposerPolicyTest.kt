@@ -10,8 +10,8 @@ class ChatComposerPolicyTest {
     private val window = UiBox(0, 0, 420, 900)
     private fun candidate(index: Int, left: Int, top: Int, right: Int, bottom: Int,
                           focused: Boolean = false, editable: Boolean = true,
-                          setText: Boolean = true) =
-        ComposerCandidate(index, UiBox(left, top, right, bottom), focused, editable, setText)
+                          setText: Boolean = true, matchesPrepared: Boolean = false) =
+        ComposerCandidate(index, UiBox(left, top, right, bottom), focused, editable, setText, matchesPrepared)
 
     @Test fun actualChatComposerIsChosenDespiteAdditionalSearchField() {
         val nodes = listOf(
@@ -57,4 +57,28 @@ class ChatComposerPolicyTest {
             candidate(9,25,670,395,745,editable=false,setText=true)
         ),window,1f))
     }
+    @Test fun longPreparedDraftStillFindsExactSingleEditorAfterChatGptBoundsShift() {
+        // Reproduces field-count=1/composer=null after ChatGPT grows a long draft.
+        val weird = candidate(7, -600, -1200, -100, -600, matchesPrepared = true)
+        assertEquals(7, ChatComposerPolicy.choose(listOf(weird), window, 1f))
+        assertNull(ChatComposerPolicy.choose(listOf(weird.copy(matchesPrepared = false)), window, 1f))
+    }
+
+    @Test fun existingPreparedDraftWinsOverSearchAndOtherEmptyEditors() {
+        val search = candidate(2, 30, 50, 390, 90, focused = true)
+        val draft = candidate(10, 20, 600, 405, 900, matchesPrepared = true)
+        assertEquals(10, ChatComposerPolicy.choose(listOf(search, draft), window, 1f))
+    }
+
+    @Test fun duplicatePreparedDraftInDistinctEditorsMustNotBeSent() {
+        val first = candidate(8, 30, 600, 200, 860, matchesPrepared = true)
+        val second = candidate(9, 215, 600, 408, 860, matchesPrepared = true)
+        assertNull(ChatComposerPolicy.choose(listOf(first, second), window, 1f))
+    }
+
+    @Test fun preparedFlagNeverMakesNonEditableNodeAnEditor() {
+        val label = candidate(9, 0, 0, 1, 1, editable = false, setText = false, matchesPrepared = true)
+        assertNull(ChatComposerPolicy.choose(listOf(label), window, 1f))
+    }
+
 }

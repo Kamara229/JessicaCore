@@ -108,7 +108,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
         if (state.expired(SystemClock.elapsedRealtime())) { finish("Истекло время сессии или ожидания ответа. История сохранена."); return }
         if (getSystemService(KeyguardManager::class.java).isKeyguardLocked) { stopByUser("Телефон заблокирован. Кодекс остановлен."); return }
         if (calibrating) return
-        val window = ChatWindowReader.read(this)
+        val window = ChatWindowReader.read(this, if (composed || state.waiting) launch.prompt else null)
         if (window == null) {
             val now = SystemClock.elapsedRealtime()
             if (invisibleSince == 0L) invisibleSince = now
@@ -306,7 +306,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
         try {
             sendPicker.show(onPick = { x,y ->
                 calibrating = false
-                val window = ChatWindowReader.read(this)
+                val window = ChatWindowReader.read(this, launch.prompt)
                 try {
                     val editor = window?.composer
                     calibratedSend = if (PhoneChatRuntime.launch === launch && window != null && editor != null && editor.text?.toString() == launch.prompt && !window.generating &&

@@ -17,7 +17,9 @@ data class ComposerCandidate(
     val box: UiBox,
     val focused: Boolean,
     val editable: Boolean,
-    val setText: Boolean
+    val setText: Boolean,
+    // Only true for one node whose actual editable text exactly matches this session's prepared draft.
+    val matchesPrepared: Boolean = false
 )
 
 object ChatComposerPolicy {
@@ -35,6 +37,12 @@ object ChatComposerPolicy {
 
     fun choose(candidates: List<ComposerCandidate>, frame: UiBox, density: Float): Int? {
         if (frame.width < 1 || frame.height < 1 || !density.isFinite() || density <= 0f) return null
+        // ChatGPT can change the editable node's reported bounds after ACTION_SET_TEXT
+        // expands a long draft. Recover ONLY an exact, unique, visible editor
+        // matching this session's prepared text. Never guess an empty editor.
+        val prepared = candidates.filter { it.matchesPrepared && (it.editable || it.setText) }
+        if (prepared.size == 1) return prepared.single().index
+        if (prepared.size > 1) return null // Conflicting text fields: fail closed.
         val minimumWidth = max(72f * density, frame.width * .25f)
         val eligible = candidates.filter {
             (it.editable || it.setText) &&

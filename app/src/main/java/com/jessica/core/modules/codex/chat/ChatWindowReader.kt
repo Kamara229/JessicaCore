@@ -18,7 +18,7 @@ data class ChatWindow(val root: AccessibilityNodeInfo, val nodes: List<Accessibi
 }
 
 object ChatWindowReader {
-    fun read(service: AccessibilityService): ChatWindow? {
+    fun read(service: AccessibilityService, preparedDraft: String? = null): ChatWindow? {
         val applications = service.windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
         // The keyboard or Jessica's own accessibility overlay may hold focus.
         // Do not require ChatGPT to be the `active` window if it is the only
@@ -39,7 +39,7 @@ object ChatWindowReader {
                 ?: service.rootInActiveWindow?.takeIf { it.packageName?.toString() == "com.openai.chatgpt" }
                 ?: return null
             selected = chosen
-            return inspect(chosen, service.resources.displayMetrics.density)
+            return inspect(chosen, service.resources.displayMetrics.density, preparedDraft)
         } finally {
             // The returned ChatWindow owns and recycles its selected tree.
             // Every other root snapshot must be recycled even if it belongs
@@ -50,7 +50,7 @@ object ChatWindowReader {
     }
 
     /** Root ownership is checked by read(); separated to test actual Android view hierarchies. */
-    internal fun inspect(root: AccessibilityNodeInfo, density: Float): ChatWindow {
+    internal fun inspect(root: AccessibilityNodeInfo, density: Float, preparedDraft: String? = null): ChatWindow {
         val nodes = mutableListOf<AccessibilityNodeInfo>()
         val controls = mutableListOf<ChatControl>()
         val composers = mutableListOf<ComposerCandidate>()
@@ -64,7 +64,8 @@ object ChatWindowReader {
             val editor = insideEditor || node.isEditable || canSetText
             if (node.isVisibleToUser && node.isEnabled && (node.isEditable || canSetText)) {
                 composers.add(ComposerCandidate(index, node.screenBox(), node.isFocused,
-                    node.isEditable, canSetText))
+                    node.isEditable, canSetText,
+                    preparedDraft != null && preparedDraft.isNotBlank() && node.text?.toString() == preparedDraft))
             }
             val descriptions = listOfNotNull(node.contentDescription?.toString(), node.text?.toString(),
                 (if (android.os.Build.VERSION.SDK_INT >= 28) node.tooltipText?.toString() else null), node.hintText?.toString())
