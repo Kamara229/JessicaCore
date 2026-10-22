@@ -1,52 +1,86 @@
 package com.jessica.core.modules.codex.relay
 
 /**
- * Accumulates an answer only after its unique marker has been observed.
- * ChatGPT may scroll the START marker out of the accessibility tree before
- * the END marker appears. We never infer missing text or reuse old replies.
+ * Accumulates a reply only after its unique START marker is observed.
+ *
+ * ChatGPT virtualizes long responses: later accessibility snapshots may show
+ * only the middle or end of the answer. Join only on a long, exact overlap;
+ * NEVER infer missing text or join unrelated UI content.
  */
 class ChatReplyCollector {
     private var pendingId = ""
     private var observed = ""
+    private var completed: String? = null
 
     fun reset() {
         pendingId = ""
         observed = ""
+        completed = null
     }
 
     fun observe(screen: String, id: String): String? {
-        if (id != pendingId) { pendingId = id; observed = "" }
+        if (id != pendingId) {
+            pendingId = id
+            observed = ""
+            completed = null
+        }
+        // A response verified once remains available to ChatRunState's
+        // six-second stability check even if ChatGPT virtualizes it away.
+        completed?.let { return it }
+
         ChatReplyExtraction.read(screen, id)?.let { complete ->
-            observed = (ChatReplyExtraction.openingTail(screen,id)
-                ?: "JESSICA_REPLY_$id\n$complete\nJESSICA_END_$id").take(55_000)
+            completed = complete
             return complete
         }
-        val tail = ChatReplyExtraction.openingTail(screen,id)
+
+        val tail = ChatReplyExtraction.openingTail(screen, id)
         if (tail != null) {
-            if (observed.isBlank() || tail.length >= observed.length && tail.startsWith(observed.take(80))) {
-                observed = tail.take(55_000)
+            if (observed.isBlank()) {
+                observed = tail.take(MAX_OBSERVED)
+            } else if (tail.startsWith(observed)) {
+                // The visible start grew while ChatGPT was streaming.
+                observed = tail.take(MAX_OBSERVED)
             } else {
                 extend(tail)
             }
         } else if (observed.isNotBlank()) {
             extend(screen)
         }
-        return ChatReplyExtraction.read(observed,id)
+
+        val joined = ChatReplyExtraction.read(observed, id)
+        if (joined != null) completed = joined
+        return joined
     }
 
     private fun extend(snapshot: String) {
-        if (observed.length > 54_000) return
-        // Long, exact overlap must be present. Otherwise do not concatenate
-        // unrelated screen content or guess text lost during a scroll.
+        if (observed.length >= MAX_OBSERVED || snapshot.isBlank()) return
         val max = minOf(5000, observed.length, snapshot.length)
-        for (overlap in listOf(max, 2000, 1000, 500, 240, 100, 60)
-            .distinct().filter { it >= 60 && it <= max }.sortedDescending()) {
-            val part = observed.substring(observed.length - overlap)
-            val start = snapshot.lastIndexOf(part)
-            if (start >= 0) {
-                observed = (observed + snapshot.substring(start + overlap)).take(55_000)
-                return
+        if (max < MIN_OVERLAP) return
+
+        // A match at length N guarantees a match at N-1. Binary-search the
+        // longest overlap rather than trying only 60/100/240/500/...:
+        // UI virtualization may expose an arbitrary 83- or 317-char overlap.
+        var low = MIN_OVERLAP
+        var high = max
+        var overlap = 0
+        var matchIndex = -1
+        while (low <= high) {
+            val mid = (low + high) ushr 1
+            val index = snapshot.lastIndexOf(observed.takeLast(mid))
+            if (index >= 0) {
+                overlap = mid
+                matchIndex = index
+                low = mid + 1
+            } else {
+                high = mid - 1
             }
         }
+        if (overlap == 0 || matchIndex < 0) return
+        observed = (observed + snapshot.substring(matchIndex + overlap)).take(MAX_OBSERVED)
+    }
+
+    private companion object {
+        const val MAX_OBSERVED = 55_000
+        const val MIN_OVERLAP = 80
     }
 }
