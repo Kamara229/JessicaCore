@@ -1,6 +1,7 @@
 package com.jessica.core.modules.codex
 
 import com.jessica.core.modules.codex.relay.RelayProtocol
+import com.jessica.core.modules.codex.relay.ChatReplyCollector
 import com.jessica.core.modules.codex.chat.ChatRunState
 import org.junit.Assert.*
 import org.junit.Test
@@ -51,6 +52,31 @@ class RelayProtocolTest {
         val second = "JESSICA_REPLY_${id}\n" +
             "Код:\n" + "```python\nprint(42)\n```" + "\nJESSICA_END_${id}"
         assertEquals("Код:\n```python\nprint(42)\n```",RelayProtocol.reply(first+"\n"+quoted+"\n"+second,id))
+    }
+
+    @Test fun reconstructsAnswerWhenChatGPTScrollsStartMarkerOutOfView() {
+        val collector = ChatReplyCollector()
+        val first = "Подтверждаю план: " + "проверка контекста и задач. ".repeat(30)
+        val opening = "JESSICA_REPLY_$id\n$first"
+        assertNull(collector.observe(opening,id))
+        val second = first.takeLast(140) + "\nСледующий тест: Сколько будет 2 + 2?\nJESSICA_END_$id"
+        val completed = collector.observe(second,id)
+        assertEquals(first + "\nСледующий тест: Сколько будет 2 + 2?", completed)
+        assertEquals(completed,collector.observe("ChatGPT is idle",id))
+    }
+    @Test fun cannotJoinUnrelatedWindowTextOrReuseDifferentReplyId() {
+        val collector=ChatReplyCollector()
+        assertNull(collector.observe("JESSICA_REPLY_$id\nНачало ответа",id))
+        assertNull(collector.observe("Сторонняя переписка\nJESSICA_END_$id",id))
+        val other="23456789-abcd-4abc-8abc-123456789012"
+        assertNull(collector.observe("JESSICA_END_$id",other))
+        assertEquals("Новый ответ",collector.observe("JESSICA_REPLY_$other\nНовый ответ\nJESSICA_END_$other",other))
+    }
+    @Test fun neverStartsFromPromptThatMerelyMentionsDelimiters() {
+        val collector=ChatReplyCollector()
+        assertNull(collector.observe("Начни ответ отдельной строкой JESSICA_REPLY_$id; " +
+            "закончи отдельной строкой JESSICA_END_$id.",id))
+        assertNull(collector.observe("JESSICA_END_$id",id))
     }
 
 }
