@@ -42,7 +42,7 @@ class ChatReplyCollector {
         for (overlap in listOf(max, 2000, 1000, 500, 240, 100, 60)
             .distinct().filter { it >= 60 && it <= max }.sortedDescending()) {
             val part = observed.substring(observed.length - overlap)
-            val start = snapshot.indexOf(part)
+            val start = snapshot.lastIndexOf(part)
             if (start >= 0) {
                 observed = (observed + snapshot.substring(start + overlap)).take(55_000)
                 return
