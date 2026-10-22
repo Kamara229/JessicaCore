@@ -27,6 +27,7 @@ object ChatWindowReader {
         val roots = applications.mapNotNull { window ->
             window.root?.let { root -> window to root }
         }
+        var selected: AccessibilityNodeInfo? = null
         try {
             if (roots.any { (window, root) ->
                 window.isActive && root.packageName?.toString() != "com.openai.chatgpt"
@@ -37,15 +38,14 @@ object ChatWindowReader {
                 .thenBy { it.first.isFocused })?.second
                 ?: service.rootInActiveWindow?.takeIf { it.packageName?.toString() == "com.openai.chatgpt" }
                 ?: return null
+            selected = chosen
             return inspect(chosen, service.resources.displayMetrics.density)
         } finally {
-            // inspect() retains only nodes of the selected window.
-            // A returned ChatWindow releases that tree after each tick.
-            // Do not recycle a selected tree here.
-            roots.filter { (_, root) ->
-                root.packageName?.toString() != "com.openai.chatgpt" ||
-                    !root.isVisibleToUser
-            }.forEach { (_, root) -> @Suppress("DEPRECATION") root.recycle() }
+            // The returned ChatWindow owns and recycles its selected tree.
+            // Every other root snapshot must be recycled even if it belongs
+            // to a second ChatGPT application window.
+            roots.filter { (_, root) -> root !== selected }
+                .forEach { (_, root) -> @Suppress("DEPRECATION") root.recycle() }
         }
     }
 
