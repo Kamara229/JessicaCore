@@ -80,3 +80,47 @@ test("a stopped session cannot merge even if a previously requested status later
     const stopped = await readPhoneChat(prepared.id, api);
     assert.equal(stopped.state, "cancelled");
 });
+
+test("automatic application uses a non-forced fast-forward and remains opt-in", async () => {
+    for (const autoApply of [false, true]) {
+        const prepared = await preparePhoneChat("context", autoApply, prepareApi);
+        let applied = 0;
+        const headSha = "d".repeat(40);
+        const api = async (path, args) => {
+            if (path === "/git/ref/heads/main") return {object: {sha: session.baseSha}};
+            if (path === "/git/trees") return {sha: "tree"};
+            if (path === "/git/commits") return {sha: headSha};
+            if (path === "/git/refs") return {};
+            if (path.startsWith("/pulls?")) return [];
+            if (path === "/pulls") return {number: 999, html_url: "https://github.com/Kamara229/JessicaCore/pull/999"};
+            if (path === "/pulls/999") return {head: {sha: headSha, repo: {full_name: "Kamara229/JessicaCore"}}, base: {ref: "main"}, state: "open"};
+            if (path.endsWith(".yml")) return {id: 1};
+            if (path.includes("/runs?")) return {workflow_runs: [{id: 1, event: "pull_request", head_sha: headSha,
+                head_repository: {full_name: "Kamara229/JessicaCore"}, pull_requests: [{number: 999}], status: "completed", conclusion: "success"}]};
+            if (path === "/git/refs/heads/main") {
+                assert.equal(args.method, "PATCH");
+                assert.deepEqual(args.body, {sha: headSha, force: false});
+                applied++; return {object: {sha: headSha}};
+            }
+            throw Error("Unexpected API path " + path);
+        };
+        await submitPhoneChat(prepared.id, {nonce: prepared.id, baseSha: prepared.baseSha, status: "change",
+            files: [{...source, content: "export const x=2;"}, {path: phoneTestPath(prepared.id), sha: null, content: "test"}]}, api);
+        const result = await readPhoneChat(prepared.id, api);
+        assert.equal(result.state, autoApply ? "merged" : "verified");
+        assert.equal(applied, autoApply ? 1 : 0);
+    }
+});
+
+test("cancellation during candidate construction prevents branch publication", async () => {
+    const prepared = await preparePhoneChat("context", false, prepareApi);
+    let refs = 0;
+    const api = async path => {
+        if (path === "/git/ref/heads/main") return {object: {sha: session.baseSha}};
+        if (path === "/git/trees") { stopPhoneChat(prepared.id); return {sha: "tree"}; }
+        refs++; throw Error("Should not write after cancellation");
+    };
+    await assert.rejects(submitPhoneChat(prepared.id, {nonce: prepared.id, baseSha: prepared.baseSha, status: "change",
+        files: [{...source, content: "export const x=2;"}, {path: phoneTestPath(prepared.id), sha: null, content: "test"}]}, api), /cancelled/);
+    assert.equal(refs, 0);
+});

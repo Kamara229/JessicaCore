@@ -19,6 +19,12 @@ object ChatUiPolicy {
         packageName == "com.openai.chatgpt" && mode == OrdinaryChatMode.CHAT && !locked &&
             !sending && (composerText.isBlank() || composerText == pending)
 
+    fun repairPrompt(sessionId: String, replyId: String, reason: String): String =
+        "Исправь формат предыдущего ответа: $reason. Сохрани исходный baseSha, nonce $sessionId и разрешённые пути. Верни полный JSON. " +
+            "Для этого нового ответа используй новые внешние маркеры; nonce внутри JSON не меняй. " +
+            "Первая отдельная строка: JESSICA_REPLY_$replyId\nПоследняя отдельная строка: JESSICA_END_$replyId\n" +
+            "Если корректное исправление невозможно, верни status no_change и files []. Оставайся в обычном чате."
+
     fun reply(text: String, id: String): String? {
         if (text.length > 60000 || !Regex("[a-f0-9-]{36}").matches(id)) return null
         val start = "JESSICA_REPLY_$id"

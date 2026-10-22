@@ -9,7 +9,11 @@ import java.io.File
 
 data class PhoneChatStatus(val active: Boolean = false, val text: String = "Не запущено", val url: String = "")
 class PhoneChatLaunch(val id: String, val ownerKey: String, var prompt: String, val chatUrl: String,
-                      val connectivityOnly: Boolean = false)
+                      val connectivityOnly: Boolean = false) {
+    // A repair keeps the backend session but must receive a fresh assistant answer.
+    var replyId: String = id
+    var previousReplyId: String = id
+}
 
 /** Only the active process holds the owner key. Never put it in a prompt, log, saved state or Intent. */
 object PhoneChatRuntime {
