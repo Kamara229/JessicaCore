@@ -63,7 +63,7 @@ fun JessicaScreen() {
     val updateViewModel = remember { UpdateViewModel(context.applicationContext) }
     val chatViewModel = remember {
         ChatViewModel(
-            threadStore = ChatThreadStore(context.applicationContext),
+            threadStore = ChatThreadStore.shared(context),
             languageProvider = languageStore::current,
             attachmentStore = ChatAttachmentStore(context.applicationContext),
             messageExecutor = { request, history, attachments ->
@@ -78,6 +78,9 @@ fun JessicaScreen() {
     var showDeleteDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val page = navigator.currentPage.value
+    LaunchedEffect(page, drawerState.isOpen) {
+        if (page == JessicaPage.CHAT || drawerState.isOpen) chatViewModel.refreshExternalChats()
+    }
     val chatBusy = chatState.isRunning || chatState.isLoading
 
     val installationLauncher = rememberLauncherForActivityResult(
@@ -192,7 +195,7 @@ fun JessicaScreen() {
                             JessicaPage.TASKS -> uiText("Задачи", "Tasks")
                             JessicaPage.REPORTS -> uiText("Отчёты", "Reports")
                             JessicaPage.HOME -> "Jessica Core"
-                            JessicaPage.CODEX -> "Codex ↔ Jessica"
+                            JessicaPage.CODEX -> "Кодекс"
                         })
                     },
                     navigationIcon = {

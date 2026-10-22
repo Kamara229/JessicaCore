@@ -1,81 +1,86 @@
-# Ordinary ChatGPT on an unlocked Android phone
+# Jessica Codex: participant in the selected ChatGPT conversation
 
-This is an experimental, explicitly started UI assistant for the official
-`com.openai.chatgpt` app. It does not use paid model APIs, browser cookies,
-ChatGPT private HTTP endpoints, credentials from ChatGPT, or a paid model API. Both Chat and Work conversations can be selected by the owner.
-ChatGPT subscription limits still apply. Live UI compatibility must be
-tested on the owner's device; a successful Android build does not establish it.
+The owner prepares a backend improvement plan in ChatGPT, starts Codex in
+Jessica, opens the desired conversation, and presses **Чат выбран** on the
+overlay. Jessica first sends **Джессика готова к работе в чате.** and explains
+her role. Both Chat and Work conversations may be selected. ChatGPT uses its
+own available GitHub, Render and Supabase connections; selecting a chat does
+not grant it connections that it does not already have.
 
-## One-time setup
+Jessica itself does not create commits, pull requests, merges or deployments.
+The Codex HTTP router exposes only authenticated `/api/codex/relay/interpret`.
+Old phone/day/paid/candidate routes are no longer registered. Historical
+candidate modules and manually dispatched validation workflows are not part
+of the new runtime. No owner key, goal selector, personal chat URL or separate
+paid OpenAI API is used. Understanding uses Jessica's existing Groq backend;
+that provider's availability and usage limits still apply.
 
-Use the existing Render settings `JESSICA_CODEX_OWNER_KEY` and
-`JESSICA_GITHUB_AUTOMATION_TOKEN`. The GitHub token must be able to read the
-repository and Actions results, create Git data/branches and pull requests,
-and merge PRs if the owner elects automatic application. GitHub Actions must
-be enabled. No OpenAI/Groq API key is needed by this path. The shared app
-token embedded in an APK is never accepted as owner authorization.
+## Setup and operation
 
-After installing the updated signed APK, open Codex → **Обычный чат**.
-Enable **Jessica — выбранный чат ChatGPT** in Android accessibility settings.
-First use **Проверить связь с выбранным чатом — без ключей** to test one
-nonce-delimited request/response locally, without Render/GitHub credentials
-or any code changes. This is a diagnostic, not an improvement run.
-Read the data-access disclosure, enter the independent owner key, choose
-a goal, and start. An optional private `/c/<uuid>` URL opens the selected
-conversation; otherwise choose a dedicated chat after ChatGPT opens.
-The owner key is held only in process memory and is not included in prompts.
+Enable **Jessica — Кодекс** in Android accessibility settings and accept the
+Codex disclosure. The existing service component name is preserved on upgrade.
+Leave the phone unlocked, powered and displaying the selected ChatGPT chat.
+Do not change conversations during a run. Leaving ChatGPT clears confirmation;
+returning requires **Чат выбран** again. The app cannot reliably obtain a
+ChatGPT internal conversation ID. Follow-up messages require the preceding
+session marker in the selected conversation before composing.
 
-Leave the phone unlocked, powered and displaying ChatGPT. Open the desired
-conversation and press **Вести переписку здесь** on Jessica's overlay.
-The owner selects the conversation; Chat/Work mode is not used as a gate.
-Leaving ChatGPT resets confirmation. Do not switch conversations during a run:
-the UI does not expose a reliable conversation ID, and follow-up sends require
-the previous session marker to remain visible. Jessica does not browse the chat list.
-Arbitrary coordinates and fuzzy button matching are not used. If the editor or
-Send control is ambiguous, the assistant waits and reports the problem.
-Composer descendants are excluded from reply text. If the current request or
-its nonce-delimited answer is already visible in the conversation, Jessica waits
-for the answer instead of reinserting or sending the request again. An unexplained
-editor change after composing stops the run without an automatic retry.
+The initial visible plan, recent session messages and real prior test results
+are sent to Jessica's authenticated interpreter. It chooses a contextual reply,
+one exact test prompt, completion, or a pause for the owner. It cannot execute
+tools, edit infrastructure, invent test results, or authorize owner-only actions.
+Tests use the same `JessicaAIEngine.solve` path as Jessica's normal text chat.
+Each new test gets its own stored chat; explicitly requested follow-ups reuse
+the preceding test's history. Requests and verbatim results are visible in the
+normal chat list alongside a Codex conversation journal. HTTP request success
+is reported separately and is never called a passing test.
 
-## A bounded run
+Jessica remains in ChatGPT while its ordinary chat engine executes the test;
+opening Jessica's chat screen is unnecessary. The entire actual result is
+returned to ChatGPT for evaluation. Oversized results are kept locally and
+pause the session rather than being silently truncated. When no test is needed,
+the interpreter replies using the plan and conversation context. It stops at
+completion or when an action outside its role needs the owner.
 
-1. Load two public source files at an exact main commit.
-2. Send one engineering request in the selected chat. At most two
-   format-repair follow-ups are allowed. Existing drafts are never overwritten.
-3. Read only the nonce-delimited answer for this launch after it is stable.
-   The complete UI transcript is not saved or sent to the server.
-4. Validate exact file paths, original blob SHAs, size, and a new regression.
-5. Open one source-only PR. No chat text is posted to GitHub.
-6. CI from the trusted base executes the regression in network-disabled,
-   read-only, unprivileged containers with no secrets. The new test must
-   demonstrate an assertion failure on the original source, and then pass
-   with the correction alongside the fixed base regression suite.
-7. If the owner checked automatic application before launch, an exact-head
-   success may fast-forward main to the tested commit, only while main still equals the reviewed base.
-   A non-forced Git ref update rejects a concurrent change to main atomically.
-   Existing Render/APK deployment workflows then run normally. Deployment
-   success is not claimed from a merge result. Otherwise the verified PR waits.
+## Reliable reading and stopping
 
-The overlay Stop button cancels UI activity and requests server cancellation.
-Already submitted GitHub merges cannot be undone by Stop. An interrupted
-network write is reported as uncertain, never retried as a new operation.
-Server restart, screen lock, response timeout, changed base, failed tests or
-unrecognized UI stop or pause the run. The run is limited to one correction,
-three messages and one hour; it is not an indefinite background loop.
+Each outgoing message asks ChatGPT to put its natural-language answer between
+two unique, standalone session markers. No JSON is required in ChatGPT.
+Only a complete, stable response for the current turn is accepted. Incomplete
+or missing markers cause waiting and ultimately a timeout, not a guessed answer.
+The accessibility adapter excludes the editor and its descendants. It accepts
+only the official ChatGPT package, a unique editable field and exact send
+labels. It does not tap arbitrary coordinates or inspect other apps.
 
-Only the last ten nonce-delimited answers and the latest status/PR link are
-kept in private application storage. Owner keys are not persisted. No positive
-Experience or Skill is fabricated from model text, PR creation, or build success.
-This change improves source through verified commits; it does not train model weights.
+Existing drafts are never overwritten. The send is recorded before clicking;
+an ambiguous click or unexplained editor change is never automatically retried.
+A visible already-posted request is not inserted again. Stop, screen lock,
+service disconnection, timeout or uncertain interpretation ends the session.
+Stop cannot undo a test already received by Jessica's backend or work already
+performed by ChatGPT. No session automatically resumes after process restart.
+One session is limited to eight hours, sixty sends and twenty minutes per
+ChatGPT answer. Session history is stored in Jessica's private chat storage and
+can be managed through the ordinary chat list.
 
 ## Validation
 
-`node --test backend/scripts/regressionPhoneChat.test.js`
+- `node --test backend/scripts/regressionCodexRelay.test.js` checks contextual
+  interpretation inputs, exact test extraction, malformed decisions and the
+  absence of infrastructure-writing routes.
+- `gradle testDebugUnitTest assembleDebug` checks reply framing, send limits,
+  draft protection and the existing Android regression suite.
+- `gradle connectedDebugAndroidTest` verifies framework service binding and
+  actual local test-chat persistence, verbatim errors, contextual continuation,
+  follow-up history and stopping without test execution, using injected model
+  responses. It does not call a paid model or assume tests passed.
+- The release workflow runs `node backend/scripts/smokeCodexRelay.mjs` against
+  the deployed backend with the existing app authorization. It checks real-model
+  acknowledgement, exact test extraction and completion, without executing tests
+  or accessing ChatGPT. Its only credential destination is Jessica's fixed HTTPS
+  endpoint. This check uses the existing Groq provider and its usage limits.
 
-`gradle testDebugUnitTest assembleDebug`
-
-Before relying on unattended operation, the device test must verify explicit
-conversation selection, one send (no duplication), full answer capture, Stop, screen
-lock, and a failed-test candidate remaining unmerged. Unknown UI layouts are
-unsupported until an adapter is validated on the actual screen.
+A successful build/emulator test does not prove compatibility with the owner's
+current native ChatGPT UI. On the phone, verify explicit selection, one readiness
+send, full response capture, one requested test with its real report, contextual
+continuation, and Stop. Long or inaccessible UI responses can still cause a
+reported pause and must be validated on that device.

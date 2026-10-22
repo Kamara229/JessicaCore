@@ -17,6 +17,24 @@ concurrency:
 
 jobs:
 
+  relay-live-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify contextual relay on the deployed Jessica backend
+        env:
+          JESSICA_APP_TOKEN: ${{ secrets.JESSICA_APP_TOKEN }}
+        run: node backend/scripts/smokeCodexRelay.mjs
+
   build:
 
     runs-on: ubuntu-latest
@@ -55,8 +73,8 @@ jobs:
       - name: Regression tests for verified Learning and release dates
         run: node --test backend/scripts/regressionLearningSafety.test.js backend/scripts/regressionDocumentCapture.test.js backend/scripts/regressionLocalConversation.test.js backend/scripts/regressionDocumentAttachments.test.js backend/scripts/regressionDocumentAnalysis.test.js backend/scripts/regressionCandidateConsolidation.test.js backend/scripts/regressionKnownLicenseComparison.test.js backend/scripts/regressionComparisonEvidence.test.js backend/scripts/regressionPartialComparisonEvidence.test.js backend/scripts/regressionEvidenceFirstComparison.test.js backend/scripts/regressionComparisonGrid.test.js backend/scripts/regressionFullChatArchive.test.js backend/scripts/regressionChatDebugSnapshot.test.js backend/scripts/regressionLanguageService.test.js backend/scripts/regressionLocaleGeneration.test.js backend/scripts/regressionProgrammingFoundation.test.js backend/scripts/regressionProgrammingAnswerSafety.test.js backend/scripts/regressionContextDataFoundations.test.js backend/scripts/regressionCodexCollaboration.test.js backend/scripts/regressionCodexDayMode.test.js
 
-      - name: Regression tests for ordinary-chat candidate application
-        run: node --test backend/scripts/regressionPhoneChat.test.js
+      - name: Regression tests for Codex relay and archived candidate validation
+        run: node --test backend/scripts/regressionCodexRelay.test.js backend/scripts/regressionPhoneChat.test.js
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4

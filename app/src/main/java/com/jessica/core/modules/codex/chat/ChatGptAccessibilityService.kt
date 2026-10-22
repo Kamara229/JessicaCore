@@ -12,12 +12,13 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Button
 import android.widget.LinearLayout
-import com.jessica.core.modules.codex.CodexClient
+import android.widget.TextView
 import com.jessica.core.modules.codex.PhoneCodexHandoff
+import com.jessica.core.modules.codex.relay.RelayProtocol
 import kotlinx.coroutines.*
-import org.json.JSONObject
+import java.util.UUID
 
-/** Explicitly started, package-scoped UI assistant. No credentials or private HTTP endpoints from ChatGPT. */
+/** Participant in one owner-selected ChatGPT conversation. No infrastructure-writing client. */
 class ChatGptAccessibilityService : AccessibilityService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var loop: Job? = null
@@ -26,23 +27,18 @@ class ChatGptAccessibilityService : AccessibilityService() {
     private var composed = false
     private var overlay: LinearLayout? = null
     private var confirmButton: Button? = null
+    private var statusLabel: TextView? = null
     private var lastNotice = ""
-    private var lastHeartbeat = 0L
-    private val client = CodexClient()
 
-    override fun onCreate() {
-        super.onCreate()
-        ChatServiceDiagnostics.record(this, "created")
-    }
+    override fun onCreate() { super.onCreate(); ChatServiceDiagnostics.record(this, "created") }
     override fun onServiceConnected() {
         super.onServiceConnected()
         PhoneChatRuntime.connected(this)
         ChatServiceDiagnostics.record(this, "connected")
     }
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) { /* A bounded poll also handles quiet screens. */ }
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) { }
     override fun onInterrupt() {
-        ChatServiceDiagnostics.record(this, "interrupted")
-        if (PhoneChatRuntime.controller === this && PhoneChatRuntime.launch != null) stopByUser()
+        if (PhoneChatRuntime.controller === this && PhoneChatRuntime.launch != null) stopByUser("Android прервал управление чатом.")
     }
     override fun onUnbind(intent: Intent?): Boolean {
         disconnect()
@@ -51,7 +47,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
     }
     private fun disconnect() {
         if (PhoneChatRuntime.controller === this) {
-            if (PhoneChatRuntime.launch != null) stopByUser("Android отключил службу. Сессия остановлена.")
+            if (PhoneChatRuntime.launch != null) stopByUser("Android отключил службу. Кодекс остановлен.")
             PhoneChatRuntime.disconnected(this)
         }
     }
@@ -67,24 +63,20 @@ class ChatGptAccessibilityService : AccessibilityService() {
         confirmed = false
         composed = false
         lastNotice = ""
-        lastHeartbeat = SystemClock.elapsedRealtime()
         val launch = PhoneChatRuntime.launch ?: return
-        run = ChatRunState(SystemClock.elapsedRealtime(), maxTurns = if (launch.connectivityOnly) 1 else 3)
-        try { showOverlay() }
-        catch (error: Exception) {
-            ChatServiceDiagnostics.record(this, "overlay-failed:${error.javaClass.simpleName}")
-            finish("Не удалось показать панель Джессики. Открой диагностику службы.")
-            return
+        run = ChatRunState(SystemClock.elapsedRealtime(), maxTurns = 60, durationMs = 8 * 60 * 60 * 1000L)
+        try { showOverlay() } catch (e: Exception) {
+            ChatServiceDiagnostics.record(this, "overlay-failed:${e.javaClass.simpleName}")
+            finish("Не удалось показать панель Джессики. Открой диагностику службы."); return
         }
-        if (!PhoneCodexHandoff.openChatGPT(this, launch.chatUrl.ifBlank { null })) {
-            finish("ChatGPT не удалось открыть"); return
-        }
+        if (!PhoneCodexHandoff.openChatGPT(this, null)) { finish("Открой официальное приложение ChatGPT и запусти Кодекс снова."); return }
+        notice("Открой чат с планом и нажми «Чат выбран».")
         loop = scope.launch {
             delay(2000)
             while (isActive && PhoneChatRuntime.launch === launch) {
                 try { tick(launch) }
-                catch (error: CancellationException) { throw error }
-                catch (_: Exception) { finish("Ошибка чтения интерфейса. Сессия остановлена; повторной отправки нет.") }
+                catch (e: CancellationException) { throw e }
+                catch (e: Exception) { finish("Кодекс приостановлен: ${e.message ?: "не удалось продолжить"}. Повторная отправка и повторный тест не запускаются.") }
                 delay(1500)
             }
         }
@@ -92,139 +84,84 @@ class ChatGptAccessibilityService : AccessibilityService() {
 
     private suspend fun tick(launch: PhoneChatLaunch) {
         val state = run ?: return
-        if (state.expired(SystemClock.elapsedRealtime())) { finish("Время ожидания истекло. Результат не подтверждён."); return }
-        if (getSystemService(KeyguardManager::class.java).isKeyguardLocked) {
-            stopByUser("Телефон заблокирован. Сессия остановлена."); return
-        }
-        if (!launch.connectivityOnly && SystemClock.elapsedRealtime() - lastHeartbeat > 60000) {
-            lastHeartbeat = SystemClock.elapsedRealtime()
-            try { client.phone("status", launch.ownerKey, JSONObject().put("id", launch.id)) }
-            catch (e: CancellationException) { throw e }
-            catch (_: Exception) { stopByUser("Сервер потерял сессию. Новый запрос сам не запускается."); return }
-            if (PhoneChatRuntime.launch !== launch) return
-        }
+        if (state.expired(SystemClock.elapsedRealtime())) { finish("Истекло время сессии или ожидания ответа. История сохранена."); return }
+        if (getSystemService(KeyguardManager::class.java).isKeyguardLocked) { stopByUser("Телефон заблокирован. Кодекс остановлен."); return }
         val window = ChatWindowReader.read(this)
         if (window == null) {
             confirmed = false
-            notice("Открой выбранный чат. Для продолжения нажми «Вести переписку здесь».")
             confirmButton?.visibility = android.view.View.VISIBLE
+            notice("Вернись в выбранный чат ChatGPT и нажми «Чат выбран».")
             return
         }
+        var response: String? = null
         try {
-            if (!confirmed) { notice("Открой нужный чат и нажми «Вести переписку здесь» на панели Джессики."); return }
+            if (!confirmed) { notice("Открой подготовленный чат и нажми «Чат выбран»."); return }
             if (state.waiting) {
-                val response = ChatUiPolicy.reply(window.content.takeLast(60000), launch.replyId)
-                state.acceptReply(response, window.generating, SystemClock.elapsedRealtime())?.let { handleReply(launch, it) }
-                return
-            }
-            val composer = window.composer ?: run { notice("Не найдено однозначное поле сообщения. Ничего не отправлено."); return }
-            val text = composer.text?.toString().orEmpty()
-            if (ChatUiPolicy.alreadyPosted(window.content, launch.prompt, launch.replyId)) {
-                if (!state.beginSend(SystemClock.elapsedRealtime())) { finish("Достигнут лимит сообщений этой сессии."); return }
-                notice("Запрос уже виден в выбранном чате. Жду ответ без повторной отправки.")
-                return
-            }
-            if (composed && text != launch.prompt) {
-                finish("Поле ввода изменилось после подготовки запроса. Проверь чат: повторного ввода и отправки не будет."); return
-            }
-            if (text.isNotBlank() && text != launch.prompt) {
-                stopByUser("В поле есть другой текст. Джессика не будет его заменять."); return
-            }
-            if (state.sends > 0 && !window.content.contains("JESSICA_REPLY_${launch.previousReplyId}")) {
-                stopByUser("Не видна текущая переписка Джессики. Сессия остановлена."); return
-            }
-            if (!ChatUiPolicy.canSend("com.openai.chatgpt", confirmed, false, text, launch.prompt, window.generating)) return
-            if (!composed || text != launch.prompt) {
-                val args = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, launch.prompt) }
-                if (!composer.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) {
-                    finish("ChatGPT не разрешил ввод текста через интерфейс. Ничего не отправлено."); return
+                response = state.acceptReply(RelayProtocol.reply(window.content, launch.replyId), window.generating, SystemClock.elapsedRealtime())
+            } else {
+                val composer = window.composer ?: run { notice("Не найдено однозначное поле сообщения. Отправки нет."); return }
+                val text = composer.text?.toString().orEmpty()
+                val alreadyPosted = RelayProtocol.reply(window.content, launch.replyId) != null ||
+                    ChatUiPolicy.alreadyPosted(window.content, launch.prompt, launch.replyId)
+                if (alreadyPosted) {
+                    check(state.beginSend(SystemClock.elapsedRealtime())) { "Достигнут предел 60 сообщений" }
+                    launch.conversation.recordOutgoing(launch.message)
+                    if (launch.endAfterSend) finish("Переписка завершена. История и тесты сохранены в чатах Джессики.")
+                    else notice("Сообщение уже в переписке. Читаю ответ без повторной отправки.")
+                    return
                 }
-                composed = true
-                notice("Запрос подготовлен; проверяю кнопку отправки.")
-                return // Re-read the window after the composer changes.
+                if (composed && text != launch.prompt) { finish("Поле ввода изменилось. Повторного ввода и отправки не будет; проверь чат."); return }
+                if (text.isNotBlank() && text != launch.prompt) { finish("В поле есть твой черновик. Убери его перед новым запуском Кодекса."); return }
+                // Filling a long report may cover the preceding reply. Verify continuity before composing.
+                if (!composed && state.sends > 0 && !window.content.contains("JESSICA_REPLY_${launch.previousReplyId}")) {
+                    finish("Не виден предыдущий ответ этой сессии. Кодекс остановлен, чтобы не продолжить в другом чате."); return
+                }
+                if (!ChatUiPolicy.canSend("com.openai.chatgpt", confirmed, false, text, launch.prompt, window.generating)) return
+                if (!composed) {
+                    val args = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, launch.prompt) }
+                    check(composer.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) { "ChatGPT не разрешил ввод текста" }
+                    composed = true
+                    notice("Сообщение подготовлено. Проверяю отправку.")
+                    return
+                }
+                val send = window.send ?: run { notice("Кнопка отправки не распознана. Автоматических нажатий по координатам нет."); return }
+                check(state.beginSend(SystemClock.elapsedRealtime())) { "Достигнут предел 60 сообщений" }
+                // Mark before clicking: an uncertain click must not be automatically retried.
+                if (!send.performAction(AccessibilityNodeInfo.ACTION_CLICK)) { finish("Отправка не подтверждена. Проверь чат; автоматического повтора нет."); return }
+                composed = false
+                launch.conversation.recordOutgoing(launch.message)
+                if (launch.endAfterSend) finish("Переписка завершена. История и тесты сохранены в чатах Джессики.")
+                else notice("Жду законченный ответ ChatGPT. Сообщений в сессии: ${state.sends}/60.")
             }
-            val send = window.send ?: run { notice("Кнопка отправки не распознана. Нажатия по координатам отключены."); return }
-            if (!state.beginSend(SystemClock.elapsedRealtime())) { finish("Достигнут лимит сообщений этой сессии."); return }
-            // Record BEFORE clicking. An ambiguous result must never cause a duplicate send.
-            notice("Отправляю запрос ${state.sends}/${if (launch.connectivityOnly) 1 else 3}. При перезапуске повторной отправки не будет.")
-            if (!send.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                finish("Отправка не подтверждена интерфейсом. Проверь чат; автоматического повтора нет."); return
-            }
-            composed = false
-            notice("Жду полный ответ ChatGPT (${state.sends}/${if (launch.connectivityOnly) 1 else 3}).")
         } finally { window.release() }
-    }
-
-    private suspend fun handleReply(launch: PhoneChatLaunch, text: String) {
-        if (launch.connectivityOnly) {
-            val ok = ChatConnectivityProbe.accepts(text, launch.id)
-            finish(if (ok)
-                "✅ Связь подтверждена: Джессика прочитала ответ на тестовое сообщение в выбранном чате ChatGPT. Ключи и GitHub не использовались."
-                else "Ответ получен, но контрольная метка не совпала. Код не менялся.")
+        val answer = response ?: return
+        if (state.sends >= state.maxTurns) {
+            launch.conversation.recordIncoming(answer)
+            finish("Достигнут предел 60 сообщений. Последний ответ сохранён; новый тест не запускался.")
             return
         }
-        PhoneChatRuntime.saveReply(this, launch.id, text)
-        notice("Ответ получен. Проверяю формат и исходную версию кода.")
-        val reply = try { JSONObject(text) } catch (_: Exception) { repairFormat(launch, "invalid-json"); return }
-        try {
-            val result = client.phone("submit", launch.ownerKey, JSONObject().put("id", launch.id).put("reply", reply))
-            if (PhoneChatRuntime.launch !== launch) return
-            if (result.optString("state") == "no-change") { finish("ChatGPT не предложил доказуемого исправления. Код не изменён."); return }
-            PhoneChatRuntime.update(this, "Исправление в отдельной ветке. Выполняются независимые тесты.", true, result.optString("url"))
-            while (PhoneChatRuntime.launch === launch) {
-                delay(15000)
-                if (getSystemService(KeyguardManager::class.java).isKeyguardLocked) {
-                    stopByUser("Телефон заблокирован. Ожидание применения остановлено."); return
-                }
-                if (run?.expired(SystemClock.elapsedRealtime()) == true) { stopByUser("Истекло время сессии. Проверки можно посмотреть по ссылке."); return }
-                val status = client.phone("status", launch.ownerKey, JSONObject().put("id", launch.id))
-                if (PhoneChatRuntime.launch !== launch) return
-                when (status.optString("state")) {
-                    "testing" -> notice("Независимые тесты ещё выполняются.")
-                    "merged" -> { finish("Исправление прошло тесты и применено в main. Развёртывание проверяется отдельно."); return }
-                    "verified" -> { finish("Исправление прошло тесты. PR готов; автоматическое применение было выключено."); return }
-                    "tests-failed" -> { finish("Тесты не подтвердили исправление. Основной код и успешный Experience не изменены."); return }
-                    else -> { finish("Применение остановлено: " + status.optString("state") + ". Проверь PR."); return }
-                }
-            }
-        } catch (error: CancellationException) { throw error }
-        catch (error: Exception) {
-            if (PhoneChatRuntime.launch !== launch) return
-            val reason = error.message.orEmpty()
-            val repairable = setOf("reply-does-not-match-session", "expected-source-change-and-one-new-regression", "invalid-or-duplicate-path",
-                "protected-path", "invalid-source-content", "stale-blob", "unchanged-source", "new-test-sha-must-be-null", "regression-required", "patch-too-large")
-            if (reason in repairable) repairFormat(launch, reason)
-            else stopByUser("Связь с проверкой прервана: $reason. Повторное применение не запускается.")
-        }
-    }
-
-    private fun repairFormat(launch: PhoneChatLaunch, reason: String) {
-        if ((run?.sends ?: 3) >= 3) { finish("Формат ответа не подтверждён после трёх сообщений. Код не изменён."); return }
+        notice("Ответ прочитан. Определяю следующий шаг по контексту.")
+        val next = launch.conversation.respond(answer, ::notice)
+        if (PhoneChatRuntime.launch !== launch) return
         launch.previousReplyId = launch.replyId
-        launch.replyId = java.util.UUID.randomUUID().toString()
-        launch.prompt = ChatUiPolicy.repairPrompt(launch.id, launch.replyId, reason)
+        launch.replyId = UUID.randomUUID().toString()
+        launch.message = next.text
+        launch.prompt = RelayProtocol.wrap(next.text, launch.replyId)
+        launch.endAfterSend = next.endSession
         composed = false
-        notice("Запрашиваю исправление формата ответа.")
+        notice(if (next.endSession) "Передаю итоговое сообщение и завершаю сессию." else "Ответ Джессики подготовлен для выбранного чата.")
     }
 
-    fun stopByUser(message: String = "Остановлено пользователем") {
-        val current = PhoneChatRuntime.launch
-        run?.stop()
+    fun stopByUser(message: String = "Кодекс остановлен пользователем. История сохранена.") {
         loop?.cancel()
         finish(message)
-        if (current != null && !current.connectivityOnly) scope.launch {
-            try {
-                val result = client.phone("stop", current.ownerKey, JSONObject().put("id", current.id))
-                if (PhoneChatRuntime.launch == null && result.optString("state") in setOf("applying", "merged", "application-status-unknown"))
-                    PhoneChatRuntime.update(this@ChatGptAccessibilityService, "Диалог остановлен. Применение уже началось или завершено; проверь PR.", false)
-            } catch (_: Exception) {
-                if (PhoneChatRuntime.launch == null)
-                    PhoneChatRuntime.update(this@ChatGptAccessibilityService, "$message. Серверную остановку подтвердить не удалось; проверь PR.", false)
-            }
-        }
     }
     private fun notice(text: String) {
-        if (lastNotice != text) { lastNotice = text; PhoneChatRuntime.update(this, text) }
+        if (lastNotice != text) {
+            lastNotice = text
+            statusLabel?.text = text
+            PhoneChatRuntime.update(this, text)
+        }
     }
     private fun finish(text: String) {
         run?.stop()
@@ -232,22 +169,32 @@ class ChatGptAccessibilityService : AccessibilityService() {
         PhoneChatRuntime.clear()
         overlay?.let { view -> runCatching { getSystemService(WindowManager::class.java).removeView(view) } }
         overlay = null
+        statusLabel = null
     }
     private fun showOverlay() {
-        if (overlay != null) return
-        val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val launch = PhoneChatRuntime.launch ?: return
+        val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(0xffeeeeee.toInt()) }
+        statusLabel = TextView(this).apply {
+            text = "Джессика: выбери чат"
+            setTextColor(0xff222222.toInt())
+            maxLines = 3
+            maxWidth = (resources.displayMetrics.density * 245).toInt()
+            setPadding(12, 6, 12, 6)
+        }
+        layout.addView(statusLabel)
         confirmButton = Button(this).apply {
-            text = "Вести переписку здесь"
+            text = "Чат выбран"
             setOnClickListener {
                 val window = ChatWindowReader.read(this@ChatGptAccessibilityService)
-                if (window != null) {
-                    try {
-                        if (window.composer != null) {
-                            confirmed = true; visibility = android.view.View.GONE
-                            notice("Чат выбран пользователем. Запускаю переписку здесь.")
-                        } else notice("Сначала открой нужный чат с полем сообщения.")
-                    } finally { window.release() }
-                }
+                if (window == null) { notice("Сначала открой чат в приложении ChatGPT."); return@setOnClickListener }
+                try {
+                    if (window.composer != null) {
+                        if (launch.conversation.plan.isBlank()) launch.conversation.plan = window.content.takeLast(12000)
+                        confirmed = true
+                        visibility = android.view.View.GONE
+                        notice("Чат выбран. Джессика начинает переписку.")
+                    } else notice("Открой переписку с полем сообщения.")
+                } finally { window.release() }
             }
         }
         layout.addView(confirmButton)
@@ -256,7 +203,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
             WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
-            PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.END; y = 180 })
+            PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.END; y = 150 })
         overlay = layout
     }
 }

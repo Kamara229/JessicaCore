@@ -1,55 +1,60 @@
 package com.jessica.core.ui.codex
 
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.provider.Settings
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.jessica.core.ui.language.uiText
+import com.jessica.core.BuildConfig
+import com.jessica.core.modules.codex.chat.ChatServiceDiagnostics
+import com.jessica.core.modules.codex.chat.PhoneChatRuntime
+import kotlinx.coroutines.delay
 
-/** Selected chat is explicit on-device automation; legacy modes remain available. */
 @Composable
 fun CodexScreen() {
-    var mode by remember { mutableStateOf("ordinary") }
-    Column(modifier=Modifier.fillMaxSize()) {
-        Row(
-            modifier=Modifier.horizontalScroll(rememberScrollState())
-                .padding(horizontal=16.dp,vertical=4.dp),
-            horizontalArrangement=Arrangement.spacedBy(8.dp)
-        ) {
-            FilterChip(
-                selected=mode=="ordinary", onClick={mode="ordinary"},
-                label={Text(uiText("Выбранный чат","Selected chat"))}
-            )
-            FilterChip(
-                selected=mode=="day", onClick={mode="day"},
-                label={Text(uiText("☀ Дневной режим","☀ Day shift"))}
-            )
-            FilterChip(
-                selected=mode=="phone", onClick={mode="phone"},
-                label={Text(uiText("Через ChatGPT","Via ChatGPT"))}
-            )
-            FilterChip(
-                selected=mode=="legacy", onClick={mode="legacy"},
-                label={Text(uiText("Codex API (платный)","Codex API (paid)"))}
-            )
+    val context = LocalContext.current
+    val status by PhoneChatRuntime.status.collectAsState()
+    var consent by remember { mutableStateOf(false) }
+    var service by remember { mutableStateOf(ChatServiceDiagnostics.inspect(context)) }
+    var report by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) { while (true) { service = ChatServiceDiagnostics.inspect(context); delay(1000) } }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("Кодекс", style = MaterialTheme.typography.headlineMedium)
+        Text("Джессика участвует в переписке с ChatGPT вместо тебя и проверяет результаты через свой чат.")
+        Text("1. Подготовь в ChatGPT план улучшения backend и попроси его спросить: «Джессика, ты готова?»\n\n" +
+            "2. Нажми «Запустить Кодекс», открой эту переписку и нажми «Чат выбран» на панели Джессики.\n\n" +
+            "3. Джессика сообщит о готовности, прочитает ответы, выполнит предложенные тесты и вернёт фактические результаты.")
+        Text("Код и развёртывание изменяет ChatGPT через свои подключения. Джессика работает с выбранной перепиской и собственными тестовыми чатами. Обновления APK в эту сессию не входят.", style = MaterialTheme.typography.bodySmall)
+        Text(service.message, style = MaterialTheme.typography.labelLarge)
+        if (!service.connected) OutlinedButton(onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }) {
+            Text("Открыть настройки службы Jessica")
         }
-        when(mode) {
-            "ordinary" -> OrdinaryChatScreen()
-            "day" -> DayCodexScreen()
-            "phone" -> PhoneCodexScreen()
-            else -> LegacyCodexScreen()
+        if (!status.active) {
+            Row {
+                Checkbox(checked = consent, onCheckedChange = { consent = it })
+                Text("Разрешаю читать выбранную переписку ChatGPT, передавать её контекст Джессике для понимания, отправлять ответы и выполнять тесты в её чате.")
+            }
+            Button(enabled = consent && service.connected, onClick = {
+                try { PhoneChatRuntime.start(context); error = "" } catch (e: Exception) { error = e.message ?: "Запуск не выполнен" }
+            }, modifier = Modifier.fillMaxWidth()) { Text("Запустить Кодекс") }
+        } else Button(onClick = { PhoneChatRuntime.stop() }, modifier = Modifier.fillMaxWidth()) { Text("■ Остановить Кодекс") }
+        if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
+        Text(if (status.text != "Не запущено") status.text else context.getSharedPreferences("jessica_phone_chat", Context.MODE_PRIVATE).getString("last_status", "Не запущено") ?: "Не запущено")
+        Text("Оставь экран разблокированным, ChatGPT открытым, а телефон подключённым к питанию. Не меняй переписку во время работы. Сессия — до 8 часов или 60 сообщений; остановить её можно кнопкой поверх ChatGPT. После перезапуска она сама не возобновляется.", style = MaterialTheme.typography.bodySmall)
+        Text("Переписка и тесты сохраняются в списке чатов Джессики под названиями «Кодекс — …».", style = MaterialTheme.typography.bodySmall)
+        TextButton(onClick = { report = ChatServiceDiagnostics.report(context) }) { Text("Диагностика службы · v${BuildConfig.VERSION_NAME}") }
+        if (report.isNotBlank()) {
+            Text(report, style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = { context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Jessica", report)) }) { Text("Скопировать диагностику") }
         }
     }
 }
