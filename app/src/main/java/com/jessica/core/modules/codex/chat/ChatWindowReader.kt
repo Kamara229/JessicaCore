@@ -18,26 +18,52 @@ data class ChatWindow(val root: AccessibilityNodeInfo, val nodes: List<Accessibi
 
 object ChatWindowReader {
     fun read(service: AccessibilityService): ChatWindow? {
-        val root = service.windows.firstNotNullOfOrNull { window ->
-            if (window.type != AccessibilityWindowInfo.TYPE_APPLICATION || !window.isActive) null
-            else window.root?.let { node ->
-                if (node.packageName?.toString() == "com.openai.chatgpt") node
-                else { @Suppress("DEPRECATION") node.recycle(); null }
-            }
-        } ?: return null
-        return inspect(root, service.resources.displayMetrics.density)
+        val applications = service.windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+        // The keyboard or Jessica's own accessibility overlay may hold focus.
+        // Do not require ChatGPT to be the `active` window if it is the only
+        // visible application. Conversely, never read hidden ChatGPT content
+        // while another app is actively in the foreground.
+        val roots = applications.mapNotNull { window ->
+            window.root?.let { root -> window to root }
+        }
+        try {
+            if (roots.any { (window, root) ->
+                window.isActive && root.packageName?.toString() != "com.openai.chatgpt"
+            }) return null
+            val chosen = roots.filter { (_, root) ->
+                root.packageName?.toString() == "com.openai.chatgpt" && root.isVisibleToUser
+            }.maxWithOrNull(compareBy<Pair<AccessibilityWindowInfo, AccessibilityNodeInfo>> { it.first.isActive }
+                .thenBy { it.first.isFocused })?.second
+                ?: service.rootInActiveWindow?.takeIf { it.packageName?.toString() == "com.openai.chatgpt" }
+                ?: return null
+            return inspect(chosen, service.resources.displayMetrics.density)
+        } finally {
+            // inspect() retains only nodes of the selected window.
+            // A returned ChatWindow releases that tree after each tick.
+            // Do not recycle a selected tree here.
+            roots.filter { (_, root) ->
+                root.packageName?.toString() != "com.openai.chatgpt" ||
+                    !root.isVisibleToUser
+            }.forEach { (_, root) -> @Suppress("DEPRECATION") root.recycle() }
+        }
     }
 
     /** Root ownership is checked by read(); separated to test actual Android view hierarchies. */
     internal fun inspect(root: AccessibilityNodeInfo, density: Float): ChatWindow {
         val nodes = mutableListOf<AccessibilityNodeInfo>()
         val controls = mutableListOf<ChatControl>()
+        val composers = mutableListOf<ComposerCandidate>()
         val conversation = mutableListOf<String>()
         var truncated = false
         fun walk(node: AccessibilityNodeInfo, parent: Int, depth: Int, insideEditor: Boolean = false) {
             val index = nodes.size
             nodes.add(node)
-            val editor = insideEditor || node.isEditable
+            val canSetText = node.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SET_TEXT }
+            val editor = insideEditor || node.isEditable || canSetText
+            if (node.isVisibleToUser && node.isEnabled && (node.isEditable || canSetText)) {
+                composers.add(ComposerCandidate(index, node.screenBox(), node.isFocused,
+                    node.isEditable, canSetText))
+            }
             val labels = if (editor) emptyList() else listOfNotNull(node.contentDescription?.toString(), node.text?.toString()) +
                 node.actionList.mapNotNull { it.label?.toString() }
             controls.add(ChatControl(parent, labels, node.viewIdResourceName.orEmpty(), node.isClickable,
@@ -61,7 +87,7 @@ object ChatWindowReader {
             }
         }
         walk(root, -1, 0)
-        val editor = nodes.indices.filter { nodes[it].isVisibleToUser && nodes[it].isEditable && nodes[it].isEnabled }.singleOrNull()
+        val editor = if (!truncated) ChatComposerPolicy.choose(composers, root.screenBox(), density) else null
         val send = if (truncated) null else ChatSendPolicy.targets(controls,editor,density).singleOrNull()
         val content = conversation.joinToString("\n").takeLast(120000)
         return ChatWindow(root, nodes, if (truncated) null else editor?.let { nodes[it] }, send?.let { nodes[it] },
