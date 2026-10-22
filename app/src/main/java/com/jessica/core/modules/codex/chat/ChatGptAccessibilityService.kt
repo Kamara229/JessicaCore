@@ -33,6 +33,8 @@ class ChatGptAccessibilityService : AccessibilityService() {
     private var calibrating = false
     private val sendPicker by lazy { SendTargetPicker(this) }
     private var lastNotice = ""
+    private var invisibleSince = 0L
+    private var lastReplyWaitNotice = 0L
 
     override fun onCreate() { super.onCreate(); ChatServiceDiagnostics.record(this, "created") }
     override fun onServiceConnected() {
@@ -70,6 +72,8 @@ class ChatGptAccessibilityService : AccessibilityService() {
         calibrating = false
         sendPicker.close()
         lastNotice = ""
+        invisibleSince = 0L
+        lastReplyWaitNotice = 0L
         val launch = PhoneChatRuntime.launch ?: return
         run = ChatRunState(SystemClock.elapsedRealtime(), maxTurns = 60, durationMs = 8 * 60 * 60 * 1000L)
         try { showOverlay() } catch (e: Exception) {
@@ -96,18 +100,47 @@ class ChatGptAccessibilityService : AccessibilityService() {
         if (calibrating) return
         val window = ChatWindowReader.read(this)
         if (window == null) {
+            val now = SystemClock.elapsedRealtime()
+            if (invisibleSince == 0L) invisibleSince = now
+            if (now - invisibleSince < 12_000L) {
+                // IME/keyboard and accessibility overlays briefly change the
+                // active window. Do not silently forget the selected chat.
+                notice("Ожидаю возвращения окна ChatGPT; выбранный чат сохранён.")
+                return
+            }
             confirmed = false
             calibratedSend = null
             calibrateButton?.visibility = android.view.View.GONE
             confirmButton?.visibility = android.view.View.VISIBLE
-            notice("Вернись в выбранный чат ChatGPT и нажми «Чат выбран».")
+            notice("Чат ChatGPT не виден более 12 секунд. Вернись в тот же чат и нажми «Чат выбран».")
             return
         }
+        invisibleSince = 0L
         var response: String? = null
         try {
             if (!confirmed) { notice("Открой подготовленный чат и нажми «Чат выбран»."); return }
             if (state.waiting) {
-                response = state.acceptReply(RelayProtocol.reply(window.content, launch.replyId), window.generating, SystemClock.elapsedRealtime())
+                val now = SystemClock.elapsedRealtime()
+                val complete = RelayProtocol.reply(window.content, launch.replyId)
+                response = state.acceptReply(complete, window.generating, now)
+                if (response == null) {
+                    // Android ACTION_CLICK returning true does not mean ChatGPT
+                    // actually sent anything. Never retry an uncertain click.
+                    val draft = window.composer?.text?.toString().orEmpty()
+                    if (now - state.sendAt > 15_000L && draft == launch.prompt &&
+                        !ChatUiPolicy.alreadyPosted(window.content, launch.prompt, launch.replyId)) {
+                        finish("ChatGPT не отправил подготовленный текст: он остался в поле ввода. " +
+                            "Кодекс остановлен без повторной отправки. Проверь кнопку в выбранном чате.")
+                        return
+                    }
+                    if (now - state.sendAt > 20_000L && now - lastReplyWaitNotice >= 20_000L) {
+                        lastReplyWaitNotice = now
+                        notice(if (window.generating) "ChatGPT формирует ответ. Жду завершения, ничего повторно не отправляю."
+                            else if (complete == null) "Жду ответ ChatGPT с парой меток JESSICA_REPLY / JESSICA_END. " +
+                                "Если они не появились, Кодекс не принимает непроверенный текст."
+                            else "Метки ответа обнаружены. Проверяю, что ответ завершён и стабилен.")
+                    }
+                }
             } else {
                 val composer = window.composer ?: run { notice("Не найдено однозначное поле сообщения. Отправки нет."); return }
                 val text = composer.text?.toString().orEmpty()
