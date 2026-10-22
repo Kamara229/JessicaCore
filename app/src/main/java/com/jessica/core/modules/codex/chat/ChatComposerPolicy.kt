@@ -36,7 +36,7 @@ object ChatComposerPolicy {
     }
 
     fun choose(candidates: List<ComposerCandidate>, frame: UiBox, density: Float): Int? {
-        if (frame.width < 1 || frame.height < 1 || !density.isFinite() || density <= 0f) return null
+        if (!density.isFinite() || density <= 0f) return null
         // ChatGPT can change the editable node's reported bounds after ACTION_SET_TEXT
         // expands a long draft. Recover ONLY an exact, unique, visible editor
         // matching this session's prepared text. Never guess an empty editor.
@@ -50,6 +50,7 @@ object ChatComposerPolicy {
             return prepared.maxWith(compareBy<ComposerCandidate> { it.setText }
                 .thenBy { it.editable }.thenBy { it.focused }.thenBy { it.index }).index
         }
+        if (frame.width < 1 || frame.height < 1) return null
         val minimumWidth = max(72f * density, frame.width * .25f)
         val eligible = candidates.filter {
             (it.editable || it.setText) &&
