@@ -50,7 +50,15 @@ Only a complete, stable response for the current turn is accepted. Incomplete
 or missing markers cause waiting and ultimately a timeout, not a guessed answer.
 The accessibility adapter excludes the editor and its descendants. It accepts
 only the official ChatGPT package, a unique editable field and exact send
-labels. It does not tap arbitrary coordinates or inspect other apps.
+labels. It does not inspect other apps. Send labels may be on a child icon, on the
+clickable parent, or supplied by an explicit send resource ID. Nested semantic
+nodes for one button are deduplicated; separate ambiguous buttons are rejected.
+If ChatGPT exposes no usable send semantics, the overlay offers **Указать стрелку**.
+The owner touches the send arrow once on a transparent picker; this selection
+is consumed, not sent to ChatGPT. One subsequent accessibility gesture sends the
+prepared message. The point is anchored to the composer, held only for this
+session, and invalidated by a changed layout width or leaving ChatGPT. It is
+never guessed from a fixed screen coordinate or retried after an uncertain tap.
 
 Existing drafts are never overwritten. The send is recorded before clicking;
 an ambiguous click or unexplained editor change is never automatically retried.
@@ -84,3 +92,8 @@ current native ChatGPT UI. On the phone, verify explicit selection, one readines
 send, full response capture, one requested test with its real report, contextual
 continuation, and Stop. Long or inaccessible UI responses can still cause a
 reported pause and must be validated on that device.
+
+The send-control regression includes a real Android fixture with a non-clickable
+label inside a clickable arrow container. Instrumentation verifies both semantic
+ACTION_CLICK and the declared accessibility gesture capability actually send one
+message. The fixture is debug-only and absent from the signed release APK.

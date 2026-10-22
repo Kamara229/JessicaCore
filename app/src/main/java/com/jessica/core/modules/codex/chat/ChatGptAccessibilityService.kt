@@ -28,6 +28,10 @@ class ChatGptAccessibilityService : AccessibilityService() {
     private var overlay: LinearLayout? = null
     private var confirmButton: Button? = null
     private var statusLabel: TextView? = null
+    private var calibrateButton: Button? = null
+    private var calibratedSend: CalibratedSendTarget? = null
+    private var calibrating = false
+    private val sendPicker by lazy { SendTargetPicker(this) }
     private var lastNotice = ""
 
     override fun onCreate() { super.onCreate(); ChatServiceDiagnostics.record(this, "created") }
@@ -62,6 +66,9 @@ class ChatGptAccessibilityService : AccessibilityService() {
         loop?.cancel()
         confirmed = false
         composed = false
+        calibratedSend = null
+        calibrating = false
+        sendPicker.close()
         lastNotice = ""
         val launch = PhoneChatRuntime.launch ?: return
         run = ChatRunState(SystemClock.elapsedRealtime(), maxTurns = 60, durationMs = 8 * 60 * 60 * 1000L)
@@ -86,9 +93,12 @@ class ChatGptAccessibilityService : AccessibilityService() {
         val state = run ?: return
         if (state.expired(SystemClock.elapsedRealtime())) { finish("Истекло время сессии или ожидания ответа. История сохранена."); return }
         if (getSystemService(KeyguardManager::class.java).isKeyguardLocked) { stopByUser("Телефон заблокирован. Кодекс остановлен."); return }
+        if (calibrating) return
         val window = ChatWindowReader.read(this)
         if (window == null) {
             confirmed = false
+            calibratedSend = null
+            calibrateButton?.visibility = android.view.View.GONE
             confirmButton?.visibility = android.view.View.VISIBLE
             notice("Вернись в выбранный чат ChatGPT и нажми «Чат выбран».")
             return
@@ -124,10 +134,20 @@ class ChatGptAccessibilityService : AccessibilityService() {
                     notice("Сообщение подготовлено. Проверяю отправку.")
                     return
                 }
-                val send = window.send ?: run { notice("Кнопка отправки не распознана. Автоматических нажатий по координатам нет."); return }
+                val send = window.send
+                val point = if (send == null) calibratedSend?.point(window.root.screenBox(), composer.screenBox(), resources.displayMetrics.density) else null
+                if (send == null && point == null) {
+                    calibratedSend = null
+                    calibrateButton?.visibility = android.view.View.VISIBLE
+                    notice("Не удалось распознать стрелку отправки. Нажми «Указать стрелку» и покажи её один раз для этой сессии.")
+                    return
+                }
+                calibrateButton?.visibility = android.view.View.GONE
                 check(state.beginSend(SystemClock.elapsedRealtime())) { "Достигнут предел 60 сообщений" }
                 // Mark before clicking: an uncertain click must not be automatically retried.
-                if (!send.performAction(AccessibilityNodeInfo.ACTION_CLICK)) { finish("Отправка не подтверждена. Проверь чат; автоматического повтора нет."); return }
+                val accepted = if (send != null) send.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    else tapSelectedSend(point!!, launch)
+                if (!accepted) { finish("Нажатие не подтверждено. Проверь чат; автоматического повтора нет. Если ты указывал стрелку, выключи и включи службу Jessica после обновления."); return }
                 composed = false
                 launch.conversation.recordOutgoing(launch.message)
                 if (launch.endAfterSend) finish("Переписка завершена. История и тесты сохранены в чатах Джессики.")
@@ -164,12 +184,41 @@ class ChatGptAccessibilityService : AccessibilityService() {
         }
     }
     private fun finish(text: String) {
+        sendPicker.close()
+        calibrating = false
+        calibratedSend = null
         run?.stop()
         PhoneChatRuntime.update(this, text, false)
         PhoneChatRuntime.clear()
         overlay?.let { view -> runCatching { getSystemService(WindowManager::class.java).removeView(view) } }
         overlay = null
         statusLabel = null
+        calibrateButton = null
+    }
+
+    private fun tapSelectedSend(point: Pair<Float,Float>, launch: PhoneChatLaunch): Boolean {
+        return dispatchSendTap(this, point) {
+            if (PhoneChatRuntime.launch === launch) stopByUser("Android прервал нажатие. Проверь чат; повторной отправки не будет.")
+        }
+    }
+
+    private fun selectSendTarget(launch: PhoneChatLaunch) {
+        if (PhoneChatRuntime.launch !== launch || !confirmed || !composed || run?.waiting != false) return
+        calibrating = true
+        try {
+            sendPicker.show(onPick = { x,y ->
+                calibrating = false
+                val window = ChatWindowReader.read(this)
+                try {
+                    val editor = window?.composer
+                    calibratedSend = if (PhoneChatRuntime.launch === launch && window != null && editor != null && editor.text?.toString() == launch.prompt && !window.generating &&
+                        !getSystemService(KeyguardManager::class.java).isKeyguardLocked)
+                        CalibratedSendTarget.select(window.root.screenBox(),editor.screenBox(),x,y,resources.displayMetrics.density) else null
+                    notice(if (calibratedSend != null) "Стрелка выбрана. Отправляю подготовленное сообщение."
+                        else "Точка не подходит. Нажми «Указать стрелку» и коснись синей стрелки справа от сообщения.")
+                } finally { window?.release() }
+            }, onCancel = { calibrating = false; notice("Выбор стрелки отменён. Сообщение не отправлено.") })
+        } catch (e: Exception) { calibrating = false; finish("Не удалось показать выбор стрелки: ${e.message}") }
     }
     private fun showOverlay() {
         val launch = PhoneChatRuntime.launch ?: return
@@ -198,6 +247,12 @@ class ChatGptAccessibilityService : AccessibilityService() {
             }
         }
         layout.addView(confirmButton)
+        calibrateButton = Button(this).apply {
+            text = "Указать стрелку"
+            visibility = android.view.View.GONE
+            setOnClickListener { selectSendTarget(launch) }
+        }
+        layout.addView(calibrateButton)
         layout.addView(Button(this).apply { text = "■ Стоп Джессика"; setOnClickListener { stopByUser() } })
         getSystemService(WindowManager::class.java).addView(layout, WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
