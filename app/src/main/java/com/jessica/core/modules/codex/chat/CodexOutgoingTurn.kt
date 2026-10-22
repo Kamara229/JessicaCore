@@ -8,13 +8,21 @@ import com.jessica.core.modules.codex.relay.RelayProtocol
 internal suspend fun CodexChatCoordinator.advanceOutgoing(window: ChatWindow, launch: PhoneChatLaunch, state: ChatRunState) {
 
                 val composer = window.composer ?: run {
-                    // Never guess an editor after filling a long ChatGPT draft.
-                    // Publish only a phase marker, never the text or chat title.
-                    if (composed) reportPhase("editor_missing")
+                    if (composed) {
+                        reportPhase("editor_missing")
+                        val now = SystemClock.elapsedRealtime()
+                        if (draftEditorMissingSince == 0L) draftEditorMissingSince = now
+                        if (now - draftEditorMissingSince > 20_000L) {
+                            finish("Кодекс остановлен: подготовленный текст не удалось проверить за 20 секунд. " +
+                                "Причина: ${window.composerDiagnostic}. Автоматической повторной отправки нет.")
+                            return
+                        }
+                    }
                     notice("Не удалось определить поле ввода ChatGPT (найдено полей: ${window.editorCandidates}). " +
                         "Причина: ${window.composerDiagnostic}. Сообщение не отправлено.")
                     return
                 }
+                draftEditorMissingSince = 0L
                 val text = composer.text?.toString().orEmpty()
                 val alreadyPosted = RelayProtocol.reply(window.content, launch.replyId) != null ||
                     ChatUiPolicy.alreadyPosted(window.content, launch.prompt, launch.replyId)
@@ -26,7 +34,12 @@ internal suspend fun CodexChatCoordinator.advanceOutgoing(window: ChatWindow, la
                     else notice("Сообщение уже в переписке. Читаю ответ без повторной отправки.")
                     return
                 }
-                if (composed && text != launch.prompt) { finish("Поле ввода изменилось. Повторного ввода и отправки не будет; проверь чат."); return }
+                if (composed && text != launch.prompt) {
+                    finish("Кодекс остановлен: текст доступного поля не совпадает с черновиком " +
+                        "(получено ${text.length} символов из ${launch.prompt.length}). " +
+                        "Отправка без проверки полного текста запрещена.")
+                    return
+                }
                 if (text.isNotBlank() && text != launch.prompt) { finish("В поле есть твой черновик. Убери его перед новым запуском Кодекса."); return }
                 // Filling a long report may cover the preceding reply. Verify continuity before composing.
                 if (!composed && state.sends > 0) {
