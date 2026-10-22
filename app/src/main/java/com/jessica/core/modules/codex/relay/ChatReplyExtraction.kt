@@ -23,6 +23,13 @@ object ChatReplyExtraction {
         return null
     }
 
+    /** A quoted marker in the owner's request is not a standalone answer end. */
+    fun hasStandaloneEnd(screen: String, id: String): Boolean {
+        if (screen.length > 120_000 || !uuid.matches(id)) return false
+        val lines = screen.replace("\r\n", "\n").lines()
+        return lines.indices.any { markerEnd(lines, it, "JESSICA_END_$id") != null }
+    }
+
     /** In-progress response starting at its fresh marker; may lack END yet. */
     fun openingTail(screen: String, id: String): String? {
         if (screen.length > 120_000 || !uuid.matches(id)) return null
