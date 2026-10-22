@@ -72,6 +72,38 @@ class RelayProtocolTest {
         assertNull(collector.observe("JESSICA_END_$id",other))
         assertEquals("Новый ответ",collector.observe("JESSICA_REPLY_$other\nНовый ответ\nJESSICA_END_$other",other))
     }
+    @Test fun reconstructsLongReplyWithArbitrary317CharacterOverlap() {
+        val collector = ChatReplyCollector()
+        val first = "Начинаю сверку изменения backend: " + "проверка без повторной отправки. ".repeat(32)
+        assertNull(collector.observe("JESSICA_REPLY_$id\n$first",id))
+        val fragment = first.takeLast(317) + "\nПроверку продолжаю в этом же чате.\nJESSICA_END_$id"
+        val answer = collector.observe(fragment,id)
+        assertEquals(first + "\nПроверку продолжаю в этом же чате.",answer)
+        // The START/END markers may both scroll out of view before the
+        // six-second idle check. The verified answer must not vanish.
+        assertEquals(answer,collector.observe("ChatGPT composer ready",id))
+    }
+
+    @Test fun reconnectsAtAnEightyThreeCharacterOverlapWithoutGuessingText() {
+        val collector = ChatReplyCollector()
+        val first = "Уточняю шаг реализации. " + "Проверка цельности длинного сообщения. ".repeat(8)
+        assertNull(collector.observe("JESSICA_REPLY_$id\n$first",id))
+        val result = collector.observe(first.takeLast(83) +
+            "\nСледующий шаг принят.\nJESSICA_END_$id",id)
+        assertEquals(first + "\nСледующий шаг принят.",result)
+    }
+
+    @Test fun neverJoinsUnrelatedShortOverlapOrReturnsOldReplyForNewNonce() {
+        val collector = ChatReplyCollector()
+        val old = "JESSICA_REPLY_$id\n" + "Содержимое. ".repeat(30)
+        assertNull(collector.observe(old,id))
+        assertNull(collector.observe("Содержимое. \nJESSICA_END_$id",id))
+        val next = "23456789-abcd-4abc-8abc-123456789012"
+        assertNull(collector.observe("JESSICA_END_$id",next))
+        assertEquals("Новая проверка",collector.observe(
+            "JESSICA_REPLY_$next\nНовая проверка\nJESSICA_END_$next",next))
+    }
+
     @Test fun neverStartsFromPromptThatMerelyMentionsDelimiters() {
         val collector=ChatReplyCollector()
         assertNull(collector.observe("Начни ответ отдельной строкой JESSICA_REPLY_$id; " +
