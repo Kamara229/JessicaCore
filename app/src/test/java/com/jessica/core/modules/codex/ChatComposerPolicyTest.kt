@@ -103,6 +103,20 @@ class ChatComposerPolicyTest {
         assertEquals(6, ChatComposerPolicy.choose(listOf(exact), invalidRoot, 1f))
     }
 
+    @Test fun existingDraftRecoversSoleEditorWhenAndroidReportsTinyBounds() {
+        val tiny = candidate(7, 100, 640, 120, 665, focused = false, matchesPrepared = false)
+        assertNull(ChatComposerPolicy.choose(listOf(tiny), window, 1f))
+        assertEquals(7, ChatComposerPolicy.choose(
+            listOf(tiny), window, 1f, recoveringPreparedDraft = true))
+    }
+
+    @Test fun draftRecoveryCannotChooseOneOfSeveralPossibleFields() {
+        val tiny = candidate(7, 100, 640, 120, 665)
+        val search = candidate(9, 10, 100, 40, 115)
+        assertNull(ChatComposerPolicy.choose(
+            listOf(tiny, search), window, 1f, recoveringPreparedDraft = true))
+    }
+
     @Test fun zeroSizeRootCannotResolveWrongOrMissingDraft() {
         val invalidRoot = UiBox(0, 0, 0, 0)
         val wrong = candidate(6, 30, 560, 390, 760)
