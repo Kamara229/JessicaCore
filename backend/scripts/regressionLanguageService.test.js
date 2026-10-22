@@ -403,3 +403,9 @@ test("current explicit Japanese request remains authoritative despite old chat",
     const directive=await withResponseLanguage("ru",()=>buildComposerLanguageDirective(prompt));
     assert.match(directive,/If the user EXPLICITLY asks/);
 });
+
+test("explicitly requesting previous answer in English still overrides Russian UI",()=>{
+    assert.equal(requestedTranslation("дай этот ответ на английском языке"),true);
+    assert.equal(requestedTranslation("Отвечай на английском"),true);
+    assert.equal(requestedTranslation("Перепиши функцию на Kotlin"),false);
+});
