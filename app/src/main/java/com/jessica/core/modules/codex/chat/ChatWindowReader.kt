@@ -12,7 +12,8 @@ fun AccessibilityNodeInfo.screenBox(): UiBox {
 
 data class ChatWindow(val root: AccessibilityNodeInfo, val nodes: List<AccessibilityNodeInfo>,
                       val composer: AccessibilityNodeInfo?,
-                      val send: AccessibilityNodeInfo?, val generating: Boolean, val content: String) {
+                      val send: AccessibilityNodeInfo?, val generating: Boolean, val content: String,
+                      val editorCandidates: Int = 0, val sendCandidates: Int = 0) {
     fun release() { nodes.asReversed().forEach { @Suppress("DEPRECATION") it.recycle() } }
 }
 
@@ -58,15 +59,19 @@ object ChatWindowReader {
         fun walk(node: AccessibilityNodeInfo, parent: Int, depth: Int, insideEditor: Boolean = false) {
             val index = nodes.size
             nodes.add(node)
-            val canSetText = node.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SET_TEXT }
+            val actions = node.actionList
+            val canSetText = actions.any { it.id == AccessibilityNodeInfo.ACTION_SET_TEXT }
             val editor = insideEditor || node.isEditable || canSetText
             if (node.isVisibleToUser && node.isEnabled && (node.isEditable || canSetText)) {
                 composers.add(ComposerCandidate(index, node.screenBox(), node.isFocused,
                     node.isEditable, canSetText))
             }
-            val labels = if (editor) emptyList() else listOfNotNull(node.contentDescription?.toString(), node.text?.toString()) +
-                node.actionList.mapNotNull { it.label?.toString() }
-            controls.add(ChatControl(parent, labels, node.viewIdResourceName.orEmpty(), node.isClickable,
+            val descriptions = listOfNotNull(node.contentDescription?.toString(), node.text?.toString(),
+                node.tooltipText?.toString(), node.hintText?.toString())
+            val labels = if (editor) emptyList() else descriptions +
+                actions.mapNotNull { it.label?.toString() }
+            controls.add(ChatControl(parent, labels, node.viewIdResourceName.orEmpty(),
+                node.isClickable || actions.any { it.id == AccessibilityNodeInfo.ACTION_CLICK },
                 node.isEnabled, node.isVisibleToUser, editor, node.screenBox()))
             if (!editor && node.isVisibleToUser) {
                 // Current ChatGPT builds sometimes expose the assistant's reply
@@ -77,7 +82,8 @@ object ChatWindowReader {
                 if (visibleText.isNotBlank()) conversation.add(visibleText)
                 val description = node.contentDescription?.toString().orEmpty()
                 if (description.length <= 55_000 &&
-                    (description.contains("JESSICA_REPLY_") || description.contains("JESSICA_END_")) &&
+                    (description.contains("JESSICA_REPLY_") || description.contains("JESSICA_END_") ||
+                        ChatUiPolicy.conversationAtLimit(description)) &&
                     description != visibleText) conversation.add(description)
             }
             if (depth >= 40 && node.childCount > 0) { truncated = true; return }
@@ -88,9 +94,11 @@ object ChatWindowReader {
         }
         walk(root, -1, 0)
         val editor = if (!truncated) ChatComposerPolicy.choose(composers, root.screenBox(), density) else null
-        val send = if (truncated) null else ChatSendPolicy.targets(controls,editor,density).singleOrNull()
+        val sends = if (truncated) emptySet() else ChatSendPolicy.targets(controls,editor,density)
+        val send = sends.singleOrNull()
         val content = conversation.joinToString("\n").takeLast(120000)
         return ChatWindow(root, nodes, if (truncated) null else editor?.let { nodes[it] }, send?.let { nodes[it] },
-            ChatSendPolicy.targets(controls,editor,density,stop=true).isNotEmpty(), content)
+            ChatSendPolicy.targets(controls,editor,density,stop=true).isNotEmpty(), content,
+            composers.size, sends.size)
     }
 }
