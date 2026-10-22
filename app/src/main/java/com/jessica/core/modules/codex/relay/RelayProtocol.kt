@@ -16,12 +16,6 @@ object RelayProtocol {
         "между маркерами пиши обычным текстом, не JSON; закончи отдельной строкой JESSICA_END_$id. " +
         "Метки относятся только к ответу на это сообщение."
 
-    fun reply(screen: String, id: String): String? {
-        if (screen.length > 120000 || !Regex("[a-f0-9-]{36}").matches(id)) return null
-        val lines = screen.replace("\r\n", "\n").lines()
-        val first = lines.indexOfFirst { it.trim() == "JESSICA_REPLY_$id" }
-        if (first < 0) return null
-        val end = (first + 1 until lines.size).firstOrNull { lines[it].trim() == "JESSICA_END_$id" } ?: return null
-        return lines.subList(first + 1, end).joinToString("\n").trim().takeIf { it.isNotBlank() && it.length <= 50000 }
-    }
+    fun reply(screen: String, id: String): String? =
+        ChatReplyExtraction.read(screen, id)
 }
