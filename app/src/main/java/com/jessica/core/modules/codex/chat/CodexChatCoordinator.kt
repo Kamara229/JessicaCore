@@ -26,6 +26,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     internal var run: ChatRunState? = null
     internal var confirmed = false
     internal var composed = false
+    internal var draftEditorMissingSince = 0L
     internal var overlay: LinearLayout? = null
     internal var confirmButton: Button? = null
     internal var statusLabel: TextView? = null
@@ -45,6 +46,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
         loop?.cancel()
         confirmed = false
         composed = false
+        draftEditorMissingSince = 0L
         calibratedSend = null
         calibrating = false
         sendPicker.close()
