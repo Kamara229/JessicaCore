@@ -38,4 +38,18 @@ class ChatSendPolicyTest {
         assertNull(CalibratedSendTarget.select(frame,box,30f,100f,1f))
         assertNull(target.point(UiBox(0,0,400,700),box,1f))
     }
+
+    @Test fun duplicatedAccessibilitySiblingsAtSameSendButtonResolveAsOneVisualControl() {
+        val nodes = listOf(root,editor,
+            node(0,"Send",true,UiBox(315,708,369,757)),
+            node(0,"Send message",true,UiBox(315,708,369,757)))
+        assertEquals(2,ChatSendPolicy.targets(nodes,1,1f).size)
+        assertNotNull(ChatSendPolicy.uniqueSendTarget(nodes,1,1f))
+    }
+    @Test fun distinctSendButtonsAreNeverGuessed() {
+        val nodes = listOf(root,editor,
+            node(0,"Send",true,UiBox(310,700,360,748)),
+            node(0,"Send message",true,UiBox(260,700,305,748)))
+        assertNull(ChatSendPolicy.uniqueSendTarget(nodes,1,1f))
+    }
 }
