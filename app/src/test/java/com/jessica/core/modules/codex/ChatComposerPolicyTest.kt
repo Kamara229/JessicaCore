@@ -81,4 +81,20 @@ class ChatComposerPolicyTest {
         assertNull(ChatComposerPolicy.choose(listOf(label), window, 1f))
     }
 
+    @Test fun twoNestedEditableNodesWithSamePreparedDraftResolveToOneComposer() {
+        val nodes = listOf(
+            candidate(3,25,645,395,770,editable=true,setText=false,matchesPrepared=true),
+            candidate(4,30,653,391,763,focused=true,editable=true,setText=true,matchesPrepared=true)
+        )
+        assertEquals(4, ChatComposerPolicy.choose(nodes,window,1f))
+    }
+
+    @Test fun samePreparedDraftInTwoDistinctFieldsMustRemainUnsafe() {
+        val nodes = listOf(
+            candidate(3,25,645,189,770,matchesPrepared=true),
+            candidate(4,215,645,391,770,matchesPrepared=true)
+        )
+        assertNull(ChatComposerPolicy.choose(nodes,window,1f))
+    }
+
 }

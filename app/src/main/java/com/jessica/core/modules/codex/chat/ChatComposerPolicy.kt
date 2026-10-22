@@ -42,7 +42,14 @@ object ChatComposerPolicy {
         // matching this session's prepared text. Never guess an empty editor.
         val prepared = candidates.filter { it.matchesPrepared && (it.editable || it.setText) }
         if (prepared.size == 1) return prepared.single().index
-        if (prepared.size > 1) return null // Conflicting text fields: fail closed.
+        if (prepared.size > 1) {
+            // ChatGPT can expose both an editable wrapper and its native child,
+            // containing identical draft text. They are ONE field, not two.
+            // Do not select anything if the same draft appears in distinct fields.
+            if (!prepared.all { nearSameField(prepared.first().box, it.box, density) }) return null
+            return prepared.maxWith(compareBy<ComposerCandidate> { it.setText }
+                .thenBy { it.editable }.thenBy { it.focused }.thenBy { it.index }).index
+        }
         val minimumWidth = max(72f * density, frame.width * .25f)
         val eligible = candidates.filter {
             (it.editable || it.setText) &&
