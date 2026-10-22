@@ -95,7 +95,7 @@ object ChatWindowReader {
         walk(root, -1, 0)
         val editor = if (!truncated) ChatComposerPolicy.choose(composers, root.screenBox(), density) else null
         val sends = if (truncated) emptySet() else ChatSendPolicy.targets(controls,editor,density)
-        val send = sends.singleOrNull()
+        val send = if (truncated) null else ChatSendPolicy.uniqueSendTarget(controls,editor,density)
         val content = conversation.joinToString("\n").takeLast(120000)
         return ChatWindow(root, nodes, if (truncated) null else editor?.let { nodes[it] }, send?.let { nodes[it] },
             ChatSendPolicy.targets(controls,editor,density,stop=true).isNotEmpty(), content,
