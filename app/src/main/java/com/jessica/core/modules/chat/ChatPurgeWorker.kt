@@ -11,7 +11,7 @@ class ChatPurgeWorker(
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result =
         try {
-            ChatThreadStore(applicationContext).purgeExpired()
+            ChatThreadStore.shared(applicationContext).purgeExpired()
             Result.success()
         } catch (_: Exception) {
             Result.retry()

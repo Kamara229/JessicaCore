@@ -55,8 +55,8 @@ jobs:
       - name: Regression tests for verified Learning and release dates
         run: node --test backend/scripts/regressionLearningSafety.test.js backend/scripts/regressionDocumentCapture.test.js backend/scripts/regressionLocalConversation.test.js backend/scripts/regressionDocumentAttachments.test.js backend/scripts/regressionDocumentAnalysis.test.js backend/scripts/regressionCandidateConsolidation.test.js backend/scripts/regressionKnownLicenseComparison.test.js backend/scripts/regressionComparisonEvidence.test.js backend/scripts/regressionPartialComparisonEvidence.test.js backend/scripts/regressionEvidenceFirstComparison.test.js backend/scripts/regressionComparisonGrid.test.js backend/scripts/regressionFullChatArchive.test.js backend/scripts/regressionChatDebugSnapshot.test.js backend/scripts/regressionLanguageService.test.js backend/scripts/regressionLocaleGeneration.test.js backend/scripts/regressionProgrammingFoundation.test.js backend/scripts/regressionProgrammingAnswerSafety.test.js backend/scripts/regressionContextDataFoundations.test.js backend/scripts/regressionCodexCollaboration.test.js backend/scripts/regressionCodexDayMode.test.js
 
-      - name: Regression tests for ordinary-chat candidate application
-        run: node --test backend/scripts/regressionPhoneChat.test.js
+      - name: Regression tests for Codex relay and archived candidate validation
+        run: node --test backend/scripts/regressionCodexRelay.test.js backend/scripts/regressionPhoneChat.test.js
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4

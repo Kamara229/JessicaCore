@@ -139,6 +139,20 @@ class ChatViewModel(
         }
     }
 
+    /** Relay tests are ordinary stored chats; refresh the list when returning from ChatGPT. */
+    fun refreshExternalChats() {
+        if (_state.value.isRunning || _state.value.isLoading || _state.value.previewDeletedThreadId != null) return
+        viewModelScope.launch {
+            try {
+                val current = _state.value
+                val threads = withContext(Dispatchers.IO) { threadStore.list() }
+                val messages = withContext(Dispatchers.IO) { current.activeThreadId?.let { threadStore.messages(it) } ?: current.messages }
+                if (!_state.value.isRunning && _state.value.activeThreadId == current.activeThreadId)
+                    _state.value = _state.value.copy(threads = threads, messages = messages)
+            } catch (e: Exception) { _state.value = _state.value.copy(storageError = e.message) }
+        }
+    }
+
     fun refreshChatDiagnostics() = scheduleDebugSync()
 
     fun updateInput(value: TextFieldValue) {

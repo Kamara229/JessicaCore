@@ -1,7 +1,7 @@
 package com.jessica.core.modules.codex.chat
 
-/** One user launch, at most three messages. No automatic retry of an ambiguous send. */
-class ChatRunState(val startedAt: Long, val maxTurns: Int = 3) {
+/** One explicitly started, bounded session. No automatic retry of an ambiguous send. */
+class ChatRunState(val startedAt: Long, val maxTurns: Int = 3, val durationMs: Long = 60 * 60 * 1000L) {
     var sends = 0; private set
     var waiting = false; private set
     var stopped = false; private set
@@ -27,6 +27,6 @@ class ChatRunState(val startedAt: Long, val maxTurns: Int = 3) {
         stable = ""
         return text
     }
-    fun expired(now: Long) = now - startedAt >= 60 * 60 * 1000L || (waiting && now - sendAt >= 20 * 60 * 1000L)
+    fun expired(now: Long) = now - startedAt >= durationMs || (waiting && now - sendAt >= 20 * 60 * 1000L)
     fun stop() { stopped = true; waiting = false }
 }

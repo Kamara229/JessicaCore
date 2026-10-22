@@ -26,6 +26,12 @@ data class ChatThread(
 data class ChatSearchResult(val thread: ChatThread, val snippet: String)
 
 class ChatThreadStore(context: Context) {
+    companion object {
+        @Volatile private var instance: ChatThreadStore? = null
+        fun shared(context: Context): ChatThreadStore = instance ?: synchronized(this) {
+            instance ?: ChatThreadStore(context.applicationContext).also { instance = it }
+        }
+    }
     private val appContext = context.applicationContext
     private val root = File(appContext.filesDir, "jessica/chat")
     private val threadsDir = File(root, "threads")
