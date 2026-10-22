@@ -21,7 +21,7 @@ internal fun CodexChatCoordinator.observeIncoming(window: ChatWindow, launch: Ph
                         !ChatUiPolicy.alreadyPosted(window.content, launch.prompt, launch.replyId)) {
                         finish("ChatGPT не отправил подготовленный текст: он остался в поле ввода. " +
                             "Кодекс остановлен без повторной отправки. Проверь кнопку в выбранном чате.")
-                        return
+                        return null
                     }
                     if (now - state.sendAt > 20_000L && now - lastReplyWaitNotice >= 20_000L) {
                         lastReplyWaitNotice = now

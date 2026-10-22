@@ -8,8 +8,11 @@ import com.jessica.core.modules.codex.relay.RelayProtocol
 internal suspend fun CodexChatCoordinator.advanceOutgoing(window: ChatWindow, launch: PhoneChatLaunch, state: ChatRunState) {
 
                 val composer = window.composer ?: run {
+                    // Never guess an editor after filling a long ChatGPT draft.
+                    // Publish only a phase marker, never the text or chat title.
+                    if (composed) reportPhase("editor_missing")
                     notice("Не удалось определить поле ввода ChatGPT (найдено полей: ${window.editorCandidates}). " +
-                        "Сообщение не отправлено. Проверь, что открыта переписка, а не поиск.")
+                        "Сообщение не отправлено; длинный черновик сохранён. Повторного ввода нет.")
                     return
                 }
                 val text = composer.text?.toString().orEmpty()
@@ -50,6 +53,7 @@ internal suspend fun CodexChatCoordinator.advanceOutgoing(window: ChatWindow, la
                 val send = window.send
                 val point = if (send == null) calibratedSend?.point(window.root.screenBox(), composer.screenBox(), service.resources.displayMetrics.density) else null
                 if (send == null && point == null) {
+                    reportPhase("send_control_missing")
                     calibratedSend = null
                     calibrateButton?.visibility = android.view.View.VISIBLE
                     notice("Не удалось распознать стрелку отправки. Нажми «Указать стрелку» и покажи её один раз для этой сессии.")
