@@ -8,6 +8,13 @@ import org.junit.Test
 
 class RelayProtocolTest {
     private val id = "12345678-abcd-4abc-8abc-123456789012"
+    @Test fun firstCodexHandoffRemainsCompactAndIncludesBothResponseMarkers() {
+        val prompt = RelayProtocol.wrap(RelayProtocol.introduction, id)
+        assertTrue("The first Android draft must stay compact", prompt.length < 650)
+        assertTrue(prompt.contains("JESSICA_REPLY_$id"))
+        assertTrue(prompt.contains("JESSICA_END_$id"))
+        assertNull(RelayProtocol.reply(prompt, id))
+    }
     @Test fun readinessIsTheFirstSentenceAndHandoffRestrictsWorkToBackend() {
         assertTrue(RelayProtocol.introduction.startsWith("Джессика готова к работе в чате."))
         assertTrue(RelayProtocol.introduction.contains("не редактирую репозиторий"))
