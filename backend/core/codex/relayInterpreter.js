@@ -22,8 +22,8 @@ continueThread=true только для явного продолжения пр
  * alone is insufficient to cross the test-chat isolation boundary.
  */
 export function explicitSameTestChat(message) {
-    const text = String(message || "").replace(/\\s+/g, " ").trim().toLowerCase();
-    if (/^(?:не|no|not|never)\\s+(?:используй|продолжай|reuse|use)\\s+/.test(text)) return false;
+    const text = String(message || "").replace(/\s+/g, " ").trim().toLowerCase();
+    if (/^(?:не|no|not|never)\s+(?:используй|продолжай|reuse|use)\s+/.test(text)) return false;
     return /(?:в том же|в этом же|в прежнем|в предыдущем) (?:самом )?(?:тестовом )?чате(?: джессики| jessica)?/.test(text) ||
         /(?:используй|продолжи|продолжай) (?:именно )?(?:тот же|предыдущий) (?:тестовый )?чат(?: джессики| jessica)?/.test(text) ||
         /(?:use|continue in|reuse) (?:the )?(?:same|previous) (?:jessica )?(?:test )?chat/.test(text);
