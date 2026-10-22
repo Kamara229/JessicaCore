@@ -67,7 +67,7 @@ object ChatWindowReader {
                     node.isEditable, canSetText))
             }
             val descriptions = listOfNotNull(node.contentDescription?.toString(), node.text?.toString(),
-                node.tooltipText?.toString(), node.hintText?.toString())
+                (if (android.os.Build.VERSION.SDK_INT >= 28) node.tooltipText?.toString() else null), node.hintText?.toString())
             val labels = if (editor) emptyList() else descriptions +
                 actions.mapNotNull { it.label?.toString() }
             controls.add(ChatControl(parent, labels, node.viewIdResourceName.orEmpty(),
