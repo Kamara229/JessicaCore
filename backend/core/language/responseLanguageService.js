@@ -63,7 +63,7 @@ function numbersUnchanged(original, revised) {
 export function requestedTranslation(task) {
     const value=String(task||"").trim();
     if(!value) return false;
-    const replyTarget=/(?:ответь|отвечай|напиши(?:\\s+(?:этот|свой|предыдущий))?\\s+ответ|дай(?:\\s+(?:этот|свой|предыдущий))?\\s+ответ|пиши|respond|answer|reply|write the answer)\s+(?:мне\s+)?(?:на|in)\s+(?:английск|русск|японск|китайск|немецк|французск|испанск|арабск|корейск|итальянск|португальск|турецк|украинск|польск|хинди|нидерландск|english|russian|japanese|chinese|german|french|spanish|arabic|korean|italian|portuguese|turkish|ukrainian|polish|hindi|dutch)/iu;
+    const replyTarget=/(?:ответь|отвечай|напиши(?:\s+(?:этот|свой|предыдущий))?\s+ответ|дай(?:\s+(?:этот|свой|предыдущий))?\s+ответ|пиши|respond|answer|reply|write the answer)\s+(?:мне\s+)?(?:на|in)\s+(?:английск|русск|японск|китайск|немецк|французск|испанск|арабск|корейск|итальянск|португальск|турецк|украинск|польск|хинди|нидерландск|english|russian|japanese|chinese|german|french|spanish|arabic|korean|italian|portuguese|turkish|ukrainian|polish|hindi|dutch)/iu;
     if(replyTarget.test(value)) return true;
     const requestTranslation=/(?:\btranslat(?:e|ion|ing)\b|перев(?:еди|ести|од)|übersetz|tradu(?:is|ir|ce|ire)|翻译|翻譯|翻訳|ترجم|ترجمة|traduzir)/iu;
     if(!requestTranslation.test(value)) return false;
