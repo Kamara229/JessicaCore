@@ -7,8 +7,8 @@ package com.jessica.core.modules.codex.relay
  */
 object ChatReplyExtraction {
     private val uuid = Regex("[a-f0-9-]{36}")
-
     private fun markerPiece(line: String): String =
+        line.trim().trim('`', '*', ' ').replace("\u00a0", "").trim()
         line.trim().trim(''`', '*', '_', ' ').replace("\u00a0", "").trim()
 
     private fun markerEnd(lines: List<String>, at: Int, label: String): Int? {
@@ -35,7 +35,6 @@ object ChatReplyExtraction {
             for (last in bodyStart until lines.size) {
                 val end = markerEnd(lines, last, endLabel) ?: continue
                 val answer = lines.subList(bodyStart, last).joinToString("\n").trim()
-                    .removePrefix("```").trim()
                 if (answer.isNotEmpty() && answer.length <= 50_000) latest = answer
                 break
             }
