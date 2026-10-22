@@ -29,13 +29,37 @@ class ChatGptAccessibilityService : AccessibilityService() {
     private var lastHeartbeat = 0L
     private val client = CodexClient()
 
-    override fun onServiceConnected() { PhoneChatRuntime.controller = this }
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) { /* A bounded poll also handles quiet screens. */ }
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        PhoneChatRuntime.controller = this
+        android.util.Log.i("JessicaChatService", "Accessibility service connected")
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // A bounded poll also handles quiet screens.
+    }
+
     override fun onInterrupt() { stopByUser() }
+
+    override fun onUnbind(intent: android.content.Intent?): Boolean {
+        // Android can rebind a new service instance before the old one is
+        // destroyed. Never let a stale instance clear the new controller.
+        if (PhoneChatRuntime.controller === this) {
+            stopByUser("Android отключил службу. Сессия безопасно остановлена.")
+            PhoneChatRuntime.controller = null
+        }
+        android.util.Log.i("JessicaChatService", "Accessibility service unbound")
+        return super.onUnbind(intent)
+    }
+
     override fun onDestroy() {
-        stopByUser()
-        PhoneChatRuntime.controller = null
+        if (PhoneChatRuntime.controller === this) {
+            stopByUser("Служба Jessica остановлена системой.")
+            PhoneChatRuntime.controller = null
+        }
+        loop?.cancel()
         scope.cancel()
+        android.util.Log.i("JessicaChatService", "Accessibility service destroyed")
         super.onDestroy()
     }
 
