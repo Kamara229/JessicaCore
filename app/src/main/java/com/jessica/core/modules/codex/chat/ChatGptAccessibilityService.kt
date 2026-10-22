@@ -16,6 +16,7 @@ import android.widget.TextView
 import com.jessica.core.modules.codex.PhoneCodexHandoff
 import com.jessica.core.modules.codex.relay.RelayProtocol
 import com.jessica.core.modules.codex.relay.ChatReplyCollector
+import com.jessica.core.modules.codex.relay.ChatReplyExtraction
 import kotlinx.coroutines.*
 import java.util.UUID
 
@@ -35,6 +36,8 @@ class ChatGptAccessibilityService : AccessibilityService() {
     private val sendPicker by lazy { SendTargetPicker(this) }
     private var lastNotice = ""
     private val replyCollector = ChatReplyCollector()
+    private var verifiedReplyId = ""
+    private var verifiedReplyAnchor = ""
     private var invisibleSince = 0L
     private var lastReplyWaitNotice = 0L
 
@@ -75,6 +78,8 @@ class ChatGptAccessibilityService : AccessibilityService() {
         sendPicker.close()
         lastNotice = ""
         replyCollector.reset()
+        verifiedReplyId = ""
+        verifiedReplyAnchor = ""
         invisibleSince = 0L
         lastReplyWaitNotice = 0L
         val launch = PhoneChatRuntime.launch ?: return
@@ -126,6 +131,10 @@ class ChatGptAccessibilityService : AccessibilityService() {
                 val now = SystemClock.elapsedRealtime()
                 val complete = replyCollector.observe(window.content, launch.replyId)
                 response = state.acceptReply(complete, window.generating, now)
+                if (response != null) {
+                    verifiedReplyId = launch.replyId
+                    verifiedReplyAnchor = response.replace(Regex("\\s+"), " ").trim().takeLast(140)
+                }
                 if (response == null) {
                     // Android ACTION_CLICK returning true does not mean ChatGPT
                     // actually sent anything. Never retry an uncertain click.
@@ -159,8 +168,22 @@ class ChatGptAccessibilityService : AccessibilityService() {
                 if (composed && text != launch.prompt) { finish("Поле ввода изменилось. Повторного ввода и отправки не будет; проверь чат."); return }
                 if (text.isNotBlank() && text != launch.prompt) { finish("В поле есть твой черновик. Убери его перед новым запуском Кодекса."); return }
                 // Filling a long report may cover the preceding reply. Verify continuity before composing.
-                if (!composed && state.sends > 0 && !window.content.contains("JESSICA_REPLY_${launch.previousReplyId}")) {
-                    finish("Не виден предыдущий ответ этой сессии. Кодекс остановлен, чтобы не продолжить в другом чате."); return
+                if (!composed && state.sends > 0) {
+                    // After a long answer ChatGPT may virtualize its START
+                    // marker out of view, keeping only its END or last words.
+                    // Never treat the owner's quoted marker instruction as proof.
+                    val endVisible = ChatReplyExtraction.hasStandaloneEnd(
+                        window.content, launch.previousReplyId
+                    )
+                    val replyTailVisible = verifiedReplyId == launch.previousReplyId &&
+                        verifiedReplyAnchor.length >= 65 &&
+                        window.content.replace(Regex("\\s+"), " ")
+                            .contains(verifiedReplyAnchor)
+                    if (!endVisible && !replyTailVisible) {
+                        finish("Не вижу подтверждённый предыдущий ответ в выбранном чате. " +
+                            "Кодекс остановлен: продолжение в другой переписке запрещено.")
+                        return
+                    }
                 }
                 if (!ChatUiPolicy.canSend("com.openai.chatgpt", confirmed, false, text, launch.prompt, window.generating)) return
                 if (!composed) {
