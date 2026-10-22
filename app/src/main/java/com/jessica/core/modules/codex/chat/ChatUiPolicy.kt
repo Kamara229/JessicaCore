@@ -7,6 +7,19 @@ object ChatUiPolicy {
         packageName == "com.openai.chatgpt" && confirmed && !locked &&
             !sending && (composerText.isBlank() || composerText == pending)
 
+    /** ChatGPT's own maximum-conversation-length banner means this chat can no longer send.
+     * Never switch to or create a different chat without the owner's explicit selection.
+     */
+    fun conversationAtLimit(content: String): Boolean {
+        val normalized = content.replace(Regex("\\s+"), " ").lowercase()
+        return (normalized.contains("вы достигли максимальной длины этого обсуждения") &&
+            normalized.contains("новый чат")) ||
+            (normalized.contains("maximum length") && normalized.contains("conversation") &&
+                (normalized.contains("new chat") || normalized.contains("new conversation"))) ||
+            (normalized.contains("conversation has reached its maximum length") &&
+                normalized.contains("new chat"))
+    }
+
     /** Read-only conversation text only; the composer and its descendants must be excluded. */
     fun alreadyPosted(content: String, pending: String, replyId: String): Boolean {
         if (reply(content.takeLast(60000), replyId) != null) return true
