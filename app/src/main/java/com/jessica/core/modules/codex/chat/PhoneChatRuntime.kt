@@ -20,7 +20,11 @@ object PhoneChatRuntime {
     private val mutableStatus = MutableStateFlow(PhoneChatStatus())
     val status = mutableStatus.asStateFlow()
     var launch: PhoneChatLaunch? = null; private set
-    var controller: ChatGptAccessibilityService? = null
+    @Volatile var controller: ChatGptAccessibilityService? = null; private set
+    fun connected(service: ChatGptAccessibilityService) { controller = service }
+    fun disconnected(service: ChatGptAccessibilityService) {
+        if (controller === service) controller = null
+    }
     private fun requireConnected(context: Context) {
         if (controller != null) return
         val diagnostics = ChatServiceDiagnostics.inspect(context)
