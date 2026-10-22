@@ -46,6 +46,23 @@ class RelayProtocolTest {
         assertNull(RelayProtocol.reply(request,id))
         assertNull(RelayProtocol.reply("JESSICA_REPLY_${id}\nНезавершённый ответ",id))
     }
+    @Test fun acceptsFlattenedChatGPTAnswerWithInlineSessionDelimiters() {
+        val body = "Backend исправлен. Следующий тест: Сколько будет 2 + 2?"
+        assertEquals(body,RelayProtocol.reply(
+            "JESSICA_REPLY_$id: $body JESSICA_END_$id",id))
+    }
+    @Test fun acceptsMarkdownQuotedReplyAndTrailingPunctuation() {
+        val body = "Проверено. Продолжаем план."
+        assertEquals(body,RelayProtocol.reply(
+            "> **JESSICA_REPLY_$id**\n$body\n> **JESSICA_END_$id**",id))
+    }
+    @Test fun ownerInstructionsInsideSentenceAreNeverReadAsAssistantAnswer() {
+        val prompt = "Для чтения начни ответ отдельной строкой JESSICA_REPLY_$id; " +
+            "закончи отдельной строкой JESSICA_END_$id."
+        assertNull(RelayProtocol.reply(prompt,id))
+        assertNull(RelayProtocol.reply("JESSICA_REPLY_$id: тело ответа, но конец отсутствует",id))
+    }
+
     @Test fun choosesLatestCompleteReplyAndPreservesSourceBlocks() {
         val first = "JESSICA_REPLY_${id}\nСтарый ответ\nJESSICA_END_${id}"
         val quoted = "JESSICA_REPLY_other\nДругой ответ\nJESSICA_END_other"
