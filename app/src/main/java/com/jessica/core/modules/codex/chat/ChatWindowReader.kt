@@ -88,9 +88,12 @@ object ChatWindowReader {
                         ChatUiPolicy.conversationAtLimit(description)) &&
                     description != visibleText) conversation.add(description)
             }
-            if (depth >= 40 && node.childCount > 0) { truncated = true; return }
+            // A long conversation can expose more than 1,500 nodes.
+            // Exhaust the visible tree within a bounded budget rather than
+            // invalidating the composer simply because history is lengthy.
+            if (depth >= 64 && node.childCount > 0) { truncated = true; return }
             for (i in 0 until node.childCount) {
-                if (nodes.size >= 1500) { truncated = true; break }
+                if (nodes.size >= 4000) { truncated = true; break }
                 node.getChild(i)?.let { walk(it, index, depth + 1, editor) }
             }
         }
