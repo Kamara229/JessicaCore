@@ -35,7 +35,8 @@ object ChatComposerPolicy {
                 abs(a.bottom - b.bottom) <= margin)
     }
 
-    fun choose(candidates: List<ComposerCandidate>, frame: UiBox, density: Float): Int? {
+    fun choose(candidates: List<ComposerCandidate>, frame: UiBox, density: Float,
+               recoveringPreparedDraft: Boolean = false): Int? {
         if (!density.isFinite() || density <= 0f) return null
         // ChatGPT can change the editable node's reported bounds after ACTION_SET_TEXT
         // expands a long draft. Recover ONLY an exact, unique, visible editor
@@ -60,7 +61,18 @@ object ChatComposerPolicy {
                 it.box.top < frame.bottom && it.box.bottom > frame.top &&
                 (it.focused || it.box.bottom >= frame.top + frame.height * .32f)
         }
-        if (eligible.isEmpty()) return null
+        if (eligible.isEmpty()) {
+            // In some ChatGPT versions an expanded draft temporarily reports
+            // a tiny/offscreen editable rectangle. An owner-selected chat with
+            // an already prepared message may recover its sole enabled editor.
+            // This does NOT authorize a send: the caller must independently
+            // confirm that this node contains the COMPLETE expected draft.
+            if (recoveringPreparedDraft && candidates.size == 1) {
+                val only = candidates.single()
+                if (only.editable || only.setText) return only.index
+            }
+            return null
+        }
         // Deduplicate the editor's semantic wrapper and native editable child.
         val groups = mutableListOf<MutableList<ComposerCandidate>>()
         for (candidate in eligible.sortedByDescending { it.box.bottom }) {
