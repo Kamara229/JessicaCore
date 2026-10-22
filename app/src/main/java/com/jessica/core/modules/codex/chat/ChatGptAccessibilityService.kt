@@ -39,6 +39,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
     private var verifiedReplyAnchor = ""
     private var invisibleSince = 0L
     private var lastReplyWaitNotice = 0L
+    private var lastReportedPhase = ""
 
     override fun onCreate() { super.onCreate(); ChatServiceDiagnostics.record(this, "created") }
     override fun onServiceConnected() {
@@ -81,8 +82,10 @@ class ChatGptAccessibilityService : AccessibilityService() {
         verifiedReplyAnchor = ""
         invisibleSince = 0L
         lastReplyWaitNotice = 0L
+        lastReportedPhase = ""
         val launch = PhoneChatRuntime.launch ?: return
         run = ChatRunState(SystemClock.elapsedRealtime(), maxTurns = 60, durationMs = 8 * 60 * 60 * 1000L)
+        reportPhase("started")
         try { showOverlay() } catch (e: Exception) {
             ChatServiceDiagnostics.record(this, "overlay-failed:${e.javaClass.simpleName}")
             finish("Не удалось показать панель Джессики. Открой диагностику службы."); return
@@ -137,6 +140,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
                 val complete = replyCollector.observe(window.content, launch.replyId)
                 response = state.acceptReply(complete, window.generating, now)
                 if (response != null) {
+                    reportPhase("reply_verified")
                     verifiedReplyId = launch.replyId
                     verifiedReplyAnchor = response.replace(Regex("\\s+"), " ").trim().takeLast(140)
                 }
@@ -152,6 +156,9 @@ class ChatGptAccessibilityService : AccessibilityService() {
                     }
                     if (now - state.sendAt > 20_000L && now - lastReplyWaitNotice >= 20_000L) {
                         lastReplyWaitNotice = now
+                        reportPhase(if (window.generating) "reply_streaming"
+                            else if (complete == null) "awaiting_markers"
+                            else "reply_stabilizing")
                         notice(if (window.generating) "ChatGPT формирует ответ. Жду завершения, ничего повторно не отправляю."
                             else if (complete == null) "Жду ответ ChatGPT с парой меток JESSICA_REPLY / JESSICA_END. " +
                                 "Если они не появились, Кодекс не принимает непроверенный текст."
@@ -170,6 +177,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
                 if (alreadyPosted) {
                     check(state.beginSend(SystemClock.elapsedRealtime())) { "Достигнут предел 60 сообщений" }
                     launch.conversation.recordOutgoing(launch.message)
+                    reportPhase("sent")
                     if (launch.endAfterSend) finish("Переписка завершена. История и тесты сохранены в чатах Джессики.")
                     else notice("Сообщение уже в переписке. Читаю ответ без повторной отправки.")
                     return
@@ -194,6 +202,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
                     val args = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, launch.prompt) }
                     check(composer.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) { "ChatGPT не разрешил ввод текста" }
                     composed = true
+                    reportPhase("draft_ready")
                     notice("Сообщение подготовлено. Проверяю отправку.")
                     return
                 }
@@ -208,11 +217,13 @@ class ChatGptAccessibilityService : AccessibilityService() {
                 calibrateButton?.visibility = android.view.View.GONE
                 check(state.beginSend(SystemClock.elapsedRealtime())) { "Достигнут предел 60 сообщений" }
                 // Mark before clicking: an uncertain click must not be automatically retried.
+                reportPhase("send_requested")
                 val accepted = if (send != null) send.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                     else tapSelectedSend(point!!, launch)
                 if (!accepted) { finish("Нажатие не подтверждено. Проверь чат; автоматического повтора нет. Если ты указывал стрелку, выключи и включи службу Jessica после обновления."); return }
                 composed = false
                 launch.conversation.recordOutgoing(launch.message)
+                reportPhase("sent")
                 if (launch.endAfterSend) finish("Переписка завершена. История и тесты сохранены в чатах Джессики.")
                 else notice("Жду законченный ответ ChatGPT. Сообщений в сессии: ${state.sends}/60.")
             }
@@ -223,6 +234,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
             finish("Достигнут предел 60 сообщений. Последний ответ сохранён; новый тест не запускался.")
             return
         }
+        reportPhase("interpret_started")
         notice("Ответ прочитан. Определяю следующий шаг по контексту.")
         val next = launch.conversation.respond(answer, ::notice)
         if (PhoneChatRuntime.launch !== launch) return
@@ -232,6 +244,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
         launch.prompt = RelayProtocol.wrap(next.text, launch.replyId)
         launch.endAfterSend = next.endSession
         composed = false
+        reportPhase("next_ready")
         notice(if (next.endSession) "Передаю итоговое сообщение и завершаю сессию." else "Ответ Джессики подготовлен для выбранного чата.")
     }
 
@@ -239,6 +252,27 @@ class ChatGptAccessibilityService : AccessibilityService() {
         loop?.cancel()
         finish(message)
     }
+    /**
+     * Phase-only diagnostics. Never upload a ChatGPT message, selected chat
+     * title, source code, test text, user identity or device identifier.
+     * Errors must not interrupt the phone relay or trigger a retry of a send.
+     */
+    private fun reportPhase(phase: String) {
+        if (lastReportedPhase == phase) return
+        val launch = PhoneChatRuntime.launch ?: return
+        val state = run ?: return
+        lastReportedPhase = phase
+        val seconds = ((SystemClock.elapsedRealtime() - state.startedAt) / 1000L)
+            .coerceIn(0L, 30_000L).toInt()
+        scope.launch {
+            try {
+                PhoneChatTelemetry.send(launch.sessionId, phase, state.sends, seconds)
+            } catch (_: Exception) {
+                // Logging is strictly best-effort.
+            }
+        }
+    }
+
     private fun notice(text: String) {
         if (lastNotice != text) {
             lastNotice = text
@@ -250,6 +284,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
         sendPicker.close()
         calibrating = false
         calibratedSend = null
+        reportPhase("stopped")
         run?.stop()
         PhoneChatRuntime.update(this, text, false)
         PhoneChatRuntime.clear()
@@ -306,6 +341,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
                     } else if (window.composer != null) {
                         if (launch.conversation.plan.isBlank()) launch.conversation.plan = window.content.takeLast(12000)
                         confirmed = true
+                        reportPhase("chat_selected")
                         visibility = android.view.View.GONE
                         notice("Чат выбран. Джессика начинает переписку.")
                     } else notice("Не удаётся определить поле сообщения (обнаружено: ${window.editorCandidates}). " +
