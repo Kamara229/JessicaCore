@@ -16,7 +16,6 @@ import android.widget.TextView
 import com.jessica.core.modules.codex.PhoneCodexHandoff
 import com.jessica.core.modules.codex.relay.RelayProtocol
 import com.jessica.core.modules.codex.relay.ChatReplyCollector
-import com.jessica.core.modules.codex.relay.ChatReplyExtraction
 import kotlinx.coroutines.*
 import java.util.UUID
 
@@ -172,14 +171,9 @@ class ChatGptAccessibilityService : AccessibilityService() {
                     // After a long answer ChatGPT may virtualize its START
                     // marker out of view, keeping only its END or last words.
                     // Never treat the owner's quoted marker instruction as proof.
-                    val endVisible = ChatReplyExtraction.hasStandaloneEnd(
-                        window.content, launch.previousReplyId
-                    )
-                    val replyTailVisible = verifiedReplyId == launch.previousReplyId &&
-                        verifiedReplyAnchor.length >= 65 &&
-                        window.content.replace(Regex("\\s+"), " ")
-                            .contains(verifiedReplyAnchor)
-                    if (!endVisible && !replyTailVisible) {
+                    if (!ChatConversationContinuity.permits(
+                            window.content, launch.previousReplyId, verifiedReplyId, verifiedReplyAnchor
+                        )) {
                         finish("Не вижу подтверждённый предыдущий ответ в выбранном чате. " +
                             "Кодекс остановлен: продолжение в другой переписке запрещено.")
                         return
