@@ -1,9 +1,9 @@
 package com.jessica.core.modules.codex.chat
 
-/** A local-only read/write smoke test of the ordinary ChatGPT Android UI. */
+/** A local-only read/write smoke test of the user-selected ChatGPT conversation. */
 object ChatConnectivityProbe {
     fun prompt(id: String): String = listOf(
-        "Одноразовая проверка связи с обычным ChatGPT. Не выполняй никаких других действий.",
+        "Одноразовая проверка связи с выбранным чатом ChatGPT. Не выполняй никаких других действий.",
         "Верни ровно три строки, без форматирования и пояснений:",
         "Первая строка должна содержать только маркер JESSICA_REPLY_$id;",
         """вторая — только JSON {"nonce":"$id","ok":true};""",

@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jessica.core.ui.language.uiText
 
-/** Ordinary chat is explicit on-device automation; legacy modes remain available. */
+/** Selected chat is explicit on-device automation; legacy modes remain available. */
 @Composable
 fun CodexScreen() {
     var mode by remember { mutableStateOf("ordinary") }
@@ -30,7 +30,7 @@ fun CodexScreen() {
         ) {
             FilterChip(
                 selected=mode=="ordinary", onClick={mode="ordinary"},
-                label={Text(uiText("Обычный чат","Ordinary chat"))}
+                label={Text(uiText("Выбранный чат","Selected chat"))}
             )
             FilterChip(
                 selected=mode=="day", onClick={mode="day"},
