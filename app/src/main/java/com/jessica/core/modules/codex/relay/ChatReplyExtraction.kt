@@ -8,7 +8,38 @@ package com.jessica.core.modules.codex.relay
 object ChatReplyExtraction {
     private val uuid = Regex("[a-f0-9-]{36}")
     private fun markerPiece(line: String): String =
-        line.trim().trim('`', '*', ' ').replace("\u00a0", "").trim()
+        line.replace("\u00a0", " ").replace("\u200b", "").replace("\u2060", "")
+            .trim().trim('>', '-', '*', '\u0060', ' ', ':', ';').trim()
+
+    /**
+     * ChatGPT accessibility may flatten visible line breaks into a single node.
+     * A marker embedded inside the owner's instructions is NEVER a delimiter.
+     */
+    private fun accessibilityLines(screen: String, id: String): List<String> {
+        val reply = "JESSICA_REPLY_$id"
+        val end = "JESSICA_END_$id"
+        val original = screen.replace("\r\n", "\n").lines()
+        val output = mutableListOf<String>()
+        for (line in original) {
+            val cleaned = line.trim().trimStart('>', '-', '*', '\u0060', ' ', '\t').trim()
+            if (cleaned.startsWith(reply) &&
+                (cleaned.length == reply.length ||
+                    cleaned[reply.length] in listOf(' ', ':', ';', '*', '\u0060'))) {
+                output.add(reply)
+                val rest = cleaned.substring(reply.length).trimStart(' ', ':', ';', '*', '\u0060')
+                val position = rest.lastIndexOf(end)
+                if (position > 0 && rest.substring(position + end.length)
+                    .trim(' ', '*', '\u0060', ';', ':').isEmpty()) {
+                    output.add(rest.substring(0, position).trimEnd())
+                    output.add(end)
+                } else if (rest.isNotBlank()) output.add(rest)
+            } else if (cleaned.startsWith(end) &&
+                cleaned.substring(end.length).trim(' ', '*', '\u0060', ';', ':').isEmpty()) {
+                output.add(end)
+            } else output.add(line)
+        }
+        return output
+    }
 
     private fun markerEnd(lines: List<String>, at: Int, label: String): Int? {
         val line = markerPiece(lines[at])
@@ -26,14 +57,14 @@ object ChatReplyExtraction {
     /** A quoted marker in the owner's request is not a standalone answer end. */
     fun hasStandaloneEnd(screen: String, id: String): Boolean {
         if (screen.length > 120_000 || !uuid.matches(id)) return false
-        val lines = screen.replace("\r\n", "\n").lines()
+        val lines = accessibilityLines(screen, id)
         return lines.indices.any { markerEnd(lines, it, "JESSICA_END_$id") != null }
     }
 
     /** In-progress response starting at its fresh marker; may lack END yet. */
     fun openingTail(screen: String, id: String): String? {
         if (screen.length > 120_000 || !uuid.matches(id)) return null
-        val lines = screen.replace("\r\n", "\n").lines()
+        val lines = accessibilityLines(screen, id)
         var start = -1
         for (i in lines.indices) {
             if (markerEnd(lines, i, "JESSICA_REPLY_$id") != null) start = i
@@ -44,7 +75,7 @@ object ChatReplyExtraction {
 
     fun read(screen: String, id: String): String? {
         if (screen.length > 120_000 || !uuid.matches(id)) return null
-        val lines = screen.replace("\r\n", "\n").lines()
+        val lines = accessibilityLines(screen, id)
         val firstLabel = "JESSICA_REPLY_$id"
         val endLabel = "JESSICA_END_$id"
         var latest: String? = null
