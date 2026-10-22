@@ -90,9 +90,27 @@ class ChatSendButtonTest {
                 assertNotNull("Owner selection must reach the overlay",picked.get())
                 assertEquals("Selecting the arrow must not send the message",0,ChatSendFixtureActivity.clicks.get())
             } finally { instrumentation.runOnMainSync { picker.close() } }
+            // Overlay removal and window relayout are asynchronous on Android.
+            // Resolve the current clickable target again, as the real Codex
+            // does on its next periodic accessibility snapshot.
+            SystemClock.sleep(450)
+            var freshPoint: Pair<Float, Float>? = null
+            val readyUntil = SystemClock.elapsedRealtime() + 5000
+            while (freshPoint == null && SystemClock.elapsedRealtime() < readyUntil) {
+                automation.rootInActiveWindow?.let { root ->
+                    val view = ChatWindowReader.inspect(root, context.resources.displayMetrics.density)
+                    try {
+                        if (view.composer?.text?.toString() == "Проверка вложенной стрелки") {
+                            freshPoint = view.send?.screenBox()?.let { it.centerX to it.centerY }
+                        }
+                    } finally { view.release() }
+                }
+                if (freshPoint == null) SystemClock.sleep(100)
+            }
+            val currentTarget = requireNotNull(freshPoint) { "Send button missing after selector overlay dismissal" }
             var accepted = false
             val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
-            instrumentation.runOnMainSync { accepted = dispatchSendTap(service,point) { cancelled.set(true) } }
+            instrumentation.runOnMainSync { accepted = dispatchSendTap(service,currentTarget) { cancelled.set(true) } }
             assertTrue("Android must grant the declared gesture capability",accepted)
             val tapDeadline = SystemClock.elapsedRealtime() + 3000
             while (ChatSendFixtureActivity.clicks.get() == 0 && SystemClock.elapsedRealtime() < tapDeadline) SystemClock.sleep(50)
