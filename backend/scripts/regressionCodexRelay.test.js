@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {interpretRelayTurn, validateRelayDecision} from "../core/codex/relayInterpreter.js";
+import {interpretRelayTurn, validateRelayDecision, explicitSameTestChat} from "../core/codex/relayInterpreter.js";
 import {registerCodexRoutes} from "../http/routes/codexRoute.js";
 import {recordCodexPhase,validateCodexPhase} from "../core/codex/relayTelemetry.js";
 
@@ -17,10 +17,27 @@ test("relay uses the plan and preceding results to understand natural chat", asy
 });
 test("only a verbatim test requested by ChatGPT is eligible for the ordinary chat", () => {
     const message = "В чате Jessica выполни: Сколько будет 2 + 2?";
-    assert.equal(validateRelayDecision({action:"test",task:"Сколько будет 2 + 2?",continueThread:true},message).continueThread,true);
+    assert.equal(validateRelayDecision({action:"test",task:"Сколько будет 2 + 2?",continueThread:true},message).continueThread,false);
     assert.throws(()=>validateRelayDecision({action:"test",task:"Обнови GitHub"},message),/exact-quote/);
     assert.throws(()=>validateRelayDecision({action:"reply",reply:"OK",task:"лишняя задача"},message));
     assert.throws(()=>validateRelayDecision({action:"deploy",reply:"OK"},message));
+});
+
+test("continuing a Jessica test requires explicit same-chat instruction, never model flag alone", async () => {
+    const task = "Какое число я назвал?";
+    const decision = {action:"test",task,continueThread:true};
+    assert.equal(validateRelayDecision(decision, "Выполни через Jessica: " + task).continueThread,false);
+    const same = "Продолжи в том же чате Джессики. Задача: " + task;
+    assert.equal(validateRelayDecision(decision,same).continueThread,true);
+    const another = "Используй тот же тестовый чат Джессики. " + task;
+    assert.equal(validateRelayDecision(decision,another).continueThread,true);
+    assert.equal(validateRelayDecision(decision,"Do the next test in the same Jessica test chat: " + task).continueThread,true);
+    assert.equal(validateRelayDecision({...decision,continueThread:false},same).continueThread,false);
+    assert.equal(validateRelayDecision({action:"reply",reply:"Продолжим",continueThread:true},same).continueThread,false);
+    assert.equal(explicitSameTestChat("Новый тест в новом чате. " + task),false);
+    const interpreted = await interpretRelayTurn({message:"Новый независимый тест: " + task},
+        async()=>decision);
+    assert.equal(interpreted.continueThread,false);
 });
 test("ambiguous understanding fails instead of inventing continuation", async () => {
     await assert.rejects(interpretRelayTurn({message:"Готово"},async()=>"not json"));

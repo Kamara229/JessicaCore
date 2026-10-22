@@ -16,6 +16,19 @@ continueThread=true только для явного продолжения пр
 Верни JSON: {"action":"test|reply|finish|pause","reply":"ответ Джессики для ChatGPT по-русски","task":"дословная тестовая задача или пусто","continueThread":false}.
 Никаких других действий, имитации инструментов или заявления о выполнении тестов.`;
 
+/**
+ * A prior Jessica test chat may be reused only after the OTHER participant
+ * explicitly requested that exact context. The interpreter's model judgment
+ * alone is insufficient to cross the test-chat isolation boundary.
+ */
+export function explicitSameTestChat(message) {
+    const text = String(message || "").replace(/\\s+/g, " ").trim().toLowerCase();
+    if (/^(?:не|no|not|never)\\s+(?:используй|продолжай|reuse|use)\\s+/.test(text)) return false;
+    return /(?:в том же|в этом же|в прежнем|в предыдущем) (?:самом )?(?:тестовом )?чате(?: джессики| jessica)?/.test(text) ||
+        /(?:используй|продолжи|продолжай) (?:именно )?(?:тот же|предыдущий) (?:тестовый )?чат(?: джессики| jessica)?/.test(text) ||
+        /(?:use|continue in|reuse) (?:the )?(?:same|previous) (?:jessica )?(?:test )?chat/.test(text);
+}
+
 export function validateRelayDecision(raw, message) {
     let value;
     try { value = typeof raw === "string" ? JSON.parse(raw) : raw; } catch { throw Error("invalid-decision"); }
@@ -26,7 +39,8 @@ export function validateRelayDecision(raw, message) {
     if (value.action === "test" && (!task || task.length > 20000 || !message.includes(task)))
         throw Error("test-must-be-an-exact-quote");
     if (value.action !== "test" && task) throw Error("unexpected-test");
-    return {action:value.action, reply, task, continueThread:value.continueThread === true};
+    return {action:value.action, reply, task, continueThread:
+        value.action === "test" && value.continueThread === true && explicitSameTestChat(message)};
 }
 
 /** Context understanding only. No tool execution, repository access, or Learning writes here. */
