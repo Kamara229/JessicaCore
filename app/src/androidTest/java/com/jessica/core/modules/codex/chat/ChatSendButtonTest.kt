@@ -125,4 +125,61 @@ class ChatSendButtonTest {
         }
     }
 
+    @Test fun preparingLongCodexDraftKeepsItsExactEditorAndSendsAtMostOnce() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val automation = instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
+        instrumentation.runOnMainSync {
+            context.startActivity(Intent(context, ChatSendFixtureActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+        instrumentation.waitForIdleSync()
+        val prompt = "Джессика готова к работе в чате. " +
+            "Продолжаем план улучшения backend Jessica Core. ".repeat(65) +
+            "JESSICA_REPLY_12345678-abcd-4abc-8abc-123456789012"
+        try {
+            var setText = false
+            val ready = SystemClock.elapsedRealtime() + 10000
+            while (!setText && SystemClock.elapsedRealtime() < ready) {
+                automation.rootInActiveWindow?.let { root ->
+                    val window = ChatWindowReader.inspect(root, context.resources.displayMetrics.density)
+                    try {
+                        window.composer?.let { editor ->
+                            val args = android.os.Bundle().apply {
+                                putCharSequence(
+                                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, prompt)
+                            }
+                            setText = editor.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                        }
+                    } finally { window.release() }
+                }
+                if (!setText) SystemClock.sleep(100)
+            }
+            assertTrue("Long draft must be composed once", setText)
+            var clicked = false
+            val deadline = SystemClock.elapsedRealtime() + 10000
+            while (!clicked && SystemClock.elapsedRealtime() < deadline) {
+                automation.rootInActiveWindow?.let { root ->
+                    val window = ChatWindowReader.inspect(root,
+                        context.resources.displayMetrics.density, prompt)
+                    try {
+                        if (window.composer?.text?.toString() == prompt) {
+                            val send = window.send
+                            if (send != null) clicked = send.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        }
+                    } finally { window.release() }
+                }
+                if (!clicked) SystemClock.sleep(100)
+            }
+            assertTrue("Long exact draft must retain a clickable send control", clicked)
+            val accepted = SystemClock.elapsedRealtime() + 3000
+            while (ChatSendFixtureActivity.clicks.get() == 0 && SystemClock.elapsedRealtime() < accepted)
+                SystemClock.sleep(50)
+            assertEquals("Never send the prepared draft twice", 1, ChatSendFixtureActivity.clicks.get())
+            assertEquals(prompt, ChatSendFixtureActivity.sentText)
+        } finally {
+            automation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+        }
+    }
+
 }
