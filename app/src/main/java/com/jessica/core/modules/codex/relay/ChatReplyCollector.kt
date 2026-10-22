@@ -17,6 +17,8 @@ class ChatReplyCollector {
     fun observe(screen: String, id: String): String? {
         if (id != pendingId) { pendingId = id; observed = "" }
         ChatReplyExtraction.read(screen, id)?.let { complete ->
+            observed = (ChatReplyExtraction.openingTail(screen,id)
+                ?: "JESSICA_REPLY_$id\n$complete\nJESSICA_END_$id").take(55_000)
             return complete
         }
         val tail = ChatReplyExtraction.openingTail(screen,id)
@@ -37,7 +39,8 @@ class ChatReplyCollector {
         // Long, exact overlap must be present. Otherwise do not concatenate
         // unrelated screen content or guess text lost during a scroll.
         val max = minOf(5000, observed.length, snapshot.length)
-        for (overlap in max downTo 60) {
+        for (overlap in listOf(max, 2000, 1000, 500, 240, 100, 60)
+            .distinct().filter { it >= 60 && it <= max }.sortedDescending()) {
             val part = observed.substring(observed.length - overlap)
             val start = snapshot.indexOf(part)
             if (start >= 0) {
