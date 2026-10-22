@@ -2,7 +2,7 @@
 
 This is an experimental, explicitly started UI assistant for the official
 `com.openai.chatgpt` app. It does not use paid model APIs, browser cookies,
-ChatGPT private HTTP endpoints, credentials from ChatGPT, or Work mode.
+ChatGPT private HTTP endpoints, credentials from ChatGPT, or a paid model API. Both Chat and Work conversations can be selected by the owner.
 ChatGPT subscription limits still apply. Live UI compatibility must be
 tested on the owner's device; a successful Android build does not establish it.
 
@@ -16,27 +16,32 @@ be enabled. No OpenAI/Groq API key is needed by this path. The shared app
 token embedded in an APK is never accepted as owner authorization.
 
 After installing the updated signed APK, open Codex → **Обычный чат**.
-Enable **Jessica — обычный ChatGPT** in Android accessibility settings.
-First use **Проверить связь с обычным чатом — без ключей** to test one
+Enable **Jessica — выбранный чат ChatGPT** in Android accessibility settings.
+First use **Проверить связь с выбранным чатом — без ключей** to test one
 nonce-delimited request/response locally, without Render/GitHub credentials
 or any code changes. This is a diagnostic, not an improvement run.
 Read the data-access disclosure, enter the independent owner key, choose
 a goal, and start. An optional private `/c/<uuid>` URL opens the selected
-conversation; otherwise choose a dedicated ordinary chat after ChatGPT opens.
+conversation; otherwise choose a dedicated chat after ChatGPT opens.
 The owner key is held only in process memory and is not included in prompts.
 
-Leave the phone unlocked, powered and displaying ChatGPT. Select **Чат**,
-then press the overlay **Чат выбран — начать**. This is an explicit user
-attestation of the visible mode when the app version does not expose a
-selected-mode label to accessibility. An observed Work/Codex mode blocks
-the sender. Leaving ChatGPT resets the attestation. Arbitrary coordinates
-and fuzzy button matching are not used. If the editor or Send control is
-ambiguous, the assistant waits and reports the problem; it does not guess.
+Leave the phone unlocked, powered and displaying ChatGPT. Open the desired
+conversation and press **Вести переписку здесь** on Jessica's overlay.
+The owner selects the conversation; Chat/Work mode is not used as a gate.
+Leaving ChatGPT resets confirmation. Do not switch conversations during a run:
+the UI does not expose a reliable conversation ID, and follow-up sends require
+the previous session marker to remain visible. Jessica does not browse the chat list.
+Arbitrary coordinates and fuzzy button matching are not used. If the editor or
+Send control is ambiguous, the assistant waits and reports the problem.
+Composer descendants are excluded from reply text. If the current request or
+its nonce-delimited answer is already visible in the conversation, Jessica waits
+for the answer instead of reinserting or sending the request again. An unexplained
+editor change after composing stops the run without an automatic retry.
 
 ## A bounded run
 
 1. Load two public source files at an exact main commit.
-2. Send one engineering request in the selected ordinary chat. At most two
+2. Send one engineering request in the selected chat. At most two
    format-repair follow-ups are allowed. Existing drafts are never overwritten.
 3. Read only the nonce-delimited answer for this launch after it is stable.
    The complete UI transcript is not saved or sent to the server.
@@ -70,7 +75,7 @@ This change improves source through verified commits; it does not train model we
 
 `gradle testDebugUnitTest assembleDebug`
 
-Before relying on unattended operation, the device test must verify ordinary
-mode selection, one send (no duplication), full answer capture, Stop, screen
+Before relying on unattended operation, the device test must verify explicit
+conversation selection, one send (no duplication), full answer capture, Stop, screen
 lock, and a failed-test candidate remaining unmerged. Unknown UI layouts are
 unsupported until an adapter is validated on the actual screen.

@@ -6,15 +6,23 @@ import org.junit.Test
 
 class ChatAutomationTest {
     private val id = "12345678-abcd-4abc-8abc-123456789012"
-    @Test fun selectedWorkAlwaysBlocksEvenWhenChatLabelAlsoAppears() {
-        assertEquals(OrdinaryChatMode.WORK, ChatUiPolicy.mode(listOf(ChatControl("Чат", true, true), ChatControl("Работа", true, true))))
-        assertEquals(OrdinaryChatMode.UNKNOWN, ChatUiPolicy.mode(listOf(ChatControl("Чат", false, false))))
-        assertEquals(OrdinaryChatMode.CHAT, ChatUiPolicy.mode(listOf(ChatControl("Чат", true, true))))
-        assertFalse(ChatUiPolicy.canSend("com.openai.chatgpt", OrdinaryChatMode.UNKNOWN, false, "", "prompt", false))
-        assertFalse(ChatUiPolicy.canSend("com.other.app", OrdinaryChatMode.CHAT, false, "", "prompt", false))
-        assertFalse(ChatUiPolicy.canSend("com.openai.chatgpt", OrdinaryChatMode.CHAT, true, "", "prompt", false))
-        assertFalse(ChatUiPolicy.canSend("com.openai.chatgpt", OrdinaryChatMode.CHAT, false, "private draft", "prompt", false))
-        assertTrue(ChatUiPolicy.canSend("com.openai.chatgpt", OrdinaryChatMode.CHAT, false, "prompt", "prompt", false))
+    @Test fun onlyExplicitSelectionAuthorizesSendingRegardlessOfChatMode() {
+        assertFalse(ChatUiPolicy.canSend("com.openai.chatgpt", false, false, "", "prompt", false))
+        assertFalse(ChatUiPolicy.canSend("com.other.app", true, false, "", "prompt", false))
+        assertFalse(ChatUiPolicy.canSend("com.openai.chatgpt", true, true, "", "prompt", false))
+        assertFalse(ChatUiPolicy.canSend("com.openai.chatgpt", true, false, "private draft", "prompt", false))
+        assertFalse(ChatUiPolicy.canSend("com.openai.chatgpt", true, false, "prompt", "prompt", true))
+        assertTrue(ChatUiPolicy.canSend("com.openai.chatgpt", true, false, "prompt", "prompt", false))
+        assertTrue(ChatUiPolicy.canSend("com.openai.chatgpt", true, false, "", "prompt", false))
+    }
+    @Test fun visibleCurrentRequestOrReplyPreventsReinsertionAfterManualSend() {
+        val prompt = ChatConnectivityProbe.prompt(id)
+        assertTrue(ChatUiPolicy.alreadyPosted("Работа\n" + prompt.replace("\n", "  "), prompt, id))
+        val reply = "JESSICA_REPLY_$id\n{\"nonce\":\"$id\",\"ok\":true}\nJESSICA_END_$id"
+        assertTrue(ChatUiPolicy.alreadyPosted(reply, prompt, id))
+        val other = "23456789-abcd-4abc-8abc-123456789012"
+        assertFalse(ChatUiPolicy.alreadyPosted(reply.replace(id, other), prompt, id))
+        assertFalse(ChatUiPolicy.alreadyPosted("Работа\nпредыдущий разговор", prompt, id))
     }
     @Test fun aPromptOrOldResponseCannotBeAcceptedAsCurrentReply() {
         assertNull(ChatUiPolicy.reply("Первая строка: JESSICA_REPLY_$id\n{\"status\":\"change\"}\nПоследняя строка: JESSICA_END_$id", id))

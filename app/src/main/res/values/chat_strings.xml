@@ -1,4 +1,4 @@
 <resources>
-    <string name="jessica_chat_accessibility_label">Jessica — обычный ChatGPT</string>
+    <string name="jessica_chat_accessibility_label">Jessica — выбранный чат ChatGPT</string>
     <string name="jessica_chat_accessibility_description">После вашего запуска читает выбранный чат в официальном приложении ChatGPT, вводит задания и получает ответы для проверки исправлений Jessica Core. Не читает другие приложения. Диалог можно остановить кнопкой поверх ChatGPT. Ответы сохраняются локально; только подготовленный код отправляется в ваш репозиторий. Доступ включается вами вручную и может быть отключён в любое время.</string>
 </resources>

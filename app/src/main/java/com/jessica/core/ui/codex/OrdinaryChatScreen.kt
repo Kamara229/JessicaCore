@@ -44,9 +44,9 @@ fun OrdinaryChatScreen() {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Сборка Jessica: v${com.jessica.core.BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelSmall)
-        Text("Обычный ChatGPT · экспериментальный режим", style = MaterialTheme.typography.titleLarge)
+        Text("Выбранный чат ChatGPT · экспериментальный режим", style = MaterialTheme.typography.titleLarge)
         Text("Оставь телефон разблокированным и подключённым к питанию. Джессика отправит задание в выбранный чат, получит ответ и передаст исправление на тесты. До трёх сообщений и одного исправления за запуск.")
-        Text("Сначала выбери в ChatGPT именно «Чат», затем нажми на плавающей панели «Чат выбран — начать». Режим «Работа» включать не нужно. Совместимость интерфейса проверяется на твоём телефоне.", style = MaterialTheme.typography.bodySmall)
+        Text("Открой нужную переписку в ChatGPT и нажми на панели Джессики «Вести переписку здесь». Подходит и «Чат», и «Работа». Не переключай переписку во время сессии. После выхода из ChatGPT потребуется снова подтвердить выбранный чат.", style = MaterialTheme.typography.bodySmall)
         if (!ready) OutlinedButton(onClick = {
             context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }, modifier = Modifier.fillMaxWidth()) { Text("Открыть настройки службы Jessica") }
@@ -63,7 +63,7 @@ fun OrdinaryChatScreen() {
             }
             OutlinedTextField(value = chatUrl, onValueChange = { chatUrl = it }, enabled = !busy,
                 label = { Text("Ссылка на личный чат — необязательно") }, modifier = Modifier.fillMaxWidth(),
-                supportingText = { Text("https://chatgpt.com/c/… . Без ссылки выбери нужный обычный чат после открытия ChatGPT.") })
+                supportingText = { Text("https://chatgpt.com/c/… . Без ссылки выбери нужный чат после открытия ChatGPT.") })
             OutlinedTextField(value = ownerKey, onValueChange = { ownerKey = it }, enabled = !busy,
                 visualTransformation = PasswordVisualTransformation(), singleLine = true,
                 label = { Text("Ключ владельца Джессики") }, modifier = Modifier.fillMaxWidth(),
@@ -74,7 +74,7 @@ fun OrdinaryChatScreen() {
             }
             Row {
                 Checkbox(checked = consent, onCheckedChange = { consent = it }, enabled = !busy)
-                Text("Разрешаю Джессике отправлять сообщения в выбранном обычном чате и читать ответы. При запуске исправлений дополнительно разрешаю передачу подготовленного кода на проверку в мой GitHub. Проверка связи ничего не меняет в репозитории.", modifier = Modifier.padding(top = 10.dp))
+                Text("Разрешаю Джессике отправлять сообщения в выбранном чате и читать ответы. При запуске исправлений дополнительно разрешаю передачу подготовленного кода на проверку в мой GitHub. Проверка связи ничего не меняет в репозитории.", modifier = Modifier.padding(top = 10.dp))
             }
             OutlinedButton(
                 enabled = consent && !busy, modifier = Modifier.fillMaxWidth(),
@@ -99,7 +99,7 @@ fun OrdinaryChatScreen() {
                         }
                     }
                 }
-            ) { Text("🔎 Проверить связь с обычным чатом — без ключей") }
+            ) { Text("🔎 Проверить связь с выбранным чатом — без ключей") }
             if (!consent) Text("Для проверки поставь галочку разрешения на отправку тестового сообщения.", style = MaterialTheme.typography.bodySmall)
             Text("Одно тестовое сообщение. Не использует GitHub, не применяет исправлений и не требует платного API.", style = MaterialTheme.typography.bodySmall)
             Button(enabled = ready && consent && ownerKey.length >= 16 && !busy, modifier = Modifier.fillMaxWidth(), onClick = {
@@ -121,7 +121,7 @@ fun OrdinaryChatScreen() {
                         }
                     } finally { busy = false }
                 }
-            }) { Text(if (busy) "Подготавливаю исходники…" else "▶ Запустить через обычный чат") }
+            }) { Text(if (busy) "Подготавливаю исходники…" else "▶ Выбрать чат и начать") }
         } else {
             Button(onClick = { PhoneChatRuntime.stop() }, modifier = Modifier.fillMaxWidth()) { Text("■ Остановить") }
         }

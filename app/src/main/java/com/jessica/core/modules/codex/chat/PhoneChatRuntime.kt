@@ -46,7 +46,7 @@ object PhoneChatRuntime {
         requireConnected(context)
         check(launch == null) { "Сессия уже запущена" }
         launch = PhoneChatLaunch(prepared.getString("id"), ownerKey, prepared.getString("prompt"), url)
-        update(context, "Открываю обычный чат. Выбери режим «Чат», если он ещё не выбран.", true, "")
+        update(context, "Открываю ChatGPT. Выбери нужную переписку и нажми «Вести переписку здесь».", true, "")
         controller?.begin()
     }
     /** One opted-in on-device send/receive check; NO owner key, GitHub or backend request. */
@@ -55,7 +55,7 @@ object PhoneChatRuntime {
         check(launch == null) { "Сессия уже запущена" }
         val id = java.util.UUID.randomUUID().toString()
         launch = PhoneChatLaunch(id, "", ChatConnectivityProbe.prompt(id), url, connectivityOnly = true)
-        update(context, "Пробная сессия без ключей: выбери обычный чат и подтверди его на панели.", true, "")
+        update(context, "Проверка без ключей: выбери нужный чат и нажми «Вести переписку здесь».", true, "")
         controller?.begin()
     }
     fun update(context: Context, text: String, active: Boolean = true, url: String = status.value.url) {

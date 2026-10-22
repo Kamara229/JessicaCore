@@ -66,6 +66,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
         loop?.cancel()
         confirmed = false
         composed = false
+        lastNotice = ""
         lastHeartbeat = SystemClock.elapsedRealtime()
         val launch = PhoneChatRuntime.launch ?: return
         run = ChatRunState(SystemClock.elapsedRealtime(), maxTurns = if (launch.connectivityOnly) 1 else 3)
@@ -105,18 +106,12 @@ class ChatGptAccessibilityService : AccessibilityService() {
         val window = ChatWindowReader.read(this)
         if (window == null) {
             confirmed = false
-            notice("Открой выбранный обычный чат. Для продолжения нажми «Чат выбран».")
+            notice("Открой выбранный чат. Для продолжения нажми «Вести переписку здесь».")
             confirmButton?.visibility = android.view.View.VISIBLE
             return
         }
         try {
-            if (window.mode == OrdinaryChatMode.WORK) {
-                confirmed = false
-                confirmButton?.visibility = android.view.View.VISIBLE
-                notice("Выбран режим «Работа»/Codex. Переключи на обычный «Чат».")
-                return
-            }
-            if (!confirmed) { notice("Выбери обычный чат и нажми «Чат выбран» на панели Джессики."); return }
+            if (!confirmed) { notice("Открой нужный чат и нажми «Вести переписку здесь» на панели Джессики."); return }
             if (state.waiting) {
                 val response = ChatUiPolicy.reply(window.content.takeLast(60000), launch.replyId)
                 state.acceptReply(response, window.generating, SystemClock.elapsedRealtime())?.let { handleReply(launch, it) }
@@ -124,15 +119,21 @@ class ChatGptAccessibilityService : AccessibilityService() {
             }
             val composer = window.composer ?: run { notice("Не найдено однозначное поле сообщения. Ничего не отправлено."); return }
             val text = composer.text?.toString().orEmpty()
+            if (ChatUiPolicy.alreadyPosted(window.content, launch.prompt, launch.replyId)) {
+                if (!state.beginSend(SystemClock.elapsedRealtime())) { finish("Достигнут лимит сообщений этой сессии."); return }
+                notice("Запрос уже виден в выбранном чате. Жду ответ без повторной отправки.")
+                return
+            }
+            if (composed && text != launch.prompt) {
+                finish("Поле ввода изменилось после подготовки запроса. Проверь чат: повторного ввода и отправки не будет."); return
+            }
             if (text.isNotBlank() && text != launch.prompt) {
                 stopByUser("В поле есть другой текст. Джессика не будет его заменять."); return
             }
             if (state.sends > 0 && !window.content.contains("JESSICA_REPLY_${launch.previousReplyId}")) {
                 stopByUser("Не видна текущая переписка Джессики. Сессия остановлена."); return
             }
-            // UNKNOWN is accepted only after the user explicitly confirms the visible ordinary-chat screen.
-            val mode = if (confirmed && window.mode == OrdinaryChatMode.UNKNOWN) OrdinaryChatMode.CHAT else window.mode
-            if (!ChatUiPolicy.canSend("com.openai.chatgpt", mode, false, text, launch.prompt, window.generating)) return
+            if (!ChatUiPolicy.canSend("com.openai.chatgpt", confirmed, false, text, launch.prompt, window.generating)) return
             if (!composed || text != launch.prompt) {
                 val args = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, launch.prompt) }
                 if (!composer.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) {
@@ -158,7 +159,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
         if (launch.connectivityOnly) {
             val ok = ChatConnectivityProbe.accepts(text, launch.id)
             finish(if (ok)
-                "✅ Связь подтверждена: Джессика отправила тестовое сообщение и получила ответ из обычного ChatGPT. Ключи и GitHub не использовались."
+                "✅ Связь подтверждена: Джессика прочитала ответ на тестовое сообщение в выбранном чате ChatGPT. Ключи и GitHub не использовались."
                 else "Ответ получен, но контрольная метка не совпала. Код не менялся.")
             return
         }
@@ -236,15 +237,15 @@ class ChatGptAccessibilityService : AccessibilityService() {
         if (overlay != null) return
         val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         confirmButton = Button(this).apply {
-            text = "Чат выбран — начать"
+            text = "Вести переписку здесь"
             setOnClickListener {
                 val window = ChatWindowReader.read(this@ChatGptAccessibilityService)
                 if (window != null) {
                     try {
-                        if (window.mode != OrdinaryChatMode.WORK && window.composer != null) {
+                        if (window.composer != null) {
                             confirmed = true; visibility = android.view.View.GONE
-                            notice("Обычный чат подтверждён пользователем. Запускаю сессию.")
-                        } else notice("Сначала открой поле сообщения в обычном чате.")
+                            notice("Чат выбран пользователем. Запускаю переписку здесь.")
+                        } else notice("Сначала открой нужный чат с полем сообщения.")
                     } finally { window.release() }
                 }
             }
