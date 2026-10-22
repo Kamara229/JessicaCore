@@ -15,6 +15,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.jessica.core.modules.codex.PhoneCodexHandoff
 import com.jessica.core.modules.codex.relay.RelayProtocol
+import com.jessica.core.modules.codex.relay.ChatReplyCollector
 import kotlinx.coroutines.*
 import java.util.UUID
 
@@ -33,6 +34,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
     private var calibrating = false
     private val sendPicker by lazy { SendTargetPicker(this) }
     private var lastNotice = ""
+    private val replyCollector = ChatReplyCollector()
     private var invisibleSince = 0L
     private var lastReplyWaitNotice = 0L
 
@@ -72,6 +74,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
         calibrating = false
         sendPicker.close()
         lastNotice = ""
+        replyCollector.reset()
         invisibleSince = 0L
         lastReplyWaitNotice = 0L
         val launch = PhoneChatRuntime.launch ?: return
@@ -121,7 +124,7 @@ class ChatGptAccessibilityService : AccessibilityService() {
             if (!confirmed) { notice("Открой подготовленный чат и нажми «Чат выбран»."); return }
             if (state.waiting) {
                 val now = SystemClock.elapsedRealtime()
-                val complete = RelayProtocol.reply(window.content, launch.replyId)
+                val complete = replyCollector.observe(window.content, launch.replyId)
                 response = state.acceptReply(complete, window.generating, now)
                 if (response == null) {
                     // Android ACTION_CLICK returning true does not mean ChatGPT
