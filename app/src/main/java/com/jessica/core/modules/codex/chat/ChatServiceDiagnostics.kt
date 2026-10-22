@@ -22,8 +22,8 @@ data class ChatServiceSnapshot(
 fun classifyChatService(registered: Boolean, enabled: Boolean, connected: Boolean): ChatServiceState =
     when {
         connected -> ChatServiceState.CONNECTED
-        !registered -> ChatServiceState.NOT_REGISTERED
         enabled -> ChatServiceState.ENABLED_NOT_CONNECTED
+        !registered -> ChatServiceState.NOT_REGISTERED
         else -> ChatServiceState.DISABLED
 }
 
