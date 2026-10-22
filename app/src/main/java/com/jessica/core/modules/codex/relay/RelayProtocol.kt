@@ -3,18 +3,18 @@ package com.jessica.core.modules.codex.relay
 /** Natural-language conversation; unique envelopes distinguish complete new replies from old text. */
 object RelayProtocol {
     const val GREETING = "Джессика готова к работе в чате."
-    val introduction = "$GREETING\nПродолжаем уже составленный тобой план улучшения backend Jessica Core. " +
-        "Ты работаешь со своими подключениями GitHub, Render и Supabase. Я не редактирую репозиторий и не управляю развёртыванием. " +
-        "Я читаю твои сообщения, выполняю предложенные текстовые тесты через свой обычный чат и возвращаю точный ответ. " +
-        "Давай тесты по одному с полной формулировкой; для продолжения предыдущего теста явно укажи тот же чат. " +
-        "Не проси устанавливать APK, менять настройки телефона, вводить секреты или подтверждать действия владельца. " +
-        "Ответ для меня делай коротким: итог текущего шага и один тест либо следующий шаг; полный код сюда не копируй. " +
-        "Если тест пока не нужен, продолжай план; когда план завершён, сообщи об этом."
+    // Keep the first Android message short: on some ChatGPT builds a long
+    // multiline composer changes its accessibility geometry before sending.
+    val introduction = "$GREETING\nПродолжаем план backend Jessica Core. " +
+        "GitHub, Render и Supabase меняешь ты; я не редактирую репозиторий. " +
+        "Я выполняю тесты через свой обычный чат и возвращаю дословные результаты. " +
+        "Давай один тест либо следующий шаг, без APK, настроек и секретов. " +
+        "Когда план завершён — сообщи."
 
     fun wrap(text: String, id: String): String = text +
-        "\n\nДля надёжного чтения завершённого ответа: начни ответ отдельной строкой JESSICA_REPLY_$id; " +
-        "между маркерами пиши обычным текстом, не JSON; закончи отдельной строкой JESSICA_END_$id. " +
-        "Метки относятся только к ответу на это сообщение."
+        "\n\nНачни ответ отдельной строкой JESSICA_REPLY_$id. " +
+        "Между метками пиши обычный текст. " +
+        "Закончи отдельной строкой JESSICA_END_$id."
 
     fun reply(screen: String, id: String): String? =
         ChatReplyExtraction.read(screen, id)
