@@ -359,3 +359,17 @@ test("already Russian narrative remains untouched by strict fallback",()=>{
     const answer={mode:"single",success:true,text:"Здесь приведён исправленный вариант функции с обработкой ошибок."};
     assert.equal(enforcePresentationLanguage(answer,{language:"ru"}),answer);
 });
+
+test("programming-language conversion does not switch UI narration",()=>{
+    for(const task of ["Переведи этот код на Kotlin","Переведи функцию на JavaScript",
+        "Translate this source code into Python","Переведи это","Напиши функцию на Python"]) {
+        assert.equal(requestedTranslation(task),false,task);
+    }
+});
+test("explicit human-language translation overrides UI locale",()=>{
+    for(const task of ["Переведи свой ответ на японский язык",
+        "Переведи текст на английский язык","Translate this response into French",
+        "Ответь на английском языке","Переведи письмо на хинди"]) {
+        assert.equal(requestedTranslation(task),true,task);
+    }
+});

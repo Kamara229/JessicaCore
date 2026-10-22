@@ -55,13 +55,21 @@ function numbersUnchanged(original, revised) {
     return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
+/**
+ * Override the UI locale only for an explicitly requested HUMAN language.
+ * Translating programming code to Kotlin, Python, or another language is not
+ * a request to switch the language of Jessica's explanation.
+ */
 export function requestedTranslation(task) {
-    const value=String(task || "");
-    const direct=/\btranslat(?:e|ion|ing)\b|перев(?:еди|ести|од)|übersetz|tradu(?:is|ir|ce|ire)|翻译|翻譯|翻訳|ترجم|ترجمة|traduzir/iu;
-    // A request for a different NATURAL language overrides the UI preference,
-    // but 'напиши функцию на Python' is a programming task, not English output.
-    const explicitAnswer=/(?:ответь|напиши ответ|дай ответ|пиши|respond|answer|reply|write the answer)\s+(?:мне\s+)?(?:на|in)\s+(?:английск|японск|китайск|немецк|французск|испанск|арабск|корейск|итальянск|португальск|english|japanese|chinese|german|french|spanish|arabic|korean|italian|portuguese)/iu;
-    return direct.test(value) || explicitAnswer.test(value);
+    const value=String(task||"").trim();
+    if(!value) return false;
+    const replyTarget=/(?:ответь|напиши ответ|дай ответ|пиши|respond|answer|reply|write the answer)\s+(?:мне\s+)?(?:на|in)\s+(?:английск|русск|японск|китайск|немецк|французск|испанск|арабск|корейск|итальянск|португальск|турецк|украинск|польск|хинди|нидерландск|english|russian|japanese|chinese|german|french|spanish|arabic|korean|italian|portuguese|turkish|ukrainian|polish|hindi|dutch)/iu;
+    if(replyTarget.test(value)) return true;
+    const requestTranslation=/(?:\btranslat(?:e|ion|ing)\b|перев(?:еди|ести|од)|übersetz|tradu(?:is|ir|ce|ire)|翻译|翻譯|翻訳|ترجم|ترجمة|traduzir)/iu;
+    if(!requestTranslation.test(value)) return false;
+    const naturalTarget=/(?:\b(?:to|into|in)\s+|на\s+(?:язык\s+)?)(?:английск|русск|японск|китайск|немецк|французск|испанск|арабск|корейск|итальянск|португальск|турецк|украинск|польск|хинди|нидерландск|english|russian|japanese|chinese|german|french|spanish|arabic|korean|italian|portuguese|turkish|ukrainian|polish|hindi|dutch)/iu;
+    const otherHumanLanguage=/(?:на\s+[\p{L}-]{3,35}\s+язык|(?:into|to)\s+[\p{L}-]{3,35}\s+language)/iu;
+    return naturalTarget.test(value)||otherHumanLanguage.test(value);
 }
 
 function answerAlreadyInRussian(text) {
