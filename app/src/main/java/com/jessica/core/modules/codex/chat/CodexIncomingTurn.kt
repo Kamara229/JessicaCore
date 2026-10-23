@@ -32,20 +32,11 @@ internal fun CodexChatCoordinator.observeIncoming(
         return accepted
     }
 
-    // Stay on the latest portion of the same, owner-selected ChatGPT thread
-    // even after the owner manually scrolls elsewhere. No re-sends or taps.
-    if (completed == null || window.generating) {
-        val seekingStart = completed == null && scrollFollower.recoverStart(
-            window, now, launch.replyId,
-            replyCollector.hasStarted(launch.replyId),
-            ChatReplyExtraction.hasStandaloneEnd(window.content, launch.replyId)
-        )
-        if (seekingStart) {
-            reportPhase("reply_seeking_start")
-            notice("Вижу конец ответа ChatGPT, восстанавливаю начало сообщения для анализа.")
-        } else {
-            scrollFollower.follow(window, now, launch.replyId)
-        }
+    // Safety lock: never navigate or scroll the interface while waiting.
+    // Missing reply markers are not evidence that a new chat should be opened.
+    if (completed == null && ChatReplyExtraction.hasStandaloneEnd(window.content, launch.replyId)
+        && !replyCollector.hasStarted(launch.replyId)) {
+        notice("Ответ частично скрыт. Не прокручиваю и не меняю выбранный чат.")
     }
 
     // ACTION_CLICK success cannot prove that the message was actually posted.
