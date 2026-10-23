@@ -26,7 +26,7 @@ class RelayInterpretationRetryTest {
             relay.respond("Первый ответ",{})
             fail("Expected interpretation failure")
         } catch (_: RelayInterpretationUnavailable) {}
-        val result=relay.respond("Первый ответ",{},retryingInterpretation=true)
+        val result=relay.respond("Первый ответ",true,{})
         assertEquals("Продолжаю.",result.text)
         assertFalse(result.endSession)
         assertEquals(2,attempts)
