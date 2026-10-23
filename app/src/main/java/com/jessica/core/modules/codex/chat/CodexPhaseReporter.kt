@@ -9,6 +9,7 @@ internal fun CodexChatCoordinator.reportPhase(phase: String) {
         val launch = PhoneChatRuntime.launch ?: return
         val state = run ?: return
         lastReportedPhase = phase
+        lastProgressAt = SystemClock.elapsedRealtime()
         val seconds = ((SystemClock.elapsedRealtime() - state.startedAt) / 1000L)
             .coerceIn(0L, 30_000L).toInt()
         scope.launch {
