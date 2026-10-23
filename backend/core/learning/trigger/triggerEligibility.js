@@ -5,6 +5,8 @@
  */
 
 
+import {hasNegativeLearningEvidence} from "./traceEvidenceGuard.js";
+
 function normalizeNumber(
     value
 ) {
@@ -51,6 +53,10 @@ export function shouldAnalyzeLearningTrace(
 
     }
 
+
+    // Negative verdicts always override successful task counters. Do not
+    // enqueue an Experience from no_verified_result or degraded validation.
+    if (hasNegativeLearningEvidence(trace)) return false;
 
     // A completed child cannot justify learning from a failed parent.
     const result = trace.result;
