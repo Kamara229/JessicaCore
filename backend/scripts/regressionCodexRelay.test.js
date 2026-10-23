@@ -99,3 +99,36 @@ test("relay interpreter excludes invalid roles instead of impersonating a user m
         });
     assert.equal(result.action,"reply");
 });
+
+
+test("two successive Codex relay decisions retain prior results without repeating a finished test", async () => {
+    const first="Создай новый тестовый чат Jessica. Точная формулировка: Запомни число 73 и слово маяк.";
+    const firstTask="Запомни число 73 и слово маяк.";
+    const firstDecision=await interpretRelayTurn({
+        message:first,plan:"Проверь сохранение контекста в обычном чате Jessica.",history:[]
+    },async (_system,payload)=>{
+        assert.equal(payload.history.length,0);
+        return {action:"test",task:firstTask,reply:"",continueThread:false};
+    });
+    assert.equal(firstDecision.action,"test");
+    assert.equal(firstDecision.continueThread,false);
+    const response="Фактический ответ Jessica: Запомнила число 73 и слово маяк.";
+    const nextMessage="Результат первого теста получен. Продолжи в том же чате Джессики. Точная формулировка: Какое слово и число я попросил запомнить?";
+    const secondTask="Какое слово и число я попросил запомнить?";
+    const secondDecision=await interpretRelayTurn({
+        message:nextMessage,
+        plan:"Проверь сохранение контекста в обычном чате Jessica.",
+        history:[
+            {role:"assistant",content:first},
+            {role:"user",content:response}
+        ]
+    },async (_system,payload)=>{
+        assert.equal(payload.history.length,2);
+        assert.equal(payload.history[0].content,first);
+        assert.equal(payload.history[1].content,response);
+        return {action:"test",task:secondTask,reply:"",continueThread:true};
+    });
+    assert.equal(secondDecision.action,"test");
+    assert.equal(secondDecision.continueThread,true);
+    assert.equal(secondDecision.task,secondTask);
+});
