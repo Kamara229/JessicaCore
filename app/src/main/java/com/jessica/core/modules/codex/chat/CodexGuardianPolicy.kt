@@ -2,7 +2,7 @@ package com.jessica.core.modules.codex.chat
 
 /** Pure state classification. This policy NEVER authorizes another send or test. */
 internal object CodexGuardianPolicy {
-    enum class Alert { NONE, WAITING_REPLY, INTERPRETING, PREPARING, WINDOW_HIDDEN }
+    enum class Alert { NONE, WAITING_REPLY, INTERPRETING, PREPARING, WINDOW_HIDDEN, OFFLINE }
     fun evaluate(waiting: Boolean, phase: String, unchangedMs: Long,
                  chatHidden: Boolean, confirmed: Boolean): Alert {
         if (!confirmed || unchangedMs < 30_000L) return Alert.NONE
