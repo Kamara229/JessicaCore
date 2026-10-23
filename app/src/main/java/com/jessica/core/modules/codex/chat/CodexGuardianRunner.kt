@@ -24,6 +24,14 @@ internal fun CodexChatCoordinator.startCodexGuardian(session: PhoneChatLaunch): 
                 state.waiting, lastReportedPhase, now - lastProgressAt,
                 invisibleSince != 0L, confirmed
             )
+            if (CodexNetworkObserver.offline(service)) {
+                if (now - lastNoticeAt >= 20_000L) {
+                    notice("Сеть недоступна. Кодекс сохраняет сессию и проверит ответ после восстановления соединения.")
+                    lastNoticeAt = now
+                }
+                onChatWindowEvent()
+                continue
+            }
             if (alert == CodexGuardianPolicy.Alert.NONE) {
                 lastAlert = alert
                 continue
@@ -38,7 +46,7 @@ internal fun CodexChatCoordinator.startCodexGuardian(session: PhoneChatLaunch): 
                         "Кодекс работает: проверяю чат и ищу поле ввода следующего сообщения."
                     CodexGuardianPolicy.Alert.WINDOW_HIDDEN ->
                         "Кодекс сохраняет сессию и ожидает возвращения окна ChatGPT."
-                    CodexGuardianPolicy.Alert.NONE -> ""
+                    CodexGuardianPolicy.Alert.NONE, CodexGuardianPolicy.Alert.OFFLINE -> ""
                 }
                 if (status.isNotBlank()) notice(status)
                 lastAlert = alert
