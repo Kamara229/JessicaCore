@@ -10,7 +10,8 @@ internal object CodexGuardianPolicy {
         return when {
             phase == "interpret_started" || phase == "interpret_retry" -> Alert.INTERPRETING
             phase == "next_ready" || phase == "draft_ready" ||
-                phase == "editor_missing" || phase == "send_control_missing" -> Alert.PREPARING
+                phase == "editor_missing" || phase == "send_control_missing" ||
+                phase == "chat_resumed" || phase == "started" -> Alert.PREPARING
             waiting || phase.startsWith("reply_") || phase == "awaiting_markers" -> Alert.WAITING_REPLY
             else -> Alert.NONE
         }
