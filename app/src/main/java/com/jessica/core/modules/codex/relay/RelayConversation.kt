@@ -43,7 +43,7 @@ class RelayConversation(
         history.takeLast(16).forEach { recent.put(JSONObject().put("role", if (it.isUser) "user" else "assistant")
             .put("content", it.text.takeLast(6000))) }
         recordIncoming(message)
-        notice("Читаю ответ ChatGPT с учётом плана и результатов предыдущих тестов…")
+        notice("Вижу ответ ChatGPT и анализирую. Учитываю план и предыдущие результаты…")
         val decision = interpret(JSONObject().put("message", message).put("plan", plan.take(12000)).put("history", recent))
         return when (decision.getString("action")) {
             "test" -> {
