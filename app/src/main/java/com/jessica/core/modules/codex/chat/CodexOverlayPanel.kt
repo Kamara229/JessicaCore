@@ -18,6 +18,8 @@ internal fun CodexChatCoordinator.showOverlay() {
             maxWidth = (service.resources.displayMetrics.density * 245).toInt()
             setPadding(12, 6, 12, 6)
         }
+        // Owner's Stop stays above all other controls, including diagnostics.
+        layout.addView(emergencyStopButton())
         layout.addView(statusLabel)
         confirmButton = Button(service).apply {
             text = "Чат выбран"
@@ -46,7 +48,6 @@ internal fun CodexChatCoordinator.showOverlay() {
             setOnClickListener { selectSendTarget(launch) }
         }
         layout.addView(calibrateButton)
-        layout.addView(emergencyStopButton())
         service.getSystemService(WindowManager::class.java).addView(layout, WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
