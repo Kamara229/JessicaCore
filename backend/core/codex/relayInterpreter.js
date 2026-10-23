@@ -1,5 +1,7 @@
 import {getGroqClient} from "../../ai/groqClient.js";
 import {explicitSameTestChat} from "./relayThreadPolicy.js";
+import {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
+export {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 export {explicitSameTestChat} from "./relayThreadPolicy.js";
 
 const system = `Ты Джессика, участник рабочего диалога с ChatGPT вместо владельца Jessica Core.
@@ -50,6 +52,8 @@ export async function interpretRelayTurn(input, generate) {
     ).slice(-16).map(item => ({
         role:item.role, content:item.content.slice(-6000)
     })) : [];
+    const explicitReply = directCurrentChatReply(message);
+    if (explicitReply !== null) return {action:"reply",reply:explicitReply,task:"",continueThread:false};
     const payload = {message, plan:String(input.plan || "").slice(0,12000), history};
     const run = generate || (async (instructions, data) => {
         const response = await getGroqClient().chat.completions.create({
