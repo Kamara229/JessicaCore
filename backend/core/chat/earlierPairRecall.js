@@ -6,7 +6,7 @@ export function recallEarlierPair(task, conversation) {
     if (!/^какое число и слово я просил(?:а)? запомнить перед последней парой\?\s*(?:верни ответ дословно\.)?$/iu.test(question)) return null;
     const pairs = normalizeConversation(conversation, {followup:true})
         .filter(item => item.role === "user")
-        .map(item => item.content.match(/^запомни число\s+(\d{1,18})\s+и\s+(?:кодовое\s+)?слово\s+([\p{L}-]{2,40})\b/iu))
+        .map(item => item.content.match(/^запомни число\s+(\d{1,18})\s+и\s+(?:кодовое\s+)?слово\s+([\p{L}-]{2,40})/iu))
         .filter(Boolean);
     const earlier = pairs.at(-2);
     const known = Boolean(earlier && pairs.at(-1));
