@@ -27,17 +27,19 @@ internal fun CodexChatCoordinator.showOverlay() {
                 val window = ChatWindowReader.read(service)
                 if (window == null) { notice("Сначала открой чат в приложении ChatGPT."); return@setOnClickListener }
                 try {
-                    if (ChatUiPolicy.conversationAtLimit(window.content)) {
-                        finish("В этом чате ChatGPT достигнут предел длины. " +
-                            "Джессика не отправит сообщение и не переключится в другой чат без твоего выбора.")
-                    } else if (window.composer != null) {
+                    if (window.composer != null) {
                         if (launch.conversation.plan.isBlank()) launch.conversation.plan = window.content.takeLast(12000)
                         confirmed = true
                         reportPhase("chat_selected")
                         visibility = android.view.View.GONE
                         notice("Чат выбран. Джессика начинает переписку.")
-                    } else notice("Не удаётся определить поле сообщения (обнаружено: ${window.editorCandidates}). " +
-                        "Открой нужную переписку ChatGPT; отправка не выполнялась.")
+                        observeConversationBanner(window.content)
+                    } else {
+                        // The banner alone must not stop or move the session.
+                        observeConversationBanner(window.content)
+                        notice("Не удаётся определить поле сообщения (обнаружено: ${window.editorCandidates}). " +
+                            "Остаюсь в выбранном чате, новых сообщений не отправляю.")
+                    }
                 } finally { window.release() }
             }
         }
