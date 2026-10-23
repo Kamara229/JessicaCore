@@ -18,11 +18,14 @@ class ChatRunState(val startedAt: Long, val maxTurns: Int = 3, val durationMs: L
         return true
     }
     fun acceptReply(text: String?, generating: Boolean, now: Long): String? {
-        if (!waiting || stopped || generating || text == null || now - sendAt < 8000) {
+        // Exact START/END markers plus a disappeared generation control are
+        // stronger completion evidence than a fixed eight-second delay. Keep
+        // a short settle interval for Android's asynchronous UI updates.
+        if (!waiting || stopped || generating || text == null || now - sendAt < 1500) {
             stable = ""; return null
         }
         if (text != stable) { stable = text; stableAt = now; return null }
-        if (now - stableAt < 6000) return null
+        if (now - stableAt < 2500) return null
         waiting = false
         stable = ""
         return text

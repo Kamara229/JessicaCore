@@ -37,7 +37,7 @@ class ChatAutomationTest {
         assertNull(state.acceptReply("{}", true, 9000))
         assertNull(state.acceptReply("{}", false, 10000))
         assertNull(state.acceptReply("{x}", false, 15000))
-        assertNull(state.acceptReply("{x}", false, 20000))
+        assertNull(state.acceptReply("{x}", false, 16500))
         assertEquals("{x}", state.acceptReply("{x}", false, 21000))
         assertTrue(state.beginSend(22000))
         state.stop()
@@ -65,6 +65,18 @@ class ChatAutomationTest {
         assertFalse(ChatConnectivityProbe.accepts("""{"nonce":"different","ok":true}""",id))
         assertFalse(ChatConnectivityProbe.accepts("""{"nonce":"$id","ok":false}""",id))
     }
+    @Test fun exactCompletedReplyIsAcceptedPromptlyAndAllowsTheNextSend() {
+        val state = ChatRunState(0L, maxTurns = 4)
+        assertTrue(state.beginSend(1000L))
+        assertNull(state.acceptReply(null, true, 1900L))
+        assertNull(state.acceptReply("завершённый ответ", false, 4000L))
+        assertNull(state.acceptReply("завершённый ответ", false, 6200L))
+        assertEquals("завершённый ответ",
+            state.acceptReply("завершённый ответ", false, 6600L))
+        assertFalse(state.waiting)
+        assertTrue("Next turn must be eligible without a manual restart",state.beginSend(7000L))
+    }
+
     @Test fun chatgptLengthLimitStopsSendingRatherThanTreatingBannerAsAComposer() {
         val russian = "Вы достигли максимальной длины этого обсуждения, но можете продолжить обсуждение, начав новый чат."
         val english = "You've reached the maximum length for this conversation, but you can continue by starting a new chat."
