@@ -8,6 +8,7 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.ScrollView
 import java.util.concurrent.atomic.AtomicInteger
 
 /** Disposable test UI; excluded from the signed release APK. */
@@ -15,11 +16,12 @@ class ChatSendFixtureActivity : Activity() {
     companion object {
         val clicks = AtomicInteger(0)
         @Volatile var sentText = ""
+        @Volatile var conversationScrollY = 0
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
-        clicks.set(0); sentText = ""
+        clicks.set(0); sentText = ""; conversationScrollY = 0
         val density = resources.displayMetrics.density
         val editor = EditText(this).apply { setText("Проверка вложенной стрелки"); minLines = 2 }
         val send = FrameLayout(this).apply {
@@ -42,7 +44,17 @@ class ChatSendFixtureActivity : Activity() {
         }
         setContentView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            addView(TextView(this@ChatSendFixtureActivity).apply { text = "Тест кнопки отправки" }, LinearLayout.LayoutParams(-1,(200*density).toInt()))
+            addView(ScrollView(this@ChatSendFixtureActivity).apply {
+                isFillViewport = true
+                isVerticalScrollBarEnabled = true
+                addView(TextView(this@ChatSendFixtureActivity).apply {
+                    text = (1..110).joinToString("\n") { "Тестовая строка переписки номер $it" }
+                    setPadding(12,12,12,12)
+                })
+                setOnScrollChangeListener { _, _, scrollY, _, _ ->
+                    conversationScrollY = scrollY
+                }
+            }, LinearLayout.LayoutParams(-1,(400*density).toInt()))
             addView(row)
         })
     }

@@ -182,4 +182,51 @@ class ChatSendButtonTest {
         }
     }
 
+    @Test fun aVisibleConversationScrollsDownWithoutClickingTheSendButton() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val automation = instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
+        instrumentation.runOnMainSync {
+            context.startActivity(Intent(context, ChatSendFixtureActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+        instrumentation.waitForIdleSync()
+        try {
+            var scrolled = false
+            val deadline = SystemClock.elapsedRealtime() + 10000L
+            val density = context.resources.displayMetrics.density
+            while (!scrolled && SystemClock.elapsedRealtime() < deadline) {
+                automation.rootInActiveWindow?.let { root ->
+                    val window = ChatWindowReader.inspect(root,density)
+                    try {
+                        val down = AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN.id
+                        val forward = AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+                        val candidates = window.nodes.mapIndexedNotNull { index, node ->
+                            val actions = node.actionList
+                            val hasDown = actions.any { it.id == down }
+                            val hasForward = actions.any { it.id == forward }
+                            if (!hasDown && !hasForward) null else CodexScrollCandidate(
+                                index,node.screenBox(),node.isVisibleToUser,node.isEnabled,hasDown,hasForward)
+                        }
+                        val target = CodexScrollPolicy.choose(candidates,
+                            window.root.screenBox(),window.composer?.screenBox(),density)
+                        if (target != null) {
+                            scrolled = window.nodes[target.index].performAction(
+                                if (target.scrollDown) down else forward)
+                        }
+                    } finally { window.release() }
+                }
+                if (!scrolled) SystemClock.sleep(150)
+            }
+            assertTrue("A real accessibility scroll must reach the conversation",scrolled)
+            val until = SystemClock.elapsedRealtime() + 2500L
+            while (ChatSendFixtureActivity.conversationScrollY == 0 &&
+                SystemClock.elapsedRealtime() < until) SystemClock.sleep(50)
+            assertTrue("The conversation viewport moved down",ChatSendFixtureActivity.conversationScrollY > 0)
+            assertEquals("Scrolling must never send the draft",0,ChatSendFixtureActivity.clicks.get())
+        } finally {
+            automation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+        }
+    }
+
 }
