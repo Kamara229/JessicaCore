@@ -44,6 +44,7 @@ import {analyzeCodeAttachments,isCodeAttachmentTask} from "./files/codeAnalysisF
 import {needsProgrammingRuntimeEvidence} from "./foundations/programmingLearningGate.js";
 import { translatePreviousReply } from "./language/responseLanguageService.js";
 import {acknowledgeMemoryInstruction} from "./chat/explicitMemoryAcknowledgement.js";
+import {recallEarlierPair} from "./chat/earlierPairRecall.js";
 
 import {
     contextualizeTask,
@@ -193,6 +194,14 @@ export async function executeJessicaTask(
     }
 
 
+
+    // Only earlier requests in this chat can establish an older memory pair.
+    // Never reward an answer sourced from an unrelated prior task.
+    const earlierPair = recallEarlierPair(normalizedTask, conversation);
+    if (earlierPair) {
+        completeExecutionTrace(executionTrace);
+        return {...earlierPair, engine:"jessica-core", executionTrace};
+    }
 
     // A standalone chat-memory acknowledgement must never reuse a previous
     // calculation or become a trained Experience. Android already journals
