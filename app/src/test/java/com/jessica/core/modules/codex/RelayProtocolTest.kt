@@ -43,6 +43,28 @@ class RelayProtocolTest {
         val screen = "**JESSICA_REPLY_${id}**\n${body}\n**JESSICA_END_${id}**"
         assertEquals(body, RelayProtocol.reply(screen,id))
     }
+    @Test fun readsMarkersBrokenInsideUuidOnNarrowAndroidScreen() {
+        val body = "Продолжаем работу в текущем чате."
+        val first = "JESSICA_REPLY_12345678-abcd-4abc-8abc-"
+        val last = "123456789012"
+        val endFirst = "JESSICA_END_12345678-abcd-4abc-8abc-"
+        val flattened = "$first\n$last\n$body\n$endFirst\n$last"
+        assertEquals(body,RelayProtocol.reply(flattened,id))
+    }
+    @Test fun splitUuidFragmentsInsideOwnersInstructionAreNeverAccepted() {
+        val text = "Начни ответ отдельной строкой JESSICA_REPLY_12345678-abcd-4abc-8abc-\n" +
+            "123456789012. Закончи отдельной строкой JESSICA_END_12345678-abcd-4abc-8abc-\n" +
+            "123456789012."
+        assertNull(RelayProtocol.reply(text,id))
+    }
+    @Test fun joinedPartialStartWithoutEndMustKeepWaiting() {
+        val snapshot = "JESSICA_REPLY_12345678-abcd-4abc-8abc-\n123456789012\n" +
+            "Длинный ответ ChatGPT, окончание которого вне экрана"
+        assertNull(RelayProtocol.reply(snapshot,id))
+        val collector = ChatReplyCollector()
+        assertNull(collector.observe(snapshot,id))
+        assertTrue(collector.hasStarted(id))
+    }
     @Test fun acceptsAccessibilitySplittingMarkerBeforeUuid() {
         val body = "Следующий шаг — проверить тест Джессики."
         val screen = "JESSICA_REPLY_\n${id}\n${body}\nJESSICA_END_\n${id}"
