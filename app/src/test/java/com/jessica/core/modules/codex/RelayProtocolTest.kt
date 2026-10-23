@@ -15,6 +15,12 @@ class RelayProtocolTest {
         assertTrue(prompt.contains("JESSICA_END_$id"))
         assertNull(RelayProtocol.reply(prompt, id))
     }
+    @Test fun codexAsksForOneScreenAnswersSoMarkersStayVisibleWithoutScrolling() {
+        val prompt = RelayProtocol.wrap(RelayProtocol.introduction,id)
+        assertTrue(prompt.contains("не более 240 символов"))
+        assertTrue(prompt.contains("без отчётов"))
+        assertTrue(prompt.length < 650)
+    }
     @Test fun readinessIsTheFirstSentenceAndHandoffRestrictsWorkToBackend() {
         assertTrue(RelayProtocol.introduction.startsWith("Джессика готова к работе в чате."))
         assertTrue(RelayProtocol.introduction.contains("не редактирую репозиторий"))
