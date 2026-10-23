@@ -101,12 +101,9 @@ internal class CodexScrollFollower(private val density: Float,
     }
 
     private fun performScroll(window: ChatWindow, now: Long, backwards: Boolean): Boolean {
-        // FAIL-CLOSED: automated scrolling is disabled after a real-device
-        // incident in which an unverified scroll gesture switched chats and
-        // prevented the owner from pressing Stop. Read/monitor UI only.
-        // Re-enable only after a verified conversation-container detector and
-        // physical-device regression for sidebar/notification/Stop.
-        return false
+        // Do not dispatch gestures or accessibility scroll actions while
+        // the target transcript cannot be identified with certainty.
+        if (!CodexScrollSafetyPolicy.mayScrollAutomatically()) return false
         if (lastAttemptAt != 0L && now - lastAttemptAt < 2500L) return false
         val nodes = window.nodes
         val direct = if (backwards)
