@@ -9,6 +9,7 @@ internal object ChatWindowInspector {
         val controls = mutableListOf<ChatControl>()
         val composers = mutableListOf<ComposerCandidate>()
         val conversation = mutableListOf<String>()
+        val expectedReplyId = ChatReplySemanticPolicy.expectedReplyId(preparedDraft)
         var truncated = false
         fun walk(node: AccessibilityNodeInfo, parent: Int, depth: Int, insideEditor: Boolean = false) {
             val index = nodes.size
@@ -40,6 +41,18 @@ internal object ChatWindowInspector {
                     (description.contains("JESSICA_REPLY_") || description.contains("JESSICA_END_") ||
                         ChatUiPolicy.conversationAtLimit(description)) &&
                     description != visibleText) conversation.add(description)
+            }
+            if (!editor && !node.isVisibleToUser && expectedReplyId != null) {
+                // Only a complete message for THIS nonce. An offscreen node
+                // is not trusted to contain ordinary chat history.
+                ChatReplySemanticPolicy.completedNodeText(
+                    node.text?.toString(), expectedReplyId
+                )?.let { conversation.add(it) }
+                ChatReplySemanticPolicy.completedNodeText(
+                    node.contentDescription?.toString(), expectedReplyId
+                )?.let { value ->
+                    if (value != node.text?.toString()) conversation.add(value)
+                }
             }
             // A long conversation can expose more than 1,500 nodes.
             // Exhaust the visible tree within a bounded budget rather than
