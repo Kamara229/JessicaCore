@@ -35,7 +35,7 @@ object ChatWindowReader {
             }.thenBy { it.first.isFocused })
             val activePackage = activeRoot?.packageName?.toString()
             val chatVisible = chat != null ||
-                (activePackage == "com.openai.chatgpt" && activeRoot.isVisibleToUser)
+                (activePackage == "com.openai.chatgpt" && activeRoot?.isVisibleToUser == true)
             val otherApplicationActive = roots.any { (w,root) ->
                 w.isActive && root.packageName?.toString() != "com.openai.chatgpt"
             }
@@ -55,9 +55,10 @@ object ChatWindowReader {
                 otherApplicationActive, systemShadeFocused, inputMethodActive
             )) return null
             // Foreground ChatGPT beats stale isActive flags from a notification.
-            selected = if (activePackage == "com.openai.chatgpt" && activeRoot?.isVisibleToUser == true)
+            val chosen = if (activePackage == "com.openai.chatgpt" && activeRoot?.isVisibleToUser == true)
                 activeRoot else chat?.second ?: return null
-            return inspect(selected, service.resources.displayMetrics.density, preparedDraft)
+            selected = chosen
+            return inspect(chosen, service.resources.displayMetrics.density, preparedDraft)
         } finally {
             roots.forEach { (_,root) ->
                 if (root !== selected) @Suppress("DEPRECATION") root.recycle()
