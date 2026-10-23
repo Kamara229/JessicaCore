@@ -15,8 +15,10 @@ class ChatGptAccessibilityService : AccessibilityService() {
     }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
     override fun onInterrupt() {
-        if (PhoneChatRuntime.controller === this && PhoneChatRuntime.launch != null)
-            stopByUser("Android прервал управление чатом.")
+        // Android may interrupt AccessibilityService feedback on a user swipe.
+        // It does not mean the owner ended the Codex session. Actual disconnect
+        // and explicit Stop are handled separately.
+        ChatServiceDiagnostics.record(this, "feedback-interrupted")
     }
     override fun onUnbind(intent: Intent?): Boolean {
         disconnect()

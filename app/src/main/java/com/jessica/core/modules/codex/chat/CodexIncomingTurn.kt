@@ -14,6 +14,10 @@ internal fun CodexChatCoordinator.observeIncoming(window: ChatWindow, launch: Ph
                     verifiedReplyAnchor = response.replace(Regex("\\s+"), " ").trim().takeLast(140)
                 }
                 if (response == null) {
+                    // Recheck the current snapshot FIRST, then gently follow
+                    // the visible conversation downward. No taps or chat switch.
+                    if (complete == null || window.generating)
+                        scrollFollower.follow(window, now, launch.replyId)
                     // Android ACTION_CLICK returning true does not mean ChatGPT
                     // actually sent anything. Never retry an uncertain click.
                     val draft = window.composer?.text?.toString().orEmpty()

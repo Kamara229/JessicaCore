@@ -49,10 +49,19 @@ internal suspend fun CodexChatCoordinator.advanceOutgoing(window: ChatWindow, la
                     if (!ChatConversationContinuity.permits(
                             window.content, launch.previousReplyId, verifiedReplyId, verifiedReplyAnchor
                         )) {
-                        finish("Не вижу подтверждённый предыдущий ответ в выбранном чате. " +
-                            "Кодекс остановлен: продолжение в другой переписке запрещено.")
+                        val now = SystemClock.elapsedRealtime()
+                        if (continuityMissingSince == 0L) continuityMissingSince = now
+                        if (now - continuityMissingSince < 30_000L) {
+                            scrollFollower.follow(window, now, launch.previousReplyId)
+                            notice("Прокручиваю выбранную переписку вниз для проверки предыдущего ответа. " +
+                                "Сообщение ещё не отправлялось.")
+                            return
+                        }
+                        finish("За 30 секунд не удалось найти конец подтверждённого ответа. " +
+                            "Кодекс остановлен без отправки в непроверенный чат.")
                         return
                     }
+                    continuityMissingSince = 0L
                 }
                 if (!ChatUiPolicy.canSend("com.openai.chatgpt", confirmed, false, text, launch.prompt, window.generating)) return
                 if (!composed) {

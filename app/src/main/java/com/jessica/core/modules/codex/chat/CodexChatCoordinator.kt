@@ -27,6 +27,8 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     internal var confirmed = false
     internal var composed = false
     internal var draftEditorMissingSince = 0L
+    internal var continuityMissingSince = 0L
+    internal val scrollFollower = CodexScrollFollower(service.resources.displayMetrics.density)
     internal var overlay: LinearLayout? = null
     internal var confirmButton: Button? = null
     internal var statusLabel: TextView? = null
@@ -47,6 +49,8 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
         confirmed = false
         composed = false
         draftEditorMissingSince = 0L
+        continuityMissingSince = 0L
+        scrollFollower.reset()
         calibratedSend = null
         calibrating = false
         sendPicker.close()
@@ -92,11 +96,18 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
                 notice("Ожидаю возвращения окна ChatGPT; выбранный чат сохранён.")
                 return
             }
+            if (state.waiting || state.sends > 0 || composed) {
+                // Keyboard/IME changes and owner scrolling must not erase a
+                // selected conversation after sending. Do nothing while the
+                // verified ChatGPT window is absent; never touch another app.
+                notice("Ожидаю окно выбранного ChatGPT. Сессия сохранена, повторной отправки нет.")
+                return
+            }
             confirmed = false
             calibratedSend = null
             calibrateButton?.visibility = android.view.View.GONE
             confirmButton?.visibility = android.view.View.VISIBLE
-            notice("Чат ChatGPT не виден более 12 секунд. Вернись в тот же чат и нажми «Чат выбран».")
+            notice("Чат ChatGPT не виден. Вернись в чат и нажми «Чат выбран».")
             return
         }
         invisibleSince = 0L
@@ -131,6 +142,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
         launch.prompt = RelayProtocol.wrap(next.text, launch.replyId)
         launch.endAfterSend = next.endSession
         composed = false
+        continuityMissingSince = 0L
         reportPhase("next_ready")
         notice(if (next.endSession) "Передаю итоговое сообщение и завершаю сессию." else "Ответ Джессики подготовлен для выбранного чата.")
     }
