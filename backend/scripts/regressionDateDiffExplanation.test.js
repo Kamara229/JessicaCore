@@ -36,3 +36,22 @@ test("absolute and backward elapsed modes preserve original contracts",async()=>
     });
     assert.equal(elapsed.success,false);
 });
+
+test("Russian calendar day endings follow 1/2–4/5+ grammar, including leap day",async()=>{
+    const cases=[
+        ["2024-02-28","2024-03-02",3,"3 полных календарных дня"],
+        ["2026-10-01","2026-10-02",1,"1 полный календарный день"],
+        ["2026-10-01","2026-10-03",2,"2 полных календарных дня"],
+        ["2026-10-01","2026-10-06",5,"5 полных календарных дней"],
+        ["2026-10-01","2026-10-12",11,"11 полных календарных дней"],
+        ["2026-10-01","2026-10-22",21,"21 полный календарный день"],
+        ["2026-10-01","2026-10-23",22,"22 полных календарных дня"],
+        ["2026-10-01","2026-10-26",25,"25 полных календарных дней"]
+    ];
+    for(const [startDate,endDate,days,phrase] of cases){
+        const r=await executeTool("date_diff",{startDate,endDate,mode:"elapsed"});
+        assert.equal(r.success,true);
+        assert.equal(r.data.fullDays,days);
+        assert.ok(r.text.includes(phrase),r.text);
+    }
+});
