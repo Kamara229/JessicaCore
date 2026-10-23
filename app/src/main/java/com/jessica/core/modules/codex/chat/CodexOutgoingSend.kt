@@ -26,9 +26,25 @@ internal suspend fun CodexChatCoordinator.dispatchOutgoing(
                 if (launch.stopRequested || state.stopped) return
                 val accepted = if (send != null) send.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                     else tapSelectedSend(point!!, launch)
-                if (!accepted) { finish("Нажатие не подтверждено. Проверь чат; автоматического повтора нет. Если ты указывал стрелку, выключи и включи службу Jessica после обновления."); return }
                 composed = false
-                launch.conversation.recordOutgoing(launch.message)
+                if (!accepted) {
+                    // Click acknowledgement is NOT an actual delivery receipt.
+                    // After beginSend() a second click would risk a duplicate.
+                    outgoingLogPending = true
+                    reportPhase("send_uncertain")
+                    notice("Отправка не подтверждена интерфейсом. Жду ответа " +
+                        "без повторного нажатия и без остановки Кодекса.")
+                    return
+                }
+                try {
+                    launch.conversation.recordOutgoing(launch.message)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // Sending already happened; a local journal write failure
+                    // must not turn one uncertain interaction into another send.
+                    ChatServiceDiagnostics.record(service,"outgoing-journal-error")
+                }
                 reportPhase("sent")
                 if (launch.endAfterSend) finish("Переписка завершена. История и тесты сохранены в чатах Джессики.")
                 else notice("Жду законченный ответ ChatGPT. Сообщений в сессии: ${state.sends}/60.")
