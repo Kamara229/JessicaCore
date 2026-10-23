@@ -97,6 +97,21 @@ class ChatAutomationTest {
         assertFalse(ChatUiPolicy.canSend("com.openai.chatgpt", true, false, "owner draft", "next", false))
     }
 
+    @Test fun transientDraftWriteFailureRetainsSessionWithoutClickOrSend() {
+        val state = ChatRunState(0L, maxTurns = 4)
+        assertEquals(CodexDraftWritePolicy.Next.RETRY_SNAPSHOT,
+            CodexDraftWritePolicy.next(verifiedExistingDraft = false, setTextAcknowledged = false))
+        assertEquals(CodexDraftWritePolicy.Next.CHECK_SNAPSHOT,
+            CodexDraftWritePolicy.next(verifiedExistingDraft = true, setTextAcknowledged = false))
+        assertEquals(CodexDraftWritePolicy.Next.CHECK_SNAPSHOT,
+            CodexDraftWritePolicy.next(verifiedExistingDraft = false, setTextAcknowledged = true))
+        assertEquals(0, state.sends)
+        assertFalse(state.waiting)
+        assertFalse(state.stopped)
+        assertEquals(CodexGuardianPolicy.Alert.PREPARING,
+            CodexGuardianPolicy.evaluate(false, "draft_retry", 60_000L, false, true))
+    }
+
     @Test fun longWaitRetainsSessionWithoutRetryingUncertainSend() {
         val state = ChatRunState(1000, maxTurns = 6, durationMs = 8 * 60 * 60 * 1000L)
         assertTrue(state.beginSend(2000))
