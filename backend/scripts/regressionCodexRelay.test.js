@@ -4,6 +4,35 @@ import {interpretRelayTurn, validateRelayDecision, explicitSameTestChat, directC
 import {registerCodexRoutes} from "../http/routes/codexRoute.js";
 import {recordCodexPhase,validateCodexPhase} from "../core/codex/relayTelemetry.js";
 
+test("standalone ChatGPT max-length notices cannot finish or switch Codex chat", async () => {
+    const notices=[
+        "Вы достигли максимальной длины этого обсуждения, но можете продолжить обсуждение, начав новый чат.",
+        "Вы достигли максимальной длинны этого обсуждения.",
+        "You've reached the maximum length for this conversation, but you can continue by starting a new chat."
+    ];
+    for (const message of notices) {
+        let invoked=0;
+        const decision=await interpretRelayTurn({message,plan:"Продолжить работу в выбранном чате."},
+            async()=>{invoked++; return {action:"finish",reply:"Готово.",task:""};});
+        assert.equal(invoked,0,"Advisory system notice must not reach model termination");
+        assert.equal(decision.action,"reply");
+        assert.equal(decision.continueThread,false);
+        assert.equal(decision.task,"");
+        assert.match(decision.reply,/Продолжаю работу/);
+    }
+});
+
+test("an engineering request mentioning the notice is not swallowed",async()=>{
+    const message="Исправь обработку уведомления «Вы достигли максимальной длины этого обсуждения» в backend.";
+    let invoked=0;
+    const decision=await interpretRelayTurn({message},async()=>{
+        invoked++;
+        return {action:"reply",reply:"Продолжаем проверку.",task:""};
+    });
+    assert.equal(invoked,1);
+    assert.equal(decision.reply,"Продолжаем проверку.");
+});
+
 test("relay uses the plan and preceding results to understand natural chat", async () => {
     const result = await interpretRelayTurn({message:"Исправил backend. Продолжим контекст.",plan:"1. Язык. 2. Контекст.",
         history:[{role:"assistant",content:"Фактический ответ теста: ошибка"}]}, async (system,payload) => {
