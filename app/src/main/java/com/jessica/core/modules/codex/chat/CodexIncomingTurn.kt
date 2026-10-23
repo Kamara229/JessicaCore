@@ -26,6 +26,15 @@ internal fun CodexChatCoordinator.observeIncoming(
         notice(progress.status)
     }
 
+    if (CodexReplyVisibilityPolicy.incompleteOutsideViewport(
+            replyCollector.hasStarted(launch.replyId), completed != null,
+            window.generating, now - state.sendAt
+        )) {
+        reportPhase("reply_out_of_view")
+        notice("Вижу начало ответа, но конечная метка не доступна на экране. " +
+            "Автопрокрутка отключена; не отправляю новое сообщение без проверки.")
+    }
+
     if (accepted != null) {
         verifiedReplyId = launch.replyId
         verifiedReplyAnchor = accepted.replace(Regex("\\s+"), " ").trim().takeLast(140)
