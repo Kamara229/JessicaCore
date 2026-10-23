@@ -17,6 +17,9 @@ class PhoneChatLaunch(context: Context) {
     var message: String = RelayProtocol.introduction
     var prompt: String = RelayProtocol.wrap(message, replyId)
     var endAfterSend: Boolean = false
+    @Volatile var stopRequested: Boolean = false
+        private set
+    fun requestStop() { stopRequested = true }
 }
 
 object PhoneChatRuntime {
@@ -38,5 +41,8 @@ object PhoneChatRuntime {
         context.getSharedPreferences("jessica_phone_chat", Context.MODE_PRIVATE).edit().putString("last_status", text).apply()
     }
     fun clear() { launch = null }
-    fun stop() { controller?.stopByUser() }
+    fun stop() {
+        launch?.requestStop()
+        controller?.stopByUser()
+    }
 }
