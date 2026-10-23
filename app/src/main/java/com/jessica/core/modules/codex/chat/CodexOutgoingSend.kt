@@ -8,6 +8,7 @@ internal suspend fun CodexChatCoordinator.dispatchOutgoing(
     window: ChatWindow, launch: PhoneChatLaunch, state: ChatRunState,
     composer: AccessibilityNodeInfo
 ) {
+                if (launch.stopRequested || state.stopped) return
                 val send = window.send
                 val point = if (send == null) calibratedSend?.point(window.root.screenBox(), composer.screenBox(), service.resources.displayMetrics.density) else null
                 if (send == null && point == null) {
@@ -21,6 +22,7 @@ internal suspend fun CodexChatCoordinator.dispatchOutgoing(
                 check(state.beginSend(SystemClock.elapsedRealtime())) { "Достигнут предел 60 сообщений" }
                 // Mark before clicking: an uncertain click must not be automatically retried.
                 reportPhase("send_requested")
+                if (launch.stopRequested || state.stopped) return
                 val accepted = if (send != null) send.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                     else tapSelectedSend(point!!, launch)
                 if (!accepted) { finish("Нажатие не подтверждено. Проверь чат; автоматического повтора нет. Если ты указывал стрелку, выключи и включи службу Jessica после обновления."); return }
