@@ -73,6 +73,7 @@ test("Codex relay phases cannot send prompt, message, source or arbitrary labels
     assert.equal(validateCodexPhase({...input,phase:"interpret_retry"}).phase,"interpret_retry");
     assert.equal(validateCodexPhase({...input,phase:"chat_away"}).phase,"chat_away");
     assert.equal(validateCodexPhase({...input,phase:"chat_resumed"}).phase,"chat_resumed");
+    assert.equal(validateCodexPhase({...input,phase:"window_snapshot_retry"}).phase,"window_snapshot_retry");
     assert.equal(validateCodexPhase({...input,phase:"reply_partial"}).phase,"reply_partial");
     assert.equal(validateCodexPhase({...input,phase:"reply_detected"}).phase,"reply_detected");
     assert.equal(validateCodexPhase({...input,phase:"reply_seeking_start"}).phase,"reply_seeking_start");
