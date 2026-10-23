@@ -51,7 +51,8 @@ internal object CodexScrollPolicy {
  * Never clicks an arrow, edits a composer, changes chats or retries a send.
  * A user swipe may move the viewport; it must not terminate this session.
  */
-internal class CodexScrollFollower(private val density: Float) {
+internal class CodexScrollFollower(private val density: Float,
+    private val gestureFallback: (ChatWindow, Boolean) -> Boolean = { _, _ -> false }) {
     private var replyId = ""
     private var lastAttemptAt = 0L
     private var seekingStart = false
@@ -117,9 +118,14 @@ internal class CodexScrollFollower(private val density: Float) {
             CodexScrollCandidate(index, node.screenBox(), true, true, primary, secondary)
         }
         val selected = CodexScrollPolicy.choose(candidates,window.root.screenBox(),
-            window.composer?.screenBox(), density) ?: return false
+            window.composer?.screenBox(), density)
+        if (selected == null) {
+            lastAttemptAt = now
+            return gestureFallback(window,backwards)
+        }
         lastAttemptAt = now
         val action = if (selected.scrollDown) direct else generic
-        return runCatching { nodes[selected.index].performAction(action) }.getOrDefault(false)
+        return runCatching { nodes[selected.index].performAction(action) }.getOrDefault(false) ||
+            gestureFallback(window,backwards)
     }
 }
