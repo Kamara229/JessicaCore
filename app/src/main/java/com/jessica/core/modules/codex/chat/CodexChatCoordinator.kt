@@ -74,6 +74,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
 
 
     internal fun notice(text: String) {
+        if (PhoneChatRuntime.launch?.stopRequested != false) return
         if (lastNotice != text) {
             lastNotice = text
             statusLabel?.text = text
