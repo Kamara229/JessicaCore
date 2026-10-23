@@ -30,6 +30,9 @@ class ChatRunState(val startedAt: Long, val maxTurns: Int = 3, val durationMs: L
         stable = ""
         return text
     }
-    fun expired(now: Long) = now - startedAt >= durationMs || (waiting && now - sendAt >= 20 * 60 * 1000L)
+    // A delayed response does not silently terminate a long-running Codex session.
+    // Never retry the corresponding uncertain send.
+    fun replyOverdue(now: Long) = waiting && now - sendAt >= 45_000L
+    fun expired(now: Long) = now - startedAt >= durationMs
     fun stop() { stopped = true; waiting = false }
 }
