@@ -17,7 +17,7 @@ internal suspend fun CodexChatCoordinator.processAcceptedReply(
     reportPhase("interpret_started")
     notice("Вижу ответ ChatGPT и анализирую.")
     val next = try {
-        launch.conversation.respond(answer, ::notice, retryingInterpretation)
+        launch.conversation.respond(answer, retryingInterpretation, ::notice)
     } catch (_: RelayInterpretationUnavailable) {
         if (PhoneChatRuntime.launch !== launch) return
         pendingInterpretation = answer
