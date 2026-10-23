@@ -23,6 +23,7 @@ internal fun CodexChatCoordinator.startCodexSession() {
         verifiedReplyId = ""
         verifiedReplyAnchor = ""
         invisibleSince = 0L
+        lengthBannerSeen = false
         lastReplyWaitNotice = 0L
         lastReplyProgress = null
         lastReportedPhase = ""
