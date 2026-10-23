@@ -42,8 +42,13 @@ export function validateRelayDecision(raw, message) {
 export async function interpretRelayTurn(input, generate) {
     const message = typeof input?.message === "string" ? input.message.trim() : "";
     if (!message || message.length > 50000) throw Error("invalid-message");
-    const history = Array.isArray(input.history) ? input.history.slice(-16).map(item => ({
-        role:item?.role === "assistant" ? "assistant" : "user", content:String(item?.content || "").slice(-6000)
+    // Only genuine user/assistant dialogue is eligible for contextual
+    // interpretation. Untrusted role names cannot be relabelled as the user.
+    const history = Array.isArray(input.history) ? input.history.filter(item =>
+        item && (item.role === "assistant" || item.role === "user") &&
+        typeof item.content === "string" && item.content.trim()
+    ).slice(-16).map(item => ({
+        role:item.role, content:item.content.slice(-6000)
     })) : [];
     const payload = {message, plan:String(input.plan || "").slice(0,12000), history};
     const run = generate || (async (instructions, data) => {

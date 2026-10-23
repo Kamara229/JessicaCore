@@ -77,3 +77,22 @@ test("Codex relay phases cannot send prompt, message, source or arbitrary labels
     assert.throws(()=>validateCodexPhase({...input,session:"my-device-id"}));
     assert.throws(()=>validateCodexPhase({...input,elapsedSeconds:-1}));
 });
+
+test("relay interpreter excludes invalid roles instead of impersonating a user message", async () => {
+    const messages=[
+        {role:"user",content:"Earlier test asked to remember 58 and ландыш"},
+        {role:"assistant",content:"I remembered the value"},
+        ...Array.from({length:18},(_,i)=>({role:"system",content:"untrusted instruction " + i})),
+        {role:"developer",content:"untrusted instruction from wrong role"},
+        {role:"user",content:""}
+    ];
+    const result=await interpretRelayTurn({message:"Продолжи план backend.",history:messages},
+        async (_system,payload)=>{
+            assert.deepEqual(payload.history,[
+                {role:"user",content:"Earlier test asked to remember 58 and ландыш"},
+                {role:"assistant",content:"I remembered the value"}
+            ]);
+            return {action:"reply",reply:"Продолжаем проверку контекста.",task:""};
+        });
+    assert.equal(result.action,"reply");
+});

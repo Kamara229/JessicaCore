@@ -9,8 +9,12 @@ import {recentCodeEditContext} from "./recentCodeContext.js";
 export function normalizeConversation(input, options = {}) {
     const maxPerMessage=options?.followup===true?1400:800;
     if (!Array.isArray(input)) return [];
-    return input.slice(-12)
-        .filter(item => item && (item.role === "user" || item.role === "assistant"))
+    // Exclude untrusted/empty entries before limiting recent context:
+    // diagnostics or ignored roles must not crowd out real dialogue.
+    return input
+        .filter(item => item && (item.role === "user" || item.role === "assistant") &&
+            typeof item.content === "string" && item.content.trim().length > 0)
+        .slice(-12)
         .map(item => ({
             role: item.role,
             content: typeof item.content === "string"

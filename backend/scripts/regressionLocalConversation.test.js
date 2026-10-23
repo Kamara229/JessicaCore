@@ -143,3 +143,15 @@ test("implicit recall of a previously remembered number and word retains dialogu
     assert.match(contextualizeTask(english,memory),/сирень/);
 });
 
+
+test("non-dialogue tail cannot push a remembered fact out of the bounded history", () => {
+    const history = [
+        {role:"user",content:"Запомни число 58 и слово ландыш"},
+        {role:"assistant",content:"Запомнила число 58 и слово ландыш"},
+        ...Array.from({length:15}, (_,i) => ({role:"system",content:"untrusted " + i}))
+    ];
+    const normalized=normalizeConversation(history,{followup:true});
+    assert.equal(normalized.length,2);
+    assert.equal(normalized[0].role,"user");
+    assert.match(contextualizeTask("Какое слово я просил тебя запомнить?",history),/ландыш/);
+});
