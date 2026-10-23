@@ -62,3 +62,17 @@ test("unknown validation is not invented as positive evidence",()=>{
     assert.equal(hasNegativeLearningEvidence(trace),false);
     assert.equal(shouldAnalyzeLearningTrace(trace),false);
 });
+
+test("optimistic completion without a verified result never enters Learning Queue",()=>{
+    for (const trace of [
+        {id:"trace-no-result",status:"COMPLETED",stats:{completed:1}},
+        {id:"trace-empty-results",status:"COMPLETED",stats:{completed:1},
+            result:{status:"COMPLETED",success:true,results:[]}},
+        {id:"trace-unvalidated",status:"COMPLETED",stats:{completed:1},
+            result:{status:"COMPLETED",success:true,verified:true}},
+        {id:"trace-unconfirmed",status:"COMPLETED",stats:{completed:1},
+            result:{status:"COMPLETED",verified:true,validation:{valid:true}}}
+    ]) {
+        assert.equal(shouldAnalyzeLearningTrace(trace),false,trace.id);
+    }
+});
