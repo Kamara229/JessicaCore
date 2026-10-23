@@ -48,6 +48,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     internal fun onChatWindowEvent() {
         if (PhoneChatRuntime.launch?.stopRequested == false) windowWake.trySend(Unit)
     }
+    internal var lengthBannerSeen = false
     internal var lastReplyWaitNotice = 0L
     internal var lastReplyProgress: CodexReplyProgress? = null
     internal var lastReportedPhase = ""
