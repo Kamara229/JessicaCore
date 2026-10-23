@@ -1,6 +1,8 @@
 import {getGroqClient} from "../../ai/groqClient.js";
 import {explicitSameTestChat} from "./relayThreadPolicy.js";
 import {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
+import {explicitJessicaTest} from "./relayExplicitTest.js";
+export {explicitJessicaTest} from "./relayExplicitTest.js";
 export {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 export {explicitSameTestChat} from "./relayThreadPolicy.js";
 
@@ -54,6 +56,8 @@ export async function interpretRelayTurn(input, generate) {
     })) : [];
     const explicitReply = directCurrentChatReply(message);
     if (explicitReply !== null) return {action:"reply",reply:explicitReply,task:"",continueThread:false};
+    const requestedTest = explicitJessicaTest(message);
+    if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
     const payload = {message, plan:String(input.plan || "").slice(0,12000), history};
     const run = generate || (async (instructions, data) => {
         const response = await getGroqClient().chat.completions.create({
