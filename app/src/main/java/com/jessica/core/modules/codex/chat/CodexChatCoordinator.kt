@@ -45,7 +45,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
         kotlinx.coroutines.channels.Channel.CONFLATED
     )
     internal fun onChatWindowEvent() {
-        if (PhoneChatRuntime.launch != null) windowWake.trySend(Unit)
+        if (PhoneChatRuntime.launch?.stopRequested == false) windowWake.trySend(Unit)
     }
     internal var lastReplyWaitNotice = 0L
     internal var lastReplyProgress: CodexReplyProgress? = null
@@ -61,6 +61,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     internal suspend fun tick(launch: PhoneChatLaunch) = tickCodexSession(launch)
 
     fun stopByUser(message: String = "Кодекс остановлен пользователем. История сохранена.") {
+        PhoneChatRuntime.launch?.requestStop()
         loop?.cancel()
         guardianJob?.cancel()
         finish(message)
@@ -80,6 +81,8 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
         }
     }
     internal fun finish(text: String) {
+        PhoneChatRuntime.launch?.requestStop()
+        loop?.cancel()
         guardianJob?.cancel()
         sendPicker.close()
         calibrating = false
