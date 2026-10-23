@@ -39,7 +39,10 @@ internal fun CodexChatCoordinator.startCodexGuardian(session: PhoneChatLaunch): 
             if (alert != lastAlert || now - lastNoticeAt > 45_000L) {
                 val status = when (alert) {
                     CodexGuardianPolicy.Alert.WAITING_REPLY ->
-                        "Кодекс работает: ищу завершённый ответ ChatGPT. Повторной отправки нет."
+                        if (lastReportedPhase == "reply_out_of_view")
+                            "Ответ частично скрыт экраном: конечная метка не видна. " +
+                                "Для безопасности новых отправок нет."
+                        else "Кодекс работает: ищу завершённый ответ ChatGPT. Повторной отправки нет."
                     CodexGuardianPolicy.Alert.INTERPRETING ->
                         "Кодекс работает: выполняется анализ или тест. Тест не дублирую."
                     CodexGuardianPolicy.Alert.PREPARING ->
