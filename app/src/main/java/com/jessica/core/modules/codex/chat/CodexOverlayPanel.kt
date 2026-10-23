@@ -46,7 +46,7 @@ internal fun CodexChatCoordinator.showOverlay() {
             setOnClickListener { selectSendTarget(launch) }
         }
         layout.addView(calibrateButton)
-        layout.addView(Button(service).apply { text = "■ Стоп Джессика"; setOnClickListener { stopByUser() } })
+        layout.addView(emergencyStopButton())
         service.getSystemService(WindowManager::class.java).addView(layout, WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
