@@ -77,13 +77,24 @@ class ChatAutomationTest {
         assertTrue("Next turn must be eligible without a manual restart",state.beginSend(7000L))
     }
 
-    @Test fun chatgptLengthLimitStopsSendingRatherThanTreatingBannerAsAComposer() {
+    @Test fun maximumConversationLengthBannerIsAdvisoryAndCannotStopSelectedChat() {
         val russian = "Вы достигли максимальной длины этого обсуждения, но можете продолжить обсуждение, начав новый чат."
         val english = "You've reached the maximum length for this conversation, but you can continue by starting a new chat."
         assertTrue(ChatUiPolicy.conversationAtLimit(russian))
         assertTrue(ChatUiPolicy.conversationAtLimit(english))
+        assertTrue(ChatUiPolicy.conversationAtLimit("Вы достигли максимальной длины этого обсуждения."))
+        assertTrue(ChatUiPolicy.conversationAtLimit("Вы достигли максимальной длинны этого обсуждения."))
         assertFalse(ChatUiPolicy.conversationAtLimit("Какова максимальная длина обсуждения в ChatGPT?"))
         assertFalse(ChatUiPolicy.conversationAtLimit("Это обычное сообщение в выбранном чате."))
+
+        // A notification does not change the ability to read replies or use
+        // a valid composer. A real missing/blocked button still prevents send.
+        assertEquals(CodexTurnWindowPolicy.Next.READ_REPLY,
+            CodexTurnWindowPolicy.next(waiting = true, composerVisible = false))
+        assertEquals(CodexTurnWindowPolicy.Next.PREPARE_SEND,
+            CodexTurnWindowPolicy.next(waiting = false, composerVisible = true))
+        assertTrue(ChatUiPolicy.canSend("com.openai.chatgpt", true, false, "", "next", false))
+        assertFalse(ChatUiPolicy.canSend("com.openai.chatgpt", true, false, "owner draft", "next", false))
     }
 
     @Test fun longWaitRetainsSessionWithoutRetryingUncertainSend() {
