@@ -10,11 +10,15 @@ import android.widget.Button
  */
 internal fun CodexChatCoordinator.emergencyStopButton(): Button =
     Button(service).apply {
-        text = "■ Стоп Джессика"
+        text = "■ СТОП КОДЕКС"
+        setTextColor(0xffffffff.toInt())
+        setBackgroundColor(0xffae1616.toInt())
+        minimumHeight = (56f * service.resources.displayMetrics.density).toInt()
         isClickable = true
         isFocusable = true
         setOnTouchListener { _, event ->
             if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                PhoneChatRuntime.launch?.requestStop()
                 stopByUser("Кодекс немедленно остановлен пользователем.")
             }
             true // Consume release; cannot bubble into ChatGPT underneath.
