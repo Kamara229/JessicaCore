@@ -52,8 +52,10 @@ internal fun CodexChatCoordinator.observeIncoming(
     val draft = window.composer?.text?.toString().orEmpty()
     if (now - state.sendAt > 15_000L && draft == launch.prompt &&
         !ChatUiPolicy.alreadyPosted(window.content, launch.prompt, launch.replyId)) {
-        finish("ChatGPT оставил подготовленный текст в поле. Кодекс остановлен " +
-            "без повторной отправки, чтобы не продублировать сообщение.")
+        // ACTION_CLICK returned but posting may be delayed or unacknowledged.
+        // This is NOT permission to abort the whole Codex session or click again.
+        notice("Черновик остался в поле ChatGPT. Сессия сохранена; " +
+            "повторной отправки нет, проверяю появление ответа.")
         return null
     }
 
