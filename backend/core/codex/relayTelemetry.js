@@ -3,7 +3,7 @@
  * No conversation text, code, prompt, result, device ID or credentials.
  */
 export const CODEX_PHASES = Object.freeze(new Set([
-    "started","chat_selected","draft_ready","send_requested","sent",
+    "started","chat_selected","draft_ready","draft_unverified","send_requested","sent",
     "reply_streaming","awaiting_markers","reply_stabilizing",
     "reply_partial","reply_out_of_view","reply_detected","reply_seeking_start",
     "reply_verified","interpret_started","interpret_retry","next_ready",
