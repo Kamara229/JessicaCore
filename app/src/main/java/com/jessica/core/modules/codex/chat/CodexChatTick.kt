@@ -32,19 +32,18 @@ internal suspend fun CodexChatCoordinator.tickCodexSession(launch: PhoneChatLaun
                 return
             }
             if (!confirmed) { notice("Открой подготовленный чат и нажми «Чат выбран»."); return }
-            if (state.waiting) {
-                // ChatGPT may hide the composer while generating or redrawing.
-                // Reading an answer needs message evidence, NOT a visible editor.
-                response = observeIncoming(window, launch, state)
-            } else {
-                // A missing composer forbids sending, not reading.
-                if (window.composer == null) {
+            when (CodexTurnWindowPolicy.next(state.waiting, window.composer != null)) {
+                CodexTurnWindowPolicy.Next.READ_REPLY ->
+                    response = observeIncoming(window, launch, state)
+                CodexTurnWindowPolicy.Next.WAIT_COMPOSER -> {
                     notice("Поле ввода выбранного чата скрыто. " +
                         "Сохраняю сессию без прокрутки и без отправки.")
                     return
                 }
-                if (launch.stopRequested) return
-                advanceOutgoing(window, launch, state)
+                CodexTurnWindowPolicy.Next.PREPARE_SEND -> {
+                    if (launch.stopRequested) return
+                    advanceOutgoing(window, launch, state)
+                }
             }
         } finally { window.release() }
         val answer = response ?: return
