@@ -42,8 +42,12 @@ class RelayConversation(
     suspend fun recordOutgoing(text: String) { log(text, false) }
     suspend fun recordIncoming(text: String) { log(text, true) }
 
-    suspend fun respond(message: String, notice: (String) -> Unit,
-                        retryingInterpretation: Boolean = false): RelayReply {
+    // Preserve the trailing-lambda API used by existing Android callers.
+    suspend fun respond(message: String, notice: (String) -> Unit): RelayReply =
+        respond(message, retryingInterpretation = false, notice = notice)
+
+    suspend fun respond(message: String, retryingInterpretation: Boolean,
+                        notice: (String) -> Unit): RelayReply {
         // Retry only the remote classification. An earlier failure already
         // stored this incoming answer; no duplicate journal/message writes.
         val context = if (retryingInterpretation &&
