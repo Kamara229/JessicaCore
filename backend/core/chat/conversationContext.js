@@ -38,6 +38,11 @@ export function needsConversationContext(task) {
     if (!text || text.length > 360) return false;
     const startsAsFollowup=/^(?:а |и |ну |окей[, ]*)?(?:добавь|исправь|поправь|измени|перепиши|fix|update|modify|перевед|перевести|перевод|translate|продолж|дальше|ещ[её]|то же|так же|сделай так|сделай ещ[её]|повтори|переделай|поправь|сравни с этим|поясни это|а что с |а как |перв(?:ый|ую|ое)|втор(?:ой|ую|ое)|давай|готово|что дальше|а теперь|теперь|по.другому)/iu.test(text);
     if (startsAsFollowup) return true;
+    // Retrospective memory questions may not contain literal "previous" or
+    // start with an imperative such as "continue". Preserve local conversation
+    // for requests like "Какое слово я просил тебя запомнить?".
+    const recall=/(?:просил[а]?\s+(?:тебя\s+)?запомнить|(?:ты\s+)?запомнил[ао]?|помнишь|что\s+я\s+(?:тебе\s+)?(?:говорил|назвал|писал)|из\s+(?:нашей|предыдущей)\s+переписки|what\s+did\s+i\s+(?:ask\s+you\s+to\s+remember|tell\s+you)|do\s+you\s+remember)/iu.test(text);
+    if (recall) return true;
     const strong=/(?:^|[\s,.!?])(?:этот|этого|этих|эту|этом|предыдущ(?:ий|его|ая|ую|их)?|выше|упомянут(?:ый|ого|ое)?|тот же|той же|как ранее|как в прошлый раз)(?=$|[\s,.!?])/iu.test(text);
     if (strong) return true;
     const weak=/(?:^|[\s,.!?])(?:его|её|их)(?=$|[\s,.!?])/iu.test(text);
