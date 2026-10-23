@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {interpretRelayTurn, validateRelayDecision, explicitSameTestChat, directCurrentChatReply} from "../core/codex/relayInterpreter.js";
+import {interpretRelayTurn, validateRelayDecision, explicitSameTestChat, directCurrentChatReply, explicitJessicaTest} from "../core/codex/relayInterpreter.js";
 import {registerCodexRoutes} from "../http/routes/codexRoute.js";
 import {recordCodexPhase,validateCodexPhase} from "../core/codex/relayTelemetry.js";
 
@@ -155,4 +155,38 @@ test("a direct same-ChatGPT status request cannot trigger a new test or terminat
     assert.equal(calls,0);
     assert.deepEqual(result,{action:"reply",reply:desired,task:"",continueThread:false});
     assert.equal(directCurrentChatReply("В чате Jessica проверь память: Запомни слово."),null);
+});
+
+
+test("explicit standalone test is actually executed rather than requesting owner to supply answer",async()=>{
+    const original=[
+        "**Создай новый тестовый чат Jessica.**",
+        "**Точная формулировка задачи:**",
+        "",
+        "Рассчитай, сколько календарных дней прошло с 9 октября 2026 года по 23 октября 2026 года. Начальную дату не включай, конечную включай. Назови результат числом и кратко объясни расчёт.",
+        "",
+        "**Ожидаемый результат:** 14 дней.",
+        "Верни фактический ответ Джессики дословно, без исправлений."
+    ].join("\n");
+    const parsed=explicitJessicaTest(original);
+    assert.equal(parsed?.action,"test");
+    assert.equal(parsed?.continueThread,false);
+    assert.equal(parsed?.task,"Рассчитай, сколько календарных дней прошло с 9 октября 2026 года по 23 октября 2026 года. Начальную дату не включай, конечную включай. Назови результат числом и кратко объясни расчёт.");
+    let calls=0;
+    const decision=await interpretRelayTurn({message:original},async()=>{
+        calls++;
+        return {action:"reply",reply:"Пожалуйста, предоставьте результат задачи."};
+    });
+    assert.equal(calls,0);
+    assert.deepEqual(decision,parsed);
+});
+test("same-thread Jessica test may be reused only with explicit instruction",()=>{
+    const message=[
+        "Продолжи в том же чате Джессики.",
+        "Точная формулировка задачи:",
+        "Какое число я просил запомнить?"
+    ].join("\n");
+    assert.equal(explicitJessicaTest(message)?.continueThread,true);
+    assert.equal(explicitJessicaTest("Не создавай новый тестовый чат Jessica. Продолжай эту сессию ChatGPT. Точная формулировка задачи:\nПроверь память."),null);
+    assert.equal(explicitJessicaTest("Покажи пример теста: Точная формулировка задачи:\nРеши пример"),null);
 });
