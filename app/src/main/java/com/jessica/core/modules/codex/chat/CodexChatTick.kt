@@ -16,31 +16,7 @@ internal suspend fun CodexChatCoordinator.tickCodexSession(launch: PhoneChatLaun
                 processAcceptedReply(launch, answer, retryingInterpretation = true)
             return
         }
-        val window = ChatWindowReader.read(service, if (composed || state.waiting) launch.prompt else null)
-        if (window == null) {
-            val now = SystemClock.elapsedRealtime()
-            if (invisibleSince == 0L) invisibleSince = now
-            if (now - invisibleSince < 12_000L) {
-                // IME/keyboard and accessibility overlays briefly change the
-                // active window. Do not silently forget the selected chat.
-                notice("Ожидаю возвращения окна ChatGPT; выбранный чат сохранён.")
-                return
-            }
-            if (state.waiting || state.sends > 0 || composed) {
-                // Keyboard/IME changes and owner scrolling must not erase a
-                // selected conversation after sending. Do nothing while the
-                // verified ChatGPT window is absent; never touch another app.
-                notice("Ожидаю окно выбранного ChatGPT. Сессия сохранена, повторной отправки нет.")
-                return
-            }
-            confirmed = false
-            calibratedSend = null
-            calibrateButton?.visibility = android.view.View.GONE
-            confirmButton?.visibility = android.view.View.VISIBLE
-            notice("Чат ChatGPT не виден. Вернись в чат и нажми «Чат выбран».")
-            return
-        }
-        invisibleSince = 0L
+        val window = findSelectedChatWindow(launch, state) ?: return
         var response: String? = null
         try {
             if (ChatUiPolicy.conversationAtLimit(window.content)) {

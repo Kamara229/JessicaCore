@@ -6,7 +6,8 @@ export const CODEX_PHASES = Object.freeze(new Set([
     "started","chat_selected","draft_ready","send_requested","sent",
     "reply_streaming","awaiting_markers","reply_stabilizing",
     "reply_partial","reply_detected","reply_seeking_start",
-    "reply_verified","interpret_started","interpret_retry","next_ready","editor_missing","send_control_missing","stopped"
+    "reply_verified","interpret_started","interpret_retry","next_ready",
+    "chat_away","chat_resumed","editor_missing","send_control_missing","stopped"
 ]));
 const records = new Map();
 const SESSION = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

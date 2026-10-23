@@ -13,7 +13,16 @@ class ChatGptAccessibilityService : AccessibilityService() {
         PhoneChatRuntime.connected(this)
         ChatServiceDiagnostics.record(this, "connected")
     }
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // Only wake on the ChatGPT package. Never inspect notification content.
+        if (event?.packageName?.toString() == "com.openai.chatgpt" &&
+            event.eventType in setOf(
+                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
+                AccessibilityEvent.TYPE_WINDOWS_CHANGED,
+                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+            )
+        ) coordinator.onChatWindowEvent()
+    }
     override fun onInterrupt() {
         // Android may interrupt AccessibilityService feedback on a user swipe.
         // It does not mean the owner ended the Codex session. Actual disconnect

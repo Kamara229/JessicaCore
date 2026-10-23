@@ -7,6 +7,7 @@ import kotlinx.coroutines.*
 
 internal fun CodexChatCoordinator.startCodexSession() {
         loop?.cancel()
+        while (windowWake.tryReceive().isSuccess) { }
         confirmed = false
         composed = false
         draftEditorMissingSince = 0L
@@ -41,7 +42,7 @@ internal fun CodexChatCoordinator.startCodexSession() {
                 try { tick(launch) }
                 catch (e: CancellationException) { throw e }
                 catch (e: Exception) { finish("Кодекс приостановлен: ${e.message ?: "не удалось продолжить"}. Повторная отправка и повторный тест не запускаются.") }
-                delay(1500)
+                withTimeoutOrNull(1500L) { windowWake.receive() }
             }
         }
 }

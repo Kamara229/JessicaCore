@@ -41,6 +41,12 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     internal var verifiedReplyId = ""
     internal var verifiedReplyAnchor = ""
     internal var invisibleSince = 0L
+    internal val windowWake = kotlinx.coroutines.channels.Channel<Unit>(
+        kotlinx.coroutines.channels.Channel.CONFLATED
+    )
+    internal fun onChatWindowEvent() {
+        if (PhoneChatRuntime.launch != null) windowWake.trySend(Unit)
+    }
     internal var lastReplyWaitNotice = 0L
     internal var lastReplyProgress: CodexReplyProgress? = null
     internal var lastReportedPhase = ""
