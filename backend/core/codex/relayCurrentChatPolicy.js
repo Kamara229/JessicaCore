@@ -5,7 +5,7 @@
 export function directCurrentChatReply(message) {
     const text=String(message || "");
     const excludesNewTest=/не\s+(?:запускай\s+тест|создавай\s+новый\s+тестовый\s+чат)/iu.test(text);
-    const sameChat=/в\s+(?:этой|той\s+же|текущей)\s+сессии|в\s+(?:этом\s+же|текущем|выбранном)\s+чате\s+chatgpt/iu.test(text);
+    const sameChat=/в\s+(?:этой(?:\s+же)?|той\s+же|текущей)\s+сессии(?:\s+chatgpt)?|в\s+(?:этом\s+же|текущем|выбранном)\s+чате(?:\s+chatgpt)?/iu.test(text);
     const asksToSend=/самостоятельно\s+отправь\s+(?:следующее\s+)?сообщение/iu.test(text);
     if (!excludesNewTest || !sameChat || !asksToSend) return null;
     const quote=[...text.matchAll(/«([^»]{10,350})»/gu)].map(m=>m[1].trim())
