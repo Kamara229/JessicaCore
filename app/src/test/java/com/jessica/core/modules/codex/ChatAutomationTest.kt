@@ -86,6 +86,13 @@ class ChatAutomationTest {
         assertFalse(ChatUiPolicy.conversationAtLimit("Это обычное сообщение в выбранном чате."))
     }
 
+    @Test fun longWaitRetainsSessionWithoutRetryingUncertainSend() {
+        val state = ChatRunState(1000, maxTurns = 6, durationMs = 8 * 60 * 60 * 1000L)
+        assertTrue(state.beginSend(2000))
+        assertTrue(state.replyOverdue(120_000))
+        assertFalse("Slow reply must not stop CodeX",state.expired(25 * 60 * 1000L))
+        assertFalse("No blind resend",state.beginSend(120_001))
+    }
     @Test fun sessionTimeoutAndMessageBudgetAreHardLimits() {
         val state = ChatRunState(0, maxTurns = 1)
         assertTrue(state.beginSend(1))
