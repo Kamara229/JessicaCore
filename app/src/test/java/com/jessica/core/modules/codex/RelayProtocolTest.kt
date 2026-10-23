@@ -57,6 +57,12 @@ class RelayProtocolTest {
         val flattened = "$first\n$last\n$body\n$endFirst\n$last"
         assertEquals(body,RelayProtocol.reply(flattened,id))
     }
+    @Test fun acceptsVisiblePhoneWrapWhereTheHyphenStartsTheNextLine() {
+        val reply = "JESSICA_REPLY_12345678-abcd-4abc-8abc\n-123456789012\n" +
+            "Кодекс продолжает работу.\n" +
+            "JESSICA_END_12345678-abcd-4abc-8abc\n-123456789012"
+        assertEquals("Кодекс продолжает работу.", RelayProtocol.reply(reply,id))
+    }
     @Test fun splitUuidFragmentsInsideOwnersInstructionAreNeverAccepted() {
         val text = "Начни ответ отдельной строкой JESSICA_REPLY_12345678-abcd-4abc-8abc-\n" +
             "123456789012. Закончи отдельной строкой JESSICA_END_12345678-abcd-4abc-8abc-\n" +
