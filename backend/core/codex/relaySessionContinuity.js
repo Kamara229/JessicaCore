@@ -7,7 +7,7 @@ export function isStandaloneLengthNotice(message) {
     if (typeof message !== "string") return false;
     const normalized=message.trim().replace(/\s+/g," ").toLowerCase();
     if (!normalized || normalized.length>500) return false;
-    const russian=/^(?:(?:chatgpt|система)\s*[:—-]\s*)?вы достигли максимальн\w* длин\w* (?:этого )?обсуждени\w*(?:[.,:;!? ]|$)/u;
+    const russian=/^(?:(?:chatgpt|система)\s*[:—-]\s*)?вы достигли максимальн[а-яё]* длин[а-яё]* (?:этого )?обсуждени[а-яё]*(?:[.,:;!? ]|$)/u;
     const english=/^(?:(?:chatgpt|system)\s*[:—-]\s*)?(?:you(?:'ve| have) reached|this conversation has reached) (?:the )?maximum (?:conversation )?length(?:[.,:;!? ]|$)/u;
     return russian.test(normalized) || english.test(normalized);
 }
