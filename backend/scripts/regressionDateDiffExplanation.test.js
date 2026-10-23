@@ -17,7 +17,8 @@ test("calendar endpoints preserve no-off-by-one behavior", async()=>{
     const cases=[
         ["2026-10-22","2026-10-23",1],
         ["2026-10-23","2026-10-23",0],
-        ["2024-02-28","2024-03-01",2]
+        ["2024-02-28","2024-03-01",2],
+        ["2024-02-29","2024-03-03",3]
     ];
     for(const [from,to,expected] of cases){
         const r=await executeTool("date_diff",{startDate:from,endDate:to,mode:"elapsed"});
@@ -40,6 +41,7 @@ test("absolute and backward elapsed modes preserve original contracts",async()=>
 test("Russian calendar day endings follow 1/2–4/5+ grammar, including leap day",async()=>{
     const cases=[
         ["2024-02-28","2024-03-02",3,"3 полных календарных дня"],
+        ["2024-02-29","2024-03-03",3,"3 полных календарных дня"],
         ["2026-10-01","2026-10-02",1,"1 полный календарный день"],
         ["2026-10-01","2026-10-03",2,"2 полных календарных дня"],
         ["2026-10-01","2026-10-06",5,"5 полных календарных дней"],
