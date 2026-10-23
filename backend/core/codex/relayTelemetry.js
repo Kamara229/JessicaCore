@@ -5,6 +5,7 @@
 export const CODEX_PHASES = Object.freeze(new Set([
     "started","chat_selected","draft_ready","send_requested","sent",
     "reply_streaming","awaiting_markers","reply_stabilizing",
+    "reply_partial","reply_detected",
     "reply_verified","interpret_started","next_ready","editor_missing","send_control_missing","stopped"
 ]));
 const records = new Map();

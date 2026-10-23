@@ -42,6 +42,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     internal var verifiedReplyAnchor = ""
     internal var invisibleSince = 0L
     internal var lastReplyWaitNotice = 0L
+    internal var lastReplyProgress: CodexReplyProgress? = null
     internal var lastReportedPhase = ""
 
     fun begin() {
@@ -60,6 +61,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
         verifiedReplyAnchor = ""
         invisibleSince = 0L
         lastReplyWaitNotice = 0L
+        lastReplyProgress = null
         lastReportedPhase = ""
         val launch = PhoneChatRuntime.launch ?: return
         run = ChatRunState(SystemClock.elapsedRealtime(), maxTurns = 60, durationMs = 8 * 60 * 60 * 1000L)
@@ -133,7 +135,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
             return
         }
         reportPhase("interpret_started")
-        notice("Ответ прочитан. Определяю следующий шаг по контексту.")
+        notice("Вижу ответ ChatGPT и анализирую. Формирую следующий шаг Джессики.")
         val next = launch.conversation.respond(answer, ::notice)
         if (PhoneChatRuntime.launch !== launch) return
         launch.previousReplyId = launch.replyId
@@ -143,6 +145,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
         launch.endAfterSend = next.endSession
         composed = false
         continuityMissingSince = 0L
+        lastReplyProgress = null
         reportPhase("next_ready")
         notice(if (next.endSession) "Передаю итоговое сообщение и завершаю сессию." else "Ответ Джессики подготовлен для выбранного чата.")
     }

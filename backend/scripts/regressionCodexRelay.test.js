@@ -70,6 +70,8 @@ test("Codex relay phases cannot send prompt, message, source or arbitrary labels
     assert.equal(emitted.length,1);
     assert.ok(!emitted[0].includes("PRIVATE"));
     assert.ok(!emitted[0].includes("SECRET"));
+    assert.equal(validateCodexPhase({...input,phase:"reply_partial"}).phase,"reply_partial");
+    assert.equal(validateCodexPhase({...input,phase:"reply_detected"}).phase,"reply_detected");
     assert.equal(validateCodexPhase({...input,phase:"editor_missing"}).phase,"editor_missing");
     assert.equal(validateCodexPhase({...input,phase:"send_control_missing"}).phase,"send_control_missing");
     assert.throws(()=>validateCodexPhase({...input,phase:"send_any_text"}));

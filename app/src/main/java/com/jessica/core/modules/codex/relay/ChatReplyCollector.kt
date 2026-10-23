@@ -12,6 +12,9 @@ class ChatReplyCollector {
     private var observed = ""
     private var completed: String? = null
 
+    /** True only after the unique response start marker was observed in this session. */
+    fun hasStarted(id: String): Boolean = id == pendingId && observed.isNotBlank()
+
     fun reset() {
         pendingId = ""
         observed = ""
