@@ -6,7 +6,10 @@ import android.os.SystemClock
 internal suspend fun CodexChatCoordinator.tickCodexSession(launch: PhoneChatLaunch) {
         val state = run ?: return
         if (state.expired(SystemClock.elapsedRealtime())) { finish("Истекло время сессии или ожидания ответа. История сохранена."); return }
-        if (service.getSystemService(KeyguardManager::class.java).isKeyguardLocked) { stopByUser("Телефон заблокирован. Кодекс остановлен."); return }
+        if (service.getSystemService(KeyguardManager::class.java).isKeyguardLocked) {
+            notice("Телефон заблокирован. Кодекс сохраняет сессию и продолжит после разблокировки.")
+            return
+        }
         if (calibrating) return
         // Only remote interpretation is retried, never an uncertain send or
         // a partially executed Jessica test. No need to read a UI snapshot
