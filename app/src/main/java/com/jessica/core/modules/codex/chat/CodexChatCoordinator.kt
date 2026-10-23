@@ -26,6 +26,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     internal var run: ChatRunState? = null
     internal var confirmed = false
     internal var composed = false
+    internal var outgoingLogPending = false
     internal var draftEditorMissingSince = 0L
     internal var continuityMissingSince = 0L
     internal val scrollFollower = CodexScrollFollower(service.resources.displayMetrics.density)
