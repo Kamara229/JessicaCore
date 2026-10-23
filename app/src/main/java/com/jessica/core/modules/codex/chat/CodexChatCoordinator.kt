@@ -28,7 +28,9 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     internal var composed = false
     internal var draftEditorMissingSince = 0L
     internal var continuityMissingSince = 0L
-    internal val scrollFollower = CodexScrollFollower(service.resources.displayMetrics.density)
+    internal val scrollFollower = CodexScrollFollower(service.resources.displayMetrics.density) { window, backwards ->
+        CodexGestureScroller.scroll(service,window,backwards)
+    }
     internal var overlay: LinearLayout? = null
     internal var confirmButton: Button? = null
     internal var statusLabel: TextView? = null
