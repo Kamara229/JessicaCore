@@ -8,6 +8,16 @@ import com.jessica.core.modules.codex.relay.RelayProtocol
 internal suspend fun CodexChatCoordinator.advanceOutgoing(window: ChatWindow, launch: PhoneChatLaunch, state: ChatRunState) {
 
                 val composer = window.composer ?: run {
+                    if (!composed && state.sends > 0) {
+                        // Scrolling the transcript may temporarily hide the
+                        // pinned composer after a completed answer. Recover it
+                        // by scrolling the same selected chat to its newest
+                        // messages, without ever touching a draft or sending.
+                        scrollFollower.follow(window, SystemClock.elapsedRealtime(),
+                            launch.previousReplyId.ifBlank { launch.replyId })
+                        notice("Вижу ответ ChatGPT. Ищу поле ввода для следующего сообщения.")
+                        return
+                    }
                     if (composed) {
                         reportPhase("editor_missing")
                         val now = SystemClock.elapsedRealtime()
