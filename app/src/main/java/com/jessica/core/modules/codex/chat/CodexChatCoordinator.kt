@@ -83,6 +83,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
         }
     }
     internal fun finish(text: String) {
+        ChatServiceDiagnostics.record(service, "codex-finished:" + CodexStopReason.classify(text))
         PhoneChatRuntime.launch?.requestStop()
         loop?.cancel()
         guardianJob?.cancel()
