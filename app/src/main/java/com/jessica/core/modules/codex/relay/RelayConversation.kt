@@ -81,11 +81,22 @@ class RelayConversation(
                 val started = Instant.now().toString()
                 withContext(Dispatchers.IO) { store.append(id, ChatMessage(task, true)) }
                 // An error or no_verified_result is preserved verbatim. HTTP success is NOT a passing test.
-                val result = executeTest(task, before)
+                val result = try {
+                    executeTest(task, before)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Task dispatch may have reached the server. NEVER submit
+                    // a second identical test on this uncertain outcome.
+                    AIResult(success = false,
+                        text = "Исполнение теста завершилось сбоем: " +
+                            e.javaClass.simpleName + ". Автоматического повтора не было.")
+                }
                 withContext(Dispatchers.IO) { store.append(id, ChatMessage(result.text, false)) }
                 val report = "Попытка выполнения теста через мой обычный чат завершена.\nЧат Jessica: $id\nНачало: $started\nОкончание: ${Instant.now()}\n" +
                     "Запрос обработан сервером: ${result.success}. Это не оценка прохождения теста.\n" +
                     "Точная задача:\n$task\n\nФактический ответ Jessica, без пересказа:\n${result.text}\n\n" +
+                    "Автоматическая оценка полноты: ${RelayTestFeedback.note(task, result)}\n\n" +
                     "Проверь этот результат по ожидаемому поведению и продолжай план."
                 check(report.length <= 90000) { "Ответ слишком большой для одного сообщения. Полный результат сохранён в тестовом чате Jessica $id." }
                 RelayReply(report)
