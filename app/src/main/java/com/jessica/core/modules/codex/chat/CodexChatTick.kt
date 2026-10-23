@@ -5,6 +5,7 @@ import android.os.SystemClock
 
 internal suspend fun CodexChatCoordinator.tickCodexSession(launch: PhoneChatLaunch) {
         if (launch.stopRequested) return
+        if (launch.stopRequested || PhoneChatRuntime.launch !== launch) return
         val state = run ?: return
         if (state.expired(SystemClock.elapsedRealtime())) { finish("Истекло время сессии или ожидания ответа. История сохранена."); return }
         if (service.getSystemService(KeyguardManager::class.java).isKeyguardLocked) {
