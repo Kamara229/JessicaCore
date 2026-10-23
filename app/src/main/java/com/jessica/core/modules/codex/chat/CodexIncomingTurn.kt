@@ -1,6 +1,7 @@
 package com.jessica.core.modules.codex.chat
 
 import android.os.SystemClock
+import com.jessica.core.modules.codex.relay.ChatReplyExtraction
 
 /**
  * Called on every live ChatGPT accessibility snapshot while a reply is due.
@@ -34,7 +35,17 @@ internal fun CodexChatCoordinator.observeIncoming(
     // Stay on the latest portion of the same, owner-selected ChatGPT thread
     // even after the owner manually scrolls elsewhere. No re-sends or taps.
     if (completed == null || window.generating) {
-        scrollFollower.follow(window, now, launch.replyId)
+        val seekingStart = completed == null && scrollFollower.recoverStart(
+            window, now, launch.replyId,
+            replyCollector.hasStarted(launch.replyId),
+            ChatReplyExtraction.hasStandaloneEnd(window.content, launch.replyId)
+        )
+        if (seekingStart) {
+            reportPhase("reply_seeking_start")
+            notice("Вижу конец ответа ChatGPT, восстанавливаю начало сообщения для анализа.")
+        } else {
+            scrollFollower.follow(window, now, launch.replyId)
+        }
     }
 
     // ACTION_CLICK success cannot prove that the message was actually posted.
