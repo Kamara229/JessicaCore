@@ -13,7 +13,7 @@ object RelayProtocol {
 
     fun wrap(text: String, id: String): String = text +
         "\n\nНачни ответ отдельной строкой JESSICA_REPLY_$id. " +
-        "Между метками пиши обычный текст. " +
+        "Между метками не более 240 символов: только один тест или следующий шаг, без отчётов. " +
         "Закончи отдельной строкой JESSICA_END_$id."
 
     fun reply(screen: String, id: String): String? =
