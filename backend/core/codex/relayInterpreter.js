@@ -2,6 +2,7 @@ import {getGroqClient} from "../../ai/groqClient.js";
 import {explicitSameTestChat} from "./relayThreadPolicy.js";
 import {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 import {explicitJessicaTest} from "./relayExplicitTest.js";
+import {isStandaloneLengthNotice,lengthNoticeContinuation} from "./relaySessionContinuity.js";
 export {explicitJessicaTest} from "./relayExplicitTest.js";
 export {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 export {explicitSameTestChat} from "./relayThreadPolicy.js";
@@ -54,6 +55,9 @@ export async function interpretRelayTurn(input, generate) {
     ).slice(-16).map(item => ({
         role:item.role, content:item.content.slice(-6000)
     })) : [];
+    // Never reinterpret a standalone ChatGPT max-length banner as "finish".
+    // The Android relay still checks the selected composer before any send.
+    if (isStandaloneLengthNotice(message)) return lengthNoticeContinuation();
     const explicitReply = directCurrentChatReply(message);
     if (explicitReply !== null) return {action:"reply",reply:explicitReply,task:"",continueThread:false};
     const requestedTest = explicitJessicaTest(message);
