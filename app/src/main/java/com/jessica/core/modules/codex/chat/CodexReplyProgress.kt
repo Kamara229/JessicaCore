@@ -7,7 +7,7 @@ package com.jessica.core.modules.codex.chat
  */
 internal enum class CodexReplyProgress(val phase: String, val status: String) {
     WAITING("awaiting_markers",
-        "Жду ответ ChatGPT. Отслеживаю выбранный чат и прокручиваю переписку вниз."),
+        "Жду ответ ChatGPT. Проверяю чат без автоматической прокрутки."),
     STREAMING("reply_streaming",
         "Вижу, что ChatGPT формирует ответ. Читаю поступающий текст."),
     PARTIAL("reply_partial",
