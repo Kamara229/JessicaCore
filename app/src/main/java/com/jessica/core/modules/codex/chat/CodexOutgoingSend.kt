@@ -9,6 +9,7 @@ internal suspend fun CodexChatCoordinator.dispatchOutgoing(
     composer: AccessibilityNodeInfo
 ) {
                 if (launch.stopRequested || state.stopped) return
+                if (launch.stopRequested || PhoneChatRuntime.launch !== launch) return
                 val send = window.send
                 val point = if (send == null) calibratedSend?.point(window.root.screenBox(), composer.screenBox(), service.resources.displayMetrics.density) else null
                 if (send == null && point == null) {
