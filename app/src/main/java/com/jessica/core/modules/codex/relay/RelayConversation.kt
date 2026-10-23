@@ -6,6 +6,7 @@ import com.jessica.core.modules.AIResult
 import com.jessica.core.modules.chat.ChatMessage
 import com.jessica.core.modules.chat.ChatThreadStore
 import com.jessica.core.modules.codex.CodexClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -13,6 +14,9 @@ import org.json.JSONObject
 import java.time.Instant
 
 data class RelayReply(val text: String, val endSession: Boolean = false)
+
+/** Only interpretation has not produced any task or send-side effect. Safe to retry. */
+class RelayInterpretationUnavailable(cause: Throwable): RuntimeException("Сервис анализа временно недоступен",cause)
 
 /** Tests use the same JessicaAIEngine and local chat storage as regular Jessica chat. */
 class RelayConversation(
@@ -38,13 +42,28 @@ class RelayConversation(
     suspend fun recordOutgoing(text: String) { log(text, false) }
     suspend fun recordIncoming(text: String) { log(text, true) }
 
-    suspend fun respond(message: String, notice: (String) -> Unit): RelayReply {
+    suspend fun respond(message: String, notice: (String) -> Unit,
+                        retryingInterpretation: Boolean = false): RelayReply {
+        // Retry only the remote classification. An earlier failure already
+        // stored this incoming answer; no duplicate journal/message writes.
+        val context = if (retryingInterpretation &&
+            history.lastOrNull()?.let { it.isUser && it.text == message } == true)
+            history.dropLast(1) else history
         val recent = JSONArray()
-        history.takeLast(16).forEach { recent.put(JSONObject().put("role", if (it.isUser) "user" else "assistant")
+        context.takeLast(16).forEach { recent.put(JSONObject().put("role", if (it.isUser) "user" else "assistant")
             .put("content", it.text.takeLast(6000))) }
-        recordIncoming(message)
+        if (!retryingInterpretation) recordIncoming(message)
         notice("Вижу ответ ChatGPT и анализирую. Учитываю план и предыдущие результаты…")
-        val decision = interpret(JSONObject().put("message", message).put("plan", plan.take(12000)).put("history", recent))
+        val decision = try {
+            interpret(JSONObject().put("message", message).put("plan", plan.take(12000))
+                .put("history", recent))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // A test has NOT been executed yet, so interpretation alone is
+            // safe to reattempt without duplicating chat or learning effects.
+            throw RelayInterpretationUnavailable(e)
+        }
         return when (decision.getString("action")) {
             "test" -> {
                 val task = decision.getString("task").trim()
