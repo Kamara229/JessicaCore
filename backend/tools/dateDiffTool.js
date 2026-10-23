@@ -26,6 +26,8 @@ import {
     parseNativeDate
 } from "../core/native/dateUtils.js";
 
+import {formatDateDifference} from "./dateDiffResultText.js";
+
 
 const DAY_MS =
     24 * 60 * 60 * 1000;
@@ -180,42 +182,7 @@ function executeDateDiff(
             );
 
 
-    const text =
-
-        mode === "elapsed"
-
-            ? (
-                "От "
-                +
-                start.iso
-                +
-                " до "
-                +
-                end.iso
-                +
-                " прошло "
-                +
-                fullDays
-                +
-                " полных дней."
-            )
-
-            : (
-                "Между "
-                +
-                start.iso
-                +
-                " и "
-                +
-                end.iso
-                +
-                " "
-                +
-                fullDays
-                +
-                " полных дней."
-            );
-
+    const text = formatDateDifference(start.iso, end.iso, fullDays, mode);
 
     return {
 
