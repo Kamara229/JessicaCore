@@ -10,7 +10,7 @@ import android.os.SystemClock
 internal fun CodexChatCoordinator.findSelectedChatWindow(
     launch: PhoneChatLaunch, state: ChatRunState
 ): ChatWindow? {
-    val window=ChatWindowReader.read(service, if (composed || state.waiting) launch.prompt else null)
+    val window=readGuardedChatWindow(if (composed || state.waiting) launch.prompt else null)
     val now=SystemClock.elapsedRealtime()
     if (window == null) {
         if (invisibleSince == 0L) {
