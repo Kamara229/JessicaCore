@@ -7,6 +7,7 @@ import kotlinx.coroutines.*
 
 internal fun CodexChatCoordinator.startCodexSession() {
         loop?.cancel()
+        guardianJob?.cancel()
         while (windowWake.tryReceive().isSuccess) { }
         confirmed = false
         composed = false
@@ -27,6 +28,7 @@ internal fun CodexChatCoordinator.startCodexSession() {
         pendingInterpretation = null
         interpretationFailures = 0
         retryInterpretAt = 0L
+        lastProgressAt = SystemClock.elapsedRealtime()
         val launch = PhoneChatRuntime.launch ?: return
         run = ChatRunState(SystemClock.elapsedRealtime(), maxTurns = 60, durationMs = 8 * 60 * 60 * 1000L)
         reportPhase("started")
@@ -36,6 +38,7 @@ internal fun CodexChatCoordinator.startCodexSession() {
         }
         if (!PhoneCodexHandoff.openChatGPT(service, null)) { finish("Открой официальное приложение ChatGPT и запусти Кодекс снова."); return }
         notice("Открой чат с планом и нажми «Чат выбран».")
+        guardianJob = startCodexGuardian(launch)
         loop = scope.launch {
             delay(2000)
             while (isActive && PhoneChatRuntime.launch === launch) {
