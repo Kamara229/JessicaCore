@@ -13,9 +13,8 @@ internal fun CodexChatCoordinator.resolveOutgoingComposer(
                         // pinned composer after a completed answer. Recover it
                         // by scrolling the same selected chat to its newest
                         // messages, without ever touching a draft or sending.
-                        scrollFollower.follow(window, SystemClock.elapsedRealtime(),
-                            launch.previousReplyId.ifBlank { launch.replyId })
-                        notice("Вижу ответ ChatGPT. Ищу поле ввода для следующего сообщения.")
+                        // UI is not scrolled automatically; a drawer must never be touched.
+                        notice("Поле ввода скрыто. Ожидаю возвращения в выбранный чат без автопрокрутки.")
                         return null
                     }
                     if (composed) {
