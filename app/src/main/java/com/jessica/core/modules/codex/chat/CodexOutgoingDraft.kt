@@ -13,6 +13,7 @@ internal suspend fun CodexChatCoordinator.prepareOutgoingDraft(
     window: ChatWindow, launch: PhoneChatLaunch, state: ChatRunState,
     composer: AccessibilityNodeInfo
 ): Boolean {
+    if (launch.stopRequested || state.stopped) return true
     val text = composer.text?.toString().orEmpty()
                 val alreadyPosted = RelayProtocol.reply(window.content, launch.replyId) != null ||
                     ChatUiPolicy.alreadyPosted(window.content, launch.prompt, launch.replyId)
@@ -45,9 +46,9 @@ internal suspend fun CodexChatCoordinator.prepareOutgoingDraft(
                         // the already verified answer out of the visible tree.
                         // Keep following the current ChatGPT viewport, but DO NOT
                         // compose or send until continuity is visible again.
-                        scrollFollower.follow(window, now, launch.previousReplyId)
+                        // Automatic scrolling is forbidden until UI scroller isolation is verified.
                         notice(if (now - continuityMissingSince < 30_000L)
-                            "Прокручиваю переписку вниз для проверки предыдущего ответа. Отправки нет."
+                            "Не вижу подтверждённый ответ. Автоматическая прокрутка отключена."
                             else "Кодекс продолжает искать подтверждённый ответ в выбранном чате. " +
                                 "Пока он не виден, новые сообщения не отправляются.")
                         return true
