@@ -68,8 +68,28 @@ internal suspend fun CodexChatCoordinator.prepareOutgoingDraft(
                 if (!ChatUiPolicy.canSend("com.openai.chatgpt", confirmed, false,
                         confirmedComposerText, launch.prompt, window.generating)) return true
                 if (!composed) {
-                    val args = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, launch.prompt) }
-                    check(composer.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) { "ChatGPT не разрешил ввод текста" }
+                    // A matching draft may have been written even when Android
+                    // failed to acknowledge the preceding ACTION_SET_TEXT.
+                    val accepted = if (verifiedText) false else try {
+                        val args = Bundle().apply {
+                            putCharSequence(
+                                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                                launch.prompt
+                            )
+                        }
+                        composer.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        false // Stale editor: safely re-read it on the next tick.
+                    }
+                    if (CodexDraftWritePolicy.next(verifiedText, accepted) ==
+                        CodexDraftWritePolicy.Next.RETRY_SNAPSHOT) {
+                        reportPhase("draft_retry")
+                        notice("Поле ввода временно не подтвердило текст. " +
+                            "Сессия сохранена; проверю редактор снова без отправки.")
+                        return true
+                    }
                     composed = true
                     reportPhase("draft_ready")
                     notice("Сообщение подготовлено. Проверяю отправку.")
