@@ -44,6 +44,9 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     internal var lastReplyWaitNotice = 0L
     internal var lastReplyProgress: CodexReplyProgress? = null
     internal var lastReportedPhase = ""
+    internal var pendingInterpretation: String? = null
+    internal var interpretationFailures = 0
+    internal var retryInterpretAt = 0L
 
     fun begin() {
         loop?.cancel()
@@ -63,6 +66,9 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
         lastReplyWaitNotice = 0L
         lastReplyProgress = null
         lastReportedPhase = ""
+        pendingInterpretation = null
+        interpretationFailures = 0
+        retryInterpretAt = 0L
         val launch = PhoneChatRuntime.launch ?: return
         run = ChatRunState(SystemClock.elapsedRealtime(), maxTurns = 60, durationMs = 8 * 60 * 60 * 1000L)
         reportPhase("started")
@@ -88,6 +94,14 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
         if (state.expired(SystemClock.elapsedRealtime())) { finish("Истекло время сессии или ожидания ответа. История сохранена."); return }
         if (service.getSystemService(KeyguardManager::class.java).isKeyguardLocked) { stopByUser("Телефон заблокирован. Кодекс остановлен."); return }
         if (calibrating) return
+        // Only remote interpretation is retried, never an uncertain send or
+        // a partially executed Jessica test. No need to read a UI snapshot
+        // while waiting for the backend's next interpretation attempt.
+        pendingInterpretation?.let { answer ->
+            if (SystemClock.elapsedRealtime() >= retryInterpretAt)
+                processAcceptedReply(launch, answer, retryingInterpretation = true)
+            return
+        }
         val window = ChatWindowReader.read(service, if (composed || state.waiting) launch.prompt else null)
         if (window == null) {
             val now = SystemClock.elapsedRealtime()
@@ -129,25 +143,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
             }
         } finally { window.release() }
         val answer = response ?: return
-        if (state.sends >= state.maxTurns) {
-            launch.conversation.recordIncoming(answer)
-            finish("Достигнут предел 60 сообщений. Последний ответ сохранён; новый тест не запускался.")
-            return
-        }
-        reportPhase("interpret_started")
-        notice("Вижу ответ ChatGPT и анализирую. Формирую следующий шаг Джессики.")
-        val next = launch.conversation.respond(answer, ::notice)
-        if (PhoneChatRuntime.launch !== launch) return
-        launch.previousReplyId = launch.replyId
-        launch.replyId = UUID.randomUUID().toString()
-        launch.message = next.text
-        launch.prompt = RelayProtocol.wrap(next.text, launch.replyId)
-        launch.endAfterSend = next.endSession
-        composed = false
-        continuityMissingSince = 0L
-        lastReplyProgress = null
-        reportPhase("next_ready")
-        notice(if (next.endSession) "Передаю итоговое сообщение и завершаю сессию." else "Ответ Джессики подготовлен для выбранного чата.")
+        processAcceptedReply(launch, answer, retryingInterpretation = false)
     }
 
     fun stopByUser(message: String = "Кодекс остановлен пользователем. История сохранена.") {
