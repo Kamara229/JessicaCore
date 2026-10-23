@@ -4,6 +4,7 @@ import android.app.KeyguardManager
 import android.os.SystemClock
 
 internal suspend fun CodexChatCoordinator.tickCodexSession(launch: PhoneChatLaunch) {
+        if (launch.stopRequested) return
         val state = run ?: return
         if (state.expired(SystemClock.elapsedRealtime())) { finish("Истекло время сессии или ожидания ответа. История сохранена."); return }
         if (service.getSystemService(KeyguardManager::class.java).isKeyguardLocked) {
@@ -20,6 +21,7 @@ internal suspend fun CodexChatCoordinator.tickCodexSession(launch: PhoneChatLaun
             return
         }
         val window = findSelectedChatWindow(launch, state) ?: return
+        if (launch.stopRequested) { window.release(); return }
         var response: String? = null
         try {
             if (ChatUiPolicy.conversationAtLimit(window.content)) {
@@ -29,9 +31,14 @@ internal suspend fun CodexChatCoordinator.tickCodexSession(launch: PhoneChatLaun
                 return
             }
             if (!confirmed) { notice("Открой подготовленный чат и нажми «Чат выбран»."); return }
+            if (window.composer == null) {
+                notice("Поле ввода выбранного чата скрыто. Не прокручиваю экран и не отправляю сообщения.")
+                return
+            }
             if (state.waiting) {
                 response = observeIncoming(window, launch, state)
             } else {
+                if (launch.stopRequested) return
                 advanceOutgoing(window, launch, state)
             }
         } finally { window.release() }
