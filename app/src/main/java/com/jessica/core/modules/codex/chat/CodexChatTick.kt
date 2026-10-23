@@ -25,12 +25,10 @@ internal suspend fun CodexChatCoordinator.tickCodexSession(launch: PhoneChatLaun
         if (launch.stopRequested) { window.release(); return }
         var response: String? = null
         try {
-            if (ChatUiPolicy.conversationAtLimit(window.content)) {
-                finish("В выбранном чате ChatGPT достигнут предел длины обсуждения. " +
-                    "Продолжение возможно только в новом чате, который ты выберешь самостоятельно. " +
-                    "Джессика ничего не отправляла.")
-                return
-            }
+            // ChatGPT's length banner is not a command to stop: this chat
+            // may still accept messages. Observe it only, then continue the
+            // usual composer, send-button and selected-thread safety checks.
+            observeConversationBanner(window.content)
             if (!confirmed) { notice("Открой подготовленный чат и нажми «Чат выбран»."); return }
             when (CodexTurnWindowPolicy.next(state.waiting, window.composer != null)) {
                 CodexTurnWindowPolicy.Next.READ_REPLY ->
