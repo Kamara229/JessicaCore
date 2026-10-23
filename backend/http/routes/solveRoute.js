@@ -148,6 +148,8 @@ export function registerSolveRoute(
                     isBareSourceOnly(coreResult?.text);
                 const localized = coreResult?.mode === "translation"
                     ? {...coreResult, outputLanguage, localizationStatus:"explicit-translation"}
+                    : coreResult?.mode === "conversation_ack"
+                        ? {...coreResult, outputLanguage, localizationStatus:"deterministic-chat-ack"}
                     : preserveBareCode
                         ? {...coreResult, outputLanguage, localizationStatus:"bare-code-preserved"}
                         : await localizeResponse(coreResult, task, outputLanguage);
