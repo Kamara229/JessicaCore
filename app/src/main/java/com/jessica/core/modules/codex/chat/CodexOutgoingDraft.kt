@@ -25,13 +25,22 @@ internal suspend fun CodexChatCoordinator.prepareOutgoingDraft(
                     else notice("Сообщение уже в переписке. Читаю ответ без повторной отправки.")
                     return true
                 }
-                if (composed && text != launch.prompt) {
-                    finish("Кодекс остановлен: текст доступного поля не совпадает с черновиком " +
-                        "(получено ${text.length} символов из ${launch.prompt.length}). " +
-                        "Отправка без проверки полного текста запрещена.")
+                val verifiedText = CodexDraftVerificationPolicy.matchesExpected(text, launch.prompt)
+                if (composed && !verifiedText) {
+                    // Render logs showed draft_ready -> stopped in under a
+                    // second: ChatGPT can temporarily expose only part of an
+                    // expanded editor. Never terminate or click on that basis.
+                    reportPhase("draft_unverified")
+                    notice("Черновик пока не подтверждён интерфейсом ChatGPT " +
+                        "(${text.length}/${launch.prompt.length} символов). " +
+                        "Продолжаю проверять, без отправки и без смены чата.")
                     return true
                 }
-                if (text.isNotBlank() && text != launch.prompt) { finish("В поле есть твой черновик. Убери его перед новым запуском Кодекса."); return true }
+                if (text.isNotBlank() && !verifiedText) {
+                    notice("В поле ChatGPT обнаружен другой текст. " +
+                        "Не изменяю его и не отправляю. Сессия сохранена.")
+                    return true
+                }
                 // Filling a long report may cover the preceding reply. Verify continuity before composing.
                 if (!composed && state.sends > 0) {
                     // After a long answer ChatGPT may virtualize its START
@@ -55,7 +64,9 @@ internal suspend fun CodexChatCoordinator.prepareOutgoingDraft(
                     }
                     continuityMissingSince = 0L
                 }
-                if (!ChatUiPolicy.canSend("com.openai.chatgpt", confirmed, false, text, launch.prompt, window.generating)) return true
+                val confirmedComposerText = if (verifiedText) launch.prompt else text
+                if (!ChatUiPolicy.canSend("com.openai.chatgpt", confirmed, false,
+                        confirmedComposerText, launch.prompt, window.generating)) return true
                 if (!composed) {
                     val args = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, launch.prompt) }
                     check(composer.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) { "ChatGPT не разрешил ввод текста" }
