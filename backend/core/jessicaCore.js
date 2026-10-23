@@ -43,6 +43,7 @@ import { analyzeDocumentAttachments } from "./files/documentAnalysisFacade.js";
 import {analyzeCodeAttachments,isCodeAttachmentTask} from "./files/codeAnalysisFacade.js";
 import {needsProgrammingRuntimeEvidence} from "./foundations/programmingLearningGate.js";
 import { translatePreviousReply } from "./language/responseLanguageService.js";
+import {acknowledgeMemoryInstruction} from "./chat/explicitMemoryAcknowledgement.js";
 
 import {
     contextualizeTask,
@@ -192,6 +193,15 @@ export async function executeJessicaTask(
     }
 
 
+
+    // A standalone chat-memory acknowledgement must never reuse a previous
+    // calculation or become a trained Experience. Android already journals
+    // the actual user turn, making it available to a later same-chat recall.
+    const acknowledgement = acknowledgeMemoryInstruction(normalizedTask);
+    if (acknowledgement) {
+        completeExecutionTrace(executionTrace);
+        return {...acknowledgement, engine:"jessica-core", executionTrace};
+    }
 
     // A reference to the previous reply is not a new standalone task.
     // Translate the real answer, never a fabricated document or JSON.
