@@ -53,6 +53,8 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     internal var pendingInterpretation: String? = null
     internal var interpretationFailures = 0
     internal var retryInterpretAt = 0L
+    internal var lastProgressAt = 0L
+    internal var guardianJob: Job? = null
 
     /** Lightweight facade. State and module orchestration stay separate. */
     fun begin() = startCodexSession()
@@ -60,6 +62,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
 
     fun stopByUser(message: String = "Кодекс остановлен пользователем. История сохранена.") {
         loop?.cancel()
+        guardianJob?.cancel()
         finish(message)
     }
     /**
@@ -77,6 +80,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
         }
     }
     internal fun finish(text: String) {
+        guardianJob?.cancel()
         sendPicker.close()
         calibrating = false
         calibratedSend = null
@@ -94,5 +98,5 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
 
 
 
-    internal fun shutdown() { loop?.cancel(); scope.cancel() }
+    internal fun shutdown() { loop?.cancel(); guardianJob?.cancel(); scope.cancel() }
 }
