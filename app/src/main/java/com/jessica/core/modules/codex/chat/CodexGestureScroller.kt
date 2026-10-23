@@ -7,6 +7,9 @@ import android.graphics.Path
 internal object CodexGestureScroller {
     fun scroll(service: ChatGptAccessibilityService, window: ChatWindow,
                backwards: Boolean): Boolean {
+        // Independent defense in depth, even if a future caller bypasses
+        // CodexScrollFollower and invokes gesture fallback directly.
+        if (!CodexScrollSafetyPolicy.mayScrollAutomatically()) return false
         if (window.root.packageName?.toString() != "com.openai.chatgpt") return false
         val active = service.rootInActiveWindow ?: return false
         val inChat = active.packageName?.toString() == "com.openai.chatgpt"
