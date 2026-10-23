@@ -11,6 +11,7 @@ internal fun CodexChatCoordinator.startCodexSession() {
         while (windowWake.tryReceive().isSuccess) { }
         confirmed = false
         composed = false
+        outgoingLogPending = false
         draftEditorMissingSince = 0L
         continuityMissingSince = 0L
         scrollFollower.reset()
