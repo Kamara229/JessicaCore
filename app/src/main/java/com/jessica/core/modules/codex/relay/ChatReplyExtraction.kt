@@ -42,15 +42,23 @@ object ChatReplyExtraction {
     }
 
     private fun markerEnd(lines: List<String>, at: Int, label: String): Int? {
-        val line = markerPiece(lines[at])
-        if (line == label) return at + 1
-        // ChatGPT sometimes renders the marker prefix and UUID as separate
-        // text nodes, which accessibility exposes on adjacent lines.
-        val underscore = label.lastIndexOf('_')
-        val prefix = label.substring(0, underscore + 1)
-        val suffix = label.substring(underscore + 1)
-        if (line == prefix && at + 1 < lines.size &&
-            markerPiece(lines[at + 1]) == suffix) return at + 2
+        val first = markerPiece(lines[at])
+        if (first == label) return at + 1
+        // ChatGPT may wrap a 36-character UUID in the *middle* of a marker.
+        // Join only 2–4 adjacent marker-only fragments, never free-form text.
+        // The owner's instruction "Начни ответ строкой JESSICA_REPLY_..."
+        // cannot match, because that line does not START with this marker.
+        if (!first.startsWith("JESSICA_") || !label.startsWith(first)) return null
+        var joined = first
+        for (next in at + 1 until minOf(lines.size, at + 4)) {
+            val part = markerPiece(lines[next])
+            if (part.isBlank() || !part.all { ch ->
+                ch.isLetterOrDigit() || ch == '-' || ch == '_'
+            }) return null
+            joined += part
+            if (joined == label) return next + 1
+            if (!label.startsWith(joined)) return null
+        }
         return null
     }
 
