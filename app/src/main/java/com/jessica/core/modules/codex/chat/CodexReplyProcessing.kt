@@ -14,6 +14,16 @@ internal suspend fun CodexChatCoordinator.processAcceptedReply(
         finish("Достигнут предел сообщений.")
         return
     }
+    if (outgoingLogPending && !retryingInterpretation) {
+        outgoingLogPending = false
+        try {
+            launch.conversation.recordOutgoing(launch.message)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            ChatServiceDiagnostics.record(service,"uncertain-journal-error")
+        }
+    }
     reportPhase("interpret_started")
     notice("Вижу ответ ChatGPT и анализирую.")
     val next = try {
