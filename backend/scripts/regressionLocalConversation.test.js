@@ -125,3 +125,21 @@ test("already contextualized code tasks are not duplicated in execution subtask"
     const merged=attachConversationToDecomposition(original,task,history);
     assert.equal(merged.subtasks[0].text,expanded);
 });
+
+test("implicit recall of a previously remembered number and word retains dialogue", () => {
+    const memory = [
+        {role:"user",content:"Запомни число 47 и кодовое слово сирень."},
+        {role:"assistant",content:"Запомнила число 47 и слово сирень"}
+    ];
+    const query="Какое число и кодовое слово я просил тебя запомнить?";
+    assert.equal(needsConversationContext(query),true);
+    const context=contextualizeTask(query,memory);
+    assert.match(context,/число 47/);
+    assert.match(context,/сирень/);
+    assert.ok(context.endsWith(query));
+    assert.equal(needsConversationContext("Запомни новый код 52 и слово ландыш."),false);
+    const english="What did I ask you to remember?";
+    assert.equal(needsConversationContext(english),true);
+    assert.match(contextualizeTask(english,memory),/сирень/);
+});
+
