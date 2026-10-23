@@ -58,9 +58,14 @@ export function shouldAnalyzeLearningTrace(
     // enqueue an Experience from no_verified_result or degraded validation.
     if (hasNegativeLearningEvidence(trace)) return false;
 
-    // A completed child cannot justify learning from a failed parent.
+    // A completed counter or outer status is not verified task evidence.
+    // Require either verified child results or a verified terminal result.
     const result = trace.result;
-    if (Array.isArray(result?.results) && result.results.length > 0) {
+    if (!result || typeof result !== "object" || Array.isArray(result)) {
+        return false;
+    }
+    if (Array.isArray(result.results)) {
+        if (result.results.length === 0) return false;
         if (result.status !== "COMPLETED" || result.success !== true) {
             return false;
         }
@@ -73,14 +78,12 @@ export function shouldAnalyzeLearningTrace(
         )) {
             return false;
         }
-    } else if (result?.status === "PARTIAL" || result?.status === "FAILED") {
-        return false;
-    }
-
-    // A successful terminal marker without verified validation is
-    // insufficient to teach a Skill (e.g. unavailable AI Validator).
-    if (!Array.isArray(result?.results) && result?.status === "COMPLETED") {
-        if (result.verified !== true ||
+    } else {
+        // Terminal status alone is insufficient: success must be explicitly
+        // confirmed by the independent validator.
+        if (result.status !== "COMPLETED" ||
+            result.success !== true ||
+            result.verified !== true ||
             result.validation?.valid !== true ||
             result.validation?.degraded === true) {
             return false;
