@@ -51,14 +51,15 @@ internal suspend fun CodexChatCoordinator.advanceOutgoing(window: ChatWindow, la
                         )) {
                         val now = SystemClock.elapsedRealtime()
                         if (continuityMissingSince == 0L) continuityMissingSince = now
-                        if (now - continuityMissingSince < 30_000L) {
-                            scrollFollower.follow(window, now, launch.previousReplyId)
-                            notice("Прокручиваю выбранную переписку вниз для проверки предыдущего ответа. " +
-                                "Сообщение ещё не отправлялось.")
-                            return
-                        }
-                        finish("За 30 секунд не удалось найти конец подтверждённого ответа. " +
-                            "Кодекс остановлен без отправки в непроверенный чат.")
+                        // Never end Codex merely because the owner scrolled
+                        // the already verified answer out of the visible tree.
+                        // Keep following the current ChatGPT viewport, but DO NOT
+                        // compose or send until continuity is visible again.
+                        scrollFollower.follow(window, now, launch.previousReplyId)
+                        notice(if (now - continuityMissingSince < 30_000L)
+                            "Прокручиваю переписку вниз для проверки предыдущего ответа. Отправки нет."
+                            else "Кодекс продолжает искать подтверждённый ответ в выбранном чате. " +
+                                "Пока он не виден, новые сообщения не отправляются.")
                         return
                     }
                     continuityMissingSince = 0L
