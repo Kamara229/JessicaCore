@@ -9,7 +9,7 @@ object ChatReplyExtraction {
     private val uuid = Regex("[a-f0-9-]{36}")
     private fun markerPiece(line: String): String =
         line.replace("\u00a0", " ").replace("\u200b", "").replace("\u2060", "")
-            .trim().trim('>', '-', '*', '\u0060', ' ', ':', ';').trim()
+            .trim().trim('>', '*', '\u0060', ' ', ':', ';').trim()
 
     /**
      * ChatGPT accessibility may flatten visible line breaks into a single node.
