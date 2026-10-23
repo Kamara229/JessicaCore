@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {interpretRelayTurn, validateRelayDecision, explicitSameTestChat} from "../core/codex/relayInterpreter.js";
+import {interpretRelayTurn, validateRelayDecision, explicitSameTestChat, directCurrentChatReply} from "../core/codex/relayInterpreter.js";
 import {registerCodexRoutes} from "../http/routes/codexRoute.js";
 import {recordCodexPhase,validateCodexPhase} from "../core/codex/relayTelemetry.js";
 
@@ -131,4 +131,25 @@ test("two successive Codex relay decisions retain prior results without repeatin
     assert.equal(secondDecision.action,"test");
     assert.equal(secondDecision.continueThread,true);
     assert.equal(secondDecision.task,secondTask);
+});
+
+
+test("a direct same-ChatGPT status request cannot trigger a new test or terminate Codex", async () => {
+    const desired="Кодекс: ответ ChatGPT получен и проанализирован. Продолжаю работу в той же сессии";
+    const request=[
+        "Продолжай работать в этой же сессии ChatGPT.",
+        "Не запускай тест в обычном чате Jessica.",
+        "Не создавай новый тестовый чат Jessica.",
+        "Самостоятельно отправь следующее сообщение:",
+        "«"+desired+"»"
+    ].join("\n");
+    assert.equal(directCurrentChatReply(request),desired);
+    let calls=0;
+    const result=await interpretRelayTurn({message:request},async()=>{
+        calls++;
+        throw Error("external interpretation is unnecessary");
+    });
+    assert.equal(calls,0);
+    assert.deepEqual(result,{action:"reply",reply:desired,task:"",continueThread:false});
+    assert.equal(directCurrentChatReply("В чате Jessica проверь память: Запомни слово."),null);
 });
