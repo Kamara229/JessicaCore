@@ -10,11 +10,15 @@ internal object ChatForegroundPolicy {
         chatVisible: Boolean,
         otherApplicationActive: Boolean,
         systemShadeFocused: Boolean,
-        inputMethodActive: Boolean
+        inputMethodActive: Boolean,
+        chatFocused: Boolean = false
     ): Boolean {
         if (systemShadeFocused || !chatVisible) return false
         if (activePackage == CHAT && activeVisible) return true
         if (otherApplicationActive) return false
+        // A notification can leave rootInActiveWindow pointing to SystemUI
+        // briefly even after the owner has returned to focused ChatGPT.
+        if (chatFocused) return true
         // Accessibility sometimes returns the keyboard as its active root.
         // Only use the ChatGPT application viewport if no other app is active.
         if (inputMethodActive) return true

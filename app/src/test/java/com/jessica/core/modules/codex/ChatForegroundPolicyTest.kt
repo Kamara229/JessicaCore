@@ -24,4 +24,13 @@ class ChatForegroundPolicyTest {
     @Test fun nullActiveRootMayRecoverFromVisibleSelectedWindow() {
         assertTrue(ChatForegroundPolicy.permits(null,false,true,false,false,false))
     }
+    @Test fun staleSystemUiActiveRootRecoversWhenChatGptIsFocused() {
+        assertTrue(ChatForegroundPolicy.permits("com.android.systemui",true,true,false,
+            false,false,chatFocused=true))
+        assertFalse(ChatForegroundPolicy.permits("com.android.systemui",true,true,false,
+            true,false,chatFocused=true))
+        assertFalse(ChatForegroundPolicy.permits("com.android.systemui",true,true,true,
+            false,false,chatFocused=true))
+    }
 }
+

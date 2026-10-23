@@ -52,7 +52,8 @@ object ChatWindowReader {
             }
             if (!ChatForegroundPolicy.permits(
                 activePackage, activeRoot?.isVisibleToUser == true, chatVisible,
-                otherApplicationActive, systemShadeFocused, inputMethodActive
+                otherApplicationActive, systemShadeFocused, inputMethodActive,
+                chatFocused = chat?.first?.let { it.isActive || it.isFocused } == true
             )) return null
             // Foreground ChatGPT beats stale isActive flags from a notification.
             val chosen = if (activePackage == "com.openai.chatgpt" && activeRoot?.isVisibleToUser == true)

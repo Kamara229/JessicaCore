@@ -26,4 +26,11 @@ class ChatConversationContinuityTest {
         assertFalse(ChatConversationContinuity.permits("Готово",id,id,"Готово"))
         assertFalse(ChatConversationContinuity.permits("Готово",id,id,tail))
     }
+    @Test fun shortDistinctiveAnswerCanResumeAfterNotificationWithoutMarkers() {
+        val phrase="Кодекс продолжает работу в текущем чате"
+        assertTrue(ChatConversationContinuity.permits("Конец переписки: $phrase",id,id,phrase))
+        assertFalse(ChatConversationContinuity.permits("Конец переписки: $phrase",id,other,phrase))
+        assertFalse(ChatConversationContinuity.permits("Другое содержание",id,id,phrase))
+    }
 }
+

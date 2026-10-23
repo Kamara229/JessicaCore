@@ -8,7 +8,10 @@ object ChatConversationContinuity {
         if (previousReplyId.isBlank() || previousReplyId != acceptedId) return false
         if (ChatReplyExtraction.hasStandaloneEnd(screen,previousReplyId)) return true
         val normalized = replyTail.replace(Regex("\\s+"), " ").trim()
-        return normalized.length >= 65 &&
+        // A short but distinctive verified reply remains usable after
+        // Android removes the marker nodes during a notification overlay.
+        // IDs must still match; generic acknowledgements are insufficient.
+        return normalized.length >= 28 &&
             screen.replace(Regex("\\s+"), " ").contains(normalized)
     }
 }
