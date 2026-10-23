@@ -98,7 +98,7 @@ class RelayProtocolTest {
         val flat = "JESSICA_REPLY_$first: $answer1 JESSICA_END_$first"
         assertEquals(answer1,collector.observe(flat,first))
         assertNull(state.acceptReply(collector.observe(flat,first),false,7000L))
-        assertNull(state.acceptReply(collector.observe(flat,first),false,10000L))
+        assertNull(state.acceptReply(collector.observe(flat,first),false,9000L))
         assertEquals(answer1,state.acceptReply(collector.observe(flat,first),false,17000L))
         assertTrue(state.beginSend(18000L))
         assertNull(collector.observe(flat,second))
