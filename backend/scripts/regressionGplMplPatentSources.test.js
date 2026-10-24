@@ -1,7 +1,7 @@
 import "../tools/webFetchTool.js";
 import test from "node:test";
 import assert from "node:assert/strict";
-import {buildKnownLicenseComparisonPlan} from "../core/planner/knownLicenseComparison.js";
+import {buildKnownLicenseComparisonPlan,tryCreateKnownLicenseComparison} from "../core/planner/knownLicenseComparison.js";
 import {groundedPatentComparison} from "../core/composer/nativePatentComparison.js";
 const task="Сравни патентные условия GPLv3 и MPL 2.0 по официальным текстам. Укажи ссылки, пункты и условия прекращения прав.";
 const gpl="GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007. "+
@@ -16,6 +16,7 @@ const mpl="Mozilla Public License Version 2.0. "+
 const plan=buildKnownLicenseComparisonPlan(task);
 const results=(g=gpl,m=mpl)=>({results:plan.steps.map((s,i)=>({tool:"web_fetch",success:true,data:{url:s.arguments.url,content:i===0?g:m,truncated:false}}))});
 test("GPLv3/MPL official-source answer includes both termination regimes",()=>{
+ assert.equal(tryCreateKnownLicenseComparison({task}).handled,true,"GPLv3 alias must not be rejected by grounding");
  assert.deepEqual(plan.steps.map(s=>s.arguments.url),["https://www.gnu.org/licenses/gpl-3.0.txt","https://www.mozilla.org/media/MPL/2.0/index.txt"]);
  const output=groundedPatentComparison(task,plan,results());
  assert.equal(output?.source,"bounded-patent-comparison");
