@@ -63,7 +63,12 @@ export function buildMitPatentQuestionPlan(task) {
 export function tryCreateKnownLicenseComparison({task, planningContext={}}={}) {
     const plan = buildKnownLicenseComparisonPlan(task) || buildMitPatentQuestionPlan(task);
     if (!plan) return {handled:false};
-    const result = validatePlan(plan, planningContext, task);
+    // GPLv3 and GPL 3.0 name the same canonical license. The grounding
+    // checker must not reject its fixed official URL merely because the
+    // user wrote "v3" rather than the dotted spelling in the URL.
+    const versionNormalizedTask = /\bgpl\s*v\s*3\b/iu.test(String(task||""))
+        ? String(task)+" GPL 3.0" : task;
+    const result = validatePlan(plan, planningContext, versionNormalizedTask);
     return result?.success === true
         ? {handled:true,plan,source:"canonical-license-texts"}
         : {handled:false,reason:result?.text || "validation failed"};
