@@ -274,3 +274,26 @@ test("completed plan for today may finish, but conditional wording or length not
  }));
  assert.equal(stillWorking.action,"reply");
 });
+
+
+test("one-line verbatim Jessica test routes even when AI provider is down",async()=>{
+    const message="Джессика, выполни один тест в своём чате. Точная задача: Сколько будет 2 + 2?";
+    let modelCalls=0;
+    const decision=await interpretRelayTurn({message,plan:"Проверить арифметику",history:[]},async()=>{
+        modelCalls++;throw Error("Interpreter unavailable");
+    });
+    assert.equal(modelCalls,0);
+    assert.deepEqual(decision,{action:"test",reply:"",task:"Сколько будет 2 + 2?",continueThread:false});
+    assert.equal(explicitJessicaTest("Не выполняй тест в своём чате. Точная задача: Сколько будет 2 + 2?"),null);
+    assert.equal(explicitJessicaTest("Покажи пример теста: Точная задача: Сколько будет 2 + 2?"),null);
+});
+
+test("unambiguous plan completion finishes without AI but hypothetical completion cannot",async()=>{
+    const done="План на сегодня полностью завершён. Тестов больше нет. Заверши сессию Кодекс.";
+    const complete=await interpretRelayTurn({message:done},async()=>{throw Error("Interpreter unavailable");});
+    assert.equal(complete.action,"finish");
+    assert.match(complete.reply,/План завершён/);
+    const hypothetical="Если план завершён, заверши сессию Кодекс.";
+    const guarded=await interpretRelayTurn({message:hypothetical},async()=>({action:"finish",reply:"Завершено",task:""}));
+    assert.equal(guarded.action,"reply");
+});

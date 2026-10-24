@@ -9,12 +9,13 @@ import {explicitSameTestChat} from "./relayThreadPolicy.js";
 export function explicitJessicaTest(message) {
     const raw=typeof message === "string" ? message : "";
     if (!raw || raw.length>50000) return null;
-    const lines=raw.split(/\r?\n/);
+    const lines=raw.split(/\r?\n|(?<=[.!?])\s+(?=(?:\*\*)?Точная\s+(?:формулировка|задача|инструкция))/iu);
     const commands=lines.filter(x => !/^\s*не\s+/iu.test(x.trim().replace(/^\*+|\*+$/g,"")));
     const explicitCommand=commands.some(x =>
         /(?:создай|создать|открой|открыть)\s+нов(?:ый|ом)\s+тестов(?:ый|ом)\s+чат\s+(?:Jessica|Джессик)/iu.test(x)
         || /(?:выполни|выполнить|запусти|запустить)\s+тест\s+(?:через|в)\s+(?:обычн\w*\s+)?чат(?:е)?\s+(?:Jessica|Джессик)/iu.test(x)
         || /(?:продолжи|продолжай|продолжить|повтори|используй)\s+в\s+том\s+же\s+(?:тестов\w*\s+)?чат(?:е)?\s+(?:Jessica|Джессик)/iu.test(x)
+        || /(?:выполни|запусти|проведи)\s+(?:(?:один|следующий|этот)\s+)?тест\s+в\s+(?:сво[её]м|обычном)\s+чате/iu.test(x)
     );
     // The selected ChatGPT conversation is distinct from a Jessica test thread.
     // A clear "continue in selected chat" plus exactly one test heading is a
@@ -22,15 +23,16 @@ export function explicitJessicaTest(message) {
     const selectedChat=commands.some(line =>
         /(?:продолжи|продолжай|повтори|используй)\s+в\s+выбранном\s+чате\s+(?:Jessica|Джессик)/iu.test(line));
     if (!explicitCommand && !selectedChat) return null;
-    const header=/^\s*(?:\*\*)?(?:Точная\s+формулировка\s+(?:задачи|теста)|Точная\s+инструкция|Точная\s+задача)(?:\*\*)?\s*:\s*(?:\*\*)?\s*$/iu;
+    const header=/^\s*(?:\*\*)?(?:Точная\s+формулировка\s+(?:задачи|теста)|Точная\s+инструкция|Точная\s+задача)(?:\*\*)?\s*:\s*(?:\*\*)?\s*(.*?)\s*$/iu;
     const headings=lines.flatMap((line,index)=>header.test(line)?[index]:[]);
     if (headings.length!==1) return null;
+    const inlineTask=header.exec(lines[headings[0]])?.[1]?.trim() || "";
     let from=headings[0]+1;
     while (from<lines.length && !lines[from].trim()) from++;
-    if (from>=lines.length) return null;
+    if (from>=lines.length && !inlineTask) return null;
     let to=from;
     while(to<lines.length && lines[to].trim() && !/^\s*(?:\*\*)?(?:Ожидаемый\s+результат|Верни\s+фактический\s+ответ|После\s+получения\s+результата)/iu.test(lines[to]))to++;
-    const task=lines.slice(from,to).join("\n").trim();
+    const task=inlineTask || lines.slice(from,to).join("\n").trim();
     if(!task || task.length>12000 || !raw.includes(task))return null;
     // Pure instruction, not a label/example or other output directive.
     if (/^(?:\*\*|#{1,6}\s|>|JESSICA_(?:REPLY|END)_)/u.test(task)) return null;

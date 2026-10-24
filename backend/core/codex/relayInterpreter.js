@@ -3,7 +3,7 @@ import {explicitSameTestChat} from "./relayThreadPolicy.js";
 import {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 import {explicitJessicaTest} from "./relayExplicitTest.js";
 import {isStandaloneLengthNotice,lengthNoticeContinuation} from "./relaySessionContinuity.js";
-import {guardRelayTerminalDecision} from "./relayTerminalPolicy.js";
+import {guardRelayTerminalDecision,confirmedPlanCompletion} from "./relayTerminalPolicy.js";
 export {explicitJessicaTest} from "./relayExplicitTest.js";
 export {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 export {explicitSameTestChat} from "./relayThreadPolicy.js";
@@ -63,6 +63,11 @@ export async function interpretRelayTurn(input, generate) {
     if (explicitReply !== null) return {action:"reply",reply:explicitReply,task:"",continueThread:false};
     const requestedTest = explicitJessicaTest(message);
     if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
+    // An unequivocal finished-plan announcement can end Codex even when
+    // the contextual model is unavailable. Conditional plans cannot.
+    const finishCommand=/(?:^|[.!?]\s+)(?:заверши|закрой|останови)\s+(?:сессию|работу|режим)\s+(?:Кодекс|Codex)\s*[.!?]?(?:\s|$)/iu;
+    if (confirmedPlanCompletion(message) && finishCommand.test(message))
+        return {action:"finish",reply:"План завершён. Завершаю сессию Кодекс.",task:"",continueThread:false};
     const payload = {message, plan:String(input.plan || "").slice(0,12000), history};
     const run = generate || (async (instructions, data) => {
         const response = await getGroqClient().chat.completions.create({
