@@ -16,7 +16,12 @@ export function explicitJessicaTest(message) {
         || /(?:выполни|выполнить|запусти|запустить)\s+тест\s+(?:через|в)\s+(?:обычн\w*\s+)?чат(?:е)?\s+(?:Jessica|Джессик)/iu.test(x)
         || /(?:продолжи|продолжить|используй)\s+в\s+том\s+же\s+(?:тестов\w*\s+)?чат(?:е)?\s+(?:Jessica|Джессик)/iu.test(x)
     );
-    if (!explicitCommand) return null;
+    // The selected ChatGPT conversation is distinct from a Jessica test thread.
+    // A clear "continue in selected chat" plus exactly one test heading is a
+    // legitimate request even when the AI interpretation provider is down.
+    const selectedChat=commands.some(line =>
+        /(?:продолжи|продолжай|повтори|используй)\s+в\s+выбранном\s+чате\s+(?:Jessica|Джессик)/iu.test(line));
+    if (!explicitCommand && !selectedChat) return null;
     const header=/^\s*(?:\*\*)?(?:Точная\s+формулировка\s+(?:задачи|теста)|Точная\s+инструкция|Точная\s+задача)(?:\*\*)?\s*:\s*(?:\*\*)?\s*$/iu;
     const headings=lines.flatMap((line,index)=>header.test(line)?[index]:[]);
     if (headings.length!==1) return null;
