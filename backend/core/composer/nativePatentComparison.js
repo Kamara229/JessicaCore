@@ -6,6 +6,8 @@ const B="https://opensource.org/license/bsd-3-clause";
 const flat=s=>String(s||"").replace(/\s+/g," ").toLowerCase();
 
 export function groundedPatentComparison(task,plan,run) {
+  const mit=groundedMitPatentComparison(task,plan,run);
+  if(mit)return mit;
   const t=String(task||"");
   if(!/(?:сравн|сопостав|compare)/iu.test(t) ||
      !/(?:патент|patent)/iu.test(t) ||
