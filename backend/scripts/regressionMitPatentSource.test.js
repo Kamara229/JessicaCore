@@ -33,6 +33,6 @@ test("Apache/MIT patent clauses are explained only from validated canonical text
  assert.match(out.text,/opensource.org/);
 });
 test("incomplete or contradictory MIT operative text fails closed",()=>{
- assert.equal(groundedPatentComparison(task,plan,run(apache,mit.replace("other DEALINGS IN THE SOFTWARE","OTHER ACTIONS"))),null);
- assert.equal(groundedPatentComparison(task,plan,run(apache,mit+" patent clause")),null);
+ assert.equal(groundedPatentComparison(task,plan,run(apache,mit.replace("OTHER DEALINGS IN THE SOFTWARE","OTHER ACTIONS"))),null);
+ assert.equal(groundedPatentComparison(task,plan,run(apache,mit.replace("THE SOFTWARE IS PROVIDED AS IS","A patent clause is hereby granted. THE SOFTWARE IS PROVIDED AS IS"))),null);
 });
