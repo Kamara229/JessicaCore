@@ -224,3 +224,29 @@ test("same-thread Jessica test may be reused only with explicit instruction",()=
     assert.equal(explicitJessicaTest("Не создавай новый тестовый чат Jessica. Продолжай эту сессию ChatGPT. Точная формулировка задачи:\nПроверь память."),null);
     assert.equal(explicitJessicaTest("Покажи пример теста: Точная формулировка задачи:\nРеши пример"),null);
 });
+
+test("selected-chat test instruction bypasses unavailable interpretation provider", async()=>{
+    const id="9e519eb1-6bba-4169-ba11-b8ce8de16853";
+    const task="Сравни патентные условия Apache 2.0 и MIT License по официальным текстам. Укажи ссылки и пункты.";
+    const message=[
+        "JESSICA_REPLY_"+id,
+        "Продолжи в выбранном чате Jessica.",
+        "",
+        "Точная задача:",
+        "",
+        task,
+        "",
+        "Верни фактический ответ дословно.",
+        "JESSICA_END_"+id
+    ].join("\n");
+    let called=0;
+    const decision=await interpretRelayTurn({message,plan:"Проверить источники."},async()=>{
+        called++;throw Error("Model unavailable");
+    });
+    assert.equal(called,0);
+    assert.equal(decision.action,"test");
+    assert.equal(decision.task,task);
+    assert.equal(decision.continueThread,false);
+    assert.equal(explicitJessicaTest("Продолжи в выбранном чате Jessica.\nТочная задача:\nЗапусти поиск"),null);
+    assert.equal(explicitJessicaTest("Не продолжай в выбранном чате Jessica.\nТочная задача:\nЗапусти поиск"),null);
+});
