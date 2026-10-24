@@ -21,13 +21,13 @@ const apache=[
 "END OF TERMS AND CONDITIONS"
 ].join(" ");
 const plan=buildKnownLicenseComparisonPlan(question);
-const run=(a=gpl,b=apache)=>({success:true,results:plan.steps.map((x,i)=>({
-tool:"web_fetch",success:true,data:{url:x.arguments.url,content:i===0?a:b,truncated:false}
+const run=(a=gpl,b=apache)=>({success:true,results:plan.steps.map(x=>({
+tool:"web_fetch",success:true,data:{url:x.arguments.url,content:x.arguments.url.includes("apache.org")?b:a,truncated:false}
 }))});
 test("GPLv3 and Apache 2.0 use both official sources without an AI composer",async()=>{
  assert.equal(tryCreateKnownLicenseComparison({task:question}).handled,true);
  assert.deepEqual(plan.steps.map(x=>x.arguments.url),[
- "https://www.gnu.org/licenses/gpl-3.0.txt","https://www.apache.org/licenses/LICENSE-2.0.txt"]);
+ "https://www.apache.org/licenses/LICENSE-2.0.txt","https://www.gnu.org/licenses/gpl-3.0.txt"]);
  const answer=groundedPatentComparison(question,plan,run());
  assert.equal(answer?.source,"bounded-patent-comparison");
  assert.match(answer.text,/раздел 11/);
