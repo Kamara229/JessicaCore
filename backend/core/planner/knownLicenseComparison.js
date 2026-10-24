@@ -33,8 +33,34 @@ export function buildKnownLicenseComparisonPlan(task) {
     };
 }
 
+
+/**
+ * The MIT License is a software license, not the university.
+ * For a narrow question about missing express patent grants, read the
+ * actual MIT license rather than search for a nonexistent "MIT Patent
+ * Grant Statement".
+ */
+export function buildMitPatentQuestionPlan(task) {
+    const input=String(task||"");
+    if(/https?:\/\//iu.test(input)||
+       !/\bmit(?:\s+license)?\b/iu.test(input)||
+       !/(?:патент|patent)/iu.test(input)||
+       !/(?:отсутств|не\s+(?:доказывает|означает)|absence|without|lack)/iu.test(input)||
+       !/(?:грант|licen[sc]e|предоставл|прав|grant|right)/iu.test(input)||
+       !/(?:доказыв|означа|обосну|почему|следует|prove|imply|mean)/iu.test(input)||
+       /\b(?:apache|bsd|mpl)\b/iu.test(input))return null;
+    return {
+       intent:"native_mit_patent_question",
+       requiresTools:true,
+       reasoningSummary:"Прочитать первичный текст MIT License; отсутствие прямой оговорки не устанавливает наличие либо отсутствие иных патентных прав.",
+       evidence:{mode:"source_content",reason:"Полный оригинальный текст MIT License необходим для ограниченного вывода."},
+       steps:[{id:"fetch_mit_license",tool:"web_fetch",arguments:{url:"https://opensource.org/license/mit"}}],
+       metadata:{plannerVersion:"native-mit-primary-v1",generatedAt:new Date().toISOString()}
+    };
+}
+
 export function tryCreateKnownLicenseComparison({task, planningContext={}}={}) {
-    const plan = buildKnownLicenseComparisonPlan(task);
+    const plan = buildKnownLicenseComparisonPlan(task) || buildMitPatentQuestionPlan(task);
     if (!plan) return {handled:false};
     const result = validatePlan(plan, planningContext, task);
     return result?.success === true
