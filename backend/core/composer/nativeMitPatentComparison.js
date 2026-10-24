@@ -20,9 +20,11 @@ export function groundedMitPatentComparison(task,plan,run){
   "each contributor hereby grants to you a perpetual",
   "patent license to make, have made, use",
   "if you institute patent litigation against any entity",
+  "including a cross-claim or counterclaim in a lawsuit",
   "alleging that the work or a contribution incorporated within the work",
   "constitutes direct or contributory patent infringement",
-  "patent licenses granted to you under this license for that work shall terminate"
+  "patent licenses granted to you under this license for that work shall terminate",
+  "as of the date such litigation is filed"
  ];
  const mitParts=[
   "including without limitation the rights to use, copy, modify, merge, publish, distribute",
@@ -33,6 +35,6 @@ export function groundedMitPatentComparison(task,plan,run){
  if(!clauses.every(q=>apache.includes(q))||!mitParts.every(q=>operative.includes(q))||
     /\bpatent\b/u.test(operative))return null;
  return {success:true,source:"bounded-patent-comparison",text:
-  "Apache 2.0: раздел 3 прямо предоставляет патентную лицензию и предусматривает её прекращение при патентном иске о нарушении произведением либо вкладом, а не при любом патентном споре. Источник: "+APACHE+
+  "Apache 2.0: раздел 3 прямо предоставляет патентную лицензию и предусматривает прекращение патентных прав для соответствующего Work со дня подачи иска, утверждающего прямое либо содействующее нарушение патента произведением или включённым вкладом (в том числе встречного или перекрёстного иска), но не при любом патентном споре. Источник: "+APACHE+
   "\n\nMIT License: в полном опубликованном тексте нет прямо сформулированной патентной лицензии или условия её прекращения. Текст MIT не имеет нумерованных разделов; права предоставляются в первом абзаце, далее следуют условие об уведомлениях и отказ от гарантий. Это не исключает возможных подразумеваемых патентных прав. Источник: "+MIT};
 }
