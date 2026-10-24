@@ -3,6 +3,7 @@ import {explicitSameTestChat} from "./relayThreadPolicy.js";
 import {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 import {explicitJessicaTest} from "./relayExplicitTest.js";
 import {isStandaloneLengthNotice,lengthNoticeContinuation} from "./relaySessionContinuity.js";
+import {guardRelayTerminalDecision} from "./relayTerminalPolicy.js";
 export {explicitJessicaTest} from "./relayExplicitTest.js";
 export {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 export {explicitSameTestChat} from "./relayThreadPolicy.js";
@@ -39,8 +40,8 @@ export function validateRelayDecision(raw, message) {
     if (value.action === "test" && (!task || task.length > 20000 || !message.includes(task)))
         throw Error("test-must-be-an-exact-quote");
     if (value.action !== "test" && task) throw Error("unexpected-test");
-    return {action:value.action, reply, task, continueThread:
-        value.action === "test" && value.continueThread === true && explicitSameTestChat(message)};
+    return guardRelayTerminalDecision({action:value.action, reply, task, continueThread:
+        value.action === "test" && value.continueThread === true && explicitSameTestChat(message)}, message);
 }
 
 /** Context understanding only. No tool execution, repository access, or Learning writes here. */
