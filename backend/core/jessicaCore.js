@@ -45,6 +45,7 @@ import {needsProgrammingRuntimeEvidence} from "./foundations/programmingLearning
 import { translatePreviousReply } from "./language/responseLanguageService.js";
 import {acknowledgeMemoryInstruction} from "./chat/explicitMemoryAcknowledgement.js";
 import {recallEarlierPair} from "./chat/earlierPairRecall.js";
+import {exactSingleWordReply} from "./chat/explicitSingleWordReply.js";
 
 import {
     contextualizeTask,
@@ -194,6 +195,14 @@ export async function executeJessicaTask(
     }
 
 
+
+    // A strict one-token echo is a current-turn instruction. Do not
+    // paraphrase it via decomposition, answer composition or past Experience.
+    const literalWord = exactSingleWordReply(normalizedTask);
+    if (literalWord) {
+        completeExecutionTrace(executionTrace);
+        return {...literalWord, engine:"jessica-core", executionTrace};
+    }
 
     // Only earlier requests in this chat can establish an older memory pair.
     // Never reward an answer sourced from an unrelated prior task.
