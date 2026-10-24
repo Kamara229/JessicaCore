@@ -401,6 +401,9 @@ export async function composeAnswer(
     }
 
 
+    const patentComparison=groundedPatentComparison(task,plan,taskRunResult);
+    if(patentComparison) return patentComparison;
+
     // Source capture is a verified receipt, not a synthesized answer.
     // Avoid Groq composition for a fetch-only prerequisite.
     const receipt = getDocumentReceipt(task, plan, taskRunResult);
