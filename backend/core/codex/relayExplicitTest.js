@@ -14,7 +14,7 @@ export function explicitJessicaTest(message) {
     const explicitCommand=commands.some(x =>
         /(?:создай|создать|открой|открыть)\s+нов(?:ый|ом)\s+тестов(?:ый|ом)\s+чат\s+(?:Jessica|Джессик)/iu.test(x)
         || /(?:выполни|выполнить|запусти|запустить)\s+тест\s+(?:через|в)\s+(?:обычн\w*\s+)?чат(?:е)?\s+(?:Jessica|Джессик)/iu.test(x)
-        || /(?:продолжи|продолжить|используй)\s+в\s+том\s+же\s+(?:тестов\w*\s+)?чат(?:е)?\s+(?:Jessica|Джессик)/iu.test(x)
+        || /(?:продолжи|продолжай|продолжить|повтори|используй)\s+в\s+том\s+же\s+(?:тестов\w*\s+)?чат(?:е)?\s+(?:Jessica|Джессик)/iu.test(x)
     );
     // The selected ChatGPT conversation is distinct from a Jessica test thread.
     // A clear "continue in selected chat" plus exactly one test heading is a
