@@ -94,3 +94,27 @@ test("does not attempt to consolidate the same canonical twice in one cycle", ()
     assert.equal(plan.length,1);
     assert.equal(plan[0].canonical.id,"old");
 });
+
+test("AI-generated cross-category patent clause comparisons share a procedural family",()=>{
+ const first={
+    name:"License Clause Comparison",
+    category:"legal analysis",
+    triggerPatterns:["Compare clause X in license A with clause X in license B"],
+    workflow:["Use a reliable web fetch tool to download official license texts.",
+        "Extract the exact patent clauses.","Compare extracted texts side-by-side and cite both sources."]
+ };
+ const second={
+    name:"License Patent Clause Comparison",
+    category:"legal document analysis",
+    triggerPatterns:["Compare patent clauses of license A and license B"],
+    workflow:["Identify official URLs for each license.",
+        "Use web_fetch to download full official text.",
+        "Compare the extracted clauses side-by-side and cite specific sections."]
+ };
+ assert.equal(candidateProcedureFamily(first),"two-original-documents-comparison");
+ assert.equal(candidateProcedureFamily(second),"two-original-documents-comparison");
+ const candidates=[{id:"earlier",status:"ACTIVE",candidate:first,createdAt:"2026-10-24T11:37:22Z"},
+     {id:"later",status:"ACTIVE",candidate:second,createdAt:"2026-10-24T12:26:51Z"}];
+ assert.equal(planCandidateConsolidation(candidates).length,1);
+ assert.equal(candidateProcedureFamily({...second,name:"Date Difference Calculation"}),null);
+});
