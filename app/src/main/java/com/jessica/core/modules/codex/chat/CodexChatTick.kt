@@ -30,6 +30,8 @@ internal suspend fun CodexChatCoordinator.tickCodexSession(launch: PhoneChatLaun
             // usual composer, send-button and selected-thread safety checks.
             observeConversationBanner(window.content)
             if (!confirmed) { notice("Открой подготовленный чат и нажми «Чат выбран»."); return }
+            // Never type or send through an obscuring share-link dialog.
+            if (recoverShareLinkPrompt(window, launch)) return
             when (CodexTurnWindowPolicy.next(state.waiting, window.composer != null)) {
                 CodexTurnWindowPolicy.Next.READ_REPLY ->
                     response = observeIncoming(window, launch, state)
