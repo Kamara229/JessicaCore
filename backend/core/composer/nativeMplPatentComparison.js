@@ -1,7 +1,7 @@
 import {verifyPairedSourceContent} from "../validator/pairedSourceContent.js";
 import {selectOperativeSourceText} from "../validator/claim/operativeSourceScope.js";
 
-const MOZILLA="https://www.mozilla.org/en-US/MPL/2.0/";
+const MOZILLA="https://www.mozilla.org/media/MPL/2.0/index.txt";
 const APACHE="https://www.apache.org/licenses/LICENSE-2.0.txt";
 const flat=s=>String(s||"").replace(/\s+/g," ").toLowerCase();
 
