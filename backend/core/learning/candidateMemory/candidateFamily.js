@@ -10,7 +10,7 @@ export function candidateProcedureFamily(candidate) {
     const comparison=/(?:compar\w*|сравн\w*|сопостав\w*|различи\w*)/i.test(title);
     const documents=/(?:document\w*|licen[sc]\w*|contract\w*|agreement\w*|polic(?:y|ies)|документ\w*|лицензи\w*)/i.test(title);
     const retrieves=/(?:fetch|retriev|obtain|source|источник|получ|загруз)/i.test(workflow);
-    const criteria=/(?:criteri|table|row|compar\\w*|сравн\\w*|сопостав\\w*|критери|таблиц)/i.test(workflow);
+    const criteria=/(?:criteri|table|row|compar\w*|сравн\w*|сопостав\w*|критери|таблиц)/i.test(workflow);
     return comparison && documents && retrieves && criteria
         ? "two-original-documents-comparison" : null;
 }
