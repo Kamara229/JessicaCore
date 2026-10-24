@@ -2,6 +2,7 @@ import { getDocumentReceipt } from "./composer/documentReceipt.js";
 import { requiresVerifiedComparison } from "./composer/comparisonEvidencePolicy.js";
 import {groundedPatentComparison} from "./composer/nativePatentComparison.js";
 import {checkProgrammingAnswerSafety} from "./validator/programmingAnswerSafety.js";
+import {checkMitPatentOverclaim} from "./validator/mitPatentOverclaim.js";
 /*
  * =========================================================
  * JESSICA RESULT VALIDATOR v4
