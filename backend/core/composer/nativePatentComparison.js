@@ -1,3 +1,4 @@
+import {groundedMitPatentQuestion} from "./nativeMitPatentQuestion.js";
 import {groundedMplMitPatentComparison} from "./nativeMplMitPatentComparison.js";
 import {groundedMplPatentComparison} from "./nativeMplPatentComparison.js";
 import {groundedMitPatentComparison} from "./nativeMitPatentComparison.js";
@@ -8,6 +9,7 @@ const B="https://opensource.org/license/bsd-3-clause";
 const flat=s=>String(s||"").replace(/\s+/g," ").toLowerCase();
 
 export function groundedPatentComparison(task,plan,run) {
+  const single=groundedMitPatentQuestion(task,plan,run); if(single)return single;
   const mm=groundedMplMitPatentComparison(task,plan,run); if(mm)return mm;
   const mpl=groundedMplPatentComparison(task,plan,run);
   if(mpl)return mpl;
