@@ -8,6 +8,7 @@ const B="https://opensource.org/license/bsd-3-clause";
 const flat=s=>String(s||"").replace(/\s+/g," ").toLowerCase();
 
 export function groundedPatentComparison(task,plan,run) {
+  const mm=groundedMplMitPatentComparison(task,plan,run); if(mm)return mm;
   const mpl=groundedMplPatentComparison(task,plan,run);
   if(mpl)return mpl;
   const mit=groundedMitPatentComparison(task,plan,run);
