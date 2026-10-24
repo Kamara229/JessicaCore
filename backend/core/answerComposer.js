@@ -555,10 +555,15 @@ export async function composeAnswer(
                 repair.previousAnswer,guarded.text,
                 repair.verifiedCells,repair.sourceUrls
             );
-            if(!merged.complete)
-                return buildComposerFailure(
-                    "Не удалось безопасно сопоставить источники в исходной таблице."
-                );
+            if(!merged.complete) {
+                // There is no original source-attributed table to patch.
+                // Only fall back to a newly generated answer when zero
+                // independently verified table cells need preservation.
+                // The Validator must still check EVERY new claim.
+                if((repair.verifiedCells||[]).length>0)
+                    return buildComposerFailure("Нельзя безопасно сохранить ранее подтверждённые ячейки.");
+                return {...generated,text:attributeComparisonSources(guarded.text,taskRunResult).text};
+            }
             console.log("Jessica Comparison Surgical Repair:",{
                 patched:merged.patched,
                 preserved:merged.preserved,
