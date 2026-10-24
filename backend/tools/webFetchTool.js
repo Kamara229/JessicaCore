@@ -341,16 +341,20 @@ async function executeWebFetch(
         }
 
 
+        // The official GNU GPLv3 text is ~35 KB. Preserve the full
+        // original only for this canonical URL; all other limits remain.
+        const maxCharacters = pageUrl === "https://www.gnu.org/licenses/gpl-3.0.txt"
+            ? 50000 : MAX_CHARACTERS;
         const truncated =
             content.length >
-            MAX_CHARACTERS;
+            maxCharacters;
 
 
         const finalContent =
             truncated
                 ? content.slice(
                     0,
-                    MAX_CHARACTERS
+                    maxCharacters
                 )
                 : content;
 
