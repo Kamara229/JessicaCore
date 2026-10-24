@@ -853,6 +853,15 @@ export async function validateResult(
         evidenceMode === "source_content"
     ){
 
+        if (answerResult?.source === "bounded-mit-patent-question") {
+            const proof=groundedPatentComparison(task,plan,taskRunResult);
+            return proof?.text === answerResult.text && proof?.source === answerResult.source
+                ? buildSuccessResult("MIT source text independently reconstructed",OUTCOME_RESULT,
+                    {validationMode:"bounded-primary-text",degraded:false})
+                : buildValidationResult({valid:false,reason:"Evidence mismatch"},
+                    {validationMode:"bounded-primary-text",failureScope:FAILURE_SCOPE.PRESENTATION});
+        }
+
         const sourceContent =
             await validateSourceContent(
 
