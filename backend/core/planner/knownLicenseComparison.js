@@ -14,7 +14,6 @@ const LICENSE_REFERENCES = [
 export function buildKnownLicenseComparisonPlan(task) {
     const text = String(task || "");
     if (!/(?:сравн\p{L}*|сопостав\p{L}*|compare|comparison)/iu.test(text) ||
-        !/(?:лицензи\p{L}*|licenses?)/iu.test(text) ||
         /https?:\/\//iu.test(text)) return null;
     const found = LICENSE_REFERENCES.filter(([,pattern]) => pattern.test(text));
     if (found.length !== 2) return null;
