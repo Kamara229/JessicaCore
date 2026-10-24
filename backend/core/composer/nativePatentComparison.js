@@ -1,3 +1,4 @@
+import {groundedMitPatentComparison} from "./nativeMitPatentComparison.js";
 import {verifyPairedSourceContent} from "../validator/pairedSourceContent.js";
 import {selectOperativeSourceText} from "../validator/claim/operativeSourceScope.js";
 const A="https://www.apache.org/licenses/LICENSE-2.0.txt";
