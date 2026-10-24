@@ -261,3 +261,16 @@ test("repeat-in-same-Jessica-chat directive does not depend on model availabilit
  assert.equal(result.continueThread,true);
  assert.equal(result.task,task);
 });
+
+test("completed plan for today may finish, but conditional wording or length notice cannot",async()=>{
+ const done="План на сегодня полностью завершён. Тестов больше нет. Заверши сессию Кодекс.";
+ const completed=await interpretRelayTurn({message:done},async()=>({
+   action:"finish",reply:"План завершён.",task:""
+ }));
+ assert.equal(completed.action,"finish");
+ const conditional="Если план на сегодня полностью завершён, заверши работу.";
+ const stillWorking=await interpretRelayTurn({message:conditional},async()=>({
+   action:"finish",reply:"Всё готово.",task:""
+ }));
+ assert.equal(stillWorking.action,"reply");
+});
