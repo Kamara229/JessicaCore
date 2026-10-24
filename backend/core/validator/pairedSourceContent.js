@@ -64,6 +64,23 @@ export function verifyPairedSourceContent(plan, taskRunResult) {
             return {success:true,valid:false,shouldRetry:true,
                 reason:"Текст BSD 3-Clause не обнаружен или неполон"};
         }
+        if (/mozilla\.org\/en-us\/mpl\/2\.0$/i.test(path)) {
+            const full=content.replace(/\s+/g," ").toLowerCase();
+            const required=[
+                "mozilla public license",
+                "2.1. grants",
+                "2.3. limitations on grant scope",
+                "under patent claims of such contributor",
+                "5.1. the rights granted under this license will terminate",
+                "5.2. if you initiate litigation",
+                "excluding declaratory judgment actions, counter-claims, and cross-claims",
+                "under section 2.1 of this license shall terminate"
+            ];
+            if(!required.every(clause=>full.includes(clause))) {
+                return {success:true,valid:false,shouldRetry:true,
+                    reason:"Полный официальный текст MPL 2.0 и условия 2.1, 2.3, 5.1, 5.2 не подтверждены"};
+            }
+        }
         if (path.endsWith("/license/mit") &&
             (!/permission is hereby granted/i.test(content)
              || !/copyright notice/i.test(content))) {
