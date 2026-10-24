@@ -7,7 +7,7 @@ export function exactSingleWordReply(task) {
     if (typeof task !== "string") return null;
     const input=task.trim();
     if (!input || input.length > 180) return null;
-    const match=input.match(/^(?:ответь|напиши)\s+только\s+одним\s+словом\s*:\s*([\p{L}\p{M}]{1,40})\s*[.!?]?$/iu);
+    const match=input.match(/^(?:ответь|напиши|выведи)\s+(?:(?:только|строго|ровно)\s+)?(?:одним\s+словом|одно\s+слово)\s*:\s*([\p{L}\p{M}]{1,40})\s*[.!?]?$/iu);
     if (!match) return null;
     return {
         success:true,
