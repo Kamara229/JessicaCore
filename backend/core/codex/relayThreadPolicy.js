@@ -10,8 +10,8 @@ export function explicitSameTestChat(message) {
     // for one. Remove only the explicitly negated clause; a second positive
     // instruction to use a new chat still overrides reuse.
     const effective=text
-        .replace(/не\s+(?:создавай|открывай)\s+нов(?:ый|ом)\s+(?:тестов\w*\s+)?чат(?:е|а|у|ом)?/gu,"")
-        .replace(/нов(?:ый|ом)\s+(?:тестов\w*\s+)?чат(?:е|а|у|ом)?\s+(?:создавать|открывать)\s+не\s+(?:нужно|надо|следует)/gu,"");
+        .replace(/не\s+(?:создавай|открывай)\s+нов(?:ый|ом)\s+(?:тестов[а-яё]*\s+)?чат(?:е|а|у|ом)?/gu,"")
+        .replace(/нов(?:ый|ом)\s+(?:тестов[а-яё]*\s+)?чат(?:е|а|у|ом)?\s+(?:создавать|открывать)\s+не\s+(?:нужно|надо|следует)/gu,"");
 
     // Explicit isolation/negation beats any conflicting continuation wording.
     const newThread = /(?:нов(?:ый|ом|ую|ого)|отдельн(?:ый|ом|ую)|друг(?:ой|ом|ую))\s+(?:тестов(?:ый|ом|ую)\s+)?чат(?:е|а|у|ом)?|(?:new|separate|different)\s+(?:jessica\s+)?(?:test\s+)?chat/u;
