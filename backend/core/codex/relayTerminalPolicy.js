@@ -10,7 +10,7 @@ export function confirmedPlanCompletion(message) {
     const lines=message.trim().split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
     const first=lines.find(line=>!/^JESSICA_(?:REPLY|END)_/u.test(line)) || "";
     if (/^(?:если|когда|после того как|проверь|исправь|продолжи|следующ)/iu.test(first)) return false;
-    return /^(?:(?:итог|результат)[:.!]?\s*)?(?:план (?:работ|улучшений|разработки)?\s*(?:полностью )?(?:заверш[ёе]н|выполнен)|все (?:запланированные )?(?:задачи|проверки) (?:выполнены|завершены))(?:[.!,\s]|$)/iu.test(first);
+    return /^(?:(?:итог|результат)[:.!]?\s*)?(?:план (?:на\s+сегодня\s+|работ\s+|улучшений\s+|разработки\s+)?(?:полностью )?(?:заверш[ёе]н|выполнен)|все (?:запланированные )?(?:задачи|проверки) (?:выполнены|завершены))(?:[.!,\s]|$)/iu.test(first);
 }
 
 export function guardRelayTerminalDecision(value, message) {
