@@ -8,7 +8,7 @@ const task="Сравни патентные условия Apache 2.0 и MIT Lic
 const apache=[
  "Apache License Version 2.0. TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION.",
  "3. Grant of Patent License. Each Contributor hereby grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free patent license to make, have made, use, offer to sell, sell, import, and otherwise transfer the Work, where such license applies only to those patent claims licensable by such Contributor that are necessarily infringed by their Contribution(s).",
- "If You institute patent litigation against any entity alleging that the Work or a Contribution incorporated within the Work constitutes direct or contributory patent infringement, then any patent licenses granted to You under this License for that Work shall terminate as of the date such litigation is filed.",
+ "If You institute patent litigation against any entity (including a cross-claim or counterclaim in a lawsuit) alleging that the Work or a Contribution incorporated within the Work constitutes direct or contributory patent infringement, then any patent licenses granted to You under this License for that Work shall terminate as of the date such litigation is filed.",
  "4. Redistribution. You must retain, in the Source form of any Derivative Works that You distribute, all copyright, patent, trademark, and attribution notices. If the Work includes a NOTICE text file, then any Derivative Works that You distribute must include a readable copy of the attribution notices contained within such NOTICE file."
 ].join(" ");
 const mit=[
@@ -35,4 +35,23 @@ test("Apache/MIT patent clauses are explained only from validated canonical text
 test("incomplete or contradictory MIT operative text fails closed",()=>{
  assert.equal(groundedPatentComparison(task,plan,run(apache,mit.replace("OTHER DEALINGS IN THE SOFTWARE","OTHER ACTIONS"))),null);
  assert.equal(groundedPatentComparison(task,plan,run(apache,mit.replace("THE SOFTWARE IS PROVIDED AS IS","A patent clause is hereby granted. THE SOFTWARE IS PROVIDED AS IS"))),null);
+});
+
+
+test("live MIT/Apache task states precise patent-claim termination trigger",()=>{
+ const live="Сравни патентные условия MIT License и Apache 2.0 по официальным текстам. Есть ли явная патентная лицензия и когда она прекращается? Укажи пункты и ссылки.";
+ const livePlan=buildKnownLicenseComparisonPlan(live);
+ const out=groundedPatentComparison(live,livePlan,run());
+ assert.equal(out?.source,"bounded-patent-comparison");
+ assert.match(out.text,/раздел 3/);
+ assert.match(out.text,/со дня подачи иска/);
+ assert.match(out.text,/встречного или перекрёстного иска/);
+ assert.match(out.text,/MIT не имеет нумерованных/);
+ assert.match(out.text,/подразумеваемых патентных прав/);
+ assert.ok(out.text.includes("https://www.apache.org/licenses/LICENSE-2.0.txt"));
+ assert.ok(out.text.includes("https://opensource.org/license/mit"));
+ assert.equal(groundedPatentComparison(live,livePlan,
+     run(apache.replace("as of the date such litigation is filed","after a court ruling"),mit)),null);
+ assert.equal(groundedPatentComparison(live,livePlan,
+     run(apache.replace("including a cross-claim","excluding a cross-claim"),mit)),null);
 });
