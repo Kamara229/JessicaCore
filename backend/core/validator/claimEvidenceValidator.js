@@ -1,3 +1,4 @@
+import {checkMitPatentOverclaim} from "./mitPatentOverclaim.js";
 import { buildComparisonClaimInstructions } from "./claim/comparisonClaimPrompt.js";
 import { usePairedComparisonContext } from "../composer/comparisonEvidencePolicy.js";
 import { buildOriginalSourceEvidenceContext } from "./claim/claimEvidenceMatcher.js";
@@ -316,6 +317,8 @@ export async function validateClaimEvidence(
     }
 
 
+    const mitSafety=checkMitPatentOverclaim(task,answer);
+    if(mitSafety)return {success:true,...mitSafety,claims:[]};
     // The main comparison validator checks every asserted source cell;
     // unchecked table rows must never become a successful Experience.
     if (usePairedComparisonContext(task,plan,taskRunResult) &&
