@@ -904,6 +904,20 @@ export async function validateResult(
         }
 
 
+        // A source-bounded answer is accepted only when the independently
+        // reconstructed text matches the two newly verified full documents.
+        if (answerResult?.source === "bounded-patent-comparison" &&
+            sourceContent?.success === true && sourceContent?.valid === true) {
+            const independentlyChecked = groundedPatentComparison(task, plan, taskRunResult);
+            if (independentlyChecked?.text === answerResult.text) {
+                return buildSuccessResult("Патентные положения проверены по двум первоисточникам",
+                    OUTCOME_RESULT, {validationMode:"bounded-primary-text",degraded:false});
+            }
+            return buildValidationResult(
+                {valid:false,reason:"Сопоставление не соответствует проверенным текстам"},
+                {validationMode:"bounded-primary-text",failureScope:FAILURE_SCOPE.PRESENTATION});
+        }
+
         const claims =
             await validateClaimEvidence(
 
