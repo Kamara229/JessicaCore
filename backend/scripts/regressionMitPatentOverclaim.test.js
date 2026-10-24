@@ -33,3 +33,18 @@ test("reject unsupported MIT language before contacting claim validator",async()
  assert.equal(result.shouldRetry,true);
  assert.match(result.reason,/патентных прав|MIT License/i);
 });
+
+test("valid explanation is not rejected for saying one cannot conclude rights do not exist",()=>{
+ const long=[
+ "Нет. Отсутствие прямо сформулированного патентного гранта в MIT License не доказывает отсутствие патентных прав.",
+ "В тексте перечислены права использовать, копировать, изменять и распространять программу.",
+ "Указаны сохранение уведомлений и отказ от гарантий.",
+ "Из молчания текста нельзя заключить, что патентных прав не существует либо что подразумеваемая лицензия невозможна.",
+ "Этот вопрос требует отдельного анализа применимого патентного права."
+ ].join(" ");
+ assert.equal(checkMitPatentOverclaim(question,long),null);
+ const wrong="MIT License не содержит отдельного патентного гранта, поэтому патентные права не охраняются в рамках лицензии. "+
+   "Но вопрос не равен существованию патентных прав. Остальные разрешения перечислены в её тексте. "+
+   "Для такого вывода недостаточно самого текста. Документ содержит сохранение уведомлений и отказ от гарантий.";
+ assert.equal(checkMitPatentOverclaim(question,wrong)?.valid,false);
+});
