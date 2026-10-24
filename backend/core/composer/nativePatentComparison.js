@@ -10,6 +10,7 @@ export function groundedPatentComparison(task,plan,run) {
      !/(?:патент|patent)/iu.test(t) ||
      !/apache(?:\s+license)?\s*2(?:\.0)?/iu.test(t) ||
      !/bsd[\s-]*3[\s-]*clause/iu.test(t) ||
+     /(?:уведомлен|авторств|товарн|распростран|гаранти|copyright|trademark|warrant|уведомления|ограничения)/iu.test(t) ||
      plan?.intent!=="native_known_license_comparison" ||
      verifyPairedSourceContent(plan,run)?.valid!==true)return null;
   const fetched=(run?.results||[]).filter(r=>r?.tool==="web_fetch"&&r?.success===true);
