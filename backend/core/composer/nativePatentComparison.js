@@ -1,3 +1,4 @@
+import {groundedMplPatentComparison} from "./nativeMplPatentComparison.js";
 import {groundedMitPatentComparison} from "./nativeMitPatentComparison.js";
 import {verifyPairedSourceContent} from "../validator/pairedSourceContent.js";
 import {selectOperativeSourceText} from "../validator/claim/operativeSourceScope.js";
@@ -6,6 +7,8 @@ const B="https://opensource.org/license/bsd-3-clause";
 const flat=s=>String(s||"").replace(/\s+/g," ").toLowerCase();
 
 export function groundedPatentComparison(task,plan,run) {
+  const mpl=groundedMplPatentComparison(task,plan,run);
+  if(mpl)return mpl;
   const mit=groundedMitPatentComparison(task,plan,run);
   if(mit)return mit;
   const t=String(task||"");
