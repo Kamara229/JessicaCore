@@ -33,3 +33,19 @@ test("unrelated questions and combined instructions never trigger literal echo",
     ];
     for(const task of unrelated) assert.equal(exactSingleWordReply(task),null,task);
 });
+
+test("strict one-word variant preserves Sapphire and case, without synonym rewrites",async()=>{
+    const variants=[
+        ["Напиши строго одно слово: САПФИР.","САПФИР"],
+        ["Выведи ровно одно слово: ИЗУМРУД.","ИЗУМРУД"],
+        ["Ответь одним словом: РУБИН.","РУБИН"],
+        ["Напиши только одно слово: клён.","клён"]
+    ];
+    for(const [task,expected] of variants) {
+        assert.equal(exactSingleWordReply(task)?.text,expected);
+        const result=await executeJessicaTask(task);
+        assert.equal(result.mode,"literal_word");
+        assert.equal(result.text,expected);
+        assert.equal(result.learning.queued,false);
+    }
+});
