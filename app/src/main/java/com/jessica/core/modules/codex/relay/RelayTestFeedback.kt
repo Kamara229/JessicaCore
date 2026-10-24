@@ -14,7 +14,7 @@ internal object RelayTestFeedback {
         val a = result.text.lowercase()
         val requestsExplanation = Regex("объясни|поясни|почему|обоснуй|объяснение").containsMatchIn(q)
         if (requestsExplanation && a.isNotBlank()) {
-            val actualExplanation = Regex("потому что|поскольку|так как|начальн|конечн|не учитыва|исключен|исключён|включен|включён|с 10 по 23").containsMatchIn(a)
+            val actualExplanation = Regex("потому что|поскольку|так как|начальн|конечн|не учитыва|исключен|исключён|включен|включён|с 10 по 23|из молчания текста|в первом содержательном абзаце|далее текст|по тексту лицензии").containsMatchIn(a)
             if (!actualExplanation) return "Ответ получен, но требуемое объяснение явно не обнаружено. Проверь полноту ответа."
         }
         return "Ответ получен; фактическую правильность и полноту оценивает ChatGPT."
