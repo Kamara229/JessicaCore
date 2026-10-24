@@ -148,6 +148,8 @@ export function registerSolveRoute(
                     isBareSourceOnly(coreResult?.text);
                 const localized = coreResult?.mode === "translation"
                     ? {...coreResult, outputLanguage, localizationStatus:"explicit-translation"}
+                    : coreResult?.mode === "literal_word"
+                        ? {...coreResult, outputLanguage, localizationStatus:"literal-word-preserved"}
                     : coreResult?.mode === "conversation_ack"
                         ? {...coreResult, outputLanguage, localizationStatus:"deterministic-chat-ack"}
                     : preserveBareCode
