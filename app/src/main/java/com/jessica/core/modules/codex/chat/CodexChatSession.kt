@@ -27,6 +27,7 @@ internal fun CodexChatCoordinator.startCodexSession() {
         lastReplyWaitNotice = 0L
         lastReplyProgress = null
         lastReportedPhase = ""
+        shareDialogBackAttempted = false
         pendingInterpretation = null
         interpretationFailures = 0
         retryInterpretAt = 0L
