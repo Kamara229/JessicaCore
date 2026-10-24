@@ -33,3 +33,10 @@ test("pause cannot end the session while requiring a safe follow-up",()=>{
     const got=validateRelayDecision({action:"pause",reply:"Нужен новый чат, отключаюсь.",task:""},"Выполни следующий текстовый тест.");
     assert.equal(got.action,"reply");
 });
+
+test("negated new-chat wording reuses explicitly requested Jessica test thread",()=>{
+    const message="Новый чат создавать не нужно. Продолжи в том же чате Джессики.";
+    assert.equal(validateRelayDecision({action:"test",task:"КОМПАС",reply:"",continueThread:true},message+" КОМПАС").continueThread,true);
+    const different="Новый чат создавать не нужно. Продолжи в том же чате Джессики. Но для следующего теста создай новый тестовый чат.";
+    assert.equal(validateRelayDecision({action:"test",task:"КОМПАС",reply:"",continueThread:true},different+" КОМПАС").continueThread,false);
+});
