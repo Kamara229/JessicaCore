@@ -13,6 +13,13 @@ function mitPatentQuestion(task) {
 
 export function checkMitPatentOverclaim(task,answer) {
     if(!mitPatentQuestion(task))return null;
+    const words=String(answer||"").trim().match(/[\\p{L}\\p{N}]+/gu)||[];
+    // Explicit demand for an explanation cannot pass as a bare yes/no.
+    if(/(?:обосну|объясн|поясни|explain|justify)/iu.test(String(task||""))
+       && words.length<32) {
+        return {valid:false,shouldRetry:true,
+            reason:"Запрошено обоснование по тексту MIT License, но ответ слишком краток и не раскрывает основание вывода."};
+    }
     const paragraphs=String(answer||"").split(/\n\s*\n/);
     for(const paragraph of paragraphs) {
         const value=paragraph.replace(/\s+/g," ").trim();
