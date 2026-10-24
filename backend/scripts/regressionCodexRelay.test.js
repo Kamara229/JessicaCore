@@ -250,3 +250,14 @@ test("selected-chat test instruction bypasses unavailable interpretation provide
     assert.equal(explicitJessicaTest("Продолжи в выбранном чате Jessica.\nТочная задача:\nЗапусти поиск"),null);
     assert.equal(explicitJessicaTest("Не продолжай в выбранном чате Jessica.\nТочная задача:\nЗапусти поиск"),null);
 });
+
+test("repeat-in-same-Jessica-chat directive does not depend on model availability",async()=>{
+ const task="Какое слово было названо в предыдущем тесте?";
+ const message="Повтори в том же чате Jessica.\nТочная задача:\n"+task+"\nВерни фактический ответ дословно.";
+ let modelCalls=0;
+ const result=await interpretRelayTurn({message},async()=>{modelCalls++;throw Error("offline");});
+ assert.equal(modelCalls,0);
+ assert.equal(result.action,"test");
+ assert.equal(result.continueThread,true);
+ assert.equal(result.task,task);
+});
