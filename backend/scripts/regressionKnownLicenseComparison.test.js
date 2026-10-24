@@ -53,3 +53,19 @@ test("verification covers known comparison cells and honestly unverified clauses
     const categorical=answer.replace("Не удалось подтвердить по прочитанному тексту", "Патентных условий нет");
     assert.equal(checkPairedClaimCoverage({task,plan,taskRunResult:run,answer:categorical,claims}).valid,false);
 });
+
+test("patent comparison without the literal word license uses two canonical primary sources",()=>{
+    const request="Сравни патентные условия Apache 2.0 и BSD 3-Clause по официальным текстам. Приведи ссылки и пункты.\nВерни ответ дословно.";
+    const plan=buildKnownLicenseComparisonPlan(request);
+    assert.equal(plan?.intent,"native_known_license_comparison");
+    assert.deepEqual(plan.steps.map(x=>x.tool),["web_fetch","web_fetch"]);
+    assert.deepEqual(plan.steps.map(x=>x.arguments.url),[
+        "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "https://opensource.org/license/bsd-3-clause"
+    ]);
+    assert.equal(tryCreateKnownLicenseComparison({task:request}).handled,true);
+});
+test("unrelated source comparisons do not borrow canonical known-license routes",()=>{
+    assert.equal(buildKnownLicenseComparisonPlan("Сравни патентные условия Apache 2.0 и неизвестный проект"),null);
+    assert.equal(buildKnownLicenseComparisonPlan("Сравни две даты 28 февраля и 2 марта"),null);
+});
