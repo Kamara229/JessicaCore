@@ -1,3 +1,4 @@
+import {groundedMplMitPatentComparison} from "./nativeMplMitPatentComparison.js";
 import {groundedMplPatentComparison} from "./nativeMplPatentComparison.js";
 import {groundedMitPatentComparison} from "./nativeMitPatentComparison.js";
 import {verifyPairedSourceContent} from "../validator/pairedSourceContent.js";
