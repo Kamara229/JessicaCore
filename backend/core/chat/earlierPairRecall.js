@@ -1,7 +1,10 @@
 import { normalizeConversation } from "./conversationContext.js";
+import {recallWordBeforeCommand} from "./earlierLiteralWordRecall.js";
 
 /** Recall only user-provided pairs from this same chat; never guess from model replies. */
 export function recallEarlierPair(task, conversation) {
+    const wordRecall=recallWordBeforeCommand(task,conversation);
+    if(wordRecall) return wordRecall;
     const question = String(task || "").trim();
     if (!/^какое число и слово я просил(?:а)? запомнить перед последней парой\?\s*(?:верни ответ дословно\.)?$/iu.test(question)) return null;
     const pairs = normalizeConversation(conversation, {followup:true})
