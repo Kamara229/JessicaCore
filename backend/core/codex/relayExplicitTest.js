@@ -10,7 +10,7 @@ export function explicitJessicaTest(message) {
     const raw=typeof message === "string" ? message : "";
     if (!raw || raw.length>50000) return null;
     const lines=raw.split(/\r?\n/);
-    const commands=lines.filter(x => !/^\s*(?:не|НЕ)\s+/u.test(x.trim().replace(/^\*+|\*+$/g,"")));
+    const commands=lines.filter(x => !/^\s*не\s+/iu.test(x.trim().replace(/^\*+|\*+$/g,"")));
     const explicitCommand=commands.some(x =>
         /(?:создай|создать|открой|открыть)\s+нов(?:ый|ом)\s+тестов(?:ый|ом)\s+чат\s+(?:Jessica|Джессик)/iu.test(x)
         || /(?:выполни|выполнить|запусти|запустить)\s+тест\s+(?:через|в)\s+(?:обычн\w*\s+)?чат(?:е)?\s+(?:Jessica|Джессик)/iu.test(x)
