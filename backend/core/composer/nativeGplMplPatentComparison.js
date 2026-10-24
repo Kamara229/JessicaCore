@@ -19,7 +19,7 @@ export function groundedGplMplPatentComparison(task,plan,run) {
     "10. automatic licensing of downstream recipients",
     "you may not initiate litigation (including a cross-claim or counterclaim in a lawsuit)",
     "11. patents","each contributor grants you a non-exclusive, worldwide, royalty-free patent license",
-    "under the contributor's essential patent claims"
+    "under the contributor's essential patent claims","end of terms and conditions"
   ];
   const mpl=["mozilla public license","2.1. grants","under patent claims of such contributor",
     "2.3. limitations on grant scope",
@@ -29,7 +29,7 @@ export function groundedGplMplPatentComparison(task,plan,run) {
     "under section 2.1 of this license shall terminate"];
   if(!gpl.every(x=>g.includes(x))||!mpl.every(x=>m.includes(x)))return null;
   return {success:true,source:"bounded-patent-comparison",text:
-    "GPLv3: раздел 11, абзац 3 предоставляет от каждого участника неисключительную всемирную безвозмездную лицензию на его существенные патентные притязания. Раздел 8 прекращает права при нарушении GPLv3 (включая патентные права из раздела 11), предусмотрев восстановление после устранения нарушения. Раздел 10 запрещает патентные иски по программе, в том числе встречные и перекрёстные. Это не прекращение за любой патентный спор. Источник: "+GPL+
+    "GPLv3: раздел 11, абзац 3 предоставляет от каждого участника неисключительную всемирную безвозмездную лицензию на его существенные патентные притязания. Раздел 8 прекращает права при распространении или изменении программы вопреки GPLv3 (включая патентные лицензии третьего абзаца раздела 11) и предусматривает восстановление при условиях, указанных в разделе 8. Раздел 10 запрещает патентные иски по программе, в том числе встречные и перекрёстные. Это не прекращение за любой патентный спор. Источник: "+GPL+
     "\n\nMPL 2.0: пункт 2.1(b) предоставляет патентную лицензию на вклад участника или Contributor Version; пункт 2.3 ограничивает объём. Пункт 5.1 прекращает права при несоблюдении лицензии и предусматривает восстановление. Пункт 5.2 устанавливает отдельное прекращение прав по пункту 2.1 при определённом патентном иске; иски о признании права, встречные и перекрёстные иски исключены. Источник: "+MPL+
     "\n\nГлавное различие: GPLv3 соединяет общий механизм прекращения (§8) с запретом патентных исков (§10), а MPL 2.0 устанавливает отдельное условие по патентному иску (§5.2) с явными исключениями."};
 }
