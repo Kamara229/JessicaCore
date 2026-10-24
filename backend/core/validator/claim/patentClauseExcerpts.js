@@ -3,7 +3,7 @@ import {selectOperativeSourceText} from "./operativeSourceScope.js";
 /* Prefer two independent patent provisions: grant and termination.
  * These are source excerpts, not a statement that every license has them.
  * The absence of a match is NEVER proof that rights are absent. */
-function windowAt(source,at,length=430){
+function windowAt(source,at,length=720){
   const start=Math.max(0,at-90);
   const end=Math.min(source.length,at+length);
   let a=start,b=end;
