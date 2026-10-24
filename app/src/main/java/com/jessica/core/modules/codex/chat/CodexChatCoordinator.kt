@@ -52,6 +52,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     internal var lastReplyWaitNotice = 0L
     internal var lastReplyProgress: CodexReplyProgress? = null
     internal var lastReportedPhase = ""
+    internal var shareDialogBackAttempted = false
     internal var pendingInterpretation: String? = null
     internal var interpretationFailures = 0
     internal var retryInterpretAt = 0L
