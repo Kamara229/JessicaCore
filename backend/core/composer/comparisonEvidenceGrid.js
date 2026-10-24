@@ -135,7 +135,7 @@ export function renderComparisonEvidenceGrid(grid){
         row.excerpts.forEach((quotes,sourceIndex)=>{
             header.push(grid.sources[sourceIndex].id+": "+(quotes.length?
                 quotes.slice(0,row.id==="notices"?3:row.id==="patents"?2:1).map(quote=>"«"+
-                    quote.replace(/\s+/g," ").slice(0,["use","distribution","restrictions","notices"].includes(row.id)?420:280)+"»").join("; "):
+                    quote.replace(/\s+/g," ").slice(0,row.id==="patents"?710:["use","distribution","restrictions","notices"].includes(row.id)?420:280)+"»").join("; "):
                 "Не удалось найти подтверждающую выдержку по этому критерию."));
         });
     }
