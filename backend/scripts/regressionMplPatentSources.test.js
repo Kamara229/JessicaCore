@@ -6,7 +6,7 @@ import {verifyPairedSourceContent} from "../core/validator/pairedSourceContent.j
 import {groundedPatentComparison} from "../core/composer/nativePatentComparison.js";
 
 const question="Сравни патентные условия MPL 2.0 и Apache 2.0 по официальным текстам. Укажи ссылки, пункты и условия прекращения патентных прав.";
-const urls=["https://www.apache.org/licenses/LICENSE-2.0.txt","https://www.mozilla.org/en-US/MPL/2.0/"];
+const urls=["https://www.apache.org/licenses/LICENSE-2.0.txt","https://www.mozilla.org/media/MPL/2.0/index.txt"];
 const apache=[
  "Apache License Version 2.0, January 2004. TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION.",
  "3. Grant of Patent License. Subject to the terms and conditions of this License, each Contributor hereby grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable (except as stated in this section) patent license to make, have made, use, offer to sell, sell, import, and otherwise transfer the Work, where such license applies only to those patent claims licensable by such Contributor that are necessarily infringed by their Contribution(s) alone or by combination of their Contribution(s) with the Work to which such Contribution(s) was submitted.",
@@ -37,7 +37,7 @@ test("source-grounded answer compares 5.2 cross claims exception with Apache sec
  assert.match(answer.text,/5\.2/);
  assert.match(answer.text,/5\.1/);
  assert.match(answer.text,/встречные и перекрёстные/);
- assert.match(answer.text,/mozilla.org\/en-US\/MPL\/2\.0/);
+ assert.match(answer.text,/mozilla.org\/media\/MPL\/2\.0\/index\.txt/);
  assert.match(answer.text,/apache.org/);
 });
 test("missing Mozilla official text or crucial carveout must fail closed",()=>{
