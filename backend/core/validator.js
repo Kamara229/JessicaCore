@@ -643,6 +643,11 @@ export async function validateResult(
     // Static language-specific invariants are checked BEFORE AI Validator,
     // which can otherwise accept a plausible-looking yet incorrect program.
     // Failure belongs to presentation and never certifies runtime execution.
+    const mitCheck=checkMitPatentOverclaim(task,answerResult?.text);
+    if(mitCheck)return buildValidationResult(mitCheck,{
+        validationMode:"mit-patent-static",degraded:false,
+        failureScope:FAILURE_SCOPE.PRESENTATION
+    });
     const programmingSafety=checkProgrammingAnswerSafety(task,answerResult?.text);
     if(programmingSafety) {
         console.warn("Jessica programming answer safety rejected:",programmingSafety.reason);
