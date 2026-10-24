@@ -247,7 +247,7 @@ test("selected-chat test instruction bypasses unavailable interpretation provide
     assert.equal(decision.action,"test");
     assert.equal(decision.task,task);
     assert.equal(decision.continueThread,false);
-    assert.equal(explicitJessicaTest("Продолжи в выбранном чате Jessica.\nТочная задача:\nЗапусти поиск"),null);
+    assert.equal(explicitJessicaTest("Продолжи в выбранном чате Jessica.\nТочная задача:\nЗапусти поиск")?.task,"Запусти поиск");
     assert.equal(explicitJessicaTest("Не продолжай в выбранном чате Jessica.\nТочная задача:\nЗапусти поиск"),null);
 });
 
