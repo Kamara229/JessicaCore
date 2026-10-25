@@ -255,6 +255,19 @@ function formatExperience(
 
         formatSection(
 
+            "Проверенный порядок действий (Experience Workflow):",
+
+            experience.workflow,
+            8
+
+        )
+
+    );
+
+    blocks.push(
+
+        formatSection(
+
             "Стратегия:",
 
             experience.strategy
@@ -446,6 +459,12 @@ export function buildPlanningContextText(
      * =====================================================
      */
 
+
+    const priorityText=formatSection(
+        "=== ПРИОРИТЕТЫ ИСТОЧНИКОВ ===",
+        normalized.sourceRules,8
+    );
+    if(priorityText)blocks.push(priorityText);
 
     const experienceText =
 

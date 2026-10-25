@@ -373,6 +373,12 @@ function normalizeExperience(
          */
 
 
+        workflow:
+
+            normalizeArray(
+                source.workflow
+            ),
+
         strategy:
 
             normalizeArray(
