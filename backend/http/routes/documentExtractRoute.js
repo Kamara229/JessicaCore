@@ -7,6 +7,7 @@ import { pageDocumentText, parseDocumentTextOffset } from "../../core/files/docu
 import { buildDocumentSectionIndex } from "../../core/files/documentSectionIndex.js";
 import {parseSectionIndex,selectDocumentSectionPage} from "../../core/files/documentSectionWindow.js";
 import {buildDocumentPageBatch} from "../../core/files/documentPageBatch.js";
+import {prepareExtractedDocumentText} from "../../core/files/documentExtractedTextIntegrity.js";
 
 const require = createRequire(import.meta.url);
 const parsePdf = require("pdf-parse");
@@ -91,8 +92,11 @@ export function registerDocumentExtractRoute(app) {
                 if (offset === null) {
                     return res.status(400).json({success: false, text: "Некорректное смещение текста документа"});
                 }
-                const complete = (await extractText(ext, buffer)).replace(/\u0000/g, "").trim();
-                if (!complete) {
+                const extraction = prepareExtractedDocumentText(
+                    await extractText(ext, buffer)
+                );
+                const complete = extraction.text;
+                if (!extraction.hasReadableContent) {
                     return res.status(422).json({
                         success: false,
                         text: "В файле нет доступного текста. Сканированные PDF пока не поддерживаются."
@@ -114,6 +118,7 @@ export function registerDocumentExtractRoute(app) {
                     extension: ext,
                     bytes: buffer.length,
                     extractedChars: complete.length,
+                    nullCharactersRemoved: extraction.nullCharactersRemoved,
                     truncated: page.truncated,
                     offset: page.offset,
                     hasMore: page.hasMore
