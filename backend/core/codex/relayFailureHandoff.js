@@ -7,12 +7,17 @@ const providerUnavailable = error => {
     const detail = String(error?.message || error || "");
     return /\b429\b|rate[_ -]?limit|quota|tokens? per day|resource[_ -]?exhausted|daily[_ -]?token/i.test(detail);
 };
-export function providerFailureHandoff(error) {
-    if (!providerUnavailable(error)) return null;
+export function interpretationFailureHandoff(error) {
+    const quota = providerUnavailable(error);
     return {
         action: "reply",
         task: "",
         continueThread: false,
-        reply: "Кодекс Jessica: анализ последнего ответа ChatGPT не выполнен — провайдер AI вернул ограничение запросов (HTTP 429/квота). Запрошенный тест не запускался и не повторялся; результата теста нет. Передаю технический сбой в этот же чат. Проверь backend, Render и Supabase своими подключениями, исправь причину и продолжи план. Не считай это успешным тестом."
+        reply: "Кодекс Jessica: анализ последнего сообщения ChatGPT не выполнен — " +
+            (quota ? "ограничение запросов AI-провайдера (HTTP 429/квота)." :
+                "сервис интерпретации вернул ошибку или не дал однозначного решения.") +
+            " Тест из этого сообщения не запускался, результата нет, автоматического повтора не было." +
+            " Передаю технический сбой в выбранный чат. Проверь backend, Render и Supabase" +
+            " через свои подключения, устрани причину и продолжи план. Это НЕ успешный тест."
     };
 }
