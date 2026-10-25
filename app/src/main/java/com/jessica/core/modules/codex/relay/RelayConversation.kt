@@ -7,6 +7,8 @@ import com.jessica.core.modules.chat.ChatMessage
 import com.jessica.core.modules.chat.ChatThreadStore
 import com.jessica.core.modules.codex.CodexClient
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -82,7 +84,13 @@ class RelayConversation(
                 withContext(Dispatchers.IO) { store.append(id, ChatMessage(task, true)) }
                 // An error or no_verified_result is preserved verbatim. HTTP success is NOT a passing test.
                 val result = try {
-                    executeTest(task, before)
+                    withTimeout(90_000L) { executeTest(task, before) }
+                } catch (_: TimeoutCancellationException) {
+                    // Timeout is a failed test, never a reason to silently
+                    // cancel the relay loop or execute the test again.
+                    AIResult(success = false,
+                        text = "Jessica не завершила тест за 90 секунд. Результат не подтверждён. " +
+                            "Повторный запуск не выполнялся; передаю сбой ChatGPT.")
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
