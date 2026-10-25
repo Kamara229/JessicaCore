@@ -159,6 +159,9 @@ async function executeWebFetch(
     }
 
 
+    const canonical = await fetchCanonicalApacheText(pageUrl);
+    if (canonical) return canonical;
+
     if (!tinyFishApiKey) {
 
         return {
