@@ -4,6 +4,7 @@ import {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 import {explicitJessicaTest} from "./relayExplicitTest.js";
 import {isStandaloneLengthNotice,lengthNoticeContinuation} from "./relaySessionContinuity.js";
 import {guardRelayTerminalDecision,confirmedPlanCompletion} from "./relayTerminalPolicy.js";
+import {acknowledgeBackendProgress} from "./relayProgressPolicy.js";
 export {explicitJessicaTest} from "./relayExplicitTest.js";
 export {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 export {explicitSameTestChat} from "./relayThreadPolicy.js";
@@ -68,6 +69,8 @@ export async function interpretRelayTurn(input, generate) {
     const finishCommand=/(?:^|[.!?]\s+)(?:заверши|закрой|останови)\s+(?:сессию|работу|режим)\s+(?:Кодекс|Codex)\s*[.!?]?(?:\s|$)/iu;
     if (confirmedPlanCompletion(message) && finishCommand.test(message))
         return {action:"finish",reply:"План завершён. Завершаю сессию Кодекс.",task:"",continueThread:false};
+    const progressReply=acknowledgeBackendProgress(message);
+    if (progressReply!==null) return {action:"reply",reply:progressReply,task:"",continueThread:false};
     const payload = {message, plan:String(input.plan || "").slice(0,12000), history};
     const run = generate || (async (instructions, data) => {
         const response = await getGroqClient().chat.completions.create({
