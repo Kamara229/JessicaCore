@@ -74,8 +74,12 @@ test("continuing a Jessica test requires explicit same-chat instruction, never m
         async()=>decision);
     assert.equal(interpreted.continueThread,false);
 });
-test("ambiguous understanding fails instead of inventing continuation", async () => {
-    await assert.rejects(interpretRelayTurn({message:"Готово"},async()=>"not json"));
+test("ambiguous understanding reports failure instead of inventing a completed action", async () => {
+    const decision=await interpretRelayTurn({message:"Готово"},async()=>"not json");
+    assert.equal(decision.action,"reply");
+    assert.equal(decision.task,"");
+    assert.match(decision.reply,/анализ.*не выполнен/);
+    assert.match(decision.reply,/Тест из этого сообщения не запускался/);
     await assert.rejects(interpretRelayTurn({message:""},async()=>({action:"reply",reply:"OK"})));
 });
 test("Codex HTTP surface exposes interpretation and content-free diagnostics only", () => {
