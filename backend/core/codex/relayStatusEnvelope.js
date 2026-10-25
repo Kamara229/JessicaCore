@@ -24,7 +24,7 @@ export function deterministicStatusHandoff(message) {
     ).test(body);
     // CI notes can start with the previous run, then a completed code fix.
     // The returned action is an acknowledgement, not a verified test result.
-    const ciProgress=/^Предыдущий\s+(?:общий\s+)?CI\s+(?:успешен|пройден|заверш[её]н\s+успешно)\.\s+(?:Добавил|Исправил|Обновил|Доработал|Внедрил|Реализовал|Усилил)[^.!?]{0,180}\([a-f\d]{7,40}\)/iu.test(body);
+    const ciProgress=/^Предыдущий\s+(?:общий\s+)?CI\s+(?:успешен|пройден|заверш[её]н\s+успешно)\.\s+(?:Добавил|Исправил|Обновил|Доработал|Внедрил|Реализовал|Усилил)[^.!?;]{0,180}\([a-f\d]{7,40}\)/iu.test(body);
     if (!directProgress && !quotaIncident && !ciProgress) return null;
     if (!/\([a-f\d]{7,40}\)/iu.test(body)) return null;
     if (!/(?:backend|регресс|CI|Render|Supabase)/iu.test(body)) return null;
