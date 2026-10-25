@@ -43,3 +43,22 @@ test("failed Apache fetch handoff remains deterministic during Groq quota failur
  assert.equal(result.task,"");
  assert.match(result.reply,/Тест в обычном чате Jessica пока не запрошен/);
 });
+
+test("partially passed test hands off Validator and CI without AI retries",async()=>{
+ const input=[
+  "JESSICA_REPLY_938804dc-f116-4257-8a85-81b89afbe24b",
+  "Тест частично пройден: 4 дня — верно, но §3 не указан. Добавил извлечение пункта из первоисточника (5a1b98e).",
+  "Следующий шаг — завершить проверку в Validator и CI. Тест пока не повторять.",
+  "JESSICA_END_938804dc-f116-4257-8a85-81b89afbe24b"
+ ].join("\n");
+ let calls=0;
+ const decision=await interpretRelayTurn({message:input,history:[]},async()=>{
+  calls++;
+  throw Error("model-unavailable");
+ });
+ assert.equal(calls,0);
+ assert.equal(decision.action,"reply");
+ assert.equal(decision.task,"");
+ assert.match(decision.reply,/тест не пройден/);
+ assert.match(decision.reply,/Тест в обычном чате Jessica пока не запрошен/);
+});
