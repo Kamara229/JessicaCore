@@ -83,6 +83,7 @@ function answerAlreadyInRussian(text) {
 export async function localizeResponse(result, task, language, generate) {
     if (!result || typeof result.text !== "string" || !result.text.trim()) return result;
     const code = normalizeOutputLanguage(language);
+    if (isVerifiedRequestedOriginalQuote(result,task)) return {...result,outputLanguage:code,localizationStatus:"verified-original-quote"};
     if (result.text.length > 14000) return {...result, outputLanguage: code, localizationStatus: "long-answer-original"};
     // Avoid unnecessary second-model rewriting of correct Russian answers.
     // Translation instructions in the request always override this shortcut.
