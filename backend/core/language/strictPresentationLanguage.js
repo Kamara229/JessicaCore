@@ -8,6 +8,7 @@ import {isVerifiedRequestedOriginalQuote} from "./verifiedQuotePreservation.js";
  * This does not validate the program or alter its underlying execution trace.
  */
 export function enforcePresentationLanguage(result,{task="",language="ru",override=false}={}) {
+    if (isVerifiedRequestedOriginalQuote(result,task)) return result;
     if (language!=="ru" || override || !result || typeof result.text!=="string" ||
         !hasForeignEnglishProse(result.text)) return result;
     if (result.mode==="translation") return result;
