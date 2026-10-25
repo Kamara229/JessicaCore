@@ -5,6 +5,7 @@ import {validateAndRenderDocumentAnswer} from "./documentAnswerContract.js";
 import {identifyDocumentAnswer} from "./documentResponseIdentity.js";
 import {beginWindowLedger,noteVerifiedWindow,windowLedgerSummary} from "./documentWindowLedger.js";
 import {locateCitedDocumentFragments} from "./documentCitationSpans.js";
+import {createVerifiedClaimRecords,compareVerifiedDocumentClaims} from "./documentClaimComparison.js";
 
 /** Use only cryptographically verified complete pages; fail closed on gaps. */
 export async function analyzePagedLongDocument({task,attachment,generate,embedReceipt=true}) {
@@ -25,7 +26,7 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
     if(!ledger)return {success:false,mode:"document",stage:"document-source-coverage",
         text:"Не совпадает контрольная сумма окон документа."};
     let processed=0,kept=0,rejected=0;
-    const answers=[],citationSpans=[];
+    const answers=[],citationSpans=[],verifiedClaims=[];
     for(const window of plan.windows){
         const excerpt={name,text:window.text,truncated:false};
         const bundle=createLosslessWindowEvidence(excerpt);
@@ -54,6 +55,11 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
             text:"Для одного из окон не подтверждены цитаты. Полный анализ не завершён.",
             readingCoverage:{...windowLedgerSummary(ledger),complete:false}};
         const verifiedSpans=locateCitedDocumentFragments(window,bundle,checked);
+        const verifiedRecords=createVerifiedClaimRecords(
+            checked.verifiedFindings,verifiedSpans,window.number);
+        if(!verifiedRecords)return {success:false,mode:"document",stage:"document-claim-links",
+            text:"Невозможно сопоставить проверенные выводы с источниками.",
+            readingCoverage:windowLedgerSummary(ledger)};
         if(!verifiedSpans)return {success:false,mode:"document",stage:"document-citation-offsets",
             text:"Источник цитаты не совпал с контрольными смещениями.",
             readingCoverage:windowLedgerSummary(ledger)};
@@ -66,15 +72,20 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
             (_whole,n)=>`[О${window.number}:Ф1:Ф${n}]`);
         answers.push(`Окно ${window.number} — ${window.title} (${window.startOffset}–${window.endOffset})\n${scoped}`);
         citationSpans.push(...verifiedSpans);
+        verifiedClaims.push(...verifiedRecords);
     }
     const body=answers.join("\n\n")+
         "\n\nГраницы проверки: все окна переданы для анализа и цитаты сверены. " +
         "Это не доказывает научную или юридическую правильность выводов.";
+    const claimComparison=compareVerifiedDocumentClaims(verifiedClaims,citationSpans);
+    if(!claimComparison)return {success:false,mode:"document",stage:"document-comparison",
+        text:"Не удалось проверить межраздельные ссылки на источники.",
+        readingCoverage:windowLedgerSummary(ledger)};
     const audit=embedReceipt?identifyDocumentAnswer(body,kept,rejected):null;
     return {success:true,mode:"document",validated:false,evidenceChecked:true,
         groundedClaims:kept,unsupportedClaimsDropped:rejected,
         readingCoverage:windowLedgerSummary(ledger),
-        citationSpans,
+        citationSpans,verifiedClaims,claimComparison,
         responseId:audit?.id||null,responseSha256:audit?.sha256||null,
         text:audit?.text||body};
 }

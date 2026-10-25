@@ -4,6 +4,7 @@ import {beginWindowLedger} from "./documentWindowLedger.js";
 import {analyzePagedLongDocument} from "./documentPagedAnalysis.js";
 import {identifyDocumentAnswer} from "./documentResponseIdentity.js";
 import {scopeCitedDocumentFragments} from "./documentCitationSpans.js";
+import {scopeVerifiedClaimRecords,compareVerifiedDocumentClaims} from "./documentClaimComparison.js";
 
 const MAX_FILES=3;
 const MAX_WINDOWS=16;
@@ -47,7 +48,7 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
     if(!plan)return reject("document-multi-pages",
         "Не удалось подтвердить полный текст всех файлов или превышен лимит окон. "+
         "Отправь документы по одному; частичный анализ не выдаётся за полный.");
-    const summaries=[],sections=[],citationSpans=[];
+    const summaries=[],sections=[],citationSpans=[],verifiedClaims=[];
     let kept=0,rejected=0,windowsDone=0;
     for(const info of plan.files){
         const result=await analyzePagedLongDocument({
@@ -78,13 +79,21 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
         const scopedSpans=scopeCitedDocumentFragments(result.citationSpans,info.index);
         if(!scopedSpans||!scopedSpans.length)return reject("document-multi-spans",
             "Не удалось привязать цитаты к исходному файлу.");
+        const scopedClaims=scopeVerifiedClaimRecords(
+            result.verifiedClaims,info.index,scopedSpans);
+        if(!scopedClaims)return reject("document-multi-claims",
+            "Не удалось связать выводы с цитатами каждого файла.");
         citationSpans.push(...scopedSpans);
+        verifiedClaims.push(...scopedClaims);
         sections.push(`Документ ${info.index}: ${info.name}\n${scoped}`);
         summaries.push({...coverage,fileIndex:info.index,name:info.name});
     }
     const body=sections.join("\n\n")+
         "\n\nПроверка: все подтверждённые страницы были переданы на анализ. "+
         "Цитаты сверены с текстом, но достоверность научных и правовых выводов отдельно не установлена.";
+    const claimComparison=compareVerifiedDocumentClaims(verifiedClaims,citationSpans);
+    if(!claimComparison)return reject("document-multi-comparison",
+        "Межфайловые выводы не удалось сопоставить с проверенными ссылками.");
     const audit=identifyDocumentAnswer(body,kept,rejected);
     return {success:true,mode:"document",validated:false,evidenceChecked:true,
         groundedClaims:kept,unsupportedClaimsDropped:rejected,
@@ -92,6 +101,6 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
             processedWindows:windowsDone,files:summaries,
             allWindowsPresented:windowsDone===plan.totalWindows,
             exactTextCoverageConfirmed:true,completeSourceAnalysisConfirmed:false},
-        citationSpans,
+        citationSpans,verifiedClaims,claimComparison,
         responseId:audit.id,responseSha256:audit.sha256,text:audit.text};
 }

@@ -105,6 +105,7 @@ export function validateAndRenderDocumentAnswer(raw, bundle, task = "") {
             const quotes = evidence.map(x => `«${x.quote}»`).join("; ");
             candidates.push({
                 heading: sectionTitle(section.heading),
+                kind: displayKind,
                 text,
                 refs: [...new Set(evidence.map(x => x.ref))],
                 rendered: `• ${labels[displayKind]}: ${text} ${sources}\n  Основание: ${quotes}`
@@ -145,6 +146,10 @@ export function validateAndRenderDocumentAnswer(raw, bundle, task = "") {
         rejected,
         omittedAsSecondary,
         citedRefs: [...new Set(chosen.flatMap(finding => finding.refs))],
+        verifiedFindings: chosen.map(finding=>({
+            heading:finding.heading,text:finding.text,
+            kind:finding.kind,refs:[...finding.refs]
+        })),
         text: [
             rendered.join("\n\n"),
             "",
