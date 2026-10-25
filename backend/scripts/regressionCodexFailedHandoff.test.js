@@ -128,7 +128,7 @@ test("Groq quota cannot strand Codex in endless interpretation retries",async()=
   assert.equal(result.task,"");
   assert.equal(result.continueThread,false);
   assert.match(result.reply,/анализ.*не выполнен/);
-  assert.match(result.reply,/тест не запускался/i);
+  assert.match(result.reply,/Тест из этого сообщения не запускался/i);
   assert.match(result.reply,/backend, Render и Supabase/);
 });
 
