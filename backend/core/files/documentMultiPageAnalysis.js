@@ -9,6 +9,7 @@ import {scopeVerifiedClaimRecords,compareVerifiedDocumentClaims} from "./documen
 import {markMultipleDocumentQuotaInterruption} from "./documentQuotaCoverage.js";
 import {summarizeMultiDocumentCitationDensity} from "./documentEvidenceDensity.js";
 import {scopeDocumentEvidenceLineage} from "./documentEvidenceLineage.js";
+import {mapVerifiedClaimsToSourceSections,mergeClaimProvenanceReports} from "./documentClaimProvenance.js";
 
 const MAX_FILES=3;
 const MAX_WINDOWS=16;
@@ -56,6 +57,7 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
     const quoteRanges=[];
     const sourceDensity=[];
     const sourceLineages=[];
+    const claimReports=[];
     const quoteCoverage={evidenceQuotes:0,exactLocatedQuotes:0,ambiguousQuotes:0,
         nonLiteralQuotes:0,allVerbatimQuoteOffsetsLocated:false};
     let kept=0,rejected=0,windowsDone=0;
@@ -121,6 +123,10 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
         if(!scopedLineage)return reject("document-multi-lineage",
             "Не удалось проверить структуру источников цитат.");
         sourceLineages.push(scopedLineage);
+        const perFileProvenance=mapVerifiedClaimsToSourceSections(scopedClaims,scopedLineage);
+        if(!perFileProvenance)return reject("document-multi-claim-provenance",
+            "Не удалось сопоставить выводы с разделами каждого файла.");
+        claimReports.push({fileIndex:info.index,provenance:perFileProvenance});
         summaries.push({...coverage,fileIndex:info.index,name:info.name,
             sectionCoverage:result.sectionCoverage});
     }
@@ -144,6 +150,10 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
        evidenceLineage.citationCount!==citationSpans.length)
         return reject("document-multi-lineage",
             "Часть ссылок не сопоставилась с исходными разделами.");
+    const claimProvenance=mergeClaimProvenanceReports(claimReports);
+    if(!claimProvenance||claimProvenance.count!==kept)
+        return reject("document-multi-claim-provenance",
+            "Не удалось объединить проверенные выводы из исходных файлов.");
     const audit=identifyDocumentAnswer(body,kept,rejected);
     return {success:true,mode:"document",validated:false,evidenceChecked:true,
         groundedClaims:kept,unsupportedClaimsDropped:rejected,
@@ -155,5 +165,6 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
         quoteRanges,quoteCoverage,
         evidenceDensity,
         evidenceLineage,
+        claimProvenance,
         responseId:audit.id,responseSha256:audit.sha256,text:audit.text};
 }
