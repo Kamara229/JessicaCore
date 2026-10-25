@@ -2,6 +2,7 @@ package com.jessica.core.modules.codex.chat
 
 import android.os.SystemClock
 import com.jessica.core.modules.codex.relay.RelayInterpretationUnavailable
+import com.jessica.core.modules.codex.relay.RelayReply
 import com.jessica.core.modules.codex.relay.RelayProtocol
 import java.util.UUID
 
@@ -26,17 +27,24 @@ internal suspend fun CodexChatCoordinator.processAcceptedReply(
     }
     reportPhase("interpret_started")
     notice("Вижу ответ ChatGPT и анализирую.")
+    var interpretationFailed = false
     val next = try {
         launch.conversation.respond(answer, retryingInterpretation, ::notice)
-    } catch (_: RelayInterpretationUnavailable) {
+    } catch (error: RelayInterpretationUnavailable) {
         if (PhoneChatRuntime.launch !== launch) return
-        pendingInterpretation = answer
         interpretationFailures++
-        retryInterpretAt = SystemClock.elapsedRealtime() +
-            5000L * interpretationFailures.coerceAtMost(12)
-        reportPhase("interpret_retry")
-        notice("Анализ временно недоступен. Безопасно повторяю анализ.")
-        return
+        if (!CodexInterpretationFailurePolicy.handoffNow(error, interpretationFailures)) {
+            pendingInterpretation = answer
+            retryInterpretAt = SystemClock.elapsedRealtime() + 4000L
+            reportPhase("interpret_retry")
+            notice("Сервис анализа недоступен. Одна безопасная повторная попытка.")
+            return
+        }
+        // No interpretation => no test executed. Deliver the failure as the
+        // next normal ChatGPT message (with markers and selected-chat checks).
+        interpretationFailed = true
+        reportPhase("interpret_failed")
+        RelayReply(CodexInterpretationFailurePolicy.report(error))
     }
     if (PhoneChatRuntime.launch !== launch) return
     pendingInterpretation = null
@@ -51,6 +59,7 @@ internal suspend fun CodexChatCoordinator.processAcceptedReply(
     continuityMissingSince = 0L
     lastReplyProgress = null
     reportPhase("next_ready")
-    notice(if (next.endSession) "Передаю итоговое сообщение."
+    notice(if (interpretationFailed) "Анализ недоступен. Передаю ChatGPT отчёт о сбое, без повтора теста."
+        else if (next.endSession) "Передаю итоговое сообщение."
         else "Ответ проанализирован. Готовлю следующее сообщение.")
 }
