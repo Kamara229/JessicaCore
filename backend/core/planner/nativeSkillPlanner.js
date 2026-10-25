@@ -44,6 +44,7 @@ import {
 import { extractExplicitDateRange } from "../native/explicitDateRange.js";
 
 import { hasVerifiedDateSkillEvidence } from "./youngDateSkill.js";
+import { dateDiffMode } from "./dateDiffMode.js";
 import { buildNativeDocumentFetchPlan } from "./nativeDocumentFetchPlan.js";
 import { buildNativeSourceComparisonPlan } from "./nativeSourceComparisonPlan.js";
 import { buildNativeSingleLicensePlan } from "./nativeSingleLicensePlan.js";
@@ -426,13 +427,7 @@ function buildDateDiffPlan({
         );
 
 
-    const elapsedMode =
-
-        /(прошло|с\s+момента|elapsed|since|exclud\w*|omit(?:ting)?|not\s+including|исключить|исключая|не\s+учитывать)/iu
-            .test(
-                taskText
-            );
-
+    const elapsedMode = dateDiffMode(taskText) === "elapsed";
 
     return {
 
