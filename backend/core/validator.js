@@ -643,6 +643,16 @@ export async function validateResult(
     }
 
 
+    // Native calendar arithmetic is not a complete answer when explanation was requested.
+    if (plan?.steps?.some(s=>s?.tool==="date_diff")
+        && /(объясн|поясн|explain)/iu.test(String(task||""))
+        && !/(начальная дата|расч[её]т|учитываем|counted dates)/iu.test(String(answerResult?.text||""))) {
+        return buildValidationResult(
+            {valid:false,reason:"Нет объяснения расчёта календарных дней"},
+            {validationMode:"date-explanation-guard",failureScope:FAILURE_SCOPE.PRESENTATION}
+        );
+    }
+
     // A requested original-language quotation must be present in the
     // fetched original; translations cannot become verified experience.
     const quoteCheck=checkOriginalEnglishQuote(task,taskRunResult,answerResult?.text);
