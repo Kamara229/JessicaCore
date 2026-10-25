@@ -52,3 +52,17 @@ const finish = await interpret({plan:"Все пункты выполнены", h
 assert.equal(finish.action,"finish");
 assert.ok(finish.reply.trim());
 console.log("PASS live plan completion");
+
+
+const progress = await interpret({
+    plan:"Продолжаем backend Jessica Core",history:[],
+    message:[
+        "JESSICA_REPLY_02bda0a8-6d96-47b9-96a2-5bdd91a2f2d0",
+        "Тест пройден. Уточнил условия прекращения патентной лицензии Apache и добавил регрессию в CI. Коммит eab5003. Следующий шаг — проверить завершение CI и развёртывание на Render.",
+        "JESSICA_END_02bda0a8-6d96-47b9-96a2-5bdd91a2f2d0"
+    ].join("\n")
+},true);
+assert.equal(progress.action,"reply");
+assert.equal(progress.task,"");
+assert.match(progress.reply,/GitHub, Render и Supabase/);
+console.log("PASS live status acknowledgement without model retries");
