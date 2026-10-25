@@ -65,3 +65,19 @@ test("date and section responses combine without inventing missing information",
  assert.match(joined.text,/4 полных календарных дня/);
  assert.match(joined.text,/разделе 3/);
 });
+
+test("specific termination question answers trigger and filing date, not just section name",async()=>{
+ const question="По §3 Apache License 2.0 объясни, при каком патентном иске и с какого момента прекращаются патентные лицензии. Укажи официальный URL.";
+ const answer=await composeAnswer(question,plan,run());
+ assert.equal(answer.source,"bounded-apache-patent-section");
+ assert.match(answer.text,/иск/);
+ assert.match(answer.text,/встречн/);
+ assert.match(answer.text,/вклад/);
+ assert.match(answer.text,/с даты подачи иска/);
+ assert.match(answer.text,/https:\/\/www\.apache\.org\/licenses\/LICENSE-2\.0\.txt/);
+ const checked=await validateResult(question,plan,run(),answer);
+ assert.equal(checked.valid,true,checked.reason);
+ const altered=run(sample.replace("counterclaim","other request"));
+ const fail=groundedApachePatentSection(question,plan,altered);
+ assert.equal(fail?.success,false);
+});
