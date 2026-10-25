@@ -4,7 +4,7 @@
  * Verify a real 8+ word original-source span; no inferred quotations.
  */
 const englishRequest = task =>
-    /(?:дословн|цитат|фраз|verbatim|quote)/iu.test(String(task||"")) &&
+    /(?:дословн|цитат|фраз|формулировк|скопир|копиров|verbatim|quote|exact wording)/iu.test(String(task||"")) &&
     /(?:английск|english)/iu.test(String(task||""));
 
 const normalized = value => String(value||"").normalize("NFKC")
