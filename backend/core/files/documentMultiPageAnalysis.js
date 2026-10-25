@@ -8,6 +8,7 @@ import {scopeVerbatimQuoteRanges} from "./documentVerbatimQuotes.js";
 import {scopeVerifiedClaimRecords,compareVerifiedDocumentClaims} from "./documentClaimComparison.js";
 import {markMultipleDocumentQuotaInterruption} from "./documentQuotaCoverage.js";
 import {summarizeMultiDocumentCitationDensity} from "./documentEvidenceDensity.js";
+import {scopeDocumentEvidenceLineage} from "./documentEvidenceLineage.js";
 
 const MAX_FILES=3;
 const MAX_WINDOWS=16;
@@ -54,6 +55,7 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
     const summaries=[],sections=[],citationSpans=[],verifiedClaims=[];
     const quoteRanges=[];
     const sourceDensity=[];
+    const sourceLineages=[];
     const quoteCoverage={evidenceQuotes:0,exactLocatedQuotes:0,ambiguousQuotes:0,
         nonLiteralQuotes:0,allVerbatimQuoteOffsetsLocated:false};
     let kept=0,rejected=0,windowsDone=0;
@@ -114,6 +116,11 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
             return reject("document-multi-density",
                 "Не удалось подтвердить полный учёт фрагментов исходных файлов.");
         sourceDensity.push({fileIndex:info.index,report:result.evidenceDensity});
+        const scopedLineage=scopeDocumentEvidenceLineage(
+            result.evidenceLineage,info.index,info.sourceSha256);
+        if(!scopedLineage)return reject("document-multi-lineage",
+            "Не удалось проверить структуру источников цитат.");
+        sourceLineages.push(scopedLineage);
         summaries.push({...coverage,fileIndex:info.index,name:info.name,
             sectionCoverage:result.sectionCoverage});
     }
@@ -129,6 +136,14 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
     const evidenceDensity=summarizeMultiDocumentCitationDensity(sourceDensity);
     if(!evidenceDensity)return reject("document-multi-density",
         "Не удалось совместить охват цитирования исходных файлов.");
+    const evidenceLineage={files:sourceLineages,
+        citationCount:sourceLineages.reduce((n,f)=>n+f.citationCount,0),
+        verifiedClaimCount:sourceLineages.reduce((n,f)=>n+f.verifiedClaimCount,0),
+        headingHierarchyHeuristic:true,semanticCorrectnessConfirmed:false};
+    if(evidenceLineage.verifiedClaimCount!==kept ||
+       evidenceLineage.citationCount!==citationSpans.length)
+        return reject("document-multi-lineage",
+            "Часть ссылок не сопоставилась с исходными разделами.");
     const audit=identifyDocumentAnswer(body,kept,rejected);
     return {success:true,mode:"document",validated:false,evidenceChecked:true,
         groundedClaims:kept,unsupportedClaimsDropped:rejected,
@@ -139,5 +154,6 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
         citationSpans,verifiedClaims,claimComparison,
         quoteRanges,quoteCoverage,
         evidenceDensity,
+        evidenceLineage,
         responseId:audit.id,responseSha256:audit.sha256,text:audit.text};
 }

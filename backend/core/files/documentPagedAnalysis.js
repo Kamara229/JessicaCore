@@ -10,6 +10,7 @@ import {auditDocumentSections} from "./documentSectionCoverage.js";
 import {locateVerbatimQuoteRanges} from "./documentVerbatimQuotes.js";
 import {markDocumentQuotaInterruption} from "./documentQuotaCoverage.js";
 import {measureDocumentCitationDensity} from "./documentEvidenceDensity.js";
+import {buildDocumentEvidenceLineage} from "./documentEvidenceLineage.js";
 
 /** Use only cryptographically verified complete pages; fail closed on gaps. */
 export async function analyzePagedLongDocument({task,attachment,generate,embedReceipt=true}) {
@@ -109,6 +110,11 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
     if(!evidenceDensity)return {success:false,mode:"document",stage:"document-evidence-density",
         text:"Не удалось проверить привязку цитат к прочитанным фрагментам.",
         readingCoverage:windowLedgerSummary(ledger)};
+    const evidenceLineage=buildDocumentEvidenceLineage(
+        sectionCoverage,windowLedgerSummary(ledger),citationSpans,verifiedClaims,quoteRanges);
+    if(!evidenceLineage)return {success:false,mode:"document",stage:"document-evidence-lineage",
+        text:"Нарушена связь цитат с разделами документа.",
+        readingCoverage:windowLedgerSummary(ledger)};
     const audit=embedReceipt?identifyDocumentAnswer(body,kept,rejected):null;
     return {success:true,mode:"document",validated:false,evidenceChecked:true,
         groundedClaims:kept,unsupportedClaimsDropped:rejected,
@@ -116,6 +122,7 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
         citationSpans,verifiedClaims,claimComparison,sectionCoverage,
         quoteRanges,quoteCoverage,
         evidenceDensity,
+        evidenceLineage,
         responseId:audit?.id||null,responseSha256:audit?.sha256||null,
         text:audit?.text||body};
 }
