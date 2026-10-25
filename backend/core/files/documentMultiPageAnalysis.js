@@ -4,6 +4,7 @@ import {beginWindowLedger} from "./documentWindowLedger.js";
 import {analyzePagedLongDocument} from "./documentPagedAnalysis.js";
 import {identifyDocumentAnswer} from "./documentResponseIdentity.js";
 import {scopeCitedDocumentFragments} from "./documentCitationSpans.js";
+import {scopeVerbatimQuoteRanges} from "./documentVerbatimQuotes.js";
 import {scopeVerifiedClaimRecords,compareVerifiedDocumentClaims} from "./documentClaimComparison.js";
 
 const MAX_FILES=3;
@@ -49,6 +50,9 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
         "Не удалось подтвердить полный текст всех файлов или превышен лимит окон. "+
         "Отправь документы по одному; частичный анализ не выдаётся за полный.");
     const summaries=[],sections=[],citationSpans=[],verifiedClaims=[];
+    const quoteRanges=[];
+    const quoteCoverage={evidenceQuotes:0,exactLocatedQuotes:0,ambiguousQuotes:0,
+        nonLiteralQuotes:0,allVerbatimQuoteOffsetsLocated:false};
     let kept=0,rejected=0,windowsDone=0;
     for(const info of plan.files){
         const result=await analyzePagedLongDocument({
@@ -84,6 +88,14 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
             result.verifiedClaims,info.index,scopedSpans);
         if(!scopedClaims)return reject("document-multi-claims",
             "Не удалось связать выводы с цитатами каждого файла.");
+        const scopedQuotes=scopeVerbatimQuoteRanges(result.quoteRanges,info.index);
+        if(!scopedQuotes||!result.quoteCoverage)
+            return reject("document-multi-quotes",
+                "Не удалось проверить источники цитат для каждого файла.");
+        quoteRanges.push(...scopedQuotes);
+        for(const key of ["evidenceQuotes","exactLocatedQuotes",
+            "ambiguousQuotes","nonLiteralQuotes"])
+            quoteCoverage[key]+=result.quoteCoverage[key];
         citationSpans.push(...scopedSpans);
         verifiedClaims.push(...scopedClaims);
         sections.push(`Документ ${info.index}: ${info.name}\n${scoped}`);
@@ -96,6 +108,9 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
     const claimComparison=compareVerifiedDocumentClaims(verifiedClaims,citationSpans);
     if(!claimComparison)return reject("document-multi-comparison",
         "Межфайловые выводы не удалось сопоставить с проверенными ссылками.");
+    quoteCoverage.allVerbatimQuoteOffsetsLocated=
+        quoteCoverage.evidenceQuotes>0 &&
+        quoteCoverage.evidenceQuotes===quoteCoverage.exactLocatedQuotes;
     const audit=identifyDocumentAnswer(body,kept,rejected);
     return {success:true,mode:"document",validated:false,evidenceChecked:true,
         groundedClaims:kept,unsupportedClaimsDropped:rejected,
@@ -104,5 +119,6 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
             allWindowsPresented:windowsDone===plan.totalWindows,
             exactTextCoverageConfirmed:true,completeSourceAnalysisConfirmed:false},
         citationSpans,verifiedClaims,claimComparison,
+        quoteRanges,quoteCoverage,
         responseId:audit.id,responseSha256:audit.sha256,text:audit.text};
 }

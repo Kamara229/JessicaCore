@@ -108,6 +108,7 @@ export function validateAndRenderDocumentAnswer(raw, bundle, task = "") {
                 kind: displayKind,
                 text,
                 refs: [...new Set(evidence.map(x => x.ref))],
+                evidence: evidence.map(({ref,quote})=>({ref,quote})),
                 rendered: `• ${labels[displayKind]}: ${text} ${sources}\n  Основание: ${quotes}`
             });
         }
@@ -148,7 +149,8 @@ export function validateAndRenderDocumentAnswer(raw, bundle, task = "") {
         citedRefs: [...new Set(chosen.flatMap(finding => finding.refs))],
         verifiedFindings: chosen.map(finding=>({
             heading:finding.heading,text:finding.text,
-            kind:finding.kind,refs:[...finding.refs]
+            kind:finding.kind,refs:[...finding.refs],
+            evidence:finding.evidence.map(({ref,quote})=>({ref,quote}))
         })),
         text: [
             rendered.join("\n\n"),

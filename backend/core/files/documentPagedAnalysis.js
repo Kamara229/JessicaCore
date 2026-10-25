@@ -7,6 +7,7 @@ import {beginWindowLedger,noteVerifiedWindow,windowLedgerSummary} from "./docume
 import {locateCitedDocumentFragments} from "./documentCitationSpans.js";
 import {createVerifiedClaimRecords,compareVerifiedDocumentClaims} from "./documentClaimComparison.js";
 import {auditDocumentSections} from "./documentSectionCoverage.js";
+import {locateVerbatimQuoteRanges} from "./documentVerbatimQuotes.js";
 
 /** Use only cryptographically verified complete pages; fail closed on gaps. */
 export async function analyzePagedLongDocument({task,attachment,generate,embedReceipt=true}) {
@@ -28,6 +29,9 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
         text:"Не совпадает контрольная сумма окон документа."};
     let processed=0,kept=0,rejected=0;
     const answers=[],citationSpans=[],verifiedClaims=[];
+    const quoteRanges=[];
+    const quoteCoverage={evidenceQuotes:0,exactLocatedQuotes:0,ambiguousQuotes:0,
+        nonLiteralQuotes:0,allVerbatimQuoteOffsetsLocated:false};
     for(const window of plan.windows){
         const excerpt={name,text:window.text,truncated:false};
         const bundle=createLosslessWindowEvidence(excerpt);
@@ -64,6 +68,10 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
         if(!verifiedSpans)return {success:false,mode:"document",stage:"document-citation-offsets",
             text:"Источник цитаты не совпал с контрольными смещениями.",
             readingCoverage:windowLedgerSummary(ledger)};
+        const exactQuotes=locateVerbatimQuoteRanges(window,bundle,checked);
+        if(!exactQuotes)return {success:false,mode:"document",stage:"document-quote-check",
+            text:"Не удалось подтвердить происхождение цитат.",
+            readingCoverage:windowLedgerSummary(ledger)};
         if(!noteVerifiedWindow(ledger,window,checked))
             return {success:false,mode:"document",stage:"document-window-ledger",
                 text:"Ответ относится не к ожидаемому фрагменту.",
@@ -74,6 +82,9 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
         answers.push(`Окно ${window.number} — ${window.title} (${window.startOffset}–${window.endOffset})\n${scoped}`);
         citationSpans.push(...verifiedSpans);
         verifiedClaims.push(...verifiedRecords);
+        quoteRanges.push(...exactQuotes.ranges);
+        for(const key of ["evidenceQuotes","exactLocatedQuotes",
+            "ambiguousQuotes","nonLiteralQuotes"])quoteCoverage[key]+=exactQuotes[key];
     }
     const body=answers.join("\n\n")+
         "\n\nГраницы проверки: все окна переданы для анализа и цитаты сверены. " +
@@ -87,11 +98,15 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
         return {success:false,mode:"document",stage:"document-section-coverage",
             text:"Один или несколько разделов не подтверждены.",
             readingCoverage:windowLedgerSummary(ledger)};
+    quoteCoverage.allVerbatimQuoteOffsetsLocated=
+        quoteCoverage.evidenceQuotes>0 &&
+        quoteCoverage.evidenceQuotes===quoteCoverage.exactLocatedQuotes;
     const audit=embedReceipt?identifyDocumentAnswer(body,kept,rejected):null;
     return {success:true,mode:"document",validated:false,evidenceChecked:true,
         groundedClaims:kept,unsupportedClaimsDropped:rejected,
         readingCoverage:windowLedgerSummary(ledger),
         citationSpans,verifiedClaims,claimComparison,sectionCoverage,
+        quoteRanges,quoteCoverage,
         responseId:audit?.id||null,responseSha256:audit?.sha256||null,
         text:audit?.text||body};
 }
