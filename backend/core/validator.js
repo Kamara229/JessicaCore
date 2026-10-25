@@ -3,6 +3,7 @@ import { requiresVerifiedComparison } from "./composer/comparisonEvidencePolicy.
 import {groundedPatentComparison} from "./composer/nativePatentComparison.js";
 import {checkProgrammingAnswerSafety} from "./validator/programmingAnswerSafety.js";
 import {checkMitPatentOverclaim} from "./validator/mitPatentOverclaim.js";
+import {checkOriginalEnglishQuote} from "./validator/originalEnglishQuoteGuard.js";
 /*
  * =========================================================
  * JESSICA RESULT VALIDATOR v4
@@ -639,6 +640,14 @@ export async function validateResult(
 
     }
 
+
+    // A requested original-language quotation must be present in the
+    // fetched original; translations cannot become verified experience.
+    const quoteCheck=checkOriginalEnglishQuote(task,taskRunResult,answerResult?.text);
+    if(quoteCheck)return buildValidationResult(quoteCheck,{
+        validationMode:"original-english-quote",degraded:false,
+        failureScope:FAILURE_SCOPE.PRESENTATION
+    });
 
     // Static language-specific invariants are checked BEFORE AI Validator,
     // which can otherwise accept a plausible-looking yet incorrect program.
