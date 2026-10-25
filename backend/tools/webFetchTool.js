@@ -2,6 +2,7 @@ import {
     registerTool
 } from "./toolRegistry.js";
 import { sanitizeSourceUrlInput } from "./sourceUrlInput.js";
+import {fetchCanonicalApacheText} from "./canonicalApacheText.js";
 
 
 /*
