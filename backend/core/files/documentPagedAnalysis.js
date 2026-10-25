@@ -6,7 +6,7 @@ import {identifyDocumentAnswer} from "./documentResponseIdentity.js";
 import {beginWindowLedger,noteVerifiedWindow,windowLedgerSummary} from "./documentWindowLedger.js";
 
 /** Use only cryptographically verified complete pages; fail closed on gaps. */
-export async function analyzePagedLongDocument({task,attachment,generate}) {
+export async function analyzePagedLongDocument({task,attachment,generate,embedReceipt=true}) {
     const name=String(attachment?.name||"Документ");
     const pages=attachment?.pages;
     const hash=pages?.[0]?.sourceSha256;
@@ -64,9 +64,10 @@ export async function analyzePagedLongDocument({task,attachment,generate}) {
     const body=answers.join("\n\n")+
         "\n\nГраницы проверки: все окна переданы для анализа и цитаты сверены. " +
         "Это не доказывает научную или юридическую правильность выводов.";
-    const audit=identifyDocumentAnswer(body,kept,rejected);
+    const audit=embedReceipt?identifyDocumentAnswer(body,kept,rejected):null;
     return {success:true,mode:"document",validated:false,evidenceChecked:true,
         groundedClaims:kept,unsupportedClaimsDropped:rejected,
         readingCoverage:windowLedgerSummary(ledger),
-        responseId:audit.id,responseSha256:audit.sha256,text:audit.text};
+        responseId:audit?.id||null,responseSha256:audit?.sha256||null,
+        text:audit?.text||body};
 }

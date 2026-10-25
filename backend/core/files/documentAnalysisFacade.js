@@ -10,6 +10,7 @@ import { createDocumentEvidence } from "./documentEvidence.js";
 import { identifyDocumentAnswer } from "./documentResponseIdentity.js";
 import {summarizeDocumentCitationCoverage} from "./documentCitationCoverage.js";
 import {analyzePagedLongDocument} from "./documentPagedAnalysis.js";
+import {analyzeMultiplePagedDocuments} from "./documentMultiPageAnalysis.js";
 import {
     documentAnalysisInstructions,
     validateAndRenderDocumentAnswer
@@ -64,6 +65,20 @@ export async function analyzeDocumentAttachments(
     { task, attachments },
     generate = generateDocumentAnswer
 ) {
+    if(Array.isArray(attachments)&&attachments.length>1&&
+       attachments.some(item=>Array.isArray(item?.pages))){
+        if(!String(task||"").trim())return errorResult("Укажи задачу для документов.");
+        if(getAIProviderAvailability().blocked)
+            return errorResult("Достигнут лимит ИИ.","ai-provider-cooldown");
+        try{return await analyzeMultiplePagedDocuments({task,attachments,generate});}
+        catch(error){
+            if(error?.status===429){
+                registerAIProviderLimit(error);
+                return errorResult("Лимит ИИ: анализ прерван.","ai-provider-cooldown");
+            }
+            return errorResult("Проверка документов не завершена.","document-multi-error");
+        }
+    }
     if (Array.isArray(attachments)&&attachments.length===1&&
         Array.isArray(attachments[0]?.pages)) {
         if (!String(task||"").trim()) return errorResult("Укажи задачу для документа.");
