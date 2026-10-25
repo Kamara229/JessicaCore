@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import {isVerifiedRequestedOriginalQuote} from "./verifiedQuotePreservation.js";
 import { getGroqClient } from "../../ai/groqClient.js";
 import {containsCodeFence, translateCodeProse, translateForeignEnglishProse, hasForeignEnglishProse, visibleProse} from "./codeAwareLocale.js";
 
