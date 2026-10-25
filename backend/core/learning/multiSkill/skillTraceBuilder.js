@@ -42,6 +42,18 @@ function buildExperienceUsage(
         used:
             true,
 
+        // Carry independent, per-child application proof into Learning.
+        applied:
+            resultExperience.applied === true &&
+            Array.isArray(resultExperience.appliedSkillIds) &&
+            resultExperience.appliedSkillIds.includes(skillId),
+
+        appliedSkillIds:
+            resultExperience.applied === true &&
+            Array.isArray(resultExperience.appliedSkillIds) &&
+            resultExperience.appliedSkillIds.includes(skillId)
+                ? [skillId] : [],
+
         found:
             true,
 

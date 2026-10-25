@@ -1091,7 +1091,8 @@ export function analyzeExecutionTrace(
      * planner, yet must not be reinforced or rediscovered as a copy.
      */
     const usage=getExperienceUsage(trace);
-    if(usage?.used === true && Array.isArray(usage.skills)
+    if((usage?.used === true || usage?.found === true)
+        && Array.isArray(usage.skills)
         && usage.skills.length>0 && getUsedSkills(trace).length===0){
         return buildIgnoreResult({
             reason:"Выбранный Skill не подтверждён фактическими шагами Execution",

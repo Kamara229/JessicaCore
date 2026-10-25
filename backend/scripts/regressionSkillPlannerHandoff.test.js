@@ -235,3 +235,48 @@ test("complex traces only attribute confirmed application to the exact child Ski
  assert.equal(trace.experienceUsage.applied,true);
  assert.deepEqual(trace.experienceUsage.appliedSkillIds,[one.id]);
 });
+
+
+test("multi-Skill child keeps application proof and creates improvement only for applied Skill",async()=>{
+ const {analyzeExecutionTraceBatch}=await import("../core/learning/multiSkill/multiSkillAnalyzer.js");
+ const {buildSkillTraceView}=await import("../core/learning/multiSkill/skillTraceView.js");
+ const a={id:"official-source-verification",name:"Source verification",examples:[]};
+ const b={id:"date-difference-calculation",name:"Date calculation",examples:[]};
+ const verifiedResult={
+  task:"Verify elapsed day count",status:"COMPLETED",success:true,verified:true,
+  validation:{valid:true,degraded:false,outcomeType:"result"},
+  experience:{used:true,found:true,applied:true,appliedSkillIds:[b.id],skills:[a,b]}
+ };
+ const trace={
+  id:"verified-multi-skill",task:"Verify elapsed day count",status:"COMPLETED",
+  result:{status:"COMPLETED",success:true,verified:true,validation:{valid:true,outcomeType:"result"},results:[verifiedResult]},
+  statistics:{completed:1},
+  experienceUsage:{used:true,found:true,applied:true,appliedSkillIds:[b.id],skills:[a,b]}
+ };
+ assert.equal(buildSkillTraceView(trace,a),null);
+ const child=buildSkillTraceView(trace,b);
+ assert.equal(child.experienceUsage.applied,true);
+ assert.deepEqual(child.experienceUsage.appliedSkillIds,[b.id]);
+ const analyses=analyzeExecutionTraceBatch(trace);
+ assert.equal(analyses.length,1);
+ assert.equal(analyses[0].action,"SKILL_IMPROVEMENT");
+ assert.equal(analyses[0].metadata.targetSkillId,b.id);
+ const negative={...trace,result:{...trace.result,results:[
+    {...verifiedResult,verified:false}
+ ]}};
+ assert.equal(analyzeExecutionTraceBatch(negative)[0].action,"IGNORE");
+});
+
+test("found but unused Skill does not create a duplicate Pattern Discovery or reinforcement",async()=>{
+ const {analyzeExecutionTrace}=await import("../core/learning/experienceAnalyzer.js");
+ const trace={
+  task:"Verify license sections",status:"COMPLETED",statistics:{completed:1},
+  result:{status:"COMPLETED",success:true,verified:true,
+    validation:{valid:true,degraded:false,outcomeType:"result"}},
+  experienceUsage:{found:true,used:false,applied:false,
+    skills:[{id:"license-clause-comparison"}],appliedSkillIds:[]}
+ };
+ const decision=analyzeExecutionTrace(trace);
+ assert.equal(decision.action,"IGNORE");
+ assert.equal(decision.analysisType,"UNPROVEN_SKILL_APPLICATION");
+});
