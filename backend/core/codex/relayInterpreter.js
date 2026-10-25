@@ -6,7 +6,7 @@ import {compactJessicaTest} from "./relayCompactTest.js";
 import {isStandaloneLengthNotice,lengthNoticeContinuation} from "./relaySessionContinuity.js";
 import {guardRelayTerminalDecision,confirmedPlanCompletion} from "./relayTerminalPolicy.js";
 import {acknowledgeBackendProgress} from "./relayProgressPolicy.js";
-import {providerFailureHandoff} from "./relayFailureHandoff.js";
+import {interpretationFailureHandoff} from "./relayFailureHandoff.js";
 export {explicitJessicaTest} from "./relayExplicitTest.js";
 export {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 export {explicitSameTestChat} from "./relayThreadPolicy.js";
@@ -89,8 +89,6 @@ export async function interpretRelayTurn(input, generate) {
         // The quota cannot be fixed by retrying the same interpretation.
         // A deterministic FAILURE report keeps the owner-selected ChatGPT
         // conversation alive and requests a backend/Supabase diagnosis.
-        const handoff = providerFailureHandoff(error);
-        if (handoff) return handoff;
-        throw error;
+        return interpretationFailureHandoff(error);
     }
 }
