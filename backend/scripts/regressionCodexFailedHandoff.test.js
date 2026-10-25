@@ -183,3 +183,31 @@ test("partial cross-year answer with no follow-up step is handed to backend with
   assert.match(result.reply,/GitHub, Render и Supabase/);
   assert.match(result.reply,/Тест пока не повторять/);
 });
+
+
+test("Learning Worker progress with pending release CI does not consume exhausted AI", async()=>{
+ const message=[
+  "JESSICA_REPLY_3ef65b20-0f98-4327-9126-6cf839417ebb",
+  "Learning Worker обработал событие; ошибочное усиление осталось в Skill v5. Защита от неполных ответов внедрена (baf4e05). Render Live, Phone CI пройден.",
+  "Следующий шаг — проверить завершение release CI и live-smoke. Тест пока не нужен.",
+  "JESSICA_END_3ef65b20-0f98-4327-9126-6cf839417ebb"
+ ].join("\n");
+ let modelCalls=0;
+ const result=await interpretRelayTurn({message},async()=>{
+   modelCalls++;throw Error("429 quota");
+ });
+ assert.equal(modelCalls,0);
+ assert.equal(result.action,"reply");
+ assert.equal(result.task,"");
+ assert.match(result.reply,/Проверь указанный шаг/);
+ assert.match(result.reply,/Тест в обычном чате Jessica пока не запрошен/);
+});
+
+test("Learning Worker CI progress cannot bypass safety or invent a Jessica test",()=>{
+ assert.equal(acknowledgeBackendProgress(
+   "Learning Worker завершён. Следующий шаг — проверить CI."),null);
+ assert.equal(acknowledgeBackendProgress(
+   "Learning Worker завершён. Следующий шаг — установить APK. Тест пока не нужен."),null);
+ assert.equal(acknowledgeBackendProgress(
+   "Learning Worker завершён. Следующий шаг — ввести пароль. Тест пока не нужен."),null);
+});
