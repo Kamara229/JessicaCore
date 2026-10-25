@@ -50,8 +50,14 @@ test("root, chapter and nested paragraphs retain exact source offsets and parent
     assert.deepEqual(sibling.headingPath,[chapter.title,sibling.title]);
     assert.equal(conclusion.depth,0);
     assert.equal(hierarchy.fullyProcessed,false);
-    for(const row of hierarchy.sections)
+    for(const row of hierarchy.sections){
+        if(row.title==="До первого раздела"){
+            assert.equal(row.startOffset,0);
+            assert.equal(row.parentSectionIndex,null);
+            continue; // navigation label is synthetic, not a source quotation
+        }
         assert.equal(text.slice(row.startOffset,row.startOffset+row.title.length),row.title);
+    }
 });
 
 test("tampered heading offsets and titles cannot create a false hierarchy",()=>{
