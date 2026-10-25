@@ -69,3 +69,20 @@ test("cross-year elapsed explanation lists exactly 31 Dec and 1–3 Jan",async()
   assert.match(result.text,/2026-12-31, 2027-01-01, 2027-01-02, 2027-01-03/);
   assert.match(result.text,/Начальная дата 2026-12-30 не учитывается/);
 });
+
+test("Validator denies incomplete date explanations and Learning must not certify them",async()=>{
+  const {validateResult}=await import("../core/validator.js");
+  const task="Calculate the number of days excluding 30 December 2026 and explain the calculation";
+  const plan={steps:[{id:"native_date_diff",tool:"date_diff"}],evidence:{mode:"none"}};
+  const run={success:true,results:[{tool:"date_diff",success:true,data:{fullDays:4}}]};
+  const incomplete=await validateResult(task,plan,run,{
+    success:true,source:"tool",text:"Между 2026-12-30 и 2027-01-03 4 полных дня."
+  });
+  assert.equal(incomplete.valid,false);
+  assert.equal(incomplete.failureScope,"presentation");
+  const tool=await executeTool("date_diff",{startDate:"2026-12-30",endDate:"2027-01-03",mode:"elapsed"});
+  const complete=await validateResult(task,plan,run,{
+    success:true,source:"tool",text:tool.text
+  });
+  assert.equal(complete.valid,true);
+});
