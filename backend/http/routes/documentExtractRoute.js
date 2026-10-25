@@ -4,6 +4,7 @@ import mammoth from "mammoth";
 import ExcelJS from "exceljs";
 import { requireJessicaAuthorization } from "../auth/jessicaAuth.js";
 import { pageDocumentText, parseDocumentTextOffset } from "../../core/files/documentTextWindow.js";
+import { buildDocumentSectionIndex } from "../../core/files/documentSectionIndex.js";
 
 const require = createRequire(import.meta.url);
 const parsePdf = require("pdf-parse");
@@ -107,7 +108,8 @@ export function registerDocumentExtractRoute(app) {
                     offset: page.offset,
                     hasMore: page.hasMore
                 });
-                return res.json({success: true, name, ...page});
+                return res.json({success: true, name, ...page,
+                    sectionIndex: buildDocumentSectionIndex(complete)});
             } catch (error) {
                 console.warn("Jessica document extraction failed:", error?.message || "unknown");
                 return res.status(422).json({success: false, text: "Не удалось прочитать файл. Проверь формат и попробуй другой."});
