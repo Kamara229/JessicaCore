@@ -24,6 +24,7 @@ test("failed test followed by a CI/Render step never requires AI interpretation"
 test("failure text alone cannot be mistaken for a safe next step",()=>{
  assert.equal(acknowledgeBackendProgress("Тест не пройден: проверь Apache."),null);
  assert.equal(acknowledgeBackendProgress("Тест не пройден. Следующий шаг — введи пароль аккаунта."),null);
+ assert.equal(acknowledgeBackendProgress("Тест не пройден. Следующий шаг — введи API ключ для GitHub."),null);
 });
 
 test("failed Apache fetch handoff remains deterministic during Groq quota failure",async()=>{
