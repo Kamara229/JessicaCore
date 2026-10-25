@@ -66,3 +66,18 @@ assert.equal(progress.action,"reply");
 assert.equal(progress.task,"");
 assert.match(progress.reply,/GitHub, Render и Supabase/);
 console.log("PASS live status acknowledgement without model retries");
+
+
+const simpleStep=await interpret({
+ plan:"Jessica Core autonomous Learning",
+ history:[],
+ message:[
+  "JESSICA_REPLY_e5fc766d-e1d9-4f47-97c3-c15cb91f3fc8",
+  "Следующий шаг — проверить в Supabase, что опубликованные Skills имеют историю версий.",
+  "JESSICA_END_e5fc766d-e1d9-4f47-97c3-c15cb91f3fc8"
+ ].join("\n")
+},true);
+assert.equal(simpleStep.action,"reply");
+assert.equal(simpleStep.task,"");
+assert.match(simpleStep.reply,/Поняла следующий шаг/);
+console.log("PASS live standalone next step without model retry");
