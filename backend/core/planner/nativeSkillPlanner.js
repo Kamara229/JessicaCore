@@ -351,6 +351,10 @@ function buildDateDiffPlan({
                     "рассч"
                 )
 
+                || taskText.includes("вычисл")
+
+                || taskText.includes("количеств")
+
                 ||
 
                 taskText.includes(
@@ -424,7 +428,7 @@ function buildDateDiffPlan({
 
     const elapsedMode =
 
-        /(прошло|с\s+момента|elapsed|since|исключить|не\s+учитывать)/iu
+        /(прошло|с\s+момента|elapsed|since|исключить|исключая|не\s+учитывать)/iu
             .test(
                 taskText
             );
