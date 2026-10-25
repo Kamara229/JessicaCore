@@ -5,6 +5,7 @@ import ExcelJS from "exceljs";
 import { requireJessicaAuthorization } from "../auth/jessicaAuth.js";
 import { pageDocumentText, parseDocumentTextOffset } from "../../core/files/documentTextWindow.js";
 import { buildDocumentSectionIndex } from "../../core/files/documentSectionIndex.js";
+import {parseSectionIndex,selectDocumentSectionPage} from "../../core/files/documentSectionWindow.js";
 
 const require = createRequire(import.meta.url);
 const parsePdf = require("pdf-parse");
@@ -96,9 +97,17 @@ export function registerDocumentExtractRoute(app) {
                         text: "В файле нет доступного текста. Сканированные PDF пока не поддерживаются."
                     });
                 }
-                const page = pageDocumentText(complete, offset);
+                const sectionIndex = buildDocumentSectionIndex(complete);
+                const requested = req.get("X-Jessica-Section-Index");
+                const selected = requested === undefined ? null : parseSectionIndex(requested);
+                if (requested !== undefined && selected === null) {
+                    return res.status(400).json({success:false, text:"Некорректный номер раздела"});
+                }
+                const page = selected === null ? pageDocumentText(complete, offset)
+                    : selectDocumentSectionPage(complete, sectionIndex, selected,
+                        req.get("X-Jessica-Text-Offset") === undefined ? null : offset);
                 if (!page) {
-                    return res.status(416).json({success: false, text: "Смещение за пределами документа"});
+                    return res.status(416).json({success:false, text:"Смещение или раздел за пределами документа"});
                 }
                 console.log("Jessica document parsed:", {
                     extension: ext,
@@ -109,7 +118,7 @@ export function registerDocumentExtractRoute(app) {
                     hasMore: page.hasMore
                 });
                 return res.json({success: true, name, ...page,
-                    sectionIndex: buildDocumentSectionIndex(complete)});
+                    sectionIndex});
             } catch (error) {
                 console.warn("Jessica document extraction failed:", error?.message || "unknown");
                 return res.status(422).json({success: false, text: "Не удалось прочитать файл. Проверь формат и попробуй другой."});
