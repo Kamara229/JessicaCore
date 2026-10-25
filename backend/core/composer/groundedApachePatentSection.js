@@ -2,6 +2,7 @@
  * Answer a single-license "which section grants patent rights?" question
  * from newly fetched official Apache text. Do not synthesize legal claims.
  */
+import {explainTermination} from "./apacheTerminationAnswer.js";
 const URL="https://www.apache.org/licenses/LICENSE-2.0.txt";
 
 export function groundedApachePatentSection(task,plan,run){
@@ -34,6 +35,8 @@ export function groundedApachePatentSection(task,plan,run){
        !/If You institute patent litigation against any entity/iu.test(clause) ||
        !/for that Work shall terminate as of the date such litigation is filed/iu.test(clause))
        return null;
+    const explanation=explainTermination(t,clause);
+    if(explanation) return {success:true,source:"bounded-apache-patent-section",text:explanation+"\nОфициальный URL: "+URL};
     return {
         success:true,
         source:"bounded-apache-patent-section",
