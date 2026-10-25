@@ -117,3 +117,30 @@ test("quota-free no-next progress rejects unsafe requests and incomplete status"
   msg.replace("Новый общий CI ещё идёт","Новый общий CI ещё идёт. Далее — установи APK")
  ])assert.equal(deterministicStatusHandoff(wrap(body)),null);
 });
+
+test("real quota failure from batch-planning progress bypasses AI without Jessica test",async()=>{
+ const message=wrap("Добавил план разбиения больших документов с проверкой SHA-256 (2dc9ae0). Частичный анализ не считается завершённым. Регрессии прошли, Render Live, Supabase проверен. Общий CI ещё идёт. Тест пока не нужен.",
+  "dca5fd3d-7ff4-4c21-a166-50cd4a049e4a");
+ let calls=0;
+ const reply=await interpretRelayTurn({message},async()=>{calls++;throw Error("HTTP 429 quota");});
+ assert.equal(calls,0);
+ assert.equal(reply.action,"reply");
+ assert.equal(reply.task,"");
+ assert.equal(reply.continueThread,false);
+ assert.match(reply.reply,/GitHub CI, Render и Supabase/);
+});
+test("no-next CI progress requires confirmed change, checks and no privileged actions",()=>{
+ const body="Добавил план разбиения больших документов с проверкой SHA-256 (2dc9ae0). Частичный анализ не считается завершённым. Регрессии прошли, Render Live, Supabase проверен. Общий CI ещё идёт. Тест пока не нужен.";
+ assert.ok(deterministicStatusHandoff(wrap(body)));
+ for(const bad of [
+  body.replace("(2dc9ae0)","(uncommitted)"),
+  body.replace("Добавил план","Планирую план"),
+  body.replace("Регрессии прошли","Регрессии не прошли"),
+  body.replace("Render Live","Render failed"),
+  body.replace("Supabase проверен","Supabase не проверен"),
+  body.replace("Общий CI ещё идёт","Общий CI завершён с ошибкой"),
+  body.replace("Тест пока не нужен","Запусти тест"),
+  body.replace("Тест пока не нужен","Тест пока не нужен. Отправь пароль"),
+  body.replace("Общий CI ещё идёт","Общий CI ещё идёт. Далее — установи APK")
+ ])assert.equal(deterministicStatusHandoff(wrap(bad)),null);
+});

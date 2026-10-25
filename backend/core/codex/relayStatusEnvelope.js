@@ -33,6 +33,17 @@ export function deterministicStatusHandoff(message) {
     // Refuse untrusted requests for privileged actions or implicit test execution.
     if (/(?:запусти|выполни|проведи|повтори|отправь|создай|открой)\s+(?:новый\s+)?(?:тест|чат)|(?:в\s+обычном\s+чате\s+отправь)|\bAPK\b|(?:парол|секрет|API[- ]?ключ|токен|настройк|удалить|удали|телефон|установить|установи)/iu.test(body))
         return null;
+    // Progress notes can omit "Далее". Recognize only source-bounded,
+    // committed, confirmed no-test CI status; never run tests or tools.
+    const firstSentence=body.split(/[.!?]/u,1)[0];
+    const committedProgress=directProgress &&
+        /^(?:Добавил|Исправил|Обновил|Доработал|Внедрил|Реализовал|Усилил|Проверил)(?:\s|[.,:])[^.!?;]{0,200}\([a-f\d]{7,40}\)/iu.test(firstSentence);
+    const noNextProgress=committedProgress &&
+        /(?:^|[.!?]\s+)(?:(?:Новый|Текущий|Общий)\s+(?:общий\s+)?CI|CI)\s+(?:ещ[её]\s+)?(?:ид[её]т|выполняется|в\s+процессе|запущен)(?:[.!?]|$)/iu.test(body) &&
+        /(?:backend[- ]регресси(?:и|онные тесты)|регрессии)\s+прошли/iu.test(body) &&
+        /Render\s+Live/iu.test(body) &&
+        /Supabase\s+проверен/iu.test(body) &&
+        /Тест\s+пока\s+не\s+нужен\.?$/iu.test(body);
     const next=/(?:Следующий\s+шаг|Далее)\s*[:—–-]\s*([^.!?]{6,180})/iu.exec(body);
     if (next) {
         const target=next[1].trim();
@@ -40,12 +51,13 @@ export function deterministicStatusHandoff(message) {
             return null;
         if (!/(?:\bCI\b|Render|GitHub|Supabase|backend|регресс|разв[её]рт|анализ|документ|план|сопоставлен|цитат)/iu.test(target))
             return null;
-    } else if (!ciProgress ||
+    } else if (!ciProgress && !noNextProgress) return null;
+    else if (ciProgress && !noNextProgress && (
         !/(?:Новый|Текущий)\s+(?:общий\s+)?CI\s+(?:ещ[её]\s+)?(?:ид[её]т|выполняется|в\s+процессе|запущен)/iu.test(body) ||
         !/(?:backend[- ]регресси(?:и|онные тесты)|регрессии)\s+прошли/iu.test(body) ||
         !/Render\s+Live/iu.test(body) ||
         !/Supabase\s+проверен/iu.test(body) ||
-        !/Тест\s+пока\s+не\s+нужен\.?$/iu.test(body))
+        !/Тест\s+пока\s+не\s+нужен\.?$/iu.test(body)))
         return null;
     return "Поняла: предыдущий шаг backend отмечен, но тест Jessica не выполнялся. Проверь GitHub CI, Render и Supabase и продолжай текущий план. Тест в обычном чате Jessica пока не нужен.";
 }
