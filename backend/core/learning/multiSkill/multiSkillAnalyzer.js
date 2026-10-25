@@ -15,6 +15,7 @@
 import {
     analyzeExecutionTrace
 } from "../experienceAnalyzer.js";
+import {missingNativeDateExplanation} from "../nativeDateExplanationEvidence.js";
 
 
 import {
@@ -62,6 +63,11 @@ function getUsedSkills(
 export function analyzeExecutionTraceBatch(
     trace
 ) {
+    if(missingNativeDateExplanation(trace))
+        return [{action:"IGNORE",reusable:false,reason:"Ответ не объясняет запрошенный расчёт",
+          analysisType:"INCOMPLETE_DATE_EXPLANATION",
+          metadata:{positiveReinforcementAllowed:false}}];
+
 
     const skills =
 
