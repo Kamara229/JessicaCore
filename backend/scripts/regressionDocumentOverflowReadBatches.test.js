@@ -63,7 +63,7 @@ test("more than 16 windows still fail closed before any AI call with honest blue
  assert.equal(result.readingCoverage.reason,"window-limit");
  const plan=result.readingCoverage.overflowBatches;
  assert.ok(plan);
- assert.equal(plan.totalWindows>16);
+ assert.ok(plan.totalWindows>16);
  assert.equal(plan.sourceSha256,sha(large));
  assert.equal(plan.resumeImplemented,false);
  assert.equal(plan.modelAnalysisPerformed,false);
