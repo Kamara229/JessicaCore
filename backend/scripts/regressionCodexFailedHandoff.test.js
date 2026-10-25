@@ -102,3 +102,15 @@ test("GitHub-first CI progress note bypasses unavailable Groq", async()=>{
  assert.match(result.reply,/Тест в обычном чате Jessica пока не запрошен/);
  assert.equal(acknowledgeBackendProgress("GitHub: сборка успешна."),null);
 });
+
+test("live smoke backend update bypasses exhausted provider",async()=>{
+ const message="Обновил backend. Следующий шаг — проверить завершение CI и развёртывание Render. Тест пока не повторять.";
+ let calls=0;
+ const decision=await interpretRelayTurn({message,history:[]},async()=>{
+   calls++; throw Error("429 daily token limit");
+ });
+ assert.equal(calls,0);
+ assert.equal(decision.action,"reply");
+ assert.equal(decision.task,"");
+ assert.match(decision.reply,/GitHub, Render и Supabase/);
+});
