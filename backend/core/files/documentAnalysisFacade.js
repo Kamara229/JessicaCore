@@ -8,6 +8,7 @@ import {
 } from "../../ai/providerAvailability.js";
 import { createDocumentEvidence } from "./documentEvidence.js";
 import { identifyDocumentAnswer } from "./documentResponseIdentity.js";
+import {summarizeDocumentCitationCoverage} from "./documentCitationCoverage.js";
 import {
     documentAnalysisInstructions,
     validateAndRenderDocumentAnswer
@@ -97,6 +98,7 @@ export async function analyzeDocumentAttachments(
                 "document-evidence"
             );
         }
+        const citationCoverage = summarizeDocumentCitationCoverage(bundle,checked.citedRefs);
         const audit = identifyDocumentAnswer(checked.text, checked.kept, checked.rejected);
         console.log("Jessica document analysis completed:", {
             fileCount: bundle.docs.length,
@@ -113,6 +115,7 @@ export async function analyzeDocumentAttachments(
             evidenceChecked: true,
             groundedClaims: checked.kept,
             unsupportedClaimsDropped: checked.rejected,
+            citationCoverage,
             responseId: audit.id,
             responseSha256: audit.sha256,
             text: audit.text
