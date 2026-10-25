@@ -109,6 +109,14 @@ test("verified date Skill executes its real native date_diff step, not just the 
  assert.equal(execution.experience.skills[0].id,verified.id);
  assert.equal(execution.runResult?.success,true);
  assert.equal(execution.runResult?.results?.[0]?.data?.fullDays,9);
+ const {syncTraceFromContext}=await import("../core/trace/traceContextAdapter.js");
+ const {createExecutionTrace}=await import("../core/trace/traceFactory.js");
+ const actualTrace=createExecutionTrace(userTask);
+ syncTraceFromContext(actualTrace,execution);
+ assert.equal(actualTrace.experienceUsage.applied,true);
+ assert.deepEqual(actualTrace.experienceUsage.appliedSkillIds,[verified.id]);
+ assert.deepEqual(actualTrace.experienceUsage.appliedStepIds,["native_date_diff"]);
+ assert.equal(actualTrace.events.some(x=>x.type==="SKILL_APPLIED"),true);
 });
 
 test("unverified date evidence triggers native capability but not false Skill use",async()=>{
