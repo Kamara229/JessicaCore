@@ -82,3 +82,23 @@ test("Render Live status with pending CI stays in chosen chat without Groq",asyn
  assert.match(decision.reply,/Тест в обычном чате Jessica пока не запрошен/);
  assert.equal(acknowledgeBackendProgress("Render Live: 78a22a6. Регрессии прошли."),null);
 });
+
+test("GitHub-first CI progress note bypasses unavailable Groq", async()=>{
+ const message=[
+  "JESSICA_REPLY_48bebae6-b9d5-42b8-bc45-0b5b43323c06",
+  "GitHub: сборка и backend-регрессии 8f66787 успешны. Render Live подтверждён.",
+  "Следующий шаг — проверить завершение Phone Chat CI: его проверки ещё выполняются. Тест Jessica пока не повторять.",
+  "JESSICA_END_48bebae6-b9d5-42b8-bc45-0b5b43323c06"
+ ].join("\n");
+ let calls=0;
+ const result=await interpretRelayTurn({message,history:[]},async()=>{
+  calls++;
+  throw Error("provider quota");
+ });
+ assert.equal(calls,0);
+ assert.equal(result.action,"reply");
+ assert.equal(result.task,"");
+ assert.match(result.reply,/GitHub, Render и Supabase/);
+ assert.match(result.reply,/Тест в обычном чате Jessica пока не запрошен/);
+ assert.equal(acknowledgeBackendProgress("GitHub: сборка успешна."),null);
+});
