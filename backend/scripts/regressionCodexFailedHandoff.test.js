@@ -114,3 +114,26 @@ test("live smoke backend update bypasses exhausted provider",async()=>{
  assert.equal(decision.task,"");
  assert.match(decision.reply,/GitHub, Render и Supabase/);
 });
+
+
+test("Groq quota cannot strand Codex in endless interpretation retries",async()=>{
+  const latest="Нужно разобраться с неожиданной ошибкой выполнения. Проверь backend.";
+  let calls=0;
+  const result=await interpretRelayTurn({message:latest,history:[]},async()=>{
+    calls++;
+    throw Error("429 Rate limit reached for model tokens per day");
+  });
+  assert.equal(calls,1);
+  assert.equal(result.action,"reply");
+  assert.equal(result.task,"");
+  assert.equal(result.continueThread,false);
+  assert.match(result.reply,/анализ.*не выполнен/);
+  assert.match(result.reply,/тест не запускался/i);
+  assert.match(result.reply,/backend, Render и Supabase/);
+});
+
+test("nonquota malformed decisions still fail closed",async()=>{
+  await assert.rejects(interpretRelayTurn({
+    message:"Проверка непонятного сообщения из чата"
+  },async()=>"{not-json"),/invalid-decision/);
+});
