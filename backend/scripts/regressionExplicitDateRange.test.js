@@ -32,3 +32,21 @@ test("explicit date range preserves leap and year rollover boundaries",()=>{
     );
     assert.equal(extractExplicitDateRange("Дата — 2 марта 2024 года"),null);
 });
+
+
+test("decomposed between-and instruction stays executable during AI 429", async () => {
+    const original="Сколько дней прошло с 25 октября по 2 ноября 2026 года, если 25 октября исключить, а 2 ноября включить? Объясни расчёт.";
+    const rewritten="Вычислить количество дней между 25 октября и 2 ноября 2026 года, исключая 25 октября и включая 2 ноября, и объяснить, как получено число.";
+    for (const task of [original,rewritten]) {
+        const result=tryCreateNativeSkillPlan({task,executionExperience:{skills:[]}});
+        assert.equal(result.handled,true,task);
+        assert.equal(result.plan.steps.length,1);
+        assert.deepEqual(result.plan.steps[0].arguments,{
+            startDate:"2026-10-25",endDate:"2026-11-02",mode:"elapsed"
+        });
+        const executed=await executeTool("date_diff",result.plan.steps[0].arguments);
+        assert.equal(executed.success,true);
+        assert.equal(executed.data.fullDays,8);
+        assert.match(executed.text,/8 полных календарных дней/);
+    }
+});
