@@ -8,6 +8,7 @@ import {locateCitedDocumentFragments} from "./documentCitationSpans.js";
 import {createVerifiedClaimRecords,compareVerifiedDocumentClaims} from "./documentClaimComparison.js";
 import {auditDocumentSections} from "./documentSectionCoverage.js";
 import {locateVerbatimQuoteRanges} from "./documentVerbatimQuotes.js";
+import {markDocumentQuotaInterruption} from "./documentQuotaCoverage.js";
 
 /** Use only cryptographically verified complete pages; fail closed on gaps. */
 export async function analyzePagedLongDocument({task,attachment,generate,embedReceipt=true}) {
@@ -51,7 +52,9 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
             checked=validateAndRenderDocumentAnswer(
                 await generate(prompt,task,[excerpt]),bundle,task);
         }catch(error){
-            if(error?.status===429)throw error;
+            if(error?.status===429)
+                throw markDocumentQuotaInterruption(error,
+                    windowLedgerSummary(ledger),window.number);
             return {success:false,mode:"document",stage:"document-window-error",
                 text:"Окно не обработано; полный анализ не завершён.",
                 readingCoverage:{...windowLedgerSummary(ledger),complete:false}};

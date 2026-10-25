@@ -6,6 +6,7 @@ import {identifyDocumentAnswer} from "./documentResponseIdentity.js";
 import {scopeCitedDocumentFragments} from "./documentCitationSpans.js";
 import {scopeVerbatimQuoteRanges} from "./documentVerbatimQuotes.js";
 import {scopeVerifiedClaimRecords,compareVerifiedDocumentClaims} from "./documentClaimComparison.js";
+import {markMultipleDocumentQuotaInterruption} from "./documentQuotaCoverage.js";
 
 const MAX_FILES=3;
 const MAX_WINDOWS=16;
@@ -55,9 +56,17 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
         nonLiteralQuotes:0,allVerbatimQuoteOffsetsLocated:false};
     let kept=0,rejected=0,windowsDone=0;
     for(const info of plan.files){
-        const result=await analyzePagedLongDocument({
-            task,attachment:attachments[info.index-1],generate,embedReceipt:false
-        });
+        let result;
+        try {
+            result=await analyzePagedLongDocument({
+                task,attachment:attachments[info.index-1],generate,embedReceipt:false
+            });
+        }catch(error){
+            if(error?.status===429)
+                throw markMultipleDocumentQuotaInterruption(error,plan,info,
+                    summaries,windowsDone);
+            throw error;
+        }
         const coverage=result?.readingCoverage;
         if(result?.success!==true||coverage?.allWindowsPresented!==true||
            coverage?.sourceSha256!==info.sourceSha256||

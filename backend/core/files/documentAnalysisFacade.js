@@ -11,6 +11,7 @@ import { identifyDocumentAnswer } from "./documentResponseIdentity.js";
 import {summarizeDocumentCitationCoverage} from "./documentCitationCoverage.js";
 import {analyzePagedLongDocument} from "./documentPagedAnalysis.js";
 import {analyzeMultiplePagedDocuments} from "./documentMultiPageAnalysis.js";
+import {addInterruptedDocumentCoverage} from "./documentQuotaCoverage.js";
 import {
     documentAnalysisInstructions,
     validateAndRenderDocumentAnswer
@@ -74,7 +75,9 @@ export async function analyzeDocumentAttachments(
         catch(error){
             if(error?.status===429){
                 registerAIProviderLimit(error);
-                return errorResult("Лимит ИИ: анализ прерван.","ai-provider-cooldown");
+                return addInterruptedDocumentCoverage(
+                    errorResult("Лимит ИИ: анализ прерван.","ai-provider-cooldown"),
+                    error);
             }
             return errorResult("Проверка документов не завершена.","document-multi-error");
         }
@@ -88,7 +91,9 @@ export async function analyzeDocumentAttachments(
         catch(error){
             if(error?.status===429){
                 registerAIProviderLimit(error);
-                return errorResult("Лимит ИИ: анализ прерван.","ai-provider-cooldown");
+                return addInterruptedDocumentCoverage(
+                    errorResult("Лимит ИИ: анализ прерван.","ai-provider-cooldown"),
+                    error);
             }
             return errorResult("Анализ документа не завершён.","document-window-error");
         }
