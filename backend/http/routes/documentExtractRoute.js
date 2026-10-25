@@ -1,13 +1,14 @@
 import express from "express";
 import { createRequire } from "node:module";
 import mammoth from "mammoth";
-import ExcelJS from "exceljs";
+
 import { requireJessicaAuthorization } from "../auth/jessicaAuth.js";
 import { pageDocumentText, parseDocumentTextOffset } from "../../core/files/documentTextWindow.js";
 import { buildDocumentSectionIndex } from "../../core/files/documentSectionIndex.js";
 import {parseSectionIndex,selectDocumentSectionPage} from "../../core/files/documentSectionWindow.js";
 import {buildDocumentPageBatch} from "../../core/files/documentPageBatch.js";
 import {prepareExtractedDocumentText} from "../../core/files/documentExtractedTextIntegrity.js";
+import {extractCompleteSpreadsheetText,SpreadsheetExtractionLimitError} from "../../core/files/documentSpreadsheetExtraction.js";
 
 const require = createRequire(import.meta.url);
 const parsePdf = require("pdf-parse");
@@ -35,34 +36,10 @@ function ensureSignature(ext, buffer) {
     }
 }
 
-async function extractSpreadsheet(buffer) {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer);
-    const lines = [];
-    let cells = 0;
-    workbook.eachSheet(sheet => {
-        lines.push("Лист: " + sheet.name);
-        sheet.eachRow(row => {
-            if (cells >= 4000) return;
-            const values = row.values.slice(1).map(v => {
-                if (v && typeof v === "object") {
-                    if (v.text) return String(v.text);
-                    if (v.result != null) return String(v.result);
-                    return JSON.stringify(v).slice(0, 120);
-                }
-                return String(v ?? "");
-            });
-            cells += values.length;
-            lines.push(values.join(" | "));
-        });
-    });
-    return lines.join("\n");
-}
-
 async function extractText(ext, buffer) {
     if (ext === "pdf") return (await parsePdf(buffer)).text || "";
     if (ext === "docx") return (await mammoth.extractRawText({ buffer })).value || "";
-    if (ext === "xlsx") return extractSpreadsheet(buffer);
+    if (ext === "xlsx") return extractCompleteSpreadsheetText(buffer);
     // Avoid executing JSON, markup, or scripts from uploaded text files.
     return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
 }
@@ -142,6 +119,11 @@ export function registerDocumentExtractRoute(app) {
                 return res.json({success: true, name, ...page,
                     sectionIndex});
             } catch (error) {
+                if(error instanceof SpreadsheetExtractionLimitError)
+                    return res.status(413).json({
+                        success:false,stage:"document-extraction-incomplete",
+                        text:error.message
+                    });
                 console.warn("Jessica document extraction failed:", error?.message || "unknown");
                 return res.status(422).json({success: false, text: "Не удалось прочитать файл. Проверь формат и попробуй другой."});
             }
