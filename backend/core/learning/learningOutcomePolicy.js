@@ -723,7 +723,26 @@ export function classifyLearningOutcome(
 
     /*
      * =====================================================
-     * 7. POSITIVE RESULT
+     * 7. PROVEN VERIFICATION — fail closed for legacy and partial traces.
+     * Completion/validity are not substitutes for an independently
+     * verified result; positive autonomous learning requires both.
+     * =====================================================
+     */
+    if(validation?.valid !== true || trace?.result?.verified !== true){
+        return {
+            positive:false,
+            completed,
+            outcome:LEARNING_OUTCOME.VALIDATION_FAILED,
+            outcomeType:outcomeType||null,
+            degraded:false,
+            validationMode,
+            reason:"Для положительного самообучения необходимы valid=true и verified=true"
+        };
+    }
+
+    /*
+     * =====================================================
+     * 8. POSITIVE RESULT
      * =====================================================
      */
 

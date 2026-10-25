@@ -130,3 +130,53 @@ test("unverified date evidence triggers native capability but not false Skill us
  assert.equal(actual.source,"native-date-diff");
  assert.equal(actual.plan.experience.used,false);
 });
+
+
+test("Execution Trace proves native Skill application from successful step results",async()=>{
+ const {inspectAppliedSkill}=await import("../core/trace/traceSkillApplication.js");
+ const {syncTraceFromContext}=await import("../core/trace/traceContextAdapter.js");
+ const {createExecutionTrace}=await import("../core/trace/traceFactory.js");
+ const p={
+   experience:{used:true,skills:[{id:"date-difference-calculation"}]},
+   steps:[{id:"native_date_diff",tool:"date_diff",experienceUsed:true}]
+ };
+ const full={
+    experience:{used:true,found:true,skills:[{id:"date-difference-calculation"}]},
+    plan:p,runResult:{success:true,results:[{id:"native_date_diff",tool:"date_diff",success:true,data:{fullDays:9}}]}
+ };
+ assert.equal(inspectAppliedSkill(full).applied,true);
+ const trace=createExecutionTrace("Calculate days");
+ syncTraceFromContext(trace,full);
+ assert.equal(trace.experienceUsage.applied,true);
+ assert.deepEqual(trace.experienceUsage.appliedSkillIds,["date-difference-calculation"]);
+ assert.equal(trace.events.filter(x=>x.type==="SKILL_APPLIED").length,1);
+ for(const variant of [
+   {...full,runResult:{success:true,results:[]}},
+   {...full,runResult:{success:true,results:[{id:"native_date_diff",tool:"date_diff",success:false}]}},
+   {...full,experience:{...full.experience,used:false}},
+   {...full,plan:{...p,experience:{used:false,skills:p.experience.skills}}},
+   {...full,plan:{...p,experience:{used:true,skills:[{id:"different-skill"}]}}},
+   {...full,runResult:{success:false,results:full.runResult.results}}
+ ])assert.equal(inspectAppliedSkill(variant).applied,false);
+});
+
+test("positive autonomous learning requires verified result and semantic validation",async()=>{
+ const {classifyLearningOutcome}=await import("../core/learning/learningOutcomePolicy.js");
+ const {analyzeExecutionTrace}=await import("../core/learning/experienceAnalyzer.js");
+ const good={task:"Date difference",status:"COMPLETED",statistics:{completed:1},
+   result:{success:true,verified:true,status:"COMPLETED",
+      validation:{valid:true,degraded:false,outcomeType:"result"}},
+   experienceUsage:{used:true,applied:true,skills:[{id:"date-difference-calculation"}]}
+ };
+ assert.equal(classifyLearningOutcome(good).positive,true);
+ for(const bad of [
+   {...good,result:{...good.result,verified:false}},
+   {...good,result:{...good.result,validation:null}},
+   {...good,result:{...good.result,validation:{valid:false}}},
+   {...good,result:{...good.result,validation:{valid:true,degraded:true}}},
+   {...good,result:{...good.result,validation:{valid:true,outcomeType:"no_verified_result"}}}
+ ]){
+    assert.equal(classifyLearningOutcome(bad).positive,false);
+    assert.equal(analyzeExecutionTrace(bad).action,"IGNORE");
+ }
+});

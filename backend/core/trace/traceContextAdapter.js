@@ -38,6 +38,7 @@ import {
 import {
     addTraceEvent
 } from "./executionTrace.js";
+import {inspectAppliedSkill} from "./traceSkillApplication.js";
 
 
 /*
@@ -330,9 +331,15 @@ export function syncTraceExperience(
         );
 
 
+    const application=inspectAppliedSkill(context);
+
     trace.experienceUsage = {
 
         ...(trace.experienceUsage || {}),
+
+        applied:application.applied,
+        appliedSkillIds:application.skillIds,
+        appliedStepIds:application.stepIds,
 
         used:
 
@@ -361,6 +368,13 @@ export function syncTraceExperience(
     };
 
 
+    if(application.applied){
+        addTraceEvent(trace,"SKILL_APPLIED",{
+            skillIds:application.skillIds,
+            stepIds:application.stepIds,
+            evidence:"successful-tool-results"
+        });
+    }
     return trace;
 
 }
@@ -517,6 +531,9 @@ export function syncTraceFromContext(
             experienceFound:
 
                 trace.experienceUsage?.found === true,
+
+            experienceApplied:
+                trace.experienceUsage?.applied === true,
 
             experienceSkills:
 

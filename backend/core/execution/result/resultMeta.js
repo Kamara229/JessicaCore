@@ -170,13 +170,9 @@ export function buildExperienceMeta(
     return {
 
 
+        // Finding a Skill is not evidence that its execution strategy ran.
         used:
-
-            experience.used
-
-            ||
-
-            experience.found,
+            experience.used === true,
 
 
 
