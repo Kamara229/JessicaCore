@@ -297,3 +297,35 @@ test("unambiguous plan completion finishes without AI but hypothetical completio
     const guarded=await interpretRelayTurn({message:hypothetical},async()=>({action:"finish",reply:"Завершено",task:""}));
     assert.equal(guarded.action,"reply");
 });
+
+
+test("Codex progress after MIT/Apache comparison bypasses unavailable interpreter",async()=>{
+ const message=[
+  "JESSICA_REPLY_02bda0a8-6d96-47b9-96a2-5bdd91a2f2d0",
+  "Тест пройден. Уточнил условия прекращения патентной лицензии Apache и добавил регрессию в CI. Коммит eab5003. Следующий шаг — проверить завершение CI и развёртывание на Render.",
+  "JESSICA_END_02bda0a8-6d96-47b9-96a2-5bdd91a2f2d0"
+ ].join("\n");
+ let called=0;
+ const result=await interpretRelayTurn({message,plan:"Работать по плану backend"},async()=>{
+  called++; throw Error("provider unavailable");
+ });
+ assert.equal(called,0);
+ assert.equal(result.action,"reply");
+ assert.equal(result.task,"");
+ assert.equal(result.continueThread,false);
+ assert.match(result.reply,/GitHub, Render и Supabase/);
+});
+
+test("hypothetical status and device requests cannot bypass contextual interpreter",async()=>{
+ for(const message of [
+  "Если тест пройден, следующий шаг — проверить CI и Render.",
+  "Тест пройден. Следующий шаг — установить APK и поменять ключ доступа."
+ ]) {
+  let called=0;
+  const result=await interpretRelayTurn({message},async()=>{
+   called++; return {action:"reply",reply:"Нужен следующий безопасный шаг.",task:""};
+  });
+  assert.equal(called,1);
+  assert.equal(result.reply,"Нужен следующий безопасный шаг.");
+ }
+});
