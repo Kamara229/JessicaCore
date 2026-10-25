@@ -53,6 +53,7 @@ import {
     buildExperienceProfile
 } from "./experienceProfile.js";
 import {titleSpecificityAdjustment} from "./experienceSpecificity.js";
+import {selectDateSkill} from "./experienceSearch/nativeDateSkillMatch.js";
 
 
 
@@ -654,6 +655,21 @@ export function searchExperience(
      * =====================================================
      */
 
+
+    if (top.confidence < MIN_MATCH_CONFIDENCE) {
+        const dateSkill=selectDateSkill(task,experiences);
+        if (dateSkill) return {
+            found:true,
+            experience:dateSkill,
+            confidence:0.70,
+            matchedTerms:[],
+            matchedPhrases:[],
+            matchReasons:["native-date-intent"],
+            matchDetails:{strategy:"date_difference"},
+            ranking:publicRanking,
+            source:"experience-search"
+        };
+    }
 
     if(
 
