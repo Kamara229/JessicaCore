@@ -57,3 +57,15 @@ test("Russian calendar day endings follow 1/2–4/5+ grammar, including leap day
         assert.ok(r.text.includes(phrase),r.text);
     }
 });
+
+
+test("cross-year elapsed explanation lists exactly 31 Dec and 1–3 Jan",async()=>{
+  const result=await executeTool("date_diff",{
+    startDate:"2026-12-30",endDate:"2027-01-03",mode:"elapsed"
+  });
+  assert.equal(result.success,true);
+  assert.equal(result.data.fullDays,4);
+  assert.match(result.text,/4 полных календарных дня/);
+  assert.match(result.text,/2026-12-31, 2027-01-01, 2027-01-02, 2027-01-03/);
+  assert.match(result.text,/Начальная дата 2026-12-30 не учитывается/);
+});
