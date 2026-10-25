@@ -41,6 +41,7 @@ import {
 import {
     extractNativeDates
 } from "../native/dateUtils.js";
+import { extractExplicitDateRange } from "../native/explicitDateRange.js";
 
 import { hasVerifiedDateSkillEvidence } from "./youngDateSkill.js";
 import { buildNativeDocumentFetchPlan } from "./nativeDocumentFetchPlan.js";
@@ -261,6 +262,8 @@ function buildDateDiffPlan({
             dependencyContext
         );
 
+    const explicitRange = extractExplicitDateRange(task);
+
 
     let startDate =
         null;
@@ -270,7 +273,13 @@ function buildDateDiffPlan({
         null;
 
 
-    if(
+    if(explicitRange){
+
+        startDate = explicitRange.startDate;
+        endDate = explicitRange.endDate;
+
+    }
+    else if(
         dependencyDates.length > 0
         &&
         taskDates.length > 0
@@ -414,7 +423,7 @@ function buildDateDiffPlan({
 
     const elapsedMode =
 
-        /(прошло|с\s+момента|elapsed|since)/iu
+        /(прошло|с\s+момента|elapsed|since|исключить|не\s+учитывать)/iu
             .test(
                 taskText
             );
