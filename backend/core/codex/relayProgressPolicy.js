@@ -10,7 +10,7 @@ export function acknowledgeBackendProgress(message) {
   const standaloneStep=/^следующ(?:ий|им)\s+шаг\s*[:—–-]?\s+/iu.test(body);
   if ((!isProgress && !standaloneStep) || !next) return null;
   if (!/(?:CI|Render|GitHub|Supabase|backend|регресс|лог(?:и|ов)|депло|разв[её]рт|провер|Apache|TinyFish|web_fetch|первоисточник|загрузк)/iu.test(next[1]) ||
-      /(?:APK|секрет|ключ|парол|настро(?:йк|ек)|владел|телефон|установ)/iu.test(next[1])) return null;
+      /(?:APK|секрет|(?<!\p{L})ключ[а-яё]{0,5}(?!\p{L})|парол|настро(?:йк|ек)|владел|телефон|установ)/iu.test(next[1])) return null;
   const failedTest=/^тест (?:не пройден|не подтвержд[её]н|завершился (?:ошибкой|сбоем))/iu.test(body);
   return (failedTest?"Поняла: тест не пройден, исправление backend учтено. ":
       standaloneStep?"Поняла следующий шаг. ":"Поняла: предыдущий шаг backend завершён. ") +
