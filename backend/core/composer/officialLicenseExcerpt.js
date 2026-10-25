@@ -12,7 +12,7 @@ export function extractOfficialLicenseExcerpt(task,plan,run){
      !/(?:§\s*3|section\s*3|раздел\s*3)/iu.test(query) ||
      !/(?:патент|patent)/iu.test(query) ||
      !/(?:английск|english)/iu.test(query) ||
-     !/(?:дословн|цитат|фраз|verbatim|quote)/iu.test(query))
+     !/(?:дословн|цитат|фраз|формулировк|скопир|копиров|verbatim|quote)/iu.test(query))
       return null;
   const steps=Array.isArray(plan.steps)?plan.steps:[];
   const rows=Array.isArray(run?.results)?run.results:[];
