@@ -48,7 +48,7 @@ test("official section is answered and validated without calling the AI model",a
 
 test("official primary-source section refuses missing or altered patent grant",()=>{
  const task="укажи пункт о патентной лицензии Apache 2.0 и официальный URL.";
- assert.equal(groundedApachePatentSection(task,plan,run(sample.replace("Each Contributor hereby grants","Each Contributor perhaps grants"))),null);
+ assert.equal(groundedApachePatentSection(task,plan,run(sample.replace("each Contributor hereby grants","each Contributor perhaps grants"))),null);
  assert.equal(groundedApachePatentSection(task,plan,run(sample.replace("3. Grant of Patent License.","3. Unknown Clause."))),null);
  assert.equal(groundedApachePatentSection(task,plan,{results:[]}),null);
 });
