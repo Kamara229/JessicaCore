@@ -4,6 +4,7 @@ import {planDocumentSectionWindows} from "./documentSectionReadPlan.js";
 import {validateAndRenderDocumentAnswer} from "./documentAnswerContract.js";
 import {identifyDocumentAnswer} from "./documentResponseIdentity.js";
 import {beginWindowLedger,noteVerifiedWindow,windowLedgerSummary} from "./documentWindowLedger.js";
+import {locateCitedDocumentFragments} from "./documentCitationSpans.js";
 
 /** Use only cryptographically verified complete pages; fail closed on gaps. */
 export async function analyzePagedLongDocument({task,attachment,generate,embedReceipt=true}) {
@@ -24,7 +25,7 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
     if(!ledger)return {success:false,mode:"document",stage:"document-source-coverage",
         text:"Не совпадает контрольная сумма окон документа."};
     let processed=0,kept=0,rejected=0;
-    const answers=[];
+    const answers=[],citationSpans=[];
     for(const window of plan.windows){
         const excerpt={name,text:window.text,truncated:false};
         const bundle=createLosslessWindowEvidence(excerpt);
@@ -52,6 +53,10 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
         if(!checked.success)return {success:false,mode:"document",stage:"document-window-evidence",
             text:"Для одного из окон не подтверждены цитаты. Полный анализ не завершён.",
             readingCoverage:{...windowLedgerSummary(ledger),complete:false}};
+        const verifiedSpans=locateCitedDocumentFragments(window,bundle,checked);
+        if(!verifiedSpans)return {success:false,mode:"document",stage:"document-citation-offsets",
+            text:"Источник цитаты не совпал с контрольными смещениями.",
+            readingCoverage:windowLedgerSummary(ledger)};
         if(!noteVerifiedWindow(ledger,window,checked))
             return {success:false,mode:"document",stage:"document-window-ledger",
                 text:"Ответ относится не к ожидаемому фрагменту.",
@@ -60,6 +65,7 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
         const scoped=checked.text.replace(/\[Ф1:Ф(\d+)\]/gu,
             (_whole,n)=>`[О${window.number}:Ф1:Ф${n}]`);
         answers.push(`Окно ${window.number} — ${window.title} (${window.startOffset}–${window.endOffset})\n${scoped}`);
+        citationSpans.push(...verifiedSpans);
     }
     const body=answers.join("\n\n")+
         "\n\nГраницы проверки: все окна переданы для анализа и цитаты сверены. " +
@@ -68,6 +74,7 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
     return {success:true,mode:"document",validated:false,evidenceChecked:true,
         groundedClaims:kept,unsupportedClaimsDropped:rejected,
         readingCoverage:windowLedgerSummary(ledger),
+        citationSpans,
         responseId:audit?.id||null,responseSha256:audit?.sha256||null,
         text:audit?.text||body};
 }

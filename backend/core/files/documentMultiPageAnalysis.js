@@ -3,6 +3,7 @@ import {planDocumentSectionWindows} from "./documentSectionReadPlan.js";
 import {beginWindowLedger} from "./documentWindowLedger.js";
 import {analyzePagedLongDocument} from "./documentPagedAnalysis.js";
 import {identifyDocumentAnswer} from "./documentResponseIdentity.js";
+import {scopeCitedDocumentFragments} from "./documentCitationSpans.js";
 
 const MAX_FILES=3;
 const MAX_WINDOWS=16;
@@ -46,7 +47,7 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
     if(!plan)return reject("document-multi-pages",
         "Не удалось подтвердить полный текст всех файлов или превышен лимит окон. "+
         "Отправь документы по одному; частичный анализ не выдаётся за полный.");
-    const summaries=[],sections=[];
+    const summaries=[],sections=[],citationSpans=[];
     let kept=0,rejected=0,windowsDone=0;
     for(const info of plan.files){
         const result=await analyzePagedLongDocument({
@@ -74,6 +75,10 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
         windowsDone+=coverage.processedWindows;
         const scoped=result.text.replace(/\[О(\d+):Ф1:Ф(\d+)\]/gu,
             (_m,w,f)=>`[Д${info.index}:О${w}:Ф1:Ф${f}]`);
+        const scopedSpans=scopeCitedDocumentFragments(result.citationSpans,info.index);
+        if(!scopedSpans||!scopedSpans.length)return reject("document-multi-spans",
+            "Не удалось привязать цитаты к исходному файлу.");
+        citationSpans.push(...scopedSpans);
         sections.push(`Документ ${info.index}: ${info.name}\n${scoped}`);
         summaries.push({...coverage,fileIndex:info.index,name:info.name});
     }
@@ -87,5 +92,6 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
             processedWindows:windowsDone,files:summaries,
             allWindowsPresented:windowsDone===plan.totalWindows,
             exactTextCoverageConfirmed:true,completeSourceAnalysisConfirmed:false},
+        citationSpans,
         responseId:audit.id,responseSha256:audit.sha256,text:audit.text};
 }
