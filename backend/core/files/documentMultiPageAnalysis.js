@@ -62,8 +62,11 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
                 text:"Анализ нескольких документов не завершён. "+
                     "Нельзя утверждать, что все файлы прочитаны.",
                 readingCoverage:{plannedWindows:plan.totalWindows,
-                    processedWindows:windowsDone,
-                    files:summaries,complete:false,
+                    processedWindows:windowsDone+
+                        (Number.isSafeInteger(coverage?.processedWindows)?coverage.processedWindows:0),
+                    files:summaries,
+                    incompleteFile:coverage?{...coverage,fileIndex:info.index,name:info.name}:null,
+                    complete:false,allWindowsPresented:false,
                     completeSourceAnalysisConfirmed:false}};
         }
         kept+=result.groundedClaims;

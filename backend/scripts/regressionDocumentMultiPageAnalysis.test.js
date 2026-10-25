@@ -90,5 +90,8 @@ test("one unverified window makes the multi-document analysis incomplete",async(
     assert.equal(r.success,false);
     assert.equal(r.readingCoverage.completeSourceAnalysisConfirmed,false);
     assert.ok(r.readingCoverage.processedWindows<planMultiplePagedDocuments(attachments).totalWindows);
-    assert.doesNotMatch(r.text,/все файлы прочитаны\./iu);
+    assert.match(r.text,/не завершён/iu);
+    assert.ok(r.readingCoverage.processedWindows>0);
+    assert.equal(r.readingCoverage.incompleteFile.fileIndex,1);
+    assert.equal(r.readingCoverage.incompleteFile.processedWindows,r.readingCoverage.processedWindows);
 });
