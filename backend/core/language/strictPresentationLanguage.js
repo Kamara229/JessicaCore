@@ -1,4 +1,5 @@
 import {hasForeignEnglishProse, splitCodeSegments} from "./codeAwareLocale.js";
+import {isVerifiedRequestedOriginalQuote} from "./verifiedQuotePreservation.js";
 
 /**
  * Last-resort presentation contract.
