@@ -1,5 +1,5 @@
 import {assembleDocumentPages} from "./documentPageAssembly.js";
-import {createDocumentEvidence} from "./documentEvidence.js";
+import {createLosslessWindowEvidence} from "./documentWindowEvidence.js";
 import {planDocumentSectionWindows} from "./documentSectionReadPlan.js";
 import {validateAndRenderDocumentAnswer} from "./documentAnswerContract.js";
 import {identifyDocumentAnswer} from "./documentResponseIdentity.js";
@@ -23,7 +23,12 @@ export async function analyzePagedLongDocument({task,attachment,generate}) {
     const answers=[];
     for(const window of plan.windows){
         const excerpt={name,text:window.text,truncated:false};
-        const bundle=createDocumentEvidence([excerpt]);
+        const bundle=createLosslessWindowEvidence(excerpt);
+        if(!bundle?.exactSourceCoverage)return {success:false,mode:"document",
+            stage:"document-window-coverage",
+            text:"Невозможно подтвердить передачу полного текста окна.",
+            readingCoverage:{plannedWindows:plan.windows.length,
+                processedWindows:processed,complete:false}};
         const prompt=[
             "ЗАДАНИЕ:",String(task).trim().slice(0,3000),
             "СОДЕРЖИМОЕ ТОЛЬКО ОДНОГО ОКНА:",
@@ -56,7 +61,8 @@ export async function analyzePagedLongDocument({task,attachment,generate}) {
     return {success:true,mode:"document",validated:false,evidenceChecked:true,
         groundedClaims:kept,unsupportedClaimsDropped:rejected,
         readingCoverage:{plannedWindows:plan.windows.length,processedWindows:processed,
-            allWindowsPresented:true,completeSourceAnalysisConfirmed:false,
+            allWindowsPresented:true,exactTextCoverageConfirmed:true,
+            completeSourceAnalysisConfirmed:false,
             sourceSha256:hash,sourceChars:assembled.text.length},
         responseId:audit.id,responseSha256:audit.sha256,text:audit.text};
 }
