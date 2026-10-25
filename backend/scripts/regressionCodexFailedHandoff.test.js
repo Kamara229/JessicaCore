@@ -25,3 +25,20 @@ test("failure text alone cannot be mistaken for a safe next step",()=>{
  assert.equal(acknowledgeBackendProgress("Тест не пройден: проверь Apache."),null);
  assert.equal(acknowledgeBackendProgress("Тест не пройден. Следующий шаг — введи пароль аккаунта."),null);
 });
+
+test("failed Apache fetch handoff remains deterministic during Groq quota failure",async()=>{
+ const message=[
+  "JESSICA_REPLY_04df5750-6a63-412a-9bd9-721db63b5b62",
+  "Тест не пройден: вместо цитаты §3 выданы строки заголовка. Усилил проверку ответов (eebd1a8). Следующий шаг — подключить прямую загрузку оригинала Apache без TinyFish. Тест пока не повторять.",
+  "JESSICA_END_04df5750-6a63-412a-9bd9-721db63b5b62"
+ ].join("\n");
+ let calls=0;
+ const result=await interpretRelayTurn({message,history:[]},async()=>{
+   calls++;
+   throw Error("no model quota");
+ });
+ assert.equal(calls,0);
+ assert.equal(result.action,"reply");
+ assert.equal(result.task,"");
+ assert.match(result.reply,/Тест в обычном чате Jessica пока не запрошен/);
+});
