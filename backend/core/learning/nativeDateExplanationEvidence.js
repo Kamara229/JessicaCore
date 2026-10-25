@@ -8,7 +8,7 @@ export function missingNativeDateExplanation(trace) {
       trace.result.executionMeta.usedTools:[])
   ];
   if (!tools.includes("date_diff")) return false;
-  const answer=String(trace?.result?.text||trace?.result?.answer||
+  const answer=String(trace?.result?.answer?.text||trace?.result?.text||
     trace?.result?.outputText||"");
   return !/(расч[её]т|учитыва(?:ем|ется)|считаем|count(?:ing)?|excluding)/iu.test(answer);
 }
