@@ -125,3 +125,16 @@ test("positive Skill reinforcement requires both applied child and verified outc
     assert.ok(invalid);
     assert.equal(shouldAnalyzeLearningTrace(invalid),false);
 });
+
+
+test("date Learning requires requested explanation from the actual nested tool answer",()=>{
+    const task="Сколько дней с 30 декабря 2026 по 3 января 2027? Объясни расчёт";
+    const trace={id:"date-year-boundary",task,status:"COMPLETED",
+        executedTools:["date_diff"],statistics:{completed:1},
+        result:{status:"COMPLETED",success:true,verified:true,
+            answer:{source:"tool",text:"Между 2026-12-30 и 2027-01-03 4 полных дня."},
+            validation:{valid:true,degraded:false,outcomeType:"result"}}};
+    assert.equal(shouldAnalyzeLearningTrace(trace),false);
+    trace.result.answer.text="От 2026-12-30 до 2027-01-03 прошло 4 полных календарных дня. Начальная дата 2026-12-30 не учитывается, конечная дата 2027-01-03 учитывается.";
+    assert.equal(shouldAnalyzeLearningTrace(trace),true);
+});
