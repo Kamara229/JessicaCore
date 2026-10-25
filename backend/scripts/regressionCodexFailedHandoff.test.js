@@ -62,3 +62,23 @@ test("partially passed test hands off Validator and CI without AI retries",async
  assert.match(decision.reply,/тест не пройден/);
  assert.match(decision.reply,/Тест в обычном чате Jessica пока не запрошен/);
 });
+
+test("Render Live status with pending CI stays in chosen chat without Groq",async()=>{
+ const actual=[
+  "JESSICA_REPLY_426a3cd9-88e1-4ed1-a619-5ae723cf67c1",
+  "Render Live: 78a22a6. Регрессионные тесты прошли, но CI ещё выполняется. Следующий шаг — проверить окончательный статус обоих процессов CI. Тест Jessica пока не повторять.",
+  "JESSICA_END_426a3cd9-88e1-4ed1-a619-5ae723cf67c1"
+ ].join("\n");
+ let calls=0;
+ const decision=await interpretRelayTurn({message:actual,history:[]},async()=>{
+  calls++;
+  throw Error("429 provider quota");
+ });
+ assert.equal(calls,0);
+ assert.equal(decision.action,"reply");
+ assert.equal(decision.task,"");
+ assert.equal(decision.continueThread,false);
+ assert.match(decision.reply,/Проверь указанный шаг через свои подключения/);
+ assert.match(decision.reply,/Тест в обычном чате Jessica пока не запрошен/);
+ assert.equal(acknowledgeBackendProgress("Render Live: 78a22a6. Регрессии прошли."),null);
+});
