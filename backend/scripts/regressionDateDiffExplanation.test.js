@@ -86,3 +86,25 @@ test("Validator denies incomplete date explanations and Learning must not certif
   });
   assert.equal(complete.valid,true);
 });
+
+
+test("Learning ignores a correct number without the requested date explanation", async()=>{
+ const {analyzeExecutionTraceBatch}=await import("../core/learning/multiSkill/multiSkillAnalyzer.js");
+ const {missingNativeDateExplanation}=await import("../core/learning/nativeDateExplanationEvidence.js");
+ const task="Сколько дней с 30 декабря 2026 по 3 января 2027? Объясни расчёт";
+ const trace={
+   task,executedTools:["date_diff"],
+   result:{success:true,verified:true,status:"COMPLETED",
+     text:"Между 2026-12-30 и 2027-01-03 4 полных дня.",
+     validation:{valid:true,degraded:false,outcomeType:"result"}},
+   statistics:{completed:1},
+   experienceUsage:{used:true,applied:true,appliedSkillIds:["date-difference-calculation"],
+     skills:[{id:"date-difference-calculation"}]}
+ };
+ assert.equal(missingNativeDateExplanation(trace),true);
+ const ignored=analyzeExecutionTraceBatch(trace);
+ assert.equal(ignored[0].action,"IGNORE");
+ assert.equal(ignored[0].metadata.positiveReinforcementAllowed,false);
+ const complete=await executeTool("date_diff",{startDate:"2026-12-30",endDate:"2027-01-03",mode:"elapsed"});
+ assert.equal(missingNativeDateExplanation({...trace,result:{...trace.result,text:complete.text}}),false);
+});
