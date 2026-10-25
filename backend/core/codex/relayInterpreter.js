@@ -2,6 +2,7 @@ import {getGroqClient} from "../../ai/groqClient.js";
 import {explicitSameTestChat} from "./relayThreadPolicy.js";
 import {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 import {explicitJessicaTest} from "./relayExplicitTest.js";
+import {compactJessicaTest} from "./relayCompactTest.js";
 import {isStandaloneLengthNotice,lengthNoticeContinuation} from "./relaySessionContinuity.js";
 import {guardRelayTerminalDecision,confirmedPlanCompletion} from "./relayTerminalPolicy.js";
 import {acknowledgeBackendProgress} from "./relayProgressPolicy.js";
@@ -62,7 +63,7 @@ export async function interpretRelayTurn(input, generate) {
     if (isStandaloneLengthNotice(message)) return lengthNoticeContinuation();
     const explicitReply = directCurrentChatReply(message);
     if (explicitReply !== null) return {action:"reply",reply:explicitReply,task:"",continueThread:false};
-    const requestedTest = explicitJessicaTest(message);
+    const requestedTest = explicitJessicaTest(message) || compactJessicaTest(message);
     if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
     // An unequivocal finished-plan announcement can end Codex even when
     // the contextual model is unavailable. Conditional plans cannot.

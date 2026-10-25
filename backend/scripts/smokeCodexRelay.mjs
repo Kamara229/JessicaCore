@@ -81,3 +81,12 @@ assert.equal(simpleStep.action,"reply");
 assert.equal(simpleStep.task,"");
 assert.match(simpleStep.reply,/Поняла следующий шаг/);
 console.log("PASS live standalone next step without model retry");
+
+const shortTest = "Сколько дней с 27 февраля по 2 марта 2024 года (27-е исключить, 2-е включить)? Объясни расчёт";
+const compact = await interpret({plan:"Проверить обработку високосной даты",history:[],
+    message:"Исправлен сдвиг даты. В обычном чате отправь: «"+shortTest+"». Пришли ответ дословно."
+},true);
+assert.equal(compact.action,"test");
+assert.equal(compact.task,shortTest);
+assert.equal(compact.continueThread,false);
+console.log("PASS live compact test handoff without conversational model");
