@@ -66,6 +66,7 @@ import {scaffoldComparisonTable} from "./composer/comparisonTableScaffold.js";
 import {tryFocusedComparisonRepair} from "./composer/focusedComparisonRepair.js";
 import {groundedPatentComparison} from "./composer/nativePatentComparison.js";
 import {extractOfficialLicenseExcerpt} from "./composer/officialLicenseExcerpt.js";
+import {groundedApachePatentSection} from "./composer/groundedApachePatentSection.js";
 import {repairComparisonClaimMeaning} from "./composer/comparisonSemanticRepair.js";
 
 import {
@@ -404,6 +405,9 @@ export async function composeAnswer(
 
     const primaryQuote=extractOfficialLicenseExcerpt(task,plan,taskRunResult);
     if(primaryQuote)return primaryQuote;
+
+    const apacheSection=groundedApachePatentSection(task,plan,taskRunResult);
+    if(apacheSection)return apacheSection;
 
     const patentComparison=groundedPatentComparison(task,plan,taskRunResult);
     if(patentComparison) return patentComparison;
