@@ -1,4 +1,5 @@
 import {createHash} from "node:crypto";
+import {buildVerifiedSectionHierarchy} from "./documentSectionHierarchy.js";
 
 const sha=text=>createHash("sha256").update(text,"utf8").digest("hex");
 
@@ -74,7 +75,9 @@ export function auditDocumentSections(plan,ledger,spans,claims){
     }
     const result=[...sections.values()];
     for(const item of result)item.complete=item.processedWindows===item.plannedWindows;
-    return {sections:result,sectionCount:result.length,
+    const hierarchy=buildVerifiedSectionHierarchy(plan,result);
+    if(!hierarchy)return null;
+    return {sections:result,hierarchy,sectionCount:result.length,
         completedSections:result.filter(s=>s.complete).length,
         allSectionsProcessed:result.every(s=>s.complete),
         allSectionsCited:result.every(s=>s.citedFragments>0),
