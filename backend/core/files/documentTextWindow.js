@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 /** A bounded, lossless page of extracted document text (UTF-16 offsets). */
 export const DOCUMENT_WINDOW_CHARS = 16000;
 
@@ -32,6 +33,7 @@ export function pageDocumentText(complete, offset = 0) {
         extractedChars: complete.length,
         offset,
         nextOffset: hasMore ? end : null,
-        hasMore
+        hasMore,
+        sourceSha256: createHash("sha256").update(complete, "utf8").digest("hex")
     };
 }

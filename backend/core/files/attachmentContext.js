@@ -1,3 +1,4 @@
+import { assembleDocumentPages } from "./documentPageAssembly.js";
 const MAX_ATTACHMENTS = 3;
 const MAX_CHARS_TOTAL = 16000;
 
@@ -11,9 +12,12 @@ export function normalizeAttachmentContexts(value) {
         if (!entry || typeof entry !== "object") return [];
         const name = String(entry.name || "Документ")
             .replace(/[\r\n\t<>]/g, " ").slice(0, 100);
-        const text = typeof entry.text === "string" ? entry.text.trim() : "";
+        // Verified page series replaces a truncated legacy extract; never trust gaps.
+        const assembled = Array.isArray(entry.pages) ? assembleDocumentPages(entry.pages) : null;
+        if (Array.isArray(entry.pages) && !assembled) return [];
+        const text = (assembled?.text ?? (typeof entry.text === "string" ? entry.text : "")).trim();
         if (!text || !name) return [];
-        return [{name, text, truncated: entry.truncated === true}];
+        return [{name, text, truncated: !assembled && entry.truncated === true}];
     });
     if (!docs.length) return [];
 
