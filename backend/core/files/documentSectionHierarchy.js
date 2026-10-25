@@ -35,7 +35,7 @@ export function buildVerifiedSectionHierarchy(plan, auditedSections) {
             stack.pop();
         const ancestor=observed.level>1&&stack.length
             ?stack.at(-1):null;
-        const path=ancestor?[...ancestor.path,observed.title]:
+        const path=ancestor?[...ancestor.headingPath,observed.title]:
             [observed.title];
         const entry={sectionIndex:i,title:observed.title,level:observed.level,
             parentSectionIndex:ancestor?.sectionIndex??null,
