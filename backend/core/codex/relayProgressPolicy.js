@@ -7,8 +7,10 @@ export function acknowledgeBackendProgress(message) {
   const body=lines.join(" ").replace(/\s+/gu," ").trim();
   const isProgress=/^(?:тест (?:пройден|прош[её]л)|(?:исправил|обновил|доработал|вн[её]с)(?:\s|[.,:])|(?:проверка|исправление)\s+завершен[ао]|коммит(?:\s|[.,:]))/iu.test(body);
   const next=/следующ(?:ий|им)\s+шаг\s*[:—–-]?\s*(.{3,240})/iu.exec(body);
-  if (!isProgress || !next) return null;
+  const standaloneStep=/^следующ(?:ий|им)\s+шаг\s*[:—–-]?\s+/iu.test(body);
+  if ((!isProgress && !standaloneStep) || !next) return null;
   if (!/(?:CI|Render|GitHub|Supabase|backend|регресс|лог(?:и|ов)|депло|разв[её]рт|провер)/iu.test(next[1]) ||
       /(?:APK|секрет|ключ|парол|настро(?:йк|ек)|владел|телефон|установ)/iu.test(next[1])) return null;
-  return "Поняла: предыдущий шаг backend завершён. Проверь указанный следующий шаг через свои подключения GitHub, Render и Supabase и продолжай план. Тест в обычном чате Jessica пока не запрошен.";
+  return (standaloneStep?"Поняла следующий шаг. ":"Поняла: предыдущий шаг backend завершён. ") +
+      "Проверь указанный шаг через свои подключения GitHub, Render и Supabase и продолжай план. Тест в обычном чате Jessica пока не запрошен.";
 }
