@@ -9,7 +9,7 @@ import { parseNativeDate } from "./dateUtils.js";
 export function extractExplicitDateRange(value) {
     const text = String(value || "");
     const match = text.match(
-        /(?:^|[^\p{L}\p{N}])(?:с|со|от)\s+(\d{1,2})\s+([а-яё]+)\s+(?:по|до)\s+(\d{1,2})\s+([а-яё]+)\s+(\d{4})(?:\s*г(?:ода|\.)?)?/iu
+        /(?:^|[^\p{L}\p{N}])(?:с|со|от|между)\s+(\d{1,2})\s+([а-яё]+)\s+(?:по|до|и)\s+(\d{1,2})\s+([а-яё]+)\s+(\d{4})(?:\s*г(?:ода|\.)?)?/iu
     );
     if (!match) return null;
 
