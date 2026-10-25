@@ -5,7 +5,7 @@ export function acknowledgeBackendProgress(message) {
   const lines=raw.split(/\r?\n/).map(s=>s.trim())
     .filter(s=>s && !/^JESSICA_(?:REPLY|END)_[\da-f-]+$/iu.test(s));
   const body=lines.join(" ").replace(/\s+/gu," ").trim();
-  const isProgress=/^(?:тест (?:пройден|частично пройден|прош[её]л|не пройден|не подтвержд[её]н|завершился (?:ошибкой|сбоем))|(?:исправил|обновил|доработал|вн[её]с)(?:\s|[.,:])|(?:проверка|исправление)\s+завершен[ао]|коммит(?:\s|[.,:]))/iu.test(body);
+  const isProgress=/^(?:тест (?:пройден|частично пройден|прош[её]л|не пройден|не подтвержд[её]н|завершился (?:ошибкой|сбоем))|(?:исправил|обновил|доработал|вн[её]с)(?:\s|[.,:])|(?:проверка|исправление)\s+завершен[ао]|коммит(?:\s|[.,:])|Render\s+Live\s*:|CI\s+(?:пройд[её]н|заверш[её]н|выполняется))/iu.test(body);
   const next=/следующ(?:ий|им)\s+шаг\s*[:—–-]?\s*(.{3,240})/iu.exec(body);
   const standaloneStep=/^следующ(?:ий|им)\s+шаг\s*[:—–-]?\s+/iu.test(body);
   if ((!isProgress && !standaloneStep) || !next) return null;
