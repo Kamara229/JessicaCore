@@ -128,8 +128,7 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
         text:"Не удалось проверить нумерованные источники по исходному тексту.",
         readingCoverage:windowLedgerSummary(ledger)};
     const referenceSectionCoverage=summarizeSectionReferenceCoverage(
-        referenceAudit,
-        referenceSectionCoverage,sectionCoverage.hierarchy);
+        referenceAudit,sectionCoverage.hierarchy);
     if(!referenceSectionCoverage)return {success:false,mode:"document",
         stage:"document-reference-section-coverage",
         text:"Не удалось проверить нумерованные источники по разделам.",
@@ -143,7 +142,7 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
         evidenceDensity,
         evidenceLineage,
         claimProvenance,
-        referenceAudit,
+        referenceAudit,referenceSectionCoverage,
         responseId:audit?.id||null,responseSha256:audit?.sha256||null,
         text:audit?.text||body};
 }
