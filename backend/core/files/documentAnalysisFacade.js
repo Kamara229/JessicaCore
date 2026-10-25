@@ -9,6 +9,7 @@ import {
 import { createDocumentEvidence } from "./documentEvidence.js";
 import { identifyDocumentAnswer } from "./documentResponseIdentity.js";
 import {summarizeDocumentCitationCoverage} from "./documentCitationCoverage.js";
+import {analyzePagedLongDocument} from "./documentPagedAnalysis.js";
 import {
     documentAnalysisInstructions,
     validateAndRenderDocumentAnswer
@@ -63,6 +64,20 @@ export async function analyzeDocumentAttachments(
     { task, attachments },
     generate = generateDocumentAnswer
 ) {
+    if (Array.isArray(attachments)&&attachments.length===1&&
+        Array.isArray(attachments[0]?.pages)) {
+        if (!String(task||"").trim()) return errorResult("Укажи задачу для документа.");
+        if (getAIProviderAvailability().blocked)
+            return errorResult("Достигнут лимит ИИ.","ai-provider-cooldown");
+        try { return await analyzePagedLongDocument({task,attachment:attachments[0],generate}); }
+        catch(error){
+            if(error?.status===429){
+                registerAIProviderLimit(error);
+                return errorResult("Лимит ИИ: анализ прерван.","ai-provider-cooldown");
+            }
+            return errorResult("Анализ документа не завершён.","document-window-error");
+        }
+    }
     const bundle = createDocumentEvidence(attachments);
     if (!bundle.docs.length || !bundle.fragments.length) {
         return errorResult("Прикреплённый документ не содержит доступного текста. Проверь файл и отправь его снова.");
