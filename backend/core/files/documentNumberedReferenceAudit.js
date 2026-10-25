@@ -1,5 +1,6 @@
 import {createHash} from "node:crypto";
 import {buildDocumentSectionIndex} from "./documentSectionIndex.js";
+import {linkNumberedDocumentReferences} from "./documentNumberedReferenceLinks.js";
 
 const sha=value=>createHash("sha256").update(value,"utf8").digest("hex");
 const MAX_REFERENCES=600;
@@ -65,7 +66,11 @@ export function auditDocumentNumberedReferences(source,expectedSha256) {
     const duplicated=new Map();
     for(const item of bibEntries)duplicated.set(item.number,
         (duplicated.get(item.number)||0)+1);
+    const referenceLinks=linkNumberedDocumentReferences(
+        source,index,refs,bibEntries,Boolean(heading));
+    if(!referenceLinks)return null;
     return {sourceSha256:expectedSha256,sourceChars:source.length,
+        referenceLinks,
         bibliographyHeadingFound:Boolean(heading),
         multipleBibliographiesDetected:bibliography.length>1,
         citationMentions:refs.length,

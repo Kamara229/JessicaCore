@@ -71,3 +71,25 @@ test("normal single and multi document analysis return independent numbered refe
     assert.equal(combined.referenceAudits[0].fileIndex,1);
     assert.equal(combined.referenceAudits[1].fileIndex,2);
 });
+
+test("citation-to-bibliography alignment distinguishes unique, missing and duplicate numbers",()=>{
+    const report=auditDocumentNumberedReferences(academic,digest(academic));
+    assert.ok(report?.referenceLinks);
+    const matches=report.referenceLinks.mentions;
+    assert.equal(matches.length,5);
+    assert.equal(report.referenceLinks.numberMatched,1);
+    assert.equal(report.referenceLinks.ambiguous,2);
+    assert.equal(report.referenceLinks.missing,2);
+    assert.equal(matches.find(x=>x.number===1).match,"number-match");
+    assert.equal(matches.find(x=>x.number===2).entryStartOffset,null);
+    assert.equal(matches.find(x=>x.number===3).match,"missing-entry");
+    assert.equal(report.referenceLinks.sourceExistenceVerified,false);
+    assert.equal(report.referenceLinks.pageAccuracyVerified,false);
+});
+test("reference alignment never fabricates entries when a bibliography is absent",()=>{
+    const value="ВВЕДЕНИЕ\\nОбзор [5, с. 8].";
+    const report=auditDocumentNumberedReferences(value,digest(value));
+    assert.equal(report.referenceLinks.bibliographyAbsent,true);
+    assert.equal(report.referenceLinks.mentions[0].match,"no-bibliography");
+    assert.equal(report.referenceLinks.missing,0);
+});
