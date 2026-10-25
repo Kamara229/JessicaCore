@@ -329,3 +329,26 @@ test("hypothetical status and device requests cannot bypass contextual interpret
   assert.equal(result.reply,"Нужен следующий безопасный шаг.");
  }
 });
+
+
+test("one-step Codex relay responds without external interpreter, never starts a test",async()=>{
+ const message=[
+  "JESSICA_REPLY_e5fc766d-e1d9-4f47-97c3-c15cb91f3fc8",
+  "Следующий шаг — проверить в Supabase, что опубликованные Skills имеют историю версий.",
+  "JESSICA_END_e5fc766d-e1d9-4f47-97c3-c15cb91f3fc8"
+ ].join("\n");
+ let calls=0;
+ const decision=await interpretRelayTurn({message},async()=>{
+  calls++;throw Error("Model unavailable");
+ });
+ assert.equal(calls,0);
+ assert.equal(decision.action,"reply");
+ assert.equal(decision.task,"");
+ assert.equal(decision.continueThread,false);
+ assert.match(decision.reply,/Поняла следующий шаг/);
+ const unsafe="Следующий шаг — установить APK и поменять ключ перед проверкой Supabase";
+ const fallback=await interpretRelayTurn({message:unsafe},async()=>({
+  action:"reply",reply:"Не меняю устройство и секреты.",task:""
+ }));
+ assert.equal(fallback.reply,"Не меняю устройство и секреты.");
+});
