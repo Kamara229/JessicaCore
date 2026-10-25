@@ -7,6 +7,7 @@ import {isStandaloneLengthNotice,lengthNoticeContinuation} from "./relaySessionC
 import {guardRelayTerminalDecision,confirmedPlanCompletion} from "./relayTerminalPolicy.js";
 import {acknowledgeBackendProgress} from "./relayProgressPolicy.js";
 import {pendingBackendVerification} from "./relayPendingVerification.js";
+import {documentAnalysisNextStep} from "./relayDocumentProgress.js";
 import {interpretationFailureHandoff} from "./relayFailureHandoff.js";
 export {explicitJessicaTest} from "./relayExplicitTest.js";
 export {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
@@ -76,6 +77,8 @@ export async function interpretRelayTurn(input, generate) {
     if (progressReply!==null) return {action:"reply",reply:progressReply,task:"",continueThread:false};
     const pendingReply=pendingBackendVerification(message);
     if (pendingReply!==null) return {action:"reply",reply:pendingReply,task:"",continueThread:false};
+    const documentReply=documentAnalysisNextStep(message);
+    if (documentReply!==null) return {action:"reply",reply:documentReply,task:"",continueThread:false};
     const payload = {message, plan:String(input.plan || "").slice(0,12000), history};
     const run = generate || (async (instructions, data) => {
         const response = await getGroqClient().chat.completions.create({
