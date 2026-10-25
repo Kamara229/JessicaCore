@@ -46,6 +46,7 @@ import { extractExplicitDateRange } from "../native/explicitDateRange.js";
 import { hasVerifiedDateSkillEvidence } from "./youngDateSkill.js";
 import { buildNativeDocumentFetchPlan } from "./nativeDocumentFetchPlan.js";
 import { buildNativeSourceComparisonPlan } from "./nativeSourceComparisonPlan.js";
+import { buildNativeSingleLicensePlan } from "./nativeSingleLicensePlan.js";
 
 
 import {
@@ -1069,6 +1070,16 @@ export function tryCreateNativeSkillPlan({
         return finalizeNativePlan({
             task, context: planningContext, plan: paired,
             source: "native-two-source-comparison"
+        });
+    }
+
+    // An explicitly named primary-text license source precedes generic
+    // search-based Skills. Retrieval does not imply any Skill was applied.
+    const licensePlan = buildNativeSingleLicensePlan(task);
+    if (licensePlan) {
+        return finalizeNativePlan({
+            task, context: planningContext, plan: licensePlan,
+            source: "native-single-license-source"
         });
     }
 
