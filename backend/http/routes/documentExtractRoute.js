@@ -3,11 +3,12 @@ import { createRequire } from "node:module";
 import mammoth from "mammoth";
 import ExcelJS from "exceljs";
 import { requireJessicaAuthorization } from "../auth/jessicaAuth.js";
+import { pageDocumentText, parseDocumentTextOffset } from "../../core/files/documentTextWindow.js";
 
 const require = createRequire(import.meta.url);
 const parsePdf = require("pdf-parse");
 const MAX_BYTES = 5 * 1024 * 1024;
-const MAX_TEXT = 16000;
+
 const supported = new Set(["pdf", "docx", "txt", "md", "csv", "json", "xlsx", "py", "pyw", "js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts", "java", "kt", "kts", "swift", "go", "rs", "c", "h", "cpp", "hpp", "cc", "cxx", "cs", "fs", "fsx", "m", "mm", "php", "rb", "dart", "scala", "sc", "hs", "erl", "ex", "exs", "clj", "cljs", "lua", "pl", "pm", "r", "jl", "sql", "sh", "bash", "ps1", "psm1", "fish", "bat", "cmd", "groovy", "gradle", "sol", "move", "cob", "cbl", "f", "for", "f90", "f95", "pas", "pp", "dpr", "asm", "s", "zig", "nim", "ml", "mli", "vb", "bas", "cls", "frm", "tf", "tfvars", "hcl", "yaml", "yml", "xml", "xsd", "xsl", "toml", "graphql", "gql", "proto", "dockerfile", "mk", "makefile", "cu", "cuh", "wat", "awk", "lisp", "lsp", "scm", "vue", "svelte", "ipynb", "html", "htm", "css", "scss", "sass", "less", "jsonl"]);
 
 function cleanName(value) {
@@ -83,6 +84,10 @@ export function registerDocumentExtractRoute(app) {
                     return res.status(413).json({success: false, text: "Размер файла должен быть от 1 байта до 5 МБ"});
                 }
                 ensureSignature(ext, buffer);
+                const offset = parseDocumentTextOffset(req.get("X-Jessica-Text-Offset"));
+                if (offset === null) {
+                    return res.status(400).json({success: false, text: "Некорректное смещение текста документа"});
+                }
                 const complete = (await extractText(ext, buffer)).replace(/\u0000/g, "").trim();
                 if (!complete) {
                     return res.status(422).json({
@@ -90,20 +95,19 @@ export function registerDocumentExtractRoute(app) {
                         text: "В файле нет доступного текста. Сканированные PDF пока не поддерживаются."
                     });
                 }
-                const text = complete.slice(0, MAX_TEXT);
+                const page = pageDocumentText(complete, offset);
+                if (!page) {
+                    return res.status(416).json({success: false, text: "Смещение за пределами документа"});
+                }
                 console.log("Jessica document parsed:", {
                     extension: ext,
                     bytes: buffer.length,
                     extractedChars: complete.length,
-                    truncated: complete.length > MAX_TEXT
+                    truncated: page.truncated,
+                    offset: page.offset,
+                    hasMore: page.hasMore
                 });
-                return res.json({
-                    success: true,
-                    name,
-                    text,
-                    truncated: complete.length > MAX_TEXT,
-                    extractedChars: complete.length
-                });
+                return res.json({success: true, name, ...page});
             } catch (error) {
                 console.warn("Jessica document extraction failed:", error?.message || "unknown");
                 return res.status(422).json({success: false, text: "Не удалось прочитать файл. Проверь формат и попробуй другой."});
