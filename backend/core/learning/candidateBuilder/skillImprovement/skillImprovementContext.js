@@ -23,6 +23,11 @@ import {
     buildCandidateLearningMetrics
 } from "../candidateMetrics.js";
 
+import {verifiedDateExamples} from "./verifiedDateExamples.js";
+import {
+  calculateExperienceConfidence,calculateExperienceMaturity,calculateSuccessRate
+} from "../../experienceConfidence.js";
+
 
 import {
     resolveImprovementRequiredTools
@@ -100,32 +105,32 @@ export function buildSkillImprovementContext({
         );
 
 
-    const examples =
+    // A historic, incomplete response must not inflate future autonomous
+    // reinforcement. Preserve immutable history but omit invalid examples.
+    const audited = verifiedDateExamples(
+        normalizeArray(existingSkill.examples),
+        resolveSkillExecutionProgram(existingSkill)
+    );
 
-        mergeCandidateExamples(
+    const examples = mergeCandidateExamples(audited.examples,newExamples);
 
-            normalizeArray(
-                existingSkill.examples
-            ),
+    const correctedOccurrences = audited.removed
+        ? Math.max(examples.length,1) : occurrences;
+    const correctedMaturity = audited.removed
+        ? calculateExperienceMaturity(correctedOccurrences) : maturity;
+    const correctedConfidence = audited.removed
+        ? calculateExperienceConfidence({
+            matchScore:1,
+            successRate:calculateSuccessRate(examples),
+            occurrences:correctedOccurrences
+          }) : confidence;
 
-            newExamples
-
-        );
-
-
-    const metrics =
-
-        buildCandidateLearningMetrics({
-
-            examples,
-
-            occurrences,
-
-            maturity,
-
-            confidence
-
-        });
+    const metrics = buildCandidateLearningMetrics({
+        examples,
+        occurrences:correctedOccurrences,
+        maturity:correctedMaturity,
+        confidence:correctedConfidence
+    });
 
 
     const targetSkillId =
