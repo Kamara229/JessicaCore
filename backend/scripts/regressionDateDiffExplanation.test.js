@@ -108,3 +108,43 @@ test("Learning ignores a correct number without the requested date explanation",
  const complete=await executeTool("date_diff",{startDate:"2026-12-30",endDate:"2027-01-03",mode:"elapsed"});
  assert.equal(missingNativeDateExplanation({...trace,result:{...trace.result,text:complete.text}}),false);
 });
+
+
+test("next valid improvement excludes contaminated v5 evidence and keeps maturity below READY",async()=>{
+  const {buildSkillImprovementContext}=await import("../core/learning/candidateBuilder/skillImprovement/skillImprovementContext.js");
+  const task="Сколько дней с 30 декабря 2026 по 3 января 2027? Объясни расчёт";
+  const good=await executeTool("date_diff",{
+    startDate:"2026-12-30",endDate:"2027-01-03",mode:"elapsed"
+  });
+  const result=(text)=>({
+    success:true,verified:true,status:"COMPLETED",text,
+    validation:{valid:true,degraded:false,outcomeType:"result"}
+  });
+  const stored=Array.from({length:3},(_,i)=>({
+    task,success:true,traceId:"verified-"+i,executedTools:["date_diff"],
+    result:result(good.text)
+  }));
+  stored.push({
+    task,success:true,traceId:"incomplete-legacy",executedTools:["date_diff"],
+    result:result("Между 2026-12-30 и 2027-01-03 4 полных дня.")
+  });
+  const skill={
+    id:"date-difference-calculation",name:"Date Difference",version:5,
+    executionProgram:{mode:"native",version:1,strategy:"date_difference"},
+    examples:stored,learning:{occurrences:4,confidence:.94}
+  };
+  const trace={
+    id:"new-verified",task,executedTools:["date_diff"],
+    result:result(good.text),statistics:{completed:1}
+  };
+  const candidate=buildSkillImprovementContext({
+    skills:[skill],trace,occurrences:5,maturity:1,confidence:1
+  });
+  assert.equal(candidate.examples.length,4);
+  assert.equal(candidate.metrics.successCount,4);
+  assert.equal(candidate.metrics.occurrences,4);
+  assert.equal(candidate.metrics.maturityLevel,"LEARNING");
+  assert.equal(candidate.metrics.maturity,.88);
+  assert.equal(candidate.metrics.confidence,.94);
+  assert.ok(!candidate.examples.some(x=>x.traceId==="incomplete-legacy"));
+});
