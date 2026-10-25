@@ -13,6 +13,7 @@ import {measureDocumentCitationDensity} from "./documentEvidenceDensity.js";
 import {buildDocumentEvidenceLineage} from "./documentEvidenceLineage.js";
 import {mapVerifiedClaimsToSourceSections} from "./documentClaimProvenance.js";
 import {auditDocumentNumberedReferences} from "./documentNumberedReferenceAudit.js";
+import {summarizeSectionReferenceCoverage} from "./documentSectionReferenceCoverage.js";
 
 /** Use only cryptographically verified complete pages; fail closed on gaps. */
 export async function analyzePagedLongDocument({task,attachment,generate,embedReceipt=true}) {
@@ -125,6 +126,13 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
     if(!referenceAudit)return {success:false,mode:"document",
         stage:"document-reference-audit",
         text:"Не удалось проверить нумерованные источники по исходному тексту.",
+        readingCoverage:windowLedgerSummary(ledger)};
+    const referenceSectionCoverage=summarizeSectionReferenceCoverage(
+        referenceAudit,
+        referenceSectionCoverage,sectionCoverage.hierarchy);
+    if(!referenceSectionCoverage)return {success:false,mode:"document",
+        stage:"document-reference-section-coverage",
+        text:"Не удалось проверить нумерованные источники по разделам.",
         readingCoverage:windowLedgerSummary(ledger)};
     const audit=embedReceipt?identifyDocumentAnswer(body,kept,rejected):null;
     return {success:true,mode:"document",validated:false,evidenceChecked:true,

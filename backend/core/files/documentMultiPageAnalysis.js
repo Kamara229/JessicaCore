@@ -59,6 +59,7 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
     const sourceLineages=[];
     const claimReports=[];
     const referenceAudits=[];
+    const referenceSectionCoverages=[];
     const quoteCoverage={evidenceQuotes:0,exactLocatedQuotes:0,ambiguousQuotes:0,
         nonLiteralQuotes:0,allVerbatimQuoteOffsetsLocated:false};
     let kept=0,rejected=0,windowsDone=0;
@@ -132,6 +133,12 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
             return reject("document-multi-references",
                 "Не удалось сверить нумерованные ссылки с каждым файлом.");
         referenceAudits.push({...result.referenceAudit,fileIndex:info.index});
+        if(!result.referenceSectionCoverage||
+           result.referenceSectionCoverage.sourceChars!==info.sourceChars)
+            return reject("document-multi-reference-sections",
+                "Не удалось проверить источники по разделам файла.");
+        referenceSectionCoverages.push({...result.referenceSectionCoverage,
+            fileIndex:info.index});
         summaries.push({...coverage,fileIndex:info.index,name:info.name,
             sectionCoverage:result.sectionCoverage});
     }
@@ -172,5 +179,6 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
         evidenceLineage,
         claimProvenance,
         referenceAudits,
+        referenceSectionCoverages,
         responseId:audit.id,responseSha256:audit.sha256,text:audit.text};
 }
