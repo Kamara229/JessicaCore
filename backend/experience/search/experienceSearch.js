@@ -52,6 +52,7 @@ import {
 import {
     buildExperienceProfile
 } from "./experienceProfile.js";
+import {titleSpecificityAdjustment} from "./experienceSpecificity.js";
 
 
 
@@ -214,6 +215,10 @@ function isUsableExperience(
         &&
 
         skill.enabled !== false
+
+        &&
+
+        (!skill.status || skill.status === "published")
 
     );
 
@@ -403,11 +408,8 @@ function rankExperiences(
     experiences
 ){
 
-    return experiences
-
-        .filter(
-            isUsableExperience
-        )
+    const usable=experiences.filter(isUsableExperience);
+    return usable
 
         .map(
 
@@ -455,13 +457,8 @@ function rankExperiences(
                     );
 
 
-                const rankingScore =
-
-                    baseConfidence * 0.8
-
-                    +
-
-                    quality * 0.2;
+                const rankingScore = baseConfidence * 0.8 + quality * 0.2
+                    + titleSpecificityAdjustment(task,experience,usable);
 
 
                 return {

@@ -40,6 +40,7 @@ import {
 
 }
 from "./experienceText.js";
+import {partialExperiencePhraseMatch} from "./experiencePartialMatch.js";
 
 
 
@@ -337,6 +338,9 @@ function matchPhrases(
 
 
 
+    const partial=partialExperiencePhraseMatch(taskTokens,phrases,phraseScore);
+    if(partial.score>score)score=partial.score;
+    terms.push(...partial.terms);
     return {
 
 

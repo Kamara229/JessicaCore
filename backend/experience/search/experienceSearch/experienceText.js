@@ -85,6 +85,18 @@ export function tokenizeExperienceText(
 
 
 const CONCEPTS = [
+    // Bilingual task vocabulary for reusable, domain-sensitive Skill matching.
+    {"concept":"compare","patterns":["compare","comparison","comparative","contrast","contrasting","сравн","сопостав","различ","отлич"]},
+    {"concept":"patent","patterns":["patent","патент"]},
+    {"concept":"license","patterns":["license","licence","лиценз"]},
+    {"concept":"clause","patterns":["clause","provision","section","пункт","раздел","положен","услов","оговорк"]},
+    {"concept":"terminate","patterns":["terminat","termination","прекращ","расторж"]},
+    {"concept":"legal","patterns":["legal","юрид","правов"]},
+    {"concept":"rights","patterns":["right","право","права"]},
+    {"concept":"grant","patterns":["grant","предоставл","выдач"]},
+    {"concept":"source","patterns":["source","источн","ссылк"]},
+    {"concept":"text","patterns":["text","текст"]},
+    {"concept":"software","patterns":["software","программно"]},
 
 
     {
