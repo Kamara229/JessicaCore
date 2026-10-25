@@ -12,6 +12,7 @@ import {markDocumentQuotaInterruption} from "./documentQuotaCoverage.js";
 import {measureDocumentCitationDensity} from "./documentEvidenceDensity.js";
 import {buildDocumentEvidenceLineage} from "./documentEvidenceLineage.js";
 import {mapVerifiedClaimsToSourceSections} from "./documentClaimProvenance.js";
+import {auditDocumentNumberedReferences} from "./documentNumberedReferenceAudit.js";
 
 /** Use only cryptographically verified complete pages; fail closed on gaps. */
 export async function analyzePagedLongDocument({task,attachment,generate,embedReceipt=true}) {
@@ -120,6 +121,11 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
     if(!claimProvenance)return {success:false,mode:"document",stage:"document-claim-provenance",
         text:"Не удалось установить исходные разделы для выводов.",
         readingCoverage:windowLedgerSummary(ledger)};
+    const referenceAudit=auditDocumentNumberedReferences(assembled.text,hash);
+    if(!referenceAudit)return {success:false,mode:"document",
+        stage:"document-reference-audit",
+        text:"Не удалось проверить нумерованные источники по исходному тексту.",
+        readingCoverage:windowLedgerSummary(ledger)};
     const audit=embedReceipt?identifyDocumentAnswer(body,kept,rejected):null;
     return {success:true,mode:"document",validated:false,evidenceChecked:true,
         groundedClaims:kept,unsupportedClaimsDropped:rejected,
@@ -129,6 +135,7 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
         evidenceDensity,
         evidenceLineage,
         claimProvenance,
+        referenceAudit,
         responseId:audit?.id||null,responseSha256:audit?.sha256||null,
         text:audit?.text||body};
 }

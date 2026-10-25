@@ -58,6 +58,7 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
     const sourceDensity=[];
     const sourceLineages=[];
     const claimReports=[];
+    const referenceAudits=[];
     const quoteCoverage={evidenceQuotes:0,exactLocatedQuotes:0,ambiguousQuotes:0,
         nonLiteralQuotes:0,allVerbatimQuoteOffsetsLocated:false};
     let kept=0,rejected=0,windowsDone=0;
@@ -127,6 +128,10 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
         if(!perFileProvenance)return reject("document-multi-claim-provenance",
             "Не удалось сопоставить выводы с разделами каждого файла.");
         claimReports.push({fileIndex:info.index,provenance:perFileProvenance});
+        if(!result.referenceAudit||result.referenceAudit.sourceSha256!==info.sourceSha256)
+            return reject("document-multi-references",
+                "Не удалось сверить нумерованные ссылки с каждым файлом.");
+        referenceAudits.push({...result.referenceAudit,fileIndex:info.index});
         summaries.push({...coverage,fileIndex:info.index,name:info.name,
             sectionCoverage:result.sectionCoverage});
     }
@@ -166,5 +171,6 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
         evidenceDensity,
         evidenceLineage,
         claimProvenance,
+        referenceAudits,
         responseId:audit.id,responseSha256:audit.sha256,text:audit.text};
 }
