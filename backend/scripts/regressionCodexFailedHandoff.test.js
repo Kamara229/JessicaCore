@@ -132,8 +132,12 @@ test("Groq quota cannot strand Codex in endless interpretation retries",async()=
   assert.match(result.reply,/backend, Render и Supabase/);
 });
 
-test("nonquota malformed decisions still fail closed",async()=>{
-  await assert.rejects(interpretRelayTurn({
+test("nonquota malformed decisions give honest failure, never fake a test",async()=>{
+  const result=await interpretRelayTurn({
     message:"Проверка непонятного сообщения из чата"
-  },async()=>"{not-json"),/invalid-decision/);
+  },async()=>"{not-json");
+  assert.equal(result.action,"reply");
+  assert.equal(result.task,"");
+  assert.match(result.reply,/не выполнен/);
+  assert.match(result.reply,/автоматического повтора не было/);
 });
