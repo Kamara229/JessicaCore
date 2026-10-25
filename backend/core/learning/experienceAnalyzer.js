@@ -350,6 +350,7 @@ function getUsedSkills(
         !usage
         ||
         usage.used !== true
+        || usage.applied !== true
     ){
 
         return [];
@@ -368,15 +369,11 @@ function getUsedSkills(
     }
 
 
-    return usage.skills.filter(
+    const appliedIds=new Set(Array.isArray(usage.appliedSkillIds)
+        ? usage.appliedSkillIds : []);
 
-        item =>
-
-            item
-            &&
-            typeof item === "object"
-
-    );
+    return usage.skills.filter(item=>item && typeof item==="object"
+        && appliedIds.has(item.id || item.skillId));
 
 }
 
@@ -1088,6 +1085,20 @@ export function analyzeExecutionTrace(
 
     }
 
+
+    /*
+     * A Skill found in context but not proven applied may guide the
+     * planner, yet must not be reinforced or rediscovered as a copy.
+     */
+    const usage=getExperienceUsage(trace);
+    if(usage?.used === true && Array.isArray(usage.skills)
+        && usage.skills.length>0 && getUsedSkills(trace).length===0){
+        return buildIgnoreResult({
+            reason:"Выбранный Skill не подтверждён фактическими шагами Execution",
+            analysisType:"UNPROVEN_SKILL_APPLICATION",
+            metadata:{positiveReinforcementAllowed:false,experienceUsed:true}
+        });
+    }
 
     /*
      * =====================================================

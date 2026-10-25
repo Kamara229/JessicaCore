@@ -188,3 +188,50 @@ test("positive autonomous learning requires verified result and semantic validat
     assert.equal(analyzeExecutionTrace(bad).action,"IGNORE");
  }
 });
+
+
+test("successful selection without real Skill application never reinforces or re-discovers it",async()=>{
+ const {analyzeExecutionTrace}=await import("../core/learning/experienceAnalyzer.js");
+ const {analyzeExecutionTraceBatch}=await import("../core/learning/multiSkill/multiSkillAnalyzer.js");
+ const known={id:"date-difference-calculation",name:"Date Difference",
+   workflow:["Use native date_diff"],examples:[]};
+ const verified={
+   task:"Calculate 9 calendar days",status:"COMPLETED",
+   statistics:{completed:1},
+   result:{success:true,verified:true,status:"COMPLETED",
+     validation:{valid:true,degraded:false,outcomeType:"result"}},
+   experienceUsage:{used:true,found:true,skills:[known],
+     applied:false,appliedSkillIds:[]}
+ };
+ const single=analyzeExecutionTrace(verified);
+ assert.equal(single.action,"IGNORE");
+ assert.equal(single.analysisType,"UNPROVEN_SKILL_APPLICATION");
+ assert.equal(single.metadata.positiveReinforcementAllowed,false);
+ assert.equal(analyzeExecutionTraceBatch(verified)[0].action,"IGNORE");
+
+ const proven={...verified,experienceUsage:{
+   ...verified.experienceUsage,applied:true,appliedSkillIds:[known.id]
+ }};
+ const improvement=analyzeExecutionTrace(proven);
+ assert.notEqual(improvement.analysisType,"UNPROVEN_SKILL_APPLICATION");
+ assert.notEqual(improvement.action,"PATTERN_DISCOVERY");
+ const noSemanticProof={...proven,result:{...proven.result,verified:false}};
+ assert.equal(analyzeExecutionTrace(noSemanticProof).action,"IGNORE");
+});
+
+test("complex traces only attribute confirmed application to the exact child Skill",async()=>{
+ const {updateTraceFromSummary}=await import("../core/trace/traceResult.js");
+ const {createExecutionTrace}=await import("../core/trace/traceFactory.js");
+ const {resultUsesSkill}=await import("../core/learning/multiSkill/skillTraceResult.js");
+ const one={id:"verified-a"},two={id:"selected-b"};
+ const child={success:true,status:"COMPLETED",
+  experience:{used:true,found:true,applied:true,appliedSkillIds:[one.id],skills:[one,two]},
+  executionMeta:{usedTools:["date_diff"]}
+ };
+ assert.equal(resultUsesSkill(child,one.id),true);
+ assert.equal(resultUsesSkill(child,two.id),false);
+ const trace=createExecutionTrace("Calculate interval");
+ updateTraceFromSummary(trace,{success:true,status:"COMPLETED",results:[child]});
+ assert.equal(trace.experienceUsage.applied,true);
+ assert.deepEqual(trace.experienceUsage.appliedSkillIds,[one.id]);
+});

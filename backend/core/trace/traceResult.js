@@ -372,6 +372,17 @@ function collectExperience(
         experience.used === true;
 
 
+    // Applied requires tool-result attribution, not the compatibility "used" flag.
+    const validIds=new Set(safeArray(experience.skills).map(getSkillId).filter(Boolean));
+    const appliedIds=safeArray(experience.appliedSkillIds)
+        .filter(id=>typeof id==="string" && validIds.has(id));
+    if(experience.applied === true && appliedIds.length>0){
+        trace.experienceUsage.applied=true;
+        trace.experienceUsage.appliedSkillIds=[...new Set([
+            ...safeArray(trace.experienceUsage.appliedSkillIds),...appliedIds
+        ])];
+    }
+
     /*
      * Source.
      */

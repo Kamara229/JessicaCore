@@ -61,7 +61,7 @@ export function resultUsesSkill(
 
 
     if(
-        experience.used !== true
+        experience.used !== true || experience.applied !== true
     ){
 
         return false;
@@ -69,6 +69,8 @@ export function resultUsesSkill(
     }
 
 
+    const appliedIds=new Set(safeLearningArray(experience.appliedSkillIds));
+    if(!appliedIds.has(skillId))return false;
     return safeLearningArray(
         experience.skills
     )

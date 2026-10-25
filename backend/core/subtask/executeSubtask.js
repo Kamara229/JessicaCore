@@ -1285,6 +1285,8 @@ export async function executeSubtask(
 
         experience: {
 
+            applied:executionResult?.executionMeta?.experience?.applied === true,
+            appliedSkillIds:executionResult?.executionMeta?.experience?.appliedSkillIds || [],
             found:
                 executionExperience.found,
 

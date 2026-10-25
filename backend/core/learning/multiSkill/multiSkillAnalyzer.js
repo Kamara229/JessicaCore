@@ -36,6 +36,7 @@ function getUsedSkills(
         trace
             ?.experienceUsage
             ?.used !== true
+        || trace?.experienceUsage?.applied !== true
     ){
 
         return [];
@@ -43,13 +44,10 @@ function getUsedSkills(
     }
 
 
-    return uniqueLearningSkills(
-
-        trace
-            ?.experienceUsage
-            ?.skills
-
-    );
+    const appliedIds=new Set(Array.isArray(trace?.experienceUsage?.appliedSkillIds)
+        ? trace.experienceUsage.appliedSkillIds : []);
+    return uniqueLearningSkills(trace?.experienceUsage?.skills)
+        .filter(skill=>appliedIds.has(getLearningSkillId(skill)));
 
 }
 

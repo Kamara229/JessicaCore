@@ -21,6 +21,8 @@
  */
 
 
+import {inspectAppliedSkill} from "../../trace/traceSkillApplication.js";
+
 import {
     getExecutionId,
     getTraceId,
@@ -167,8 +169,14 @@ export function buildExperienceMeta(
 
 
 
+    const application=inspectAppliedSkill(context);
+
     return {
 
+
+        applied:application.applied,
+        appliedSkillIds:application.skillIds,
+        appliedStepIds:application.stepIds,
 
         // Finding a Skill is not evidence that its execution strategy ran.
         used:
