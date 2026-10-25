@@ -12,7 +12,12 @@ export function acknowledgeBackendProgress(message) {
       && /тест пока не повторять/iu.test(body)) {
     return "Поняла: тест не прошёл полностью. Проверь причину по GitHub, Render и Supabase, исправь backend и продолжай план. Тест пока не повторять.";
   }
-  if ((!isProgress && !standaloneStep) || !next) return null;
+  // Backend/CI status handoffs with an explicit next step need no Groq quota.
+  // Require "no Jessica test" and retain the existing safe-step guards below.
+  const explicitNoTest=/(?:тест(?:\s+Jessica)?\s+пока\s+не\s+(?:нужен|запрошен|повторять|запускать)|тест\s+пока\s+не\s+повторять)/iu.test(body);
+  const structuredStatus=/^(?:Learning\s+(?:Worker|Daemon|Pipeline)\b|GitHub\s+CI\b|Supabase\s*:|Skill\s+v\d+\b)/iu.test(body);
+  const safeStatusProgress=explicitNoTest && structuredStatus;
+  if ((!isProgress && !standaloneStep && !safeStatusProgress) || !next) return null;
   if (!/(?:CI|Render|GitHub|Supabase|backend|регресс|лог(?:и|ов)|депло|разв[её]рт|провер|Apache|TinyFish|web_fetch|первоисточник|загрузк)/iu.test(next[1]) ||
       /(?:APK|секрет|(?<!\p{L})ключ[а-яё]{0,5}(?!\p{L})|парол|настро(?:йк|ек)|владел|телефон|установ)/iu.test(next[1])) return null;
   const failedTest=/^тест (?:частично пройден|не пройден|не подтвержд[её]н|завершился (?:ошибкой|сбоем))/iu.test(body);
