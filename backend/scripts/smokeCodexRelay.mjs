@@ -32,12 +32,13 @@ async function interpret(payload, waitForDeploy = false) {
 
 const acknowledgement = await interpret({
     plan:"Улучшить обработку контекста, затем обсудить следующий шаг.", history:[],
-    message:"Backend обновлён. Сейчас тесты не нужны. Подтверди, что поняла, и попроси продолжить план."
+    message:"Обновил backend. Следующий шаг — проверить завершение CI и развёртывание Render. Тест пока не повторять."
 }, true);
 assert.equal(acknowledgement.action,"reply");
 assert.ok(acknowledgement.reply.trim());
 assert.equal(acknowledgement.task,"");
-console.log("PASS live contextual acknowledgement");
+assert.match(acknowledgement.reply,/GitHub, Render и Supabase/);
+console.log("PASS live deterministic backend handoff without Groq");
 
 const task = "Сколько будет 2 + 2?";
 const test = await interpret({plan:"Проверить арифметику", history:[],
