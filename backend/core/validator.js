@@ -1,6 +1,7 @@
 import { getDocumentReceipt } from "./composer/documentReceipt.js";
 import { requiresVerifiedComparison } from "./composer/comparisonEvidencePolicy.js";
 import {groundedPatentComparison} from "./composer/nativePatentComparison.js";
+import {extractOfficialLicenseExcerpt} from "./composer/officialLicenseExcerpt.js";
 import {checkProgrammingAnswerSafety} from "./validator/programmingAnswerSafety.js";
 import {checkMitPatentOverclaim} from "./validator/mitPatentOverclaim.js";
 import {checkOriginalEnglishQuote} from "./validator/originalEnglishQuoteGuard.js";
@@ -867,6 +868,18 @@ export async function validateResult(
     if(
         evidenceMode === "source_content"
     ){
+
+        if (answerResult?.source === "bounded-original-license-excerpt") {
+            const verified=extractOfficialLicenseExcerpt(task,plan,taskRunResult);
+            return verified?.text === answerResult.text &&
+                verified?.source === answerResult.source
+                ? buildSuccessResult("Дословная цитата сверена с первоисточником",
+                    OUTCOME_RESULT,{validationMode:"bounded-primary-text",degraded:false})
+                : buildValidationResult({valid:false,shouldRetry:true,
+                    reason:"Буквальная цитата не подтверждена текстом источника"},
+                    {validationMode:"bounded-primary-text",
+                     failureScope:FAILURE_SCOPE.PRESENTATION});
+        }
 
         if (answerResult?.source === "bounded-mit-patent-question") {
             const proof=groundedPatentComparison(task,plan,taskRunResult);
