@@ -6,6 +6,7 @@ import {identifyDocumentAnswer} from "./documentResponseIdentity.js";
 import {beginWindowLedger,noteVerifiedWindow,windowLedgerSummary} from "./documentWindowLedger.js";
 import {locateCitedDocumentFragments} from "./documentCitationSpans.js";
 import {createVerifiedClaimRecords,compareVerifiedDocumentClaims} from "./documentClaimComparison.js";
+import {auditDocumentSections} from "./documentSectionCoverage.js";
 
 /** Use only cryptographically verified complete pages; fail closed on gaps. */
 export async function analyzePagedLongDocument({task,attachment,generate,embedReceipt=true}) {
@@ -81,11 +82,16 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
     if(!claimComparison)return {success:false,mode:"document",stage:"document-comparison",
         text:"Не удалось проверить межраздельные ссылки на источники.",
         readingCoverage:windowLedgerSummary(ledger)};
+    const sectionCoverage=auditDocumentSections(plan,ledger,citationSpans,verifiedClaims);
+    if(!sectionCoverage?.allSectionsProcessed)
+        return {success:false,mode:"document",stage:"document-section-coverage",
+            text:"Один или несколько разделов не подтверждены.",
+            readingCoverage:windowLedgerSummary(ledger)};
     const audit=embedReceipt?identifyDocumentAnswer(body,kept,rejected):null;
     return {success:true,mode:"document",validated:false,evidenceChecked:true,
         groundedClaims:kept,unsupportedClaimsDropped:rejected,
         readingCoverage:windowLedgerSummary(ledger),
-        citationSpans,verifiedClaims,claimComparison,
+        citationSpans,verifiedClaims,claimComparison,sectionCoverage,
         responseId:audit?.id||null,responseSha256:audit?.sha256||null,
         text:audit?.text||body};
 }

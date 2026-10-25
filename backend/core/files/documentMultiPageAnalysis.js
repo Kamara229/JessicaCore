@@ -58,7 +58,8 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
         if(result?.success!==true||coverage?.allWindowsPresented!==true||
            coverage?.sourceSha256!==info.sourceSha256||
            coverage?.sourceChars!==info.sourceChars||
-           coverage?.processedWindows!==info.plannedWindows){
+           coverage?.processedWindows!==info.plannedWindows||
+           result?.sectionCoverage?.allSectionsProcessed!==true){
             return {success:false,mode:"document",
                 stage:result?.stage||"document-multi-coverage",
                 text:"Анализ нескольких документов не завершён. "+
@@ -86,7 +87,8 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
         citationSpans.push(...scopedSpans);
         verifiedClaims.push(...scopedClaims);
         sections.push(`Документ ${info.index}: ${info.name}\n${scoped}`);
-        summaries.push({...coverage,fileIndex:info.index,name:info.name});
+        summaries.push({...coverage,fileIndex:info.index,name:info.name,
+            sectionCoverage:result.sectionCoverage});
     }
     const body=sections.join("\n\n")+
         "\n\nПроверка: все подтверждённые страницы были переданы на анализ. "+
