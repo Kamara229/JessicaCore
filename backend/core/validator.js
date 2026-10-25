@@ -870,6 +870,11 @@ export async function validateResult(
         evidenceMode === "source_content"
     ){
 
+        if (answerResult?.source==="bounded-apache-patent-section" &&
+            groundedApachePatentSection(task,plan,taskRunResult)?.text===answerResult.text)
+            return buildSuccessResult("Source verified",OUTCOME_RESULT,
+                {validationMode:"bounded-primary-text",degraded:false});
+
         if (answerResult?.source === "bounded-original-license-excerpt") {
             const verified=extractOfficialLicenseExcerpt(task,plan,taskRunResult);
             return verified?.text === answerResult.text &&
