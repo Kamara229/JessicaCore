@@ -70,3 +70,63 @@ test("native canonical route remains grounded and does not falsely claim skill e
  assert.equal(cycle.experience.used,false);
  assert.equal(cycle.experience.skills[0].id,skill.id);
 });
+
+
+test("verified date Skill executes its real native date_diff step, not just the Planner DTO",async()=>{
+ const {tryCreateNativeSkillPlan}=await import("../core/planner/nativeSkillPlanner.js");
+ const {executeTaskRunner}=await import("../core/execution/stepExecution/taskRunnerExecutor.js");
+ await import("../tools/dateDiffTool.js");
+ const verified={
+   id:"date-difference-calculation",version:3,status:"published",enabled:true,
+   confidence:0.82,learning:{maturityLevel:"NEW",confidence:0.82,successCount:1},
+   executionProgram:{version:1,mode:"native",strategy:"date_difference",evidenceMode:"none"},
+   examples:[{success:true,executedTools:["date_diff"],result:{
+      success:true,verified:true,status:"COMPLETED",
+      validation:{valid:true,degraded:false}
+   }}]
+ };
+ const userTask="Рассчитай, сколько полных дней прошло до 18 октября 2026 года";
+ const chosen=buildExecutionExperienceContext({
+   found:true,source:"experience-search",confidence:0.92,experience:verified,
+   planningContext:{experience:{id:verified.id}}
+ });
+ assert.equal(chosen.skills[0].id,verified.id);
+ const planned=tryCreateNativeSkillPlan({
+   task:userTask,dependencyContext:"Дата выпуска 2026-10-09",
+   executionExperience:chosen,planningContext:{}
+ });
+ assert.equal(planned.handled,true);
+ assert.equal(planned.source,"experience:date-difference-calculation");
+ assert.equal(planned.plan.experience.used,true);
+ assert.equal(planned.plan.steps[0].tool,"date_diff");
+ const execution=createExecutionContext({
+   task:userTask,plan:planned.plan,planningContext:{},
+   experience:chosen
+ });
+ const actual=await executeTaskRunner(execution);
+ assert.equal(actual.success,true,JSON.stringify(actual.failure||{}));
+ assert.equal(execution.experience.used,true);
+ assert.equal(execution.experience.skills[0].id,verified.id);
+ assert.equal(execution.runResult?.success,true);
+ assert.equal(execution.runResult?.results?.[0]?.data?.fullDays,9);
+});
+
+test("unverified date evidence triggers native capability but not false Skill use",async()=>{
+ const {tryCreateNativeSkillPlan}=await import("../core/planner/nativeSkillPlanner.js");
+ const candidate={
+   id:"date-difference-calculation",enabled:true,
+   learning:{maturityLevel:"NEW",confidence:.8,successCount:1},
+   executionProgram:{version:1,mode:"native",strategy:"date_difference",evidenceMode:"none"},
+   examples:[{success:true,executedTools:["date_diff"],result:{
+     success:true,verified:false,status:"COMPLETED",validation:{valid:true}
+   }}]
+ };
+ const actual=tryCreateNativeSkillPlan({
+  task:"Рассчитай, сколько полных дней прошло до 18 октября 2026 года",
+  dependencyContext:"Дата выпуска 2026-10-09",
+  executionExperience:{skills:[candidate]},planningContext:{}
+ });
+ assert.equal(actual.handled,true);
+ assert.equal(actual.source,"native-date-diff");
+ assert.equal(actual.plan.experience.used,false);
+});
