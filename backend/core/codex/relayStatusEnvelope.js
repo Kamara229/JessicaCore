@@ -14,8 +14,15 @@ export function deterministicStatusHandoff(message) {
     if (!body || body.length>900) return null;
     // This path is intended only for positive technical progress, not plans,
     // arguments, quoted instructions or ambiguous test outcomes.
-    if (!/^(?:Добавил|Исправил|Обновил|Доработал|Внедрил|Реализовал|Усилил|Проверил|Причина\s+сбоя\s+найдена)/iu.test(body))
-        return null;
+    const progressVerb="(?:Добавил|Исправил|Обновил|Доработал|Внедрил|Реализовал|Усилил|Проверил)";
+    const directProgress=new RegExp(`^(?:${progressVerb}|Причина\\s+сбоя\\s+найдена)`,"iu").test(body);
+    // Incident updates often start with a precise diagnosis rather than
+    // the verb. They still require the later completed fix AND commit hash.
+    const quotaIncident=new RegExp(
+        `^Причина\\s+(?:HTTP\\s*)?429(?:\\s|\\s*[—–:-])[^.!?]{0,150}[.!?]\\s+${progressVerb}[^.!?]{0,160}\\([a-f\\d]{7,40}\\)`,
+        "iu"
+    ).test(body);
+    if (!directProgress && !quotaIncident) return null;
     if (!/\([a-f\d]{7,40}\)/iu.test(body)) return null;
     if (!/(?:backend|регресс|CI|Render|Supabase)/iu.test(body)) return null;
     if (!/(?:тест\s+(?:в\s+(?:обычном\s+)?чате\s+Jessica\s+)?пока\s+не\s+(?:нужен|запрошен|повторять|запускать)|тест\s+пока\s+не\s+повторять)/iu.test(body))

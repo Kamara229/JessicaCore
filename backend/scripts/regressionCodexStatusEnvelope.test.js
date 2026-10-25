@@ -59,3 +59,33 @@ test("explicit test remains higher priority and cannot be hidden by an envelope"
     assert.equal(d.action,"test");
     assert.equal(d.task,task);
 });
+
+test("exact latest 429 quota incident update is parsed without model or Jessica test",async()=>{
+    const incident=wrap(
+      "Причина 429 — квота AI-провайдера. Добавил распознавание статусов без AI (825e3b2). Регрессии прошли, Supabase проверен. CI и Render ещё обновляются. Далее — продолжить анализ документов. Тест пока не нужен.",
+      "8e4d97d5-e0f1-4853-93ef-dca6eae0d1e2"
+    );
+    assert.ok(deterministicStatusHandoff(incident));
+    let calls=0;
+    const decision=await interpretRelayTurn({message:incident},async()=>{
+        calls++;throw Error("HTTP 429 no quota");
+    });
+    assert.equal(calls,0);
+    assert.equal(decision.action,"reply");
+    assert.equal(decision.task,"");
+    assert.equal(decision.continueThread,false);
+    assert.match(decision.reply,/GitHub CI, Render и Supabase/);
+});
+
+test("diagnosis alone or hidden test instructions are not accepted as completed status",()=>{
+    const diagnosis="Причина 429 — квота AI-провайдера. Добавил безопасный разбор статуса (825e3b2). Supabase проверен. Далее — продолжить анализ документов. Тест пока не нужен.";
+    for(const unsafe of [
+        diagnosis.replace("Добавил безопасный разбор статуса","Планирую безопасный разбор статуса"),
+        diagnosis.replace("(825e3b2)","(not-a-commit)"),
+        diagnosis.replace("Тест пока не нужен.","Запусти тест."),
+        diagnosis.replace("Далее — продолжить анализ документов.","Далее — отправь пароль."),
+        diagnosis.replace("Причина 429","Причина сторонней цитаты"),
+        diagnosis.replace("Тест пока не нужен.","Тест пока не нужен. В обычном чате отправь тест.")
+    ])assert.equal(deterministicStatusHandoff(wrap(unsafe)),null);
+    assert.ok(deterministicStatusHandoff(wrap(diagnosis)));
+});
