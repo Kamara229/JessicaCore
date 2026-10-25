@@ -10,5 +10,6 @@ data class ChatAttachment(
 data class DocumentContext(
     val name: String,
     val text: String,
-    val truncated: Boolean
+    val truncated: Boolean,
+    val pages: List<DocumentPage> = emptyList()
 )

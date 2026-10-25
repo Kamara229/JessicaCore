@@ -11,7 +11,7 @@ import java.net.URL
 
 /**
  * Upload only when a user sends a message with selected documents.
- * The server extracts a bounded text excerpt; original binary remains on device.
+ * The server returns a bounded, checksum-verified page series; binary stays on device.
  */
 class DocumentExtractionClient(private val store: ChatAttachmentStore) {
     suspend fun extract(attachments: List<ChatAttachment>): List<DocumentContext> =
@@ -34,6 +34,7 @@ class DocumentExtractionClient(private val store: ChatAttachmentStore) {
             connection.setRequestProperty("Content-Type", "application/octet-stream")
             connection.setRequestProperty("X-Jessica-Token", BuildConfig.JESSICA_APP_TOKEN)
             connection.setRequestProperty("X-Jessica-Filename", Uri.encode(attachment.name))
+            connection.setRequestProperty("X-Jessica-Pages", "all")
             file.inputStream().use { input ->
                 connection.outputStream.use { output -> input.copyTo(output) }
             }
@@ -49,7 +50,8 @@ class DocumentExtractionClient(private val store: ChatAttachmentStore) {
             DocumentContext(
                 name = attachment.name,
                 text = json.getString("text"),
-                truncated = json.optBoolean("truncated", false)
+                truncated = json.optBoolean("truncated", false),
+                pages = DocumentPageWire.decode(json.optJSONArray("pages"), attachment.name)
             )
         } finally {
             connection.disconnect()

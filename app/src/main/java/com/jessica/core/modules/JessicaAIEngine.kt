@@ -3,6 +3,7 @@ package com.jessica.core.modules
 import com.jessica.core.BuildConfig
 import com.jessica.core.modules.chat.ChatMessage
 import com.jessica.core.modules.chat.DocumentContext
+import com.jessica.core.modules.chat.DocumentPageWire
 import com.jessica.core.modules.chat.ChatContextWindow
 import org.json.JSONArray
 import kotlinx.coroutines.Dispatchers
@@ -197,12 +198,19 @@ class JessicaAIEngine(
                             put("name", document.name)
                             put("text", document.text)
                             put("truncated", document.truncated)
+                            if (document.pages.isNotEmpty()) put("pages", DocumentPageWire.encode(document.pages))
                         })
                     }
                     put("attachments", attachments)
 
                 }
 
+
+            if (requestJson.toString().toByteArray(Charsets.UTF_8).size > 900_000)
+                return AIResult(success = false, text = tr(
+                    "Документы превышают безопасный лимит передачи. Отправь один документ.",
+                    "Documents exceed the safe request limit. Send one document."
+                ))
 
             connection
                 .outputStream

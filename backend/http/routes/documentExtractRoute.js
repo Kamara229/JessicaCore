@@ -6,6 +6,7 @@ import { requireJessicaAuthorization } from "../auth/jessicaAuth.js";
 import { pageDocumentText, parseDocumentTextOffset } from "../../core/files/documentTextWindow.js";
 import { buildDocumentSectionIndex } from "../../core/files/documentSectionIndex.js";
 import {parseSectionIndex,selectDocumentSectionPage} from "../../core/files/documentSectionWindow.js";
+import {buildDocumentPageBatch} from "../../core/files/documentPageBatch.js";
 
 const require = createRequire(import.meta.url);
 const parsePdf = require("pdf-parse");
@@ -117,6 +118,22 @@ export function registerDocumentExtractRoute(app) {
                     offset: page.offset,
                     hasMore: page.hasMore
                 });
+                const batchMode=req.get("X-Jessica-Pages");
+                if(batchMode!==undefined && batchMode!=="all")
+                    return res.status(400).json({success:false,text:"Неизвестный режим извлечения"});
+                if(batchMode==="all"){
+                    if(selected!==null||req.get("X-Jessica-Text-Offset")!==undefined)
+                        return res.status(400).json({success:false,text:"Нельзя совмещать страницы и смещение"});
+                    const pages=buildDocumentPageBatch(complete,name);
+                    if(!pages)
+                        return res.status(413).json({success:false,text:
+                            "Документ превышает лимит единого набора страниц; требуется обработка по частям."});
+                    const payload={success:true,name,...page,pages,sectionIndex};
+                    if(Buffer.byteLength(JSON.stringify(payload),"utf8")>850000)
+                        return res.status(413).json({success:false,text:
+                            "Извлечённый текст слишком большой для одного запроса."});
+                    return res.json(payload);
+                }
                 return res.json({success: true, name, ...page,
                     sectionIndex});
             } catch (error) {
