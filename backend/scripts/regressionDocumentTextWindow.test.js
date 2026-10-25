@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import {
     DOCUMENT_WINDOW_CHARS,
     pageDocumentText,
@@ -54,6 +55,7 @@ test("offsets reject malformed, unsafe, negative or out-of-range values", () => 
     assert.equal(pageDocumentText("текст", -1), null);
     assert.deepEqual(pageDocumentText("текст"), {
         text:"текст", truncated:false, extractedChars:5,
-        offset:0, nextOffset:null, hasMore:false
+        offset:0, nextOffset:null, hasMore:false,
+        sourceSha256: createHash("sha256").update("текст").digest("hex")
     });
 });
