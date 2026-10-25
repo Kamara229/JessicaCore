@@ -11,6 +11,8 @@ export function acknowledgeBackendProgress(message) {
   if ((!isProgress && !standaloneStep) || !next) return null;
   if (!/(?:CI|Render|GitHub|Supabase|backend|регресс|лог(?:и|ов)|депло|разв[её]рт|провер)/iu.test(next[1]) ||
       /(?:APK|секрет|ключ|парол|настро(?:йк|ек)|владел|телефон|установ)/iu.test(next[1])) return null;
-  return (standaloneStep?"Поняла следующий шаг. ":"Поняла: предыдущий шаг backend завершён. ") +
+  const failedTest=/^тест (?:не пройден|не подтвержд[её]н|завершился (?:ошибкой|сбоем))/iu.test(body);
+  return (failedTest?"Поняла: тест не пройден, исправление backend учтено. ":
+      standaloneStep?"Поняла следующий шаг. ":"Поняла: предыдущий шаг backend завершён. ") +
       "Проверь указанный шаг через свои подключения GitHub, Render и Supabase и продолжай план. Тест в обычном чате Jessica пока не запрошен.";
 }
