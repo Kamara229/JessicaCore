@@ -8,6 +8,10 @@ export function acknowledgeBackendProgress(message) {
   const isProgress=/^(?:тест (?:пройден|частично пройден|прош[её]л|не пройден|не подтвержд[её]н|завершился (?:ошибкой|сбоем))|(?:исправил|обновил|доработал|вн[её]с)(?:\s|[.,:])|(?:проверка|исправление)\s+завершен[ао]|причина\s+сбоя\s+найдена|коммит(?:\s|[.,:])|Render\s+Live\s*:|GitHub\s*:|CI\s+(?:пройд[её]н|заверш[её]н|выполняется))/iu.test(body);
   const next=/следующ(?:ий|им)\s+шаг\s*[:—–-]?\s*(.{3,240})/iu.exec(body);
   const standaloneStep=/^следующ(?:ий|им)\s+шаг\s*[:—–-]?\s+/iu.test(body);
+  if (!next && /^тест (?:частично пройден|не пройден|не подтвержд[её]н)/iu.test(body)
+      && /тест пока не повторять/iu.test(body)) {
+    return "Поняла: тест не прошёл полностью. Проверь причину по GitHub, Render и Supabase, исправь backend и продолжай план. Тест пока не повторять.";
+  }
   if ((!isProgress && !standaloneStep) || !next) return null;
   if (!/(?:CI|Render|GitHub|Supabase|backend|регресс|лог(?:и|ов)|депло|разв[её]рт|провер|Apache|TinyFish|web_fetch|первоисточник|загрузк)/iu.test(next[1]) ||
       /(?:APK|секрет|(?<!\p{L})ключ[а-яё]{0,5}(?!\p{L})|парол|настро(?:йк|ек)|владел|телефон|установ)/iu.test(next[1])) return null;
