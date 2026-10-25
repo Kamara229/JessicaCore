@@ -14,11 +14,11 @@ class CodexClient {
     suspend fun interpret(payload: JSONObject): JSONObject = withContext(Dispatchers.IO) {
         // Interpretation has no side effects. Only transient transport failures may be retried;
         // executing a test and sending a ChatGPT message are never retried here.
-        for (attempt in 0..2) {
+        for (attempt in 0..1) {
             try { return@withContext request(payload) }
             catch (e: TransientFailure) {
-                if (attempt == 2) throw e
-                delay((attempt + 1) * 3000L)
+                if (attempt == 1) throw e
+                delay(2000L)
             }
         }
         error("Понимание ответа недоступно")
@@ -30,8 +30,8 @@ class CodexClient {
         val connection = URL("https://jessicacore.onrender.com/api/codex/relay/interpret").openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "POST"
-            connection.connectTimeout = 45000
-            connection.readTimeout = 90000
+            connection.connectTimeout = 12000
+            connection.readTimeout = 25000
             connection.doOutput = true
             connection.setRequestProperty("X-Jessica-Token", BuildConfig.JESSICA_APP_TOKEN)
             connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
@@ -39,7 +39,9 @@ class CodexClient {
             val code = connection.responseCode
             val raw = (if (code in 200..299) connection.inputStream else connection.errorStream)
                 ?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (code in setOf(429, 502, 504) || (code == 503 && !raw.contains("relay-understanding-unavailable")))
+            if (code == 429)
+                throw IOException("Ограничение запросов к анализу: HTTP 429")
+            if (code in setOf(502, 504) || (code == 503 && !raw.contains("relay-understanding-unavailable")))
                 throw TransientFailure("Сервер временно недоступен: HTTP $code")
             val json = runCatching { JSONObject(raw) }.getOrElse { throw IOException("Сервер вернул непонятный ответ") }
             if (code !in 200..299 || !json.optBoolean("success"))
