@@ -141,3 +141,25 @@ test("nonquota malformed decisions give honest failure, never fake a test",async
   assert.match(result.reply,/не выполнен/);
   assert.match(result.reply,/автоматического повтора не было/);
 });
+
+
+test("real diagnosed failure progress bypasses unavailable AI and does not rerun Jessica test",async()=>{
+ const actual=[
+   "JESSICA_REPLY_77984419-fd1b-4278-8892-d248529432a1",
+   "Причина сбоя найдена: формат запроса теста не распознавался без AI.",
+   "Исправил backend (d67c8ed). Render Live. Supabase проверен, изменений не требуется.",
+   "Следующий шаг — проверить CI. Тест пока не повторять.",
+   "JESSICA_END_77984419-fd1b-4278-8892-d248529432a1"
+ ].join("\n");
+ let modelCalls=0;
+ const result=await interpretRelayTurn({message:actual},async()=>{
+   modelCalls++;throw Error("429 quota exceeded");
+ });
+ assert.equal(modelCalls,0);
+ assert.equal(result.action,"reply");
+ assert.equal(result.task,"");
+ assert.equal(result.continueThread,false);
+ assert.match(result.reply,/Проверь указанный шаг через свои подключения/);
+ assert.match(result.reply,/Тест в обычном чате Jessica пока не запрошен/);
+ assert.equal(acknowledgeBackendProgress("Причина сбоя найдена: формат не распознавался."),null);
+});
