@@ -4,6 +4,7 @@ import "../tools/dateDiffTool.js";
 import { executeTool } from "../tools/toolRegistry.js";
 import { tryCreateNativeSkillPlan } from "../core/planner/nativeSkillPlanner.js";
 import { extractExplicitDateRange } from "../core/native/explicitDateRange.js";
+import { searchExperience } from "../experience/search/experienceSearch.js";
 
 test("explicit excluded 27 February endpoint is not advanced twice", async () => {
     const task = "Сколько дней с 27 февраля по 2 марта 2024 года (27-е исключить, 2-е включить)?";
@@ -49,4 +50,21 @@ test("decomposed between-and instruction stays executable during AI 429", async 
         assert.equal(executed.data.fullDays,8);
         assert.match(executed.text,/8 полных календарных дней/);
     }
+});
+
+test("cross-month date intent retrieves native date Skill without claiming use prematurely",()=>{
+    const skill={id:"date-difference-calculation",enabled:true,status:"published",
+        executionProgram:{mode:"native",version:1,strategy:"date_difference"},
+        learning:{maturityLevel:"LEARNING",confidence:.82,successCount:2},
+        examples:[{success:true,executedTools:["date_diff"],result:{
+            success:true,verified:true,status:"COMPLETED",validation:{valid:true,degraded:false}
+        }}]};
+    const task="Определить количество дней между 27 октября и 3 ноября 2026 года, исключая 27 октября";
+    const found=searchExperience(task,[skill]);
+    assert.equal(found.found,true);
+    assert.equal(found.experience,skill);
+    const planned=tryCreateNativeSkillPlan({task,executionExperience:{skills:[found.experience]}});
+    assert.equal(planned.source,"experience:date-difference-calculation");
+    assert.equal(planned.plan.steps[0].tool,"date_diff");
+    assert.equal(searchExperience("Объясни основы бухучёта",[skill]).found,false);
 });
