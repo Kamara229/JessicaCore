@@ -90,3 +90,16 @@ assert.equal(compact.action,"test");
 assert.equal(compact.task,shortTest);
 assert.equal(compact.continueThread,false);
 console.log("PASS live compact test handoff without conversational model");
+
+const failed = await interpret({
+ plan:"Продолжить backend-проверку после неудачного теста",history:[],
+ message:[
+   "JESSICA_REPLY_766118ab-87f4-4052-abdc-0078eff08135",
+   "Тест не пройден: селектор не выбрал первоисточник. Исправил backend: Apache 2.0 загружается напрямую с официального URL, без поиска (d09f42c). Следующий шаг — проверить CI и развёртывание Render; тест пока не повторять.",
+   "JESSICA_END_766118ab-87f4-4052-abdc-0078eff08135"
+ ].join("\n")
+},true);
+assert.equal(failed.action,"reply");
+assert.equal(failed.task,"");
+assert.match(failed.reply,/Тест в обычном чате Jessica пока не запрошен/);
+console.log("PASS live failed-test next-step handoff");
