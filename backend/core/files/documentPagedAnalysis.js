@@ -1,6 +1,7 @@
 import {assembleDocumentPages} from "./documentPageAssembly.js";
 import {createLosslessWindowEvidence} from "./documentWindowEvidence.js";
 import {planDocumentSectionWindows} from "./documentSectionReadPlan.js";
+import {planDocumentOverflowBatches} from "./documentOverflowReadBatches.js";
 import {validateAndRenderDocumentAnswer} from "./documentAnswerContract.js";
 import {identifyDocumentAnswer} from "./documentResponseIdentity.js";
 import {beginWindowLedger,noteVerifiedWindow,windowLedgerSummary} from "./documentWindowLedger.js";
@@ -26,10 +27,19 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
     if(!assembled)return {success:false,mode:"document",stage:"document-pages",
         text:"Страницы документа не прошли проверку целостности."};
     const plan=planDocumentSectionWindows(assembled.text);
-    if(!plan.complete)return {success:false,mode:"document",stage:"document-read-plan",
-        text:"Полный анализ требует продолжения по частям. Не подтверждена полнота.",
-        readingCoverage:{plannedWindows:plan.windows.length,processedWindows:0,
-            complete:false,reason:plan.reason,sourceChars:assembled.text.length}};
+    if(!plan.complete){
+        const overflowBatches=plan.reason==="window-limit"?
+            planDocumentOverflowBatches(assembled.text,hash):null;
+        return {success:false,mode:"document",stage:"document-read-plan",
+            text:"Полный анализ требует продолжения по частям. Не подтверждена полнота.",
+            readingCoverage:{
+                plannedWindows:overflowBatches?.totalWindows??plan.windows.length,
+                processedWindows:0,complete:false,reason:plan.reason,
+                sourceChars:assembled.text.length,
+                ...(overflowBatches?{overflowBatches}:{}),
+                completeSourceAnalysisConfirmed:false
+            }};
+    }
     const ledger=beginWindowLedger(plan,hash);
     if(!ledger)return {success:false,mode:"document",stage:"document-source-coverage",
         text:"Не совпадает контрольная сумма окон документа."};
