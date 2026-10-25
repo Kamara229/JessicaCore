@@ -428,7 +428,7 @@ function buildDateDiffPlan({
 
     const elapsedMode =
 
-        /(прошло|с\s+момента|elapsed|since|исключить|исключая|не\s+учитывать)/iu
+        /(прошло|с\s+момента|elapsed|since|exclud\w*|omit(?:ting)?|not\s+including|исключить|исключая|не\s+учитывать)/iu
             .test(
                 taskText
             );
