@@ -22,7 +22,10 @@ export function deterministicStatusHandoff(message) {
         `^Причина\\s+(?:HTTP\\s*)?429(?:\\s|\\s*[—–:-])[^.!?]{0,150}[.!?]\\s+${progressVerb}[^.!?]{0,160}\\([a-f\\d]{7,40}\\)`,
         "iu"
     ).test(body);
-    if (!directProgress && !quotaIncident) return null;
+    // CI notes can start with the previous run, then a completed code fix.
+    // The returned action is an acknowledgement, not a verified test result.
+    const ciProgress=/^Предыдущий\s+(?:общий\s+)?CI\s+(?:успешен|пройден|заверш[её]н\s+успешно)\.\s+(?:Добавил|Исправил|Обновил|Доработал|Внедрил|Реализовал|Усилил)[^.!?]{0,180}\([a-f\d]{7,40}\)/iu.test(body);
+    if (!directProgress && !quotaIncident && !ciProgress) return null;
     if (!/\([a-f\d]{7,40}\)/iu.test(body)) return null;
     if (!/(?:backend|регресс|CI|Render|Supabase)/iu.test(body)) return null;
     if (!/(?:тест\s+(?:в\s+(?:обычном\s+)?чате\s+Jessica\s+)?пока\s+не\s+(?:нужен|запрошен|повторять|запускать)|тест\s+пока\s+не\s+повторять)/iu.test(body))
@@ -31,11 +34,18 @@ export function deterministicStatusHandoff(message) {
     if (/(?:запусти|выполни|проведи|повтори|отправь|создай|открой)\s+(?:новый\s+)?(?:тест|чат)|(?:в\s+обычном\s+чате\s+отправь)|\bAPK\b|(?:парол|секрет|API[- ]?ключ|токен|настройк|удалить|удали|телефон|установить|установи)/iu.test(body))
         return null;
     const next=/(?:Следующий\s+шаг|Далее)\s*[:—–-]\s*([^.!?]{6,180})/iu.exec(body);
-    if (!next) return null;
-    const target=next[1].trim();
-    if (!/^(?:провер(?:ить|ка|ять)|завершить\s+проверку|продолжить|перейти\s+к|сопоставить)\s+/iu.test(target))
-        return null;
-    if (!/(?:\bCI\b|Render|GitHub|Supabase|backend|регресс|разв[её]рт|анализ|документ|план|сопоставлен|цитат)/iu.test(target))
+    if (next) {
+        const target=next[1].trim();
+        if (!/^(?:провер(?:ить|ка|ять)|завершить\s+проверку|продолжить|перейти\s+к|сопоставить)\s+/iu.test(target))
+            return null;
+        if (!/(?:\bCI\b|Render|GitHub|Supabase|backend|регресс|разв[её]рт|анализ|документ|план|сопоставлен|цитат)/iu.test(target))
+            return null;
+    } else if (!ciProgress ||
+        !/(?:Новый|Текущий)\s+(?:общий\s+)?CI\s+(?:ещ[её]\s+)?(?:ид[её]т|выполняется|в\s+процессе|запущен)/iu.test(body) ||
+        !/(?:backend[- ]регресси(?:и|онные тесты)|регрессии)\s+прошли/iu.test(body) ||
+        !/Render\s+Live/iu.test(body) ||
+        !/Supabase\s+проверен/iu.test(body) ||
+        !/Тест\s+пока\s+не\s+нужен\.?$/iu.test(body))
         return null;
     return "Поняла: предыдущий шаг backend отмечен, но тест Jessica не выполнялся. Проверь GitHub CI, Render и Supabase и продолжай текущий план. Тест в обычном чате Jessica пока не нужен.";
 }

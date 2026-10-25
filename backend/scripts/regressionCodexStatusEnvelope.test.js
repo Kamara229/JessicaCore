@@ -89,3 +89,31 @@ test("diagnosis alone or hidden test instructions are not accepted as completed 
     ])assert.equal(deterministicStatusHandoff(wrap(unsafe)),null);
     assert.ok(deterministicStatusHandoff(wrap(diagnosis)));
 });
+
+test("completed prior CI and new ongoing CI do not require AI quota or Jessica test",async()=>{
+ const status=wrap(
+  "Предыдущий CI успешен. Добавил учёт ссылок по главам (36088e7); исправил выявленную CI ошибку (16ee42f). Backend-регрессии прошли, Render Live, Supabase проверен. Новый общий CI ещё идёт. Тест пока не нужен.",
+  "380702c8-a4ea-4cf0-81ae-7ff47ddb3d82");
+ assert.ok(deterministicStatusHandoff(status));
+ let calls=0;
+ const answer=await interpretRelayTurn({message:status},async()=>{calls++;throw Error("HTTP 429 quota exceeded");});
+ assert.equal(calls,0);
+ assert.equal(answer.action,"reply");
+ assert.equal(answer.task,"");
+ assert.equal(answer.continueThread,false);
+ assert.match(answer.reply,/GitHub CI, Render и Supabase/);
+});
+test("quota-free no-next progress rejects unsafe requests and incomplete status",()=>{
+ const msg="Предыдущий CI успешен. Добавил учёт ссылок по главам (36088e7); исправил выявленную CI ошибку (16ee42f). Backend-регрессии прошли, Render Live, Supabase проверен. Новый общий CI ещё идёт. Тест пока не нужен.";
+ for(const body of [
+  msg.replace("(36088e7)","(uncommitted)"),
+  msg.replace("Добавил учёт ссылок","Планирую учёт ссылок"),
+  msg.replace("Backend-регрессии прошли","Backend-регрессии не проверены"),
+  msg.replace("Render Live","Render failed"),
+  msg.replace("Supabase проверен","Supabase неизвестен"),
+  msg.replace("Новый общий CI ещё идёт","Новый общий CI завершился с ошибкой"),
+  msg.replace("Тест пока не нужен","Запусти тест"),
+  msg.replace("Тест пока не нужен","Тест пока не нужен. Отправь пароль"),
+  msg.replace("Новый общий CI ещё идёт","Новый общий CI ещё идёт. Далее — установи APK")
+ ])assert.equal(deterministicStatusHandoff(wrap(body)),null);
+});
