@@ -70,8 +70,11 @@ export function analyzeExecutionTraceBatch(
         );
 
 
+    // Even one applied Skill in a complex parent trace needs its own
+    // child verdict. Parent success must never override a failed child.
     if(
-        skills.length <= 1
+        skills.length === 0 ||
+        !Array.isArray(trace?.result?.results)
     ){
 
         return [
