@@ -163,3 +163,23 @@ test("real diagnosed failure progress bypasses unavailable AI and does not rerun
  assert.match(result.reply,/Тест в обычном чате Jessica пока не запрошен/);
  assert.equal(acknowledgeBackendProgress("Причина сбоя найдена: формат не распознавался."),null);
 });
+
+
+test("partial cross-year answer with no follow-up step is handed to backend without AI",async()=>{
+  const message=[
+    "JESSICA_REPLY_d9adc195-6335-4cc4-b6f2-d4e0f510a1fc",
+    "Тест частично пройден: 4 дня — верно, объяснения нет. Причина: Planner не распознал английское «excluding» и выбрал difference.",
+    "Learning ошибочно поставил улучшение в очередь. Изменения GitHub заблокированы. Тест пока не повторять.",
+    "JESSICA_END_d9adc195-6335-4cc4-b6f2-d4e0f510a1fc"
+  ].join("\n");
+  let calls=0;
+  const result=await interpretRelayTurn({message},async()=>{
+    calls++;throw Error("Provider unavailable");
+  });
+  assert.equal(calls,0);
+  assert.equal(result.action,"reply");
+  assert.equal(result.task,"");
+  assert.match(result.reply,/тест не прошёл полностью/i);
+  assert.match(result.reply,/GitHub, Render и Supabase/);
+  assert.match(result.reply,/Тест пока не повторять/);
+});
