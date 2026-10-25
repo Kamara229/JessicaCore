@@ -68,3 +68,21 @@ test("cross-month date intent retrieves native date Skill without claiming use p
     assert.equal(planned.plan.steps[0].tool,"date_diff");
     assert.equal(searchExperience("Объясни основы бухучёта",[skill]).found,false);
 });
+
+
+test("English decomposition retains excluded December start and Russian count explanation",async()=>{
+  const utterances=[
+    "Сколько дней с 30 декабря 2026 по 3 января 2027, исключая 30 декабря? Объясни расчёт",
+    "Calculate the number of days between 30 December 2026 and 3 January 2027, excluding 30 December, and explain the calculation."
+  ];
+  for(const task of utterances){
+    const plan=tryCreateNativeSkillPlan({task,executionExperience:{skills:[]}});
+    assert.equal(plan.handled,true,task);
+    assert.equal(plan.plan.steps[0].arguments.mode,"elapsed");
+    assert.equal(plan.plan.steps[0].arguments.startDate,"2026-12-30");
+    assert.equal(plan.plan.steps[0].arguments.endDate,"2027-01-03");
+    const reply=await executeTool("date_diff",plan.plan.steps[0].arguments);
+    assert.equal(reply.data?.fullDays,4);
+    assert.match(reply.text,/2026-12-31, 2027-01-01, 2027-01-02, 2027-01-03/);
+  }
+});
