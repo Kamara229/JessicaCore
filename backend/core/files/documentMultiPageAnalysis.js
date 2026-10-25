@@ -7,6 +7,7 @@ import {scopeCitedDocumentFragments} from "./documentCitationSpans.js";
 import {scopeVerbatimQuoteRanges} from "./documentVerbatimQuotes.js";
 import {scopeVerifiedClaimRecords,compareVerifiedDocumentClaims} from "./documentClaimComparison.js";
 import {markMultipleDocumentQuotaInterruption} from "./documentQuotaCoverage.js";
+import {summarizeMultiDocumentCitationDensity} from "./documentEvidenceDensity.js";
 
 const MAX_FILES=3;
 const MAX_WINDOWS=16;
@@ -52,6 +53,7 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
         "Отправь документы по одному; частичный анализ не выдаётся за полный.");
     const summaries=[],sections=[],citationSpans=[],verifiedClaims=[];
     const quoteRanges=[];
+    const sourceDensity=[];
     const quoteCoverage={evidenceQuotes:0,exactLocatedQuotes:0,ambiguousQuotes:0,
         nonLiteralQuotes:0,allVerbatimQuoteOffsetsLocated:false};
     let kept=0,rejected=0,windowsDone=0;
@@ -108,6 +110,10 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
         citationSpans.push(...scopedSpans);
         verifiedClaims.push(...scopedClaims);
         sections.push(`Документ ${info.index}: ${info.name}\n${scoped}`);
+        if(!result.evidenceDensity?.sourceFullySubmitted)
+            return reject("document-multi-density",
+                "Не удалось подтвердить полный учёт фрагментов исходных файлов.");
+        sourceDensity.push({fileIndex:info.index,report:result.evidenceDensity});
         summaries.push({...coverage,fileIndex:info.index,name:info.name,
             sectionCoverage:result.sectionCoverage});
     }
@@ -120,6 +126,9 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
     quoteCoverage.allVerbatimQuoteOffsetsLocated=
         quoteCoverage.evidenceQuotes>0 &&
         quoteCoverage.evidenceQuotes===quoteCoverage.exactLocatedQuotes;
+    const evidenceDensity=summarizeMultiDocumentCitationDensity(sourceDensity);
+    if(!evidenceDensity)return reject("document-multi-density",
+        "Не удалось совместить охват цитирования исходных файлов.");
     const audit=identifyDocumentAnswer(body,kept,rejected);
     return {success:true,mode:"document",validated:false,evidenceChecked:true,
         groundedClaims:kept,unsupportedClaimsDropped:rejected,
@@ -129,5 +138,6 @@ export async function analyzeMultiplePagedDocuments({task,attachments,generate})
             exactTextCoverageConfirmed:true,completeSourceAnalysisConfirmed:false},
         citationSpans,verifiedClaims,claimComparison,
         quoteRanges,quoteCoverage,
+        evidenceDensity,
         responseId:audit.id,responseSha256:audit.sha256,text:audit.text};
 }

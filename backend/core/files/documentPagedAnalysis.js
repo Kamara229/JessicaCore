@@ -9,6 +9,7 @@ import {createVerifiedClaimRecords,compareVerifiedDocumentClaims} from "./docume
 import {auditDocumentSections} from "./documentSectionCoverage.js";
 import {locateVerbatimQuoteRanges} from "./documentVerbatimQuotes.js";
 import {markDocumentQuotaInterruption} from "./documentQuotaCoverage.js";
+import {measureDocumentCitationDensity} from "./documentEvidenceDensity.js";
 
 /** Use only cryptographically verified complete pages; fail closed on gaps. */
 export async function analyzePagedLongDocument({task,attachment,generate,embedReceipt=true}) {
@@ -104,12 +105,17 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
     quoteCoverage.allVerbatimQuoteOffsetsLocated=
         quoteCoverage.evidenceQuotes>0 &&
         quoteCoverage.evidenceQuotes===quoteCoverage.exactLocatedQuotes;
+    const evidenceDensity=measureDocumentCitationDensity(plan,quoteRanges);
+    if(!evidenceDensity)return {success:false,mode:"document",stage:"document-evidence-density",
+        text:"Не удалось проверить привязку цитат к прочитанным фрагментам.",
+        readingCoverage:windowLedgerSummary(ledger)};
     const audit=embedReceipt?identifyDocumentAnswer(body,kept,rejected):null;
     return {success:true,mode:"document",validated:false,evidenceChecked:true,
         groundedClaims:kept,unsupportedClaimsDropped:rejected,
         readingCoverage:windowLedgerSummary(ledger),
         citationSpans,verifiedClaims,claimComparison,sectionCoverage,
         quoteRanges,quoteCoverage,
+        evidenceDensity,
         responseId:audit?.id||null,responseSha256:audit?.sha256||null,
         text:audit?.text||body};
 }
