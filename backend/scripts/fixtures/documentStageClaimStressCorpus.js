@@ -9,6 +9,13 @@ export function makeDocumentStressSource(sectionCount=128){
     return sections.join("");
 }
 
+/** Deterministic equal-length, distinct 256-window inputs per request. */
+export function makeConcurrentStressSource(id){
+    if(!Number.isSafeInteger(id)||id<1||id>10)return null;
+    const marker=("JESSICA"+String(id)).padEnd(32,"я");
+    return makeDocumentStressSource().replace("а".repeat(32),marker);
+}
+
 export function hashDocumentStressSource(source){
     return createHash("sha256").update(source,"utf8").digest("hex");
 }
