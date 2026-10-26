@@ -10,6 +10,7 @@ import {planVerifiedDocumentAnalysisStages}
  from "../core/files/documentAnalysisStagePlan.js";
 import {checkStageReportOrder} from "../core/files/documentStageReportOrder.js";
 import {documentStageTaskSha256} from "../core/files/documentStageTaskIdentity.js";
+import {hashDocumentStageReportText} from "../core/files/documentStageReportTextHash.js";
 import {analyzeDocumentAttachments} from "../core/files/documentAnalysisFacade.js";
 const task="Проверь";
 const source="ВВЕДЕНИЕ\n"+"Обоснование судебной практики. ".repeat(19500)+
@@ -26,10 +27,13 @@ function fixture(){
  const plan=planVerifiedDocumentAnalysisStages(source,verified);
  const reports=plan.stages.map(stage=>{
   const windows=verified.windows.slice(stage.firstWindowNumber-1,stage.lastWindowNumber);
+  const text="Отчёт этапа "+stage.stageNumber+" о проверке источников.";
   return {success:true,mode:"document-stage",stage:"document-stage-verified",
+    text,
     stageReport:{sourceSha256:digest,stageNumber:stage.stageNumber,
      stageCount:plan.stageCount,stageSha256:stage.stageSha256,
      taskSha256:documentStageTaskSha256(task),
+     reportTextSha256:hashDocumentStageReportText(text),
      verifiedWindows:windows.length,stageAnalysisComplete:true,
      fullSourceAnalysisConfirmed:false},
     readingCoverage:{sourceSha256:digest,sourceChars:source.length,
@@ -62,6 +66,8 @@ test("reordered, missing or tampered stage metadata cannot claim analysis",()=>{
  assert.equal(checked.reportedEvidenceQuotes,plan.totalWindows);
  assert.equal(checked.reportedNonExactQuotes,0);
  assert.equal(checked.quoteStatsAuthenticated,false);
+ assert.equal(checked.reportTextIntegrityChecked,true);
+ assert.equal(checked.reportOriginAuthenticated,false);
  assert.equal(checkStageReportOrder(source,verified,reports,"Другая задача"),null);
  assert.equal(checked.modelExecutionAuthenticated,false);
  assert.equal(checked.completeSourceAnalysisConfirmed,false);
@@ -103,6 +109,28 @@ test("inconsistent quote counters and absent source caveats reject stage reconci
  const summary=checkStageReportOrder(source,verified,unresolved,task);
  assert.equal(summary.reportedNonExactQuotes,1);
  assert.equal(summary.quoteStatsAuthenticated,false);
+});
+
+test("report integrity rejects altered body, missing digest and oversized stage text",()=>{
+ const {verified,reports}=fixture();
+ const alterations=[
+  r=>{r.text+=" tampered";},
+  r=>{r.stageReport.reportTextSha256="0".repeat(64);},
+  r=>{delete r.stageReport.reportTextSha256;},
+  r=>{delete r.text;},
+  r=>{r.text="x".repeat(350001);}
+ ];
+ for(const change of alterations){
+   const altered=structuredClone(reports);
+   change(altered[0]);
+   assert.equal(checkStageReportOrder(source,verified,altered,task),null);
+ }
+ const changed=structuredClone(reports);
+ changed[0].text+=" modified";
+ changed[0].stageReport.reportTextSha256=hashDocumentStageReportText(changed[0].text);
+ const summary=checkStageReportOrder(source,verified,changed,task);
+ assert.equal(summary.reportTextIntegrityChecked,true);
+ assert.equal(summary.reportOriginAuthenticated,false);
 });
 
 test("facade checks report coordinates but never authenticates client model results",async()=>{

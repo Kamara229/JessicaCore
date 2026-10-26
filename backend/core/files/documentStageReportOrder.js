@@ -1,6 +1,7 @@
 import {planVerifiedDocumentAnalysisStages} from "./documentAnalysisStagePlan.js";
 import {matchesDocumentStageTask} from "./documentStageTaskIdentity.js";
 import {readDocumentStageReceiptStats} from "./documentStageReceiptStats.js";
+import {matchesDocumentStageReportText} from "./documentStageReportTextHash.js";
 
 /** Metadata consistency only. Client stage reports are NOT authenticated. */
 export function checkStageReportOrder(source,verified,reports,task){
@@ -11,7 +12,8 @@ export function checkStageReportOrder(source,verified,reports,task){
  for(let i=0;i<reports.length;i++){
   const r=reports[i],stage=plan.stages[i],s=r?.stageReport,
         c=r?.readingCoverage;
-  if(!matchesDocumentStageTask(task,s,c)||
+  if(!matchesDocumentStageReportText(r)||
+     !matchesDocumentStageTask(task,s,c)||
      r?.success!==true||r?.mode!=="document-stage"||
      r?.stage!=="document-stage-verified"||
      s?.stageNumber!==i+1||s?.stageCount!==plan.stageCount||
@@ -61,6 +63,7 @@ export function checkStageReportOrder(source,verified,reports,task){
   taskContextMatched:true,
   reportedGroundedClaims:claims,reportedEvidenceQuotes:quotes,
   reportedNonExactQuotes:unlocated,quoteStatsAuthenticated:false,
+  reportTextIntegrityChecked:true,reportOriginAuthenticated:false,
   modelExecutionAuthenticated:false,claimTruthVerified:false,
   completeSourceAnalysisConfirmed:false};
 }
