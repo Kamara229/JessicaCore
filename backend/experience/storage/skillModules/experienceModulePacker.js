@@ -3,6 +3,8 @@
  * Parent payload stays a small searchable facade. The canonical full
  * Experience is validated by the existing Quality Inspector BEFORE save.
  */
+import {hashExperienceModulePart} from "./experienceModuleIntegrity.js";
+
 export const MODULE_FIELDS=[
   "workflow","validationRules","constraints","strategy","sourcePriority",
   "successfulPatterns","failurePatterns","avoidPatterns","examples"
@@ -15,7 +17,7 @@ export function packageExperienceModules(experience){
   if(!experience||typeof experience!=="object"||Array.isArray(experience))
     throw new Error("Skill facade input must be an object");
   const facade={...experience};
-  const modules=[],counts={};
+  const modules=[],counts={},sha256={};
   for(const field of MODULE_FIELDS){
     const items=facade[field];
     if(!Array.isArray(items)||!items.length)continue;
@@ -31,6 +33,7 @@ export function packageExperienceModules(experience){
     }
     if(chunk.length)parts.push(chunk);
     counts[field]=parts.length;
+    sha256[field]=parts.map(hashExperienceModulePart);
     parts.forEach((data,part)=>modules.push({moduleKey:field,part,data}));
     delete facade[field];
   }
@@ -39,7 +42,7 @@ export function packageExperienceModules(experience){
   if(modules.length){
     if(Object.hasOwn(facade,"moduleManifest"))
       throw new Error("Refusing to overwrite existing module manifest");
-    facade.moduleManifest={version:1,counts};
+    facade.moduleManifest={version:2,counts,sha256};
   }
   return {facade,modules};
 }
