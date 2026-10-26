@@ -77,6 +77,7 @@ test("reordered, missing or tampered stage metadata cannot claim analysis",()=>{
  assert.equal(checked.quoteStatsAuthenticated,false);
  assert.equal(checked.reportTextIntegrityChecked,true);
  assert.equal(checked.reportBodySourceQuotesChecked,true);
+ assert.equal(checked.reportedAnchoredFragments,plan.totalWindows);
  assert.equal(checked.reportOriginAuthenticated,false);
  assert.equal(checkStageReportOrder(source,verified,reports,"Другая задача"),null);
  assert.equal(checked.modelExecutionAuthenticated,false);
@@ -100,6 +101,7 @@ test("inconsistent quote counters and absent source caveats reject stage reconci
  const corrupt=[
     row=>{row.evidenceQuotes=2;},
     row=>{row.anchoredFragments=0;},
+    row=>{row.anchoredFragments=2;},
     row=>{row.exactLocatedQuotes=-1;},
     row=>{row.ambiguousQuotes=1;},
     row=>{row.nonLiteralQuotes=Infinity;},

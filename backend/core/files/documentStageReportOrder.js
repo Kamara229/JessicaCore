@@ -9,7 +9,7 @@ export function checkStageReportOrder(source,verified,reports,task){
  const plan=planVerifiedDocumentAnalysisStages(source,verified);
  if(!plan||!Array.isArray(reports)||!reports.length||
     reports.length>plan.stageCount)return null;
- let count=0,offset=0,claims=0,quotes=0,unlocated=0;
+ let count=0,offset=0,claims=0,quotes=0,unlocated=0,anchors=0;
  for(let i=0;i<reports.length;i++){
   const r=reports[i],stage=plan.stages[i],s=r?.stageReport,
         c=r?.readingCoverage;
@@ -33,7 +33,7 @@ export function checkStageReportOrder(source,verified,reports,task){
      c?.fullSourceAnalysisConfirmed!==false||
      !Array.isArray(c?.verifiedWindows)||
      c.verifiedWindows.length!==stage.windowCount)return null;
-  const prevClaims=claims,prevQuotes=quotes;
+  const prevClaims=claims,prevQuotes=quotes,prevAnchors=anchors;
   for(const record of c.verifiedWindows){
    const w=verified.windows[count];
    if(!w||!record||record.windowNumber!==w.number||
@@ -49,6 +49,7 @@ export function checkStageReportOrder(source,verified,reports,task){
    if(!stats)return null;
    claims+=stats.groundedClaims;
    quotes+=stats.evidenceQuotes;
+   anchors+=stats.anchoredFragments;
    unlocated+=stats.ambiguousQuotes+stats.nonLiteralQuotes;
    offset=w.endOffset;
    count++;
@@ -60,7 +61,8 @@ export function checkStageReportOrder(source,verified,reports,task){
         stage.firstWindowNumber-1,stage.lastWindowNumber)
   },source);
   if(!sourceAudit||sourceAudit.bodyClaims!==claims-prevClaims||
-     sourceAudit.bodyQuotes!==quotes-prevQuotes)return null;
+     sourceAudit.bodyQuotes!==quotes-prevQuotes||
+     sourceAudit.bodyUniqueRefs!==anchors-prevAnchors)return null;
  }
  const all=reports.length===plan.stageCount;
  if(all!==(offset===source.length))return null;
@@ -71,6 +73,7 @@ export function checkStageReportOrder(source,verified,reports,task){
   allStageReportsReceived:all,sourceCoordinatesChecked:true,
   taskContextMatched:true,
   reportedGroundedClaims:claims,reportedEvidenceQuotes:quotes,
+  reportedAnchoredFragments:anchors,
   reportedNonExactQuotes:unlocated,quoteStatsAuthenticated:false,
   reportTextIntegrityChecked:true,reportOriginAuthenticated:false,
   reportBodySourceQuotesChecked:true,

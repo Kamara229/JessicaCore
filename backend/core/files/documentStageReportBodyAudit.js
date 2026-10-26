@@ -31,7 +31,7 @@ export function inspectDocumentStageReportBody(report,stage,original){
     if(!report.text.startsWith(prefix)||!report.text.endsWith(suffix))
         return null;
     const middle=report.text.slice(prefix.length,-suffix.length);
-    let cursor=0,bodyClaims=0,bodyQuotes=0,bodyRefs=0;
+    let cursor=0,bodyClaims=0,bodyQuotes=0,bodyRefs=0,bodyUniqueRefs=0;
     for(let i=0;i<stage.windows.length;i++){
         const window=stage.windows[i];
         const heading="Окно "+window.number+" ("+window.startOffset+
@@ -85,10 +85,11 @@ export function inspectDocumentStageReportBody(report,stage,original){
         bodyClaims+=claims.length;
         bodyQuotes+=quotes;
         bodyRefs+=citationMatches.length;
+        bodyUniqueRefs+=new Set(citationMatches.map(m=>m[0])).size;
         cursor=next?end+2:middle.length;
     }
     if(cursor!==middle.length)return null;
-    return {bodyClaims,bodyQuotes,bodyRefs,
+    return {bodyClaims,bodyQuotes,bodyRefs,bodyUniqueRefs,
         windowBodiesChecked:stage.windows.length,
         sourceQuotePresenceVerified:true,
         externalSourceTruthVerified:false,reportOriginAuthenticated:false};
