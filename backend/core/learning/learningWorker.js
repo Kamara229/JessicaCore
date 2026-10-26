@@ -94,6 +94,7 @@ import {
 import {
     getLatestExperienceVersion
 } from "../../experience/storage/experienceStorage.js";
+import {checkLearningWorkerReplay} from "./workerReplayGuard.js";
 
 
 
@@ -542,8 +543,9 @@ async function prepareCandidateMemory(
  */
 
 
-async function processQueueItem(
-    item
+export async function processQueueItem(
+    item,
+    {replayGuard=checkLearningWorkerReplay}={}
 ) {
 
     if(
@@ -575,6 +577,10 @@ async function processQueueItem(
 
     try {
 
+        // Never reobserve Candidate Memory or create a second Proposal for
+        // the same Queue Item after an interrupted/duplicated Worker pass.
+        const replay=await replayGuard(item);
+        if(replay?.handled===true)return replay.result;
 
         /*
          * =================================================
@@ -1005,7 +1011,10 @@ async function processQueueItem(
                 item.id,
 
             proposalId:
-                proposal.id,
+                saved.proposal?.id || proposal.id,
+
+            existing:
+                saved.existing === true,
 
             action:
                 proposal.action,
