@@ -1,5 +1,6 @@
 import {createHash} from "node:crypto";
 import {extractExactFactTokens} from "./documentExactFactTokens.js";
+import {supportsQuotedNumericFact} from "./documentExactFactQuoteBinding.js";
 
 const digest = text => createHash("sha256").update(text, "utf8").digest("hex");
 /** Audits exact literal fact tokens in ALL authenticated source windows.
@@ -31,6 +32,7 @@ export function auditDocumentExactFacts(source, verified, selected = []) {
     }
     if (cursor !== source.length) return null;
     let selectedFactTokens = 0, ungroundedSelectedFactTokens = 0;
+    let unquotedSelectedFactTokens = 0;
     for (const claim of selected) {
         const window = verified.windows[claim?.windowNumber - 1];
         if (!window || !Number.isSafeInteger(claim.windowNumber) ||
@@ -44,6 +46,8 @@ export function auditDocumentExactFacts(source, verified, selected = []) {
             selectedFactTokens++;
             if (!tokensByWindow.get(claim.windowNumber).has(token.value))
                 ungroundedSelectedFactTokens++;
+            else if (!supportsQuotedNumericFact(claim,window.text,token.value))
+                unquotedSelectedFactTokens++;
         }
     }
     return {
@@ -53,7 +57,11 @@ export function auditDocumentExactFacts(source, verified, selected = []) {
         exactNumericCandidateScanLimited: limited,
         selectedNumericTokensChecked: selectedFactTokens,
         selectedNumericTokensAbsentFromCitedWindow: ungroundedSelectedFactTokens,
-        literalNumericTokenPresenceVerified: !limited && ungroundedSelectedFactTokens === 0,
+        selectedNumericTokensAbsentFromQuotedEvidence: unquotedSelectedFactTokens,
+        selectedNumericFactsQuoteGrounded:
+            ungroundedSelectedFactTokens === 0 && unquotedSelectedFactTokens === 0,
+        literalNumericTokenPresenceVerified: !limited &&
+            ungroundedSelectedFactTokens === 0 && unquotedSelectedFactTokens === 0,
         factExtractionSemanticCorrectnessVerified: false,
         factExtractionCompletenessVerified: false
     };
