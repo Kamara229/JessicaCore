@@ -182,6 +182,10 @@ export async function executeAIWithRetry(
         attempt++
     ){
 
+        // A different request may have opened the shared circuit while
+        // this request was sleeping between technical retry attempts.
+        throwIfAIProviderCoolingDown(label);
+
         try {
 
 
