@@ -46,7 +46,8 @@ test("numeric claim from final window is checked against its exact source",()=>{
     const makeClaim=value=>({
         windowNumber:256,sectionIndex:w.sectionIndex,
         startOffset:w.startOffset,endOffset:w.endOffset,
-        claim:"• В документе указано: "+value+" [О256:Ф1:Ф1]"
+        claim:"• В документе указано: "+value+" [О256:Ф1:Ф1]",
+        evidence:"  Основание: «"+value+"»"
     });
     const okay=auditDocumentExactFacts(source,verified,[makeClaim("256%")]);
     assert.equal(okay?.selectedNumericTokensChecked,1);
@@ -54,6 +55,30 @@ test("numeric claim from final window is checked against its exact source",()=>{
     const fabricated=auditDocumentExactFacts(source,verified,[makeClaim("999₽")]);
     assert.equal(fabricated?.selectedNumericTokensAbsentFromCitedWindow,1);
     assert.equal(fabricated.literalNumericTokenPresenceVerified,false);
+});
+
+test("all 256 quoted numeric facts are grounded in their exact windows",()=>{
+    const {source,verified}=fullFactCorpus();
+    const claims=verified.windows.map(w=>({
+        windowNumber:w.number,sectionIndex:w.sectionIndex,
+        startOffset:w.startOffset,endOffset:w.endOffset,
+        claim:"• В документе указано: "+w.number+"% [О"+w.number+":Ф1:Ф1]",
+        evidence:"  Основание: «"+w.number+"%»"
+    }));
+    const audit=auditDocumentExactFacts(source,verified,claims);
+    assert.equal(audit?.selectedNumericTokensChecked,256);
+    assert.equal(audit?.selectedNumericTokensAbsentFromCitedWindow,0);
+    assert.equal(audit?.selectedNumericTokensAbsentFromQuotedEvidence,0);
+    assert.equal(audit?.selectedNumericFactsQuoteGrounded,true);
+    claims[255].evidence="  Основание: «ааааа»";
+    const wrongQuote=auditDocumentExactFacts(source,verified,claims);
+    assert.equal(wrongQuote?.selectedNumericTokensAbsentFromQuotedEvidence,1);
+    assert.equal(wrongQuote?.selectedNumericFactsQuoteGrounded,false);
+    claims[255].evidence="  Основание: «256%»";
+    claims[255].claim="• В документе указано: 255% [О256:Ф1:Ф1]";
+    const shifted=auditDocumentExactFacts(source,verified,claims);
+    assert.equal(shifted?.selectedNumericTokensAbsentFromCitedWindow,1);
+    assert.equal(shifted?.selectedNumericFactsQuoteGrounded,false);
 });
 
 test("modified source and forged window text cannot validate",()=>{
