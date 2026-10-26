@@ -67,9 +67,9 @@
 
 
 import {
-    getPendingLearningItems,
     updateLearningQueueItemStatus
 } from "./learningQueueStorage.js";
+import {claimPendingLearningItems} from "./learningQueueClaim.js";
 
 
 import {
@@ -1132,12 +1132,16 @@ export async function processQueueItem(
  */
 
 
-export async function runLearningWorker()
+export async function runLearningWorker({
+    claim=claimPendingLearningItems,
+    processItem=processQueueItem,
+    updateQueue=updateLearningQueueItemStatus
+}={})
 {
 
     const queueResult =
 
-        await getPendingLearningItems();
+        await claim();
 
 
     if(
@@ -1195,11 +1199,20 @@ export async function runLearningWorker()
 
         const result =
 
-            await processQueueItem(
+            await processItem(
                 item
             );
 
 
+        // Deferred provider/lookup results must relinquish their claim.
+        // Never leave an item PROCESSING after a voluntary retry deferral.
+        if(result?.deferred===true){
+            const returned=await updateQueue(item.id,"PENDING");
+            if(returned?.success!==true){
+                result.success=false;
+                result.reason=returned?.error||"Cannot release deferred queue claim";
+            }
+        }
         results.push(
             result
         );
