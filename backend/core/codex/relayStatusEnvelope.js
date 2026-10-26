@@ -62,10 +62,13 @@ export function deterministicStatusHandoff(message) {
     const next=/(?:Следующий\s+шаг|Далее)\s*[:—–-]\s*([^.!?]{6,180})/iu.exec(body);
     if (next) {
         const target=next[1].trim();
-        if (!/^(?:провер(?:ить|ка|ять)|завершить\s+проверку|продолжить|перейти\s+к|сопоставить)\s+/iu.test(target))
+        // "Далее — анализ свыше 16 окон" is a safe future work item
+        // rather than a Jessica test. A noun alone grants no broad action.
+        const nounStep=/^(?:анализ|обработка|проверка|сборка|планирование)\s+/iu.test(target);
+        if (!nounStep && !/^(?:провер(?:ить|ка|ять)|завершить\s+проверку|продолжить|перейти\s+к|сопоставить)\s+/iu.test(target))
             return null;
-        if (!/(?:\bCI\b|Render|GitHub|Supabase|backend|регресс|разв[её]рт|анализ|документ|план|сопоставлен|цитат)/iu.test(target))
-            return null;
+        const scope=/(?:\bCI\b|Render|GitHub|Supabase|backend|регресс|разв[её]рт|документ|раздел|план|сопоставлен|цитат|окон|страниц|файлов)/iu.test(target);
+        if (!scope && (nounStep || !/анализ/iu.test(target))) return null;
     } else if (!ciProgress && !noNextProgress) return null;
     else if (ciProgress && !noNextProgress && (
         !/(?:Новый|Текущий)\s+(?:общий\s+)?CI\s+(?:ещ[её]\s+)?(?:ид[её]т|выполняется|в\s+процессе|запущен)/iu.test(body) ||

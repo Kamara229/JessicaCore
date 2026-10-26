@@ -190,3 +190,31 @@ test("body-only no-test shortcut rejects bare claimed CI completion",()=>{
  assert.equal(deterministicStatusHandoff(unconfirmed),null);
  assert.equal(deterministicStatusHandoff("JESSICA_STOP_123\n"+unconfirmed),null);
 });
+
+
+test("actual October 26 429 relay handoff accepts noun-led document next step without AI",async()=>{
+ const body="Предыдущий CI успешен. Добавил сборку частей документа с проверкой SHA-256 (180a4c2). Неполные данные не передаются ИИ. Регрессии прошли, Render Live, Supabase проверен. Новый CI выполняется. Далее — анализ свыше 16 окон. Тест пока не нужен.";
+ const wrapped=wrap(body,"e96baaf7-4c11-4806-862e-f00ac2ac099e");
+ assert.ok(deterministicStatusHandoff(body));
+ assert.equal(deterministicStatusHandoff(body),deterministicStatusHandoff(wrapped));
+ for(const message of [body,wrapped]){
+  let calls=0;
+  const decision=await interpretRelayTurn({message},async()=>{calls++;throw Error("HTTP 429 quota");});
+  assert.equal(calls,0);
+  assert.equal(decision.action,"reply");
+  assert.equal(decision.task,"");
+  assert.equal(decision.continueThread,false);
+ }
+});
+test("noun-led status still refuses irrelevant next steps and privileged actions",()=>{
+ const body="Предыдущий CI успешен. Добавил сборку частей документа с проверкой SHA-256 (180a4c2). Неполные данные не передаются ИИ. Регрессии прошли, Render Live, Supabase проверен. Новый CI выполняется. Далее — анализ свыше 16 окон. Тест пока не нужен.";
+ for(const unsafe of [
+  body.replace("анализ свыше 16 окон","анализ секретов владельца"),
+  body.replace("анализ свыше 16 окон","анализ отвлечённой темы"),
+  body.replace("анализ свыше 16 окон","анализ паролей"),
+  body.replace("анализ свыше 16 окон","запусти тест"),
+  body.replace("анализ свыше 16 окон","установи APK"),
+  body.replace("Тест пока не нужен","Тест требуется"),
+  body.replace("(180a4c2)","(uncommitted)")
+ ])assert.equal(deterministicStatusHandoff(unsafe),null);
+});
