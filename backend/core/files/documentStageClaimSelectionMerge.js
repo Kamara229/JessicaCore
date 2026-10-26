@@ -7,6 +7,7 @@ import {auditRenderedStageClaimCoverage} from "./documentStageClaimSelectionRend
 import {findStageClaimConflictCandidates} from "./documentStageClaimConflictCandidates.js";
 import {renderStageClaimConflictCandidates} from "./documentStageClaimConflictRender.js";
 import {triageStageClaimConflictCandidates} from "./documentStageClaimConflictTriage.js";
+import {auditStageClaimConflictTriage} from "./documentStageClaimConflictQualityAudit.js";
 
 /** Rebuild every page from signed reports; never trust client-supplied claims. */
 export function mergeAuthenticatedStageClaimSelections({
@@ -52,6 +53,8 @@ export function mergeAuthenticatedStageClaimSelections({
     if(!conflicts)return null;
     const triage=triageStageClaimConflictCandidates(conflicts);
     if(!triage)return null;
+    const qualityAudit=auditStageClaimConflictTriage(conflicts,triage);
+    if(!qualityAudit)return null;
     const conflictText=renderStageClaimConflictCandidates(triage);
     if(!conflictText)return null;
     const text=groupedText+conflictText;
@@ -72,6 +75,7 @@ export function mergeAuthenticatedStageClaimSelections({
             conflictCandidatesPreserved:triage.allCandidatesRetained,
             conflictFalsePositiveVerified:false,
             conflictFilterMeaning:triage.filterMeaning,
+            ...qualityAudit,
             contextQualifiedPairs:conflicts.contextQualifiedPairs,
             conflictContextReviewPerformed:conflicts.contextReviewPerformed,
             fullSourceContextReviewed:false,
