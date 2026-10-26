@@ -41,7 +41,6 @@ test("same-window claims and contextual negation are not conflicts",()=>{
         [entry("Договор действует",1),entry("Договор не всегда действует",2)],
         [entry("Договор действует",1),entry("Договор не действует при расторжении",2)],
         [entry("Договор действует",1),entry("Договор действует",2)],
-        [entry("Договор может действовать",1),entry("Договор не может действовать",2)],
         [entry("Право не действует и не применяется",1),entry("Право действует и не применяется",2)]
     ]){
         const result=check(claims);
@@ -49,6 +48,14 @@ test("same-window claims and contextual negation are not conflicts",()=>{
         assert.ok(renderStageClaimConflictCandidates(result)
             .includes("не означает отсутствия других противоречий"));
     }
+});
+
+test("explicit modal negation is now recognized without asserting factual conflict",()=>{
+    const r=check([entry("Договор может действовать",1),
+        entry("Договор не может действовать",2)]);
+    assert.equal(r.possibleConflictPairs,1);
+    assert.equal(r.controlledParaphrasePairs,1);
+    assert.equal(r.semanticConflictVerified,false);
 });
 
 test("limit candidates rather than implying exhaustive contradiction coverage",()=>{
