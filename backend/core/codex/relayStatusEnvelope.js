@@ -18,7 +18,11 @@ export function deterministicStatusHandoff(message) {
         rawBody=message.slice(match[0].length,message.lastIndexOf(suffix));
     } else {
         // Never accept a broken, incomplete, or nested marker as body-only.
-        if(/JESSICA_(?:REPLY|END)_/iu.test(message))return null;
+        if(/JESSICA_[A-Z]+_/iu.test(message))return null;
+        // The extracted body must carry a verified positive development,
+        // not merely a self-declared "CI completed" assertion.
+        if(!/(?:регресси(?:и|онные тесты)\s+прошли|backend[- ]тесты\s+прошли|Render\s+Live|Supabase\s+проверен)/iu.test(message))
+            return null;
         rawBody=message;
     }
     const body=rawBody.replace(/\s+/gu," ").trim();

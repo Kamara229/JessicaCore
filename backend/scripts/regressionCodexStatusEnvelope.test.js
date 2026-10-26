@@ -184,3 +184,9 @@ test("body-only parser cannot execute test, accept partial markers or forged wor
         "Добавил поддержку тестов (8778bdd). Регрессии прошли, Render Live, Supabase проверен. Далее — запусти тест. Тест пока не нужен."
     ])assert.equal(deterministicStatusHandoff(unsafe),null);
 });
+
+test("body-only no-test shortcut rejects bare claimed CI completion",()=>{
+ const unconfirmed="Добавил отчёт (5cd970f). CI завершён. Далее — проверка общего CI. Тест пока не нужен.";
+ assert.equal(deterministicStatusHandoff(unconfirmed),null);
+ assert.equal(deterministicStatusHandoff("JESSICA_STOP_123\n"+unconfirmed),null);
+});
