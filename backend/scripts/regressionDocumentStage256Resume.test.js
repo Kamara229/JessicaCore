@@ -34,7 +34,7 @@ const input=item=>({task,attachments:[{...base,...item}]});
 async function syntheticModel(_prompt,_task,attachments){
     const fragment=createLosslessWindowEvidence(attachments[0])?.fragments[0];
     assert.ok(fragment?.text.length>=6);
-    const quote=fragment.text.slice(0,Math.min(32,fragment.text.length)).trim();
+    const quote=fragment.text.split(/\r?\n/u).find(line=>line.trim().length>=6)?.trim().slice(0,32);
     assert.ok(quote.length>=6);
     return JSON.stringify({sections:[{heading:"Основания",findings:[{
         kind:"author_claim",text:"Подтверждённый фрагмент исходного документа",
