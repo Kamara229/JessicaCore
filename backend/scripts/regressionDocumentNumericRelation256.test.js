@@ -26,6 +26,15 @@ test("explicit opposite numeric relations are not rescued by identical numbers",
     assert.equal(inspectQuotedNumericRelation("Показатель более 25%",
         "  Основание: «Показатель более 25%»",
         "Другой показатель менее 25%","25%"),"unresolved");
+    assert.equal(inspectQuotedNumericRelation("Выручка более 25%",
+        "  Основание: «Расходы не более 25%»",
+        "Расходы не более 25%","25%"),"unresolved");
+    assert.equal(inspectQuotedNumericRelation("Выручка не более 25%",
+        "  Основание: «Выручка не более 25%»",
+        "Выручка не более 25%","25%"),"aligned");
+    assert.equal(inspectQuotedNumericRelation("Выручка более 25%",
+        "  Основание: «Выручка не более 25%»",
+        "Выручка не более 25%","25%"),"contradiction");
 });
 
 test("real 256-window source: contradictory last-window claim is flagged",()=>{
