@@ -1,0 +1,24 @@
+name: Document Stage Claim Selection Regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/core/files/documentStageClaimSelection*.js'
+      - 'backend/core/files/documentOverflowAnalysisFacade.js'
+      - 'backend/scripts/regressionDocumentStageClaimSelection.test.js'
+      - 'backend/scripts/fixtures/documentStageClaimFixture.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  extractive-claim-ranking:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionDocumentStageClaimSelection.test.js

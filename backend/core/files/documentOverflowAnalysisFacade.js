@@ -10,6 +10,7 @@ import {checkStageReportOrder} from "./documentStageReportOrder.js";
 import {mergeAuthenticatedDocumentStages} from "./documentStageAuthenticatedMerge.js";
 import {authenticatedStageResumeStatus} from "./documentStageResumeStatus.js";
 import {continueAuthenticatedDocumentStage} from "./documentStageResumeExecutor.js";
+import {selectAuthenticatedStageClaims} from "./documentStageClaimSelection.js";
 import {analyzePagedLongDocument} from "./documentPagedAnalysis.js";
 import {addInterruptedDocumentCoverage} from "./documentQuotaCoverage.js";
 
@@ -41,8 +42,16 @@ export async function analyzeOverflowDocumentAttachments({task,attachments},gene
            !stagePlan)
             return errorResult("Не удалось построить проверяемые этапы анализа.",
                 "document-overflow-stage-plan-invalid");
+        if(Object.hasOwn(item,"claimOffset")&&
+           !Object.hasOwn(item,"stageReports"))
+            return errorResult("Для отбора утверждений нужны проверенные этапы.",
+                "document-stage-claim-input");
         // Reports received from a client are untrusted metadata, not model proof.
         if(Object.hasOwn(item,"stageReports")){
+            if(Object.hasOwn(item,"claimOffset")&&
+               Object.hasOwn(item,"stageNumber"))
+                return errorResult("Запрос одного этапа несовместим с отбором утверждений.",
+                    "document-stage-claim-input");
             if(!checked.complete||!stagePlan)
                 return errorResult("Серия этапов или исходный файл неполны.",
                     "document-stage-reports-invalid");
@@ -71,6 +80,30 @@ export async function analyzeOverflowDocumentAttachments({task,attachments},gene
             if(!coordinates)return errorResult(
                 "Несовпадение порядка этапов или смещений.",
                 "document-stage-reports-invalid");
+            if(Object.hasOwn(item,"claimOffset")){
+                if(!coordinates.allStageReportsReceived||
+                   !coordinates.reportOriginAuthenticated)
+                    return errorResult("Для отбора требуется полный подписанный набор этапов.",
+                        "document-stage-claim-input");
+                if(getAIProviderAvailability().blocked)
+                    return errorResult("Достигнут лимит ИИ.","ai-provider-cooldown");
+                try{
+                    const selected=await selectAuthenticatedStageClaims({
+                        source:complete.text,verified:checked,reports:item.stageReports,
+                        task,claimOffset:item.claimOffset,generate
+                    });
+                    return selected||errorResult("Недопустимый номер страницы утверждений.",
+                        "document-stage-claim-input");
+                }catch(error){
+                    if(error?.status===429){
+                        registerAIProviderLimit(error);
+                        return errorResult("Лимит ИИ: отбор утверждений прерван.",
+                            "ai-provider-cooldown");
+                    }
+                    return errorResult("Не удалось выполнить отбор утверждений.",
+                        "document-stage-claim-error");
+                }
+            }
             if(coordinates.allStageReportsReceived&&
                coordinates.reportOriginAuthenticated){
                 const consolidated=mergeAuthenticatedDocumentStages(
