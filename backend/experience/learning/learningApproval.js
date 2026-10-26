@@ -516,11 +516,16 @@ export async function approveAndSaveLearningProposal({
      */
 
 
-    const versionState =
-
-        resolveExperienceVersionState(
-            history
-        );
+    let versionState;
+    try {
+        versionState = resolveExperienceVersionState(history);
+    } catch (error) {
+        return buildFailure({
+            stage: "history",
+            proposal,
+            error: error?.message || "Experience version history is inconsistent"
+        });
+    }
 
 
     /*
