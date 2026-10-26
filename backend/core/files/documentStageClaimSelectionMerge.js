@@ -70,6 +70,7 @@ export function mergeAuthenticatedStageClaimSelections({
             groupingBasis:grouping.groupingBasis,
             ...citationAudit,...renderedAudit,
             possibleConflictPairs:conflicts.possibleConflictPairs,
+            controlledParaphrasePairs:conflicts.controlledParaphrasePairs,
             primaryConflictReviewPairs:triage.primaryReviewPairs,
             contextDeferredConflictPairs:triage.contextDeferredPairs,
             conflictCandidatesPreserved:triage.allCandidatesRetained,
