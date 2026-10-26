@@ -44,7 +44,8 @@ function isActionable(
 
 
 export async function persistLearningEvents(
-    learningEvents
+    learningEvents,
+    {saveQueueItem=saveLearningQueueItem}={}
 ) {
 
     const events =
@@ -171,7 +172,7 @@ export async function persistLearningEvents(
 
             storage =
 
-                await saveLearningQueueItem(
+                await saveQueueItem(
                     queueItem
                 );
 
@@ -201,7 +202,10 @@ export async function persistLearningEvents(
                 storage?.success === true,
 
             queued:
-                storage?.success === true,
+                storage?.success === true && storage?.queued !== false,
+
+            existing:
+                storage?.existing === true,
 
             skillId:
                 event?.skillId || null,
@@ -254,6 +258,12 @@ export async function persistLearningEvents(
             )
             .length,
 
+        existingCount:
+
+            results.filter(
+                item => item.existing === true
+            ).length,
+
         failedCount:
 
             results.filter(
@@ -265,10 +275,8 @@ export async function persistLearningEvents(
         queueItems:
 
             results
-                .map(
-                    item =>
-                        item.queueItem
-                )
+                .filter(item => item.queued === true)
+                .map(item => item.queueItem)
                 .filter(Boolean)
 
     };
