@@ -16,6 +16,8 @@ import {auditStageClaimCrossPageConflicts}
  from "../../core/files/documentStageClaimCrossPageAudit.js";
 import {makeConcurrentStressSource,hashDocumentStressSource,
     claimsFromStressWindows} from "./documentStageClaimStressCorpus.js";
+import {registerAIProviderLimit,getAIProviderAvailability,
+    throwIfAIProviderCoolingDown} from "../../ai/providerAvailability.js";
 
 const id=workerData?.id;
 const source=makeConcurrentStressSource(id);
@@ -23,6 +25,23 @@ if(!source)throw Error("Invalid concurrent synthetic corpus id");
 const sha=hashDocumentStressSource(source);
 parentPort.postMessage({phase:"started",id,sha});
 
+if(workerData?.inject429===true){
+    // Synthetic 429: exercise the real provider circuit-breaker locally,
+    // but do NOT make any external provider requests.
+    const error=new Error("tokens per day quota exceeded");
+    error.status=429;
+    const cooldown=registerAIProviderLimit(error);
+    let fastFail=false;
+    try{throwIfAIProviderCoolingDown("document stress");}
+    catch(blocked){fastFail=blocked?.status===429&&
+        blocked.code==="AI_PROVIDER_COOLDOWN";}
+    if(!cooldown.blocked||!fastFail||
+       !getAIProviderAvailability().blocked)
+        throw Error("429 must stop this worker before any analysis");
+    parentPort.postMessage({phase:"rate-limited",id,sha,
+        status:429,blocked:true,noVerifiedResult:true,
+        modelAnalysisPerformed:false});
+}else{
 const began=performance.now();
 const merged=materializeVerifiedDocumentOverflowBatches(source,sha);
 if(!merged?.verified?.complete||merged.verified.totalWindows!==256||
@@ -56,3 +75,5 @@ parentPort.postMessage({phase:"complete",id,sha,sourceChars:source.length,
     originalFirstWindowSha:merged.verified.windows[0].textSha256,
     originalLastWindowSha:merged.verified.windows.at(-1).textSha256,
     semanticConflictVerified:false});
+
+}
