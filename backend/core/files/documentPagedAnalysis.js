@@ -11,6 +11,7 @@ import {createVerifiedClaimRecords,compareVerifiedDocumentClaims} from "./docume
 import {auditDocumentSections} from "./documentSectionCoverage.js";
 import {locateVerbatimQuoteRanges} from "./documentVerbatimQuotes.js";
 import {markDocumentQuotaInterruption} from "./documentQuotaCoverage.js";
+import {throwIfAIProviderCoolingDown} from "../../ai/providerAvailability.js";
 import {measureDocumentCitationDensity} from "./documentEvidenceDensity.js";
 import {buildDocumentEvidenceLineage} from "./documentEvidenceLineage.js";
 import {mapVerifiedClaimsToSourceSections} from "./documentClaimProvenance.js";
@@ -70,6 +71,9 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
         ].join("\n");
         let checked;
         try {
+            // A sibling request may have opened the shared circuit after an
+            // earlier window completed. Preserve the verified-prefix ledger.
+            throwIfAIProviderCoolingDown("document window");
             checked=validateAndRenderDocumentAnswer(
                 await generate(prompt,task,[excerpt]),bundle,task);
         }catch(error){
