@@ -17,6 +17,7 @@ test("NEW_SKILL starts v1 while SKILL_IMPROVEMENT advances without overwriting h
 
 test("missing, duplicate, invalid snapshots fail closed instead of silently skipping versions", () => {
     for (const history of [
+        null, undefined, {}, "invalid-history",
         [{version:1},{version:3}],
         [{version:2}],
         [{version:1},{version:1}],
