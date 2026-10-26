@@ -80,3 +80,12 @@ test("dates in citation coordinates cannot masquerade as cited historical dates"
     const ctx=readStageClaimContext({claim:p});
     assert.deepEqual(ctx.dates,[]);
 });
+
+test("matching explicit dates are not mislabelled as differing dates",()=>{
+    const p=entry("Договор действует",1,"Действует на 01.02.2024");
+    const n=entry("Договор не действует",2,"Не действует на 01.02.2024");
+    const r=findStageClaimConflictCandidates(groupStageClaimSelections([p,n]));
+    assert.equal(r.possibleConflictPairs,1);
+    assert.deepEqual(r.candidates[0].context.differences,[]);
+    assert.equal(r.candidates[0].context.fullSourceContextReviewed,false);
+});
