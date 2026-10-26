@@ -1,6 +1,14 @@
 name: Experience RPC v4 Independent-Client Concurrency
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/scripts/regressionExperienceRpcV4Concurrent.test.js'
+      - 'backend/scripts/fixtures/experienceRpcV4RaceCalls.js'
+      - 'backend/scripts/fixtures/experienceRpcV4RaceRows.js'
+      - 'backend/experience/storage/skillModules/experienceModulePacker.js'
+      - '.github/workflows/experience-rpc-v4-concurrency.yml'
 permissions:
   contents: read
 jobs:
