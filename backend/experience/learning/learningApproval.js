@@ -63,6 +63,10 @@ import {
     resolveExperienceVersionState
 } from "../storage/experiencePersistence/experienceVersioning.js";
 
+import {
+    resolveLearningSaveMode
+} from "./learningSaveMode.js";
+
 
 
 
@@ -587,12 +591,7 @@ export async function approveAndSaveLearningProposal({
 
                 mode:
 
-                    proposal.action ===
-                    "SKILL_IMPROVEMENT"
-
-                        ? "update"
-
-                        : "create",
+                    resolveLearningSaveMode(versionState),
 
 
                 confidence:
