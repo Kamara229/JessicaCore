@@ -10,6 +10,7 @@ import {pendingBackendVerification} from "./relayPendingVerification.js";
 import {documentAnalysisNextStep} from "./relayDocumentProgress.js";
 import {releaseCiStatusHandoff} from "./relayReleaseCiStatus.js";
 import {deterministicStatusHandoff} from "./relayStatusEnvelope.js";
+import {compactCodexStressProgress} from "./relayCompactStressProgress.js";
 import {interpretationFailureHandoff} from "./relayFailureHandoff.js";
 export {explicitJessicaTest} from "./relayExplicitTest.js";
 export {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
@@ -85,6 +86,8 @@ export async function interpretRelayTurn(input, generate) {
     if (releaseReply!==null) return {action:"reply",reply:releaseReply,task:"",continueThread:false};
     const statusReply=deterministicStatusHandoff(message);
     if (statusReply!==null) return {action:"reply",reply:statusReply,task:"",continueThread:false};
+    const stressReply=compactCodexStressProgress(message);
+    if (stressReply!==null) return {action:"reply",reply:stressReply,task:"",continueThread:false};
     const payload = {message, plan:String(input.plan || "").slice(0,12000), history};
     const run = generate || (async (instructions, data) => {
         const response = await getGroqClient().chat.completions.create({
