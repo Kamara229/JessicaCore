@@ -1,6 +1,7 @@
 import {createHash} from "node:crypto";
 import {buildDocumentSectionIndex} from "./documentSectionIndex.js";
 import {selectDocumentSectionPage} from "./documentSectionWindow.js";
+import {findVerifiedDocumentPlan,rememberVerifiedDocumentPlan} from "./documentOverflowPlanCache.js";
 
 const digest=value=>createHash("sha256").update(value,"utf8").digest("hex");
 const BATCH_SIZE=16;
@@ -16,6 +17,10 @@ export function planDocumentOverflowBatches(source, expectedSha256) {
     if(typeof source!=="string"||!source.length||
        !/^[a-f0-9]{64}$/u.test(String(expectedSha256||""))||
        digest(source)!==expectedSha256)return null;
+    // SHA-256 is recomputed against the actual source on every invocation;
+    // cache stores immutable-by-copy structural metadata, not source text.
+    const cached=findVerifiedDocumentPlan(expectedSha256,source.length);
+    if(cached)return cached;
     const index=buildDocumentSectionIndex(source);
     if(index.complete!==true||!index.sections?.length||
        index.sourceChars!==source.length)return null;
@@ -72,5 +77,6 @@ export function planDocumentOverflowBatches(source, expectedSha256) {
         analyzedWindows:0,readCompleted:false,
         modelAnalysisPerformed:false,resumeImplemented:false,
         semanticCompletenessConfirmed:false};
+    rememberVerifiedDocumentPlan(plan);
     return plan;
 }
