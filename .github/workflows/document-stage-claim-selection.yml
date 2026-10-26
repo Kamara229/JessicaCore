@@ -15,6 +15,10 @@ on:
       - 'backend/core/files/documentStageClaimWindow*.js'
       - 'backend/core/files/documentStageClaimCrossPage*.js'
       - 'backend/core/files/documentOverflowAnalysisFacade.js'
+      - 'backend/ai/providerAvailability.js'
+      - 'backend/ai/retry/retryExecutor.js'
+      - 'backend/ai/retry/retryAfter.js'
+      - 'backend/ai/retry/retryClassifier.js'
       - 'backend/scripts/regressionDocumentStageClaimSelection*.test.js'
       - 'backend/scripts/regressionDocumentStageClaimConflict*.test.js'
       - 'backend/scripts/regressionDocumentStageClaimWindow*.test.js'
@@ -25,6 +29,7 @@ on:
       - 'backend/scripts/regressionDocumentOverflowBatchSession.test.js'
       - 'backend/scripts/regressionDocumentOverflowConcurrentStress.test.js'
       - 'backend/scripts/regressionDocumentOverflowTenConcurrent.test.js'
+      - 'backend/scripts/regressionDocumentProviderCooldown.test.js'
       - 'backend/scripts/fixtures/documentStageClaimStressLifecycle.js'
       - 'backend/scripts/fixtures/documentStageClaimConcurrencyWorker.js'
       - 'backend/scripts/fixtures/documentStageClaimStressCorpus.js'
@@ -51,3 +56,4 @@ jobs:
       - run: node --max-old-space-size=512 --test backend/scripts/regressionDocumentOverflowBatchSession.test.js
       - run: node --max-old-space-size=512 --test backend/scripts/regressionDocumentOverflowConcurrentStress.test.js
       - run: node --max-old-space-size=512 --test backend/scripts/regressionDocumentOverflowTenConcurrent.test.js
+      - run: node --test backend/scripts/regressionDocumentProviderCooldown.test.js
