@@ -27,7 +27,16 @@ function fixture(){
  const plan=planVerifiedDocumentAnalysisStages(source,verified);
  const reports=plan.stages.map(stage=>{
   const windows=verified.windows.slice(stage.firstWindowNumber-1,stage.lastWindowNumber);
-  const text="Отчёт этапа "+stage.stageNumber+" о проверке источников.";
+  const text="Проверенный этап "+stage.stageNumber+" из "+
+    plan.stageCount+".\n\n"+windows.map(w=>{
+      const quote=source.slice(w.startOffset,w.endOffset)
+          .slice(0,50).replace(/\s+/gu," ").trim();
+      return "Окно "+w.number+" ("+w.startOffset+"–"+w.endOffset+
+          "):\nМатериал\n\n• Позиция автора: Исследуется правовой вопрос "+
+          "[О"+w.number+":Ф1:Ф1]\n  Основание: «"+quote+
+          "»\nГраницы проверки: точность цитаты не доказывает истинность.";
+    }).join("\n\n")+
+    "\n\nПроверены цитаты этапа. Полнота всего документа и достоверность выводов не подтверждены.";
   return {success:true,mode:"document-stage",stage:"document-stage-verified",
     text,
     stageReport:{sourceSha256:digest,stageNumber:stage.stageNumber,
@@ -67,6 +76,7 @@ test("reordered, missing or tampered stage metadata cannot claim analysis",()=>{
  assert.equal(checked.reportedNonExactQuotes,0);
  assert.equal(checked.quoteStatsAuthenticated,false);
  assert.equal(checked.reportTextIntegrityChecked,true);
+ assert.equal(checked.reportBodySourceQuotesChecked,true);
  assert.equal(checked.reportOriginAuthenticated,false);
  assert.equal(checkStageReportOrder(source,verified,reports,"Другая задача"),null);
  assert.equal(checked.modelExecutionAuthenticated,false);
@@ -128,9 +138,32 @@ test("report integrity rejects altered body, missing digest and oversized stage 
  const changed=structuredClone(reports);
  changed[0].text+=" modified";
  changed[0].stageReport.reportTextSha256=hashDocumentStageReportText(changed[0].text);
- const summary=checkStageReportOrder(source,verified,changed,task);
- assert.equal(summary.reportTextIntegrityChecked,true);
- assert.equal(summary.reportOriginAuthenticated,false);
+ assert.equal(checkStageReportOrder(source,verified,changed,task),null);
+});
+
+test("source quotation, window citation and missing body reject reports despite updated SHA",()=>{
+ const {verified,reports}=fixture();
+ const transforms=[
+   text=>text.replace(/«[^»]+»/u,"«Цитата не из текста»"),
+   text=>text.replace("[О1:Ф1:Ф1]","[О2:Ф1:Ф1]"),
+   text=>text.replace("Окно 1 (","Окно 99 ("),
+   text=>text.replace(/^• /mu,"• Неподтверждено: "),
+   text=>text.replace("  Основание: ","  Нет основания: ")
+ ];
+ for(const change of transforms){
+    const modified=structuredClone(reports);
+    const first=modified[0];
+    const next=change(first.text);
+    assert.notEqual(next,first.text);
+    first.text=next;
+    first.stageReport.reportTextSha256=hashDocumentStageReportText(next);
+    assert.equal(checkStageReportOrder(source,verified,modified,task),null);
+ }
+ const missing=structuredClone(reports);
+ const first=missing[0];
+ first.text=first.text.replace(/Окно 1 \([^)]*\):\n[\s\S]*?(?=\n\nОкно 2 \()/u,"");
+ first.stageReport.reportTextSha256=hashDocumentStageReportText(first.text);
+ assert.equal(checkStageReportOrder(source,verified,missing,task),null);
 });
 
 test("facade checks report coordinates but never authenticates client model results",async()=>{

@@ -2,6 +2,7 @@ import {planVerifiedDocumentAnalysisStages} from "./documentAnalysisStagePlan.js
 import {matchesDocumentStageTask} from "./documentStageTaskIdentity.js";
 import {readDocumentStageReceiptStats} from "./documentStageReceiptStats.js";
 import {matchesDocumentStageReportText} from "./documentStageReportTextHash.js";
+import {inspectDocumentStageReportBody} from "./documentStageReportBodyAudit.js";
 
 /** Metadata consistency only. Client stage reports are NOT authenticated. */
 export function checkStageReportOrder(source,verified,reports,task){
@@ -32,6 +33,7 @@ export function checkStageReportOrder(source,verified,reports,task){
      c?.fullSourceAnalysisConfirmed!==false||
      !Array.isArray(c?.verifiedWindows)||
      c.verifiedWindows.length!==stage.windowCount)return null;
+  const prevClaims=claims,prevQuotes=quotes;
   for(const record of c.verifiedWindows){
    const w=verified.windows[count];
    if(!w||!record||record.windowNumber!==w.number||
@@ -52,6 +54,13 @@ export function checkStageReportOrder(source,verified,reports,task){
    count++;
   }
   if(offset!==stage.endOffset)return null;
+  const sourceAudit=inspectDocumentStageReportBody(r,{
+     ...stage,stageCount:plan.stageCount,
+     windows:verified.windows.slice(
+        stage.firstWindowNumber-1,stage.lastWindowNumber)
+  },source);
+  if(!sourceAudit||sourceAudit.bodyClaims!==claims-prevClaims||
+     sourceAudit.bodyQuotes!==quotes-prevQuotes)return null;
  }
  const all=reports.length===plan.stageCount;
  if(all!==(offset===source.length))return null;
@@ -64,6 +73,7 @@ export function checkStageReportOrder(source,verified,reports,task){
   reportedGroundedClaims:claims,reportedEvidenceQuotes:quotes,
   reportedNonExactQuotes:unlocated,quoteStatsAuthenticated:false,
   reportTextIntegrityChecked:true,reportOriginAuthenticated:false,
+  reportBodySourceQuotesChecked:true,
   modelExecutionAuthenticated:false,claimTruthVerified:false,
   completeSourceAnalysisConfirmed:false};
 }
