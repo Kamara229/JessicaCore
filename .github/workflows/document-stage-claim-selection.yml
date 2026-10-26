@@ -18,6 +18,9 @@ on:
       - 'backend/core/files/documentStageRunner.js'
       - 'backend/core/files/documentStageResumeExecutor.js'
       - 'backend/core/files/documentStageWindowResume.js'
+      - 'backend/http/routes/jsonParser.js'
+      - 'backend/http/routes/solveRoute.js'
+      - 'backend/server.js'
       - 'backend/core/files/documentPagedAnalysis.js'
       - 'backend/core/files/documentPagedResumeCheckpoint.js'
       - 'backend/core/files/documentAnalysisFacade.js'
@@ -40,6 +43,8 @@ on:
       - 'backend/scripts/regressionDocumentPagedCooldownEndToEnd.test.js'
       - 'backend/scripts/regressionDocumentPagedResumeCheckpoint.test.js'
       - 'backend/scripts/regressionDocumentStage256Resume.test.js'
+      - 'backend/scripts/regressionDocumentStage256HttpResume.test.js'
+      - 'backend/scripts/fixtures/documentStage256HttpFixture.js'
       - 'backend/scripts/regressionDocumentStageResumeExecutor.test.js'
       - 'backend/scripts/regressionDocumentQuotaCoverage.test.js'
       - 'backend/scripts/fixtures/documentStageClaimStressLifecycle.js'
@@ -72,3 +77,4 @@ jobs:
       - run: node --test backend/scripts/regressionDocumentQuotaCoverage.test.js backend/scripts/regressionDocumentPagedCooldownEndToEnd.test.js
       - run: node --test backend/scripts/regressionDocumentPagedResumeCheckpoint.test.js
       - run: node --max-old-space-size=512 --test backend/scripts/regressionDocumentStageResumeExecutor.test.js backend/scripts/regressionDocumentStage256Resume.test.js
+      - run: node --max-old-space-size=768 --test backend/scripts/regressionDocumentStage256HttpResume.test.js
