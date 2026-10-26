@@ -26,6 +26,7 @@ import {
     normalizeExperienceText,
     normalizeExperienceVersion
 } from "./experienceNormalizer.js";
+import {requireExperienceHistoryRows} from "./experienceHistoryRows.js";
 
 
 
@@ -112,11 +113,7 @@ export async function readExperienceHistory(
         );
 
 
-    return Array.isArray(history)
-
-        ? history
-
-        : [];
+    return requireExperienceHistoryRows(history);
 
 }
 
