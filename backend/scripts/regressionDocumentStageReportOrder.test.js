@@ -1,0 +1,84 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
+import {pageDocumentText} from "../core/files/documentTextWindow.js";
+import {materializeDocumentOverflowBatch}
+ from "../core/files/documentOverflowBatchMaterialization.js";
+import {verifyMaterializedOverflowBatches}
+ from "../core/files/documentOverflowBatchVerification.js";
+import {planVerifiedDocumentAnalysisStages}
+ from "../core/files/documentAnalysisStagePlan.js";
+import {checkStageReportOrder} from "../core/files/documentStageReportOrder.js";
+import {analyzeDocumentAttachments} from "../core/files/documentAnalysisFacade.js";
+const source="ВВЕДЕНИЕ\n"+"Обоснование судебной практики. ".repeat(19500)+
+ "\nЗАКЛЮЧЕНИЕ\nВывод.";
+const hash=x=>createHash("sha256").update(x,"utf8").digest("hex");
+function fixture(){
+ const digest=hash(source),first=materializeDocumentOverflowBatch(source,digest,1);
+ assert.ok(first);
+ const batches=[];
+ for(let n=1;n<=first.batchCount;n++)
+   batches.push(materializeDocumentOverflowBatch(source,digest,n));
+ const verified=verifyMaterializedOverflowBatches(source,digest,batches);
+ assert.ok(verified?.complete && verified.totalWindows>32);
+ const plan=planVerifiedDocumentAnalysisStages(source,verified);
+ const reports=plan.stages.map(stage=>{
+  const windows=verified.windows.slice(stage.firstWindowNumber-1,stage.lastWindowNumber);
+  return {success:true,mode:"document-stage",stage:"document-stage-verified",
+    stageReport:{sourceSha256:digest,stageNumber:stage.stageNumber,
+     stageCount:plan.stageCount,stageSha256:stage.stageSha256,
+     verifiedWindows:windows.length,stageAnalysisComplete:true,
+     fullSourceAnalysisConfirmed:false},
+    readingCoverage:{sourceSha256:digest,sourceChars:source.length,
+     stageNumber:stage.stageNumber,stageCount:plan.stageCount,
+     stageSha256:stage.stageSha256,plannedWindows:windows.length,
+     processedWindows:windows.length,stageAnalysisComplete:true,
+     fullSourceAnalysisConfirmed:false,
+     verifiedWindows:windows.map(w=>({windowNumber:w.number,
+       sectionIndex:w.sectionIndex,startOffset:w.startOffset,
+       endOffset:w.endOffset,windowSha256:w.textSha256,groundedClaims:1,
+       claimTruthVerified:false,independentSourcesVerified:false}))}
+  };
+ });
+ const pages=[];let offset=0;
+ do{const p=pageDocumentText(source,offset);pages.push({...p,name:"paper.docx"});offset=p.nextOffset;}
+ while(offset!==null);
+ return {verified,plan,reports,pages,batches};
+}
+test("reordered, missing or tampered stage metadata cannot claim analysis",()=>{
+ const {verified,reports,plan}=fixture();
+ const checked=checkStageReportOrder(source,verified,reports);
+ assert.equal(checked.allStageReportsReceived,true);
+ assert.equal(checked.windowsReported,plan.totalWindows);
+ assert.equal(checked.sourceCoordinatesChecked,true);
+ assert.equal(checked.modelExecutionAuthenticated,false);
+ assert.equal(checked.completeSourceAnalysisConfirmed,false);
+ assert.equal(checkStageReportOrder(source,verified,reports.slice(0,-1)).nextStageNumber,
+   plan.stageCount);
+ assert.equal(checkStageReportOrder(source,verified,[reports[1],reports[0]]),null);
+ const damaged=structuredClone(reports);
+ damaged[0].readingCoverage.verifiedWindows[2].startOffset+=1;
+ assert.equal(checkStageReportOrder(source,verified,damaged),null);
+ damaged[0].readingCoverage.verifiedWindows[2].startOffset-=1;
+ damaged[0].stageReport.stageSha256="0".repeat(64);
+ assert.equal(checkStageReportOrder(source,verified,damaged),null);
+});
+test("facade checks report coordinates but never authenticates client model results",async()=>{
+ const {reports,pages,batches,plan}=fixture();
+ let calls=0;
+ const result=await analyzeDocumentAttachments({task:"Проверь",
+    attachments:[{name:"paper.docx",pages,overflowBatches:batches,
+       stageReports:reports}]},async()=>{calls++;return "{}";});
+ assert.equal(calls,0);
+ assert.equal(result.success,false);
+ assert.equal(result.stage,"document-stage-reports-untrusted");
+ assert.equal(result.readingCoverage.stagesReceived,plan.stageCount);
+ assert.equal(result.readingCoverage.completeSourceAnalysisConfirmed,false);
+ assert.equal(result.readingCoverage.modelExecutionAuthenticated,false);
+ const bad=await analyzeDocumentAttachments({task:"Проверь",
+   attachments:[{name:"paper.docx",pages,overflowBatches:batches,
+      stageReports:[reports[1],reports[0]]}]},async()=>{calls++;return "{}";});
+ assert.equal(bad.success,false);
+ assert.equal(bad.stage,"document-stage-reports-invalid");
+ assert.equal(calls,0);
+});

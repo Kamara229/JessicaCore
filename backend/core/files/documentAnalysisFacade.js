@@ -16,6 +16,7 @@ import {assembleDocumentPages} from "./documentPageAssembly.js";
 import {verifyMaterializedOverflowBatches} from "./documentOverflowBatchVerification.js";
 import {planVerifiedDocumentAnalysisStages} from "./documentAnalysisStagePlan.js";
 import {analyzeVerifiedDocumentStage} from "./documentStageRunner.js";
+import {checkStageReportOrder} from "./documentStageReportOrder.js";
 import {analyzeMultiplePagedDocuments} from "./documentMultiPageAnalysis.js";
 import {addInterruptedDocumentCoverage} from "./documentQuotaCoverage.js";
 import {
@@ -95,6 +96,22 @@ export async function analyzeDocumentAttachments(
            !stagePlan)
             return errorResult("Не удалось построить проверяемые этапы анализа.",
                 "document-overflow-stage-plan-invalid");
+        // Reports received from a client are untrusted metadata, not model proof.
+        if(Object.hasOwn(item,"stageReports")){
+            if(Object.hasOwn(item,"stageNumber")||!checked.complete||!stagePlan)
+                return errorResult("Серия этапов или исходный файл неполны.",
+                    "document-stage-reports-invalid");
+            const coordinates=checkStageReportOrder(complete.text,checked,
+                item.stageReports);
+            if(!coordinates)return errorResult(
+                "Несовпадение порядка этапов или смещений.",
+                "document-stage-reports-invalid");
+            return {success:false,mode:"document",
+                stage:"document-stage-reports-untrusted",
+                text:"Порядок этапов проверен; происхождение ответов и полнота анализа не подтверждены.",
+                readingCoverage:{...coordinates,processedWindows:0,
+                    complete:false,completeSourceAnalysisConfirmed:false}};
+        }
         if(Object.hasOwn(item,"stageNumber")){
             if(!checked.complete||!stagePlan)
                 return errorResult("Нет полного проверенного плана этапов.",
