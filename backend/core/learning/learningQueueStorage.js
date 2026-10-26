@@ -381,7 +381,8 @@ function isRetryableStorageError(
 
 
 async function writeQueuePayload(
-    payload
+    payload,
+    client = null
 ) {
 
     let lastError =
@@ -402,7 +403,7 @@ async function writeQueuePayload(
 
                 await withTimeout(
 
-                    getClient()
+                    (client || getClient())
 
                         .from(
                             TABLE_NAME
@@ -1020,7 +1021,8 @@ function buildInsertPayload(
 
 
 export async function saveLearningQueueItem(
-    item
+    item,
+    {client = null} = {}
 ) {
 
 
@@ -1133,7 +1135,8 @@ export async function saveLearningQueueItem(
         const writeResult =
 
             await writeQueuePayload(
-                payload
+                payload,
+                client
             );
 
 
