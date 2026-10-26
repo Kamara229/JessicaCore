@@ -10,6 +10,7 @@ import { createDocumentEvidence } from "./documentEvidence.js";
 import { identifyDocumentAnswer } from "./documentResponseIdentity.js";
 import {summarizeDocumentCitationCoverage} from "./documentCitationCoverage.js";
 import {analyzePagedLongDocument} from "./documentPagedAnalysis.js";
+import {assembleDocumentChunks} from "./documentChunkAssembly.js";
 import {analyzeMultiplePagedDocuments} from "./documentMultiPageAnalysis.js";
 import {addInterruptedDocumentCoverage} from "./documentQuotaCoverage.js";
 import {
@@ -66,6 +67,37 @@ export async function analyzeDocumentAttachments(
     { task, attachments },
     generate = generateDocumentAnswer
 ) {
+    // Accept chunked extraction only after complete, verified SHA-256
+    // reassembly. Never downgrade an incomplete chunk to loose text.
+    if(Array.isArray(attachments)&&attachments.some(item=>
+        item!==null&&typeof item==="object"&&Object.hasOwn(item,"chunks"))){
+        if(attachments.length>3)return errorResult(
+            "Слишком много файлов для проверки частей.","document-chunks-invalid");
+        const normalized=[];
+        for(const item of attachments){
+            if(item?.chunks===undefined){
+                if(item?.pages)normalized.push(item);
+                else return errorResult("Некорректный набор документов.",
+                    "document-chunks-invalid");
+                continue;
+            }
+            const assembled=assembleDocumentChunks(item.chunks);
+            if(!assembled)return errorResult("Части документа нарушают порядок или целостность.",
+                "document-chunks-invalid");
+            if(!assembled.complete)return {success:false,mode:"document",
+                stage:"document-chunks-incomplete",
+                text:"Получены не все части документа. Анализ не запускался.",
+                readingCoverage:{complete:false,sourceIntegrityVerified:false,
+                    processedWindows:0,collectedChars:assembled.collectedChars,
+                    sourceChars:assembled.extractedChars,
+                    nextOffset:assembled.nextOffset,
+                    completeSourceAnalysisConfirmed:false}};
+            if(item.name!==assembled.name)return errorResult(
+                "Имя файла не совпало с извлечёнными частями.","document-chunks-invalid");
+            normalized.push({name:assembled.name,pages:assembled.pages});
+        }
+        return analyzeDocumentAttachments({task,attachments:normalized},generate);
+    }
     if(Array.isArray(attachments)&&attachments.length>1&&
        attachments.some(item=>Array.isArray(item?.pages))){
         if(!String(task||"").trim())return errorResult("Укажи задачу для документов.");
