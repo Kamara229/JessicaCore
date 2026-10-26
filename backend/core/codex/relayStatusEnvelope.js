@@ -5,12 +5,23 @@
  */
 export function deterministicStatusHandoff(message) {
     if (typeof message!=="string" || message.length>2500) return null;
+    // Android ChatReplyExtraction.read() deliberately strips both markers and
+    // passes ONLY the bounded body to /api/codex/relay/interpret. Rejecting
+    // that verified body here silently fell through to quota-bound Groq.
+    // Also accept the original full envelope for other clients and tests.
     const match=/^JESSICA_REPLY_([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12})\s*\r?\n/iu.exec(message);
-    if (!match) return null;
-    const suffix="JESSICA_END_"+match[1];
-    if (message.trimEnd().split(/\r?\n/u).at(-1)?.trim()!==suffix) return null;
-    const endIndex=message.lastIndexOf(suffix);
-    const body=message.slice(match[0].length,endIndex).replace(/\s+/gu," ").trim();
+    let rawBody;
+    if(match) {
+        const suffix="JESSICA_END_"+match[1];
+        if(message.trimEnd().split(/\r?\n/u).at(-1)?.trim()!==suffix)
+            return null;
+        rawBody=message.slice(match[0].length,message.lastIndexOf(suffix));
+    } else {
+        // Never accept a broken, incomplete, or nested marker as body-only.
+        if(/JESSICA_(?:REPLY|END)_/iu.test(message))return null;
+        rawBody=message;
+    }
+    const body=rawBody.replace(/\s+/gu," ").trim();
     if (!body || body.length>900) return null;
     // This path is intended only for positive technical progress, not plans,
     // arguments, quoted instructions or ambiguous test outcomes.
