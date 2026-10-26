@@ -7,7 +7,7 @@ import {analyzeVerifiedDocumentStage} from "./documentStageRunner.js";
  * Neither a fabricated client report nor a skipped stage may invoke the model.
  */
 export async function continueAuthenticatedDocumentStage(
-    {task,source,verified,name,previousReports,stageNumber},generate
+    {task,source,verified,name,previousReports,stageNumber,resumeCheckpoint},generate
 ){
     const fail=()=>({success:false,mode:"document-stage",
         stage:"document-stage-resume-invalid",
@@ -20,7 +20,7 @@ export async function continueAuthenticatedDocumentStage(
     if(!resume||resume.readingCoverage.nextStageNumber!==stageNumber)
         return fail();
     const next=await analyzeVerifiedDocumentStage(
-        {task,source,verified,name,stageNumber},generate);
+        {task,source,verified,name,stageNumber,resumeCheckpoint},generate);
     if(!next.success)return next;
     return {...next,
         continuation:{
