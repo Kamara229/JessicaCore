@@ -1,3 +1,5 @@
+import {auditStageClaimFragmentLinks} from "./documentStageClaimCitationAudit.js";
+
 /**
  * Compare stage-report body against its exact source window boundaries.
  * This checks source quotations, NOT the authenticity of an AI response.
@@ -70,6 +72,11 @@ export function inspectDocumentStageReportBody(report,stage,original){
                 quotes++;
             }
         }
+        const linkAudit=auditStageClaimFragmentLinks(body,
+            original.slice(window.startOffset,window.endOffset),window.number);
+        if(!linkAudit||linkAudit.claims!==claims.length||
+           linkAudit.quotes!==quotes||
+           linkAudit.refs!==citationMatches.length)return null;
         const expected=report.readingCoverage?.verifiedWindows?.[i];
         if(!expected||expected.windowNumber!==window.number||
            expected.groundedClaims!==claims.length||
