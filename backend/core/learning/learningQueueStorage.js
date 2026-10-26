@@ -1550,17 +1550,11 @@ export async function updateLearningQueueItemStatus(
      */
 
 
-    if(
-        normalizedStatus !==
-        "PENDING"
-    ){
-
-        payload.processed_at =
-
-            new Date()
-                .toISOString();
-
-    }
+    // Clear lease timestamp on voluntary retry; all terminal transitions
+    // record their processing time.
+    payload.processed_at = normalizedStatus === "PENDING"
+        ? null
+        : new Date().toISOString();
 
 
 
