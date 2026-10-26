@@ -48,7 +48,8 @@ export function mergeAuthenticatedStageClaimSelections({
         selected,grouping,verified);
     if(!citationAudit)return null;
     const numericAudit=auditDocumentExactFacts(source,verified,selected);
-    if(!numericAudit||!numericAudit.selectedNumericFactsQuoteGrounded)
+    if(!numericAudit||!numericAudit.selectedNumericFactsQuoteGrounded||
+       numericAudit.selectedNumericRelationContradictions>0)
         return null;
     const groupedText=renderMergedStageClaimSelections(grouping,totalClaims);
     if(!groupedText)return null;
