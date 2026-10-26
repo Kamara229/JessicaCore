@@ -49,6 +49,7 @@
 import {
     runLearningWorker
 } from "./learningWorker.js";
+import {recoverStaleLearningQueue} from "./learningQueueRecovery.js";
 import { consolidateLearningCandidates } from "./candidateMemory/candidateConsolidator.js";
 
 
@@ -232,6 +233,17 @@ export async function runLearningPipeline()
      * =====================================================
      */
 
+
+    // Quarantine ambiguous stale Candidate Memory actions before normal claims.
+    let queueRecovery;
+    try {
+        queueRecovery=await recoverStaleLearningQueue();
+    } catch (error) {
+        queueRecovery={success:false,error:error?.message||"Queue recovery error"};
+    }
+    if(queueRecovery?.success!==true){
+        console.warn("Jessica stale Learning Queue recovery:",queueRecovery?.error);
+    }
 
     let workerResult = null;
 
@@ -541,6 +553,7 @@ export async function runLearningPipeline()
         worker:
             workerResult,
 
+        queueRecovery,
 
         created:
 
