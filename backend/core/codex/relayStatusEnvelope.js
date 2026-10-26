@@ -67,7 +67,7 @@ export function deterministicStatusHandoff(message) {
         const nounStep=/^(?:анализ|обработка|проверка|сборка|планирование)\s+/iu.test(target);
         if (!nounStep && !/^(?:провер(?:ить|ка|ять)|завершить\s+проверку|продолжить|перейти\s+к|сопоставить)\s+/iu.test(target))
             return null;
-        const scope=/(?:\bCI\b|Render|GitHub|Supabase|backend|регресс|разв[её]рт|документ|раздел|план|сопоставлен|цитат|окон|страниц|файлов)/iu.test(target);
+        const scope=/(?:\bCI\b|Render|GitHub|Supabase|backend|регресс|разв[её]рт|документ|раздел|план|сопоставлен|цитат|окон|страниц|файлов|\bresume\b)/iu.test(target);
         if (!scope && (nounStep || !/анализ/iu.test(target))) return null;
     } else if (!ciProgress && !noNextProgress) return null;
     else if (ciProgress && !noNextProgress && (
