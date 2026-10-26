@@ -14,7 +14,10 @@ function relationNearToken(text,value){
     const match=/(?:^|[^\p{L}])(?:(не)\s+)?(более|менее)\s*$/iu.exec(prefix);
     if(!match)return null;
     const type=match[2].toLowerCase()==="более"?"more":"less";
-    return OPERATORS[match[1]?(type==="more"?"notMore":"notLess"):type];
+    const context=prefix.slice(0,match.index).split(/[.:;,\\n]/u).at(-1).trim();
+    const subject=/([\\p{L}]{3,})\\s*$/u.exec(context)?.[1]?.toLowerCase()||null;
+    return {operator:OPERATORS[match[1]?(type==="more"?"notMore":"notLess"):type],
+        subject};
 }
 
 // Deliberately narrow: contradicting explicit thresholds for the SAME cited number.
@@ -33,11 +36,14 @@ export function inspectQuotedNumericRelation(statement,evidence,sourceWindow,val
         if(found)actual.add(found);
     }
     if(actual.size!==1)return "unresolved";
-    const sourceOp=[...actual][0];
-    if(claimed===sourceOp)return "aligned";
-    if((claimed===">"&&(sourceOp==="<"||sourceOp==="<="))||
-       (claimed==="<"&&(sourceOp===">"||sourceOp===">="))||
-       (claimed===">="&&sourceOp==="<")||
-       (claimed==="<="&&sourceOp===">"))return "contradiction";
+    const sourceRelation=[...actual][0];
+    if(claimed.subject&&sourceRelation.subject&&
+       claimed.subject!==sourceRelation.subject)return "unresolved";
+    const claimedOp=claimed.operator,sourceOp=sourceRelation.operator;
+    if(claimedOp===sourceOp)return "aligned";
+    if((claimedOp===">"&&(sourceOp==="<"||sourceOp==="<="))||
+       (claimedOp==="<"&&(sourceOp===">"||sourceOp===">="))||
+       (claimedOp===">="&&sourceOp==="<")||
+       (claimedOp==="<="&&sourceOp===">"))return "contradiction";
     return "unresolved";
 }
