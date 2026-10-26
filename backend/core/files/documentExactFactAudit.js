@@ -1,6 +1,7 @@
 import {createHash} from "node:crypto";
 import {extractExactFactTokens} from "./documentExactFactTokens.js";
 import {supportsQuotedNumericFact} from "./documentExactFactQuoteBinding.js";
+import {inspectQuotedNumericRelation} from "./documentNumericRelationAudit.js";
 
 const digest = text => createHash("sha256").update(text, "utf8").digest("hex");
 /** Audits exact literal fact tokens in ALL authenticated source windows.
@@ -33,6 +34,9 @@ export function auditDocumentExactFacts(source, verified, selected = []) {
     if (cursor !== source.length) return null;
     let selectedFactTokens = 0, ungroundedSelectedFactTokens = 0;
     let unquotedSelectedFactTokens = 0;
+    let numericRelationContradictions = 0;
+    let numericRelationsAligned = 0;
+    let numericRelationsUnresolved = 0;
     for (const claim of selected) {
         const window = verified.windows[claim?.windowNumber - 1];
         if (!window || !Number.isSafeInteger(claim.windowNumber) ||
@@ -48,6 +52,13 @@ export function auditDocumentExactFacts(source, verified, selected = []) {
                 ungroundedSelectedFactTokens++;
             else if (!supportsQuotedNumericFact(claim,window.text,token.value))
                 unquotedSelectedFactTokens++;
+            else {
+                const status=inspectQuotedNumericRelation(
+                    statement,claim.evidence,window.text,token.value);
+                if(status==="contradiction")numericRelationContradictions++;
+                else if(status==="aligned")numericRelationsAligned++;
+                else numericRelationsUnresolved++;
+            }
         }
     }
     return {
@@ -58,6 +69,10 @@ export function auditDocumentExactFacts(source, verified, selected = []) {
         selectedNumericTokensChecked: selectedFactTokens,
         selectedNumericTokensAbsentFromCitedWindow: ungroundedSelectedFactTokens,
         selectedNumericTokensAbsentFromQuotedEvidence: unquotedSelectedFactTokens,
+        selectedNumericRelationContradictions: numericRelationContradictions,
+        selectedNumericRelationsAligned: numericRelationsAligned,
+        selectedNumericRelationsUnresolved: numericRelationsUnresolved,
+        numericRelationsFullySemanticallyVerified: false,
         selectedNumericFactsQuoteGrounded:
             ungroundedSelectedFactTokens === 0 && unquotedSelectedFactTokens === 0,
         literalNumericTokenPresenceVerified: !limited &&
