@@ -23,6 +23,8 @@ on:
       - 'backend/scripts/regressionDocumentStageClaimStress.test.js'
       - 'backend/scripts/regressionDocumentOverflowPlanCache.test.js'
       - 'backend/scripts/regressionDocumentOverflowBatchSession.test.js'
+      - 'backend/scripts/regressionDocumentOverflowConcurrentStress.test.js'
+      - 'backend/scripts/fixtures/documentStageClaimConcurrencyWorker.js'
       - 'backend/scripts/fixtures/documentStageClaimStressCorpus.js'
       - 'backend/scripts/fixtures/documentStageClaimFixture.js'
       - 'backend/scripts/fixtures/documentStageClaimConflict*.js'
@@ -45,3 +47,4 @@ jobs:
       - run: node --max-old-space-size=512 --test backend/scripts/regressionDocumentStageClaimStress.test.js
       - run: node --max-old-space-size=512 --test backend/scripts/regressionDocumentOverflowPlanCache.test.js
       - run: node --max-old-space-size=512 --test backend/scripts/regressionDocumentOverflowBatchSession.test.js
+      - run: node --max-old-space-size=512 --test backend/scripts/regressionDocumentOverflowConcurrentStress.test.js
