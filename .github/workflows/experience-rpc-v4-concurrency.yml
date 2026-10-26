@@ -11,6 +11,7 @@ on:
       - '.github/workflows/experience-rpc-v4-concurrency.yml'
 permissions:
   contents: read
+  statuses: write
 jobs:
   race:
     runs-on: ubuntu-latest
@@ -30,4 +31,25 @@ jobs:
             echo "::error::Supabase integration secrets are missing; concurrency NOT verified."
             exit 1
           fi
-      - run: node --test backend/scripts/regressionExperienceRpcV4Concurrent.test.js
+      - name: Run real two-client RPC integration
+        id: race_integration
+        run: node --test backend/scripts/regressionExperienceRpcV4Concurrent.test.js
+      - name: Publish check result as commit status for connected GitHub verifier
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST_OUTCOME: ${{ steps.race_integration.outcome }}
+          SHA: ${{ github.sha }}
+          TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          state=failure
+          description="RPC v4 two-client integration not confirmed"
+          if [ "$TEST_OUTCOME" = "success" ]; then
+            state=success
+            description="RPC v4 two-client integration passed"
+          fi
+          gh api --method POST "repos/${{ github.repository }}/statuses/$SHA" \
+            -f state="$state" \
+            -f context="jessica/rpc-v4-two-client" \
+            -f description="$description" \
+            -f target_url="$TARGET_URL"
