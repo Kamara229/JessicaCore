@@ -57,6 +57,10 @@ test("complete signed pages merge in original page order without new assertions"
     assert.equal(result.readingCoverage.selectedSourceCoordinatesVerified,true);
     assert.equal(result.readingCoverage.selectedClaimsRenderedCompletely,true);
     assert.equal(result.readingCoverage.selectedClaimsAudited,selected.length);
+    assert.equal(result.readingCoverage.renderedSourceCoordinatesAudited,
+        selected.length);
+    assert.equal(result.readingCoverage.selectedCitationOccurrencesAudited,
+        result.readingCoverage.renderedCitationOccurrencesAudited);
     assert.equal(result.readingCoverage.unselectedClaimsAudited,false);
     assert.equal(result.text.split("Формулировка 1:").length,2);
     let start=0;
