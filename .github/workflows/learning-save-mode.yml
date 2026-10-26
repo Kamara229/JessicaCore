@@ -8,11 +8,14 @@ on:
       - 'backend/experience/storage/experiencePersistence/experienceVersioning.js'
       - 'backend/experience/storage/experiencePersistence/experienceHistoryContinuity.js'
       - 'backend/experience/storage/experiencePersistence/experienceHistoryRows.js'
+      - 'backend/experience/storage/experiencePersistence/experienceStoredStatus.js'
+      - 'backend/experience/storage/supabaseExperienceWriter.js'
       - 'backend/experience/storage/experiencePersistence/experienceReader.js'
       - 'backend/experience/storage/supabaseExperienceHistoryStore.js'
       - 'backend/scripts/regressionLearningSaveMode.test.js'
       - 'backend/scripts/regressionExperienceVersionContinuity.test.js'
       - 'backend/scripts/regressionExperienceHistoryReadIntegrity.test.js'
+      - 'backend/scripts/regressionExperienceIdempotentStatus.test.js'
       - '.github/workflows/learning-save-mode.yml'
   workflow_dispatch:
 permissions:
@@ -25,4 +28,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test backend/scripts/regressionLearningSaveMode.test.js backend/scripts/regressionExperienceVersionContinuity.test.js backend/scripts/regressionExperienceHistoryReadIntegrity.test.js
+      - run: node --test backend/scripts/regressionLearningSaveMode.test.js backend/scripts/regressionExperienceVersionContinuity.test.js backend/scripts/regressionExperienceHistoryReadIntegrity.test.js backend/scripts/regressionExperienceIdempotentStatus.test.js
