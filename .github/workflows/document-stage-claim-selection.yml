@@ -16,6 +16,7 @@ on:
       - 'backend/core/files/documentStageClaimCrossPage*.js'
       - 'backend/core/files/documentOverflowAnalysisFacade.js'
       - 'backend/core/files/documentPagedAnalysis.js'
+      - 'backend/core/files/documentPagedResumeCheckpoint.js'
       - 'backend/core/files/documentAnalysisFacade.js'
       - 'backend/core/files/documentQuotaCoverage.js'
       - 'backend/ai/providerAvailability.js'
@@ -34,6 +35,7 @@ on:
       - 'backend/scripts/regressionDocumentOverflowTenConcurrent.test.js'
       - 'backend/scripts/regressionDocumentProviderCooldown.test.js'
       - 'backend/scripts/regressionDocumentPagedCooldownEndToEnd.test.js'
+      - 'backend/scripts/regressionDocumentPagedResumeCheckpoint.test.js'
       - 'backend/scripts/regressionDocumentQuotaCoverage.test.js'
       - 'backend/scripts/fixtures/documentStageClaimStressLifecycle.js'
       - 'backend/scripts/fixtures/documentStageClaimConcurrencyWorker.js'
@@ -63,3 +65,4 @@ jobs:
       - run: node --max-old-space-size=512 --test backend/scripts/regressionDocumentOverflowTenConcurrent.test.js
       - run: node --test backend/scripts/regressionDocumentProviderCooldown.test.js
       - run: node --test backend/scripts/regressionDocumentQuotaCoverage.test.js backend/scripts/regressionDocumentPagedCooldownEndToEnd.test.js
+      - run: node --test backend/scripts/regressionDocumentPagedResumeCheckpoint.test.js
