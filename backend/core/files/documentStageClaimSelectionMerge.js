@@ -8,6 +8,9 @@ import {findStageClaimConflictCandidates} from "./documentStageClaimConflictCand
 import {renderStageClaimConflictCandidates} from "./documentStageClaimConflictRender.js";
 import {triageStageClaimConflictCandidates} from "./documentStageClaimConflictTriage.js";
 import {auditStageClaimConflictTriage} from "./documentStageClaimConflictQualityAudit.js";
+import {inspectStageClaimWindowContinuity} from "./documentStageClaimWindowContinuity.js";
+import {auditStageClaimCrossPageConflicts} from "./documentStageClaimCrossPageAudit.js";
+import {renderStageClaimWindowContinuity} from "./documentStageClaimWindowContinuityRender.js";
 
 /** Rebuild every page from signed reports; never trust client-supplied claims. */
 export function mergeAuthenticatedStageClaimSelections({
@@ -55,9 +58,15 @@ export function mergeAuthenticatedStageClaimSelections({
     if(!triage)return null;
     const qualityAudit=auditStageClaimConflictTriage(conflicts,triage);
     if(!qualityAudit)return null;
+    const continuity=inspectStageClaimWindowContinuity(selected,verified);
+    if(!continuity)return null;
+    const crossPage=auditStageClaimCrossPageConflicts(triage,verified);
+    if(!crossPage)return null;
     const conflictText=renderStageClaimConflictCandidates(triage);
-    if(!conflictText)return null;
-    const text=groupedText+conflictText;
+    const structureText=renderStageClaimWindowContinuity(
+        continuity,crossPage);
+    if(!conflictText||!structureText)return null;
+    const text=groupedText+conflictText+structureText;
     return {success:true,mode:"document-claim-selection-merge",
         stage:"document-stage-claim-selections-verified",text,
         readingCoverage:{
@@ -77,6 +86,8 @@ export function mergeAuthenticatedStageClaimSelections({
             conflictFalsePositiveVerified:false,
             conflictFilterMeaning:triage.filterMeaning,
             ...qualityAudit,
+            ...continuity,
+            ...crossPage,
             contextQualifiedPairs:conflicts.contextQualifiedPairs,
             conflictContextReviewPerformed:conflicts.contextReviewPerformed,
             fullSourceContextReviewed:false,
