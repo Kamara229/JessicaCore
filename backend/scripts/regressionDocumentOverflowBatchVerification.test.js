@@ -67,12 +67,12 @@ test("reordered, repeated, forged, cross-source batches all fail closed",()=>{
     assert.equal(verifyMaterializedOverflowBatches(large+"Z",sha(large),full),null);
     assert.equal(verifyMaterializedOverflowBatches(large,sha(large),[]),null);
 });
-test("facade refuses incomplete or fully assembled overflow as finished AI analysis",async()=>{
+test("facade rejects incomplete source and unsupported model evidence",async()=>{
     const batches=materialize();
     let calls=0;
     for(const [series,stage] of [
         [batches.slice(0,1),"document-overflow-batches-incomplete"],
-        [batches,"document-overflow-analysis-pending"]
+        [batches,"document-window-evidence"]
     ]){
         const result=await analyzeDocumentAttachments({task:"Изучить все главы",
             attachments:[{name:"paper.docx",pages:pages(large),
@@ -82,5 +82,5 @@ test("facade refuses incomplete or fully assembled overflow as finished AI analy
         assert.equal(result.readingCoverage.completeSourceAnalysisConfirmed,false);
         assert.equal(result.readingCoverage.processedWindows,0);
     }
-    assert.equal(calls,0);
+    assert.equal(calls,1);
 });
