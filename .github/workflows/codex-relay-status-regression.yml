@@ -1,0 +1,25 @@
+name: Jessica Codex Relay Interpretation Regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/codex-relay-status-regression.yml'
+      - 'backend/core/codex/relay*.js'
+      - 'backend/scripts/regressionCodex*.test.js'
+      - 'backend/http/routes/codexRoute.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  relay-status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionCodexRelay.test.js backend/scripts/regressionCodexStatusEnvelope.test.js backend/scripts/regressionCodexCompactStressProgress.test.js backend/scripts/regressionCodexCurrentSession.test.js backend/scripts/regressionCodexFailedHandoff.test.js backend/scripts/regressionCodexCompactTest.test.js backend/scripts/regressionCodexPendingVerification.test.js backend/scripts/regressionCodexDocumentProgress.test.js
