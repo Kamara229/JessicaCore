@@ -1,0 +1,24 @@
+name: Modular Skill Integrity
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/experience/storage/skillModules/experienceModuleIntegrity.js'
+      - 'backend/experience/storage/skillModules/experienceModulePacker.js'
+      - 'backend/experience/storage/skillModules/experienceModuleHydrator.js'
+      - 'backend/scripts/regressionModularExperienceStorage.test.js'
+      - 'backend/scripts/regressionModularExperienceIntegrity.test.js'
+      - '.github/workflows/experience-module-integrity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  modular-skill-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionModularExperienceStorage.test.js backend/scripts/regressionModularExperienceIntegrity.test.js
