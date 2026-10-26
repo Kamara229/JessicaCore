@@ -9,14 +9,15 @@ test("22 hand-labelled synthetic cases expose false positives and misses",()=>{
     const benchmark=evaluateStageClaimConflictFixtures(
         expandedConflictBenchmarkCases);
     assert.equal(benchmark?.casesEvaluated,22);
-    assert.equal(benchmark.fixtureTruePositives,8);
+    assert.equal(benchmark.fixtureTruePositives,12);
     assert.equal(benchmark.fixtureFalsePositives,6);
-    assert.equal(benchmark.fixtureMissedPairs,5);
+    assert.equal(benchmark.fixtureMissedPairs,1);
     assert.equal(benchmark.fixtureReviewTierMismatches,0);
-    assert.equal(benchmark.fixturePrecision,8/14);
-    assert.equal(benchmark.fixtureRecall,8/13);
+    assert.equal(benchmark.fixturePrecision,12/18);
+    assert.equal(benchmark.fixtureRecall,12/13);
     assert.equal(benchmark.labelOrigin,
         "explicitly-annotated-synthetic-fixtures");
+    assert.equal(benchmark.errors.length,7);
     assert.equal(benchmark.realWorldAccuracyMeasured,false);
     assert.equal(benchmark.semanticConflictVerified,false);
 });
@@ -46,9 +47,8 @@ test("known synthetic errors are retained, not misrepresented as accuracy",()=>{
         "different-dates","different-conditions","exception",
         "one-sided-condition","date-on-one-side","date-and-exception"]);
     assert.deepEqual(errors("fixture-missed-pair"),[
-        "force-paraphrase","permitted-paraphrase","modal-paraphrase",
-        "morphological-paraphrase","additional-negation"]);
-    assert.equal(result.errors.length,11);
+        "additional-negation"]);
+    assert.equal(result.errors.length,7);
 });
 
 test("every synthetic claim carries traceable source location and evidence",()=>{
