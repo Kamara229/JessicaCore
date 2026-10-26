@@ -1,6 +1,7 @@
 import {planAuthenticatedStageClaimPage} from "./documentStageClaimPage.js";
 import {verifyStageClaimSelection} from "./documentStageClaimSelectionReceipt.js";
 import {renderMergedStageClaimSelections} from "./documentStageClaimSelectionMergeRender.js";
+import {groupStageClaimSelections} from "./documentStageClaimSelectionGrouping.js";
 
 /** Rebuild every page from signed reports; never trust client-supplied claims. */
 export function mergeAuthenticatedStageClaimSelections({
@@ -31,7 +32,9 @@ export function mergeAuthenticatedStageClaimSelections({
             offset=page.nextClaimOffset;
         }
     }
-    const text=renderMergedStageClaimSelections(selected,totalClaims);
+    const grouping=groupStageClaimSelections(selected);
+    if(!grouping)return null;
+    const text=renderMergedStageClaimSelections(grouping,totalClaims);
     if(!text)return null;
     return {success:true,mode:"document-claim-selection-merge",
         stage:"document-stage-claim-selections-verified",text,
@@ -40,6 +43,10 @@ export function mergeAuthenticatedStageClaimSelections({
             claimPagesVerified:selections.length,totalClaims,
             selectedClaims:selected.length,
             omittedClaims:totalClaims-selected.length,
+            exactTextGroups:grouping.exactTextGroups,
+            repeatedFormulations:grouping.repeatedFormulations,
+            groupingBasis:grouping.groupingBasis,
+            semanticEquivalenceVerified:false,
             allClaimPagesVerified:true,
             reportOriginAuthenticated:true,
             selectionReceiptsAuthenticated:true,
