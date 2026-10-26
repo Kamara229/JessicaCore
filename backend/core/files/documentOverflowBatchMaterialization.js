@@ -3,17 +3,10 @@ import {planDocumentOverflowBatches} from "./documentOverflowReadBatches.js";
 
 const digest=text=>createHash("sha256").update(text,"utf8").digest("hex");
 
-/**
- * Read one bounded source batch from the deterministic overflow blueprint.
- * Always recompute provenance from original extracted text; a caller cannot
- * supply a forged plan or silently treat this material as AI-analyzed.
- */
-export function materializeDocumentOverflowBatch(source,sourceSha256,batchNumber){
-    if(typeof source!=="string"||!source.length||
-       !/^[a-f0-9]{64}$/u.test(String(sourceSha256||""))||
-       !Number.isSafeInteger(batchNumber)||batchNumber<1)return null;
-    const plan=planDocumentOverflowBatches(source,sourceSha256);
-    if(!plan?.completeSourcePartition||batchNumber>plan.batchCount)return null;
+/** Only called with a locally recomputed SHA-256 plan, never caller metadata. */
+function materializeFromVerifiedPlan(source,sourceSha256,batchNumber,plan){
+    if(!Number.isSafeInteger(batchNumber)||batchNumber<1||
+       batchNumber>plan.batchCount)return null;
     const batch=plan.batches[batchNumber-1];
     if(!batch||batch.batchNumber!==batchNumber||
        !Array.isArray(batch.windows)||!batch.windows.length||
@@ -45,4 +38,34 @@ export function materializeDocumentOverflowBatch(source,sourceSha256,batchNumber
         allBatchesRead:false,modelAnalysisPerformed:false,
         analyzedWindows:0,resumeImplemented:false,
         semanticCompletenessConfirmed:false};
+}
+
+/** Independent request: always validate source digest and partition. */
+export function materializeDocumentOverflowBatch(source,sourceSha256,batchNumber){
+    if(typeof source!=="string"||!source.length||
+       !/^[a-f0-9]{64}$/u.test(String(sourceSha256||""))||
+       !Number.isSafeInteger(batchNumber)||batchNumber<1)return null;
+    const plan=planDocumentOverflowBatches(source,sourceSha256);
+    if(!plan?.completeSourcePartition)return null;
+    return materializeFromVerifiedPlan(
+        source,sourceSha256,batchNumber,plan);
+}
+
+/** One-request bounded session: source is immutable, plan stays private.
+ * Never accept a client-provided plan. Independently verify emitted batches.
+ */
+export function prepareDocumentOverflowMaterialization(source,sourceSha256){
+    if(typeof source!=="string"||!source.length||
+       !/^[a-f0-9]{64}$/u.test(String(sourceSha256||"")))return null;
+    const plan=planDocumentOverflowBatches(source,sourceSha256);
+    if(!plan?.completeSourcePartition||plan.batchCount>16||
+       plan.totalWindows>256)return null;
+    return Object.freeze({
+        sourceSha256,sourceChars:source.length,
+        batchCount:plan.batchCount,totalWindows:plan.totalWindows,
+        materialize(batchNumber){
+            return materializeFromVerifiedPlan(
+                source,sourceSha256,batchNumber,plan);
+        }
+    });
 }
