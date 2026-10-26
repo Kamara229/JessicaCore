@@ -2,6 +2,7 @@ import {
     getSupabaseClient
 } from "../../storage/supabaseClient.js";
 import {hydrateExperienceModules} from "./skillModules/experienceModuleHydrator.js";
+import {selectActiveExperienceCandidates} from "./skillModules/experienceActiveCandidates.js";
 
 
 /*
@@ -198,10 +199,10 @@ function normalizeSkill(value) {
  */
 
 
-export async function loadExperiences() {
+export async function loadExperiences(client=null) {
 
     const supabase =
-        getSupabaseClient();
+        client || getSupabaseClient();
 
 
     const {
@@ -258,9 +259,9 @@ export async function loadExperiences() {
         new Map();
 
 
-    for (const row of data) {
+    for (const row of selectActiveExperienceCandidates(data)) {
         const fullPayload=await hydrateExperienceModules(
-            row.payload,row.id,row.version
+            row.payload,row.id,row.version,supabase
         );
 
         const skill =
