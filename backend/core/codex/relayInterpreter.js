@@ -12,6 +12,7 @@ import {releaseCiStatusHandoff} from "./relayReleaseCiStatus.js";
 import {deterministicStatusHandoff} from "./relayStatusEnvelope.js";
 import {compactCodexStressProgress} from "./relayCompactStressProgress.js";
 import {interpretationFailureHandoff} from "./relayFailureHandoff.js";
+import {v2PersistenceHandoff} from "./relayV2PersistenceHandoff.js";
 export {explicitJessicaTest} from "./relayExplicitTest.js";
 export {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 export {explicitSameTestChat} from "./relayThreadPolicy.js";
@@ -86,6 +87,8 @@ export async function interpretRelayTurn(input, generate) {
     if (releaseReply!==null) return {action:"reply",reply:releaseReply,task:"",continueThread:false};
     const statusReply=deterministicStatusHandoff(message);
     if (statusReply!==null) return {action:"reply",reply:statusReply,task:"",continueThread:false};
+    const v2Reply=v2PersistenceHandoff(message);
+    if(v2Reply!==null)return {action:"reply",reply:v2Reply,task:"",continueThread:false};
     const stressReply=compactCodexStressProgress(message);
     if (stressReply!==null) return {action:"reply",reply:stressReply,task:"",continueThread:false};
     const payload = {message, plan:String(input.plan || "").slice(0,12000), history};
