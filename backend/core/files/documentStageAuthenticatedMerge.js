@@ -12,6 +12,8 @@ export function mergeAuthenticatedDocumentStages(summary,reports,secret) {
        summary.sourceCoordinatesChecked!==true||
        summary.taskContextMatched!==true||
        summary.reportTextIntegrityChecked!==true||
+       summary.sectionCoverage?.allSectionsAuthenticated!==true||
+       summary.sectionCoverage?.sectionCount<1||
        !Number.isSafeInteger(summary.stageCount)||
        summary.stageCount<3||summary.stageCount>16||
        !Number.isSafeInteger(summary.totalWindows)||
@@ -54,5 +56,6 @@ export function mergeAuthenticatedDocumentStages(summary,reports,secret) {
             reportOriginAuthenticated:true,
             reportBodySourceQuotesChecked:true,
             claimTruthVerified:false,scientificCorrectnessVerified:false,
+            sectionCoverage:summary.sectionCoverage,
             completeSourceAnalysisConfirmed:false}};
 }

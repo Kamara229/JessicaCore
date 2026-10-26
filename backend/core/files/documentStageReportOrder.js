@@ -4,6 +4,7 @@ import {readDocumentStageReceiptStats} from "./documentStageReceiptStats.js";
 import {matchesDocumentStageReportText} from "./documentStageReportTextHash.js";
 import {inspectDocumentStageReportBody} from "./documentStageReportBodyAudit.js";
 import {verifyDocumentStageReceipt} from "./documentStageReceiptAuth.js";
+import {summarizeDocumentStageSectionCoverage} from "./documentStageSectionCoverage.js";
 
 /** Metadata consistency only. Client stage reports are NOT authenticated. */
 export function checkStageReportOrder(source,verified,reports,task,secret){
@@ -72,6 +73,9 @@ export function checkStageReportOrder(source,verified,reports,task,secret){
  }
  const all=reports.length===plan.stageCount;
  if(all!==(offset===source.length))return null;
+ const sectionCoverage=summarizeDocumentStageSectionCoverage(
+     source,verified,count,authenticated);
+ if(!sectionCoverage)return null;
  return {sourceSha256:plan.sourceSha256,stageCount:plan.stageCount,
   stagesReceived:reports.length,windowsReported:count,
   totalWindows:plan.totalWindows,
@@ -84,5 +88,6 @@ export function checkStageReportOrder(source,verified,reports,task,secret){
   reportTextIntegrityChecked:true,reportOriginAuthenticated:authenticated,
   reportBodySourceQuotesChecked:true,
   modelExecutionAuthenticated:authenticated,claimTruthVerified:false,
-  completeSourceAnalysisConfirmed:false};
+  completeSourceAnalysisConfirmed:false,
+  sectionCoverage};
 }

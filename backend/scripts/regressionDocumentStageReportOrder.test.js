@@ -81,6 +81,10 @@ test("reordered, missing or tampered stage metadata cannot claim analysis",()=>{
  assert.equal(checked.reportBodySourceQuotesChecked,true);
  assert.equal(checked.reportedAnchoredFragments,plan.totalWindows);
  assert.equal(checked.reportOriginAuthenticated,false);
+ assert.equal(checked.sectionCoverage.allSectionsAuthenticated,false);
+ assert.equal(checked.sectionCoverage.authenticatedSections,0);
+ assert.equal(checked.sectionCoverage.reportedSections,2);
+ assert.equal(checked.sectionCoverage.sectionCount,2);
  assert.equal(checkStageReportOrder(source,verified,reports,"Другая задача"),null);
  assert.equal(checked.modelExecutionAuthenticated,false);
  assert.equal(checked.completeSourceAnalysisConfirmed,false);
@@ -188,6 +192,9 @@ test("only server-HMAC receipts can attest complete, source-checked stage report
  assert.equal(check.windowsReported,plan.totalWindows);
  assert.equal(check.modelExecutionAuthenticated,true);
  assert.equal(check.reportOriginAuthenticated,true);
+ assert.equal(check.sectionCoverage.allSectionsAuthenticated,true);
+ assert.equal(check.sectionCoverage.authenticatedSections,2);
+ assert.equal(check.sectionCoverage.sections.reduce((n,row)=>n+row.authenticatedWindows,0),plan.totalWindows);
  assert.equal(check.completeSourceAnalysisConfirmed,false);
  assert.equal(checkStageReportOrder(source,verified,signed,task,"b".repeat(64)),null);
  const changed=structuredClone(signed);
@@ -201,6 +208,7 @@ test("only server-HMAC receipts can attest complete, source-checked stage report
  const unsigned=checkStageReportOrder(source,verified,stripped,task,secret);
  assert.equal(unsigned.modelExecutionAuthenticated,false);
  assert.equal(unsigned.reportOriginAuthenticated,false);
+ assert.equal(unsigned.sectionCoverage.authenticatedSections,0);
 });
 
 test("complete server-authenticated stages merge in source order, no semantic guarantee",async()=>{
@@ -219,6 +227,8 @@ test("complete server-authenticated stages merge in source order, no semantic gu
    assert.equal(joined.success,true);
    assert.equal(joined.stage,"document-stages-authenticated");
    assert.equal(joined.readingCoverage.allWindowsPresented,true);
+   assert.equal(joined.readingCoverage.sectionCoverage.allSectionsAuthenticated,true);
+   assert.equal(joined.readingCoverage.sectionCoverage.scientificCorrectnessVerified,false);
    assert.equal(joined.readingCoverage.completeSourceAnalysisConfirmed,false);
    assert.equal(joined.readingCoverage.claimTruthVerified,false);
    assert.equal(joined.readingCoverage.authenticatedStages,plan.stageCount);
