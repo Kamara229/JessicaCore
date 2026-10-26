@@ -3,7 +3,7 @@ import {requireContiguousExperienceHistory} from "./experienceHistoryContinuity.
 // Minimal facade: validate immutable snapshots before deriving the next version.
 export function resolveExperienceVersionState(history) {
     const latestVersion = requireContiguousExperienceHistory(
-        Array.isArray(history) ? history : []
+        history
     );
     if (latestVersion === 0) {
         return {exists:false,latestVersion:null,nextVersion:1,previousVersion:null};
