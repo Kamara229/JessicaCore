@@ -95,6 +95,7 @@ import {
     getLatestExperienceVersion
 } from "../../experience/storage/experienceStorage.js";
 import {checkLearningWorkerReplay} from "./workerReplayGuard.js";
+import {recordProposalSaveFailure} from "./proposalSaveRetry.js";
 
 
 
@@ -545,7 +546,12 @@ async function prepareCandidateMemory(
 
 export async function processQueueItem(
     item,
-    {replayGuard=checkLearningWorkerReplay}={}
+    {
+      replayGuard=checkLearningWorkerReplay,
+      prepareMemory=prepareCandidateMemory,
+      proposalSaver=saveLearningProposal,
+      proposalFailureHandler=recordProposalSaveFailure
+    }={}
 ) {
 
     if(
@@ -804,7 +810,7 @@ export async function processQueueItem(
 
         const memoryResult =
 
-            await prepareCandidateMemory(
+            await prepareMemory(
                 effectiveItem
             );
 
@@ -905,48 +911,54 @@ export async function processQueueItem(
          */
 
 
-        const saved =
-
-            await saveLearningProposal(
-                proposal
-            );
-
-
-        if(
-            !saved?.success
-        ){
-
-            await markFailed(
-                item
-            );
-
-
-            return {
-
-                success:
-                    false,
-
-                queueItemId:
-                    item.id,
-
-                reason:
-
-                    saved?.error
-
-                    ||
-
-                    "Proposal не сохранён",
-
-                proposal,
-
-                candidateMemory:
-                    memoryResult.observation || null
-
-            };
-
+        let saved;
+        try {
+            saved=await proposalSaver(proposal);
+        } catch(error){
+            saved={success:false,error:error?.message||"Proposal storage error"};
         }
 
-
+        if(saved?.success!==true){
+            // Candidate observation is already committed. The dedicated SQL
+            // retry facade performs a journal check, counter increment and
+            // Queue release in one atomic transaction.
+            if(effectiveItem.action==="NEW_SKILL"){
+                const retry=await proposalFailureHandler({queueItemId:item.id});
+                if(retry.status==="already_saved"){
+                    return {
+                        success:true,existing:true,queueUpdated:true,
+                        queueItemId:item.id,proposalId:retry.proposalId,
+                        action:proposal.action,recovered:true
+                    };
+                }
+                if(retry.status==="retry"){
+                    return {
+                        success:true,deferred:true,queueAlreadyReleased:true,
+                        retryScheduled:true,attempts:retry.attempts,
+                        queueItemId:item.id,reason:saved?.error||"Proposal save deferred"
+                    };
+                }
+                if(retry.status==="exhausted"){
+                    return {
+                        success:false,exhausted:true,attempts:retry.attempts,
+                        queueItemId:item.id,reason:"Proposal retry limit exceeded"
+                    };
+                }
+                // Missing journal, permission error, or RPC outage:
+                // leave the claimed row untouched for conservative recovery.
+                return {
+                    success:false,queueItemId:item.id,
+                    recoveryBlocked:true,
+                    reason:retry.error||"Proposal retry unavailable"
+                };
+            }
+            // SKILL_IMPROVEMENT does not mutate Candidate Memory.
+            await markFailed(item);
+            return {
+                success:false,queueItemId:item.id,
+                reason:saved?.error||"Proposal не сохранён"
+            };
+        }
 
         /*
          * =================================================
@@ -1206,7 +1218,7 @@ export async function runLearningWorker({
 
         // Deferred provider/lookup results must relinquish their claim.
         // Never leave an item PROCESSING after a voluntary retry deferral.
-        if(result?.deferred===true){
+        if(result?.deferred===true && result?.queueAlreadyReleased!==true){
             const returned=await updateQueue(item.id,"PENDING");
             if(returned?.success!==true){
                 result.success=false;
