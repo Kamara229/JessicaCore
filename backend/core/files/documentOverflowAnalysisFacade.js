@@ -9,6 +9,7 @@ import {analyzeVerifiedDocumentStage} from "./documentStageRunner.js";
 import {checkStageReportOrder} from "./documentStageReportOrder.js";
 import {mergeAuthenticatedDocumentStages} from "./documentStageAuthenticatedMerge.js";
 import {authenticatedStageResumeStatus} from "./documentStageResumeStatus.js";
+import {continueAuthenticatedDocumentStage} from "./documentStageResumeExecutor.js";
 import {analyzePagedLongDocument} from "./documentPagedAnalysis.js";
 import {addInterruptedDocumentCoverage} from "./documentQuotaCoverage.js";
 
@@ -42,9 +43,29 @@ export async function analyzeOverflowDocumentAttachments({task,attachments},gene
                 "document-overflow-stage-plan-invalid");
         // Reports received from a client are untrusted metadata, not model proof.
         if(Object.hasOwn(item,"stageReports")){
-            if(Object.hasOwn(item,"stageNumber")||!checked.complete||!stagePlan)
+            if(!checked.complete||!stagePlan)
                 return errorResult("Серия этапов или исходный файл неполны.",
                     "document-stage-reports-invalid");
+            if(Object.hasOwn(item,"stageNumber")){
+                if(getAIProviderAvailability().blocked)
+                    return errorResult("Достигнут лимит ИИ.","ai-provider-cooldown");
+                try{
+                    return await continueAuthenticatedDocumentStage({
+                        task,source:complete.text,verified:checked,
+                        name:item.name,stageNumber:item.stageNumber,
+                        previousReports:item.stageReports
+                    },generate);
+                }catch(error){
+                    if(error?.status===429){
+                        registerAIProviderLimit(error);
+                        return addInterruptedDocumentCoverage(
+                            errorResult("Лимит ИИ: продолжение прервано.",
+                                "ai-provider-cooldown"),error);
+                    }
+                    return errorResult("Не удалось продолжить анализ.",
+                        "document-stage-resume-error");
+                }
+            }
             const coordinates=checkStageReportOrder(complete.text,checked,
                 item.stageReports,task);
             if(!coordinates)return errorResult(
