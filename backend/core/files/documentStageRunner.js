@@ -6,12 +6,16 @@ import {hashDocumentStageReportText} from "./documentStageReportTextHash.js";
 import {documentStageTaskSha256} from "./documentStageTaskIdentity.js";
 import {signDocumentStageReceipt} from "./documentStageReceiptAuth.js";
 import {buildDocumentStageWindowPrompt} from "./documentStageWindowPrompt.js";
+import {sealStageWindowResume,openStageWindowResume}
+    from "./documentStageWindowResume.js";
+import {throwIfAIProviderCoolingDown}
+    from "../../ai/providerAvailability.js";
 
 const sha=text=>createHash("sha256").update(text,"utf8").digest("hex");
 
 /** Exactly one source-verified stage, not an analysis of the full document. */
 export async function analyzeVerifiedDocumentStage(
-    {task,source,verified,stageNumber,name},generate
+    {task,source,verified,stageNumber,name,resumeCheckpoint},generate
 ) {
     if(typeof task!=="string"||!task.trim()||typeof generate!=="function"||
        typeof name!=="string"||!name||name.length>100)
@@ -22,7 +26,14 @@ export async function analyzeVerifiedDocumentStage(
     const taskSha256=documentStageTaskSha256(task);
     if(!taskSha256)return {success:false,mode:"document-stage",
         stage:"document-stage-input"};
-    const receipts=[],answers=[];
+    const checkpointSupplied=resumeCheckpoint!==undefined;
+    const restored=checkpointSupplied?openStageWindowResume({
+        source,task,name,stage,checkpoint:resumeCheckpoint
+    }):null;
+    if(checkpointSupplied&&!restored)return {success:false,
+        mode:"document-stage",stage:"document-stage-resume-invalid",
+        text:"Подпись, SHA-256 или порядок сохранённых окон не подтверждены."};
+    const rawResponses=[],receipts=[],answers=[];
     const coverage=()=>({
         sourceSha256:stage.sourceSha256,sourceChars:stage.sourceChars,
         taskSha256,
@@ -48,10 +59,23 @@ export async function analyzeVerifiedDocumentStage(
         const {prompt,excerpt}=prepared;
         let raw;
         try {
-            raw=await generate(prompt,task,[excerpt]);
+            // Source-bound authenticated prefix: revalidate every cited
+            // response. Only missing windows may call the model.
+            if(rawResponses.length<(restored?.verifiedPrefix||0))
+                raw=restored.rawResponses[rawResponses.length];
+            else{
+                throwIfAIProviderCoolingDown("document stage window");
+                raw=await generate(prompt,task,[excerpt]);
+            }
         }catch(error){
-            if(error?.status===429)
-                throw markDocumentQuotaInterruption(error,coverage(),window.number);
+            if(error?.status===429){
+                const checkpoint=rawResponses.length?
+                    sealStageWindowResume({source,task,name,stage,rawResponses}):null;
+                const progress={...coverage(),
+                    ...(checkpoint?{resumeCheckpoint:checkpoint,
+                        resumeAvailable:true}:{})};
+                throw markDocumentQuotaInterruption(error,progress,window.number);
+            }
             return {success:false,mode:"document-stage",stage:"document-stage-provider-error",
                 readingCoverage:coverage()};
         }
@@ -61,6 +85,7 @@ export async function analyzeVerifiedDocumentStage(
             text:"Ответ не прошёл проверку цитат; этап не завершён.",
             readingCoverage:coverage()};
         receipts.push(checked.receipt);
+        rawResponses.push(raw);
         answers.push("Окно "+window.number+" ("+window.startOffset+"–"+
             window.endOffset+"):\n"+checked.text);
     }
