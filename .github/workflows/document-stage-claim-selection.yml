@@ -21,4 +21,4 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
-      - run: node --test backend/scripts/regressionDocumentStageClaimSelection.test.js backend/scripts/regressionDocumentStageClaimSelectionMerge.test.js
+      - run: node --test backend/scripts/regressionDocumentStageClaimSelection.test.js backend/scripts/regressionDocumentStageClaimSelectionMerge.test.js backend/scripts/regressionDocumentStageClaimSelectionGrouping.test.js
