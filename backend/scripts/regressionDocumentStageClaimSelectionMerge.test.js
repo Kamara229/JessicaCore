@@ -50,12 +50,21 @@ test("complete signed pages merge in original page order without new assertions"
     assert.equal(result.readingCoverage.newFactGenerationPerformed,false);
     assert.equal(result.readingCoverage.fullDocumentSynthesisPerformed,false);
     assert.equal(result.readingCoverage.completeSourceAnalysisConfirmed,false);
+    assert.equal(result.readingCoverage.exactTextGroups,1);
+    assert.equal(result.readingCoverage.repeatedFormulations,selected.length-1);
+    assert.equal(result.readingCoverage.semanticEquivalenceVerified,false);
+    assert.equal(result.text.split("Формулировка 1:").length,2);
     let start=0;
     for(const claim of selected){
-        const next=result.text.indexOf(claim.claim,start);
+        const marker="Этап "+claim.stageNumber+", окно "+
+            claim.windowNumber+", раздел "+claim.sectionIndex+";";
+        const next=result.text.indexOf(marker,start);
         assert.ok(next>=start);
+        const citation=claim.claim.match(/\\[О\\d+:Ф1:Ф\\d+\\]/u)?.[0];
+        assert.ok(citation);
+        assert.ok(result.text.includes(citation));
         assert.ok(result.text.includes(claim.evidence));
-        start=next+claim.claim.length;
+        start=next+marker.length;
     }
 });
 
