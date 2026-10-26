@@ -1,0 +1,52 @@
+import {planAuthenticatedStageClaimPage} from "./documentStageClaimPage.js";
+import {verifyStageClaimSelection} from "./documentStageClaimSelectionReceipt.js";
+import {renderMergedStageClaimSelections} from "./documentStageClaimSelectionMergeRender.js";
+
+/** Rebuild every page from signed reports; never trust client-supplied claims. */
+export function mergeAuthenticatedStageClaimSelections({
+    source,verified,reports,task,secret,selections
+}={}){
+    if(!Array.isArray(selections)||!selections.length||
+       selections.length>128)return null;
+    let offset=0,totalClaims=null;
+    const selected=[];
+    for(let index=0;index<selections.length;index++){
+        const page=planAuthenticatedStageClaimPage({
+            source,verified,reports,task,secret,claimOffset:offset
+        });
+        const receipt=selections[index];
+        if(!page?.claims?.length||page.claimOffset!==offset||
+           !verifyStageClaimSelection(page,receipt,task,secret)||
+           (totalClaims!==null&&page.totalClaims!==totalClaims))
+            return null;
+        totalClaims=page.totalClaims;
+        for(const position of receipt.selectedPositions){
+            selected.push(page.claims[position-1]);
+        }
+        if(page.nextClaimOffset===null){
+            if(index!==selections.length-1)return null;
+        }else{
+            if(index===selections.length-1||
+               page.nextClaimOffset<=offset)return null;
+            offset=page.nextClaimOffset;
+        }
+    }
+    const text=renderMergedStageClaimSelections(selected,totalClaims);
+    if(!text)return null;
+    return {success:true,mode:"document-claim-selection-merge",
+        stage:"document-stage-claim-selections-verified",text,
+        readingCoverage:{
+            sourceSha256:selections[0].sourceSha256,
+            claimPagesVerified:selections.length,totalClaims,
+            selectedClaims:selected.length,
+            omittedClaims:totalClaims-selected.length,
+            allClaimPagesVerified:true,
+            reportOriginAuthenticated:true,
+            selectionReceiptsAuthenticated:true,
+            sourceQuotePresenceChecked:true,
+            newFactGenerationPerformed:false,
+            fullDocumentSynthesisPerformed:false,
+            completeSourceAnalysisConfirmed:false,
+            scientificCorrectnessVerified:false
+        }};
+}
