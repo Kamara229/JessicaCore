@@ -17,6 +17,7 @@ import {verifyMaterializedOverflowBatches} from "./documentOverflowBatchVerifica
 import {planVerifiedDocumentAnalysisStages} from "./documentAnalysisStagePlan.js";
 import {analyzeVerifiedDocumentStage} from "./documentStageRunner.js";
 import {checkStageReportOrder} from "./documentStageReportOrder.js";
+import {mergeAuthenticatedDocumentStages} from "./documentStageAuthenticatedMerge.js";
 import {analyzeMultiplePagedDocuments} from "./documentMultiPageAnalysis.js";
 import {addInterruptedDocumentCoverage} from "./documentQuotaCoverage.js";
 import {
@@ -106,6 +107,14 @@ export async function analyzeDocumentAttachments(
             if(!coordinates)return errorResult(
                 "Несовпадение порядка этапов или смещений.",
                 "document-stage-reports-invalid");
+            if(coordinates.allStageReportsReceived&&
+               coordinates.reportOriginAuthenticated){
+                const consolidated=mergeAuthenticatedDocumentStages(
+                    coordinates,item.stageReports);
+                if(consolidated)return consolidated;
+                return errorResult("Не удалось объединить подтверждённые этапы.",
+                    "document-stage-merge-invalid");
+            }
             return {success:false,mode:"document",
                 stage:"document-stage-reports-untrusted",
                 text:"Порядок этапов проверен; происхождение ответов и полнота анализа не подтверждены.",

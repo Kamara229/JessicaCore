@@ -12,6 +12,7 @@ import {checkStageReportOrder} from "../core/files/documentStageReportOrder.js";
 import {documentStageTaskSha256} from "../core/files/documentStageTaskIdentity.js";
 import {hashDocumentStageReportText} from "../core/files/documentStageReportTextHash.js";
 import {signDocumentStageReceipt} from "../core/files/documentStageReceiptAuth.js";
+import {mergeAuthenticatedDocumentStages} from "../core/files/documentStageAuthenticatedMerge.js";
 import {analyzeDocumentAttachments} from "../core/files/documentAnalysisFacade.js";
 const task="Проверь";
 const source="ВВЕДЕНИЕ\n"+"Обоснование судебной практики. ".repeat(19500)+
@@ -200,6 +201,60 @@ test("only server-HMAC receipts can attest complete, source-checked stage report
  const unsigned=checkStageReportOrder(source,verified,stripped,task,secret);
  assert.equal(unsigned.modelExecutionAuthenticated,false);
  assert.equal(unsigned.reportOriginAuthenticated,false);
+});
+
+test("complete server-authenticated stages merge in source order, no semantic guarantee",async()=>{
+ const original=process.env.JESSICA_STAGE_ATTESTATION_KEY;
+ const key="d".repeat(64);
+ try {
+   process.env.JESSICA_STAGE_ATTESTATION_KEY=key;
+   const {verified,reports,pages,batches,plan}=fixture();
+   const signed=structuredClone(reports);
+   for(const r of signed){
+     r.stageReport.authTag=signDocumentStageReceipt(r,key);
+     assert.ok(r.stageReport.authTag);
+   }
+   const planSummary=checkStageReportOrder(source,verified,signed,task,key);
+   const joined=mergeAuthenticatedDocumentStages(planSummary,signed);
+   assert.equal(joined.success,true);
+   assert.equal(joined.stage,"document-stages-authenticated");
+   assert.equal(joined.readingCoverage.allWindowsPresented,true);
+   assert.equal(joined.readingCoverage.completeSourceAnalysisConfirmed,false);
+   assert.equal(joined.readingCoverage.claimTruthVerified,false);
+   assert.equal(joined.readingCoverage.authenticatedStages,plan.stageCount);
+   let calls=0;
+   const response=await analyzeDocumentAttachments({task,
+     attachments:[{name:"paper.docx",pages,overflowBatches:batches,
+         stageReports:signed}]},async()=>{calls++;return "{}";});
+   assert.equal(calls,0);
+   assert.equal(response.success,true);
+   assert.equal(response.stage,"document-stages-authenticated");
+   assert.equal(response.readingCoverage.processedWindows,plan.totalWindows);
+   assert.equal(response.readingCoverage.completeSourceAnalysisConfirmed,false);
+   assert.ok(response.text.includes(signed[0].text));
+   assert.ok(response.text.includes(signed.at(-1).text));
+   const partial=await analyzeDocumentAttachments({task,
+     attachments:[{name:"paper.docx",pages,overflowBatches:batches,
+         stageReports:signed.slice(0,-1)}]},async()=>{calls++;return "{}";});
+   assert.equal(partial.success,false);
+   assert.equal(partial.stage,"document-stage-reports-untrusted");
+   assert.equal(calls,0);
+ }finally{
+   if(original===undefined)delete process.env.JESSICA_STAGE_ATTESTATION_KEY;
+   else process.env.JESSICA_STAGE_ATTESTATION_KEY=original;
+ }
+});
+
+test("unsigned, missing or mismatched stage receipts never merge",()=>{
+ const {verified,reports}=fixture();
+ const unsigned=checkStageReportOrder(source,verified,reports,task);
+ assert.equal(mergeAuthenticatedDocumentStages(unsigned,reports),null);
+ assert.equal(mergeAuthenticatedDocumentStages(null,reports),null);
+ const faked={...unsigned,reportOriginAuthenticated:true,
+    modelExecutionAuthenticated:true};
+ assert.equal(mergeAuthenticatedDocumentStages(faked,reports),null);
+ const signedSummary={...faked,stageCount:2};
+ assert.equal(mergeAuthenticatedDocumentStages(signedSummary,reports),null);
 });
 
 test("facade checks report coordinates but never authenticates client model results",async()=>{
