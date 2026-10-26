@@ -76,7 +76,7 @@ test("mixed active v1/v2 Skill loading restores pinned modules in sequence",asyn
   assert.equal(byId.get(v2Id).moduleManifest,undefined);
   assert.deepEqual(observed.skillFilters,
     [["enabled",true],["status","published"]]);
-  assert.deepEqual(observed.moduleReads,[[v1Id,3],[v2Id,4]]);
+  assert.deepEqual(observed.moduleReads,[[v2Id,4],[v1Id,3]]);
 });
 
 test("higher version wins even if Supabase results are unordered",async()=>{
@@ -89,7 +89,7 @@ test("higher version wins even if Supabase results are unordered",async()=>{
 test("corrupt latest v2 Skill cannot be returned or replaced by older version",async()=>{
   const {client,observed}=mockStore(stored,true);
   await assert.rejects(loadExperiences(client),/Skill module checksum mismatch/);
-  assert.deepEqual(observed.moduleReads,[[v1Id,3],[v2Id,4]]);
+  assert.deepEqual(observed.moduleReads,[[v2Id,4]]);
 });
 
 test("disabled and draft Skills cannot enter hydration or active selection",async()=>{
