@@ -43,10 +43,11 @@ function status429(){
     const e=new Error("requests per minute exceeded");
     e.status=429;e.headers={"retry-after":"120"};return e;
 }
-function withKeyAndClock(t,runner){
+const CLOCK_BASE=Date.now()+4_000_000;
+function withKeyAndClock(t,index,runner){
     const old=process.env.JESSICA_STAGE_ATTESTATION_KEY;
     process.env.JESSICA_STAGE_ATTESTATION_KEY="a".repeat(64);
-    let now=Date.now()+3_600_000;
+    let now=CLOCK_BASE+index*1_000_000;
     t.mock.method(Date,"now",()=>now);
     t.mock.method(console,"warn",()=>{});
     const advance=ms=>{now+=ms;};
@@ -73,7 +74,7 @@ async function failOnThird(){
 }
 
 test("signed two-window prefix resumes five missing windows with exact citations",async t=>
- withKeyAndClock(t,async advance=>{
+ withKeyAndClock(t,1,async advance=>{
     const checkpoint=await failOnThird();
     const expected=openDocumentPagedResume({
         checkpoint,source,task,name,plan
@@ -118,8 +119,11 @@ test("signed two-window prefix resumes five missing windows with exact citations
  }));
 
 test("tampered checkpoint, changed source/task/file, missing key all fail closed",async t=>
- withKeyAndClock(t,async()=>{
+ withKeyAndClock(t,2,async advance=>{
     const checkpoint=await failOnThird();
+    // An invalid checkpoint must fail on validation, not because of an
+    // unrelated provider cooldown in the initial failing request.
+    advance(120000);
     const tampered=structuredClone(checkpoint);
     tampered.rawResponses[0]=tampered.rawResponses[0].replace(
         "Цитата подтверждает позицию","Подменённая позиция");
@@ -159,7 +163,7 @@ test("tampered checkpoint, changed source/task/file, missing key all fail closed
  }));
 
 test("a second 429 renews authentic prefix and resumes only remaining windows",async t=>
- withKeyAndClock(t,async advance=>{
+ withKeyAndClock(t,3,async advance=>{
     const first=await failOnThird();
     advance(120000);
     let calls=0;
