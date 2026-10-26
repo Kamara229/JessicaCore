@@ -1,27 +1,39 @@
-/** Render signed, source-grounded excerpts only; no semantic synthesis. */
-export function renderMergedStageClaimSelections(selected,totalClaims){
-    if(!Array.isArray(selected)||!selected.length||
-       !Number.isSafeInteger(totalClaims)||totalClaims<selected.length)
-        return null;
-    let chars=0;
+/** Render each repeated formulation once, with every original source citation. */
+export function renderMergedStageClaimSelections(grouping,totalClaims){
+    if(!grouping||!Array.isArray(grouping.groups)||
+       !grouping.groups.length||
+       !Number.isSafeInteger(totalClaims)||
+       totalClaims<grouping.selectedClaims)return null;
     const lines=[];
-    for(const claim of selected){
-        if(!Number.isSafeInteger(claim?.stageNumber)||
-           !Number.isSafeInteger(claim?.windowNumber)||
-           !Number.isSafeInteger(claim?.sectionIndex)||
-           typeof claim?.claim!=="string"||
-           typeof claim?.evidence!=="string")return null;
-        const line="Этап "+claim.stageNumber+", окно "+
-            claim.windowNumber+", раздел "+claim.sectionIndex+
-            ":\n"+claim.claim+"\n"+claim.evidence;
-        chars+=line.length;
+    let chars=0,occurrences=0;
+    for(const [index,group] of grouping.groups.entries()){
+        if(typeof group?.statement!=="string"||!group.statement||
+           !Array.isArray(group.occurrences)||!group.occurrences.length)
+            return null;
+        const section=["Формулировка "+(index+1)+": "+group.statement];
+        for(const entry of group.occurrences){
+            const claim=entry?.claim,refs=entry?.citations;
+            if(!Number.isSafeInteger(claim?.stageNumber)||
+               !Number.isSafeInteger(claim?.windowNumber)||
+               !Number.isSafeInteger(claim?.sectionIndex)||
+               typeof claim?.evidence!=="string"||
+               !Array.isArray(refs)||!refs.length)return null;
+            section.push("  Этап "+claim.stageNumber+", окно "+
+                claim.windowNumber+", раздел "+claim.sectionIndex+
+                "; ссылки: "+refs.join(" ")+"\n"+claim.evidence);
+            occurrences++;
+        }
+        const body=section.join("\n");
+        chars+=body.length;
         if(chars>100000)return null;
-        lines.push(line);
+        lines.push(body);
     }
-    return "Выбранные утверждения со всех подтверждённых страниц "+
-        "(без новых фактов):\n\n"+lines.join("\n\n")+
-        "\n\nПроверены страницы: всего утверждений "+totalClaims+
-        ", выбрано "+selected.length+
-        ". Проверено наличие цитат в источнике; "+
-        "истинность и полнота выводов не подтверждены.";
+    if(occurrences!==grouping.selectedClaims)return null;
+    return "Утверждения из подписанных страниц сгруппированы "+
+        "по дословному совпадению формулировок без ссылок.\n\n"+
+        lines.join("\n\n")+"\n\nВсего утверждений "+totalClaims+
+        ", выбрано "+grouping.selectedClaims+
+        ", разных формулировок "+grouping.exactTextGroups+
+        ". Все исходные ссылки и цитаты сохранены. "+
+        "Сходство смысла, истинность и полнота выводов не проверялись.";
 }
