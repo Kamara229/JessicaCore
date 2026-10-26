@@ -7,8 +7,10 @@ import {selectAuthenticatedStageClaims}
  from "../core/files/documentStageClaimSelection.js";
 import {planAuthenticatedStageClaimPage}
  from "../core/files/documentStageClaimPage.js";
-import {verifyStageClaimSelection}
+import {verifyStageClaimSelection,signStageClaimSelection}
  from "../core/files/documentStageClaimSelectionReceipt.js";
+import {mergeAuthenticatedStageClaimSelections}
+ from "../core/files/documentStageClaimSelectionMerge.js";
 import {analyzeDocumentAttachments}
  from "../core/files/documentAnalysisFacade.js";
 import {makeStageClaimFixture,task,secret,source}
@@ -163,4 +165,24 @@ test("overflow facade accepts a signed claim page but never completes the whole 
     if(old===undefined)delete process.env.JESSICA_STAGE_ATTESTATION_KEY;
     else process.env.JESSICA_STAGE_ATTESTATION_KEY=old;
  }
+});
+
+test("previously signed page selections form a complete extractive merge",()=>{
+ const {verified,reports}=makeStageClaimFixture();
+ const receipts=[];
+ let offset=0;
+ do{
+   const page=planAuthenticatedStageClaimPage({
+      source,verified,reports,task,secret,claimOffset:offset
+   });
+   assert.ok(page?.claims.length);
+   receipts.push(signStageClaimSelection(page,[1],task,secret));
+   offset=page.nextClaimOffset;
+ }while(offset!==null);
+ const result=mergeAuthenticatedStageClaimSelections({
+    source,verified,reports,task,secret,selections:receipts
+ });
+ assert.equal(result?.success,true);
+ assert.equal(result?.readingCoverage?.claimPagesVerified,receipts.length);
+ assert.equal(result?.readingCoverage?.fullDocumentSynthesisPerformed,false);
 });
