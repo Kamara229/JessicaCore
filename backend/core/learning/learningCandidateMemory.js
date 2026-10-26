@@ -535,13 +535,13 @@ export async function observeLearningCandidate(
             true,
 
         observed:observation.applied,
-            created:observation.applied,
+        created:observation.applied,
         merged:false,
 
         memory:
             created,
 
-        candidate,
+        candidate:persisted,
 
         queueItem:
 
@@ -552,7 +552,7 @@ export async function observeLearningCandidate(
                 memory:
                     created,
 
-                candidate,
+                candidate:persisted,
 
                 matchType:
                     "NEW",
