@@ -15,6 +15,9 @@ on:
       - 'backend/core/files/documentStageClaimWindow*.js'
       - 'backend/core/files/documentStageClaimCrossPage*.js'
       - 'backend/core/files/documentOverflowAnalysisFacade.js'
+      - 'backend/core/files/documentStageRunner.js'
+      - 'backend/core/files/documentStageResumeExecutor.js'
+      - 'backend/core/files/documentStageWindowResume.js'
       - 'backend/core/files/documentPagedAnalysis.js'
       - 'backend/core/files/documentPagedResumeCheckpoint.js'
       - 'backend/core/files/documentAnalysisFacade.js'
@@ -36,6 +39,8 @@ on:
       - 'backend/scripts/regressionDocumentProviderCooldown.test.js'
       - 'backend/scripts/regressionDocumentPagedCooldownEndToEnd.test.js'
       - 'backend/scripts/regressionDocumentPagedResumeCheckpoint.test.js'
+      - 'backend/scripts/regressionDocumentStage256Resume.test.js'
+      - 'backend/scripts/regressionDocumentStageResumeExecutor.test.js'
       - 'backend/scripts/regressionDocumentQuotaCoverage.test.js'
       - 'backend/scripts/fixtures/documentStageClaimStressLifecycle.js'
       - 'backend/scripts/fixtures/documentStageClaimConcurrencyWorker.js'
@@ -66,3 +71,4 @@ jobs:
       - run: node --test backend/scripts/regressionDocumentProviderCooldown.test.js
       - run: node --test backend/scripts/regressionDocumentQuotaCoverage.test.js backend/scripts/regressionDocumentPagedCooldownEndToEnd.test.js
       - run: node --test backend/scripts/regressionDocumentPagedResumeCheckpoint.test.js
+      - run: node --max-old-space-size=512 --test backend/scripts/regressionDocumentStageResumeExecutor.test.js backend/scripts/regressionDocumentStage256Resume.test.js
