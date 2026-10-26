@@ -1,0 +1,23 @@
+name: Document Stage Claims Regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/core/files/documentStageClaimPage.js'
+      - 'backend/scripts/regressionDocumentStageClaimPage.test.js'
+      - 'backend/scripts/fixtures/documentStageClaimFixture.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-grounded-stage-claims:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionDocumentStageClaimPage.test.js
