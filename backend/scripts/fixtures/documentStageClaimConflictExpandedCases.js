@@ -7,13 +7,15 @@ const claim=(window,statement,evidence)=>({
 });
 
 function example(id,category,positive,negative,evidenceA,evidenceB,{
-    expected=false,tier="primary-review",sameWindow=false
+    expected=false,tier="primary-review",sameWindow=false,
+    reversedPolarity=false
 }={}){
     return {id,category,claims:[
         claim(1,positive,evidenceA),
         claim(sameWindow?1:2,negative,evidenceB)
     ],expectedPairs:expected?[{
-        affirmativeWindow:1,negativeWindow:2,reviewTier:tier
+        affirmativeWindow:reversedPolarity?2:1,
+        negativeWindow:reversedPolarity?1:2,reviewTier:tier
     }]:[]};
 }
 const baseA="Договор действует",baseB="Договор не действует";
@@ -78,7 +80,8 @@ export const expandedConflictBenchmarkCases=[
         "Право не действует и не применяется",
         "Право действует и не применяется",
         "Право не действует и не применяется",
-        "Право действует и не применяется",{expected:true}),
+        "Право действует и не применяется",
+        {expected:true,reversedPolarity:true}),
     example("consistent-conditions","control",
         "Договор действует при наличии акта",
         "Договор не действует без акта",
