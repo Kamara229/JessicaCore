@@ -48,6 +48,11 @@ test("known synthetic errors are retained, not misrepresented as accuracy",()=>{
         "one-sided-condition","date-on-one-side","date-and-exception"]);
     assert.deepEqual(errors("fixture-missed-pair"),[]);
     assert.equal(result.errors.length,6);
+    const balanced=expandedConflictBenchmarkCases.find(
+        sample=>sample.id==="additional-negation");
+    assert.deepEqual(balanced.expectedPairs,[{
+        affirmativeWindow:2,negativeWindow:1,reviewTier:"primary-review"
+    }]);
 });
 
 test("every synthetic claim carries traceable source location and evidence",()=>{
