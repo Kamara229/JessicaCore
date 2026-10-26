@@ -422,14 +422,17 @@ async function writeQueuePayload(
 
                             {
                                 onConflict:
-                                    "id"
+                                    "id",
+                                // A replay must never restore a processed row to PENDING.
+                                ignoreDuplicates:
+                                    true
                             }
 
                         )
 
                         .select()
 
-                        .single(),
+                        .maybeSingle(),
 
                     QUEUE_WRITE_TIMEOUT_MS
 
@@ -447,6 +450,9 @@ async function writeQueuePayload(
 
                     data:
                         response?.data || null,
+
+                    existing:
+                        !response?.data,
 
                     attempt
 
@@ -1186,6 +1192,10 @@ export async function saveLearningQueueItem(
                 data
             );
 
+        // PostgREST ON CONFLICT DO NOTHING returns no inserted row.
+        // That is a successfully deduplicated replay, not a new queue item.
+        const existing = writeResult.existing === true;
+
 
         console.log(
 
@@ -1224,6 +1234,10 @@ export async function saveLearningQueueItem(
             success:
                 true,
 
+            queued:
+                !existing,
+
+            existing,
 
             id:
 
@@ -1232,6 +1246,10 @@ export async function saveLearningQueueItem(
                 ||
 
                 data?.id
+
+                ||
+
+                payload.id
 
                 ||
 
