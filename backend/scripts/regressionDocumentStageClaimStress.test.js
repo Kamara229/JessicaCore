@@ -7,6 +7,8 @@ import {materializeDocumentOverflowBatch}
  from "../core/files/documentOverflowBatchMaterialization.js";
 import {verifyMaterializedOverflowBatches}
  from "../core/files/documentOverflowBatchVerification.js";
+import {documentPlanCacheDiagnostics}
+ from "../core/files/documentOverflowPlanCache.js";
 import {groupStageClaimSelections}
  from "../core/files/documentStageClaimSelectionGrouping.js";
 import {auditGroupedStageClaimCoverage}
@@ -39,6 +41,7 @@ let cached=null;
 function stressCase(){
     if(cached)return cached;
     const start=performance.now();
+    const cacheBefore=documentPlanCacheDiagnostics();
     const source=makeDocumentStressSource();
     const hash=hashDocumentStressSource(source);
     const plan=planDocumentOverflowBatches(source,hash);
@@ -62,8 +65,12 @@ function stressCase(){
     peakHeap=Math.max(peakHeap,process.memoryUsage().heapUsed);
     peakRss=Math.max(peakRss,process.memoryUsage().rss);
     const elapsedMs=Math.round(performance.now()-start);
+    const cacheAfter=documentPlanCacheDiagnostics();
+    const verifiedCacheHits=cacheAfter.hits-cacheBefore.hits;
+    assert.equal(verifiedCacheHits,17);
     const metrics={windows:256,batches:16,chars:source.length,
-        elapsedMs,peakHeapMiB:Math.round(peakHeap/1048576),
+        elapsedMs,verifiedCacheHits,
+        peakHeapMiB:Math.round(peakHeap/1048576),
         peakRssMiB:Math.round(peakRss/1048576),
         measurementScope:"plan/materialize/verify, synthetic fixture; not deployment"};
     process.stdout.write("DOCUMENT_256_WINDOW_STRESS "+JSON.stringify(metrics)+"\n");
