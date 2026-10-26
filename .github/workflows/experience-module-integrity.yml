@@ -8,10 +8,13 @@ on:
       - 'backend/experience/storage/skillModules/experienceModuleHydrator.js'
       - 'backend/scripts/regressionModularExperienceStorage.test.js'
       - 'backend/scripts/regressionModularExperienceIntegrity.test.js'
+      - 'backend/scripts/regressionModularExperienceReadback.test.js'
+      - 'backend/scripts/fixtures/v2ReadbackSupabaseSnapshot.js'
       - '.github/workflows/experience-module-integrity.yml'
   workflow_dispatch:
 permissions:
   contents: read
+  statuses: write
 jobs:
   modular-skill-regression:
     runs-on: ubuntu-latest
@@ -21,4 +24,25 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
-      - run: node --test backend/scripts/regressionModularExperienceStorage.test.js backend/scripts/regressionModularExperienceIntegrity.test.js
+      - name: Run module packing, hydration and real DB readback regressions
+        id: modular_tests
+        run: node --test backend/scripts/regressionModularExperienceStorage.test.js backend/scripts/regressionModularExperienceIntegrity.test.js backend/scripts/regressionModularExperienceReadback.test.js
+      - name: Publish modular Skill hydration result for GitHub connector
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.modular_tests.outcome }}
+          SHA: ${{ github.sha }}
+          TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          state=failure
+          description="Modular Skill hydration unverified"
+          if [ "$OUTCOME" = "success" ]; then
+            state=success
+            description="Modular Skill readback and integrity passed"
+          fi
+          gh api --method POST "repos/${{ github.repository }}/statuses/$SHA" \
+            -f state="$state" \
+            -f context="jessica/module-hydration-readback" \
+            -f description="$description" \
+            -f target_url="$TARGET_URL"
