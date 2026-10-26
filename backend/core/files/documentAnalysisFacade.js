@@ -10,6 +10,7 @@ import { createDocumentEvidence } from "./documentEvidence.js";
 import { identifyDocumentAnswer } from "./documentResponseIdentity.js";
 import {summarizeDocumentCitationCoverage} from "./documentCitationCoverage.js";
 import {analyzePagedLongDocument} from "./documentPagedAnalysis.js";
+import {MAX_VERIFIED_DOCUMENT_WINDOWS} from "./documentVerifiedWindowLimit.js";
 import {assembleDocumentChunks} from "./documentChunkAssembly.js";
 import {assembleDocumentPages} from "./documentPageAssembly.js";
 import {verifyMaterializedOverflowBatches} from "./documentOverflowBatchVerification.js";
@@ -85,20 +86,39 @@ export async function analyzeDocumentAttachments(
             item.pages[0].sourceSha256,item.overflowBatches);
         if(!checked)return errorResult("Нарушен порядок окон или контрольная сумма.",
             "document-overflow-batches-invalid");
-        return {success:false,mode:"document",
-            stage:checked.complete?"document-overflow-analysis-pending":
-                "document-overflow-batches-incomplete",
-            text:checked.complete?
-                "Все окна проверены. Их модельный анализ пока не выполнен.":
-                "Не все части переданы. Анализ не запускался.",
-            readingCoverage:{complete:false,
-                plannedWindows:checked.totalWindows,processedWindows:0,
-                allSourceWindowsVerified:checked.allSourceWindowsVerified,
-                sourceChars:checked.sourceChars,
-                sourceSha256:checked.sourceSha256,
-                collectedChars:checked.collectedChars,
-                nextBatchNumber:checked.nextBatchNumber,
-                completeSourceAnalysisConfirmed:false}};
+        if(!checked.complete||checked.totalWindows>MAX_VERIFIED_DOCUMENT_WINDOWS)
+            return {success:false,mode:"document",
+                stage:checked.complete?"document-overflow-analysis-pending":
+                    "document-overflow-batches-incomplete",
+                text:checked.complete?
+                    "Свыше 32 окон: нужен этапный анализ с сохранением результатов.":
+                    "Не все части переданы. Анализ не запускался.",
+                readingCoverage:{complete:false,
+                    plannedWindows:checked.totalWindows,processedWindows:0,
+                    allSourceWindowsVerified:checked.allSourceWindowsVerified,
+                    sourceChars:checked.sourceChars,
+                    sourceSha256:checked.sourceSha256,
+                    collectedChars:checked.collectedChars,
+                    nextBatchNumber:checked.nextBatchNumber,
+                    completeSourceAnalysisConfirmed:false}};
+        if(!String(task||"").trim())
+            return errorResult("Укажи задачу для документа.");
+        if(getAIProviderAvailability().blocked)
+            return errorResult("Достигнут лимит ИИ.","ai-provider-cooldown");
+        try {
+            return await analyzePagedLongDocument({
+                task,attachment:item,generate,verifiedOverflow:checked
+            });
+        }catch(error){
+            if(error?.status===429){
+                registerAIProviderLimit(error);
+                return addInterruptedDocumentCoverage(
+                    errorResult("Лимит ИИ: анализ прерван.","ai-provider-cooldown"),
+                    error);
+            }
+            return errorResult("Не удалось завершить пораздельный анализ.",
+                "document-overflow-error");
+        }
     }
     // Accept chunked extraction only after complete, verified SHA-256
     // reassembly. Never downgrade an incomplete chunk to loose text.

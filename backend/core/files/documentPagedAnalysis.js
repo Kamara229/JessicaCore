@@ -2,6 +2,7 @@ import {assembleDocumentPages} from "./documentPageAssembly.js";
 import {createLosslessWindowEvidence} from "./documentWindowEvidence.js";
 import {planDocumentSectionWindows} from "./documentSectionReadPlan.js";
 import {planDocumentOverflowBatches} from "./documentOverflowReadBatches.js";
+import {buildVerifiedExtendedReadPlan} from "./documentExtendedReadPlan.js";
 import {validateAndRenderDocumentAnswer} from "./documentAnswerContract.js";
 import {identifyDocumentAnswer} from "./documentResponseIdentity.js";
 import {beginWindowLedger,noteVerifiedWindow,windowLedgerSummary} from "./documentWindowLedger.js";
@@ -17,7 +18,7 @@ import {auditDocumentNumberedReferences} from "./documentNumberedReferenceAudit.
 import {summarizeSectionReferenceCoverage} from "./documentSectionReferenceCoverage.js";
 
 /** Use only cryptographically verified complete pages; fail closed on gaps. */
-export async function analyzePagedLongDocument({task,attachment,generate,embedReceipt=true}) {
+export async function analyzePagedLongDocument({task,attachment,generate,embedReceipt=true,verifiedOverflow=null}) {
     const name=String(attachment?.name||"Документ");
     const pages=attachment?.pages;
     const hash=pages?.[0]?.sourceSha256;
@@ -26,7 +27,12 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
     const assembled=valid?assembleDocumentPages(pages):null;
     if(!assembled)return {success:false,mode:"document",stage:"document-pages",
         text:"Страницы документа не прошли проверку целостности."};
-    const plan=planDocumentSectionWindows(assembled.text);
+    const plan=verifiedOverflow
+        ?buildVerifiedExtendedReadPlan(assembled.text,hash,verifiedOverflow)
+        :planDocumentSectionWindows(assembled.text);
+    if(!plan)return {success:false,mode:"document",
+        stage:"document-overflow-integrity",
+        text:"Исходный текст не совпал с подтверждённым планом чтения."};
     if(!plan.complete){
         const overflowBatches=plan.reason==="window-limit"?
             planDocumentOverflowBatches(assembled.text,hash):null;

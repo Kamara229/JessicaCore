@@ -1,3 +1,4 @@
+import {MAX_VERIFIED_DOCUMENT_WINDOWS} from "./documentVerifiedWindowLimit.js";
 import {createHash} from "node:crypto";
 
 const digest=value=>createHash("sha256").update(value,"utf8").digest("hex");
@@ -5,7 +6,7 @@ const digest=value=>createHash("sha256").update(value,"utf8").digest("hex");
 /** Verify a complete, ordered set of source windows before calling a model. */
 export function beginWindowLedger(plan, sourceSha256) {
     if(plan?.complete!==true||!Array.isArray(plan.windows)||
-       !plan.windows.length||plan.windows.length>16||
+       !plan.windows.length||plan.windows.length>MAX_VERIFIED_DOCUMENT_WINDOWS||
        !Number.isSafeInteger(plan.sourceChars)||plan.sourceChars<=0||
        !/^[a-f0-9]{64}$/u.test(String(sourceSha256||"")))return null;
     let offset=0;

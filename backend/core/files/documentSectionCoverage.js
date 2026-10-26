@@ -1,3 +1,4 @@
+import {MAX_VERIFIED_DOCUMENT_WINDOWS} from "./documentVerifiedWindowLimit.js";
 import {createHash} from "node:crypto";
 import {buildVerifiedSectionHierarchy} from "./documentSectionHierarchy.js";
 
@@ -8,7 +9,7 @@ const sha=text=>createHash("sha256").update(text,"utf8").digest("hex");
  */
 export function auditDocumentSections(plan,ledger,spans,claims){
     if(plan?.complete!==true||!Array.isArray(plan.windows)||!plan.windows.length||
-       plan.windows.length>16||!ledger||!Array.isArray(ledger.expected)||
+       plan.windows.length>MAX_VERIFIED_DOCUMENT_WINDOWS||!ledger||!Array.isArray(ledger.expected)||
        !Array.isArray(ledger.confirmed)||ledger.expected.length!==plan.windows.length||
        !Array.isArray(spans)||!Array.isArray(claims))return null;
     const windows=new Map(), sections=new Map();

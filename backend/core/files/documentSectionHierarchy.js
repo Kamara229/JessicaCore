@@ -1,3 +1,4 @@
+import {MAX_VERIFIED_DOCUMENT_WINDOWS} from "./documentVerifiedWindowLimit.js";
 import {buildDocumentSectionIndex} from "./documentSectionIndex.js";
 
 /**
@@ -7,7 +8,7 @@ import {buildDocumentSectionIndex} from "./documentSectionIndex.js";
  */
 export function buildVerifiedSectionHierarchy(plan, auditedSections) {
     if(plan?.complete!==true||!Array.isArray(plan.windows)||
-       !plan.windows.length||plan.windows.length>16||
+       !plan.windows.length||plan.windows.length>MAX_VERIFIED_DOCUMENT_WINDOWS||
        !Array.isArray(auditedSections))return null;
     const source=plan.windows.map(w=>w?.text).join("");
     if(source.length!==plan.sourceChars)return null;

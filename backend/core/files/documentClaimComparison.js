@@ -1,15 +1,16 @@
+import {MAX_VERIFIED_DOCUMENT_WINDOWS} from "./documentVerifiedWindowLimit.js";
 import {createHash} from "node:crypto";
 
 const ALLOWED=new Set(["source_fact","author_claim","inference","verify_external"]);
 const fingerprint=text=>createHash("sha256").update(text,"utf8").digest("hex");
 const canonical=text=>text.normalize("NFKC").replace(/\s+/gu," ").trim().toLocaleLowerCase("ru");
-const REF=/^(?:Д[1-3]:)?О(?:[1-9]|1[0-6]):Ф1:Ф\d{1,3}$/u;
+const REF=/^(?:Д[1-3]:)?О(?:[1-9]|[12]\d|3[0-2]):Ф1:Ф\d{1,3}$/u;
 
 /** Each claim originates in a quote-validated response, not raw AI output. */
 export function createVerifiedClaimRecords(findings,spans,windowNumber,fileIndex=1) {
     if(!Array.isArray(findings)||!findings.length||findings.length>14||
        !Array.isArray(spans)||!spans.length||
-       !Number.isSafeInteger(windowNumber)||windowNumber<1||windowNumber>16||
+       !Number.isSafeInteger(windowNumber)||windowNumber<1||windowNumber>MAX_VERIFIED_DOCUMENT_WINDOWS||
        !Number.isSafeInteger(fileIndex)||fileIndex<1||fileIndex>3)return null;
     const available=new Set(spans.map(s=>s?.ref));
     const records=[];
@@ -55,7 +56,7 @@ export function compareVerifiedDocumentClaims(records,spans) {
         if(typeof record?.text!=="string"||!record.text.trim()||
            record.text.length>800||!ALLOWED.has(record.kind)||
            !Number.isSafeInteger(record.fileIndex)||record.fileIndex<1||record.fileIndex>3||
-           !Number.isSafeInteger(record.windowNumber)||record.windowNumber<1||record.windowNumber>16||
+           !Number.isSafeInteger(record.windowNumber)||record.windowNumber<1||record.windowNumber>MAX_VERIFIED_DOCUMENT_WINDOWS||
            !Array.isArray(record.refs)||!record.refs.length||
            record.refs.some(ref=>typeof ref!=="string"||!REF.test(ref)||!known.has(ref)))return null;
         const normalized=canonical(record.text);

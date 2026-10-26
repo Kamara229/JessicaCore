@@ -21,7 +21,7 @@ function parseBracketNumbers(candidate) {
  * are relevant, are correctly paginated or have been independently checked.
  */
 export function auditDocumentNumberedReferences(source,expectedSha256) {
-    if(typeof source!=="string"||!source.length||source.length>256000||
+    if(typeof source!=="string"||!source.length||source.length>600000||
         !/^[a-f0-9]{64}$/u.test(String(expectedSha256||""))||
         sha(source)!==expectedSha256)return null;
     const index=buildDocumentSectionIndex(source);

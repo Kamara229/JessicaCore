@@ -1,3 +1,4 @@
+import {MAX_VERIFIED_DOCUMENT_WINDOWS} from "./documentVerifiedWindowLimit.js";
 import {createHash} from "node:crypto";
 import {createLosslessWindowEvidence} from "./documentWindowEvidence.js";
 
@@ -10,7 +11,7 @@ const hash=text=>createHash("sha256").update(text,"utf8").digest("hex");
  */
 export function measureDocumentCitationDensity(plan,quoteRanges) {
     if(plan?.complete!==true||!Array.isArray(plan.windows)||
-       !plan.windows.length||plan.windows.length>16||
+       !plan.windows.length||plan.windows.length>MAX_VERIFIED_DOCUMENT_WINDOWS||
        !Array.isArray(quoteRanges))return null;
     const byWindow=new Map(),sections=new Map();
     let previousEnd=0,totalChunks=0,citedChunks=0,quotedCharacters=0;

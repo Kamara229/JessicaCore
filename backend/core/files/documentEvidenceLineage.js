@@ -1,5 +1,6 @@
+import {MAX_VERIFIED_DOCUMENT_WINDOWS} from "./documentVerifiedWindowLimit.js";
 const SHA=/^[a-f0-9]{64}$/u;
-const LOCAL_REF=/^О(?:[1-9]|1[0-6]):Ф1:Ф[1-9]\d{0,2}$/u;
+const LOCAL_REF=/^О(?:[1-9]|[12]\d|3[0-2]):Ф1:Ф[1-9]\d{0,2}$/u;
 
 /**
  * Join quote-verified citation fragments to the source-derived heading tree.
@@ -14,7 +15,7 @@ export function buildDocumentEvidenceLineage(
        !Array.isArray(tree.sections)||!tree.sections.length||
        !SHA.test(String(readingCoverage?.sourceSha256||""))||
        readingCoverage?.allWindowsPresented!==true||
-       !Array.isArray(windows)||!windows.length||windows.length>16||
+       !Array.isArray(windows)||!windows.length||windows.length>MAX_VERIFIED_DOCUMENT_WINDOWS||
        !Array.isArray(citationSpans)||!citationSpans.length||
        !Array.isArray(verifiedClaims)||!verifiedClaims.length||
        !Array.isArray(quoteRanges))return null;

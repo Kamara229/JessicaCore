@@ -1,7 +1,8 @@
+import {MAX_VERIFIED_DOCUMENT_WINDOWS} from "./documentVerifiedWindowLimit.js";
 import {createHash} from "node:crypto";
 
 const sha256=text=>createHash("sha256").update(text,"utf8").digest("hex");
-const REF=/^(?:Д[1-3]:)?О(?:[1-9]|1[0-6]):Ф1:Ф[1-9]\d{0,2}$/u;
+const REF=/^(?:Д[1-3]:)?О(?:[1-9]|[12]\d|3[0-2]):Ф1:Ф[1-9]\d{0,2}$/u;
 const KIND=new Set(["source_fact","author_claim","inference","verify_external"]);
 
 /** Link each verified claim to structural provenance, not to a model heading. */
@@ -33,7 +34,7 @@ export function mapVerifiedClaimsToSourceSections(verifiedClaims,lineage){
            finding.text.length>800||!KIND.has(finding.kind)||
            !Number.isSafeInteger(finding.fileIndex)||finding.fileIndex<1||
            finding.fileIndex>3||!Number.isSafeInteger(finding.windowNumber)||
-           finding.windowNumber<1||finding.windowNumber>16||
+           finding.windowNumber<1||finding.windowNumber>MAX_VERIFIED_DOCUMENT_WINDOWS||
            !Array.isArray(finding.refs)||!finding.refs.length||
            finding.refs.length>3)return null;
         const refs=[...new Set(finding.refs)];
