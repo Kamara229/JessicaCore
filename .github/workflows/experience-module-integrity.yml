@@ -11,6 +11,11 @@ on:
       - 'backend/scripts/regressionModularExperienceReadback.test.js'
       - 'backend/scripts/regressionMixedActiveExperienceVersions.test.js'
       - 'backend/scripts/regressionSkillStorageExecutionGate.test.js'
+      - 'backend/scripts/regressionSkillStorageTraceLearningGate.test.js'
+      - 'backend/core/subtask/experienceStorageFailure.js'
+      - 'backend/core/learning/experienceStorageIntegrityGate.js'
+      - 'backend/core/learning/learningFacade.js'
+      - 'backend/core/learning/trigger/triggerEligibility.js'
       - 'backend/core/subtask/mergeResolvedSubtaskExperience.js'
       - 'backend/core/subtask/executeSubtask.js'
       - 'backend/experience/experienceCore.js'
@@ -33,7 +38,7 @@ jobs:
       - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
       - name: Run module packing, hydration and real DB readback regressions
         id: modular_tests
-        run: node --test backend/scripts/regressionModularExperienceStorage.test.js backend/scripts/regressionModularExperienceIntegrity.test.js backend/scripts/regressionModularExperienceReadback.test.js backend/scripts/regressionMixedActiveExperienceVersions.test.js backend/scripts/regressionSkillStorageExecutionGate.test.js
+        run: node --test backend/scripts/regressionModularExperienceStorage.test.js backend/scripts/regressionModularExperienceIntegrity.test.js backend/scripts/regressionModularExperienceReadback.test.js backend/scripts/regressionMixedActiveExperienceVersions.test.js backend/scripts/regressionSkillStorageExecutionGate.test.js backend/scripts/regressionSkillStorageTraceLearningGate.test.js
       - name: Publish modular Skill hydration result for GitHub connector
         if: always()
         env:
