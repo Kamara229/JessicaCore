@@ -41,6 +41,8 @@ function fixture(){
      verifiedWindows:windows.map(w=>({windowNumber:w.number,
        sectionIndex:w.sectionIndex,startOffset:w.startOffset,
        endOffset:w.endOffset,windowSha256:w.textSha256,groundedClaims:1,
+       rejectedClaims:0,anchoredFragments:1,evidenceQuotes:1,
+       exactLocatedQuotes:1,ambiguousQuotes:0,nonLiteralQuotes:0,
        claimTruthVerified:false,independentSourcesVerified:false}))}
   };
  });
@@ -56,6 +58,10 @@ test("reordered, missing or tampered stage metadata cannot claim analysis",()=>{
  assert.equal(checked.windowsReported,plan.totalWindows);
  assert.equal(checked.sourceCoordinatesChecked,true);
  assert.equal(checked.taskContextMatched,true);
+ assert.equal(checked.reportedGroundedClaims,plan.totalWindows);
+ assert.equal(checked.reportedEvidenceQuotes,plan.totalWindows);
+ assert.equal(checked.reportedNonExactQuotes,0);
+ assert.equal(checked.quoteStatsAuthenticated,false);
  assert.equal(checkStageReportOrder(source,verified,reports,"Другая задача"),null);
  assert.equal(checked.modelExecutionAuthenticated,false);
  assert.equal(checked.completeSourceAnalysisConfirmed,false);
@@ -71,6 +77,32 @@ test("reordered, missing or tampered stage metadata cannot claim analysis",()=>{
  const forged=structuredClone(reports);
  forged[0].readingCoverage.taskSha256="0".repeat(64);
  assert.equal(checkStageReportOrder(source,verified,forged,task),null);
+});
+
+test("inconsistent quote counters and absent source caveats reject stage reconciliation",()=>{
+ const {verified,reports}=fixture();
+ const corrupt=[
+    row=>{row.evidenceQuotes=2;},
+    row=>{row.anchoredFragments=0;},
+    row=>{row.exactLocatedQuotes=-1;},
+    row=>{row.ambiguousQuotes=1;},
+    row=>{row.nonLiteralQuotes=Infinity;},
+    row=>{delete row.evidenceQuotes;},
+    row=>{row.groundedClaims=0;},
+    row=>{row.independentSourcesVerified=true;}
+ ];
+ for(const change of corrupt){
+    const modified=structuredClone(reports);
+    change(modified[0].readingCoverage.verifiedWindows[0]);
+    assert.equal(checkStageReportOrder(source,verified,modified,task),null);
+ }
+ const unresolved=structuredClone(reports);
+ const receipt=unresolved[0].readingCoverage.verifiedWindows[0];
+ receipt.exactLocatedQuotes=0;
+ receipt.ambiguousQuotes=1;
+ const summary=checkStageReportOrder(source,verified,unresolved,task);
+ assert.equal(summary.reportedNonExactQuotes,1);
+ assert.equal(summary.quoteStatsAuthenticated,false);
 });
 
 test("facade checks report coordinates but never authenticates client model results",async()=>{

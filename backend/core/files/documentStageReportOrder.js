@@ -1,12 +1,13 @@
 import {planVerifiedDocumentAnalysisStages} from "./documentAnalysisStagePlan.js";
 import {matchesDocumentStageTask} from "./documentStageTaskIdentity.js";
+import {readDocumentStageReceiptStats} from "./documentStageReceiptStats.js";
 
 /** Metadata consistency only. Client stage reports are NOT authenticated. */
 export function checkStageReportOrder(source,verified,reports,task){
  const plan=planVerifiedDocumentAnalysisStages(source,verified);
  if(!plan||!Array.isArray(reports)||!reports.length||
     reports.length>plan.stageCount)return null;
- let count=0,offset=0;
+ let count=0,offset=0,claims=0,quotes=0,unlocated=0;
  for(let i=0;i<reports.length;i++){
   const r=reports[i],stage=plan.stages[i],s=r?.stageReport,
         c=r?.readingCoverage;
@@ -40,6 +41,11 @@ export function checkStageReportOrder(source,verified,reports,task){
       record.groundedClaims<1||record.groundedClaims>14||
       record.claimTruthVerified!==false||
       record.independentSourcesVerified!==false)return null;
+   const stats=readDocumentStageReceiptStats(record);
+   if(!stats)return null;
+   claims+=stats.groundedClaims;
+   quotes+=stats.evidenceQuotes;
+   unlocated+=stats.ambiguousQuotes+stats.nonLiteralQuotes;
    offset=w.endOffset;
    count++;
   }
@@ -53,6 +59,8 @@ export function checkStageReportOrder(source,verified,reports,task){
   nextStageNumber:all?null:reports.length+1,
   allStageReportsReceived:all,sourceCoordinatesChecked:true,
   taskContextMatched:true,
+  reportedGroundedClaims:claims,reportedEvidenceQuotes:quotes,
+  reportedNonExactQuotes:unlocated,quoteStatsAuthenticated:false,
   modelExecutionAuthenticated:false,claimTruthVerified:false,
   completeSourceAnalysisConfirmed:false};
 }
