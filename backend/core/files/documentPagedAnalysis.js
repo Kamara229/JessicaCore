@@ -11,6 +11,8 @@ import {createVerifiedClaimRecords,compareVerifiedDocumentClaims} from "./docume
 import {auditDocumentSections} from "./documentSectionCoverage.js";
 import {locateVerbatimQuoteRanges} from "./documentVerbatimQuotes.js";
 import {markDocumentQuotaInterruption} from "./documentQuotaCoverage.js";
+import {sealDocumentPagedResume,openDocumentPagedResume}
+ from "./documentPagedResumeCheckpoint.js";
 import {throwIfAIProviderCoolingDown} from "../../ai/providerAvailability.js";
 import {measureDocumentCitationDensity} from "./documentEvidenceDensity.js";
 import {buildDocumentEvidenceLineage} from "./documentEvidenceLineage.js";
@@ -50,6 +52,19 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
     const ledger=beginWindowLedger(plan,hash);
     if(!ledger)return {success:false,mode:"document",stage:"document-source-coverage",
         text:"Не совпадает контрольная сумма окон документа."};
+    // Optional server-attested prefix. Never accept a client-supplied
+    // offset or completed-claims count as proof of previous AI analysis.
+    const hasCheckpoint=Object.hasOwn(attachment,"resumeCheckpoint");
+    const restored=hasCheckpoint?openDocumentPagedResume({
+        checkpoint:attachment.resumeCheckpoint,
+        source:assembled.text,task,name,plan
+    }):null;
+    if(hasCheckpoint&&!restored)return {success:false,mode:"document",
+        stage:"document-resume-invalid",
+        text:"Контрольная сумма, источник или подлинность продолжения не совпали.",
+        readingCoverage:{sourceSha256:hash,processedWindows:0,
+            resumeAvailable:false,completeSourceAnalysisConfirmed:false}};
+    const verifiedRawResponses=[];
     let processed=0,kept=0,rejected=0;
     const answers=[],citationSpans=[],verifiedClaims=[];
     const quoteRanges=[];
@@ -69,17 +84,30 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
             bundle.promptText,
             "Верни JSON с проверяемыми цитатами. Не заявляй, что анализировал другие окна."
         ].join("\n");
-        let checked;
+        let checked,raw;
         try {
-            // A sibling request may have opened the shared circuit after an
-            // earlier window completed. Preserve the verified-prefix ledger.
-            throwIfAIProviderCoolingDown("document window");
-            checked=validateAndRenderDocumentAnswer(
-                await generate(prompt,task,[excerpt]),bundle,task);
+            if(window.number<=((restored?.verifiedPrefix)||0)){
+                // Reverify every signed prior answer against exact source and
+                // citations; only remaining windows call the model.
+                raw=restored.rawResponses[window.number-1];
+            }else{
+                // A sibling request may open the shared circuit mid-document.
+                throwIfAIProviderCoolingDown("document window");
+                raw=await generate(prompt,task,[excerpt]);
+            }
+            checked=validateAndRenderDocumentAnswer(raw,bundle,task);
         }catch(error){
-            if(error?.status===429)
-                throw markDocumentQuotaInterruption(error,
-                    windowLedgerSummary(ledger),window.number);
+            if(error?.status===429){
+                const checkpoint=sealDocumentPagedResume({
+                    source:assembled.text,task,name,plan,
+                    rawResponses:verifiedRawResponses
+                });
+                const coverage={...windowLedgerSummary(ledger),
+                    ...(checkpoint?{resumeCheckpoint:checkpoint,
+                        resumeAvailable:true}:{})};
+                throw markDocumentQuotaInterruption(error,coverage,
+                    window.number);
+            }
             return {success:false,mode:"document",stage:"document-window-error",
                 text:"Окно не обработано; полный анализ не завершён.",
                 readingCoverage:{...windowLedgerSummary(ledger),complete:false}};
@@ -113,6 +141,9 @@ export async function analyzePagedLongDocument({task,attachment,generate,embedRe
         quoteRanges.push(...exactQuotes.ranges);
         for(const key of ["evidenceQuotes","exactLocatedQuotes",
             "ambiguousQuotes","nonLiteralQuotes"])quoteCoverage[key]+=exactQuotes[key];
+        // Record only responses that passed all source, quote and
+        // ledger audits; never checkpoint an unverified model answer.
+        verifiedRawResponses.push(raw);
     }
     const body=answers.join("\n\n")+
         "\n\nГраницы проверки: все окна переданы для анализа и цитаты сверены. " +
