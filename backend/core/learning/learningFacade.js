@@ -24,6 +24,7 @@
 import {
     processLearning
 } from "./learningCoordinator.js";
+import {hasExperienceStorageIntegrityFailure} from "./experienceStorageIntegrityGate.js";
 
 
 /*
@@ -74,6 +75,16 @@ export async function processExecutionLearning(
 
     }
 
+
+    if(hasExperienceStorageIntegrityFailure(executionTrace)){
+        return {
+            success:false,
+            queued:false,
+            skipped:true,
+            reason:"experience_storage_integrity_failure",
+            result:null
+        };
+    }
 
     try {
 
