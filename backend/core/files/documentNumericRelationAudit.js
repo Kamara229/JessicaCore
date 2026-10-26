@@ -14,8 +14,8 @@ function relationNearToken(text,value){
     const match=/(?:^|[^\p{L}])(?:(не)\s+)?(более|менее)\s*$/iu.exec(prefix);
     if(!match)return null;
     const type=match[2].toLowerCase()==="более"?"more":"less";
-    const context=prefix.slice(0,match.index).split(/[.:;,\\n]/u).at(-1).trim();
-    const subject=/([\\p{L}]{3,})\\s*$/u.exec(context)?.[1]?.toLowerCase()||null;
+    const context=prefix.slice(0,match.index).split(/[.:;,\n]/u).at(-1).trim();
+    const subject=/([\p{L}]{3,})\s*$/u.exec(context)?.[1]?.toLowerCase()||null;
     return {operator:OPERATORS[match[1]?(type==="more"?"notMore":"notLess"):type],
         subject};
 }
