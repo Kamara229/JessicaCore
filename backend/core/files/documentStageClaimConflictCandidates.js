@@ -1,3 +1,4 @@
+import {compareStageClaimConflictContext} from "./documentStageClaimConflictContext.js";
 const PREFIX=/^• (?:В документе указано|Позиция автора|Аналитический вывод|Требует независимой проверки): /u;
 const VERB=/(?<![\p{L}\p{N}_])(не\s+)?(является|действует|допускается|предусмотрен|предусмотрена|предусмотрено|соответствует|обязан|обязана|обязаны)(?![\p{L}\p{N}_])/iu;
 const EXTRA_NEGATION=/(?<![\p{L}\p{N}_])не(?![\p{L}\p{N}_])/iu;
@@ -38,14 +39,20 @@ export function findStageClaimConflictCandidates(grouping){
                 if(affirmative.claim?.windowNumber===negative.claim?.windowNumber)
                     continue;
                 if(candidates.length===LIMIT){truncated=true;break;}
-                candidates.push({affirmative,negative,
-                    reason:"same-wording-opposite-explicit-negation"});
+                const pair={affirmative,negative,
+                    reason:"same-wording-opposite-explicit-negation"};
+                const context=compareStageClaimConflictContext(pair);
+                if(!context)return null;
+                candidates.push({...pair,context});
             }
             if(truncated)break;
         }
         if(truncated)break;
     }
     return {candidates,possibleConflictPairs:candidates.length,
+        contextQualifiedPairs:candidates.filter(p=>
+            p.context.differences.length>0).length,
+        contextReviewPerformed:true,
         candidateLimitReached:truncated,
         scope:"selected-claims-explicit-negation-different-windows",
         semanticConflictVerified:false,claimTruthVerified:false,
