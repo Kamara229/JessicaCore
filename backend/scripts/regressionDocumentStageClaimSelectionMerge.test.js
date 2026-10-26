@@ -60,7 +60,7 @@ test("complete signed pages merge in original page order without new assertions"
             claim.windowNumber+", раздел "+claim.sectionIndex+";";
         const next=result.text.indexOf(marker,start);
         assert.ok(next>=start);
-        const citation=claim.claim.match(/\\[О\\d+:Ф1:Ф\\d+\\]/u)?.[0];
+        const citation=claim.claim.match(/\[О\d+:Ф1:Ф\d+\]/u)?.[0];
         assert.ok(citation);
         assert.ok(result.text.includes(citation));
         assert.ok(result.text.includes(claim.evidence));
