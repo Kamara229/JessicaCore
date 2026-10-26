@@ -20,9 +20,9 @@ export function compactCodexStressProgress(message){
     if(!/^CI[-‑ ]тест\s+(?:[5-9]|10)\s+параллельных\s+запросов\s+по\s+256\s+окон\s+пройд[её]н:/iu.test(body)||
        !/\b429\b/u.test(body)||
        !/\bCI\s+\d{1,3}\/\d{1,3}\b/iu.test(body)||
-       !/\bSupabase\s+доступен\b/iu.test(body)||
+       !/\bSupabase\s+доступен(?=\s|[.,;]|$)/iu.test(body)||
        !/\bRender\s+жд[её]т\s+выбора\s+workspace\b/iu.test(body)||
-       !/\bДалее\s*[—–:-]\s*тест\s+cooldown\.?$/iu.test(body))
+       !/Далее\s*[—–:-]\s*тест\s+cooldown\.?$/iu.test(body))
         return null;
     // A CI regression is never permission for another Jessica chat test,
     // deployment, deleting records, or disclosure of secrets.
