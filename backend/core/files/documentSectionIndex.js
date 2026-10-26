@@ -2,7 +2,7 @@
  * Offsets refer to the exact normalized text produced by the extractor.
  * A heading candidate is navigation metadata, not proof of semantic structure.
  */
-const MAX_SCAN_CHARS = 2_000_000;
+const MAX_SCAN_CHARS = 4_500_000; // Covers the bounded 256-window overflow plan.
 const MAX_HEADINGS = 128;
 const MAX_TITLE = 180;
 const CHAPTER = /^(?:глава|раздел|часть|chapter|section)\s+(?:\d{1,3}|[IVXLC]+)(?:[.\s:—–-]|$)/iu;
