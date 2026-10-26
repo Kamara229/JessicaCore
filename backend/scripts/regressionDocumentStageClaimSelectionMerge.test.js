@@ -69,6 +69,10 @@ test("complete signed pages merge in original page order without new assertions"
     assert.equal(result.readingCoverage.possibleConflictPairs,0);
     assert.equal(result.readingCoverage.semanticConflictVerified,false);
     assert.equal(result.readingCoverage.conflictCandidatesPreserved,true);
+    assert.equal(result.readingCoverage.conflictTriageRetentionVerified,true);
+    assert.equal(result.readingCoverage.conflictReviewCandidatesLost,0);
+    assert.equal(result.readingCoverage.realWorldFalsePositiveRateMeasured,false);
+    assert.equal(result.readingCoverage.realWorldMissedConflictsMeasured,false);
     assert.equal(result.readingCoverage.primaryConflictReviewPairs,0);
     assert.equal(result.readingCoverage.contextDeferredConflictPairs,0);
     assert.equal(result.readingCoverage.conflictFalsePositiveVerified,false);
