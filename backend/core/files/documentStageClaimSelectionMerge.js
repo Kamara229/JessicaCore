@@ -6,6 +6,7 @@ import {auditGroupedStageClaimCoverage} from "./documentStageClaimSelectionCover
 import {auditRenderedStageClaimCoverage} from "./documentStageClaimSelectionRenderedAudit.js";
 import {findStageClaimConflictCandidates} from "./documentStageClaimConflictCandidates.js";
 import {renderStageClaimConflictCandidates} from "./documentStageClaimConflictRender.js";
+import {triageStageClaimConflictCandidates} from "./documentStageClaimConflictTriage.js";
 
 /** Rebuild every page from signed reports; never trust client-supplied claims. */
 export function mergeAuthenticatedStageClaimSelections({
@@ -49,7 +50,9 @@ export function mergeAuthenticatedStageClaimSelections({
            citationAudit.selectedCitationOccurrencesAudited)return null;
     const conflicts=findStageClaimConflictCandidates(grouping);
     if(!conflicts)return null;
-    const conflictText=renderStageClaimConflictCandidates(conflicts);
+    const triage=triageStageClaimConflictCandidates(conflicts);
+    if(!triage)return null;
+    const conflictText=renderStageClaimConflictCandidates(triage);
     if(!conflictText)return null;
     const text=groupedText+conflictText;
     return {success:true,mode:"document-claim-selection-merge",
@@ -64,6 +67,11 @@ export function mergeAuthenticatedStageClaimSelections({
             groupingBasis:grouping.groupingBasis,
             ...citationAudit,...renderedAudit,
             possibleConflictPairs:conflicts.possibleConflictPairs,
+            primaryConflictReviewPairs:triage.primaryReviewPairs,
+            contextDeferredConflictPairs:triage.contextDeferredPairs,
+            conflictCandidatesPreserved:triage.allCandidatesRetained,
+            conflictFalsePositiveVerified:false,
+            conflictFilterMeaning:triage.filterMeaning,
             contextQualifiedPairs:conflicts.contextQualifiedPairs,
             conflictContextReviewPerformed:conflicts.contextReviewPerformed,
             fullSourceContextReviewed:false,
