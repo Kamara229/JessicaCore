@@ -59,8 +59,8 @@ test("duplicate processing of two Skills queues exactly one item per Skill",asyn
   assert.equal(two.failedCount,0);
   assert.equal(two.queueItems.length,0);
   assert.equal(store.rows.size,2);
-  assert.deepEqual(two.batch.map(x=>x.queueItem.id),
-    one.batch.map(x=>x.queueItem.id));
+  assert.deepEqual(two.results.map(x=>x.queueItem.id),
+    one.results.map(x=>x.queueItem.id));
   for(const row of store.rows.values()){
     assert.equal(row.status,"PROPOSED","replay cannot reopen processed Skill");
     assert.equal(row.processed_at,"2026-10-27T10:00:00Z");
