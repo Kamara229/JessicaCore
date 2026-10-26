@@ -28,15 +28,15 @@ export function inspectQuotedNumericRelation(statement,evidence,sourceWindow,val
     const claimed=relationNearToken(statement,value);
     if(!claimed)return "unresolved";
     const source=normalize(sourceWindow);
-    const actual=new Set();
+    const actual=new Map();
     for(const match of evidence.matchAll(QUOTES)){
         const quote=normalize(match[1]);
         if(!quote||!source.includes(quote))continue;
         const found=relationNearToken(quote,value);
-        if(found)actual.add(found);
+        if(found)actual.set(found.operator+"|"+(found.subject||""),found);
     }
     if(actual.size!==1)return "unresolved";
-    const sourceRelation=[...actual][0];
+    const sourceRelation=[...actual.values()][0];
     if(claimed.subject&&sourceRelation.subject&&
        claimed.subject!==sourceRelation.subject)return "unresolved";
     const claimedOp=claimed.operator,sourceOp=sourceRelation.operator;
