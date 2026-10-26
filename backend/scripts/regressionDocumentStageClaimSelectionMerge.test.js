@@ -14,6 +14,10 @@ import {pageDocumentText}
  from "../core/files/documentTextWindow.js";
 import {makeStageClaimFixture,task,secret,source}
  from "./fixtures/documentStageClaimFixture.js";
+import {hashDocumentStageReportText}
+ from "../core/files/documentStageReportTextHash.js";
+import {signDocumentStageReceipt}
+ from "../core/files/documentStageReceiptAuth.js";
 
 function buildSelections(verified,reports){
     const receipts=[],selected=[];
@@ -134,4 +138,33 @@ test("overflow facade merges receipts without model calls or incomplete claim",a
         if(old===undefined)delete process.env.JESSICA_STAGE_ATTESTATION_KEY;
         else process.env.JESSICA_STAGE_ATTESTATION_KEY=old;
     }
+});
+
+test("signed contradictory wordings reach candidate section without truth claims",()=>{
+    const {verified,reports}=makeStageClaimFixture();
+    const updated=structuredClone(reports);
+    let seen=0;
+    updated[0].text=updated[0].text.replace(
+        /• Позиция автора: Анализ норм/gu,full=>{
+            seen++;
+            if(seen===1)return "• Позиция автора: Договор действует";
+            if(seen===2)return "• Позиция автора: Договор не действует";
+            return full;
+        });
+    assert.ok(seen>=2);
+    updated[0].stageReport.reportTextSha256=
+        hashDocumentStageReportText(updated[0].text);
+    updated[0].stageReport.authTag=signDocumentStageReceipt(updated[0],secret);
+    assert.ok(updated[0].stageReport.authTag);
+    const {receipts}=buildSelections(verified,updated);
+    const result=merge(verified,updated,receipts);
+    assert.equal(result?.success,true);
+    assert.equal(result.readingCoverage.possibleConflictPairs,1);
+    assert.equal(result.readingCoverage.semanticConflictVerified,false);
+    assert.equal(result.readingCoverage.selectedCitationCoverageComplete,true);
+    assert.ok(result.text.includes("Возможные текстовые противоречия"));
+    assert.ok(result.text.includes("Договор действует"));
+    assert.ok(result.text.includes("Договор не действует"));
+    assert.ok(result.text.includes("[О1:Ф1:Ф1]"));
+    assert.ok(result.text.includes("[О2:Ф1:Ф1]"));
 });
