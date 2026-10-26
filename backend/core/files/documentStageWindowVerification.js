@@ -3,6 +3,7 @@ import {createLosslessWindowEvidence} from "./documentWindowEvidence.js";
 import {validateAndRenderDocumentAnswer} from "./documentAnswerContract.js";
 import {locateCitedDocumentFragments} from "./documentCitationSpans.js";
 import {locateVerbatimQuoteRanges} from "./documentVerbatimQuotes.js";
+import {hasLiteralDocumentStageQuotes} from "./documentStageLiteralQuotes.js";
 
 const sha=text=>createHash("sha256").update(text,"utf8").digest("hex");
 
@@ -23,9 +24,7 @@ export function verifyDocumentStageWindowAnswer(window,name,raw,task) {
        checked.verifiedFindings.length!==checked.kept)return null;
     const spans=locateCitedDocumentFragments(window,bundle,checked);
     const quotes=locateVerbatimQuoteRanges(window,bundle,checked);
-    if(!spans?.length||!quotes||quotes.evidenceQuotes<1||
-       quotes.exactLocatedQuotes+quotes.ambiguousQuotes+
-       quotes.nonLiteralQuotes!==quotes.evidenceQuotes)return null;
+    if(!spans?.length||!hasLiteralDocumentStageQuotes(quotes))return null;
     return {
         receipt:{windowNumber:window.number,
             sectionIndex:window.sectionIndex,

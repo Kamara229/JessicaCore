@@ -16,6 +16,7 @@ export function readDocumentStageReceiptStats(receipt){
        !finiteCount(receipt.exactLocatedQuotes,512)||
        !finiteCount(receipt.ambiguousQuotes,512)||
        !finiteCount(receipt.nonLiteralQuotes,512)||
+       receipt.nonLiteralQuotes!==0||
        receipt.exactLocatedQuotes+receipt.ambiguousQuotes+
            receipt.nonLiteralQuotes!==receipt.evidenceQuotes||
        receipt.claimTruthVerified!==false||

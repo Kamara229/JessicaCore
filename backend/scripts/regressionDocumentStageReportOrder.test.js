@@ -122,6 +122,11 @@ test("inconsistent quote counters and absent source caveats reject stage reconci
  const summary=checkStageReportOrder(source,verified,unresolved,task);
  assert.equal(summary.reportedNonExactQuotes,1);
  assert.equal(summary.quoteStatsAuthenticated,false);
+ const nonLiteral=structuredClone(reports);
+ const altered=nonLiteral[0].readingCoverage.verifiedWindows[0];
+ altered.exactLocatedQuotes=0;
+ altered.nonLiteralQuotes=1;
+ assert.equal(checkStageReportOrder(source,verified,nonLiteral,task),null);
 });
 
 test("report integrity rejects altered body, missing digest and oversized stage text",()=>{

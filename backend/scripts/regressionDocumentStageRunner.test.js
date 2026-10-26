@@ -9,6 +9,7 @@ import {analyzeDocumentAttachments} from "../core/files/documentAnalysisFacade.j
 import {documentStageTaskSha256} from "../core/files/documentStageTaskIdentity.js";
 import {verifyDocumentStageReceipt} from "../core/files/documentStageReceiptAuth.js";
 import {hashDocumentStageReportText} from "../core/files/documentStageReportTextHash.js";
+import {hasLiteralDocumentStageQuotes} from "../core/files/documentStageLiteralQuotes.js";
 
 const sha=t=>createHash("sha256").update(t,"utf8").digest("hex");
 const source="ВВЕДЕНИЕ\n"+"Норма права и судебная практика. ".repeat(19500)+
@@ -69,6 +70,34 @@ test("stage model output receives optional server-only attestation",async()=>{
     if(previous===undefined)delete process.env.JESSICA_STAGE_ATTESTATION_KEY;
     else process.env.JESSICA_STAGE_ATTESTATION_KEY=previous;
  }
+});
+
+test("stage citations require literal quotes, not merely normalized matches",async()=>{
+ const request=fixture();
+ let calls=0;
+ const result=await analyzeDocumentAttachments(request,async(_prompt,_task,files)=>{
+   calls++;
+   const fragment=createLosslessWindowEvidence(files[0]).fragments[0];
+   const literal=fragment.text.slice(0,55);
+   const normalized=literal.replace(/\n/gu," ");
+   assert.notEqual(normalized,literal);
+   return JSON.stringify({sections:[{heading:"Основания",findings:[{
+      kind:"author_claim",text:"Автор рассматривает правовые основания",
+      evidence:[{ref:fragment.ref,quote:normalized}]
+   }]}]});
+ });
+ assert.equal(calls,1);
+ assert.equal(result.success,false);
+ assert.equal(result.stage,"document-stage-window-evidence");
+ assert.equal(result.readingCoverage.processedWindows,0);
+});
+
+test("literal but repeated quotes are not mislabeled as unique offsets",()=>{
+ const literal={evidenceQuotes:2,exactLocatedQuotes:1,
+    ambiguousQuotes:1,nonLiteralQuotes:0};
+ assert.equal(hasLiteralDocumentStageQuotes(literal),true);
+ assert.equal(hasLiteralDocumentStageQuotes({...literal,nonLiteralQuotes:1}),false);
+ assert.equal(hasLiteralDocumentStageQuotes({...literal,exactLocatedQuotes:0}),false);
 });
 
 test("unsupported model claims cannot complete stage",async()=>{
