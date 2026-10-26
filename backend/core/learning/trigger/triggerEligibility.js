@@ -6,6 +6,7 @@
 
 
 import {hasNegativeLearningEvidence} from "./traceEvidenceGuard.js";
+import {hasExperienceStorageIntegrityFailure} from "../experienceStorageIntegrityGate.js";
 import {missingNativeDateExplanation} from "../nativeDateExplanationEvidence.js";
 
 function normalizeNumber(
@@ -57,7 +58,7 @@ export function shouldAnalyzeLearningTrace(
 
     // Negative verdicts always override successful task counters. Do not
     // enqueue an Experience from no_verified_result or degraded validation.
-    if (hasNegativeLearningEvidence(trace) || missingNativeDateExplanation(trace)) return false;
+    if (hasExperienceStorageIntegrityFailure(trace) || hasNegativeLearningEvidence(trace) || missingNativeDateExplanation(trace)) return false;
 
     // A completed counter or outer status is not verified task evidence.
     // Require either verified child results or a verified terminal result.
