@@ -1,8 +1,8 @@
 import {compareStageClaimConflictContext} from "./documentStageClaimConflictContext.js";
 import {readStageClaimParaphrasePolarity} from "./documentStageClaimConflictParaphrases.js";
+import {allowLegalClaimPolarityScope} from "./documentStageClaimConflictScopeGuard.js";
 const PREFIX=/^• (?:В документе указано|Позиция автора|Аналитический вывод|Требует независимой проверки): /u;
 const VERB=/(?<![\p{L}\p{N}_])(не\s+)?(является|действует|допускается|предусмотрен|предусмотрена|предусмотрено|соответствует|обязан|обязана|обязаны)(?![\p{L}\p{N}_])/iu;
-const EXTRA_NEGATION=/(?<![\p{L}\p{N}_])не(?![\p{L}\p{N}_])/iu;
 const LIMIT=12;
 
 function polarity(statement){
@@ -11,11 +11,14 @@ function polarity(statement){
     const match=VERB.exec(body);
     if(!match)return null;
     const start=match.index,end=start+match[0].length;
-    const remainder=body.slice(0,start)+body.slice(end);
-    if(EXTRA_NEGATION.test(remainder))return null;
-    const key=(body.slice(0,start)+match[2]+body.slice(end))
-        .toLocaleLowerCase("ru");
-    return {key,negative:Boolean(match[1]),rule:"literal-negation"};
+    const before=body.slice(0,start),after=body.slice(end);
+    const negative=Boolean(match[1]);
+    if(!allowLegalClaimPolarityScope({
+        before,after,rule:"literal:"+match[2].toLocaleLowerCase("ru"),
+        negative
+    }))return null;
+    const key=(before+match[2]+after).toLocaleLowerCase("ru");
+    return {key,negative,rule:"literal-negation"};
 }
 
 /** Conservative lexical candidates only; no inference that sources disagree in fact. */
