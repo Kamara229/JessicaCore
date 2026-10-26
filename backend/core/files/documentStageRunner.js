@@ -5,6 +5,7 @@ import {markDocumentQuotaInterruption} from "./documentQuotaCoverage.js";
 import {hashDocumentStageReportText} from "./documentStageReportTextHash.js";
 import {documentStageTaskSha256} from "./documentStageTaskIdentity.js";
 import {signDocumentStageReceipt} from "./documentStageReceiptAuth.js";
+import {buildDocumentStageWindowPrompt} from "./documentStageWindowPrompt.js";
 
 const sha=text=>createHash("sha256").update(text,"utf8").digest("hex");
 
@@ -37,15 +38,14 @@ export async function analyzeVerifiedDocumentStage(
         if(sha(window.text)!==window.windowSha256)
             return {success:false,mode:"document-stage",stage:"document-stage-integrity",
                 readingCoverage:coverage()};
-        const prompt=[
-            "ЗАДАНИЕ:",task.trim().slice(0,3000),
-            "ОДНО ОКНО ПРОВЕРЕННОГО ЭТАПА:",
-            "Этап "+stageNumber+"/"+stage.stageCount+", окно "+window.number+
-              ", раздел «"+window.title+"», символы "+window.startOffset+"–"+window.endOffset+".",
-            "Цитируй фрагменты Ф1:Ф… только из переданного текста.",
-            "Не утверждай, что проверены другие окна или весь документ."
-        ].join("\n");
-        const excerpt={name,text:window.text,truncated:false};
+        const prepared=buildDocumentStageWindowPrompt({
+            task,name,window,stageNumber,stageCount:stage.stageCount
+        });
+        if(!prepared||prepared.sourceChars!==window.text.length)
+            return {success:false,mode:"document-stage",
+                stage:"document-stage-prompt-integrity",
+                readingCoverage:coverage()};
+        const {prompt,excerpt}=prepared;
         let raw;
         try {
             raw=await generate(prompt,task,[excerpt]);

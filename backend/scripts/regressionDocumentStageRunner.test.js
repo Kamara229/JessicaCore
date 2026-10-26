@@ -36,6 +36,11 @@ const valid=async(_prompt,_task,files)=>{
 test("one trusted stage processes 16 windows without asserting full-file analysis",async()=>{
  const req=fixture(),seen=[];
  const result=await analyzeDocumentAttachments(req,async(...args)=>{
+    const bundle=createLosslessWindowEvidence(args[2][0]);
+    assert.ok(bundle?.exactSourceCoverage);
+    assert.ok(args[0].includes(bundle.promptText),
+       "The AI prompt must contain the exact extracted window text");
+    assert.ok(args[0].includes("[Ф1:Ф1]"));
     seen.push(args[2][0].text);return valid(...args);
  });
  assert.equal(result.success,true,JSON.stringify({stage:result.stage,text:result.text?.slice(0,80)}));
