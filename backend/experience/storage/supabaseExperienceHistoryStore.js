@@ -2,6 +2,7 @@ import {
     getSupabaseClient
 } from "../../storage/supabaseClient.js";
 import {hydrateExperienceModules} from "./skillModules/experienceModuleHydrator.js";
+import {requireExperienceHistoryRows} from "./experiencePersistence/experienceHistoryRows.js";
 
 
 /*
@@ -235,8 +236,10 @@ export async function loadExperienceHistory(
     }
 
 
-    const rows=Array.isArray(data)?data:[];
-    return (await Promise.all(rows.map(hydrateHistoryRow))).filter(Boolean);
+    const rows=requireExperienceHistoryRows(data);
+    return requireExperienceHistoryRows(
+        await Promise.all(rows.map(hydrateHistoryRow))
+    );
 
 }
 
