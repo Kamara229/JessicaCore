@@ -14,6 +14,7 @@ import {MAX_VERIFIED_DOCUMENT_WINDOWS} from "./documentVerifiedWindowLimit.js";
 import {assembleDocumentChunks} from "./documentChunkAssembly.js";
 import {assembleDocumentPages} from "./documentPageAssembly.js";
 import {verifyMaterializedOverflowBatches} from "./documentOverflowBatchVerification.js";
+import {planVerifiedDocumentAnalysisStages} from "./documentAnalysisStagePlan.js";
 import {analyzeMultiplePagedDocuments} from "./documentMultiPageAnalysis.js";
 import {addInterruptedDocumentCoverage} from "./documentQuotaCoverage.js";
 import {
@@ -86,6 +87,13 @@ export async function analyzeDocumentAttachments(
             item.pages[0].sourceSha256,item.overflowBatches);
         if(!checked)return errorResult("Нарушен порядок окон или контрольная сумма.",
             "document-overflow-batches-invalid");
+        const stagePlan=checked.complete&&
+            checked.totalWindows>MAX_VERIFIED_DOCUMENT_WINDOWS?
+            planVerifiedDocumentAnalysisStages(complete.text,checked):null;
+        if(checked.complete&&checked.totalWindows>MAX_VERIFIED_DOCUMENT_WINDOWS&&
+           !stagePlan)
+            return errorResult("Не удалось построить проверяемые этапы анализа.",
+                "document-overflow-stage-plan-invalid");
         if(!checked.complete||checked.totalWindows>MAX_VERIFIED_DOCUMENT_WINDOWS)
             return {success:false,mode:"document",
                 stage:checked.complete?"document-overflow-analysis-pending":
@@ -100,6 +108,7 @@ export async function analyzeDocumentAttachments(
                     sourceSha256:checked.sourceSha256,
                     collectedChars:checked.collectedChars,
                     nextBatchNumber:checked.nextBatchNumber,
+                    ...(stagePlan?{stagePlan}:{}),
                     completeSourceAnalysisConfirmed:false}};
         if(!String(task||"").trim())
             return errorResult("Укажи задачу для документа.");
