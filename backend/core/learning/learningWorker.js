@@ -550,7 +550,8 @@ export async function processQueueItem(
       replayGuard=checkLearningWorkerReplay,
       prepareMemory=prepareCandidateMemory,
       proposalSaver=saveLearningProposal,
-      proposalFailureHandler=recordProposalSaveFailure
+      proposalFailureHandler=recordProposalSaveFailure,
+      updateStatus=updateLearningQueueItemStatus
     }={}
 ) {
 
@@ -969,7 +970,7 @@ export async function processQueueItem(
 
         const updated =
 
-            await updateLearningQueueItemStatus(
+            await updateStatus(
 
                 item.id,
 
