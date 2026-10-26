@@ -11,6 +11,7 @@ import {auditStageClaimConflictTriage} from "./documentStageClaimConflictQuality
 import {inspectStageClaimWindowContinuity} from "./documentStageClaimWindowContinuity.js";
 import {auditStageClaimCrossPageConflicts} from "./documentStageClaimCrossPageAudit.js";
 import {renderStageClaimWindowContinuity} from "./documentStageClaimWindowContinuityRender.js";
+import {auditDocumentExactFacts} from "./documentExactFactAudit.js";
 
 /** Rebuild every page from signed reports; never trust client-supplied claims. */
 export function mergeAuthenticatedStageClaimSelections({
@@ -46,6 +47,8 @@ export function mergeAuthenticatedStageClaimSelections({
     const citationAudit=auditGroupedStageClaimCoverage(
         selected,grouping,verified);
     if(!citationAudit)return null;
+    const numericAudit=auditDocumentExactFacts(source,verified,selected);
+    if(!numericAudit)return null;
     const groupedText=renderMergedStageClaimSelections(grouping,totalClaims);
     if(!groupedText)return null;
     const renderedAudit=auditRenderedStageClaimCoverage(groupedText,grouping);
@@ -77,7 +80,7 @@ export function mergeAuthenticatedStageClaimSelections({
             exactTextGroups:grouping.exactTextGroups,
             repeatedFormulations:grouping.repeatedFormulations,
             groupingBasis:grouping.groupingBasis,
-            ...citationAudit,...renderedAudit,
+            ...citationAudit,...renderedAudit,...numericAudit,
             possibleConflictPairs:conflicts.possibleConflictPairs,
             controlledParaphrasePairs:conflicts.controlledParaphrasePairs,
             primaryConflictReviewPairs:triage.primaryReviewPairs,
