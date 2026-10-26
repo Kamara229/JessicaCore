@@ -7,6 +7,7 @@ import { pageDocumentText, parseDocumentTextOffset } from "../../core/files/docu
 import { buildDocumentSectionIndex } from "../../core/files/documentSectionIndex.js";
 import {parseSectionIndex,selectDocumentSectionPage} from "../../core/files/documentSectionWindow.js";
 import {buildDocumentPageBatch} from "../../core/files/documentPageBatch.js";
+import {buildDocumentPageChunk} from "../../core/files/documentPageChunk.js";
 import {prepareExtractedDocumentText} from "../../core/files/documentExtractedTextIntegrity.js";
 import {extractCompleteSpreadsheetText,SpreadsheetExtractionLimitError} from "../../core/files/documentSpreadsheetExtraction.js";
 
@@ -101,8 +102,26 @@ export function registerDocumentExtractRoute(app) {
                     hasMore: page.hasMore
                 });
                 const batchMode=req.get("X-Jessica-Pages");
-                if(batchMode!==undefined && batchMode!=="all")
+                if(batchMode!==undefined && batchMode!=="all"&&batchMode!=="chunk")
                     return res.status(400).json({success:false,text:"Неизвестный режим извлечения"});
+                if(batchMode==="chunk"){
+                    if(selected!==null)
+                        return res.status(400).json({success:false,text:
+                            "Нельзя совмещать режим частей и выбор раздела."});
+                    const suppliedSha=req.get("X-Jessica-Source-Sha256");
+                    if((offset>0&&!suppliedSha) ||
+                       (suppliedSha!==undefined&&!/^[0-9a-f]{64}$/u.test(suppliedSha)))
+                        return res.status(400).json({success:false,text:
+                            "Для продолжения нужен SHA-256 того же исходного файла."});
+                    const chunk=buildDocumentPageChunk(complete,name,offset,suppliedSha??null);
+                    if(!chunk)return res.status(409).json({success:false,text:
+                        "Продолжение не совпало с документом либо смещение недопустимо."});
+                    const payload={success:true,name,...chunk};
+                    if(Buffer.byteLength(JSON.stringify(payload),"utf8")>850000)
+                        return res.status(413).json({success:false,text:
+                            "Часть документа превышает допустимый размер ответа."});
+                    return res.json(payload);
+                }
                 if(batchMode==="all"){
                     if(selected!==null||req.get("X-Jessica-Text-Offset")!==undefined)
                         return res.status(400).json({success:false,text:"Нельзя совмещать страницы и смещение"});
