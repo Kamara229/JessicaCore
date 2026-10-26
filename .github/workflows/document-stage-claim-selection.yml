@@ -8,6 +8,7 @@ on:
       - 'backend/core/files/documentExactFactTokens.js'
       - 'backend/core/files/documentExactFactAudit.js'
       - 'backend/core/files/documentExactFactQuoteBinding.js'
+      - 'backend/core/files/documentNumericRelationAudit.js'
       - 'backend/core/files/documentSectionIndex.js'
       - 'backend/core/files/documentOverflowReadBatches.js'
       - 'backend/core/files/documentOverflowPlanCache.js'
@@ -38,6 +39,7 @@ on:
       - 'backend/scripts/regressionDocumentStageClaimCrossPage*.test.js'
       - 'backend/scripts/regressionDocumentStageClaimLongDocument.test.js'
       - 'backend/scripts/regressionDocumentExactFact256.test.js'
+      - 'backend/scripts/regressionDocumentNumericRelation256.test.js'
       - 'backend/scripts/regressionDocumentStageClaimStress.test.js'
       - 'backend/scripts/regressionDocumentOverflowPlanCache.test.js'
       - 'backend/scripts/regressionDocumentOverflowBatchSession.test.js'
@@ -82,4 +84,4 @@ jobs:
       - run: node --test backend/scripts/regressionDocumentPagedResumeCheckpoint.test.js
       - run: node --max-old-space-size=512 --test backend/scripts/regressionDocumentStageResumeExecutor.test.js backend/scripts/regressionDocumentStage256Resume.test.js
       - run: node --max-old-space-size=768 --test backend/scripts/regressionDocumentStage256HttpResume.test.js
-      - run: node --max-old-space-size=768 --test backend/scripts/regressionDocumentExactFact256.test.js
+      - run: node --max-old-space-size=768 --test backend/scripts/regressionDocumentExactFact256.test.js backend/scripts/regressionDocumentNumericRelation256.test.js
