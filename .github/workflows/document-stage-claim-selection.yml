@@ -3,6 +3,7 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/workflows/document-stage-claim-selection.yml'
       - 'backend/core/files/documentStageClaimSelection*.js'
       - 'backend/core/files/documentStageClaimConflict*.js'
       - 'backend/core/files/documentOverflowAnalysisFacade.js'
