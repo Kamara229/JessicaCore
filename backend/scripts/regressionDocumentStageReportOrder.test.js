@@ -11,6 +11,7 @@ import {planVerifiedDocumentAnalysisStages}
 import {checkStageReportOrder} from "../core/files/documentStageReportOrder.js";
 import {documentStageTaskSha256} from "../core/files/documentStageTaskIdentity.js";
 import {hashDocumentStageReportText} from "../core/files/documentStageReportTextHash.js";
+import {signDocumentStageReceipt} from "../core/files/documentStageReceiptAuth.js";
 import {analyzeDocumentAttachments} from "../core/files/documentAnalysisFacade.js";
 const task="Проверь";
 const source="ВВЕДЕНИЕ\n"+"Обоснование судебной практики. ".repeat(19500)+
@@ -166,6 +167,34 @@ test("source quotation, window citation and missing body reject reports despite 
  first.text=first.text.replace(/Окно 1 \([^)]*\):\n[\s\S]*?(?=\n\nОкно 2 \()/u,"");
  first.stageReport.reportTextSha256=hashDocumentStageReportText(first.text);
  assert.equal(checkStageReportOrder(source,verified,missing,task),null);
+});
+
+test("only server-HMAC receipts can attest complete, source-checked stage reports",()=>{
+ const {verified,reports,plan}=fixture(),secret="a".repeat(64);
+ const signed=structuredClone(reports);
+ for(const item of signed){
+   const tag=signDocumentStageReceipt(item,secret);
+   assert.match(tag,/^v1:[0-9a-f]{64}$/u);
+   item.stageReport.authTag=tag;
+ }
+ const check=checkStageReportOrder(source,verified,signed,task,secret);
+ assert.equal(check.allStageReportsReceived,true);
+ assert.equal(check.windowsReported,plan.totalWindows);
+ assert.equal(check.modelExecutionAuthenticated,true);
+ assert.equal(check.reportOriginAuthenticated,true);
+ assert.equal(check.completeSourceAnalysisConfirmed,false);
+ assert.equal(checkStageReportOrder(source,verified,signed,task,"b".repeat(64)),null);
+ const changed=structuredClone(signed);
+ changed[0].readingCoverage.verifiedWindows[0].rejectedClaims+=1;
+ assert.equal(checkStageReportOrder(source,verified,changed,task,secret),null);
+ const rewritten=structuredClone(signed);
+ rewritten[0].stageReport.authTag="v1:"+"0".repeat(64);
+ assert.equal(checkStageReportOrder(source,verified,rewritten,task,secret),null);
+ const stripped=structuredClone(signed);
+ delete stripped[0].stageReport.authTag;
+ const unsigned=checkStageReportOrder(source,verified,stripped,task,secret);
+ assert.equal(unsigned.modelExecutionAuthenticated,false);
+ assert.equal(unsigned.reportOriginAuthenticated,false);
 });
 
 test("facade checks report coordinates but never authenticates client model results",async()=>{

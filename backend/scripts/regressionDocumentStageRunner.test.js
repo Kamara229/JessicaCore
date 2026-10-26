@@ -7,6 +7,7 @@ import {materializeDocumentOverflowBatch}
  from "../core/files/documentOverflowBatchMaterialization.js";
 import {analyzeDocumentAttachments} from "../core/files/documentAnalysisFacade.js";
 import {documentStageTaskSha256} from "../core/files/documentStageTaskIdentity.js";
+import {verifyDocumentStageReceipt} from "../core/files/documentStageReceiptAuth.js";
 import {hashDocumentStageReportText} from "../core/files/documentStageReportTextHash.js";
 
 const sha=t=>createHash("sha256").update(t,"utf8").digest("hex");
@@ -53,6 +54,23 @@ test("one trusted stage processes 16 windows without asserting full-file analysi
  assert.ok(result.readingCoverage.verifiedWindows.every(w=>w.anchoredFragments>0));
  assert.ok(result.readingCoverage.verifiedWindows.every(w=>w.claimTruthVerified===false));
 });
+test("stage model output receives optional server-only attestation",async()=>{
+ const key="c".repeat(64),previous=process.env.JESSICA_STAGE_ATTESTATION_KEY;
+ try{
+    process.env.JESSICA_STAGE_ATTESTATION_KEY=key;
+    const result=await analyzeDocumentAttachments(fixture(),valid);
+    assert.equal(result.success,true);
+    assert.equal(verifyDocumentStageReceipt(result,key),true);
+    assert.equal(verifyDocumentStageReceipt(result,"d".repeat(64)),false);
+    const forged=structuredClone(result);
+    forged.readingCoverage.verifiedWindows[0].groundedClaims+=1;
+    assert.equal(verifyDocumentStageReceipt(forged,key),false);
+ }finally{
+    if(previous===undefined)delete process.env.JESSICA_STAGE_ATTESTATION_KEY;
+    else process.env.JESSICA_STAGE_ATTESTATION_KEY=previous;
+ }
+});
+
 test("unsupported model claims cannot complete stage",async()=>{
  const req=fixture();let calls=0;
  const result=await analyzeDocumentAttachments(req,async(...args)=>{

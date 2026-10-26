@@ -3,16 +3,22 @@ import {matchesDocumentStageTask} from "./documentStageTaskIdentity.js";
 import {readDocumentStageReceiptStats} from "./documentStageReceiptStats.js";
 import {matchesDocumentStageReportText} from "./documentStageReportTextHash.js";
 import {inspectDocumentStageReportBody} from "./documentStageReportBodyAudit.js";
+import {verifyDocumentStageReceipt} from "./documentStageReceiptAuth.js";
 
 /** Metadata consistency only. Client stage reports are NOT authenticated. */
-export function checkStageReportOrder(source,verified,reports,task){
+export function checkStageReportOrder(source,verified,reports,task,secret){
  const plan=planVerifiedDocumentAnalysisStages(source,verified);
  if(!plan||!Array.isArray(reports)||!reports.length||
     reports.length>plan.stageCount)return null;
  let count=0,offset=0,claims=0,quotes=0,unlocated=0,anchors=0;
+ let authenticated=true;
  for(let i=0;i<reports.length;i++){
   const r=reports[i],stage=plan.stages[i],s=r?.stageReport,
+
         c=r?.readingCoverage;
+  const stageAuthenticated=verifyDocumentStageReceipt(r,secret);
+  if(s?.authTag!==undefined&&!stageAuthenticated)return null;
+  authenticated=authenticated&&stageAuthenticated;
   if(!matchesDocumentStageReportText(r)||
      !matchesDocumentStageTask(task,s,c)||
      r?.success!==true||r?.mode!=="document-stage"||
@@ -75,8 +81,8 @@ export function checkStageReportOrder(source,verified,reports,task){
   reportedGroundedClaims:claims,reportedEvidenceQuotes:quotes,
   reportedAnchoredFragments:anchors,
   reportedNonExactQuotes:unlocated,quoteStatsAuthenticated:false,
-  reportTextIntegrityChecked:true,reportOriginAuthenticated:false,
+  reportTextIntegrityChecked:true,reportOriginAuthenticated:authenticated,
   reportBodySourceQuotesChecked:true,
-  modelExecutionAuthenticated:false,claimTruthVerified:false,
+  modelExecutionAuthenticated:authenticated,claimTruthVerified:false,
   completeSourceAnalysisConfirmed:false};
 }

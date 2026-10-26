@@ -4,6 +4,7 @@ import {verifyDocumentStageWindowAnswer} from "./documentStageWindowVerification
 import {markDocumentQuotaInterruption} from "./documentQuotaCoverage.js";
 import {hashDocumentStageReportText} from "./documentStageReportTextHash.js";
 import {documentStageTaskSha256} from "./documentStageTaskIdentity.js";
+import {signDocumentStageReceipt} from "./documentStageReceiptAuth.js";
 
 const sha=text=>createHash("sha256").update(text,"utf8").digest("hex");
 
@@ -70,7 +71,7 @@ export async function analyzeVerifiedDocumentStage(
     if(!reportTextSha256)return {success:false,mode:"document-stage",
         stage:"document-stage-report-too-large",
         readingCoverage:coverage()};
-    return {success:true,mode:"document-stage",stage:"document-stage-verified",
+    const result={success:true,mode:"document-stage",stage:"document-stage-verified",
         readingCoverage:{...coverage(),stageAnalysisComplete:true},
         stageReport:{sourceSha256:stage.sourceSha256,
             taskSha256,
@@ -79,4 +80,7 @@ export async function analyzeVerifiedDocumentStage(
             verifiedWindows:receipts.length,stageAnalysisComplete:true,
             fullSourceAnalysisConfirmed:false,semanticCorrectnessConfirmed:false},
         text:reportText};
+    const tag=signDocumentStageReceipt(result);
+    if(tag)result.stageReport.authTag=tag;
+    return result;
 }
