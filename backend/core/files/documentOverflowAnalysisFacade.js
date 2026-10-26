@@ -11,6 +11,7 @@ import {mergeAuthenticatedDocumentStages} from "./documentStageAuthenticatedMerg
 import {authenticatedStageResumeStatus} from "./documentStageResumeStatus.js";
 import {continueAuthenticatedDocumentStage} from "./documentStageResumeExecutor.js";
 import {selectAuthenticatedStageClaims} from "./documentStageClaimSelection.js";
+import {mergeAuthenticatedStageClaimSelections} from "./documentStageClaimSelectionMerge.js";
 import {analyzePagedLongDocument} from "./documentPagedAnalysis.js";
 import {addInterruptedDocumentCoverage} from "./documentQuotaCoverage.js";
 
@@ -42,6 +43,12 @@ export async function analyzeOverflowDocumentAttachments({task,attachments},gene
            !stagePlan)
             return errorResult("Не удалось построить проверяемые этапы анализа.",
                 "document-overflow-stage-plan-invalid");
+        if(Object.hasOwn(item,"claimSelections")&&
+           (!Object.hasOwn(item,"stageReports")||
+            Object.hasOwn(item,"claimOffset")||
+            Object.hasOwn(item,"stageNumber")))
+            return errorResult("Нельзя объединить выборки без проверенных этапов.",
+                "document-stage-claim-input");
         if(Object.hasOwn(item,"claimOffset")&&
            !Object.hasOwn(item,"stageReports"))
             return errorResult("Для отбора утверждений нужны проверенные этапы.",
@@ -80,6 +87,19 @@ export async function analyzeOverflowDocumentAttachments({task,attachments},gene
             if(!coordinates)return errorResult(
                 "Несовпадение порядка этапов или смещений.",
                 "document-stage-reports-invalid");
+            if(Object.hasOwn(item,"claimSelections")){
+                if(!coordinates.allStageReportsReceived||
+                   !coordinates.reportOriginAuthenticated)
+                    return errorResult("Нужны полные подписанные этапы.",
+                        "document-stage-claim-merge-invalid");
+                const merged=mergeAuthenticatedStageClaimSelections({
+                    source:complete.text,verified:checked,
+                    reports:item.stageReports,task,
+                    selections:item.claimSelections
+                });
+                return merged||errorResult("Выборки страниц неполны или недостоверны.",
+                    "document-stage-claim-merge-invalid");
+            }
             if(Object.hasOwn(item,"claimOffset")){
                 if(!coordinates.allStageReportsReceived||
                    !coordinates.reportOriginAuthenticated)
