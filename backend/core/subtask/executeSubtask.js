@@ -32,6 +32,7 @@ import {
 import {
     buildExecutionExperienceContext
 } from "./subtaskExperienceContext.js";
+import {mergeResolvedSubtaskExperience} from "./mergeResolvedSubtaskExperience.js";
 
 
 import {
@@ -194,92 +195,6 @@ function buildMemoryExperience(
 
                 })
             )
-
-    };
-
-}
-
-
-/*
- * =========================================================
- * MERGE EXPERIENCE
- * =========================================================
- */
-
-
-function mergeExperienceContext(
-
-    resolverExperience,
-
-    memoryExperience
-
-) {
-
-    /*
-     * FULL Resolver Experience имеет приоритет.
-     *
-     * Memory hints от Decomposer компактные и
-     * не содержат полного learning/maturity contract.
-     * Они остаются fallback, если Storage/Resolver
-     * не смог вернуть Skill.
-     */
-
-
-    if(
-        resolverExperience?.found === true
-        &&
-        resolverExperience?.experience
-    ){
-
-        return resolverExperience;
-
-    }
-
-
-    if(
-        memoryExperience
-    ){
-
-        return {
-
-            found:
-                true,
-
-            confidence:
-                0.8,
-
-            source:
-                "memory-context",
-
-            experience:
-                memoryExperience,
-
-            planningContext:
-                resolverExperience?.planningContext
-                ||
-                null
-
-        };
-
-    }
-
-
-    return resolverExperience || {
-
-        found:
-            false,
-
-        confidence:
-            0,
-
-        source:
-            "none",
-
-        experience:
-            null,
-
-        planningContext:
-            null
 
     };
 
@@ -603,7 +518,7 @@ export async function executeSubtask(
 
     const experienceResult =
 
-        mergeExperienceContext(
+        mergeResolvedSubtaskExperience(
 
             resolverResult,
 
