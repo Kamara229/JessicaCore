@@ -41,7 +41,8 @@ const MAX_TASK_LENGTH =
 
 
 export function registerSolveRoute(
-    app
+    app,
+    {executeTask=executeJessicaTask}={}
 ) {
 
     app.post(
@@ -139,7 +140,7 @@ export function registerSolveRoute(
 
 
                 const coreResult =
-                    await withResponseLanguage(outputLanguage, () => executeJessicaTask(
+                    await withResponseLanguage(outputLanguage, () => executeTask(
                         task,
                         { conversation: req.body?.conversation, attachments: req.body?.attachments, outputLanguage }
                     ));
