@@ -7,6 +7,7 @@ on:
       - 'backend/core/files/documentStageClaimSelection*.js'
       - 'backend/core/files/documentExactFactTokens.js'
       - 'backend/core/files/documentExactFactAudit.js'
+      - 'backend/core/files/documentExactFactQuoteBinding.js'
       - 'backend/core/files/documentSectionIndex.js'
       - 'backend/core/files/documentOverflowReadBatches.js'
       - 'backend/core/files/documentOverflowPlanCache.js'
