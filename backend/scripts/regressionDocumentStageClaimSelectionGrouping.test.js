@@ -7,6 +7,7 @@ import {renderMergedStageClaimSelections}
 
 const claim=(text,window,evidence="«Основание "+window+"»")=>({
     stageNumber:1,windowNumber:window,sectionIndex:1,
+    startOffset:(window-1)*100,endOffset:window*100,
     claim:"• Позиция автора: "+text+" [О"+window+":Ф1:Ф1]",
     evidence:"  Основание: "+evidence
 });
