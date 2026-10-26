@@ -1,3 +1,5 @@
+import {createLearningQueueIdentity} from "./queueIdentity.js";
+
 /*
  * =========================================================
  * JESSICA LEARNING QUEUE v2
@@ -78,7 +80,7 @@ export function createLearningQueueItem(
 
         id:
 
-            createQueueId(),
+            createLearningQueueIdentity(learningEvent,skillId),
 
 
         status:
@@ -125,6 +127,10 @@ export function createLearningQueueItem(
 function resolveSkillId(
     event
 ) {
+    // Canonical Learning Event identity takes precedence over payload shims.
+    const canonical=String(event?.skillId||"").trim();
+    if(canonical)return canonical;
+
 
 
     /*
@@ -269,43 +275,3 @@ export function isValidLearningAction(
 
 
 
-function createQueueId()
-{
-
-    try {
-
-
-        if(
-            typeof crypto !== "undefined"
-            &&
-            crypto.randomUUID
-        ){
-
-            return crypto.randomUUID();
-
-        }
-
-
-    }catch(error){
-
-    }
-
-
-
-    return (
-
-        Date.now()
-
-        +
-
-        "-"
-
-        +
-
-        Math.random()
-            .toString(36)
-            .substring(2)
-
-    );
-
-}
