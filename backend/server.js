@@ -80,6 +80,7 @@ import {
 import {
     registerRoutes
 } from "./http/routes/registerRoutes.js";
+import {registerJessicaJsonParser} from "./http/routes/jsonParser.js";
 
 
 /*
@@ -186,16 +187,7 @@ const app =
  */
 
 
-app.use(
-
-    express.json({
-
-        limit:
-            "1mb"
-
-    })
-
-);
+registerJessicaJsonParser(app);
 
 
 
