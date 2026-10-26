@@ -1,4 +1,5 @@
 import {saveModuleAwareExperience} from "./skillModules/experienceModuleSaver.js";
+import {resolveStoredExperienceStatus} from "./experiencePersistence/experienceStoredStatus.js";
 
 
 /*
@@ -633,13 +634,7 @@ export async function saveExperienceAtomic(
 
         status:
 
-            normalizeText(
-                rpcResult?.status
-            )
-
-            ||
-
-            null,
+            resolveStoredExperienceStatus(rpcResult),
 
 
         auditId:
