@@ -8,7 +8,9 @@ export function markDocumentQuotaInterruption(error, ledgerSummary, interruptedW
         return error;
     const coverage={...ledgerSummary,complete:false,
         allWindowsPresented:false,interruptedWindow,
-        interruption:"ai-provider-quota",resumeAvailable:false,
+        interruption:"ai-provider-quota",
+        resumeAvailable:ledgerSummary.resumeAvailable===true &&
+            !!ledgerSummary.resumeCheckpoint,
         completeSourceAnalysisConfirmed:false};
     error.documentReadingCoverage=coverage;
     return error;
