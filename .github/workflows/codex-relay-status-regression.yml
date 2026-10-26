@@ -22,4 +22,4 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
-      - run: node --test backend/scripts/regressionCodexRelay.test.js backend/scripts/regressionCodexStatusEnvelope.test.js backend/scripts/regressionCodexCompactStressProgress.test.js backend/scripts/regressionCodexCurrentSession.test.js backend/scripts/regressionCodexFailedHandoff.test.js backend/scripts/regressionCodexCompactTest.test.js backend/scripts/regressionCodexPendingVerification.test.js backend/scripts/regressionCodexDocumentProgress.test.js
+      - run: node --test backend/scripts/regressionCodexRelay.test.js backend/scripts/regressionCodexStatusEnvelope.test.js backend/scripts/regressionCodexCompactStressProgress.test.js backend/scripts/regressionCodexCurrentSession.test.js backend/scripts/regressionCodexFailedHandoff.test.js backend/scripts/regressionCodexCompactTest.test.js backend/scripts/regressionCodexPendingVerification.test.js backend/scripts/regressionCodexDocumentProgress.test.js backend/scripts/regressionCodexV2PersistenceHandoff.test.js
