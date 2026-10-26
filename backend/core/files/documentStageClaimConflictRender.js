@@ -10,11 +10,18 @@ export function renderStageClaimConflictCandidates(result){
     let length=0;
     for(const [index,pair] of result.candidates.entries()){
         const entries=[pair.affirmative,pair.negative];
+        const tier=pair.reviewTier;
+        if(tier!==undefined&&tier!=="primary-review"&&
+           tier!=="context-qualified-review")return null;
         const context=pair.context;
         if(!context||!Array.isArray(context.differences)||
            !context.affirmative||!context.negative||
            context.semanticConflictVerified!==false)return null;
-        const row=["Кандидат "+(index+1)+" (проверить контекст):",
+        const priority=tier==="context-qualified-review"?
+            "пониженный приоритет: контекстные различия":
+            "первичная проверка";
+        const row=["Кандидат "+(index+1)+
+            " (проверить контекст; "+priority+"):",
             "Контекстные маркеры: "+
              (context.differences.length?context.differences.join(", "):
                 "условия/даты/исключения не выявлены")+
@@ -52,5 +59,9 @@ export function renderStageClaimConflictCandidates(result){
         "(только выбранные утверждения):\n"+lines.join("\n\n")+
         "\nНайдено пар: "+result.candidates.length+
         (result.candidateLimitReached?" (лимит выборки достигнут).":".")+
+        (result.contextTriagePerformed?
+            " В первичной проверке: "+result.primaryReviewPairs+
+            "; отложены на проверку условий: "+result.contextDeferredPairs+
+            ". Все кандидаты и ссылки сохранены.":"")+
         " Противоречие по смыслу и достоверность не подтверждены.";
 }
