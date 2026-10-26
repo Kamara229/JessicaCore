@@ -11,6 +11,8 @@ import { identifyDocumentAnswer } from "./documentResponseIdentity.js";
 import {summarizeDocumentCitationCoverage} from "./documentCitationCoverage.js";
 import {analyzePagedLongDocument} from "./documentPagedAnalysis.js";
 import {assembleDocumentChunks} from "./documentChunkAssembly.js";
+import {assembleDocumentPages} from "./documentPageAssembly.js";
+import {verifyMaterializedOverflowBatches} from "./documentOverflowBatchVerification.js";
 import {analyzeMultiplePagedDocuments} from "./documentMultiPageAnalysis.js";
 import {addInterruptedDocumentCoverage} from "./documentQuotaCoverage.js";
 import {
@@ -67,6 +69,37 @@ export async function analyzeDocumentAttachments(
     { task, attachments },
     generate = generateDocumentAnswer
 ) {
+    // Source windows may span many batches, but no prefix is an AI result.
+    if(Array.isArray(attachments)&&attachments.some(item=>
+        item && typeof item==="object"&&Object.hasOwn(item,"overflowBatches"))){
+        if(attachments.length!==1||!Array.isArray(attachments[0]?.pages))
+            return errorResult("Ожидается один полный документ со всеми страницами.",
+                "document-overflow-batches-invalid");
+        const item=attachments[0];
+        const complete=assembleDocumentPages(item.pages);
+        if(!complete?.complete||!String(item.name||"")||
+           item.pages.some(page=>page.name!==item.name))
+            return errorResult("Не подтверждена целостность исходного файла.",
+                "document-overflow-batches-invalid");
+        const checked=verifyMaterializedOverflowBatches(complete.text,
+            item.pages[0].sourceSha256,item.overflowBatches);
+        if(!checked)return errorResult("Нарушен порядок окон или контрольная сумма.",
+            "document-overflow-batches-invalid");
+        return {success:false,mode:"document",
+            stage:checked.complete?"document-overflow-analysis-pending":
+                "document-overflow-batches-incomplete",
+            text:checked.complete?
+                "Все окна проверены. Их модельный анализ пока не выполнен.":
+                "Не все части переданы. Анализ не запускался.",
+            readingCoverage:{complete:false,
+                plannedWindows:checked.totalWindows,processedWindows:0,
+                allSourceWindowsVerified:checked.allSourceWindowsVerified,
+                sourceChars:checked.sourceChars,
+                sourceSha256:checked.sourceSha256,
+                collectedChars:checked.collectedChars,
+                nextBatchNumber:checked.nextBatchNumber,
+                completeSourceAnalysisConfirmed:false}};
+    }
     // Accept chunked extraction only after complete, verified SHA-256
     // reassembly. Never downgrade an incomplete chunk to loose text.
     if(Array.isArray(attachments)&&attachments.some(item=>
