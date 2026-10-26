@@ -9,6 +9,9 @@ on:
       - 'backend/scripts/regressionModularExperienceStorage.test.js'
       - 'backend/scripts/regressionModularExperienceIntegrity.test.js'
       - 'backend/scripts/regressionModularExperienceReadback.test.js'
+      - 'backend/scripts/regressionMixedActiveExperienceVersions.test.js'
+      - 'backend/experience/storage/supabaseExperienceStore.js'
+      - 'backend/experience/storage/skillModules/experienceActiveCandidates.js'
       - 'backend/scripts/fixtures/v2ReadbackSupabaseSnapshot.js'
       - '.github/workflows/experience-module-integrity.yml'
   workflow_dispatch:
@@ -26,7 +29,7 @@ jobs:
       - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
       - name: Run module packing, hydration and real DB readback regressions
         id: modular_tests
-        run: node --test backend/scripts/regressionModularExperienceStorage.test.js backend/scripts/regressionModularExperienceIntegrity.test.js backend/scripts/regressionModularExperienceReadback.test.js
+        run: node --test backend/scripts/regressionModularExperienceStorage.test.js backend/scripts/regressionModularExperienceIntegrity.test.js backend/scripts/regressionModularExperienceReadback.test.js backend/scripts/regressionMixedActiveExperienceVersions.test.js
       - name: Publish modular Skill hydration result for GitHub connector
         if: always()
         env:
