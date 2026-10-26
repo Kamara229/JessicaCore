@@ -62,6 +62,8 @@ test("complete signed pages merge in original page order without new assertions"
     assert.equal(result.readingCoverage.selectedCitationOccurrencesAudited,
         result.readingCoverage.renderedCitationOccurrencesAudited);
     assert.equal(result.readingCoverage.unselectedClaimsAudited,false);
+    assert.equal(result.readingCoverage.possibleConflictPairs,0);
+    assert.equal(result.readingCoverage.semanticConflictVerified,false);
     assert.equal(result.text.split("Формулировка 1:").length,2);
     let start=0;
     for(const claim of selected){
