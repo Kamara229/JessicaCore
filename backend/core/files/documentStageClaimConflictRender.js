@@ -10,7 +10,15 @@ export function renderStageClaimConflictCandidates(result){
     let length=0;
     for(const [index,pair] of result.candidates.entries()){
         const entries=[pair.affirmative,pair.negative];
-        const row=["Кандидат "+(index+1)+" (проверить контекст):"];
+        const context=pair.context;
+        if(!context||!Array.isArray(context.differences)||
+           !context.affirmative||!context.negative||
+           context.semanticConflictVerified!==false)return null;
+        const row=["Кандидат "+(index+1)+" (проверить контекст):",
+            "Контекстные маркеры: "+
+             (context.differences.length?context.differences.join(", "):
+                "условия/даты/исключения не выявлены")+
+             "; смысловое противоречие не подтверждено."];
         for(const [j,entry] of entries.entries()){
             const c=entry?.claim;
             if(!Number.isSafeInteger(c?.stageNumber)||
@@ -22,11 +30,18 @@ export function renderStageClaimConflictCandidates(result){
                typeof c?.evidence!=="string"||
                !Array.isArray(entry?.citations)||!entry.citations.length)
                 return null;
+            const ctx=j===0?context.affirmative:context.negative;
+            if(!Array.isArray(ctx?.dates)||
+               !Array.isArray(ctx?.conditions)||
+               typeof ctx.exceptionMentioned!=="boolean")return null;
             row.push((j===0?"Без отрицания":"С отрицанием")+
                 ": этап "+c.stageNumber+", окно "+c.windowNumber+
                 ", раздел "+c.sectionIndex+", смещения "+
                 c.startOffset+"–"+c.endOffset+"\n"+
-                c.claim+"\n"+c.evidence);
+                c.claim+"\n"+c.evidence+"\n"+
+                "  Контекст из цитаты: даты ["+ctx.dates.join(", ")+
+                "], условия ["+ctx.conditions.join("; ")+
+                "], исключение: "+(ctx.exceptionMentioned?"упомянуто":"не найдено"));
         }
         const s=row.join("\n");
         length+=s.length;
