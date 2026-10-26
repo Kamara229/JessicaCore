@@ -1,5 +1,6 @@
 import {getSupabaseClient} from "../../../storage/supabaseClient.js";
 import {MODULE_FIELDS} from "./experienceModulePacker.js";
+import {hashExperienceModulePart} from "./experienceModuleIntegrity.js";
 
 /* Hydrate a version-pinned facade. Incomplete or mismatched modules
  * are never silently accepted as a successful Experience Skill.
@@ -9,13 +10,24 @@ const TABLE="jessica_experience_skill_modules";
 export async function hydrateExperienceModules(skill,skillId,version,client=null) {
   const manifest=skill?.moduleManifest;
   if(!manifest)return skill;
-  if(manifest.version!==1||!manifest.counts||typeof manifest.counts!=="object")
+  if(![1,2].includes(manifest.version)||!manifest.counts||
+    typeof manifest.counts!=="object"||Array.isArray(manifest.counts))
     throw new Error("Unsupported Skill module manifest");
   const expected=manifest.counts;
   const keys=Object.keys(expected);
   if(!keys.length||keys.some(k=>!MODULE_FIELDS.includes(k)||
     !Number.isInteger(expected[k])||expected[k]<1))throw new Error("Bad Skill module manifest");
   const count=keys.reduce((sum,k)=>sum+expected[k],0);
+  if(manifest.version===2){
+    const checksums=manifest.sha256;
+    if(!checksums||typeof checksums!=="object"||Array.isArray(checksums)||
+       Object.keys(checksums).length!==keys.length||
+       keys.some(k=>!Array.isArray(checksums[k])||
+         checksums[k].length!==expected[k]||
+         checksums[k].some(hash=>typeof hash!=="string"||
+           !/^[a-f0-9]{64}$/u.test(hash))))
+      throw new Error("Skill module checksum manifest invalid");
+  }
   if(count>100)throw new Error("Skill module count exceeds limit");
   const {data,error}=await (client||getSupabaseClient()).from(TABLE)
     .select("module_key,part_no,data")
@@ -35,6 +47,9 @@ export async function hydrateExperienceModules(skill,skillId,version,client=null
     for(let i=0;i<rows.length;i++){
       if(rows[i].part_no!==i||!Array.isArray(rows[i].data))
         throw new Error("Skill module sequence corrupted: "+key);
+      if(manifest.version===2&&
+         hashExperienceModulePart(rows[i].data)!==manifest.sha256[key][i])
+        throw new Error("Skill module checksum mismatch: "+key+" part "+i);
       items.push(...rows[i].data);
     }
     restored[key]=items;
