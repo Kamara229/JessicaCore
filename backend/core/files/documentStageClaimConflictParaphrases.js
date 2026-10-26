@@ -1,6 +1,4 @@
 const PREFIX=/^• (?:В документе указано|Позиция автора|Аналитический вывод|Требует независимой проверки): /u;
-const BORDER_START="(?<![\\p{L}\\p{N}_])";
-const BORDER_END="(?![\\p{L}\\p{N}_])";
 const OTHER_NEGATION=/(?<![\p{L}\p{N}_])не(?![\p{L}\p{N}_])/iu;
 
 // Restricted patterns: only explicit negation of the SAME subject and predicate.
@@ -12,9 +10,6 @@ const FORMS=[
     {id:"mandatory-adjective",pattern:/(не\s*)?(обязателен|обязательна|обязательно)/iu},
     {id:"right-to-act",pattern:/(не\s+)?(вправе|имеет\s+право|имеет\s+права)/iu}
 ];
-const BOUNDARY=new RegExp(BORDER_START,"u");
-const END_BOUNDARY=new RegExp("^"+BORDER_END,"u");
-
 function canonical(rule,form,negative){
     if(rule==="right-to-act"){
         // The "имеет права" form is only licensed with explicit negation.
@@ -33,10 +28,6 @@ export function readStageClaimParaphrasePolarity(statement){
     for(const {id,pattern} of FORMS){
         const m=pattern.exec(body);
         if(!m)continue;
-        if(!BOUNDARY.test(body.slice(m.index,m.index+1))&&m.index!==0){
-            // Use a true character boundary below; the first-char guard
-            // is deliberately not sufficient on its own.
-        }
         const before=body.slice(0,m.index),after=body.slice(m.index+m[0].length);
         if((before&&/[\p{L}\p{N}_]$/u.test(before))||
            (after&&/^[\p{L}\p{N}_]/u.test(after))||
