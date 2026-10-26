@@ -1,0 +1,41 @@
+/** Show only original source wording, signed-stage locations and evidence. */
+export function renderStageClaimConflictCandidates(result){
+    if(!result||!Array.isArray(result.candidates)||
+       result.candidates.length>12)return null;
+    if(!result.candidates.length)
+        return "\n\nПрямых пар с противоположным «не» в выбранных "+
+            "утверждениях разных окон не найдено. Это не означает "+
+            "отсутствия других противоречий.";
+    const lines=[];
+    let length=0;
+    for(const [index,pair] of result.candidates.entries()){
+        const entries=[pair.affirmative,pair.negative];
+        const row=["Кандидат "+(index+1)+" (проверить контекст):"];
+        for(const [j,entry] of entries.entries()){
+            const c=entry?.claim;
+            if(!Number.isSafeInteger(c?.stageNumber)||
+               !Number.isSafeInteger(c?.windowNumber)||
+               !Number.isSafeInteger(c?.sectionIndex)||
+               !Number.isSafeInteger(c?.startOffset)||
+               !Number.isSafeInteger(c?.endOffset)||
+               typeof c?.claim!=="string"||
+               typeof c?.evidence!=="string"||
+               !Array.isArray(entry?.citations)||!entry.citations.length)
+                return null;
+            row.push((j===0?"Без отрицания":"С отрицанием")+
+                ": этап "+c.stageNumber+", окно "+c.windowNumber+
+                ", раздел "+c.sectionIndex+", смещения "+
+                c.startOffset+"–"+c.endOffset+"\n"+
+                c.claim+"\n"+c.evidence);
+        }
+        const s=row.join("\n");
+        length+=s.length;
+        if(length>30000)return null;
+        lines.push(s);
+    }
+    return "\n\nВозможные текстовые противоречия "+
+        "(только выбранные утверждения):\n"+lines.join("\n\n")+
+        "\nНайдено пар: "+result.candidates.length+
+        (result.candidateLimitReached?" (лимит выборки достигнут).":".")+
+        " Противоречие по смыслу и достоверность не подтверждены.";
+}
