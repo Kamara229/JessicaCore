@@ -16,10 +16,14 @@ export function renderMergedStageClaimSelections(grouping,totalClaims){
             if(!Number.isSafeInteger(claim?.stageNumber)||
                !Number.isSafeInteger(claim?.windowNumber)||
                !Number.isSafeInteger(claim?.sectionIndex)||
+               !Number.isSafeInteger(claim?.startOffset)||
+               !Number.isSafeInteger(claim?.endOffset)||
+               claim.startOffset<0||claim.endOffset<=claim.startOffset||
                typeof claim?.evidence!=="string"||
                !Array.isArray(refs)||!refs.length)return null;
             section.push("  Этап "+claim.stageNumber+", окно "+
                 claim.windowNumber+", раздел "+claim.sectionIndex+
+                "; смещения "+claim.startOffset+"–"+claim.endOffset+
                 "; ссылки: "+refs.join(" ")+"\n"+claim.evidence);
             occurrences++;
         }
