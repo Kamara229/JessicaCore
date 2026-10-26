@@ -43,6 +43,10 @@ export async function analyzeOverflowDocumentAttachments({task,attachments},gene
            !stagePlan)
             return errorResult("Не удалось построить проверяемые этапы анализа.",
                 "document-overflow-stage-plan-invalid");
+        if(Object.hasOwn(item,"resumeCheckpoint")&&
+           !Object.hasOwn(item,"stageNumber"))
+            return errorResult("Для возобновления нужен номер проверяемого этапа.",
+                "document-stage-resume-invalid");
         if(Object.hasOwn(item,"claimSelections")&&
            (!Object.hasOwn(item,"stageReports")||
             Object.hasOwn(item,"claimOffset")||
@@ -69,7 +73,8 @@ export async function analyzeOverflowDocumentAttachments({task,attachments},gene
                     return await continueAuthenticatedDocumentStage({
                         task,source:complete.text,verified:checked,
                         name:item.name,stageNumber:item.stageNumber,
-                        previousReports:item.stageReports
+                        previousReports:item.stageReports,
+                        resumeCheckpoint:item.resumeCheckpoint
                     },generate);
                 }catch(error){
                     if(error?.status===429){
@@ -149,7 +154,8 @@ export async function analyzeOverflowDocumentAttachments({task,attachments},gene
             try {
                 return await analyzeVerifiedDocumentStage({
                     task,source:complete.text,verified:checked,
-                    stageNumber:item.stageNumber,name:item.name
+                    stageNumber:item.stageNumber,name:item.name,
+                    resumeCheckpoint:item.resumeCheckpoint
                 },generate);
             }catch(error){
                 if(error?.status===429){
