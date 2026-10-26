@@ -75,7 +75,7 @@ test("benchmark reports fixture false positives and missed pairs without claimin
 
 test("audit verifies every original candidate citation after prioritization",()=>{
     const grouped=groupStageClaimSelections([
-        samples[0].claims[0],samples[1].claims[1],
+        samples[1].claims[0],samples[1].claims[1],
         entry(3,"Договор не действует","Договор не действует")
     ]);
     const found=findStageClaimConflictCandidates(grouped);
@@ -90,7 +90,7 @@ test("audit verifies every original candidate citation after prioritization",()=
 
 test("audit fails closed if a source is altered, lost or review order breaks",()=>{
     const grouped=groupStageClaimSelections([
-        samples[0].claims[0],samples[1].claims[1],
+        samples[1].claims[0],samples[1].claims[1],
         entry(3,"Договор не действует","Договор не действует")
     ]);
     const found=findStageClaimConflictCandidates(grouped);
