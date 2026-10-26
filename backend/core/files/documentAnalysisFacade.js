@@ -15,6 +15,7 @@ import {assembleDocumentChunks} from "./documentChunkAssembly.js";
 import {assembleDocumentPages} from "./documentPageAssembly.js";
 import {verifyMaterializedOverflowBatches} from "./documentOverflowBatchVerification.js";
 import {planVerifiedDocumentAnalysisStages} from "./documentAnalysisStagePlan.js";
+import {analyzeVerifiedDocumentStage} from "./documentStageRunner.js";
 import {analyzeMultiplePagedDocuments} from "./documentMultiPageAnalysis.js";
 import {addInterruptedDocumentCoverage} from "./documentQuotaCoverage.js";
 import {
@@ -94,6 +95,28 @@ export async function analyzeDocumentAttachments(
            !stagePlan)
             return errorResult("Не удалось построить проверяемые этапы анализа.",
                 "document-overflow-stage-plan-invalid");
+        if(Object.hasOwn(item,"stageNumber")){
+            if(!checked.complete||!stagePlan)
+                return errorResult("Нет полного проверенного плана этапов.",
+                    "document-stage-input");
+            if(getAIProviderAvailability().blocked)
+                return errorResult("Достигнут лимит ИИ.","ai-provider-cooldown");
+            try {
+                return await analyzeVerifiedDocumentStage({
+                    task,source:complete.text,verified:checked,
+                    stageNumber:item.stageNumber,name:item.name
+                },generate);
+            }catch(error){
+                if(error?.status===429){
+                    registerAIProviderLimit(error);
+                    return addInterruptedDocumentCoverage(
+                        errorResult("Лимит ИИ: этап анализа прерван.",
+                            "ai-provider-cooldown"),error);
+                }
+                return errorResult("Этап анализа не завершён.",
+                    "document-stage-error");
+            }
+        }
         if(!checked.complete||checked.totalWindows>MAX_VERIFIED_DOCUMENT_WINDOWS)
             return {success:false,mode:"document",
                 stage:checked.complete?"document-overflow-analysis-pending":
