@@ -7,6 +7,7 @@ on:
       - 'backend/core/files/documentStageClaimSelection*.js'
       - 'backend/core/files/documentSectionIndex.js'
       - 'backend/core/files/documentOverflowReadBatches.js'
+      - 'backend/core/files/documentOverflowPlanCache.js'
       - 'backend/core/files/documentOverflowBatchMaterialization.js'
       - 'backend/core/files/documentOverflowBatchVerification.js'
       - 'backend/core/files/documentStageClaimConflict*.js'
@@ -19,6 +20,7 @@ on:
       - 'backend/scripts/regressionDocumentStageClaimCrossPage*.test.js'
       - 'backend/scripts/regressionDocumentStageClaimLongDocument.test.js'
       - 'backend/scripts/regressionDocumentStageClaimStress.test.js'
+      - 'backend/scripts/regressionDocumentOverflowPlanCache.test.js'
       - 'backend/scripts/fixtures/documentStageClaimStressCorpus.js'
       - 'backend/scripts/fixtures/documentStageClaimFixture.js'
       - 'backend/scripts/fixtures/documentStageClaimConflict*.js'
@@ -39,3 +41,4 @@ jobs:
       - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
       - run: node --test backend/scripts/regressionDocumentStageClaimSelection.test.js backend/scripts/regressionDocumentStageClaimSelectionMerge.test.js backend/scripts/regressionDocumentStageClaimSelectionGrouping.test.js backend/scripts/regressionDocumentStageClaimSelectionCoverageAudit.test.js backend/scripts/regressionDocumentStageClaimConflictCandidates.test.js backend/scripts/regressionDocumentStageClaimConflictContext.test.js backend/scripts/regressionDocumentStageClaimConflictTriage.test.js backend/scripts/regressionDocumentStageClaimConflictQuality.test.js backend/scripts/regressionDocumentStageClaimConflictExpanded.test.js backend/scripts/regressionDocumentStageClaimConflictParaphrases.test.js backend/scripts/regressionDocumentStageClaimConflictLexicon.test.js backend/scripts/regressionDocumentStageClaimWindowContinuity.test.js backend/scripts/regressionDocumentStageClaimCrossPageAudit.test.js backend/scripts/regressionDocumentStageClaimLongDocument.test.js
       - run: node --max-old-space-size=512 --test backend/scripts/regressionDocumentStageClaimStress.test.js
+      - run: node --max-old-space-size=512 --test backend/scripts/regressionDocumentOverflowPlanCache.test.js
