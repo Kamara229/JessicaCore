@@ -41,7 +41,6 @@ test("same-window claims and contextual negation are not conflicts",()=>{
         [entry("Договор действует",1),entry("Договор не всегда действует",2)],
         [entry("Договор действует",1),entry("Договор не действует при расторжении",2)],
         [entry("Договор действует",1),entry("Договор действует",2)],
-        [entry("Право не действует и не применяется",1),entry("Право действует и не применяется",2)]
     ]){
         const result=check(claims);
         assert.equal(result?.possibleConflictPairs,0);
@@ -56,6 +55,15 @@ test("explicit modal negation is now recognized without asserting factual confli
     assert.equal(r.possibleConflictPairs,1);
     assert.equal(r.controlledParaphrasePairs,1);
     assert.equal(r.semanticConflictVerified,false);
+});
+
+test("same independent negated clause is preserved during polarity check",()=>{
+    const result=check([entry("Право не действует и не применяется",1),
+        entry("Право действует и не применяется",2)]);
+    assert.equal(result.possibleConflictPairs,1);
+    assert.equal(result.candidates[0].reason,
+        "same-wording-opposite-explicit-negation");
+    assert.equal(result.semanticConflictVerified,false);
 });
 
 test("limit candidates rather than implying exhaustive contradiction coverage",()=>{
