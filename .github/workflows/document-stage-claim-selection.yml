@@ -5,6 +5,10 @@ on:
     paths:
       - '.github/workflows/document-stage-claim-selection.yml'
       - 'backend/core/files/documentStageClaimSelection*.js'
+      - 'backend/core/files/documentSectionIndex.js'
+      - 'backend/core/files/documentOverflowReadBatches.js'
+      - 'backend/core/files/documentOverflowBatchMaterialization.js'
+      - 'backend/core/files/documentOverflowBatchVerification.js'
       - 'backend/core/files/documentStageClaimConflict*.js'
       - 'backend/core/files/documentStageClaimWindow*.js'
       - 'backend/core/files/documentStageClaimCrossPage*.js'
@@ -14,6 +18,8 @@ on:
       - 'backend/scripts/regressionDocumentStageClaimWindow*.test.js'
       - 'backend/scripts/regressionDocumentStageClaimCrossPage*.test.js'
       - 'backend/scripts/regressionDocumentStageClaimLongDocument.test.js'
+      - 'backend/scripts/regressionDocumentStageClaimStress.test.js'
+      - 'backend/scripts/fixtures/documentStageClaimStressCorpus.js'
       - 'backend/scripts/fixtures/documentStageClaimFixture.js'
       - 'backend/scripts/fixtures/documentStageClaimConflict*.js'
   workflow_dispatch:
@@ -24,6 +30,7 @@ permissions:
 jobs:
   extractive-claim-ranking:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,3 +38,4 @@ jobs:
           node-version: '22'
       - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
       - run: node --test backend/scripts/regressionDocumentStageClaimSelection.test.js backend/scripts/regressionDocumentStageClaimSelectionMerge.test.js backend/scripts/regressionDocumentStageClaimSelectionGrouping.test.js backend/scripts/regressionDocumentStageClaimSelectionCoverageAudit.test.js backend/scripts/regressionDocumentStageClaimConflictCandidates.test.js backend/scripts/regressionDocumentStageClaimConflictContext.test.js backend/scripts/regressionDocumentStageClaimConflictTriage.test.js backend/scripts/regressionDocumentStageClaimConflictQuality.test.js backend/scripts/regressionDocumentStageClaimConflictExpanded.test.js backend/scripts/regressionDocumentStageClaimConflictParaphrases.test.js backend/scripts/regressionDocumentStageClaimConflictLexicon.test.js backend/scripts/regressionDocumentStageClaimWindowContinuity.test.js backend/scripts/regressionDocumentStageClaimCrossPageAudit.test.js backend/scripts/regressionDocumentStageClaimLongDocument.test.js
+      - run: node --max-old-space-size=512 --test backend/scripts/regressionDocumentStageClaimStress.test.js
