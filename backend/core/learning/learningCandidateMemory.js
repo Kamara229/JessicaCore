@@ -61,10 +61,9 @@ import {
 import {
     findActiveCandidateByKey,
     listActiveCandidatesByCategory,
-    createCandidateMemory,
-    updateCandidateMemory,
     updateCandidateMemoryStatus
 } from "./candidateMemory/candidateStorage.js";
+import {applyCandidateObservation} from "./candidateMemory/candidateObservationJournal.js";
 
 
 function isObject(
@@ -196,7 +195,12 @@ function enrichQueueItem({
 
 
 export async function observeLearningCandidate(
-    queueItem
+    queueItem,
+    {
+      findCandidate=findActiveCandidateByKey,
+      listCandidates=listActiveCandidatesByCategory,
+      applyObservation=applyCandidateObservation
+    }={}
 ) {
 
     /*
@@ -311,7 +315,7 @@ export async function observeLearningCandidate(
 
     const exact =
 
-        await findActiveCandidateByKey(
+        await findCandidate(
             candidateKey
         );
 
@@ -341,54 +345,33 @@ export async function observeLearningCandidate(
             });
 
 
-        const updated =
-
-            await updateCandidateMemory({
-
-                id:
-
-                    exact.id,
-
-                candidate:
-
-                    merged,
-
-                skillId:
-
-                    merged.skillId,
-
-                metadata: {
-
-                    ...exact.metadata,
-
-                    lastMatchType:
-
-                        "EXACT"
-
-                }
-
-            });
-
+        const observation=await applyObservation({
+            queueItemId:queueItem.id,
+            id:exact.id,
+            candidateKey,
+            action:"EXACT",
+            skillId:merged.skillId,
+            category,
+            candidate:merged,
+            metadata:{...exact.metadata,lastMatchType:"EXACT"},
+            expectedOccurrences:exact.occurrences
+        });
+        const updated=observation.memory;
+        const persisted=updated.candidate;
 
         return {
 
             success:
                 true,
 
-            observed:
-                true,
-
-            created:
-                false,
-
-            merged:
-                true,
+            observed:observation.applied,
+            created:false,
+            merged:observation.applied,
 
             memory:
                 updated,
 
-            candidate:
-                merged,
+            candidate:persisted,
 
             queueItem:
 
@@ -399,8 +382,7 @@ export async function observeLearningCandidate(
                     memory:
                         updated,
 
-                    candidate:
-                        merged,
+                    candidate:persisted,
 
                     matchType:
                         "EXACT",
@@ -424,7 +406,7 @@ export async function observeLearningCandidate(
 
     const activeCandidates =
 
-        await listActiveCandidatesByCategory(
+        await listCandidates(
             candidateProcedureFamily(candidate) ? null : category
         );
 
@@ -468,58 +450,33 @@ export async function observeLearningCandidate(
             });
 
 
-        const updated =
-
-            await updateCandidateMemory({
-
-                id:
-
-                    match.memory.id,
-
-                candidate:
-
-                    merged,
-
-                skillId:
-
-                    merged.skillId,
-
-                metadata: {
-
-                    ...match.memory.metadata,
-
-                    lastMatchType:
-
-                        "SIMILARITY",
-
-                    lastSimilarity:
-
-                        match.similarity
-
-                }
-
-            });
-
+        const observation=await applyObservation({
+            queueItemId:queueItem.id,
+            id:match.memory.id,
+            candidateKey:match.memory.candidateKey,
+            action:"SIMILARITY",
+            skillId:merged.skillId,
+            category:match.memory.category,
+            candidate:merged,
+            metadata:{...match.memory.metadata,lastMatchType:"SIMILARITY",lastSimilarity:match.similarity},
+            expectedOccurrences:match.memory.occurrences
+        });
+        const updated=observation.memory;
+        const persisted=updated.candidate;
 
         return {
 
             success:
                 true,
 
-            observed:
-                true,
-
-            created:
-                false,
-
-            merged:
-                true,
+            observed:observation.applied,
+            created:false,
+            merged:observation.applied,
 
             memory:
                 updated,
 
-            candidate:
-                merged,
+            candidate:persisted,
 
             similarity:
                 match.similarity,
@@ -533,8 +490,7 @@ export async function observeLearningCandidate(
                     memory:
                         updated,
 
-                    candidate:
-                        merged,
+                    candidate:persisted,
 
                     matchType:
                         "SIMILARITY",
@@ -556,70 +512,31 @@ export async function observeLearningCandidate(
      */
 
 
-    const created =
-
-        await createCandidateMemory({
-
-            id:
-
-                randomUUID(),
-
-            candidateKey,
-
-            action:
-
-                "NEW_SKILL",
-
-            skillId:
-
-                candidate.skillId || null,
-
-            category,
-
-            candidate,
-
-            metadata: {
-
-                source:
-
-                    event
-                        ?.payload
-                        ?.source
-
-                    ||
-
-                    candidate.source
-
-                    ||
-
-                    "learning-pipeline",
-
-                firstQueueItemId:
-
-                    queueItem.id || null,
-
-                firstTraceId:
-
-                    event.traceId || null
-
-            }
-
-        });
-
+    const observation=await applyObservation({
+        queueItemId:queueItem.id,
+        id:randomUUID(),
+        candidateKey,
+        action:"NEW",
+        skillId:candidate.skillId||null,
+        category,
+        candidate,
+        metadata:{
+            source:event?.payload?.source||candidate.source||"learning-pipeline",
+            firstQueueItemId:queueItem.id||null,
+            firstTraceId:event.traceId||null
+        }
+    });
+    const created=observation.memory;
+    const persisted=created.candidate;
 
     return {
 
         success:
             true,
 
-        observed:
-            true,
-
-        created:
-            true,
-
-        merged:
-            false,
+        observed:observation.applied,
+            created:observation.applied,
+        merged:false,
 
         memory:
             created,
