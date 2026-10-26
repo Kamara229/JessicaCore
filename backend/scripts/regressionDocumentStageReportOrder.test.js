@@ -9,7 +9,9 @@ import {verifyMaterializedOverflowBatches}
 import {planVerifiedDocumentAnalysisStages}
  from "../core/files/documentAnalysisStagePlan.js";
 import {checkStageReportOrder} from "../core/files/documentStageReportOrder.js";
+import {documentStageTaskSha256} from "../core/files/documentStageTaskIdentity.js";
 import {analyzeDocumentAttachments} from "../core/files/documentAnalysisFacade.js";
+const task="Проверь";
 const source="ВВЕДЕНИЕ\n"+"Обоснование судебной практики. ".repeat(19500)+
  "\nЗАКЛЮЧЕНИЕ\nВывод.";
 const hash=x=>createHash("sha256").update(x,"utf8").digest("hex");
@@ -27,11 +29,13 @@ function fixture(){
   return {success:true,mode:"document-stage",stage:"document-stage-verified",
     stageReport:{sourceSha256:digest,stageNumber:stage.stageNumber,
      stageCount:plan.stageCount,stageSha256:stage.stageSha256,
+     taskSha256:documentStageTaskSha256(task),
      verifiedWindows:windows.length,stageAnalysisComplete:true,
      fullSourceAnalysisConfirmed:false},
     readingCoverage:{sourceSha256:digest,sourceChars:source.length,
      stageNumber:stage.stageNumber,stageCount:plan.stageCount,
      stageSha256:stage.stageSha256,plannedWindows:windows.length,
+     taskSha256:documentStageTaskSha256(task),
      processedWindows:windows.length,stageAnalysisComplete:true,
      fullSourceAnalysisConfirmed:false,
      verifiedWindows:windows.map(w=>({windowNumber:w.number,
@@ -47,22 +51,28 @@ function fixture(){
 }
 test("reordered, missing or tampered stage metadata cannot claim analysis",()=>{
  const {verified,reports,plan}=fixture();
- const checked=checkStageReportOrder(source,verified,reports);
+ const checked=checkStageReportOrder(source,verified,reports,task);
  assert.equal(checked.allStageReportsReceived,true);
  assert.equal(checked.windowsReported,plan.totalWindows);
  assert.equal(checked.sourceCoordinatesChecked,true);
+ assert.equal(checked.taskContextMatched,true);
+ assert.equal(checkStageReportOrder(source,verified,reports,"Другая задача"),null);
  assert.equal(checked.modelExecutionAuthenticated,false);
  assert.equal(checked.completeSourceAnalysisConfirmed,false);
- assert.equal(checkStageReportOrder(source,verified,reports.slice(0,-1)).nextStageNumber,
+ assert.equal(checkStageReportOrder(source,verified,reports.slice(0,-1),task).nextStageNumber,
    plan.stageCount);
- assert.equal(checkStageReportOrder(source,verified,[reports[1],reports[0]]),null);
+ assert.equal(checkStageReportOrder(source,verified,[reports[1],reports[0]],task),null);
  const damaged=structuredClone(reports);
  damaged[0].readingCoverage.verifiedWindows[2].startOffset+=1;
- assert.equal(checkStageReportOrder(source,verified,damaged),null);
+ assert.equal(checkStageReportOrder(source,verified,damaged,task),null);
  damaged[0].readingCoverage.verifiedWindows[2].startOffset-=1;
  damaged[0].stageReport.stageSha256="0".repeat(64);
- assert.equal(checkStageReportOrder(source,verified,damaged),null);
+ assert.equal(checkStageReportOrder(source,verified,damaged,task),null);
+ const forged=structuredClone(reports);
+ forged[0].readingCoverage.taskSha256="0".repeat(64);
+ assert.equal(checkStageReportOrder(source,verified,forged,task),null);
 });
+
 test("facade checks report coordinates but never authenticates client model results",async()=>{
  const {reports,pages,batches,plan}=fixture();
  let calls=0;

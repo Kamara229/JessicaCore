@@ -2,6 +2,7 @@ import {createHash} from "node:crypto";
 import {materializeVerifiedDocumentAnalysisStage} from "./documentAnalysisStageMaterialization.js";
 import {verifyDocumentStageWindowAnswer} from "./documentStageWindowVerification.js";
 import {markDocumentQuotaInterruption} from "./documentQuotaCoverage.js";
+import {documentStageTaskSha256} from "./documentStageTaskIdentity.js";
 
 const sha=text=>createHash("sha256").update(text,"utf8").digest("hex");
 
@@ -15,9 +16,13 @@ export async function analyzeVerifiedDocumentStage(
     const stage=materializeVerifiedDocumentAnalysisStage(source,verified,stageNumber);
     if(!stage)return {success:false,mode:"document-stage",
         stage:"document-stage-integrity",text:"Этап не прошёл проверку исходного текста."};
+    const taskSha256=documentStageTaskSha256(task);
+    if(!taskSha256)return {success:false,mode:"document-stage",
+        stage:"document-stage-input"};
     const receipts=[],answers=[];
     const coverage=()=>({
         sourceSha256:stage.sourceSha256,sourceChars:stage.sourceChars,
+        taskSha256,
         stageNumber,stageCount:stage.stageCount,
         stageSha256:stage.stageSha256,
         plannedWindows:stage.windowCount,processedWindows:receipts.length,
@@ -60,6 +65,7 @@ export async function analyzeVerifiedDocumentStage(
     return {success:true,mode:"document-stage",stage:"document-stage-verified",
         readingCoverage:{...coverage(),stageAnalysisComplete:true},
         stageReport:{sourceSha256:stage.sourceSha256,
+            taskSha256,
             stageNumber,stageCount:stage.stageCount,stageSha256:stage.stageSha256,
             verifiedWindows:receipts.length,stageAnalysisComplete:true,
             fullSourceAnalysisConfirmed:false,semanticCorrectnessConfirmed:false},

@@ -102,7 +102,7 @@ export async function analyzeDocumentAttachments(
                 return errorResult("Серия этапов или исходный файл неполны.",
                     "document-stage-reports-invalid");
             const coordinates=checkStageReportOrder(complete.text,checked,
-                item.stageReports);
+                item.stageReports,task);
             if(!coordinates)return errorResult(
                 "Несовпадение порядка этапов или смещений.",
                 "document-stage-reports-invalid");

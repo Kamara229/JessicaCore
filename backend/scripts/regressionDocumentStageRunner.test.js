@@ -6,6 +6,7 @@ import {createLosslessWindowEvidence} from "../core/files/documentWindowEvidence
 import {materializeDocumentOverflowBatch}
  from "../core/files/documentOverflowBatchMaterialization.js";
 import {analyzeDocumentAttachments} from "../core/files/documentAnalysisFacade.js";
+import {documentStageTaskSha256} from "../core/files/documentStageTaskIdentity.js";
 
 const sha=t=>createHash("sha256").update(t,"utf8").digest("hex");
 const source="ВВЕДЕНИЕ\n"+"Норма права и судебная практика. ".repeat(19500)+
@@ -40,6 +41,8 @@ test("one trusted stage processes 16 windows without asserting full-file analysi
  assert.equal(seen.length,16);
  assert.equal(seen.join(""),source.slice(0,seen.join("").length));
  assert.equal(result.stageReport.stageAnalysisComplete,true);
+ assert.equal(result.stageReport.taskSha256,documentStageTaskSha256(req.task));
+ assert.equal(result.readingCoverage.taskSha256,documentStageTaskSha256(req.task));
  assert.equal(result.stageReport.fullSourceAnalysisConfirmed,false);
  assert.equal(result.readingCoverage.stageAnalysisComplete,true);
  assert.ok(result.readingCoverage.totalSourceWindows>32);

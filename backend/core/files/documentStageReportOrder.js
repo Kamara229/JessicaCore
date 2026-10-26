@@ -1,7 +1,8 @@
 import {planVerifiedDocumentAnalysisStages} from "./documentAnalysisStagePlan.js";
+import {matchesDocumentStageTask} from "./documentStageTaskIdentity.js";
 
 /** Metadata consistency only. Client stage reports are NOT authenticated. */
-export function checkStageReportOrder(source,verified,reports){
+export function checkStageReportOrder(source,verified,reports,task){
  const plan=planVerifiedDocumentAnalysisStages(source,verified);
  if(!plan||!Array.isArray(reports)||!reports.length||
     reports.length>plan.stageCount)return null;
@@ -9,7 +10,8 @@ export function checkStageReportOrder(source,verified,reports){
  for(let i=0;i<reports.length;i++){
   const r=reports[i],stage=plan.stages[i],s=r?.stageReport,
         c=r?.readingCoverage;
-  if(r?.success!==true||r?.mode!=="document-stage"||
+  if(!matchesDocumentStageTask(task,s,c)||
+     r?.success!==true||r?.mode!=="document-stage"||
      r?.stage!=="document-stage-verified"||
      s?.stageNumber!==i+1||s?.stageCount!==plan.stageCount||
      s?.stageSha256!==stage.stageSha256||
@@ -50,6 +52,7 @@ export function checkStageReportOrder(source,verified,reports){
   totalWindows:plan.totalWindows,
   nextStageNumber:all?null:reports.length+1,
   allStageReportsReceived:all,sourceCoordinatesChecked:true,
+  taskContextMatched:true,
   modelExecutionAuthenticated:false,claimTruthVerified:false,
   completeSourceAnalysisConfirmed:false};
 }
