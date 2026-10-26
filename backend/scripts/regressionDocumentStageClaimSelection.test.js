@@ -5,6 +5,10 @@ import {materializeDocumentOverflowBatch}
  from "../core/files/documentOverflowBatchMaterialization.js";
 import {selectAuthenticatedStageClaims}
  from "../core/files/documentStageClaimSelection.js";
+import {planAuthenticatedStageClaimPage}
+ from "../core/files/documentStageClaimPage.js";
+import {verifyStageClaimSelection}
+ from "../core/files/documentStageClaimSelectionReceipt.js";
 import {analyzeDocumentAttachments}
  from "../core/files/documentAnalysisFacade.js";
 import {makeStageClaimFixture,task,secret,source}
@@ -28,6 +32,12 @@ test("one AI selection returns only original claims and source quotes",async()=>
  assert.equal(result.success,true);
  assert.equal(result.stage,"document-stage-claim-selection");
  assert.equal(result.readingCoverage.selectedClaims,2);
+ const page=planAuthenticatedStageClaimPage({
+    source,verified,reports,task,secret,claimOffset:0
+ });
+ assert.equal(result.readingCoverage.selectionReceiptAuthenticated,true);
+ assert.equal(verifyStageClaimSelection(page,result.selectionReceipt,task,secret),true);
+ assert.deepEqual(result.selectionReceipt.selectedPositions,[1,3]);
  assert.equal(result.readingCoverage.pageClaims,12);
  assert.equal(result.readingCoverage.omittedPageClaims,10);
  assert.equal(result.readingCoverage.newFactGenerationPerformed,false);
@@ -36,6 +46,44 @@ test("one AI selection returns only original claims and source quotes",async()=>
  assert.ok(result.text.includes("Окно 1")||result.text.includes("[О1:"));
  assert.ok(result.text.includes("Окно 3")||result.text.includes("[О3:"));
  assert.ok(!result.text.includes("Придуманный результат экспертизы"));
+});
+
+test("selection receipt binds task, source page and exact positions",async()=>{
+ const {verified,reports}=makeStageClaimFixture();
+ const result=await select({verified,reports},model);
+ assert.equal(result.success,true);
+ const page=planAuthenticatedStageClaimPage({
+    source,verified,reports,task,secret,claimOffset:0
+ });
+ const proof=result.selectionReceipt;
+ assert.equal(verifyStageClaimSelection(page,proof,task,secret),true);
+ assert.equal(verifyStageClaimSelection(page,proof,"Другая задача",secret),false);
+ assert.equal(verifyStageClaimSelection(page,proof,task,"b".repeat(64)),false);
+ for(const mutate of [
+  r=>{r.selectedPositions=[1,2];},
+  r=>{r.claimOffset=1;},
+  r=>{r.totalClaims+=1;},
+  r=>{r.pageSha256="0".repeat(64);},
+  r=>{r.authTag="v1:"+"0".repeat(64);},
+  r=>{r.selectedPositions=[3,1];}
+ ]){
+  const tampered=structuredClone(proof);mutate(tampered);
+  assert.equal(verifyStageClaimSelection(page,tampered,task,secret),false);
+ }
+ const altered={...page,claims:[{...page.claims[0],
+    claim:"• Позиция автора: фальсифицировано"},...page.claims.slice(1)]};
+ assert.equal(verifyStageClaimSelection(altered,proof,task,secret),false);
+});
+
+test("invalid signing key blocks model selection",async()=>{
+ const {verified,reports}=makeStageClaimFixture();
+ let calls=0;
+ const output=await selectAuthenticatedStageClaims({
+  source,verified,reports,task,secret:"invalid",claimOffset:0,
+  generate:async()=>{calls++;return model();}
+ });
+ assert.equal(output,null);
+ assert.equal(calls,0);
 });
 
 test("invalid index lists fail closed without citing invented findings",async()=>{
