@@ -33,6 +33,7 @@ import {
     buildExecutionExperienceContext
 } from "./subtaskExperienceContext.js";
 import {mergeResolvedSubtaskExperience} from "./mergeResolvedSubtaskExperience.js";
+import {buildExperienceStorageFailure} from "./experienceStorageFailure.js";
 
 
 import {
@@ -383,7 +384,8 @@ function buildInitialPlanningContext({
 
 
 export async function executeSubtask(
-    subtask
+    subtask,
+    {experienceResolver=resolveExperience}={}
 ) {
 
     const subtaskId =
@@ -477,7 +479,7 @@ export async function executeSubtask(
 
         resolverResult =
 
-            await resolveExperience(
+            await experienceResolver(
                 taskText
             );
 
@@ -525,6 +527,11 @@ export async function executeSubtask(
             memoryExperience
 
         );
+
+    // Reject unverifiable Skill storage before planning, tools or Learning.
+    if(experienceResult?.reason==="storage-error"){
+        return buildExperienceStorageFailure({subtaskId,taskText});
+    }
 
 
     /*
