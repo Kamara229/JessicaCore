@@ -8,6 +8,7 @@ import {MAX_VERIFIED_DOCUMENT_WINDOWS} from "./documentVerifiedWindowLimit.js";
 import {analyzeVerifiedDocumentStage} from "./documentStageRunner.js";
 import {checkStageReportOrder} from "./documentStageReportOrder.js";
 import {mergeAuthenticatedDocumentStages} from "./documentStageAuthenticatedMerge.js";
+import {authenticatedStageResumeStatus} from "./documentStageResumeStatus.js";
 import {analyzePagedLongDocument} from "./documentPagedAnalysis.js";
 import {addInterruptedDocumentCoverage} from "./documentQuotaCoverage.js";
 
@@ -57,6 +58,8 @@ export async function analyzeOverflowDocumentAttachments({task,attachments},gene
                 return errorResult("Не удалось объединить подтверждённые этапы.",
                     "document-stage-merge-invalid");
             }
+            const resume=authenticatedStageResumeStatus(coordinates);
+            if(resume)return resume;
             return {success:false,mode:"document",
                 stage:"document-stage-reports-untrusted",
                 text:"Порядок этапов проверен; происхождение ответов и полнота анализа не подтверждены.",

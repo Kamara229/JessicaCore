@@ -13,6 +13,7 @@ import {documentStageTaskSha256} from "../core/files/documentStageTaskIdentity.j
 import {hashDocumentStageReportText} from "../core/files/documentStageReportTextHash.js";
 import {signDocumentStageReceipt} from "../core/files/documentStageReceiptAuth.js";
 import {mergeAuthenticatedDocumentStages} from "../core/files/documentStageAuthenticatedMerge.js";
+import {authenticatedStageResumeStatus} from "../core/files/documentStageResumeStatus.js";
 import {analyzeDocumentAttachments} from "../core/files/documentAnalysisFacade.js";
 const task="Проверь";
 const source="ВВЕДЕНИЕ\n"+"Обоснование судебной практики. ".repeat(19500)+
@@ -247,12 +248,42 @@ test("complete server-authenticated stages merge in source order, no semantic gu
      attachments:[{name:"paper.docx",pages,overflowBatches:batches,
          stageReports:signed.slice(0,-1)}]},async()=>{calls++;return "{}";});
    assert.equal(partial.success,false);
-   assert.equal(partial.stage,"document-stage-reports-untrusted");
+   assert.equal(partial.stage,"document-stage-resume-ready");
+   assert.equal(partial.readingCoverage.resumeAvailable,true);
+   assert.equal(partial.readingCoverage.authenticatedStages,plan.stageCount-1);
+   assert.equal(partial.readingCoverage.nextStageNumber,plan.stageCount);
+   assert.equal(partial.readingCoverage.processedWindows,
+       plan.stages.slice(0,-1).reduce((n,s)=>n+s.windowCount,0));
+   assert.equal(partial.readingCoverage.completeSourceAnalysisConfirmed,false);
+   assert.equal(partial.readingCoverage.allWindowsPresented,false);
    assert.equal(calls,0);
  }finally{
    if(original===undefined)delete process.env.JESSICA_STAGE_ATTESTATION_KEY;
    else process.env.JESSICA_STAGE_ATTESTATION_KEY=original;
  }
+});
+
+test("authenticated stage resume rejects incomplete or untrusted coordinates",()=>{
+ const {verified,reports}=fixture(),secret="b".repeat(64);
+ assert.equal(authenticatedStageResumeStatus(null),null);
+ const unsigned=checkStageReportOrder(source,verified,reports.slice(0,1),task);
+ assert.equal(authenticatedStageResumeStatus(unsigned),null);
+ const signed=structuredClone(reports.slice(0,2));
+ for(const entry of signed)
+   entry.stageReport.authTag=signDocumentStageReceipt(entry,secret);
+ const checked=checkStageReportOrder(source,verified,signed,task,secret);
+ assert.equal(checked.reportOriginAuthenticated,true);
+ const next=authenticatedStageResumeStatus(checked);
+ assert.equal(next.success,false);
+ assert.equal(next.readingCoverage.nextStageNumber,3);
+ assert.equal(next.readingCoverage.authenticatedStages,2);
+ assert.equal(next.readingCoverage.allWindowsPresented,false);
+ assert.equal(next.readingCoverage.completeSourceAnalysisConfirmed,false);
+ assert.equal(authenticatedStageResumeStatus({...checked,nextStageNumber:5}),null);
+ assert.equal(authenticatedStageResumeStatus({...checked,
+   allStageReportsReceived:true}),null);
+ assert.equal(authenticatedStageResumeStatus({...checked,
+   windowsReported:checked.totalWindows}),null);
 });
 
 test("unsigned, missing or mismatched stage receipts never merge",()=>{
