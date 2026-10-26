@@ -214,7 +214,8 @@ function normalizeMatch(
 
 
 async function getAvailableExperiences(
-    experiences
+    experiences,
+    loader
 ){
 
     if(
@@ -229,7 +230,7 @@ async function getAvailableExperiences(
 
 
 
-    return await loadExperienceSkills();
+    return await loader();
 
 }
 
@@ -245,7 +246,8 @@ export async function resolveExperience(
 
     task,
 
-    experiences = null
+    experiences = null,
+    loadSkills = loadExperienceSkills
 
 ){
 
@@ -287,7 +289,8 @@ export async function resolveExperience(
         availableExperiences =
 
             await getAvailableExperiences(
-                experiences
+                experiences,
+                loadSkills
             );
 
 
