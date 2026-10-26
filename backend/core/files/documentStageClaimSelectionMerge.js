@@ -4,6 +4,8 @@ import {renderMergedStageClaimSelections} from "./documentStageClaimSelectionMer
 import {groupStageClaimSelections} from "./documentStageClaimSelectionGrouping.js";
 import {auditGroupedStageClaimCoverage} from "./documentStageClaimSelectionCoverageAudit.js";
 import {auditRenderedStageClaimCoverage} from "./documentStageClaimSelectionRenderedAudit.js";
+import {findStageClaimConflictCandidates} from "./documentStageClaimConflictCandidates.js";
+import {renderStageClaimConflictCandidates} from "./documentStageClaimConflictRender.js";
 
 /** Rebuild every page from signed reports; never trust client-supplied claims. */
 export function mergeAuthenticatedStageClaimSelections({
@@ -39,12 +41,17 @@ export function mergeAuthenticatedStageClaimSelections({
     const citationAudit=auditGroupedStageClaimCoverage(
         selected,grouping,verified);
     if(!citationAudit)return null;
-    const text=renderMergedStageClaimSelections(grouping,totalClaims);
-    if(!text)return null;
-    const renderedAudit=auditRenderedStageClaimCoverage(text,grouping);
+    const groupedText=renderMergedStageClaimSelections(grouping,totalClaims);
+    if(!groupedText)return null;
+    const renderedAudit=auditRenderedStageClaimCoverage(groupedText,grouping);
     if(!renderedAudit||
        renderedAudit.renderedCitationOccurrencesAudited!==
            citationAudit.selectedCitationOccurrencesAudited)return null;
+    const conflicts=findStageClaimConflictCandidates(grouping);
+    if(!conflicts)return null;
+    const conflictText=renderStageClaimConflictCandidates(conflicts);
+    if(!conflictText)return null;
+    const text=groupedText+conflictText;
     return {success:true,mode:"document-claim-selection-merge",
         stage:"document-stage-claim-selections-verified",text,
         readingCoverage:{
@@ -56,6 +63,10 @@ export function mergeAuthenticatedStageClaimSelections({
             repeatedFormulations:grouping.repeatedFormulations,
             groupingBasis:grouping.groupingBasis,
             ...citationAudit,...renderedAudit,
+            possibleConflictPairs:conflicts.possibleConflictPairs,
+            conflictCandidateLimitReached:conflicts.candidateLimitReached,
+            conflictDetectionScope:conflicts.scope,
+            semanticConflictVerified:false,
             semanticEquivalenceVerified:false,
             allClaimPagesVerified:true,
             reportOriginAuthenticated:true,
