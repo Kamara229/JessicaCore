@@ -50,7 +50,7 @@ test("large or excessively headed source explicitly reports incomplete indexing"
     assert.equal(partial.indexedChars,gigantic.length,
         "a heading cap does not truncate a source shorter than scan budget");
     assert.equal(partial.sourceChars,gigantic.length);
-    const tooLarge="Без заголовков\\n".replace("\\\\n","\\n").repeat(350000);
+    const tooLarge="Без заголовков\n".repeat(350000);
     const truncated=buildDocumentSectionIndex(tooLarge);
     assert.equal(truncated.complete,false,"a scan-budget overflow must be explicit");
     assert.ok(truncated.indexedChars<=4_500_000);
