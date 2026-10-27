@@ -10,7 +10,8 @@ function atomicCandidateRpc(){
   const logs=new Map(),rows=new Map();
   let writes=0;
   const client={async rpc(name,p){
-    assert.equal(name,"apply_candidate_memory_observation");
+    assert.equal(name,"apply_candidate_memory_observation_owned");
+    assert.equal(p.p_claim_token,"00000000-0000-4000-8000-000000000001");
     if(!p.p_queue_item_id)return {data:null,error:{message:"Missing queue ID"}};
     if(logs.has(p.p_queue_item_id)){
       const candidateId=logs.get(p.p_queue_item_id);
@@ -40,7 +41,7 @@ function atomicCandidateRpc(){
 const candidate={skillId:"skill-probe",name:"Check source",examples:[],
   occurrences:1,confidence:0.6};
 const args=(queueItemId,id,action="NEW",occ=1,expectedOccurrences=null)=>({
-  queueItemId,id,candidateKey:"probe-key",action,
+  queueItemId,claimToken:"00000000-0000-4000-8000-000000000001",id,candidateKey:"probe-key",action,
   candidate:{...candidate,occurrences:occ},
   metadata:{source:"test"},expectedOccurrences
 });
@@ -84,7 +85,7 @@ test("two independent queue events with stale reads cannot overwrite newer evide
 
 test("NEW_SKILL observation uses atomic RPC instead of separate insert",async()=>{
   const store=atomicCandidateRpc();
-  const item={id:"queue-memory-observe",action:"NEW_SKILL",
+  const item={id:"queue-memory-observe",claimToken:"00000000-0000-4000-8000-000000000001",action:"NEW_SKILL",
     event:{traceId:"trace-memory",payload:{skillCandidate:candidate}}};
   const observe=()=>observeLearningCandidate(item,{
     findCandidate:async()=>null,
