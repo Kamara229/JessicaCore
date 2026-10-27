@@ -67,7 +67,7 @@ test("token rotation during in-flight AI stops Worker without writes",async()=>{
   assert.equal(result.success,false);
   assert.equal(result.stale,true);
   assert.match(result.reason,/claim_expired_or_stale/);
-  assert.deepEqual(runner.writes,{candidate:0,proposal:0,queue:0,check:0});
+  assert.deepEqual(runner.writes,{candidate:0,proposal:0,queue:0,check:1});
   assert.ok(store.calls>=1);
 });
 
@@ -79,7 +79,7 @@ test("expired lease stops Worker even if external extraction never completes",as
   const result=await runner.result;
   assert.equal(result.success,false);
   assert.equal(result.stale,true);
-  assert.deepEqual(runner.writes,{candidate:0,proposal:0,queue:0,check:0});
+  assert.deepEqual(runner.writes,{candidate:0,proposal:0,queue:0,check:1});
 });
 
 test("heartbeat RPC error prevents unverified continued learning",async()=>{

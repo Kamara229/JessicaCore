@@ -39,7 +39,7 @@ test("Pattern Discovery expires while awaiting AI; delayed Worker cannot mutate"
   assert.equal(result.success,false);
   assert.equal(result.stale,true);
   assert.match(result.reason,/expired/);
-  assert.equal(h.counts.checks,1);
+  assert.equal(h.counts.checks,2);
   assertNoMutation(h);
   assert.equal(h.row.status,"FAILED");
 });
@@ -79,20 +79,18 @@ test("no reusable Pattern may mark IGNORED only while claim is current",async()=
   assert.equal(result.ignored,true);
   assert.equal(result.success,true);
   assert.deepEqual(queueStatuses,[[h.row.id,"IGNORED",claim]]);
-  assert.equal(h.counts.checks,1);
+  assert.equal(h.counts.checks,2);
 });
 
-test("DB ownership check failure during extraction fails closed",async()=>{
+test("DB ownership check failure before extraction fails closed",async()=>{
   const h=patternDiscoveryLeaseHarness();
-  const work=runDiscovery(h,{verifier:async()=>({
+  const result=await runDiscovery(h,{verifier:async()=>({
     valid:false,stale:false,reason:"RPC permission denied"
   })});
-  await h.started;
-  h.complete();
-  const result=await work;
   assert.equal(result.success,false);
   assert.equal(result.stale,false);
   assert.match(result.reason,/RPC permission denied/);
+  assert.equal(h.counts.checks,0);
   assertNoMutation(h);
   assert.equal(h.row.status,"PROCESSING");
 });

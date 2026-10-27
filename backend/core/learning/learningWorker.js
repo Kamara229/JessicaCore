@@ -99,6 +99,7 @@ import {recordProposalSaveFailure} from "./proposalSaveRetry.js";
 import {saveLearningProposalOwned} from "./proposalStorage/proposalOwnedWriter.js";
 import {verifyLearningQueueClaim} from "./learningQueueClaimCheck.js";
 import {runPatternDiscoveryWithHeartbeat} from "./patternDiscoveryHeartbeatRunner.js";
+import {checkPatternDiscoveryClaim} from "./patternDiscoveryClaimGuard.js";
 
 
 
@@ -598,6 +599,19 @@ export async function processQueueItem(
         const replay=await replayGuard(item);
         if(replay?.handled===true)return replay.result;
 
+        // Reject stale or unverifiable ownership before spending AI tokens.
+        // The post-extraction checkpoint below still handles in-flight loss.
+        if(item.action==="PATTERN_DISCOVERY"){
+            const preflight=await checkPatternDiscoveryClaim(item,verifyClaim);
+            if(preflight.valid!==true){
+                return {
+                    success:false,stale:preflight.stale===true,
+                    queueItemId:item.id,
+                    reason:preflight.reason||"Pre-discovery Queue ownership unverified"
+                };
+            }
+        }
+
         /*
          * =================================================
          * 1. PATTERN DISCOVERY
@@ -629,10 +643,7 @@ export async function processQueueItem(
         // Memory, Proposal storage, or any Queue status. Write RPCs are
         // independently fenced against races after this read checkpoint.
         if(item.action==="PATTERN_DISCOVERY"){
-            const ownership=await verifyClaim({
-                queueItemId:item.id,
-                claimToken:item.claimToken||item.claim_token||null
-            });
+            const ownership=await checkPatternDiscoveryClaim(item,verifyClaim);
             if(ownership?.valid!==true){
                 return {
                     success:false,stale:ownership?.stale===true,

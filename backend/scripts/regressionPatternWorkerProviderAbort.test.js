@@ -67,6 +67,6 @@ for(const mode of ["owner lost","timeout"]){
     assert.equal(flow.state.candidate,0);
     assert.equal(flow.state.proposal,0);
     assert.equal(flow.state.queue,0);
-    assert.equal(flow.state.checks,0);
+    assert.equal(flow.state.checks,1,"preflight ran, postflight must not run after abort");
   });
 }
