@@ -51,3 +51,41 @@ test("next-test extraction refuses ambiguity and negated commands",()=>{
  assert.equal(compactJessicaTest("Следующий тест в обычном чате Jessica: «"+task+"»\nТест в обычном чате: «Сколько будет 7 плюс 8?»"),null);
  assert.equal(compactJessicaTest("Не запускай. Следующий тест в обычном чате Jessica: «"+task+"»"),null);
 });
+
+
+test("exact restart test handoffs bypass unavailable interpreter in both word orders",async()=>{
+ const task="После рестарта Candidate=PROMOTED, владелец P1/S1, claim сохранён, ACK потерян. Readback недоступен. P2 пытается создать Skill. Что делать до и после восстановления readback?";
+ const messages=[
+  [
+   "JESSICA_REPLY_cfd8a6c8-ad03-4c0a-9bb1-00cdf9fe740a",
+   "Отправь в обычный чат Jessica:",
+   "",
+   "«"+task+"»",
+   "",
+   "Пришли ответ Jessica дословно.",
+   "JESSICA_END_cfd8a6c8-ad03-4c0a-9bb1-00cdf9fe740a"
+  ].join("\n"),
+  [
+   "JESSICA_REPLY_ff021a46-319d-4624-857f-6d77f4dcf325",
+   "В обычном чате Jessica отправь: «"+task+"» Пришли ответ дословно.",
+   "JESSICA_END_ff021a46-319d-4624-857f-6d77f4dcf325"
+  ].join("\n")
+ ];
+ for(const message of messages){
+  let calls=0;
+  const decision=await interpretRelayTurn({message,history:[]},async()=>{
+   calls++;throw Error("429 exhausted interpreter");
+  });
+  assert.equal(calls,0,"explicit test must not use interpretation provider");
+  assert.deepEqual(decision,{action:"test",reply:"",task,continueThread:false});
+ }
+});
+
+test("ordinary-chat test extractor rejects negation and multiple quoted tests",()=>{
+ const cmd="Отправь в обычный чат Jessica:\n\n«Проверь восстановление после рестарта.»";
+ assert.equal(compactJessicaTest("Не отправляй. "+cmd),null);
+ assert.equal(compactJessicaTest(cmd+"\nОтправь в обычный чат Jessica: «Выполни другой тест.»"),null);
+ assert.equal(compactJessicaTest("Например, «Проверь восстановление после рестарта»."),null);
+ assert.equal(compactJessicaTest("Отправь в обычный чат Jessica: «Проверь восстановление после рестарта.»")?.task,
+  "Проверь восстановление после рестарта.");
+});
