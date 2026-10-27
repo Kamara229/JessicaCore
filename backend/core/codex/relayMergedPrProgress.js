@@ -17,7 +17,7 @@ export function mergedPrProgressHandoff(message) {
   const body=raw.replace(/\s+/gu," ").trim();
   if(!body||body.length>650)return null;
   // Never classify hypothetical, negative, or quoted PR/CI statuses.
-  if(!/^PR\s*#\d{1,5}\s+объедин[её]н,\s*CI(?:\s+в\s+main)?\s+успешен\./iu.test(body))return null;
+  if(!/^(?:Проверил\s+backend\s*\([a-f\d]{7,40}\):\s*)?PR\s*#\d{1,5}\s+объедин[её]н,\s*CI(?:\s+в\s+main)?\s+успешен[.,]/iu.test(body))return null;
   if(/(?:\bCI\s+не\s+успешен|ошибка\s+CI|CI\s+(?:failed|провален)|если\s+PR)/iu.test(body))return null;
   // One technical result and a single, bounded safe backend next step.
   const next=/(?:^|[.!?]\s+)(?:Следующий\s+шаг|Далее)\s*[—–:-]\s*([^.!?]{8,190})\.?$/iu.exec(body);
