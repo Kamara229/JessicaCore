@@ -9,7 +9,7 @@ export function compactJessicaTest(message) {
         !/^\s*JESSICA_(?:REPLY|END)_[a-f\d-]{36}\s*$/iu.test(line)
     ).join("\n");
     if (/(?:не\s+отправляй|не\s+выполняй|не\s+запускай)/iu.test(body)) return null;
-    const pattern = /(?:^|[^\p{L}\p{N}])(?:В\s+обычном\s+чате\s+отправь|Тест\s+в\s+обычном\s+чате|Следующий\s+тест\s+в\s+обычном\s+чате\s+(?:Jessica|Джессик[аи]))\s*:\s*«([^»\n]{8,2500})»/giu;
+    // Accept both natural word orders and a line break after the colon.\n    // The quoted task stays verbatim; no inferred test or provider call.\n    const pattern = /(?:^|[^\p{L}\p{N}])(?:В\s+обычном\s+чате(?:\s+(?:Jessica|Джессик[аи]))?\s+отправь|Отправь\s+в\s+обычный\s+чат\s+(?:Jessica|Джессик[аи])|Тест\s+в\s+обычном\s+чате|Следующий\s+тест\s+в\s+обычном\s+чате\s+(?:Jessica|Джессик[аи]))\s*:\s*«([^»\n]{8,2500})»/giu;
     const matches = [...body.matchAll(pattern)];
     if (matches.length !== 1) return null;
     const task = matches[0][1].trim();
