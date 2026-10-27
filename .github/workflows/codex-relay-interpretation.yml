@@ -9,6 +9,7 @@ on:
       - 'backend/scripts/regressionCodexIncidentCiStatus.test.js'
       - 'backend/scripts/regressionCodexMainCiOwnerStatus.test.js'
       - 'backend/scripts/regressionCodexLiveProgressSmoke.test.js'
+      - 'backend/scripts/regressionCodexCompactTest.test.js'
       - 'backend/scripts/smokeCodexMainProgress.mjs'
       - 'backend/scripts/smokeCodexRelay.mjs'
       - '.github/workflows/codex-relay-interpretation.yml'
@@ -20,6 +21,7 @@ on:
       - 'backend/scripts/regressionCodexIncidentCiStatus.test.js'
       - 'backend/scripts/regressionCodexMainCiOwnerStatus.test.js'
       - 'backend/scripts/regressionCodexLiveProgressSmoke.test.js'
+      - 'backend/scripts/regressionCodexCompactTest.test.js'
       - 'backend/scripts/smokeCodexMainProgress.mjs'
       - 'backend/scripts/smokeCodexRelay.mjs'
       - '.github/workflows/codex-relay-interpretation.yml'
@@ -47,4 +49,5 @@ jobs:
             backend/scripts/regressionCodexLiveProgressSmoke.test.js \
             backend/scripts/regressionCodexStatusEnvelope.test.js \
             backend/scripts/regressionCodexCompactStressProgress.test.js \
-            backend/scripts/regressionCodexRelay.test.js
+            backend/scripts/regressionCodexRelay.test.js \\
+            backend/scripts/regressionCodexCompactTest.test.js
