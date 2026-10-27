@@ -152,11 +152,16 @@ export async function persistExperienceSkill(
         proposalId
     ){
 
-        const existing =
-
-            await lookup(
-                proposalId
-            );
+        let existing;
+        try {
+            existing=await lookup(proposalId);
+        }catch(error){
+            // The preflight read did not establish that a prior commit is
+            // absent. Never risk another version while storage is unavailable.
+            return {success:false,existing:false,uncertain:true,
+                error:"Experience preflight lookup unavailable: "+
+                    (error?.message||"unknown")};
+        }
 
 
         if(
