@@ -94,4 +94,24 @@ const replay=await worker(winner);
 assert.equal(replay.code,0,replay.err||replay.out);
 assert.match(replay.out,/COMPETING_WINNER=/);
 assert.deepEqual(await state(),saved,"winner replay must not mutate any durable row");
-console.log("PASS: 2 different Proposals, 1 Candidate, 1 Skill and 1 approved owner");
+
+// Eight independently restarted losing workers race after the terminal FAILED
+// commit. The production FAILED status CAS must confirm the existing record
+// and never create a new version, Candidate claim or timestamp.
+const loserReplays=await Promise.all(Array.from({length:8},()=>worker(loser)));
+for(const response of loserReplays){
+  assert.equal(response.code,0,response.err||response.out);
+  assert.match(response.out,new RegExp("COMPETING_LOSER_REPLAY="+loser));
+}
+assert.deepEqual(await state(),saved,
+  "parallel losing Proposal replays must preserve the entire terminal state");
+
+// The initial winner and loser must still be stable after all retries.
+const finalWinner=await worker(winner);
+const finalLoser=await worker(loser);
+assert.equal(finalWinner.code,0,finalWinner.err||finalWinner.out);
+assert.equal(finalLoser.code,0,finalLoser.err||finalLoser.out);
+assert.match(finalWinner.out,/COMPETING_WINNER=/);
+assert.match(finalLoser.out,/COMPETING_LOSER_REPLAY=/);
+assert.deepEqual(await state(),saved,"final replay cannot steal Candidate ownership");
+console.log("PASS: losing Proposal FAILED is stable across 10 safe worker replays");
