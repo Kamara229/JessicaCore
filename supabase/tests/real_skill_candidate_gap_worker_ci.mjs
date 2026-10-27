@@ -15,11 +15,17 @@ import {proposalStatusClient} from "./fixtures/proposalRestartPgStatusClient.mjs
 
 assertIsolatedCi();
 const phase=process.argv[2];
-assert.ok(["offline","recover","replay"].includes(phase));
-const candidate="35b89f96-cfbf-45ab-943f-722e6b457487";
-const proposal={id:"ci-commit-gap-proposal",action:"NEW_SKILL",confidence:0.95,
-  candidateMemory:{id:candidate},
-  proposedExperience:{id:"ci-commit-gap-skill",name:"Crash-window Skill"}};
+assert.ok(["offline","recover","replay","race"].includes(phase));
+const racing=phase==="race";
+const candidate=racing
+  ?"f4ca0fa8-45d0-4656-9bf6-b096a4858cc4"
+  :"35b89f96-cfbf-45ab-943f-722e6b457487";
+const proposal={id:racing?"ci-parallel-recovery-proposal":"ci-commit-gap-proposal",
+  action:"NEW_SKILL",confidence:0.95,candidateMemory:{id:candidate},
+  proposedExperience:{
+    id:racing?"ci-parallel-recovery-skill":"ci-commit-gap-skill",
+    name:"Crash-window Skill"
+  }};
 let writes=0;
 const approve=async()=>{
   const receipt=await persistExperienceSkill({
@@ -68,7 +74,13 @@ if(phase==="offline"){
   assert.equal(result.success,true,JSON.stringify(result));
   assert.equal(result.status,"APPROVED");
   assert.equal(result.candidateMemory?.success,true);
-  assert.equal(result.candidateMemory?.updated,phase==="recover");
-  assert.equal(result.persistence?.existing,phase==="replay");
+  if(!racing){
+    assert.equal(result.candidateMemory?.updated,phase==="recover");
+    assert.equal(result.persistence?.existing,phase==="replay");
+  }else{
+    assert.equal(result.candidateMemory?.updated===true
+      ||result.candidateMemory?.existing===true,true);
+    assert.equal(result.proposalStateUpdated,true);
+  }
 }
 console.log("PASS: fresh worker recovered committed Skill gap "+phase);
