@@ -50,9 +50,9 @@ import {
 
 
 import {
-    getAIRetryDelay,
-    sleep
+    getAIRetryDelay
 } from "./retryDelay.js";
+import {throwIfAIAborted,sleepAIWithAbort} from "./retryAbort.js";
 
 
 import {
@@ -156,6 +156,9 @@ export async function executeAIWithRetry(
         );
 
 
+    const signal=options.signal||null;
+    throwIfAIAborted(signal);
+
     let lastError =
         null;
 
@@ -182,6 +185,7 @@ export async function executeAIWithRetry(
         attempt++
     ){
 
+        throwIfAIAborted(signal);
         // A different request may have opened the shared circuit while
         // this request was sleeping between technical retry attempts.
         throwIfAIProviderCoolingDown(label);
@@ -195,6 +199,10 @@ export async function executeAIWithRetry(
         }catch(error){
 
 
+            // Cancelled requests do not reopen the provider circuit,
+            // record retry errors or start a further attempt.
+            throwIfAIAborted(signal);
+            if(error?.name==="AbortError"||error?.code==="ABORT_ERR")throw error;
             lastError =
                 error;
 
@@ -404,8 +412,8 @@ export async function executeAIWithRetry(
             );
 
 
-            await sleep(
-                delay
+            await sleepAIWithAbort(
+                delay,signal
             );
 
         }
