@@ -99,6 +99,7 @@ export async function consolidateLearningCandidates() {
                 await updateCandidateMemory({
                 id: canonical.id,
                 expectedUpdatedAt:canonical.updatedAt,
+                expectedRevision:canonical.revision,
                 candidate: merged,
                 skillId: merged.skillId,
                 metadata: {
