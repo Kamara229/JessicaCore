@@ -2,6 +2,7 @@
 // No ChatGPT sends, test execution, repository changes or deployment operations.
 import assert from "node:assert/strict";
 import {setTimeout as delay} from "node:timers/promises";
+import {verifyCurrentBackendProgress} from "./smokeCodexMainProgress.mjs";
 
 const token = process.env.JESSICA_APP_TOKEN;
 if (!token) throw Error("JESSICA_APP_TOKEN is required for the live relay smoke check");
@@ -104,3 +105,6 @@ assert.equal(failed.action,"reply");
 assert.equal(failed.task,"");
 assert.match(failed.reply,/Тест в обычном чате Jessica пока не запрошен/);
 console.log("PASS live failed-test next-step handoff");
+
+await verifyCurrentBackendProgress(interpret);
+console.log("PASS live PR #60 status routed without inference or Jessica test");
