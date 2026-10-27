@@ -17,7 +17,8 @@ function fakePersistence(){
   const journal=new Map(),candidates=new Map(),proposals=new Map();
   let candidateWrites=0,proposalInserts=0;
   const client={async rpc(name,p){
-    assert.equal(name,"apply_candidate_memory_observation");
+    assert.equal(name,"apply_candidate_memory_observation_owned");
+    assert.equal(p.p_claim_token,"00000000-0000-4000-8000-000000000002");
     const old=journal.get(p.p_queue_item_id);
     if(old){
       return {data:{
@@ -58,7 +59,7 @@ const skill={
   examples:[{task:"verify a document",result:"ok",traceId:"gap-test"}]
 };
 const item={
-  id:"queue-post-candidate-crash",action:"NEW_SKILL",
+  id:"queue-post-candidate-crash",claimToken:"00000000-0000-4000-8000-000000000002",action:"NEW_SKILL",
   event:{traceId:"trace-post-candidate-crash",action:"NEW_SKILL",
     confidence:0.84,payload:{skillCandidate:skill}}
 };
