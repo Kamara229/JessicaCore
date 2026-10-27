@@ -27,6 +27,7 @@ on:
       - 'supabase/tests/fixtures/candidateFinalPgClient.mjs'
       - 'supabase/tests/fixtures/proposalRestartPgStatusClient.mjs'
       - 'supabase/tests/fixtures/candidateRacePgClient.mjs'
+      - 'supabase/tests/fixtures/legacyClaimAckRacePg.mjs'
       - 'supabase/tests/fixtures/candidate_race_ci_schema.sql'
       - 'supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql'
       - 'supabase/migrations/20261027210000_learning_candidate_revision_cas.sql'
@@ -57,6 +58,7 @@ on:
       - 'supabase/tests/fixtures/candidateFinalPgClient.mjs'
       - 'supabase/tests/fixtures/proposalRestartPgStatusClient.mjs'
       - 'supabase/tests/fixtures/candidateRacePgClient.mjs'
+      - 'supabase/tests/fixtures/legacyClaimAckRacePg.mjs'
       - 'supabase/tests/fixtures/candidate_race_ci_schema.sql'
       - 'supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql'
       - 'supabase/migrations/20261027210000_learning_candidate_revision_cas.sql'
@@ -139,7 +141,7 @@ jobs:
         run: node supabase/tests/real_stale_candidate_owner_snapshot_ci.test.mjs
       - name: Race legacy PROMOTED claim migration against owner replay and theft
         run: node supabase/tests/real_legacy_claim_migration_race_ci.test.mjs
-      - name: Recover legacy claim after committed transaction loses ACK
+      - name: Recover legacy claim ACK after two real competing PostgreSQL transactions
         run: node supabase/tests/real_legacy_claim_lost_ack_ci.test.mjs
       - name: Defer FAILED status on lost ACK and unavailable readback across restarts
         run: node supabase/tests/real_losing_failed_readback_outage_ci.test.mjs
