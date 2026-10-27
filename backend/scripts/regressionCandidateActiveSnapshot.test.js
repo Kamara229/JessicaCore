@@ -80,7 +80,7 @@ test("parallel updates of one Candidate revision cannot both succeed",async()=>{
 
 test("missing snapshot proof fails before querying Supabase",async()=>{
   const db=database();
-  await assert.rejects(mutate(db,undefined),/ACTIVE Candidate snapshot proof required/);
+  await assert.rejects(updateCandidateMemory({id:ID,candidate:evidence,client:db.client}),/ACTIVE Candidate snapshot proof required/);
   assert.equal(db.writes,0);
 });
 
