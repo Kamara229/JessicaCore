@@ -1,0 +1,37 @@
+name: Codex Relay Interpretation Regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/core/codex/**'
+      - 'backend/scripts/regressionCodexMergedPrProgress.test.js'
+      - '.github/workflows/codex-relay-interpretation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/core/codex/**'
+      - 'backend/scripts/regressionCodexMergedPrProgress.test.js'
+      - '.github/workflows/codex-relay-interpretation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  relay-interpretation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install backend dependencies
+        run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - name: Validate provider-free relay and failure semantics
+        run: |
+          node --test \
+            backend/scripts/regressionCodexMergedPrProgress.test.js \
+            backend/scripts/regressionCodexStatusEnvelope.test.js \
+            backend/scripts/regressionCodexCompactStressProgress.test.js \
+            backend/scripts/regressionCodexRelay.test.js
