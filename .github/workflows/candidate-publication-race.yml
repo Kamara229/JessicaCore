@@ -8,6 +8,7 @@ on:
       - 'supabase/tests/real_competing_proposal_worker_ci.mjs'
       - 'supabase/tests/real_competing_proposals_race_ci.test.mjs'
       - 'supabase/tests/verify_concurrent_owner_receipt_ci.mjs'
+      - 'supabase/tests/real_stale_candidate_owner_snapshot_ci.test.mjs'
       - 'supabase/tests/fixtures/candidateOwnerRealPgClient.mjs'
       - 'backend/core/learning/approval/approvalOwnerReceipt.js'
       - 'backend/core/learning/approval/approvalPublicationClaimReader.js'
@@ -35,6 +36,7 @@ on:
       - 'supabase/tests/real_competing_proposal_worker_ci.mjs'
       - 'supabase/tests/real_competing_proposals_race_ci.test.mjs'
       - 'supabase/tests/verify_concurrent_owner_receipt_ci.mjs'
+      - 'supabase/tests/real_stale_candidate_owner_snapshot_ci.test.mjs'
       - 'supabase/tests/fixtures/candidateOwnerRealPgClient.mjs'
       - 'backend/core/learning/approval/approvalOwnerReceipt.js'
       - 'backend/core/learning/approval/approvalPublicationClaimReader.js'
@@ -129,6 +131,8 @@ jobs:
         run: node supabase/tests/real_candidate_promotion_ack_race_ci.test.mjs
       - name: Verify concurrent owner receipts, corrupt readbacks and lost FAILED ACK
         run: node supabase/tests/real_competing_proposals_race_ci.test.mjs
+      - name: Keep old PostgreSQL owner snapshot uncertain until fresh commit readback
+        run: node supabase/tests/real_stale_candidate_owner_snapshot_ci.test.mjs
       - name: Defer FAILED status on lost ACK and unavailable readback across restarts
         run: node supabase/tests/real_losing_failed_readback_outage_ci.test.mjs
       - name: Defer loser FAILED until Candidate ownership readback is proven
