@@ -809,6 +809,14 @@ export async function approveAndSaveLearningProposal({
     }
 
 
+    if(saved?.success!==true && saved?.uncertain===true){
+        return {
+            ...buildFailure({stage:"storage",proposal,
+                error:saved.error||"Experience save receipt unconfirmed"}),
+            uncertain:true,deferred:true
+        };
+    }
+
     if(
         saved?.success !== true
     ){
