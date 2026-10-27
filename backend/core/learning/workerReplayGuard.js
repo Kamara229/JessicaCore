@@ -24,7 +24,7 @@ export async function checkLearningWorkerReplay(item,{
       reason:"Existing Proposal lookup returned no identity"
     }};
   }
-  const updated=await updateQueue(item.id,"PROPOSED");
+  const updated=await updateQueue(item.id,"PROPOSED",item.claimToken||null);
   return {handled:true,result:{
     success:updated?.success===true,
     existing:true,
