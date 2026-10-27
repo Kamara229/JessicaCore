@@ -12,6 +12,9 @@ BEGIN
 END
 $function$;
 
+DROP TRIGGER IF EXISTS bump_learning_candidate_revision_on_update
+  ON public.learning_candidates;
+
 CREATE TRIGGER bump_learning_candidate_revision_on_update
 BEFORE UPDATE ON public.learning_candidates
 FOR EACH ROW EXECUTE FUNCTION public.bump_learning_candidate_revision();
