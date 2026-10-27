@@ -1,4 +1,5 @@
 import {getSupabaseClient} from "../../../storage/supabaseClient.js";
+import {validatedCandidateOwnerReceipt} from "./approvalOwnerReceipt.js";
 
 // Read-only: the unique DB claim identifies the winning Proposal.
 // Never infer a loser from a transient RPC failure alone.
@@ -9,8 +10,7 @@ export async function readCandidatePublicationOwner(candidateId,{client=null}={}
     .select("candidate_id,proposal_id,skill_id,skill_version")
     .eq("candidate_id",candidateId).maybeSingle();
   if(claimError)throw Error(claimError.message||"Publication claim unavailable");
-  if(claim)return {proposalId:claim.proposal_id,skillId:claim.skill_id,
-    evidence:"atomic-publication-claim"};
+  if(claim)return validatedCandidateOwnerReceipt(candidateId,claim);
   // For Skills published before the claim table existed, consult PROMOTED
   // ownership; ACTIVE with no claim is not evidence of a lost race.
   const {data:candidate,error}=await db.from("learning_candidates")

@@ -1,0 +1,38 @@
+name: Candidate Owner Receipt Safety
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/core/learning/approval/approvalOwnerReceipt.js'
+      - 'backend/core/learning/approval/approvalPublicationClaimReader.js'
+      - 'backend/core/learning/approval/approvalPublicationConflict.js'
+      - 'backend/scripts/regressionCandidateOwnerReceipt.test.js'
+      - '.github/workflows/candidate-owner-receipt.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/core/learning/approval/approvalOwnerReceipt.js'
+      - 'backend/core/learning/approval/approvalPublicationClaimReader.js'
+      - 'backend/core/learning/approval/approvalPublicationConflict.js'
+      - 'backend/scripts/regressionCandidateOwnerReceipt.test.js'
+      - '.github/workflows/candidate-owner-receipt.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  owner-receipt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install backend dependencies
+        run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - name: Reject wrong Candidate owner receipts and preserve PROCESSING
+        run: |
+          node --test backend/scripts/regressionCandidateOwnerReceipt.test.js
+          node --test backend/scripts/regressionLosingCandidatePublication.test.js
