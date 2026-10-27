@@ -18,17 +18,23 @@ import {assertIsolatedCi,sql} from "./fixtures/candidateRacePgClient.mjs";
 assertIsolatedCi();
 const suffix=process.argv[2];
 const fault=process.argv[3]||"normal";
-const outageScenario=process.env.JESSICA_COMPETING_ISOLATED_SCENARIO==="readback-outage";
+const scenario=process.env.JESSICA_COMPETING_ISOLATED_SCENARIO||"";
+const outageScenario=scenario==="readback-outage";
+const ownerOutageScenario=scenario==="owner-readback-outage";
 assert.ok(["a","b"].includes(suffix));
 assert.ok(["normal","lost-failed-ack","lost-failed-ack-offline",
-  "readback-offline"].includes(fault));
-assert.ok(!process.env.JESSICA_COMPETING_ISOLATED_SCENARIO||outageScenario);
+  "readback-offline","owner-offline"].includes(fault));
+assert.ok(!scenario||outageScenario||ownerOutageScenario);
+assert.ok(fault!=="owner-offline"||ownerOutageScenario);
 const loseFailedAck=fault.startsWith("lost-failed-ack");
-const candidateId=outageScenario
-  ?"aa4f2c21-c621-45db-b71e-33f9a5e8bd10"
+const candidateId=ownerOutageScenario
+  ?"bea2b33c-1a6a-42fd-9693-61cbd2c865b0"
+  :outageScenario?"aa4f2c21-c621-45db-b71e-33f9a5e8bd10"
   :"d7d26169-ef7b-4d89-ad79-61b7fb22c007";
-const proposalId=(outageScenario?"ci-failed-outage-proposal-":"ci-competing-proposal-")+suffix;
-const skillId=(outageScenario?"ci-failed-outage-skill-":"ci-competing-skill-")+suffix;
+const prefix=ownerOutageScenario?"ci-owner-outage-":
+  outageScenario?"ci-failed-outage-":"ci-competing-";
+const proposalId=prefix+"proposal-"+suffix;
+const skillId=prefix+"skill-"+suffix;
 const proposal={
   id:proposalId,action:"NEW_SKILL",confidence:0.97,
   candidateMemory:{id:candidateId},
@@ -62,8 +68,9 @@ const readOwner=async id=>{
 SELECT json_build_object('proposalId',proposal_id,'skillId',skill_id)::text
 FROM public.jessica_candidate_skill_publications
 WHERE candidate_id='${candidateId}' LIMIT 1;
-`);
-  assert.equal(r.code,0,r.stderr);
+`,"jessica-ci-owner-readback",
+    fault==="owner-offline"?{PGPORT:"1"}:{});
+  if(r.code!==0)throw Error("Candidate owner readback unavailable: "+r.stderr);
   return r.stdout?JSON.parse(r.stdout):null;
 };
 const markFailed=async ({proposal:p,reason})=>{
@@ -104,6 +111,14 @@ if(result.success){
   assert.equal(result.status,"APPROVED");
   assert.equal(result.proposalStateUpdated,true);
   console.log("COMPETING_WINNER="+suffix);
+}else if(fault==="owner-offline"){
+  assert.equal(result.success,false);
+  assert.equal(result.deferred,true,"unknown owner must not finalize Proposal");
+  assert.equal(result.status,"PROCESSING");
+  assert.equal(result.publicationConflict===true,false,"no unverified conflict");
+  assert.equal(result.proposalStateUpdated,false);
+  assert.equal(result.candidateMemoryStateUpdated,false);
+  console.log("COMPETING_OWNER_UNKNOWN="+suffix);
 }else{
   assert.equal(result.publicationConflict,true,JSON.stringify(result));
   assert.equal(result.winningProposalId!==proposalId,true);
