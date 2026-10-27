@@ -10,6 +10,7 @@ on:
       - 'supabase/tests/verify_concurrent_owner_receipt_ci.mjs'
       - 'supabase/tests/real_stale_candidate_owner_snapshot_ci.test.mjs'
       - 'supabase/tests/real_legacy_claim_migration_race_ci.test.mjs'
+      - 'supabase/tests/real_legacy_claim_lost_ack_ci.test.mjs'
       - 'supabase/tests/fixtures/candidateOwnerRealPgClient.mjs'
       - 'backend/core/learning/approval/approvalOwnerReceipt.js'
       - 'backend/core/learning/approval/approvalPublicationClaimReader.js'
@@ -39,6 +40,7 @@ on:
       - 'supabase/tests/verify_concurrent_owner_receipt_ci.mjs'
       - 'supabase/tests/real_stale_candidate_owner_snapshot_ci.test.mjs'
       - 'supabase/tests/real_legacy_claim_migration_race_ci.test.mjs'
+      - 'supabase/tests/real_legacy_claim_lost_ack_ci.test.mjs'
       - 'supabase/tests/fixtures/candidateOwnerRealPgClient.mjs'
       - 'backend/core/learning/approval/approvalOwnerReceipt.js'
       - 'backend/core/learning/approval/approvalPublicationClaimReader.js'
@@ -137,6 +139,8 @@ jobs:
         run: node supabase/tests/real_stale_candidate_owner_snapshot_ci.test.mjs
       - name: Race legacy PROMOTED claim migration against owner replay and theft
         run: node supabase/tests/real_legacy_claim_migration_race_ci.test.mjs
+      - name: Recover legacy claim after committed transaction loses ACK
+        run: node supabase/tests/real_legacy_claim_lost_ack_ci.test.mjs
       - name: Defer FAILED status on lost ACK and unavailable readback across restarts
         run: node supabase/tests/real_losing_failed_readback_outage_ci.test.mjs
       - name: Defer loser FAILED until Candidate ownership readback is proven
