@@ -7,6 +7,7 @@ on:
       - 'backend/core/codex/**'
       - 'backend/scripts/regressionCodexMergedPrProgress.test.js'
       - 'backend/scripts/regressionCodexIncidentCiStatus.test.js'
+      - 'backend/scripts/regressionCodexMainCiOwnerStatus.test.js'
       - '.github/workflows/codex-relay-interpretation.yml'
   push:
     branches: [main]
@@ -14,6 +15,7 @@ on:
       - 'backend/core/codex/**'
       - 'backend/scripts/regressionCodexMergedPrProgress.test.js'
       - 'backend/scripts/regressionCodexIncidentCiStatus.test.js'
+      - 'backend/scripts/regressionCodexMainCiOwnerStatus.test.js'
       - '.github/workflows/codex-relay-interpretation.yml'
   workflow_dispatch:
 
@@ -35,6 +37,7 @@ jobs:
           node --test \
             backend/scripts/regressionCodexMergedPrProgress.test.js \
             backend/scripts/regressionCodexIncidentCiStatus.test.js \
+            backend/scripts/regressionCodexMainCiOwnerStatus.test.js \
             backend/scripts/regressionCodexStatusEnvelope.test.js \
             backend/scripts/regressionCodexCompactStressProgress.test.js \
             backend/scripts/regressionCodexRelay.test.js

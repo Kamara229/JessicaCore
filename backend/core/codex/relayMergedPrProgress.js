@@ -17,15 +17,15 @@ export function mergedPrProgressHandoff(message) {
   const body=raw.replace(/\s+/gu," ").trim();
   if(!body||body.length>650)return null;
   // Never classify hypothetical, negative, or quoted PR/CI statuses.
-  if(!/^PR\s*#\d{1,5}\s+объедин[её]н,\s*CI\s+успешен\./iu.test(body))return null;
+  if(!/^(?:Проверил\s+backend\s*\([a-f\d]{7,40}\):\s*)?PR\s*#\d{1,5}\s+объедин[её]н,\s*CI(?:\s+в\s+main)?\s+успешен[.,]/iu.test(body))return null;
   if(/(?:\bCI\s+не\s+успешен|ошибка\s+CI|CI\s+(?:failed|провален)|если\s+PR)/iu.test(body))return null;
   // One technical result and a single, bounded safe backend next step.
-  const next=/(?:^|[.!?]\s+)Следующий\s+шаг\s*[—–:-]\s*([^.!?]{8,190})\.?$/iu.exec(body);
+  const next=/(?:^|[.!?]\s+)(?:Следующий\s+шаг|Далее)\s*[—–:-]\s*([^.!?]{8,190})\.?$/iu.exec(body);
   if(!next)return null;
   const step=next[1].trim();
-  if(!/^(?:проверить|проверка|добавить|закрепить|исследовать|проанализировать|продолжить|сопоставить|CI[- ]тест)(?:\s|$)/iu.test(step))
+  if(!/^(?:проверить|проверка|добавить|закрепить|исследовать|проанализировать|продолжить|сопоставить|CI[- ]тест|тест)(?:\s|$)/iu.test(step))
     return null;
-  if(!/(?:Candidate|Proposal|Skill|PostgreSQL|Supabase|GitHub|Render|backend|\bCI\b|конкурент|транзакц|ревизи|идемпотент|атомарн)/iu.test(step))
+  if(!/(?:Candidate|Proposal|Skill|PostgreSQL|Supabase|GitHub|Render|backend|\bCI\b|конкурент|транзакц|ревизи|идемпотент|атомарн|owner\s+receipt)/iu.test(step))
     return null;
   const before=body.slice(0,next.index);
   if(!/(?:Skill|Candidate|Proposal|PostgreSQL|Supabase|ACK|worker|backend|\bCI\b)/iu.test(before))
