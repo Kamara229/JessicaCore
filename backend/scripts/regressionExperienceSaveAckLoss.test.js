@@ -52,14 +52,33 @@ test("missing readback after ambiguous commit fails closed without re-saving",as
   assert.match(result.error,/ACK lost/);
 });
 
-test("unavailable readback preserves uncertainty rather than false success",async()=>{
+test("unavailable readback after lost ACK preserves uncertainty",async()=>{
+  let reads=0,writes=0;
   const result=await persistExperienceSkill(experience,{
-    lookup:async()=>{throw Error("database offline");},
-    save:async()=>{throw Error("response lost");}
+    lookup:async()=>{
+      reads++;
+      if(reads===1)return null;
+      throw Error("database offline");
+    },
+    save:async()=>{writes++;throw Error("response lost");}
   });
   assert.equal(result.success,false);
   assert.equal(result.uncertain,true);
   assert.match(result.error,/database offline/);
+  assert.equal(reads,2);
+  assert.equal(writes,1);
+});
+
+test("failed preflight lookup defers without attempting to write",async()=>{
+  let writes=0;
+  const result=await persistExperienceSkill(experience,{
+    lookup:async()=>{throw Error("preflight offline");},
+    save:async()=>{writes++;throw Error("must not write");}
+  });
+  assert.equal(result.success,false);
+  assert.equal(result.uncertain,true);
+  assert.match(result.error,/preflight offline/);
+  assert.equal(writes,0);
 });
 
 test("receipt mismatching Proposal or Skill cannot count as recovered commit",async()=>{
