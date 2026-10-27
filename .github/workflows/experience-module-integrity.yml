@@ -36,6 +36,7 @@ on:
       - 'backend/scripts/regressionCandidateFinalStatusIdempotency.test.js'
       - 'backend/core/learning/candidateMemory/candidateFinalStatus.js'
       - 'backend/core/learning/candidateMemory/candidateStorage.js'
+      - 'backend/core/learning/approval/approvalCandidateMemory.js'
       - 'backend/core/learning/approval/approvalSkillSave.js'
       - 'backend/core/learning/approval/approvalPublicationOutcome.js'
       - 'backend/core/learning/proposalStorage/proposalStorageRecovery.js'
