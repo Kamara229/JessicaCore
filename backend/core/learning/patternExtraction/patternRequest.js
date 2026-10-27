@@ -170,8 +170,14 @@ retry или replan.
 
 
 export async function requestPatternExtraction(
-    evidence
+    evidence,
+    {signal=null,requestAI=requestPatternExtractionAI,
+     isAvailable=isPatternExtractionAvailable}={}
 ) {
+    if(signal?.aborted){
+        return {success:false,cancelled:true,retryLater:false,
+            error:"Pattern extraction cancelled",rawText:""};
+    }
 
     /*
      * =====================================================
@@ -181,7 +187,7 @@ export async function requestPatternExtraction(
 
 
     if(
-        !isPatternExtractionAvailable()
+        !isAvailable()
     ){
 
         return {
@@ -232,16 +238,21 @@ export async function requestPatternExtraction(
 
         const response =
 
-            await requestPatternExtractionAI({
+            await requestAI({
 
                 systemPrompt:
 
                     buildSystemPrompt(),
 
-                evidenceText
+                evidenceText,
+                signal
 
             });
 
+
+        if(signal?.aborted)
+            return {success:false,cancelled:true,retryLater:false,
+                error:"Pattern extraction cancelled",rawText:""};
 
         const rawText =
 
@@ -287,7 +298,10 @@ export async function requestPatternExtraction(
 
 
     }catch(error){
-
+        if(signal?.aborted||error?.name==="AbortError"||error?.code==="ABORT_ERR"){
+            return {success:false,cancelled:true,retryLater:false,
+                error:"Pattern extraction cancelled",rawText:""};
+        }
 
         console.error(
 
