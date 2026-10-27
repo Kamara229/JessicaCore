@@ -36,6 +36,7 @@ import {
     findExperienceByProposalId
 } from "./experienceIdempotency.js";
 import {recoverExperienceSaveReceipt} from "./experienceAckRecovery.js";
+import {validateExperienceReceipt} from "./experienceReceiptIdentity.js";
 
 
 
@@ -164,54 +165,18 @@ export async function persistExperienceSkill(
         }
 
 
-        if(
-            existing
-        ){
-
-            return {
-
-                success:
-                    true,
-
-                existing:
-                    true,
-
-                skillId:
-
-                    existing.skillId
-
-                    ||
-
-                    existing.payload?.id
-
-                    ||
-
-                    normalized.id,
-
-                version:
-
-                    Number(
-                        existing.version
-                    ),
-
-                experience:
-
-                    existing.payload
-
-                    ||
-
-                    normalized,
-
-                history:
-
-                    existing,
-
-                storage:
-
-                    "idempotency-precheck"
-
-            };
-
+        if(existing){
+            const proof=validateExperienceReceipt({
+                saved:existing,proposalId,skillId:normalized.id
+            });
+            if(!proof.valid){
+                return {success:false,existing:false,uncertain:true,
+                    error:"Experience preflight receipt rejected: "+proof.reason};
+            }
+            return {success:true,existing:true,
+                skillId:proof.skillId,version:proof.version,
+                experience:proof.experience,history:proof.history,
+                storage:"idempotency-precheck"};
         }
 
     }
