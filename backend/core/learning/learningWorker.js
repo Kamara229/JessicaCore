@@ -98,6 +98,7 @@ import {checkLearningWorkerReplay} from "./workerReplayGuard.js";
 import {recordProposalSaveFailure} from "./proposalSaveRetry.js";
 import {saveLearningProposalOwned} from "./proposalStorage/proposalOwnedWriter.js";
 import {verifyLearningQueueClaim} from "./learningQueueClaimCheck.js";
+import {runPatternDiscoveryWithHeartbeat} from "./patternDiscoveryHeartbeatRunner.js";
 
 
 
@@ -554,6 +555,7 @@ export async function processQueueItem(
     {
       replayGuard=checkLearningWorkerReplay,
       prepareDiscoveryStep=prepareDiscovery,
+      superviseDiscovery=runPatternDiscoveryWithHeartbeat,
       verifyClaim=verifyLearningQueueClaim,
       prepareMemory=prepareCandidateMemory,
       proposalSaver=saveLearningProposal,
@@ -603,11 +605,23 @@ export async function processQueueItem(
          */
 
 
-        const discoveryResult =
-
-            await prepareDiscoveryStep(
-                item
-            );
+        const supervised = item.action==="PATTERN_DISCOVERY"
+          ? await superviseDiscovery({
+              item,work:({signal})=>prepareDiscoveryStep(item,{signal})
+            })
+          : {ok:true,value:await prepareDiscoveryStep(item)};
+        if(supervised?.ok!==true){
+            // Heartbeat loss / timeout must stop this Worker before any
+            // Candidate, Proposal or Queue status mutation.
+            return {
+                success:false,
+                stale:supervised?.stale===true,
+                timedOut:supervised?.timedOut===true,
+                queueItemId:item.id,
+                reason:supervised?.reason||"Pattern Discovery lease unverified"
+            };
+        }
+        const discoveryResult=supervised.value;
 
 
         // The AI Pattern Extractor may run past the lease deadline.
