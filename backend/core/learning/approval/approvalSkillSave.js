@@ -21,6 +21,7 @@ import {
 import {
     promoteCandidateMemory
 } from "./approvalCandidateMemory.js";
+import {reconcileCandidatePromotion} from "./approvalCandidateReconciliation.js";
 
 
 import {
@@ -149,87 +150,53 @@ export async function saveApprovedSkillVersion({
     }
 
 
-    const persistence =
-
-        await markApproved(
-            proposal
-        );
-
-
-    const candidateMemory =
-
-        await promote({
-
-            proposal,
-
-            skillId:
-
-                result.skillId
-
-                ||
-
-                result
-                    ?.experience
-                    ?.id
-
-                ||
-
-                null
-
-        });
-
-
     const publication=classifyApprovalPublication(result);
 
+    // The Experience version is durable, but a crash here must leave the
+    // Proposal PROCESSING until its linked Candidate is PROMOTED.
+    const candidateMemory=await reconcileCandidatePromotion({
+        proposal,
+        skillId:result.skillId||result?.experience?.id||null,
+        promote
+    });
+    if(candidateMemory.success!==true){
+        return {
+            ...result,success:false,learned:false,reinforced:false,
+            versionCreated:publication.versionCreated,
+            publicationRecovered:publication.publicationRecovered,
+            deferred:true,status:APPROVAL_RESULT_STATUS.PROCESSING,
+            proposalStateUpdated:false,
+            proposalStateError:"Candidate PROMOTED must finish first",
+            candidateMemoryStateUpdated:false,
+            candidateMemoryStateError:candidateMemory.error,
+            review,quality,autonomy,candidateMemory
+        };
+    }
+
+    // Only finalize the Proposal after Candidate promotion has succeeded.
+    // A failed or lost status ACK is recoverable; promotion is idempotent.
+    let persistence;
+    try{
+        persistence=await markApproved(proposal);
+    }catch(error){
+        persistence={success:false,
+            error:error?.message||"Proposal approval persistence failed"};
+    }
+    const approved=persistence?.success===true;
     return {
-
         ...result,
-
-        success:
-            true,
-
-        learned:
-            true,
-
-        reinforced:
-            false,
-
-        versionCreated:
-            publication.versionCreated,
-
-        publicationRecovered:
-            publication.publicationRecovered,
-
-        status:
-            APPROVAL_RESULT_STATUS.APPROVED,
-
-        proposalStateUpdated:
-            persistence.success,
-
-        proposalStateError:
-            persistence.error,
-
-        candidateMemoryStateUpdated:
-            candidateMemory.success,
-
-        candidateMemoryStateError:
-
-            candidateMemory.success
-
-                ? null
-
-                : candidateMemory.error,
-
-        review,
-
-        quality,
-
-        autonomy,
-
-        persistence,
-
-        candidateMemory
-
+        success:approved,learned:approved,reinforced:false,
+        versionCreated:publication.versionCreated,
+        publicationRecovered:publication.publicationRecovered,
+        deferred:!approved,
+        status:approved?APPROVAL_RESULT_STATUS.APPROVED:
+            APPROVAL_RESULT_STATUS.PROCESSING,
+        proposalStateUpdated:approved,
+        proposalStateError:approved?null:
+            (persistence?.error||"Proposal approval unconfirmed"),
+        candidateMemoryStateUpdated:true,
+        candidateMemoryStateError:null,
+        review,quality,autonomy,persistence,candidateMemory
     };
 
 }
