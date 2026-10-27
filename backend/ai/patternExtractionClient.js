@@ -106,12 +106,16 @@ export async function requestPatternExtractionAI({
 
     systemPrompt,
 
-    evidenceText
+    evidenceText,
+
+    signal = null,
+    client = null,
+    retry = executeAIWithRetry
 
 } = {}) {
 
     if(
-        !isPatternExtractionAvailable()
+        !client && !isPatternExtractionAvailable()
     ){
 
         throw new Error(
@@ -148,10 +152,15 @@ export async function requestPatternExtractionAI({
 
 
     const groq =
-        getGroqClient();
+        client || getGroqClient();
+    if(signal?.aborted){
+        const error=new Error("Pattern AI request aborted");
+        error.name="AbortError";
+        throw error;
+    }
 
 
-    return await executeAIWithRetry(
+    return await retry(
 
         async () => {
 
@@ -195,12 +204,13 @@ export async function requestPatternExtractionAI({
 
                     ]
 
-                });
+                },{signal});
 
         },
 
         {
 
+            signal,
             label:
                 "Jessica Pattern Extractor AI",
 
