@@ -69,6 +69,7 @@
 import {
     getSupabaseClient
 } from "../../storage/supabaseClient.js";
+import {transitionLearningQueueOwned} from "./learningQueueOwnedStatus.js";
 
 
 
@@ -847,6 +848,8 @@ function normalizeDatabaseItem(
 
 
 
+        claimToken:row.claim_token??row.claimToken??null,
+
         processedAt:
 
             row.processed_at
@@ -1469,7 +1472,9 @@ export async function updateLearningQueueItemStatus(
 
     id,
 
-    status
+    status,
+
+    claimToken = null
 
 ) {
 
@@ -1531,6 +1536,12 @@ export async function updateLearningQueueItemStatus(
 
 
 
+    if(claimToken){
+        return transitionLearningQueueOwned({
+          queueItemId:normalizedId,claimToken,status:normalizedStatus
+        });
+    }
+
     const payload = {
 
 
@@ -1580,6 +1591,8 @@ export async function updateLearningQueueItemStatus(
                     "id",
                     normalizedId
                 )
+                // Legacy writers cannot touch a row owned by any Worker.
+                .is("claim_token",null)
 
                 .select()
                 .single();
