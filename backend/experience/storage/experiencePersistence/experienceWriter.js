@@ -35,6 +35,7 @@ import {
 import {
     findExperienceByProposalId
 } from "./experienceIdempotency.js";
+import {recoverExperienceSaveReceipt} from "./experienceAckRecovery.js";
 
 
 
@@ -63,7 +64,7 @@ function buildValidationError(
 
 
 export async function persistExperienceSkill(
-    experience
+    experience,{lookup=findExperienceByProposalId,save=saveExperienceAtomic}={}
 ) {
 
     const normalized =
@@ -151,11 +152,16 @@ export async function persistExperienceSkill(
         proposalId
     ){
 
-        const existing =
-
-            await findExperienceByProposalId(
-                proposalId
-            );
+        let existing;
+        try {
+            existing=await lookup(proposalId);
+        }catch(error){
+            // The preflight read did not establish that a prior commit is
+            // absent. Never risk another version while storage is unavailable.
+            return {success:false,existing:false,uncertain:true,
+                error:"Experience preflight lookup unavailable: "+
+                    (error?.message||"unknown")};
+        }
 
 
         if(
@@ -245,35 +251,18 @@ export async function persistExperienceSkill(
      */
 
 
-    const result =
-
-        await saveExperienceAtomic(
-            normalized
-        );
-
-
-    if(
-        !result?.success
-    ){
-
-        return {
-
-            success:
-                false,
-
-            existing:
-                false,
-
-            error:
-
-                result?.error
-
-                ||
-
-                "Ошибка сохранения Experience"
-
-        };
-
+    let result;
+    let writeError=null;
+    try {
+        result=await save(normalized);
+    }catch(error){
+        writeError=error?.message||"Experience atomic save ACK lost";
+    }
+    if(!result?.success){
+        return recoverExperienceSaveReceipt({
+            proposalId,skillId:normalized.id,lookup,
+            reason:writeError||result?.error||"Experience save unconfirmed"
+        });
     }
 
 

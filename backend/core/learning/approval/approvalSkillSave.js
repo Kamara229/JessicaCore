@@ -107,6 +107,14 @@ export async function saveApprovedSkillVersion({
     }
 
 
+    // The atomic save may have committed while its ACK was lost.
+    // Do not mark Proposal FAILED: stale PROCESSING recovery can replay it.
+    if(result?.success!==true && result?.uncertain===true){
+        return {...result,success:false,learned:false,deferred:true,
+            status:"PROCESSING",proposalStateUpdated:false,
+            candidateMemoryStateUpdated:false};
+    }
+
     if(
         result?.success !== true
     ){
