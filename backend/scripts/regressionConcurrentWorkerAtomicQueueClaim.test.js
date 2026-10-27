@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {randomUUID} from "node:crypto";
 import {runLearningWorker} from "../core/learning/learningWorker.js";
 import {claimPendingLearningItems} from "../core/learning/learningQueueClaim.js";
 
@@ -19,6 +20,7 @@ function atomicQueue(ids){
       if(entry.status!=="PENDING"||data.length>=args.p_limit)continue;
       entry.status="PROCESSING";
       entry.processed_at=new Date().toISOString();
+      entry.claim_token=randomUUID();
       data.push(structuredClone(entry));
     }
     return {data,error:null};
