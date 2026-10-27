@@ -5,7 +5,7 @@ import {transitionCandidateFinalStatus}
 
 const id="00000000-0000-4000-8000-000000000101";
 function store(){
-  let row={id,status:"ACTIVE",updated_at:"2026-10-27T00:00:00Z",
+  let row={id,status:"ACTIVE",updated_at:"2026-10-27T00:00:00Z",revision:0,
     metadata:{source:"verified-execution"},occurrences:2};
   let writes=0,reads=0;
   const client={from(table){
@@ -22,7 +22,7 @@ function store(){
         const matches=row&&Object.entries(this.filters)
           .every(([key,value])=>row[key]===value);
         if(!matches)return {data:null,error:null};
-        row={...row,...this.payload};
+        row={...row,...this.payload,revision:row.revision+1};
         writes++;
         return {data:structuredClone(row),error:null};
       }
@@ -104,4 +104,22 @@ test("database failures and missing decision identities fail closed",async()=>{
     status:"PROMOTED",metadata:{skillId:"skill-one"}});
   assert.equal(missing.success,false);
   assert.equal(db.writes,0);
+});
+
+test("finalization cannot commit over same-timestamp newer Candidate revision",async()=>{
+  const db=store();
+  // Simulates an observation that changed the row in the same millisecond.
+  const current=await db.client.from("learning_candidates").select("*")
+    .eq("id",id).maybeSingle();
+  assert.equal(current.data.revision,0);
+  // An independent writer has bumped the revision without changing updated_at.
+  const edited=await db.client.from("learning_candidates").update({
+    occurrences:3
+  }).eq("id",id).eq("revision",0).select("*").maybeSingle();
+  assert.equal(edited.data.revision,1);
+  assert.equal(edited.data.updated_at,current.data.updated_at);
+  const final=await promote(db);
+  assert.equal(final.success,true);
+  assert.equal(final.candidate.revision,2);
+  assert.equal(final.candidate.occurrences,3);
 });

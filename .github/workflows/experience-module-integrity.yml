@@ -39,6 +39,7 @@ on:
       - 'backend/scripts/fixtures/candidateRaceClient.js'
       - 'backend/scripts/regressionCandidateConsolidation.test.js'
       - 'backend/core/learning/candidateMemory/candidateActiveSnapshot.js'
+      - 'supabase/migrations/20261027210000_learning_candidate_revision_cas.sql'
       - 'backend/core/learning/candidateMemory/candidateConsolidator.js'
       - 'backend/core/learning/candidateMemory/candidateFinalStatus.js'
       - 'backend/core/learning/candidateMemory/candidateStorage.js'

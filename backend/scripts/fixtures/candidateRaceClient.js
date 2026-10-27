@@ -4,9 +4,9 @@ const ID="00000000-0000-4000-8000-000000000611";
 const REV="2026-10-20T12:00:00.000Z";
 export const candidateRaceIdentity={id:ID,revision:REV};
 
-export function candidateRaceClient(){
+export function candidateRaceClient({fixedTimestamp=false}={}){
   let row={
-    id:ID,status:"ACTIVE",updated_at:REV,occurrences:1,
+    id:ID,status:"ACTIVE",updated_at:REV,revision:0,occurrences:1,
     candidate_json:{examples:[{traceId:"original"}],occurrences:1},
     metadata:{source:"verified"}
   };
@@ -38,7 +38,8 @@ export function candidateRaceClient(){
         }
         if(!predicates.every(([k,v])=>row[k]===v))
           return {data:null,error:null};
-        row={...row,...this.patch};
+        row={...row,...this.patch,revision:row.revision+1};
+        if(fixedTimestamp)row.updated_at=REV;
         writes++;
         return {data:structuredClone(row),error:null};
       }

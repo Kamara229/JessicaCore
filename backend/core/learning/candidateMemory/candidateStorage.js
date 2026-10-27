@@ -127,6 +127,9 @@ function normalizeRow(
         updatedAt:
             row.updated_at || null,
 
+        revision:
+            Number(row.revision),
+
         lastSeenAt:
             row.last_seen_at || null
 
@@ -376,6 +379,7 @@ export async function updateCandidateMemory({
     metadata = null,
 
     expectedUpdatedAt,
+    expectedRevision,
     client = null
 
 }) {
@@ -437,7 +441,7 @@ export async function updateCandidateMemory({
 
     const data=await writeActiveCandidateSnapshot({
         client:client||getClient(),
-        id,expectedUpdatedAt,payload
+        id,expectedUpdatedAt,expectedRevision,payload
     });
     return normalizeRow(data);
 

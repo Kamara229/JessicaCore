@@ -35,13 +35,20 @@ export async function transitionCandidateFinalStatus({
       return {success:true,existing:true,updated:false,candidate:current};
     if(current.status!=="ACTIVE")
       return {success:false,conflict:true,error:"Candidate final status conflict"};
+    if(!Number.isSafeInteger(current.revision)||current.revision<0)
+      return {success:false,error:"Candidate revision proof unavailable"};
     const {data,error}=await client.from(TABLE).update({
       status,metadata:{...(current.metadata||{}),...metadata},
       updated_at:new Date().toISOString()
     }).eq("id",id).eq("status","ACTIVE")
+      .eq("revision",current.revision)
       .eq("updated_at",current.updated_at).select("*").maybeSingle();
     if(error)throw new Error(error.message||"Candidate update failed");
-    if(data)return {success:true,existing:false,updated:true,candidate:data};
+    if(data){
+      if(data.revision!==current.revision+1)
+        return {success:false,error:"Candidate revision did not advance"};
+      return {success:true,existing:false,updated:true,candidate:data};
+    }
     // Another Worker may have committed the very same decision concurrently.
     const latest=await read(client,id);
     if(matchingDecision(latest,status,metadata))
