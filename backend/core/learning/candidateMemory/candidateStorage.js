@@ -26,6 +26,7 @@ import {
     getSupabaseClient
 } from "../../../storage/supabaseClient.js";
 import {transitionCandidateFinalStatus} from "./candidateFinalStatus.js";
+import {writeActiveCandidateSnapshot} from "./candidateActiveSnapshot.js";
 
 
 const TABLE_NAME =
@@ -372,7 +373,10 @@ export async function updateCandidateMemory({
 
     skillId = null,
 
-    metadata = null
+    metadata = null,
+
+    expectedUpdatedAt,
+    client = null
 
 }) {
 
@@ -431,44 +435,11 @@ export async function updateCandidateMemory({
     }
 
 
-    const {
-        data,
-        error
-    } =
-
-        await getClient()
-
-            .from(
-                TABLE_NAME
-            )
-
-            .update(
-                payload
-            )
-
-            .eq(
-                "id",
-                id
-            )
-
-            .select()
-            .single();
-
-
-    if(
-        error
-    ){
-
-        throw new Error(
-            error.message
-        );
-
-    }
-
-
-    return normalizeRow(
-        data
-    );
+    const data=await writeActiveCandidateSnapshot({
+        client:client||getClient(),
+        id,expectedUpdatedAt,payload
+    });
+    return normalizeRow(data);
 
 }
 
