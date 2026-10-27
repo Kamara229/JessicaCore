@@ -15,7 +15,7 @@ function update(db){
   return updateCandidateMemory({
     id,candidate:updatedEvidence,skillId:"race-skill",
     metadata:{source:"verified",consolidatedFrom:["other"]},
-    expectedUpdatedAt:revision,client:db.client
+    expectedUpdatedAt:revision,expectedRevision:0,client:db.client
   });
 }
 function promote(db){
@@ -27,7 +27,7 @@ function promote(db){
 }
 
 test("finalization commits first: waiting evidence update is fenced out",async()=>{
-  const db=candidateRaceClient();
+  const db=candidateRaceClient({fixedTimestamp:true});
   const pause=db.holdNextUpdate("evidence");
   const inFlight=update(db);
   await pause.entered;
@@ -44,7 +44,7 @@ test("finalization commits first: waiting evidence update is fenced out",async()
 });
 
 test("evidence wins first: stale finalizer fails, retry preserves evidence",async()=>{
-  const db=candidateRaceClient();
+  const db=candidateRaceClient({fixedTimestamp:true});
   const pause=db.holdNextUpdate("finalize");
   const inFlight=promote(db);
   await pause.entered;
@@ -56,6 +56,8 @@ test("evidence wins first: stale finalizer fails, retry preserves evidence",asyn
   assert.equal(raced.success,false);
   assert.equal(raced.conflict,true);
   assert.equal(db.row.status,"ACTIVE");
+  assert.equal(db.row.updated_at,revision,"timestamp is deliberately unchanged");
+  assert.equal(db.row.revision,1);
   assert.equal(db.writes,1);
   const recovered=await promote(db);
   assert.equal(recovered.success,true);
@@ -72,7 +74,7 @@ test("evidence wins first: stale finalizer fails, retry preserves evidence",asyn
 });
 
 test("race never enables evidence updates after a final decision",async()=>{
-  const db=candidateRaceClient();
+  const db=candidateRaceClient({fixedTimestamp:true});
   await promote(db);
   for(let attempt=0;attempt<2;attempt++)
     await assert.rejects(update(db),/changed or finalized/);
