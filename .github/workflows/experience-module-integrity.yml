@@ -37,6 +37,7 @@ on:
       - 'supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql'
       - 'supabase/tests/atomic_candidate_skill_publication_claim.sql'
       - 'supabase/tests/losing_proposal_terminal_recovery.sql'
+      - 'supabase/tests/restart_recovery_proposal_claim.sql'
       - 'backend/core/learning/proposalStorage/proposalStatusCAS.js'
       - 'backend/core/learning/proposalStorage/proposalStorageWriter.js'
       - 'backend/scripts/regressionCandidatePromotionApprovalRecovery.test.js'
