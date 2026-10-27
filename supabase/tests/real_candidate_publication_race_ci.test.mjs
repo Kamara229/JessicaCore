@@ -126,3 +126,57 @@ SELECT
 assert.equal(legacyCounts.code,0,legacyCounts.stderr);
 assert.equal(legacyCounts.stdout,`PROMOTED|${legacyP1}|0|1|0|PROCESSING`);
 console.log("PASS: legacy PROMOTED P1/S1 without claim denies four concurrent P2 Skill writes");
+
+
+const {saveApprovedSkillVersion}=await import(
+  "../../backend/core/learning/approval/approvalSkillSave.js");
+const {transitionProposalStatus}=await import(
+  "../../backend/core/learning/proposalStorage/proposalStatusCAS.js");
+const {buildProposalStatusUpdate}=await import(
+  "../../backend/core/learning/proposalStorage/proposalStorageStatus.js");
+const {proposalStatusClient}=await import(
+  "./fixtures/proposalRestartPgStatusClient.mjs");
+const losingResult=await saveApprovedSkillVersion({
+  proposal:losing,review:{valid:true},quality:{passed:true},
+  autonomy:{action:"AUTO_APPROVE",confidence:0.95}
+},{
+  approve:async()=>({success:false,uncertain:true,
+    error:"legacy Candidate publication denied"}),
+  checkPublicationConflict:({proposal})=>
+    checkLosingCandidatePublication({proposal,readOwner}),
+  markFailed:async({proposal})=>({
+    persistence:await transitionProposalStatus({
+      client:proposalStatusClient("restored",proposal.id),
+      id:proposal.id,status:"FAILED",
+      payload:buildProposalStatusUpdate("FAILED")
+    }),
+    status:"FAILED"
+  })
+});
+assert.equal(losingResult.status,"FAILED");
+assert.equal(losingResult.proposalStateUpdated,true);
+assert.equal(losingResult.winningProposalId,legacyP1);
+
+const positive=await sql(`
+BEGIN;
+INSERT INTO public.jessica_experience_skill_versions(skill_id,version,payload)
+VALUES('${legacyS1}',2,
+ jsonb_build_object('id','${legacyS1}','metadata',
+ jsonb_build_object('proposalId','${legacyP1}')));
+COMMIT;
+`);
+assert.equal(positive.code,0,positive.stderr);
+assert.deepEqual(await readOwner(legacyId),{
+  proposalId:legacyP1,skillId:legacyS1,
+  evidence:"atomic-publication-claim"
+});
+const state=await sql(`
+SELECT
+ (SELECT count(*) FROM public.jessica_candidate_skill_publications WHERE candidate_id='${legacyId}'),
+ (SELECT count(*) FROM public.jessica_experience_skill_versions WHERE skill_id='${legacyS1}'),
+ (SELECT count(*) FROM public.jessica_experience_skill_versions WHERE skill_id='${legacyS2}'),
+ (SELECT status FROM public.learning_proposals WHERE id='${legacyP2}');
+`);
+assert.equal(state.code,0,state.stderr);
+assert.equal(state.stdout,"1|2|0|FAILED");
+console.log("PASS: legacy owner recovered by production Approval CAS; P1-only relink creates unique claim");
