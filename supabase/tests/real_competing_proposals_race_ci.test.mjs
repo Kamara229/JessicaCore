@@ -17,10 +17,11 @@ COMMIT;
 `);
 assert.equal(seed.code,0,seed.stderr);
 
-function worker(suffix){
+function worker(suffix,{loseFailedAck=false}={}){
   return new Promise((resolve,reject)=>{
     const p=spawn(process.execPath,
-      ["supabase/tests/real_competing_proposal_worker_ci.mjs",suffix],
+      ["supabase/tests/real_competing_proposal_worker_ci.mjs",suffix,
+        ...(loseFailedAck?["lost-failed-ack"]:[])],
       {stdio:["ignore","pipe","pipe"]});
     let out="",err="";
     p.stdout.on("data",x=>{out+=x;});
@@ -42,7 +43,7 @@ SELECT CASE WHEN EXISTS(SELECT 1 FROM pg_stat_activity
 `,3500);
 assert.equal(held,true,"Candidate row must be locked before two workers start");
 
-const [a,b]=[worker("a"),worker("b")];
+const [a,b]=[worker("a",{loseFailedAck:true}),worker("b",{loseFailedAck:true})];
 const blocked=await waitFor(`
 SELECT CASE WHEN count(*)=2 THEN 1 ELSE 0 END FROM pg_stat_activity
 WHERE application_name IN ('jessica-ci-competing-insert-a','jessica-ci-competing-insert-b')
@@ -54,7 +55,10 @@ assert.equal(blocked,true,"two different Proposals must actually wait on one Pos
 for(const r of [resultA,resultB]) assert.equal(r.code,0,r.err||r.out);
 const all=resultA.out+resultB.out;
 assert.equal((all.match(/COMPETING_WINNER=/g)||[]).length,1);
-assert.equal((all.match(/COMPETING_LOSER=/g)||[]).length,1);
+assert.equal((all.match(/COMPETING_LOSER_ACK_RECOVERED=/g)||[]).length,1,
+  "losing FAILED COMMIT ACK must be dropped and recovered by readback");
+assert.equal((all.match(/COMPETING_LOSER=/g)||[]).length,0,
+  "loser must not bypass the injected ACK-loss path");
 const winner=/COMPETING_WINNER=([ab])/u.exec(all)?.[1];
 const loser=winner==="a"?"b":"a";
 
@@ -114,4 +118,4 @@ assert.equal(finalLoser.code,0,finalLoser.err||finalLoser.out);
 assert.match(finalWinner.out,/COMPETING_WINNER=/);
 assert.match(finalLoser.out,/COMPETING_LOSER_REPLAY=/);
 assert.deepEqual(await state(),saved,"final replay cannot steal Candidate ownership");
-console.log("PASS: losing Proposal FAILED is stable across 10 safe worker replays");
+console.log("PASS: lost FAILED commit ACK recovered, ten loser retries, one Candidate owner");

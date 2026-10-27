@@ -17,7 +17,9 @@ import {assertIsolatedCi,sql} from "./fixtures/candidateRacePgClient.mjs";
 
 assertIsolatedCi();
 const suffix=process.argv[2];
+const loseFailedAck=process.argv[3]==="lost-failed-ack";
 assert.ok(["a","b"].includes(suffix));
+assert.ok(!process.argv[3] || loseFailedAck);
 const candidateId="d7d26169-ef7b-4d89-ad79-61b7fb22c007";
 const proposalId="ci-competing-proposal-"+suffix;
 const skillId="ci-competing-skill-"+suffix;
@@ -63,8 +65,8 @@ const markFailed=async ({proposal:p,reason})=>{
   assert.match(reason,/another Proposal/);
   // The same production terminal CAS must recognize already FAILED status.
   const persistence=await transitionProposalStatus({
-    client:proposalStatusClient("restored",p.id),id:p.id,
-    status:"FAILED",payload:buildProposalStatusUpdate("FAILED")
+    client:proposalStatusClient(loseFailedAck?"lost-ack-readable":"restored",p.id),
+    id:p.id,status:"FAILED",payload:buildProposalStatusUpdate("FAILED")
   });
   return {persistence,status:"FAILED"};
 };
@@ -99,7 +101,12 @@ if(result.success){
   assert.equal(result.status,"FAILED");
   assert.equal(result.proposalStateUpdated,true);
   assert.equal(result.winningProposalId!==proposalId,true);
-  if(result.persistence?.existing===true){
+  if(result.persistence?.recoveredAck===true){
+    assert.equal(loseFailedAck,true,"ACK can be lost only on injected failure");
+    assert.equal(result.persistence.existing,true);
+    assert.equal(result.persistence.updated,false);
+    console.log("COMPETING_LOSER_ACK_RECOVERED="+suffix);
+  }else if(result.persistence?.existing===true){
     assert.equal(result.persistence.updated,false);
     console.log("COMPETING_LOSER_REPLAY="+suffix);
   }else{
