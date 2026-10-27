@@ -67,6 +67,7 @@ import {
     resolveLearningSaveMode
 } from "./learningSaveMode.js";
 import {deferLearningReceiptVerification} from "./learningReceiptUncertainty.js";
+import {verifyExistingLearningReceipt} from "./learningReceiptProof.js";
 
 
 
@@ -395,18 +396,20 @@ export async function approveAndSaveLearningProposal({
                 );
 
 
-            if(
-                existing
-            ){
-
-                return buildExistingResult({
-
-                    proposal,
-
-                    existing
-
+            if(existing){
+                const proof=verifyExistingLearningReceipt({
+                    receipt:existing,proposalId:proposal.id,
+                    skillId:resolveSkillId(proposal)
                 });
-
+                if(!proof.valid){
+                    return deferLearningReceiptVerification({
+                        stage:"idempotency",proposal,
+                        error:"Stored Skill receipt unverified: "+proof.reason
+                    });
+                }
+                return buildExistingResult({
+                    proposal,existing:proof.receipt
+                });
             }
 
 
