@@ -7,6 +7,10 @@ on:
       - 'supabase/tests/real_candidate_publication_race_ci.test.mjs'
       - 'supabase/tests/real_competing_proposal_worker_ci.mjs'
       - 'supabase/tests/real_competing_proposals_race_ci.test.mjs'
+      - 'supabase/tests/verify_concurrent_owner_receipt_ci.mjs'
+      - 'supabase/tests/fixtures/candidateOwnerRealPgClient.mjs'
+      - 'backend/core/learning/approval/approvalOwnerReceipt.js'
+      - 'backend/core/learning/approval/approvalPublicationClaimReader.js'
       - 'supabase/tests/real_losing_failed_readback_outage_ci.test.mjs'
       - 'supabase/tests/real_candidate_owner_readback_outage_ci.test.mjs'
       - 'supabase/tests/real_skill_commit_ack_recovery_ci.test.mjs'
@@ -30,6 +34,10 @@ on:
       - 'supabase/tests/real_candidate_publication_race_ci.test.mjs'
       - 'supabase/tests/real_competing_proposal_worker_ci.mjs'
       - 'supabase/tests/real_competing_proposals_race_ci.test.mjs'
+      - 'supabase/tests/verify_concurrent_owner_receipt_ci.mjs'
+      - 'supabase/tests/fixtures/candidateOwnerRealPgClient.mjs'
+      - 'backend/core/learning/approval/approvalOwnerReceipt.js'
+      - 'backend/core/learning/approval/approvalPublicationClaimReader.js'
       - 'supabase/tests/real_losing_failed_readback_outage_ci.test.mjs'
       - 'supabase/tests/real_candidate_owner_readback_outage_ci.test.mjs'
       - 'supabase/tests/real_skill_commit_ack_recovery_ci.test.mjs'
@@ -119,7 +127,7 @@ jobs:
         run: node supabase/tests/real_parallel_proposal_recovery_ci.test.mjs
       - name: Race Candidate promotion with lost COMMIT ACK
         run: node supabase/tests/real_candidate_promotion_ack_race_ci.test.mjs
-      - name: Recover lost FAILED status ACK and replay losing Proposal safely
+      - name: Verify concurrent owner receipts, corrupt readbacks and lost FAILED ACK
         run: node supabase/tests/real_competing_proposals_race_ci.test.mjs
       - name: Defer FAILED status on lost ACK and unavailable readback across restarts
         run: node supabase/tests/real_losing_failed_readback_outage_ci.test.mjs

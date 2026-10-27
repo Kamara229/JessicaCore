@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import {spawn} from "node:child_process";
 import {assertIsolatedCi,sql,waitFor} from "./fixtures/candidateRacePgClient.mjs";
+import {assertOwnerNotYetCommitted,verifyOwnerReceiptAfterRealRace}
+  from "./verify_concurrent_owner_receipt_ci.mjs";
 
 assertIsolatedCi();
 const candidate="d7d26169-ef7b-4d89-ad79-61b7fb22c007";
@@ -16,6 +18,7 @@ VALUES('ci-competing-skill-a'),('ci-competing-skill-b');
 COMMIT;
 `);
 assert.equal(seed.code,0,seed.stderr);
+await assertOwnerNotYetCommitted(candidate);
 
 function worker(suffix,{loseFailedAck=false}={}){
   return new Promise((resolve,reject)=>{
@@ -93,6 +96,7 @@ assert.equal(saved["status_"+winner],"APPROVED");
 assert.equal(saved["status_"+loser],"FAILED");
 assert.ok(saved["approved_"+winner]);
 assert.equal(saved["approved_"+loser],null);
+await verifyOwnerReceiptAfterRealRace({candidateId:candidate,winner,loser});
 
 const replay=await worker(winner);
 assert.equal(replay.code,0,replay.err||replay.out);
