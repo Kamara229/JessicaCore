@@ -24,6 +24,11 @@ BEGIN
       (proposal_b,'NEW_SKILL','PROCESSING',
        jsonb_build_object('candidateMemory',jsonb_build_object('id',candidate_uuid::text)));
 
+    -- History is FK-linked to the current Skill; both are probe-only.
+    INSERT INTO public.jessica_experience_skills(id,version,payload)
+    VALUES (skill_a,1,jsonb_build_object('id',skill_a)),
+           (skill_b,1,jsonb_build_object('id',skill_b));
+
     INSERT INTO public.jessica_experience_skill_versions
       (skill_id,version,payload)
     VALUES(skill_a,1,
