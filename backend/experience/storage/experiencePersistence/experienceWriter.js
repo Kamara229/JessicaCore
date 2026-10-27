@@ -35,6 +35,7 @@ import {
 import {
     findExperienceByProposalId
 } from "./experienceIdempotency.js";
+import {recoverExperienceSaveReceipt} from "./experienceAckRecovery.js";
 
 
 
@@ -63,7 +64,7 @@ function buildValidationError(
 
 
 export async function persistExperienceSkill(
-    experience
+    experience,{lookup=findExperienceByProposalId,save=saveExperienceAtomic}={}
 ) {
 
     const normalized =
@@ -153,7 +154,7 @@ export async function persistExperienceSkill(
 
         const existing =
 
-            await findExperienceByProposalId(
+            await lookup(
                 proposalId
             );
 
@@ -245,35 +246,18 @@ export async function persistExperienceSkill(
      */
 
 
-    const result =
-
-        await saveExperienceAtomic(
-            normalized
-        );
-
-
-    if(
-        !result?.success
-    ){
-
-        return {
-
-            success:
-                false,
-
-            existing:
-                false,
-
-            error:
-
-                result?.error
-
-                ||
-
-                "Ошибка сохранения Experience"
-
-        };
-
+    let result;
+    let writeError=null;
+    try {
+        result=await save(normalized);
+    }catch(error){
+        writeError=error?.message||"Experience atomic save ACK lost";
+    }
+    if(!result?.success){
+        return recoverExperienceSaveReceipt({
+            proposalId,skillId:normalized.id,lookup,
+            reason:writeError||result?.error||"Experience save unconfirmed"
+        });
     }
 
 
