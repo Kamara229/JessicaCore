@@ -29,6 +29,7 @@ import {
     markProposalApproved
 } from "./approvalResultBuilders.js";
 import {classifyApprovalPublication} from "./approvalPublicationOutcome.js";
+import {checkLosingCandidatePublication} from "./approvalPublicationConflict.js";
 
 
 export async function saveApprovedSkillVersion({
@@ -44,7 +45,9 @@ export async function saveApprovedSkillVersion({
 }, {
     approve=approveAndSaveLearningProposal,
     markApproved=markProposalApproved,
-    promote=promoteCandidateMemory
+    promote=promoteCandidateMemory,
+    checkPublicationConflict=checkLosingCandidatePublication,
+    markFailed=buildFailedResult
 } = {}) {
 
     let result;
@@ -111,6 +114,33 @@ export async function saveApprovedSkillVersion({
     // The atomic save may have committed while its ACK was lost.
     // Do not mark Proposal FAILED: stale PROCESSING recovery can replay it.
     if(result?.success!==true && result?.uncertain===true){
+        const owner=await checkPublicationConflict({proposal});
+        if(owner.confirmed===true){
+            // A different Proposal has already claimed the Candidate
+            // atomically with Skill history. Retry cannot change that winner.
+            let final;
+            try{
+                final=await markFailed({
+                    proposal,reason:owner.reason,
+                    review,quality,autonomy
+                });
+            }catch(error){
+                return {...result,success:false,learned:false,
+                    deferred:true,status:"PROCESSING",
+                    error:error?.message||"Proposal conflict finalization unavailable",
+                    publicationConflict:true,
+                    proposalStateUpdated:false,
+                    candidateMemoryStateUpdated:false};
+            }
+            const finished=final?.persistence?.success===true;
+            return {...final,success:false,learned:false,
+                deferred:!finished,
+                status:finished?APPROVAL_RESULT_STATUS.FAILED:"PROCESSING",
+                publicationConflict:true,winningProposalId:owner.winningProposalId,
+                candidateMemoryStateUpdated:false,
+                proposalStateUpdated:finished,
+                error:owner.reason};
+        }
         return {...result,success:false,learned:false,deferred:true,
             status:"PROCESSING",proposalStateUpdated:false,
             candidateMemoryStateUpdated:false};
