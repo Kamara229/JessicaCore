@@ -96,6 +96,7 @@ import {
 } from "../../experience/storage/experienceStorage.js";
 import {checkLearningWorkerReplay} from "./workerReplayGuard.js";
 import {recordProposalSaveFailure} from "./proposalSaveRetry.js";
+import {saveLearningProposalOwned} from "./proposalStorage/proposalOwnedWriter.js";
 
 
 
@@ -154,7 +155,8 @@ function validateQueueItem(
 
 
 async function markFailed(
-    item
+    item,
+    updateStatus=updateLearningQueueItemStatus
 ) {
 
     try {
@@ -164,11 +166,13 @@ async function markFailed(
             item?.id
         ){
 
-            await updateLearningQueueItemStatus(
+            await updateStatus(
 
                 item.id,
 
-                "FAILED"
+                "FAILED",
+
+                item.claimToken || null
 
             );
 
@@ -663,7 +667,7 @@ export async function processQueueItem(
 
 
             await markFailed(
-                item
+                item,updateStatus
             );
 
 
@@ -699,11 +703,12 @@ export async function processQueueItem(
 
             const updated =
 
-                await updateLearningQueueItemStatus(
+                await updateStatus(
 
                     item.id,
 
-                    "IGNORED"
+                    "IGNORED",
+                    item.claimToken || null
 
                 );
 
@@ -790,7 +795,7 @@ export async function processQueueItem(
 
                 if (existing) {
                     console.warn("Jessica duplicate NEW_SKILL rejected:", skillId);
-                    const updated = await updateLearningQueueItemStatus(item.id, "IGNORED");
+                    const updated = await updateStatus(item.id, "IGNORED", item.claimToken || null);
                     return {
                         success: updated?.success === true,
                         ignored: true,
@@ -821,7 +826,7 @@ export async function processQueueItem(
         ){
 
             await markFailed(
-                item
+                item,updateStatus
             );
 
 
@@ -881,7 +886,7 @@ export async function processQueueItem(
         ){
 
             await markFailed(
-                item
+                item,updateStatus
             );
 
 
@@ -914,7 +919,9 @@ export async function processQueueItem(
 
         let saved;
         try {
-            saved=await proposalSaver(proposal);
+            saved=item.claimToken && proposalSaver===saveLearningProposal
+              ? await saveLearningProposalOwned(proposal,{claimToken:item.claimToken})
+              : await proposalSaver(proposal);
         } catch(error){
             saved={success:false,error:error?.message||"Proposal storage error"};
         }
@@ -924,7 +931,7 @@ export async function processQueueItem(
             // retry facade performs a journal check, counter increment and
             // Queue release in one atomic transaction.
             if(effectiveItem.action==="NEW_SKILL"){
-                const retry=await proposalFailureHandler({queueItemId:item.id});
+                const retry=await proposalFailureHandler({queueItemId:item.id,claimToken:item.claimToken||null});
                 if(retry.status==="already_saved"){
                     return {
                         success:true,existing:true,queueUpdated:true,
@@ -954,7 +961,7 @@ export async function processQueueItem(
                 };
             }
             // SKILL_IMPROVEMENT does not mutate Candidate Memory.
-            await markFailed(item);
+            await markFailed(item,updateStatus);
             return {
                 success:false,queueItemId:item.id,
                 reason:saved?.error||"Proposal не сохранён"
@@ -974,7 +981,8 @@ export async function processQueueItem(
 
                 item.id,
 
-                "PROPOSED"
+                "PROPOSED",
+                item.claimToken || null
 
             );
 
@@ -1103,7 +1111,7 @@ export async function processQueueItem(
 
 
         await markFailed(
-            item
+            item,updateStatus
         );
 
 
@@ -1220,7 +1228,7 @@ export async function runLearningWorker({
         // Deferred provider/lookup results must relinquish their claim.
         // Never leave an item PROCESSING after a voluntary retry deferral.
         if(result?.deferred===true && result?.queueAlreadyReleased!==true){
-            const returned=await updateQueue(item.id,"PENDING");
+            const returned=await updateQueue(item.id,"PENDING",item.claimToken||null);
             if(returned?.success!==true){
                 result.success=false;
                 result.reason=returned?.error||"Cannot release deferred queue claim";
