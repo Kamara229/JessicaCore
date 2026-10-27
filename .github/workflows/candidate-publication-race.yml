@@ -1,0 +1,61 @@
+name: Real PostgreSQL Candidate Skill Race
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/tests/real_candidate_publication_race_ci.test.mjs'
+      - 'supabase/tests/fixtures/candidateRacePgClient.mjs'
+      - 'supabase/tests/fixtures/candidate_race_ci_schema.sql'
+      - 'supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql'
+      - '.github/workflows/candidate-publication-race.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/tests/real_candidate_publication_race_ci.test.mjs'
+      - 'supabase/tests/fixtures/candidateRacePgClient.mjs'
+      - 'supabase/tests/fixtures/candidate_race_ci_schema.sql'
+      - 'supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql'
+      - '.github/workflows/candidate-publication-race.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-candidate-race:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: jessica_ci
+          POSTGRES_PASSWORD: ci-only-temporary-password
+          POSTGRES_DB: jessica_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jessica_ci -d jessica_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: jessica_ci
+      PGPASSWORD: ci-only-temporary-password
+      PGDATABASE: jessica_ci
+      JESSICA_ISOLATED_PG: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install ephemeral PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+      - name: Initialize isolated schema and production guard function
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/candidate_race_ci_schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql
+      - name: Assert actual concurrent transaction serialization and uniqueness
+        run: node supabase/tests/real_candidate_publication_race_ci.test.mjs
