@@ -65,7 +65,7 @@ const markFailed=async ({proposal:p,reason})=>{
   assert.match(reason,/another Proposal/);
   // The same production terminal CAS must recognize already FAILED status.
   const persistence=await transitionProposalStatus({
-    client:proposalStatusClient(loseFailedAck?"lost-ack":"restored",p.id),
+    client:proposalStatusClient(loseFailedAck?"lost-ack-readable":"restored",p.id),
     id:p.id,status:"FAILED",payload:buildProposalStatusUpdate("FAILED")
   });
   return {persistence,status:"FAILED"};
