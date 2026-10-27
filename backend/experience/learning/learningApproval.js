@@ -66,6 +66,7 @@ import {
 import {
     resolveLearningSaveMode
 } from "./learningSaveMode.js";
+import {deferLearningReceiptVerification} from "./learningReceiptUncertainty.js";
 
 
 
@@ -297,6 +298,10 @@ export async function approveAndSaveLearningProposal({
 
     confidence = null
 
+} = {},{
+    lookupReceipt=getExperienceByProposalId,
+    loadHistory=getExperienceHistory,
+    saveSkill=saveExperienceSkill
 } = {}) {
 
 
@@ -385,7 +390,7 @@ export async function approveAndSaveLearningProposal({
 
             const existing =
 
-                await getExperienceByProposalId(
+                await lookupReceipt(
                     proposal.id
                 );
 
@@ -406,25 +411,9 @@ export async function approveAndSaveLearningProposal({
 
 
         }catch(error){
-
-
-            return buildFailure({
-
-                stage:
-                    "idempotency",
-
-                proposal,
-
-                error:
-
-                    error?.message
-
-                    ||
-
-                    "Experience idempotency lookup failed"
-
+            return deferLearningReceiptVerification({
+                stage:"idempotency",proposal,error
             });
-
         }
 
     }
@@ -480,31 +469,15 @@ export async function approveAndSaveLearningProposal({
 
         history =
 
-            await getExperienceHistory(
+            await loadHistory(
                 skillId
             );
 
 
     }catch(error){
-
-
-        return buildFailure({
-
-            stage:
-                "history",
-
-            proposal,
-
-            error:
-
-                error?.message
-
-                ||
-
-                "Не удалось получить Experience History"
-
+        return deferLearningReceiptVerification({
+            stage:"history",proposal,error
         });
-
     }
 
 
@@ -781,31 +754,15 @@ export async function approveAndSaveLearningProposal({
 
         saved =
 
-            await saveExperienceSkill(
+            await saveSkill(
                 experience
             );
 
 
     }catch(error){
-
-
-        return buildFailure({
-
-            stage:
-                "storage",
-
-            proposal,
-
-            error:
-
-                error?.message
-
-                ||
-
-                "Experience Storage failed"
-
+        return deferLearningReceiptVerification({
+            stage:"storage",proposal,error
         });
-
     }
 
 
