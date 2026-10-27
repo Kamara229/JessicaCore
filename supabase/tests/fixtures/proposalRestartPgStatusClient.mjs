@@ -1,7 +1,7 @@
 import {sql} from "./candidateRacePgClient.mjs";
 
 // Minimal PostgREST-like adapter; every UPDATE and SELECT is real PostgreSQL.
-export function proposalStatusClient(phase){
+export function proposalStatusClient(phase,proposalId="ci-restarted-proposal"){
   return {from(table){
     if(table!=="learning_proposals")throw Error("Unexpected table");
     return {
@@ -11,7 +11,7 @@ export function proposalStatusClient(phase){
       eq(key,value){this.filters[key]=value;return this;},
       async maybeSingle(){
         const {id,status}=this.filters;
-        if(id!=="ci-restarted-proposal")throw Error("Unexpected Proposal ID");
+        if(id!==proposalId)throw Error("Unexpected Proposal ID");
         if(this.payload){
           if(this.payload.status!=="APPROVED"||status!=="PROCESSING")
             throw Error("Invalid status CAS test");
@@ -19,7 +19,7 @@ export function proposalStatusClient(phase){
           const result=await sql(`
 UPDATE public.learning_proposals SET status='APPROVED',
  approved_at='${approved}'::timestamptz, processing_at=NULL,
- rejected_at=NULL WHERE id='ci-restarted-proposal' AND status='PROCESSING'
+ rejected_at=NULL WHERE id='${proposalId}' AND status='PROCESSING'
 RETURNING row_to_json(learning_proposals)::text;
 `,"jessica-proposal-status-update");
           if(result.code!==0)return {data:null,error:{message:result.stderr}};
@@ -30,7 +30,7 @@ RETURNING row_to_json(learning_proposals)::text;
         const result=await sql(`
 SELECT row_to_json(t)::text FROM (
  SELECT id,status,approved_at,processing_at,rejected_at
- FROM public.learning_proposals WHERE id='ci-restarted-proposal'
+ FROM public.learning_proposals WHERE id='${proposalId}'
 ) t;
 `,"jessica-proposal-readback",
           phase==="restored"?{}:{PGPORT:"1"});
