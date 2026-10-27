@@ -164,7 +164,7 @@ export async function saveApprovedSkillVersion({
             ...result,success:false,learned:false,reinforced:false,
             versionCreated:publication.versionCreated,
             publicationRecovered:publication.publicationRecovered,
-            deferred:true,status:APPROVAL_RESULT_STATUS.PROCESSING,
+            deferred:true,status:"PROCESSING",
             proposalStateUpdated:false,
             proposalStateError:"Candidate PROMOTED must finish first",
             candidateMemoryStateUpdated:false,
@@ -190,7 +190,7 @@ export async function saveApprovedSkillVersion({
         publicationRecovered:publication.publicationRecovered,
         deferred:!approved,
         status:approved?APPROVAL_RESULT_STATUS.APPROVED:
-            APPROVAL_RESULT_STATUS.PROCESSING,
+            "PROCESSING",
         proposalStateUpdated:approved,
         proposalStateError:approved?null:
             (persistence?.error||"Proposal approval unconfirmed"),
