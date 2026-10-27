@@ -25,7 +25,8 @@ export async function transitionCandidateFinalStatus({
   client,id,status,metadata={}
 }={}){
   if(!client||!id||!FINAL.has(status)||
-     !metadata||typeof metadata!=="object"||Array.isArray(metadata))
+     !metadata||typeof metadata!=="object"||Array.isArray(metadata)||
+     (status==="MERGED"?!metadata.mergedIntoId:!metadata.proposalId))
     return {success:false,error:"Invalid Candidate final transition"};
   try{
     const current=await read(client,id);
