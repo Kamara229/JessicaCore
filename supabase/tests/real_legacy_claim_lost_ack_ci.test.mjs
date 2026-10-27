@@ -8,6 +8,7 @@ import {checkLosingCandidatePublication}
 import {candidateOwnerRealPgClient} from "./fixtures/candidateOwnerRealPgClient.mjs";
 import {assertIsolatedCi,sql} from "./fixtures/candidateRacePgClient.mjs";
 import {raceLegacyClaimDuringCommit} from "./fixtures/legacyClaimAckRacePg.mjs";
+import {legacyClaimReceiptLookup} from "./fixtures/legacyClaimReceiptPg.mjs";
 
 assertIsolatedCi();
 const candidate="ea103772-d67b-4a0d-a6e7-8cc0bb3f849b";
@@ -43,49 +44,52 @@ const experience={
  workflow:["Confirm unique durable Skill claim on restart"],
  metadata:{proposalId:owner,candidateMemoryId:candidate}
 };
-let attempts=0,lookups=0;
-const lookup=async id=>{
- assert.equal(id,owner);
- lookups++;
- const r=await sql(`
-SELECT json_build_object('skillId',skill_id,'version',version,'payload',payload)::text
-FROM public.jessica_experience_skill_versions
-WHERE payload #>> '{metadata,proposalId}'='${owner}'
-ORDER BY version DESC LIMIT 1;
-`);
- assert.equal(r.code,0,r.stderr);
- return r.stdout?JSON.parse(r.stdout):null;
-};
+let attempts=0;
+const receipt=legacyClaimReceiptLookup(owner);
+const lookup=id=>receipt.lookup(id);
 const save=async value=>{
  attempts++;
  await raceLegacyClaimDuringCommit({
   candidate,owner,skill,loser,loserSkill,payload:value
  });
+ // The commit is durable; both the ACK and receipt DB connection disappear.
+ receipt.setOutage(true);
  // The real transaction committed, but transport drops its ACK.
  throw Error("legacy migration commit ACK lost");
 };
 
-const saved=await persistExperienceSkill(experience,{lookup,save});
-assert.equal(saved.success,true);
-assert.equal(saved.existing,true);
-assert.equal(saved.commitRecovered,true);
-assert.equal(saved.skillId,skill);
-assert.equal(saved.version,2);
-assert.equal(attempts,1);
-assert.ok(lookups>=2);
+const lost=await persistExperienceSkill(experience,{lookup,save});
+assert.equal(lost.success,false);
+assert.equal(lost.uncertain,true);
+assert.equal(lost.existing,false);
+assert.equal(attempts,1,"the write committed before the ACK was lost");
+assert.ok(receipt.calls>=2);
+
+// Repeated workers must not retry writes when the PostgreSQL readback
+// connection is unavailable, regardless of the committed claim.
+const pending=await Promise.all(Array.from({length:8},()=>
+ persistExperienceSkill(experience,{lookup,save})));
+assert.ok(pending.every(r=>r.success===false&&r.uncertain===true));
+assert.equal(attempts,1,"offline recovery cannot generate an extra Skill version");
 assert.deepEqual(await readOwner(candidate),{
  proposalId:owner,skillId:skill,evidence:"atomic-publication-claim"
 });
 
-// Independent retries after losing the COMMIT acknowledgement must recover
-// the same receipt; none may publish another immutable version.
+// A new recovery worker with restored PostgreSQL readback accepts only the
+// immutable, identity-validated receipt for the first committed version.
+receipt.setOutage(false);
+const recovered=await persistExperienceSkill(experience,{lookup,save});
+assert.equal(recovered.success,true);
+assert.equal(recovered.existing,true);
+assert.equal(recovered.skillId,skill);
+assert.equal(recovered.version,2);
+assert.equal(recovered.storage,"idempotency-precheck");
 const replayed=await Promise.all(Array.from({length:16},()=>
  persistExperienceSkill(experience,{lookup,save})));
 assert.equal(replayed.length,16);
 assert.ok(replayed.every(r=>r.success&&r.existing&&
  r.skillId===skill&&r.version===2));
 assert.equal(attempts,1);
-
 const denied=await sql(`
 BEGIN;
 INSERT INTO public.jessica_experience_skill_versions(skill_id,version,payload)
@@ -113,4 +117,4 @@ SELECT
 `);
 assert.equal(final.code,0,final.stderr);
 assert.equal(final.stdout,`1|${owner}|2|2|0|${owner}`);
-console.log("PASS: lost legacy migration ACK recovers one claim; 16 replays no duplicates");
+console.log("PASS: competing legacy COMMIT lost ACK, 9 failed-closed readbacks, 16 safe replays");
