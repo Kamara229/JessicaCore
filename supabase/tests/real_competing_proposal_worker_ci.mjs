@@ -17,12 +17,18 @@ import {assertIsolatedCi,sql} from "./fixtures/candidateRacePgClient.mjs";
 
 assertIsolatedCi();
 const suffix=process.argv[2];
-const loseFailedAck=process.argv[3]==="lost-failed-ack";
+const fault=process.argv[3]||"normal";
+const outageScenario=process.env.JESSICA_COMPETING_ISOLATED_SCENARIO==="readback-outage";
 assert.ok(["a","b"].includes(suffix));
-assert.ok(!process.argv[3] || loseFailedAck);
-const candidateId="d7d26169-ef7b-4d89-ad79-61b7fb22c007";
-const proposalId="ci-competing-proposal-"+suffix;
-const skillId="ci-competing-skill-"+suffix;
+assert.ok(["normal","lost-failed-ack","lost-failed-ack-offline",
+  "readback-offline"].includes(fault));
+assert.ok(!process.env.JESSICA_COMPETING_ISOLATED_SCENARIO||outageScenario);
+const loseFailedAck=fault.startsWith("lost-failed-ack");
+const candidateId=outageScenario
+  ?"aa4f2c21-c621-45db-b71e-33f9a5e8bd10"
+  :"d7d26169-ef7b-4d89-ad79-61b7fb22c007";
+const proposalId=(outageScenario?"ci-failed-outage-proposal-":"ci-competing-proposal-")+suffix;
+const skillId=(outageScenario?"ci-failed-outage-skill-":"ci-competing-skill-")+suffix;
 const proposal={
   id:proposalId,action:"NEW_SKILL",confidence:0.97,
   candidateMemory:{id:candidateId},
@@ -65,7 +71,10 @@ const markFailed=async ({proposal:p,reason})=>{
   assert.match(reason,/another Proposal/);
   // The same production terminal CAS must recognize already FAILED status.
   const persistence=await transitionProposalStatus({
-    client:proposalStatusClient(loseFailedAck?"lost-ack-readable":"restored",p.id),
+    client:proposalStatusClient(
+      fault==="lost-failed-ack-offline"?"lost-ack":
+      fault==="readback-offline"?"offline":
+      loseFailedAck?"lost-ack-readable":"restored",p.id),
     id:p.id,status:"FAILED",payload:buildProposalStatusUpdate("FAILED")
   });
   return {persistence,status:"FAILED"};
@@ -97,19 +106,32 @@ if(result.success){
   console.log("COMPETING_WINNER="+suffix);
 }else{
   assert.equal(result.publicationConflict,true,JSON.stringify(result));
-  assert.equal(result.deferred,false);
-  assert.equal(result.status,"FAILED");
-  assert.equal(result.proposalStateUpdated,true);
   assert.equal(result.winningProposalId!==proposalId,true);
-  if(result.persistence?.recoveredAck===true){
+  if(["lost-failed-ack-offline","readback-offline"].includes(fault)){
+    assert.equal(result.deferred,true);
+    assert.equal(result.status,"PROCESSING");
+    assert.equal(result.proposalStateUpdated,false);
+    assert.equal(result.persistence?.success,false);
+    assert.equal(result.persistence?.uncertain,true);
+    console.log("COMPETING_LOSER_UNCERTAIN="+suffix);
+  }else if(result.persistence?.recoveredAck===true){
+    assert.equal(result.deferred,false);
+    assert.equal(result.status,"FAILED");
+    assert.equal(result.proposalStateUpdated,true);
     assert.equal(loseFailedAck,true,"ACK can be lost only on injected failure");
     assert.equal(result.persistence.existing,true);
     assert.equal(result.persistence.updated,false);
     console.log("COMPETING_LOSER_ACK_RECOVERED="+suffix);
   }else if(result.persistence?.existing===true){
+    assert.equal(result.deferred,false);
+    assert.equal(result.status,"FAILED");
+    assert.equal(result.proposalStateUpdated,true);
     assert.equal(result.persistence.updated,false);
     console.log("COMPETING_LOSER_REPLAY="+suffix);
   }else{
+    assert.equal(result.deferred,false);
+    assert.equal(result.status,"FAILED");
+    assert.equal(result.proposalStateUpdated,true);
     assert.equal(result.persistence?.updated,true);
     console.log("COMPETING_LOSER="+suffix);
   }
