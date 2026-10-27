@@ -115,5 +115,5 @@ jobs:
         run: node supabase/tests/real_parallel_proposal_recovery_ci.test.mjs
       - name: Race Candidate promotion with lost COMMIT ACK
         run: node supabase/tests/real_candidate_promotion_ack_race_ci.test.mjs
-      - name: Race two independent Proposals over the same Candidate
+      - name: Race two Proposals and replay losing FAILED workers safely
         run: node supabase/tests/real_competing_proposals_race_ci.test.mjs
