@@ -9,7 +9,7 @@ const evidence={skillId:"stable-skill",confidence:0.83,occurrences:2,
   examples:[{traceId:"verified-trace"}]};
 
 function database(status="ACTIVE"){
-  const state={id:ID,status,updated_at:REV,metadata:{origin:"verified"},
+  const state={id:ID,status,updated_at:REV,revision:0,metadata:{origin:"verified"},
     candidate_json:{...evidence,occurrences:1},occurrences:1,confidence:0.72};
   let writes=0;
   return {
@@ -27,6 +27,7 @@ function database(status="ACTIVE"){
           if(Object.entries(filters).some(([k,v])=>state[k]!==v))
             return {data:null,error:null};
           Object.assign(state,payload);
+          state.revision++;
           writes++;
           return {data:structuredClone(state),error:null};
         }
@@ -35,11 +36,11 @@ function database(status="ACTIVE"){
   };
 }
 
-function mutate(db,expectedUpdatedAt=REV){
+function mutate(db,expectedUpdatedAt=REV,expectedRevision=0){
   return updateCandidateMemory({
     id:ID,candidate:evidence,skillId:evidence.skillId,
     metadata:{origin:"merged"},
-    expectedUpdatedAt,client:db.client
+    expectedUpdatedAt,expectedRevision,client:db.client
   });
 }
 
@@ -80,7 +81,7 @@ test("parallel updates of one Candidate revision cannot both succeed",async()=>{
 
 test("missing snapshot proof fails before querying Supabase",async()=>{
   const db=database();
-  await assert.rejects(updateCandidateMemory({id:ID,candidate:evidence,client:db.client}),/ACTIVE Candidate snapshot proof required/);
+  await assert.rejects(updateCandidateMemory({id:ID,candidate:evidence,client:db.client}),/ACTIVE Candidate revision proof required/);
   assert.equal(db.writes,0);
 });
 
@@ -90,6 +91,21 @@ test("database error never reports Candidate evidence write success",async()=>{
       async maybeSingle(){return {data:null,error:{message:"database offline"}};}}
   }};
   await assert.rejects(updateCandidateMemory({
-    id:ID,candidate:evidence,expectedUpdatedAt:REV,client
+    id:ID,candidate:evidence,expectedUpdatedAt:REV,expectedRevision:0,client
   }),/database offline/);
+});
+
+test("unchanged updated_at cannot revive a stale revision",async()=>{
+  const db=database();
+  db.state.revision=1; // concurrent owned observation committed within same millisecond
+  const before=structuredClone(db.state);
+  await assert.rejects(mutate(db,REV,0),/changed or finalized/);
+  assert.equal(db.writes,0);
+  assert.deepEqual(db.state,before);
+});
+
+test("malformed revision fails closed before querying the client",async()=>{
+  const db=database();
+  await assert.rejects(mutate(db,REV,undefined),/revision proof required/);
+  assert.equal(db.writes,0);
 });
