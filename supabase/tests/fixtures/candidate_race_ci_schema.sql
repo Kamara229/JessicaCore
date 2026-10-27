@@ -10,7 +10,11 @@ CREATE TABLE public.learning_candidates (
 CREATE TABLE public.learning_proposals (
   id text PRIMARY KEY,
   action text,
-  analysis jsonb NOT NULL DEFAULT '{}'::jsonb
+  analysis jsonb NOT NULL DEFAULT '{}'::jsonb,
+  status text NOT NULL DEFAULT 'PROCESSING',
+  approved_at timestamptz,
+  processing_at timestamptz,
+  rejected_at timestamptz
 );
 CREATE TABLE public.jessica_experience_skills (id text PRIMARY KEY);
 CREATE TABLE public.jessica_experience_skill_versions (
