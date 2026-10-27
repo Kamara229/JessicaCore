@@ -98,6 +98,7 @@ export async function consolidateLearningCandidates() {
             if (addsIndependentTrace && !alreadyRecorded) {
                 await updateCandidateMemory({
                 id: canonical.id,
+                expectedUpdatedAt:canonical.updatedAt,
                 candidate: merged,
                 skillId: merged.skillId,
                 metadata: {
