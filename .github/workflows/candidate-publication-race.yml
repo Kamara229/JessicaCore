@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'supabase/tests/real_candidate_publication_race_ci.test.mjs'
+      - 'supabase/tests/real_skill_commit_ack_recovery_ci.test.mjs'
       - 'supabase/tests/fixtures/candidateRacePgClient.mjs'
       - 'supabase/tests/fixtures/candidate_race_ci_schema.sql'
       - 'supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql'
@@ -13,6 +14,7 @@ on:
     branches: [main]
     paths:
       - 'supabase/tests/real_candidate_publication_race_ci.test.mjs'
+      - 'supabase/tests/real_skill_commit_ack_recovery_ci.test.mjs'
       - 'supabase/tests/fixtures/candidateRacePgClient.mjs'
       - 'supabase/tests/fixtures/candidate_race_ci_schema.sql'
       - 'supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql'
@@ -57,5 +59,9 @@ jobs:
         run: |
           psql -X -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/candidate_race_ci_schema.sql
           psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql
+      - name: Install backend dependencies for real receipt recovery
+        run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
       - name: Assert actual concurrent transaction serialization and uniqueness
         run: node supabase/tests/real_candidate_publication_race_ci.test.mjs
+      - name: Recover real PostgreSQL commit after simulated ACK loss
+        run: node supabase/tests/real_skill_commit_ack_recovery_ci.test.mjs
