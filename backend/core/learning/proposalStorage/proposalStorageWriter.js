@@ -42,6 +42,7 @@ import {
 import {
     buildProposalStatusUpdate
 } from "./proposalStorageStatus.js";
+import {transitionProposalStatus} from "./proposalStatusCAS.js";
 
 
 import {
@@ -501,97 +502,17 @@ export async function updateLearningProposalStatus(
     }
 
 
-    try {
-
-
-        const {
-            data,
-            error
-        } =
-
-            await getSupabaseClient()
-
-                .from(
-                    LEARNING_PROPOSALS_TABLE
-                )
-
-                .update(
-                    updatePayload
-                )
-
-                .eq(
-                    "id",
-                    proposalId
-                )
-
-                .select()
-
-                .single();
-
-
-        if(
-            error
-        ){
-
-            console.error(
-
-                "Jessica Learning Proposal status update error:",
-
-                error
-
-            );
-
-
-            return {
-
-                success:
-                    false,
-
-                error:
-                    error.message
-
-            };
-
-        }
-
-
-        return {
-
-            success:
-                true,
-
-            proposal:
-
-                normalizeDatabaseProposal(
-                    data
-                )
-
-                ||
-
-                data
-
-        };
-
-
-    }catch(error){
-
-
-        return {
-
-            success:
-                false,
-
-            error:
-
-                error?.message
-
-                ||
-
-                "Proposal status update failed"
-
-        };
-
-    }
+    const result=await transitionProposalStatus({
+        client:getSupabaseClient(),
+        id:proposalId,
+        status:updatePayload.status,
+        payload:updatePayload
+    });
+    if(result?.success!==true)return result;
+    return {
+        ...result,
+        proposal:normalizeDatabaseProposal(result.proposal)||result.proposal
+    };
 
 }
 
