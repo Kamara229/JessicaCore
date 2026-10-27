@@ -214,7 +214,7 @@ async function markFailed(
 
 
 async function prepareDiscovery(
-    item
+    item,{signal=null}={}
 ) {
 
     if(
@@ -244,7 +244,7 @@ async function prepareDiscovery(
     const discovery =
 
         await processPatternDiscovery(
-            item
+            item,{signal}
         );
 
 
