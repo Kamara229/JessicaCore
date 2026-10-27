@@ -11,6 +11,8 @@ on:
       - 'supabase/tests/real_stale_candidate_owner_snapshot_ci.test.mjs'
       - 'supabase/tests/real_legacy_claim_migration_race_ci.test.mjs'
       - 'supabase/tests/real_legacy_claim_lost_ack_ci.test.mjs'
+      - 'supabase/tests/real_legacy_claim_restart_ci.test.mjs'
+      - 'supabase/tests/fixtures/legacyAckRestartWorker.mjs'
       - 'supabase/tests/fixtures/candidateOwnerRealPgClient.mjs'
       - 'backend/core/learning/approval/approvalOwnerReceipt.js'
       - 'backend/core/learning/approval/approvalPublicationClaimReader.js'
@@ -43,6 +45,8 @@ on:
       - 'supabase/tests/real_stale_candidate_owner_snapshot_ci.test.mjs'
       - 'supabase/tests/real_legacy_claim_migration_race_ci.test.mjs'
       - 'supabase/tests/real_legacy_claim_lost_ack_ci.test.mjs'
+      - 'supabase/tests/real_legacy_claim_restart_ci.test.mjs'
+      - 'supabase/tests/fixtures/legacyAckRestartWorker.mjs'
       - 'supabase/tests/fixtures/candidateOwnerRealPgClient.mjs'
       - 'backend/core/learning/approval/approvalOwnerReceipt.js'
       - 'backend/core/learning/approval/approvalPublicationClaimReader.js'
@@ -145,6 +149,8 @@ jobs:
         run: node supabase/tests/real_legacy_claim_migration_race_ci.test.mjs
       - name: Recover legacy claim after lost ACK and repeated readback outages
         run: node supabase/tests/real_legacy_claim_lost_ack_ci.test.mjs
+      - name: Preserve legacy claim across real worker restarts and receipt outages
+        run: node supabase/tests/real_legacy_claim_restart_ci.test.mjs
       - name: Defer FAILED status on lost ACK and unavailable readback across restarts
         run: node supabase/tests/real_losing_failed_readback_outage_ci.test.mjs
       - name: Defer loser FAILED until Candidate ownership readback is proven
