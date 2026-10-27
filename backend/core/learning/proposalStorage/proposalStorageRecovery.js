@@ -44,6 +44,7 @@
 import {
     getSupabaseClient
 } from "../../../storage/supabaseClient.js";
+import {parseProposalRecoveryCount} from "./proposalRecoveryResult.js";
 
 
 const RECOVERY_RPC =
@@ -165,7 +166,9 @@ export async function recoverStaleLearningProposals({
         resolveStaleMinutes(),
 
     limit =
-        resolveRecoveryLimit()
+        resolveRecoveryLimit(),
+
+    client = null
 
 } = {}) {
 
@@ -212,7 +215,7 @@ export async function recoverStaleLearningProposals({
             error
         } =
 
-            await getSupabaseClient()
+            await (client || getSupabaseClient())
 
                 .rpc(
 
@@ -260,27 +263,16 @@ export async function recoverStaleLearningProposals({
         }
 
 
-        const result =
+        const parsed = parseProposalRecoveryCount(data,safeLimit);
+        if(parsed.valid!==true){
+            return {
+                success:false,recovered:0,
+                staleMinutes:safeStaleMinutes,limit:safeLimit,
+                error:parsed.error
+            };
+        }
 
-            Array.isArray(data)
-
-                ? data[0]
-
-                : data;
-
-
-        const recovered =
-
-            Math.max(
-
-                Number(
-                    result?.recovered || 0
-                ),
-
-                0
-
-            );
-
+        const recovered=parsed.recovered;
 
         return {
 
