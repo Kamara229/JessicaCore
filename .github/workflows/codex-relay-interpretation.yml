@@ -49,5 +49,5 @@ jobs:
             backend/scripts/regressionCodexLiveProgressSmoke.test.js \
             backend/scripts/regressionCodexStatusEnvelope.test.js \
             backend/scripts/regressionCodexCompactStressProgress.test.js \
-            backend/scripts/regressionCodexRelay.test.js \\
+            backend/scripts/regressionCodexRelay.test.js \
             backend/scripts/regressionCodexCompactTest.test.js
