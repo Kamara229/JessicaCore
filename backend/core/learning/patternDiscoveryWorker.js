@@ -260,8 +260,13 @@ function buildTraceFromEvidence({
 
 
 export async function processPatternDiscovery(
-    queueItem
+    queueItem,
+    {signal=null,extractor=extractExperiencePattern}={}
 ) {
+    if(signal?.aborted){
+        return {success:false,resolved:false,cancelled:true,
+            reason:"Pattern Discovery cancelled"};
+    }
 
 
     if(
@@ -395,13 +400,19 @@ export async function processPatternDiscovery(
 
     const extraction =
 
-        await extractExperiencePattern({
+        await extractor({
 
-            evidence
+            evidence,
+            signal
 
         });
 
 
+
+    if(signal?.aborted || extraction?.stage==="cancelled"){
+        return {success:false,resolved:false,cancelled:true,
+            reason:"Pattern Discovery cancelled"};
+    }
 
     if(
         !extraction?.success
