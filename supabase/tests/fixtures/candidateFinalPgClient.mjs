@@ -1,7 +1,9 @@
 import {sql} from "./candidateRacePgClient.mjs";
 
 // Adapter for the real Candidate revision/updated_at compare-and-swap facade.
-export function candidateFinalPgClient(id,{readbackDown=false}={}){
+export function candidateFinalPgClient(id,{
+  readbackDown=false,ackLossAfterCommit=false
+}={}){
   return {from(table){
     if(table!=="learning_candidates")throw Error("Unexpected Candidate table");
     return {
@@ -36,6 +38,9 @@ WHERE id='${id}' AND status='ACTIVE'
  AND updated_at='${expected}'::timestamptz
 RETURNING row_to_json(learning_candidates)::text;
 `,"jessica-ci-candidate-promote");
+        // Test-only dropped ACK after real PostgreSQL UPDATE COMMIT.
+        if(r.code===0 && r.stdout && ackLossAfterCommit)
+          return {data:null,error:{message:"Candidate COMMIT succeeded; ACK lost"}};
         return r.code===0
           ? {data:r.stdout?JSON.parse(r.stdout):null,error:null}
           : {data:null,error:{message:r.stderr}};

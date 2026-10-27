@@ -15,15 +15,19 @@ import {proposalStatusClient} from "./fixtures/proposalRestartPgStatusClient.mjs
 
 assertIsolatedCi();
 const phase=process.argv[2];
-assert.ok(["offline","recover","replay","race"].includes(phase));
-const racing=phase==="race";
-const candidate=racing
-  ?"f4ca0fa8-45d0-4656-9bf6-b096a4858cc4"
-  :"35b89f96-cfbf-45ab-943f-722e6b457487";
-const proposal={id:racing?"ci-parallel-recovery-proposal":"ci-commit-gap-proposal",
+assert.ok(["offline","recover","replay","race","ack-race","ack-replay"].includes(phase));
+const ackRace=phase==="ack-race"||phase==="ack-replay";
+const racing=phase==="race"||ackRace;
+const candidate=ackRace?"f9c31335-997b-4c2f-82fc-755c30b529f3":
+  racing?"f4ca0fa8-45d0-4656-9bf6-b096a4858cc4":
+  "35b89f96-cfbf-45ab-943f-722e6b457487";
+const proposal={
+  id:ackRace?"ci-candidate-lost-ack-proposal":
+    racing?"ci-parallel-recovery-proposal":"ci-commit-gap-proposal",
   action:"NEW_SKILL",confidence:0.95,candidateMemory:{id:candidate},
   proposedExperience:{
-    id:racing?"ci-parallel-recovery-skill":"ci-commit-gap-skill",
+    id:ackRace?"ci-candidate-lost-ack-skill":
+      racing?"ci-parallel-recovery-skill":"ci-commit-gap-skill",
     name:"Crash-window Skill"
   }};
 let writes=0;
@@ -52,7 +56,10 @@ const result=await saveApprovedSkillVersion({
 },{
   approve,
   promote:({proposal:p,skillId})=>transitionCandidateFinalStatus({
-    client:candidateFinalPgClient(candidate,{readbackDown:phase==="offline"}),
+    client:candidateFinalPgClient(candidate,{
+      readbackDown:phase==="offline",
+      ackLossAfterCommit:phase==="ack-race"
+    }),
     id:candidate,status:"PROMOTED",
     metadata:{proposalId:p.id,skillId,resolvedAt:new Date().toISOString()}
   }),
@@ -64,7 +71,21 @@ const result=await saveApprovedSkillVersion({
 assert.equal(writes,0);
 assert.equal(result.versionCreated,false);
 assert.equal(result.publicationRecovered,true);
-if(phase==="offline"){
+if(phase==="ack-race"){
+  if(result.success){
+    assert.equal(result.status,"APPROVED");
+    assert.equal(result.candidateMemory?.existing,true);
+    assert.equal(result.proposalStateUpdated,true);
+    console.log("ACK_RACE_RECOVERED");
+  }else{
+    assert.equal(result.deferred,true);
+    assert.equal(result.status,"PROCESSING");
+    assert.equal(result.candidateMemory?.success,false);
+    assert.equal(result.proposalStateUpdated,false);
+    assert.match(result.candidateMemoryStateError,/ACK lost/);
+    console.log("ACK_RACE_DEFERRED");
+  }
+}else if(phase==="offline"){
   assert.equal(result.success,false);
   assert.equal(result.deferred,true);
   assert.equal(result.status,"PROCESSING");
@@ -81,6 +102,7 @@ if(phase==="offline"){
     assert.equal(result.candidateMemory?.updated===true
       ||result.candidateMemory?.existing===true,true);
     assert.equal(result.proposalStateUpdated,true);
+    if(phase==="ack-replay")assert.equal(result.persistence?.existing,true);
   }
 }
 console.log("PASS: fresh worker recovered committed Skill gap "+phase);
