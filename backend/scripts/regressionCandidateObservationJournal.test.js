@@ -108,7 +108,7 @@ test("unverifiable queue identity never mutates candidate memory",async()=>{
   const store=atomicCandidateRpc();
   await assert.rejects(applyCandidateObservation({
     ...args("",randomUUID()),client:store.client
-  }),/requires queue ID/);
+  }),/requires current Queue claim token/);
   const failure=await applyCandidateObservation({
     ...args("query-failed",randomUUID()),client:{
       async rpc(){return {data:null,error:{message:"Supabase unavailable"}};}
