@@ -214,7 +214,10 @@ export async function promoteCandidateMemory({
                 result?.success === true,
 
             updated:
-                result?.success === true,
+                result?.updated === true,
+
+            existing:
+                result?.existing === true,
 
             skipped:
                 false,
@@ -358,7 +361,10 @@ export async function rejectCandidateMemory({
                 result?.success === true,
 
             updated:
-                result?.success === true,
+                result?.updated === true,
+
+            existing:
+                result?.existing === true,
 
             skipped:
                 false,

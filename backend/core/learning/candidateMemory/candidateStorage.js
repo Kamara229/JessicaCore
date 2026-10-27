@@ -25,6 +25,7 @@
 import {
     getSupabaseClient
 } from "../../../storage/supabaseClient.js";
+import {transitionCandidateFinalStatus} from "./candidateFinalStatus.js";
 
 
 const TABLE_NAME =
@@ -480,171 +481,14 @@ export async function updateCandidateMemory({
 
 
 export async function updateCandidateMemoryStatus({
-
-    id,
-
-    status,
-
-    metadata = {}
-
-}) {
-
-    if(
-        !id
-    ){
-
-        return {
-
-            success:
-                false,
-
-            error:
-                "Candidate Memory ID отсутствует"
-
-        };
-
-    }
-
-
-    try {
-
-
-        const {
-            data:current,
-            error:readError
-        } =
-
-            await getClient()
-
-                .from(
-                    TABLE_NAME
-                )
-
-                .select(
-                    "metadata"
-                )
-
-                .eq(
-                    "id",
-                    id
-                )
-
-                .single();
-
-
-        if(
-            readError
-        ){
-
-            return {
-
-                success:
-                    false,
-
-                error:
-                    readError.message
-
-            };
-
-        }
-
-
-        const previousMetadata =
-
-            isObject(
-                current?.metadata
-            )
-
-                ? current.metadata
-
-                : {};
-
-
-        const {
-            data,
-            error
-        } =
-
-            await getClient()
-
-                .from(
-                    TABLE_NAME
-                )
-
-                .update({
-
-                    status,
-
-                    metadata: {
-
-                        ...previousMetadata,
-
-                        ...metadata
-
-                    },
-
-                    updated_at:
-
-                        new Date()
-                            .toISOString()
-
-                })
-
-                .eq(
-                    "id",
-                    id
-                )
-
-                .select()
-                .single();
-
-
-        if(
-            error
-        ){
-
-            return {
-
-                success:
-                    false,
-
-                error:
-                    error.message
-
-            };
-
-        }
-
-
-        return {
-
-            success:
-                true,
-
-            candidate:
-                normalizeRow(data)
-
-        };
-
-
-    }catch(error){
-
-
-        return {
-
-            success:
-                false,
-
-            error:
-
-                error?.message
-
-                ||
-
-                "Candidate Memory status update failed"
-
-        };
-
-    }
-
-      }
+    id,status,metadata={}
+}={}){
+    const result=await transitionCandidateFinalStatus({
+        client:getClient(),id,status,metadata
+    });
+    if(result.success!==true)return result;
+    return {
+        ...result,
+        candidate:normalizeRow(result.candidate)
+    };
+}
