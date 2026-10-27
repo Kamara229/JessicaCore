@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'supabase/tests/real_candidate_publication_race_ci.test.mjs'
+      - 'supabase/tests/real_competing_proposal_worker_ci.mjs'
+      - 'supabase/tests/real_competing_proposals_race_ci.test.mjs'
       - 'supabase/tests/real_skill_commit_ack_recovery_ci.test.mjs'
       - 'supabase/tests/real_skill_readback_outage_ci.test.mjs'
       - 'supabase/tests/real_proposal_restart_db_ci.mjs'
@@ -24,6 +26,8 @@ on:
     branches: [main]
     paths:
       - 'supabase/tests/real_candidate_publication_race_ci.test.mjs'
+      - 'supabase/tests/real_competing_proposal_worker_ci.mjs'
+      - 'supabase/tests/real_competing_proposals_race_ci.test.mjs'
       - 'supabase/tests/real_skill_commit_ack_recovery_ci.test.mjs'
       - 'supabase/tests/real_skill_readback_outage_ci.test.mjs'
       - 'supabase/tests/real_proposal_restart_db_ci.mjs'
@@ -111,3 +115,5 @@ jobs:
         run: node supabase/tests/real_parallel_proposal_recovery_ci.test.mjs
       - name: Race Candidate promotion with lost COMMIT ACK
         run: node supabase/tests/real_candidate_promotion_ack_race_ci.test.mjs
+      - name: Race two independent Proposals over the same Candidate
+        run: node supabase/tests/real_competing_proposals_race_ci.test.mjs
