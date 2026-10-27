@@ -81,3 +81,54 @@ test("failed Candidate update before COMMIT is retried before final Approval",as
   assert.equal(db.state.proposalWrites,1);
   assert.equal(db.state.versions,1);
 });
+
+test("lost Proposal status ACK retries without another Candidate write",async()=>{
+  const db=candidatePromotionRecoveryStore();
+  const deps=dependencies(db,{proposalAckLost:true});
+  const first=await saveApprovedSkillVersion(context,deps);
+  assert.equal(first.success,false);
+  assert.equal(first.deferred,true);
+  assert.equal(first.status,"PROCESSING");
+  assert.equal(first.candidateMemoryStateUpdated,true);
+  assert.equal(db.state.candidate.status,"PROMOTED");
+  const retry=await saveApprovedSkillVersion(context,deps);
+  assert.equal(retry.success,true);
+  assert.equal(retry.candidateMemory.existing,true);
+  assert.equal(db.state.candidateWrites,1);
+  assert.equal(db.state.proposalWrites,2);
+  assert.equal(db.state.versions,1);
+});
+
+test("Candidate exception does not finalize Proposal",async()=>{
+  const db=candidatePromotionRecoveryStore();
+  const deps=dependencies(db);
+  deps.promote=async()=>{throw Error("Candidate client disconnected");};
+  const result=await saveApprovedSkillVersion(context,deps);
+  assert.equal(result.success,false);
+  assert.equal(result.deferred,true);
+  assert.equal(result.status,"PROCESSING");
+  assert.match(result.candidateMemoryStateError,/disconnected/);
+  assert.equal(db.state.proposalWrites,0);
+});
+
+test("terminal conflict cannot be treated as Candidate PROMOTED",async()=>{
+  const db=candidatePromotionRecoveryStore();
+  db.state.candidate.status="REJECTED";
+  db.state.candidate.metadata={proposalId:"other",skillId:"other"};
+  const result=await saveApprovedSkillVersion(context,dependencies(db));
+  assert.equal(result.success,false);
+  assert.equal(result.deferred,true);
+  assert.equal(db.state.proposalWrites,0);
+  assert.equal(db.state.candidateWrites,0);
+  assert.equal(db.state.candidate.status,"REJECTED");
+});
+
+test("intentionally unlinked Candidate permits Approval finalization",async()=>{
+  const db=candidatePromotionRecoveryStore();
+  const deps=dependencies(db);
+  deps.promote=async()=>({success:true,updated:false,skipped:true});
+  const result=await saveApprovedSkillVersion(context,deps);
+  assert.equal(result.success,true);
+  assert.equal(result.status,"APPROVED");
+  assert.equal(db.state.proposalWrites,1);
+});
