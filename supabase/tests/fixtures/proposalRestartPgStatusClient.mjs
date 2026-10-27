@@ -13,12 +13,16 @@ export function proposalStatusClient(phase,proposalId="ci-restarted-proposal"){
         const {id,status}=this.filters;
         if(id!==proposalId)throw Error("Unexpected Proposal ID");
         if(this.payload){
-          if(this.payload.status!=="APPROVED"||status!=="PROCESSING")
+          if(!["APPROVED","FAILED"].includes(this.payload.status)||
+             status!=="PROCESSING")
             throw Error("Invalid status CAS test");
-          const approved=String(this.payload.approved_at).replaceAll("'","''");
+          const finalStatus=this.payload.status;
+          const approved=finalStatus==="APPROVED"
+            ?"'"+String(this.payload.approved_at).replaceAll("'","''")+"'::timestamptz"
+            :"NULL";
           const result=await sql(`
-UPDATE public.learning_proposals SET status='APPROVED',
- approved_at='${approved}'::timestamptz, processing_at=NULL,
+UPDATE public.learning_proposals SET status='${finalStatus}',
+ approved_at=${approved}, processing_at=NULL,
  rejected_at=NULL WHERE id='${proposalId}' AND status='PROCESSING'
 RETURNING row_to_json(learning_proposals)::text;
 `,"jessica-proposal-status-update");
