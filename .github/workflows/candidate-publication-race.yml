@@ -9,10 +9,14 @@ on:
       - 'supabase/tests/real_skill_readback_outage_ci.test.mjs'
       - 'supabase/tests/real_proposal_restart_db_ci.mjs'
       - 'supabase/tests/real_proposal_restart_worker_ci.mjs'
+      - 'supabase/tests/real_skill_candidate_gap_db_ci.mjs'
+      - 'supabase/tests/real_skill_candidate_gap_worker_ci.mjs'
+      - 'supabase/tests/fixtures/candidateFinalPgClient.mjs'
       - 'supabase/tests/fixtures/proposalRestartPgStatusClient.mjs'
       - 'supabase/tests/fixtures/candidateRacePgClient.mjs'
       - 'supabase/tests/fixtures/candidate_race_ci_schema.sql'
       - 'supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql'
+      - 'supabase/migrations/20261027210000_learning_candidate_revision_cas.sql'
       - '.github/workflows/candidate-publication-race.yml'
   push:
     branches: [main]
@@ -22,10 +26,14 @@ on:
       - 'supabase/tests/real_skill_readback_outage_ci.test.mjs'
       - 'supabase/tests/real_proposal_restart_db_ci.mjs'
       - 'supabase/tests/real_proposal_restart_worker_ci.mjs'
+      - 'supabase/tests/real_skill_candidate_gap_db_ci.mjs'
+      - 'supabase/tests/real_skill_candidate_gap_worker_ci.mjs'
+      - 'supabase/tests/fixtures/candidateFinalPgClient.mjs'
       - 'supabase/tests/fixtures/proposalRestartPgStatusClient.mjs'
       - 'supabase/tests/fixtures/candidateRacePgClient.mjs'
       - 'supabase/tests/fixtures/candidate_race_ci_schema.sql'
       - 'supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql'
+      - 'supabase/migrations/20261027210000_learning_candidate_revision_cas.sql'
       - '.github/workflows/candidate-publication-race.yml'
   workflow_dispatch:
 
@@ -66,6 +74,7 @@ jobs:
       - name: Initialize isolated schema and production guard function
         run: |
           psql -X -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/candidate_race_ci_schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261027210000_learning_candidate_revision_cas.sql
           psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql
       - name: Install backend dependencies for real receipt recovery
         run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
@@ -84,3 +93,13 @@ jobs:
           done
           node supabase/tests/real_proposal_restart_worker_ci.mjs restored
           node supabase/tests/real_proposal_restart_db_ci.mjs verify
+      - name: Recover after Skill COMMIT before Candidate PROMOTED
+        run: |
+          node supabase/tests/real_skill_candidate_gap_db_ci.mjs seed
+          for attempt in $(seq 1 6); do
+            node supabase/tests/real_skill_candidate_gap_worker_ci.mjs offline
+          done
+          node supabase/tests/real_skill_candidate_gap_db_ci.mjs pending
+          node supabase/tests/real_skill_candidate_gap_worker_ci.mjs recover
+          node supabase/tests/real_skill_candidate_gap_worker_ci.mjs replay
+          node supabase/tests/real_skill_candidate_gap_db_ci.mjs final
