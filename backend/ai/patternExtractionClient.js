@@ -204,7 +204,7 @@ export async function requestPatternExtractionAI({
 
                     ]
 
-                },{signal});
+                },{signal,maxRetries:0});
 
         },
 
