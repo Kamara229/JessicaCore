@@ -244,9 +244,14 @@ export async function extractExperiencePattern({
 
     evidence = null,
 
-    metrics = {}
+    metrics = {},
+    signal = null,
+    request = requestPatternExtraction
 
 } = {}) {
+    if(signal?.aborted){
+        return buildFailureResult({stage:"cancelled",reason:"Pattern extraction cancelled"});
+    }
 
 
     /*
@@ -322,11 +327,15 @@ export async function extractExperiencePattern({
 
     const requestResult =
 
-        await requestPatternExtraction(
-            resolvedEvidence
+        await request(
+            resolvedEvidence,{signal}
         );
 
 
+
+    if(signal?.aborted||requestResult?.cancelled){
+        return buildFailureResult({stage:"cancelled",reason:"Pattern extraction cancelled"});
+    }
 
     if(
         !requestResult?.success
