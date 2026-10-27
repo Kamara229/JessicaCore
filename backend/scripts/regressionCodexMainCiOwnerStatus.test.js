@@ -8,9 +8,14 @@ const report="PR #58 объединён, CI в main успешен. "+
   "Далее — тест неверного owner receipt.";
 const id="85ce513b-ed15-41b3-b831-4c0fcb1247c3";
 const envelope=["JESSICA_REPLY_"+id,report,"JESSICA_END_"+id].join("\n");
+const newer="Проверил backend (5df00f9): PR #58 объединён, CI успешен, "+
+  "Supabase проверен. Codex не принимает «CI в main» и «Далее — тест»; "+
+  "правка не в main. Render требует выбора workspace. Тест пока не нужен. "+
+  "Далее — проверить owner receipt в backend.";
+
 
 test("real no-task PR handoff does not require inference provider",async()=>{
-  for(const message of [report,envelope]){
+  for(const message of [report,envelope,newer]){
     let invoked=0;
     const result=await interpretRelayTurn({message,history:[]},async()=>{
       invoked++;
