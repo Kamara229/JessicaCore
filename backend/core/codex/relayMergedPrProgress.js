@@ -25,7 +25,7 @@ export function mergedPrProgressHandoff(message) {
   const step=next[1].trim();
   if(!/^(?:проверить|проверка|добавить|закрепить|исследовать|проанализировать|продолжить|сопоставить|CI[- ]тест|тест)(?:\s|$)/iu.test(step))
     return null;
-  if(!/(?:Candidate|Proposal|Skill|PostgreSQL|Supabase|GitHub|Render|backend|\bCI\b|конкурент|транзакц|ревизи|идемпотент|атомарн)/iu.test(step))
+  if(!/(?:Candidate|Proposal|Skill|PostgreSQL|Supabase|GitHub|Render|backend|\bCI\b|конкурент|транзакц|ревизи|идемпотент|атомарн|owner\s+receipt)/iu.test(step))
     return null;
   const before=body.slice(0,next.index);
   if(!/(?:Skill|Candidate|Proposal|PostgreSQL|Supabase|ACK|worker|backend|\bCI\b)/iu.test(before))
