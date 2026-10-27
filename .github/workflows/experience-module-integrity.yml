@@ -34,6 +34,8 @@ on:
       - 'backend/scripts/regressionProposalRecoveryResult.test.js'
       - 'backend/scripts/regressionProposalRecoverySkillPublication.test.js'
       - 'backend/scripts/regressionProposalTerminalStatusCAS.test.js'
+      - 'supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql'
+      - 'supabase/tests/atomic_candidate_skill_publication_claim.sql'
       - 'backend/core/learning/proposalStorage/proposalStatusCAS.js'
       - 'backend/core/learning/proposalStorage/proposalStorageWriter.js'
       - 'backend/scripts/regressionCandidatePromotionApprovalRecovery.test.js'
