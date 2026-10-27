@@ -6,6 +6,7 @@ on:
     paths:
       - 'supabase/tests/real_candidate_publication_race_ci.test.mjs'
       - 'supabase/tests/real_skill_commit_ack_recovery_ci.test.mjs'
+      - 'supabase/tests/real_skill_readback_outage_ci.test.mjs'
       - 'supabase/tests/fixtures/candidateRacePgClient.mjs'
       - 'supabase/tests/fixtures/candidate_race_ci_schema.sql'
       - 'supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql'
@@ -15,6 +16,7 @@ on:
     paths:
       - 'supabase/tests/real_candidate_publication_race_ci.test.mjs'
       - 'supabase/tests/real_skill_commit_ack_recovery_ci.test.mjs'
+      - 'supabase/tests/real_skill_readback_outage_ci.test.mjs'
       - 'supabase/tests/fixtures/candidateRacePgClient.mjs'
       - 'supabase/tests/fixtures/candidate_race_ci_schema.sql'
       - 'supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql'
@@ -65,3 +67,5 @@ jobs:
         run: node supabase/tests/real_candidate_publication_race_ci.test.mjs
       - name: Recover real PostgreSQL commit after simulated ACK loss
         run: node supabase/tests/real_skill_commit_ack_recovery_ci.test.mjs
+      - name: Preserve uncertainty while PostgreSQL receipt readback is unavailable
+        run: node supabase/tests/real_skill_readback_outage_ci.test.mjs
