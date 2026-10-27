@@ -11,6 +11,7 @@ import {documentAnalysisNextStep} from "./relayDocumentProgress.js";
 import {releaseCiStatusHandoff} from "./relayReleaseCiStatus.js";
 import {deterministicStatusHandoff} from "./relayStatusEnvelope.js";
 import {mergedPrProgressHandoff} from "./relayMergedPrProgress.js";
+import {incidentCiStatusHandoff} from "./relayIncidentCiStatus.js";
 import {compactCodexStressProgress} from "./relayCompactStressProgress.js";
 import {interpretationFailureHandoff} from "./relayFailureHandoff.js";
 import {v2PersistenceHandoff} from "./relayV2PersistenceHandoff.js";
@@ -86,6 +87,8 @@ export async function interpretRelayTurn(input, generate) {
     if (documentReply!==null) return {action:"reply",reply:documentReply,task:"",continueThread:false};
     const releaseReply=releaseCiStatusHandoff(message);
     if (releaseReply!==null) return {action:"reply",reply:releaseReply,task:"",continueThread:false};
+    const incidentReply=incidentCiStatusHandoff(message);
+    if (incidentReply!==null) return {action:"reply",reply:incidentReply,task:"",continueThread:false};
     const mergedPrReply=mergedPrProgressHandoff(message);
     if (mergedPrReply!==null) return {action:"reply",reply:mergedPrReply,task:"",continueThread:false};
     const statusReply=deterministicStatusHandoff(message);

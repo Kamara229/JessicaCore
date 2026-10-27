@@ -6,12 +6,14 @@ on:
     paths:
       - 'backend/core/codex/**'
       - 'backend/scripts/regressionCodexMergedPrProgress.test.js'
+      - 'backend/scripts/regressionCodexIncidentCiStatus.test.js'
       - '.github/workflows/codex-relay-interpretation.yml'
   push:
     branches: [main]
     paths:
       - 'backend/core/codex/**'
       - 'backend/scripts/regressionCodexMergedPrProgress.test.js'
+      - 'backend/scripts/regressionCodexIncidentCiStatus.test.js'
       - '.github/workflows/codex-relay-interpretation.yml'
   workflow_dispatch:
 
@@ -32,6 +34,7 @@ jobs:
         run: |
           node --test \
             backend/scripts/regressionCodexMergedPrProgress.test.js \
+            backend/scripts/regressionCodexIncidentCiStatus.test.js \
             backend/scripts/regressionCodexStatusEnvelope.test.js \
             backend/scripts/regressionCodexCompactStressProgress.test.js \
             backend/scripts/regressionCodexRelay.test.js
