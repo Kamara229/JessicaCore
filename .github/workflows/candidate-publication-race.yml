@@ -7,6 +7,9 @@ on:
       - 'supabase/tests/real_candidate_publication_race_ci.test.mjs'
       - 'supabase/tests/real_skill_commit_ack_recovery_ci.test.mjs'
       - 'supabase/tests/real_skill_readback_outage_ci.test.mjs'
+      - 'supabase/tests/real_proposal_restart_db_ci.mjs'
+      - 'supabase/tests/real_proposal_restart_worker_ci.mjs'
+      - 'supabase/tests/fixtures/proposalRestartPgStatusClient.mjs'
       - 'supabase/tests/fixtures/candidateRacePgClient.mjs'
       - 'supabase/tests/fixtures/candidate_race_ci_schema.sql'
       - 'supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql'
@@ -17,6 +20,9 @@ on:
       - 'supabase/tests/real_candidate_publication_race_ci.test.mjs'
       - 'supabase/tests/real_skill_commit_ack_recovery_ci.test.mjs'
       - 'supabase/tests/real_skill_readback_outage_ci.test.mjs'
+      - 'supabase/tests/real_proposal_restart_db_ci.mjs'
+      - 'supabase/tests/real_proposal_restart_worker_ci.mjs'
+      - 'supabase/tests/fixtures/proposalRestartPgStatusClient.mjs'
       - 'supabase/tests/fixtures/candidateRacePgClient.mjs'
       - 'supabase/tests/fixtures/candidate_race_ci_schema.sql'
       - 'supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql'
@@ -69,3 +75,12 @@ jobs:
         run: node supabase/tests/real_skill_commit_ack_recovery_ci.test.mjs
       - name: Preserve uncertainty while PostgreSQL receipt readback is unavailable
         run: node supabase/tests/real_skill_readback_outage_ci.test.mjs
+      - name: Verify Proposal recovery across 8 worker process restarts
+        run: |
+          node supabase/tests/real_proposal_restart_db_ci.mjs seed
+          node supabase/tests/real_proposal_restart_worker_ci.mjs lost-ack
+          for attempt in $(seq 1 8); do
+            node supabase/tests/real_proposal_restart_worker_ci.mjs down
+          done
+          node supabase/tests/real_proposal_restart_worker_ci.mjs restored
+          node supabase/tests/real_proposal_restart_db_ci.mjs verify
