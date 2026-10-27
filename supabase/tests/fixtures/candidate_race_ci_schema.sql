@@ -1,4 +1,7 @@
 -- Isolated GitHub Actions PostgreSQL fixture; never run against production.
+-- Supabase's production migration expects its standard non-login API roles.
+CREATE ROLE anon NOLOGIN;
+CREATE ROLE authenticated NOLOGIN;
 CREATE TABLE public.learning_candidates (
   id uuid PRIMARY KEY,
   status text NOT NULL,
