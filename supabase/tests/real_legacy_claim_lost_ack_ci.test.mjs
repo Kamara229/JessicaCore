@@ -7,6 +7,7 @@ import {checkLosingCandidatePublication}
   from "../../backend/core/learning/approval/approvalPublicationConflict.js";
 import {candidateOwnerRealPgClient} from "./fixtures/candidateOwnerRealPgClient.mjs";
 import {assertIsolatedCi,sql} from "./fixtures/candidateRacePgClient.mjs";
+import {raceLegacyClaimDuringCommit} from "./fixtures/legacyClaimAckRacePg.mjs";
 
 assertIsolatedCi();
 const candidate="ea103772-d67b-4a0d-a6e7-8cc0bb3f849b";
@@ -57,14 +58,9 @@ ORDER BY version DESC LIMIT 1;
 };
 const save=async value=>{
  attempts++;
- const payload=JSON.stringify(value).replaceAll("'","''");
- const r=await sql(`
-BEGIN;
-INSERT INTO public.jessica_experience_skill_versions(skill_id,version,payload)
-VALUES('${skill}',2,'${payload}'::jsonb);
-COMMIT;
-`,"jessica-ci-legacy-claim-ack-commit");
- assert.equal(r.code,0,r.stderr);
+ await raceLegacyClaimDuringCommit({
+  candidate,owner,skill,loser,loserSkill,payload:value
+ });
  // The real transaction committed, but transport drops its ACK.
  throw Error("legacy migration commit ACK lost");
 };
