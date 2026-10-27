@@ -100,7 +100,7 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261027214000_atomic_candidate_skill_publication_claim.sql
       - name: Install backend dependencies for real receipt recovery
         run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
-      - name: Assert actual concurrent transaction serialization and uniqueness
+      - name: Assert Candidate row locking and legacy PROMOTED owner fence
         run: node supabase/tests/real_candidate_publication_race_ci.test.mjs
       - name: Recover real PostgreSQL commit after simulated ACK loss
         run: node supabase/tests/real_skill_commit_ack_recovery_ci.test.mjs
