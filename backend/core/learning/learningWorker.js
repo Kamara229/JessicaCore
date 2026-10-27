@@ -758,9 +758,13 @@ export async function processQueueItem(
          */
 
 
-        let effectiveItem =
-
-            discoveryResult.queueItem;
+        // Discovery may replace its payload, but must never replace the
+        // Queue identity or the original atomic claim epoch.
+        let effectiveItem = {
+            ...discoveryResult.queueItem,
+            id:item.id,
+            claimToken:item.claimToken||item.claim_token||null
+        };
 
 
 
