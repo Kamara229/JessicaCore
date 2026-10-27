@@ -100,6 +100,7 @@ import {saveLearningProposalOwned} from "./proposalStorage/proposalOwnedWriter.j
 import {verifyLearningQueueClaim} from "./learningQueueClaimCheck.js";
 import {runPatternDiscoveryWithHeartbeat} from "./patternDiscoveryHeartbeatRunner.js";
 import {checkPatternDiscoveryClaim} from "./patternDiscoveryClaimGuard.js";
+import {LEARNING_WORKER_CLAIM_LIMIT} from "./learningWorkerClaimBudget.js";
 
 
 
@@ -1212,7 +1213,7 @@ export async function runLearningWorker({
 
     const queueResult =
 
-        await claim();
+        await claim({limit:LEARNING_WORKER_CLAIM_LIMIT});
 
 
     if(
