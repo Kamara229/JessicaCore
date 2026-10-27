@@ -106,6 +106,6 @@ test("unchanged updated_at cannot revive a stale revision",async()=>{
 
 test("malformed revision fails closed before querying the client",async()=>{
   const db=database();
-  await assert.rejects(mutate(db,REV,undefined),/revision proof required/);
+  await assert.rejects(mutate(db,REV,null),/revision proof required/);
   assert.equal(db.writes,0);
 });
