@@ -27,6 +27,7 @@ import {
     buildFailedResult,
     markProposalApproved
 } from "./approvalResultBuilders.js";
+import {classifyApprovalPublication} from "./approvalPublicationOutcome.js";
 
 
 export async function saveApprovedSkillVersion({
@@ -39,7 +40,11 @@ export async function saveApprovedSkillVersion({
 
     autonomy
 
-}) {
+}, {
+    approve=approveAndSaveLearningProposal,
+    markApproved=markProposalApproved,
+    promote=promoteCandidateMemory
+} = {}) {
 
     let result;
 
@@ -48,7 +53,7 @@ export async function saveApprovedSkillVersion({
 
         result =
 
-            await approveAndSaveLearningProposal({
+            await approve({
 
                 proposal,
 
@@ -138,14 +143,14 @@ export async function saveApprovedSkillVersion({
 
     const persistence =
 
-        await markProposalApproved(
+        await markApproved(
             proposal
         );
 
 
     const candidateMemory =
 
-        await promoteCandidateMemory({
+        await promote({
 
             proposal,
 
@@ -166,6 +171,8 @@ export async function saveApprovedSkillVersion({
         });
 
 
+    const publication=classifyApprovalPublication(result);
+
     return {
 
         ...result,
@@ -180,7 +187,10 @@ export async function saveApprovedSkillVersion({
             false,
 
         versionCreated:
-            true,
+            publication.versionCreated,
+
+        publicationRecovered:
+            publication.publicationRecovered,
 
         status:
             APPROVAL_RESULT_STATUS.APPROVED,
