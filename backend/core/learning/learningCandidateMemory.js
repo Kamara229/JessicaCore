@@ -347,6 +347,7 @@ export async function observeLearningCandidate(
 
         const observation=await applyObservation({
             queueItemId:queueItem.id,
+            claimToken:queueItem.claimToken||queueItem.claim_token||null,
             id:exact.id,
             candidateKey,
             action:"EXACT",
@@ -452,6 +453,7 @@ export async function observeLearningCandidate(
 
         const observation=await applyObservation({
             queueItemId:queueItem.id,
+            claimToken:queueItem.claimToken||queueItem.claim_token||null,
             id:match.memory.id,
             candidateKey:match.memory.candidateKey,
             action:"SIMILARITY",
@@ -514,6 +516,7 @@ export async function observeLearningCandidate(
 
     const observation=await applyObservation({
         queueItemId:queueItem.id,
+            claimToken:queueItem.claimToken||queueItem.claim_token||null,
         id:randomUUID(),
         candidateKey,
         action:"NEW",
