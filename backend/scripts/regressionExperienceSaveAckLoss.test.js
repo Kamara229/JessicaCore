@@ -114,3 +114,59 @@ test("unconfirmed commit leaves Proposal PROCESSING for recovery; no FAILED writ
   assert.equal(result.proposalStateUpdated,false);
   assert.equal(sideEffects,0);
 });
+
+test("preflight receipt from another Skill is rejected before save",async()=>{
+  let writes=0;
+  const result=await persistExperienceSkill(experience,{
+    lookup:async()=>({skillId:"other-skill",version:3,
+      payload:{id:"other-skill",metadata:{proposalId}}}),
+    save:async()=>{writes++;return {success:true}}
+  });
+  assert.equal(result.success,false);
+  assert.equal(result.uncertain,true);
+  assert.match(result.error,/identity conflict/);
+  assert.equal(writes,0);
+});
+
+test("preflight receipt must contain a real Proposal and immutable version",async()=>{
+  for(const saved of [
+    {skillId:experience.id,version:0,payload:{...experience}},
+    {skillId:experience.id,version:1,payload:{...experience,
+      metadata:{proposalId:"unrelated-proposal"}}},
+    {skillId:experience.id,version:1,payload:{id:"different-skill",
+      metadata:{proposalId}}}
+  ]){
+    const result=await persistExperienceSkill(experience,{
+      lookup:async()=>saved,
+      save:async()=>{throw Error("Must not write")}
+    });
+    assert.equal(result.success,false);
+    assert.equal(result.uncertain,true);
+  }
+});
+
+test("unidentified Experience save ACK loss also remains uncertain",async()=>{
+  let writes=0;
+  const withoutProposal={...experience,metadata:{}};
+  const result=await persistExperienceSkill(withoutProposal,{
+    lookup:async()=>null,
+    save:async()=>{writes++;throw Error("ACK missing")}
+  });
+  assert.equal(result.success,false);
+  assert.equal(result.uncertain,true);
+  assert.equal(writes,1);
+});
+
+test("valid preflight Proposal receipt prevents a new database save",async()=>{
+  let writes=0;
+  const receipt={skillId:experience.id,version:2,
+    payload:{...experience,version:2}};
+  const result=await persistExperienceSkill(experience,{
+    lookup:async()=>receipt,
+    save:async()=>{writes++;throw Error("Should not write")}
+  });
+  assert.equal(result.success,true);
+  assert.equal(result.existing,true);
+  assert.equal(result.version,2);
+  assert.equal(writes,0);
+});

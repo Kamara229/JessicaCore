@@ -36,6 +36,7 @@ on:
       - 'backend/scripts/regressionExperienceSaveAckLoss.test.js'
       - 'backend/experience/storage/experiencePersistence/experienceWriter.js'
       - 'backend/experience/storage/experiencePersistence/experienceAckRecovery.js'
+      - 'backend/experience/storage/experiencePersistence/experienceReceiptIdentity.js'
       - 'backend/experience/learning/learningApproval.js'
       - 'backend/scripts/regressionCandidateFinalStatusIdempotency.test.js'
       - 'backend/scripts/regressionCandidateActiveSnapshot.test.js'
