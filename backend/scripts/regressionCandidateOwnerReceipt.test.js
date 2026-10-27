@@ -6,6 +6,8 @@ import {readCandidatePublicationOwner}
   from "../core/learning/approval/approvalPublicationClaimReader.js";
 import {checkLosingCandidatePublication}
   from "../core/learning/approval/approvalPublicationConflict.js";
+import {saveApprovedSkillVersion}
+  from "../core/learning/approval/approvalSkillSave.js";
 
 const candidateId="00000000-0000-4000-8000-000000000991";
 const valid={candidate_id:candidateId,proposal_id:"other",
@@ -58,4 +60,27 @@ test("a matching receipt can confirm a real losing Proposal",async()=>{
   assert.equal(result.confirmed,true);
   assert.equal(result.winningProposalId,"other");
   assert.equal(result.evidence,"atomic-publication-claim");
+});
+
+test("invalid owner evidence leaves Approval PROCESSING without FAILED write",async()=>{
+  const proposal={id:"current",action:"NEW_SKILL",confidence:0.93,
+    candidateMemory:{id:candidateId},
+    proposedExperience:{id:"skill-2",name:"Candidate Skill"}};
+  let failedWrites=0;
+  const result=await saveApprovedSkillVersion({
+    proposal,review:{valid:true},quality:{passed:true},
+    autonomy:{action:"AUTO_APPROVE",confidence:0.93}
+  },{
+    approve:async()=>({success:false,uncertain:true,error:"Skill commit uncertain"}),
+    checkPublicationConflict:args=>checkLosingCandidatePublication({
+      proposal:args.proposal,
+      readOwner:id=>readCandidatePublicationOwner(id,{
+        client:claimClient({...valid,candidate_id:"wrong-candidate"})})
+    }),
+    markFailed:async()=>{failedWrites++;throw Error("Never finalize");}
+  });
+  assert.equal(result.status,"PROCESSING");
+  assert.equal(result.deferred,true);
+  assert.equal(result.proposalStateUpdated,false);
+  assert.equal(failedWrites,0);
 });
