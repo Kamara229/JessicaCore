@@ -496,10 +496,10 @@ export async function approveAndSaveLearningProposal({
     try {
         versionState = resolveExperienceVersionState(history);
     } catch (error) {
-        return buildFailure({
-            stage: "history",
-            proposal,
-            error: error?.message || "Experience version history is inconsistent"
+        // A partial or damaged immutable history read does not prove that
+        // Skill publication failed. Never terminally FAIL a Proposal here.
+        return deferLearningReceiptVerification({
+            stage:"history",proposal,error
         });
     }
 
