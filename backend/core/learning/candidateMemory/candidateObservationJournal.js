@@ -4,16 +4,17 @@ import {getSupabaseClient} from "../../../storage/supabaseClient.js";
 // On replay return persisted state, never apply the merge a second time.
 export async function applyCandidateObservation({
   queueItemId,id,candidateKey,action,skillId=null,category="general",
-  candidate,metadata={},expectedOccurrences=null,client=null
+  candidate,metadata={},expectedOccurrences=null,claimToken=null,client=null
 }={}){
-  if(!queueItemId||!id||!candidateKey||
+  if(!queueItemId||!claimToken||!id||!candidateKey||
      !["NEW","EXACT","SIMILARITY"].includes(action)||
      !candidate||typeof candidate!=="object"||Array.isArray(candidate)){
-    throw new Error("Candidate observation requires queue ID and candidate identity");
+    throw new Error("Candidate observation requires current Queue claim token and candidate identity");
   }
   const {data,error}=await (client||getSupabaseClient()).rpc(
-    "apply_candidate_memory_observation",{
+    "apply_candidate_memory_observation_owned",{
       p_queue_item_id:queueItemId,
+      p_claim_token:claimToken,
       p_candidate_id:id,
       p_candidate_key:candidateKey,
       p_action:action,
