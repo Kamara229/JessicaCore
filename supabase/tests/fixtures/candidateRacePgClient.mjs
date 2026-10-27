@@ -10,10 +10,10 @@ export function assertIsolatedCi(){
   }
 }
 
-export function sql(query, app="jessica-ci-observer"){
+export function sql(query, app="jessica-ci-observer", envOverride={}){
   return new Promise((resolve,reject)=>{
     const child=spawn("psql",["-X","-A","-t","-q","-v","ON_ERROR_STOP=1","-f","-"],{
-      env:{...process.env,PGAPPNAME:app},stdio:["pipe","pipe","pipe"]
+      env:{...process.env,...envOverride,PGAPPNAME:app},stdio:["pipe","pipe","pipe"]
     });
     let stdout="",stderr="";
     child.stdout.on("data",data=>{stdout+=data;});
