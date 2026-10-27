@@ -24,6 +24,11 @@ on:
       - 'backend/scripts/regressionLearningQueueOwnerFencing.test.js'
       - 'backend/scripts/regressionCandidateOwnerTokenFence.test.js'
       - 'backend/scripts/regressionPatternDiscoveryLeaseExpiry.test.js'
+      - 'backend/scripts/regressionPatternDiscoveryHeartbeat.test.js'
+      - 'backend/scripts/fixtures/patternHeartbeatLeaseClient.js'
+      - 'backend/core/learning/learningQueueHeartbeat.js'
+      - 'backend/core/learning/patternDiscoveryHeartbeatRunner.js'
+      - 'supabase/migrations/20261027002500_atomic_queue_claim_heartbeat.sql'
       - 'backend/scripts/fixtures/patternDiscoveryLeaseHarness.js'
       - 'backend/core/learning/learningQueueClaimCheck.js'
       - 'supabase/migrations/20261027002000_post_pattern_discovery_claim_checkpoint.sql'
@@ -87,7 +92,7 @@ jobs:
       - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
       - name: Run module packing, hydration and real DB readback regressions
         id: modular_tests
-        run: node --test backend/scripts/regressionModularExperienceStorage.test.js backend/scripts/regressionModularExperienceIntegrity.test.js backend/scripts/regressionModularExperienceReadback.test.js backend/scripts/regressionMixedActiveExperienceVersions.test.js backend/scripts/regressionSkillStorageExecutionGate.test.js backend/scripts/regressionSkillStorageTraceLearningGate.test.js backend/scripts/regressionModularVerifiedLearningTrace.test.js backend/scripts/regressionMultiSkillChildLearningIsolation.test.js backend/scripts/regressionMultiSkillLearningReplayIdempotency.test.js backend/scripts/regressionWorkerProposalReplayIdempotency.test.js backend/scripts/regressionConcurrentWorkerAtomicQueueClaim.test.js backend/scripts/regressionStaleLearningQueueRecovery.test.js backend/scripts/regressionCandidateObservationJournal.test.js backend/scripts/regressionCandidateBeforeProposalCrashResume.test.js backend/scripts/regressionProposalSaveRetryLimit.test.js backend/scripts/regressionLearningQueueOwnerFencing.test.js backend/scripts/regressionCandidateOwnerTokenFence.test.js backend/scripts/regressionPatternDiscoveryLeaseExpiry.test.js
+        run: node --test backend/scripts/regressionModularExperienceStorage.test.js backend/scripts/regressionModularExperienceIntegrity.test.js backend/scripts/regressionModularExperienceReadback.test.js backend/scripts/regressionMixedActiveExperienceVersions.test.js backend/scripts/regressionSkillStorageExecutionGate.test.js backend/scripts/regressionSkillStorageTraceLearningGate.test.js backend/scripts/regressionModularVerifiedLearningTrace.test.js backend/scripts/regressionMultiSkillChildLearningIsolation.test.js backend/scripts/regressionMultiSkillLearningReplayIdempotency.test.js backend/scripts/regressionWorkerProposalReplayIdempotency.test.js backend/scripts/regressionConcurrentWorkerAtomicQueueClaim.test.js backend/scripts/regressionStaleLearningQueueRecovery.test.js backend/scripts/regressionCandidateObservationJournal.test.js backend/scripts/regressionCandidateBeforeProposalCrashResume.test.js backend/scripts/regressionProposalSaveRetryLimit.test.js backend/scripts/regressionLearningQueueOwnerFencing.test.js backend/scripts/regressionCandidateOwnerTokenFence.test.js backend/scripts/regressionPatternDiscoveryLeaseExpiry.test.js backend/scripts/regressionPatternDiscoveryHeartbeat.test.js
       - name: Publish modular Skill hydration result for GitHub connector
         if: always()
         env:
