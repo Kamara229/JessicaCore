@@ -97,6 +97,7 @@ import {
 import {checkLearningWorkerReplay} from "./workerReplayGuard.js";
 import {recordProposalSaveFailure} from "./proposalSaveRetry.js";
 import {saveLearningProposalOwned} from "./proposalStorage/proposalOwnedWriter.js";
+import {verifyLearningQueueClaim} from "./learningQueueClaimCheck.js";
 
 
 
@@ -552,6 +553,8 @@ export async function processQueueItem(
     item,
     {
       replayGuard=checkLearningWorkerReplay,
+      prepareDiscoveryStep=prepareDiscovery,
+      verifyClaim=verifyLearningQueueClaim,
       prepareMemory=prepareCandidateMemory,
       proposalSaver=saveLearningProposal,
       proposalFailureHandler=recordProposalSaveFailure,
@@ -602,10 +605,28 @@ export async function processQueueItem(
 
         const discoveryResult =
 
-            await prepareDiscovery(
+            await prepareDiscoveryStep(
                 item
             );
 
+
+        // The AI Pattern Extractor may run past the lease deadline.
+        // Re-check ownership after await and before touching Candidate
+        // Memory, Proposal storage, or any Queue status. Write RPCs are
+        // independently fenced against races after this read checkpoint.
+        if(item.action==="PATTERN_DISCOVERY"){
+            const ownership=await verifyClaim({
+                queueItemId:item.id,
+                claimToken:item.claimToken||item.claim_token||null
+            });
+            if(ownership?.valid!==true){
+                return {
+                    success:false,stale:ownership?.stale===true,
+                    queueItemId:item.id,
+                    reason:ownership?.reason||"Post-discovery Queue ownership unverified"
+                };
+            }
+        }
 
         if(
             !discoveryResult.success
