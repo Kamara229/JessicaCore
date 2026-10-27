@@ -45,9 +45,17 @@ test("large or excessively headed source explicitly reports incomplete indexing"
     assert.ok(over.sections.length<=129);
     const gigantic="ГЛАВА 1. Тема\n"+"Содержание\n".repeat(210000);
     const partial=buildDocumentSectionIndex(gigantic);
-    assert.equal(partial.complete,false);
-    assert.ok(partial.indexedChars<=2_000_000);
+    assert.equal(partial.complete,false,"too many headings must mark index incomplete");
+    assert.ok(partial.sections.length<=129);
+    assert.equal(partial.indexedChars,gigantic.length,
+        "a heading cap does not truncate a source shorter than scan budget");
     assert.equal(partial.sourceChars,gigantic.length);
+    const tooLarge="Без заголовков\n".repeat(350000);
+    const truncated=buildDocumentSectionIndex(tooLarge);
+    assert.equal(truncated.complete,false,"a scan-budget overflow must be explicit");
+    assert.ok(truncated.indexedChars<=4_500_000);
+    assert.ok(truncated.indexedChars<tooLarge.length);
+    assert.equal(truncated.sourceChars,tooLarge.length);
 });
 
 test("preface and non-heading lines are covered in ordered offsets",()=>{
