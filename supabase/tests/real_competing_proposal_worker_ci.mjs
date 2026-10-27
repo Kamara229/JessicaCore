@@ -61,13 +61,12 @@ WHERE candidate_id='${candidateId}' LIMIT 1;
 const markFailed=async ({proposal:p,reason})=>{
   assert.equal(p.id,proposalId);
   assert.match(reason,/another Proposal/);
-  const r=await sql(`
-UPDATE public.learning_proposals SET status='FAILED',
- processing_at=NULL WHERE id='${proposalId}' AND status='PROCESSING'
-RETURNING status;
-`);
-  assert.equal(r.code,0,r.stderr);
-  return {persistence:{success:r.stdout==="FAILED"},status:"FAILED"};
+  // The same production terminal CAS must recognize already FAILED status.
+  const persistence=await transitionProposalStatus({
+    client:proposalStatusClient("restored",p.id),id:p.id,
+    status:"FAILED",payload:buildProposalStatusUpdate("FAILED")
+  });
+  return {persistence,status:"FAILED"};
 };
 const result=await saveApprovedSkillVersion({
   proposal,review:{valid:true},quality:{passed:true},
@@ -100,5 +99,11 @@ if(result.success){
   assert.equal(result.status,"FAILED");
   assert.equal(result.proposalStateUpdated,true);
   assert.equal(result.winningProposalId!==proposalId,true);
-  console.log("COMPETING_LOSER="+suffix);
+  if(result.persistence?.existing===true){
+    assert.equal(result.persistence.updated,false);
+    console.log("COMPETING_LOSER_REPLAY="+suffix);
+  }else{
+    assert.equal(result.persistence?.updated,true);
+    console.log("COMPETING_LOSER="+suffix);
+  }
 }
