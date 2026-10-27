@@ -5,7 +5,8 @@ CREATE ROLE authenticated NOLOGIN;
 CREATE TABLE public.learning_candidates (
   id uuid PRIMARY KEY,
   status text NOT NULL,
-  metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE public.learning_proposals (
   id text PRIMARY KEY,
