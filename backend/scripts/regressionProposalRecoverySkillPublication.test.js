@@ -38,7 +38,9 @@ test("approval recovery after saved Experience and lost status ACK never reports
     }
   };
   const first=await saveApprovedSkillVersion(context,deps);
-  assert.equal(first.success,true);
+  assert.equal(first.success,false);
+  assert.equal(first.deferred,true);
+  assert.equal(first.status,"PROCESSING");
   assert.equal(first.versionCreated,true);
   assert.equal(first.publicationRecovered,false);
   assert.equal(first.proposalStateUpdated,false);
