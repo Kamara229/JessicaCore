@@ -27,7 +27,7 @@ UPDATE public.learning_proposals SET status='${finalStatus}',
 RETURNING row_to_json(learning_proposals)::text;
 `,"jessica-proposal-status-update");
           if(result.code!==0)return {data:null,error:{message:result.stderr}};
-          if(result.stdout&&phase==="lost-ack")
+          if(result.stdout&&["lost-ack","lost-ack-readable"].includes(phase))
             return {data:null,error:{message:"Proposal COMMIT confirmed; ACK dropped"}};
           return {data:result.stdout?JSON.parse(result.stdout):null,error:null};
         }
@@ -37,7 +37,7 @@ SELECT row_to_json(t)::text FROM (
  FROM public.learning_proposals WHERE id='${proposalId}'
 ) t;
 `,"jessica-proposal-readback",
-          phase==="restored"?{}:{PGPORT:"1"});
+          ["restored","lost-ack-readable"].includes(phase)?{}:{PGPORT:"1"});
         return result.code===0
           ? {data:result.stdout?JSON.parse(result.stdout):null,error:null}
           : {data:null,error:{message:"Proposal readback unavailable"}};
