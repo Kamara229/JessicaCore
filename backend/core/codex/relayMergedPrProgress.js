@@ -23,7 +23,7 @@ export function mergedPrProgressHandoff(message) {
   const next=/(?:^|[.!?]\s+)(?:Следующий\s+шаг|Далее)\s*[—–:-]\s*([^.!?]{8,190})\.?$/iu.exec(body);
   if(!next)return null;
   const step=next[1].trim();
-  if(!/^(?:проверить|проверка|добавить|закрепить|исследовать|проанализировать|продолжить|сопоставить|CI[- ]тест)(?:\s|$)/iu.test(step))
+  if(!/^(?:проверить|проверка|добавить|закрепить|исследовать|проанализировать|продолжить|сопоставить|CI[- ]тест|тест)(?:\s|$)/iu.test(step))
     return null;
   if(!/(?:Candidate|Proposal|Skill|PostgreSQL|Supabase|GitHub|Render|backend|\bCI\b|конкурент|транзакц|ревизи|идемпотент|атомарн)/iu.test(step))
     return null;
