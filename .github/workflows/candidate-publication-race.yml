@@ -11,6 +11,7 @@ on:
       - 'supabase/tests/real_proposal_restart_worker_ci.mjs'
       - 'supabase/tests/real_skill_candidate_gap_db_ci.mjs'
       - 'supabase/tests/real_skill_candidate_gap_worker_ci.mjs'
+      - 'supabase/tests/real_parallel_proposal_recovery_ci.test.mjs'
       - 'supabase/tests/fixtures/candidateFinalPgClient.mjs'
       - 'supabase/tests/fixtures/proposalRestartPgStatusClient.mjs'
       - 'supabase/tests/fixtures/candidateRacePgClient.mjs'
@@ -28,6 +29,7 @@ on:
       - 'supabase/tests/real_proposal_restart_worker_ci.mjs'
       - 'supabase/tests/real_skill_candidate_gap_db_ci.mjs'
       - 'supabase/tests/real_skill_candidate_gap_worker_ci.mjs'
+      - 'supabase/tests/real_parallel_proposal_recovery_ci.test.mjs'
       - 'supabase/tests/fixtures/candidateFinalPgClient.mjs'
       - 'supabase/tests/fixtures/proposalRestartPgStatusClient.mjs'
       - 'supabase/tests/fixtures/candidateRacePgClient.mjs'
@@ -103,3 +105,5 @@ jobs:
           node supabase/tests/real_skill_candidate_gap_worker_ci.mjs recover
           node supabase/tests/real_skill_candidate_gap_worker_ci.mjs replay
           node supabase/tests/real_skill_candidate_gap_db_ci.mjs final
+      - name: Race two real PostgreSQL Approval recovery workers
+        run: node supabase/tests/real_parallel_proposal_recovery_ci.test.mjs
