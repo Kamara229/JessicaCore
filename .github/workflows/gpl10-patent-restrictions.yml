@@ -1,0 +1,30 @@
+name: GPL10 Patent Restrictions Regression
+on:
+  pull_request:
+    paths:
+      - "backend/core/composer/gpl10PatentRestrictions.js"
+      - "backend/core/composer/nativePatentComparison.js"
+      - "backend/core/composer/nativeGplApachePatentComparison.js"
+      - "backend/scripts/regressionGpl10Apache3Restrictions.test.js"
+      - ".github/workflows/gpl10-patent-restrictions.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/core/composer/gpl10PatentRestrictions.js"
+      - "backend/core/composer/nativePatentComparison.js"
+      - "backend/core/composer/nativeGplApachePatentComparison.js"
+      - "backend/scripts/regressionGpl10Apache3Restrictions.test.js"
+      - ".github/workflows/gpl10-patent-restrictions.yml"
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionGpl10Apache3Restrictions.test.js backend/scripts/regressionLicenseRestorationVsTermination.test.js backend/scripts/regressionKnownLicenseComparison.test.js
