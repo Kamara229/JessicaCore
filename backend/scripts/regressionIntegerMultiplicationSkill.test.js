@@ -53,3 +53,25 @@ test("natural explanation text works without allowing extra operations",()=>{
   assert.equal(parseIntegerProductTask("Вычислить произведение 247 × 306 и 100 × 2"),null);
   assert.equal(parseIntegerProductTask("Вычислить произведение 247 × 306 + 10"),null);
 });
+
+test("real task runner executes decomposed product without external model",async()=>{
+  const {buildExecutionExperienceContext}=await import("../core/subtask/subtaskExperienceContext.js");
+  const {createExecutionContext}=await import("../core/execution/context/contextFactory.js");
+  const {executeTaskRunner}=await import("../core/execution/stepExecution/taskRunnerExecutor.js");
+  const decomposed="Вычислить произведение 247 × 306 и показать пошаговый расчёт умножения.";
+  const chosen=buildExecutionExperienceContext({
+    found:true,source:"experience-search",confidence:.7,experience:skill,
+    planningContext:{experience:{id:skill.id}}
+  });
+  const native=tryCreateNativeSkillPlan({
+    task:decomposed,executionExperience:chosen,planningContext:{}
+  });
+  assert.equal(native.handled,true);
+  const context=createExecutionContext({
+    task:decomposed,plan:native.plan,planningContext:{},experience:chosen
+  });
+  const result=await executeTaskRunner(context);
+  assert.equal(result.success,true,JSON.stringify(result.failure||{}));
+  assert.equal(context.runResult?.results?.[0]?.data?.product,"75582");
+  assert.equal(context.experience.used,true);
+});
