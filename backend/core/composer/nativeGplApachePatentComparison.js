@@ -4,6 +4,8 @@ const ASF="https://www.apache.org/licenses/LICENSE-2.0.txt";
 const flat=x=>String(x||"").replace(/\s+/g," ").toLowerCase();
 export function groundedGplApachePatentComparison(task,plan,run){
  const t=String(task||"");
+ // A generic patent overview is not a restoration comparison.
+ if(/(?:восстанов|возобнов|reinstat|restore)/iu.test(t))return null;
  if(!/(?:сравн|сопостав|compare)/iu.test(t)||!/(?:патент|patent)/iu.test(t)||
  !/\bgpl\s*v?3(?:\.0)?\b/iu.test(t)||!/apache(?:\s+license)?\s*2(?:\.0)?/iu.test(t)||
  plan?.intent!=="native_known_license_comparison"||
