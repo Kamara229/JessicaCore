@@ -235,3 +235,35 @@ test("reversed leap-day interval is a handled deterministic signed result withou
  assert.equal(validation.valid,true);
  assert.equal(validation.degraded,false);
 });
+
+test("Сколько дней прошло между routes backward explicit dates without AI Decomposer",async()=>{
+  const {decomposeTask}=await import("../core/taskDecomposer.js");
+  const {tryCreateNativeSkillPlan}=await import("../core/planner/nativeSkillPlanner.js");
+  const {runPlan}=await import("../core/taskRunner.js");
+  const original="Сколько дней прошло между 03.03.2024 и 29.02.2024? Исключи начальную дату, включи конечную. Покажи расчёт";
+  const decomposition=await decomposeTask({task:original,memoryContext:{skills:[]}});
+  assert.equal(decomposition.success,true);
+  assert.equal(decomposition.native,true);
+  assert.equal(decomposition.source,"native-day-range");
+  assert.deepEqual(decomposition.decomposition.subtasks.map(s=>s.text),[original]);
+  const plan=tryCreateNativeSkillPlan({task:original,executionExperience:{skills:[]}});
+  assert.equal(plan.handled,true);
+  assert.deepEqual(plan.plan.steps[0].arguments,{
+    startDate:"2024-03-03",endDate:"2024-02-29",mode:"elapsed"
+  });
+  const executed=await runPlan(plan.plan,original);
+  assert.equal(executed.success,true);
+  assert.equal(executed.results[0].data.signedDays,-3);
+  assert.match(executed.results[0].text,/-3 календарных дней/u);
+});
+
+test("elapsed-between native shortcut remains single-task and requires two valid dates",async()=>{
+  const {tryNativeDecomposition}=await import("../core/decomposer/nativeDecomposer.js");
+  const make=task=>tryNativeDecomposition({task,memoryContext:{skills:[]}});
+  for(const task of [
+    "Сколько дней прошло между 03.03.2024 и 29.02.2024? Затем найди календарь.",
+    "Сколько дней прошло между 03.03.2024 и 29.02.2024 и сколько часов?",
+    "Сколько дней прошло между 03.03.2024 и 29.02.2024 плюс ещё 5?",
+    "Сколько дней прошло между 29.02.2025 и 01.03.2025?"
+  ]) assert.notEqual(make(task)?.source,"native-day-range",task);
+});
