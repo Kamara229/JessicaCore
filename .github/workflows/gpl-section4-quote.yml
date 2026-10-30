@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - "backend/core/composer/officialGplSection4Excerpt.js"
+      - "backend/core/language/verifiedQuotePreservation.js"
+      - "backend/scripts/regressionGplSection4LocalePreservation.test.js"
       - "backend/core/planner/nativeSkillPlanner.js"
       - "backend/core/answerComposer.js"
       - "backend/core/validator/sourceContentValidator.js"
@@ -14,6 +16,8 @@ on:
     branches: [main]
     paths:
       - "backend/core/composer/officialGplSection4Excerpt.js"
+      - "backend/core/language/verifiedQuotePreservation.js"
+      - "backend/scripts/regressionGplSection4LocalePreservation.test.js"
       - "backend/core/planner/nativeSkillPlanner.js"
       - "backend/core/answerComposer.js"
       - "backend/core/validator/sourceContentValidator.js"
@@ -33,4 +37,4 @@ jobs:
         with:
           node-version: "22"
       - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
-      - run: node --test backend/scripts/regressionGplDirectOriginalSource.test.js backend/scripts/regressionGplSection4Quote.test.js backend/scripts/regressionSingleLicenseSource.test.js backend/scripts/regressionGplMitVerifiedTable.test.js backend/scripts/regressionGplMitDistributionTable.test.js
+      - run: node --test backend/scripts/regressionGplSection4LocalePreservation.test.js backend/scripts/regressionLanguageService.test.js backend/scripts/regressionGplDirectOriginalSource.test.js backend/scripts/regressionGplSection4Quote.test.js backend/scripts/regressionSingleLicenseSource.test.js backend/scripts/regressionGplMitVerifiedTable.test.js backend/scripts/regressionGplMitDistributionTable.test.js
