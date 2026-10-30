@@ -959,7 +959,7 @@ export async function validateResult(
 
         // A source-bounded answer is accepted only when the independently
         // reconstructed text matches the two newly verified full documents.
-        if (answerResult?.source === "bounded-patent-comparison" &&
+        if (["bounded-patent-comparison","bounded-license-comparison"].includes(answerResult?.source) &&
             sourceContent?.success === true && sourceContent?.valid === true) {
             const independentlyChecked = groundedPatentComparison(task, plan, taskRunResult);
             if (independentlyChecked?.text === answerResult.text) {
