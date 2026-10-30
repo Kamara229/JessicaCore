@@ -35,6 +35,7 @@
 
 // Ensure the direct native plan has its web_fetch executor registered.
 import "../../tools/webFetchTool.js";
+import "../../tools/invalidCalendarDateTool.js";
 
 import {
     validatePlan
@@ -46,6 +47,7 @@ import {
 } from "../native/dateUtils.js";
 import { extractExplicitDateRange } from "../native/explicitDateRange.js";
 import {extractSameDayRange} from "../native/sameDayRange.js";
+import {extractInvalidCalendarRange} from "../native/invalidCalendarRange.js";
 
 import { hasVerifiedDateSkillEvidence } from "./youngDateSkill.js";
 import { dateDiffMode } from "./dateDiffMode.js";
