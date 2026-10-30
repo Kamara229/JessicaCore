@@ -323,3 +323,60 @@ test("long elapsed requests still get a visible calculation",async()=>{
  const verdict=await validateResult(task,plan,run,{success:true,source:"tool",text:date.text});
  assert.equal(verdict.valid,true);
 });
+
+test("invalid leap date returns a grounded clarification without AI planner or fake arithmetic",async()=>{
+ const task="Сколько дней между 29.02.2025 и 01.03.2025? Покажи расчёт";
+ const {extractInvalidCalendarRange}=await import("../core/native/invalidCalendarRange.js");
+ const {decomposeTask}=await import("../core/taskDecomposer.js");
+ const {tryCreateNativeSkillPlan}=await import("../core/planner/nativeSkillPlanner.js");
+ const {runPlan}=await import("../core/taskRunner.js");
+ const {validateResult}=await import("../core/validator.js");
+ const range=extractInvalidCalendarRange(task);
+ assert.deepEqual(range,{
+   startDate:"29.02.2025",endDate:"01.03.2025",invalidDates:["29.02.2025"]
+ });
+ const d=await decomposeTask({task,memoryContext:{skills:[]}});
+ assert.equal(d.success,true);
+ assert.equal(d.native,true);
+ assert.equal(d.source,"native-day-range");
+ const planner=tryCreateNativeSkillPlan({task,executionExperience:{skills:[]}});
+ assert.equal(planner.handled,true);
+ assert.equal(planner.source,"native-invalid-calendar-date");
+ assert.equal(planner.plan.experience.used,false);
+ assert.equal(planner.plan.steps.length,1);
+ assert.equal(planner.plan.steps[0].tool,"invalid_calendar_date");
+ const executed=await runPlan(planner.plan,task);
+ assert.equal(executed.success,true);
+ assert.equal(executed.results.length,1);
+ assert.equal(executed.results[0].success,true);
+ assert.equal(executed.results[0].data.calendarValid,false);
+ assert.equal(executed.results[0].data.fullDays,null);
+ assert.deepEqual(executed.results[0].data.invalidDates,["29.02.2025"]);
+ assert.match(executed.results[0].text,/29\.02\.2025 не существует/u);
+ assert.match(executed.results[0].text,/Расч[её]т количества дней невозможен/u);
+ assert.doesNotMatch(executed.results[0].text,/прошло \d+ полных/u);
+ const check=await validateResult(task,planner.plan,executed,{
+   success:true,source:"tool",text:executed.results[0].text
+ });
+ assert.equal(check.valid,true);
+ assert.equal(check.degraded,false);
+});
+test("calendar guard rejects false positives, extra dates, compound tasks and valid leap dates",async()=>{
+ const {extractInvalidCalendarRange}=await import("../core/native/invalidCalendarRange.js");
+ assert.equal(extractInvalidCalendarRange("Сколько дней между 29.02.2024 и 01.03.2024? Покажи расчёт"),null);
+ const leap=extractInvalidCalendarRange("Сколько дней между 29 февраля 2025 и 1 марта 2025? Покажи расчёт");
+ assert.deepEqual(leap?.invalidDates,["29 февраля 2025"]);
+ assert.deepEqual(extractInvalidCalendarRange("Сколько дней между 2025-02-29 и 2025-03-01? Покажи расчёт")?.invalidDates,
+   ["2025-02-29"]);
+ for(const task of [
+  "Сколько дней между 29.02.2025 и 01.03.2025? Затем проверь официальный календарь.",
+  "Сколько дней между 29.02.2025 и 01.03.2025 и сколько часов?",
+  "Сколько дней между 29.02.2025 и 01.03.2025? Покажи расчёт для 01.03.2026",
+  "Сколько дней между 29.02.2025 и 01.03.2025? Подскажи погоду."
+ ]) assert.equal(extractInvalidCalendarRange(task),null,task);
+ const {tryCreateNativeSkillPlan}=await import("../core/planner/nativeSkillPlanner.js");
+ assert.equal(tryCreateNativeSkillPlan({
+  task:"Сколько дней между 28.02.2025 и 01.03.2025? Покажи расчёт",
+  executionExperience:{skills:[]}
+ }).plan.steps[0].tool,"date_diff");
+});
