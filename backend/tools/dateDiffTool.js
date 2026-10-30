@@ -27,6 +27,7 @@ import {
 } from "../core/native/dateUtils.js";
 
 import {formatDateDifference} from "./dateDiffResultText.js";
+import {explainBackwardElapsed} from "./dateDiffBackwardElapsedText.js";
 
 
 const DAY_MS =
@@ -121,53 +122,20 @@ function executeDateDiff(
         );
 
 
-    if(
-        mode === "elapsed"
-        &&
-        signedDays < 0
-    ){
-
+    if(mode === "elapsed" && signedDays < 0){
         return {
-
-            success:
-                false,
-
-            needsClarification:
-                false,
-
-            text:
-
-                (
-                    "Конечная дата "
-                    +
-                    end.iso
-                    +
-                    " раньше начальной даты "
-                    +
-                    start.iso
-                    +
-                    ". Нельзя утверждать, что между ними уже прошло положительное число дней в заданном направлении."
-                ),
-
-            data: {
-
-                startDate:
-                    start.iso,
-
-                endDate:
-                    end.iso,
-
+            success:true,
+            needsClarification:false,
+            text:explainBackwardElapsed(start.iso,end.iso,signedDays),
+            data:{
+                startDate:start.iso,
+                endDate:end.iso,
                 signedDays,
-
+                fullDays:null,
                 mode,
-
-                chronologyValid:
-                    false
-
+                chronologyValid:false
             }
-
         };
-
     }
 
 
