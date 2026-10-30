@@ -11,7 +11,7 @@ export function compactJessicaTest(message) {
     if (/(?:не\s+отправляй|не\s+выполняй|не\s+запускай|не\s+повторяй)/iu.test(body)) return null;
     // Accept both natural word orders and a line break after the colon.
     // The quoted task stays verbatim; no inferred test or provider call.
-    const pattern = /(?:^|[^\p{L}\p{N}])(?:В\s+обычном\s+чате(?:\s+(?:Jessica|Джессик[аи]))?\s+(?:отправь|повтори\s+тест)|Повтори\s+тест\s+в\s+обычном\s+чате\s+(?:Jessica|Джессик[аи])|Повтори\s+в\s+обычном\s+чате\s+(?:Jessica|Джессик[аи])|Отправь\s+в\s+обычный\s+чат\s+(?:Jessica|Джессик[аи])|Тест\s+в\s+обычном\s+чате|Следующий\s+тест\s+в\s+(?:обычном\s+чате\s+)?(?:Jessica|Джессик[аи]))\s*:\s*«([^»\n]{8,2500})»/giu;
+    const pattern = /(?:^|[^\p{L}\p{N}])(?:В\s+обычном\s+чате(?:\s+(?:Jessica|Джессик[аи]))?\s+(?:отправь|повтори(?:\s+тест)?)|Повтори\s+тест\s+в\s+обычном\s+чате\s+(?:Jessica|Джессик[аи])|Повтори\s+в\s+обычном\s+чате\s+(?:Jessica|Джессик[аи])|Отправь\s+в\s+обычный\s+чат\s+(?:Jessica|Джессик[аи])|Тест\s+в\s+обычном\s+чате|Следующий\s+тест\s+в\s+(?:обычном\s+чате\s+)?(?:Jessica|Джессик[аи]))\s*:\s*«([^»\n]{8,2500})»/giu;
     const matches = [...body.matchAll(pattern)];
     if (matches.length !== 1) return null;
     const task = matches[0][1].trim();
