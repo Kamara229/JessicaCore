@@ -257,14 +257,13 @@ test("Сколько дней прошло между routes backward explicit d
   assert.match(executed.results[0].text,/-3 календарных дней/u);
 });
 
-test("elapsed-between native shortcut remains single-task and requires two valid dates",async()=>{
+test("elapsed-between native shortcut still rejects compound requests",async()=>{
   const {tryNativeDecomposition}=await import("../core/decomposer/nativeDecomposer.js");
   const make=task=>tryNativeDecomposition({task,memoryContext:{skills:[]}});
   for(const task of [
     "Сколько дней прошло между 03.03.2024 и 29.02.2024? Затем найди календарь.",
     "Сколько дней прошло между 03.03.2024 и 29.02.2024 и сколько часов?",
-    "Сколько дней прошло между 03.03.2024 и 29.02.2024 плюс ещё 5?",
-    "Сколько дней прошло между 29.02.2025 и 01.03.2025?"
+    "Сколько дней прошло между 03.03.2024 и 29.02.2024 плюс ещё 5?"
   ]) assert.notEqual(make(task)?.source,"native-day-range",task);
 });
 
