@@ -267,3 +267,59 @@ test("elapsed-between native shortcut remains single-task and requires two valid
     "Сколько дней прошло между 29.02.2025 и 01.03.2025?"
   ]) assert.notEqual(make(task)?.source,"native-day-range",task);
 });
+
+test("absolute backward date difference includes explicitly requested calculation",async()=>{
+ const task="Сколько дней между 03.03.2024 и 29.02.2024? Рассчитай абсолютную разницу дат, независимо от их порядка. Покажи расчёт";
+ const {tryCreateNativeSkillPlan}=await import("../core/planner/nativeSkillPlanner.js");
+ const {runPlan}=await import("../core/taskRunner.js");
+ const {validateResult}=await import("../core/validator.js");
+ const planned=tryCreateNativeSkillPlan({task,executionExperience:{skills:[]}});
+ assert.equal(planned.handled,true);
+ assert.deepEqual(planned.plan.steps[0].arguments,{
+   startDate:"2024-03-03",endDate:"2024-02-29",mode:"difference"
+ });
+ const executed=await runPlan(planned.plan,task);
+ assert.equal(executed.success,true);
+ const actual=executed.results[0];
+ assert.equal(actual.success,true);
+ assert.equal(actual.data.fullDays,3);
+ assert.equal(actual.data.signedDays,-3);
+ assert.match(actual.text,/Расч[её]т:/u);
+ assert.match(actual.text,/\|2024-02-29 − 2024-03-03\| = 3 полных дня/u);
+ const ok=await validateResult(task,planned.plan,executed,
+   {success:true,source:"tool",text:actual.text});
+ assert.equal(ok.valid,true);
+ assert.equal(ok.degraded,false);
+ const incomplete="Между 2024-03-03 и 2024-02-29 3 полных дня.";
+ const no=await validateResult(task,planned.plan,executed,
+   {success:true,source:"tool",text:incomplete});
+ assert.equal(no.valid,false);
+ assert.equal(no.failureScope,"presentation");
+ const {missingNativeDateExplanation}=await import("../core/learning/nativeDateExplanationEvidence.js");
+ const trace={task,executedTools:["date_diff"],result:{text:incomplete}};
+ assert.equal(missingNativeDateExplanation(trace),true);
+ assert.equal(missingNativeDateExplanation({...trace,result:{text:actual.text}}),false);
+ const forward=await executeTool("date_diff",{
+   startDate:"2024-02-29",endDate:"2024-03-03",mode:"difference"
+ });
+ assert.equal(forward.data.fullDays,3);
+ assert.match(forward.text,/Расч[её]т:/u);
+ const equal=await executeTool("date_diff",{
+   startDate:"2024-02-29",endDate:"2024-02-29",mode:"difference"
+ });
+ assert.equal(equal.data.fullDays,0);
+ assert.match(equal.text,/\|2024-02-29 − 2024-02-29\| = 0 полных дней/u);
+});
+
+test("long elapsed requests still get a visible calculation",async()=>{
+ const task="Сколько дней между 09.10.2026 и 23.10.2026? Исключи начальную дату, включи конечную. Покажи расчёт";
+ const {tryCreateNativeSkillPlan}=await import("../core/planner/nativeSkillPlanner.js");
+ const {validateResult}=await import("../core/validator.js");
+ const plan=tryCreateNativeSkillPlan({task,executionExperience:{skills:[]}}).plan;
+ const date=await executeTool("date_diff",plan.steps[0].arguments);
+ assert.equal(date.data.fullDays,14);
+ assert.match(date.text,/Расч[её]т: \(2026-10-23 − 2026-10-09\) = 14 полных календарных дней/u);
+ const run={success:true,results:[{...date,tool:"date_diff"}]};
+ const verdict=await validateResult(task,plan,run,{success:true,source:"tool",text:date.text});
+ assert.equal(verdict.valid,true);
+});

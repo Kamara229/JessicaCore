@@ -226,3 +226,23 @@ test("zero-day explanation next step never consumes Codex interpreter quota",asy
  const parser=(await import("../core/codex/relayPendingDateExplanation.js")).pendingZeroDayExplanationHandoff;
  assert.equal(parser(ambiguous),null);
 });
+
+test("no-test missing absolute calculation directive bypasses Codex quota",async()=>{
+ const id="df5ca57f-ee5b-45a2-950b-4c1c8d37113d";
+ const body="Число 3 верное, но расчёт отсутствует. Следующий шаг: исправить dateDiffResultText.js, добавить проверку полноты в Validator и регрессионный тест. Повторный тест пока не запускай.";
+ const message=["JESSICA_REPLY_"+id,body,"JESSICA_END_"+id].join("\n");
+ let calls=0;
+ const result=await interpretRelayTurn({message,history:[]},async()=>{
+   calls++;throw Error("429 exhausted provider quota");
+ });
+ assert.equal(calls,0);
+ assert.equal(result.action,"reply");
+ assert.equal(result.task,"");
+ assert.equal(result.continueThread,false);
+ assert.match(result.reply,/расч[её]т/u);
+ assert.match(result.reply,/не запускаю/u);
+ const {pendingAbsoluteDateFix}=await import("../core/codex/relayPendingAbsoluteDateFix.js");
+ assert.equal(pendingAbsoluteDateFix(message.replace("Повторный тест пока не запускай.",
+    "В обычном чате Jessica отправь: «Сколько будет 3 плюс 4?»")),null);
+ assert.equal(pendingAbsoluteDateFix("Выполни тест в обычном чате"),null);
+});
