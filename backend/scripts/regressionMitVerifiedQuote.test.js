@@ -71,3 +71,20 @@ test("MIT source guards fail closed instead of triggering repeated replans",asyn
   assert.equal(verdict.shouldRetry,false);
  }
 });
+
+test("final validator accepts verified original without lossy AI claim snippets",async()=>{
+ const {validateResult}=await import("../core/validator.js");
+ const plan=buildNativeSingleLicensePlan(task);
+ const source=await fetchSpdxMitText(fetched);
+ const run={results:[{tool:"web_fetch",...source}]};
+ const reply=extractMitCopyrightNotice(task,plan,run);
+ assert.equal(reply.source,"bounded-mit-notice-excerpt");
+ const verdict=await validateResult(task,plan,run,reply);
+ assert.equal(verdict.valid,true,verdict.reason);
+ assert.equal(verdict.validationMode,"bounded-primary-text");
+ assert.equal(verdict.degraded,false);
+ const corrupt={...reply,text:reply.text.replace("permission notice","permission text")};
+ const rejected=await validateResult(task,plan,run,corrupt);
+ assert.equal(rejected.valid,false);
+ assert.equal(rejected.shouldRetry,false);
+});
