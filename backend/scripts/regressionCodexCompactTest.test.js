@@ -188,3 +188,21 @@ test("repeat in ordinary Jessica chat parses a quoted single task",async()=>{
  assert.equal(compactJessicaTest("Не повторяй. "+message),null);
  assert.equal(compactJessicaTest(message+" Повтори в обычном чате Jessica: «Другой тест»"),null);
 });
+
+test("exact PR102 repeated zero-day test survives AI interpreter HTTP 429",async()=>{
+ const id="12949dff-dee7-4489-b094-35ee723dbd19";
+ const task="Сколько дней между 29.02.2024 и 29.02.2024? Исключи начальную дату, включи конечную. Покажи расчёт";
+ const message=[
+   "JESSICA_REPLY_"+id,
+   "Исправление PR #102 опубликовано, Render LIVE. В обычном чате Jessica повтори: «"+task+"». Передай ответ дословно.",
+   "JESSICA_END_"+id
+ ].join("\n");
+ let calls=0;
+ const result=await interpretRelayTurn({message},async()=>{
+   calls++;throw Error("429 quota exceeded");
+ });
+ assert.equal(calls,0);
+ assert.deepEqual(result,{action:"test",reply:"",task,continueThread:false});
+ assert.equal(compactJessicaTest("Не повторяй. "+message),null);
+ assert.equal(compactJessicaTest(message+" В обычном чате Jessica повтори: «Другой тест»"),null);
+});
