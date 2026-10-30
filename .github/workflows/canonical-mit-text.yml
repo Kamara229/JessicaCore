@@ -1,0 +1,27 @@
+name: Canonical MIT Primary Text
+on:
+  pull_request:
+    paths:
+      - "backend/tools/canonicalMitText.js"
+      - "backend/tools/canonicalApacheText.js"
+      - "backend/scripts/regressionCanonicalMitText.test.js"
+      - ".github/workflows/canonical-mit-text.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/tools/canonicalMitText.js"
+      - "backend/tools/canonicalApacheText.js"
+      - "backend/scripts/regressionCanonicalMitText.test.js"
+      - ".github/workflows/canonical-mit-text.yml"
+permissions:
+  contents: read
+jobs:
+  primary-text:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test backend/scripts/regressionCanonicalMitText.test.js
