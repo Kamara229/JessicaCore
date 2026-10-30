@@ -35,7 +35,12 @@ test("absolute and backward elapsed modes preserve original contracts",async()=>
     const elapsed=await executeTool("date_diff",{
         startDate:"2026-10-23",endDate:"2026-10-09",mode:"elapsed"
     });
-    assert.equal(elapsed.success,false);
+    assert.equal(elapsed.success,true);
+    assert.equal(elapsed.data.chronologyValid,false);
+    assert.equal(elapsed.data.signedDays,-14);
+    assert.equal(elapsed.data.fullDays,null);
+    assert.match(elapsed.text,/Расч[её]т:/u);
+    assert.match(elapsed.text,/-14 календарных дней/u);
 });
 
 test("Russian calendar day endings follow 1/2–4/5+ grammar, including leap day",async()=>{
@@ -202,4 +207,31 @@ test("zero-day special wording does not alter other interval modes",async()=>{
  });
  assert.equal(difference.data.fullDays,0);
  assert.doesNotMatch(difference.text,/пустой интервал/u);
+});
+
+test("reversed leap-day interval is a handled deterministic signed result without AI replanning",async()=>{
+ const task="Сколько дней прошло между 03.03.2024 и 29.02.2024? Исключи начальную дату, включи конечную. Покажи расчёт";
+ const {tryCreateNativeSkillPlan}=await import("../core/planner/nativeSkillPlanner.js");
+ const {runPlan}=await import("../core/taskRunner.js");
+ const {validateResult}=await import("../core/validator.js");
+ const planned=tryCreateNativeSkillPlan({task,executionExperience:{skills:[]}});
+ assert.equal(planned.handled,true);
+ assert.equal(planned.plan.steps[0].tool,"date_diff");
+ assert.deepEqual(planned.plan.steps[0].arguments,{
+   startDate:"2024-03-03",endDate:"2024-02-29",mode:"elapsed"
+ });
+ const executed=await runPlan(planned.plan,task);
+ assert.equal(executed.success,true);
+ const toolResult=executed.results[0];
+ assert.equal(toolResult.success,true);
+ assert.equal(toolResult.data.chronologyValid,false);
+ assert.equal(toolResult.data.signedDays,-3);
+ assert.equal(toolResult.data.fullDays,null);
+ assert.match(toolResult.text,/Расч[её]т:/u);
+ assert.match(toolResult.text,/-3 календарных дней/u);
+ const validation=await validateResult(task,planned.plan,executed,{
+   success:true,source:"tool",text:toolResult.text
+ });
+ assert.equal(validation.valid,true);
+ assert.equal(validation.degraded,false);
 });
