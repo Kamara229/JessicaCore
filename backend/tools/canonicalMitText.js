@@ -3,7 +3,7 @@ const URL = "https://opensource.org/license/mit";
 const END = "other dealings in the software";
 
 function readableHtml(html) {
-    const entities = {amp:"&",quot:'"\',apos:"\'",nbsp:" ",lt:"<",gt:">"};
+    const entities = {amp:"&",quot:String.fromCharCode(34),apos:String.fromCharCode(39),nbsp:" ",lt:"<",gt:">"};
     return String(html)
         .replace(/<(?:script|style|noscript)\b[^>]*>[\s\S]*?<\/(?:script|style|noscript)>/giu, " ")
         .replace(/<!--[\s\S]*?-->/gu, " ")
