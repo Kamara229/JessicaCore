@@ -36,7 +36,7 @@ export function groundedApachePatentSection(task,plan,run){
        !/for that Work shall terminate as of the date such litigation is filed/iu.test(clause))
        return null;
     const explanation=explainTermination(t,clause);
-    if(explanation) return {success:true,source:"bounded-apache-patent-section",text:explanation+"\nОфициальный URL: "+URL};
+    if(explanation) return {success:true,source:"bounded-apache-patent-section",text:"Раздел 3 — «Grant of Patent License» («Предоставление патентной лицензии»).\n"+explanation+"\nОфициальный URL: "+URL};
     if (/(?:прекращ|прекрат|иск|terminate|litigation)/iu.test(t))
         return {success:false,source:"bounded-apache-patent-section",text:"Не удалось подтвердить условия прекращения патентных прав по §3."};
     return {
