@@ -75,3 +75,43 @@ test("real task runner executes decomposed product without external model",async
   assert.equal(context.runResult?.results?.[0]?.data?.product,"75582");
   assert.equal(context.experience.used,true);
 });
+
+test("exact native answer receives proof-based validation without an AI provider",async()=>{
+  const {buildExecutionExperienceContext}=await import("../core/subtask/subtaskExperienceContext.js");
+  const {createExecutionContext}=await import("../core/execution/context/contextFactory.js");
+  const {executeTaskRunner}=await import("../core/execution/stepExecution/taskRunnerExecutor.js");
+  const {validateResult}=await import("../core/validator.js");
+  const {verifiedNativeIntegerProduct}=await import("../core/validator/nativeIntegerProductProof.js");
+  const input="Вычислить произведение 247 × 306 и показать пошаговый расчёт умножения.";
+  const chosen=buildExecutionExperienceContext({
+    found:true,source:"experience-search",confidence:.7,
+    experience:skill,planningContext:{experience:{id:skill.id}}
+  });
+  const route=tryCreateNativeSkillPlan({
+    task:input,executionExperience:chosen,planningContext:{}
+  });
+  assert.equal(route.handled,true);
+  const context=createExecutionContext({
+    task:input,plan:route.plan,planningContext:{},experience:chosen
+  });
+  assert.equal((await executeTaskRunner(context)).success,true);
+  const text=context.runResult.results[0].text;
+  const reply={success:true,source:"native-fallback",text};
+  assert.equal(verifiedNativeIntegerProduct(input,route.plan,context.runResult,reply),true);
+  const validation=await validateResult(input,route.plan,context.runResult,reply);
+  assert.equal(validation.valid,true);
+  assert.equal(validation.validationMode,"tool_direct");
+  assert.equal(validation.degraded,false);
+  assert.equal(verifiedNativeIntegerProduct(input,route.plan,context.runResult,{
+    ...reply,text:text+" чужое утверждение"
+  }),false);
+  assert.equal(verifiedNativeIntegerProduct(input,route.plan,context.runResult,{
+    ...reply,source:"web-fetch"
+  }),false);
+  assert.equal(verifiedNativeIntegerProduct(input,route.plan,{
+    ...context.runResult,results:[{...context.runResult.results[0],data:{product:"3"}}]
+  },reply),false);
+  assert.equal(verifiedNativeIntegerProduct(input,route.plan,{
+    ...context.runResult,results:[{...context.runResult.results[0],success:false}]
+  },reply),false);
+});
