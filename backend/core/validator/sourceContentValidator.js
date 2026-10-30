@@ -45,6 +45,7 @@ import {
 } from "./claim/claimEvidenceContext.js";
 import { verifyPairedSourceContent } from "./pairedSourceContent.js";
 import {extractGplSection4Excerpt,isGplSection4QuoteRequest} from "../composer/officialGplSection4Excerpt.js";
+import {extractMitCopyrightNotice,isMitCopyrightNoticeRequest} from "../composer/officialMitNoticeExcerpt.js";
 
 
 
