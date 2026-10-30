@@ -61,9 +61,9 @@ test("exact ordinary-chat Apache MIT request returns a sourced table with short 
  const planned=buildKnownLicenseComparisonPlan(request);
  const answer=groundedPatentComparison(request,planned,run());
  assert.equal(answer?.source,"bounded-patent-comparison");
- assert.match(answer.text,/^\\| Критерий \\| Apache License 2\\.0 \\| MIT License \\|/u);
- assert.match(answer.text,/\\| Патентная лицензия \\|/u);
- assert.match(answer.text,/\\| Прекращение \\|/u);
+ assert.ok(answer.text.startsWith("| Критерий | Apache License 2.0 | MIT License |"));
+ assert.ok(answer.text.includes("| Патентная лицензия |"));
+ assert.ok(answer.text.includes("| Прекращение |"));
  assert.match(answer.text,/«patent license to make, have made, use»/u);
  assert.match(answer.text,/«shall terminate as of the date such litigation is filed»/u);
  assert.match(answer.text,/«Permission is hereby granted, free of charge»/u);
