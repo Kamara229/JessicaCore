@@ -115,3 +115,19 @@ test("exact native answer receives proof-based validation without an AI provider
     ...context.runResult,results:[{...context.runResult.results[0],success:false}]
   },reply),false);
 });
+
+test("native product Composer skips AI and remains strictly proof-based",async()=>{
+ const {composeAnswer}=await import("../core/answerComposer.js");
+ const {validateResult}=await import("../core/validator.js");
+ const task="Вычисли (-247) × 306. Покажи расчёт";
+ const planned=tryCreateNativeSkillPlan({task,executionExperience:{skills:[skill]},planningContext:{}});
+ const step=planned.plan.steps[0];
+ const result=multiplyIntegers(step.arguments);
+ const run={success:true,results:[{...result,id:step.id,tool:step.tool}]};
+ const answer=await composeAnswer(task,planned.plan,run);
+ assert.equal(answer.source,"native-integer-proof");
+ assert.equal(answer.success,true);
+ assert.equal((await validateResult(task,planned.plan,run,answer)).validationMode,"tool_direct");
+ const proof=(await import("../core/composer/verifiedIntegerProductAnswer.js")).composeVerifiedIntegerProduct;
+ assert.equal(proof(task,planned.plan,{...run,results:[{...run.results[0],text:"incorrect"}]}),null);
+});

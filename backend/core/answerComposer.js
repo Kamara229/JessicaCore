@@ -58,6 +58,7 @@ import {
     getDirectAnswer
 } from "./composer/directAnswer.js";
 import { getDocumentReceipt } from "./composer/documentReceipt.js";
+import {composeVerifiedIntegerProduct} from "./composer/verifiedIntegerProductAnswer.js";
 import { requiresVerifiedComparison, usePairedComparisonContext } from "./composer/comparisonEvidencePolicy.js";
 import { guardComparisonUnknowns } from "./composer/comparisonUnknownGuard.js";
 import {mergeVerifiedComparisonRepair} from "./composer/comparisonTablePatch.js";
@@ -403,6 +404,8 @@ export async function composeAnswer(
         return directAnswer;
 
     }
+    const product=composeVerifiedIntegerProduct(task,plan,taskRunResult);
+    if(product)return product;
 
 
     const mitNotice=extractMitCopyrightNotice(task,plan,taskRunResult);
