@@ -246,3 +246,22 @@ test("no-test missing absolute calculation directive bypasses Codex quota",async
     "В обычном чате Jessica отправь: «Сколько будет 3 плюс 4?»")),null);
  assert.equal(pendingAbsoluteDateFix("Выполни тест в обычном чате"),null);
 });
+
+test("no-test calendar Composer fix stays deterministic on HTTP 429",async()=>{
+ const id="039ed77d-246c-4920-a486-36dd18f7d993";
+ const body="Ответ верный, но Composer всё ещё вызывает AI и получает HTTP 429. Следующий шаг: добавить invalid_calendar_date в directAnswer.js, исключить лишние AI-вызовы и проверить CI. Запись в GitHub заблокирована. Тест пока не запускать.";
+ const message=["JESSICA_REPLY_"+id,body,"JESSICA_END_"+id].join("\n");
+ let calls=0;
+ const decision=await interpretRelayTurn({message,history:[]},async()=>{
+  calls++;throw Error("429 exhausted provider");
+ });
+ assert.equal(calls,0);
+ assert.equal(decision.action,"reply");
+ assert.equal(decision.task,"");
+ assert.equal(decision.continueThread,false);
+ assert.match(decision.reply,/Тест пока не запускаю/u);
+ const {pendingCalendarDirectFix}=await import("../core/codex/relayPendingCalendarDirectFix.js");
+ assert.equal(pendingCalendarDirectFix(message.replace("Тест пока не запускать.",
+   "В обычном чате Jessica отправь: «Новый тест».")),null);
+ assert.equal(pendingCalendarDirectFix("В обычном чате Jessica отправь: «Новый тест»."),null);
+});
