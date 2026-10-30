@@ -9,6 +9,7 @@ import {checkProgrammingAnswerSafety} from "./validator/programmingAnswerSafety.
 import {checkMitPatentOverclaim} from "./validator/mitPatentOverclaim.js";
 import {checkOriginalEnglishQuote} from "./validator/originalEnglishQuoteGuard.js";
 import {verifiedNativeIntegerProduct} from "./validator/nativeIntegerProductProof.js";
+import {verifiedNativeIntegerProductAdd} from "./validator/nativeIntegerProductAddProof.js";
 import {dateCalculationExplanationMissing} from "./validator/dateCalculationExplanation.js";
 /*
  * =========================================================
@@ -1139,6 +1140,10 @@ export async function validateResult(
 
     // Proof requires the exact executed native step, operands and full tool text.
     // Unlike generic native-fallback, this can be validated without AI quota.
+    if (verifiedNativeIntegerProductAdd(task,plan,taskRunResult,answerResult)) {
+        return buildSuccessResult("Точное последовательное умножение и сложение проверены",
+            OUTCOME_RESULT,{validationMode:MODE_TOOL_DIRECT,degraded:false});
+    }
     if (verifiedNativeIntegerProduct(task,plan,taskRunResult,answerResult)) {
         return buildSuccessResult("Точное умножение проверено по результату инструмента",
             OUTCOME_RESULT,{validationMode:MODE_TOOL_DIRECT,degraded:false});
