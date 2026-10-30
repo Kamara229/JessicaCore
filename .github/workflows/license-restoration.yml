@@ -1,0 +1,30 @@
+name: License Restoration Comparison
+on:
+  pull_request:
+    paths:
+      - "backend/core/composer/licenseRestoration.js"
+      - "backend/core/composer/nativePatentComparison.js"
+      - "backend/core/composer/nativeGplApachePatentComparison.js"
+      - "backend/scripts/regressionLicenseRestorationVsTermination.test.js"
+      - ".github/workflows/license-restoration.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/core/composer/licenseRestoration.js"
+      - "backend/core/composer/nativePatentComparison.js"
+      - "backend/core/composer/nativeGplApachePatentComparison.js"
+      - "backend/scripts/regressionLicenseRestorationVsTermination.test.js"
+      - ".github/workflows/license-restoration.yml"
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionLicenseRestorationVsTermination.test.js backend/scripts/regressionKnownLicenseComparison.test.js
