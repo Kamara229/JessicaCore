@@ -1,0 +1,26 @@
+name: Apache Patent Section Contract
+on:
+  pull_request:
+    paths:
+      - 'backend/core/composer/groundedApachePatentSection.js'
+      - 'backend/scripts/regressionApacheTerminationSectionLabel.test.js'
+      - '.github/workflows/apache-patent-section.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/core/composer/groundedApachePatentSection.js'
+      - 'backend/scripts/regressionApacheTerminationSectionLabel.test.js'
+      - '.github/workflows/apache-patent-section.yml'
+permissions:
+  contents: read
+jobs:
+  source-section:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix backend --package-lock=false --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionApacheTerminationSectionLabel.test.js backend/scripts/regressionDateAndApacheSection.test.js
