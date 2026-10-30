@@ -1,6 +1,6 @@
 // Strict, bounded extraction of one explicit integer product from a user task.
 // Do not turn general mathematics, multiple operations or code into a native plan.
-const REQUEST = /^\s*(?:вычисли(?:ть)?(?:\\s+произведение)?|рассчитай(?:те)?(?:\\s+произведение)?|посчитай(?:те)?(?:\\s+произведение)?|сколько будет|calculate(?:\\s+the\\s+product\\s+of)?|multiply)\s*:?\s*/iu;
+const REQUEST = /^\s*(?:вычисли(?:ть)?(?:\s+произведение)?|рассчитай(?:те)?(?:\s+произведение)?|посчитай(?:те)?(?:\s+произведение)?|сколько будет|calculate(?:\s+the\s+product\s+of)?|multiply)\s*:?\s*/iu;
 const PRODUCT = /^(\(?[+-]?\d{1,15}\)?)\s*[×*xх]\s*(\(?[+-]?\d{1,15}\)?)/iu;
 
 function operand(value) {
