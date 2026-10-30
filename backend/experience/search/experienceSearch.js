@@ -54,6 +54,7 @@ import {
 } from "./experienceProfile.js";
 import {titleSpecificityAdjustment} from "./experienceSpecificity.js";
 import {selectDateSkill} from "./experienceSearch/nativeDateSkillMatch.js";
+import {selectIntegerMultiplicationSkill} from "./experienceSearch/nativeMultiplicationSkillMatch.js";
 
 
 
@@ -657,6 +658,8 @@ export function searchExperience(
 
 
     if (top.confidence < MIN_MATCH_CONFIDENCE) {
+        const multiplicationSkill=selectIntegerMultiplicationSkill(task,experiences);
+        if(multiplicationSkill)return {found:true,experience:multiplicationSkill,confidence:.70,matchedTerms:[],matchedPhrases:[],matchReasons:["native-integer-product-intent"],matchDetails:{strategy:"integer_multiplication"},ranking:publicRanking,source:"experience-search"};
         const dateSkill=selectDateSkill(task,experiences);
         if (dateSkill) return {
             found:true,
