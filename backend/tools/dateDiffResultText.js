@@ -5,6 +5,7 @@
 import {russianDayForm} from "./russianDayInflection.js";
 import {countedCalendarDays} from "./dateDiffCountedDays.js";
 import {formatZeroElapsedDays} from "./dateDiffZeroDayExplanation.js";
+import {formatAbsoluteDayExplanation} from "./dateDiffAbsoluteExplanation.js";
 
 export function formatDateDifference(start, end, days, mode) {
     if (!Number.isSafeInteger(days) || days < 0) throw Error("invalid-day-interval");
@@ -17,5 +18,5 @@ export function formatDateDifference(start, end, days, mode) {
         " не учитывается, конечная дата " + end + " учитывается." +
         countedCalendarDays(start, end, days)
     );
-    return "Между " + start + " и " + end + " " + days + " " + form.short + ".";
+    return formatAbsoluteDayExplanation(start,end,days,form.short);
 }
