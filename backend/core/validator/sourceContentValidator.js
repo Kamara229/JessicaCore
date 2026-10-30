@@ -398,6 +398,12 @@ export async function validateSourceContent(
                reason:"GPLv3 §4 was not verified in the complete canonical source"};
     }
 
+    if(isMitCopyrightNoticeRequest(task,plan)) {
+      const proof=extractMitCopyrightNotice(task,plan,taskRunResult);
+      return {success:true,valid:Boolean(proof),shouldRetry:false,
+        reason:proof?"MIT notice verified from full primary text":"MIT notice not verified in official source"};
+    }
+
     const fetchResult =
         findFetchResult(
             taskRunResult
