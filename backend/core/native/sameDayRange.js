@@ -1,10 +1,10 @@
 import {parseNativeDate} from "./dateUtils.js";
-// Preserve two explicit occurrences even when they denote the same date.
+// Preserve two explicit occurrences, including named month dates, even when equal.
 // extractNativeDates intentionally deduplicates, so it cannot represent this case.
 export function extractSameDayRange(task) {
   const text=String(task||"");
   if(text.length>500 || !/(?:между|\bс\b|\bот\b|between|from)/iu.test(text))return null;
-  const matches=[...text.matchAll(/\b(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4})\b/gu)];
+  const matches=[...text.matchAll(/(?<![\p{L}\p{N}])(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}|\d{1,2}\s+[\p{L}]+\s+\d{4}(?:\s*г(?:ода|\.)?)?)(?![\p{L}\p{N}])/giu)];
   if(matches.length!==2)return null;
   const first=parseNativeDate(matches[0][0]),second=parseNativeDate(matches[1][0]);
   if(!first || !second || first.iso!==second.iso)return null;
