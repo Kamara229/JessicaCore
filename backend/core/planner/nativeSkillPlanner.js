@@ -45,6 +45,7 @@ import {
     extractNativeDates
 } from "../native/dateUtils.js";
 import { extractExplicitDateRange } from "../native/explicitDateRange.js";
+import {extractSameDayRange} from "../native/sameDayRange.js";
 
 import { hasVerifiedDateSkillEvidence } from "./youngDateSkill.js";
 import { dateDiffMode } from "./dateDiffMode.js";
@@ -270,6 +271,7 @@ function buildDateDiffPlan({
         );
 
     const explicitRange = extractExplicitDateRange(task);
+    const sameDayRange = extractSameDayRange(task);
 
 
     let startDate =
@@ -285,6 +287,10 @@ function buildDateDiffPlan({
         startDate = explicitRange.startDate;
         endDate = explicitRange.endDate;
 
+    }
+    else if(sameDayRange){
+        startDate=sameDayRange.startDate;
+        endDate=sameDayRange.endDate;
     }
     else if(
         dependencyDates.length > 0
@@ -321,7 +327,7 @@ function buildDateDiffPlan({
         ||
         !endDate
         ||
-        startDate === endDate
+        (startDate === endDate && !sameDayRange)
     ){
 
         return null;
