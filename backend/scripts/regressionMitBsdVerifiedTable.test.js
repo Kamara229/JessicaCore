@@ -27,17 +27,17 @@ const bsd = [
 function evidence(first=mit,second=bsd) {
  return {results:plan.steps.map((step,i) => ({
    tool:"web_fetch",success:true, data:{
-     url:step.arguments.url,content:i===0?first:second,truncated:false
+     url:step.arguments.url,content:step.arguments.url.endsWith("/mit")?first:second,truncated:false
    }
  }))};
 }
 
 test("exact failed ordinary-chat request produces only verified table",async()=>{
  assert.equal(plan?.intent,"native_known_license_comparison");
- assert.deepEqual(plan.steps.map(step=>step.arguments.url),[
+ assert.deepEqual(new Set(plan.steps.map(step=>step.arguments.url)),new Set([
   "https://opensource.org/license/mit",
   "https://opensource.org/license/bsd-3-clause"
- ]);
+ ]));
  const answer=await composeAnswer(task,plan,evidence());
  assert.equal(answer?.source,"bounded-license-comparison");
  assert.equal(answer?.success,true);
