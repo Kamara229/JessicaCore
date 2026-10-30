@@ -2,10 +2,12 @@
  * Retrieve one public, fixed-host plain-text document without a renderer.
  * The URI is not user-controlled. Any failure defers to existing fetch.
  */
+import {fetchCanonicalMitText} from "./canonicalMitText.js";
+
 const APACHE_TEXT="https://www.apache.org/licenses/LICENSE-2.0.txt";
 
 export async function fetchCanonicalApacheText(url,request=globalThis.fetch){
-    if(url!==APACHE_TEXT)return null;
+    if(url!==APACHE_TEXT)return fetchCanonicalMitText(url,request);
     try{
         const response=await request(APACHE_TEXT,{
             method:"GET",redirect:"error",
