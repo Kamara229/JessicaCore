@@ -8,6 +8,7 @@ import {groundedApachePatentSection} from "./composer/groundedApachePatentSectio
 import {checkProgrammingAnswerSafety} from "./validator/programmingAnswerSafety.js";
 import {checkMitPatentOverclaim} from "./validator/mitPatentOverclaim.js";
 import {checkOriginalEnglishQuote} from "./validator/originalEnglishQuoteGuard.js";
+import {verifiedNativeIntegerProduct} from "./validator/nativeIntegerProductProof.js";
 /*
  * =========================================================
  * JESSICA RESULT VALIDATOR v4
@@ -1135,6 +1136,13 @@ export async function validateResult(
 
     }
 
+
+    // Proof requires the exact executed native step, operands and full tool text.
+    // Unlike generic native-fallback, this can be validated without AI quota.
+    if (verifiedNativeIntegerProduct(task,plan,taskRunResult,answerResult)) {
+        return buildSuccessResult("Точное умножение проверено по результату инструмента",
+            OUTCOME_RESULT,{validationMode:MODE_TOOL_DIRECT,degraded:false});
+    }
 
     /*
      * =====================================================
