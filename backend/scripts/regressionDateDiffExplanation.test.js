@@ -167,3 +167,39 @@ test("compound day tasks keep the existing decomposer, not the single-range shor
  "Сколько дней между 30.12.2026 и 03.01.2027 плюс ещё 5?"
  ]) assert.notEqual(tryNativeDecomposition({task,memoryContext:{skills:[]}}).source,"native-day-range");
 });
+
+test("same leap-day boundaries explain zero counted dates and retain verified Skill route",async()=>{
+ const task="Сколько дней между 29.02.2024 и 29.02.2024? Исключи начальную дату, включи конечную. Покажи расчёт";
+ const {tryCreateNativeSkillPlan}=await import("../core/planner/nativeSkillPlanner.js");
+ const {validateResult}=await import("../core/validator.js");
+ const planned=tryCreateNativeSkillPlan({task,executionExperience:{skills:[]}});
+ assert.equal(planned.handled,true);
+ const tool=planned.plan.steps[0];
+ assert.equal(tool.tool,"date_diff");
+ assert.deepEqual(tool.arguments,
+    {startDate:"2024-02-29",endDate:"2024-02-29",mode:"elapsed"});
+ const actual=await executeTool("date_diff",tool.arguments);
+ assert.equal(actual.success,true);
+ assert.equal(actual.data.fullDays,0);
+ assert.match(actual.text,/Расч[её]т:/u);
+ assert.match(actual.text,/пустой интервал/u);
+ assert.match(actual.text,/всего 0/u);
+ assert.doesNotMatch(actual.text,/конечная дата 2024-02-29 учитывается/u);
+ const verdict=await validateResult(task,planned.plan,
+   {success:true,results:[{...actual,tool:"date_diff",id:tool.id}]},
+   {success:true,source:"tool",text:actual.text});
+ assert.equal(verdict.valid,true);
+ assert.equal(verdict.degraded,false);
+});
+
+test("zero-day special wording does not alter other interval modes",async()=>{
+ const normal=await executeTool("date_diff",{
+   startDate:"2024-02-28",endDate:"2024-03-01",mode:"elapsed"
+ });
+ assert.match(normal.text,/2024-02-29, 2024-03-01/u);
+ const difference=await executeTool("date_diff",{
+   startDate:"2024-02-29",endDate:"2024-02-29",mode:"difference"
+ });
+ assert.equal(difference.data.fullDays,0);
+ assert.doesNotMatch(difference.text,/пустой интервал/u);
+});
