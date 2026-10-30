@@ -6,7 +6,7 @@ import {multiplyIntegers} from "../../tools/integerMultiplicationTool.js";
 export function verifiedNativeIntegerProduct(task,plan,runResult,answerResult) {
   if (plan?.intent!=="native_integer_multiplication" ||
       plan?.evidence?.mode!=="none" ||
-      !["native-fallback","tool"].includes(answerResult?.source) ||
+      !["native-fallback","tool","native-integer-proof"].includes(answerResult?.source) ||
       answerResult?.success!==true || runResult?.success!==true) return false;
   const request=parseIntegerProductTask(task);
   if (!request || plan?.steps?.length!==1 ||
