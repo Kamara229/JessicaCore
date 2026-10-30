@@ -1,0 +1,26 @@
+name: Apache BSD Table
+on:
+  pull_request:
+    paths:
+      - "backend/core/composer/verifiedApacheBsdPatentTable.js"
+      - "backend/core/composer/nativePatentComparisonBase.js"
+      - "backend/scripts/regressionBoundedPatentComparison.test.js"
+      - ".github/workflows/apache-bsd-table.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/core/composer/verifiedApacheBsdPatentTable.js"
+      - "backend/core/composer/nativePatentComparisonBase.js"
+      - "backend/scripts/regressionBoundedPatentComparison.test.js"
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionBoundedPatentComparison.test.js backend/scripts/regressionMitBsdVerifiedTable.test.js
