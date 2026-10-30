@@ -1,6 +1,6 @@
 // Strict, bounded extraction of one explicit integer product from a user task.
 // Do not turn general mathematics, multiple operations or code into a native plan.
-const REQUEST = /^\s*(?:вычисли|рассчитай|посчитай|сколько будет|calculate|multiply)\s*:?\s*/iu;
+const REQUEST = /^\s*(?:вычисли(?:ть)?(?:\s+произведение)?|рассчитай(?:те)?(?:\s+произведение)?|посчитай(?:те)?(?:\s+произведение)?|сколько будет|calculate(?:\s+the\s+product\s+of)?|multiply)\s*:?\s*/iu;
 const PRODUCT = /^(\(?[+-]?\d{1,15}\)?)\s*[×*xх]\s*(\(?[+-]?\d{1,15}\)?)/iu;
 
 function operand(value) {
@@ -19,7 +19,7 @@ export function parseIntegerProductTask(task) {
   if (a===null || b===null) return null;
   const tail=text.slice(match[0].length).trim();
   // The suffix may ask for an explanation, but not another calculation.
-  if (/[\d+×*xх/=]/iu.test(tail)) return null;
+  if (/(?:[\d+×*\/=]|(?:^|\s)[xх](?=\s|$))/iu.test(tail)) return null;
   if (tail && !/^[\s.!?,:;а-яёa-z-]+$/iu.test(tail)) return null;
-  return {a,b,showWork:/(покажи|расч[её]т|объясн|разлож|по разряд|show|explain|steps)/iu.test(tail)};
+  return {a,b,showWork:/(показ(?:ать|и)|пошагов|расч[её]т|объясн|разлож|по разряд|show|explain|steps)/iu.test(tail)};
 }

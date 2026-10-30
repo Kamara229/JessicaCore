@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'backend/core/planner/nativeSkillPlanner.js'
+      - 'backend/core/native/integerMultiplicationIntent.js'
+      - 'backend/scripts/regressionIntegerMultiplicationSkill.test.js'
       - 'backend/core/planner/knownLicenseComparison.js'
       - 'backend/scripts/regressionKnownLicenseSkillPrecedence.test.js'
       - '.github/workflows/known-license-pair.yml'
@@ -10,6 +12,8 @@ on:
     branches: [main]
     paths:
       - 'backend/core/planner/nativeSkillPlanner.js'
+      - 'backend/core/native/integerMultiplicationIntent.js'
+      - 'backend/scripts/regressionIntegerMultiplicationSkill.test.js'
       - 'backend/core/planner/knownLicenseComparison.js'
       - 'backend/scripts/regressionKnownLicenseSkillPrecedence.test.js'
       - '.github/workflows/known-license-pair.yml'
