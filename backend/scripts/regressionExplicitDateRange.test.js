@@ -126,3 +126,43 @@ test("same-day extraction rejects incomplete, invalid and extra-date ranges",asy
     "Сколько дней между 29.02.2024 и"
   ]) assert.equal(extractSameDayRange(task),null,task);
 });
+
+test("same named Russian leap-date endpoints avoid unavailable AI and return zero",async()=>{
+ const task="Сколько дней между 29 февраля 2024 и 29 февраля 2024? Исключи начальную дату, включи конечную. Покажи расчёт";
+ const {extractSameDayRange}=await import("../core/native/sameDayRange.js");
+ const {decomposeTask}=await import("../core/taskDecomposer.js");
+ const range={startDate:"2024-02-29",endDate:"2024-02-29"};
+ assert.deepEqual(extractSameDayRange(task),range);
+ assert.deepEqual(extractSameDayRange("Сколько дней между 29 февраля 2024 года и 29 февраля 2024 года?"),range);
+ assert.deepEqual(extractSameDayRange("Сколько дней между 29.02.2024 и 29 февраля 2024?"),range);
+ const decomposed=await decomposeTask({task,memoryContext:{skills:[]}});
+ assert.equal(decomposed.native,true);
+ assert.equal(decomposed.source,"native-day-range");
+ assert.equal(decomposed.decomposition.subtasks[0].text,task);
+ const skill={id:"date-difference-calculation",enabled:true,status:"published",
+   executionProgram:{mode:"native",version:1,strategy:"date_difference"},
+   metadata:{bootstrap:{executable:true}},learning:{maturityLevel:"READY"}};
+ const found=searchExperience(task,[skill]);
+ assert.equal(found.found,true);
+ assert.equal(found.experience.id,skill.id);
+ const plan=tryCreateNativeSkillPlan({task,executionExperience:{skills:[skill]}});
+ assert.equal(plan.handled,true);
+ assert.equal(plan.source,"experience:date-difference-calculation");
+ assert.deepEqual(plan.plan.steps[0].arguments,{...range,mode:"elapsed"});
+ const answer=await executeTool("date_diff",plan.plan.steps[0].arguments);
+ assert.equal(answer.success,true);
+ assert.equal(answer.data.fullDays,0);
+ assert.match(answer.text,/Расч[её]т/u);
+ assert.match(answer.text,/пустой интервал/u);
+});
+
+test("same-date named month guard rejects malformed or ambiguous inputs",async()=>{
+ const {extractSameDayRange}=await import("../core/native/sameDayRange.js");
+ for(const task of [
+  "Сколько дней между 29 февраля 2025 и 29 февраля 2025?",
+  "Сколько дней между 29 февраля 2024 и 1 марта 2024?",
+  "Сколько дней между 29 фервраля 2024 и 29 фервраля 2024?",
+  "Сколько дней между 29 февраля 2024 и 29 февраля 2024 и 1 марта 2024?",
+  "29 февраля 2024; повтор 29 февраля 2024"
+ ]) assert.equal(extractSameDayRange(task),null,task);
+});
