@@ -4,9 +4,12 @@
  */
 import {russianDayForm} from "./russianDayInflection.js";
 import {countedCalendarDays} from "./dateDiffCountedDays.js";
+import {formatZeroElapsedDays} from "./dateDiffZeroDayExplanation.js";
 
 export function formatDateDifference(start, end, days, mode) {
     if (!Number.isSafeInteger(days) || days < 0) throw Error("invalid-day-interval");
+    const special=formatZeroElapsedDays(start,end,days,mode);
+    if(special)return special;
     const form = russianDayForm(days);
     if (mode === "elapsed") return (
         "От " + start + " до " + end + " " + form.verb + " " + days +
