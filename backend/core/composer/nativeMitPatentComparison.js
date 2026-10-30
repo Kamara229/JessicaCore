@@ -1,4 +1,5 @@
 import {verifyPairedSourceContent} from "../validator/pairedSourceContent.js";
+import {apacheMitPatentTable} from "./verifiedApacheMitPatentTable.js";
 const APACHE="https://www.apache.org/licenses/LICENSE-2.0.txt",MIT="https://opensource.org/license/mit";
 const flat=s=>String(s||"").replace(/\s+/g," ").toLowerCase();
 export function groundedMitPatentComparison(task,plan,run){
@@ -34,6 +35,8 @@ export function groundedMitPatentComparison(task,plan,run){
  ];
  if(!clauses.every(q=>apache.includes(q))||!mitParts.every(q=>operative.includes(q))||
     /\bpatent\b/u.test(operative))return null;
+ const table=apacheMitPatentTable(text,a.data.content,m.data.content);
+ if(table)return {success:true,source:"bounded-patent-comparison",text:table};
  return {success:true,source:"bounded-patent-comparison",text:
   "Apache 2.0: раздел 3 прямо предоставляет патентную лицензию и предусматривает прекращение патентных прав для соответствующего Work со дня подачи иска, утверждающего прямое либо содействующее нарушение патента произведением или включённым вкладом (в том числе встречного или перекрёстного иска), но не при любом патентном споре. Источник: "+APACHE+
   "\n\nMIT License: в полном опубликованном тексте нет прямо сформулированной патентной лицензии или условия её прекращения. Текст MIT не имеет нумерованных разделов; права предоставляются в первом абзаце, далее следуют условие об уведомлениях и отказ от гарантий. Это не исключает возможных подразумеваемых патентных прав. Источник: "+MIT};

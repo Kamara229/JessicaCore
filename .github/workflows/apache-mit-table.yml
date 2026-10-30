@@ -1,0 +1,28 @@
+name: Apache MIT Table Contract
+on:
+  pull_request:
+    paths:
+      - "backend/core/composer/verifiedApacheMitPatentTable.js"
+      - "backend/core/composer/nativeMitPatentComparison.js"
+      - "backend/scripts/regressionMitPatentSource.test.js"
+      - ".github/workflows/apache-mit-table.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/core/composer/verifiedApacheMitPatentTable.js"
+      - "backend/core/composer/nativeMitPatentComparison.js"
+      - "backend/scripts/regressionMitPatentSource.test.js"
+      - ".github/workflows/apache-mit-table.yml"
+permissions:
+  contents: read
+jobs:
+  source-grounded-table:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --prefix backend --package-lock=false --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionMitPatentSource.test.js
