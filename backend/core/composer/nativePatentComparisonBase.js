@@ -1,4 +1,5 @@
 import {groundedGplMplPatentComparison} from "./nativeGplMplPatentComparison.js";
+import {patentTableApacheBsd} from "./verifiedApacheBsdPatentTable.js";
 import {groundedMitPatentQuestion} from "./nativeMitPatentQuestion.js";
 import {groundedMplMitPatentComparison} from "./nativeMplMitPatentComparison.js";
 import {groundedMplPatentComparison} from "./nativeMplPatentComparison.js";
@@ -56,6 +57,8 @@ export function groundedPatentComparison(task,plan,run) {
   ];
   if(!clauses.every(x=>a.includes(x))||!bsdTerms.every(x=>b.includes(x))||
     /\bpatent\b/u.test(b))return null;
+  const table=patentTableApacheBsd(task);
+  if(table)return {success:true,source:"bounded-patent-comparison",text:table};
   const text=[
     "Apache License 2.0: раздел 3 прямо предоставляет патентную лицензию от участников на указанные способы использования произведения, в пределах патентных притязаний, неизбежно затрагиваемых их вкладом. Пункт 3 предусматривает прекращение предоставленных по лицензии патентных прав на соответствующее произведение при подаче патентного иска, утверждающего, что произведение либо включённый вклад нарушает патент (включая встречный иск). Это не условие о любом патентном споре. Источник: "+A,
     "BSD 3-Clause: опубликованные условия 1–3 регулируют сохранение уведомлений при распространении и использование имён правообладателя и участников для продвижения. В проверенном полном тексте лицензии отсутствует прямо сформулированный патентный грант и соответствующее условие прекращения. Это не доказывает отсутствие подразумеваемых патентных прав. Источник: "+B
