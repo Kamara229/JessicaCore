@@ -434,3 +434,65 @@ test("invalid calendar input is not positive Experience or Pattern Discovery evi
  assert.equal(skipInvalidCalendarInputLearning({...trace,task:"Сколько дней между 28.04.2026 и 01.05.2026? Покажи расчёт"}),false);
  assert.equal(skipInvalidCalendarInputLearning({...trace,task:"Сколько дней между 31.04.2026 и 01.05.2026? Затем проверь календарь."}),false);
 });
+
+test("a multiply-then-add request resolves through verified native execution without AI",async()=>{
+ const task="Вычисли 123 × 456 и прибавь 7. Покажи расчёт";
+ const {decomposeTask}=await import("../core/taskDecomposer.js");
+ const {tryCreateNativeSkillPlan}=await import("../core/planner/nativeSkillPlanner.js");
+ const {runPlan}=await import("../core/taskRunner.js");
+ const {composeAnswer}=await import("../core/answerComposer.js");
+ const {validateResult}=await import("../core/validator.js");
+ const {verifiedNativeIntegerProductAdd}=await import("../core/validator/nativeIntegerProductAddProof.js");
+ const decomp=await decomposeTask({task,memoryContext:{skills:[]}});
+ assert.equal(decomp.native,true);
+ assert.equal(decomp.source,"native-integer-product-add");
+ assert.deepEqual(decomp.decomposition.subtasks.map(x=>x.text),[task]);
+ const planned=tryCreateNativeSkillPlan({task,executionExperience:{skills:[]}});
+ assert.equal(planned.handled,true);
+ assert.equal(planned.source,"native-integer-product-add");
+ assert.equal(planned.plan.experience.used,false);
+ assert.equal(planned.plan.steps.length,1);
+ assert.equal(planned.plan.steps[0].tool,"integer_multiply_add");
+ assert.deepEqual(planned.plan.steps[0].arguments,{a:"123",b:"456",c:"7",showWork:true});
+ const executed=await runPlan(planned.plan,task);
+ assert.equal(executed.success,true);
+ assert.equal(executed.results[0].data.product,"56088");
+ assert.equal(executed.results[0].data.sum,"56095");
+ const answer=await composeAnswer(task,planned.plan,executed);
+ assert.equal(answer.success,true);
+ assert.equal(answer.source,"native-integer-multiply-add-proof");
+ assert.match(answer.text,/123 × 456 = 56088/u);
+ assert.match(answer.text,/56088 \+ \(7\) = 56095/u);
+ assert.match(answer.text,/Ответ: 56095/u);
+ const verdict=await validateResult(task,planned.plan,executed,answer);
+ assert.equal(verdict.valid,true);
+ assert.equal(verdict.degraded,false);
+ assert.equal(verdict.validationMode,"tool_direct");
+ assert.equal(verifiedNativeIntegerProductAdd(task,planned.plan,executed,{...answer,text:"Ответ: 56096"}),false);
+ assert.equal(verifiedNativeIntegerProductAdd(task,planned.plan,{...executed,
+  results:[{...executed.results[0],data:{product:"56088",sum:"56096"}}]},answer),false);
+});
+
+test("multiply-then-add uses exact integer signs and rejects ambiguous extra operations",async()=>{
+ const {parseIntegerProductAddTask}=await import("../core/native/integerProductAddIntent.js");
+ const {multiplyAndAddIntegers}=await import("../tools/integerProductAddTool.js");
+ for(const [task,sum] of [
+   ["Вычисли 2 × 3 и прибавь 0. Покажи расчёт","6"],
+   ["Вычисли (-125) × (-32) и прибавь (-7). Покажи расчёт","3993"],
+   ["Вычисли 999999999999999 × 999999999999999 и прибавь 1. Покажи расчёт",
+     "999999999999998000000000000002"]
+ ]){
+   const p=parseIntegerProductAddTask(task);
+   assert.ok(p,task);
+   assert.equal(multiplyAndAddIntegers(p).data.sum,sum);
+ }
+ for(const task of [
+   "Вычисли 123 × 456 и прибавь 7. Затем умножь на 2",
+   "Вычисли 123 × 456 и прибавь 7 и вычти 2",
+   "Вычисли 123 × 456 и прибавь 7. Покажи расчёт 8 × 9",
+   "Вычисли 123 × 456 и прибавь 7. Подскажи погоду",
+   "Вычисли 123 × 456 и прибавь (7. Покажи расчёт"
+ ])assert.equal(parseIntegerProductAddTask(task),null,task);
+ const {parseIntegerProductTask}=await import("../core/native/integerMultiplicationIntent.js");
+ assert.equal(parseIntegerProductTask("Вычисли 123 × 456 и прибавь 7. Покажи расчёт"),null);
+});

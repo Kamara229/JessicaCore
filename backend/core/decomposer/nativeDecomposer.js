@@ -1,6 +1,7 @@
 import { buildKnownLicenseComparisonPlan } from "../planner/knownLicenseComparison.js";
 import {buildNativeSingleLicensePlan} from "../planner/nativeSingleLicensePlan.js";
 import {nativeIntegerProductDecomposition} from "./nativeIntegerProductDecomposition.js";
+import {nativeIntegerProductAddDecomposition} from "./nativeIntegerProductAddDecomposition.js";
 import {nativeDayDecomposition} from "./nativeDayDecomposition.js";
 
 /*
@@ -204,6 +205,8 @@ export function tryNativeDecomposition({
 
     const nativeDays=nativeDayDecomposition(task,memoryContext,normalizeMemoryHints(memoryContext));
     if(nativeDays)return nativeDays;
+    const productAdd=nativeIntegerProductAddDecomposition(task,memoryContext,normalizeMemoryHints(memoryContext));
+    if(productAdd)return productAdd;
     const product=nativeIntegerProductDecomposition(task,memoryContext,normalizeMemoryHints(memoryContext));
     if(product)return product;
 
