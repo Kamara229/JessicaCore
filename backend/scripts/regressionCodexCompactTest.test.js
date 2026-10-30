@@ -206,3 +206,23 @@ test("exact PR102 repeated zero-day test survives AI interpreter HTTP 429",async
  assert.equal(compactJessicaTest("Не повторяй. "+message),null);
  assert.equal(compactJessicaTest(message+" В обычном чате Jessica повтори: «Другой тест»"),null);
 });
+
+test("zero-day explanation next step never consumes Codex interpreter quota",async()=>{
+ const id="fd885daf-3ee4-4e45-9d0f-2fd69b013166";
+ const body="Результат 0 верный, но расчёт не показан. Следующий шаг: исправить объяснение нулевого интервала в dateDiffResultText.js. При совпадении дат интервал пуст, учитываемых дней нет. Повторный тест пока не запускай.";
+ const message=["JESSICA_REPLY_"+id,body,"JESSICA_END_"+id].join("\n");
+ let calls=0;
+ const result=await interpretRelayTurn({message},async()=>{
+   calls++;throw Error("429 daily quota");
+ });
+ assert.equal(calls,0);
+ assert.equal(result.action,"reply");
+ assert.equal(result.task,"");
+ assert.equal(result.continueThread,false);
+ assert.match(result.reply,/объяснение расчёта/u);
+ assert.match(result.reply,/не запускаю/u);
+ const ambiguous=message.replace("Повторный тест пока не запускай.",
+   "В обычном чате Jessica отправь: «Сколько дней между 01.01.2024 и 02.01.2024?»");
+ const parser=(await import("../core/codex/relayPendingDateExplanation.js")).pendingZeroDayExplanationHandoff;
+ assert.equal(parser(ambiguous),null);
+});
