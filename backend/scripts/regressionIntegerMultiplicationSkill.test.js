@@ -131,3 +131,28 @@ test("native product Composer skips AI and remains strictly proof-based",async()
  const proof=(await import("../core/composer/verifiedIntegerProductAnswer.js")).composeVerifiedIntegerProduct;
  assert.equal(proof(task,planned.plan,{...run,results:[{...run.results[0],text:"incorrect"}]}),null);
 });
+test("native decomposer preserves signed product without calling AI",async()=>{
+ const {tryNativeDecomposition}=await import("../core/decomposer/nativeDecomposer.js");
+ const {decomposeTask}=await import("../core/taskDecomposer.js");
+ const tasks=["Вычисли 247 × 306. Покажи расчёт",
+   "Вычисли (-247) × (-306). Покажи расчёт"];
+ for(const task of tasks){
+   const raw=tryNativeDecomposition({task,memoryContext:{skills:[]}});
+   assert.equal(raw.handled,true);
+   assert.equal(raw.source,"native-integer-product");
+   assert.deepEqual(raw.decomposition.subtasks.map(s=>s.text),[task]);
+   const result=await decomposeTask({task,memoryContext:{skills:[]}});
+   assert.equal(result.success,true);
+   assert.equal(result.native,true);
+   assert.equal(result.source,"native-integer-product");
+   assert.equal(result.decomposition.subtasks[0].text,task);
+ }
+});
+test("ambiguous arithmetic stays out of single-product native decomposition",async()=>{
+ const {tryNativeDecomposition}=await import("../core/decomposer/nativeDecomposer.js");
+ for(const task of ["Вычисли 247 × 306 + 1","Вычисли 247 × 306 × 2",
+   "Сравни 247 × 306 с 250 × 300"]){
+    const parsed=tryNativeDecomposition({task,memoryContext:{skills:[]}});
+    assert.notEqual(parsed.source,"native-integer-product");
+ }
+});

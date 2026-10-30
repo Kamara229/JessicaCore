@@ -1,5 +1,6 @@
 import { buildKnownLicenseComparisonPlan } from "../planner/knownLicenseComparison.js";
 import {buildNativeSingleLicensePlan} from "../planner/nativeSingleLicensePlan.js";
+import {nativeIntegerProductDecomposition} from "./nativeIntegerProductDecomposition.js";
 
 /*
  * =========================================================
@@ -199,6 +200,9 @@ export function tryNativeDecomposition({
     memoryContext = null
 
 } = {}) {
+
+    const product=nativeIntegerProductDecomposition(task,memoryContext,normalizeMemoryHints(memoryContext));
+    if(product)return product;
 
     // Keep a two-source comparison as one semantic task.
     // Splitting at "then" loses the URLs needed for the comparison.
