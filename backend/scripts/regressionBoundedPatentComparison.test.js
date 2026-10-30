@@ -43,3 +43,22 @@ test("source-gated patent comparison fails closed on incomplete or unrelated evi
  assert.equal(groundedPatentComparison(task,plan,run(apache,bsd.replace("EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE","END"))),null);
  assert.equal(groundedPatentComparison("Сравни уведомления и патентные условия Apache 2.0 и BSD 3-Clause",plan,run()),null);
 });
+
+test("exact Jessica Apache BSD table-only request retains official sources",()=>{
+ const request="Сравни Apache 2.0 и BSD 3-Clause по патентным правам. Ответ — только таблица: предоставление прав, прекращение, официальные ссылки. Не выдумывай положения";
+ const requestPlan=buildKnownLicenseComparisonPlan(request);
+ const fetched={results:requestPlan.steps.map(step=>({
+  tool:"web_fetch",success:true,data:{url:step.arguments.url,
+   content:step.arguments.url.includes("apache.org")?apache:bsd,truncated:false}
+ }))};
+ const answer=groundedPatentComparison(request,requestPlan,fetched);
+ assert.equal(answer?.source,"bounded-patent-comparison");
+ assert.ok(answer.text.startsWith("| Критерий | Apache 2.0 | BSD 3-Clause |"));
+ assert.ok(answer.text.trimEnd().endsWith("|"));
+ assert.ok(!answer.text.includes("\n\n"));
+ assert.ok(answer.text.includes("| Прекращение |"));
+ assert.ok(answer.text.includes("https://www.apache.org/licenses/LICENSE-2.0.txt"));
+ assert.ok(answer.text.includes("https://opensource.org/license/bsd-3-clause"));
+ fetched.results[1].data.truncated=true;
+ assert.equal(groundedPatentComparison(request,requestPlan,fetched),null);
+});
