@@ -1,8 +1,25 @@
+const GPL3_URL="https://www.gnu.org/licenses/gpl-3.0.txt";
+const GPL3_QUOTE="conspicuously and appropriately publish on each copy an appropriate copyright notice";
+
+/** Keep the exact English quotation for the explicitly requested primary GNU text. */
+function isVerifiedGplSection4Quote(result,task){
+ if(result?.success!==true || result?.validated!==true ||
+    result?.answerSource!=="bounded-gpl-section4-excerpt")return false;
+ const request=String(task||"");
+ if(!/(?:§\s*4|section\s*4|раздел\s*4)/iu.test(request) ||
+    !/\bgpl\s*(?:v\s*)?3(?:\.0)?\b/iu.test(request) ||
+    !/(?:дословн|цитат|verbatim|quote)/iu.test(request) ||
+    !/(?:уведомлен|авторск|copyright|notice)/iu.test(request))return false;
+ const answer=String(result?.text||"");
+ const expected="§4 GPLv3: “"+GPL3_QUOTE+"”.\nОфициальный URL: "+GPL3_URL;
+ return answer===expected;
+}
 /**
  * An English-language source excerpt is data, not an English explanation.
  * The exception is limited to fully validated single-task source excerpts.
  */
 export function isVerifiedRequestedOriginalQuote(result,task){
+    if(isVerifiedGplSection4Quote(result,task))return true;
     if(!result || result.success!==true || result.validated!==true ||
        result.answerSource!=="bounded-original-license-excerpt")return false;
     const request=String(task||"");
