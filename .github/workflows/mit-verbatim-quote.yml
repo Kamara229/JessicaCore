@@ -1,0 +1,35 @@
+name: MIT Verbatim Primary Quote Regression
+on:
+  pull_request:
+    paths:
+      - "backend/tools/canonicalMitText.js"
+      - "backend/tools/canonicalMitSpdxText.js"
+      - "backend/core/composer/officialMitNoticeExcerpt.js"
+      - "backend/core/answerComposer.js"
+      - "backend/core/validator/sourceContentValidator.js"
+      - "backend/core/language/verifiedMitQuote.js"
+      - "backend/core/language/verifiedQuotePreservation.js"
+      - "backend/scripts/regressionMitVerifiedQuote.test.js"
+      - ".github/workflows/mit-verbatim-quote.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/tools/canonicalMitText.js"
+      - "backend/tools/canonicalMitSpdxText.js"
+      - "backend/core/composer/officialMitNoticeExcerpt.js"
+      - "backend/core/validator/sourceContentValidator.js"
+      - "backend/scripts/regressionMitVerifiedQuote.test.js"
+      - ".github/workflows/mit-verbatim-quote.yml"
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionMitVerifiedQuote.test.js backend/scripts/regressionCanonicalMitText.test.js backend/scripts/regressionGplSection4LocalePreservation.test.js backend/scripts/regressionBsd3LiteralQuoteLocale.test.js
