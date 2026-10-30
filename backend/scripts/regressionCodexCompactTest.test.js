@@ -110,3 +110,28 @@ test("short next-test variant rejects negation and multiple commands",()=>{
  assert.equal(compactJessicaTest(testCommand+"\nСледующий тест в Jessica: «Проверь другую лицензию»"),null);
  assert.equal(compactJessicaTest("Пример: «Сравни MIT и BSD 3-Clause»"),null);
 });
+
+test("exact GPL section 4 retest directive bypasses unavailable interpretation provider",async()=>{
+ const task="Приведи дословную цитату из §4 GPL 3.0 о copyright notice. Укажи официальный URL";
+ const message=[
+  "JESSICA_REPLY_e6eb76c5-d349-490d-986e-56d64cfcf508",
+  "Исправление PR #83 развёрнуто, CI пройден, Render LIVE. В обычном чате Jessica повтори тест: «"+task+"». Передай ответ дословно.",
+  "JESSICA_END_e6eb76c5-d349-490d-986e-56d64cfcf508"
+ ].join("\n");
+ let modelCalls=0;
+ const parsed=await interpretRelayTurn({message,history:[]},async()=>{
+  modelCalls++; throw Error("429 quota unavailable");
+ });
+ assert.equal(modelCalls,0);
+ assert.deepEqual(parsed,{action:"test",reply:"",task,continueThread:false});
+});
+
+test("repeat test directive remains fail-closed for negation and ambiguity",()=>{
+ const first="В обычном чате Jessica повтори тест: «Проверь цитату §4 GPLv3.»";
+ assert.equal(compactJessicaTest(first)?.task,"Проверь цитату §4 GPLv3.");
+ assert.equal(compactJessicaTest("Повтори тест в обычном чате Jessica: «Проверь цитату §4 GPLv3.»")?.task,
+  "Проверь цитату §4 GPLv3.");
+ assert.equal(compactJessicaTest("Не повторяй. "+first),null);
+ assert.equal(compactJessicaTest(first+"\nСледующий тест в Jessica: «Проверь цитату §3 Apache.»"),null);
+ assert.equal(compactJessicaTest("Например: «Проверь цитату §4 GPLv3.»"),null);
+});
