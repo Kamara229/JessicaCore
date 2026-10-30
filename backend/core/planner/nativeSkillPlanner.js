@@ -48,6 +48,7 @@ import { dateDiffMode } from "./dateDiffMode.js";
 import { buildNativeDocumentFetchPlan } from "./nativeDocumentFetchPlan.js";
 import { buildNativeSourceComparisonPlan } from "./nativeSourceComparisonPlan.js";
 import { buildNativeSingleLicensePlan } from "./nativeSingleLicensePlan.js";
+import { tryCreateKnownLicenseComparison } from "./knownLicenseComparison.js";
 
 
 import {
@@ -1063,6 +1064,10 @@ export function tryCreateNativeSkillPlan({
      * AI не нужен даже без Experience.
      */
 
+
+    // Two canonical license texts outrank any generic single-source Skill.
+    const licensePair = tryCreateKnownLicenseComparison({task, planningContext});
+    if (licensePair?.handled === true) return licensePair;
 
     const paired = buildNativeSourceComparisonPlan(task);
     if (paired) {
