@@ -1,3 +1,4 @@
+import {isVerifiedBsd3NonendorsementQuote} from "./verifiedBsd3Quote.js";
 const GPL3_URL="https://www.gnu.org/licenses/gpl-3.0.txt";
 const GPL3_QUOTE="conspicuously and appropriately publish on each copy an appropriate copyright notice";
 
@@ -20,6 +21,7 @@ function isVerifiedGplSection4Quote(result,task){
  */
 export function isVerifiedRequestedOriginalQuote(result,task){
     if(isVerifiedGplSection4Quote(result,task))return true;
+    if(isVerifiedBsd3NonendorsementQuote(result,task))return true;
     if(!result || result.success!==true || result.validated!==true ||
        result.answerSource!=="bounded-original-license-excerpt")return false;
     const request=String(task||"");
