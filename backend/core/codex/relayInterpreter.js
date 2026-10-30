@@ -3,6 +3,7 @@ import {explicitSameTestChat} from "./relayThreadPolicy.js";
 import {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 import {explicitJessicaTest} from "./relayExplicitTest.js";
 import {compactJessicaTest} from "./relayCompactTest.js";
+import {workedAnswerNoTest} from "./relayWorkedAnswerNoTest.js";
 import {isStandaloneLengthNotice,lengthNoticeContinuation} from "./relaySessionContinuity.js";
 import {guardRelayTerminalDecision,confirmedPlanCompletion} from "./relayTerminalPolicy.js";
 import {acknowledgeBackendProgress} from "./relayProgressPolicy.js";
@@ -80,6 +81,8 @@ export async function interpretRelayTurn(input, generate) {
     if(unverifiedPr!==null)return {action:"reply",reply:unverifiedPr,task:"",continueThread:false};
     const requestedTest = explicitJessicaTest(message) || compactJessicaTest(message);
     if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
+    const noTest=workedAnswerNoTest(message);
+    if (noTest!==null) return noTest;
     // An unequivocal finished-plan announcement can end Codex even when
     // the contextual model is unavailable. Conditional plans cannot.
     const finishCommand=/(?:^|[.!?]\s+)(?:заверши|закрой|останови)\s+(?:сессию|работу|режим)\s+(?:Кодекс|Codex)\s*[.!?]?(?:\s|$)/iu;

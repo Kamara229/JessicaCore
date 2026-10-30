@@ -1,3 +1,4 @@
+import "./regressionCodexWorkedAnswerNoTest.test.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {interpretRelayTurn} from "../core/codex/relayInterpreter.js";
