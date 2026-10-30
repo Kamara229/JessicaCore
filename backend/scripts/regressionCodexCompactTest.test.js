@@ -176,3 +176,14 @@ test("blocked GitHub quote fix handoff remains a no-test reply without interpret
  assert.equal(reply.continueThread,false);
  assert.match(reply.reply,/тест пока не запускаю/iu);
 });
+
+test("repeat in ordinary Jessica chat parses a quoted single task",async()=>{
+ const task="Сравни восстановление прав по GPLv3 §8 и прекращение патентной лицензии по Apache 2.0 §3. Укажи официальные URL";
+ const message="PR #92: исправление внесено, CI пройден, Render LIVE. Повтори в обычном чате Jessica: «"+task+"». Передай ответ дословно.";
+ let calls=0;
+ const decision=await interpretRelayTurn({message},async()=>{calls++;return "";});
+ assert.equal(calls,0);
+ assert.deepEqual(decision,{action:"test",reply:"",task,continueThread:false});
+ assert.equal(compactJessicaTest("Не повторяй. "+message),null);
+ assert.equal(compactJessicaTest(message+" Повтори в обычном чате Jessica: «Другой тест»"),null);
+});
