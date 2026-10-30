@@ -9,6 +9,7 @@ import {checkProgrammingAnswerSafety} from "./validator/programmingAnswerSafety.
 import {checkMitPatentOverclaim} from "./validator/mitPatentOverclaim.js";
 import {checkOriginalEnglishQuote} from "./validator/originalEnglishQuoteGuard.js";
 import {verifiedNativeIntegerProduct} from "./validator/nativeIntegerProductProof.js";
+import {dateCalculationExplanationMissing} from "./validator/dateCalculationExplanation.js";
 /*
  * =========================================================
  * JESSICA RESULT VALIDATOR v4
@@ -646,12 +647,11 @@ export async function validateResult(
     }
 
 
-    // Native calendar arithmetic is not a complete answer when explanation was requested.
-    if (plan?.steps?.some(s=>s?.tool==="date_diff")
-        && /(объясн|поясн|explain)/iu.test(String(task||""))
-        && !/(начальная дата|расч[её]т|учитываем|counted dates)/iu.test(String(answerResult?.text||""))) {
+    // Native calendar arithmetic must show the calculation when explicitly asked.
+    if (plan?.steps?.some(s=>s?.tool==="date_diff") &&
+        dateCalculationExplanationMissing(task,answerResult?.text)) {
         return buildValidationResult(
-            {valid:false,reason:"Нет объяснения расчёта календарных дней"},
+            {valid:false,reason:"Нет запрошенного расчёта календарных дней"},
             {validationMode:"date-explanation-guard",failureScope:FAILURE_SCOPE.PRESENTATION}
         );
     }
