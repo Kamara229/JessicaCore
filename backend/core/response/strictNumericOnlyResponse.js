@@ -12,7 +12,7 @@ const SIMPLE_EQUATION = new RegExp(
 
 function requiresNumericOnly(task) {
     return typeof task === "string" &&
-        /(?:^|[.!?]\s+)(?:ответь|напиши|выведи|укажи)\s+(?:(?:строго|ровно)\s+)?только\s+числом\b/iu.test(task);
+        /(?:^|[.!?]\s+)(?:ответь|напиши|выведи|укажи)\s+(?:(?:строго|ровно)\s+)?только\s+числом(?=$|[\s,.!?])/iu.test(task);
 }
 
 export function applyStrictNumericOnlyFormat(task, response) {
