@@ -11,6 +11,6 @@ export function isVerifiedBsd3NonendorsementQuote(result,task){
     !/(?:им[её]н|автор|держател|contributor|copyright|endorse|продвижен)/iu.test(request))return false;
  const answer=String(result.text||"");
  if(answer.length>700 || !answer.includes(URL))return false;
- const quotations=[...answer.matchAll(/[«“"]([^»”"\n]{40,400})[»”"]/gu)];
+ const quotations=[...answer.matchAll(/[«“"]([^»”"\n]*)[»”"]/gu)];
  return quotations.length===1 && quotations[0][1].trim().replace(/^3\.\s*/u,"")===SENTENCE;
 }
