@@ -3,6 +3,7 @@ import { requiresVerifiedComparison } from "./composer/comparisonEvidencePolicy.
 import {groundedPatentComparison} from "./composer/nativePatentComparison.js";
 import {extractOfficialLicenseExcerpt} from "./composer/officialLicenseExcerpt.js";
 import {extractGplSection4Excerpt} from "./composer/officialGplSection4Excerpt.js";
+import {extractMitCopyrightNotice} from "./composer/officialMitNoticeExcerpt.js";
 import {groundedApachePatentSection} from "./composer/groundedApachePatentSection.js";
 import {checkProgrammingAnswerSafety} from "./validator/programmingAnswerSafety.js";
 import {checkMitPatentOverclaim} from "./validator/mitPatentOverclaim.js";
@@ -657,7 +658,9 @@ export async function validateResult(
     // A requested original-language quotation must be present in the
     // fetched original; translations cannot become verified experience.
     const quoteCheck=checkOriginalEnglishQuote(task,taskRunResult,answerResult?.text);
-    if(quoteCheck)return buildValidationResult(quoteCheck,{
+    // Verified MIT originals have their own strict full-text proof below;
+    // a generic quote snippet check must not trigger a retry first.
+    if(quoteCheck && answerResult?.source!=="bounded-mit-notice-excerpt")return buildValidationResult(quoteCheck,{
         validationMode:"original-english-quote",degraded:false,
         failureScope:FAILURE_SCOPE.PRESENTATION
     });
@@ -886,6 +889,17 @@ export async function validateResult(
             return buildSuccessResult("Source verified",OUTCOME_RESULT,
                 {validationMode:"bounded-primary-text",degraded:false});
 
+        // A bounded MIT notice is verified against the original full text.
+        // Never demote it using ranked snippets with missing source content.
+        if (answerResult?.source === "bounded-mit-notice-excerpt") {
+            const proof=extractMitCopyrightNotice(task,plan,taskRunResult);
+            return proof?.source===answerResult.source && proof?.text===answerResult.text
+                ? buildSuccessResult("MIT notice quotation verified in original source",
+                    OUTCOME_RESULT,{validationMode:"bounded-primary-text",degraded:false})
+                : buildValidationResult({valid:false,shouldRetry:false,
+                    reason:"MIT exact notice not confirmed in verified original source"},
+                    {validationMode:"bounded-primary-text",failureScope:FAILURE_SCOPE.EVIDENCE});
+        }
         if (answerResult?.source === "bounded-gpl-section4-excerpt") {
             const proof=extractGplSection4Excerpt(task,plan,taskRunResult);
             return proof?.source===answerResult.source && proof?.text===answerResult.text
