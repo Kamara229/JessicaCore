@@ -30,3 +30,26 @@ test("do not hijack complex or ambiguous calculations and never attribute disabl
   assert.equal(fallback.handled,true);
   assert.equal(fallback.plan.experience.used,false);
 });
+test("production decomposer wording keeps the native Skill route under AI 429",()=>{
+  const decomposed="Вычислить произведение 247 × 306 и показать пошаговый расчёт умножения.";
+  const parsed=parseIntegerProductTask(decomposed);
+  assert.deepEqual(parsed,{a:"247",b:"306",showWork:true});
+  const experience=searchExperience(decomposed,[skill]);
+  assert.equal(experience.found,true);
+  assert.equal(experience.experience.id,skill.id);
+  const planned=tryCreateNativeSkillPlan({
+    task:decomposed,executionExperience:{skills:[experience.experience]},planningContext:{}
+  });
+  assert.equal(planned.handled,true);
+  assert.equal(planned.plan.steps[0].tool,"integer_multiply");
+  assert.equal(planned.plan.steps[0].arguments.showWork,true);
+  assert.equal(planned.plan.experience.used,true);
+  assert.equal(multiplyIntegers(planned.plan.steps[0].arguments).data.product,"75582");
+});
+test("natural explanation text works without allowing extra operations",()=>{
+  assert.deepEqual(parseIntegerProductTask("Вычислить произведение (-247) × 306 и показать расчёт"),
+    {a:"-247",b:"306",showWork:true});
+  assert.equal(parseIntegerProductTask("Calculate 247 x 306, explain the steps")?.showWork,true);
+  assert.equal(parseIntegerProductTask("Вычислить произведение 247 × 306 и 100 × 2"),null);
+  assert.equal(parseIntegerProductTask("Вычислить произведение 247 × 306 + 10"),null);
+});
