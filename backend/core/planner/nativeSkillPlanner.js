@@ -1115,6 +1115,27 @@ export function tryCreateNativeSkillPlan({
 
     const productPlan=buildNativeIntegerMultiplicationPlan(task,executionExperience);
     if(productPlan) return finalizeNativePlan({task,context:planningContext,plan:productPlan,source:productPlan.experience.used?"experience:integer-multiplication":"native-integer-multiplication"});
+    const invalidRange=extractInvalidCalendarRange(task);
+    if(invalidRange){
+        const plan={
+            intent:"native_invalid_calendar_date",
+            requiresTools:true,
+            reasoningSummary:"Проверка существования календарной даты без AI.",
+            evidence:{mode:"none",reason:"Проверка даты выполняется локально."},
+            experience:{used:false,source:"native-validation",skills:[]},
+            steps:[{
+                id:"native_invalid_date",
+                tool:"invalid_calendar_date",
+                arguments:{task},
+                experienceUsed:false
+            }],
+            metadata:{plannerVersion:"native-calendar-validation-v1",generatedAt:new Date().toISOString()}
+        };
+        return finalizeNativePlan({
+            task,context:planningContext,plan,source:"native-invalid-calendar-date"
+        });
+    }
+
     const datePlan =
 
         buildDateDiffPlan({
