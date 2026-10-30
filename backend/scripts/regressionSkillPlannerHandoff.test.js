@@ -1,4 +1,5 @@
 import "../tools/webFetchTool.js";
+import "./regressionIntegerMultiplicationSkill.test.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {searchExperience} from "../experience/search/experienceSearch.js";

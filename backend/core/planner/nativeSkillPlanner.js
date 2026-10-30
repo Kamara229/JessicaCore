@@ -49,6 +49,7 @@ import { extractExplicitDateRange } from "../native/explicitDateRange.js";
 import { hasVerifiedDateSkillEvidence } from "./youngDateSkill.js";
 import { dateDiffMode } from "./dateDiffMode.js";
 import { buildNativeDocumentFetchPlan } from "./nativeDocumentFetchPlan.js";
+import {buildNativeIntegerMultiplicationPlan} from "./nativeIntegerMultiplicationPlan.js";
 import { buildNativeSourceComparisonPlan } from "./nativeSourceComparisonPlan.js";
 import { buildNativeSingleLicensePlan } from "./nativeSingleLicensePlan.js";
 import { tryCreateKnownLicenseComparison } from "./knownLicenseComparison.js";
@@ -1104,6 +1105,8 @@ export function tryCreateNativeSkillPlan({
         });
     }
 
+    const productPlan=buildNativeIntegerMultiplicationPlan(task,executionExperience);
+    if(productPlan) return finalizeNativePlan({task,context:planningContext,plan:productPlan,source:productPlan.experience.used?"experience:integer-multiplication":"native-integer-multiplication"});
     const datePlan =
 
         buildDateDiffPlan({
