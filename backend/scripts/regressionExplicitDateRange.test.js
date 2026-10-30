@@ -114,8 +114,15 @@ test("same leap-day endpoints are two occurrences but zero elapsed days",async()
   assert.match(actual.text,/0 полных календарных дней/);
 });
 
-test("same-day extraction requires exactly two real dates and a range separator",()=>{
-  const good="Сколько дней между 2024-02-29 и 2024-02-29?";
-  // Assertion is performed through the import in the test's own module scope.
-  assert.ok(good.length>0);
+test("same-day extraction rejects incomplete, invalid and extra-date ranges",async()=>{
+  const {extractSameDayRange}=await import("../core/native/sameDayRange.js");
+  assert.deepEqual(extractSameDayRange("Сколько дней между 2024-02-29 и 2024-02-29?"),
+    {startDate:"2024-02-29",endDate:"2024-02-29"});
+  for(const task of [
+    "Сколько дней между 29.02.2024 и 01.03.2024?",
+    "Сколько дней между 29.02.2025 и 29.02.2025?",
+    "Сколько дней между 29.02.2024 и 29.02.2024 и 01.03.2024?",
+    "Дата 29.02.2024; повтор 29.02.2024",
+    "Сколько дней между 29.02.2024 и"
+  ]) assert.equal(extractSameDayRange(task),null,task);
 });
