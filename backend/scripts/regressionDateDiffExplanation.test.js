@@ -379,3 +379,32 @@ test("calendar guard rejects false positives, extra dates, compound tasks and va
   executionExperience:{skills:[]}
  }).plan.steps[0].tool,"date_diff");
 });
+
+test("nonexistent calendar date bypasses AI Composer and Validator with direct proof",async()=>{
+ const task="Сколько дней между 29.02.2025 и 01.03.2025? Покажи расчёт";
+ const {decomposeTask}=await import("../core/taskDecomposer.js");
+ const {tryCreateNativeSkillPlan}=await import("../core/planner/nativeSkillPlanner.js");
+ const {runPlan}=await import("../core/taskRunner.js");
+ const {composeAnswer}=await import("../core/answerComposer.js");
+ const {getDirectAnswer}=await import("../core/composer/directAnswer.js");
+ const {validateResult}=await import("../core/validator.js");
+ const d=await decomposeTask({task,memoryContext:{skills:[]}});
+ assert.equal(d.source,"native-day-range");
+ const native=tryCreateNativeSkillPlan({task,executionExperience:{skills:[]}});
+ assert.equal(native.source,"native-invalid-calendar-date");
+ assert.equal(native.plan.experience.used,false);
+ const result=await runPlan(native.plan,task);
+ assert.equal(result.success,true);
+ assert.equal(result.results[0].data.calendarValid,false);
+ const direct=getDirectAnswer(result);
+ assert.equal(direct.source,"tool");
+ assert.equal(direct.tool,"invalid_calendar_date");
+ const answer=await composeAnswer(task,native.plan,result);
+ assert.deepEqual(answer,direct);
+ assert.match(answer.text,/29\\.02\\.2025 не существует/u);
+ const verdict=await validateResult(task,native.plan,result,answer);
+ assert.equal(verdict.valid,true);
+ assert.equal(verdict.degraded,false);
+ assert.equal(verdict.validationMode,"tool_direct");
+ assert.equal(getDirectAnswer({results:[{...result.results[0],success:false}]}),null);
+});
