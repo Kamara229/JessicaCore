@@ -53,6 +53,7 @@ import { hasVerifiedDateSkillEvidence } from "./youngDateSkill.js";
 import { dateDiffMode } from "./dateDiffMode.js";
 import { buildNativeDocumentFetchPlan } from "./nativeDocumentFetchPlan.js";
 import {buildNativeIntegerMultiplicationPlan} from "./nativeIntegerMultiplicationPlan.js";
+import {buildNativeIntegerProductAddPlan} from "./nativeIntegerProductAddPlan.js";
 import { buildNativeSourceComparisonPlan } from "./nativeSourceComparisonPlan.js";
 import { buildNativeSingleLicensePlan } from "./nativeSingleLicensePlan.js";
 import { tryCreateKnownLicenseComparison } from "./knownLicenseComparison.js";
@@ -1113,6 +1114,8 @@ export function tryCreateNativeSkillPlan({
         });
     }
 
+    const productAddPlan=buildNativeIntegerProductAddPlan(task);
+    if(productAddPlan)return finalizeNativePlan({task,context:planningContext,plan:productAddPlan,source:"native-integer-product-add"});
     const productPlan=buildNativeIntegerMultiplicationPlan(task,executionExperience);
     if(productPlan) return finalizeNativePlan({task,context:planningContext,plan:productPlan,source:productPlan.experience.used?"experience:integer-multiplication":"native-integer-multiplication"});
     const invalidRange=extractInvalidCalendarRange(task);
