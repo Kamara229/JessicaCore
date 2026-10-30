@@ -27,6 +27,7 @@ export async function fetchCanonicalMitText(url, request = globalThis.fetch) {
             signal: AbortSignal.timeout(8500)
         });
         if (!response?.ok) return backup();
+        if (response.url && !/^https:\/\/opensource\.org\/license\/mit\/?$/iu.test(response.url)) return backup();
         const type = String(response.headers?.get?.("content-type") || "").toLowerCase();
         if (type && !type.includes("text/html")) return backup();
         const raw = await response.text();
