@@ -408,3 +408,29 @@ test("nonexistent calendar date bypasses AI Composer and Validator with direct p
  assert.equal(verdict.validationMode,"tool_direct");
  assert.equal(getDirectAnswer({results:[{...result.results[0],success:false}]}),null);
 });
+
+test("invalid calendar input is not positive Experience or Pattern Discovery evidence",async()=>{
+ const {skipInvalidCalendarInputLearning}=await import("../core/learning/nativeCalendarInputLearningGate.js");
+ const {processExecutionLearning}=await import("../core/learning/learningFacade.js");
+ const {analyzeExecutionTraceBatch}=await import("../core/learning/multiSkill/multiSkillAnalyzer.js");
+ const task="Сколько дней между 31.04.2026 и 01.05.2026? Покажи расчёт";
+ const trace={
+   task,executedTools:["invalid_calendar_date"],
+   status:"COMPLETED",
+   result:{success:true,status:"COMPLETED",verified:true,
+     validation:{valid:true,degraded:false,outcomeType:"result"},
+     text:"Дата 31.04.2026 не существует в календаре. Расчёт количества дней невозможен. Уточните дату."},
+   statistics:{completed:1},
+   experienceUsage:{found:false,used:false,applied:false,skills:[]}
+ };
+ assert.equal(skipInvalidCalendarInputLearning(trace),true);
+ const learning=await processExecutionLearning(trace);
+ assert.equal(learning.success,true);
+ assert.equal(learning.queued,false);
+ assert.equal(learning.skipped,true);
+ assert.equal(learning.reason,"native_invalid_calendar_input");
+ assert.equal(skipInvalidCalendarInputLearning({...trace,executedTools:[]}),false);
+ assert.equal(skipInvalidCalendarInputLearning({...trace,executedTools:["invalid_calendar_date","date_diff"]}),false);
+ assert.equal(skipInvalidCalendarInputLearning({...trace,task:"Сколько дней между 28.04.2026 и 01.05.2026? Покажи расчёт"}),false);
+ assert.equal(skipInvalidCalendarInputLearning({...trace,task:"Сколько дней между 31.04.2026 и 01.05.2026? Затем проверь календарь."}),false);
+});
