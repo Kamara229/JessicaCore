@@ -5,7 +5,7 @@ export function isGplSection4QuoteRequest(task,plan){
  return plan?.intent!=="native_single_license_primary_text" || plan?.metadata?.licenseId!=="GPL-3.0" ||
    !/(?:§\s*4|section\s*4|раздел\s*4)/iu.test(q) ||
    !/(?:дословн|цитат|verbatim|quote)/iu.test(q) ||
-   !/(?:уведомлен|авторск|copyright|notice)/iu.test(q)) ? false : true;
+   !/(?:уведомлен|авторск|copyright|notice)/iu.test(q) ? false : true;
 }
 export function extractGplSection4Excerpt(task,plan,run){
  if(!isGplSection4QuoteRequest(task,plan))return null;
