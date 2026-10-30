@@ -11,6 +11,12 @@ export function isVerifiedBsd3NonendorsementQuote(result,task){
     !/(?:им[её]н|автор|держател|contributor|copyright|endorse|продвижен)/iu.test(request))return false;
  const answer=String(result.text||"");
  if(answer.length>700 || !answer.includes(URL))return false;
- const quotations=[...answer.matchAll(/[«“"]([^»”"\n]*)[»”"]/gu)];
- return quotations.length===1 && quotations[0][1].trim().replace(/^3\.\s*/u,"")===SENTENCE;
+ // The original answer may be a bare verbatim sentence rather than
+ // typographically quoted. Only the full, exact English clause is valid.
+ const lines=answer.split(/\r?\n/u).map(x=>x.trim()).filter(Boolean);
+ if(lines.length!==2)return false;
+ const quote=lines[0].replace(/^["“«]/u,"").replace(/["”»]$/u,"")
+   .replace(/^3\.\s*/u,"").trim();
+ if(quote!==SENTENCE)return false;
+ return /^(?:Source|Official URL|Официальный URL):\s*https:\/\/opensource\.org\/license\/bsd-3-clause\s*$/iu.test(lines[1]);
 }
