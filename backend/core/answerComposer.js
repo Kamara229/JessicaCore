@@ -66,6 +66,7 @@ import {scaffoldComparisonTable} from "./composer/comparisonTableScaffold.js";
 import {tryFocusedComparisonRepair} from "./composer/focusedComparisonRepair.js";
 import {groundedPatentComparison} from "./composer/nativePatentComparison.js";
 import {extractOfficialLicenseExcerpt} from "./composer/officialLicenseExcerpt.js";
+import {extractGplSection4Excerpt} from "./composer/officialGplSection4Excerpt.js";
 import {groundedApachePatentSection} from "./composer/groundedApachePatentSection.js";
 import {repairComparisonClaimMeaning} from "./composer/comparisonSemanticRepair.js";
 
@@ -402,6 +403,9 @@ export async function composeAnswer(
 
     }
 
+
+    const gplSection4Quote=extractGplSection4Excerpt(task,plan,taskRunResult);
+    if(gplSection4Quote)return gplSection4Quote;
 
     const primaryQuote=extractOfficialLicenseExcerpt(task,plan,taskRunResult);
     if(primaryQuote)return primaryQuote;
