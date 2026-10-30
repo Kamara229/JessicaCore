@@ -7,6 +7,7 @@ on:
       - "backend/core/answerComposer.js"
       - "backend/core/validator/sourceContentValidator.js"
       - "backend/core/validator.js"
+      - "backend/scripts/regressionGplDirectOriginalSource.test.js"
       - "backend/scripts/regressionGplSection4Quote.test.js"
       - ".github/workflows/gpl-section4-quote.yml"
   push:
@@ -17,6 +18,7 @@ on:
       - "backend/core/answerComposer.js"
       - "backend/core/validator/sourceContentValidator.js"
       - "backend/core/validator.js"
+      - "backend/scripts/regressionGplDirectOriginalSource.test.js"
       - "backend/scripts/regressionGplSection4Quote.test.js"
       - ".github/workflows/gpl-section4-quote.yml"
 permissions:
@@ -31,4 +33,4 @@ jobs:
         with:
           node-version: "22"
       - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
-      - run: node --test backend/scripts/regressionGplSection4Quote.test.js backend/scripts/regressionSingleLicenseSource.test.js backend/scripts/regressionGplMitVerifiedTable.test.js backend/scripts/regressionGplMitDistributionTable.test.js
+      - run: node --test backend/scripts/regressionGplDirectOriginalSource.test.js backend/scripts/regressionGplSection4Quote.test.js backend/scripts/regressionSingleLicenseSource.test.js backend/scripts/regressionGplMitVerifiedTable.test.js backend/scripts/regressionGplMitDistributionTable.test.js
