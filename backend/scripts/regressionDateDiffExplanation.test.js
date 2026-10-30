@@ -401,7 +401,7 @@ test("nonexistent calendar date bypasses AI Composer and Validator with direct p
  assert.equal(direct.tool,"invalid_calendar_date");
  const answer=await composeAnswer(task,native.plan,result);
  assert.deepEqual(answer,direct);
- assert.match(answer.text,/29\\.02\\.2025 не существует/u);
+ assert.ok(answer.text.includes("29.02.2025 не существует"));
  const verdict=await validateResult(task,native.plan,result,answer);
  assert.equal(verdict.valid,true);
  assert.equal(verdict.degraded,false);
