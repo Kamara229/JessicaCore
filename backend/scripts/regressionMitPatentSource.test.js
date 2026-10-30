@@ -55,3 +55,18 @@ test("live MIT/Apache task states precise patent-claim termination trigger",()=>
  assert.equal(groundedPatentComparison(live,livePlan,
      run(apache.replace("including a cross-claim","excluding a cross-claim"),mit)),null);
 });
+
+test("exact ordinary-chat Apache MIT request returns a sourced table with short literal quotes",()=>{
+ const request="Сравни Apache License 2.0 и MIT по патентным правам и их прекращению. Составь таблицу с условиями, короткими цитатами и официальными ссылками";
+ const planned=buildKnownLicenseComparisonPlan(request);
+ const answer=groundedPatentComparison(request,planned,run());
+ assert.equal(answer?.source,"bounded-patent-comparison");
+ assert.match(answer.text,/^\\| Критерий \\| Apache License 2\\.0 \\| MIT License \\|/u);
+ assert.match(answer.text,/\\| Патентная лицензия \\|/u);
+ assert.match(answer.text,/\\| Прекращение \\|/u);
+ assert.match(answer.text,/«patent license to make, have made, use»/u);
+ assert.match(answer.text,/«shall terminate as of the date such litigation is filed»/u);
+ assert.match(answer.text,/«Permission is hereby granted, free of charge»/u);
+ assert.ok(answer.text.includes("https://www.apache.org/licenses/LICENSE-2.0.txt"));
+ assert.ok(answer.text.includes("https://opensource.org/license/mit"));
+});
