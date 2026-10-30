@@ -4,6 +4,8 @@ on:
     paths:
       - 'backend/core/planner/nativeSkillPlanner.js'
       - 'backend/core/native/integerMultiplicationIntent.js'
+      - 'backend/core/decomposer/nativeDecomposer.js'
+      - 'backend/core/decomposer/nativeIntegerProductDecomposition.js'
       - 'backend/scripts/regressionIntegerMultiplicationSkill.test.js'
       - 'backend/core/planner/knownLicenseComparison.js'
       - 'backend/scripts/regressionKnownLicenseSkillPrecedence.test.js'
@@ -13,6 +15,8 @@ on:
     paths:
       - 'backend/core/planner/nativeSkillPlanner.js'
       - 'backend/core/native/integerMultiplicationIntent.js'
+      - 'backend/core/decomposer/nativeDecomposer.js'
+      - 'backend/core/decomposer/nativeIntegerProductDecomposition.js'
       - 'backend/scripts/regressionIntegerMultiplicationSkill.test.js'
       - 'backend/core/planner/knownLicenseComparison.js'
       - 'backend/scripts/regressionKnownLicenseSkillPrecedence.test.js'
