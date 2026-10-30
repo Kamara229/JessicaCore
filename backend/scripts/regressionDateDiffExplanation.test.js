@@ -148,3 +148,22 @@ test("next valid improvement excludes contaminated v5 evidence and keeps maturit
   assert.equal(candidate.metrics.confidence,.94);
   assert.ok(!candidate.examples.some(x=>x.traceId==="incomplete-legacy"));
 });
+
+test("single explicit two-date day range skips AI Decomposer and keeps original task",async()=>{
+ const {decomposeTask}=await import("../core/taskDecomposer.js");
+ const task="Сколько дней между 30.12.2026 и 03.01.2027? Исключи начальную дату, включи конечную. Покажи расчёт";
+ const result=await decomposeTask({task,memoryContext:{skills:[]}});
+ assert.equal(result.success,true);
+ assert.equal(result.native,true);
+ assert.equal(result.source,"native-day-range");
+ assert.equal(result.decomposition.subtasks.length,1);
+ assert.equal(result.decomposition.subtasks[0].text,task);
+});
+test("compound day tasks keep the existing decomposer, not the single-range shortcut",async()=>{
+ const {tryNativeDecomposition}=await import("../core/decomposer/nativeDecomposer.js");
+ for(const task of [
+ "Сколько дней между 30.12.2026 и 03.01.2027? Затем найди календарь.",
+ "Сколько дней между 30.12.2026 и 03.01.2027 и сколько часов?",
+ "Сколько дней между 30.12.2026 и 03.01.2027 плюс ещё 5?"
+ ]) assert.notEqual(tryNativeDecomposition({task,memoryContext:{skills:[]}}).source,"native-day-range");
+});
