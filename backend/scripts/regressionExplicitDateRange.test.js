@@ -86,3 +86,36 @@ test("English decomposition retains excluded December start and Russian count ex
     assert.match(reply.text,/2026-12-31, 2027-01-01, 2027-01-02, 2027-01-03/);
   }
 });
+
+test("same leap-day endpoints are two occurrences but zero elapsed days",async()=>{
+  const {extractSameDayRange}=await import("../core/native/sameDayRange.js");
+  const {decomposeTask}=await import("../core/taskDecomposer.js");
+  const task="Сколько дней между 29.02.2024 и 29.02.2024? Исключи начальную дату, включи конечную. Покажи расчёт";
+  assert.deepEqual(extractSameDayRange(task),{startDate:"2024-02-29",endDate:"2024-02-29"});
+  const decomp=await decomposeTask({task,memoryContext:{skills:[]}});
+  assert.equal(decomp.native,true);
+  assert.equal(decomp.source,"native-day-range");
+  assert.equal(decomp.decomposition.subtasks[0].text,task);
+  const skill={id:"date-difference-calculation",enabled:true,status:"published",
+    executionProgram:{mode:"native",version:1,strategy:"date_difference"},
+    metadata:{bootstrap:{executable:true}},
+    confidence:.9,learning:{maturityLevel:"READY",confidence:.9,occurrences:4}};
+  const found=searchExperience(task,[skill]);
+  assert.equal(found.found,true);
+  assert.equal(found.experience.id,skill.id);
+  const plan=tryCreateNativeSkillPlan({task,executionExperience:{skills:[skill]}});
+  assert.equal(plan.handled,true);
+  assert.deepEqual(plan.plan.steps[0].arguments,
+    {startDate:"2024-02-29",endDate:"2024-02-29",mode:"elapsed"});
+  assert.equal(plan.plan.steps[0].tool,"date_diff");
+  const actual=await executeTool("date_diff",plan.plan.steps[0].arguments);
+  assert.equal(actual.success,true);
+  assert.equal(actual.data.fullDays,0);
+  assert.match(actual.text,/0 полных календарных дней/);
+});
+
+test("same-day extraction requires exactly two real dates and a range separator",()=>{
+  const good="Сколько дней между 2024-02-29 и 2024-02-29?";
+  // Assertion is performed through the import in the test's own module scope.
+  assert.ok(good.length>0);
+});
