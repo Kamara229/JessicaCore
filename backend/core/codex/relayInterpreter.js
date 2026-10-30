@@ -6,6 +6,7 @@ import {compactJessicaTest} from "./relayCompactTest.js";
 import {workedAnswerNoTest} from "./relayWorkedAnswerNoTest.js";
 import {pendingZeroDayExplanationHandoff} from "./relayPendingDateExplanation.js";
 import {pendingAbsoluteDateFix} from "./relayPendingAbsoluteDateFix.js";
+import {pendingCalendarDirectFix} from "./relayPendingCalendarDirectFix.js";
 import {isStandaloneLengthNotice,lengthNoticeContinuation} from "./relaySessionContinuity.js";
 import {guardRelayTerminalDecision,confirmedPlanCompletion} from "./relayTerminalPolicy.js";
 import {acknowledgeBackendProgress} from "./relayProgressPolicy.js";
@@ -83,6 +84,8 @@ export async function interpretRelayTurn(input, generate) {
     if(unverifiedPr!==null)return {action:"reply",reply:unverifiedPr,task:"",continueThread:false};
     const requestedTest = explicitJessicaTest(message) || compactJessicaTest(message);
     if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
+    const directCalendarFix=pendingCalendarDirectFix(message);
+    if(directCalendarFix!==null)return directCalendarFix;
     const absoluteFix=pendingAbsoluteDateFix(message);
     if(absoluteFix!==null)return absoluteFix;
     const fixNote=pendingZeroDayExplanationHandoff(message);
