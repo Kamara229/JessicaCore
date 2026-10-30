@@ -4,6 +4,10 @@ on:
     paths:
       - 'backend/core/planner/nativeSkillPlanner.js'
       - 'backend/core/native/integerMultiplicationIntent.js'
+      - 'backend/core/native/sameDayRange.js'
+      - 'backend/core/decomposer/nativeDayDecomposition.js'
+      - 'backend/experience/search/experienceSearch/nativeDateSkillMatch.js'
+      - 'backend/scripts/regressionExplicitDateRange.test.js'
       - 'backend/core/decomposer/nativeDayDecomposition.js'
       - 'backend/core/decomposer/nativeDecomposer.js'
       - 'backend/scripts/regressionDateDiffExplanation.test.js'
@@ -18,6 +22,10 @@ on:
     paths:
       - 'backend/core/planner/nativeSkillPlanner.js'
       - 'backend/core/native/integerMultiplicationIntent.js'
+      - 'backend/core/native/sameDayRange.js'
+      - 'backend/core/decomposer/nativeDayDecomposition.js'
+      - 'backend/experience/search/experienceSearch/nativeDateSkillMatch.js'
+      - 'backend/scripts/regressionExplicitDateRange.test.js'
       - 'backend/core/decomposer/nativeDayDecomposition.js'
       - 'backend/core/decomposer/nativeDecomposer.js'
       - 'backend/scripts/regressionDateDiffExplanation.test.js'
@@ -39,4 +47,4 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --prefix backend --package-lock=false --ignore-scripts --no-audit --no-fund
-      - run: node --test backend/scripts/regressionKnownLicenseSkillPrecedence.test.js backend/scripts/regressionKnownLicenseComparison.test.js backend/scripts/regressionSingleLicenseSource.test.js backend/scripts/regressionSkillPlannerHandoff.test.js backend/scripts/regressionDateDiffExplanation.test.js
+      - run: node --test backend/scripts/regressionKnownLicenseSkillPrecedence.test.js backend/scripts/regressionKnownLicenseComparison.test.js backend/scripts/regressionSingleLicenseSource.test.js backend/scripts/regressionSkillPlannerHandoff.test.js backend/scripts/regressionDateDiffExplanation.test.js backend/scripts/regressionExplicitDateRange.test.js
