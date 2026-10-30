@@ -39,6 +39,8 @@ const DIRECT_ANSWER_TOOLS =
 
         "date_diff",
 
+        "invalid_calendar_date",
+
         "release_fact"
 
     ]);
