@@ -658,7 +658,9 @@ export async function validateResult(
     // A requested original-language quotation must be present in the
     // fetched original; translations cannot become verified experience.
     const quoteCheck=checkOriginalEnglishQuote(task,taskRunResult,answerResult?.text);
-    if(quoteCheck)return buildValidationResult(quoteCheck,{
+    // Verified MIT originals have their own strict full-text proof below;
+    // a generic quote snippet check must not trigger a retry first.
+    if(quoteCheck && answerResult?.source!=="bounded-mit-notice-excerpt")return buildValidationResult(quoteCheck,{
         validationMode:"original-english-quote",degraded:false,
         failureScope:FAILURE_SCOPE.PRESENTATION
     });
