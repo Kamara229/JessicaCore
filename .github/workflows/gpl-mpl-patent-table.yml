@@ -1,0 +1,28 @@
+name: GPL MPL Patent Table Contract
+on:
+  pull_request:
+    paths:
+      - "backend/core/composer/verifiedGplMplPatentTable.js"
+      - "backend/core/composer/nativeGplMplPatentComparison.js"
+      - "backend/scripts/regressionGplMplPatentSources.test.js"
+      - ".github/workflows/gpl-mpl-patent-table.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/core/composer/verifiedGplMplPatentTable.js"
+      - "backend/core/composer/nativeGplMplPatentComparison.js"
+      - "backend/scripts/regressionGplMplPatentSources.test.js"
+      - ".github/workflows/gpl-mpl-patent-table.yml"
+permissions:
+  contents: read
+jobs:
+  source-verified-table:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --prefix backend --package-lock=false --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionGplMplPatentSources.test.js

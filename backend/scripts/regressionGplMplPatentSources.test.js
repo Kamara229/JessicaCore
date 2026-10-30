@@ -30,3 +30,20 @@ test("changed litigation exception or incomplete source cannot be verified",()=>
  const broken=results();broken.results[0].data.truncated=true;
  assert.equal(groundedPatentComparison(task,plan,broken),null);
 });
+
+test("exact ordinary-chat GPLv3 MPL 2.0 table-only request uses one verified Markdown table",()=>{
+ const request="Сравни GPLv3 и MPL 2.0 по прекращению патентных прав. Ответ дай только таблицей: основания, исключения, разделы и официальные ссылки";
+ const requestPlan=buildKnownLicenseComparisonPlan(request);
+ const reply=groundedPatentComparison(request,requestPlan,results());
+ assert.equal(reply?.source,"bounded-patent-comparison");
+ assert.ok(reply.text.startsWith("| Критерий | GPLv3 | MPL 2.0 |"));
+ assert.ok(reply.text.endsWith("|"));
+ assert.ok(!reply.text.includes("\n\n"));
+ for(const field of ["Предоставление патентных прав","Прекращение при нарушении","Патентные иски","Исключения","Официальный текст"])
+     assert.ok(reply.text.includes("| "+field+" |"));
+ assert.ok(reply.text.includes("https://www.gnu.org/licenses/gpl-3.0.txt"));
+ assert.ok(reply.text.includes("https://www.mozilla.org/media/MPL/2.0/index.txt"));
+ assert.ok(reply.text.includes("встречные и перекрёстные иски включены в запрет"));
+ assert.ok(reply.text.includes("§5.2 исключает"));
+ assert.equal(groundedPatentComparison(request,requestPlan,results(gpl,mpl.replace("excluding declaratory","including declaratory"))),null);
+});
