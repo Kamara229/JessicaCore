@@ -310,3 +310,16 @@ test("absolute backward date difference includes explicitly requested calculatio
  assert.equal(equal.data.fullDays,0);
  assert.match(equal.text,/\|2024-02-29 − 2024-02-29\| = 0 полных дней/u);
 });
+
+test("long elapsed requests still get a visible calculation",async()=>{
+ const task="Сколько дней между 09.10.2026 и 23.10.2026? Исключи начальную дату, включи конечную. Покажи расчёт";
+ const {tryCreateNativeSkillPlan}=await import("../core/planner/nativeSkillPlanner.js");
+ const {validateResult}=await import("../core/validator.js");
+ const plan=tryCreateNativeSkillPlan({task,executionExperience:{skills:[]}}).plan;
+ const date=await executeTool("date_diff",plan.steps[0].arguments);
+ assert.equal(date.data.fullDays,14);
+ assert.match(date.text,/Расч[её]т: \(2026-10-23 − 2026-10-09\) = 14 полных календарных дней/u);
+ const run={success:true,results:[{...date,tool:"date_diff"}]};
+ const verdict=await validateResult(task,plan,run,{success:true,source:"tool",text:date.text});
+ assert.equal(verdict.valid,true);
+});
