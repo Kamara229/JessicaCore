@@ -7,6 +7,7 @@ import {isStandaloneLengthNotice,lengthNoticeContinuation} from "./relaySessionC
 import {guardRelayTerminalDecision,confirmedPlanCompletion} from "./relayTerminalPolicy.js";
 import {acknowledgeBackendProgress} from "./relayProgressPolicy.js";
 import {pendingBackendVerification} from "./relayPendingVerification.js";
+import {unverifiedPrProgress} from "./relayUnverifiedPrProgress.js";
 import {documentAnalysisNextStep} from "./relayDocumentProgress.js";
 import {releaseCiStatusHandoff} from "./relayReleaseCiStatus.js";
 import {deterministicStatusHandoff} from "./relayStatusEnvelope.js";
@@ -72,6 +73,8 @@ export async function interpretRelayTurn(input, generate) {
     if (isStandaloneLengthNotice(message)) return lengthNoticeContinuation();
     const explicitReply = directCurrentChatReply(message);
     if (explicitReply !== null) return {action:"reply",reply:explicitReply,task:"",continueThread:false};
+    const unverifiedPr=unverifiedPrProgress(message);
+    if(unverifiedPr!==null)return {action:"reply",reply:unverifiedPr,task:"",continueThread:false};
     const requestedTest = explicitJessicaTest(message) || compactJessicaTest(message);
     if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
     // An unequivocal finished-plan announcement can end Codex even when

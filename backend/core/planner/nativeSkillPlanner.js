@@ -33,6 +33,9 @@
  */
 
 
+// Ensure the direct native plan has its web_fetch executor registered.
+import "../../tools/webFetchTool.js";
+
 import {
     validatePlan
 } from "./planValidator.js";

@@ -3,6 +3,7 @@ import {
 } from "./toolRegistry.js";
 import { sanitizeSourceUrlInput } from "./sourceUrlInput.js";
 import {fetchCanonicalApacheText} from "./canonicalApacheText.js";
+import {fetchCanonicalGpl3Text} from "./canonicalGpl3Text.js";
 
 
 /*
@@ -159,6 +160,8 @@ async function executeWebFetch(
     }
 
 
+    const gplCanonical = await fetchCanonicalGpl3Text(pageUrl);
+    if(gplCanonical) return gplCanonical;
     const canonical = await fetchCanonicalApacheText(pageUrl);
     if (canonical) return canonical;
 
