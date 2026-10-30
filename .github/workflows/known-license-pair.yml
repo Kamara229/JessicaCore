@@ -1,0 +1,28 @@
+name: Known License Source Pair Routing
+on:
+  pull_request:
+    paths:
+      - 'backend/core/planner/nativeSkillPlanner.js'
+      - 'backend/core/planner/knownLicenseComparison.js'
+      - 'backend/scripts/regressionKnownLicenseSkillPrecedence.test.js'
+      - '.github/workflows/known-license-pair.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/core/planner/nativeSkillPlanner.js'
+      - 'backend/core/planner/knownLicenseComparison.js'
+      - 'backend/scripts/regressionKnownLicenseSkillPrecedence.test.js'
+      - '.github/workflows/known-license-pair.yml'
+permissions:
+  contents: read
+jobs:
+  comparison-routing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix backend --package-lock=false --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionKnownLicenseSkillPrecedence.test.js backend/scripts/regressionKnownLicenseComparison.test.js backend/scripts/regressionSingleLicenseSource.test.js backend/scripts/regressionSkillPlannerHandoff.test.js
