@@ -8,6 +8,7 @@ import {guardRelayTerminalDecision,confirmedPlanCompletion} from "./relayTermina
 import {acknowledgeBackendProgress} from "./relayProgressPolicy.js";
 import {pendingBackendVerification} from "./relayPendingVerification.js";
 import {unverifiedPrProgress} from "./relayUnverifiedPrProgress.js";
+import {blockedBackendProgress} from "./relayBlockedBackendProgress.js";
 import {documentAnalysisNextStep} from "./relayDocumentProgress.js";
 import {releaseCiStatusHandoff} from "./relayReleaseCiStatus.js";
 import {deterministicStatusHandoff} from "./relayStatusEnvelope.js";
@@ -73,6 +74,8 @@ export async function interpretRelayTurn(input, generate) {
     if (isStandaloneLengthNotice(message)) return lengthNoticeContinuation();
     const explicitReply = directCurrentChatReply(message);
     if (explicitReply !== null) return {action:"reply",reply:explicitReply,task:"",continueThread:false};
+    const blockedBackend=blockedBackendProgress(message);
+    if(blockedBackend!==null)return {action:"reply",reply:blockedBackend,task:"",continueThread:false};
     const unverifiedPr=unverifiedPrProgress(message);
     if(unverifiedPr!==null)return {action:"reply",reply:unverifiedPr,task:"",continueThread:false};
     const requestedTest = explicitJessicaTest(message) || compactJessicaTest(message);

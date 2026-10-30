@@ -51,3 +51,16 @@ test("bare exact BSD3 clause survives Russian locale without a model call",async
  assert.equal(isVerifiedRequestedOriginalQuote({...source,validated:false},task),false);
  assert.equal(isVerifiedRequestedOriginalQuote({...source,text:text+"\nThird line"},task),false);
 });
+
+test("actual 20:49 official URL label cannot be translated",async()=>{
+ const original=clause+"  \nURL: "+url;
+ const validated={...verified,text:original};
+ assert.equal(isVerifiedRequestedOriginalQuote(validated,task),true);
+ let translated=0;
+ const result=await localizeResponse(validated,task,"ru",async()=>{translated++;return "Недословный перевод";});
+ assert.equal(translated,0);
+ assert.equal(result.localizationStatus,"verified-original-quote");
+ assert.equal(result.text,original);
+ assert.equal(enforcePresentationLanguage(result,{task,language:"ru"}).text,original);
+ assert.equal(isVerifiedRequestedOriginalQuote({...validated,text:original.replace("URL:","Unverified:")},task),false);
+});

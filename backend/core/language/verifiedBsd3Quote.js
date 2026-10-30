@@ -18,5 +18,5 @@ export function isVerifiedBsd3NonendorsementQuote(result,task){
  const quote=lines[0].replace(/^["“«]/u,"").replace(/["”»]$/u,"")
    .replace(/^3\.\s*/u,"").trim();
  if(quote!==SENTENCE)return false;
- return /^(?:Source|Official URL|Официальный URL):\s*https:\/\/opensource\.org\/license\/bsd-3-clause\s*$/iu.test(lines[1]);
+ return /^(?:Source|URL|Official URL|Официальный URL):\s*https:\/\/opensource\.org\/license\/bsd-3-clause\s*$/iu.test(lines[1]);
 }
