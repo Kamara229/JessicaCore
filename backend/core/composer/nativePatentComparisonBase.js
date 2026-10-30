@@ -1,3 +1,4 @@
+import {groundedGplMitPatentComparison} from "./nativeGplMitPatentComparison.js";
 import {groundedGplMplPatentComparison} from "./nativeGplMplPatentComparison.js";
 import {patentTableApacheBsd} from "./verifiedApacheBsdPatentTable.js";
 import {groundedMitPatentQuestion} from "./nativeMitPatentQuestion.js";
@@ -11,6 +12,7 @@ const B="https://opensource.org/license/bsd-3-clause";
 const flat=s=>String(s||"").replace(/\s+/g," ").toLowerCase();
 
 export function groundedPatentComparison(task,plan,run) {
+  const gplMit=groundedGplMitPatentComparison(task,plan,run); if(gplMit)return gplMit;
   const gplMpl=groundedGplMplPatentComparison(task,plan,run); if(gplMpl)return gplMpl;
   const single=groundedMitPatentQuestion(task,plan,run); if(single)return single;
   const mm=groundedMplMitPatentComparison(task,plan,run); if(mm)return mm;
