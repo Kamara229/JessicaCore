@@ -1,4 +1,5 @@
 import "../tools/webFetchTool.js";
+import "../tools/webSearchTool.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {tryCreateNativeSkillPlan} from "../core/planner/nativeSkillPlanner.js";
