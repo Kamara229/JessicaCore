@@ -89,3 +89,24 @@ test("ordinary-chat test extractor rejects negation and multiple quoted tests",(
  assert.equal(compactJessicaTest("Отправь в обычный чат Jessica: «Проверь восстановление после рестарта.»")?.task,
   "Проверь восстановление после рестарта.");
 });
+
+test("exact 2026-10-30 failed BSD table + next Jessica test bypasses unavailable model", async()=>{
+ const body="Тест не пройден: содержание верное, но формат нарушен. Публикация исправления заблокирована GitHub. Следующий тест в Jessica: «Сравни MIT и BSD 3-Clause. Ответь только таблицей». Передай ответ дословно.";
+ const task="Сравни MIT и BSD 3-Clause. Ответь только таблицей";
+ const wrapped=["JESSICA_REPLY_66858998-9f68-47bd-a625-de4db084d9fa",body,"JESSICA_END_66858998-9f68-47bd-a625-de4db084d9fa"].join("\n");
+ for(const message of [body,wrapped]){
+  let calls=0;
+  const decision=await interpretRelayTurn({message,history:[]},async()=>{
+    calls++; throw Error("429 unavailable");
+  });
+  assert.equal(calls,0);
+  assert.deepEqual(decision,{action:"test",reply:"",task,continueThread:false});
+ }
+});
+
+test("short next-test variant rejects negation and multiple commands",()=>{
+ const testCommand="Следующий тест в Jessica: «Сравни MIT и BSD 3-Clause. Ответь только таблицей»";
+ assert.equal(compactJessicaTest("Не запускай. "+testCommand),null);
+ assert.equal(compactJessicaTest(testCommand+"\nСледующий тест в Jessica: «Проверь другую лицензию»"),null);
+ assert.equal(compactJessicaTest("Пример: «Сравни MIT и BSD 3-Clause»"),null);
+});
