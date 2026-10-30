@@ -1,0 +1,15 @@
+name: BSD Quote Locale
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionBsd3LiteralQuoteLocale.test.js backend/scripts/regressionGplSection4LocalePreservation.test.js
