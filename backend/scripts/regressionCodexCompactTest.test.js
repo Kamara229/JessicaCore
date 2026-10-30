@@ -161,3 +161,18 @@ test("CI failure handoff never overrides an explicit ordinary-chat test",async()
  assert.equal(result.action,"test");
  assert.equal(result.task,task);
 });
+
+test("blocked GitHub quote fix handoff remains a no-test reply without interpretation provider",async()=>{
+ const message=[
+  "JESSICA_REPLY_cb8633bf-ebb4-439c-83dc-f4e28815123f",
+  "Тест не пройден: Jessica подтвердила английскую цитату, но затем перевела её на русский. Проверка не распознала метку «URL:». Запись исправления в GitHub заблокирована. Повторный тест пока не запускай.",
+  "JESSICA_END_cb8633bf-ebb4-439c-83dc-f4e28815123f"
+ ].join("\n");
+ let calls=0;
+ const reply=await interpretRelayTurn({message},async()=>{calls++;throw Error("429 exhausted");});
+ assert.equal(calls,0);
+ assert.equal(reply.action,"reply");
+ assert.equal(reply.task,"");
+ assert.equal(reply.continueThread,false);
+ assert.match(reply.reply,/тест пока не запускаю/iu);
+});
