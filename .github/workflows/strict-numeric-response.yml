@@ -1,0 +1,25 @@
+name: Strict Numeric Response Contract
+on:
+  pull_request:
+    paths:
+      - 'backend/core/response/**'
+      - 'backend/scripts/regressionStrictNumericOnlyResponse.test.js'
+      - '.github/workflows/strict-numeric-response.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/core/response/**'
+      - 'backend/scripts/regressionStrictNumericOnlyResponse.test.js'
+      - '.github/workflows/strict-numeric-response.yml'
+permissions:
+  contents: read
+jobs:
+  numeric-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test backend/scripts/regressionStrictNumericOnlyResponse.test.js
