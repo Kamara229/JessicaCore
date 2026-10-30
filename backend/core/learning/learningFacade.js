@@ -25,6 +25,7 @@ import {
     processLearning
 } from "./learningCoordinator.js";
 import {hasExperienceStorageIntegrityFailure} from "./experienceStorageIntegrityGate.js";
+import {skipInvalidCalendarInputLearning} from "./nativeCalendarInputLearningGate.js";
 
 
 /*
@@ -75,6 +76,16 @@ export async function processExecutionLearning(
 
     }
 
+
+    if(skipInvalidCalendarInputLearning(executionTrace)){
+        return {
+            success:true,
+            queued:false,
+            skipped:true,
+            reason:"native_invalid_calendar_input",
+            result:null
+        };
+    }
 
     if(hasExperienceStorageIntegrityFailure(executionTrace)){
         return {
