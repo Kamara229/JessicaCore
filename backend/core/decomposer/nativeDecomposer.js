@@ -1,4 +1,5 @@
 import { buildKnownLicenseComparisonPlan } from "../planner/knownLicenseComparison.js";
+import {buildNativeSingleLicensePlan} from "../planner/nativeSingleLicensePlan.js";
 
 /*
  * =========================================================
@@ -241,6 +242,18 @@ export function tryNativeDecomposition({
                     memoryHints: normalizeMemoryHints(memoryContext)
                 }]
             }
+        };
+    }
+
+    // Keep the named primary-license quotation intact. A model
+    // paraphrase or translation can erase the literal quote constraint.
+    if (buildNativeSingleLicensePlan(input)?.intent === "native_single_license_primary_text") {
+        return {
+            handled:true, source:"native-single-license-cohesive",
+            decomposition:{originalTask:input,isComplex:false,memoryContext,
+                subtasks:[{id:1,text:input,dependsOn:[],
+                    contributesToFinalAnswer:true,
+                    memoryHints:normalizeMemoryHints(memoryContext)}]}
         };
     }
 
