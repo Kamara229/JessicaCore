@@ -2,6 +2,7 @@ import { getDocumentReceipt } from "./composer/documentReceipt.js";
 import { requiresVerifiedComparison } from "./composer/comparisonEvidencePolicy.js";
 import {groundedPatentComparison} from "./composer/nativePatentComparison.js";
 import {extractOfficialLicenseExcerpt} from "./composer/officialLicenseExcerpt.js";
+import {extractGplSection4Excerpt} from "./composer/officialGplSection4Excerpt.js";
 import {groundedApachePatentSection} from "./composer/groundedApachePatentSection.js";
 import {checkProgrammingAnswerSafety} from "./validator/programmingAnswerSafety.js";
 import {checkMitPatentOverclaim} from "./validator/mitPatentOverclaim.js";
@@ -884,6 +885,16 @@ export async function validateResult(
             groundedApachePatentSection(task,plan,taskRunResult)?.text===answerResult.text)
             return buildSuccessResult("Source verified",OUTCOME_RESULT,
                 {validationMode:"bounded-primary-text",degraded:false});
+
+        if (answerResult?.source === "bounded-gpl-section4-excerpt") {
+            const proof=extractGplSection4Excerpt(task,plan,taskRunResult);
+            return proof?.source===answerResult.source && proof?.text===answerResult.text
+                ? buildSuccessResult("GPLv3 §4 quotation verified in canonical source",
+                    OUTCOME_RESULT,{validationMode:"bounded-primary-text",degraded:false})
+                : buildValidationResult({valid:false,shouldRetry:false,
+                    reason:"GPLv3 §4 quote not present in verified source"},
+                    {validationMode:"bounded-primary-text",failureScope:FAILURE_SCOPE.EVIDENCE});
+        }
 
         if (answerResult?.source === "bounded-original-license-excerpt") {
             const verified=extractOfficialLicenseExcerpt(task,plan,taskRunResult);

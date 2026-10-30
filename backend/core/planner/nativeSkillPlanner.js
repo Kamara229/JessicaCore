@@ -968,6 +968,10 @@ function finalizeNativePlan({
     }
 
 
+    // GPLv3 is the canonical GPL 3.0 name, not an invented version.
+    const groundedTask=source==="native-single-license-source" &&
+        plan?.metadata?.licenseId==="GPL-3.0" && /\bgpl\s*v\s*3\b/iu.test(task)
+        ? task+" GPL 3.0" : task;
     const validation =
 
         validatePlan(
@@ -976,7 +980,7 @@ function finalizeNativePlan({
 
             context,
 
-            task
+            groundedTask
 
         );
 

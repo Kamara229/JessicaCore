@@ -1,0 +1,34 @@
+name: GPL Section 4 Primary Quote Regression
+on:
+  pull_request:
+    paths:
+      - "backend/core/composer/officialGplSection4Excerpt.js"
+      - "backend/core/planner/nativeSkillPlanner.js"
+      - "backend/core/answerComposer.js"
+      - "backend/core/validator/sourceContentValidator.js"
+      - "backend/core/validator.js"
+      - "backend/scripts/regressionGplSection4Quote.test.js"
+      - ".github/workflows/gpl-section4-quote.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/core/composer/officialGplSection4Excerpt.js"
+      - "backend/core/planner/nativeSkillPlanner.js"
+      - "backend/core/answerComposer.js"
+      - "backend/core/validator/sourceContentValidator.js"
+      - "backend/core/validator.js"
+      - "backend/scripts/regressionGplSection4Quote.test.js"
+      - ".github/workflows/gpl-section4-quote.yml"
+permissions:
+  contents: read
+jobs:
+  section-four:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionGplSection4Quote.test.js backend/scripts/regressionSingleLicenseSource.test.js backend/scripts/regressionGplMitVerifiedTable.test.js backend/scripts/regressionGplMitDistributionTable.test.js

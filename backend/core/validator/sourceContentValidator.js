@@ -44,6 +44,7 @@ import {
     buildClaimEvidenceContext
 } from "./claim/claimEvidenceContext.js";
 import { verifyPairedSourceContent } from "./pairedSourceContent.js";
+import {extractGplSection4Excerpt,isGplSection4QuoteRequest} from "../composer/officialGplSection4Excerpt.js";
 
 
 
@@ -383,6 +384,17 @@ export async function validateSourceContent(
     if (paired) {
         console.log("Jessica paired-source evidence:", paired);
         return paired;
+    }
+
+    // Exact primary-document GPL section 4 quotation: validate the full
+    // source itself, not lossy top-ranked chunks that can omit section 4.
+    if(isGplSection4QuoteRequest(task,plan)) {
+        const proof=extractGplSection4Excerpt(task,plan,taskRunResult);
+        return proof
+            ? {success:true,valid:true,shouldRetry:false,
+               reason:"GPLv3 §4 verified against complete canonical text"}
+            : {success:true,valid:false,shouldRetry:false,
+               reason:"GPLv3 §4 was not verified in the complete canonical source"};
     }
 
     const fetchResult =
