@@ -37,3 +37,17 @@ test("BSD quote guard fails closed for non-verbatim, wrong URL, or unverified an
  assert.equal(isVerifiedRequestedOriginalQuote(verified,"Переведи условие BSD 3-Clause на русский"),false);
  assert.equal(isVerifiedRequestedOriginalQuote(verified,"Приведи цитату из BSD 2-Clause"),false);
 });
+
+test("bare exact BSD3 clause survives Russian locale without a model call",async()=>{
+ const text=clause+"  \nOfficial URL: "+url;
+ const source={...verified,text};
+ assert.equal(isVerifiedRequestedOriginalQuote(source,task),true);
+ let calls=0;
+ const localized=await localizeResponse(source,task,"ru",async()=>{calls++;return "Russian paraphrase";});
+ assert.equal(calls,0);
+ assert.equal(localized.text,text);
+ assert.equal(localized.localizationStatus,"verified-original-quote");
+ assert.equal(enforcePresentationLanguage(localized,{task,language:"ru"}).text,text);
+ assert.equal(isVerifiedRequestedOriginalQuote({...source,validated:false},task),false);
+ assert.equal(isVerifiedRequestedOriginalQuote({...source,text:text+"\nThird line"},task),false);
+});
