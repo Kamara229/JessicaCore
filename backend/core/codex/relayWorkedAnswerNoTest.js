@@ -4,7 +4,7 @@ export function workedAnswerNoTest(message) {
   if (body.length<4 || !/^JESSICA_REPLY_[a-f0-9-]{36}$/iu.test(body[0].trim()) ||
       !/^JESSICA_END_[a-f0-9-]{36}$/iu.test(body.at(-1).trim())) return null;
   if (body[0].trim().slice(14)!==body.at(-1).trim().slice(12)) return null;
-  const lines=body.slice(1,-1).map(x=>x.trim()).filter(Boolean);
+  const lines=body.slice(1,-1).map(x=>x.trim().replace(/\*\*/gu,"")).filter(Boolean);
   if (lines.length<2 || lines.length>12) return null;
   if (!lines.every(x=>/^[\d\s()+\-×*=]+$/u.test(x))) return null;
   if (lines.filter(x=>x.includes("=")).length<2) return null;
