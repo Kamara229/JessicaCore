@@ -135,3 +135,29 @@ test("repeat test directive remains fail-closed for negation and ambiguity",()=>
  assert.equal(compactJessicaTest(first+"\nСледующий тест в Jessica: «Проверь цитату §3 Apache.»"),null);
  assert.equal(compactJessicaTest("Например: «Проверь цитату §4 GPLv3.»"),null);
 });
+
+test("failed GPL quote fix PR and explicit no-repeat message bypasses model interpretation",async()=>{
+ const message=[
+  "JESSICA_REPLY_6675c009-2aec-4b2f-b738-90b2cceb0c28",
+  "Сбой подтверждён: декомпозиция меняет исходный запрос, после чего проверка источника отклоняет нужный фрагмент. Исправление подготовлено в PR #85, но CI не пройден. Повторный тест пока не запускай.",
+  "JESSICA_END_6675c009-2aec-4b2f-b738-90b2cceb0c28"
+ ].join("\n");
+ let aiCalls=0;
+ const result=await interpretRelayTurn({message,history:[]},async()=>{
+  aiCalls++;throw Error("429 AI interpretation unavailable");
+ });
+ assert.equal(aiCalls,0);
+ assert.equal(result.action,"reply");
+ assert.equal(result.task,"");
+ assert.equal(result.continueThread,false);
+ assert.match(result.reply,/CI/u);
+ assert.match(result.reply,/тест/u);
+});
+
+test("CI failure handoff never overrides an explicit ordinary-chat test",async()=>{
+ const task="Проверь строку лицензии";
+ const message="В обычном чате Jessica отправь: «"+task+"». Не выдумывай результат.";
+ const result=await interpretRelayTurn({message},async()=>{throw Error("unavailable")});
+ assert.equal(result.action,"test");
+ assert.equal(result.task,task);
+});
