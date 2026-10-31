@@ -1,5 +1,6 @@
 import {getAIProviderAvailability} from "./providerAvailability.js";
 import {getRetryAfterDetails} from "./retry/retryAfter.js";
+import {isShortAlternateRateLimit,requestAlternateWithShortRetry} from "./alternateShortQuotaRetry.js";
 
 // A second model has its own quota. Do not retry the same exhausted model,
 // and never switch on validation, content, network or short rate errors.
@@ -16,7 +17,7 @@ function dailyQuota(error){
 }
 
 function blockAlternative(error){
-  if(error?.status!==429)return;
+  if(error?.status!==429 || isShortAlternateRateLimit(error))return;
   const retry=getRetryAfterDetails(error)?.milliseconds;
   const timeout=Number.isFinite(retry) ? retry : 60_000;
   alternateBlockedUntil=Math.max(alternateBlockedUntil,
@@ -37,7 +38,7 @@ export async function withDailyQuotaModelFallback({
       from:PRIMARY,to:QUOTA_FALLBACK_MODEL,reason:"daily-quota"
     });
     try{
-      const result=await alternateRequest(QUOTA_FALLBACK_MODEL);
+      const result=await requestAlternateWithShortRetry(alternateRequest,QUOTA_FALLBACK_MODEL);
       console.log("Jessica alternate model succeeded",{
         model:QUOTA_FALLBACK_MODEL
       });
