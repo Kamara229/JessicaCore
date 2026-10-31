@@ -1,0 +1,30 @@
+name: Reasoning Answer Fidelity
+on:
+  pull_request:
+    paths:
+      - 'backend/core/composer/composerPrompt.js'
+      - 'backend/core/validator/aiResult/aiResultPrompt.js'
+      - 'backend/ai/validatorClient.js'
+      - 'backend/scripts/regressionReasoningLabels.test.js'
+      - '.github/workflows/reasoning-fidelity.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/core/composer/composerPrompt.js'
+      - 'backend/core/validator/aiResult/aiResultPrompt.js'
+      - 'backend/ai/validatorClient.js'
+      - 'backend/scripts/regressionReasoningLabels.test.js'
+      - '.github/workflows/reasoning-fidelity.yml'
+permissions:
+  contents: read
+jobs:
+  task-labels:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix backend --package-lock=false --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionReasoningLabels.test.js
