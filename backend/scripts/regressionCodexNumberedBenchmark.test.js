@@ -27,6 +27,7 @@ test("numbered benchmark parser is exact and rejects examples, negation and mult
   assert.equal(numberedBenchmarkTest(message)?.task,task);
   assert.equal(numberedBenchmarkTest("Тест 4/60 пройден. Ответ правильный."),null);
   assert.equal(numberedBenchmarkTest("Например:\nТест 5/60: "+task),null);
+  assert.equal(numberedBenchmarkTest("Пример:\nТест 5/60: "+task),null);
   assert.equal(numberedBenchmarkTest("Тест 5/60: "+task+"\nНе запускай тест."),null);
   assert.equal(numberedBenchmarkTest("Тест 5/60: "+task+"\nТест 6/60: "+task),null);
   assert.equal(numberedBenchmarkTest("Тест 61/60: "+task),null);
