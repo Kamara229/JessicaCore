@@ -41,6 +41,8 @@ const DIRECT_ANSWER_TOOLS =
 
         "invalid_calendar_date",
 
+        "bridge_crossing_optimal",
+
         "release_fact"
 
     ]);
