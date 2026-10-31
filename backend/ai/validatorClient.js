@@ -61,7 +61,7 @@ const VALIDATOR_MODEL =
  * Validator возвращает небольшой JSON,
  * поэтому длинная генерация ему не нужна.
  *
- * 300 токенов достаточно для:
+ * 600 токенов зарезервировано для:
  *
  * - valid;
  * - shouldRetry;
@@ -74,7 +74,7 @@ const VALIDATOR_MODEL =
 
 
 const VALIDATOR_MAX_COMPLETION_TOKENS =
-    300;
+    600;
 
 
 /*
@@ -196,7 +196,7 @@ export async function validatorChat(
      * Все текущие Validator-модули ожидают JSON.
      *
      *
-     * max_completion_tokens = 300
+     * max_completion_tokens = 600
      *
      * Защищает от OTPM 429 и от слишком
      * многословных ответов модели.
