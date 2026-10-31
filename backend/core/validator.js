@@ -11,6 +11,7 @@ import {checkOriginalEnglishQuote} from "./validator/originalEnglishQuoteGuard.j
 import {verifiedNativeIntegerProduct} from "./validator/nativeIntegerProductProof.js";
 import {verifiedNativeIntegerProductAdd} from "./validator/nativeIntegerProductAddProof.js";
 import {dateCalculationExplanationMissing} from "./validator/dateCalculationExplanation.js";
+import {verifiedNativeBridgeCrossing} from "./validator/nativeBridgeCrossingProof.js";
 /*
  * =========================================================
  * JESSICA RESULT VALIDATOR v4
@@ -647,6 +648,18 @@ export async function validateResult(
 
     }
 
+
+    // Native finite-state reasoning is accepted only after independent replay.
+    if (plan?.intent === "native_bridge_crossing") {
+        if (verifiedNativeBridgeCrossing(task,plan,taskRunResult,answerResult))
+            return buildSuccessResult("Все переходы и минимум проверены полным перебором",
+                OUTCOME_RESULT,{validationMode:MODE_TOOL_DIRECT,degraded:false});
+        return buildValidationResult(
+            {valid:false,reason:"Числа, переходы или доказательство не совпали с исходной задачей"},
+            {validationMode:"bridge-proof-integrity",degraded:false,
+             failureScope:FAILURE_SCOPE.EXECUTION}
+        );
+    }
 
     // Native calendar arithmetic must show the calculation when explicitly asked.
     if (plan?.steps?.some(s=>s?.tool==="date_diff") &&
