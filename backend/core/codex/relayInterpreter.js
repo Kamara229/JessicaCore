@@ -3,6 +3,7 @@ import {explicitSameTestChat} from "./relayThreadPolicy.js";
 import {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 import {explicitJessicaTest} from "./relayExplicitTest.js";
 import {compactJessicaTest} from "./relayCompactTest.js";
+import {numberedBenchmarkTest} from "./relayNumberedBenchmarkTest.js";
 import {workedAnswerNoTest} from "./relayWorkedAnswerNoTest.js";
 import {pendingZeroDayExplanationHandoff} from "./relayPendingDateExplanation.js";
 import {pendingAbsoluteDateFix} from "./relayPendingAbsoluteDateFix.js";
@@ -82,7 +83,7 @@ export async function interpretRelayTurn(input, generate) {
     if(blockedBackend!==null)return {action:"reply",reply:blockedBackend,task:"",continueThread:false};
     const unverifiedPr=unverifiedPrProgress(message);
     if(unverifiedPr!==null)return {action:"reply",reply:unverifiedPr,task:"",continueThread:false};
-    const requestedTest = explicitJessicaTest(message) || compactJessicaTest(message);
+    const requestedTest = explicitJessicaTest(message) || compactJessicaTest(message) || numberedBenchmarkTest(message);
     if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
     const directCalendarFix=pendingCalendarDirectFix(message);
     if(directCalendarFix!==null)return directCalendarFix;
