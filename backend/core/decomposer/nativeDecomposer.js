@@ -4,6 +4,7 @@ import {nativeIntegerProductDecomposition} from "./nativeIntegerProductDecomposi
 import {nativeIntegerProductAddDecomposition} from "./nativeIntegerProductAddDecomposition.js";
 import {nativeBridgeDecomposition} from "./nativeBridgeDecomposition.js";
 import {nativeLatestOrderSqlDecomposition} from "./nativeLatestOrderSqlDecomposition.js";
+import {nativeSafeAccountTransferDecomposition} from "./nativeSafeAccountTransferDecomposition.js";
 import {nativeDayDecomposition} from "./nativeDayDecomposition.js";
 
 /*
@@ -205,6 +206,8 @@ export function tryNativeDecomposition({
 
 } = {}) {
 
+    const transfer=nativeSafeAccountTransferDecomposition(task,memoryContext,normalizeMemoryHints(memoryContext));
+    if(transfer)return transfer;
     const sql=nativeLatestOrderSqlDecomposition(task,memoryContext,normalizeMemoryHints(memoryContext));
     if(sql)return sql;
     const bridge=nativeBridgeDecomposition(task,memoryContext,normalizeMemoryHints(memoryContext));

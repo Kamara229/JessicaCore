@@ -1,0 +1,50 @@
+name: PostgreSQL Transfer Integrity
+on:
+  pull_request:
+    paths:
+      - 'backend/core/native/safeAccountTransferIntent.js'
+      - 'backend/tools/safeAccountTransferSqlTool.js'
+      - 'backend/core/planner/**'
+      - 'backend/core/decomposer/**'
+      - 'backend/core/composer/directAnswer.js'
+      - 'backend/scripts/regressionSafeAccountTransfer.test.js'
+      - 'backend/scripts/testSafeAccountTransferPg.sh'
+      - '.github/workflows/safe-transfer-sql.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/core/native/safeAccountTransferIntent.js'
+      - 'backend/tools/safeAccountTransferSqlTool.js'
+      - 'backend/core/planner/**'
+      - 'backend/core/decomposer/**'
+      - 'backend/core/composer/directAnswer.js'
+      - 'backend/scripts/regressionSafeAccountTransfer.test.js'
+      - 'backend/scripts/testSafeAccountTransferPg.sh'
+      - '.github/workflows/safe-transfer-sql.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: transfer
+          POSTGRES_PASSWORD: transfer
+          POSTGRES_DB: transfer
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U transfer"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionSafeAccountTransfer.test.js
+      - run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+      - run: bash backend/scripts/testSafeAccountTransferPg.sh

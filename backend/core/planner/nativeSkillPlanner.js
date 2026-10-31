@@ -56,6 +56,7 @@ import {buildNativeIntegerMultiplicationPlan} from "./nativeIntegerMultiplicatio
 import {buildNativeIntegerProductAddPlan} from "./nativeIntegerProductAddPlan.js";
 import {buildNativeBridgeCrossingPlan} from "./nativeBridgeCrossingPlan.js";
 import {buildNativeLatestOrderSqlPlan} from "./nativeLatestOrderSqlPlan.js";
+import {buildNativeSafeAccountTransferPlan} from "./nativeSafeAccountTransferPlan.js";
 import { buildNativeSourceComparisonPlan } from "./nativeSourceComparisonPlan.js";
 import { buildNativeSingleLicensePlan } from "./nativeSingleLicensePlan.js";
 import { tryCreateKnownLicenseComparison } from "./knownLicenseComparison.js";
@@ -1116,6 +1117,8 @@ export function tryCreateNativeSkillPlan({
         });
     }
 
+    const transferPlan=buildNativeSafeAccountTransferPlan(task);
+    if(transferPlan)return finalizeNativePlan({task,context:planningContext,plan:transferPlan,source:"native-account-transfer-sql"});
     const latestOrderPlan=buildNativeLatestOrderSqlPlan(task);
     if(latestOrderPlan)return finalizeNativePlan({task,context:planningContext,plan:latestOrderPlan,source:"native-latest-order-sql"});
     const bridgePlan=buildNativeBridgeCrossingPlan(task);
