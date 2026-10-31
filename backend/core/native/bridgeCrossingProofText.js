@@ -10,7 +10,7 @@ export function formatBridgeCrossingProof(times,solved,explain=true) {
   const base="Минимальное время — "+solved.minutes+" мин.\n"+
     steps.join("\n")+"\nСумма: "+sum+" = "+solved.minutes+" мин.";
   if(!explain)return base;
-  const masks=Array.from({length:16},(_,mask)=>{
+  const masks=Array.from({length:1<<times.length},(_,mask)=>{
     const onRight=times.map((_,i)=>i).filter(i=>mask&(1<<i));
     const name=onRight.length?onRight.map(i=>String(i+1)).join(","):"∅";
     const fmt=s=>s===null?"—":String(s);
@@ -23,6 +23,6 @@ export function formatBridgeCrossingProof(times,solved,explain=true) {
     "Всего достижимых состояний: "+solved.reachable+". "+
     "Полная таблица кратчайших стоимостей от старта (лев./прав. — положение фонаря):\n"+
     "На дальнем берегу | Лев. | Прав.\n"+masks.join("\n")+
-    "\nДля конечного состояния (1,2,3,4; фонарь справа) кратчайшая стоимость — "+
+    "\nДля конечного состояния ("+times.map((_,i)=>i+1).join(",")+"; фонарь справа) кратчайшая стоимость — "+
     solved.minutes+" мин. Все допустимые переходы учтены, поэтому более быстрый план невозможен.";
 }

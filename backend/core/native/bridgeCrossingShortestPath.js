@@ -3,7 +3,7 @@
  * The mask identifies people on the destination bank; side=1 means torch there.
  */
 export function shortestBridgeCrossing(times) {
-  if(!Array.isArray(times) || times.length!==4 ||
+  if(!Array.isArray(times) || (times.length<4 || times.length>6) ||
      times.some(t=>!Number.isSafeInteger(t)||t<=0||t>120))return null;
   const n=times.length, size=(1<<n)*2, goal=((1<<n)-1)*2+1;
   const dist=Array(size).fill(Infinity), seen=Array(size).fill(false), prev=Array(size).fill(null);
