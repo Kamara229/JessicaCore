@@ -37,5 +37,5 @@ test("planner routes to verified native calculation without a web search",async(
  assert.equal(answer.text,result.text);
  assert.match(answer.text,/первая — 6, вторая — 3, третья — 3/);
  const check=await validateResult(task,plan,run,answer);
- assert.equal(check.valid,true);
+ assert.equal(check.valid,true);assert.equal(check.degraded,false);
 });
