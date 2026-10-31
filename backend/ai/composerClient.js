@@ -1,4 +1,5 @@
 import { resolveComposerModel } from "./composerModelPolicy.js";
+import {withDailyQuotaModelFallback} from "./dailyQuotaModelFallback.js";
 /*
  * =========================================================
  * JESSICA COMPOSER CLIENT v1
@@ -123,7 +124,8 @@ export async function requestComposerAI({
         getGroqClient();
 
 
-    return await executeAIWithRetry(
+    return await withDailyQuotaModelFallback({primaryModel:resolveComposerModel({pairedSources}),
+      primaryRequest:()=>executeAIWithRetry(
 
         () =>
             groq
@@ -169,9 +171,9 @@ export async function requestComposerAI({
             maxAttempts:
                 COMPOSER_AI_ATTEMPTS
 
-        }
-
-    );
+        }),
+      alternateRequest:(model)=>groq.chat.completions.create({model,temperature:COMPOSER_TEMPERATURE,...resolveComposerBudget({pairedSources}),messages:[{role:"system",content:instructions.trim()},{role:"user",content:input.trim()}]},{maxRetries:0})
+    });
 
 }
 
