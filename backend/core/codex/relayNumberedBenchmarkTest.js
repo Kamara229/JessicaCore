@@ -9,11 +9,16 @@ export function numberedBenchmarkTest(message) {
         !/^\s*JESSICA_(?:REPLY|END)_[a-f\d-]{36}\s*$/iu.test(line)
     ).join("\n");
     if (/(?:не\s+(?:отправляй|запускай|выполняй|повторяй)|например|(?:^|\s)пример\s*:|образец\s*:)/iu.test(body)) return null;
-    const matches = [...body.matchAll(/^\s*Тест\s+([1-9]\d{0,2})\s*\/\s*([1-9]\d{0,2})\s*:\s*(.+?)\s*$/gimu)];
+    const matches = [
+        ...body.matchAll(/^\s*Тест\s+([1-9]\d{0,2})\s*\/\s*([1-9]\d{0,2})\s*:\s*(.+?)\s*$/gimu),
+        // A previous result and the next task can share one text line.
+        ...body.matchAll(/(?:^|[.!?]\s+)Тест\s+([1-9]\d{0,2})\s*\/\s*([1-9]\d{0,2})\.\s+(Задача\s+[^\r\n]+?)\s*$/gimu)
+    ];
     if (matches.length !== 1) return null;
     const [, sequence, total, rawTask] = matches[0];
     if (Number(sequence) > Number(total) || Number(total) > 200) return null;
     const task = rawTask.trim();
     if (task.length < 20 || task.length > 1800) return null;
+    if (/(?:^|[.!?]\s+)Тест\s+[1-9]\d{0,2}\s*\/\s*[1-9]\d{0,2}\s*(?::|\.\s+Задача\s+)/iu.test(task)) return null;
     return {action:"test", reply:"", task, continueThread:false};
 }
