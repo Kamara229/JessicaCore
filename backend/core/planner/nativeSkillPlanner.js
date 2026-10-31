@@ -54,6 +54,7 @@ import { dateDiffMode } from "./dateDiffMode.js";
 import { buildNativeDocumentFetchPlan } from "./nativeDocumentFetchPlan.js";
 import {buildNativeIntegerMultiplicationPlan} from "./nativeIntegerMultiplicationPlan.js";
 import {buildNativeIntegerProductAddPlan} from "./nativeIntegerProductAddPlan.js";
+import {buildNativeBridgeCrossingPlan} from "./nativeBridgeCrossingPlan.js";
 import { buildNativeSourceComparisonPlan } from "./nativeSourceComparisonPlan.js";
 import { buildNativeSingleLicensePlan } from "./nativeSingleLicensePlan.js";
 import { tryCreateKnownLicenseComparison } from "./knownLicenseComparison.js";
@@ -1114,6 +1115,8 @@ export function tryCreateNativeSkillPlan({
         });
     }
 
+    const bridgePlan=buildNativeBridgeCrossingPlan(task);
+    if(bridgePlan)return finalizeNativePlan({task,context:planningContext,plan:bridgePlan,source:"native-bridge-crossing"});
     const productAddPlan=buildNativeIntegerProductAddPlan(task);
     if(productAddPlan)return finalizeNativePlan({task,context:planningContext,plan:productAddPlan,source:"native-integer-product-add"});
     const productPlan=buildNativeIntegerMultiplicationPlan(task,executionExperience);
