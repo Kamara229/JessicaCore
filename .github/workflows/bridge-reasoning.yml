@@ -1,0 +1,38 @@
+name: Bridge Reasoning Integrity
+on:
+  pull_request:
+    paths:
+      - 'backend/core/native/bridgeCrossing*.js'
+      - 'backend/tools/bridgeCrossingTool.js'
+      - 'backend/core/planner/nativeBridgeCrossingPlan.js'
+      - 'backend/core/planner/nativeSkillPlanner.js'
+      - 'backend/core/composer/directAnswer.js'
+      - 'backend/core/validator/nativeBridgeCrossingProof.js'
+      - 'backend/core/validator.js'
+      - 'backend/scripts/regressionBridgeReasoning.test.js'
+      - '.github/workflows/bridge-reasoning.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/core/native/bridgeCrossing*.js'
+      - 'backend/tools/bridgeCrossingTool.js'
+      - 'backend/core/planner/nativeBridgeCrossingPlan.js'
+      - 'backend/core/planner/nativeSkillPlanner.js'
+      - 'backend/core/composer/directAnswer.js'
+      - 'backend/core/validator/nativeBridgeCrossingProof.js'
+      - 'backend/core/validator.js'
+      - 'backend/scripts/regressionBridgeReasoning.test.js'
+      - '.github/workflows/bridge-reasoning.yml'
+permissions:
+  contents: read
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionBridgeReasoning.test.js
