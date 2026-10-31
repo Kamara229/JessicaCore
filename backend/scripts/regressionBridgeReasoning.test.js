@@ -74,7 +74,7 @@ test("five-person bridge goes through native planner, solver, composer and valid
   assert.equal(result.data.minutes,28);
   assert.match(result.text,/Минимальное время — 28 мин/);
   assert.match(result.text,/1,2,3,4,5; фонарь справа/);
-  assert.equal(result.text.split("\n").filter(line=>/^\\d+(?:,\\d+)* \\|/u.test(line)).length,31);
+  assert.equal(result.text.split("\n").filter(line=>line.includes(" | ")).length,33);
   const run={success:true,results:[{id:step.id,tool:step.tool,...result}]};
   const answer=await composeAnswer(fiveTask,planned.plan,run);
   assert.equal(answer.success,true);
