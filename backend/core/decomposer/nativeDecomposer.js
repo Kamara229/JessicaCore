@@ -3,6 +3,7 @@ import {buildNativeSingleLicensePlan} from "../planner/nativeSingleLicensePlan.j
 import {nativeIntegerProductDecomposition} from "./nativeIntegerProductDecomposition.js";
 import {nativeIntegerProductAddDecomposition} from "./nativeIntegerProductAddDecomposition.js";
 import {nativeBridgeDecomposition} from "./nativeBridgeDecomposition.js";
+import {nativeLatestOrderSqlDecomposition} from "./nativeLatestOrderSqlDecomposition.js";
 import {nativeDayDecomposition} from "./nativeDayDecomposition.js";
 
 /*
@@ -204,6 +205,8 @@ export function tryNativeDecomposition({
 
 } = {}) {
 
+    const sql=nativeLatestOrderSqlDecomposition(task,memoryContext,normalizeMemoryHints(memoryContext));
+    if(sql)return sql;
     const bridge=nativeBridgeDecomposition(task,memoryContext,normalizeMemoryHints(memoryContext));
     if(bridge)return bridge;
     const nativeDays=nativeDayDecomposition(task,memoryContext,normalizeMemoryHints(memoryContext));

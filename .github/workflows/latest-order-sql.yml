@@ -1,0 +1,18 @@
+name: Latest Order SQL
+on:
+  pull_request:
+    paths: ['backend/core/native/latestOrderSqlIntent.js', 'backend/tools/latestOrderSqlTool.js', 'backend/scripts/regressionLatestOrderSql.test.js', 'backend/core/planner/**', 'backend/core/decomposer/**', 'backend/core/composer/directAnswer.js']
+  push:
+    branches: [main]
+    paths: ['backend/core/native/latestOrderSqlIntent.js', 'backend/tools/latestOrderSqlTool.js', 'backend/scripts/regressionLatestOrderSql.test.js', 'backend/core/planner/**', 'backend/core/decomposer/**', 'backend/core/composer/directAnswer.js']
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionLatestOrderSql.test.js
