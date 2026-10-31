@@ -1,9 +1,12 @@
 import {parseIntegerProductTask} from "../native/integerMultiplicationIntent.js";
 import {multiplyIntegers} from "../../tools/integerMultiplicationTool.js";
+import {verifiedThreeContainerLinear} from "../native/threeContainerLinearProof.js";
 
 // Validate the precise executed product, not merely a plausible-looking answer.
 // Generic native-fallback replies and non-arithmetic tool output remain unverified.
 export function verifiedNativeIntegerProduct(task,plan,runResult,answerResult) {
+  if(plan?.intent==="native_three_container_linear")
+    return verifiedThreeContainerLinear(task,plan,runResult,answerResult);
   if (plan?.intent!=="native_integer_multiplication" ||
       plan?.evidence?.mode!=="none" ||
       !["native-fallback","tool","native-integer-proof"].includes(answerResult?.source) ||

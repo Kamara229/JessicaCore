@@ -1,7 +1,10 @@
 import "../../tools/integerProductAddTool.js";
 import {parseIntegerProductAddTask} from "../native/integerProductAddIntent.js";
+import {buildNativeThreeContainerLinearPlan} from "./nativeThreeContainerLinearPlan.js";
 
 export function buildNativeIntegerProductAddPlan(task){
+  const linear=buildNativeThreeContainerLinearPlan(task);
+  if(linear)return linear;
   const request=parseIntegerProductAddTask(task);
   if(!request)return null;
   // A composite tool is a native capability, not proof that the separate

@@ -43,6 +43,8 @@ const DIRECT_ANSWER_TOOLS =
 
         "bridge_crossing_optimal",
 
+        "three_container_linear",
+
         "release_fact"
 
     ]);
