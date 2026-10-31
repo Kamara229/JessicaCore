@@ -43,6 +43,7 @@ const DIRECT_ANSWER_TOOLS =
 
         "bridge_crossing_optimal",
         "latest_order_sql",
+        "safe_account_transfer_sql",
 
         "three_container_linear",
 
