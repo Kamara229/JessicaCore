@@ -19,6 +19,7 @@ test("sequential percentage calculation is not additive",()=>{
  assert.equal(r.afterRaise,1200);assert.equal(r.final,960);assert.equal(r.changePercent,-4);
  assert.equal(calculateSequentialPrice({price:1000,increase:150,decrease:20}),null);
  assert.equal(parseSequencePriceTask("Цена товара 1000 ₽, её повысили на 20%."),null);
+ assert.equal(parseSequencePriceTask(task+" Затем повысили на 30%."),null);
 });
 test("full plan, native answer and verification without model",async()=>{
  const route=tryCreateNativeSkillPlan({task,executionExperience:{skills:[]}});
