@@ -42,6 +42,7 @@ const DIRECT_ANSWER_TOOLS =
         "invalid_calendar_date",
 
         "bridge_crossing_optimal",
+        "latest_order_sql",
 
         "three_container_linear",
 
