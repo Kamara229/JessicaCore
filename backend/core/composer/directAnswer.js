@@ -45,6 +45,8 @@ const DIRECT_ANSWER_TOOLS =
 
         "three_container_linear",
 
+        "sequential_price_percent",
+
         "release_fact"
 
     ]);

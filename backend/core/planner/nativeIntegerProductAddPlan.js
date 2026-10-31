@@ -1,8 +1,11 @@
 import "../../tools/integerProductAddTool.js";
 import {parseIntegerProductAddTask} from "../native/integerProductAddIntent.js";
+import {buildNativeSequencePricePlan} from "./nativeSequencePricePlan.js";
 import {buildNativeThreeContainerLinearPlan} from "./nativeThreeContainerLinearPlan.js";
 
 export function buildNativeIntegerProductAddPlan(task){
+  const price=buildNativeSequencePricePlan(task);
+  if(price)return price;
   const linear=buildNativeThreeContainerLinearPlan(task);
   if(linear)return linear;
   const request=parseIntegerProductAddTask(task);

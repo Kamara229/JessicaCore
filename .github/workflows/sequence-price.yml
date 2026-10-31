@@ -1,0 +1,28 @@
+name: Sequential Price Integrity
+on:
+  pull_request:
+    paths:
+      - 'backend/core/native/sequencePrice*.js'
+      - 'backend/core/planner/nativeSequencePricePlan.js'
+      - 'backend/core/planner/nativeIntegerProductAddPlan.js'
+      - 'backend/core/decomposer/nativeIntegerProductAddDecomposition.js'
+      - 'backend/core/validator/nativeSequencePriceProof.js'
+      - 'backend/core/validator/nativeIntegerProductProof.js'
+      - 'backend/core/composer/directAnswer.js'
+      - 'backend/scripts/regressionSequencePrice.test.js'
+      - '.github/workflows/sequence-price.yml'
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionSequencePrice.test.js
