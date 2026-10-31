@@ -30,3 +30,27 @@ test("inline benchmark parser rejects unsafe or multiple tasks",()=>{
     assert.equal(numberedBenchmarkTest(line+" Тест 28/60. "+task),null);
     assert.equal(numberedBenchmarkTest("Тест 61/60. "+task),null);
 });
+
+const retryTask="В Python функция def add(x, items=[]): items.append(x); return items. Что вернут последовательные вызовы add(1), add(2), add(3, [])? Объясни причину и исправь код.";
+const retryBody="Тест 32/60 (повтор после завершения деплоя): "+retryTask;
+const retryId="71f4fc99-d9fa-4fec-95f8-45333c28a75a";
+
+test("numbered repeat marker bypasses unavailable Groq interpreter",async()=>{
+  for(const message of [retryBody,["JESSICA_REPLY_"+retryId,retryBody,"JESSICA_END_"+retryId].join("\n")]){
+    let calls=0;
+    const decision=await interpretRelayTurn({message},async()=>{
+      calls++;
+      throw Error("HTTP 429 quota");
+    });
+    assert.equal(calls,0);
+    assert.deepEqual(decision,{action:"test",reply:"",task:retryTask,continueThread:false});
+  }
+});
+
+test("repeat notes must not smuggle instructions or an invalid benchmark",()=>{
+  assert.equal(numberedBenchmarkTest(retryBody)?.task,retryTask);
+  assert.equal(numberedBenchmarkTest("Тест 32/60 (пример): "+retryTask),null);
+  assert.equal(numberedBenchmarkTest("Тест 32/60 (повтор): "+retryTask+" Не запускай тест."),null);
+  assert.equal(numberedBenchmarkTest("Тест 32/60 (повтор): "+retryTask+"\nТест 33/60: "+retryTask),null);
+  assert.equal(numberedBenchmarkTest("Тест 62/60 (повтор): "+retryTask),null);
+});
