@@ -1,0 +1,27 @@
+name: Declared Label Integrity
+on:
+  pull_request:
+    paths:
+      - 'backend/core/validator/declaredLabelIntegrity.js'
+      - 'backend/core/execution/stepExecution/validationExecutor.js'
+      - 'backend/scripts/regressionDeclaredLabelIntegrity.test.js'
+      - '.github/workflows/label-integrity.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/core/validator/declaredLabelIntegrity.js'
+      - 'backend/core/execution/stepExecution/validationExecutor.js'
+      - 'backend/scripts/regressionDeclaredLabelIntegrity.test.js'
+      - '.github/workflows/label-integrity.yml'
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test backend/scripts/regressionDeclaredLabelIntegrity.test.js
