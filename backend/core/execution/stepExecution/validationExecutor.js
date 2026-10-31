@@ -16,6 +16,7 @@
 import {
     validateResult
 } from "../../validator.js";
+import {undeclaredQuotedLabel} from "../../validator/declaredLabelIntegrity.js";
 
 
 function buildFailure(
@@ -211,6 +212,13 @@ export async function executeValidation(
 
     }
 
+
+    const mismatch=undeclaredQuotedLabel(context.task,context.answerResult?.text);
+    if(mismatch){
+        const validation={...mismatch,failureScope:"presentation",validationMode:"declared-label-integrity"};
+        context.validationResult=validation;
+        return {success:false,failure:normalizeValidationFailure(validation)};
+    }
 
     let validation;
 
