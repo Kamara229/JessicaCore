@@ -61,3 +61,31 @@ test("planner, tool, composer and validator agree without Groq or web",async()=>
   const rejected=await validateResult(task,plan,altered,answer);
   assert.equal(rejected.valid,false);
 });
+
+const fiveTask="Пятеро переходят мост с одним фонарём. Время: 1, 2, 5, 10, 15 минут. Одновременно идут не более двух, со скоростью медленного. Фонарь обязателен. Найди минимум времени, объясни маршрут и оптимальность.";
+test("five-person bridge goes through native planner, solver, composer and validator",async()=>{
+  assert.deepEqual(parseBridgeCrossingTask(fiveTask),{times:[1,2,5,10,15],explain:true});
+  const planned=tryCreateNativeSkillPlan({task:fiveTask,executionExperience:{skills:[]}});
+  assert.equal(planned.handled,true);
+  assert.equal(planned.plan.intent,"native_bridge_crossing");
+  const step=planned.plan.steps[0];
+  const result=solveBridgeCrossingTool(step.arguments);
+  assert.equal(result.success,true);
+  assert.equal(result.data.minutes,28);
+  assert.match(result.text,/Минимальное время — 28 мин/);
+  assert.match(result.text,/1,2,3,4,5; фонарь справа/);
+  assert.equal(result.text.split("\n").filter(line=>/^\\d+(?:,\\d+)* \\|/u.test(line)).length,31);
+  const run={success:true,results:[{id:step.id,tool:step.tool,...result}]};
+  const answer=await composeAnswer(fiveTask,planned.plan,run);
+  assert.equal(answer.success,true);
+  assert.equal(answer.source,"tool");
+  assert.equal(answer.text,result.text);
+  assert.equal((await validateResult(fiveTask,planned.plan,run,answer)).valid,true);
+  assert.equal((await validateResult(fiveTask,planned.plan,run,{...answer,text:answer.text.replace("28 мин.","27 мин.")})).valid,false);
+});
+test("bridge parser rejects incomplete and contradictory counts",()=>{
+  assert.equal(parseBridgeCrossingTask(fiveTask.replace("10, 15","10")),null);
+  assert.equal(parseBridgeCrossingTask(fiveTask.replace("Пятеро","Семеро")),null);
+  assert.equal(parseBridgeCrossingTask(fiveTask.replace("Пятеро","Пятеро и четверо")),null);
+  assert.equal(parseBridgeCrossingTask(fiveTask.replace("10, 15","10, 15, 20")),null);
+});
