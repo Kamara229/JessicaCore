@@ -1,0 +1,30 @@
+name: Daily Quota Model Fallback Regression
+on:
+  pull_request:
+    paths:
+      - 'backend/ai/dailyQuotaModelFallback.js'
+      - 'backend/ai/plannerClient.js'
+      - 'backend/ai/composerClient.js'
+      - 'backend/scripts/regressionModelDailyQuotaFallback.test.js'
+      - '.github/workflows/quota-model-fallback.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/ai/dailyQuotaModelFallback.js'
+      - 'backend/ai/plannerClient.js'
+      - 'backend/ai/composerClient.js'
+      - 'backend/scripts/regressionModelDailyQuotaFallback.test.js'
+      - '.github/workflows/quota-model-fallback.yml'
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionModelDailyQuotaFallback.test.js
