@@ -1,4 +1,5 @@
 import test from "node:test";
+import {decomposeTask} from "../core/taskDecomposer.js";
 import assert from "node:assert/strict";
 import {parseBridgeCrossingTask} from "../core/native/bridgeCrossingIntent.js";
 import {shortestBridgeCrossing} from "../core/native/bridgeCrossingShortestPath.js";
@@ -88,4 +89,15 @@ test("bridge parser rejects incomplete and contradictory counts",()=>{
   assert.equal(parseBridgeCrossingTask(fiveTask.replace("Пятеро","Семеро")),null);
   assert.equal(parseBridgeCrossingTask(fiveTask.replace("Пятеро","Пятеро и четверо")),null);
   assert.equal(parseBridgeCrossingTask(fiveTask.replace("10, 15","10, 15, 20")),null);
+});
+
+test("production decomposer preserves five-person bridge prompt for native planning", async()=>{
+  const result=await decomposeTask({task:fiveTask,memoryContext:{skills:[]}});
+  assert.equal(result.native,true);
+  assert.equal(result.source,"native-bridge");
+  assert.equal(result.decomposition.subtasks.length,1);
+  assert.equal(result.decomposition.subtasks[0].text,fiveTask);
+  const plan=tryCreateNativeSkillPlan({task:result.decomposition.subtasks[0].text,executionExperience:{skills:[]}});
+  assert.equal(plan.handled,true);
+  assert.deepEqual(plan.plan.steps[0].arguments.times,[1,2,5,10,15]);
 });
