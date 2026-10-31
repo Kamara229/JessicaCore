@@ -33,3 +33,22 @@ test("incomplete latest order requests are not assumed",()=>{
  assert.equal(parseLatestOrderSqlTask(task.replace("больший id","случайный id")),null);
  assert.equal(parseLatestOrderSqlTask(task.replace("created_at,","")),null);
 });
+
+import {localizeResponse} from "../core/language/responseLanguageService.js";
+import {enforcePresentationLanguage} from "../core/language/strictPresentationLanguage.js";
+
+test("Russian locale accepts verified SQL and explanation during provider 429",async()=>{
+ const original={...latestOrderSqlTool({explain:true}),source:"tool",tool:"latest_order_sql",mode:"single"};
+ let calls=0;
+ const translated=await localizeResponse(original,task,"ru",async()=>{
+   calls++;
+   throw Object.assign(Error("provider unavailable"),{status:429});
+ });
+ const outgoing=enforcePresentationLanguage(translated,{task,language:"ru"});
+ assert.equal(calls,0);
+ assert.equal(outgoing.success,true);
+ assert.equal(outgoing.localizationStatus,"already-russian");
+ assert.equal(outgoing.text,original.text);
+ assert.ok(outgoing.text.includes("ROW_NUMBER()"));
+ assert.ok(outgoing.text.includes("сортирует"));
+});
