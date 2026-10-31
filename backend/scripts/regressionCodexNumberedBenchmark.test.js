@@ -33,3 +33,6 @@ test("numbered benchmark parser is exact and rejects examples, negation and mult
   assert.equal(numberedBenchmarkTest("Тест 61/60: "+task),null);
   assert.equal(numberedBenchmarkTest("Тест 5/60: 2+2"),null);
 });
+
+// Keep variant-specific cases small while running them in the existing relay CI.
+import "./regressionCodexInlineBenchmark.test.js";
