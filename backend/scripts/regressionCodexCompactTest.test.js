@@ -265,3 +265,28 @@ test("no-test calendar Composer fix stays deterministic on HTTP 429",async()=>{
    "В обычном чате Jessica отправь: «Новый тест».")),null);
  assert.equal(pendingCalendarDirectFix("В обычном чате Jessica отправь: «Новый тест»."),null);
 });
+
+test("named Jessica logic benchmark command bypasses interpreter outage verbatim",async()=>{
+ const task="А, Б и В либо всегда лгут, либо всегда говорят правду. А: “Б лжёт”. Б: “В лжёт”. В: “А и Б одного типа”. Кто из них лжёт? Обоснуй";
+ const message=[
+  "JESSICA_REPLY_9230fde9-321a-4226-ba0a-c999268e42e3",
+  "Тест 2/60: 2/2. Вывод и контрпример верны, Render подтвердил. Тест 3/60. Отправь Jessica: «"+task+"». Передай ответ дословно.",
+  "JESSICA_END_9230fde9-321a-4226-ba0a-c999268e42e3"
+ ].join("\n");
+ let calls=0;
+ const result=await interpretRelayTurn({message,history:[]},async()=>{
+   calls++;throw Error("429 daily quota");
+ });
+ assert.equal(calls,0,"explicit test must not spend AI tokens");
+ assert.deepEqual(result,{action:"test",reply:"",task,continueThread:false});
+});
+
+test("named Jessica test form remains closed to negation and multiple instructions",()=>{
+ const first="Отправь Jessica: «Реши задачу А».";
+ const second="Отправь Jessica: «Реши задачу Б».";
+ assert.equal(compactJessicaTest(first)?.task,"Реши задачу А");
+ assert.equal(compactJessicaTest("Не отправляй. "+first),null);
+ assert.equal(compactJessicaTest(first+" "+second),null);
+ assert.equal(compactJessicaTest("Например: «Реши задачу А»"),null);
+ assert.equal(compactJessicaTest("Отправь Jessica: «Реши задачу А». Не запускай тест"),null);
+});
