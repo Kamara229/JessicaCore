@@ -1,4 +1,5 @@
 import test from "node:test";
+import {decomposeTask} from "../core/taskDecomposer.js";
 import assert from "node:assert/strict";
 import {parseBridgeCrossingTask} from "../core/native/bridgeCrossingIntent.js";
 import {shortestBridgeCrossing} from "../core/native/bridgeCrossingShortestPath.js";
