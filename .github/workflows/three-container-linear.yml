@@ -1,0 +1,32 @@
+name: Three Container Arithmetic
+on:
+  pull_request:
+    paths:
+      - 'backend/core/native/threeContainerLinear*.js'
+      - 'backend/core/planner/nativeIntegerProductAddPlan.js'
+      - 'backend/core/planner/nativeThreeContainerLinearPlan.js'
+      - 'backend/core/composer/directAnswer.js'
+      - 'backend/scripts/regressionThreeContainerLinear.test.js'
+      - '.github/workflows/three-container-linear.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/core/native/threeContainerLinear*.js'
+      - 'backend/core/planner/nativeIntegerProductAddPlan.js'
+      - 'backend/core/planner/nativeThreeContainerLinearPlan.js'
+      - 'backend/core/composer/directAnswer.js'
+      - 'backend/scripts/regressionThreeContainerLinear.test.js'
+      - '.github/workflows/three-container-linear.yml'
+permissions:
+  contents: read
+jobs:
+  arithmetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionThreeContainerLinear.test.js
