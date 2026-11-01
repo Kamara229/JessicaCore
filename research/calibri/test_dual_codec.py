@@ -19,7 +19,7 @@ class DualCodecTests(unittest.TestCase):
                 words,off=self.dictionary.encode(q)
                 self.assertTrue(np.array_equal(q,self.dictionary.decode(words,off,cols)))
                 for group in (1,4,16,64):
-                    for selector in ("raw","zlib","planes","adaptive"):
+                    for selector in ("raw","zlib","planes","tier8","adaptive"):
                         blob,_=encode_grouped(words,off,cols,group,selector)
                         restored,ro,co=decode_grouped(blob)
                         self.assertEqual(co,cols)
