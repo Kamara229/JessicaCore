@@ -2,6 +2,7 @@
 import unittest
 import numpy as np
 from huffman_masks_v12 import CODE,REVERSE,MAX_BITS,row_encode,row_decode,encode,decode,read_row,direct_matvec
+from hybrid_v12 import encode as hybrid_encode,decode as hybrid_decode
 
 class HuffmanMasksTests(unittest.TestCase):
     def test_prefix_properties(self):
@@ -35,6 +36,15 @@ class HuffmanMasksTests(unittest.TestCase):
         gold=np.where(q<0,scales[:,0,None],np.where(q>0,scales[:,1,None],0.))@x
         got=direct_matvec(blob,x,scales)
         self.assertTrue(np.allclose(gold,got,rtol=1e-12,atol=1e-12))
+    def test_hybrid_auto_fallback(self):
+        rng=np.random.default_rng(123)
+        for zero in (0.1,.5,.885,1.):
+            q=rng.choice([-1,0,1],size=(6,128),p=[(1-zero)/2,zero,(1-zero)/2]).astype(np.int8)
+            buf,decision=hybrid_encode(q,4)
+            self.assertIn(decision['chosen'],('CL8','MASK_HUFF'))
+            self.assertTrue(np.array_equal(q,hybrid_decode(buf)))
+            self.assertEqual(len(buf),5+min(decision['cl8_bytes'],decision['mask_bytes']))
+
     def test_corruption(self):
         q=np.zeros((3,32),np.int8)
         blob=encode(q)
