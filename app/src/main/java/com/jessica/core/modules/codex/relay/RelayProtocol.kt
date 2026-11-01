@@ -5,7 +5,7 @@ object RelayProtocol {
     const val GREETING = "Джессика готова к работе в чате."
     // Keep the first Android message short: on some ChatGPT builds a long
     // multiline composer changes its accessibility geometry before sending.
-    val introduction = "$GREETING\nПродолжаем backend Jessica Core. " +
+    val introduction = "$GREETING\nПродолжаем выбранный план чата: backend Jessica Core или исследование CALIBRI. " +
         "GitHub, Render и Supabase меняешь ты; я не редактирую репозиторий. " +
         "Я выполняю тесты через свой обычный чат и передаю ответы дословно. " +
         "Один следующий шаг без APK, настроек и секретов. Когда план завершён — сообщи."
