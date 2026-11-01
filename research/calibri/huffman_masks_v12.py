@@ -18,6 +18,7 @@ import numpy as np
 from codec import Writer,Reader
 
 MAGIC=b'C12H'
+MAGIC_COMPACT=b'C12I'
 HDR='<4sIIH'
 HDR_SIZE=struct.calcsize(HDR)
 ESC=256
@@ -83,7 +84,7 @@ def row_decode(data,width):
             if (mask>>j)&1:q[i+j]=1 if rd.get(1) else -1
     return q
 
-def encode(q,group=16):
+def encode(q,group=16,index_mode='auto'):
     q=np.asarray(q,dtype=np.int8)
     if q.ndim!=2 or not q.shape[0] or not q.shape[1] or q.shape[1]%8 or group<1 or group>256:
         raise ValueError('invalid dimensions')
@@ -94,20 +95,42 @@ def encode(q,group=16):
         for p in pieces[first:first+group]:payload.extend(p)
         anchors.append(len(payload))
     if len(payload)>=2**32:raise ValueError('matrix too big')
-    return (struct.pack(HDR,MAGIC,rows,cols,group)
-            +np.asarray([len(p) for p in pieces],dtype='<u2').tobytes()
-            +np.asarray(anchors,dtype='<u4').tobytes()+payload)
+    lens=np.asarray([len(p) for p in pieces],dtype=np.uint32)
+    u16=lens.astype('<u2').tobytes()
+    escapes=lens>=255
+    u8=np.minimum(lens,255).astype(np.uint8).tobytes()
+    u8_plus_exceptions=u8+lens[escapes].astype('<u2').tobytes()
+    if index_mode not in ('auto','u16','u8_escape'):
+        raise ValueError('unknown index mode')
+    compact=(index_mode=='u8_escape' or
+             (index_mode=='auto' and len(u8_plus_exceptions)<len(u16)))
+    return (struct.pack(HDR,MAGIC_COMPACT if compact else MAGIC,rows,cols,group)
+            + (u8_plus_exceptions if compact else u16)
+            + np.asarray(anchors,dtype='<u4').tobytes()+payload)
 
 def _index(blob):
     if len(blob)<HDR_SIZE:raise ValueError('short header')
     magic,rows,cols,group=struct.unpack_from(HDR,blob)
-    if magic!=MAGIC or not rows or not cols or cols%8 or not 1<=group<=256:
+    if magic not in (MAGIC,MAGIC_COMPACT) or not rows or not cols or cols%8 or not 1<=group<=256:
         raise ValueError('invalid header')
     groups=(rows+group-1)//group
-    payload_start=HDR_SIZE+2*rows+4*(groups+1)
-    if len(blob)<payload_start:raise ValueError('short indexes')
-    lengths=np.frombuffer(blob,dtype='<u2',count=rows,offset=HDR_SIZE)
-    anchor=np.frombuffer(blob,dtype='<u4',count=groups+1,offset=HDR_SIZE+2*rows)
+    if magic==MAGIC:
+        end_lens=HDR_SIZE+2*rows
+        if len(blob)<end_lens:raise ValueError('short u16 indexes')
+        lengths=np.frombuffer(blob,dtype='<u2',count=rows,offset=HDR_SIZE).astype(np.uint32)
+    else:
+        if len(blob)<HDR_SIZE+rows:raise ValueError('short u8 indexes')
+        u8=np.frombuffer(blob,dtype=np.uint8,count=rows,offset=HDR_SIZE)
+        escaped=u8==255
+        n_extra=int(np.count_nonzero(escaped))
+        end_lens=HDR_SIZE+rows+2*n_extra
+        if len(blob)<end_lens:raise ValueError('short escaped indexes')
+        lengths=u8.astype(np.uint32)
+        lengths[escaped]=np.frombuffer(blob,dtype='<u2',
+                                       count=n_extra,offset=HDR_SIZE+rows)
+    payload_start=end_lens+4*(groups+1)
+    if len(blob)<payload_start:raise ValueError('short anchors')
+    anchor=np.frombuffer(blob,dtype='<u4',count=groups+1,offset=end_lens)
     if anchor[0]!=0 or anchor[-1]!=len(blob)-payload_start:
         raise ValueError('bad anchors')
     for g in range(groups):
