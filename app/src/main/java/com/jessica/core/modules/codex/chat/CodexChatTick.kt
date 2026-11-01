@@ -2,12 +2,20 @@ package com.jessica.core.modules.codex.chat
 
 import android.app.KeyguardManager
 import android.os.SystemClock
+import android.os.PowerManager
 
 internal suspend fun CodexChatCoordinator.tickCodexSession(launch: PhoneChatLaunch) {
         if (launch.stopRequested) return
         if (launch.stopRequested || PhoneChatRuntime.launch !== launch) return
         val state = run ?: return
         if (state.expired(SystemClock.elapsedRealtime())) { finish("Истекло время сессии или ожидания ответа. История сохранена."); return }
+        // Never synthesize touches or send from an off/locked screen.
+        // The selected-chat overlay already requests FLAG_KEEP_SCREEN_ON.
+        // Android/OEM behavior must be validated on the owner's actual phone.
+        if (!service.getSystemService(PowerManager::class.java).isInteractive) {
+            notice("Экран выключен. Кодекс ожидает разблокировки, действия в ChatGPT запрещены.")
+            return
+        }
         if (service.getSystemService(KeyguardManager::class.java).isKeyguardLocked) {
             notice("Телефон заблокирован. Кодекс сохраняет сессию и продолжит после разблокировки.")
             return
