@@ -9,6 +9,7 @@ on:
       - 'backend/http/routes/phoneChatRoute.js'
       - 'backend/scripts/regressionPhoneChat.test.js'
       - 'backend/scripts/regressionCodexRelay.test.js'
+      - 'backend/scripts/regressionCodexCalibriNoQuota.test.js'
       - 'backend/http/routes/codexRoute.js'
       - '.github/phone/**'
       - '.github/workflows/phone-build.yml'
@@ -66,7 +67,7 @@ jobs:
         with:
           gradle-version: '8.7'
       - run: npm install --prefix backend --package-lock=false --ignore-scripts --no-audit --no-fund
-      - run: node --test backend/scripts/regressionCodexFailedHandoff.test.js backend/scripts/regressionCodexCompactTest.test.js backend/scripts/regressionCodexRelay.test.js backend/scripts/regressionPhoneChat.test.js backend/scripts/regressionCodexCollaboration.test.js backend/scripts/regressionCodexDayMode.test.js backend/scripts/regressionDateAndApacheSection.test.js
+      - run: node --test backend/scripts/regressionCodexFailedHandoff.test.js backend/scripts/regressionCodexCompactTest.test.js backend/scripts/regressionCodexRelay.test.js backend/scripts/regressionPhoneChat.test.js backend/scripts/regressionCodexCollaboration.test.js backend/scripts/regressionCodexDayMode.test.js backend/scripts/regressionDateAndApacheSection.test.js backend/scripts/regressionCodexCalibriNoQuota.test.js
       - run: docker pull node:22-bookworm-slim
       - run: node .github/phone/integration.mjs
       - run: gradle testDebugUnitTest assembleDebug
