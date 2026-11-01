@@ -21,3 +21,12 @@ Cross-run comparator writes a JSON verdict including differences; exits nonzero 
 If the hashes differ, narrow down CPU/kernel BF16 differences using deterministic FP32 reference and separate weights restoration; don't compare tiny KL improvements between runs or claim Pareto novelty. If stable, run a separate REAL-WEIGHTS compression/size/WikiText PPL/native throughput study with new isolated train/test split, stronger same-byte controls, and explicit hardware details.
 
 This session does NOT yet claim new compression, WikiText perplexity, mobile speed, QMoE 0.8bpw, real Switch downstream-task quality or trained geometric improvement.
+
+
+## Observed independent-run result: scientific gate FAILED
+
+GitHub Actions [41350732476](https://github.com/Kamara229/JessicaCore/actions/runs/41350732476): the two independent real pretrained Switch MoE replay jobs on ubuntu-22.04 and ubuntu-24.04 both **succeeded independently**, with all internal 3-repeat, checkpoint-load, and BF16 restoration gates passing. However the downstream cross-run exact-comparison job **failed with exit code 2**. Its JSON verdict is uploaded even on failure.
+
+The comparator found a reproducible evidence gap, **not a deployment or ChatGPT-timeout failure**. Cross-run mismatch fields included original/zero-jitter/restored logits hashes on both WikiText and TinyStories; several router mask hashes differed, and quantized INT5 logits also differed. The strict source/checkpoint/token/weight hash and loading-info comparisons did NOT report mismatches. Therefore *even the unmodified teacher* yielded numerically distinct cross-run outputs on the two Linux images, so the v23/v24 tiny MoE KL differences cannot be interpreted as compression gains at the earlier precision.
+
+**Decision: NO cross-run reproducibility gate; do not report quality improvements as proven.** No new PPL or throughput measurements were performed by this experiment and the 90-second Jessica timeout remains a separate failed test. Hypotheses to distinguish next: CPU AVX/AMX/BF16 kernel differences, model dispatch mask boundary/tie differences, PyTorch nondeterminism across images, unpinned OS thread scheduling. The next isolated experiment should compare a reference FP32 forward with forced deterministic math/runtime across hosts, quantify absolute/relative logit deltas and exact token router disagreement, then repeat with pinned identical container image and CPU features. Do **not** lower numerical tolerances or select the favorable run to claim success. No changes to main, Render, Supabase or APK.
