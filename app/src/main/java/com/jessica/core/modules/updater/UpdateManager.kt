@@ -83,6 +83,10 @@ class UpdateManager(private val context: Context) {
         }
     }
 
+    /** Preserve selected Beta vs Stable channel when Android grants APK permission. */
+    fun resumeChosenUpdate(scope: CoroutineScope) =
+        checkForUpdates(scope, requestedChannel ?: UpdateChannel.STABLE)
+
     fun prepareInstallation(): Intent? {
         val apk = downloadedApk
         val release = target
