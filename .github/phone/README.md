@@ -97,3 +97,32 @@ The send-control regression includes a real Android fixture with a non-clickable
 label inside a clickable arrow container. Instrumentation verifies both semantic
 ACTION_CLICK and the declared accessibility gesture capability actually send one
 message. The fixture is debug-only and absent from the signed release APK.
+
+
+## Updating directly in Jessica — stable vs CALIBRI Beta
+
+The official installed app originally reads only GitHub `releases/latest`;
+that endpoint intentionally excludes prereleases. Consequently a GitHub Actions
+APK artifact cannot appear through the existing Update button.
+
+The separate minimal **stable bridge** (PR #152) adds two visible buttons in
+Jessica Core → Home/settings → Jessica Update:
+- **Обновить · стабильная версия** continues using GitHub Releases/latest,
+  with no beta exposure.
+- **Обновить · тестовая Beta** explicitly searches GitHub prereleases for
+  strictly formatted `v0.1.<versionCode>-beta` tags with
+  `JessicaCore-CALIBRI-beta.apk` and `JessicaCore-CALIBRI-beta.apk.sha256`.
+
+The official stable bridge must be published first so existing Jessica builds
+can install it using their current Update button. Then a separately signed
+CALIBRI APK is published as a **prerelease**, never as the latest stable
+release. The Beta button downloads the exact APK after SHA-256, package-name,
+and versionCode checks; Android enforces signature compatibility during
+installation. Both channels preserve app data when installed over the existing
+application; never uninstall to work around a signature mismatch.
+
+CI beta publishing must not run until `v0.1.2519` or later stable bridge is
+published. Each Beta versionCode must exceed both the current stable release
+and the last published Beta, to prevent silent downgrades. Beta is opt-in,
+not automatically offered to stable-channel checks. Android needs the owner's
+approval for installation; background silent installs are not used.
