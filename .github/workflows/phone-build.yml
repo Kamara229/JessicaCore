@@ -76,3 +76,95 @@ jobs:
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app/build/test-results/testDebugUnitTest
+
+  beta-apk:
+    name: Signed CALIBRI beta (private CI artifact only)
+    # Only the owner's same-repo research branch may access signing secrets.
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'feature/codex-calibri-context-idle-v01'
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      JESSICA_APP_TOKEN: ${{ secrets.JESSICA_APP_TOKEN }}
+      JESSICA_KEYSTORE_BASE64: ${{ secrets.JESSICA_KEYSTORE_BASE64 }}
+      JESSICA_KEYSTORE_PASSWORD: ${{ secrets.JESSICA_KEYSTORE_PASSWORD }}
+      JESSICA_KEY_PASSWORD: ${{ secrets.JESSICA_KEY_PASSWORD }}
+      JESSICA_KEY_ALIAS: ${{ secrets.JESSICA_KEY_ALIAS }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Validate signing setup and set upgrade-safe version
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in JESSICA_APP_TOKEN JESSICA_KEYSTORE_BASE64 JESSICA_KEYSTORE_PASSWORD JESSICA_KEY_PASSWORD JESSICA_KEY_ALIAS; do
+            if [ -z "${!name}" ]; then echo "Missing beta signing prerequisite: $name"; exit 1; fi
+          done
+          tag=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')
+          if [[ ! "$tag" =~ ^v0[.]1[.]([0-9]+)$ ]]; then
+            echo "Unexpected release tag; refusing unsafe versionCode: $tag"
+            exit 1
+          fi
+          version=$((10#${BASH_REMATCH[1]} + 1))
+          echo "JESSICA_VERSION_CODE=$version" >> "$GITHUB_ENV"
+          echo "JESSICA_VERSION_NAME=0.1.$version-CALIBRI-beta" >> "$GITHUB_ENV"
+          echo "TEST_BASELINE_TAG=$tag" >> "$GITHUB_ENV"
+          echo "Beta Android versionCode: $version; current public release: $tag"
+      - name: Restore private signing key without logging key content
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$JESSICA_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/jessica-beta.keystore"
+          chmod 600 "$RUNNER_TEMP/jessica-beta.keystore"
+      - name: Build signed install-over beta APK (NO public release)
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle assembleRelease \
+            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/jessica-beta.keystore" \
+            -Pandroid.injected.signing.store.password="$JESSICA_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$JESSICA_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$JESSICA_KEY_PASSWORD"
+          cp app/build/outputs/apk/release/app-release.apk JessicaCore-CALIBRI-beta.apk
+          sha256sum JessicaCore-CALIBRI-beta.apk > JessicaCore-CALIBRI-beta.apk.sha256
+      - name: Verify APK signature matches installed public release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/previous"
+          gh release download "$TEST_BASELINE_TAG" --repo "$GITHUB_REPOSITORY" \
+             -p JessicaCore.apk --dir "$RUNNER_TEMP/previous"
+          signer=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          test -n "$signer"
+          "$signer" verify --verbose JessicaCore-CALIBRI-beta.apk
+          old=$("$signer" verify --print-certs "$RUNNER_TEMP/previous/JessicaCore.apk" |
+                sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)
+          new=$("$signer" verify --print-certs JessicaCore-CALIBRI-beta.apk |
+                sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)
+          if [ -z "$old" ] || [ -z "$new" ] || [ "$old" != "$new" ]; then
+            echo "Existing-app signing certificate differs; refusing beta update."
+            exit 1
+          fi
+          echo "Signing certificate matches current official Jessica APK."
+      - name: Private signed beta download for owner
+        uses: actions/upload-artifact@v4
+        with:
+          name: JessicaCore-CALIBRI-beta-signed
+          path: |
+            JessicaCore-CALIBRI-beta.apk
+            JessicaCore-CALIBRI-beta.apk.sha256
+          retention-days: 7
