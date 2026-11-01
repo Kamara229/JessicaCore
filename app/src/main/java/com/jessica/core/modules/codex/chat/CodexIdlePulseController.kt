@@ -55,6 +55,7 @@ internal fun CodexChatCoordinator.maybeIdlePulse(
     // Attempt is accounted BEFORE dispatch: never retry even if Android
     // reports an uncertain outcome or cancellation.
     lastIdlePulseAttemptAt = now
+    idlePulseUsed = true
     val started = try {
         service.dispatchGesture(gesture, object : AccessibilityService.GestureResultCallback() {
             override fun onCancelled(description: GestureDescription?) {
