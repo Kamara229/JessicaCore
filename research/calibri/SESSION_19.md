@@ -58,3 +58,32 @@ test* for one necessary piece of a proposed larger architecture.
 
 No main merge, Render, Supabase, mobile deployment, use of user data,
 or full-model speed claims. Never upload checkpoints via Actions.
+
+## Measured outcome — GitHub Actions run 41337036402 (SUCCESS)
+
+First run failed a too-strict absolute-PPL numerical equality check. The
+second run **printed the actual full-model scores and passed an explicit
+0.1% RELATIVE numerical equivalence gate**, without altering input data.
+
+One real pretrained Pythia output projection 128×512. The physical
+TT rank2+INT5 residual uses **43,832 bytes**, compared to **131,072**
+bytes for the same matrix in FP16. Persistent INT5 symbol bytes +
+FP32 row scales within this CPU reader use **41,472 bytes**; this is
+not whole-model RSS.
+
+Numerics: max abs activation-output difference **1.0133e-6** versus
+dense restored exact same-quantized geometric weights (randomized
+batch shapes 1/16/128). Whole-model WikiText-2 validation PPL:
+packed **173.49494**, restored **173.49599**, gap **0.001055**.
+These are *not fresh* quality results.
+
+Performance, SINGLE runner, exploratory CPU p50 milliseconds:
+| Batch activations | Direct packed INT5+TT | TT+FP32 restored residual |
+|---:|---:|---:|
+| 1 | 0.2841 | 0.1590 |
+| 16 | 1.5657 | 0.2242 |
+| 128 | **12.0099** | **0.4735** |
+
+The direct packed kernel was **25.4× slower** at batch 128. This
+definitively disproves "compressed storage implies faster execution"
+for this implementation. It is not ARM/GPU throughput evidence.
