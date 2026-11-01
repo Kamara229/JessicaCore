@@ -81,3 +81,69 @@ new 0.8 bits/weight, true fused native kernel, or whole-model bytes.
 PR-only, separate branch; never modify `main`, Render, Supabase, APK,
 working Jessica, production credentials or data. No ordinary Jessica
 chat-side test requested.
+
+
+## Measured outcome — CI 41356881637 (three GitHub Actions jobs PASS)
+
+The first attempt failed BEFORE scoring PPL because the experiment
+referred to a misspelled training-proxy dictionary key. The key was
+corrected without modifying any selection criteria or using validation
+labels. Second run 41356881637 passed both independent real-Pythia
+weights runs and source/metric comparison. Both hosted runs loaded
+matching model and corpus revisions, identical train and validation
+token SHA256 and identical source weight SHA256. Both independently
+serialized candidate binary streams to disk; checksums and full-model
+PPL were identical across both hosts.
+
+**Measured physically serialized projection storage** (includes metadata,
+CRC, FP16 scales, real packed symbols):
+- FP16 original 128×512 source projection: **131,072 bytes**.
+- Rowwise 4-bit fixed physical control: **33,042 bytes**.
+- TT-free adaptive 16×32 mixed INT3/INT4: **32,980 bytes**.
+- TT-free adaptive 8×64 mixed INT3/INT4: **32,980 bytes**.
+Both tiled physical formats save **62 bytes (0.188%)** over the INT4
+rowwise comparator; this is nearly equal-byte, not a strong
+compression gain.
+
+**WikiText2 validation PPL**, measuring the real 14M-parameter
+model with only one MLP projection changed:
+- Original pretrained weights: **173.3814885**.
+- Rowwise physical INT4 control: **179.6785857**.
+- Adaptive 16×32 tiles: **181.7027218**.
+- Adaptive 8×64 tiles: **180.9361160**.
+
+The TRAIN-only weighted reconstruction proxy selected **8×64**
+BEFORE validation PPL was evaluated. That choice happened to be
+slightly better than 16×32, but it is still **0.700% worse PPL than
+simple packed INT4** at only 0.188% less bytes. Therefore the new
+TT-free rate–distortion hypothesis also **did not beat** the
+matched-byte control. Compared with the earlier TT+residual v32
+PPL 219.2197, removing TT reduced the huge quality penalty but
+did not produce an actual matched-budget advantage.
+
+**Separate CPU operation microbenchmark**, same candidate decoded
+dense W vs real byte-backed tiled stream on 32 train activations:
+- Ubuntu 22.04 Python packed stream **7.9444 ms** vs decoded dense
+  **0.06371 ms**, **124.70× slower**.
+- Ubuntu 24.04 Python packed stream **2.5050 ms** vs decoded dense
+  **0.02628 ms**, **95.33× slower**.
+The streamed operation matched the candidate's decoded dense output
+within **1.04×10⁻⁷ max absolute difference**, and it did not
+instantiate the full dense matrix. Nevertheless a Python per-tile
+loop is not a native fused packed kernel; it loses badly in latency.
+These numbers are single-projection process-local measurements,
+NOT end-to-end model latency or ARM performance. PPL still used
+full decoded dense weights in the model.
+
+**Verdict:** physical serialization, reproducibility, byte limit and
+mathematical streaming equivalence PASSED; relative accuracy and
+latency vs simple INT4 FAILED. No claim of new multidimensional
+neural weight effectiveness or 0.8 bit/weight improvement.
+
+**Next isolated engineering hypothesis (not yet measured):** under a
+*materially lower* physical byte budget (e.g. ≤3.5 bits/weight),
+compare activation-aware mixed tiles with strict global fixed 3/4bit
+control and fixed calibrated rowwise INT4 across an untouched new
+corpus; only after a quality Pareto advantage consider writing a
+native C++ bitstream matmul. Do not spend cycles benchmarking Python
+as if it were a production kernel.
