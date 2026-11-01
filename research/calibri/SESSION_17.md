@@ -57,3 +57,22 @@ known methods.
 - https://proceedings.iclr.cc/paper_files/paper/2026/hash/fc8ee7c7ab5b5f6b1615045dfb617ed6-Abstract-Conference.html
 
 No main merge, Render, Supabase, APK or production release.
+
+## Completed outcome (Actions run 41335924182)
+
+**48 combinations checked, 4 discarded by byte budget, 6 TT+INT5
+geometries passed the predeclared WikiText-2 development gate.**
+
+| Variant | Real bytes | WikiText dev PPL | Previously observed WikiText test PPL |
+|---|---:|---:|---:|
+| original FP16 reference | 131,072 | 173.381 | 247.540 |
+| INT6 | 49,426 | 173.270 | 248.685 |
+| smallest passing geo m16,n32,r2 + INT5 | **43,832** | 173.478 | **255.015** |
+| balanced geo m8,n16,r4 + INT5 | 46,392 | 172.817 | not measured in v17 |
+| best dev geo m8,n32,r8 + INT5 | 49,464 | **172.034** | 247.460 |
+
+The smallest passing structure failed to transfer to the previously seen
+test split, despite meeting the development quality cap. The best-dev
+structure uses **38 bytes more than INT6**. Neither outcome establishes
+robust quality or a global Pareto win. New-corpus verification was
+predeclared and performed separately in session 18.
