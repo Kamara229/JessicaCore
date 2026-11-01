@@ -1,0 +1,125 @@
+name: CALIBRI v0.30 - actual oneDNN primitives and ATen CPU operators
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/operator_trace_v30.py'
+      - 'research/calibri/compare_dispatch_v30.py'
+      - '.github/workflows/calibri-dispatch-v30.yml'
+      - 'research/calibri/SESSION_30.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  profile-pretrained-switch-on-two-cpu-hosts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      HF_HUB_DOWNLOAD_TIMEOUT: '90'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU PyTorch 2.5.1
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install same pretrained and validation corpus packages as v29
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Profile real BF16 default oneDNN/ATen in isolated Python process
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p results
+          env -u DNNL_MAX_CPU_ISA -u ONEDNN_MAX_CPU_ISA \
+            ONEDNN_VERBOSE=1 DNNL_VERBOSE=1 \
+            python research/calibri/operator_trace_v30.py \
+              --cap DEFAULT --output results/default.json \
+              --tokens 128 --encoder-len 64 --decoder-len 32 \
+              > results/default.log 2>&1 || { tail -n 60 results/default.log; exit 1; }
+          grep '"cap": "DEFAULT"' results/default.log | tail -n 1
+      - name: Profile same weights under requested AVX2 cap in fresh Python process
+        shell: bash
+        run: |
+          set -euo pipefail
+          DNNL_MAX_CPU_ISA=AVX2 ONEDNN_MAX_CPU_ISA=AVX2 \
+            ONEDNN_VERBOSE=1 DNNL_VERBOSE=1 \
+            python research/calibri/operator_trace_v30.py \
+              --cap AVX2 --output results/avx2.json \
+              --tokens 128 --encoder-len 64 --decoder-len 32 \
+              > results/avx2.log 2>&1 || { tail -n 60 results/avx2.log; exit 1; }
+          grep '"cap": "AVX2"' results/avx2.log | tail -n 1
+      - name: Save only public CPU profiler/oneDNN logs and metric JSON, never weights
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v30-${{ matrix.os }}
+          path: |
+            results/default.json
+            results/avx2.json
+            results/default.log
+            results/avx2.log
+          retention-days: 14
+          if-no-files-found: ignore
+  compare-actual-kernels:
+    needs: profile-pretrained-switch-on-two-cpu-hosts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install numpy-only evidence comparator
+        run: python -m pip install 'numpy==1.26.4'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calibri-v30-ubuntu-*
+          path: results/runs
+          merge-multiple: false
+      - name: Preserve exact v29 source/weight/token/logit comparison contract
+        shell: bash
+        run: |
+          python research/calibri/compare_isa_v29.py \
+            --a-default results/runs/calibri-v30-ubuntu-22.04/default.json \
+            --a-cap results/runs/calibri-v30-ubuntu-22.04/avx2.json \
+            --b-default results/runs/calibri-v30-ubuntu-24.04/default.json \
+            --b-cap results/runs/calibri-v30-ubuntu-24.04/avx2.json \
+            --output results/v29_numeric_control.json
+      - name: Attribute observed oneDNN implementations, separately report ATen operators
+        shell: bash
+        run: |
+          python research/calibri/compare_dispatch_v30.py \
+            --a-default-json results/runs/calibri-v30-ubuntu-22.04/default.json \
+            --a-default-log results/runs/calibri-v30-ubuntu-22.04/default.log \
+            --a-avx2-json results/runs/calibri-v30-ubuntu-22.04/avx2.json \
+            --a-avx2-log results/runs/calibri-v30-ubuntu-22.04/avx2.log \
+            --b-default-json results/runs/calibri-v30-ubuntu-24.04/default.json \
+            --b-default-log results/runs/calibri-v30-ubuntu-24.04/default.log \
+            --b-avx2-json results/runs/calibri-v30-ubuntu-24.04/avx2.json \
+            --b-avx2-log results/runs/calibri-v30-ubuntu-24.04/avx2.log \
+            --v29-verdict results/v29_numeric_control.json \
+            --output results/calibri_v30_dispatch.json
+      - name: Preserve positive, negative, or inconclusive kernel evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v30-dispatch-evidence
+          path: |
+            results/v29_numeric_control.json
+            results/calibri_v30_dispatch.json
+          retention-days: 14
+          if-no-files-found: ignore
