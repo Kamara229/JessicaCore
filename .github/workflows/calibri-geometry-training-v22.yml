@@ -1,0 +1,42 @@
+name: CALIBRI v0.22 - train multidimensional geometric weights
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/geometric_training_v22.py'
+      - '.github/workflows/calibri-geometry-training-v22.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  frozen-teacher-physical-tt-weights:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build research C bitpacked row reader, NO weights included
+        run: gcc -O3 -std=c11 -Wall -Wextra -Werror -shared -fPIC -o research/calibri/libpacked5_v22.so research/calibri/packed5_v19.c research/calibri/packed5_rowcache_v20.c
+      - name: Pinned CPU PyTorch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Pinned model/data dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: Frozen teacher real-model loss and physically stored TT core training
+        run: python research/calibri/geometric_training_v22.py --library research/calibri/libpacked5_v22.so --output results/calibri_v22_native_training.json --steps 16 --train-tokens 2048 --dev-tokens 1024 --tiny-tokens 2048
+      - name: Upload only metrics, no model weights
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v22-native-geometry-training-results
+          path: results/calibri_v22_native_training.json
+          if-no-files-found: ignore
+          retention-days: 14
