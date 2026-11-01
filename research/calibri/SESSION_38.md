@@ -120,3 +120,77 @@ rate–quality experiment therefore remains at 343,840 B, not a
 loosely reported lower-budget result. Record the swap in experiment
 metadata and treat this as a packer-fairness implementation fix,
 not a confirmed improvement in model accuracy.
+
+
+## ACTUAL results — GitHub Actions 41360326071: all three jobs PASS
+
+Following a corrected TRAIN-only exact-byte fill (documented above),
+both independent real-pretrained CPU jobs and the final source/quality
+comparator succeeded. Both hosts yielded identical model, corpus
+and input token SHA256, identical physical CB36 SHA256/byte sizes
+for ALL tested variants, identical module row allocations and
+**exactly matching PPL** on both corpora. These are measured,
+not inferred. The first run failed before PPL due to 32 unused
+bytes, and its failure remains documented.
+
+### Physical 12-MLP result
+
+All four mixed INT3/4 bundles (local uncalibrated/calibrated and
+bounded global uncalibrated/calibrated) occupy **343,840 actual
+bytes**, including individual signed bitstreams, per-row
+FP16 scales/CRC, and the outer CB36 SHA256 container:
+**3.49772135 bits per pretrained Pythia-14m MLP coefficient**,
+786,432 coefficients across 12 matrices. The normal packed INT4
+higher-rate control occupies **401,224 bytes** (4.08146 bpw).
+The original 12 MLP coefficient FP16 reference would have
+1,572,864 bytes *in theory* but is not a full checkpoint.
+
+### Full-model validation PPL; ALL 12 MLPs replaced together
+
+| Actual tested full-model variant | WikiText2 DEV PPL | NEW GLUE SST-2 validation PPL |
+|---|---:|---:|
+| Original pretrained Pythia teacher | **173.38149** | **224.16761** |
+| Locally allocated 3.49772bpw, uncalibrated | **1597.66884** | **1501.97911** |
+| Locally allocated, TRAIN-calibrated | **443.63432** | **570.07926** |
+| Floor-protected GLOBAL allocated 3.49772bpw, uncalibrated | **1666.13674** | **1394.43692** |
+| Floor-protected GLOBAL, TRAIN-calibrated | **501.85659** | **680.31779** |
+| Simple rowwise INT4 HIGHER-RATE anchor | **372.07758** | **482.23761** |
+
+**NEGATIVE result:** floor-protected global calibration is still
+**WORSE** than local calibration at EXACT SAME physical 343,840B:
+WikiText DEV PPL **+58.22227** (443.63 → 501.86);
+first-use GLUE SST-2 PPL **+110.23854** (570.08 → 680.32).
+The uncalibrated global variant happened to improve SST-2
+relative to uncalibrated local (1501.98 → 1394.44), but subsequent
+TRAIN calibration reversed that ranking, so the predeclared
+primary CALIBRATED matched-byte comparison failed. All four
+3.49772bpw variants remain drastically degraded versus source.
+
+### Precision-floor diagnosis
+
+The frozen 75%-125% bounds did prevent any of the six down-
+projection matrices from receiving ZERO 4-bit rows (v37 failure).
+Five down-projections received **43** INT4 rows, the final one
+**69**. Five short-row up-projections received **197** 4-bit
+rows and one **195**. This still clusters at the floors and
+ceilings: a gain-per-byte greedy objective continues to
+overallocate cheap up-projection upgrades even when every
+down-projection has a safety floor.
+
+**Interpretation:** limiting per-matrix starvation alone does not
+produce useful all-layer model quality. The next defensible
+experiment should evaluate a TRAIN-only *joint model-level
+loss* sensitivity or layerwise reconstruction interaction,
+rather than repeatedly treating local activation-output SSE
+as end-to-end quality. Any next hyperparameters must be
+preregistered before testing a NEW sealed corpus/slice;
+do not tune the present SST-2 validation set after seeing
+these results. A 2048-token movie-review sample is not a
+broad language benchmark. The CB36 bundles are still only
+MLP matrices, not a deployable full-model checkpoint, and
+all PPL was measured after dense decoding, NOT from native
+packed streaming. No QMoE Switch 0.8bpw reproduction or
+new multidimensional neural weight architecture demonstrated.
+
+No main, Render, Supabase, APK, production Jessica, or ordinary
+Jessica chat changes.
