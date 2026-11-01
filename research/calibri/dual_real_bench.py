@@ -30,6 +30,7 @@ from dual_codec import (
     stable_fp64_ffn_equivalence
 )
 from index import encode as cl8_encode,decode as cl8_decode
+from hybrid_codec import encode_hybrid,decode_hybrid
 
 MODEL="google/switch-base-8"
 CKPT="pytorch_model.bin"
@@ -143,6 +144,13 @@ def main():
     raw_base=wi_base["qmoe_style_stage1_bytes_with_scales"]+wo_base["qmoe_style_stage1_bytes_with_scales"]
     cl8_base=wi_base["cl8_bytes_with_scales"]+wo_base["cl8_bytes_with_scales"]
     baseline_stage2=wi_base["variants"]["adaptive_g16"]["bytes_with_scales"]+wo_base["variants"]["adaptive_g16"]["bytes_with_scales"]
+    stage2_g64=wi_base["variants"]["adaptive_g64"]["bytes_with_scales"]+wo_base["variants"]["adaptive_g64"]["bytes_with_scales"]
+    hwi,hi=encode_hybrid(qwi,d,group=64)
+    hwo,ho=encode_hybrid(qwo,d,group=64)
+    if not np.array_equal(qwi,decode_hybrid(hwi,d)) or not np.array_equal(qwo,decode_hybrid(hwo,d)):
+        raise AssertionError("hybrid codec failed roundtrip")
+    hybrid_physical_bytes=len(hwi)+len(hwo)+scales_total
+    hybrid_needs_dictionary=(hi["selected"]=="DUAL" or ho["selected"]=="DUAL")
     variants=[]
     wi_actual=reconstructed(qwi,swi);wo_actual=reconstructed(qwo,swo)
     for label,p in candidate_permutations(qwi,qwo).items():
@@ -156,12 +164,15 @@ def main():
         wo_enc=wo_base if label=="identity" else encode_variants(d,new_wo,group_list=(16,))
         first=wi_enc["qmoe_style_stage1_bytes_with_scales"]+wo_enc["qmoe_style_stage1_bytes_with_scales"]
         second=wi_enc["variants"]["adaptive_g16"]["bytes_with_scales"]+wo_enc["variants"]["adaptive_g16"]["bytes_with_scales"]
+        cl8size=wi_enc["cl8_bytes_with_scales"]+wo_enc["cl8_bytes_with_scales"]
         variants.append({
             "hidden_ordering":label,
             "paired_ReLU_function_relative_error":func_rel,
             "paired_ReLU_function_max_abs_error":func_abs,
             "first_dictionary_stage_bytes":first,
             "dual_stage_bytes":second,
+            "cl8_codec_bytes":cl8size,
+            "cl8_change_vs_original_pct":100*(cl8size/cl8_base-1),
             "change_vs_original_dual_bytes_pct":100*(second/baseline_stage2-1),
             "two_stage_gain_after_dictionary_pct":100*(1-second/first),
             "permutation_metadata_bytes_in_transformed_model":0,
@@ -179,6 +190,12 @@ def main():
         "baseline_pair_stage1_bytes_excluding_shared_lut":raw_base,
         "baseline_pair_cl8_bytes":cl8_base,
         "baseline_pair_two_stage_adaptive_g16_bytes_excluding_shared_lut":baseline_stage2,
+        "baseline_pair_two_stage_adaptive_g64_bytes_excluding_shared_lut":stage2_g64,
+        "hybrid_auto_bytes_including_wrapper_headers_excluding_shared_lut":hybrid_physical_bytes,
+        "hybrid_auto_choices":{"wi":hi["selected"],"wo":ho["selected"]},
+        "hybrid_requires_qmoe_style_dictionary_lut":hybrid_needs_dictionary,
+        "hybrid_total_bytes_including_shared_lut_if_needed":
+            hybrid_physical_bytes + (LUT_BYTES if hybrid_needs_dictionary else 0),
         "pair_gain_stage2_vs_stage1_percent":100*(1-baseline_stage2/raw_base),
         "wi":wi_base,"wo":wo_base,
         "functional_graph_ordering_candidates":variants,
@@ -196,6 +213,9 @@ def main():
                       "stage2_pair_bytes":baseline_stage2,
                       "stage2_saving_pct":report["pair_gain_stage2_vs_stage1_percent"],
                       "cl8_pair_bytes":cl8_base,
+                      "stage2_g64_bytes":stage2_g64,
+                      "hybrid_selected":report["hybrid_auto_choices"],
+                      "hybrid_bytes":hybrid_physical_bytes,
                       "permutations":variants},indent=2),flush=True)
 
 if __name__=="__main__":main()
