@@ -55,6 +55,6 @@ class CL12Tests(unittest.TestCase):
         b,_=encode_patched(w,off,64,2,128)
         for trunc in [b[:6],b[:-1],b[:12]]:
             with self.assertRaises(ValueError):decode_patched(trunc)
-        with self.assertRaises(ValueError):read_row(b,7)
+        with self.assertRaises(IndexError):read_row(b,7)
         with self.assertRaises(ValueError):decode_patched(b'BAD!'+b[4:])
 if __name__=='__main__':unittest.main()
