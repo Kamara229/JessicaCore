@@ -33,6 +33,7 @@ internal fun CodexChatCoordinator.startCodexSession() {
         retryInterpretAt = 0L
         lastProgressAt = SystemClock.elapsedRealtime()
         idlePulseEnabled = false
+        idlePulseUsed = false
         lastIdlePulseAttemptAt = lastProgressAt
         idlePulseButton = null
         val launch = PhoneChatRuntime.launch ?: return
