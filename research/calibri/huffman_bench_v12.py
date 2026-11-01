@@ -15,12 +15,18 @@ import torch
 from huggingface_hub import HfApi,hf_hub_download
 from dual_real_bench import MODEL,CKPT,PREFIX,TENSORS,row_ternarize,reconstructed
 from index import encode as cl8_encode
+from hybrid_v12 import encode as hybrid_encode,decode as hybrid_decode
 from huffman_masks_v12 import encode as hf_encode,decode as hf_decode,read_row,direct_matvec,CODE,MAX_BITS
 
 def measure_one(q,scales,name):
     result={"tensor":name,"rows":q.shape[0],"cols":q.shape[1],"weights":int(q.size)}
     scales_size=4*len(q)
     result['CL8_bytes_with_scales']=len(cl8_encode(q))+scales_size
+    hybrid,decision=hybrid_encode(q,64)
+    if not np.array_equal(q,hybrid_decode(hybrid)):
+        raise AssertionError('hybrid failed real-symbol roundtrip')
+    result['hybrid_auto_choice']=decision['chosen']
+    result['hybrid_auto_bytes_with_scales']=len(hybrid)+scales_size
     runs=[]
     for g in (16,64):
         start=time.perf_counter()
@@ -81,6 +87,7 @@ def main():
     r16=sum(next(y['bytes_with_scales'] for y in x['runs'] if y['group_rows']==16) for x in results)
     r64=sum(next(y['bytes_with_scales'] for y in x['runs'] if y['group_rows']==64) for x in results)
     weight_count=sum(x['weights'] for x in results)
+    hybrid=sum(x['hybrid_auto_bytes_with_scales'] for x in results)
     report={"experiment":"CALIBRI_v12_exact_mask_huffman_on_trained_switch_expert",
             "model":MODEL,"model_revision":revision,
             "original_model_sha256":h.hexdigest(),
@@ -94,6 +101,9 @@ def main():
             "huffman_g16_pair_bytes":r16,
             "huffman_g64_pair_bytes":r64,
             "huffman_best_pair_bpw":8*min(r16,r64)/weight_count,
+            "auto_hybrid_pair_bytes":hybrid,
+            "auto_hybrid_selected":[x["hybrid_auto_choice"] for x in results],
+            "auto_hybrid_improvement_vs_CL8_pct":100*(1-hybrid/cl8),
             "huffman_best_saving_vs_CL8_pct":100*(1-min(r16,r64)/cl8),
             "pair_details":results}
     out=pathlib.Path(a.output);out.parent.mkdir(parents=True,exist_ok=True)
@@ -101,5 +111,6 @@ def main():
     print(json.dumps({k:report[k] for k in (
         "weights","baseline_CL8_pair_bytes","huffman_g16_pair_bytes",
         "huffman_g64_pair_bytes","huffman_best_pair_bpw",
+        "auto_hybrid_pair_bytes","auto_hybrid_selected","auto_hybrid_improvement_vs_CL8_pct",
         "huffman_best_saving_vs_CL8_pct")},indent=2),flush=True)
 if __name__=='__main__':main()
