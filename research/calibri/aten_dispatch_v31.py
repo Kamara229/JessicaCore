@@ -29,7 +29,7 @@ def run(args):
     # This is PyTorch DispatchStub's selected CPU capability, not evidence of
     # effective vector assembly or every CPU/BLAS backend implementation.
     selected = str(torch._C._get_cpu_capability()).upper()
-    expected = {"default": "DEFAULT", "avx2": "AVX2"}[requested]
+    expected = {"default": "NO AVX", "avx2": "AVX2"}[requested]
     if selected != expected:
         raise AssertionError(f"ATen CPU capability was {selected!r} instead of {expected!r}")
 
