@@ -26,7 +26,9 @@ internal fun CodexChatCoordinator.maybeIdlePulse(
     val power = service.getSystemService(PowerManager::class.java)
     val locked = service.getSystemService(KeyguardManager::class.java).isKeyguardLocked
     if (!power.isInteractive || locked || window.composer == null) return
-    val frame = CodexIdlePulseTarget.find(window, launch.replyId, service.resources.displayMetrics.density)
+    // Accessibility trees are transient; a stale node must never end the whole session.
+    val frame = runCatching { CodexIdlePulseTarget.find(window, launch.replyId,
+        service.resources.displayMetrics.density) }.getOrNull()
     if (!CodexScrollSafetyPolicy.mayScrollAutomatically(idlePulseEnabled, frame != null)) return
     val target = frame ?: return
     val composer = window.composer.screenBox()
