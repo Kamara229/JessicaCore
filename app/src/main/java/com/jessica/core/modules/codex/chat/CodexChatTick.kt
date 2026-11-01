@@ -41,8 +41,12 @@ internal suspend fun CodexChatCoordinator.tickCodexSession(launch: PhoneChatLaun
             // Never type or send through an obscuring share-link dialog.
             if (recoverShareLinkPrompt(window, launch)) return
             when (CodexTurnWindowPolicy.next(state.waiting, window.composer != null)) {
-                CodexTurnWindowPolicy.Next.READ_REPLY ->
+                CodexTurnWindowPolicy.Next.READ_REPLY -> {
+                    // Optional owner-activated tiny pulse; only inside a
+                    // current-nonce-verified transcript while generating.
+                    maybeIdlePulse(window, launch, state)
                     response = observeIncoming(window, launch, state)
+                }
                 CodexTurnWindowPolicy.Next.WAIT_COMPOSER -> {
                     notice("Поле ввода выбранного чата скрыто. " +
                         "Сохраняю сессию без прокрутки и без отправки.")
@@ -50,6 +54,14 @@ internal suspend fun CodexChatCoordinator.tickCodexSession(launch: PhoneChatLaun
                 }
                 CodexTurnWindowPolicy.Next.PREPARE_SEND -> {
                     if (launch.stopRequested) return
+                    // After ANY experimental gesture, never send in a changed
+                    // or unverified chat. It is safe to wait indefinitely.
+                    if (idlePulseUsed && verifiedReplyId.isNotBlank() &&
+                        !window.content.contains("JESSICA_END_${verifiedReplyId}")) {
+                        notice("После мини-прокрутки не удалось подтвердить выбранный чат. " +
+                            "Следующее сообщение не отправляю.")
+                        return
+                    }
                     advanceOutgoing(window, launch, state)
                 }
             }
