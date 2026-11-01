@@ -11,6 +11,7 @@ on:
       - 'backend/scripts/regressionCodexLiveProgressSmoke.test.js'
       - 'backend/scripts/regressionCodexCompactTest.test.js'
       - 'backend/scripts/regressionCodexNumberedBenchmark.test.js'
+      - 'backend/scripts/regressionCodexCalibriResearch.test.js'
       - 'backend/scripts/smokeCodexMainProgress.mjs'
       - 'backend/scripts/smokeCodexRelay.mjs'
       - '.github/workflows/codex-relay-interpretation.yml'
@@ -24,6 +25,7 @@ on:
       - 'backend/scripts/regressionCodexLiveProgressSmoke.test.js'
       - 'backend/scripts/regressionCodexCompactTest.test.js'
       - 'backend/scripts/regressionCodexNumberedBenchmark.test.js'
+      - 'backend/scripts/regressionCodexCalibriResearch.test.js'
       - 'backend/scripts/smokeCodexMainProgress.mjs'
       - 'backend/scripts/smokeCodexRelay.mjs'
       - '.github/workflows/codex-relay-interpretation.yml'
@@ -53,4 +55,5 @@ jobs:
             backend/scripts/regressionCodexCompactStressProgress.test.js \
             backend/scripts/regressionCodexRelay.test.js \
             backend/scripts/regressionCodexCompactTest.test.js \
-            backend/scripts/regressionCodexNumberedBenchmark.test.js
+            backend/scripts/regressionCodexNumberedBenchmark.test.js \
+            backend/scripts/regressionCodexCalibriResearch.test.js

@@ -76,3 +76,162 @@ jobs:
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app/build/test-results/testDebugUnitTest
+
+  beta-apk:
+    name: Signed CALIBRI beta (private CI artifact only)
+    # Only the owner's same-repo research branch may access signing secrets.
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'feature/codex-calibri-context-idle-v01'
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      beta_tag: ${{ steps.beta-version.outputs.beta_tag }}
+    permissions:
+      contents: read
+      actions: read
+    env:
+      JESSICA_APP_TOKEN: ${{ secrets.JESSICA_APP_TOKEN }}
+      JESSICA_KEYSTORE_BASE64: ${{ secrets.JESSICA_KEYSTORE_BASE64 }}
+      JESSICA_KEYSTORE_PASSWORD: ${{ secrets.JESSICA_KEYSTORE_PASSWORD }}
+      JESSICA_KEY_PASSWORD: ${{ secrets.JESSICA_KEY_PASSWORD }}
+      JESSICA_KEY_ALIAS: ${{ secrets.JESSICA_KEY_ALIAS }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Validate signing setup and set upgrade-safe version
+        id: beta-version
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in JESSICA_APP_TOKEN JESSICA_KEYSTORE_BASE64 JESSICA_KEYSTORE_PASSWORD JESSICA_KEY_PASSWORD JESSICA_KEY_ALIAS; do
+            if [ -z "${!name}" ]; then echo "Missing beta signing prerequisite: $name"; exit 1; fi
+          done
+          # The official signed bridge release may be finishing in a
+          # separate main-branch workflow. Wait briefly rather than
+          # publishing a prerelease that an old app cannot discover.
+          stable_version=0
+          tag=""
+          for attempt in $(seq 1 36); do
+            tag=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')
+            if [[ "$tag" =~ ^v0[.]1[.]([0-9]+)$ ]]; then
+              stable_version=$((10#${BASH_REMATCH[1]}))
+              if [ "$stable_version" -ge 2519 ]; then break; fi
+            fi
+            echo "Stable Beta-button bridge is not published (attempt $attempt/36)."
+            sleep 15
+          done
+          if [ "$stable_version" -lt 2519 ]; then
+            echo "Stable bridge still not released; refusing beta release."
+            gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/android.yml/runs?per_page=5" --jq '.workflow_runs[] | [.id,.status,.conclusion,.head_sha] | @tsv' || true
+            exit 1
+          fi
+          # Beta build numbers must increase across subsequent beta releases,
+          # not reuse the same stable-version-plus-one forever.
+          max_beta=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" | python3 -c 'import json,re,sys; rs=json.load(sys.stdin); ms=[re.fullmatch(r"v0[.]1[.]([0-9]+)-beta", x.get("tag_name") or "") for x in rs if x.get("prerelease") and not x.get("draft")]; print(max([int(m.group(1)) for m in ms if m], default=0))')
+          if [ "$max_beta" -gt "$stable_version" ]; then
+            version=$((max_beta + 1))
+          else
+            version=$((stable_version + 1))
+          fi
+          echo "JESSICA_VERSION_CODE=$version" >> "$GITHUB_ENV"
+          echo "beta_tag=v0.1.$version-beta" >> "$GITHUB_OUTPUT"
+          echo "JESSICA_VERSION_NAME=0.1.$version-CALIBRI-beta" >> "$GITHUB_ENV"
+          echo "TEST_BASELINE_TAG=$tag" >> "$GITHUB_ENV"
+          echo "Beta Android versionCode: $version; current public release: $tag"
+      - name: Restore private signing key without logging key content
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$JESSICA_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/jessica-beta.keystore"
+          chmod 600 "$RUNNER_TEMP/jessica-beta.keystore"
+      - name: Build signed install-over beta APK (NO public release)
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle assembleRelease \
+            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/jessica-beta.keystore" \
+            -Pandroid.injected.signing.store.password="$JESSICA_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$JESSICA_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$JESSICA_KEY_PASSWORD"
+          cp app/build/outputs/apk/release/app-release.apk JessicaCore-CALIBRI-beta.apk
+          sha256sum JessicaCore-CALIBRI-beta.apk > JessicaCore-CALIBRI-beta.apk.sha256
+      - name: Verify APK signature matches installed public release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/previous"
+          gh release download "$TEST_BASELINE_TAG" --repo "$GITHUB_REPOSITORY" \
+             -p JessicaCore.apk --dir "$RUNNER_TEMP/previous"
+          signer=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          test -n "$signer"
+          "$signer" verify --verbose JessicaCore-CALIBRI-beta.apk
+          old_report=$("$signer" verify --print-certs "$RUNNER_TEMP/previous/JessicaCore.apk")
+          new_report=$("$signer" verify --print-certs JessicaCore-CALIBRI-beta.apk)
+          old=$(printf '%s\n' "$old_report" | sed -n 's/^[[:space:]]*V2 Signer: certificate SHA-256 digest:[[:space:]]*//p' | head -1)
+          new=$(printf '%s\n' "$new_report" | sed -n 's/^[[:space:]]*V2 Signer: certificate SHA-256 digest:[[:space:]]*//p' | head -1)
+          echo "Official public APK certificate fingerprint: ${old:-NOT PARSED}"
+          echo "Beta public APK certificate fingerprint: ${new:-NOT PARSED}"
+          if [ -z "$old" ] || [ -z "$new" ]; then
+            echo "Cannot parse certificate fingerprints. Diagnostic lines:"
+            printf '%s\n' "$old_report" "$new_report" | grep -i 'certificate.*digest' || true
+            exit 1
+          fi
+          if [ "$old" != "$new" ]; then
+            echo "SIGNING MISMATCH: preserving installed app data; install-over beta is blocked."
+            exit 1
+          fi
+          echo "Signing certificate matches current official Jessica APK."
+      - name: Private signed beta download for owner
+        uses: actions/upload-artifact@v4
+        with:
+          name: JessicaCore-CALIBRI-beta-signed
+          path: |
+            JessicaCore-CALIBRI-beta.apk
+            JessicaCore-CALIBRI-beta.apk.sha256
+          retention-days: 7
+
+  publish-calibri-beta:
+    name: Publish opt-in CALIBRI Beta prerelease (NOT latest stable)
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'feature/codex-calibri-context-idle-v01'
+    needs: [beta-apk, service-binding]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download the signed beta artifact from this tested run
+        uses: actions/download-artifact@v4
+        with:
+          name: JessicaCore-CALIBRI-beta-signed
+      - name: Verify checksum and publish isolated GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.beta-apk.outputs.beta_tag }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$TAG" && test -n "$SOURCE_SHA"
+          [[ "$TAG" =~ ^v0[.]1[.][0-9]+-beta$ ]]
+          sha256sum -c JessicaCore-CALIBRI-beta.apk.sha256
+          gh release create "$TAG" \
+            JessicaCore-CALIBRI-beta.apk JessicaCore-CALIBRI-beta.apk.sha256 \
+            --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" \
+            --title "Jessica Core CALIBRI Beta $TAG" \
+            --notes "Opt-in Android prerelease. From the installed Jessica Core, choose «Обновить · тестовая Beta». Does not replace the stable/latest channel. Protect your phone data by installing over the existing app." \
+            --prerelease --latest=false
+          echo "Beta prerelease published without changing stable Releases/latest."
