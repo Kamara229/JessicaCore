@@ -149,17 +149,24 @@ def evaluation(model,windows,record_next_router):
 
 def compare_to_teacher(teacher,student,mask_teacher,mask_student):
     if len(teacher)!=len(student):raise ValueError("different contexts")
-    kls=[];agreements=[];router_match=[]
+    kls=[];agreements=[];router_match=[];router_bit_match=[]
     for a,b in zip(teacher,student):
         kls.append(model_teacher_kl(a,b))
         agreements.append(float((a.argmax(dim=-1)==b.argmax(dim=-1)).float().mean()))
+    if len(mask_teacher)!=len(mask_student):
+        raise ValueError('mismatched count of downstream router traces')
     for a,b in zip(mask_teacher,mask_student):
         if a.shape!=b.shape:raise ValueError('next-router shape mismatch')
-        router_match.append(float((a==b).float().mean()))
+        # Comparing individual one-hot elements overstates token-level
+        # agreement: a changed top-1 expert flips only 2 of 8 bits.
+        router_match.append(float((a==b).all(dim=-1).float().mean()))
+        router_bit_match.append(float((a==b).float().mean()))
     return {'teacher_KL_per_sequence_mean':float(np.mean(kls)),
        'teacher_top1_agreement_mean':float(np.mean(agreements)),
-       'next_router_dispatch_exact_mask_agreement_mean':
+       'next_router_dispatch_exact_per_token_agreement_mean':
          float(np.mean(router_match)) if router_match else None,
+       'next_router_mask_bitwise_agreement_mean_DIAGNOSTIC_ONLY':
+         float(np.mean(router_bit_match)) if router_bit_match else None,
        'contexts':len(kls)}
 
 def run(args):
