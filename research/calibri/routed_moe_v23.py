@@ -18,7 +18,8 @@ import torch
 import torch.nn.functional as F
 from datasets import load_dataset
 from huggingface_hub import HfApi
-from transformers import AutoTokenizer, SwitchTransformersForConditionalGeneration, ACT2FN
+from transformers import AutoTokenizer, SwitchTransformersForConditionalGeneration
+from transformers.activations import ACT2FN
 
 from fixedbit_v15 import encode as fixed_encode, decode as fixed_decode
 from geometric_v17 import encode as geometric_encode, unpack as geometric_unpack
