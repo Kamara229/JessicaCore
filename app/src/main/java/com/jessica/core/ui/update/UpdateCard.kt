@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -14,12 +16,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jessica.core.BuildConfig
 import com.jessica.core.modules.updater.UpdateState
+import com.jessica.core.modules.updater.MemoryUpdateState
 import com.jessica.core.ui.language.uiText
 
 @Composable
 fun UpdateCard(
     state: UpdateState,
-    onUpdateClick: () -> Unit
+    onUpdateClick: () -> Unit,
+    memoryState: MemoryUpdateState,
+    onMemoryUpdateClick: () -> Unit
 ) {
     val busy = state is UpdateState.Checking ||
         state is UpdateState.Downloading ||
@@ -85,9 +90,63 @@ fun UpdateCard(
             ) {
                 Text(buttonText)
             }
+
+            HorizontalDivider(modifier = Modifier.padding(top = 10.dp))
+            Text(
+                uiText("Память моделей CALIBRI", "CALIBRI model memory"),
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                uiText(
+                    "Бюджет для весов: 80 ГБ. Обновления весов проверяются отдельно от APK.",
+                    "Weight storage budget: 80 GB. Model weights update independently of the APK."
+                ),
+                style = MaterialTheme.typography.bodySmall
+            )
+            val memoryMessage = when (memoryState) {
+                MemoryUpdateState.Idle -> uiText(
+                    "Нажмите для проверки доступной памяти и допуска моделей.",
+                    "Check available storage and approved models."
+                )
+                MemoryUpdateState.Checking -> uiText(
+                    "Проверяю хранилище модели…",
+                    "Checking model storage…"
+                )
+                is MemoryUpdateState.NoApprovedModel -> {
+                    val status = uiText(
+                        "Свободно на накопителе: ",
+                        "Filesystem free: "
+                    ) + formatGigabytes(memoryState.filesystemFreeBytes) +
+                        uiText(" ГБ. Весов CALIBRI: ", " GB. CALIBRI weights: ") +
+                        formatGigabytes(memoryState.appModelBytes) +
+                        uiText(" ГБ.", " GB.")
+                    status + "\n" + uiText(
+                        "Пока нет проверенной модели, допущенной к загрузке. Экспериментальные веса не скачиваются.",
+                        "No quality-approved compatible model is available yet. Experimental weights are not downloaded."
+                    )
+                }
+                is MemoryUpdateState.Error -> uiText(
+                    "Не удалось проверить память: ",
+                    "Storage check failed: "
+                ) + memoryState.description
+            }
+            Text(memoryMessage, style = MaterialTheme.typography.bodySmall)
+            if (memoryState is MemoryUpdateState.Checking) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            OutlinedButton(
+                onClick = onMemoryUpdateClick,
+                enabled = memoryState !is MemoryUpdateState.Checking,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(uiText("🧠 Обновить память", "🧠 Update memory"))
+            }
         }
     }
 }
 
 private fun formatMegabytes(bytes: Long): String =
     String.format(java.util.Locale.getDefault(), "%.1f", bytes / (1024.0 * 1024.0))
+
+private fun formatGigabytes(bytes: Long): String =
+    String.format(java.util.Locale.getDefault(), "%.2f", bytes / 1_000_000_000.0)
