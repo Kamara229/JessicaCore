@@ -53,7 +53,7 @@ test("incomplete / corrupted CALIBRI envelope cannot be marked completed",()=>{
 
 test("explicit one-task Jessica benchmark keeps PRIORITY over no-test narrative",async()=>{
  const task="Сколько будет 17 умножить на 19?";
- const msg="Создай новый тестовый чат Jessica. Точная формулировка: "+task;
+ const msg="Создай новый тестовый чат Jessica.\\nТочная формулировка задачи: "+task;
  let calls=0;
  const r=await interpretRelayTurn({message:msg},async()=>{
    calls++;throw Error("injected provider should not be needed");
