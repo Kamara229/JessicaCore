@@ -22,14 +22,15 @@ import com.jessica.core.BuildConfig
 fun HomeScreen(
     message: String,
     updateState: UpdateState,
-    onUpdate: () -> Unit
+    onUpdate: () -> Unit,
+    onBetaUpdate: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item { JessicaStatusCard() }
-        item { UpdateCard(state = updateState, onUpdateClick = onUpdate) }
+        item { UpdateCard(state = updateState, onUpdateClick = onUpdate, onBetaUpdateClick = onBetaUpdate) }
         item {
             Text(
                 uiText("О Jessica", "About Jessica"),

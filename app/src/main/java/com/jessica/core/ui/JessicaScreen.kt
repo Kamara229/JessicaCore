@@ -94,7 +94,7 @@ fun JessicaScreen() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
             context.packageManager.canRequestPackageInstalls()
         ) {
-            updateViewModel.checkUpdate()
+            updateViewModel.resumeChosenUpdate()
         } else {
             updateViewModel.permissionDenied()
         }
@@ -251,7 +251,8 @@ fun JessicaScreen() {
                     JessicaPage.HOME -> HomeScreen(
                         message = controller.message.value,
                         updateState = updateState,
-                        onUpdate = updateViewModel::checkUpdate
+                        onUpdate = updateViewModel::checkUpdate,
+                        onBetaUpdate = updateViewModel::checkBetaUpdate
                     )
                     JessicaPage.REPORTS -> ReportScreen(
                         reportStorage = controller.reportStorage,

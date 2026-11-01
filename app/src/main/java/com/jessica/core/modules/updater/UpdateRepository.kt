@@ -24,16 +24,33 @@ internal class UpdateRepository(private val context: Context) {
     private val releaseApi =
         "https://api.github.com/repos/Kamara229/JessicaCore/releases/latest"
 
-    fun latestRelease(): UpdateRelease {
-        val release = JSONObject(fetchText(releaseApi))
+    fun latestRelease(channel: UpdateChannel = UpdateChannel.STABLE): UpdateRelease {
+        val release = when (channel) {
+            UpdateChannel.STABLE -> JSONObject(fetchText(releaseApi))
+            UpdateChannel.BETA -> {
+                // GitHub /releases/latest omits prereleases. Beta is explicitly
+                // opt-in, listed separately and never overwrites stable.
+                val candidates = org.json.JSONArray(
+                    fetchText("https://api.github.com/repos/Kamara229/JessicaCore/releases?per_page=30")
+                )
+                (0 until candidates.length()).map { candidates.getJSONObject(it) }
+                    .filter { it.optBoolean("prerelease") && !it.optBoolean("draft") }
+                    .filter { UpdateReleasePolicy.versionCode(
+                        it.optString("tag_name"), UpdateChannel.BETA) != null }
+                    .maxByOrNull {
+                        UpdateReleasePolicy.versionCode(
+                            it.optString("tag_name"), UpdateChannel.BETA) ?: 0L
+                    } ?: throw IOException("Тестовая версия Beta пока не опубликована")
+            }
+        }
         val assets = release.getJSONArray("assets")
         var apk: JSONObject? = null
         var checksumUrl: String? = null
         for (index in 0 until assets.length()) {
             val entry = assets.getJSONObject(index)
             when (entry.optString("name")) {
-                "JessicaCore.apk" -> apk = entry
-                "JessicaCore.apk.sha256" ->
+                UpdateReleasePolicy.apkAssetName(channel) -> apk = entry
+                UpdateReleasePolicy.checksumName(channel) ->
                     checksumUrl = entry.optString("browser_download_url")
             }
         }
@@ -49,10 +66,10 @@ internal class UpdateRepository(private val context: Context) {
         if (!expectedHash.matches(Regex("[0-9a-fA-F]{64}"))) {
             throw IOException("Неверная контрольная сумма APK")
         }
-        val name = release.optString("tag_name").removePrefix("v")
-        // The signed APK is built with GitHub Actions run_number as versionCode.
-        val versionCode = name.substringAfterLast('.').toLongOrNull()
+        val tag = release.optString("tag_name")
+        val versionCode = UpdateReleasePolicy.versionCode(tag, channel)
             ?: throw IOException("Неверный номер версии релиза")
+        val name = tag.removePrefix("v")
         return UpdateRelease(
             versionCode = versionCode,
             versionName = name,

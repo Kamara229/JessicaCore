@@ -23,6 +23,7 @@ class UpdateManager(private val context: Context) {
     private var job: Job? = null
     private var downloadedApk: File? = null
     private var target: UpdateRelease? = null
+    private var requestedChannel: UpdateChannel? = null
 
     private fun initialState(): UpdateState {
         val pending = preferences.getLong("pending_version_code", -1)
@@ -34,8 +35,17 @@ class UpdateManager(private val context: Context) {
         }
     }
 
-    fun checkForUpdates(scope: CoroutineScope) {
+    fun checkForUpdates(
+        scope: CoroutineScope,
+        channel: UpdateChannel = UpdateChannel.STABLE
+    ) {
         if (job?.isActive == true) return
+        // Do not silently install a cached APK from the OTHER channel.
+        if (requestedChannel != channel) {
+            downloadedApk = null
+            target = null
+            requestedChannel = channel
+        }
         if (downloadedApk?.exists() == true && target != null) {
             _state.value = UpdateState.ReadyToInstall(target!!.versionName)
             return
@@ -44,7 +54,7 @@ class UpdateManager(private val context: Context) {
             _state.value = UpdateState.Checking
             try {
                 val latest = withContext(Dispatchers.IO) {
-                    repository.latestRelease()
+                    repository.latestRelease(channel)
                 }
                 if (latest.versionCode <= BuildConfig.VERSION_CODE.toLong()) {
                     _state.value = UpdateState.UpToDate(BuildConfig.VERSION_NAME)
@@ -72,6 +82,10 @@ class UpdateManager(private val context: Context) {
             }
         }
     }
+
+    /** Preserve selected Beta vs Stable channel when Android grants APK permission. */
+    fun resumeChosenUpdate(scope: CoroutineScope) =
+        checkForUpdates(scope, requestedChannel ?: UpdateChannel.STABLE)
 
     fun prepareInstallation(): Intent? {
         val apk = downloadedApk

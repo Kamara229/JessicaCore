@@ -10,7 +10,9 @@ class UpdateViewModel(context: Context) : ViewModel() {
     private val updateManager = UpdateManager(context.applicationContext)
     val state: StateFlow<UpdateState> = updateManager.state
 
-    fun checkUpdate() = updateManager.checkForUpdates(viewModelScope)
+    fun checkUpdate() = updateManager.checkForUpdates(viewModelScope, UpdateChannel.STABLE)
+    fun checkBetaUpdate() = updateManager.checkForUpdates(viewModelScope, UpdateChannel.BETA)
+    fun resumeChosenUpdate() = updateManager.resumeChosenUpdate(viewModelScope)
     fun prepareInstallation(): Intent? = updateManager.prepareInstallation()
     fun waitingPermission() = updateManager.waitingPermission()
     fun installing() = updateManager.installing()
