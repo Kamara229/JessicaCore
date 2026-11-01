@@ -29,6 +29,10 @@ internal fun CodexChatCoordinator.showOverlay() {
                 try {
                     if (window.composer != null) {
                         if (launch.conversation.plan.isBlank()) launch.conversation.plan = window.content.takeLast(12000)
+                        // Set first handoff BEFORE any composer mutation/send: one selected thread only.
+                        // No navigation, no auto-opening a chat or altering user-entered drafts.
+                        launch.message = com.jessica.core.modules.codex.relay.RelayProtocol.introductionFor(launch.conversation.plan)
+                        launch.prompt = com.jessica.core.modules.codex.relay.RelayProtocol.wrap(launch.message, launch.replyId)
                         confirmed = true
                         reportPhase("chat_selected")
                         visibility = android.view.View.GONE
