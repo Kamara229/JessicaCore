@@ -1,0 +1,41 @@
+name: CALIBRI v0.13 - class-rank real MoE heldout
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/**'
+      - '.github/workflows/calibri-class-rank-v13.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-class-rank-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: research/calibri
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CPU torch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned NumPy, SciPy and HF
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'huggingface_hub==0.27.1' 'safetensors==0.4.5'
+      - name: Comprehensive class rank unit tests
+        run: python -m unittest discover -s research/calibri -p 'test_class_rank_v13.py' -v
+      - name: Pilot block dimensions then heldout seven trained Switch MoE experts
+        run: python research/calibri/class_rank_bench_v13.py --output results/calibri_v13_real_class_rank.json
+      - name: Upload only JSON metrics, never weights
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v13-real-MoE-heldout-classrank
+          path: results/calibri_v13_real_class_rank.json
+          if-no-files-found: ignore
+          retention-days: 14
