@@ -1,0 +1,42 @@
+name: CALIBRI v0.13 - real-weight fusion pilot
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/fusion_v13.py'
+      - '.github/workflows/calibri-fusion-v13.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-fusion-evaluation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: research/calibri
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned torch CPU
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned model and data dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: Physical format tests including corruption detection
+        run: python research/calibri/fusion_v13.py --selftest
+      - name: Real Pythia weights + captured train activations + held-out WikiText-2 PPL
+        run: python research/calibri/fusion_v13.py --output results/calibri_v13_real_fusion.json --calibration-tokens 256 --test-tokens 1024 --sequence-length 128 --relative-budget 1.5
+      - name: Upload evaluation JSON only; never checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v13-real-fusion-results
+          path: results/calibri_v13_real_fusion.json
+          if-no-files-found: ignore
+          retention-days: 14
