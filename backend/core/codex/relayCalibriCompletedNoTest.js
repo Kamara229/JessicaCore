@@ -32,6 +32,7 @@ export function completedCalibriNoTestHandoff(message) {
   const noJessicaTest =
     /Тест\s+(?:(?:в\s+(?:обычном\s+)?чате\s+)?Jessica\s+)?не\s+(?:нужен|требуется|запрошен)|Jessica\s+не\s+нужна/iu.test(body);
   if (!noJessicaTest) return null;
+  if (/(?:выполни|запусти|проведи|повтори|отправь)\s+(?:новый\s+)?(?:тест|задач)/iu.test(body)) return null;
   // An explicit instruction to execute a Jessica test or access secrets
   // must use the existing strict command path (or human review).
   if (/(?:выполни|запусти|отправь|проведи|повтори)\s+(?:новый\s+)?(?:тест\b|задач[уа]\b|в\s+обычн)|(?:парол|секрет|API[- ]?ключ|токен|удали|удалить|merge|deploy|разверни|установи)/iu.test(body)) return null;
