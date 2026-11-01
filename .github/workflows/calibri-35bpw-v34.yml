@@ -1,0 +1,91 @@
+name: CALIBRI v0.34 - strict 3.5-bpw real weights physical size and WikiText PPL
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/strict35_v34.py'
+      - 'research/calibri/strict35_compare_v34.py'
+      - 'research/calibri/SESSION_34.md'
+      - '.github/workflows/calibri-35bpw-v34.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-pretrained-Pythia-3p5bpw:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      ATEN_CPU_CAPABILITY: avx2
+      DNNL_MAX_CPU_ISA: AVX2
+      ONEDNN_MAX_CPU_ISA: AVX2
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      HF_HUB_DOWNLOAD_TIMEOUT: '90'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU PyTorch 2.5.1
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned public pretrained model, WikiText and scipy dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Confirm CRC and actual TT-free 3/4bit physical bitpacking
+        run: python research/calibri/direct_tiles_v33.py
+      - name: Real Pythia 14m at maximum 3.5bpw, matched row/2D controls and WikiText PPL
+        run: |
+          python research/calibri/strict35_v34.py \
+            --output results/calibri_v34_3p5bpw.json \
+            --train-tokens 256 --valid-tokens 1024 --context 128
+      - name: Preserve actual physical streams, never pretrained full model or secrets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v34-${{ matrix.os }}
+          path: |
+            results/calibri_v34_3p5bpw.json
+            results/int3_rowwise_low_rate.bin
+            results/rowwise_1x512_mixed3_4.bin
+            results/tiled_16x32_mixed3_4.bin
+            results/tiled_8x64_mixed3_4.bin
+          retention-days: 14
+          if-no-files-found: ignore
+  independent-physical-and-PPL-control:
+    needs: real-pretrained-Pythia-3p5bpw
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calibri-v34-ubuntu-*
+          path: results/runs
+          merge-multiple: false
+      - name: Verify identical sources, physical sizes, binary SHA, PPL across two independent CPUs
+        run: |
+          python research/calibri/strict35_compare_v34.py \
+            --first results/runs/calibri-v34-ubuntu-22.04/calibri_v34_3p5bpw.json \
+            --second results/runs/calibri-v34-ubuntu-24.04/calibri_v34_3p5bpw.json \
+            --output results/calibri_v34_crosshost.json
+      - name: Keep negative quality results and physical byte metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v34-crosshost-metrics
+          path: results/calibri_v34_crosshost.json
+          retention-days: 14
+          if-no-files-found: ignore
