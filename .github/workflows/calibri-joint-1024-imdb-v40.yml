@@ -1,0 +1,92 @@
+name: CALIBRI v0.40 - real all12 same-byte joint TRAIN NLL 256 vs 1024 and NEW IMDb PPL
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/joint_train_1024_imdb_v40.py'
+      - 'research/calibri/compare_joint_1024_v40.py'
+      - 'research/calibri/SESSION_40.md'
+      - '.github/workflows/calibri-joint-1024-imdb-v40.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-weights-joint-train-256-vs-1024:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 55
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      ATEN_CPU_CAPABILITY: avx2
+      DNNL_MAX_CPU_ISA: AVX2
+      ONEDNN_MAX_CPU_ISA: AVX2
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      HF_HUB_DOWNLOAD_TIMEOUT: '90'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU PyTorch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned public Pythia WikiText IMDb model/dataset packages
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Compare 256 vs 1024 TRAIN on 12 source MLPs and new IMDb TEST PPL
+        run: |
+          python research/calibri/joint_train_1024_imdb_v40.py \
+            --output results/calibri_v40_1024_train_imdb.json \
+            --train-tokens 1024 --dev-tokens 1024 --new-tokens 2048 --context 128
+      - name: Preserve real seven physical MLP bundles and negative/positive PPL
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v40-${{ matrix.os }}
+          path: |
+            results/calibri_v40_1024_train_imdb.json
+            results/train256_local_uncalibrated.bin
+            results/train256_local_calibrated.bin
+            results/train256_joint_calibrated.bin
+            results/train1024_local_uncalibrated.bin
+            results/train1024_local_calibrated.bin
+            results/train1024_joint_calibrated.bin
+            results/INT4_overbudget_reference.bin
+          if-no-files-found: ignore
+          retention-days: 14
+  independent-physical-and-PPL-review:
+    needs: real-weights-joint-train-256-vs-1024
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calibri-v40-ubuntu-*
+          path: results/runs
+          merge-multiple: false
+      - name: Confirm real pretrained model/IMDb token SHA, physical bytes and all PPL
+        run: |
+          python research/calibri/compare_joint_1024_v40.py \
+            --a results/runs/calibri-v40-ubuntu-22.04/calibri_v40_1024_train_imdb.json \
+            --b results/runs/calibri-v40-ubuntu-24.04/calibri_v40_1024_train_imdb.json \
+            --output results/calibri_v40_crosshost.json
+      - name: Preserve crosshost verdict even if source or quality fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v40-crosshost-verdict
+          path: results/calibri_v40_crosshost.json
+          if-no-files-found: ignore
+          retention-days: 14
