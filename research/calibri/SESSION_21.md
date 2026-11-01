@@ -44,3 +44,26 @@ AVX2, bitpacking, tensor trains and fused matvec are well known.
 No novelty claim. Full-run memory, token/s, Android NEON/GPU or
 true MoE expert routing are NOT addressed here; experiment is an
 incremental CPU reference and remains research-only.
+
+## Completed results — GitHub Actions 41337588189 (SUCCESS)
+
+CPU ISA: x86_64 AVX2+FMA supported; five odd/even shape checks passed.
+Physical geo-small representation remained **43,832 bytes**, with
+a **2,048 byte one-row float scratch**. Full-model WikiText-2 dev PPL
+for equivalent quantized model: FP32 restored 173.495995,
+streamed AVX2 173.490865; difference 0.005129 (<0.1% relative
+gate). This is ONLY a numerical equivalence check on reused data.
+
+Same-run CPU p50 milliseconds, geo-small:
+| Input batch | Portable v20 | AVX2 v21 | Restored FP32 dense residual |
+|---:|---:|---:|---:|
+| 1 | 0.2715 | **0.2130** | 0.1239 |
+| 16 | 1.1605 | **0.3077** | 0.1794 |
+| 128 | 7.5635 | **0.9212** | 0.3883 |
+
+AVX2 was **~8.2x faster than portable row-cache** at batch128, within
+this run, but still **~2.37x slower than dense restored**. At batch1
+it remained ~1.72x slower. x86 results do NOT generalize to Android
+ARM/NEON. Further development must consider matrix-level cache reuse,
+shape-conditional scheduling and real mobile kernels. Bitpacking/AVX2
+are established techniques and not innovations by themselves.
