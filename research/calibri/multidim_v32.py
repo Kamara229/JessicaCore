@@ -186,13 +186,13 @@ def smoke():
     # One physical topology with real but deterministic test coefficients;
     # production experimental runs always load actual pretrained weights.
     rng=np.random.default_rng(32)
-    w=rng.standard_normal((32,64)).astype(np.float32)*0.02
-    v=np.linspace(0.1,1.3,64,dtype=np.float32)
+    w=rng.standard_normal((128,512)).astype(np.float32)*0.02
+    v=np.linspace(0.1,1.3,512,dtype=np.float32)
     from fixedbit_v15 import encode as fixed_encode
     cap=len(fixed_encode(w,4))
-    blob,stats=encode(w,v,cap,rank=2,m2=8,n2=16,br=8,bc=16)
+    blob,stats=encode(w,v,cap,rank=4,m2=8,n2=32,br=16,bc=32)
     q=decode(blob)
-    xx=rng.standard_normal((7,64)).astype(np.float32)
+    xx=rng.standard_normal((7,512)).astype(np.float32)
     y1=streamed_matmul(blob,xx).detach().numpy()
     y2=xx @ q.T
     if len(blob)>cap or np.max(np.abs(y1-y2))>3e-5:
