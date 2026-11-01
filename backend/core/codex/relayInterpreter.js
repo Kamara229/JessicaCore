@@ -132,6 +132,6 @@ export async function interpretRelayTurn(input, generate) {
         // The quota cannot be fixed by retrying the same interpretation.
         // A deterministic FAILURE report keeps the owner-selected ChatGPT
         // conversation alive and requests a backend/Supabase diagnosis.
-        return interpretationFailureHandoff(error);
+        return interpretationFailureHandoff(error, /\bCALIBRI\b/iu.test(String(input.plan || "")));
     }
 }
