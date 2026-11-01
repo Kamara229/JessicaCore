@@ -1,0 +1,37 @@
+name: CALIBRI v0.9 - real public Switch MoE tensor
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/**'
+      - '.github/workflows/calibri-switch-v09.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  switch-expert-weights:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: research/calibri
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'huggingface_hub==0.27.1' 'safetensors==0.4.5'
+      - name: Analyze actual trained Switch MoE expert tensor
+        run: python research/calibri/switch_real.py --out results/calibri_v09_google_switch_expert.json
+      - name: Upload metrics only, no checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v09-switch-real-tensor
+          path: results/calibri_v09_google_switch_expert.json
+          if-no-files-found: ignore
+          retention-days: 14
