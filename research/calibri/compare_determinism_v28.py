@@ -1,7 +1,32 @@
 #!/usr/bin/env python3
 """Compare independently collected CALIBRI v28 BF16/MKLDNN on/off records."""
 import argparse, json, pathlib
-from determinism_factor_v28 import CORPORA, MODES, compare
+import numpy as np
+
+CORPORA=("WikiText2_validation","TinyStories_validation")
+MODES=("deterministic_on_1","deterministic_off","deterministic_on_2")
+
+def compare(a,b):
+    x=np.asarray(a["sampled_token_logits"],dtype=np.float64)
+    y=np.asarray(b["sampled_token_logits"],dtype=np.float64)
+    m1=np.asarray(a["exact_eight_expert_mask_per_token"],dtype=np.int8)
+    m2=np.asarray(b["exact_eight_expert_mask_per_token"],dtype=np.int8)
+    top1=np.asarray(a["full_vocab_top1_token_id"],dtype=np.int64)
+    top2=np.asarray(b["full_vocab_top1_token_id"],dtype=np.int64)
+    if (x.ndim!=2 or x.shape!=y.shape or not np.isfinite(x).all()
+        or not np.isfinite(y).all() or m1.ndim!=2 or m1.shape!=m2.shape
+        or m1.shape[1]!=8 or top1.shape!=top2.shape
+        or x.shape[0]!=top1.size or m1.shape[0]!=top1.size):
+        raise ValueError("incompatible, nonfinite or absent model diagnostic samples")
+    delta=x-y
+    return {
+        "full_logits_exact_sha256_equal":a["full_logit_sha256"]==b["full_logit_sha256"],
+        "router_masks_exact_sha256_equal":a["router_mask_sha256"]==b["router_mask_sha256"],
+        "sampled_logits_max_abs_delta":float(np.max(np.abs(delta))),
+        "sampled_logits_rmse":float(np.sqrt(np.mean(delta**2))),
+        "full_vocab_top1_agreement":float(np.mean(top1==top2)),
+        "next_router_exact_per_token_agreement":float(np.mean(np.all(m1==m2,axis=1))),
+    }
 
 INVARIANTS=(
     "experiment","source_model","model_revision","dataset_revisions",
