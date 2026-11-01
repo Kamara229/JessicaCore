@@ -264,6 +264,35 @@ export function tryNativeDecomposition({
         };
     }
 
+    // A license in a LATER explicit step must not swallow an independent
+    // preceding date calculation. Keep the source-reading step cohesive,
+    // but preserve the owner's "first X, then Y" workflow. Previously the
+    // single-license shortcut returned only one subtask, dropping X.
+    const explicitGoals = splitExplicitSequence(input);
+    if (
+        explicitGoals.length >= 2 &&
+        /(?:сколько\s+(?:календарных\s+)?дн|разниц\p{L}*\s+дат|days\s+between)/iu.test(explicitGoals[0]) &&
+        explicitGoals.slice(1).some(goal => buildNativeSingleLicensePlan(goal))
+    ) {
+        const hints = normalizeMemoryHints(memoryContext);
+        return {
+            handled: true,
+            source: "native-sequence",
+            decomposition: {
+                originalTask: normalizeText(input),
+                isComplex: true,
+                memoryContext,
+                subtasks: explicitGoals.map((text, index) => ({
+                    id: index + 1,
+                    text,
+                    dependsOn: index === 0 ? [] : [index],
+                    contributesToFinalAnswer: true,
+                    memoryHints: [...hints]
+                }))
+            }
+        };
+    }
+
     // Keep the named primary-license quotation intact. A model
     // paraphrase or translation can erase the literal quote constraint.
     if (buildNativeSingleLicensePlan(input)?.intent === "native_single_license_primary_text") {
