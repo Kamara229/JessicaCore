@@ -118,15 +118,22 @@ jobs:
           for name in JESSICA_APP_TOKEN JESSICA_KEYSTORE_BASE64 JESSICA_KEYSTORE_PASSWORD JESSICA_KEY_PASSWORD JESSICA_KEY_ALIAS; do
             if [ -z "${!name}" ]; then echo "Missing beta signing prerequisite: $name"; exit 1; fi
           done
-          tag=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')
-          if [[ ! "$tag" =~ ^v0[.]1[.]([0-9]+)$ ]]; then
-            echo "Unexpected release tag; refusing unsafe versionCode: $tag"
-            exit 1
-          fi
-          stable_version=$((10#${BASH_REMATCH[1]}))
+          # The official signed bridge release may be finishing in a
+          # separate main-branch workflow. Wait briefly rather than
+          # publishing a prerelease that an old app cannot discover.
+          stable_version=0
+          tag=""
+          for attempt in $(seq 1 36); do
+            tag=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')
+            if [[ "$tag" =~ ^v0[.]1[.]([0-9]+)$ ]]; then
+              stable_version=$((10#${BASH_REMATCH[1]}))
+              if [ "$stable_version" -ge 2519 ]; then break; fi
+            fi
+            echo "Stable Beta-button bridge is not published (attempt $attempt/36)."
+            sleep 15
+          done
           if [ "$stable_version" -lt 2519 ]; then
-            echo "Stable bridge with Beta button not published; refusing beta release."
-            echo "Recent official Android release runs (read-only diagnostics):"
+            echo "Stable bridge still not released; refusing beta release."
             gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/android.yml/runs?per_page=5" --jq '.workflow_runs[] | [.id,.status,.conclusion,.head_sha] | @tsv' || true
             exit 1
           fi
