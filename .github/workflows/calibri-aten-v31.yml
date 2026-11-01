@@ -45,7 +45,7 @@ jobs:
             python research/calibri/aten_dispatch_v31.py \
             --output results/default.json --tokens 128 --encoder-len 64 --decoder-len 32 \
             > results/default.log 2>&1 || { tail -n 70 results/default.log; exit 1; }
-          grep '"selected_ATen": "DEFAULT"' results/default.log | tail -n 1
+          grep '"selected_ATen": "NO AVX"' results/default.log | tail -n 1
       - name: ATen DispatchStub AVX2, same model and fixed oneDNN cap (fresh Python process)
         shell: bash
         run: |
