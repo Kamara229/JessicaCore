@@ -1,0 +1,42 @@
+name: CALIBRI v0.16 - native multidimensional tensor-core pilot
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/geometric_v16.py'
+      - '.github/workflows/calibri-geometric-v16.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research-only-geometric-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU PyTorch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned datasets and numerical dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: Verify native tensor contraction, exact physical bytes and CRC
+        run: python research/calibri/geometric_v16.py --smoke
+      - name: Run trained Pythia matrix and train-only teacher-logit pilot
+        run: python research/calibri/geometric_v16.py --output results/calibri_v16_geometric.json --train-tokens 128 --train-context 64 --dev-tokens 1024 --test-tokens 1024 --steps 12
+      - name: Preserve JSON results only, not weights
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v16-geometric-evaluation
+          path: results/calibri_v16_geometric.json
+          if-no-files-found: ignore
+          retention-days: 14
