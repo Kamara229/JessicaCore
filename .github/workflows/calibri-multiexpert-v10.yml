@@ -1,0 +1,39 @@
+name: CALIBRI v0.10 - real 8-expert coding hypotheses
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/**'
+      - '.github/workflows/calibri-multiexpert-v10.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  eight-expert-real-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: research/calibri
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU torch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned deps
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'huggingface_hub==0.27.1' 'safetensors==0.4.5'
+      - name: Run real Switch 8-expert compression comparisons
+        run: python research/calibri/multiexpert_study.py
+      - name: Upload JSON only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v10-real-expert-interdependence
+          path: results/calibri_v10_multiexpert_real.json
+          if-no-files-found: ignore
+          retention-days: 14
