@@ -58,6 +58,11 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     internal var retryInterpretAt = 0L
     internal var lastProgressAt = 0L
     internal var guardianJob: Job? = null
+    // Off by default; owner enables a temporary, nonce-verified experiment
+    // from the Codex accessibility panel. Never persisted across sessions.
+    internal var idlePulseEnabled = false
+    internal var lastIdlePulseAttemptAt = 0L
+    internal var idlePulseButton: Button? = null
 
     /** Lightweight facade. State and module orchestration stay separate. */
     fun begin() = startCodexSession()
@@ -89,6 +94,8 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
         PhoneChatRuntime.launch?.requestStop()
         loop?.cancel()
         guardianJob?.cancel()
+        idlePulseEnabled = false
+        idlePulseButton = null
         sendPicker.close()
         calibrating = false
         calibratedSend = null
@@ -106,5 +113,5 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
 
 
 
-    internal fun shutdown() { loop?.cancel(); guardianJob?.cancel(); scope.cancel() }
+    internal fun shutdown() { idlePulseEnabled = false; loop?.cancel(); guardianJob?.cancel(); scope.cancel() }
 }
