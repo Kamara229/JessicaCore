@@ -13,6 +13,7 @@ import numpy as np
 from safetensors import safe_open
 from huggingface_hub import HfApi,hf_hub_download
 from codec import encode,decode
+from index import encode as compact_encode,decode as compact_decode
 from lift import measure,fused_matvec
 
 MODEL='EleutherAI/pythia-14m'
@@ -39,7 +40,7 @@ def run(output,target_zero=0.885,max_matrices=12):
     path=hf_hub_download(repo_id=MODEL,filename='model.safetensors',revision=sha)
     digest=hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
     rng=np.random.default_rng(260701)
-    rows=[];total={k:0 for k in ('parameters','clb_bytes','lift_bytes','packed_zlib_bytes','scale_bytes')}
+    rows=[];total={k:0 for k in ('parameters','clb_bytes','lift_bytes','packed_zlib_bytes','scale_bytes','compact_bytes')}
     with safe_open(path,framework='np',device='cpu') as f:
         keys=[k for k in f.keys() if '.mlp.dense_' in k and k.endswith('.weight')]
         for key in sorted(keys)[:max_matrices]:
@@ -49,6 +50,8 @@ def run(output,target_zero=0.885,max_matrices=12):
             q,lo,hi=ternarize(w,target_zero)
             cb=encode(q)
             if not np.array_equal(q,decode(cb)):raise AssertionError('CLB roundtrip')
+            ic=compact_encode(q)
+            if not np.array_equal(q,compact_decode(ic)):raise AssertionError('CLB8 roundtrip')
             liftb,delta_zero,parts=measure(q,True)
             x=rng.normal(size=q.shape[1]);a,s,d,ps=parts
             direct=fused_matvec(a,s,d,ps,x,lo,hi)
@@ -59,7 +62,7 @@ def run(output,target_zero=0.885,max_matrices=12):
             qdist=float(np.linalg.norm(w@x-gold)/max(np.linalg.norm(w@x),1e-20))
             row={'key':key,'shape':list(q.shape),'parameters':int(q.size),
                  'zero_fraction':float(np.mean(q==0)),'clb_bytes':len(cb),
-                 'lift_bytes':liftb,'packed_zlib_bytes':two_bit_zlib(q),
+                 'lift_bytes':liftb,'packed_zlib_bytes':two_bit_zlib(q),'compact_bytes':len(ic),
                  'scale_bytes':4*q.shape[0],
                  'delta_zero_fraction':delta_zero,
                  'direct_matvec_max_abs_diff':absolute,
@@ -75,9 +78,10 @@ def run(output,target_zero=0.885,max_matrices=12):
             'target_zero':target_zero,
             'status':'REAL WEIGHTS, CPU only; not QMoE parity or full-model quality',
             'total':total,'measured':rows}
-    for prefix in ('clb','lift','packed_zlib'):
+    for prefix in ('clb','lift','packed_zlib','compact'):
         total[prefix+'_bits_per_ternary_weight']=8*(total[prefix+'_bytes']+total['scale_bytes'])/total['parameters']
     total['lift_saving_vs_clb_pct']=100*(1-total['lift_bytes']/total['clb_bytes'])
+    total['compact_saving_vs_clb_pct']=100*(1-total['compact_bytes']/total['clb_bytes'])
     pathlib.Path(output).parent.mkdir(parents=True,exist_ok=True)
     pathlib.Path(output).write_text(json.dumps(report,indent=2,ensure_ascii=False))
     print(json.dumps({'model':MODEL,'revision':sha,'sha256':digest,
