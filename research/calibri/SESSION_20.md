@@ -44,3 +44,31 @@ hypothesis is NOT proven by avoiding full-matrix restoration. SIMD and
 hardware-specific fused matmul are separate work; a C pointer loop is
 only a research prototype. Even if amortized speed improves, a native
 BLAS call could still be much faster. No automatic deployments.
+
+## Measured outcome — GitHub Actions run 41337244905 (SUCCESS)
+
+The row-scratch C kernel uses only **2,048 bytes** of temporary float32
+storage for this 512-input-channel matrix; no whole residual matrix is
+restored in the candidate. Numerical tests passed across four widths,
+including non-byte-aligned rows. End-to-end same-quantization WikiText
+validation PPL gap between one-row packed and restored was **0.000155**.
+
+All timings below are *within this same v20 CI run* for geo-small,
+p50 milliseconds on GitHub x86 CPU (20 samples):
+
+| Input vectors | Re-decode per vector v19 kernel | Once-per-row v20 kernel | Dense residual reference |
+|---:|---:|---:|---:|
+| 1 | 0.1180 | 0.1470 | 0.0629 |
+| 16 | 0.8010 | 0.5757 | 0.0895 |
+| 128 | **5.1584** | **3.6198** | **0.1808** |
+
+The optimized row approach improves batch-128 speed by **~1.43×**
+compared with the earlier C repeat-decode implementation in the
+**same run**, but remains **~20× slower** than TT plus fully restored
+FP32 residual. For batch=1 it is slower than repeat-decode, so runtime
+must choose the operator based on shape and device.
+
+Absolute times differ from v19's separate CI runner; never draw
+cross-run performance conclusions from those values. This is only an
+x86 CPU Python/ctypes microbenchmark, not ARM/Android or full-model
+tokens-per-second. No quality/novelty claims.
