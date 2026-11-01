@@ -11,6 +11,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from datasets import load_dataset
 from huggingface_hub import HfApi
 from quality import MODEL,DATASET,CONFIG,load_token_ids,module_selection,calibrate,ppl_eval,quantize
+from mixedcodec import pack_symmetric,unpack_symmetric
 
 torch.set_num_threads(2)
 
@@ -24,10 +25,12 @@ def uniform_quant(w,bits):
     q=torch.round(w/scale[:,None]).clamp(-levels,levels).to(torch.int8)
     reconstructed=q.float()*scale[:,None]
     rows,cols=w.shape
-    header=12 # mandatory matrix identifier/dim metadata for compared format
-    payload=(rows*cols if bits==8 else (rows*cols+1)//2)
-    bytes_=int(header+payload+2*rows)
-    return reconstructed,bytes_,{"quantization":f"int{bits}","row_scales":"fp16",
+    blob=pack_symmetric(q.numpy(),scale.numpy(),bits)
+    q2,s2=unpack_symmetric(blob)
+    verified=torch.from_numpy(q2.copy()).float()*torch.from_numpy(s2.copy())[:,None]
+    if not torch.equal(verified,reconstructed):
+        raise AssertionError('mixed codec binary roundtrip changed reconstructed weights')
+    return reconstructed,len(blob),{"quantization":f"int{bits}","row_scales":"fp16",
                                   "levels":2*levels+1}
 
 @torch.no_grad()
