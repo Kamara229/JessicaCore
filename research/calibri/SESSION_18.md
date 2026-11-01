@@ -51,3 +51,27 @@ comparison against GPTQ/AWQ/current tensor methods.
 
 **Safety:** draft research branch only; no main merge/Render/Supabase/
 mobile updates, no personal user data or model upload.
+
+## Completed independently sourced new-corpus results (Actions 41336227016)
+
+Fresh TinyStories validation, 8,192 tokens (8,128 scored), 141 examples,
+context 128. The methods were *fixed before* this corpus was inspected.
+
+| Model variant | Physical bytes | TinyStories PPL |
+|---|---:|---:|
+| original | 131,072 FP16 weight estimate | 37.04143 |
+| INT5 | 41,234 | 37.83302 |
+| INT6 | 49,426 | 37.20436 |
+| Geo-small (r2, INT5) | **43,832** | **37.04550** |
+| Geo-balanced (r4, INT5) | 46,392 | 37.24036 |
+| Geo-accuracy (r8, INT5) | 49,464 | 37.56816 |
+
+Geo-small is 11.32% smaller than INT6 and performed better on this
+specific domain, nearly matching original PPL. However, the *same*
+configuration scored 255.015 on the earlier WikiText-2 test versus
+248.685 for INT6. This **cross-domain contradiction is central**:
+there is no demonstrated universally quality-preserving replacement.
+Mixed 5-bit residual is still restored to a dense buffer at runtime,
+so storage savings do not establish RAM/speed savings. The sample is
+small and lacks statistical uncertainty estimates; repeat on diverse
+fresh domains and a true MoE before deploying.
