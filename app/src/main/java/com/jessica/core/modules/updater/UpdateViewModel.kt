@@ -8,9 +8,12 @@ import kotlinx.coroutines.flow.StateFlow
 
 class UpdateViewModel(context: Context) : ViewModel() {
     private val updateManager = UpdateManager(context.applicationContext)
+    private val memoryUpdateManager = MemoryUpdateManager(context.applicationContext)
     val state: StateFlow<UpdateState> = updateManager.state
+    val memoryState: StateFlow<MemoryUpdateState> = memoryUpdateManager.state
 
     fun checkUpdate() = updateManager.checkForUpdates(viewModelScope)
+    fun checkMemoryUpdate() = memoryUpdateManager.checkForMemoryUpdates(viewModelScope)
     fun prepareInstallation(): Intent? = updateManager.prepareInstallation()
     fun waitingPermission() = updateManager.waitingPermission()
     fun installing() = updateManager.installing()

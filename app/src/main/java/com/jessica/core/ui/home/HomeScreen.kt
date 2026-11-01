@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jessica.core.modules.updater.UpdateState
+import com.jessica.core.modules.updater.MemoryUpdateState
 import com.jessica.core.ui.status.JessicaStatusCard
 import com.jessica.core.ui.update.UpdateCard
 import com.jessica.core.ui.language.uiText
@@ -22,14 +23,17 @@ import com.jessica.core.BuildConfig
 fun HomeScreen(
     message: String,
     updateState: UpdateState,
-    onUpdate: () -> Unit
+    onUpdate: () -> Unit,
+    memoryUpdateState: MemoryUpdateState,
+    onUpdateMemory: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item { JessicaStatusCard() }
-        item { UpdateCard(state = updateState, onUpdateClick = onUpdate) }
+        item { UpdateCard(state = updateState, onUpdateClick = onUpdate,
+            memoryState = memoryUpdateState, onMemoryUpdateClick = onUpdateMemory) }
         item {
             Text(
                 uiText("О Jessica", "About Jessica"),

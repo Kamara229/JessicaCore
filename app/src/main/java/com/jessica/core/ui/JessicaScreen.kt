@@ -74,6 +74,7 @@ fun JessicaScreen() {
 
     val chatState by chatViewModel.state.collectAsState()
     val updateState by updateViewModel.state.collectAsState()
+    val memoryUpdateState by updateViewModel.memoryState.collectAsState()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     var showDeleteDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -251,7 +252,9 @@ fun JessicaScreen() {
                     JessicaPage.HOME -> HomeScreen(
                         message = controller.message.value,
                         updateState = updateState,
-                        onUpdate = updateViewModel::checkUpdate
+                        onUpdate = updateViewModel::checkUpdate,
+                        memoryUpdateState = memoryUpdateState,
+                        onUpdateMemory = updateViewModel::checkMemoryUpdate
                     )
                     JessicaPage.REPORTS -> ReportScreen(
                         reportStorage = controller.reportStorage,
