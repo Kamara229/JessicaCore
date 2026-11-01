@@ -22,7 +22,7 @@ export function calibriResearchHandoff(message) {
         body=lines.join(" ");
     }
     body=body.replace(/\s+/gu," ").trim();
-    const pending=/\b(?:Результат\s+пока\s+не\s+получен|Результат(?:ы)?\s+(?:ещ[её]\s+)?(?:нет|ожидаются)|(?:GitHub\s+Actions|CI)\s+(?:ещ[её]\s+)?(?:ид[её]т|выполняется|запущен[оа]?))\b/iu;
+    const pending=/(?:Результат\s+пока\s+не\s+получен|Результат(?:ы)?\s+(?:ещ[её]\s+)?(?:нет|ожидаются)|(?:GitHub\s+Actions|CI)\s+(?:ещ[её]\s+)?(?:ид[её]т|выполняется|запущен[оа]?))/iu;
     const noTest=/Тест(?:\s+в\s+обычном\s+чате)?\s+Jessica\s+(?:не\s+требуется|пока\s+не\s+(?:нужен|запрошен))|Тест\s+Jessica\s+не\s+запускай/iu;
     const project=/^Запустил\s+CALIBRI\s+v(\d{1,3})\s+(?:через\s+GitHub\s+Actions|в\s+GitHub\s+Actions)/iu;
     const m=project.exec(body);
