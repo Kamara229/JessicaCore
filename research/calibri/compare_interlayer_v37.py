@@ -46,13 +46,10 @@ def audit(name,record):
     if not (local==local_cal==343840 and
             0<greedy==greedy_cal<=343840<int4):
         bad.append(name+".global_vs_local_equal_physical_budget_contract")
-    if any(m.get("rowwise_3p5bpw_bytes",0)>28672 for m in matrices.values()):
-        # These are v36 values in a different field; v37 stores local_bytes.
-        bad.append(name+".changed_matrix_size")
     for key,d in matrices.items():
         dims=d.get("shape",[])
         if (dims not in ([128,512],[512,128])
-                or d.get("local_bytes")!=d.get("local_bytes",0)
+                or d.get("local_bytes",0)<=0 or d.get("local_bytes",28673)>28672
                 or d.get("local_calibrated_train_SSE_ratio",1.)>1.000001
                 or d.get("global_calibrated_train_SSE_ratio",1.)>1.000001
                 or d.get("global_bytes",0)<1
