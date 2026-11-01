@@ -70,3 +70,27 @@ negative, not evidence of success.
 Special caveat: WikiText-2 test has been observed in prior CALIBRI
 sessions; treat these comparisons as exploratory. Use a separate,
 previously unseen task suite for any later confirmatory claims.
+
+## Completed real-weight results (Actions run 41335550882)
+
+**CI passed; geometric compression quality gate failed.** First Pythia-14m
+128×512 MLP matrix, Wikitext-2 validation 1,024 tokens:
+
+| Format | Physical bytes | Dev PPL |
+|---|---:|---:|
+| original (FP16 storage estimate) | 131,072 | 173.381 |
+| TT8 only | 8,214 | 3789.664 |
+| TT16 only | 16,406 | 2541.884 |
+| TT32 only | 32,790 | 1711.425 |
+| TT8 + INT4 residual | 41,238 | 177.534 |
+| TT16 + INT4 residual | 49,430 | 186.771 |
+| TT8 + INT4 residual + teacher training | 41,238 | 179.917 |
+| INT6 | 49,426 | **173.270** |
+
+Teacher train KL fell 0.1051→0.0317 but development and test quality
+worsened. Held-out WikiText-2 test: original 247.540, INT6 248.685,
+TT8+INT4 256.609, trained TT8+INT4 262.242. Pure TT direct CPU
+p50 was 0.247 ms vs dense FP32 0.065 ms for same batch=64, not
+normalized for accuracy and not ARM.
+
+This excludes v16 from any production or novelty claim.
