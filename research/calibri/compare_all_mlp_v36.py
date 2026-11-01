@@ -15,7 +15,7 @@ CHECK_KEYS=(
     "tokens","source_total_parameters","source_MLP_projection_weights",
     "source_MLP_FP16_reference_bytes_not_saved",
     "physical_global_MLP_3p5bpw_byte_budget_with_bundle",
-    "per_source_MLP_module","per_row_bits_identical_in_calibrated",
+    "per_row_bits_identical_in_calibrated",
     "calibration",
 )
 LABELS=("uncalibrated_3p5bpw_all12","calibrated_3p5bpw_all12",
@@ -90,6 +90,22 @@ def main():
     a_err,a=summarize(first,"ubuntu_22_04")
     b_err,b=summarize(second,"ubuntu_24_04")
     mismatch+=a_err+b_err
+    # On different physical CPUs a train-output SSE diagnostic may vary
+    # slightly even when the original source, row allocation and final
+    # packed stream are BIT-IDENTICAL. Compare source/bytes/row counts,
+    # and separately report SSE metrics without claiming equality.
+    am=first.get("per_source_MLP_module",{})
+    bm=second.get("per_source_MLP_module",{})
+    if set(am)!=set(bm):
+        mismatch.append("source_MLP_module_names_differ")
+    else:
+        fixed=("shape","source_sha256","rowwise_3p5bpw_bytes",
+               "calibrated_same_byte_size","above_budget_int4_bytes",
+               "bitwidth_rows")
+        for name in am:
+            for key in fixed:
+                if am[name].get(key)!=bm[name].get(key):
+                    mismatch.append(name+"."+key)
     same_sha=(a["MLP_merged_SHA256"]==b["MLP_merged_SHA256"])
     if not same_sha:
         mismatch.append("bundled_physical_sha256_differs_across_hosts")
