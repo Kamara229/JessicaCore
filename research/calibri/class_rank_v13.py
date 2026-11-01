@@ -20,8 +20,7 @@ import math
 import struct
 
 import numpy as np
-from codec import Writer,Reader
-from index import rank_positions,unrank_positions
+from codec import Writer,Reader,rank_positions,unrank_positions
 
 MAGIC=b'C13R'
 FMT='<4sIIHBB'
