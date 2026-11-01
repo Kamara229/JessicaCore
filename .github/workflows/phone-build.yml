@@ -91,6 +91,7 @@ jobs:
       beta_tag: ${{ steps.beta-version.outputs.beta_tag }}
     permissions:
       contents: read
+      actions: read
     env:
       JESSICA_APP_TOKEN: ${{ secrets.JESSICA_APP_TOKEN }}
       JESSICA_KEYSTORE_BASE64: ${{ secrets.JESSICA_KEYSTORE_BASE64 }}
@@ -125,6 +126,8 @@ jobs:
           stable_version=$((10#${BASH_REMATCH[1]}))
           if [ "$stable_version" -lt 2519 ]; then
             echo "Stable bridge with Beta button not published; refusing beta release."
+            echo "Recent official Android release runs (read-only diagnostics):"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/android.yml/runs?per_page=5" --jq '.workflow_runs[] | [.id,.status,.conclusion,.head_sha] | @tsv' || true
             exit 1
           fi
           # Beta build numbers must increase across subsequent beta releases,
