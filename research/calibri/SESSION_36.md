@@ -113,3 +113,91 @@ representation. The project still does not reproduce QMoE's
 Only GitHub draft PR and isolated research branch. Do not change
 main, working Jessica, Render, Supabase, APK or secrets. No regular
 Jessica chat test is requested.
+
+
+## Actual v36 results — GitHub Actions run 41358761722 (all three jobs PASS)
+
+Two independent real pretrained Pythia-14M evaluations loaded all
+**12 source MLP weight matrices** (6×128×512 plus 6×512×128),
+representing **786,432 trained parameters**. They independently
+serialized all twelve modules in full `CB36` physical byte bundles,
+including each CT33/INT4 bitstream, scale/header/CRC, the outer format
+and its SHA256 footer. The two hosts produced exactly matching
+original-source model/dataset/token/matrix SHA256, **matching physical
+bundle SHA256**, and **bitwise-identical measured PPL** on both corpora.
+
+The first attempt (Actions 41358598619) had **both pretrained model
+runs succeed**. Its independent comparison job *falsely failed*
+because it required bitwise-equal **CPU-sensitive TRAIN output SSE
+floating diagnostic numbers** even though final source weight,
+row allocations and all physical bitstream SHA256 matched. The
+comparison script was corrected to compare only genuinely immutable
+source weight SHA, row shapes/bitwidths, physical binary SHA and bytes;
+differing CPU SSE diagnostics remain available. The second complete
+run (41358761722) passed all three CI jobs.
+
+### Physical measurements — all twelve matrices together
+
+| Physical bundle | Actual physical bytes | Bits per source MLP parameter incl. bundled metadata |
+|---|---:|---:|
+| FP16 reference for all 12 MLP weights, NOT an actual persisted source file | 1,572,864 | 16 (theoretical reference) |
+| Uncalibrated rowwise mixed INT3/INT4 `CB36` | **343,840** | **3.49772135** |
+| Calibrated `CB36`, all same per-row bits as uncalibrated | **343,840** | **3.49772135** |
+| Rowwise physically packed INT4, ABOVE 3.5bpw budget | **401,224** | **4.08146159** |
+
+Hard global 3.5bpw limit, including outer header/descriptors/footer,
+was **344,064 bytes**. Both 3.49772bpw bundles fit (224 bytes
+under the cap). Each of the twelve pretrained source modules was
+written and restored, not an estimated number of hypothetical bytes.
+
+Compared with the hypothetical FP16 storage of *just* these MLP
+coefficients, the physical calibrated bundle saves roughly **78.14%**
+of their bytes, but the package does NOT contain attention, embeddings,
+norms or a deployable full-model checkpoint. Do not report this as
+whole-model physical size or native runtime memory savings.
+
+### Actual full-model PPL after changing all twelve MLP matrices
+
+| Evaluated full-model configuration | WikiText2 development validation PPL | NEW AG News TEST PPL |
+|---|---:|---:|
+| Original, uncompressed source teacher | **173.38149** | **235.46882** |
+| Uncalibrated all-12 3.49772bpw `CB36` | **1597.66884** | **1528.88080** |
+| Calibrated all-12 3.49772bpw `CB36` | **443.63432** | **650.91275** |
+| INT4 higher-rate reference, 4.08146bpw | **372.07758** | **470.49882** |
+
+**Matched-byte train calibration effect:** at exactly the same
+343,840 bytes and per-row INT3/INT4 assignment, calibration lowers
+WikiText development PPL by **1154.03452** and new AG News test PPL
+by **877.96805**. Thus the direction of the *local* v35 finding
+transferred to **all twelve** matrices and a previously untested AG
+News corpus. The reduction is still only an exploratory result with
+1024 fixed AG News test tokens.
+
+**Important strong negative finding:** compressing all 12 matrices
+with either 3.49772bpw option degrades language quality severely
+relative to the teacher (on new AG News, 235.47 → **650.91**
+even with calibration), and it is **worse** than the higher-rate
+physical INT4 baseline (AG News 470.50). Merely saving ~78% of
+MLP-only FP16 bytes has NOT produced a practically good all-layer
+compressed language model. It is not an end-to-end physical model
+checkpoint, much less a 0.8bpw SwitchTransformer or QMoE success.
+
+### Interpretation and next gated research step
+
+Before attempting a compiled native bitstream kernel or more
+multidimensional TT, isolate the quality collapse from compressing
+**all twelve** matrices: predeclare and test a per-layer/per-matrix
+mixed-precision allocation *with the same exact global physical byte
+budget*, comparing uniformly calibrated 3.5bpw against a simple
+control that protects the most quality-sensitive layers. Use
+TRAIN-only measured sensitivity / gradient-free layer ablation to
+allocate bits, and do not tune any allocation by the 1024 AG News
+TEST tokens. Fairly compare a physically serialized 3.5bpw bundle
+and full-model PPL on another unseen corpus or sealed slice.
+The high-rate INT4 is an informative quality anchor, not a
+rate-matched baseline.
+
+No native compressed execution speed, full-model physical size,
+mobile/ARM throughput, new mathematical weight representation,
+or QMoE 0.8bpw was demonstrated. Main/Render/Supabase/APK,
+working Jessica and ordinary user-side chat were NOT changed.
