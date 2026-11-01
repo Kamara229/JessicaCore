@@ -21,7 +21,12 @@ class HuffmanMasksTests(unittest.TestCase):
                 for r in q:
                     self.assertTrue(np.array_equal(r,row_decode(row_encode(r),len(r))))
                 for group in (1,4,16):
-                    blob=encode(q,group)
+                    for mode in ('auto','u16','u8_escape'):
+                        self._roundtrip_group(q,group,mode,rng)
+
+    def _roundtrip_group(self,q,group,mode,rng):
+                    shape=q.shape
+                    blob=encode(q,group,index_mode=mode)
                     self.assertTrue(np.array_equal(q,decode(blob)))
                     self.assertTrue(np.array_equal(q[0],read_row(blob,0)))
                     self.assertTrue(np.array_equal(q[-1],read_row(blob,len(q)-1)))
