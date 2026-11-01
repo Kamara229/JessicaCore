@@ -1,6 +1,7 @@
 """Deterministic correctness and corruption tests for 2-stage CALIBRI."""
 import unittest
 import numpy as np
+from hybrid_codec import encode_hybrid,decode_hybrid
 from dual_codec import (
     StaticPairDictionary, encode_grouped, decode_grouped, read_one_row,
     stable_fp64_ffn_equivalence, original_qmoe_like_bytes)
@@ -29,6 +30,18 @@ class DualCodecTests(unittest.TestCase):
                         for r in (0,nrows-1):
                             self.assertTrue(np.array_equal(
                                 words[off[r]:off[r+1]],read_one_row(blob,r)))
+
+    def test_hybrid_codec_auto_fallback_and_exact_decode(self):
+        rng=np.random.default_rng(42)
+        for nrows,cols in [(1,32),(8,128),(16,256)]:
+            for pz in (.25,.50,.885,1.):
+                q=rng.choice([-1,0,1],size=(nrows,cols),
+                    p=[(1-pz)/2,pz,(1-pz)/2]).astype(np.int8)
+                encoded,choice=encode_hybrid(q,self.dictionary,group=4)
+                self.assertIn(choice["selected"],("CL8","DUAL"))
+                self.assertTrue(np.array_equal(q,decode_hybrid(encoded,self.dictionary)))
+                with self.assertRaises(ValueError):
+                    decode_hybrid(b"bad"+encoded)
 
     def test_corruption_and_input_validation(self):
         q=np.zeros((4,64),dtype=np.int8)
