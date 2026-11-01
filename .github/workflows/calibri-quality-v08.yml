@@ -1,0 +1,44 @@
+name: CALIBRI v0.8 - held-out language model quality
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/**'
+      - '.github/workflows/calibri-quality-v08.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  v08-real-ppl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: research/calibri
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU PyTorch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned model/data dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: Run codec regression tests
+        run: python -m unittest discover -s research/calibri -p 'test_*.py' -v
+      - name: Measure held-out perplexity and physical encoding
+        run: python research/calibri/quality.py --output results/calibri_v08_quality.json --calibration-tokens 512 --validation-tokens 1024 --sequence-length 128
+      - name: Select quality-guarded per-module mixed precision on held-out test
+        run: python research/calibri/guard.py --output results/calibri_v08_guard.json --development-tokens 384 --test-tokens 4096 --calibration-tokens 512 --max-dev-ppl-ratio 1.05
+      - name: Upload metrics only (no model checkpoint, no personal data)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v08-heldout-quality
+          path: results/calibri_v08_*.json
+          if-no-files-found: ignore
+          retention-days: 14
