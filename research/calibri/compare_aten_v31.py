@@ -67,7 +67,7 @@ def main():
         for mode in MODES:
             evidence=sources[host][mode]
             doc=evidence["document"]
-            expected={"default":"DEFAULT","avx2":"AVX2"}[mode]
+            expected={"default":"NO AVX","avx2":"AVX2"}[mode]
             for key in INVARIANTS:
                 if doc.get(key)!=reference.get(key):
                     issues.append(host+"."+mode+"."+key)
