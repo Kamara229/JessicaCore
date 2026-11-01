@@ -117,3 +117,62 @@ benchmark or new multidimensional neural weights proved.
 Research branch and draft PR only: do not change main, Render,
 Supabase, APK, production Jessica or user data. NO ordinary Jessica
 chat text test requested.
+
+
+## Actual measurement — v37 GitHub Actions 41359403451 (all three CI jobs PASS)
+
+Two independently hosted CPU jobs completed, with cross-host
+**matching original source model/dataset/token/matrix identities,
+bitwise-identical physically serialized CB36 SHA256 for all five
+variants, and exactly identical full-model PPL** on both corpora.
+All actual CB36 files were saved and read back and per-module
+CRC/sha verified. These are scientific reproducibility outcomes,
+not a claim that a compressed model is usable.
+
+| Physically bundled 12-MLP representation | Actual bytes | Actual bits / MLP weight | WikiText-2 DEV PPL | Previously untested AG News test[3000:3200] PPL |
+|---|---:|---:|---:|---:|
+| Original source model | FP16 MLP theoretical 1,572,864 B (not a physical compressed checkpoint) | 16 reference | **173.38149** | **227.37582** |
+| LOCAL v36 3/4-bit baseline, uncalibrated | **343,840** | **3.49772** | **1597.66884** | **1791.41801** |
+| LOCAL v36 3/4-bit, train-calibrated | **343,840** | **3.49772** | **443.63432** | **611.28264** |
+| GLOBAL v37 TRAIN sensitivity greedy allocation, uncalibrated | **343,840** | **3.49772** | **2107.53890** | **2245.16063** |
+| GLOBAL v37 TRAIN sensitivity greedy allocation, train-calibrated | **343,840** | **3.49772** | **529.86852** | **741.28918** |
+| Standard rowwise INT4 HIGHER-RATE anchor | **401,224** | **4.08146** | **372.07758** | **527.61374** |
+
+**Negative matched-byte verdict:** the globally reallocated calibrated
+version is **WORSE** than the v36 locally allocated calibrated baseline
+at identical **343,840 actual bytes** on BOTH corpora:
+WikiText DEV PPL **+86.23420** and disjoint AG News slice
+**+130.00654** (higher PPL is worse). Both still have very poor
+absolute quality compared with untouched pretrained source teacher.
+
+**Diagnosed failure:** the global greedy benefit-per-added-byte rule
+spent all 4-bit upgrade bytes in the six `dense_h_to_4h` matrices
+(they have 128 input features, 16B per 3→4-bit row upgrade), and
+gave **ZERO** INT4 rows to all six `dense_4h_to_h` matrices
+(512 input features, 64B per upgrade). Measured upgrades in six
+`dense_h_to_4h` matrices were 385, 501, 201, 511, 343, 375
+rows respectively; no 4-bit rows in any `dense_4h_to_h`.
+Although TRAIN-only module NLL penalties were included (clipped to
+0.25…4.0 relative median), this byte-cost bias dominated and
+likely starved crucial network down-projections. This is an
+empirical, diagnosed deficiency of the tested heuristic, not
+proof that all possible TRAIN-only global allocation strategies fail.
+
+**Interpretation / next proposed isolated step:** require a
+per-matrix minimum precision floor (for example predeclare a
+minimum number of INT4 rows for both projection kinds) and
+allow a restricted, bounded transfer of remaining bytes between
+modules. Compare against local v36 at strictly the SAME 343,840B
+total. A more meaningful variant would derive *marginal
+full-model training NLL* for groups of bit upgrades rather than
+single-matrix INT3 ablation and pure local SSE gain; prevent
+privileging short rows solely because they cost fewer bytes.
+Predefine allocation without examining this AG News test PPL;
+use an additional untouched or disjoint evaluation slice
+for a future confirmatory result.
+
+No 0.8bpw Switch/QMoE replication, novel multidimensional tensor
+architecture, physical full-model checkpoint, or native packed
+runtime speed was achieved. PPL still used fully restored dense
+MLP weights; no changes to main, Render, Supabase, APK,
+production Jessica or ordinary Jessica chat.
