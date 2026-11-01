@@ -103,3 +103,110 @@ novel patent, Switch/QMoE 0.8bpw, or an entire deployable checkpoint.
 All modifications remain in isolated `research/` branch and
 draft PR, no merge to main, changes to Render, Supabase, APK,
 production Jessica, user data or use of regular Jessica chat.
+
+
+## ACTUAL measured outcomes — GitHub Actions run 41361751878 (all 3 jobs PASS)
+
+Two independent hosted CPUs (Ubuntu 22.04 and Ubuntu 24.04) loaded
+**real pretrained Pythia-14M** and all 12 source MLP modules.
+The independent checker confirmed **exact source model revision,
+original matrix SHA, WikiText TRAIN/DEV and first-use IMDb test
+token SHA, all seven physical binary SHA and actual disk lengths**,
+and **identical PPL** across both CPU hosts. CI PASS means experiment
+integrity, not necessarily better rate–distortion.
+
+### Fixed physical storage (strict controls)
+
+Each 256-TRAIN or 1024-TRAIN local un/calibrated or joint calibrated
+model contains precisely **343,840 actual bytes** of CB36-packed
+12 MLP matrices, **3.49772 bits per source MLP coefficient** with
+786,432 original coefficient positions. This includes packed symbols,
+per-row FP16 scales, CT33 headers/CRCs, CB36 descriptors and outer
+SHA256; both experimental arms were actually persisted to disk,
+read back, verified and restored for PPL. The higher-rate INT4
+reference is **401,224 bytes** and NOT equal-byte. The original
+FP16 MLP projection sizes would total 1,572,864 bytes in theory,
+but are not a physical source checkpoint and the 343,840-byte CB36
+bundle does NOT store the rest of the model.
+
+### Actual TRAIN joint all-12 loss optimization
+
+| TRAIN calibration/selection data | Local TRAIN NLL before joint search | After 2-round 20-probe/round TRAIN-only joint search | Gain |
+|---|---:|---:|---:|
+| 256 WikiText TRAIN tokens | 6.3518228531 | **6.3440327644** | 0.0077900887 |
+| 1024 WikiText TRAIN tokens | 6.3331585526 | **6.3310850859** | 0.0020734668 |
+
+These NLL values are on DIFFERENT TRAIN token counts and must not
+be compared as if calculated on the same heldout text. Both are
+train-set optimization metrics, not generalization.
+
+### Full-model PPL (all 12 physical MLPs decoded and substituted)
+
+| Source/configuration | WikiText2 DEV PPL | FIRST-USE IMDb TEST PPL |
+|---|---:|---:|
+| Original pretrained source, uncompressed | **173.38149** | **154.91574** |
+| 256 TRAIN, local uncalibrated, 343,840B | **1597.66884** | **996.42548** |
+| 256 TRAIN, LOCAL calibrated, 343,840B | **443.63432** | **359.56549** |
+| 256 TRAIN, JOINT NLL-selected calibrated, 343,840B | **443.87060** | **360.18371** |
+| 1024 TRAIN, local uncalibrated, 343,840B | **1599.17854** | **1013.36266** |
+| 1024 TRAIN, LOCAL calibrated, 343,840B | **424.62494** | **357.03614** |
+| 1024 TRAIN, JOINT NLL-selected calibrated, 343,840B | **423.21892** | **357.19382** |
+| Physical INT4 HIGHER-RATE control, 401,224B | **372.07758** | **328.03266** |
+
+The IMDb test was frozen until AFTER training-only selection and
+both arms' physical files were written. These are real measurements
+on a fixed first 2,048-token slice from IMDb test[:64], NOT the
+full IMDb benchmark.
+
+**Two distinct findings must not be confused**:
+
+1. **Positive TRAIN-breadth effect:** at equal 343,840 bytes,
+   using 1024 rather than 256 WikiText TRAIN tokens improved
+   the calibrated JOINT candidate's IMDb test PPL from
+   **360.18371 to 357.19382** (decrease 2.98989);
+   the calibrated LOCAL comparator itself improved from
+   **359.56549 to 357.03614** (decrease 2.52936).
+   On WikiText DEV the 1024 JOINT improvement vs 256 JOINT
+   is **443.87060 → 423.21892**.
+   These are small exploratory absolute improvements, not
+   proof that the optimizer is globally beneficial.
+
+2. **Negative primary JOINT-vs-LOCAL matched-rate gate:** with
+   **1024 TRAIN tokens**, actual joint NLL search improved
+   WikiText DEV relative to LOCAL by **1.40602 PPL**
+   (423.21892 vs 424.62494), BUT it was **0.15768 PPL
+   WORSE** than local on NEW IMDb TEST (357.19382 vs
+   357.03614). Likewise at 256 TRAIN, JOINT was +0.61822
+   PPL worse on new IMDb than its local calibrated control.
+   Therefore broader calibration did **NOT** establish
+   out-of-domain benefit of the joint bit selector over
+   simple LOCAL rate-matched calibration.
+
+All compressed variants remain markedly worse than original
+pretrained model (IMDb 154.92), and worse than stronger
+above-budget INT4 (IMDb 328.03). The 4× TRAIN sample did not
+solve severe loss of original model quality from compressing all 12
+MLP modules to ~3.498bpw.
+
+### Scientific next gate
+
+Do NOT reselect v40 algorithm parameters by its now-exposed
+IMDb test PPL. The next isolated hypothesis should use
+**independent TRAIN-only selection and TRAIN-only validation
+for accepting individual joint bit swaps**, rather than
+optimizing the same training segment and expecting unseen
+improvement. Pre-register two non-overlapping WikiText TRAIN
+token slices (e.g., 2048 for calibration, next 2048 for
+train-validation), score proposals on the latter *without
+reading the eventual new external evaluation corpus*. Keep
+bit cap, physical CRC, per-module precision limits and
+strong local calibrated controls identical. Require an
+independent previously unexamined heldout corpus for a
+final generalization check, and record negative findings.
+
+No model-wide physical compressed checkpoint, native packed
+inference speed, genuinely new multidimensional neural
+weight architecture or QMoE SwitchTransformer 0.8bpw
+reproduction was demonstrated. No main/Render/Supabase/APK
+or production Jessica changes, and no ordinary Jessica
+chat text tests were used.
