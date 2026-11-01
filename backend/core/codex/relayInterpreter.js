@@ -22,6 +22,7 @@ import {incidentCiStatusHandoff} from "./relayIncidentCiStatus.js";
 import {compactCodexStressProgress} from "./relayCompactStressProgress.js";
 import {interpretationFailureHandoff} from "./relayFailureHandoff.js";
 import {calibriResearchHandoff} from "./relayCalibriProgress.js";
+import {completedCalibriNoTestHandoff} from "./relayCalibriCompletedNoTest.js";
 import {v2PersistenceHandoff} from "./relayV2PersistenceHandoff.js";
 export {explicitJessicaTest} from "./relayExplicitTest.js";
 export {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
@@ -89,6 +90,8 @@ export async function interpretRelayTurn(input, generate) {
     if(unverifiedPr!==null)return {action:"reply",reply:unverifiedPr,task:"",continueThread:false};
     const requestedTest = explicitJessicaTest(message) || compactJessicaTest(message) || numberedBenchmarkTest(message);
     if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
+    const finishedResearch=completedCalibriNoTestHandoff(message);
+    if (finishedResearch!==null)return {action:"reply",reply:finishedResearch,task:"",continueThread:false};
     const directCalendarFix=pendingCalendarDirectFix(message);
     if(directCalendarFix!==null)return directCalendarFix;
     const absoluteFix=pendingAbsoluteDateFix(message);
