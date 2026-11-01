@@ -153,13 +153,13 @@ jobs:
           "$signer" verify --verbose JessicaCore-CALIBRI-beta.apk
           old_report=$("$signer" verify --print-certs "$RUNNER_TEMP/previous/JessicaCore.apk")
           new_report=$("$signer" verify --print-certs JessicaCore-CALIBRI-beta.apk)
-          old=$(printf '%s\\n' "$old_report" | sed -n 's/^[[:space:]]*Signer #1 certificate SHA-256 digest:[[:space:]]*//p' | head -1)
-          new=$(printf '%s\\n' "$new_report" | sed -n 's/^[[:space:]]*Signer #1 certificate SHA-256 digest:[[:space:]]*//p' | head -1)
+          old=$(printf '%s\n' "$old_report" | sed -n 's/^[[:space:]]*Signer #1 certificate SHA-256 digest:[[:space:]]*//p' | head -1)
+          new=$(printf '%s\n' "$new_report" | sed -n 's/^[[:space:]]*Signer #1 certificate SHA-256 digest:[[:space:]]*//p' | head -1)
           echo "Official public APK certificate fingerprint: ${old:-NOT PARSED}"
           echo "Beta public APK certificate fingerprint: ${new:-NOT PARSED}"
           if [ -z "$old" ] || [ -z "$new" ]; then
             echo "Cannot parse certificate fingerprints. Diagnostic lines:"
-            printf '%s\\n' "$old_report" "$new_report" | grep -i 'certificate.*digest' || true
+            printf '%s\n' "$old_report" "$new_report" | grep -i 'certificate.*digest' || true
             exit 1
           fi
           if [ "$old" != "$new" ]; then
