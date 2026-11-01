@@ -1,0 +1,78 @@
+name: CALIBRI v0.27 - BF16 versus FP32 CPU router diagnostic
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/precision_router_v27.py'
+      - 'research/calibri/compare_precision_v27.py'
+      - 'research/calibri/SESSION_27.md'
+      - '.github/workflows/calibri-precision-v27.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-pretrained-precision:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      HF_HUB_DOWNLOAD_TIMEOUT: '90'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU PyTorch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned Switch pretrained and corpus dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Compare actual pretrained BF16 and same-weight FP32 outputs
+        run: python research/calibri/precision_router_v27.py --output results/calibri_v27_precision.json --tokens 128 --encoder-len 64 --decoder-len 32
+      - name: Preserve only output metrics and fixed sampled logits, not weights
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v27-${{ matrix.os }}
+          path: results/calibri_v27_precision.json
+          if-no-files-found: ignore
+          retention-days: 14
+  precision-crosshost-diagnostic:
+    needs: real-pretrained-precision
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'numpy==1.26.4'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calibri-v27-ubuntu-*
+          path: results/runs
+          merge-multiple: false
+      - name: Check source invariants and quantify actual numerical/router differences
+        run: |
+          python research/calibri/compare_precision_v27.py \
+            --first results/runs/calibri-v27-ubuntu-22.04/calibri_v27_precision.json \
+            --second results/runs/calibri-v27-ubuntu-24.04/calibri_v27_precision.json \
+            --output results/calibri_v27_crosshost.json
+      - name: Publish research evidence (including negative numeric result)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v27-crosshost-results
+          path: results/calibri_v27_crosshost.json
+          if-no-files-found: ignore
+          retention-days: 14
