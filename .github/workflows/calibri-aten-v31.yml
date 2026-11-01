@@ -1,0 +1,111 @@
+name: CALIBRI v0.31 - selected PyTorch ATen CPU dispatch on real Switch BF16
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/aten_dispatch_v31.py'
+      - 'research/calibri/compare_aten_v31.py'
+      - '.github/workflows/calibri-aten-v31.yml'
+      - 'research/calibri/SESSION_31.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-weights-aten-one-factor:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      HF_HUB_DOWNLOAD_TIMEOUT: '90'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU Torch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned real Switch checkpoint/corpus dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: ATen DispatchStub DEFAULT, oneDNN capped AVX2 (fresh Python process)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p results
+          ATEN_CPU_CAPABILITY=default DNNL_MAX_CPU_ISA=AVX2 ONEDNN_MAX_CPU_ISA=AVX2 \
+            ONEDNN_VERBOSE=1 DNNL_VERBOSE=1 \
+            python research/calibri/aten_dispatch_v31.py \
+            --output results/default.json --tokens 128 --encoder-len 64 --decoder-len 32 \
+            > results/default.log 2>&1 || { tail -n 70 results/default.log; exit 1; }
+          grep '"selected_ATen": "DEFAULT"' results/default.log | tail -n 1
+      - name: ATen DispatchStub AVX2, same model and fixed oneDNN cap (fresh Python process)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ATEN_CPU_CAPABILITY=avx2 DNNL_MAX_CPU_ISA=AVX2 ONEDNN_MAX_CPU_ISA=AVX2 \
+            ONEDNN_VERBOSE=1 DNNL_VERBOSE=1 \
+            python research/calibri/aten_dispatch_v31.py \
+            --output results/avx2.json --tokens 128 --encoder-len 64 --decoder-len 32 \
+            > results/avx2.log 2>&1 || { tail -n 70 results/avx2.log; exit 1; }
+          grep '"selected_ATen": "AVX2"' results/avx2.log | tail -n 1
+      - name: Preserve small JSON metrics and public dispatch logs only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v31-${{ matrix.os }}
+          path: |
+            results/default.json
+            results/avx2.json
+            results/default.log
+            results/avx2.log
+          retention-days: 14
+          if-no-files-found: ignore
+  analyze-aten-cpu-selection:
+    needs: real-weights-aten-one-factor
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install numpy-only source/metrics checker
+        run: python -m pip install 'numpy==1.26.4'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calibri-v31-ubuntu-*
+          path: results/runs
+          merge-multiple: false
+      - name: Check sources, selected CPU capabilities, logits and router masks
+        shell: bash
+        run: |
+          python research/calibri/compare_aten_v31.py \
+            --a-default-json results/runs/calibri-v31-ubuntu-22.04/default.json \
+            --a-default-log results/runs/calibri-v31-ubuntu-22.04/default.log \
+            --a-avx2-json results/runs/calibri-v31-ubuntu-22.04/avx2.json \
+            --a-avx2-log results/runs/calibri-v31-ubuntu-22.04/avx2.log \
+            --b-default-json results/runs/calibri-v31-ubuntu-24.04/default.json \
+            --b-default-log results/runs/calibri-v31-ubuntu-24.04/default.log \
+            --b-avx2-json results/runs/calibri-v31-ubuntu-24.04/avx2.json \
+            --b-avx2-log results/runs/calibri-v31-ubuntu-24.04/avx2.log \
+            --output results/calibri_v31_dispatch.json
+      - name: Preserve positive, negative, or inconclusive scientific evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v31-aten-dispatch-evidence
+          path: results/calibri_v31_dispatch.json
+          retention-days: 14
+          if-no-files-found: ignore
