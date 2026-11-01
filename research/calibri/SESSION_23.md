@@ -78,3 +78,65 @@ uses a top-1 router whose capacity-limited mask controls real dispatch:
 https://huggingface.co/docs/transformers/v4.46.3/model_doc/switch_transformers
 Official source checkpoint:
 https://huggingface.co/google/switch-base-8
+
+## Measured outcome — GitHub Actions 41339418910 (SUCCESS)
+
+Pinned public pretrained `google/switch-base-8`, revision
+`92fe2d22b024d9937146fe097ba3d3a7ba146e1b`. Actual Google decoder
+block 1 router and each expert wi pre-hook counts **matched exactly**.
+Real 256 WikiText TRAIN and 256 WikiText validation source tokens,
+4×64-token encoder inputs and 4×32-token decoder inputs per split.
+The actual dispatch counts were:
+- Train experts 0..7: **[19,19,12,29,14,12,12,11]** (135 total).
+- Validation experts 0..7: **[8,13,9,19,21,17,20,21]** (128 total).
+
+Only this decoder block's 8 pairs of `wi`/`wo` were compressed:
+- Actual FP16-equivalent reference: **75,497,472 bytes**.
+- Physical rowwise signed **INT5 for BOTH wi+wo: 23,654,688 B**
+  (68.67% smaller than reference; 5.0136 bits/weight including scales/headers).
+- Physical rowwise signed **INT6 for BOTH: 28,373,280 B**
+  (62.42% smaller; 6.0135 bits/weight).
+
+Temporarily substituting ALL EIGHT expert pairs with restored BF16
+quantized weights produced end-to-end TEACHER logit checks on 4 pseudo-
+teacher-forced validation contexts (not a downstream task):
+- INT5 teacher KL mean per sequence: **0.00204029**, top-1 teacher
+  agreement **96.09375%**.
+- INT6 teacher KL mean per sequence: **0.000756338**, top-1 teacher
+  agreement **98.4375%**.
+
+All 8 paired experts had separate genuine routed activation-local
+TRAIN and validation comparisons. Reported train relative expert-output
+MSE for INT5 is markedly heterogeneous, ranging from **0.0001185** on
+expert 1 to **0.00755495** on expert 4; INT6 ranged
+**0.00001055** to **0.00185157**. The training activity of expert 3
+was 29 tokens versus expert 7's 11, but on validation expert 3 got
+19 and expert 7 got 21: frequency cannot replace a rare-expert
+quality gate.
+
+Two genuinely TRAIN-frequency-selected experts [0,3] were also tested
+with **BOTH** wi and wo in physically packed TT rank2+INT5 mode
+(2,997,872 bytes per expert pair) against plain INT5
+(2,956,836 bytes per pair). Native tensor cores + streamed INT5 C
+residual executed on actual router-sent validation inputs with max
+absolute output discrepancy vs exact bitstream dense restoration
+**6.10e-5** (expert 0) and **1.22e-4** (expert 3). However this
+TT+INT5 was **larger** than INT5 and did not materially improve
+routed pair output error. It cannot be claimed advantageous.
+
+**Main finding**: real routed MoE experts display greatly different
+sensitivity to precision. A uniform 5/6-bit representation is unlikely
+to be Pareto-optimal under a whole-expert-layer budget. v24 must test
+globally allocated mixed precision using TRAIN-only routed errors,
+a strict rare-expert threshold, and then evaluate independent validation
+and real teacher logits. Baselines must include uniform INT5/INT6.
+This is an experimentally supported *research direction*, not a new
+algorithm claim: expert-aware mixed precision is established prior art.
+
+Results as GitHub Actions artifact (metrics only, no model weights):
+https://github.com/Kamara229/JessicaCore/actions/runs/41339418910
+Dataset/checkpoint revisions and full per-expert sample/error records
+are in `calibri_v23_real_routed_moe.json`; SHA256 of that exact JSON:
+`ecbc5daeceeb71d1fe3ab1d78dbce6807acce61f16253d28e3db4d04786e6f27`.
+
+No main, Render, Supabase, APK or phone modifications.
