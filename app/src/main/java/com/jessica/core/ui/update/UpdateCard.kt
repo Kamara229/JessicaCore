@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -19,7 +20,8 @@ import com.jessica.core.ui.language.uiText
 @Composable
 fun UpdateCard(
     state: UpdateState,
-    onUpdateClick: () -> Unit
+    onUpdateClick: () -> Unit,
+    onBetaUpdateClick: () -> Unit
 ) {
     val busy = state is UpdateState.Checking ||
         state is UpdateState.Downloading ||
@@ -73,18 +75,29 @@ fun UpdateCard(
             if (state is UpdateState.Checking || state is UpdateState.Verifying) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
-            val buttonText = when (state) {
-                is UpdateState.Error -> uiText("Повторить обновление", "Retry update")
-                is UpdateState.UpToDate, is UpdateState.Installed -> uiText("Проверить снова", "Check again")
-                else -> uiText("🔄 Обновить Jessica", "🔄 Update Jessica")
-            }
             Button(
                 onClick = onUpdateClick,
                 enabled = !busy && state !is UpdateState.ReadyToInstall,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
             ) {
-                Text(buttonText)
+                Text(uiText("🔄 Обновить · стабильная версия", "🔄 Update · stable"))
             }
+            OutlinedButton(
+                onClick = onBetaUpdateClick,
+                enabled = !busy && state !is UpdateState.ReadyToInstall,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(uiText("🧪 Обновить · тестовая Beta", "🧪 Update · test beta"))
+            }
+            Text(
+                uiText("Beta — экспериментальная версия Кодекса и CALIBRI. " +
+                    "Обновление устанавливается поверх Jessica без удаления чатов. " +
+                    "Нажимайте Beta только если хотите испытывать новые функции.",
+                    "Beta includes experimental Codex and CALIBRI features. " +
+                    "Updates install over Jessica without deleting chats. " +
+                    "Choose Beta only to test unfinished features."),
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
