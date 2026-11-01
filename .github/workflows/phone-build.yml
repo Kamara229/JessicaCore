@@ -87,6 +87,8 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      beta_tag: ${{ steps.beta-version.outputs.beta_tag }}
     permissions:
       contents: read
     env:
@@ -108,6 +110,7 @@ jobs:
         with:
           gradle-version: '8.7'
       - name: Validate signing setup and set upgrade-safe version
+        id: beta-version
         shell: bash
         run: |
           set -euo pipefail
@@ -119,8 +122,32 @@ jobs:
             echo "Unexpected release tag; refusing unsafe versionCode: $tag"
             exit 1
           fi
-          version=$((10#${BASH_REMATCH[1]} + 1))
+          stable_version=$((10#${BASH_REMATCH[1]}))
+          if [ "$stable_version" -lt 2519 ]; then
+            echo "Stable bridge with Beta button not published; refusing beta release."
+            exit 1
+          fi
+          # Beta build numbers must increase across subsequent beta releases,
+          # not reuse the same stable-version-plus-one forever.
+          max_beta=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" | python3 -c '
+import json, re, sys
+try: releases=json.load(sys.stdin)
+except (ValueError, TypeError): releases=[]
+codes=[]
+for rel in releases:
+    if rel.get("prerelease") and not rel.get("draft"):
+        tag=rel.get("tag_name") or ""
+        m=re.fullmatch(r"v0[.]1[.]([0-9]+)-beta", tag)
+        if m: codes.append(int(m.group(1)))
+print(max(codes, default=0))
+')
+          if [ "$max_beta" -gt "$stable_version" ]; then
+            version=$((max_beta + 1))
+          else
+            version=$((stable_version + 1))
+          fi
           echo "JESSICA_VERSION_CODE=$version" >> "$GITHUB_ENV"
+          echo "beta_tag=v0.1.$version-beta" >> "$GITHUB_OUTPUT"
           echo "JESSICA_VERSION_NAME=0.1.$version-CALIBRI-beta" >> "$GITHUB_ENV"
           echo "TEST_BASELINE_TAG=$tag" >> "$GITHUB_ENV"
           echo "Beta Android versionCode: $version; current public release: $tag"
@@ -175,3 +202,37 @@ jobs:
             JessicaCore-CALIBRI-beta.apk
             JessicaCore-CALIBRI-beta.apk.sha256
           retention-days: 7
+
+  publish-calibri-beta:
+    name: Publish opt-in CALIBRI Beta prerelease (NOT latest stable)
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'feature/codex-calibri-context-idle-v01'
+    needs: [beta-apk, service-binding]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download the signed beta artifact from this tested run
+        uses: actions/download-artifact@v4
+        with:
+          name: JessicaCore-CALIBRI-beta-signed
+      - name: Verify checksum and publish isolated GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.beta-apk.outputs.beta_tag }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$TAG" && test -n "$SOURCE_SHA"
+          [[ "$TAG" =~ ^v0[.]1[.][0-9]+-beta$ ]]
+          sha256sum -c JessicaCore-CALIBRI-beta.apk.sha256
+          gh release create "$TAG" \
+            JessicaCore-CALIBRI-beta.apk JessicaCore-CALIBRI-beta.apk.sha256 \
+            --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" \
+            --title "Jessica Core CALIBRI Beta $TAG" \
+            --notes "Opt-in Android prerelease. From the installed Jessica Core, choose «Обновить · тестовая Beta». Does not replace the stable/latest channel. Protect your phone data by installing over the existing app." \
+            --prerelease --latest=false
+          echo "Beta prerelease published without changing stable Releases/latest."
