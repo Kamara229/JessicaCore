@@ -1,7 +1,7 @@
 package com.jessica.core.modules.updater
 
 /** Stable releases and opt-in beta releases are intentionally separate. */
-internal enum class UpdateChannel { STABLE, BETA }
+enum class UpdateChannel { STABLE, BETA }
 
 internal object UpdateReleasePolicy {
     private val stableTag = Regex("^v0\\.1\\.([0-9]+)$")
