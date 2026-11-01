@@ -129,18 +129,7 @@ jobs:
           fi
           # Beta build numbers must increase across subsequent beta releases,
           # not reuse the same stable-version-plus-one forever.
-          max_beta=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" | python3 -c '
-import json, re, sys
-try: releases=json.load(sys.stdin)
-except (ValueError, TypeError): releases=[]
-codes=[]
-for rel in releases:
-    if rel.get("prerelease") and not rel.get("draft"):
-        tag=rel.get("tag_name") or ""
-        m=re.fullmatch(r"v0[.]1[.]([0-9]+)-beta", tag)
-        if m: codes.append(int(m.group(1)))
-print(max(codes, default=0))
-')
+          max_beta=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" | python3 -c 'import json,re,sys; rs=json.load(sys.stdin); ms=[re.fullmatch(r"v0[.]1[.]([0-9]+)-beta", x.get("tag_name") or "") for x in rs if x.get("prerelease") and not x.get("draft")]; print(max([int(m.group(1)) for m in ms if m], default=0))')
           if [ "$max_beta" -gt "$stable_version" ]; then
             version=$((max_beta + 1))
           else
