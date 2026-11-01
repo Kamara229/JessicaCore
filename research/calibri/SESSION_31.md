@@ -30,12 +30,12 @@ tokens. Set and hold CONSTANT throughout:
   *before* the first forward, same validation token windows.
 
 Change only `ATEN_CPU_CAPABILITY` set BEFORE importing PyTorch:
-1. `ATEN_CPU_CAPABILITY=default`: PyTorch CPU DispatchStub DEFAULT.
+1. `ATEN_CPU_CAPABILITY=default`: PyTorch 2.5.1 CPU DispatchStub reports `NO AVX` for this setting (as verified in the first attempted CI run).
 2. `ATEN_CPU_CAPABILITY=avx2`: PyTorch CPU DispatchStub AVX2.
 
 Require the observable PyTorch internal
 `torch._C._get_cpu_capability()` to **actually return** the corresponding
-`DEFAULT` / `AVX2` selected dispatcher value, not merely the requested
+`NO AVX` / `AVX2` selected dispatcher value, not merely the requested
 environment string. This is stronger dispatcher evidence than the
 earlier oneDNN cap, but **still not proof** of all per-op instructions
 or of optimized ATen/BLAS kernel assembly.
