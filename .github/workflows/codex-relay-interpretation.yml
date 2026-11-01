@@ -58,5 +58,5 @@ jobs:
             backend/scripts/regressionCodexRelay.test.js \
             backend/scripts/regressionCodexCompactTest.test.js \
             backend/scripts/regressionCodexNumberedBenchmark.test.js \
-            backend/scripts/regressionCodexCalibriNoQuota.test.js \\
+            backend/scripts/regressionCodexCalibriNoQuota.test.js \
             backend/scripts/regressionCodexCalibriCompletedStatus.test.js
