@@ -61,3 +61,34 @@ prioritize source reconstruction/host nondeterminism and static CPU features.
 If cross-host hashes match, proceed with rate-distortion and exact-size
 controls for real weights and then separate native packed ARM throughput
 verification. No merger into main or Render/Supabase/APK mutation here.
+
+
+## Actual GitHub Actions result — 41351926001 (SUCCESS, two CPU runners)
+
+The pinned real pretrained Switch experiment executed on **both**
+Ubuntu 22.04 and Ubuntu 24.04. The source/checkpoint/token/parameter
+invariants matched. **Cross-host exact full-logit SHA256 matched for
+WikiText2 and TinyStories, BOTH for BF16+MKLDNN and for FP32+MKLDNN-off.**
+The 24-probe per-token cross-host maximum absolute difference was **0**
+and exact next-router mask agreement was **100%** on both corpora in both
+modes. This contrasts with v26's negative cross-run finding and shows
+that cross-host drift is **not universal** for these pinned weights.
+This is a reproducibility control, not validation of v24 precision claims.
+
+Within one Ubuntu 24.04 process, switching from BF16+MKLDNN to FP32
+arithmetic+MKLDNN-off changed logits substantially: sampled maximum
+absolute delta **7.563 (WikiText)** and **7.208 (TinyStories)**;
+sampled logit RMSE **0.688 / 0.692**; full-vocabulary token top-1
+agreement **92.19% / 95.31%**; next-router exact-mask agreement
+**100% / 98.44%** respectively. These are **two deliberately changed
+execution factors**, and must NOT be described as BF16 quantization error
+alone, since MKLDNN also changed. They are not PPL or speed results.
+
+The v27 run enabled `torch.use_deterministic_algorithms(True)` and
+forced router jitter to zero **before** evaluation; v25/v26 used the
+default deterministic flag and only zeroed jitter after an initial
+original forward. Next hypothesis: which control, if any, explains the
+v26 drift? A single-factor **deterministic-algorithms on/off** comparison
+at unchanged BF16+MKLDNN and fixed zero jitter is the next justified
+experiment, with cross-run exact hashes and sampled numeric/router
+deltas. Do not infer causality from the v27/v26 juxtaposition.
