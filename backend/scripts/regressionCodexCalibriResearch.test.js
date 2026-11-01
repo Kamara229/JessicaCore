@@ -33,3 +33,18 @@ test("research turn cannot invent a Jessica test, quit or access infrastructure"
     assert.equal(stopped.action,"reply");
     assert.match(stopped.reply,/остаётся в выбранном чате/u);
 });
+
+test("CALIBRI research retains objective when LLM interpretation fails or reaches quota",async()=>{
+    for(const problem of [Error("HTTP 429 quota exhausted"), Error("timeout")]) {
+        const got=await interpretRelayTurn({
+            message:"Результаты CALIBRI v0.24 ещё не подтверждены. Продолжить проверку.",
+            plan:"Исследование CALIBRI: веса и качество без изменений main."
+        },async()=>{throw problem});
+        assert.equal(got.action,"reply");
+        assert.equal(got.task,"");
+        assert.match(got.reply,/CALIBRI/u);
+        assert.match(got.reply,/не подтверждены мной/u);
+        assert.match(got.reply,/research-ветке/u);
+        assert.doesNotMatch(got.reply,/Проверь backend, Render и Supabase/u);
+    }
+});
