@@ -8,6 +8,23 @@ import org.junit.Test
 
 class RelayProtocolTest {
     private val id = "12345678-abcd-4abc-8abc-123456789012"
+    @Test fun selectedResearchChatUsesBoundedCalibriIntroductionWithoutChangingDefault() {
+        val backend = RelayProtocol.introductionFor("Обновляем backend Jessica Core.")
+        assertEquals(RelayProtocol.introduction, backend)
+        val research = RelayProtocol.introductionFor("CALIBRI v0.23: исследование многомерных нейровесов")
+        assertEquals(RelayProtocol.researchIntroduction, research)
+        assertTrue(research.contains("CALIBRI"))
+        assertTrue(research.contains("research-ветке"))
+        assertTrue(research.contains("рабочую Джессику"))
+        assertTrue(research.contains("обычный чат Jessica"))
+        val prompt = RelayProtocol.wrap(research,id)
+        assertTrue("Research handoff must fit the first ChatGPT composer",prompt.length < 750)
+        assertTrue(prompt.contains("JESSICA_REPLY_$id"))
+        assertTrue(prompt.contains("JESSICA_END_$id"))
+        assertNull(RelayProtocol.reply(prompt,id))
+        assertEquals(research, RelayProtocol.introductionFor("Проверяем сжатие весов модели."))
+    }
+
     @Test fun firstCodexHandoffRemainsCompactAndIncludesBothResponseMarkers() {
         val prompt = RelayProtocol.wrap(RelayProtocol.introduction, id)
         assertTrue("The first Android draft must stay compact", prompt.length < 650)
