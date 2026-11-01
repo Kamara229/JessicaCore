@@ -1,0 +1,42 @@
+name: CALIBRI v0.11 - trained MoE dictionary plus 2D/graph
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/**'
+      - '.github/workflows/calibri-dual-v11.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-dictionary-then-image-codec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: research/calibri
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+      PYTHONHASHSEED: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU pytorch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned codec dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'huggingface_hub==0.27.1' 'safetensors==0.4.5'
+      - name: Verify lossless dictionary and grouped image byte-plane codecs
+        run: python -m unittest discover -s research/calibri -p 'test_dual_codec.py' -v
+      - name: Test on REAL trained paired Switch MoE FFN matrices
+        run: python research/calibri/dual_real_bench.py --output results/calibri_v11_real_dual_codec.json
+      - name: Upload metrics, never pretrained weights
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v11-real-moefnn-dual-codec
+          path: results/calibri_v11_real_dual_codec.json
+          if-no-files-found: ignore
+          retention-days: 14
