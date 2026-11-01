@@ -80,3 +80,54 @@ original mathematical weights.
 All work in research branch and draft PR only. Do NOT modify main,
 Render, Supabase, APK, production Jessica, data, or secrets. A
 user-visible regular Jessica chat test is NOT requested.
+
+
+## Measured result — GitHub Actions 41357370498: three CI jobs PASS
+
+Two independently hosted public-pretrained Pythia runs completed and
+the evidence checker confirmed IDENTICAL source matrix model revision,
+corpus token SHA256, physical stream SHA256 and WikiText PPL across
+both hosts. Binary files were actually written to disk, read back
+and CRC checked. All values below match on both CPU hosts:
+
+| Physical coding of ONE 128×512 MLP matrix | Actual bytes | Actual bpw incl. overhead | WikiText-2 validation PPL |
+|---|---:|---:|---:|
+| Original unchanged full model (source FP32 evaluation, FP16 projection reference storage) | 131,072 (FP16 projection ref) | 16 reference | **173.38149** |
+| Uniform rowwise INT3 (LOWER-rate anchor) | 24,980 | 3.0493 | **271.20885** |
+| Rowwise 1×512 mixed INT3/4 at v34 cap | **28,628** | **3.49463** | **210.07865** |
+| Two-dimensional 16×32 adaptive INT3/4 at same cap | **28,628** | **3.49463** | **217.52392** |
+| Two-dimensional 8×64 adaptive INT3/4 at same cap | **28,628** | **3.49463** | **225.29608** |
+| Rowwise packed INT4 (ABOVE-budget reference) | **33,042** | 4.0334 | **179.67859** |
+
+The exact strict 3.5-bpw upper byte limit was **28,672** and all three
+fairly rate-matched mixed-bit candidates used **28,628** bytes,
+leaving 44 unused bytes because the next indivisible tile upgrade
+cost 64 bytes. The training-only selection picked **rowwise 1×512**,
+and it actually achieved the lowest validation PPL of the three
+matched-budget candidates, though choosing via training proxy does
+not establish future generalization.
+
+**Negative experimental result:** both tested 2D geometries were
+inferior to the simpler rowwise geometry at IDENTICAL physical byte
+counts. Under the stricter ~3.495 bpw budget, rowwise model PPL rose
+from the over-budget 4.0334-bpw anchor **179.68 to 210.08**.
+The 16×32 tile PPL 217.52 and 8×64 PPL 225.30 offer NO quality
+benefit over 3.495-bpw rowwise. Pure INT3 at 3.049 bpw had PPL
+271.21. There is a material tradeoff in this projection: cutting
+physical bytes ~13.36% relative to packed 4-bit hurt the quality
+of the otherwise unchanged full language model.
+
+No compiled native packed speed was attempted in v34: previous v32
+and v33 established Python file-backed paths were 95–138× slower
+than restored dense GEMM. There is NO new throughput, full checkpoint
+compression, 0.8-bpw Switch/MoE, or patent/algorithm novelty result.
+The exploratory WikiText-2 subset and one-projection scope remain
+material limitations.
+
+**Next scientifically warranted step:** before inventing a more complex
+multidimensional encoder, evaluate calibration of the same actual
+3.5-bpw rowwise quantizer (e.g. activation-weighted rounding or
+train-only finite-bit calibration) against its uncalibrated matched-rate
+control, on *a newly isolated evaluation corpus* and predeclared
+model/source fingerprints. Only if the rate-quality Pareto improves
+should a truly compiled compressed inference backend be benchmarked.
