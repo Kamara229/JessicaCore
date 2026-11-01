@@ -47,6 +47,7 @@ def get_candidates(w,x):
                       "meta":{"quantization":"ternary+LS","target_zero":z,"codec":"CL8-I"}}
     return result
 
+@torch.no_grad()
 def main():
     pa=argparse.ArgumentParser()
     pa.add_argument("--output",default="results/calibri_v08_guard.json")
