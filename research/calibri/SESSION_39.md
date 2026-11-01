@@ -115,3 +115,99 @@ matrices; embeddings, attention and norms are NOT serialized.
 One-time test data exposures and model selection are documented.
 No merge to main, Render, Supabase, APK, production Jessica, secrets
 or normal Jessica chat test is requested.
+
+
+## Actually observed v39 scientific measurements — GitHub Actions 41361149476
+
+**All three GitHub Actions jobs SUCCESS**: independently hosted
+Ubuntu 22.04/24.04 CPUs ran real pretrained Pythia-14m. The
+third-source checker verified exact original pretrained checkpoint,
+original matrix source SHA, WikiText TRAIN and DEV and *first-use*
+SciQ validation token SHA, exact 12-module physical CB36 binary SHA
+and lengths, frozen 75%-125% per-matrix row-precision limits, and
+**bitwise identical PPL** across the two hosts. No ordinary Jessica
+chat or external owner-run test was needed.
+
+### Actual matched physical storage
+
+Every tested 12-MLP rowwise INT3/INT4 binary container —
+LOCAL uncalibrated, LOCAL calibrated, v38 floor-protected GLOBAL
+uncalibrated/calibrated, and new v39 JOINT NLL-selected
+uncalibrated/calibrated — occupies **exactly 343,840 B**
+(**3.497721 bits per MLP coefficient**). This includes actual
+per-module signed physical bitstreams, FP16 row scales, CRC,
+outer CB36 descriptors and SHA256 footer; all were written and
+verified. The above-budget rowwise INT4 reference is **401,224 B**
+(~4.08146 bpw). There are **786,432 real source MLP weights**
+across 12 matrices; the binary is **not** a full-model checkpoint.
+
+### Actual full-model TRAIN loss optimization
+
+Starting from the LOCAL train-calibrated 343,840B baseline,
+two frozen rounds independently scored up to twenty byte-neutral
+candidate row swaps EACH against the **joint model-level WikiText
+TRAIN NLL** with all 12 MLPs simultaneously quantized, **not** summed
+local activation MSE or held-out evaluation PPL:
+
+- Baseline measured joint TRAIN NLL **6.3518228531**.
+- Round 1 accepted a *within-module* 3↔4-bit row precision swap
+  in `gpt_neox.layers.3.mlp.dense_h_to_4h`, lowering TRAIN
+  NLL to **6.3475291729**.
+- Round 2 accepted another *within-module* swap in
+  `gpt_neox.layers.1.mlp.dense_h_to_4h`, lowering TRAIN
+  NLL to **6.3440327644**.
+- Total observed TRAIN NLL reduction **0.0077900887**
+  (about **0.123%**), using exactly **0 additional physical bytes**.
+
+**Critical nuance**: although cross-matrix and 4-short↔1-long
+byte-neutral swaps were INCLUDED in the predeclared proposal pool,
+the two accepted proposals both swapped rows INSIDE a single
+up-projection matrix. Thus v39 demonstrated genuine *joint
+model-level TRAIN-loss evaluation* but **NOT an observed successful
+cross-layer precision transfer** or broadly optimized all-layer
+bit allocation.
+
+### Full model PPL after all 12 MLPs replaced together
+
+| Real measured variant | WikiText2 DEV PPL | First-use SciQ science support/question validation PPL |
+|---|---:|---:|
+| Source uncompressed teacher | **173.38149** | **59.74490** |
+| LOCAL uncalibrated, 343,840B | **1597.66884** | **425.40615** |
+| LOCAL TRAIN-calibrated, 343,840B | **443.63432** | **150.60845** |
+| v38 GLOBAL protected uncalibrated, 343,840B | **1666.13674** | **382.01090** |
+| v38 GLOBAL protected TRAIN-calibrated, 343,840B | **501.85659** | **161.25250** |
+| **v39 joint TRAIN-NLL selected uncalibrated, 343,840B** | **1580.44543** | **423.81818** |
+| **v39 joint TRAIN-NLL selected & calibrated, 343,840B** | **443.87060** | **150.89525** |
+| Rowwise INT4 above-rate quality control, 401,224B | **372.07758** | **116.11262** |
+
+**NEGATIVE predeclared primary result:** Joint TRAIN-loss optimization
+slightly worsened the *calibrated* held-out PPL versus exactly
+same-physical-byte LOCAL TRAIN calibration:
+WikiText DEV **+0.23628** PPL and first-use SciQ **+0.28680** PPL.
+Thus the measured TRAIN NLL gain **did not transfer** to the held-out
+text in this small trial. The uncalibrated v39 variant had
+slightly better PPL than uncalibrated local, but this was
+NOT the designated calibrated quality gate. The whole 3.5bpw
+all-12 model is still substantially inferior to source pretrained
+quality on both corpora, and to the >budget INT4 anchor.
+
+### Scientific interpretation / next gate
+
+Avoid iteratively tuning swap count or row choices on the now-seen
+SciQ validation subset. This result suggests that **256 TRAIN tokens
+are too narrow to reliably select globally effective bit transfers**
+(or the rowwise codebook itself is rate-distortion limited), but
+this is only a plausible hypothesis, not a proven causal diagnosis.
+The next independent research experiment should increase
+training-only calibration breadth **with all parameters frozen
+before opening a separate, previously unused evaluation corpus**,
+and compare to strong **rate-matched calibrated 3.5bpw** baselines.
+Do not call a smaller TRAIN NLL an improvement in validation quality.
+No QMoE 0.8-bpw trained Switch MoE result, new multidimensional
+tensor architecture, physical full-model checkpoint, or native packed
+throughput has been established. PPL uses restored dense weights
+and does not demonstrate compressed execution speed.
+
+Main, Render, Supabase, APK, production Jessica and ordinary
+Jessica chat were unchanged; all work was in PR #168's isolated
+research branch.
