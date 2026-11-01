@@ -25,16 +25,16 @@ class HuffmanMasksTests(unittest.TestCase):
                         self._roundtrip_group(q,group,mode,rng)
 
     def _roundtrip_group(self,q,group,mode,rng):
-                    shape=q.shape
-                    blob=encode(q,group,index_mode=mode)
-                    self.assertTrue(np.array_equal(q,decode(blob)))
-                    self.assertTrue(np.array_equal(q[0],read_row(blob,0)))
-                    self.assertTrue(np.array_equal(q[-1],read_row(blob,len(q)-1)))
-                    scales=np.column_stack((rng.uniform(-2,-.1,shape[0]),rng.uniform(.1,2,shape[0])))
-                    x=rng.normal(size=shape[1])
-                    gold=np.where(q<0,scales[:,0,None],np.where(q>0,scales[:,1,None],0.))@x
-                    got=direct_matvec(blob,x,scales)
-                    self.assertTrue(np.allclose(gold,got,rtol=1e-12,atol=1e-12))
+        shape=q.shape
+        blob=encode(q,group,index_mode=mode)
+        self.assertTrue(np.array_equal(q,decode(blob)))
+        self.assertTrue(np.array_equal(q[0],read_row(blob,0)))
+        self.assertTrue(np.array_equal(q[-1],read_row(blob,len(q)-1)))
+        scales=np.column_stack((rng.uniform(-2,-.1,shape[0]),rng.uniform(.1,2,shape[0])))
+        x=rng.normal(size=shape[1])
+        gold=np.where(q<0,scales[:,0,None],np.where(q>0,scales[:,1,None],0.))@x
+        got=direct_matvec(blob,x,scales)
+        self.assertTrue(np.allclose(gold,got,rtol=1e-12,atol=1e-12))
     def test_corruption(self):
         q=np.zeros((3,32),np.int8)
         blob=encode(q)
