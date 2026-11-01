@@ -88,3 +88,67 @@ fundamentally new multidimensional form of weights.
 Only separate research branch, draft PR and GitHub Actions.
 Do not modify main, Render, Supabase, APK, working Jessica, secrets
 or user data. No ordinary Jessica-chat test requested.
+
+
+## ACTUAL real-pretrained v35 results — GitHub Actions 41357964814 (all 3 jobs PASS)
+
+Two independent fresh GitHub-hosted CPUs ran the pinned real Pythia-14M
+checkpoint. The comparator confirmed identical original matrix, model
+revision, WikiText training/validation and TinyStories validation
+token SHA256, original and calibrated physical file SHA256, and
+**exact same PPL** across both hosts. No model quality results from
+the ordinary Jessica chat were used or requested.
+
+**Actual physically stored bytes:** both the original v34
+rowwise 3-/4-bit CT33 reference AND v35 recalibrated variant
+**28,628 bytes = 3.49463 bpw** for the ONE 128×512 source MLP
+matrix, including all headers/CRC/FP16 per-row scales and bitstreams.
+Each had the **same exact per-row bit allocation** (57 INT4 and 71
+INT3 rows). The physical source/reference binary hash was
+`209774b4f60e2d1a930aa362c771a072de08240863c1dbf28fe27e28629de917`;
+the calibrated physical hash was
+`3a494fd3fb4d7be87dadd28c13fdb9a92d50dcf1866bbf48d98775a3c974cc8b`.
+The calibrated 128 rows changed their FP16 scales or symbols and
+the true train-layer output-error **SSE ratio fell to 0.48414263**
+versus the original at identical row bitwidths.
+
+**Full-model perplexity** (unchanged 14M source weights except for
+the single selected 128×512 matrix):
+
+| Configuration | Actual projection bytes | WikiText2 validation PPL | TinyStories validation PPL |
+|---|---:|---:|---:|
+| Original uncompressed Pythia | 131,072 FP16 reference bytes | 173.38149 | 38.18278 |
+| v34 rowwise mixed INT3/4, *uncalibrated* | **28,628** | **210.07865** | **44.97012** |
+| v35 rowwise mixed INT3/4, TRAIN output calibrated | **28,628** | **196.14494** | **41.45463** |
+| Rowwise INT4, ABOVE 3.5bpw cap | **33,042** | **179.67859** | **40.47687** |
+
+**Observed improvement over a strictly rate-matched control:**
+WikiText PPL decreased by **13.93370 (6.63%)** and TinyStories PPL
+decreased by **3.51549 (7.82%)**, with **0 extra physical bytes**,
+unchanged matrix shape and bit assignments. This is positive evidence
+for train-covariance-aware recalibration of existing quantized
+neural weight rows, **not** evidence of newly invented multidimensional
+parameter tensors.
+
+**Important negative/limitation:** although improved, the calibrated
+3.495bpw representation still has worse quality than the old
+*above-budget* 4.033bpw INT4 control (196.14 vs 179.68 WikiText,
+41.45 vs 40.48 TinyStories); and both are worse than unchanged
+teacher. PPL was evaluated with physically decoded dense parameters,
+not an in-place packed forward; there is NO compressed inference
+speed or full-model checkpoint size result. Only ONE of twelve MLP
+projections is altered. Both validation corpora have previously been
+used during CALIBRI research, so improvement is exploratory and
+does NOT provide an independent blind confirmatory estimate or
+generalize across architectures.
+
+**Decision for next separate research task:** pre-register a
+*holdout not previously used for Pythia validation*, then calibrate
+and compress **all 12 real Pythia MLP matrices** at exact same
+per-matrix physical budgets against both uncalibrated and calibrated
+rowwise matched-rate controls, measure actual total packed file bytes,
+full-model quality, and resource footprint. Select no new
+hyperparameters using validation. Only on a reproducible Pareto
+win consider a compiled native byte-backed inference kernel; preserve
+negative results and do not claim QMoE 0.8bpw. Keep this research
+isolated from Jessica main, Render, Supabase and APK.
