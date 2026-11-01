@@ -27,6 +27,7 @@ HEADER_BYTES=struct.calcsize(HEADER)
 MODE_RAW=0
 MODE_ZLIB=1
 MODE_PLANES=2
+MODE_TIER8=3
 
 class StaticPairDictionary:
     def __init__(self,p0=P_ZERO,count=65536):
@@ -111,15 +112,37 @@ def _unpack_plane(data,ncodes):
     w[1::2]=b[ncodes:]
     return w.tobytes()
 
+def _pack_tier8(words):
+    w=np.asarray(words,dtype='<u2')
+    high=w>=256
+    flags=np.packbits(high,bitorder='little')
+    low=(w & 255).astype(np.uint8)
+    upper=(w[high]>>8).astype(np.uint8)
+    return flags.tobytes()+low.tobytes()+upper.tobytes()
+
+def _unpack_tier8(data,ncodes):
+    masklen=(ncodes+7)//8
+    if len(data)<masklen+ncodes:raise ValueError('short tier8 stream')
+    flags=np.unpackbits(np.frombuffer(data[:masklen],dtype=np.uint8),
+                        count=ncodes,bitorder='little').astype(bool)
+    n_high=int(np.count_nonzero(flags))
+    if len(data)!=masklen+ncodes+n_high:raise ValueError('tier8 count mismatch')
+    w=np.frombuffer(data,dtype=np.uint8,count=ncodes,offset=masklen).astype(np.uint16)
+    w[flags]|=(np.frombuffer(data,dtype=np.uint8,count=n_high,
+                             offset=masklen+ncodes).astype(np.uint16)<<8)
+    return w.tobytes()
+
 def _payload(words,selector):
     raw=_bytes_from_words(words)
     if selector=="raw":return MODE_RAW,raw
     if selector=="zlib":return MODE_ZLIB,zlib.compress(raw,6)
     if selector=="planes":return MODE_PLANES,zlib.compress(_pack_plane(words),6)
+    if selector=="tier8":return MODE_TIER8,_pack_tier8(words)
     if selector=="adaptive":
         options=[(MODE_RAW,raw),
                  (MODE_ZLIB,zlib.compress(raw,6)),
-                 (MODE_PLANES,zlib.compress(_pack_plane(words),6))]
+                 (MODE_PLANES,zlib.compress(_pack_plane(words),6)),
+                 (MODE_TIER8,_pack_tier8(words))]
         return min(options,key=lambda v:(len(v[1]),v[0]))
     raise ValueError("unknown selector")
 
@@ -133,7 +156,7 @@ def encode_grouped(words,offsets,width,group=16,selector="adaptive"):
     lengths=np.diff(offsets)
     if np.any(lengths>65535) or len(words)>=2**32:raise ValueError("row code stream oversized")
     n_groups=(rows+group-1)//group
-    payload=bytearray();block_offsets=[0];mode_counts={0:0,1:0,2:0}
+    payload=bytearray();block_offsets=[0];mode_counts={0:0,1:0,2:0,3:0}
     for g in range(n_groups):
         lo=g*group;hi=min(rows,lo+group)
         mode,b=_payload(words[offsets[lo]:offsets[hi]],selector)
@@ -174,6 +197,8 @@ def _decode_block(blob,group_idx,meta):
         raw=zlib.decompress(compressed)
     elif mode==MODE_PLANES:
         raw=_unpack_plane(zlib.decompress(compressed),expected)
+    elif mode==MODE_TIER8:
+        raw=_unpack_tier8(compressed,expected)
     else:raise ValueError("unrecognized code mode")
     if len(raw)!=nbytes:raise ValueError("wrong restored block size")
     return np.frombuffer(raw,dtype='<u2'),lo,hi
