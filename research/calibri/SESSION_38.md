@@ -99,3 +99,24 @@ NOT a deployable full-model checkpoint. PPL uses restored dense
 weights rather than packed streaming. Do not alter main,
 production Jessica, Render, Supabase, APK, or user data. The
 ordinary Jessica chat is NOT used for this experiment.
+
+
+## CI implementation correction before seeing new-corpus PPL
+
+Initial GitHub Actions run 41360088261 loaded the source and SST-2 but
+terminated **before evaluating any variant's PPL**: bounded greedy
+allocation had exactly 32 physical bytes unfilled (343,808 B vs the
+frozen 343,840 B control), because short 16-byte upgrades were at
+per-module ceilings and long upgrades cost 64 B.
+
+To preserve the *precommitted* hard equal-byte and per-module 75–125%
+precision constraints, the encoder now performs a deterministic
+TRAIN-only byte-fill postpass if 16/32/48 bytes remain: downgrade
+(64-remaining)/16 lowest-TRAIN-gain non-floor short rows, upgrade
+one highest-TRAIN-gain available 64-byte long row. It keeps all
+12 module floors and ceilings intact and uses NO development,
+SST-2 validation, or PPL to choose the swap. The physical
+rate–quality experiment therefore remains at 343,840 B, not a
+loosely reported lower-budget result. Record the swap in experiment
+metadata and treat this as a packer-fairness implementation fix,
+not a confirmed improvement in model accuracy.
