@@ -82,6 +82,7 @@ def bounded_floor_allocator(names,matrices,inputs,source_train_nll,model,local_f
     if remaining<=0:
         raise AssertionError("invalid global size control versus uniform INT3")
     chosen={}
+    protected={}
     total_upgrades=0
     # Phase 1: protect every matrix's numerical precision, picking its
     # best TRAIN-output-SSE rows before cross-layer reallocation.
@@ -96,6 +97,7 @@ def bounded_floor_allocator(names,matrices,inputs,source_train_nll,model,local_f
             all3[n][i]=4
         remaining-=floor*cost
         chosen[n]=selected
+        protected[n]=selected.copy()
         total_upgrades+=floor
 
     # Phase 2: deterministic greedy TRAIN-only incremental benefit/byte,
@@ -117,6 +119,69 @@ def bounded_floor_allocator(names,matrices,inputs,source_train_nll,model,local_f
         remaining-=cost
         total_upgrades+=1
 
+    # Deterministic all-TRAIN-only byte-fill correction for indivisible
+    # 16B (short row) and 64B (long row) upgrades. Greedy may have a
+    # 16/32/48B remainder after short-row module ceilings are reached.
+    # Swap minimal-value non-floor short upgrades for one highest-value
+    # available long-row upgrade. This leaves per-module 75–125% bounds
+    # intact and prevents an unfair comparison at unequal physical bytes.
+    exact_byte_postpass_swap=None
+    if remaining:
+        if remaining not in (16,32,48):
+            raise AssertionError("unexpected 3.5bpw byte-pack remainder")
+        n_short=(64-remaining)//16
+        removals=[]
+        for n in names:
+            if matrices[n].shape[1]!=128:
+                continue
+            for row in chosen[n]-protected[n]:
+                weighted_loss=float(scores[n][row])*multipliers[n]
+                removals.append((weighted_loss,module_identity(n),row,n))
+        removals.sort()
+        deleted=[]
+        module_removal_counts={}
+        for loss,ident,row,n in removals:
+            if len(deleted)==n_short:
+                break
+            left=len(chosen[n])-module_removal_counts.get(n,0)
+            if left<=boundaries[n]["minimum_4bit_rows"]:
+                continue
+            deleted.append((loss,ident,row,n))
+            module_removal_counts[n]=module_removal_counts.get(n,0)+1
+        if len(deleted)!=n_short:
+            raise AssertionError("no TRAIN-only valid short-row swaps can fill budget")
+        long_choices=[]
+        for n in names:
+            if matrices[n].shape[1]!=512 or len(chosen[n])>=boundaries[n]["maximum_4bit_rows"]:
+                continue
+            for row in range(matrices[n].shape[0]):
+                if row in chosen[n]:
+                    continue
+                benefit=float(scores[n][row])*multipliers[n]
+                long_choices.append((-benefit,module_identity(n),row,n))
+        long_choices.sort()
+        if not long_choices:
+            raise AssertionError("no module under long-row ceiling for exact byte fill")
+        lost=sum(row[0] for row in deleted)
+        neg_gain,ident_new,new_row,long_module=long_choices[0]
+        for loss,ident,row,n in deleted:
+            chosen[n].remove(row)
+            all3[n][row]=3
+            remaining+=16
+            total_upgrades-=1
+        chosen[long_module].add(new_row)
+        all3[long_module][new_row]=4
+        remaining-=64
+        total_upgrades+=1
+        if remaining!=0:
+            raise AssertionError("postpass replacement did not exactly fill real bytes")
+        exact_byte_postpass_swap={
+            "short_rows_removed":[[n,row] for _loss,_ident,row,n in deleted],
+            "long_row_added":[long_module,new_row],
+            "training_weighted_gain_of_added_long":float(-neg_gain),
+            "training_weighted_gain_lost_from_removed_short":float(lost),
+            "selection_rule":"When 16/32/48 bytes remain after bounded greedy, remove the lowest training-score unprotected short rows and upgrade the highest training-score long row, respecting module floors/ceilings",
+        }
     physical={n:pack_row_assignment(matrices[n],all3[n]) for n in names}
     size=len(package(physical,1))
     if size!=GLOBAL_LIMIT_BYTES or remaining!=0:
@@ -138,6 +203,7 @@ def bounded_floor_allocator(names,matrices,inputs,source_train_nll,model,local_f
         "greedy_used_bytes":size,
         "unused_global_budget_bytes":remaining,
         "total_rows_upgraded":total_upgrades,
+        "exact_byte_postpass_swap":exact_byte_postpass_swap,
         "train_only_pure_INT3_layer_NLL_penalties":penalties,
         "train_only_clipped_layer_multipliers":multipliers,
         "bounded_precisions_by_module":boundaries,
