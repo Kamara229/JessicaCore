@@ -27,7 +27,10 @@ jobs:
       - name: Deterministic codec tests
         run: python -m unittest discover -s research/calibri -p 'test_*.py' -v
       - name: Benchmark on public Pythia-14M safetensors
-        run: python research/calibri/benchmark.py --output results/calibri_v07_pythia14m.json
+        run: |
+          python research/calibri/benchmark.py --target-zero 0.50 --output results/calibri_v07_pythia14m_z50.json
+          python research/calibri/benchmark.py --target-zero 0.75 --output results/calibri_v07_pythia14m_z75.json
+          python research/calibri/benchmark.py --target-zero 0.885 --output results/calibri_v07_pythia14m_z885.json
       - name: Upload JSON research results (not model weights)
         if: always()
         uses: actions/upload-artifact@v4
