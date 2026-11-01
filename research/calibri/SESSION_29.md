@@ -71,3 +71,51 @@ leave the AMD-vs-Intel hypothesis inconclusive in that case.
 This does NOT evaluate WikiText perplexity, rate-distortion, physical
 0.8 bpw compression, QMoE reproduction or native packed throughput.
 No main, Render, Supabase, APK, or ordinary Jessica-chat test changes.
+
+
+## Observed measured result — GitHub Actions 41353364980 (SUCCESS)
+
+Both real-pretrained BF16 runner jobs and their independent numerical
+comparison completed, with all pinned checkpoint/weight/token/source
+integrity checks passing. This time hosts were **heterogeneous**:
+Ubuntu 22.04 ran on AMD EPYC 9V45 (AVX2, AVX512 BF16 available);
+Ubuntu 24.04 ran on Intel Xeon Platinum 8573C (AVX2 and AVX512F,
+AVX512 BF16 not advertised). The two subprocesses **within each
+individual host** were paired on the same actual CPU.
+
+The exact sample results:
+- **AMD** default vs requested AVX2 cap: WikiText 24-probe max absolute
+  logit difference **4.5**, full-vocab top1 agreement **95.3125%**,
+  exact next-router mask agreement **100%**. TinyStories max absolute
+  **3.5**, top1 **96.875%**, router **98.4375%**.
+- **Intel** default vs requested AVX2 cap: WikiText max absolute
+  **7.5**, top1 **92.1875%**, router **100%**. TinyStories max
+  absolute **3.5**, top1 **96.875%**, router **100%**.
+- **Across AMD vs Intel, default dispatch**: WikiText max absolute
+  **4.0**, top1 **93.75%**, router **100%**; TinyStories max absolute
+  **3.0**, top1 **96.875%**, router **98.4375%**. Full-logit hashes
+  differed on both corpora.
+- **Across AMD vs Intel, both requesting AVX2 cap**: WikiText max
+  absolute **3.5** and probe RMSE **0.12649**; full-logit SHA256 still
+  DIFFERED, but full-vocab top1 and next-router tokens agreed 100%.
+  TinyStories logit SHA256, all probes and next-router SHA256 matched
+  EXACTLY, max-absolute probe difference **0**, top1/router 100%.
+
+The oneDNN verbose log reported baseline ISA as AVX512 with BF16 on AMD
+and AVX512 on Intel, and actual accelerated/fallback matmul algorithms
+differed. With the AVX2 ceiling requested, no oneDNN primitive verbose
+lines were observed in those subprocess outputs. This may mean BF16
+matmuls fell back outside oneDNN; the experiment **cannot prove** which
+effective per-op kernels computed the capped logits. It does demonstrate
+an actual numerical effect of the oneDNN ISA environment cap request
+within the same hardware, and **partial** convergence across different
+CPU families, NOT universal equivalence.
+
+**Scientific verdict:** the AVX2 ceiling did not make all cross-CPU
+logits bitwise reproducible. One corpus matched, the other did not.
+Do not claim the ISA alone caused all previous drift or that a
+calibrated BF16 model is now portable. Follow-up should capture
+per-op dispatch with independently verified actual ISA, and use an
+explicit FP32 CPU reference as a control. No PPL, compressed bytes,
+native packed throughput, or 0.8-bpw quality claim in this session.
+Only the isolated research branch/PR #158 changed.
