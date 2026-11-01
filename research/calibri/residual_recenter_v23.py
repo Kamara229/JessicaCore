@@ -45,9 +45,12 @@ def recenter_physical(blob: bytes, original_w: np.ndarray) -> bytes:
 
 
 def weight_relative_rmse(blob: bytes, original_w: np.ndarray) -> float:
-    tt_bytes, residual_bytes = split_geometry(blob)
-    a, b, _ = unpack_tt(tt_bytes)
-    recovered = reconstruct(a, b) + decode_int(residual_bytes)
+    if blob[:4] == b'CF15':
+        recovered = decode_int(blob)
+    else:
+        tt_bytes, residual_bytes = split_geometry(blob)
+        a, b, _ = unpack_tt(tt_bytes)
+        recovered = reconstruct(a, b) + decode_int(residual_bytes)
     return float(np.linalg.norm(original_w - recovered) /
                  max(np.linalg.norm(original_w), 1e-20))
 
@@ -70,8 +73,18 @@ def shadow_kl(model, windows) -> float:
 
 def score(model, outer, leaf, orig, blob, library, w, dev, tiny, shadow, context):
     import torch
+    from torch import nn
     from quality import ppl_eval
-    layer = orig if blob is None else row_cached_geometry(blob, orig.bias, library)
+    if blob is None:
+        layer = orig
+    elif blob[:4] == b'CF15':
+        layer = nn.Linear(w.shape[1], w.shape[0], bias=orig.bias is not None)
+        with torch.no_grad():
+            layer.weight.copy_(torch.from_numpy(decode_int(blob).copy()))
+            if orig.bias is not None:
+                layer.bias.copy_(orig.bias)
+    else:
+        layer = row_cached_geometry(blob, orig.bias, library)
     setattr(outer, leaf, layer)
     try:
         with torch.no_grad():
@@ -82,7 +95,7 @@ def score(model, outer, leaf, orig, blob, library, w, dev, tiny, shadow, context
             expected = shadow[0]['output'].float()
             local_rmse = float(torch.linalg.vector_norm(layer(x) - expected) /
                                torch.linalg.vector_norm(expected).clamp_min(1e-20))
-            if blob is not None:
+            if blob is not None and blob[:4] == b'CG17':
                 unpacked = native_layer(blob, orig.bias)
                 packed_vs_dense_max = float((layer(x) - unpacked(x)).abs().max())
                 if packed_vs_dense_max > 0.001:
@@ -138,7 +151,11 @@ def run(args):
     train_windows = make_teacher_windows(model, original, train_ids, args.context)
     shadow_windows = make_teacher_windows(model, original, shadow_ids, args.context)
 
-    candidates = {'original': None, 'untrained_TT_INT5': base_blob}
+    candidates = {'original': None,
+                  'plain_INT4': encode_int(w, 4),
+                  'plain_INT5': encode_int(w, 5),
+                  'plain_INT6': encode_int(w, 6),
+                  'untrained_TT_INT5': base_blob}
     traces = {}
     for method in ('kl_only', 'kl_plus_local'):
         trained, traces[method] = train_method(model, outer, leaf, original, base_blob,
@@ -167,6 +184,7 @@ def run(args):
             'Trainable weights are only 1280 physical TT core numbers; core size unchanged',
             'v23 changes the RESIDUAL AFTER training, using original pretrained W and NO eval data',
             'Residual is still a genuine packed INT5 byte stream executed by C, not materialized at inference',
+            'Fair physical fixed-bit INT4 / INT5 / INT6 rate-distortion baselines included',
             'WikiText validation and TinyStories validation were already inspected in earlier sessions',
             'Train-shadow tokens are disjoint from optimization but are NOT a fresh corpus',
             'No isolated independent test, generalization, speed or architecture novelty claim',
