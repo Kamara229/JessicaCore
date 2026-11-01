@@ -14,7 +14,7 @@ internal object CodexIdlePulseTarget {
             return null
         val composer = window.composer?.screenBox() ?: return null
         val frame = window.root.screenBox()
-        val marker = "JESSICA_END_$replyId"
+        val marker = "JESSICA_REPLY_$replyId"
         // The editor is already excluded by ChatWindowInspector. The same
         // nonce must also be discoverable inside an actual transcript node.
         if (!window.content.contains(marker)) return null
