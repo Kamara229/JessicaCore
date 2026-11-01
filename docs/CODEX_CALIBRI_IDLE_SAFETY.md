@@ -1,30 +1,38 @@
-# Codex stand-in for CALIBRI and 3-minute idle protection — 2026-11-01
+# Codex CALIBRI: long-session screen and idle gesture verification (2026-11-01)
 
-## User requirement
+## Owner's objective
 
-- Owner chooses an existing ChatGPT thread and starts Jessica Codex. Jessica continues the *same* thread instead of the owner, including the CALIBRI weight-creation/compression research.
-- Research must use isolated research branches and honest real-world size/quality/speed reports. Jessica does not impersonate GitHub/Render/Supabase access, execute repo writes through mobile, or falsely claim tests were run.
-- During sustained ChatGPT generation, prevent the Android display from timing out. Requested fallback: very short scroll up then down every 180 seconds.
+Jessica Codex should take the owner's place in a deliberately selected ChatGPT thread for backend or isolated CALIBRI research, without stopping after each completed research stage. It must not claim unperformed experiments or change production resources or source code through the Android phone.
 
-## Shipped as a draft code change
+The owner also requested a small scroll up then down every three minutes of ChatGPT work to prevent the phone entering sleep.
 
-- Existing ChatGPT accessibility overlay already sets `WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON`; its Stop button remains accessible. This is a **request**, not proof that Xiaomi/Android will honor it.
-- The first conversation handoff now detects CALIBRI in the owner-selected chat and uses a short CALIBRI-specific message. The normal backend handoff is unchanged.
-- Backend model instructions now allow CALIBRI work under the same no-direct-tools/no-secrets boundary.
-- The relay refuses UI mutations when Android reports that the display is not interactive; the existing stop/lock/thread-verification controls stay in place.
+## Two independent Android mechanisms
 
-## Safety-critical gap: gesture fallback remains disabled
+**1. Screen-on request**: the foreground Accessibility Overlay for Codex already supplies `WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON`. The general WindowManager API calls this a window flag; current Android's "Keep the screen on" guide recommends setting it *in an Activity, never directly in a Service*. The experimental overlay cannot be claimed to keep the owner's actual Android/Xiaomi screen awake until tested on that physical device. On a timeout shorter than three minutes, the swipe alone cannot prevent sleep. Codex refuses UI activity on a noninteractive or locked phone; the owner Stop button remains topmost.
 
-The repository currently has `CodexScrollSafetyPolicy.mayScrollAutomatically() == false`, `CodexGestureScroller.scroll() == false`, and a disabled `CodexScrollFollower`. These locks were deliberately installed after an actual sidebar/new-conversation incident. Reenabling swipe dispatch without verifying that a specific node belongs to the selected transcript could tap another chat, hide the composer, or send into a wrong thread. Merely choosing a centrally located scrollable node is not proof.
+**2. Optional 180-second micro-scroll**: a separate, explicitly owner-enabled session-local beta pulse is now implemented. It is **OFF by default**, resets on every restart, and runs only when all of the following are true:
+- ChatGPT is the selected foreground app, the user's Codex session remains active and selected, no lock/sleep and no pending interpretation.
+- The app is actually generating a reply; Codex is waiting for that same reply. Never in a composer preparation/send path.
+- The current reply's exact unique `JESSICA_END_<nonce>` marker is present within a central, visible, enabled, scrollable transcript subtree. Its bounds must safely exclude toolbars, sidebar and composer; geometry alone is not sufficient. No verified accessibility node => no touch.
+- At least 180,000 ms elapsed after both the outgoing send and the previous gesture attempt.
+- The touch comprises two separated **16dp movements** in opposite directions inside the validated center of the transcript (32dp up plus 32dp down of finger travel, 550 ms total). No click, navigation or send is introduced. If Android cancels/rejects it, further pulses automatically disable; no immediate retries.
+- After any attempt, outgoing sends require a fresh visible confirmation of the previously completed reply's exact marker. If this proof disappears, the relay stops sending rather than switching chats.
 
-Additionally, a 180-second gesture does **not** prevent a screen with a 30/60-second inactivity timeout from switching off before its first gesture. Android docs recommend `FLAG_KEEP_SCREEN_ON` on a foreground Activity, and the existing accessibility overlay flag requires **physical device** validation. Do not claim that `dispatchGesture` guarantees device wakefulness.
+The existing `CodexGestureScroller`, `CodexScrollFollower` and their general automatic scrolling entry points remain hard-disabled. This beta cannot recover replies whose markers are outside the viewport.
 
-## Gate before enabling 3-minute up/down pulse
+## Before considering a production release
 
-1. On an owner's physical phone, measure the screen state for >5 minutes with ChatGPT in foreground, Codex overlay on and a shorter device timeout; check whether the existing overlay flag alone holds the screen awake.
-2. Establish a *content-based* transcript node identity, including the session's exact nonce, with no sidebar, sheet, keyboard, system shade or dialog. Reject ambiguous roots, wrong chat, partial identity, screen off, keyboard editing and user touch.
-3. Implement a short, strictly bounded up+down gesture **only** inside that identified transcript, only when the current selected ChatGPT reply is actually generating, once every 180 seconds, not after completion or in a hidden window. Never retry a cancelled gesture.
-4. Test the 3-minute pulse with actual ChatGPT versions: real-device Stop must work immediately, the same chat remains selected, no sends are duplicated, the field remains intact, no sidebar/new chat opens, and the display remains awake even with a shorter inactivity timeout. Abort if any gate fails.
-5. User-visible kill switch and clear reporting when the screen-hold mechanism is not verified.
+**MUST RUN ON THE OWNER'S ACTUAL DEVICE**; GitHub emulator/build tests cannot establish safety, display-timer behavior, or ChatGPT native UI compatibility.
 
-Until these gates pass, **no automatic scroll has been enabled**. This is an intentional fail-closed partial implementation: CALIBRI dialogue scope is implemented; physical sleep prevention and 3-minute gesture require device validation. Do not merge this draft to main or build/install an APK without a review.
+1. Install the reviewed *debug* candidate with no production merge. In Android display settings choose a short timeout (e.g. 30 or 60 seconds); do not turn on battery saver.
+2. Open an innocuous test chat in the official ChatGPT app, start Codex, select the chat and check Stop remains usable. With beta **OFF**, observe >5 minutes without touching. Record if the display remains interactive; if it sleeps, overlay `KEEP_SCREEN_ON` is insufficient on this device.
+3. Turn the experimental beta **ON** while deliberately requesting a sufficiently long ChatGPT answer. Watch it reach 180 seconds and check that the 32dp up/down stroke stays within the same transcript, doesn't enter sidebar, doesn't change the draft, and doesn't break the Stop button. If the reply ends early, the gesture correctly does not run.
+4. Check Stop immediately interrupts continued work. Check lock, screen-off, incoming notification/shade, keyboard, unrelated activity, missing editor, and switching to another chat: there must be zero gestures and zero sends. Check that cancellation disables the pulse instead of repeating it.
+5. Validate a 30/60 second screen timeout independently from the 180-second gesture. If the display sleeps first, no claim of awake preservation is allowed. Use manual longer timeout/charging while designing a supported screen-on route.
+
+**Status:** isolated draft PR only. Opt-in gesture implementation and pure policy tests are committed; actual real-device safety and sleep prevention are UNVERIFIED. Do not enable by default, merge to main, deploy Render/Supabase, or install on the owner's phone without successful device testing and review.
+
+Sources:
+- https://developer.android.com/develop/background-work/background-tasks/awake/screen-on
+- https://developer.android.com/reference/android/view/WindowManager.LayoutParams
+- https://developer.android.com/guide/topics/ui/accessibility/service
