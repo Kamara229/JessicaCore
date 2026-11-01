@@ -7,8 +7,19 @@ const providerUnavailable = error => {
     const detail = String(error?.message || error || "");
     return /\b429\b|rate[_ -]?limit|quota|tokens? per day|resource[_ -]?exhausted|daily[_ -]?token/i.test(detail);
 };
-export function interpretationFailureHandoff(error) {
+export function interpretationFailureHandoff(error, researchMode = false) {
     const quota = providerUnavailable(error);
+    if (researchMode) return {
+        action: "reply",
+        task: "",
+        continueThread: false,
+        reply: "Кодекс Jessica: анализ этого этапа CALIBRI не выполнен — " +
+            (quota ? "AI-провайдер достиг лимита." : "сервис интерпретации недоступен.") +
+            " Тест не запускался; эксперимент и результаты не подтверждены мной. " +
+            "Продолжай исследование CALIBRI через свои инструменты в отдельной research-ветке: " +
+            "следующий небольшой эксперимент с реальным размером, качеством и временем вычисления. " +
+            "Не меняй main, Render, Supabase и APK."
+    };
     return {
         action: "reply",
         task: "",
