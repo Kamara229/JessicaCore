@@ -140,7 +140,7 @@ def run(args):
         setattr(parent,leaf,original)
     record={'experiment':'CALIBRI_v17_geometry_topology_rank_residual_precision',
         'model':MODEL,'model_revision':revision,'data_revision':data_rev,
-        'matrix_name':name,'matrix_shape':list(w.shape),
+        'matrix_name':sorted(module_selection(model))[0],'matrix_shape':list(w.shape),
         'fp16_reference_weight_bytes':2*w.size,'development_tokens':len(dev),
         'test_tokens':len(test),'development_sha256':hashlib.sha256(dev.numpy().tobytes()).hexdigest(),
         'test_sha256':hashlib.sha256(test.numpy().tobytes()).hexdigest(),
