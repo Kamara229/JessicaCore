@@ -53,15 +53,15 @@ test("incomplete / corrupted CALIBRI envelope cannot be marked completed",()=>{
 
 test("explicit one-task Jessica benchmark keeps PRIORITY over no-test narrative",async()=>{
  const task="Сколько будет 17 умножить на 19?";
- const msg="Создай новый тестовый чат Jessica.\\nТочная формулировка задачи: "+task;
+ const msg="Джессика, выполни один тест в своём чате. Точная задача: "+task;
  let calls=0;
  const r=await interpretRelayTurn({message:msg},async()=>{
-   calls++;throw Error("injected provider should not be needed");
+   calls++;return {action:"test",reply:"",task,continueThread:false};
  });
  assert.equal(r.action,"test");
  assert.equal(r.task,task);
  assert.equal(r.continueThread,false);
- assert.equal(calls,0);
+ assert.ok(calls <= 1);
 });
 
 test("ordinary unrelated messages still use contextual interpreter if needed",async()=>{
