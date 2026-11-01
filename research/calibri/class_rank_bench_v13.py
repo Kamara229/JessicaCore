@@ -19,6 +19,7 @@ from huggingface_hub import HfApi,hf_hub_download
 from index import encode as cl8_encode
 from huffman_masks_v12 import encode as mask_encode
 from class_rank_v13 import encode as rank_encode,decode as rank_decode,read_row,direct_matvec
+from hybrid_v13 import encode as hybrid_encode,decode as hybrid_decode
 from dual_real_bench import MODEL,CKPT,row_ternarize,reconstructed
 
 KEY_PATTERN=re.compile(r"decoder\.block\.1\.layer\.2\.mlp\.experts\.expert_(\d+)\.(wi|wo)\.weight$")
@@ -36,7 +37,13 @@ def encode_options(q,options,run_math=False,seed=42):
         if not np.array_equal(q,rank_decode(encoded)):
             raise AssertionError(f"CLASS-RANK roundtrip error at {block}")
         sizes[str(block)]=size
-    return {"shape":list(q.shape),
+    hybrid_blob,hybrid_info=hybrid_encode(q,group=GROUP)
+    if not np.array_equal(q,hybrid_decode(hybrid_blob)):
+        raise AssertionError("v13 hybrid lost coefficients")
+    return {"hybrid_codec":hybrid_info["selection"],
+            "HYBRID_bytes_with_fp16_levels":len(hybrid_blob)+scales,
+            "hybrid_compared_sizes":hybrid_info["bytes_by_codec"],
+            "shape":list(q.shape),
             "parameters":int(q.size),
             "zero_fraction":float(np.mean(q==0)),
             "CL8_bytes_with_fp16_levels":cl8,
@@ -119,9 +126,15 @@ def main():
         "weight_count":count,
         "CL8_bytes":sum(t["CL8_bytes_with_fp16_levels"] for t in heldout),
         "MASK_HUFF_bytes":sum(t["MASK_HUFF_bytes_with_fp16_levels"] for t in heldout),
-        "CLASS_RANK_bytes":sum(t["CLASS_RANK_bytes_with_fp16_levels"][str(chosen)] for t in heldout)
+        "CLASS_RANK_bytes":sum(t["CLASS_RANK_bytes_with_fp16_levels"][str(chosen)] for t in heldout),
+        "HYBRID_bytes":sum(t["HYBRID_bytes_with_fp16_levels"] for t in heldout),
+        "HYBRID_choice_histogram":{name:sum(t["hybrid_codec"]==name for t in heldout)
+            for name in ("CL8","MASK_HUFF","CLASS_RANK16","CLASS_RANK32","CLASS_RANK64")}
     }
     summaries["CLASS_RANK_bpw"]=8*summaries["CLASS_RANK_bytes"]/count
+    summaries["HYBRID_bpw"]=8*summaries["HYBRID_bytes"]/count
+    summaries["HYBRID_vs_CL8_saved_pct"]=100*(1-summaries["HYBRID_bytes"]/summaries["CL8_bytes"])
+    summaries["HYBRID_vs_MASK_HUFF_saved_pct"]=100*(1-summaries["HYBRID_bytes"]/summaries["MASK_HUFF_bytes"])
     summaries["vs_CL8_saved_pct"]=100*(1-summaries["CLASS_RANK_bytes"]/summaries["CL8_bytes"])
     summaries["vs_MASK_HUFF_saved_pct"]=100*(1-summaries["CLASS_RANK_bytes"]/summaries["MASK_HUFF_bytes"])
     report={
