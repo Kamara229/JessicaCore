@@ -151,12 +151,19 @@ jobs:
           signer=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
           test -n "$signer"
           "$signer" verify --verbose JessicaCore-CALIBRI-beta.apk
-          old=$("$signer" verify --print-certs "$RUNNER_TEMP/previous/JessicaCore.apk" |
-                sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)
-          new=$("$signer" verify --print-certs JessicaCore-CALIBRI-beta.apk |
-                sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)
-          if [ -z "$old" ] || [ -z "$new" ] || [ "$old" != "$new" ]; then
-            echo "Existing-app signing certificate differs; refusing beta update."
+          old_report=$("$signer" verify --print-certs "$RUNNER_TEMP/previous/JessicaCore.apk")
+          new_report=$("$signer" verify --print-certs JessicaCore-CALIBRI-beta.apk)
+          old=$(printf '%s\\n' "$old_report" | sed -n 's/^[[:space:]]*Signer #1 certificate SHA-256 digest:[[:space:]]*//p' | head -1)
+          new=$(printf '%s\\n' "$new_report" | sed -n 's/^[[:space:]]*Signer #1 certificate SHA-256 digest:[[:space:]]*//p' | head -1)
+          echo "Official public APK certificate fingerprint: ${old:-NOT PARSED}"
+          echo "Beta public APK certificate fingerprint: ${new:-NOT PARSED}"
+          if [ -z "$old" ] || [ -z "$new" ]; then
+            echo "Cannot parse certificate fingerprints. Diagnostic lines:"
+            printf '%s\\n' "$old_report" "$new_report" | grep -i 'certificate.*digest' || true
+            exit 1
+          fi
+          if [ "$old" != "$new" ]; then
+            echo "SIGNING MISMATCH: preserving installed app data; install-over beta is blocked."
             exit 1
           fi
           echo "Signing certificate matches current official Jessica APK."
