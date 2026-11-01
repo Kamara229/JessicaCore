@@ -73,7 +73,7 @@ def encode_variants(d,q,group_list=(16,64),details=False):
     scales=4*len(q)
     variants={}
     for group in group_list:
-        for kind in ("raw","zlib","planes","adaptive"):
+        for kind in ("raw","zlib","planes","tier8","adaptive"):
             t=time.perf_counter()
             blob,modes=encode_grouped(words,off,q.shape[1],group=group,selector=kind)
             seconds=time.perf_counter()-t
