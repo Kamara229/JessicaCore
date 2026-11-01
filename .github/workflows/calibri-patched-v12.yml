@@ -1,0 +1,41 @@
+name: CALIBRI v0.12 - patched dictionary indices on trained MoE
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/**'
+      - '.github/workflows/calibri-patched-v12.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pretrained-expert-patched-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: research/calibri
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU torch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install remaining pinned scientific dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'huggingface_hub==0.27.1' 'safetensors==0.4.5'
+      - name: Run comprehensive exactness and corner-case tests
+        run: python -m unittest discover -s research/calibri -p 'test_patched_v12.py' -v
+      - name: Benchmark both paired trained Switch expert matrices
+        run: python research/calibri/patched_bench_v12.py --output results/calibri_v12_patched_pretrained_moe.json
+      - name: Upload JSON metrics, never model weights
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v12-real-patched-dictionary-results
+          path: results/calibri_v12_patched_pretrained_moe.json
+          if-no-files-found: ignore
+          retention-days: 14
