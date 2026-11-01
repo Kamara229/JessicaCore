@@ -107,10 +107,16 @@ was substantially better on TinyStories (0.0013855 vs routed optimizer
 weighting is insufficient. The 95% guarded choice is smaller than
 INT6 but has >2x its WikiText teacher KL; global task impact matters.
 
-Actual next decoder router dispatch agreement ranged from ~99.6% to
-100% across candidates and corpora on these short sequences; this is
-not proof of long-run router stability. Top1 token agreement also varied
-roughly 96–100% with only 128 scored decoder positions per corpus.
+**Measurement correction (2026-11-01):** the original v24 run
+computed elementwise equality of all eight bits in the next-router
+one-hot mask. This artificially inflates what could be mistaken for
+token-level routing agreement. The previously quoted 99.6–100%
+figures were *bitwise mask similarity*, **NOT exact expert agreement
+per token**. v24 code has now been corrected to report both exact
+per-token whole-mask equality and separate diagnostic bitwise
+equality. The corrected CI run supersedes router-agreement values
+from run 41340130094. Top-1 token prediction agreement (96–100%)
+is a different metric and was calculated correctly.
 
 This confirms genuine complexity in joint MoE allocation (cross-expert
 nonlinear effects, distribution shift), but the technique itself is
