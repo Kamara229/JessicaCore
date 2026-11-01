@@ -29,8 +29,15 @@ internal fun CodexChatCoordinator.maybeIdlePulse(
     // Accessibility trees are transient; a stale node must never end the whole session.
     val frame = runCatching { CodexIdlePulseTarget.find(window, launch.replyId,
         service.resources.displayMetrics.density) }.getOrNull()
-    if (!CodexScrollSafetyPolicy.mayScrollAutomatically(idlePulseEnabled, frame != null)) return
-    val target = frame ?: return
+    if (frame == null) {
+        idlePulseEnabled = false
+        idlePulseButton?.text = "Мини-прокрутка: выкл"
+        notice("Безопасная область выбранного чата не подтверждена. " +
+            "Мини-прокрутка отключена без касаний экрана.")
+        return
+    }
+    if (!CodexScrollSafetyPolicy.mayScrollAutomatically(idlePulseEnabled, true)) return
+    val target = frame
     val composer = window.composer.screenBox()
     val coords = CodexIdlePulsePolicy.coordinates(target, composer, service.resources.displayMetrics.density)
         ?: return
