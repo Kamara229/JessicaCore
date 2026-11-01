@@ -88,3 +88,60 @@ Only create a separate research branch and draft PR. Do not alter
 main, Render, Supabase, APK, working Jessica or secrets; do not
 request a chat-side benchmark. Finish with the actual metrics, whether
 positive OR negative, when the GitHub Actions evidence is available.
+
+
+## Measured experimental result — Actions 41356201302 (all three CI jobs PASS)
+
+Two independently hosted CPU jobs successfully loaded REAL trained public
+Pythia-14m weights and evaluated identical WikiText-2 token windows, with
+the **same source model/matrix/token SHA** across both. CRC-protected
+physical binary `calibri_v32_multidim_bytes.bin` was actually written,
+read back and checked against reconstructed stream. Its SHA256 was also
+**identical across both independent runners**. The subsequent
+source/metrics comparator completed successfully. PASS is an artifact /
+reproducibility pass, **NOT a compression-quality win**.
+
+Both hosts reported the following **same measured metrics**:
+
+| Actual property | Original FP16 source | Rowwise packed INT4 control | Physical multidimensional TT+adaptive INT3/INT4 |
+|---|---:|---:|---:|
+| **Physical projection bytes** | 131,072 | **33,042** | **33,006** |
+| **Effective bits per projection weight** | 16 | 4.0334 | 4.0291 |
+| **WikiText validation PPL, full model with one changed MLP** | **173.38149** | **179.67859** | **219.21966** |
+
+The proposed 4D+tile codec used 128 physical 16×32 residual tiles:
+**67 INT3** and **61 INT4**. Its actual byte stream was only **36 bytes**
+smaller than the physically packed plain INT4 comparator (0.109%) and
+its language-model PPL was **22.0% worse** than INT4 and **26.44% worse**
+than the original dense teacher. Therefore at virtually equal storage
+budget it is **dominated by the much simpler INT4 baseline in quality**.
+
+The no-full-weight byte-streaming prototype produced the mathematically
+same decoded tensor result (**maximum absolute difference 2.31×10⁻⁷**),
+but was much slower than native dense restored-matrix multiplication:
+- Ubuntu 22.04: byte streaming **4.8982 ms** vs dense **0.03553 ms**,
+  about **138× slower**.
+- Ubuntu 24.04: byte streaming **4.4137 ms** vs dense **0.03475 ms**,
+  about **127× slower**.
+
+These are genuine *per-projection microbenchmarks*, NOT model-wide
+inference speed, not ARM speed and not native fused packed throughput.
+PPL was computed with **decoded dense weights** in the full model; the
+byte-backed prototype was benchmarked independently.
+
+**Conclusion:** scientific reproducibility and binary serialization
+succeeded; the proposed rank-4 TT+mixed 3/4-bit layout **failed** a fair
+matched-size rate–distortion comparison, and the unfused Python
+byte-streamed implementation **failed** a speed comparison by two
+orders of magnitude. Do not describe this as a CALIBRI breakthrough
+or deploy any part to production.
+
+## Next scoped research hypothesis (not yet proven)
+
+Remove/ablate the costly TT factorization on this projection and use
+train-activation-weighted *per-row or fine-grained block allocation*
+within a **fixed 33,042-byte cap**, comparing raw INT3+INT4 tiles to
+rowwise INT4 and TT+residual. Independently predefine the storage
+budget and compare PPL and a compiled/vectorized packed operator in a
+separate research session. Do not simply tune ranks against previously
+observed WikiText validation or call Python loops a native engine.
