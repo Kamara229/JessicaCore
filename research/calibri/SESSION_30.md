@@ -57,3 +57,56 @@ dispatch mechanisms, not a novel compression algorithm. No WikiText PPL,
 physical 0.8 bpw coding, native packed inference speed or downstream
 task quality is claimed. No changes to main, Render, Supabase, APK or the
 user's ordinary Jessica chat.
+
+
+## Measured hardware and dispatch from first run 41354038653
+
+Both independently hosted real-pretrained, source-matched BF16 runner jobs
+completed successfully. The v29-style numerical check passed. Initial
+v30 final gate marked one missing DEFAULT oneDNN primitive as an error;
+that was **a mistaken assertion**, not a failed real-model run:
+a CPU may fall back from oneDNN BF16 without any primitive logged.
+This report gate was corrected in code (79ace349); pending confirmation
+by fresh CI. All original collected evidence was still uploaded.
+
+Hardware was heterogeneous **within AMD**, not AMD versus Intel:
+- Ubuntu 22.04: AMD EPYC **7763** (AVX2; no AVX512 BF16 reported).
+  **Zero** oneDNN primitive executions logged both DEFAULT and requested
+  AVX2 cap. PyTorch CPU profiler still captured **730 aten::mm**,
+  **144 aten::bmm**, **874 aten::matmul**, and **730 aten::linear**
+  per WikiText window set, in both settings. Whole-output logits and
+  router masks were bitwise identical within this host across the cap.
+- Ubuntu 24.04: AMD EPYC **9V45** (AVX512 BF16 available).
+  DEFAULT oneDNN log reported runtime ISA 'Intel AVX-512 with Intel
+  DL Boost and bfloat16 support'; **1706 executed matmul primitives**
+  with `brg_matmul:avx512_core_bf16` implementation. Requested
+  AVX2-cap process reported **zero** oneDNN primitives; ATen profile
+  still reported **728 aten::mm**, **144 aten::bmm** and **872
+  aten::matmul** for WikiText (versus **730/144/874** default).
+  The change in executed ATen call counts can arise from routing-path
+  changes, not necessarily disappearance of ATen operators.
+
+The measured SAME-HOST BF16 numerical effect of requesting the cap:
+- AMD 7763: exact full logits and exact router masks unchanged on
+  WikiText and TinyStories; maximum sampled logit difference = 0.
+- AMD 9V45: full logits changed; WikiText 24-probe maximum absolute
+  logit difference **4.5** and router agreement **100%**; TinyStories
+  maximum **3.5** and exact router agreement **98.4375%**.
+
+The cross-host outcome also remained unequal:
+- DEFAULT: WikiText sampled max absolute **9.5**, router agreement
+  **98.4375%**; TinyStories max **3.0**, router **98.4375%**.
+- Both requesting AVX2: WikiText max **10.0**, router **98.4375%**;
+  TinyStories max **1.5**, router **100%**. Neither corpus had
+  byte-identical full-logit SHA256.
+
+**Interpretation**: runtime evidence now confirms a v29 source of
+observed arithmetic-path variation: one host executed oneDNN
+`avx512_core_bf16` matmul primitives by default, and the capped
+processes did not report those primitives. The numerical effects and
+operator counts are observable. We have **not** established which
+actual optimized ATen/BLAS/vector instructions ran when oneDNN emitted
+no primitive logs. The requested AVX2 ceiling does not make all native
+PyTorch CPU operations AVX2, and is not a portable numerical
+reproducibility guarantee. This is not an improved CALIBRI compression
+method, PPL or packed speed benchmark.
