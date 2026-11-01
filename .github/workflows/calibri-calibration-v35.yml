@@ -1,0 +1,90 @@
+name: CALIBRI v0.35 - same-byte train-calibrated rows, real WikiText and TinyStories PPL
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/calibrated_rows_v35.py'
+      - 'research/calibri/calibrated_experiment_v35.py'
+      - 'research/calibri/calibrated_compare_v35.py'
+      - 'research/calibri/SESSION_35.md'
+      - '.github/workflows/calibri-calibration-v35.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-Pythia-row-calibration:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      ATEN_CPU_CAPABILITY: avx2
+      DNNL_MAX_CPU_ISA: AVX2
+      ONEDNN_MAX_CPU_ISA: AVX2
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      HF_HUB_DOWNLOAD_TIMEOUT: '90'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU Torch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned pretrained/public-corpus dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Check constant-bitstream CRC and train-only output calibration
+        run: python research/calibri/calibrated_rows_v35.py
+      - name: Real Pythia model - physically equal 3.5bpw WikiText and TinyStories PPL
+        run: |
+          python research/calibri/calibrated_experiment_v35.py \
+            --output results/calibri_v35_calibration.json \
+            --train-tokens 256 --valid-tokens 1024 --context 128
+      - name: Preserve physical serialized row streams and metrics (never complete model)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v35-${{ matrix.os }}
+          path: |
+            results/calibri_v35_calibration.json
+            results/train_only_v34_rowwise_mixed3_4_control.bin
+            results/train_output_SSE_calibrated_same_row_bits.bin
+          if-no-files-found: ignore
+          retention-days: 14
+  same-checkpoint-same-byte-independent-check:
+    needs: real-Pythia-row-calibration
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calibri-v35-ubuntu-*
+          path: results/runs
+          merge-multiple: false
+      - name: Verify true physical identical-row-bit budget, source hashes and cross-host PPL
+        run: |
+          python research/calibri/calibrated_compare_v35.py \
+            --a results/runs/calibri-v35-ubuntu-22.04/calibri_v35_calibration.json \
+            --b results/runs/calibri-v35-ubuntu-24.04/calibri_v35_calibration.json \
+            --output results/calibri_v35_crosshost.json
+      - name: Keep all quality outcomes, including a failed calibration hypothesis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v35-quality-evidence
+          path: results/calibri_v35_crosshost.json
+          if-no-files-found: ignore
+          retention-days: 14
