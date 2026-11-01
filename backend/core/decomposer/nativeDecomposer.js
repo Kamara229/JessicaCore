@@ -271,7 +271,7 @@ export function tryNativeDecomposition({
     const explicitGoals = splitExplicitSequence(input);
     if (
         explicitGoals.length >= 2 &&
-        /(?:сколько\\s+(?:календарных\\s+)?дн|разниц\\p{L}*\\s+дат|days\\s+between)/iu.test(explicitGoals[0]) &&
+        /(?:сколько\s+(?:календарных\s+)?дн|разниц\p{L}*\s+дат|days\s+between)/iu.test(explicitGoals[0]) &&
         explicitGoals.slice(1).some(goal => buildNativeSingleLicensePlan(goal))
     ) {
         const hints = normalizeMemoryHints(memoryContext);
