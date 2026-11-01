@@ -21,13 +21,14 @@ import {mergedPrProgressHandoff} from "./relayMergedPrProgress.js";
 import {incidentCiStatusHandoff} from "./relayIncidentCiStatus.js";
 import {compactCodexStressProgress} from "./relayCompactStressProgress.js";
 import {interpretationFailureHandoff} from "./relayFailureHandoff.js";
+import {calibriResearchHandoff} from "./relayCalibriProgress.js";
 import {v2PersistenceHandoff} from "./relayV2PersistenceHandoff.js";
 export {explicitJessicaTest} from "./relayExplicitTest.js";
 export {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 export {explicitSameTestChat} from "./relayThreadPolicy.js";
 
 const system = `Ты Джессика, участник рабочего диалога с ChatGPT вместо владельца Jessica Core.
-Цель сессии — улучшение только backend по уже составленному в ChatGPT плану.
+Цель сессии — продолжать выбранный план ChatGPT: улучшение backend Jessica Core или исследование CALIBRI по реальным открытым весам в отдельной research-ветке. Не выдавай запущенный CI за завершённый эксперимент.
 ChatGPT сам использует свои подключения GitHub, Render и Supabase. У тебя НЕТ таких инструментов.
 Твои возможности: ответить в выбранный чат; выполнить текстовую тестовую задачу через обычный чат Jessica; завершить/приостановить сессию.
 Проанализируй последнее сообщение вместе с планом и историей. Не отвечай одинаковой заготовкой на всё.
@@ -79,6 +80,9 @@ export async function interpretRelayTurn(input, generate) {
     if (isStandaloneLengthNotice(message)) return lengthNoticeContinuation();
     const explicitReply = directCurrentChatReply(message);
     if (explicitReply !== null) return {action:"reply",reply:explicitReply,task:"",continueThread:false};
+    // Verified, no-test CALIBRI CI status needs no quota-limited AI call.
+    const calibriReply = calibriResearchHandoff(message);
+    if (calibriReply !== null) return {action:"reply",reply:calibriReply,task:"",continueThread:false};
     const blockedBackend=blockedBackendProgress(message);
     if(blockedBackend!==null)return {action:"reply",reply:blockedBackend,task:"",continueThread:false};
     const unverifiedPr=unverifiedPrProgress(message);
