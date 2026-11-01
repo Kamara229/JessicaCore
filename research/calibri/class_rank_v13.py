@@ -73,8 +73,8 @@ def _row_encode(q,block,prior):
         code,bits=codebook[k]
         wr.put(code,bits)
         wr.put(rank_positions(where.tolist()),RANKBITS[(block,k)])
-        for j in where:
-            wr.put(int(current[j]>0),1)
+        signs=sum(int(current[j]>0)<<shift for shift,j in enumerate(where))
+        wr.put(signs,k)
     return wr.bytes()
 
 def _row_decode(blob,cols,block,prior):
@@ -94,7 +94,9 @@ def _row_decode(blob,cols,block,prior):
         r=rd.get(RANKBITS[(block,k)])
         if r>=math.comb(block,k):raise ValueError("invalid combinatorial rank")
         p=unrank_positions(block,k,r)
-        for j in p:q[start+j]=1 if rd.get(1) else -1
+        signs=rd.get(k)
+        for shift,j in enumerate(p):
+            q[start+j]=1 if (signs>>shift)&1 else -1
     return q
 
 def encode(q,block=32,group=64,prior='auto',index_mode='auto'):
