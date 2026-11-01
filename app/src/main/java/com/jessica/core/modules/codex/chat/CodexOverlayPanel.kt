@@ -1,6 +1,7 @@
 package com.jessica.core.modules.codex.chat
 
 import android.graphics.PixelFormat
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.Button
@@ -20,6 +21,23 @@ internal fun CodexChatCoordinator.showOverlay() {
         }
         // Owner's Stop stays above all other controls, including diagnostics.
         layout.addView(emergencyStopButton())
+        idlePulseButton = Button(service).apply {
+            text = "Мини-прокрутка: выкл"
+            setOnClickListener {
+                if (!confirmed || PhoneChatRuntime.launch !== launch || launch.stopRequested) {
+                    notice("Сначала выбери чат: экспериментальный жест доступен только в текущей сессии.")
+                    return@setOnClickListener
+                }
+                idlePulseEnabled = !idlePulseEnabled
+                lastIdlePulseAttemptAt = SystemClock.elapsedRealtime()
+                text = if (idlePulseEnabled) "Мини-прокрутка: ВКЛ (180 с)" else "Мини-прокрутка: выкл"
+                notice(if (idlePulseEnabled)
+                    "Экспериментальный жест включён. Только при генерации ChatGPT и " +
+                    "подтверждённой области диалога. Сам по себе от сна не защищает."
+                else "Мини-прокрутка выключена. Удержание экрана — отдельный механизм.")
+            }
+        }
+        layout.addView(idlePulseButton)
         layout.addView(statusLabel)
         confirmButton = Button(service).apply {
             text = "Чат выбран"
