@@ -1,0 +1,43 @@
+name: CALIBRI v0.20 - row cached bitpacked INT5 native CPU
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/packed5_rowcache_v20.c'
+      - 'research/calibri/rowcache_v20.py'
+      - '.github/workflows/calibri-rowcache-v20.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bounded-row-buffer-cpu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile v19 no-scratch and v20 bounded-row-scratch native kernels
+        run: gcc -O3 -std=c11 -Wall -Wextra -Werror -shared -fPIC -o research/calibri/libpacked5_v20.so research/calibri/packed5_v19.c research/calibri/packed5_rowcache_v20.c
+      - name: Install pinned CPU PyTorch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: Real pretrained model and CPU batch reuse/latency controls
+        run: python research/calibri/rowcache_v20.py --library research/calibri/libpacked5_v20.so --output results/calibri_v20_rowcache.json --reps 20
+      - name: Only metrics, not models or shared objects
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v20-rowcache-results
+          path: results/calibri_v20_rowcache.json
+          if-no-files-found: ignore
+          retention-days: 14
