@@ -24,8 +24,12 @@ def measure_one(q,scales,name):
     runs=[]
     for g in (16,64):
         start=time.perf_counter()
-        blob=hf_encode(q,g)
+        blob=hf_encode(q,g,index_mode='auto')
         elapsed=time.perf_counter()-start
+        old_index=hf_encode(q,g,index_mode='u16')
+        explicit_index=hf_encode(q,g,index_mode='u8_escape')
+        if len(blob)!=min(len(old_index),len(explicit_index)):
+            raise AssertionError('auto row index not optimal')
         start=time.perf_counter()
         q2=hf_decode(blob)
         decode_elapsed=time.perf_counter()-start
@@ -39,6 +43,9 @@ def measure_one(q,scales,name):
             _=read_row(blob,int(i))
             lat.append((time.perf_counter_ns()-start)/1e6)
         sub={'group_rows':g,'bytes_with_scales':len(blob)+scales_size,
+             'physical_index':blob[:4].decode('ascii'),
+             'u16_index_bytes':len(old_index)+scales_size,
+             'u8_escaped_index_bytes':len(explicit_index)+scales_size,
              'bits_per_ternary_weight_with_scales':8*(len(blob)+scales_size)/q.size,
              'saving_percent_vs_CL8':100*(1-(len(blob)+scales_size)/result['CL8_bytes_with_scales']),
              'CPU_python_encode_seconds':elapsed,
