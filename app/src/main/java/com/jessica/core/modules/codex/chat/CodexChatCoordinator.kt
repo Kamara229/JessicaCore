@@ -62,6 +62,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     // from the Codex accessibility panel. Never persisted across sessions.
     internal var idlePulseEnabled = false
     internal var lastIdlePulseAttemptAt = 0L
+    internal var idlePulseUsed = false
     internal var idlePulseButton: Button? = null
 
     /** Lightweight facade. State and module orchestration stay separate. */
