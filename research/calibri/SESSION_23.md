@@ -21,11 +21,11 @@ Make a controlled comparison, holding the teacher, 16-step learning procedure, t
 - Teacher TRAIN = first 2048 WikiText-2 train tokens; two v22 methods: KL and KL + 0.1 local MSE; AdamW, 16 updates, learning rate 0.0005.
 - TRAIN SHADOW = next 512 non-overlapping train tokens, used only to report teacher KL and local output error. They are not a new dataset.
 - WikiText-2 validation 1024 tokens + TinyStories validation 2048 tokens: both previously inspected; **diagnostics only**.
-- Compare original FP16, untrained TT+INT5, both fixed-residual trained TT variants and both re-centered trained TT variants.
+- Compare original FP16, **plain physical INT4, INT5, INT6**, untrained TT+INT5, both fixed-residual trained TT variants and both re-centered trained TT variants. INT4/5/6 are restored dense **only for the quality-control calculation**, not claimed as direct packed compute.
 - Check equality of no-op re-center, exact unchanged byte size (**43832 B**), CRC and pack/unpack, direct packed-C versus restored dense layer max-abs error <=0.001, layer reconstruction RMSE, full-model PPL and non-training shadow KL.
 - Store only metrics; no pretrained model weights, residual streams, or personally identifying data in artifacts.
 
-**Decision**: a size-neutral re-centering method is useful only if it improves held-out diagnostic error or PPL consistently without worsening a second domain compared with the untrained physical geometry. A negative result must be recorded honestly. Even a positive result is NOT proof of novel compression, robust generalization, fast ARM decoding, real MoE routing, or a QMoE 0.8-bit reproduction.
+**Decision**: a size-neutral re-centering method is useful only if it improves diagnostic error or PPL consistently without worsening a second domain compared with the untrained physical geometry **and** has a defensible quality/size trade-off versus plain physical INT4/INT5/INT6. A TT+INT5 structure is **larger** than plain INT5 at this matrix size, so quality must justify the extra TT bytes. A negative result must be recorded honestly. Even a positive result is NOT proof of novel compression, robust generalization, fast ARM decoding, real MoE routing, or a QMoE 0.8-bit reproduction.
 
 ## Next session if results support it
 
