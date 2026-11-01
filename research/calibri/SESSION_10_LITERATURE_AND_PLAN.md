@@ -127,3 +127,20 @@ Do not claim "0.8 bits, quality-preserved" until exact official QMoE
 quantized tensors, entire model metric, and runtime comparability are verified.
 Try to show a **single real Pareto-improvement** in (quality,size,latency)
 rather than an ever-larger catalogue of plausible but unverified compression ideas.
+
+### G. Дополнительные работы вне узкой темы LLM — кодеки и физические носители
+
+| № | Работа | Заимствуемая идея | Граница переносимости |
+|---|---|---|---|
+| 36 | [Variational image compression with a scale hyperprior (ICLR 2018)](https://research.google/pubs/variational-image-compression-with-a-scale-hyperprior/) | Обучаемая условная модель энтропии с компактным hyperprior | Стоимость hyperprior + случайного доступа должна окупаться |
+| 37 | [DVC: End-to-End Deep Video Compression (CVPR 2019)](https://openaccess.thecvf.com/content_CVPR_2019/html/Lu_DVC_An_End-To-End_Deep_Video_Compression_Framework_CVPR_2019_paper.html) | Предиктор + остаток + оптимизация rate-distortion | Веса разных экспертов — не последовательные видеокадры |
+| 38 | [EnCodec: High Fidelity Neural Audio Compression](https://arxiv.org/abs/2210.13438) | Residual vector quantization + streaming decoder | Декодирование весов для random-access отличается от аудиопотока |
+| 39 | [ContextGS: Compact 3D Gaussian Splatting (NeurIPS 2024)](https://proceedings.neurips.cc/paper_files/paper/2024/hash/5c20ca4b0b20b0bd2f1d839dc605e70f-Abstract.html) | Многоуровневое условное кодирование структурированных 3D-якорей | Сопоставление экспертов/нейронов — гипотеза, не данность |
+| 40 | [CAT-3DGS: Rate-Distortion-Optimized 3D Compression (ICLR 2025)](https://proceedings.iclr.cc/paper_files/paper/2025/hash/41e638f36d9cb052669d30f559e7c0b7-Abstract-Conference.html) | Spatial/feature hyperprior + rate-distortion allocation | Размер side-channel и задержка чтения |
+| 41 | [Photonic Mixture-of-Experts (Nature Communications 2026)](https://www.nature.com/articles/s41467-026-73983-4) | Физические параллельные expert cores + routing | Требует нового оптического железа; не кодек для памяти Android |
+| 42 | [Universal photonic AI acceleration (Nature 2025)](https://www.nature.com/articles/s41586-025-08854-x) | Optical tensor processing | Не снижает информацию, необходимую для хранения цифровых весов |
+| 43 | [LLM in a Flash (ACL 2024)](https://machinelearning.apple.com/research/efficient-large-language) | Память flash как отдельный уровень и крупные последовательные чтения | На телефоне необходимо проверить I/O, износ и тепловые ограничения |
+
+**Вывод по аналогиям:** перспективны conditional entropy modeling, rate–distortion,
+vector residual coding и крупноблочный I/O. Оптическая обработка — отдельная
+аппаратная область, не способ магического сжатия 80 ГБ весов в обычной флеш-памяти.
