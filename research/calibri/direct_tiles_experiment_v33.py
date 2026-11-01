@@ -100,7 +100,7 @@ def run(args):
         }
     # Selection is frozen BEFORE evaluating any held-out validation PPL.
     winner=min(meta, key=lambda key:(
-        meta[key]["train_proxy_original_moment_weighted_error"],len(paths[key].read_bytes()),key))
+        meta[key]["training_proxy_original_moment_weighted_error"],len(paths[key].read_bytes()),key))
     source=module.weight.detach().clone()
     heldout={}
     try:
