@@ -1,0 +1,47 @@
+{
+  "data": "SYNTHETIC Gaussian weights and two activation strata; no pretrained model",
+  "seed": 20261101,
+  "weights": 12288,
+  "pages": 6,
+  "baseline": {
+    "page_bytes": 2551,
+    "total_bytes": 2639,
+    "calibration_error_limits": [
+      0.31732271022524033,
+      0.32645983483843777
+    ],
+    "heldout_relative_squared_output_error": [
+      0.32324332118752247,
+      0.3338846216989546
+    ]
+  },
+  "allocated": {
+    "byte_count": 2028,
+    "errors": [
+      0.2771746210733975,
+      0.26193472007151963
+    ],
+    "dictionary_open": false,
+    "choices": [
+      "sparse",
+      "sparse",
+      "sparse",
+      "sparse",
+      "sparse",
+      "uniform50"
+    ],
+    "total_bytes": 2116,
+    "heldout_relative_squared_output_error": [
+      0.2734343618277782,
+      0.2692847725807257
+    ]
+  },
+  "saving_percent": 19.818112921561195,
+  "limits": [
+    "synthetic only",
+    "linear-output proxy, not perplexity",
+    "no latency/RAM/Android measurement",
+    "dense fallback and outer index accounted, not serialized",
+    "heldout was evaluated only after selection; no heldout acceptance bound claimed"
+  ]
+}

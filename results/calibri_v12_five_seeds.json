@@ -1,0 +1,237 @@
+[
+  {
+    "data": "SYNTHETIC Gaussian weights and two activation strata; no pretrained model",
+    "seed": 20261101,
+    "weights": 12288,
+    "pages": 6,
+    "baseline": {
+      "page_bytes": 2551,
+      "total_bytes": 2639,
+      "calibration_error_limits": [
+        0.31732271022524033,
+        0.32645983483843777
+      ],
+      "heldout_relative_squared_output_error": [
+        0.32324332118752247,
+        0.3338846216989546
+      ]
+    },
+    "allocated": {
+      "byte_count": 2028,
+      "errors": [
+        0.2771746210733975,
+        0.26193472007151963
+      ],
+      "dictionary_open": false,
+      "choices": [
+        "sparse",
+        "sparse",
+        "sparse",
+        "sparse",
+        "sparse",
+        "uniform50"
+      ],
+      "total_bytes": 2116,
+      "heldout_relative_squared_output_error": [
+        0.2734343618277782,
+        0.2692847725807257
+      ]
+    },
+    "saving_percent": 19.818112921561195,
+    "limits": [
+      "synthetic only",
+      "linear-output proxy, not perplexity",
+      "no latency/RAM/Android measurement",
+      "dense fallback and outer index accounted, not serialized",
+      "heldout was evaluated only after selection; no heldout acceptance bound claimed"
+    ]
+  },
+  {
+    "data": "SYNTHETIC Gaussian weights and two activation strata; no pretrained model",
+    "seed": 20261102,
+    "weights": 12288,
+    "pages": 6,
+    "baseline": {
+      "page_bytes": 2545,
+      "total_bytes": 2633,
+      "calibration_error_limits": [
+        0.3217986956125806,
+        0.3248505461065496
+      ],
+      "heldout_relative_squared_output_error": [
+        0.3313254971223302,
+        0.32520649141902713
+      ]
+    },
+    "allocated": {
+      "byte_count": 2028,
+      "errors": [
+        0.2851201756186945,
+        0.2737971857196194
+      ],
+      "dictionary_open": false,
+      "choices": [
+        "sparse",
+        "sparse",
+        "sparse",
+        "sparse",
+        "sparse",
+        "uniform50"
+      ],
+      "total_bytes": 2116,
+      "heldout_relative_squared_output_error": [
+        0.2871720418730218,
+        0.28790194186166845
+      ]
+    },
+    "saving_percent": 19.635396885681732,
+    "limits": [
+      "synthetic only",
+      "linear-output proxy, not perplexity",
+      "no latency/RAM/Android measurement",
+      "dense fallback and outer index accounted, not serialized",
+      "heldout was evaluated only after selection; no heldout acceptance bound claimed"
+    ]
+  },
+  {
+    "data": "SYNTHETIC Gaussian weights and two activation strata; no pretrained model",
+    "seed": 20261103,
+    "weights": 12288,
+    "pages": 6,
+    "baseline": {
+      "page_bytes": 2560,
+      "total_bytes": 2648,
+      "calibration_error_limits": [
+        0.3229126226707352,
+        0.3202907183041957
+      ],
+      "heldout_relative_squared_output_error": [
+        0.3343543030478145,
+        0.306807026894532
+      ]
+    },
+    "allocated": {
+      "byte_count": 2028,
+      "errors": [
+        0.2798572917261013,
+        0.28324629308027355
+      ],
+      "dictionary_open": false,
+      "choices": [
+        "sparse",
+        "sparse",
+        "sparse",
+        "sparse",
+        "sparse",
+        "uniform50"
+      ],
+      "total_bytes": 2116,
+      "heldout_relative_squared_output_error": [
+        0.2682232958093667,
+        0.26618660773794345
+      ]
+    },
+    "saving_percent": 20.09063444108762,
+    "limits": [
+      "synthetic only",
+      "linear-output proxy, not perplexity",
+      "no latency/RAM/Android measurement",
+      "dense fallback and outer index accounted, not serialized",
+      "heldout was evaluated only after selection; no heldout acceptance bound claimed"
+    ]
+  },
+  {
+    "data": "SYNTHETIC Gaussian weights and two activation strata; no pretrained model",
+    "seed": 20261104,
+    "weights": 12288,
+    "pages": 6,
+    "baseline": {
+      "page_bytes": 2555,
+      "total_bytes": 2643,
+      "calibration_error_limits": [
+        0.3466686497399634,
+        0.3394557225801507
+      ],
+      "heldout_relative_squared_output_error": [
+        0.3484829734823219,
+        0.32175480962853886
+      ]
+    },
+    "allocated": {
+      "byte_count": 2028,
+      "errors": [
+        0.2833139170144271,
+        0.2713359627909985
+      ],
+      "dictionary_open": false,
+      "choices": [
+        "sparse",
+        "sparse",
+        "sparse",
+        "sparse",
+        "sparse",
+        "uniform50"
+      ],
+      "total_bytes": 2116,
+      "heldout_relative_squared_output_error": [
+        0.27114933034172434,
+        0.2589501001800129
+      ]
+    },
+    "saving_percent": 19.93946273174423,
+    "limits": [
+      "synthetic only",
+      "linear-output proxy, not perplexity",
+      "no latency/RAM/Android measurement",
+      "dense fallback and outer index accounted, not serialized",
+      "heldout was evaluated only after selection; no heldout acceptance bound claimed"
+    ]
+  },
+  {
+    "data": "SYNTHETIC Gaussian weights and two activation strata; no pretrained model",
+    "seed": 20261105,
+    "weights": 12288,
+    "pages": 6,
+    "baseline": {
+      "page_bytes": 2559,
+      "total_bytes": 2647,
+      "calibration_error_limits": [
+        0.3179819297894189,
+        0.33982975117310604
+      ],
+      "heldout_relative_squared_output_error": [
+        0.3220578793463383,
+        0.32898669814169473
+      ]
+    },
+    "allocated": {
+      "byte_count": 2026,
+      "errors": [
+        0.27752636067110964,
+        0.2664005656605868
+      ],
+      "dictionary_open": false,
+      "choices": [
+        "sparse",
+        "sparse",
+        "sparse",
+        "sparse",
+        "sparse",
+        "uniform50"
+      ],
+      "total_bytes": 2114,
+      "heldout_relative_squared_output_error": [
+        0.2788930705931151,
+        0.2633102365879862
+      ]
+    },
+    "saving_percent": 20.136003022289383,
+    "limits": [
+      "synthetic only",
+      "linear-output proxy, not perplexity",
+      "no latency/RAM/Android measurement",
+      "dense fallback and outer index accounted, not serialized",
+      "heldout was evaluated only after selection; no heldout acceptance bound claimed"
+    ]
+  }
+]

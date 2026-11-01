@@ -1,0 +1,39 @@
+name: CALIBRI v0.12 - shared costs and precision budget
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/shared_cost.py'
+      - 'research/calibri/precision_frontier.py'
+      - 'research/calibri/residual_page.py'
+      - 'research/calibri/hybrid_codec.py'
+      - 'research/calibri/frontier_bench.py'
+      - 'research/calibri/test_budget_v12.py'
+      - '.github/workflows/calibri-budget-v12.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  correctness-and-synthetic-mechanics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1'
+      - name: Exhaustive-oracle, residual and existing codec tests
+        run: python -m unittest discover -s research/calibri -p 'test*.py' -v
+      - name: Synthetic mechanics only - no pretrained model claim
+        run: python research/calibri/frontier_bench.py --output results/calibri_v12_ci_synthetic.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v12-synthetic-mechanics
+          path: results/calibri_v12_ci_synthetic.json
+          retention-days: 14
