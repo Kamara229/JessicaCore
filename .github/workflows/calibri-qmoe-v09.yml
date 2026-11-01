@@ -1,0 +1,41 @@
+name: CALIBRI v0.9 - official QMoE expert benchmark
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/**'
+      - '.github/workflows/calibri-qmoe-v09.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  official-qmoe-expert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      PYTHONPATH: research/calibri
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU torch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned research dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'huggingface_hub==0.27.1' 'safetensors==0.4.5'
+      - name: Run CL8 and EXACT-LIFT symbol regression
+        run: python -m unittest discover -s research/calibri -p 'test_*codec.py' -v
+      - name: Compare to the real QMoE official expert compressed tensor
+        run: python research/calibri/qmoe_real.py --max-matrices 1 --out results/calibri_v09_real_qmoe.json
+      - name: Upload ONLY JSON metrics (NOT model weights)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v09-real-qmoe-metrics
+          path: results/calibri_v09_real_qmoe.json
+          if-no-files-found: ignore
+          retention-days: 14
