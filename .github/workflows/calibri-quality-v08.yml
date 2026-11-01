@@ -32,11 +32,13 @@ jobs:
         run: python -m unittest discover -s research/calibri -p 'test_*.py' -v
       - name: Measure held-out perplexity and physical encoding
         run: python research/calibri/quality.py --output results/calibri_v08_quality.json --calibration-tokens 512 --validation-tokens 1024 --sequence-length 128
+      - name: Select quality-guarded per-module mixed precision on held-out test
+        run: python research/calibri/guard.py --output results/calibri_v08_guard.json --development-tokens 384 --test-tokens 1024 --calibration-tokens 512 --max-dev-ppl-ratio 1.05
       - name: Upload metrics only (no model checkpoint, no personal data)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: calibri-v08-heldout-quality
-          path: results/calibri_v08_quality.json
+          path: results/calibri_v08_*.json
           if-no-files-found: ignore
           retention-days: 14
