@@ -1,6 +1,7 @@
 """CLASS-RANK exactness, real mathematical count/rank and independent rows."""
 import unittest
 import numpy as np
+from hybrid_v13 import encode as hybrid_encode, decode as hybrid_decode
 from class_rank_v13 import (
     BLOCK_CHOICES,P_NONZERO_PRIORS,TABLE,_row_encode,_row_decode,
     encode,decode,read_row,direct_matvec)
@@ -44,6 +45,20 @@ class ClassRankTests(unittest.TestCase):
             got=direct_matvec(b,x,s)
             exp=np.where(q<0,s[:,0,None],np.where(q>0,s[:,1,None],0))@x
             self.assertTrue(np.allclose(got,exp,rtol=1e-11,atol=1e-11))
+    def test_hybrid_correctness_multiple_sparsity(self):
+        rng=np.random.default_rng(13)
+        for pzero in (0.0,.5,.75,.885,1.0):
+            q=rng.choice([-1,0,1],size=(3,128),
+                p=[(1-pzero)/2,pzero,(1-pzero)/2]).astype(np.int8)
+            blob,choice=hybrid_encode(q,group=2)
+            self.assertTrue(np.array_equal(q,hybrid_decode(blob)))
+            self.assertIn(choice["selection"],(
+                "CL8","MASK_HUFF","CLASS_RANK16","CLASS_RANK32","CLASS_RANK64"))
+            self.assertEqual(
+                choice["physical_bytes_with_wrapper"],
+                5+min(choice["bytes_by_codec"].values()))
+        with self.assertRaises(ValueError):hybrid_decode(b"bad!")
+
     def test_truncation_and_bad_row(self):
         q=np.zeros((4,128),dtype=np.int8)
         b=encode(q,block=16,group=2)
