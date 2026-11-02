@@ -27,7 +27,7 @@ from binary_geometry_v64 import MODEL,MODEL_SHA,EXPECTED_UNIQUE
 from quality import DATASET,load_token_ids
 from paid_lowrank_v76 import (
     SOURCE_BYTES,REQUIRED_PHYSICAL_BYTES,MAX_PHYSICAL_BYTES,
-    VALID_CORPORA,tensors,pack,unpack,zero_factors,make_model,
+    DIM,VOCAB,RANK,VALID_CORPORA,tensors,pack,unpack,zero_factors,make_model,
 )
 
 WEIGHT_SCALES=(0.0,0.5,0.75,1.0)
@@ -148,7 +148,7 @@ def freeze(args):
     second=(args.folder/"v78_second_train.cb76").read_bytes()
     meta1=json.loads((args.folder/"v78_first_selection.json").read_text())
     meta2=json.loads((args.folder/"v78_second_selection.json").read_text())
-    if len(first)!=len(second)!=REQUIRED_PHYSICAL_BYTES:
+    if len(first)!=REQUIRED_PHYSICAL_BYTES or len(second)!=REQUIRED_PHYSICAL_BYTES:
         raise AssertionError("cannot verify actually complete original trained source")
     if meta1["chosen_source_step"]!=20 or meta1["chosen_source_mode"]!="rank4":
         raise AssertionError("reproduction no longer freezes v76 TRAIN-only choice")
