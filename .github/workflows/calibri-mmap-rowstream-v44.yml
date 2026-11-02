@@ -4,6 +4,7 @@ on:
     paths:
       - 'research/calibri/mmap_rowstream_worker_v44.py'
       - 'research/calibri/mmap_rowstream_experiment_v44.py'
+      - 'research/calibri/mmap_rowstream_measure_v44.py'
       - 'research/calibri/compare_mmap_rowstream_v44.py'
       - 'research/calibri/SESSION_44.md'
       - '.github/workflows/calibri-mmap-rowstream-v44.yml'
@@ -39,11 +40,16 @@ jobs:
         run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
       - name: Install pinned real source model and dataset dependencies
         run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
-      - name: Compare REAL CT33 and CF15 binary mmap rowwise forwards vs restored trained dense
+      - name: Prepare original pretrained Pythia MLP bundles and genuine activation references
         run: |
           python research/calibri/mmap_rowstream_experiment_v44.py \
-            --output results/calibri_v44_mmap_rowstream.json \
-            --train-tokens 2048 --tokens-per-matrix 8 --repetitions 5
+            --output results/calibri_v44_prepared.json \
+            --train-tokens 2048 --tokens-per-matrix 8 --repetitions 5 --prepare-only
+      - name: Benchmark physical mmap rows in clean independent NumPy-only processes
+        run: |
+          python research/calibri/mmap_rowstream_measure_v44.py \
+            --prepared results/calibri_v44_prepared.json \
+            --output results/calibri_v44_mmap_rowstream.json
       - name: Preserve physical streams, actual activation inputs and truthful speed/RSS
         if: always()
         uses: actions/upload-artifact@v4
@@ -51,6 +57,7 @@ jobs:
           name: calibri-v44-${{ matrix.os }}
           path: |
             results/calibri_v44_mmap_rowstream.json
+            results/calibri_v44_prepared.json
             results/CT33_mixed3_4.bin
             results/CF15_fixed4.bin
             results/CT33_mixed3_4_original_activation_and_dense_reference.npz
