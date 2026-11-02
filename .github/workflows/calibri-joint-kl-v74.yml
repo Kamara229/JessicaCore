@@ -1,0 +1,95 @@
+name: CALIBRI v74 - TRAIN global packed KL selection 12 source variants and two blind TEST domains
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/joint_kl_v74.py'
+      - 'research/calibri/SESSION_74.md'
+      - '.github/workflows/calibri-joint-kl-v74.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original-real-135m-12-candidate-joint-train-kl-and-independent-test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Original pinned CPU trained-source environment
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Syntax and real covariance source toy
+        run: |
+          python -m py_compile research/calibri/activation_metric_v73.py research/calibri/multidim_select_v70.py research/calibri/joint_kl_v74.py
+          python research/calibri/activation_metric_v73.py --smoke
+      - name: Download exact original complete trained 135M CB59 source file
+        run: |
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: Recreate real pretrained 2D Hadamard source using ORIGINAL v70 research algorithm
+        run: |
+          python research/calibri/multidim_select_v70.py --phase build --source input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Recreate genuine real TRAIN 8D covariance fitted 5bit index source using ORIGINAL v73 algorithm
+        run: |
+          python research/calibri/activation_metric_v73.py --source input/CALIBRI_v59_full_direct_sub070.cb59 --candidate results/CALIBRI_v73_TRAIN_8D_full.cb59 --output results/v74_covariance_train_source.json
+      - name: Physically compose all 12 complete pretrained index and multidimensional sources at EXACT source bytes
+        run: |
+          python research/calibri/joint_kl_v74.py --phase build --original input/CALIBRI_v59_full_direct_sub070.cb59 --gauge results/sources/l0_hadamard.cb59 --covariance results/CALIBRI_v73_TRAIN_8D_full.cb59 --folder results
+      - name: Original real pretrained FP32 teacher on frozen independent TRAIN selection corpus
+        run: python research/calibri/joint_kl_v74.py --phase run --corpus train --kind teacher --folder results
+      - name: All 12 ACTUAL native C direct packed full trained models on TRAIN
+        run: |
+          for name in baseline hadamard cov_all hadamard_cov_all cov_q cov_down cov_gate cov_up hadamard_cov_q hadamard_cov_down hadamard_cov_gate hadamard_cov_up; do
+            python research/calibri/joint_kl_v74.py --phase run --corpus train --kind "$name" --folder results
+          done
+      - name: Freeze the TRAIN whole-model KL minimum before loading any TEST
+        run: python research/calibri/joint_kl_v74.py --phase select --folder results
+      - name: New untouched WikiText TEST teacher and packed baseline
+        run: |
+          python research/calibri/joint_kl_v74.py --phase run --corpus wiki_test --kind teacher --folder results
+          python research/calibri/joint_kl_v74.py --phase run --corpus wiki_test --kind baseline --folder results
+      - name: New untouched WikiText TEST frozen TRAIN-selected compact model
+        run: |
+          winner="$(python -c 'import json;print(json.load(open("results/v74_train_choice.json"))["chosen"])')"
+          if [ "$winner" != baseline ]; then
+            python research/calibri/joint_kl_v74.py --phase run --corpus wiki_test --kind "$winner" --folder results
+          fi
+      - name: New unseen AG News TEST 1000-1100 teacher and packed baseline
+        run: |
+          python research/calibri/joint_kl_v74.py --phase run --corpus news_test --kind teacher --folder results
+          python research/calibri/joint_kl_v74.py --phase run --corpus news_test --kind baseline --folder results
+      - name: New unseen AG News TEST frozen TRAIN-selected compact model
+        run: |
+          winner="$(python -c 'import json;print(json.load(open("results/v74_train_choice.json"))["chosen"])')"
+          if [ "$winner" != baseline ]; then
+            python research/calibri/joint_kl_v74.py --phase run --corpus news_test --kind "$winner" --folder results
+          fi
+      - name: Confirm full physical source ABI + signed heldout 2-domain actual whole-model KL/NLL
+        run: python research/calibri/joint_kl_v74.py --phase audit --folder results
+      - name: Upload measured reports ONLY, no model weights, confidential logits or dataset text
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v74-real-12-candidate-joint-KL-and-blind-TEST
+          path: |
+            results/v74_source_manifest.json
+            results/v74_covariance_train_source.json
+            results/v74_train_choice.json
+            results/v74_independent_test.json
+          retention-days: 7
+          if-no-files-found: ignore
