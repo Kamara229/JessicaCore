@@ -94,12 +94,20 @@ def qa_dataset(tok):
         lo,hi=SCI_Q_RANGE if task=="sciq" else BOOLQ_RANGE
         if len(rows)<hi:raise AssertionError("original task has too few cases")
         cases=[]
+        rejected_duplicates=[]
         for idx in range(lo,hi):
             r=rows[idx]
             if task=="sciq":
                 answers=[r["correct_answer"],r["distractor1"],
                          r["distractor2"],r["distractor3"]]
-                if len(set(answers))<4:raise AssertionError("duplicate SciQ candidates")
+                if len(set(answers))<4:
+                    # Some official SciQ rows have repeated distractors.
+                    # A correct answer cannot be uniquely evaluated among
+                    # duplicate choices; exclude by an explicit source-data
+                    # validity rule, identically for EVERY model. Keep the
+                    # source row index in signed outcome metadata.
+                    rejected_duplicates.append(idx)
+                    continue
                 random.Random(770000+idx).shuffle(answers)
                 target=answers.index(r["correct_answer"])
                 formatted="\n".join(f"{OPTION_LETTERS[i]}. {answer}"
@@ -127,6 +135,9 @@ def qa_dataset(tok):
         data[task]={"dataset":name,"revision":rev,"split":split,
                     "range":[lo,hi],"cases":cases,"signature":signature,
                     "chance_accuracy":1/(4 if task=="sciq" else 2),
+                    "original_rows_precommitted":hi-lo,
+                    "excluded_original_duplicate_choice_rows":rejected_duplicates,
+                    "nonduplicate_source_row_exclusion_rule_uniform_across_models":True,
                     "limitations":{
                       "sciq_support_paragraph_excluded":task=="sciq",
                       "boolq_passage_first_128_tokens_only":task=="boolq"}}
