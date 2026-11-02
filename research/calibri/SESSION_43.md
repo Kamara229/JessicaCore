@@ -35,3 +35,91 @@ A positive monotonic quality-vs-rate trend would provide evidence that this part
 These bundles store ONLY the 12 MLP matrices and are not complete model checkpoints. There is NO byte-backed GEMM, ARM/mobile performance, full-model memory saving, successful end-to-end deployment, SwitchTransformer/QMoE reproduced 0.8bpw, or newly invented learned multidimensional neural architecture.
 
 Research only: isolated branch and draft PR, NEVER change main, working Jessica, Render, Supabase, APK, data or ordinary Jessica chat tests.
+
+
+## ACTUAL v43 results — GitHub Actions 41364750930, all 3 jobs PASS
+
+Real pretrained `EleutherAI/pythia-14m`, original 12 MLP matrices
+(786,432 actual trained coefficients), physically encoded on TWO fresh
+independent GitHub hosted CPU runners (Ubuntu22/Ubuntu24), checked
+through third CI job. The final crosshost verifier reported:
+
+- `integrity_pass: true`, `errors: []`;
+- `physical_source_binaries_bitwise_equal: true`;
+- `PPL_bitwise_identical_across_hosts: true` on ALL measured corpora
+  and methods **for this v43 run** (do not extrapolate to every CPU,
+  as v42 PPL differed slightly despite identical physical SHA).
+- The 2048 TRAIN-A / disjoint TRAIN-B frozen one-shot gate
+  independently returned `accept_joint` on both hosts;
+  3.5bpw frozen physical MLP hashes matched v41/v42.
+
+### Physical rate–quality curve (ACTUAL read-back bytes)
+
+The measured effective bpw INCLUDES all real per-matrix signed
+physical symbols, FP16 row scales, CF15/CT33 framing and CRC,
+plus the outer CB36 manifest/outer SHA256. These files are ONLY
+the twelve MLP projections, not the entire runnable model.
+
+| Predeclared method: all 12 real MLPs | Real physical bytes | Effective bits / MLP coefficient | WikiText2 DEV PPL (seen) | FIRST-USE OpenBookQA validation PPL | FIRST-USE SNLI validation PPL |
+|---|---:|---:|---:|---:|---:|
+| Uncompressed pretrained original (theoretical MLP FP16 = 1,572,864 B, not physical full checkpoint) | N/A (FP16 MLP reference 1,572,864) | reference 16 | **173.38149** | **60.93545** | **16.07384** |
+| 3/4-bit LOCAL, uncalibrated | **343,840** | **3.49772** | 1620.40231 | 379.81002 | 146.56130 |
+| 3/4-bit LOCAL, TRAIN-calibrated | **343,840** | **3.49772** | 440.06428 | 162.15387 | 39.38730 |
+| 3/4-bit JOINT TRAIN-calibrated, B-gated accepted | **343,840** | **3.49772** | **437.00548** | **161.30903** | **39.31210** |
+| CF15 fixed INT4, original FP16 per-row scales | **401,224** | **4.08146** | 372.07758 | 101.40283 | 29.05689 |
+| CF15 INT4, same bytes, TRAIN-A diagonal-moment scale calibration | **401,224** | **4.08146** | **269.70934** | **96.25947** | **24.55764** |
+| CF15 fixed INT5, original per-row scales | **499,528** | **5.08146** | 204.65985 | 72.51103 | 17.99672 |
+| CF15 INT5, same bytes, TRAIN-A scale calibration | **499,528** | **5.08146** | **192.90302** | **66.32299** | **17.41028** |
+| CF15 fixed INT6, original per-row scales | **597,832** | **6.08146** | 180.38630 | 64.44285 | 16.61691 |
+| CF15 INT6, same bytes, TRAIN-A scale calibration | **597,832** | **6.08146** | **179.84080** | **63.68684** | **16.27521** |
+
+Original Pythia attention/embedding/norms were unchanged in every
+PPL test. We physically loaded each actual CRC+SHA-protected binary
+and restored all twelve MLP weights as DENSE tensors before
+computing full-model PPL. No native packed inference/timing was
+measured. First-use excerpts were fixed 2048 Pythia tokens each,
+not OpenBookQA exact-answer accuracy or SNLI entailment accuracy.
+
+### Decision
+
+**Clear, non-flat physical size–quality tradeoff.** On first-use
+OpenBookQA, going from 3.49772bpw calibrated joint
+**161.30903** PPL to 4.08146bpw calibrated fixed INT4
+**96.25947**, 5.08146bpw calibrated fixed INT5 **66.32299**,
+and 6.08146bpw calibrated fixed INT6 **63.68684**. Original
+uncompressed teacher remains **60.93545**. On new SNLI,
+the same points are **39.31210 → 24.55764 → 17.41028 →
+16.27521**, original **16.07384**.
+
+**Important boundary:** even at **6.08146 physical bpw**,
+the calibrated full-model model has worse PPL than uncompressed
+teacher on both new external corpora; 3.49772bpw remains
+far below the model's acceptable rate–quality range. The jump
+from ~3.5→4.08 physical bpw brings substantial absolute
+quality benefit and a new codec family (mixed CT33 vs fixed CF15),
+so this is an OBSERVED curve of specific codecs and calibrations,
+not proof of optimal 3.5-bpw rate allocation or a globally optimal
+information-theoretic Pareto frontier.
+
+**At identical within-rate physical bytes**, the frozen TRAIN-A
+scale calibration improved all three tested CF15 4/5/6-bit methods
+in both first-use corpora. Especially raw→calibrated INT4
+OpenBookQA PPL 101.40283→96.25947 and SNLI
+29.05689→24.55764 at SAME 401,224 B. This supports
+the effectiveness of training-only scale calibration for this
+specific model, not novelty, and not a native speed gain.
+
+**Next gated experiment**: refrain from more single-corpus tuning;
+check actual BYTE-BACKED blockwise inference and memory peak on the
+SAME physical files to resolve whether compressed storage can be
+used without restoring all dense MLP tensors. Prefer a native
+compiled block/GEMM implementation only AFTER measuring a
+well-defined memory + throughput baseline; separately calculate
+actual physical storage for embeddings/attention if ever moving
+toward a full checkpoint. Do not claim Switch/QMoE 0.8bpw,
+multidimensional new trained weights, or whole-model practical
+performance gains from this experiment.
+
+All experiments isolated to draft PR #173 research branch;
+main, Render, Supabase, APK, working Jessica and its ordinary
+chat were not changed.
