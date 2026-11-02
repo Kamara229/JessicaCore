@@ -1,0 +1,71 @@
+name: CALIBRI v69 - native full packed model teacher KL at fixed 0.6678bpw
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/full_quality_v69.py'
+      - 'research/calibri/gqa_gauge_v68.py'
+      - 'research/calibri/SESSION_69.md'
+      - '.github/workflows/calibri-full-model-v69.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real-native-two-archive-full-model-quality:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pinned CPU package environment
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Compile smoke and syntax check
+        run: |
+          python -m py_compile research/calibri/gqa_gauge_v68.py research/calibri/full_quality_v69.py
+      - name: Download original fully compressed trained source
+        run: |
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: Rebuild mathematically gauged exact same-size complete pretrained archive
+        run: |
+          python research/calibri/gqa_gauge_v68.py --source input/CALIBRI_v59_full_direct_sub070.cb59 --output results/calibri_v69_gauge_source_audit.json --candidate results/CALIBRI_v69_gauged_complete.cb59
+      - name: Genuine teacher FP32 in a separate process
+        run: |
+          python research/calibri/full_quality_v69.py --phase teacher --folder results
+      - name: Native packed original CB59, no trained dense matrices or teacher
+        run: |
+          python research/calibri/full_quality_v69.py --phase original --source input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Native packed gauged CB59, no trained dense matrices or teacher
+        run: |
+          python research/calibri/full_quality_v69.py --phase gauged --candidate results/CALIBRI_v69_gauged_complete.cb59 --folder results
+      - name: Compare complete model original and candidate against same genuine teacher
+        run: |
+          python research/calibri/full_quality_v69.py --phase compare --folder results
+      - name: Upload JSON metrics and hashes ONLY, never source checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v69-native-full-model-quality-audit
+          path: |
+            results/calibri_v69_full_model_quality.json
+            results/v69_teacher.json
+            results/v69_original.json
+            results/v69_gauged.json
+            results/calibri_v69_gauge_source_audit.json
+          retention-days: 7
+          if-no-files-found: ignore
