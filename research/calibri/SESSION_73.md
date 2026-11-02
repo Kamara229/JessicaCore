@@ -36,3 +36,29 @@ Ordentlich & Polyanskiy, *Optimal Quantization for Matrix Multiplication*; GPTQ 
 
 ## CI result
 Pending at preregistration. Log actual metrics and any failures here after verification.
+
+## VERIFIED REAL numerical outcome — GitHub Actions run 41536784680 (2026-11-02 UTC)
+
+**Integrity PASS; full language-quality HYPOTHESIS FALSIFIED.** Exact original full source plus new trained-activation 8D quadratic-code candidate: **both 11,229,303 physical B = 0.6678394131307638 bpw**, trained 134,515,008 unique params, all original 5-bit K32×8 centroids/FP16 scales/1D tensors and aliases preserved, no additional side bits; original C direct-5-bit GEMV full-model kernel and trained-2D-free student execution verified.
+
+**Actual pretrained TRAIN selection** on WikiText first 256 TRAIN tokens, 256 frozen source output rows per matrix: all four selected full 8D activation covariance (not diagonal or original) by the predeclared 0.5% layer-output threshold. Original vs TRAIN-selected **real teacher layer response** normalized errors:
+- Layer 0 q: 0.47002 → **0.40317**, 9,782 modified 5bit source symbols.
+- Layer 0 MLP down: 0.62452 → **0.53965**, 22,153 modified 5bit symbols.
+- Layer 15 MLP gate: 0.67197 → **0.51084**, 5,486 modified 5bit symbols.
+- Layer 29 MLP up: 0.82268 → **0.46033**, 6,925 modified 5bit symbols.
+- Total: **44,346 modified EXISTING five-bit indices**, **zero additional source bytes**, no new executable format.
+
+**Independent entire native pretrained LLM evaluation (TEST tokens [40000,40256), four 64-token windows, 252 next-token positions):**
+
+| Whole-model metric | Original physical CB59 | TRAIN-selected 8D covariance codec | Result |
+|---|---:|---:|---|
+| FP32 teacher→packed mean KL (nats; lower better) | **10.6538** | **12.1336** | **NEGATIVE: +1.4798 nats** |
+| Real next-token NLL (nats; lower better) | **14.1629** | **15.4635** | **NEGATIVE: +1.3006 nats** |
+| Native C full 256-token context prefill CPU time | **5.359 s** | 5.366 s | Slightly worse; not accelerated |
+| Physically complete stored original pretrained model | 11,229,303 B | 11,229,303 B | Same exact size |
+
+**Interpretation:** Local source TRAIN activation-covariance 8D assignments yield substantial reductions in module output error on the teacher-forced TRAIN activations, but **harm actual auto-regressive full-model logits/NLL on independent TEST**. This is an important negative result—TRAIN layer-input response error is NOT a reliable proxy for the strong error propagation across quantized layers. Quantization mismatch may alter internal activation distributions and later-layer interactions; do not assert causality without further ablation. No general QA improvement or speed improvement. Moreover, both original and candidate output distributions remain extremely poor relative to original teacher. Do **NOT** promote v73 covariance-coded source to Jesssica or claim the sub0.7 problem solved.
+
+**Next decision:** stop adding isolated layer-output metrics as if they were model competence. Next session should explicitly model the **joint** quantization errors across modules using true packed-model trajectories, with a global TRAIN-only output KL objective, cautious source edits and comprehensive TEST/QA/CPU measurement. Better candidate class: small low-rank binary/2D block factor + task-aware residuals under a fully serialized global bit allocator. A new method should earn its complexity in direct packed inference at ≤0.700bpw, not only improve teacher-forced local error. Keep prior negative results visible.
+
+Verified CI: https://github.com/Kamara229/JessicaCore/actions/runs/41536784680 ; draft research PR #203, production untouched.
