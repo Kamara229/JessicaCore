@@ -1,0 +1,102 @@
+name: CALIBRI v60 - 256row tiled source books 0.70bpw real packed 135M
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/tiled_codebook_v60.py'
+      - 'research/calibri/tiled_kernel_v60.c'
+      - 'research/calibri/tiled_runtime_v60.py'
+      - 'research/calibri/tiled_experiment_v60.py'
+      - 'research/calibri/compare_tiled_v60.py'
+      - 'research/calibri/SESSION_60.md'
+      - '.github/workflows/calibri-tiled-v60.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare-pretrained-same-source-v59-v60-packed-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      ATEN_CPU_CAPABILITY: avx2
+      DNNL_MAX_CPU_ISA: AVX2
+      ONEDNN_MAX_CPU_ISA: AVX2
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      CALIBRI_PINNED_SOURCE: 12fd25f77366fa6b3b4b768ec3050bf629380bac
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned PyTorch CPU original model and native runtimes
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned open pretrained Llama source and data dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Compile both codecs and verify actual multi-tile C packed GEMV vs synthetic dense oracle
+        run: |
+          python -m py_compile research/calibri/tiled_codebook_v60.py research/calibri/tiled_runtime_v60.py research/calibri/tiled_experiment_v60.py research/calibri/compare_tiled_v60.py
+          python research/calibri/tiled_codebook_v60.py
+          python research/calibri/tiled_runtime_v60.py
+      - name: Real source-only physical complete 135M v59 control and v60 localized codebooks, hard <=0.70bpw
+        run: python research/calibri/tiled_experiment_v60.py --stage encode --output results --source-revision "$CALIBRI_PINNED_SOURCE"
+      - name: Separate ORIGINAL real pretrained model on four first-use development prompts with true KV
+        run: python research/calibri/tiled_experiment_v60.py --stage teacher --output results --source-revision "$CALIBRI_PINNED_SOURCE"
+      - name: Separate TEACHER-FREE packed-only two full-model v59/v60 native C runtimes
+        run: python research/calibri/tiled_experiment_v60.py --stage packed --output results --source-revision "$CALIBRI_PINNED_SOURCE"
+      - name: Compare matched original source reconstruction, next-token KL, byte overhead and real full model direct execution
+        run: python research/calibri/tiled_experiment_v60.py --stage compare --output results --source-revision "$CALIBRI_PINNED_SOURCE"
+      - name: Save all physical trained 135M sources, source-only errors and real 4-prompt metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v60-${{ matrix.os }}
+          path: |
+            results/calibri_v60.json
+            results/calibri_v60_encode.json
+            results/calibri_v60_packed.json
+            results/calibri_v60_teacher.json
+            results/CALIBRI_v60_control_unchanged_CB59.cb59
+            results/CALIBRI_v60_candidate_tiled_CB60.cb60
+          retention-days: 7
+          if-no-files-found: ignore
+  independent-physical-130m-native-and-quality-check:
+    needs: compare-pretrained-same-source-v59-v60-packed-native
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calibri-v60-ubuntu-*
+          path: results/runs
+          merge-multiple: false
+      - name: Independently verify real source SHA and storage <=0.7, packed KV and measured KL/RMSE differences
+        run: |
+          python research/calibri/compare_tiled_v60.py \
+            --a results/runs/calibri-v60-ubuntu-22.04/calibri_v60.json \
+            --b results/runs/calibri-v60-ubuntu-24.04/calibri_v60.json \
+            --output results/calibri_v60_crosshost.json
+      - name: Preserve audit of exact entire on-disk sub07 source and quality regression
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v60-crosshost
+          path: results/calibri_v60_crosshost.json
+          retention-days: 7
+          if-no-files-found: ignore
