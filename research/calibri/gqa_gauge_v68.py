@@ -131,6 +131,7 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--source",type=Path,required=True)
     parser.add_argument("--output",type=Path,required=True)
+    parser.add_argument("--candidate",type=Path,default=None,help="Optional physical complete candidate source; research-only")
     args=parser.parse_args()
     torch.set_num_threads(2)
     torch.set_grad_enabled(False)
@@ -255,6 +256,11 @@ def main():
            "seconds":time.monotonic()-begun}
     assert len(new_blob)==len(original_blob)==11229303
     assert 8*len(new_blob)/EXPECTED_UNIQUE<=.7
+    if args.candidate is not None:
+        args.candidate.parent.mkdir(parents=True,exist_ok=True)
+        args.candidate.write_bytes(new_blob)
+        if hashlib.sha256(args.candidate.read_bytes()).hexdigest()!=audit["candidate_SHA256"]:
+            raise AssertionError("physically persisted candidate hash mismatch")
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_text(json.dumps(audit,indent=2,ensure_ascii=False)+"\n")
     print(json.dumps({"layers":len(experiments),
