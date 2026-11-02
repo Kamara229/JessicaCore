@@ -1,0 +1,101 @@
+name: CALIBRI v61 - real 0.70bpw activation error-syndrome direct 135M
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/syndrome_codebook_v61.py'
+      - 'research/calibri/syndrome_runtime_v61.py'
+      - 'research/calibri/syndrome_experiment_v61.py'
+      - 'research/calibri/compare_syndrome_v61.py'
+      - 'research/calibri/SESSION_61.md'
+      - '.github/workflows/calibri-syndrome-v61.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  full-source-135m-sparse-error-syndrome-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 80
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      ATEN_CPU_CAPABILITY: avx2
+      DNNL_MAX_CPU_ISA: AVX2
+      ONEDNN_MAX_CPU_ISA: AVX2
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      CALIBRI_PINNED_SOURCE: 12fd25f77366fa6b3b4b768ec3050bf629380bac
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU PyTorch source and native packed runtime
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned source trained model and WikiText calibration dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Compile codec and verify CRC SHA/native packed 5bit plus physical FP16 syndrome toy
+        run: |
+          python -m py_compile research/calibri/syndrome_codebook_v61.py research/calibri/syndrome_runtime_v61.py research/calibri/syndrome_experiment_v61.py research/calibri/compare_syndrome_v61.py
+          python research/calibri/syndrome_codebook_v61.py
+          python research/calibri/syndrome_runtime_v61.py
+      - name: Real full pretrained 135M CB59 and coded residual CB61 <=0.70bpw trained activations only
+        run: python research/calibri/syndrome_experiment_v61.py --stage encode --output results --source-revision "$CALIBRI_PINNED_SOURCE"
+      - name: Independent original trained FP32 teacher process on eight NEW dev prompts
+        run: python research/calibri/syndrome_experiment_v61.py --stage teacher --output results --source-revision "$CALIBRI_PINNED_SOURCE"
+      - name: Independent teacher-free CB59 and CB61 full pretrained 5bit direct students with KV
+        run: python research/calibri/syndrome_experiment_v61.py --stage packed --output results --source-revision "$CALIBRI_PINNED_SOURCE"
+      - name: Compare true teacher vs actual compressed direct model native corrections and numerical quality
+        run: python research/calibri/syndrome_experiment_v61.py --stage compare --output results --source-revision "$CALIBRI_PINNED_SOURCE"
+      - name: Preserve entire source CB59 CB61 actual physical archives and KL evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v61-${{ matrix.os }}
+          path: |
+            results/calibri_v61.json
+            results/calibri_v61_encode.json
+            results/calibri_v61_packed.json
+            results/calibri_v61_teacher.json
+            results/CALIBRI_v61_original_physical_CB59.cb59
+            results/CALIBRI_v61_physical_syndrome_CB61.cb61
+          retention-days: 7
+          if-no-files-found: ignore
+  independent-crosshost-real-source-and-syndrome:
+    needs: full-source-135m-sparse-error-syndrome-native
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calibri-v61-ubuntu-*
+          path: results/runs
+          merge-multiple: false
+      - name: Independently recompute physical full source+residual rate, native inference and 8-prompt KL
+        run: |
+          python research/calibri/compare_syndrome_v61.py \
+            --a results/runs/calibri-v61-ubuntu-22.04/calibri_v61.json \
+            --b results/runs/calibri-v61-ubuntu-24.04/calibri_v61.json \
+            --output results/calibri_v61_crosshost.json
+      - name: Preserve verified scientific results including possible failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v61-crosshost
+          path: results/calibri_v61_crosshost.json
+          retention-days: 7
+          if-no-files-found: ignore
