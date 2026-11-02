@@ -143,11 +143,10 @@ def toy():
     centroids=np.random.randn(32,8).astype(np.float32)*0.1
     scale=np.ones(m,dtype=np.float32)
     src=np.random.randint(0,32,(m,n//8),dtype=np.uint8)
-    class Handle:
-        shape=(m,n)
-        row_scales=scale
-        centroids=centroids
-        packed=np.frombuffer(pack5(src.reshape(-1)),dtype=np.uint8)
+    from types import SimpleNamespace
+    Handle=SimpleNamespace(
+        shape=(m,n), row_scales=scale, centroids=centroids,
+        packed=np.frombuffer(pack5(src.reshape(-1)),dtype=np.uint8))
     W=(centroids[src].reshape(m,n)*scale[:,None] +
        np.random.randn(m,n).astype(np.float32)*0.01)
     X=np.random.randn(32,n).astype(np.float32)
