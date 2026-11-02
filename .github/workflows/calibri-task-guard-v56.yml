@@ -47,7 +47,7 @@ jobs:
           python research/calibri/tensor_cap_v51.py
           python research/calibri/bootstrap_gate_v55.py
           python research/calibri/task_guard_v56.py
-      - name: Measure frozen trained full INT6 SSE row allocations and blind PPL/warm speed
+      - name: Measure frozen full-model INT6, TRAIN task safeguard, 64-case heldout answer quality and warm speed
         run: python research/calibri/task_guard_experiment_v56.py --output results/calibri_v56.json
       - name: Preserve every physical pretrained file, corrections, positive and negative tests
         if: always()
@@ -78,17 +78,17 @@ jobs:
           pattern: calibri-v56-ubuntu-*
           path: results/runs
           merge-multiple: false
-      - name: Verify crosshost physically identical source AND correction SHA, PPL, true full model warm SLA
+      - name: Independently verify physical SHA, paired bootstrap, TRAIN accuracy guard, HELDOUT 64-item correctness and warm speed
         run: |
           python research/calibri/compare_task_guard_v56.py \
             --a results/runs/calibri-v56-ubuntu-22.04/calibri_v56.json \
             --b results/runs/calibri-v56-ubuntu-24.04/calibri_v56.json \
-            --output results/calibri_v49_crosshost.json
+            --output results/calibri_v56_crosshost.json
       - name: Preserve final independent verdict
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: calibri-v56-crosshost-verdict
-          path: results/calibri_v49_crosshost.json
+          path: results/calibri_v56_crosshost.json
           retention-days: 14
           if-no-files-found: ignore
