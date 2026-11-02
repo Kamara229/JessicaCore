@@ -67,3 +67,93 @@ unrevised evidence, but the new independently allocated
 process RSS results are the only candidate values for the
 final memory claim. This is a **measurement-isolation fix**,
 not tuning to improve numerical speed or source fidelity.
+
+
+## ACTUAL final v44 result — independent GitHub Actions 41365885159 (all 3 jobs PASS)
+
+After fixing the **spurious inherited 2.1-GiB `ru_maxrss` metric**
+in initial run 41365548158 by splitting original PyTorch model/data
+preparation and lightweight NumPy workers into independent GitHub
+Actions steps (no changes to original model, quantizers, or
+functional benchmark), both hosted Ubuntu CPU measurement jobs
+and the strict independent comparator completed successfully.
+
+The cross-host checker returned
+`source_and_physical_integrity_pass=true`, `issues=[]`.
+Both independently loaded genuine pretrained Pythia-14M source
+matrices (12 MLPs, 786,432 trained coefficients), real 2,048-token
+WikiText TRAIN activation captures and the v43 physical encodings.
+The binary files and original source/activation token SHA agree:
+
+- **CT33 signed mixed3/4** TRAIN-calibrated local:
+  **343,840 B** (3.497721bpw), SHA256
+  `cd0209af68cf07a8dc81b0c9565e3e9971454e5f80840c7afaa2a4018ba1f64c`.
+- **CF15 signed fixed INT4** TRAIN-calibrated:
+  **401,224 B** (4.081462bpw), SHA256
+  `5ac33872a0fe6df80cc16b70b356a1d385d823f4babf98c4d9cc124cd942cbd9`.
+
+Both physical files were truly written to disk, read and
+SHA/CRC validated; `mmap_stream` unpacked and multiplied at most
+**16 rows × 512 input columns × 4 FP32 = 32,768 bytes** of
+temporary decoded source weight scratch, NEVER a complete
+pretrained source MLP weight matrix. The separate `dense_restored`
+process retained ALL **786,432 × 4 = 3,145,728 bytes** of FP32
+source MLP coefficient arrays. Actual Pythia module input vectors
+comprised **8 genuine TRAIN tokens per MLP**, not synthetic data.
+All 12 rows-matmul outputs agreed with independent fully decoded
+physical reference outputs to at worst **3.815×10⁻⁶** across
+both hosts; each worker used 2 cache-warm warmups + 5 measured
+12-matrix-forward repetitions.
+
+| Physical codec / runner | Packed mmap median, 12 real MLP matmuls (ms) | Restored dense NumPy median (ms) | Packed / dense latency (×; higher is WORSE) | Peak mmap process RSS (KiB) | Peak dense process RSS (KiB) |
+|---|---:|---:|---:|---:|---:|
+| CT33 3/4-bit, Ubuntu 22.04 | **122.504** | **0.202** | **606.0× slower** | **39,980** | **43,456** |
+| CF15 INT4, Ubuntu 22.04 | **121.765** | **0.191** | **637.3× slower** | **40,132** | **43,720** |
+| CT33 3/4-bit, Ubuntu 24.04 | **200.333** | **0.675** | **296.9× slower** | **45,256** | **48,604** |
+| CF15 INT4, Ubuntu 24.04 | **200.792** | **0.670** | **299.7× slower** | **45,472** | **48,736** |
+
+These RSS peaks now come from separately launched **NumPy-only
+subprocesses after the heavy PyTorch parent had exited**.
+The observed whole-process peak RSS reduction is approximately
+**3,264–3,588 KiB** (depending on codec and host). These are
+only process high-water measurements for short independent
+12-projection microbenchmarks, **NOT** complete LLM runtime
+RAM or an end-to-end benchmark. All source MLP FP32 weight
+arrays avoided total 3.0 MiB, consistent with the direction
+of the RSS difference; other Python, NumPy, mmap and input
+allocation overheads remain.
+
+**Scientific/engineering conclusion:**
+
+1. **Feasibility positive:** physically stored and checksummed
+   pretrained compressed weights CAN be read blockwise directly
+   from a real file and multiplied with true Pythia inputs with
+   correctly bounded 32KiB decoded weight scratch; all 12 MLP
+   outputs match their restored dense physical sources to
+   approximately 4×10⁻⁶.
+2. **Performance severely negative:** this unfused
+   Python+NumPy mmap row decoder is **~297–637× slower**
+   than the separate dense NumPy/GEMM baseline for this
+   8-token / 12-projection cached-data microbenchmark.
+   Therefore the present approach is NOT a practical fast
+   compressed execution engine, even though the limited
+   per-process RAM sample is smaller. Do not conflate
+   executable byte streaming with optimized native speed.
+3. **Next gate:** develop a self-contained **compiled/native**
+   fused packed-row decode × GEMM microkernel or block decode+
+   native GEMM implementation and compare its true output,
+   source bytes, original activation inputs, wall time
+   and peak RSS to exactly these pinned physical formats;
+   use same methods and no artificial accuracy promises.
+   Include a fair **native dense** BLAS baseline, not only
+   a Python overhead benchmark. A full model inference
+   endpoint with packed layers is a *separate* subsequent
+   engineering milestone.
+
+No full-model compressed file or actual full model memory
+reduction, new learned multidimensional tensor architecture,
+Switch QMoE 0.8bpw success, native packed speedup,
+mobile/ARM generalization or user-facing Jessica test
+has been demonstrated. All modifications remain isolated
+in PR #174; no changes to main, Render, Supabase, APK
+or production Jessica.
