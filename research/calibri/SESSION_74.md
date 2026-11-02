@@ -38,3 +38,48 @@ Use WikiText-2 `train` token indices **4096:4352**, 4 windows ×64, 252 next-tok
 
 ## Verified CI outcome
 Pending at preregistration. Record literal signed global TRAIN and TEST results only after independent workflow completes.
+
+## VERIFIED real CI findings — 2026-11-02 UTC, run 41537733285
+
+**INFRASTRUCTURE PASS, scientific full-model cross-domain generalization FAIL.** The completed Ubuntu22.04 GitHub Actions workflow built and integrity-checked all 12 *genuinely source-complete* trained 135M native-5bit CB59 candidate checkpoints. Every actual physical source measures EXACT **11,229,303 bytes = 0.6678394131307638 bits/unique pretrained parameter** including all 1D weights, FP16 centroids/scales, manifest, tied aliases and checksums. The original native C direct-packed full model executed teacher-free; no additional runtime ABI or original trained dense 2D source weights loaded.
+
+### Pre-committed TRAIN-only whole-model selection: genuine trained source
+4×64 WikiText TRAIN source contexts, indices [4096,4352), mean FP32 teacher→native packed full-model KL:
+
+| Original-source candidate | Real full-model TRAIN KL (nats) |
+|---|---:|
+| Original CB59 baseline | 10.61790 |
+| 2D V/O Hadamard only | 10.61441 |
+| **8D covariance edits in all four tensors** | **10.06250** |
+| Hadamard + all four 8D | 10.72880 |
+| 8D q only | 10.63858 |
+| 8D down only | 10.20577 |
+| 8D gate only | 10.59860 |
+| 8D up only | 10.50220 |
+| Hadamard+8D q | 10.63430 |
+| Hadamard+8D down | 10.94949 |
+| Hadamard+8D gate | 10.64182 |
+| Hadamard+8D up | 10.62045 |
+
+The frozen minimum `cov_all` improves genuine whole packed-model TRAIN KL by **−0.55540 nats**, above the predeclared 0.05-nat threshold, and was selected and stored **before opening either TEST dataset**. TRAIN NLL original 14.21246 vs selected 13.65977 (−0.55269 nats). This is *not* proof of unseen performance.
+
+### Independently evaluated two genuine TEST domains, frozen before TRAIN selection
+Each official heldout test domain has **8 ×64-token contexts (504 next-token predictions)**; both physical checkpoint files and CPU compressed runtime unchanged from TRAIN.
+
+| Actual TEST corpus metric | Original packed CB59 | Frozen `cov_all` 8D | Change |
+|---|---:|---:|---:|
+| WikiText-2 TEST tokens [50000,50512), KL teacher→packed (nats) | 10.66333 | **10.49060** | **−0.17274** (smaller is better) |
+| WikiText-2 TEST NLL | 14.14146 | **13.85621** | **−0.28525** (improved) |
+| AG News TEST records [1000,1100), KL teacher→packed (nats) | **9.66904** | 10.59238 | **+0.92334** (worse) |
+| AG News TEST NLL | **13.69314** | 14.65448 | **+0.96135** (worse) |
+
+**DECISION: NEGATIVE for robust quality.** Whole-model TRAIN-KL optimization mitigated the isolated-teacher-output proxy problem for the *training distribution* but chose a source variant that does NOT transfer to independent AG News. The news regression (+0.923 KL, +0.961 NLL) is large relative to the WikiText improvement; this is a mixed result, not robust compression quality success. The original baseline and 8D candidate both remain far below original trained language-model usefulness (teacher-relative KL ~9.7–10.7 nats; candidate absolute heldout NLL ~13.9–14.7). Native CPU time was logged but is NOT shown as a speed improvement: source code and C operator are unchanged, no low-latency performance claim.
+
+The naive GQA pairwise Hadamard composition is not additive with all covariance edits: TRAIN KL `hadamard_cov_all` (10.72880) was worse than each individually, a real **negative interaction** among two techniques supposedly helpful in isolation. This supports measuring full-model interactions rather than presuming methods can be stacked.
+
+Scientific limitations: small frozen data slices; v73 covariance component was originally TRAIN-fitted using WikiText early tokens; optimizing with WikiText TRAIN further risks distribution-specific specialization; AG News records are distinct from v71's first 300 records but still English short news; teacher logits temporarily FP16 in metric; no label-based QA or free-form correctness, no second trained model, no multi-host inference-speed control.
+
+### Proposed next gate v75
+Do **NOT** promote `cov_all` into Jessica or assert ultra-low-bit model competence. Pre-register a genuinely **cross-domain TRAIN** optimization objective with a *worst-domain/generalization penalty*, and compare against baseline and earlier Hadamard under untouched independent per-domain TEST sets. Consider input distribution robustness, final full-model teacher→student KL, per-layer residual propagation, and an actual bit-allocation/stronger 8D or binary factor codec only with fully counted source metadata and native decoder speed. A quality improvement must exceed candidate variance on unseen QA and generation, not only conditional-language KL. Preserve all unsuccessful variants in the research record.
+
+Verified GitHub Actions run: https://github.com/Kamara229/JessicaCore/actions/runs/41537733285. Draft research PR #204 remains isolated. Live Jessica, Render, Supabase, APK and main were not modified.
