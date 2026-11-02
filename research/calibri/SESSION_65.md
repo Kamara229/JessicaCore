@@ -34,3 +34,19 @@ For every rotation, fit gains by source-weight LS or real WikiText TRAIN activat
 First develop a global physical bit allocator and source-to-factor mixed-format experiment, including a *single* new <=0.700bpw full archive (all tensors, tied weights and CRC) and direct binary source kernel. Then train/validate on disjoint 2048-token windows and downstream QA, compare against v61 and exact teacher. If v65 remains mixed, use analytic source covariance/task-loss error shaping C01/C17 and true iterative binary factor adaptation rather than stage another near-uniform index entropy coding experiment.
 
 References: LittleBit (NeurIPS 2025) https://proceedings.nips.cc/paper_files/paper/2025/hash/a917c1d57088897beba47f96b4fd7f3c-Abstract-Conference.html ; LittleBit-2 (ICML 2026) https://proceedings.mlr.press/v306/lee26y.html ; NanoQuant (ICML 2026) https://proceedings.mlr.press/v306/chong26a.html ; CALIBRI v64 record research/calibri/SESSION_64.md .
+
+
+## VERIFIED RESULT — run 41526555083, 2026-11-02
+
+The real source artifacts, real pinned pretrained weights and independent teacher TRAIN/VALID activations all passed; 4/4 tensor comparisons completed in GitHub Actions, source-only Procrustes toy mathematical check passed. This is a **measured local tensor improvement**, not a functioning whole-model language result.
+
+| Tensor | CB59 VALID response rel-RMSE | v65 TRAIN-selected factor VALID rel-RMSE | v65/CB59 | Packed factor bytes / original CB59 tensor bytes |
+| --- | ---: | ---: | ---: | ---: |
+| layer0 attention q (r176) | 0.4661 | **0.2853** | **0.6120** | 26,912 / 27,584 |
+| layer0 MLP down (r256) | **0.6257** | 0.7219 | 1.1538 | 69,312 / 70,784 |
+| layer15 MLP gate (r256) | 0.6624 | **0.6383** | **0.9636** | 71,232 / 72,704 |
+| layer29 MLP up (r256) | 0.7978 | **0.6761** | **0.8475** | 71,232 / 72,704 |
+
+**Mean of four VALID error ratios = 0.89421; 3 of 4 tensors improved.** All four TRAIN-selected candidates used source-only Procrustes ITQ with TRAIN activation LS fitting. The 8-iteration ITQ source sign-error objective decreased for each matrix. Going from v64 to saturated v65 reduced the mean error ratio from 0.9794 to 0.8942 (different candidate choices, same original tensors/validation family). This does not prove statistical significance, downstream language competence, or reproducibility across seeds. Importantly, the early MLP down tensor remains **worse than CB59 by 15.38%**, so a uniform substitution of all matrices would be unwarranted.
+
+**Decision:** advance to a **mixed-codec, task-aware allocator**, with CB59 retained in matrices where factorization loses. Test C17/C19 source-code noise shaping on the remaining weak matrices. A complete <=0.700bpw physical model must count all 2D matrices, tied embeddings/head, 1D trained parameters, metadata and native compact operators before proceeding to independent whole-model NLL/QA and speed. The local improvement is a promising direction, **not** a solved 0.7bpw language model.
