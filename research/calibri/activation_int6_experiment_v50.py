@@ -3,8 +3,7 @@
 
 PRE: original physically verified complete 6-bit checkpoint with MLP
 calibration fitted on WikiText TRAIN A, as v46.
-POST: two source-only deterministic row-repair allocation profiles:
-balanced 12%/tensor and global. Match total physical max 6.5 bpw,
+POST: same-quota v49 balanced SSE row repair vs TRAIN-A activation-weighted\nMLP-only row re-ranking, exact same per-source module and physical bytes. Match total physical max 6.5 bpw,
 including a 15480-byte correction reserve. Select ONE by conservative
 two-domain TRAIN-only NLL gate; never tune using test PPL. Correct FP16
 teacher residual rows are persisted with SHA/CRC and applied once at
@@ -84,7 +83,7 @@ def fresh_test(tok,name,repo,cfg,subset,rev):
 
 
 def train_agnews_c(tok,rev):
-    ""Only TRAIN records, non-overlapping v49 AG News TRAIN[:256]."""
+    """Only TRAIN records, non-overlapping v49 AG News TRAIN[:256]."""
     ds=load_dataset("fancyzhx/ag_news",revision=rev,split="train[256:384]")
     texts=[str(row["text"]).strip() for row in ds if str(row["text"]).strip()]
     return from_texts(tok,texts)
