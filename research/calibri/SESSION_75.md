@@ -31,3 +31,46 @@ Absolute original packed KL is ~10 nats and accuracy is near chance on many answ
 
 ## CI outcome
 Pending prior to real workflow measurements. Append measured signed results and negative findings after CI.
+
+## Verified actual trained 135M experiment — GitHub Actions run 41539372478 (2026-11-02 UTC)
+
+**CI PASS for genuine pretrained 135M source encoding, two separate TRAIN corpora, 12 actual native-packed complete model variants and two untouched independent TEST domains. Scientific result: NO candidate qualified under the frozen robust TRAIN rule.**
+
+All twelve original-source CB59 full trained checkpoints physically reassembled at **11,229,303 bytes = 0.6678394131307638 bits per 134,515,008 unique parameters** each, including every trained 1D tensor, 5-bit code stream, FP16 centroids/scales, manifest, tied aliases, CRC/SHA. Identical native C direct-packed kernel, no original trained dense 2D source present in student execution.
+
+### Measured TRAIN — genuine full native model teacher-KL
+Each row mean teacher→packed next-token KL (nats; smaller is better). Training windows: WikiText TRAIN [8192,8448); AG News TRAIN records 5000..5099, first 256 model tokens, four 64-token contexts each.
+
+| Fixed original-source candidate | WikiText TRAIN KL | AG News TRAIN KL |
+|---|---:|---:|
+| **Original CB59 baseline** | **9.72563** | **9.78943** |
+| Layer0 V/O Hadamard | 10.03944 | 9.56855 |
+| 8D covariance all 4 source matrices | 10.70344 | 11.29891 |
+| Hadamard+all covariance | 9.85806 | 10.15111 |
+| Covariance q only | 9.75404 | 9.73273 |
+| Covariance down only | 10.63500 | 11.37519 |
+| Covariance gate only | 9.68224 | 9.80502 |
+| **Covariance up only** | **9.69764** | **9.76561** |
+| Hadamard+q | 10.11019 | 9.52944 |
+| Hadamard+down | 9.74939 | 10.13274 |
+| Hadamard+gate | 9.97028 | 9.53515 |
+| Hadamard+up | 10.07247 | 9.45402 |
+
+**Frozen minimax rule:** maximum over candidates of minimum improvements across TWO TRAIN corpora. The raw best was `cov_up`: Wiki KL improved **−0.02799** nats and AG News KL **−0.02382** nats. Its *worst* corpus gain **+0.023819** nats is **below preregistered +0.05-nat required gain in both corpora**, so the chosen candidate is **UNCHANGED BASELINE**, not `cov_up`. This decision was physically saved BEFORE any TEST examples were opened. `cov_all`, previously chosen on Wiki-only TRAIN in v74, regresses badly in BOTH new TRAIN domains (KL 10.70344 and 11.29891). This is further evidence that naive compositions and narrow TRAIN objectives are unstable.
+
+### New independent TEST — honest null selection
+The frozen multi-domain TRAIN rule chose original baseline. Therefore TEST correctly compared **baseline to itself**, with no re-selection, no manufactured source improvement and no unjustified promotion.
+
+| Real original native compressed model metric | WikiText TEST [60000,60512) | AG News TEST records 2000..2099 |
+|---|---:|---:|
+| Original CB59 teacher→student KL (nats) | **11.32578** | **10.29115** |
+| Original CB59 token NLL (nats) | **14.92305** | **14.46329** |
+| Frozen chosen source | baseline | baseline |
+| Signed chosen-baseline KL / NLL | **0.0 / 0.0** | **0.0 / 0.0** |
+| Native C packed direct full pretrained inference | PASS | PASS |
+
+**Scientific result: NEGATIVE / null improvement.** The strict two-corpus TRAIN guard successfully **prevented unsupported promotion of a possibly distribution-specific transformed source**, but it did **not** produce a better model. These newly heldout TEST values are characteristics of unchanged CB59, NOT a test of raw runner-up `cov_up`; no inference about `cov_up` TEST performance is possible from this run. No absolute competence: native compressed model still has KL ~10–11 nats and NLL ~14–15 nats on genuine text. No measured speed parity, full QA transfer or next-token correctness recovery.
+
+**Next stage v76:** rather than repeatedly test parameter-free representation changes while semantic quality remains catastrophic, prototype **TRAIN-conditioned low-dimensional multi-module residual corrections with explicit paid physical bits** (remaining complete-source budget to 0.700bpw), a directly executable sparse/low-rank sidecar whose model-level function objective optimizes teacher→packed KL. Require source-complete archive, entire on-disk correction/decoder bytes counted, no hidden dense weights or deployment, and genuinely disjoint tasks/corpora for independent quality/speed gating. Pre-register tradeoffs *before* opening additional TEST data. Compare against original CB59 and robust null baseline.
+
+Verified research CI https://github.com/Kamara229/JessicaCore/actions/runs/41539372478 ; PR #205 draft isolated, main/Render/Supabase/APK/live Jessica untouched.
