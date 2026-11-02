@@ -137,6 +137,7 @@ def apply_patch(model,path,parent_sha):
 
 
 def expected_overhead(choices):
+    choices=list(choices)
     bymodule={}
     for name,row,n in choices:
         bymodule[name]=n
