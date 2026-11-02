@@ -1,0 +1,117 @@
+# CALIBRI v62 — Frozen Architecture & Coding-Theory Research Map
+**Research-only literature/architecture milestone; NO quantizer, runtime, test labels, live Jessica, Render, Supabase, APK, or main changes. 2026-11-02.**
+
+## A. Why the proposed signal-coding idea matters
+
+The user wants not a blind continuation of one residual mechanism, but to systematically mine information theory, signal-processing codecs, and modern learned compression for **transferrable principles**, maintain a list of hypotheses, and test them methodically under a real end-to-end model-rate ceiling. The key benefit of coding theory is not magical free recovery of erased original weights, but **using structural dependence, predictive/decoder side information, nonuniform entropy, task-specific distortion functions, and constrained additional information** to preserve the features that matter under a small rate budget.
+
+The next-step conceptual architecture is hereby frozen as a reference, *not as a proven solution*:
+
+1. **BASE**: original trained model weights -> learned vector/index codebook -> physically serialized complete source, tied aliases accounted exactly once; direct resident compressed code execution without decompressing original whole matrices.
+2. **DEPENDENCY / SIDE INFORMATION**: optional predictor, latent, functional side info or derived context available at decode *without an uncounted side model*. Record its bytes and compute. Correlation must be measured, not assumed.
+3. **FUNCTIONAL ERROR CORRECTION**: optional explicit paid correction `C(x;s)`, designed to restore layer-output/teacher-output behavior (`\hat y = Q(x;z)+C(x;s)`), not necessarily original weight coordinates. Learned or transmitted correction coefficients, seeds, normalization, dictionaries and entropy models count as real bytes.
+4. **BIT ALLOCATOR**: choose mutually compatible methods and rate shares under a hard **complete source bytes** ceiling, with quality measured on independent data, and report native RAM and speed separately.
+5. **DIRECT RUNTIME**: each supported codec has a CPU reference native kernel streaming packed codes and bounded block metadata (no full reconstructed W at load); later optimized GPU/CPU implementations are a separate milestone.
+
+Do not confuse:
+- **Channel coding / FEC**: extra redundancy protects against random bit flips, packet erasures and storage faults; it cannot recreate unknown arbitrary original floating weights removed by intentional lossy quantization solely from CRC or parity.
+- **Source coding / lossy rate–distortion**: retain the best task-relevant source information under a bit budget.
+- **Distributed / predictive coding with side information**: leverage existing correlations known to the decoder; predictor/side-info complexity/storage/runtime MUST be counted.
+- **Post-quantization error reconstruction**: add *paid*, sometimes low-rank/sparse, side information that helps approximate functional response without restoring every parameter.
+
+## B. What the experiments actually show today
+
+**Original trained model:** `HuggingFaceTB/SmolLM2-135M-Instruct`, unique count `N=134515008`, public pinned source SHA `12fd25f77366fa6b3b4b768ec3050bf629380bac`, shared input embedding + tied output head. BF16 unique-trained parameters occupy `269030016 B` (parameter payload only). Exact maximum **0.700 bpw** source archive is `floor(0.700×N/8)=11770063 bytes`, no hidden correction model or decoder files excluded without disclosure.
+
+| Existing case | Measured complete model archive | bpw over UNIQUE original parameters | Direct original-W packed execution | Functional state |
+| --- | ---: | ---: | --- | --- |
+| CB59 (v59, PR #189) | 11,229,303 B | 0.6678394131 | Yes, C 5bit index/GEMV, 212 packed modules | Four new dev prompts v60: mean original-output KL 12.115; next token 0/4; severe output error |
+| CB60 (v60, PR #190) | 11,577,502 B | 0.6885478236 | Yes, tiled-codebook C GEMV | Same four probes: KL 13.668, 0/4 top1; numerically better weights, functionally worse |
+| CB61 (v61, PR #191) | 11,769,524 B | 0.6999679322 | Yes, C GEMV + sparse FP16 source-error one-column hooks | Eight NEW dev prompts: CB59 KL 11.993 vs CB61 12.065, both 0/8; correction FAILED quality |
+
+**CB61 has only 539 actual bytes left under the 0.7 cap.** Extra correction methods MUST displace existing overhead/codes/dictionaries/residuals or first save physical bits elsewhere. V61 Actions run 41515470430 passed 3/3 physical/inference/crosshost consistency; passing those checks **does not mean the trained language model retained competence**. Current short-prompt KL/argmax dev probes are NOT statistically sound task accuracy. The underlying model is dense, whereas QMoE 0.8bpw results concern sparse trillion-parameter MoEs and are not an apples-to-apples accuracy baseline.
+
+## C. Transfer catalogue: ranked concepts and concrete tests
+
+Each item is an **idea for a controlled experiment**, not a claimed established CALIBRI gain. Labels: **P1** near-term, **P2** following P1, **P3** speculative/protection-only. A concept may fail due to inference cost, metadata, complexity or quality even if valuable in its native field.
+
+| ID | Source field and principle | Proposed CALIBRI transfer | Minimal falsifiable comparison and failure condition | Priority |
+| --- | --- | --- | --- | --- |
+| C01 | **Rate–distortion / task-oriented coding**, Shannon lineage + 2025–26 semantic compression | Optimize `R + λD_function` instead of source Frobenius error; D includes TRAIN layer-output MSE, teacher predictive KL and final task performance on heldout | Same complete physical rate and native execution: compare teacher-output KL on unused validation and downstream accuracy. Reject improving TRAIN but degrading heldout. | **P1** |
+| C02 | **Entropy coding / arithmetic / ANS/rANS**; DeepCABAC, learned entropy-constrained VQ (2026) | Measure actual conditional entropy of CB59 5-bit indices per tensor/tile; if nonuniform, encode chunks with rANS/CABAC to free physical bits for a smarter correction stream; no full unpacked W | Test histogram vs entropy lower bound, actual compressed size INCLUDING tables/chunk offsets, full native per-block decode time, same exact Q and outputs. Fail if net bytes unchanged or direct inference over cost. | **P1** |
+| C03 | **Predictive/delta coding** (DPCM, motion-compensation analogy) | Predict current codebook/weights/indices from neighboring rows or layers and encode only innovations. Try source-shared predictor and residual indices; predictor state must be decoder-available and counted | Compare original CB59 physical file and executable direct stream, change just predictors on frozen model. Reject if entropy of innovations not lower or O(K) predictor compute high. | **P1** |
+| C04 | **Residual vector quantization (RVQ) / scalable coding**, SoundStream | Coarse K8/K16 first codebook plus tiny second correction per selected *functional* vectors; variable allocation by layer under true full-file 0.7bpw | One index layer at 0.375/0.5 raw bpw, remaining bit budget physically codes refinements. Check actual output KL/task accuracy, not merely source MSE. | **P1** |
+| C05 | **Decoder side information / Wyner–Ziv/Slepian–Wolf / syndrome binning** (1973/1976, 2024/2026 neural DSC) | Condition codes on a cheap correlated source representation that the runtime can derive independently: shared dictionary, previous layer book, latent activations or known parameter tying; store bin/syndrome bits only when conditional entropy wins. | Measure conditional entropy and decoder operation: when no useful side information exists or required side network erases saved bits, reject. Do NOT claim parity restores unknown lossy source. | **P2** |
+| C06 | **Lattice/vector coding with rotations**, QuIP# (E8), ICLR 2025 LTC, SpinQuant | Apply reversible Hadamard/permutation/rotation to make trained weight vectors more uniform before index selection; use compact E8/structured codebook; account input/output inverse transforms and O(N log N) runtime | Compare same K32V8/CB60 + transform at identical physical bytes; inverse transform must be fused or timed. Reject output regressions or uncounted transform metadata. | **P1** |
+| C07 | **Multiple additive codebooks**, AQLM | Represent 8/16D vectors as sum of 2+ compact quantizer dictionary entries instead of one K32; jointly learn codebooks with per-block response objective | Variable index bits + dictionary overhead strictly ≤0.7bpw; compare real model outputs and packed direct LUT kernel. AQLM original evidence is 2–3bpw, not proof of <0.7bpw. | **P2** |
+| C08 | **Functional/low-rank quantization error recovery**, LQER/QERA; structured SRR (2026) | Freeze sparse base `Q`, train compact `C(x)=UVx` or preserve top activation-scaled subspace *before* quantization while coding rest. Try rank allocation among 211+ modules from TRAIN data | Count FP16/quantized U,V/descriptor bytes and overhead. Compare against v61's 180 single columns and CB59. Reject if not affordable or no heldout KL/task benefit. | **P1** |
+| C09 | **Unequal error protection / saliency-controlled allocation**, HAWQ/AWQ + communications UEP | Like giving more redundant bits to critical channel packets, allocate scarce dictionary/refinement bits to layers sensitive in actual downstream output; fewer elsewhere | Counterfactual layer-swap / ablation on TRAIN, freeze rank, evaluate unseen; compare to uniform bit allocations at identical total bytes. | **P1** |
+| C10 | **Progressive/successive refinement / embedded bitplanes**, audio/video scalable codecs | Store a smaller base stream and optional task-prioritized correction layers. Direct kernel consumes only required refinement groups; separate fixed-rate profiles <=0.7 | Must account offsets/headers and compute overhead; confirm functional gains when adding correction without cheating via unaccounted bitplanes. | **P2** |
+| C11 | **Shared dictionaries / hyperpriors / learned code predictors**, learned codecs, 2026 entropy-constrained VQ | Share codebook across correlated matrices (or learned hyperprior per block) and encode only difference; *do not use an external huge decoder model* | Count all predictors and entropy tables; compare exact physical bytes and decode cost; reject if model correlations weak. | **P1** |
+| C12 | **Sparse coding / compressive sensing** | Identify truly structured low-dimensional residual directions of trained weights/output errors; preserve support and coefficients rather than each lost number | Quantify measured sparsity in residual spectrum; count positions/indices and correct decoding. Do not assume dense 135M pretrained weights satisfy CS recovery conditions. | **P2** |
+| C13 | **Neural generative decoder / amortized learned prior / bits-back ANS** | Train ultra-small shared code generator to expand code bits into approximate layer weights; reuse across layers; bits-back only if actual entropy/probabilistic assumptions justify it | Physical generator weights + codes + runtime memory count; if generator > saved bits or generated accuracy unacceptable, reject. Complex/fragile. | **P3** |
+| C14 | **Channel parity / CRC, LDPC, polar, Reed–Solomon, Raptor/fountain** | Use tiny independent parity on *critical metadata/source corruption* if model checkpoints transmitted/streamed unreliably; robust load on random erasures | Inject actual byte flips/packet erasures and verify correct recovery or failure detection; honest overhead. **Not** an attempt to restore quantization error; prioritize reliability only. | **P3** |
+| C15 | **Bitstream random access / chunked streaming codec** (container/video) | Restartable 32/64/256-row compressed chunks with local entropy contexts, bounded scratch RAM; use block hashes/index for native live inference | Read/compute a requested row without reconstructing matrix, compare exact RSS, prefill+decode throughput; reject if entropy efficiency needs global decode. | **P1** |
+| C16 | **Compression-order / multi-stage codec interactions** (ICLR 2026) | Test ordering: transform→quantize→predict→residual vs predict→quantize→transform; pair methods only where stages mathematically compatible | All pairwise order variants at same physical rate and fixed seed; direct kernel parity; reject based on blind quality + perf rather than source error. | **P2** |
+
+## D. What should we actually READ first?
+
+**Research cluster I — information and distributed coding**: Slepian–Wolf (1973), Wyner–Ziv (1976), Neural Distributed Compressor Discovers Binning (IEEE JSAIT 2024), Neural Distributed Source Coding (JSAIT 2024), Neural Rate-Adaptive LDPC Decoding for Slepian-Wolf (IEEE OJSP 2026). Transfer: genuine correlation/side-info and source coding with bin indices vs naive stored FP16 column errors. These **do not** prove semantic exact reconstruction at 0.7bpw for arbitrary dense weights.
+
+**Cluster II — high-performance video/audio signal coding**: DeepCABAC (2019) adapts video CABAC + distortion-aware model weights; SoundStream (2021) learns neural residual vector quantizers and scalable number of quantization stages; lattice transform coding ICLR2025 analyzes why naive rounding in transformed latent space can miss efficient vector code regions; Bits-Back / Bit-Swap 2019 is an advanced probabilistic scheme worth a later conditional-prior audit, not a plug-and-play codec for deterministic model weights.
+
+**Cluster III — actual model quantizers/functional corrections**: QMoE (2024) jointly designs sub1-bit **sparse MoE** storage format and native GPU kernel; AQLM (2024) uses learned additive multi-codebook quantization and jointly learns transformer-block parameters at ~2–3bpw; QuIP# (2024) uses fast Hadamard incoherence + E8 lattice; AWQ (2024) weights by input activations, protecting salient input channels; HAWQ-V2 (2020) allocates precision via Hessian sensitivity; QERA (2025) offers analytically motivated activation-weighted low-rank reconstruction; SRR/Preserve-Then-Quantize (ICML2026) preserves important activation-scaled subspace BEFORE quantization and reconstructs residual.
+
+**Cluster IV — newest conceptual advances worth adapting cautiously**: Rate–Distortion Limits for Task-Oriented Compression with Side Information (Entropy, May 2026); Transform-Free Feature Coding via Entropy-Constrained Vector Quantization (AAAI2026) shows joint codebook and entropy model learning for compressed features, while its empirical results are for features, not trained parameter archives; Prune-then-Quantize or Quantize-then-Prune? (ICLR2026) studies sensitivity to compression order. Do not conflate these papers' image/audio/feature benchmarks with ours.
+
+## E. Test plan: one controlled idea per stage, no premature model deployment
+
+**Stage v62 (this PR, literature and architecture ONLY).** Freeze architecture and above catalogue, link primary literature, preregister how proposals are evaluated. No code modifications, no CI claims, no production changes.
+
+**First actual coding experiment (suggested v63):** `C02+C15` *lossless entropy and chunked access* on the existing **original v59 CB59 indices only**, separate from model learning. Collect per-tensor, per-tile, and conditional 5-bit index histograms and theoretical `H(Z)` vs raw 5 bits; count rANS/CABAC tables, adaptive context, per-block restart offsets; physically serialize one CRC/SHA new `CB63`, verify bit-identical recovered indices/teacher-free direct native outputs vs CB59. **Negative H(Z) discovery is useful:** if current indices are nearly uniform, this path cannot free the needed bits. DO NOT sacrifice functional quality in this purely lossless trial. The recovered physical headroom is then available to *tested* functional correction, but not free "repair bits".
+
+**Next distinct experiment (v64):** `C01+C09+C08`: one TRAIN-calibrated teacher functional error budget (e.g. layer-output MSE / output KL), one physically small factorized corrective operator, compare at exact ≤0.700bpw against CB59 baseline and v61's failed 180-column mechanism; use completely new **unseen** dataset records/questions, not development prompts from v59–v61.
+
+**Next (v65):** `C04+C07` progressive/additive codebooks or `C06` Hadamard/E8, separately under identical fixed model and heldout evaluation. No multiple changes simultaneously.
+
+**Later (v66+)**: `C05+C11` cross-layer predictive side information, only if measured conditional entropy supports it. Then benchmark actual packed-runtime CPU/GPU prefill+autoregressive decode 128+32 and realistic memory metrics; do not claim old ≤20% slowdown before direct measurement. Verify score stability by independent seeds/models and use a denser >135M instruct source for external validity.
+
+## F. Acceptance requirements for ALL code experiments
+
+**Hard verified:** `B_total = B_base_indices + B_codebooks + B_scales + B_aliases + B_predictor + B_entropy_tables + B_error_correction + B_headers + B_CRC_SHA + B_other_source` <= 11,770,063 actual bytes for this model; also record separate compiled decoder binary and its runtime footprint, especially for shared/learned generator. All original 2D trained matrix weights absent from packed live model (zero dense W); no test labels or teacher TEST outputs used to fit source. Two independent CPU runs must agree on exact source SHA and physical byte count. A proposed improvement that fails integrity/physical rate/native compute is invalid even if it looks good in an isolated matrix test.
+
+**Quality evidence:** first compare with same original full model on frozen TRAIN calibration and completely new untouched VALIDATION/TEST text: multiple 2048-token LM NLL/PPL windows, genuine answer correctness for SciQ/ARC/BoolQ/HellaSwag on larger unseen disjoint slices (the historic used ranges are known), next-token KL and per-layer output distortion; preregister exactly one decision metric and separate untouched generalization metric. Report confidence/variance or bootstrap carefully, do not imply statistical significance from 8 prompts. Especially for sub-0.7bpw dense model, severe loss should be expected until independently contradicted.
+
+**Ablations:** compare CB59 unchanged 0.6678bpw vs CB60 0.6885bpw vs CB61 0.69997bpw, use same original trained model revision and distinct unseen evaluation data; also compare naive FP16 residual correction, low-rank function compensation, entropy-only, mixing under equal actual physical bitrate. Compression ratio, CPU/GPU throughput, first-token latency, cold decode, warm KV steps and peak RSS must be separate metrics.
+
+**Anti-claim:** Passing GitHub CI proves reproducible physical codecs and valid compute, not that a 135M-instruct model at 0.7bpw remains useful or that the new system outperforms sparse MoE QMoE. A code is "good" only with actual unseen task behavior and speed, not low weight RMSE.
+
+## G. Primary sources (all verified via publication/publisher or official paper pages)
+
+1. QMoE: Frantar & Alistarh, *Practical Sub-1-Bit Compression of Trillion-Parameter Models* (MLSys2024), https://research-explorer.ista.ac.at/record/18061 ; code https://github.com/IST-DASLab/qmoe
+2. Slepian & Wolf, *Noiseless Coding of Correlated Information Sources* (IEEE TIT1973), DOI https://doi.org/10.1109/TIT.1973.1055037
+3. Wyner & Ziv, *The Rate-Distortion Function for Source Coding with Side Information at the Decoder* (IEEE TIT1976), DOI https://doi.org/10.1109/TIT.1976.1055508
+4. *Neural Distributed Compressor Discovers Binning* (IEEE JSAIT2024), https://doi.org/10.1109/JSAIT.2024.3393429
+5. *Neural Distributed Source Coding* (IEEE JSAIT2024), https://anishacharya.github.io/papers/ndsc/
+6. *Neural Rate-Adaptive LDPC Decoding for the Slepian-Wolf Problem* (IEEE OJSP2026), https://imec-publications.be/entities/publication/12f8bba3-4d99-4cd1-b548-26655ba1d819
+7. DeepCABAC, Wiedemann et al. (2019), https://arxiv.org/abs/1907.11900 ; source https://github.com/fraunhoferhhi/DeepCABAC
+8. SoundStream, Zeghidour et al. (IEEE TASLP2021), https://research.google/pubs/soundstream-an-end-to-end-neural-audio-codec/
+9. AQLM, Egiazarian et al. (ICML2024), https://proceedings.mlr.press/v235/egiazarian24a.html
+10. QuIP#, Tseng et al. (ICML2024), https://proceedings.mlr.press/v235/tseng24a.html
+11. LQER, Zhang et al. (ICML2024), https://proceedings.mlr.press/v235/zhang24j.html
+12. QERA, Zhang et al. (ICLR2025), https://proceedings.iclr.cc/paper_files/paper/2025/hash/21718991f6acf19a42376b5c7a8668c5-Abstract-Conference.html
+13. Preserve-Then-Quantize / SRR, Cho et al. (ICML2026), https://proceedings.mlr.press/v306/cho26e.html
+14. HAWQ-V2, Dong et al. (NeurIPS2020), https://proceedings.neurips.cc/paper_files/paper/2020/hash/d77c703536718b95308130ff2e5cf9ee-Abstract.html
+15. AWQ, Lin et al. (MLSys2024), https://proceedings.mlsys.org/paper_files/paper/2024/hash/42a452cbafa9dd64e9ba4aa95cc1ef21-Abstract-Conference.html
+16. *Approaching Rate-Distortion Limits in Neural Compression with Lattice Transform Coding* (ICLR2025), https://proceedings.iclr.cc/paper_files/paper/2025/hash/5170d42c38539462236b23e03808068c-Abstract-Conference.html
+17. *Rate–Distortion Limits for Task-Oriented Compression with Side Information* (Entropy2026), https://doi.org/10.3390/e28060593
+18. *Transform-Free Feature Coding via Entropy-Constrained Vector Quantization* (AAAI2026), https://doi.org/10.1609/aaai.v40i17.38474
+19. *Prune-then-Quantize or Quantize-then-Prune?* (ICLR2026), https://proceedings.iclr.cc/paper_files/paper/2026/hash/578447217543a987c3a0d5b8922f3591-Abstract-Conference.html
+20. *Bit-Swap: Recursive Bits-Back Coding for Lossless Compression with Hierarchical Latent Variables* (ICML2019), https://proceedings.mlr.press/v97/kingma19a.html
+21. SpinQuant (2024), https://arxiv.org/abs/2405.16406
+22. *A Survey of the Past, Present, and Future of Erasure Coding for Storage Systems* (ACM TOS2025), https://doi.org/10.1145/3708994
+
+### Notes on risk
+- Real FEC and erasure coding protect against storage/transmission faults; applying them to intentionally lossy model compression requires constructing a **correlated predictive decoder/side information** and still cannot bypass rate–distortion bounds.
+- No prior work cited here claims the user's specific objective (competent **dense** instruct model at **≤0.700 physical bpw**, native direct weight execution, and former ≤20% speed) already achieved.
+- This file records **literature and test design only**. No research experiment in this document has been run, and no production code or live model was changed.
