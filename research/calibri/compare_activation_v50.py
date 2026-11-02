@@ -29,7 +29,7 @@ def main():
         "source_checkpoint_fp32_SHA256","source_all_parameter_count",
         "wiki_revision","ag_news_revision","external_revision_by_domain",
         "WikiText_TRAIN_A_SHA256","WikiText_TRAIN_B_SHA256",
-        "AGNews_TRAIN_128_256_SHA256","external_untouched_test_SHA256"
+        "AGNews_TRAIN_256_384_SHA256","external_untouched_test_SHA256"
     )
     for key in fixed_keys:
         if a[key]!=b[key]:
