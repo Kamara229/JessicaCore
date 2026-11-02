@@ -1,0 +1,70 @@
+name: CALIBRI v72 - real SciQ BoolQ answer accuracy vs direct 0.6678bpw source
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/labeled_qa_v72.py'
+      - 'research/calibri/SESSION_72.md'
+      - '.github/workflows/calibri-qa-v72.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  genuine-pretrained-full-model-constrained-QA-baseline-vs-multidimensional:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU model and evaluation dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Syntax / original source compatibility
+        run: |
+          python -m py_compile research/calibri/multidim_select_v70.py research/calibri/labeled_qa_v72.py
+      - name: Download original physically complete real 135M source
+        run: |
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: Regenerate exact pinned source-only v70 candidates with all train aliases and checksums
+        run: |
+          python research/calibri/multidim_select_v70.py --phase build --source input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Real pretrained original FP32 teacher zero-shot QA (separate process)
+        run: |
+          python research/calibri/labeled_qa_v72.py --phase run --kind teacher --folder results
+      - name: Original complete CB59 source native direct C 5-bit full-model QA
+        run: |
+          python research/calibri/labeled_qa_v72.py --phase run --kind baseline --folder results
+      - name: Frozen v70 TRAIN-selected l0_hadamard complete source native direct C 5-bit QA
+        run: |
+          python research/calibri/labeled_qa_v72.py --phase run --kind l0_hadamard --folder results
+      - name: Paired blind answer correctness delta, teacher, MCNemar, confidence, file integrity
+        run: |
+          python research/calibri/labeled_qa_v72.py --phase compare --folder results
+      - name: Save ONLY audit JSON, not copyrighted source questions nor model weights
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v72-real-heldout-qa-accuracy-and-physical-audit
+          path: |
+            results/v72_actual_qa_audit.json
+            results/v72_teacher.json
+            results/v72_baseline.json
+            results/v72_l0_hadamard.json
+            results/v70_build.json
+          retention-days: 7
+          if-no-files-found: ignore
