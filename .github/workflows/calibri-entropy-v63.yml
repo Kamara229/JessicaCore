@@ -1,0 +1,59 @@
+name: CALIBRI v63 - real CB59 lossless entropy and restartable chunk audit
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/entropy_chunks_v63.py'
+      - 'research/calibri/SESSION_63.md'
+      - '.github/workflows/calibri-entropy-v63.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit-original-physical-weights-without-teacher:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    env:
+      PYTHONHASHSEED: '0'
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pinned source-independent numerical tools
+        run: python -m pip install 'numpy==1.26.4'
+      - name: Isolated syntax and deterministic no-network toy compression check
+        run: |
+          python -m py_compile research/calibri/entropy_chunks_v63.py
+          python research/calibri/entropy_chunks_v63.py --smoke
+      - name: Read ONLY complete pinned v59 CB59 source artifact (7-day artifact retention)
+        run: |
+          gh run download 41507201766 \
+            --repo "$GITHUB_REPOSITORY" \
+            --name calibri-v59-ubuntu-22.04 \
+            --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: Audit whole pretrained model indices + actual CB63 candidate bytes and lossless round trip
+        run: |
+          python research/calibri/entropy_chunks_v63.py \
+            --source input/CALIBRI_v59_full_direct_sub070.cb59 \
+            --output results/calibri_v63_entropy.json \
+            --candidate results/CALIBRI_v63_source_chunked_candidate.cb63
+      - name: Preserve measured source entropy and physical candidate (not deployable)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v63-lossless-chunk-audit
+          path: |
+            results/calibri_v63_entropy.json
+            results/CALIBRI_v63_source_chunked_candidate.cb63
+          if-no-files-found: ignore
+          retention-days: 7
