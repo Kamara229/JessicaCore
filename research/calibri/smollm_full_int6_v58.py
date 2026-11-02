@@ -36,7 +36,8 @@ from sparse_recovery_v47 import (
     encode_sparse_patch,parse_patch,apply_patch)
 from practical_int6_v46 import timing
 from task_margin_v57 import (
-    load_fixed_tasks,evaluate_real_task_margins,tasks_sha)
+    row_from_task,evaluate_real_task_margins,tasks_sha)
+from datasets import load_dataset
 from gradient_recovery_experiment_v47 import physical_write
 
 MODEL58="HuggingFaceTB/SmolLM2-135M-Instruct"
@@ -83,6 +84,25 @@ def candidate_train_gate(train):
             "eligible_for_expensive_repair":eligible,
             "TRAIN_only_full_task_metrics":train}
 
+
+
+def load_two_tasks(definitions,revisions,expected):
+    """This is intentionally a TWO-task pilot, not v57 four-task suite.
+
+    Reuses exactly the same pretrained zero-shot answer text
+    normalization, but changes only the task set scope. The earlier
+    four-task loader rejected this valid frozen pre-TEST pilot scope.
+    """
+    tasks={}
+    for name,repo,cfg,split in definitions:
+        ds=(load_dataset(repo,cfg,revision=revisions[name],split=split)
+            if cfg else load_dataset(repo,revision=revisions[name],split=split))
+        tasks[name]=[row_from_task(name,row) for row in ds]
+        if len(tasks[name])!=expected:
+            raise AssertionError("frozen exact TRAIN/TEST task length mismatch")
+    if set(tasks)!={"SciQ","BoolQ"}:
+        raise AssertionError("unexpected genuine instruction QA pilot task source")
+    return tasks
 
 def load_disk_model(cfg,base_path,source_hash,patch_file,method):
     model=AutoModelForCausalLM.from_config(cfg,torch_dtype=torch.float32)
@@ -169,7 +189,7 @@ def main(output):
     # Freeze full physical source and correction BEFORE loading data used
     # for accept/reject. TRAIN-label choices and output scoring are
     # deliberately kept independent from stored row precision allocation.
-    train_tasks=load_fixed_tasks(TRAIN,dataset_revs,16)
+    train_tasks=load_two_tasks(TRAIN,dataset_revs,16)
     train_digests=tasks_sha(train_tasks,TRAIN)
     training={}
     for method in ("base_int6_pre","source_sse_balanced_repair"):
@@ -183,7 +203,7 @@ def main(output):
     chosen=gate["chosen"]
     # This is the *first* point at which untouched TEST questions and
     # their correctness labels can be read.
-    test=load_fixed_tasks(HELDOUT,dataset_revs,32)
+    test=load_two_tasks(HELDOUT,dataset_revs,32)
     test_digests=tasks_sha(test,HELDOUT)
     teacher_metrics=evaluate_real_task_margins(
         original,tok,test,"teacher_HELDOUT")
