@@ -36,3 +36,26 @@ If independent TEST KL improves, require larger independent text/task checks plu
 
 ## Result
 PENDING first CI at preregistration. The workflow must record run ID and full signed deltas after completion, not assume victory.
+
+## VERIFIED outcome — 2026-11-02, GitHub Actions 41532390532
+
+**SUCCESS for experiment execution; modest but positive independently evaluated numerical result, NOT restored language competence.** Eight fully source-complete real 135M models were actually encoded and audited; EVERY candidate has exactly **11,229,303 B = 0.667839413 bpw**, original full tied alias mapping, checksum-valid 5-bit C native runtime compatibility. All original pretrained paired GQA operators were function-equivalent *before quantization* to <8e-8 relative; original four V/O matrices all re-encoded identical through the original CB59 codec.
+
+**TRAIN-only predeclared rule:** 8 × 32-token WikiText TRAIN windows (248 positions), original baseline KL **10.399419 nats**, best `l0_hadamard` KL **10.170581 nats** (improvement 0.228838 > preregistered 0.10 nats), so the chosen frozen candidate was **layer0-only pairwise orthogonal Hadamard V/O gauge**, with original CB59 in every other matrix. TEST was not opened before this choice was serialized.
+
+**Independent WikiText TEST tokens [16384:16640)**, 248 next-token positions:
+
+| Actual full dense-model teacher vs packed-native source | Baseline CB59 | TRAIN-selected layer0 Hadamard |
+| --- | ---: | ---: |
+| Mean teacher-to-packed KL (nats, lower better) | **11.54592** | **11.35587** |
+| Heldout next-token NLL (nats, lower better) | **15.26959** | **14.90752** |
+| Native C packed CPU total prefill (eight 32-token windows) | 3.020 s | 3.011 s |
+| Complete pretrained physically stored source | 11,229,303 B | 11,229,303 B |
+
+**Signed differences**: TEST KL `-0.19005` nats and TEST NLL `-0.36207` nats, both improved at **ZERO additional source bits**. A direct native C compressed-inference kernel was exercised on the full real source; no 2D pretrained dense weights in packed runtime and no teacher weights in student processes.
+
+**Interpretation and negative controls.** This is the first positive independent whole-model validation of a *selected multidimensional 2D source gauge* in this sub-0.7bpw line, following v69's negative naive two-layer diagonal scaling. It is **small** (8 disjoint windows, only 248 next-token positions), still has catastrophically poor absolute KL/NLL, and DOES NOT establish statistical significance, zero-shot answer quality, meaningful token-generation speed, or human-usable model competence. The protocol computes an eight-window bootstrap interval, stored in the attached experiment JSON; do not infer its numeric bounds from these console aggregate logs. This positive small-sample observation justifies further preregistered tests, not promotion to a working Jessica system.
+
+**Next controlled gate v71**: repeat on disjoint longer heldout text, other corpora, alternative source checkpoint and several different frozen source-only / TRAIN-only choices; record pairwise KL/NLL bootstrap variability, real next-token accuracy, task QA, and native prefill+autoregressive decode throughput. Do not tune v70 further using v70's TEST results. If improvements fail to replicate, report the negative and pivot toward blockwise binary tensor factors/mixed-format encoder.
+
+Reference: https://github.com/Kamara229/JessicaCore/actions/runs/41532390532
