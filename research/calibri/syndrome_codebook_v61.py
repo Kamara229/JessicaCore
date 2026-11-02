@@ -202,7 +202,7 @@ def smoke():
          "bias":toy.bias.detach().contiguous()}
     from direct_codebook_v59 import encode
     baseline,_,_=encode(src)
-    budget=len(baseline)+4096
+    budget=len(baseline)+20000
     packed,meta,info=pack(baseline,src,
                           {"weight":np.linspace(0.1,2,16)},budget)
     q=CB61(packed,expected_keys=src.keys())
