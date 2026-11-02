@@ -1,0 +1,91 @@
+name: CALIBRI v76 - paid native CB59 rank4 operator correction TRAIN KL, blind TEST under 0.700bpw
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/paid_lowrank_v76.py'
+      - 'research/calibri/SESSION_76.md'
+      - '.github/workflows/calibri-paid-lowrank-v76.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real-pretrained-135m-paid-rank4-and-bias-global-two-train-holdouts:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 115
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned real pretrained CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Validate new physical paid rank4/one-file source budget and Python syntax
+        run: |
+          python -m py_compile research/calibri/paid_lowrank_v76.py
+          python research/calibri/paid_lowrank_v76.py --phase smoke
+      - name: Fetch exact original complete pinned 135M trained CB59 real weights
+        run: |
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: Four strictly TRAIN corpora FP32 original trained teacher source logits
+        run: |
+          for domain in wiki_fit news_fit wiki_valid news_valid; do
+            python research/calibri/paid_lowrank_v76.py --phase collect --kind teacher --corpus "$domain" --folder results
+          done
+      - name: Four TRAIN corpora original complete CB59 packed-only model logits plus actual packed hidden activations
+        run: |
+          for domain in wiki_fit news_fit wiki_valid news_valid; do
+            python research/calibri/paid_lowrank_v76.py --phase collect --kind baseline --corpus "$domain" --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+          done
+      - name: Fit paid rank4 source and bias by full global KL on two real FIT corpora; choose on two TRAIN-VALID corpora ONLY
+        run: |
+          python research/calibri/paid_lowrank_v76.py --phase train --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+          test -s results/CALIBRI_v76_paid_full.cb76
+          test -s results/v76_selection.json
+      - name: NEW never touched independent WikiText TEST original teacher and baseline complete 135M CB59 packed model
+        run: |
+          python research/calibri/paid_lowrank_v76.py --phase collect --kind teacher --corpus wiki_test --folder results
+          python research/calibri/paid_lowrank_v76.py --phase collect --kind baseline --corpus wiki_test --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: NEW independent WikiText TEST from frozen single-file CB76 rank4 native+CPU source
+        run: |
+          python research/calibri/paid_lowrank_v76.py --phase collect --kind corrected --corpus wiki_test --folder results
+      - name: NEW distinct AG News TEST teacher and baseline CB59 source only
+        run: |
+          python research/calibri/paid_lowrank_v76.py --phase collect --kind teacher --corpus news_test --folder results
+          python research/calibri/paid_lowrank_v76.py --phase collect --kind baseline --corpus news_test --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: NEW distinct AG News TEST frozen real lowrank CB76 full source
+        run: |
+          python research/calibri/paid_lowrank_v76.py --phase collect --kind corrected --corpus news_test --folder results
+      - name: Audit full paid source bytes, SHA, signed two-domain KL and NLL, real CPU speed
+        run: |
+          python research/calibri/paid_lowrank_v76.py --phase summarize --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Upload only source-integrity and numerical outcome JSON, NEVER actual weights or datasets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v76-real-paid-0p7-bpw-rank4-TRAIN-TEST
+          path: |
+            results/v76_selection.json
+            results/v76_independent_TEST.json
+            results/arrays/wiki_test_teacher.json
+            results/arrays/wiki_test_baseline.json
+            results/arrays/wiki_test_corrected.json
+            results/arrays/news_test_teacher.json
+            results/arrays/news_test_baseline.json
+            results/arrays/news_test_corrected.json
+          retention-days: 7
+          if-no-files-found: ignore
