@@ -37,3 +37,19 @@ These works mean neither "sub-1bpw" nor "residual correction" alone supports a n
 
 ## Expected output
 GitHub Actions will produce results/calibri_v63_entropy.json and results/CALIBRI_v63_source_chunked_candidate.cb63. Numeric gains must be copied here or reported in follow-ups **only after** verified successful execution.
+
+## VERIFIED GitHub Actions outcome (2026-11-02)
+
+Workflow run **41524958293** completed SUCCESS, pinned real CB59 artifact downloaded and checked, and the exact CB59 file round-tripped from each proposed CB63 restart configuration. This is a source-only **negative/low-yield** result for entropy coding:
+
+| Measure | Real checked value |
+| --- | ---: |
+| Original CB59 complete physical archive | 11,229,303 B |
+| Best complete candidate (restart 1024 rows) | 11,169,332 B |
+| Net savings including candidate tables and integrity | **59,971 B** |
+| Marginal H per 5-bit symbol | **4.9749 bits** |
+| Lag-1 conditional H per symbol | **4.9157 bits** |
+| Exact full-source CB59 byte-for-byte round trip | **PASS** |
+| Native compressed CB63 execution benchmark | **NOT IMPLEMENTED** |
+
+Net gain is just **0.534%** of original CB59 physical bytes; it is inadequate as a standalone explanation for reversing the severe v61 language-model error. The first-phase C02+C15 lossless transfer is viable but economically weak: move primary research effort to binary latent factorization and functional, task-aware source-code design, retaining this chunked entropy option only as a secondary sidecar budget optimization.
