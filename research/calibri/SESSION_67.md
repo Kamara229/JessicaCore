@@ -37,7 +37,7 @@ Command: `OPENBLAS_NUM_THREADS=1 python research/calibri/gauge_pilot_v67.py 2.3`
 | 1.0 | 0.947056 | 0.882624 | 0.931966 | moderate gain in constructed imbalance |
 | 2.3 | 1.228408 | 0.882624 | **0.718510** | 28.3% relative reduction in synthetic function error |
 
-Additional synthetic diagnostic at spread 2.3: half balance rel error=0.959583; inverse-balance negative control=24.311117. Original-to-gauge uncompressed response discrepancy <=5.4e-7 relative in FP32; the exact identity is algebraic. These are from a container-executed NumPy pilot, not GitHub Actions and NOT pretrained weights. No inference or language-quality improvement has been shown. The baseline synthetic quantizer is itself poor (rel error >1), so don't overinterpret the ratio.
+Additional synthetic diagnostic at spread 2.3: half balance rel error=0.959583; inverse-balance negative control=24.311117. Original-to-gauge uncompressed response discrepancy <=5.4e-7 relative in FP32; the exact identity is algebraic. The numbers were first obtained from a container-executed NumPy pilot and **independently reproduced in GitHub Actions v67** (three synthetic controls; success run 41529999118). Minor last-digit FP differences occur: CI reports spread 2.3 baseline 1.228407, balanced 0.882624, ratio 0.718511. This is NOT pretrained-model evidence. No inference or language-quality improvement has been shown. The baseline synthetic quantizer is itself poor (rel error >1), so don't overinterpret the ratio.
 
 ### Falsification and limitations
 - **Novelty**: equalization and transformer gauge symmetry exist in prior research. The proposed combination with direct 0.7bpw K32V8 is a research hypothesis, not an established novel method.
@@ -73,3 +73,6 @@ Use original pinned `HuggingFaceTB/SmolLM2-135M-Instruct` source, and CB59/CB66 
 - Lee & Kim, LittleBit-2, ICML 2026: https://proceedings.mlr.press/v306/lee26y.html
 
 **Decision:** gauge-canonicalization survives a constructed fixed-budget synthetic probe, especially when original coordinate system is badly unbalanced. It has NOT passed the critical real-weight/whole-model evaluation gate. Next stage must test real GQA V/O transformations and discard the idea if quality or speed fails.
+
+## 6. VERIFIED v67 isolated GitHub Actions reproduction
+Run https://github.com/Kamara229/JessicaCore/actions/runs/41529999118 completed **SUCCESS**. The numpy-only job reproduced all three predeclared spread controls; each quantified 55,296 B local pair storage, verified symmetry error <1e-5 and equal byte count across gauges. This confirms the synthetic experiment is executable, not that the trained model works at the target bitrate. The action touches only the draft PR research branch.
