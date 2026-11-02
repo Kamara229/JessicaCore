@@ -19,8 +19,8 @@ The v75 real pretrained full 135M native compressed model CI tested 12 original 
   - FP16 U: 49,152×4×2 = **393,216 bytes**;
   - FP16 V: 576×4×2 = **4,608 bytes**;
   - FP16 bias: 49,152×2 = **98,304 bytes**;
-  - CB76 header and CRC+SHA: **16+36=52 bytes**;
-  - **single complete file 11,725,483 bytes**, `8 × 11,725,483 / 134,515,008 ≈ 0.69735` bpw, BELOW true full-source 0.700bpw cap `floor(0.7 × 134,515,008 /8) = 11,770,063 bytes`. Remaining physical budget 44,580 bytes.
+  - CB76 header and CRC+SHA: **20+36=56 bytes**;
+  - **single complete file 11,725,487 bytes**, `8 × 11,725,483 / 134,515,008 ≈ 0.69735` bpw, BELOW true full-source 0.700bpw cap `floor(0.7 × 134,515,008 /8) = 11,770,063 bytes`. Remaining physical budget 44,576 bytes.
 - This is a simple paid rank-4 low-rank sidecar trained via full-model teacher KL, NOT a novel multi-dimensional neuro-weight theorem, not general enough for all layers, and not zero-bit magic. It is a falsifiable first budget/quality pilot for true learned, directly executable tensor residuals.
 
 ## Fit and guard: strictly TRAIN, two independent text domains
@@ -52,3 +52,19 @@ Original FP32 pretrained teacher process, original CB59 native-packed C process 
 ## Results
 
 No measurements at preregistration; CI logs and artifacts will be checked and findings appended without suppressing failure.
+
+## VERIFIED actual 135M original pretrained study: CI 41541710006, 2026-11-02 UTC
+
+**Genuine full-source native-packed + paid low-rank residual SUCCESS for tested heldout numerical KL/NLL; NOT equivalent to recovered conversational/QA quality or speed parity.**
+
+- Research-only GitHub Actions run **41541710006** completed **SUCCESS**. Actual full original compressed CB59 trained source **11,229,303 bytes / 0.667839413 bpw**; versioned, checksum-validated **one physically stored** CB76 file with original source completely unchanged plus FP16 rank4 matrices and output bias, total **11,725,487 bytes = 0.697348923 bpw** over 134,515,008 original pretrained unique parameters, BELOW 0.700bpw.
+- Three independent real pretrained full-model processes tested teacher vs original CB59 vs paid corrected CB76, on genuine original TEST text. The student original dense pretrained 2D source is NOT in hot runtime; the original 5bit GEMV is still C native but the paid small rank4 residual is executed in Torch CPU after the native projection. CPU prefill is still far slower than source FP32 teacher; do not assert speed success.
+- Fit only on NEW WikiText TRAIN FIT and AG News TRAIN FIT using genuine CB59 student final hidden activations and pretrained teacher full vocabulary probabilities. Frozen candidate snapshots were assessed on independent TRAIN VALID for both corpora, **before opening either TEST**. Multi-domain worst-VALID improvement selected paid **rank4+bias, optimizer step 20**, not bias-only and not baseline. Min two-domain VALID teacher-KL gain vs CB59: **3.60649 nats**. Crucially this is an observed fit/valid selection on a very small source sample, not a general convergence claim.
+- **Independent new WikiText TEST tokens 70000:70512**, 8×64-token contexts / 504 scored next-token positions: CB76 minus original CB59 **teacher KL −2.13015 nats**, real heldout-token **NLL −1.96659 nats** (both better).
+- **Independent new AG News TEST records 3000:3100**, first 512 model tokens / 8×64-token contexts / 504 scored next-token positions: CB76 minus original CB59 **teacher KL −3.13409 nats**, real heldout-token **NLL −3.22857 nats** (both better).
+- Exploratory native student full prefill for the same TEST windows: WikiText **original 12.515 s vs CB76 12.567 s** (slightly slower, +0.052 s); AG News **original 12.512 s vs CB76 12.408 s** (tiny timing variability; not a reliable speed improvement or end-to-end token/sec benchmark). The original FP32 teacher was **0.906 s** for each domain: native corrected compressed model is not fast in this CPU prototype.
+- ***What this proves and does not prove.*** A genuinely paid original-source-complete rank4 tensor residual+logit bias can improve two heldout-domain whole-model KL and NLL strongly at a physically verified **0.69735 bpw** when fitted to packed-model activations and independently selected on multi-corpus TRAIN VALID. It does **NOT** establish useful language-model accuracy or coherent answers: absolute model teacher KL was catastrophically large before correction, TEST baseline and corrected absolute KL/NLL plus paired uncertainty are stored in the JSON audit artifact, not asserted here without extracting them. It does **NOT** validate all neural weight tensors or the 80GB/GLM-sized deployment target. It also does not prove rank4 alone contributed more than bias; despite the VALID selection favoring rank4, careful matched-bit ablations and much more independent QA are still needed.
+- **Follow-up v77:** inspect full absolute KL and NLL + intervals from v76 audit; perform *same-bit* bias-only vs rank4+bias vs residual-only on independent additional heldout domain/task QA, and target next direct/native C factor kernel plus true CPU autoregressive decoding speed, with robust model-scale generalization and whole-source rate accounting. Avoid any claim that v76 is production-ready. No ordinary Jessica chat test required.
+
+Run: https://github.com/Kamara229/JessicaCore/actions/runs/41541710006
+Research draft PR: https://github.com/Kamara229/JessicaCore/pull/206
