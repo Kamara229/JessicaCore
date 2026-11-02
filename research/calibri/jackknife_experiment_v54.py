@@ -286,7 +286,7 @@ def run(output):
         "boolq_training_revision":boolq_rev,
         "external_revision_by_domain":eval_revs,
         "WikiText_TRAIN_A_SHA256":sha(A.numpy().tobytes()),
-        "six_TRAIN_gate_token_SHA256":{name:sha(ids.numpy().tobytes()) for name,ids in gate_text.items()},
+        "eight_TRAIN_gate_token_SHA256":{name:sha(ids.numpy().tobytes()) for name,ids in gate_text.items()},
         "external_untouched_test_SHA256":{n:sha(v.numpy().tobytes()) for n,v in eval_text.items()},
         "base_INT6_complete_source":baseline,
         "deterministic_row_budget":{
