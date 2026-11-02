@@ -24,3 +24,21 @@ A meaningful go for deeper **multi-dimensional neuron representations** requires
 
 ## Status
 Results pending CI at initial commit. Need check workflow, record actual signed deltas, and preserve negative results.
+
+## VERIFIED CI — 2026-11-02, run 41531431889 (SUCCESS integrity; NEGATIVE quality)
+
+Verified independent FP32 original teacher, teacher-free baseline CB59 packed native C CPU runtime, teacher-free v68-gauged CB59 packed native C runtime, and real 124 next-token heldout positions. Both original and v68 complete model archives physically **11,229,303 B = 0.6678394131307638 bpw**, with zero trained dense 2D source weights in packed runtime.
+
+| Frozen full-model measure, validation tokens 4096–4223 | Original CB59 | Gauged v68 candidate |
+| --- | ---: | ---: |
+| Teacher-to-packed next-token mean KL (nats, lower better) | **10.0799** | **12.6706** |
+| Observed next-token NLL (nats, lower better) | **14.4304** | **16.5799** |
+| Native CPU 4×32-token prefill execution (s, lower better) | 2.710 | 2.718 |
+| Complete source bytes | 11,229,303 | 11,229,303 |
+| Native C 5bit direct inference without pretrained dense 2D | PASS | PASS |
+
+**NEGATIVE:** the gauged source caused a **+2.5907 nats KL regression** and **+2.1495 nats NLL regression** versus original CB59, despite slight improvement in one isolated v68 GQA attention projection. This is the decisive falsification of *naive source-only global norm-gauge for both selected layers*. Full model output is already very poor in original CB59; neither 10.08 KL nor 12.67 KL establishes language competence. Sample: four windows / 124 next-token positions, no task QA, no confidence interval. Warm CPU window times are exploratory (teacher FP32 0.453 s; baseline/gauged ~2.71 s), not controlled multi-host throughput microbenchmarks.
+
+**Decision:** do NOT promote balanced gauges globally, DO NOT claim a quality gain. Abandon this v68 paired scaling for whole-model unless a TRAIN-only end-to-end differentiable selection rule rejects the harmful layer and demonstrates robust improvement on *new* heldout tests. Next research should explore mixed-format source representation (binary latent factors / structured multidimensional operators) plus TRAIN-calibrated functional response objectives and full-model native quality gating. A selective layer15-only outcome is an *unmeasured hypothesis*, not inferred from the isolated v68 local response ratio.
+
+Raw run: https://github.com/Kamara229/JessicaCore/actions/runs/41531431889
