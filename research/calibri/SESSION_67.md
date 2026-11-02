@@ -33,11 +33,11 @@ Command: `OPENBLAS_NUM_THREADS=1 python research/calibri/gauge_pilot_v67.py 2.3`
 
 | artificial channel log-spread | Baseline response rel error | Balanced response rel error | Balanced/baseline | Interpretation |
 | ---: | ---: | ---: | ---: | --- |
-| 0.0 | 0.881976 | 0.880769 | 0.998631 | essentially no gain in already balanced source |
-| 1.0 | 0.946887 | 0.880769 | 0.930173 | moderate gain in constructed imbalance |
-| 2.3 | 1.227814 | 0.880769 | **0.717347** | 28.3% relative reduction in synthetic function error |
+| 0.0 | 0.882693 | 0.882624 | 0.999922 | essentially no gain in already balanced source |
+| 1.0 | 0.947056 | 0.882624 | 0.931966 | moderate gain in constructed imbalance |
+| 2.3 | 1.228408 | 0.882624 | **0.718510** | 28.3% relative reduction in synthetic function error |
 
-Additional synthetic diagnostic at spread 2.3: half balance rel error=0.960454; inverse-balance negative control=23.97822. Original-to-gauge uncompressed response discrepancy <=5.4e-7 relative in FP32; the exact identity is algebraic. These are from a container-executed NumPy pilot, not GitHub Actions and NOT pretrained weights. No inference or language-quality improvement has been shown. The baseline synthetic quantizer is itself poor (rel error >1), so don't overinterpret the ratio.
+Additional synthetic diagnostic at spread 2.3: half balance rel error=0.959583; inverse-balance negative control=24.311117. Original-to-gauge uncompressed response discrepancy <=5.4e-7 relative in FP32; the exact identity is algebraic. These are from a container-executed NumPy pilot, not GitHub Actions and NOT pretrained weights. No inference or language-quality improvement has been shown. The baseline synthetic quantizer is itself poor (rel error >1), so don't overinterpret the ratio.
 
 ### Falsification and limitations
 - **Novelty**: equalization and transformer gauge symmetry exist in prior research. The proposed combination with direct 0.7bpw K32V8 is a research hypothesis, not an established novel method.
