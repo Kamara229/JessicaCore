@@ -1,0 +1,71 @@
+name: CALIBRI v73 - TRAIN-only 8D activation covariance packed-source QA gate
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/activation_metric_v73.py'
+      - 'research/calibri/full_quality_v73.py'
+      - 'research/calibri/SESSION_73.md'
+      - '.github/workflows/calibri-cov8-v73.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real-trained-8D-task-metric-same-rate-native-test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pinned real pretrained 135M CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify source and finite 8D covariance index smoke before real data
+        run: |
+          python -m py_compile research/calibri/activation_metric_v73.py research/calibri/full_quality_v73.py
+          python research/calibri/activation_metric_v73.py --smoke
+      - name: Retrieve exact original 135M real CB59 complete source, no synthetic substitute
+        run: |
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: TRAIN-only 8D activation covariance source-index fitting and physical complete source integrity
+        run: |
+          python research/calibri/activation_metric_v73.py --source input/CALIBRI_v59_full_direct_sub070.cb59 --candidate results/CALIBRI_v73_TRAIN_8D_full.cb59 --output results/calibri_v73_TRAIN_8D.json
+      - name: Genuine FP32 original teacher on untouched TEST 40000-40255
+        run: python research/calibri/full_quality_v73.py --phase teacher --folder results
+      - name: Original pretrained full CB59 direct packed native C TEST
+        run: |
+          python research/calibri/full_quality_v73.py --phase original --source input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: New TRAIN-only 8D candidate full CB59 direct packed native C TEST
+        run: |
+          python research/calibri/full_quality_v73.py --phase gauged --candidate results/CALIBRI_v73_TRAIN_8D_full.cb59 --folder results
+      - name: Compare real complete model original and frozen 8D candidate against teacher
+        run: |
+          python research/calibri/full_quality_v73.py --phase compare --folder results
+      - name: Preserve only audits and metadata, NEVER trained source/QA text/checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v73-TRAIN-cov8-native-135m-quality
+          path: |
+            results/calibri_v73_TRAIN_8D.json
+            results/calibri_v73_full_model_quality.json
+            results/v73_teacher.json
+            results/v73_original.json
+            results/v73_gauged.json
+          retention-days: 7
+          if-no-files-found: ignore
