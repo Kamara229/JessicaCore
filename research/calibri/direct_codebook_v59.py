@@ -89,24 +89,42 @@ def _source_sample(w,scales,sample_count=SAMPLES):
     return sampled
 
 
+def _nearest_integer_128(vectors,centers):
+    """Bitwise reproducible exact integer distance, no host BLAS floats.
+
+    Normalize each 8D group to a fixed 1/128 lattice first, with
+    bounded magnitudes. The matrix dot product and squared L2 use
+    exact int32/int64 arithmetic, so CPU/FMA/BLAS cannot change codes.
+    This choice is source-only and intentionally rate/robustness-first.
+    """
+    a=np.clip(np.rint(np.asarray(vectors,dtype=np.float32)*128),
+              -8191,8191).astype(np.int32)
+    b=np.clip(np.rint(np.asarray(centers,dtype=np.float32)*128),
+              -8191,8191).astype(np.int32)
+    norm_a=np.sum(a.astype(np.int64)**2,axis=1,dtype=np.int64)
+    norm_b=np.sum(b.astype(np.int64)**2,axis=1,dtype=np.int64)
+    dot=np.dot(a,b.T).astype(np.int64)
+    dist=norm_a[:,None]-2*dot+norm_b[None,:]
+    return np.argmin(dist,axis=1).astype(np.int32)
+
+
 def _centroids(sample):
-    # Deterministic fixed starting positions, then 5 Lloyd passes.
-    # This is SOURCE-ONLY codebook fitting; no test/validation samples.
+    # Deterministic FP16-snapshotted normalized source samples and EXACT
+    # integer nearest-neighbour assignments on both independent CPUs.
+    # This is SOURCE-ONLY codebook fitting; never sees TEST or QA.
     if not np.all(np.isfinite(sample)):
         raise ValueError("nonfinite source group samples")
+    sample=sample.astype("<f2").astype(np.float32)
     starters=np.linspace(0,len(sample)-1,K,dtype=np.int64)
-    centers=sample[starters].copy()
+    centers=sample[starters].astype("<f2").astype(np.float32)
     for _ in range(KMEANS_ITERS):
-        similarity=np.dot(sample,centers.T)
-        distances=(np.sum(sample*sample,axis=1,keepdims=True)-
-                   2*similarity+
-                   np.sum(centers*centers,axis=1)[None,:])
-        ids=np.argmin(distances,axis=1).astype(np.int32)
+        ids=_nearest_integer_128(sample,centers)
         count=np.bincount(ids,minlength=K)
         updates=np.zeros((K,VECTOR),dtype=np.float64)
         np.add.at(updates,ids,sample.astype(np.float64))
         occupied=count>0
-        centers[occupied]=(updates[occupied]/count[occupied,None]).astype(np.float32)
+        centers[occupied]=(updates[occupied]/count[occupied,None]
+                           ).astype("<f2").astype(np.float32)
     q=centers.astype("<f2")
     if not np.all(np.isfinite(q)):
         raise ValueError("FP16 original-weight centroid overflow")
@@ -131,10 +149,11 @@ def compress_matrix(w,blockrows=256):
         q=w[start:end]
         scalar=scales[start:end].astype(np.float32)
         vectors=q.reshape(-1,VECTOR)/np.repeat(scalar,g)[:,None]
-        dot=np.dot(vectors,c.T)
-        distances=(np.sum(vectors*vectors,axis=1,keepdims=True)-
-                   2*dot+center_norm[None,:])
-        choice=np.argmin(distances,axis=1).astype(np.uint8)
+        # Snap to source-only normalized FP16 grid before exact int32
+        # vector-code assignment. Packed source remains deterministic
+        # across independent Ubuntu BLAS/CPU floating-point variants.
+        vectors=vectors.astype("<f2").astype(np.float32)
+        choice=_nearest_integer_128(vectors,c).astype(np.uint8)
         # Real float16 (stored) centroids & row scale in reconstruction:
         decoded=c[choice].reshape(end-start,g,VECTOR)
         decoded=decoded*scalar[:,None,None]
