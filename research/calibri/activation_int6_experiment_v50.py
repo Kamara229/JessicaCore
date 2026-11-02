@@ -84,7 +84,7 @@ def fresh_test(tok,name,repo,cfg,subset,rev):
 
 
 def train_agnews_c(tok,rev):
-    """Entirely TRAIN records, non-overlapping v48's AG News TRAIN[:128]."""
+    ""Only TRAIN records, non-overlapping v49 AG News TRAIN[:256]."""
     ds=load_dataset("fancyzhx/ag_news",revision=rev,split="train[256:384]")
     texts=[str(row["text"]).strip() for row in ds if str(row["text"]).strip()]
     return from_texts(tok,texts)
@@ -124,11 +124,11 @@ def choose_from_train(train):
     baseline={"base_int6_pre":0.}
     for method in ("sse_balanced_12pct","activation_matched_MLP"):
         baseline[method]=min(base[d]["nll"]-train[method][d]["nll"] for d in domains)
-    viable=[m for m in ("sse_balanced_12pct","sse_global")
+    viable=[m for m in ("sse_balanced_12pct","activation_matched_MLP")
             if baseline[m]>=1e-5]
     selected=max(viable,key=lambda m:(baseline[m],m=="sse_balanced_12pct")) if viable else "base_int6_pre"
     return {"chosen":selected,
-            "fixed_gate_criterion":"max worst-domain NLL reduction versus PRE, if positive by >=1e-5 on BOTH TRAIN-only domains",
+            "fixed_gate_criterion":"best worst-domain NLL improvement vs PRE on WikiText TRAIN-B and disjoint AGNews TRAIN[256:384]; reject if below 1e-5",
             "minimum_improvement_required_nll":1e-5,
             "minimum_train_domain_nll_gains":baseline,
             "all_training_NLL_and_PPL":train}
@@ -140,7 +140,7 @@ def run(output):
             os.getenv("ONEDNN_MAX_CPU_ISA")=="AVX2" and
             str(torch._C._get_cpu_capability()).upper()=="AVX2"):
         raise AssertionError("same selected AVX2 CPU model baseline required")
-    torch.manual_seed(49)
+    torch.manual_seed(50)
     torch.set_num_threads(2)
     torch.use_deterministic_algorithms(True)
     allocator_smoke()
