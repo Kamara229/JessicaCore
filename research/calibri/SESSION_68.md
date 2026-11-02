@@ -29,3 +29,20 @@ Wang & Wang, gauge symmetries in transformers (PMLR 2026) https://proceedings.ml
 
 ## CI outcome
 Pending at preregistration. No quality claims until run logs are verified. If positive: test more layer pairs, new disjoint data, then full native end-to-end KL, LM NLL/PPL, QA and speed. If negative: pivot to gauge search with task-conditioned but TRAIN-only objectives or constrained multidimensional operator coding; maintain budget honestly.
+
+## VERIFIED real pretrained experiment — GitHub Actions 41530736611 (2026-11-02)
+**SUCCESS** for reproducible math, trained source matching, original CB59 re-encode identity, real GQA 9Q/3KV exact invariance (<4e-7 relative), and physically rebuilt full original source container preserving exact 11,229,303 B / 0.667839413 bpw, tied aliases and checksums.
+
+Real WikiText TEST tokens [1024,1152), source-only chosen scales, 2 × 64 token teacher-eager attention windows. Pretrained teacher-conditioned local attention layer L2 absolute error (lower is better):
+
+| Real trained GQA layer | Unchanged CB59 error | Balanced re-encoded V/O error | Balanced / CB59 | Result |
+| ---: | ---: | ---: | ---: | --- |
+| 0 | 23.05442 | 23.89723 | **1.036558** | **NEGATIVE**, 3.66% worse |
+| 15 | 349.72285 | 341.96419 | **0.977815** | positive, 2.22% lower |
+
+**Verdict: MIXED / NOT GENERALIZABLE.** The large gain in synthetic deliberately unbalanced sources did **NOT** transfer uniformly to pretrained GQA; first layer regressed and another only slightly improved. Neither layer errors are end-to-end LM quality metrics. Do NOT replace all V/O pairs or claim competent language performance. We did NOT benchmark inference speed or whole-model KL/PPL/QA. The complete CB59 archive was patched in-memory and reparsed with exact byte count/integrity; the new blob itself was not uploaded as a checkpoint, only the audit JSON was stored.
+
+### Decision / next falsifiable gate
+The naive analytic norm-balance gauge alone is insufficient. Next investigate different mathematical degrees of freedom (per-head geometry, task-aware TRAIN-only gauge, block-diagonal/orthogonal isometries respecting GQA) ONLY if they can be absorbed into the source and recoded without uncounted side metadata and without degrading realistic compressed execution. Test a large set of PREDECLARED real layers on disjoint heldout TEST without selecting hyperparameters by TEST, and measure true whole-model output metrics before any performance claim. Prioritize quality over a large synthetic percentage.
+
+CI: https://github.com/Kamara229/JessicaCore/actions/runs/41530736611
