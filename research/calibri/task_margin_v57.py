@@ -55,14 +55,24 @@ def row_from_task(task,row):
                 "\nAnswer:")
         options=[str(row[k]).strip() for k in (
             "correct_answer","distractor1","distractor2","distractor3")]
-        if len(set(options))!=4:
-            raise AssertionError("SciQ duplicated answer")
+        # Some real SciQ records repeat an answer string in multiple
+        # distractor slots. A repeated STRING is not another distinct
+        # candidate answer. Collapse exact duplicates reproducibly;
+        # preserve the originally designated correct answer by STRING.
+        # This purely input-schema normalization never checks accuracy
+        # and is applied identically to TRAIN and untouched TEST splits.
+        correct_string=options[0]
         pairs=list(enumerate(options))
         pairs.sort(key=lambda p:(hashlib.sha256(
             (str(row["question"])+"|"+str(p[0])+"|"+p[1]).encode()
             ).hexdigest(),p[0]))
-        gold=next(i for i,p in enumerate(pairs) if p[0]==0)
-        options=[p[1] for p in pairs]
+        options=[]
+        for _,item in pairs:
+            if item not in options:
+                options.append(item)
+        if correct_string not in options or len(options)<2:
+            raise AssertionError("SciQ has fewer than two distinct answers")
+        gold=options.index(correct_string)
     elif task=="ARCEasy":
         prefix="Question: "+str(row["question"]).strip()+"\nAnswer:"
         labels=[str(x).strip() for x in row["choices"]["label"]]
