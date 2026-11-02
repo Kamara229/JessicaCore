@@ -130,6 +130,17 @@ def run(args):
         examples_file=path/(tag+"_original_activation_and_dense_reference.npz")
         np.savez(examples_file,**xs,**golden)
 
+        if args.prepare_only:
+            evidence["results"][tag]={
+                "real_disk_bytes":len(actual),
+                "real_source_bpw":8*len(actual)/786432,
+                "binary_sha256":hashlib.sha256(actual).hexdigest(),
+                "original_real_activation_and_golden_sha256":hashlib.sha256(examples_file.read_bytes()).hexdigest(),
+            }
+            print(json.dumps({"preparation_only":tag,
+                              "physical_B":len(actual),
+                              "golden_sha256":evidence["results"][tag]["original_real_activation_and_golden_sha256"]}),flush=True)
+            continue
         workers={}
         for worker_mode in ("mmap_stream","dense_restored"):
             cmd=[sys.executable,str(Path(__file__).with_name("mmap_rowstream_worker_v44.py")),
@@ -194,6 +205,11 @@ def run(args):
         "No QMoE SwitchTransformer 0.8bpw, new mathematical multidimensional trained weights, mobile/ARM throughput or production changes demonstrated.",
     ]
     out.write_text(json.dumps(evidence,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+    if args.prepare_only:
+        print(json.dumps({"status":"v44 prepared real source weights and 8 original inputs, no timing performed in source-model process",
+                          "file":str(out),
+                          "physical":evidence["results"]}),flush=True)
+        return
     print(json.dumps({"experiment":evidence["experiment"],"source_model":MODEL,
         "measured":{tag:{
             "physical_bytes":value["real_disk_bytes"],
@@ -215,4 +231,5 @@ if __name__=="__main__":
     p.add_argument("--train-tokens",type=int,default=2048)
     p.add_argument("--tokens-per-matrix",type=int,default=8)
     p.add_argument("--repetitions",type=int,default=5)
+    p.add_argument("--prepare-only",action="store_true")
     run(p.parse_args())
