@@ -1,0 +1,62 @@
+name: CALIBRI v65 - real source ITQ geometry at saturated local rate
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/itq_rate_saturation_v65.py'
+      - 'research/calibri/SESSION_65.md'
+      - '.github/workflows/calibri-itq-v65.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  real-trained-135m-source-and-heldout-four-matrix-itq:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pinned CPU torch and original source dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Source-only train-free Procrustes toy mathematical sanity
+        run: |
+          python -m py_compile research/calibri/itq_rate_saturation_v65.py
+          python research/calibri/itq_rate_saturation_v65.py --smoke
+      - name: Download pinned originally trained physical 135M CB59 source
+        run: |
+          gh run download 41507201766 \
+            --repo "$GITHUB_REPOSITORY" \
+            --name calibri-v59-ubuntu-22.04 \
+            --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: REAL fixed 4 source tensors and independent teacher TRAIN/VALID activations at fair actual matrix bytes
+        run: |
+          python research/calibri/itq_rate_saturation_v65.py \
+            --source input/CALIBRI_v59_full_direct_sub070.cb59 \
+            --output results/calibri_v65_itq.json
+      - name: Preserve actual bit budget and source-only geometry/heldout response experiment
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v65-real-itq-four-matrix-study
+          path: results/calibri_v65_itq.json
+          if-no-files-found: ignore
+          retention-days: 7
