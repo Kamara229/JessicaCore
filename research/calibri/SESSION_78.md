@@ -30,3 +30,55 @@ Science passes only when numerical output, physical integrity, TRAIN→TEST sepa
 
 ## CI results
 Pending actual workflow. A failed test must be fixed transparently with original TEST/data protocol changes disclosed. Record verified results, including negative ones, only after run completes.
+
+## VERIFIED actual pretrained experiment — GitHub Actions 41547079249 (2026-11-02 UTC)
+
+**GitHub Actions SUCCESS** for actual source integrity, full genuine trained 135M direct-native packed inference with paid rank4 correction, repeated independent TRAIN optimizer invocations and untouched TEST language, QA and autoregressive generation.
+
+### Weights and reproducibility — important qualified progress
+- Original full source CB59: **11,229,303 physical bytes / 0.667839413 bpw**. Paid CB76: **11,725,487 real bytes / 0.697348923 bpw**, including all trained source coefficients, original metadata/aliases, correction FP16 U/V/bias, header, CRC and SHA. Original pretrained trained dense 2D source matrices are NOT loaded in the compressed runtime; original 5-bit tensor GEMV executes via C native decoder, small rank4 paid correction via CPU Torch (not all-native C). No production modifications.
+- **TWO independent v76 training repetitions on the SAME CPU runner exactly matched byte-for-byte:** both complete CB76 SHA256 `bf5eed8a06fb5d01843fca1bd23d62066ed04813403e71f9cba0ed80ebd1ee62`, max absolute FP16 U/V/bias difference **0.0 for all three arrays**. **Also exactly matches the original v76 PR #206 source SHA**. BUT v77's different CI execution previously produced SHA `4d5c1258924b77a458b1d08d962914f6c8845632f8604a0a04e929cd43ef759c`; thus **cross-run / cross-host reproducibility remains UNPROVEN** and SHA divergence is explicitly retained. Do not say trained weights are reproducible on all environments.
+- Frozen two-TRAIN-VALID scalar test `α={0,0.5,0.75,1}` (absorbed in U,b FP16, identical physical bytes), selection minimum improvement ≥0.10 nats across both TRAIN corpora. TRAIN VALID full-model teacher-KL for α0: Wiki 12.17645, News 12.26084; α0.5: Wiki 8.39623, News 9.38721; α0.75: Wiki 7.71471, News 8.86114; **α1: Wiki 7.52793, News 8.65434 (best both)**. The frozen source selected **α=1.0**, i.e. **unchanged original v76 paid rank4+bias weights**, NOT a new weight optimization improvement from scaling. The so-called calibrated source therefore has the SAME SHA, same logits and QA as full v76 by design; do not imply independent new performance from its duplicate TEST execution.
+
+### New disjoint TEST language (eight 64-token contexts per domain, each 504 scored next-token positions)
+
+| True teacher-vs-full packed model metric | Original CB59 | Frozen v76 paid rank4+bias (α=1) | Signed change |
+|---|---:|---:|---:|
+| WikiText-2 TEST tokens 90000–90511, mean KL (nats) | 10.81293 | **7.94323** | **−2.86971** |
+| WikiText-2 TEST next-token NLL (nats) | 14.95724 | **11.94340** | **−3.01384** |
+| AG News TEST records 5000–5099, mean KL (nats) | 10.64970 | **8.15847** | **−2.49123** |
+| AG News TEST next-token NLL (nats) | 14.74117 | **12.08575** | **−2.65542** |
+
+Paired eight-window 95% bootstrap TEST KL signed intervals for α1 vs baseline Wiki **[−3.7750, −1.7880]**, News **[−3.5580, −1.5044]**; correlation and small sample caveats apply. **Absolute KL/NLL remain very poor**; the new TEST only confirms numerical correction at 0.697349bpw, not useful language or global robust generalization.
+
+### ACTUAL answer correctness with protocol sanity: SciQ answer *strings* (not letters), original support
+
+New original SciQ TEST rows 840–863, n=24 valid, original `support` text limited to first320 tokens; each of 4 entire original answer strings scored by teacher-forced mean log probability. This is a custom, supported closed-choice metric. Unlike v77's unsupported one-letter prompt that made even original FP32 teacher score below chance, **the actual original pretrained teacher now scores 20/24 = 83.3%** (above 25% chance), so the new protocol has a meaningful teacher anchor.
+
+| Heldout QA | Original trained FP32 teacher | Original physically compressed CB59 | Paid original CB76 rank4+bias (α=1) |
+|---|---:|---:|---:|
+| **SciQ support-assisted full answer content, n=24** | **20/24 = 83.3%** | **6/24 = 25.0%** | **7/24 = 29.2%** |
+| **BoolQ first256 passage tokens, n=28** | **14/28 = 50.0%** | **16/28 = 57.1%** | **10/28 = 35.7%** |
+
+Paired CB76 minus CB59 SciQ correctness **+1/24**, exact McNemar p=**1.0**, 95% paired bootstrap signed accuracy-delta **[−0.125,0.2083]** (includes zero). Paid BoolQ **−6/28**, McNemar p≈**0.2632**, paired bootstrap accuracy-delta **[−0.5357,0.1071]** (includes zero). Original teacher was itself only at chance on this fixed and truncated BoolQ slice. **Science outcome: NEGATIVE — the newly teacher-validated SciQ prompt decisively reveals the compressed model's absence of original factual competence despite much better KL than the original CB59; one extra correct SciQ is not evidence of recovered answers.** BoolQ direction worsens, not statistically established. Both tasks are small, constrained answer-choice diagnostics rather than official leaderboard task evaluations.
+
+### TRUE greedy cache generation and speed (one GitHub Ubuntu22 CPU)
+Three fixed prompts ×24 greedy output tokens, 69 measured native-model cache-decode tokens after each first-step prefill.
+
+| Actual complete model | Post-prefill KV-cache tokens/s | Distinct generated token ratio | Mean largest-token frequency within output |
+|---|---:|---:|---:|
+| Original FP32 trained teacher | **34.81** | **0.7917** | 0.1250 |
+| Original CB59 | 33.86 | 0.0694 | 0.7500 |
+| Paid rank4+bias CB76 | 32.99 | 0.0972 | **0.9444** |
+| Frozen α1 duplicate paid source | 32.62 | 0.0972 | **0.9444** |
+
+**Critical failure:** CB76 greedy generation is *almost entirely the same repeated token* (most common emitted token ≈94.4% of 24-token output), even more collapsed than original CB59 by top-token share. This is NOT solved by lower KL; cached token throughput (~33 tok/s) is not evidence of usable or faster ChatGPT-like assistance, FP32 teacher is ≈34.8 tok/s in this single CPU run. True compact runtime speed/quality target is not met.
+
+### Decision: v79 research direction, not deployment
+1. **Stop equating KL/NLL gain with recovered answer competence.** A teacher-sane SciQ prompt scores 83.3% correct for original FP32 and only 29.2% for CB76; this is concrete semantic failure.
+2. Train next source representation against *genuine answer-conditioned TRAIN functional objectives*, intermediate activation propagation and teacher next-token top1/sequence behavior, not merely teacher probability KL at the output head. Explicitly address one-token greedy collapse and try control over logit repetition/entropy without hiding original model degradation; use paid bit allocation across internal 2D/8D tensor representations and direct-runtime CPU throughput. Keep whole source including correction ≤0.700bpw.
+3. Diagnose **cross-GitHub-run floating-point determinism** with CPU math runtime/seed/thread/torch version/environment capture and compare exact original TRAIN inputs and source SHA; v78 proves same-host perfect repeat and match to v76, but v77 SHA differs. Store pinned full source SHA for a truly bitwise portable model if future archive release is explicitly authorized, not only JSON.
+4. Test the learned source in a much larger / different pretrained model and more robust labeled QA/greedy generation before claiming novelty, speed or practical deployment. Continue in isolated research branch. No Jessica ordinary-chat test required.
+
+Verifiable completed workflow: https://github.com/Kamara229/JessicaCore/actions/runs/41547079249
+Original source+protocol: draft PR #208.
