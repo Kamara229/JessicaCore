@@ -1,0 +1,102 @@
+name: CALIBRI v75 - robust 2-corpus TRAIN global packed KL vs 2 new blind TEST domains
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/multicorpus_v75.py'
+      - 'research/calibri/SESSION_75.md'
+      - '.github/workflows/calibri-multicorpus-v75.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  genuine-trained-source-minimax-two-corpus-TRAIN-only-and-blind-TEST:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 105
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact pinned real-model CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Syntax and native original source codec smoke
+        run: |
+          python -m py_compile research/calibri/multicorpus_v75.py research/calibri/multidim_select_v70.py research/calibri/activation_metric_v73.py
+          python research/calibri/activation_metric_v73.py --smoke
+      - name: Download genuine previously VERIFIED complete original trained 135M CB59 source
+        run: |
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: Rebuild original physical 2D Hadamard v70 sources without any new TEST data
+        run: |
+          python research/calibri/multidim_select_v70.py --phase build --source input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Rebuild original pretrained 8D source using frozen v73 TRAIN fit and zero extra source bits
+        run: |
+          python research/calibri/activation_metric_v73.py --source input/CALIBRI_v59_full_direct_sub070.cb59 --candidate results/CALIBRI_v73_TRAIN_8D_full.cb59 --output results/v75_real_source_8D_train_audit.json
+      - name: Freeze twelve genuine original+2D+8D composite 135M checkpoints with unchanged native ABI
+        run: |
+          python research/calibri/multicorpus_v75.py --phase build --original input/CALIBRI_v59_full_direct_sub070.cb59 --gauge results/sources/l0_hadamard.cb59 --covariance results/CALIBRI_v73_TRAIN_8D_full.cb59 --folder results
+      - name: Two separate genuine pretrained FP32 teachers on WikiText TRAIN and AG News TRAIN
+        run: |
+          for corpus in wiki_train news_train; do
+            python research/calibri/multicorpus_v75.py --phase run --corpus "$corpus" --kind teacher --folder results
+          done
+      - name: All twelve unchanged-native-packed real 135M models on BOTH TRAIN corpora
+        run: |
+          for corpus in wiki_train news_train; do
+            for name in baseline hadamard cov_all hadamard_cov_all cov_q cov_down cov_gate cov_up hadamard_cov_q hadamard_cov_down hadamard_cov_gate hadamard_cov_up; do
+              python research/calibri/multicorpus_v75.py --phase run --corpus "$corpus" --kind "$name" --folder results
+            done
+          done
+      - name: Freeze strict minimax FULL MODEL KL TRAIN winner, without seeing TEST
+        run: |
+          python research/calibri/multicorpus_v75.py --phase select --folder results
+      - name: NEW untouched WikiText TEST teacher and direct-packed baseline
+        run: |
+          python research/calibri/multicorpus_v75.py --phase run --corpus wiki_test --kind teacher --folder results
+          python research/calibri/multicorpus_v75.py --phase run --corpus wiki_test --kind baseline --folder results
+      - name: NEW untouched WikiText TEST on frozen TRAIN-selected packed source
+        run: |
+          winner="$(python -c 'import json;print(json.load(open("results/v75_train_choice.json"))["chosen"])')"
+          if [ "$winner" != baseline ]; then
+            python research/calibri/multicorpus_v75.py --phase run --corpus wiki_test --kind "$winner" --folder results
+          fi
+      - name: NEW distinct AG News TEST 2000-2100 teacher and direct-packed baseline
+        run: |
+          python research/calibri/multicorpus_v75.py --phase run --corpus news_test --kind teacher --folder results
+          python research/calibri/multicorpus_v75.py --phase run --corpus news_test --kind baseline --folder results
+      - name: NEW distinct AG News TEST frozen TRAIN-selected complete packed source
+        run: |
+          winner="$(python -c 'import json;print(json.load(open("results/v75_train_choice.json"))["chosen"])')"
+          if [ "$winner" != baseline ]; then
+            python research/calibri/multicorpus_v75.py --phase run --corpus news_test --kind "$winner" --folder results
+          fi
+      - name: Final independent full-model KL and NLL signs, runtime, source SHA and two domains
+        run: |
+          python research/calibri/multicorpus_v75.py --phase audit --folder results
+      - name: Upload ONLY audit JSON and hashes not trained checkpoints or logits
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v75-two-domain-TRAIN-minimax-independent-TEST
+          path: |
+            results/v75_source_manifest.json
+            results/v75_real_source_8D_train_audit.json
+            results/v75_train_choice.json
+            results/v75_independent_test.json
+          retention-days: 7
+          if-no-files-found: ignore
