@@ -1,0 +1,97 @@
+name: CALIBRI v77 - paid 0.69735bpw rank4-vs-bias real QA and native KV-cache decode
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/paid_ablation_qa_v77.py'
+      - 'research/calibri/SESSION_77.md'
+      - '.github/workflows/calibri-paid-ablation-v77.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  source-complete-train-frozen-paid-rank4-bias-genuine-qa-and-speed:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 115
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned pretrained CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Compile new paid QA script and assert byte-accounting smoke
+        run: |
+          python -m py_compile research/calibri/paid_lowrank_v76.py research/calibri/paid_ablation_qa_v77.py
+          python research/calibri/paid_ablation_qa_v77.py --phase smoke
+      - name: Download original genuine pretrained 135M fully encoded CB59 source
+        run: |
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: Reproduce original v76 frozen full rank4+bias through four genuine TRAIN original teacher outputs
+        run: |
+          for domain in wiki_fit news_fit wiki_valid news_valid; do
+            python research/calibri/paid_lowrank_v76.py --phase collect --kind teacher --corpus "$domain" --folder results
+          done
+      - name: Reproduce genuine v76 TRAIN packed-model trajectories with original native compressed C
+        run: |
+          for domain in wiki_fit news_fit wiki_valid news_valid; do
+            python research/calibri/paid_lowrank_v76.py --phase collect --kind baseline --corpus "$domain" --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+          done
+      - name: Freeze original v76 two-domain TRAIN-selection without touching any v77 TEST questions
+        run: |
+          python research/calibri/paid_lowrank_v76.py --phase train --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Physically construct all 4 equally paid complete residual source variants and verify original checksum
+        run: |
+          python research/calibri/paid_ablation_qa_v77.py --phase build --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Original pinned FP32 pretrained teacher, new unseen WikiText AG News SciQ BoolQ QA and cache-speed
+        run: |
+          python research/calibri/paid_ablation_qa_v77.py --phase evaluate --kind teacher --folder results
+      - name: Original 0.66784bpw native 5bit source, answer correctness and KV-cache speed
+        run: |
+          python research/calibri/paid_ablation_qa_v77.py --phase evaluate --kind baseline --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Identical-paid 0.69735bpw factor AND bias, source from frozen v76
+        run: |
+          python research/calibri/paid_ablation_qa_v77.py --phase evaluate --kind full --folder results
+      - name: Identical-paid 0.69735bpw bias-only source, no rank4 latent operator
+        run: |
+          python research/calibri/paid_ablation_qa_v77.py --phase evaluate --kind bias_only --folder results
+      - name: Identical-paid 0.69735bpw rank4-only source, no vocabulary logit bias
+        run: |
+          python research/calibri/paid_ablation_qa_v77.py --phase evaluate --kind rank4_only --folder results
+      - name: Identical-paid 0.69735bpw zero-factor source, negative control
+        run: |
+          python research/calibri/paid_ablation_qa_v77.py --phase evaluate --kind zero_paid --folder results
+      - name: Audit actual all-in source rate and compare paired KL NLL real QA accuracy and token-per-second
+        run: |
+          python research/calibri/paid_ablation_qa_v77.py --phase summarize --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Upload ONLY numerical and source-provenance JSON, never trained weights, teacher logits or source text
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v77-actual-real-qa-ablation-native-speed
+          path: |
+            results/v76_selection.json
+            results/v77_physical_build.json
+            results/v77_independent_QA_ablation_speed.json
+            results/v77_teacher.json
+            results/v77_baseline.json
+            results/v77_full.json
+            results/v77_bias_only.json
+            results/v77_rank4_only.json
+            results/v77_zero_paid.json
+          retention-days: 7
+          if-no-files-found: ignore
