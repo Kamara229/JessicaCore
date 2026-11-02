@@ -1,0 +1,89 @@
+name: CALIBRI v49 - deterministic INT6 precision allocation and speed
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/deterministic_budget_v49.py'
+      - 'research/calibri/deterministic_int6_experiment_v49.py'
+      - 'research/calibri/compare_deterministic_v49.py'
+      - 'research/calibri/SESSION_49.md'
+      - '.github/workflows/calibri-deterministic-int6-v49.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-trained-pythia-INT6-precision:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      ATEN_CPU_CAPABILITY: avx2
+      DNNL_MAX_CPU_ISA: AVX2
+      ONEDNN_MAX_CPU_ISA: AVX2
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU source
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned pretrained model dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Compile code and run deterministic precision allocator smoke
+        run: |
+          python -m py_compile research/calibri/deterministic_budget_v49.py research/calibri/deterministic_int6_experiment_v49.py research/calibri/compare_deterministic_v49.py
+          python research/calibri/deterministic_budget_v49.py
+      - name: Measure frozen trained full INT6 SSE row allocations and blind PPL/warm speed
+        run: python research/calibri/deterministic_int6_experiment_v49.py --output results/calibri_v49.json
+      - name: Preserve every physical pretrained file, corrections, positive and negative tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v49-${{ matrix.os }}
+          path: |
+            results/calibri_v49.json
+            results/CALIBRI_v49_complete_INT6_pre.cb46
+            results/CALIBRI_v49_sse_global.cr47
+            results/CALIBRI_v49_sse_balanced_12pct.cr47
+          retention-days: 14
+          if-no-files-found: ignore
+  independent-crosshost-bitwise-and-quality-verifier:
+    needs: real-trained-pythia-INT6-precision
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calibri-v49-ubuntu-*
+          path: results/runs
+          merge-multiple: false
+      - name: Verify crosshost physically identical source AND correction SHA, PPL, true full model warm SLA
+        run: |
+          python research/calibri/compare_deterministic_v49.py \
+            --a results/runs/calibri-v49-ubuntu-22.04/calibri_v49.json \
+            --b results/runs/calibri-v49-ubuntu-24.04/calibri_v49.json \
+            --output results/calibri_v49_crosshost.json
+      - name: Preserve final independent verdict
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v49-crosshost-verdict
+          path: results/calibri_v49_crosshost.json
+          retention-days: 14
+          if-no-files-found: ignore
