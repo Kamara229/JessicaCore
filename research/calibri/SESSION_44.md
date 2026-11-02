@@ -29,3 +29,41 @@ Both modes compare ALL 12 computed outputs against the independently recorded GO
 A verified physical mmap rowstream that computes accurate GEMMs without any full W is an engineering feasibility proof of *blockwise weight access and bounded decoded W scratch* at the existing stored source MLP physical rate. It does not imply native production viability. If Python reference incurs 50×/100×+ latency relative to dense NumPy, record that as a negative result and move to a **compiled/native fused per-row or multi-row packed GEMM** benchmark with an honest complexity/ISA control before saying compression saves inference time. Always separate **MLP-only physical byte counts, peak decoded W scratch, process RSS, true end-to-end full-model memory and throughput**.
 
 Research branch/draft PR only, no merge into main, no changes to Render, Supabase, APK, production Jessica or ordinary chat tests. Does not replicate Switch/QMoE 0.8bpw or demonstrate new mathematical multidimensional learned parameter architecture or a complete deployable compressed checkpoint.
+
+
+## Implementation correction BEFORE final memory claim — initial GitHub run 41365548158
+
+The first full benchmark ran successfully on both independent CPUs,
+all source/physical SHA and 12/12 forward outputs passed (maximum
+absolute output discrepancy ~2.9e−6 CT33, ~3.8e−6 CF15).
+The Python mmap rowstream was **~295–309× slower** than dense
+NumPy 12-projection execution across the two real CPU hosts.
+Its correct scratch budget is **32,768 B** versus actual full
+decoded twelve FP32 MLP weights **3,145,728 B**.
+
+However the first run's `resource.ru_maxrss` was identically
+**~2.1 GiB** for BOTH packed and dense independent subprocesses,
+strongly indicating that the memory high-water mark was polluted
+by the preceding parent Python process that had loaded an original
+PyTorch transformer and datasets, rather than reflecting
+the small NumPy-only MLP kernel processes. Therefore
+**DO NOT claim a measured overall process RSS advantage or lack
+of advantage from these first values.**
+
+To fix the methodological mistake without changing weight
+quantization, training, scratch size, worker decode or benchmark
+parameters, separate the heavy original-model/corpus preparation
+and the NumPy timing into **different GitHub Actions steps**.
+The initial step now writes/reads the same physical MLP files,
+eight genuine captured original module activations and
+separately generated dense-reference results and exits.
+The next step starts a clean lightweight Python stdlib
+coordinator and fresh isolated NumPy benchmark subprocesses,
+which avoids inheriting the heavy PyTorch parent's
+historical peak RSS via process creation. The strict physical
+file/activation SHA is checked against the preparation
+manifest. The original speed ratio is retained as
+unrevised evidence, but the new independently allocated
+process RSS results are the only candidate values for the
+final memory claim. This is a **measurement-isolation fix**,
+not tuning to improve numerical speed or source fidelity.
