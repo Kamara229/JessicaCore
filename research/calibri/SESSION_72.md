@@ -28,3 +28,24 @@ CALIBRI only on isolated GitHub research branches; no main/production changes. A
 
 ## Observed result
 CI verification pending at preregistration. Results MUST be appended only after actual job completion; no estimated score counts.
+
+## VERIFIED real model outcome — GitHub Actions 41535003201 (2026-11-02 UTC)
+
+**Infrastructure/PASS, labeled ANSWER QUALITY/NEGATIVE OR INCONCLUSIVE.** Real pinned 134,515,008-unique-parameter SmolLM2-135M-Instruct, exact checksum-validated original CB59 and frozen l0_hadamard (the v70 TRAIN-selected 2D operator transform), both whole physical 11,229,303 B / 0.667839413 bpw. All trained 2D source weights absent from each teacher-free packed native C-GEMV student process. FP32 original teacher evaluated in its own process. Every QA sample was fixed in the preregistration; no label-based training or selection.
+
+| Frozen actual constrained-answer benchmark | Full original FP32 teacher | Packed unchanged CB59 | Packed layer0 Hadamard |
+| --- | ---: | ---: | ---: |
+| SciQ official TEST questions 480–519 (40 four-choice, no support) | 8/40 (20.0%) | 8/40 (20.0%) | **8/40 (20.0%)** |
+| BoolQ official VALID questions 480–519 (40 yes/no, passage first 128 tokens) | **29/40 (72.5%)** | 20/40 (50.0%) | **21/40 (52.5%)** |
+| SciQ native CPU prompt-evaluation seconds (40 cases) | 6.62s | 51.49s | 51.73s |
+| BoolQ native CPU prompt-evaluation seconds (40 cases) | 11.34s | 107.79s | 107.96s |
+
+Signed selected-minus-original accuracy: **SciQ 0.0 percentage points; BoolQ +2.5 percentage points (1/40 extra correct answer)**. Both exact paired McNemar p values **1.0**, so absolutely no evidence of a statistically meaningful improvement at this sample size. Paired 3000-resample bootstrap accuracy delta 95% intervals: SciQ **[-0.20,+0.20]**; BoolQ **[-0.175,+0.200625]**, both include 0 by a huge margin.
+
+**Negative finding:** Although the frozen multidimensional GQA source gauge improved mean next-token KL/NLL in v70/v71, that did NOT establish improved real answer correctness in v72. Original FP32 teacher achieved only 20% on this PARTICULAR one-token letter SciQ template (worse than 25% random chance), making this SciQ prompt particularly uninformative for model intelligence and demonstrating importance of evaluating the teacher. On BoolQ, original teacher scored 72.5%, both compressed sources only about chance, and one extra correct constrained-choice prediction cannot justify a quality claim. Both compressed CPU runs ~8.8x slower than original teacher on these prompt forwards; speed still fails practical requirement.
+
+**Critical methodological limits:** Only 40 questions per task, 1 prompt style each, forced one-token letter/yes-no decision, SciQ without reference support, BoolQ evidence artificially truncated to 128 tokens, no generative/free-text answer evaluation, no robust answer-ability claim, no second model checkpoint, no multi-machine latency test. The publisher/record lists are heldout data sources, but benchmark protocol is explicitly a diagnostic, NOT an official leaderboard evaluation. Label/teacher corpora were not used to optimize compressed weights.
+
+**Decision:** Do NOT promote v70 Hadamard into a working LLM based on the small KL gain. Shift research emphasis to genuine functional/task-aware multi-dimensional source optimization and paid correction under the <=0.700bpw total physical source ceiling; preserve direct-native inference and measure wider out-of-distribution QA plus actual language generation. A candidate's accuracy must be compared with ORIGINAL FP32 teacher and baseline CB59; a tiny marginal apparent gain over near-random CB59 does not matter.
+
+Official CI run https://github.com/Kamara229/JessicaCore/actions/runs/41535003201 ; research PR #202 (draft).
