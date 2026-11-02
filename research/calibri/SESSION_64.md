@@ -33,3 +33,17 @@ Choose a single best variant for each matrix strictly on TRAIN signal response r
 **Workflow status in this preregistration note is pending**, so no quantitative outcome is anticipated here. CI collects true real trained source + true teacher signals and full local comparison table in results/calibri_v64_binary_geometry.json. Source comes from an expiring Actions artifact; failed download must fail loudly, never silently switch to synthetic data.
 
 Sources: NanoQuant https://proceedings.mlr.press/v306/chong26a.html ; LittleBit https://proceedings.nips.cc/paper_files/paper/2025/hash/a917c1d57088897beba47f96b4fd7f3c-Abstract-Conference.html ; LittleBit-2 https://proceedings.mlr.press/v306/lee26y.html ; official LittleBit source/license https://github.com/SamsungLabs/LittleBit ; previous v62 roadmap research/calibri/CODING_THEORY_ROADMAP_V62.md.
+
+
+## VERIFIED GitHub Actions result — 2026-11-02, run 41525887887
+
+A real public trained 135M teacher and physically pinned v59 CB59 source were used. Real WikiText-2 TRAIN/VALID provenance: dataset SHA b08601e04326c79dfdd32d625aee71d232d685c3. Four tensors, 4× combinations of binary geometry × scale-fitting; all local factor payloads below CB59 payload. The result is **mixed**, not a validated model-quality breakthrough:
+
+| Original real matrix | CB59 VALID rel output error | Best TRAIN-chosen binary factor VALID error | Factor/CB59 | Factor rank |
+| --- | ---: | ---: | ---: | ---: |
+| Layer 0 attention q [576,576] | 0.4661 | **0.3198** | **0.6860** | 176 |
+| Layer 0 MLP down [576,1536] | **0.6257** | 0.8018 | 1.2815 | 192 |
+| Layer 15 MLP gate [1536,576] | **0.6624** | 0.6960 | 1.0507 | 192 |
+| Layer 29 MLP up [1536,576] | 0.7978 | **0.7175** | **0.8993** | 192 |
+
+Mean ratio **0.9794**, two tensors better and two worse, and individual errors still very large. All TRAIN-selected binary winners used a random orthogonal latent rotation plus TRAIN-functional least-squares gains, rather than the identity geometry. **Important confound:** the computational limit r≤192 left significant physically unused local source bits on 3 MLP matrices: candidate 52,288 B vs CB59 70,784 B (down) and 54,208 B vs 72,704 B (gate/up). Therefore the next controlled test should saturate the original per-tensor byte budgets at rank≈256 and compare *source-trained iterative geometry alignment* to both identity and random orthogonal rotation, while freezing heldout validation. No end-to-end LLM quality, full-archive sub0.70 rate, native binary runtime or speed is established by v64.
