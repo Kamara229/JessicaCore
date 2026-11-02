@@ -134,7 +134,7 @@ def smoke():
        "layer_b":torch.arange(120,dtype=torch.float32).reshape(10,12)/128}
     b={name:(t*0.99).clone() for name,t in a.items()}
     s,_=candidates(a,b)
-    p=choose(s,1000)
+    p=choose(s,10000)
     for mode,r in p.items():
         if disk_bytes(r["selection"],s)!=r["actual_patch_bytes_expected"]:
             raise AssertionError("nonexact real-sidecar size in synthetic smoke")
