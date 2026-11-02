@@ -1,0 +1,96 @@
+name: CALIBRI v44 - physical mmap rowstream vs dense trained 12-MLP GEMM
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/mmap_rowstream_worker_v44.py'
+      - 'research/calibri/mmap_rowstream_experiment_v44.py'
+      - 'research/calibri/mmap_rowstream_measure_v44.py'
+      - 'research/calibri/compare_mmap_rowstream_v44.py'
+      - 'research/calibri/SESSION_44.md'
+      - '.github/workflows/calibri-mmap-rowstream-v44.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-pretrained-Pythia-mmap-vs-dense:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      ATEN_CPU_CAPABILITY: avx2
+      DNNL_MAX_CPU_ISA: AVX2
+      ONEDNN_MAX_CPU_ISA: AVX2
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU PyTorch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned real source model and dataset dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Prepare original pretrained Pythia MLP bundles and genuine activation references
+        run: |
+          python research/calibri/mmap_rowstream_experiment_v44.py \
+            --output results/calibri_v44_prepared.json \
+            --train-tokens 2048 --tokens-per-matrix 8 --repetitions 5 --prepare-only
+      - name: Benchmark physical mmap rows in clean independent NumPy-only processes
+        run: |
+          python research/calibri/mmap_rowstream_measure_v44.py \
+            --prepared results/calibri_v44_prepared.json \
+            --output results/calibri_v44_mmap_rowstream.json
+      - name: Preserve physical streams, actual activation inputs and truthful speed/RSS
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v44-${{ matrix.os }}
+          path: |
+            results/calibri_v44_mmap_rowstream.json
+            results/calibri_v44_prepared.json
+            results/CT33_mixed3_4.bin
+            results/CF15_fixed4.bin
+            results/CT33_mixed3_4_original_activation_and_dense_reference.npz
+            results/CF15_fixed4_original_activation_and_dense_reference.npz
+          retention-days: 14
+          if-no-files-found: ignore
+  independent-physical-and-functional-verifier:
+    needs: real-pretrained-Pythia-mmap-vs-dense
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calibri-v44-ubuntu-*
+          path: results/runs
+          merge-multiple: false
+      - name: Verify physical MLP SHA, strict 16-row scratch, dense/packed golden equality
+        run: |
+          python research/calibri/compare_mmap_rowstream_v44.py \
+            --a results/runs/calibri-v44-ubuntu-22.04/calibri_v44_mmap_rowstream.json \
+            --b results/runs/calibri-v44-ubuntu-24.04/calibri_v44_mmap_rowstream.json \
+            --output results/calibri_v44_crosshost.json
+      - name: Preserve independent verdict, do not hide slow benchmarks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v44-crosshost-verdict
+          path: results/calibri_v44_crosshost.json
+          retention-days: 14
+          if-no-files-found: ignore
