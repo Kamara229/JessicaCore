@@ -1,0 +1,62 @@
+name: CALIBRI v64 - real trained binary latent geometry pilot
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/binary_geometry_v64.py'
+      - 'research/calibri/SESSION_64.md'
+      - '.github/workflows/calibri-geometry-v64.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  real-trained-weight-bitbudget-and-independent-signal-pilot:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 65
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU torch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned source/activation dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify binary factor packing, source-only SVD, rotation, TRAIN calibration
+        run: |
+          python -m py_compile research/calibri/binary_geometry_v64.py
+          python research/calibri/binary_geometry_v64.py --smoke
+      - name: Retrieve the exact full pretrained CB59 artifact from verified v59 Actions
+        run: |
+          gh run download 41507201766 \
+            --repo "$GITHUB_REPOSITORY" \
+            --name calibri-v59-ubuntu-22.04 \
+            --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: On actual pretrained 135M, compare four distinct real tensors and WikiText TRAIN/VALID signals
+        run: |
+          python research/calibri/binary_geometry_v64.py \
+            --source input/CALIBRI_v59_full_direct_sub070.cb59 \
+            --output results/calibri_v64_binary_geometry.json
+      - name: Preserve all real tensor metrics or failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v64-real-binary-factor-pilot
+          path: results/calibri_v64_binary_geometry.json
+          if-no-files-found: ignore
+          retention-days: 7
