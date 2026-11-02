@@ -1,0 +1,78 @@
+name: CALIBRI v70 - real multidimensional GQA source and TRAIN-only whole-model selection
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/multidim_select_v70.py'
+      - 'research/calibri/SESSION_70.md'
+      - '.github/workflows/calibri-multidim-v70.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real-135m-eight-source-multi-d-geometry-train-select-independent-test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned original CPU and model packages
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify new research code syntax
+        run: python -m py_compile research/calibri/multidim_select_v70.py
+      - name: Get exact original pretrained complete compressed checkpoint
+        run: |
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: Create all 8 physically exact-rate pretrained source archives and verify 2D function invariance
+        run: |
+          python research/calibri/multidim_select_v70.py --phase build --source input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Genuine FP32 teacher on frozen TRAIN 2048-2304, separate process
+        run: python research/calibri/multidim_select_v70.py --phase teacher --split train --variant teacher --folder results
+      - name: All 8 native packed 135M source variants on TRAIN only
+        run: |
+          for name in baseline l0_diag l15_diag l0_hadamard l15_hadamard l0_diag_hadamard l15_diag_hadamard both_diag; do
+            python research/calibri/multidim_select_v70.py --phase packed --split train --variant "$name" --folder results
+          done
+      - name: Precommit winner using TRAIN KL only (threshold 0.10) BEFORE opening TEST
+        run: python research/calibri/multidim_select_v70.py --phase select --split train --folder results
+      - name: Genuine independent FP32 TEST teacher in a separate process
+        run: python research/calibri/multidim_select_v70.py --phase teacher --split test --variant teacher --folder results
+      - name: Native packed original baseline on independent TEST
+        run: python research/calibri/multidim_select_v70.py --phase packed --split test --variant baseline --folder results
+      - name: Native packed TRAIN-selected candidate only on independent TEST
+        run: |
+          winner="$(python -c 'import json; print(json.load(open("results/v70_train_selection.json"))["chosen"])')"
+          if [ "$winner" != baseline ]; then
+            python research/calibri/multidim_select_v70.py --phase packed --split test --variant "$winner" --folder results
+          else
+            echo "TRAIN selected baseline. No additional TEST model is needed."
+          fi
+      - name: Audit full physically matched sources and signed TEST KL/NLL deltas
+        run: python research/calibri/multidim_select_v70.py --phase select --split test --folder results
+      - name: Save ONLY audit JSON, no trained source archive or large logits
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v70-TRAIN-selection-and-independent-TEST
+          path: |
+            results/v70_build.json
+            results/v70_train_selection.json
+            results/v70_independent_TEST.json
+          retention-days: 7
+          if-no-files-found: ignore
