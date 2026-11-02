@@ -1,0 +1,97 @@
+name: CALIBRI v78 - same-host CB76 trained-source reproducibility and real QA generation
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/repro_qa_calibration_v78.py'
+      - 'research/calibri/SESSION_78.md'
+      - '.github/workflows/calibri-qa-repro-v78.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  genuine-135m-rank4-bitwise-repro-and-TRAIN-scaled-external-QA:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 115
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install original pinned pretrained CPU and dataset dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify frozen physical rate and source Python reproducibility-sanity smoke
+        run: |
+          python -m py_compile research/calibri/repro_qa_calibration_v78.py research/calibri/paid_lowrank_v76.py
+          python research/calibri/repro_qa_calibration_v78.py --phase smoke
+      - name: Retrieve exact original pinned genuine fully trained CB59 archive (not synthetic)
+        run: |
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: Strict TRAIN original FP32 teacher logits 4 corpora from unchanged v76 model
+        run: |
+          for domain in wiki_fit news_fit wiki_valid news_valid; do
+            python research/calibri/paid_lowrank_v76.py --phase collect --kind teacher --corpus "$domain" --folder results
+          done
+      - name: Strict TRAIN actual original CB59 native packed model hidden states 4 corpora
+        run: |
+          for domain in wiki_fit news_fit wiki_valid news_valid; do
+            python research/calibri/paid_lowrank_v76.py --phase collect --kind baseline --corpus "$domain" --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+          done
+      - name: First v76 TRAIN optimization, freeze whole paid physical source and audit SHA (no TEST)
+        run: |
+          python research/calibri/paid_lowrank_v76.py --phase train --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+          cp results/CALIBRI_v76_paid_full.cb76 results/v78_first_train.cb76
+          cp results/v76_selection.json results/v78_first_selection.json
+      - name: Independent second v76 TRAIN optimizer same input and same runner; keep exact original bytes
+        run: |
+          python research/calibri/paid_lowrank_v76.py --phase train --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+          cp results/CALIBRI_v76_paid_full.cb76 results/v78_second_train.cb76
+          cp results/v76_selection.json results/v78_second_selection.json
+      - name: Freeze 2-domain TRAIN-only scalar calibration and report trained FP16 factor SHA reproducibility BEFORE TEST
+        run: |
+          python research/calibri/repro_qa_calibration_v78.py --phase freeze --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+          test -s results/v78_frozen_training_choice.json
+          test -s results/CALIBRI_v78_calibrated.cb76
+      - name: Original FP32 pretrained reference, new TEST corpora/assisted QA/real greedy generation
+        run: |
+          python research/calibri/repro_qa_calibration_v78.py --phase evaluate --kind teacher --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Original physically complete native CB59 model, new QA and actual KV-cache generation
+        run: |
+          python research/calibri/repro_qa_calibration_v78.py --phase evaluate --kind baseline --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Previously TRAIN-selected paid CB76 unscaled rank4+bias source, same new heldout QA
+        run: |
+          python research/calibri/repro_qa_calibration_v78.py --phase evaluate --kind full_original --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: New 2-TRAIN-VALID-calibrated complete same-rate CB76 source, independent TEST QA/speed
+        run: |
+          python research/calibri/repro_qa_calibration_v78.py --phase evaluate --kind calibrated --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Audit physical all-model rate, TRAIN-independent QA accuracy, repetition and SHA variance
+        run: |
+          python research/calibri/repro_qa_calibration_v78.py --phase summarize --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Upload ONLY numeric audits and source SHA, never original or paid model bytes, raw answers or teacher logits
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v78-real-repro-trained-qa-speed-source-audit
+          path: |
+            results/v78_frozen_training_choice.json
+            results/v78_result_audit.json
+            results/v78_teacher.json
+            results/v78_baseline.json
+            results/v78_full_original.json
+            results/v78_calibrated.json
+          retention-days: 7
+          if-no-files-found: ignore
