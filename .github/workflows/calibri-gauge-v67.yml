@@ -1,0 +1,30 @@
+name: CALIBRI v67 - isolated mathematical gauge synthetic smoke
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/gauge_pilot_v67.py'
+      - 'research/calibri/SESSION_67.md'
+      - '.github/workflows/calibri-gauge-v67.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gauge-math-and-physical-local-rate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'numpy==1.26.4'
+      - name: Exact unquantized symmetry and same local byte budget, three synthetic conditions
+        run: |
+          python research/calibri/gauge_pilot_v67.py 0.0
+          python research/calibri/gauge_pilot_v67.py 1.0
+          python research/calibri/gauge_pilot_v67.py 2.3
