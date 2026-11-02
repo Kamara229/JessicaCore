@@ -1,0 +1,78 @@
+name: CALIBRI v71 - heldout cross-corpus whole-model GQA gauge at 0.6678bpw
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/crosscorpus_v71.py'
+      - 'research/calibri/SESSION_71.md'
+      - '.github/workflows/calibri-crosscorpus-v71.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real-native-paired-crossdomain:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pinned CPU and pretrained study dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify scripts
+        run: python -m py_compile research/calibri/multidim_select_v70.py research/calibri/crosscorpus_v71.py
+      - name: Download pinned original compressed trained 135M checkpoint
+        run: |
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: Regenerate original v70 frozen model source variants and inspect physical integrity
+        run: |
+          python research/calibri/multidim_select_v70.py --phase build --source input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Require frozen v70 TRAIN winner, do not read v70 TEST for selection
+        run: |
+          python - <<'PY'
+          import json,pathlib
+          freeze={"chosen":"l0_hadamard","origin":"pr200 v70 TRAIN-only selected ahead of TEST",
+                  "TRAIN_threshold":0.10}
+          pathlib.Path("results/v70_train_selection.json").write_text(json.dumps(freeze)+"\n")
+          print(freeze)
+          PY
+      - name: New heldout independent WikiText TEST domain, genuine teacher and 2 packed models
+        run: |
+          for kind in teacher baseline l0_hadamard; do
+            python research/calibri/crosscorpus_v71.py --phase run --corpus wikitext --kind "$kind" --folder results
+          done
+      - name: New heldout AG News TEST domain, genuine teacher and 2 packed models
+        run: |
+          for kind in teacher baseline l0_hadamard; do
+            python research/calibri/crosscorpus_v71.py --phase run --corpus agnews --kind "$kind" --folder results
+          done
+      - name: Verify actual full model bytes and report signed cross-domain changes with uncertainty
+        run: python research/calibri/crosscorpus_v71.py --phase summarize --folder results
+      - name: Upload JSON only, never trained source bytes or huge teacher logits
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v71-frozen-2D-gauge-crosscorpus-real-135m
+          path: |
+            results/v71_crosscorpus_audit.json
+            results/v71_*_teacher.json
+            results/v71_*_baseline.json
+            results/v71_*_l0_hadamard.json
+            results/v70_build.json
+          retention-days: 7
+          if-no-files-found: ignore
