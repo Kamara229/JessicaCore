@@ -1,0 +1,92 @@
+name: CALIBRI v47 - physical 6p5bpw TRAIN-gradient teacher row recovery and real speed SLA
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/sparse_recovery_v47.py'
+      - 'research/calibri/gradient_recovery_experiment_v47.py'
+      - 'research/calibri/compare_gradient_recovery_v47.py'
+      - 'research/calibri/SESSION_47.md'
+      - '.github/workflows/calibri-gradient-row-recovery-v47.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  two-independent-Pythia-INT6-sparse-recovery-hosts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      ATEN_CPU_CAPABILITY: avx2
+      DNNL_MAX_CPU_ISA: AVX2
+      ONEDNN_MAX_CPU_ISA: AVX2
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CPU PyTorch pinned for pretrained physical source
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install reproducible original model/benchmark dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Preflight compile TRAIN gradient sparse source and independent comparator
+        run: python -m py_compile research/calibri/sparse_recovery_v47.py research/calibri/gradient_recovery_experiment_v47.py research/calibri/compare_gradient_recovery_v47.py
+      - name: Train gradient teacher correction on original INT6 model; physical source, heldout PPL, 20pct warm speed
+        run: |
+          python research/calibri/gradient_recovery_experiment_v47.py \
+            --output results/calibri_v47.json
+      - name: Retain TRUE disk file byte streams, row patches and all positive/negative quality outcomes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v47-${{ matrix.os }}
+          path: |
+            results/calibri_v47.json
+            results/CALIBRI_v47_all_trained_Pythia_INT6_pre.cb46
+            results/CALIBRI_v47_gradient_global.cr47
+            results/CALIBRI_v47_sse_module_size_matched.cr47
+            results/CALIBRI_v47_sse_global.cr47
+            results/CALIBRI_v47_base_post_affine.c45c
+            results/CALIBRI_v47_gradient_post_affine.c45c
+          retention-days: 14
+          if-no-files-found: ignore
+  independent-crosshost-physical-gradient-quality-and-speed-verifier:
+    needs: two-independent-Pythia-INT6-sparse-recovery-hosts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calibri-v47-ubuntu-*
+          path: results/runs
+          merge-multiple: false
+      - name: Independently verify same-byte corrective controls and report negative quality/speed results
+        run: |
+          python research/calibri/compare_gradient_recovery_v47.py \
+            --a results/runs/calibri-v47-ubuntu-22.04/calibri_v47.json \
+            --b results/runs/calibri-v47-ubuntu-24.04/calibri_v47.json \
+            --output results/calibri_v47_crosshost.json
+      - name: Preserve independent physical integrity and all PPL/speed outcomes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v47-crosshost-verdict
+          path: results/calibri_v47_crosshost.json
+          retention-days: 14
+          if-no-files-found: ignore
