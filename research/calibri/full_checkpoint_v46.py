@@ -34,25 +34,29 @@ TORCH_TO_DTYPE={dtype:tag for tag,(_,dtype) in DTYPES.items()}
 MAX_TENSOR_BYTES=300_000_000
 
 
-def pack_state(state,override=None):
-    override=override or {}
+def pack_state(state,preencoded=None):
+    preencoded=preencoded or {}
     keys=sorted(state)
-    if set(override)-set(keys):
-        raise ValueError("override attempted for unknown source parameter")
+    if set(preencoded)-set(keys):
+        raise ValueError("preencoded tensor not in original checkpoint")
     buf=bytearray(HDR.pack(MAGIC,1,len(keys)))
     summary={}
     for key in keys:
         w=state[key].detach().contiguous().cpu()
-        if key in override:
-            w=torch.from_numpy(np.asarray(override[key],np.float32).copy())
-            if w.shape!=state[key].shape:
-                raise AssertionError("precalibrated tensor shape changed")
         if not w.isfinite().all() if w.is_floating_point() else False:
             raise ValueError("nonfinite source weights")
         if w.ndim==2 and w.is_floating_point() and min(w.shape)>0 and max(w.shape)<=65535:
-            blob=quant_encode(w.numpy().astype(np.float32),6)
+            blob=preencoded.get(key)
+            if blob is not None:
+                q=quant_decode(blob)
+                if q.shape!=tuple(w.shape) or not np.isfinite(q).all() or blob[8]!=6:
+                    raise AssertionError("invalid frozen INT6 PRE-scale calibration")
+            else:
+                blob=quant_encode(w.numpy().astype(np.float32),6)
             codec=INT6
         else:
+            if key in preencoded:
+                raise ValueError("preencoded original tensor is not a 2D float matrix")
             codec=TORCH_TO_DTYPE.get(w.dtype)
             if codec is None:
                 raise ValueError("unsupported raw tensor dtype "+str(w.dtype))
