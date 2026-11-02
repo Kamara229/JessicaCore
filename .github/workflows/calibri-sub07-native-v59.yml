@@ -1,0 +1,101 @@
+name: CALIBRI v59 - real sub0.70bpw direct-resident trained Llama
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/direct_codebook_v59.py'
+      - 'research/calibri/direct_kernel_v59.c'
+      - 'research/calibri/direct_runtime_v59.py'
+      - 'research/calibri/sub07_experiment_v59.py'
+      - 'research/calibri/compare_sub07_v59.py'
+      - 'research/calibri/SESSION_59.md'
+      - '.github/workflows/calibri-sub07-native-v59.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  full-pretrained-135m-sub07-physical-and-direct-runtime:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      ATEN_CPU_CAPABILITY: avx2
+      DNNL_MAX_CPU_ISA: AVX2
+      ONEDNN_MAX_CPU_ISA: AVX2
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      CALIBRI_PINNED_SOURCE: 12fd25f77366fa6b3b4b768ec3050bf629380bac
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU PyTorch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned public pretrained model/packed kernel dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Compile and independently smoke-test 5bit packed codec/native C and source integrity
+        run: |
+          python -m py_compile research/calibri/direct_codebook_v59.py research/calibri/direct_runtime_v59.py research/calibri/sub07_experiment_v59.py research/calibri/compare_sub07_v59.py
+          python research/calibri/direct_codebook_v59.py
+          python research/calibri/direct_runtime_v59.py
+      - name: Encode entire real 135M source as actual physical <=0.70bpw CB59 file
+        run: python research/calibri/sub07_experiment_v59.py --stage encode --output results --source-revision "$CALIBRI_PINNED_SOURCE"
+      - name: Independent process pretrained teacher full 8token+KV source
+        run: python research/calibri/sub07_experiment_v59.py --stage teacher --output results --source-revision "$CALIBRI_PINNED_SOURCE"
+      - name: Independent TEACHER-FREE process full model native 5bit packed GEMV+on-demand embedding+KV
+        run: python research/calibri/sub07_experiment_v59.py --stage packed --output results --source-revision "$CALIBRI_PINNED_SOURCE"
+      - name: Measure actual source rate, logits degradation, and unoptimized direct-runtime speed
+        run: python research/calibri/sub07_experiment_v59.py --stage compare --output results --source-revision "$CALIBRI_PINNED_SOURCE"
+      - name: Keep entire physical source, quality warnings and independently measured runtime
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v59-${{ matrix.os }}
+          path: |
+            results/calibri_v59.json
+            results/calibri_v59_encode.json
+            results/calibri_v59_teacher.json
+            results/calibri_v59_packed.json
+            results/CALIBRI_v59_full_direct_sub070.cb59
+          retention-days: 7
+          if-no-files-found: ignore
+  crosshost-physical-and-direct-execution-proof:
+    needs: full-pretrained-135m-sub07-physical-and-direct-runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calibri-v59-ubuntu-*
+          path: results/runs
+          merge-multiple: false
+      - name: Independently validate rate below 0.70, full native direct matvec/KV and source SHA
+        run: |
+          python research/calibri/compare_sub07_v59.py \
+            --a results/runs/calibri-v59-ubuntu-22.04/calibri_v59.json \
+            --b results/runs/calibri-v59-ubuntu-24.04/calibri_v59.json \
+            --output results/calibri_v59_crosshost.json
+      - name: Archive independent research integrity and negative quality evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v59-crosshost
+          path: results/calibri_v59_crosshost.json
+          retention-days: 7
+          if-no-files-found: ignore
