@@ -28,7 +28,7 @@ def main():
         "source_checkpoint_fp32_SHA256","source_all_parameter_count",
         "wiki_revision","ag_news_revision","sciq_training_revision","boolq_training_revision",
         "external_revision_by_domain",
-        "WikiText_TRAIN_A_SHA256","six_TRAIN_gate_token_SHA256",
+        "WikiText_TRAIN_A_SHA256","eight_TRAIN_gate_token_SHA256",
         "external_untouched_test_SHA256"
     )
     for key in fixed_keys:
@@ -42,7 +42,7 @@ def main():
     }
     all_names=set(w for windows in families.values() for w in windows)
     for host,report in (("ubuntu22",a),("ubuntu24",b)):
-        if set(report["six_TRAIN_gate_token_SHA256"])!=all_names:
+        if set(report["eight_TRAIN_gate_token_SHA256"])!=all_names:
             errors.append(host+": missing TRAIN SHA across 4 corpus families")
         gate=report["one_shot_train_only_gate"]
         if {k:tuple(v) for k,v in gate["family_window_mapping"].items()}!=families:
