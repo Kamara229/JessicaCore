@@ -41,3 +41,7 @@ For each original FP32 teacher and each five packed source models, run fixed-sou
 
 ## v77 CI result
 Pending before initial PR run. Actual negative outcomes and measured CPU token/sec will be appended after checking independent GitHub Actions run logs.
+
+
+## Protocol correction before any scored v77 answer evaluation
+First CI run **41543185133** passed source recreation, physical archive integrity (4 equal-cost paid models, 11,725,487 B each) and teacher's independent full-model TEST text logit collection, but **FAILED before any SciQ/BoolQ QA score** due to repeated SciQ distractors in the official dataset rows (invalid distinct-4-option assumption). This is a **source-data validity failure**, not evidence about model quality. In a corrective commit, all original precommitted SciQ row indices 680–727 remain the designated sampling frame; any source row with non-unique four options is now uniformly excluded for **every** model *before any model answers are scored*, with exact excluded row indices logged as source metadata, actual denominator reduced, and all physical source candidates and TEST corpus ranges unchanged. No model accuracy was inspected to make the rule. V77 is therefore not a perfect original pre-registered protocol: openly report the data-quality correction and its excluded counts. CI must rerun and verify, not claim that the failed first run measured QA.
