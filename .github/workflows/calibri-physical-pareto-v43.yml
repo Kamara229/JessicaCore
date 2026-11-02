@@ -1,0 +1,87 @@
+name: CALIBRI v43 - true signed 3.5 to 6.08 bpw MLP physical rate-quality
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/physical_pareto_experiment_v43.py'
+      - 'research/calibri/pareto_fixed_highbits_v43.py'
+      - 'research/calibri/compare_physical_pareto_v43.py'
+      - 'research/calibri/SESSION_43.md'
+      - '.github/workflows/calibri-physical-pareto-v43.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-trained-MLP-rate-quality:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      ATEN_CPU_CAPABILITY: avx2
+      DNNL_MAX_CPU_ISA: AVX2
+      ONEDNN_MAX_CPU_ISA: AVX2
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      HF_HUB_DOWNLOAD_TIMEOUT: '90'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU PyTorch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pretrained model and text dataset dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Real pretrained all-12 physical INT3-4 versus INT4-5-6 rate PPL
+        run: |
+          python research/calibri/physical_pareto_experiment_v43.py \
+            --output results/calibri_v43_physical_pareto.json \
+            --train-tokens 4096 --dev-tokens 1024 --new-tokens 2048 --context 128
+      - name: Preserve measured bytes and real encoded source matrices
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v43-${{ matrix.os }}
+          path: |
+            results/*.bin
+            results/calibri_v43_physical_pareto.json
+          retention-days: 14
+          if-no-files-found: ignore
+  reproducibility-and-rate-check:
+    needs: real-trained-MLP-rate-quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calibri-v43-ubuntu-*
+          path: results/runs
+          merge-multiple: false
+      - name: Verify original weights, physical bitstream SHA and actual rate-quality curve
+        run: |
+          python research/calibri/compare_physical_pareto_v43.py \
+            --a results/runs/calibri-v43-ubuntu-22.04/calibri_v43_physical_pareto.json \
+            --b results/runs/calibri-v43-ubuntu-24.04/calibri_v43_physical_pareto.json \
+            --output results/calibri_v43_crosshost.json
+      - name: Preserve physical-quality audit including negative results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v43-crosshost-verdict
+          path: results/calibri_v43_crosshost.json
+          if-no-files-found: ignore
+          retention-days: 14
