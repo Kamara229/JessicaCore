@@ -140,7 +140,7 @@ def tokens(corpus):
         ds_rev=HfApi().dataset_info(AG_DATASET).sha
         n=TRAIN_WINDOWS*WINDOW
         ds=load_dataset(AG_DATASET,split="train[5000:5100]",revision=ds_rev)
-        raw="\\n\\n".join(str(row["text"]) for row in ds)
+        raw="\n\n".join(str(row["text"]) for row in ds)
         result=tok(raw,return_tensors="pt",add_special_tokens=False).input_ids[0,:n]
         origin={"dataset":AG_DATASET,"split":"train[5000:5100]","revision":ds_rev,
                 "token_span":[0,n],"only_record_text_no_label":True}
@@ -301,7 +301,7 @@ def select(args):
             "chosen":selected,
             "selection_rule_frozen_before_any_TEST_data":True,
             "source_codebooks_not_retrained_on_news":True}
-    (args.folder/"v75_train_choice.json").write_text(json.dumps(frozen,indent=2)+"\\n")
+    (args.folder/"v75_train_choice.json").write_text(json.dumps(frozen,indent=2)+"\n")
     print(json.dumps({"stage":"v75_2CORPUS_TRAIN_minimax",
                       "chosen":selected,"best_raw":best,
                       "minimum_TRAIN_KL_gain":round(worst[best],6),
