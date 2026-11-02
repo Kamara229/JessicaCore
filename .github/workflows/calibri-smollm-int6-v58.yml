@@ -1,0 +1,90 @@
+name: CALIBRI v58 - real instruct 135M shared INT6 source, QA and warm speed
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/shared_checkpoint_v58.py'
+      - 'research/calibri/smollm_full_int6_v58.py'
+      - 'research/calibri/compare_smollm_v58.py'
+      - 'research/calibri/SESSION_58.md'
+      - '.github/workflows/calibri-smollm-int6-v58.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-instruction-135m-physical-int6:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 65
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      ATEN_CPU_CAPABILITY: avx2
+      DNNL_MAX_CPU_ISA: AVX2
+      ONEDNN_MAX_CPU_ISA: AVX2
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_DATASETS_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned CPU original teacher and compressed model runtime
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+      - name: Install pinned pretrained open instruct model/source dependencies
+        run: python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Compile and verify tied INT6 source codec, source-only row ranking
+        run: |
+          python -m py_compile research/calibri/shared_checkpoint_v58.py research/calibri/smollm_full_int6_v58.py research/calibri/compare_smollm_v58.py
+          python research/calibri/shared_checkpoint_v58.py
+          python research/calibri/deterministic_budget_v49.py
+      - name: Measure physical unique-parameter 6bit pretrained instruct source, sparse repair, TRAIN-only QA and fresh TEST/speed
+        run: python research/calibri/smollm_full_int6_v58.py --output results/calibri_v58.json
+      - name: Save actual complete physical signed INT6 model, residuals and measured result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v58-${{ matrix.os }}
+          path: |
+            results/calibri_v58.json
+            results/CALIBRI_v58_SmolLM2_full_INT6.cb58
+            results/CALIBRI_v58_SmolLM2_source_repair.cr47
+          retention-days: 7
+          if-no-files-found: ignore
+  independent-crosshost-int6-unique-source-repair-and-qa:
+    needs: real-instruction-135m-physical-int6
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calibri-v58-ubuntu-*
+          path: results/runs
+          merge-multiple: false
+      - name: Independently verify unique tied source count, both physical SHA, TRAIN-only gate, blind QA and real 20pct warm SLA
+        run: |
+          python research/calibri/compare_smollm_v58.py \
+            --a results/runs/calibri-v58-ubuntu-22.04/calibri_v58.json \
+            --b results/runs/calibri-v58-ubuntu-24.04/calibri_v58.json \
+            --output results/calibri_v58_crosshost.json
+      - name: Preserve independent physical source QA and CPU verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v58-crosshost
+          path: results/calibri_v58_crosshost.json
+          retention-days: 7
+          if-no-files-found: ignore
