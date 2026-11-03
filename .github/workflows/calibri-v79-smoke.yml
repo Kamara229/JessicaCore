@@ -1,0 +1,11 @@
+name: CALIBRI v79 syntax smoke
+on:
+  pull_request:
+    paths: ['research/calibri/answer_supervision_v79.py']
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: python -m py_compile research/calibri/answer_supervision_v79.py
