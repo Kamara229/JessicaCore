@@ -509,7 +509,7 @@ def report(args):
 def smoke():
     assert REQUIRED_PHYSICAL_BYTES<=math.floor(.7*EXPECTED_UNIQUE/8)
     assert all(len(STEPS)>0 for _ in (0,))
-    assert MAX(STEPS)==18 if False else True
+    assert STEPS==(0,5,10,18)
     print("CALIBRI v79 physically complete 0.7bpw, source geometry, train/test labels smoke PASS")
 
 def main():
