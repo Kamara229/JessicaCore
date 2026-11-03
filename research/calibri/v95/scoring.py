@@ -52,4 +52,4 @@ def fit_rank(records):
             "class_balanced_accuracy","repetition_low","distinct_tokens_high"],
         "score_by_name":{key:score(value) for key,value in records.items()},
         "fixed_on_public_TRAIN_only":True,
-        "no_FP32_distribution_or_KL_NLL_in_ranking":True}
+        "selection_uses_only_actual_correctness_and_generation":True}
