@@ -1,0 +1,60 @@
+name: CALIBRI v97 frozen native causal answer and generation failure audit
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v97/**'
+      - 'research/calibri/calibri_causal_quality_v97.py'
+      - 'research/calibri/test_v97_oracle_guard.py'
+      - 'research/calibri/SESSION_97_CAUSAL_NATIVE_GENERATION_DIAGNOSIS.md'
+      - '.github/workflows/calibri-v97-causal-quality.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  frozen_native_source_and_causal_FP32_probes:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 95
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned public pretrained CPU-only research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Check restoring exact original packed operators on errors
+        run: |
+          python -m compileall -q research/calibri/v97 research/calibri/calibri_causal_quality_v97.py research/calibri/test_v97_oracle_guard.py
+          python research/calibri/test_v97_oracle_guard.py -v
+      - name: Retrieve immutable full CB59 source, never official TEST or live services
+        run: |
+          mkdir -p input results/v97
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+          test -s research/calibri/CALIBRI_FROZEN_BASELINE_2026-11-04.json
+      - name: Run frozen FP32 oracle localization only, save actual answers and decoded text
+        run: |
+          python research/calibri/calibri_causal_quality_v97.py --original input/CALIBRI_v59_full_direct_sub070.cb59 --locked research/calibri/CALIBRI_FROZEN_BASELINE_2026-11-04.json --out results/v97
+          test -s results/v97/v97_CB59_causal_FP32_oracles_ANSWER_AND_TEXT_ONLY.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v97-frozen-original-physical-accuracy-and-causal-generation
+          path: results/v97/v97_CB59_causal_FP32_oracles_ANSWER_AND_TEXT_ONLY.json
+          retention-days: 7
+          if-no-files-found: ignore
