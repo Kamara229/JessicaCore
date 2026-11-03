@@ -34,10 +34,10 @@ class TestV94(unittest.TestCase):
     def test_quality_not_distances_and_lost_domain_rejected(self):
         baseline={"count":128,"correct":50,"balanced_accuracy":.5}
         qa={"BoolQ":{"baseline":baseline,
-                    "rewritten":{**baseline,"correct":52,"balanced_accuracy":.52},
+                    "rewritten":{**baseline,"correct":52,"balanced_accuracy":.52,"majority_answer_fraction":.5},
                     "correct_answer_gain":2,"accuracy_gain":2/128},
             "SciQ":{"baseline":{"count":64,"correct":20,"balanced_accuracy":.30},
-                    "rewritten":{"count":64,"correct":19,"balanced_accuracy":.29},
+                    "rewritten":{"count":64,"correct":19,"balanced_accuracy":.29,"majority_answer_fraction":.5},
                     "correct_answer_gain":-1,"accuracy_gain":-1/64}}
         generation={"original":{"mean_distinct_ratio":.2,"mean_most_frequent_share":.8},
             "candidate":{"mean_distinct_ratio":.35,"mean_most_frequent_share":.5},
