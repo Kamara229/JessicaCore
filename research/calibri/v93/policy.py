@@ -5,7 +5,7 @@ Small heldout subsets are exploratory; better scores can be promoted only
 after broader external correctness and qualitative response validation.
 """
 from __future__ import annotations
-from binary_geometry_v64 import EXPECTED_UNIQUE
+EXPECTED_UNIQUE=134515008  # Pinned pretrained original; standalone policy needs no ML dependencies.
 
 BPP_LIMIT=.700
 MIN_VALID_QUESTIONS=100
