@@ -134,9 +134,7 @@ def run(original_path:Path,adaptive_path:Path,out_dir:Path):
         original=original_path,folder=out_dir))
     if info["zero_dense_pretrained_2D_hot_weights"]!=True:
         raise AssertionError("dense original weights leaked into native model")
-    if info["complete_physical_SHA256"]!=audit["new_candidate_architecture_source_complete"][
-             "source_SHA256"] and info["complete_physical_SHA256"]!=
-                CB85(candidate).original.hash():
+    if info["complete_physical_SHA256"] != CB85(candidate).original.hash():
         raise AssertionError("whole original pretrained CB59 source differs")
     tokenizer=AutoTokenizer.from_pretrained(MODEL,revision=MODEL_SHA)
     results={}
