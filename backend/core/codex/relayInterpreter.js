@@ -22,6 +22,7 @@ import {incidentCiStatusHandoff} from "./relayIncidentCiStatus.js";
 import {compactCodexStressProgress} from "./relayCompactStressProgress.js";
 import {interpretationFailureHandoff} from "./relayFailureHandoff.js";
 import {calibriResearchHandoff} from "./relayCalibriProgress.js";
+import {calibriTrainValidNoTestHandoff} from "./relayCalibriTrainValidHandoff.js";
 import {completedCalibriNoTestHandoff} from "./relayCalibriCompletedNoTest.js";
 import {v2PersistenceHandoff} from "./relayV2PersistenceHandoff.js";
 export {explicitJessicaTest} from "./relayExplicitTest.js";
@@ -84,6 +85,8 @@ export async function interpretRelayTurn(input, generate) {
     // Verified, no-test CALIBRI CI status needs no quota-limited AI call.
     const calibriReply = calibriResearchHandoff(message);
     if (calibriReply !== null) return {action:"reply",reply:calibriReply,task:"",continueThread:false};
+    const trainValidReply = calibriTrainValidNoTestHandoff(message);
+    if (trainValidReply !== null) return {action:"reply",reply:trainValidReply,task:"",continueThread:false};
     const blockedBackend=blockedBackendProgress(message);
     if(blockedBackend!==null)return {action:"reply",reply:blockedBackend,task:"",continueThread:false};
     const unverifiedPr=unverifiedPrProgress(message);
