@@ -34,4 +34,39 @@ This is **actual supervised answer accuracy optimization of a paid 4D neural fun
 No source weights from this project are to be deployed to production Jessica. The final report must distinguish actual native C 5bit base + Torch paid correction, report real whole archive bytes, and state exact confidence limits.
 
 ## Run
-Pending independent GitHub Actions first run. Fill signed TRAIN and TEST values only from completed CI logs/artifacts. Never hide negative results.
+**Completed CI run 41550969128, 2026-11-03 UTC, GitHub Actions SUCCESS for original source integrity, actual model execution and independent TEST; scientific result NEGATIVE/null.** See verified measurements below.
+
+
+## VERIFIED real pretrained v79 results — GitHub Actions 41550969128
+
+**CI status SUCCESS (23/23 successful steps). Scientific result: NO ANSWER-SUPERVISED IMPROVEMENT qualified.** This entire experiment took place in a draft GitHub research branch without any deployed Jessica/Render/Supabase/APK/main changes. The model is original pinned pretrained 134,515,008-unique-parameter SmolLM2-135M-Instruct; complete C-native CB59 original source 11,229,303 B / 0.667839413 bpw; paid CB76 with frozen original source and FP16 rank4 U/V + output bias plus header/checksums **11,725,487 real B / 0.697348923 bpw**. Original trained dense 2D matrices absent from packed hot student inference. The paid correction itself runs in CPU Torch, NOT fully native C.
+
+### Genuine labeled TRAIN, VALID, frozen source before TEST
+
+- Collected true pretrained **native compressed-model** answer-token logits and hidden activations for SciQ TRAIN rows [300,324) = **24** questions and BoolQ TRAIN [600,648) = **48**, total **72 labeled FIT questions and 264 answer-token feature positions**.
+- Independent QA TRAIN VALID SciQ TRAIN [400,412) = **12**, BoolQ TRAIN [800,816) = **16**, total **28 questions and 121 answer-token features**. Original fixed TRAIN-VALID parent paid v76 yielded **SciQ 4/12 = 33.3%**, **BoolQ 4/16 = 25.0%**.
+- Optimized new task-aware paid rank4 source with fixed checkpoint steps 0,5,10,18; original independent TRAIN VALID rules demand both task accuracies non-regressing, ≥5-point improvement in at least one, no >0.25 nats regression in either original language TRAIN VALID. **No candidate qualified**: both independent same-runner source training repetitions froze **step 0**, **source_changed=false**, complete source SHA256 **4d5c1258924b77a458b1d08d962914f6c8845632f8604a0a04e929cd43ef759c**, **same-runner repeated SHA matched**. This was the legitimate rejection of the new answer-conditioned update, not a new improved checkpoint. It matches v77's retrained parent source SHA (though differs from v76/v78 host SHA); cross-environment bitwise stability of the paid head is still unresolved.
+- TRAIN-only selection completed BEFORE the two unseen TEST datasets, SciQ TEST, BoolQ VALID and greedy generation were opened. New v79 candidate was therefore **identical to original v76 parent (as regenerated in this CI run)**; any identical TEST results are expected and must NOT be interpreted as new algorithm gains.
+
+### Truly untouched independent TEST (new corpus windows and task IDs)
+
+| Full model original pretrained source | Original FP32 teacher | Original native CB59 | Prior paid v76 CB76 | New v79 TRAIN-selected CB76 |
+|---|---:|---:|---:|---:|
+| SciQ actual TEST [920,948) with source-support/full answer score, **27 valid** | **23/27 = 85.2%** | **7/27 = 25.9%** | **9/27 = 33.3%** | **9/27 = 33.3% (UNCHANGED)** |
+| BoolQ official VALID [1600,1632), first256 passage tokens, **32** | **21/32 = 65.6%** | **13/32 = 40.6%** | **12/32 = 37.5%** | **12/32 = 37.5% (UNCHANGED)** |
+| WikiText TEST tokens [105000,105512), teacher→student KL (nats) | source anchor | **10.51020** | **8.03661** | **8.03661 (UNCHANGED)** |
+| WikiText TEST next-token NLL (nats) | source anchor | **14.65493** | **12.31942** | **12.31942 (UNCHANGED)** |
+| AG News TEST rows [6000,6100), teacher→student KL (nats) | source anchor | **11.80444** | **9.47838** | **9.47838 (UNCHANGED)** |
+| AG News TEST next-token NLL (nats) | source anchor | **15.84027** | **13.46714** | **13.46714 (UNCHANGED)** |
+| Greedy KV-cache mean distinct generated token share, 3 new ×24-token prompts | **0.7222** | **0.1250** | **0.0694** | **0.0694 (UNCHANGED)** |
+
+The genuine pretrained original teacher is competent **23/27=85%** on this supported SciQ format. The compressed models remain near chance or only slightly better; despite heldout KL/NLL improvement, **CB76 scores 9/27 on SciQ and regresses on BoolQ compared with original packed CB59**. The output is still severely repetitive; the supposed improved answer-conditioned source was rejected by TRAIN-VALID. This is a **negative scientific result and clear absence of demonstrated restored answer correctness or generative ability**. No claim of statistical significance for small QA counts. The fixed initial SciQ source range included 28 rows with only 27 valid under the uniform source-choice validity rule; exclude invalid row independent of any model's answers.
+
+### Interpretation, next research question v80
+
+Blindly fitting answer loss on a few dozen questions with only paid rank4 output-logit factors did not pass independent TRAIN-VALID, even before evaluating TEST. v80 should isolate **why**: replay ALL 0/5/10/18 checkpoints on TRAIN-VALID and report exact per-task score/CE and KL penalties; diagnose whether original huge compressed hidden-state corruption makes the features non-transferable (e.g., aligned teacher vs packed hidden trajectories), check gradient direction/objective class imbalance and regularization, and test alternative *TRAIN-only* frozen answer objectives that account for early/middle layer structural errors rather than keep piling corrections on output head. No new QA TEST reuse, no QA-based prompt tuning or source promotion based on this negative TEST. Future claims must require teacher-sane QA improvement, nonrepetitive autoregressive generation, full physical source ≤0.700bpw and native throughput measured honestly.
+
+Actual verified successful workflow: https://github.com/Kamara229/JessicaCore/actions/runs/41550969128
+Draft source PR: https://github.com/Kamara229/JessicaCore/pull/209
+
+**The v79 answer-trained source was rejected and is NOT deployed to Jessica.**
