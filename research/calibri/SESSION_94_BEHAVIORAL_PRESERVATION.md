@@ -22,6 +22,7 @@ semantic competence.
 - SciQ: 64 unused original train examples [5200:5264]; four shuffled answer
   choices preserving original labeled correct answer with a deterministic
   per-question SHA-derived permutation. Original public train split only.
+- Actual original pretrained FP32 **task-correctness answers only** also scored on exactly the same labeled questions as the quality-preservation reference. This measures preserved functionality, NOT agreement of probability distributions. No candidate can be claimed quality-preserving solely because it improves over degraded CB59.
 - Both ranges are disjoint from prior CALIBRI v90/v91/v92 diagnostic TRAIN and
   VALID selection. The already observed v89 official test is not read.
 - Genuine original real pretrained CB59 source, and v92 rewritten
