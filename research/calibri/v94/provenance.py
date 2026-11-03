@@ -54,7 +54,7 @@ def verify_sources(original_path:Path,candidate_path:Path,report_path:Path):
         if not (BOOLQ_RANGE[1]<=lo or BOOLQ_RANGE[0]>=hi):
             raise AssertionError("reused original selection set")
     return {"CB59_SHA256":digest(original),"candidate_SHA256":digest(candidate),
-        "rewritten_complete_operator":name,"complete_archive_bytes":len(candidate),
+        "rewritten_complete_operator":name.removesuffix(".weight"),"complete_archive_bytes":len(candidate),
         "source_all_in_bpp":rate,"native_ABI_unchanged":True,
         "unique_original_trainable_parameters":EXPECTED_UNIQUE,
         "BOOLQ_NEW_TRAIN_VALID_range":BOOLQ_RANGE,
