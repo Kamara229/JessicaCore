@@ -41,8 +41,17 @@ def variants(original_bytes,v92_bytes,original_pretrained_weight,features):
             "all_unchanged_packed_layers_byte_identical":meta["all_other_modules_byte_unchanged"],
             "only_fit_internal_holdout_weight_geometry":True,
             "local_reconstruction_index_not_used_to_rank_models":True}
-    if len(set(sources))!=len(sources):
-        raise AssertionError("unexpected algorithm variants count")
+    # Dictionary-key uniqueness says nothing about archive contents.
+    # Record physical SHA duplicates, preserving an auditable candidate list;
+    # the FIT runner can reuse identical results without rerunning the model.
+    first_by_sha={}
+    for name,blob in sources.items():
+        digest=hashlib.sha256(blob).hexdigest()
+        details.setdefault(name,{})["content_SHA256"]=digest
+        if digest in first_by_sha:
+            details[name]["physical_duplicate_of"]=first_by_sha[digest]
+        else:
+            first_by_sha[digest]=name
     for name,data in sources.items():
         if len(data)!=len(original_bytes):raise AssertionError("source archive length grew")
         details.setdefault(name,{"candidate_SHA256":hashlib.sha256(data).hexdigest(),
