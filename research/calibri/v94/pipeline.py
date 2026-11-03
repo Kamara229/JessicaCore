@@ -55,7 +55,7 @@ def run(original_path:Path,candidate_path:Path,report_path:Path,out:Path):
         "behavior_first_automatic_decision":decision,
         "facade_based_automatic_repair_planner":next_plan,
         "real_correctness_quality_and_repetition_are_objectives":True,
-        "KL_NLL_and_FP32_similarity_not_measured_or_used":True,
+        "no_teacher_distribution_matching_used_for_selection":True,
         "all_new_sources_original_public_train_split_only":True,
         "v89_independent_TEST_and_main_Render_Supabase_Jessica_untouched":True,
         "new_model_weights_not_trained_or_deployed":True,
