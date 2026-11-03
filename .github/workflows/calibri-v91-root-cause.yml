@@ -1,0 +1,61 @@
+name: CALIBRI v91 frozen root-cause head and layer diagnosis
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v91/**'
+      - 'research/calibri/calibri_root_cause_v91.py'
+      - 'research/calibri/test_v91_root_cause.py'
+      - '.github/workflows/calibri-v91-root-cause.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  frozen_train_only_root_cause:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 115
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned original pretrained CPU research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify head math, per-layer and causal probes, exact TRAIN isolation
+        run: |
+          python -m compileall -q research/calibri/v91 research/calibri/calibri_root_cause_v91.py research/calibri/test_v91_root_cause.py
+          python -m unittest discover -s research/calibri -p test_v91_root_cause.py -v
+          python -m unittest discover -s research/calibri -p test_v90_train_valid_diagnosis.py -v
+      - name: Download the exact pinned CB59 and frozen CB88 original trained sources
+        run: |
+          mkdir -p input/v88 results/v91
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          gh run download 41586136382 --repo "$GITHUB_REPOSITORY" --name calibri-v88-genuine-trained-four-dimensional-physical-neuroweights --dir input/v88
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+          test -s input/v88/v88_gated_original_TRAIN_VALID_4D.cb88
+      - name: Attribute signed answer bias, source operator errors, FP32 oracle rescues and greedy collapse
+        run: |
+          python research/calibri/calibri_root_cause_v91.py --original input/CALIBRI_v59_full_direct_sub070.cb59 --cb88 input/v88/v88_gated_original_TRAIN_VALID_4D.cb88 --output results/v91
+          test -s results/v91/v91_root_cause_head_bias_tensor_block_errors_and_greedy.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v91-frozen-TRAIN-only-root-cause-full-battery
+          path: results/v91/v91_root_cause_head_bias_tensor_block_errors_and_greedy.json
+          retention-days: 7
+          if-no-files-found: ignore
