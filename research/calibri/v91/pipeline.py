@@ -11,7 +11,7 @@ from binary_geometry_v64 import MODEL,MODEL_SHA
 from paid_lowrank_v76 import make_model
 from v88.physical import unpack
 from v90.provenance import verify_sources
-from v90.qa import build_cases
+from v90.qa import build_cases,score_cases
 from .heads import HeadComponents,run_head_ablations
 from .greedy import greedy_ablations
 from .layers import layerwise_probes,MAX_TOKENS
@@ -33,11 +33,13 @@ def run(original_path:Path,cb88_path:Path,out:Path):
     heads=run_head_ablations(student,cases,answers,HeadComponents(A,B,bias))
     greedy=greedy_ablations(student,tok,A,B,bias)
     teacher,local,drift,diagnostics=layerwise_probes(student,cases)
+    teacher_QA=score_cases(teacher,cases,answers)
     influence=causal_one_block_rescue(student,teacher,local,diagnostics,answers)
     report={
         "experiment":"CALIBRI_v91_frozen_original_sources_root_cause_decomposition",
         "model":MODEL,"original_pretrained_revision":MODEL_SHA,
         "physical_sources":sources,"public_train_dataset_sources":origins,
+        "original_FP32_teacher_BoolQ_same_TRAIN_slices":teacher_QA,
         "four_frozen_head_ablations":heads,
         "four_frozen_greedy_diagnostic_modes":greedy,
         "all_original_dense_projection_same_input_relative_errors":local,
@@ -55,7 +57,8 @@ def run(original_path:Path,cb88_path:Path,out:Path):
            "bit budget if deployed; all original compressed weights remain frozen."}
     path=out/"v91_root_cause_head_bias_tensor_block_errors_and_greedy.json"
     path.write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\n")
-    abstract={"head":{split:{k:v["summary"][k] for k in
+    abstract={"original_FP32_teacher_BoolQ_correct":{s:v["correct_count"] for s,v in teacher_QA.items()},
+        "head":{split:{k:v["summary"][k] for k in
                      ("CB59","bias_only","tensor_only","CB88")} for split,v in heads.items()},
         "greedy_distinct":{k:v["mean_distinct_ratio"] for k,v in greedy.items()},
         "highest_local_error_blocks":sorted(
