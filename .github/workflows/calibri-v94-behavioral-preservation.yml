@@ -1,0 +1,62 @@
+name: CALIBRI v94 large train-heldout behavioral quality and whole CPU speed
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v94/**'
+      - 'research/calibri/calibri_preservation_v94.py'
+      - 'research/calibri/test_v94_behavior_first.py'
+      - 'research/calibri/SESSION_94_BEHAVIORAL_PRESERVATION.md'
+      - '.github/workflows/calibri-v94-behavioral-preservation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  outcome_only_correctness_diverse_generation_and_native_speed:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 115
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned original pretrained public CPU research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Validate independent public TRAIN provenance and functional-only gates
+        run: |
+          python -m compileall -q research/calibri/v94 research/calibri/calibri_preservation_v94.py research/calibri/test_v94_behavior_first.py
+          python research/calibri/test_v94_behavior_first.py -v
+      - name: Retrieve immutable complete packed CB59 original and exact v92 candidate
+        run: |
+          mkdir -p input/v92 results/v94
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          gh run download 41729012091 --repo "$GITHUB_REPOSITORY" --name calibri-v92-research-automatic-TRAIN-only-full-block-rewrite --dir input/v92
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+          test -s input/v92/v92_rewritten_single_block_RESEARCH_ONLY.cb59
+          test -s input/v92/v92_research_quality_doctor_report.json
+      - name: Compare correct independent BoolQ SciQ TRAIN-heldout answers and actual full-model CPU generation
+        run: |
+          python research/calibri/calibri_preservation_v94.py --original input/CALIBRI_v59_full_direct_sub070.cb59 --candidate input/v92/v92_rewritten_single_block_RESEARCH_ONLY.cb59 --prior-report input/v92/v92_research_quality_doctor_report.json --out results/v94
+          test -s results/v94/v94_original_true_answers_multi_domain_full_greedy_cpu.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v94-paired-128-BoolQ-64-SciQ-16-greedy-full-CPU
+          path: results/v94/v94_original_true_answers_multi_domain_full_greedy_cpu.json
+          retention-days: 7
+          if-no-files-found: ignore
