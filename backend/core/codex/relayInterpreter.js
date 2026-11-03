@@ -22,6 +22,7 @@ import {incidentCiStatusHandoff} from "./relayIncidentCiStatus.js";
 import {compactCodexStressProgress} from "./relayCompactStressProgress.js";
 import {interpretationFailureHandoff} from "./relayFailureHandoff.js";
 import {calibriResearchHandoff} from "./relayCalibriProgress.js";
+import {nonTestCiTaskHandoff} from "./relayNonTestCiTask.js";
 import {completedCalibriNoTestHandoff} from "./relayCalibriCompletedNoTest.js";
 import {v2PersistenceHandoff} from "./relayV2PersistenceHandoff.js";
 export {explicitJessicaTest} from "./relayExplicitTest.js";
@@ -90,6 +91,10 @@ export async function interpretRelayTurn(input, generate) {
     if(unverifiedPr!==null)return {action:"reply",reply:unverifiedPr,task:"",continueThread:false};
     const requestedTest = explicitJessicaTest(message) || compactJessicaTest(message) || numberedBenchmarkTest(message);
     if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
+    // GitHub research CI review is never an ordinary-chat Jessica test.
+    // Bypass quota-limited interpretation only on this exact, fully verified no-test wording.
+    const noTestCi=nonTestCiTaskHandoff(message);
+    if (noTestCi !== null) return noTestCi;
     const finishedResearch=completedCalibriNoTestHandoff(message);
     if (finishedResearch!==null)return {action:"reply",reply:finishedResearch,task:"",continueThread:false};
     const directCalendarFix=pendingCalendarDirectFix(message);
