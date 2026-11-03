@@ -57,7 +57,7 @@ def run(original_path:Path,cb88_path:Path,out:Path):
            "bit budget if deployed; all original compressed weights remain frozen."}
     path=out/"v91_root_cause_head_bias_tensor_block_errors_and_greedy.json"
     path.write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\n")
-    abstract={"original_FP32_teacher_BoolQ_correct":{s:v["correct_count"] for s,v in teacher_QA.items()},
+    abstract={"original_FP32_teacher_BoolQ_correct":{s:sum(row["correct"] for row in rows) for s,rows in teacher_QA.items()},
         "head":{split:{k:v["summary"][k] for k in
                      ("CB59","bias_only","tensor_only","CB88")} for split,v in heads.items()},
         "greedy_distinct":{k:v["mean_distinct_ratio"] for k,v in greedy.items()},
