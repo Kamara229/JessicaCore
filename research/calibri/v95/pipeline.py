@@ -51,9 +51,21 @@ def run(original_path:Path,v92_path:Path,v92_report:Path,locked:Path,out:Path):
     archives,physical=variants(source,previous,w,energy)
     # Train-only search, no access to independent VALID before fit selection.
     fit={}
+    seen_physical_sources={}
     original_parent,leaf,original_module,_=swap_one_block(model,source,source,TARGET)
     try:
         for name,blob in archives.items():
+            digest=hashlib.sha256(blob).hexdigest()
+            if digest in seen_physical_sources:
+                # Same physical archive is provably the same model; do not
+                # repeat CPU FIT inference on an alias or hide its provenance.
+                original_name=seen_physical_sources[digest]
+                fit[name]=fit[original_name]
+                print(json.dumps({"stage":"v95_identical_candidate_skipped",
+                    "name":name,"physical_duplicate_of":original_name,
+                    "archive_SHA256":digest}),flush=True)
+                continue
+            seen_physical_sources[digest]=name
             parent,leaf,old,candidate=swap_one_block(model,source,blob,TARGET)
             setattr(parent,leaf,candidate)
             fit[name]={"QA":eval_answers(model,fit_cases,options,"TRAIN"),
