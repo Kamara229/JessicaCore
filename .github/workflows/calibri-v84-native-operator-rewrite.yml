@@ -1,0 +1,62 @@
+name: CALIBRI v84 - genuine native pretrained operator rewrite <=0.700 bpw
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v84/**'
+      - 'research/calibri/operator_rewrite_v84.py'
+      - 'research/calibri/test_v84_operator_rewrite.py'
+      - 'research/calibri/SESSION_84.md'
+      - '.github/workflows/calibri-v84-native-operator-rewrite.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  frozen-packed-pretrained-operator-rewrite:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pin real original pretrained CPU scientific dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Facade leaves compile and CB59 physical-rewrite unit checks pass
+        run: |
+          python -m compileall -q research/calibri/v84 research/calibri/operator_rewrite_v84.py research/calibri/test_v84_operator_rewrite.py
+          python -m unittest discover -s research/calibri -p test_v84_operator_rewrite.py -v
+      - name: Fetch the previous real 135M ORIGINAL CB59 complete physical source
+        run: |
+          mkdir -p input results/v84
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: Real pretrained local OPERATOR REWRITE and native whole model TRAIN VALID
+        run: |
+          python research/calibri/operator_rewrite_v84.py --original input/CALIBRI_v59_full_direct_sub070.cb59 --out-dir results/v84
+          test -s results/v84/v84_real_original_TRAIN_VALID_operator_rewrite_audit.json
+          test -s results/v84/v84_research_only_three_operator_CB59.cb59
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v84-physically-rewritten-native-source-TRAIN-VALID
+          path: |
+            results/v84/v84_real_original_TRAIN_VALID_operator_rewrite_audit.json
+            results/v84/v84_research_only_three_operator_CB59.cb59
+          retention-days: 7
+          if-no-files-found: ignore
