@@ -81,8 +81,8 @@ def paired_inputs(samples, domains: tuple[str, ...], path: str):
     for domain in domains:
         rows = samples[domain]["probes"][path]
         for x,y in rows:
-            all_x.append(x)
-            all_y.append(y)
+            all_x.append(x.detach().clone())
+            all_y.append(y.detach().clone())
     if not all_x:
         raise AssertionError("no paired teacher projector data")
     return torch.cat(all_x, dim=0), torch.cat(all_y, dim=0)
