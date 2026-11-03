@@ -19,7 +19,8 @@ def physical_budget(total_bytes):
     return {"total_bytes":total_bytes,"bpp":bpp,"PASS":bpp<=MAX_BPP}
 
 def decide_candidate(*,source_bytes,valid_teacher_KL_gain,valid_QA_regression,
-                     valid_greedy_ratio,valid_speed_ratio):
+                     valid_greedy_ratio,valid_speed_ratio,full_model_speed_proven=False,
+                     true_language_NLL_proven=False):
     budget=physical_budget(source_bytes)
     checks={"physical_budget":budget["PASS"],
             "teacher_KL_gain_strict_positive":valid_teacher_KL_gain>0,
