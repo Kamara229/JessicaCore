@@ -14,7 +14,7 @@ export function onePlainJessicaTest(message) {
     const source=typeof message==="string"?message:"";
     if(!source || source.length>1400)return null;
     const trimmed=source.trim();
-    const marker=/^JESSICA_REPLY_([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12})\s*\r?\n/iu.exec(trimmed);
+    const marker=/^JESSICA_REPLY_([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12})\s*\r?\n/iu.exec(trimmed);
     let body;
     if(marker){
         const suffix="JESSICA_END_"+marker[1];
