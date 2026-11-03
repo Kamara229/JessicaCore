@@ -25,7 +25,14 @@ def evaluate(qa,generation,rate,semantic_quality_verified=False):
                                     qa[name]["baseline"]["balanced_accuracy"],
           "enough_samples":qa[name]["baseline"]["count"]>=40}
         for name in domains}
+    pretrained_correct={name:qa[name].get("original_FP32_task_correctness_only",{}).get("correct") for name in domains}
+    original_functional_quality_measured=all(v is not None for v in pretrained_correct.values())
+    preserved_original_quality=original_functional_quality_measured and all(
+        qa[name]["rewritten"]["correct"]>=pretrained_correct[name] for name in domains)
     metrics={"answer_gains":each,
+        "original_FP32_actual_correct_answers":pretrained_correct,
+        "original_functional_quality_measured":original_functional_quality_measured,
+        "pretrained_answer_quality_preserved_on_all_domains":preserved_original_quality,
         "total_questions":sum(x["n"] for x in each.values()),
         "all_domains_at_least_no_regression":all(x["correct_delta"]>=0
                                  and x["balanced_accuracy_delta"]>=0 for x in each.values()),
@@ -43,7 +50,7 @@ def evaluate(qa,generation,rate,semantic_quality_verified=False):
            metrics["all_domains_at_least_no_regression"] and
            candidate["mean_distinct_ratio"]>=MIN_DISTINCT and
            candidate["mean_most_frequent_share"]<=MAX_REPETITION_SHARE and
-           speed>=MIN_SPEED_RATIO and semantic_quality_verified)
+           speed>=MIN_SPEED_RATIO and semantic_quality_verified and preserved_original_quality)
     status=("REJECT_FUNCTIONAL_REGRESSION" if severe else
            "STAGE_RESEARCH_CANDIDATE_FOR_REVIEW" if ready else
            "PROMISING_NEEDS_BETTER_BEHAVIORAL_QUALITY")
