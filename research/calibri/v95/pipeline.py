@@ -44,9 +44,9 @@ def run(original_path:Path,v92_path:Path,v92_report:Path,locked:Path,out:Path):
         raise AssertionError("source native CPU runtime unexpectedly dense")
     pretrained=original_teacher()
     tok=AutoTokenizer.from_pretrained(MODEL,revision=MODEL_SHA)
-    cases,originals,options=build(tok)
-    print(json.dumps({"stage":"v95_train_only_sources_loaded","splits":originals},default=list),flush=True)
-    energy,feature_sources=train_energies(pretrained,TARGET,cases["BoolQ"]["TRAIN"])
+    fit_cases,fit_sources,options=build(tok,("TRAIN",))
+    print(json.dumps({"stage":"v95_train_only_sources_loaded","splits":fit_sources},default=list),flush=True)
+    energy,feature_sources=train_energies(pretrained,TARGET,fit_cases["BoolQ"]["TRAIN"])
     w=pretrained.get_submodule(TARGET).weight.detach().cpu().float().numpy()
     archives,physical=variants(source,previous,w,energy)
     # Train-only search, no access to independent VALID before fit selection.
@@ -56,7 +56,7 @@ def run(original_path:Path,v92_path:Path,v92_report:Path,locked:Path,out:Path):
         for name,blob in archives.items():
             parent,leaf,old,candidate=swap_one_block(model,source,blob,TARGET)
             setattr(parent,leaf,candidate)
-            fit[name]={"QA":eval_answers(model,cases,options,"TRAIN"),
+            fit[name]={"QA":eval_answers(model,fit_cases,options,"TRAIN"),
                        "greedy":eval_greedy(model,tok,TRAIN_GENERATION)}
             print(json.dumps({"stage":"v95_train_candidate",
                 "name":name,"BoolQ_correct":fit[name]["QA"]["BoolQ"]["score"]["correct"],
@@ -66,13 +66,16 @@ def run(original_path:Path,v92_path:Path,v92_report:Path,locked:Path,out:Path):
         ordered,ranks=fit_rank(fit)
         winner=ordered[0]
         setattr(original_parent,leaf,original_module)
-        # No re-ranking on VALID: read original public held-out answers exactly once.
-        baseline_QA=eval_answers(model,cases,options,"TRAIN_VALID")
+        # ONLY NOW load untouched TRAIN_VALID after FIT winner was selected.
+        valid_cases,valid_sources,valid_answers=build(tok,("TRAIN_VALID",))
+        if valid_answers!=options:raise AssertionError("original label-token mismatch")
+        originals={**fit_sources,**valid_sources}
+        baseline_QA=eval_answers(model,valid_cases,options,"TRAIN_VALID")
         baseline_GEN=eval_greedy(model,tok,VALID_GENERATION)
-        teacher_QA=eval_answers(pretrained,cases,options,"TRAIN_VALID")
+        teacher_QA=eval_answers(pretrained,valid_cases,options,"TRAIN_VALID")
         parent,leaf,old,new=swap_one_block(model,source,archives[winner],TARGET)
         setattr(parent,leaf,new)
-        candidate_QA=eval_answers(model,cases,options,"TRAIN_VALID")
+        candidate_QA=eval_answers(model,valid_cases,options,"TRAIN_VALID")
         candidate_GEN=eval_greedy(model,tok,VALID_GENERATION)
     finally:setattr(original_parent,leaf,original_module)
     native_ratio=candidate_GEN["tokens_per_second"]/max(baseline_GEN["tokens_per_second"],1e-9)
