@@ -18,6 +18,8 @@ def temporary_oracle_modules(packed_model,original_fp32,paths):
         for name in paths:
             parent_path,sep,leaf=name.rpartition(".")
             parent=packed_model.get_submodule(parent_path) if sep else packed_model
+            if not hasattr(parent,leaf):
+                raise AssertionError("required native packed module not found: "+name)
             old=getattr(parent,leaf)
             exact=original_fp32.get_submodule(name)
             if not isinstance(old,(PackedLinear,PackedEmbedding)):
