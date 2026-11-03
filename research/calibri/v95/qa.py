@@ -8,8 +8,10 @@ import hashlib,random
 from v94.qa import source_rows,encode_case,ANSWER_LETTERS
 from v95.spec import SPLITS,verify
 
-def build(tok):
+def build(tok,splits=("TRAIN",)):
     verify()
+    if not splits or any(s not in ("TRAIN","TRAIN_VALID") for s in splits):
+        raise AssertionError("only disjoint public TRAIN research splits are permitted")
     yes=tok.encode(" Yes",add_special_tokens=False)
     no=tok.encode(" No",add_special_tokens=False)
     if len(yes)!=1 or len(no)!=1:raise AssertionError("original tokenizer options need one token each")
@@ -23,6 +25,7 @@ def build(tok):
     for domain in ("BoolQ","SciQ"):
         results[domain]={}
         for split,span in SPLITS[domain].items():
+            if split not in splits:continue
             rows,origin=source_rows("google/boolq" if domain=="BoolQ" else "allenai/sciq",span)
             items=[]
             for index,row in enumerate(rows):
