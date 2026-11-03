@@ -1,0 +1,63 @@
+name: CALIBRI v86 - frozen physical adaptive model independent unseen TEST
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v86/**'
+      - 'research/calibri/frozen_adaptive_v86.py'
+      - 'research/calibri/test_v86_frozen_adaptive.py'
+      - 'research/calibri/SESSION_86.md'
+      - '.github/workflows/calibri-v86-independent-adaptive-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  frozen_original_135m_full_independent_generalization:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 105
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install original CPU pretrained research pinned dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Validate frozen SHA and new disjoint TEST ranges and facade syntax
+        run: |
+          python -m compileall -q research/calibri/v86 research/calibri/frozen_adaptive_v86.py research/calibri/test_v86_frozen_adaptive.py
+          python -m unittest discover -s research/calibri -p test_v86_frozen_adaptive.py -v
+      - name: Retrieve exact original CB59 and PRETEST-FROZEN v85 adaptive CB85
+        run: |
+          mkdir -p input/v85 results/v86
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          gh run download 41578432949 --repo "$GITHUB_REPOSITORY" --name calibri-v85-full-native-conditional-source-physical-TRAIN-VALID --dir input/v85
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+          test -s input/v85/v85_RESEARCH_only_conditional_native_source.cb85
+      - name: Real ORIGINAL FP32 + packed CB59 + frozen adaptive CB85 independent TEST
+        run: |
+          python research/calibri/frozen_adaptive_v86.py --original input/CALIBRI_v59_full_direct_sub070.cb59 --adaptive input/v85/v85_RESEARCH_only_conditional_native_source.cb85 --output results/v86
+          test -s results/v86/v86_TRUE_independent_pretrained_answer_KL_greedy_TEST.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v86-frozen-adaptive-real-original-independent-TEST
+          path: |
+            results/v86/v86_TRUE_independent_pretrained_answer_KL_greedy_TEST.json
+            results/v86/v86_frozen_source_and_new_test_preregistration.json
+          retention-days: 7
+          if-no-files-found: ignore
