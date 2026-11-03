@@ -45,7 +45,7 @@ def inplace_replace(original_blob:bytes,name:str,packed_candidate):
         else:
             if not np.array_equal(source.raw[key],after.raw[key]):
                 raise AssertionError("unselected raw trained source changed: "+key)
-    if len(data["packed"])!=m*n*5//64:
+    if len(data["packed"])!=((m*n//8*5+7)//8):
         raise AssertionError("5-bit/8 native geometry source changed")
     return rebuilt,{"base_SHA256":hashlib.sha256(original_blob).hexdigest(),
                     "candidate_SHA256":hashlib.sha256(rebuilt).hexdigest(),
