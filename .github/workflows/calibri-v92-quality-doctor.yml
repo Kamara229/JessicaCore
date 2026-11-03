@@ -1,0 +1,67 @@
+name: CALIBRI v92 automated root cause and no-extra-byte full-block rewrite
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v92/**'
+      - 'research/calibri/calibri_quality_doctor_v92.py'
+      - 'research/calibri/test_v92_quality_doctor.py'
+      - 'research/calibri/SESSION_92_AUTONOMOUS_BLOCK_REWRITE.md'
+      - '.github/workflows/calibri-v92-quality-doctor.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  source_isolated_automatic_diagnosis_and_one_full_block_rewrite:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 115
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned original pretrained CPU research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Check repair policy, physical format, and safety tests before REAL model
+        run: |
+          python -m compileall -q research/calibri/v92 research/calibri/calibri_quality_doctor_v92.py research/calibri/test_v92_quality_doctor.py
+          python -m unittest discover -s research/calibri -p test_v92_quality_doctor.py -v
+          python -m unittest discover -s research/calibri -p test_v91_root_cause.py -v
+      - name: Retrieve exact original weight archives and v91 TRAIN-only evidence
+        run: |
+          mkdir -p input/v88 input/v91 results/v92
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          gh run download 41586136382 --repo "$GITHUB_REPOSITORY" --name calibri-v88-genuine-trained-four-dimensional-physical-neuroweights --dir input/v88
+          gh run download 41727705684 --repo "$GITHUB_REPOSITORY" --name calibri-v91-frozen-TRAIN-only-root-cause-full-battery --dir input/v91
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+          test -s input/v88/v88_gated_original_TRAIN_VALID_4D.cb88
+          test -s input/v91/v91_root_cause_head_bias_tensor_block_errors_and_greedy.json
+      - name: Automatically diagnose, rewrite one complete 5bit block and test heldout TRAIN_VALID
+        run: |
+          python research/calibri/calibri_quality_doctor_v92.py --report input/v91/v91_root_cause_head_bias_tensor_block_errors_and_greedy.json --original input/CALIBRI_v59_full_direct_sub070.cb59 --cb88 input/v88/v88_gated_original_TRAIN_VALID_4D.cb88 --output results/v92
+          test -s results/v92/v92_research_quality_doctor_report.json
+          test -s results/v92/v92_rewritten_single_block_RESEARCH_ONLY.cb59
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v92-research-automatic-TRAIN-only-full-block-rewrite
+          path: |
+            results/v92/v92_research_quality_doctor_report.json
+            results/v92/v92_rewritten_single_block_RESEARCH_ONLY.cb59
+          retention-days: 7
+          if-no-files-found: ignore
