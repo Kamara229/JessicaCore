@@ -4,15 +4,19 @@ on:
   pull_request:
     paths:
       - 'backend/core/codex/relayOnePlainTest.js'
+      - 'backend/core/codex/relayIncidentNoTestStatus.js'
       - 'backend/core/codex/relayInterpreter.js'
       - 'backend/scripts/regressionCodexPlainTestWithoutProvider.test.js'
+      - 'backend/scripts/regressionCodexIncidentNoTestStatus.test.js'
       - '.github/workflows/codex-plain-test-no-provider.yml'
   push:
     branches: [main]
     paths:
       - 'backend/core/codex/relayOnePlainTest.js'
+      - 'backend/core/codex/relayIncidentNoTestStatus.js'
       - 'backend/core/codex/relayInterpreter.js'
       - 'backend/scripts/regressionCodexPlainTestWithoutProvider.test.js'
+      - 'backend/scripts/regressionCodexIncidentNoTestStatus.test.js'
 
 permissions:
   contents: read
@@ -26,4 +30,4 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
-      - run: node --test backend/scripts/regressionCodexPlainTestWithoutProvider.test.js backend/scripts/regressionCodexCompactTest.test.js backend/scripts/regressionCodexRelay.test.js
+      - run: node --test backend/scripts/regressionCodexIncidentNoTestStatus.test.js backend/scripts/regressionCodexPlainTestWithoutProvider.test.js backend/scripts/regressionCodexCompactTest.test.js backend/scripts/regressionCodexRelay.test.js
