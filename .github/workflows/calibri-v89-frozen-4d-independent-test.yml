@@ -1,0 +1,65 @@
+name: CALIBRI v89 - frozen 4D pretrained original official unseen TEST
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v89/**'
+      - 'research/calibri/frozen_4d_independent_v89.py'
+      - 'research/calibri/test_v89_frozen_4d_independent.py'
+      - 'research/calibri/SESSION_89.md'
+      - '.github/workflows/calibri-v89-frozen-4d-independent-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  frozen_true_original_unseen_multidimensional_test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 115
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned original CPU pretrained research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Compile and verify genuine preregistered unseen TEST and source budget
+        run: |
+          python -m compileall -q research/calibri/v89 research/calibri/frozen_4d_independent_v89.py research/calibri/test_v89_frozen_4d_independent.py
+          python -m unittest discover -s research/calibri -p test_v89_frozen_4d_independent.py -v
+      - name: Retrieve unchanged original trained native-C source and frozen v85/v88
+        run: |
+          mkdir -p input/v85 input/v88 results/v89
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          gh run download 41578432949 --repo "$GITHUB_REPOSITORY" --name calibri-v85-full-native-conditional-source-physical-TRAIN-VALID --dir input/v85
+          gh run download 41586136382 --repo "$GITHUB_REPOSITORY" --name calibri-v88-genuine-trained-four-dimensional-physical-neuroweights --dir input/v88
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+          test -s input/v85/v85_RESEARCH_only_conditional_native_source.cb85
+          test -s input/v88/v88_gated_original_TRAIN_VALID_4D.cb88
+      - name: Execute frozen CB88 original trained unseen QA KL NLL CPU greedy speed
+        run: |
+          python research/calibri/frozen_4d_independent_v89.py --original input/CALIBRI_v59_full_direct_sub070.cb59 --cb85 input/v85/v85_RESEARCH_only_conditional_native_source.cb85 --cb88 input/v88/v88_gated_original_TRAIN_VALID_4D.cb88 --output results/v89
+          test -s results/v89/v89_TRUE_original_unseen_4D_neuroweights_QA_KL_NLL_greedy_speed_TEST.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v89-original-trained-frozen-4D-official-independent-TEST
+          path: |
+            results/v89/v89_TRUE_original_unseen_4D_neuroweights_QA_KL_NLL_greedy_speed_TEST.json
+            results/v89/v89_PRETEST_frozen_sources_and_disjoint_inputs.json
+          retention-days: 7
+          if-no-files-found: ignore
