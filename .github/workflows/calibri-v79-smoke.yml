@@ -1,0 +1,97 @@
+name: CALIBRI v79 - real pretrained answer supervised full source and blind TEST
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/answer_supervision_v79.py'
+      - 'research/calibri/SESSION_79.md'
+      - '.github/workflows/calibri-v79-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  reproduce-actual-135m-and-test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 115
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pinned original CPU pretrained study dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Syntax and source complete physical budget smoke
+        run: |
+          python -m py_compile research/calibri/paid_lowrank_v76.py research/calibri/repro_qa_calibration_v78.py research/calibri/answer_supervision_v79.py
+          python research/calibri/answer_supervision_v79.py --phase smoke
+      - name: Download original entire pretrained 135M real CB59 weight source
+        run: |
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: Genuine trained original pretrained teacher WikiText AG News TRAIN only
+        run: |
+          for c in wiki_fit news_fit wiki_valid news_valid; do
+            python research/calibri/paid_lowrank_v76.py --phase collect --kind teacher --corpus "$c" --folder results
+          done
+      - name: Actual compressed native-C base LLM hidden trajectories TRAIN only
+        run: |
+          for c in wiki_fit news_fit wiki_valid news_valid; do
+            python research/calibri/paid_lowrank_v76.py --phase collect --kind baseline --corpus "$c" --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+          done
+      - name: Rebuild pretrained physical complete original paid rank4 source on TRAIN
+        run: |
+          python research/calibri/paid_lowrank_v76.py --phase train --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Native original packed 135M source SciQ and BoolQ TRAIN FIT features
+        run: |
+          python research/calibri/answer_supervision_v79.py --phase collect --dataset fit --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Native original packed model new SciQ and BoolQ TRAIN VALID features
+        run: |
+          python research/calibri/answer_supervision_v79.py --phase collect --dataset valid --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: First independent TRAIN answer-conditioned rank4 source fit and VALID selection
+        run: |
+          python research/calibri/answer_supervision_v79.py --phase train --repeat first --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Repeated TRAIN optimizer for exact source SHA reproducibility
+        run: |
+          python research/calibri/answer_supervision_v79.py --phase train --repeat second --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Freeze exact original and QA-trained physical CB76 source BEFORE any TEST
+        run: |
+          python research/calibri/answer_supervision_v79.py --phase freeze --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Genuine original pretrained FP32 teacher on new unseen TEST
+        run: |
+          python research/calibri/answer_supervision_v79.py --phase evaluate --kind teacher --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Genuine native packed original CB59 complete model on new unseen TEST
+        run: |
+          python research/calibri/answer_supervision_v79.py --phase evaluate --kind baseline --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Original paid v76 trained CB76 source on new unseen TEST
+        run: |
+          python research/calibri/answer_supervision_v79.py --phase evaluate --kind paid_v76 --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Frozen v79 TRAIN-answer conditioned paid CB76 source on new unseen TEST
+        run: |
+          python research/calibri/answer_supervision_v79.py --phase evaluate --kind qa_v79 --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - name: Audit real source count and paired heldout QA language KL and generation
+        run: |
+          python research/calibri/answer_supervision_v79.py --phase report --original input/CALIBRI_v59_full_direct_sub070.cb59 --folder results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v79-source-and-tested-QA-numerical-audit
+          path: |
+            results/v76_selection.json
+            results/v79_train_first.json
+            results/v79_train_second.json
+            results/v79_FROZEN_before_TEST.json
+            results/v79_FINAL_independent_TEST.json
+          retention-days: 7
+          if-no-files-found: ignore
