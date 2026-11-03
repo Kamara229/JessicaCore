@@ -1,0 +1,45 @@
+name: CALIBRI v80 - v79 true TRAIN VALID checkpoint failure diagnosis no TEST leakage
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/qa_valid_diagnostics_v80.py'
+      - 'research/calibri/SESSION_80.md'
+      - '.github/workflows/calibri-qa-diagnostic-v80.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original-trained-source-checkpoints-TRAIN-only-postmortem:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Syntax verify numeric-only TRAIN VALID diagnosis
+        run: |
+          python -m py_compile research/calibri/qa_valid_diagnostics_v80.py
+      - name: Download immutable v79 genuine pretrained TRAIN/VALID audit JSON
+        run: |
+          gh run download 41550969128 --repo "$GITHUB_REPOSITORY" --name calibri-v79-source-and-tested-QA-numerical-audit --dir input
+          test -s input/v79_train_first.json
+          test -s input/v79_train_second.json
+          test -s input/v79_FROZEN_before_TEST.json
+      - name: Diagnose all fixed v79 QA TRAIN VALID failure gates without reading TEST metrics
+        run: |
+          python research/calibri/qa_valid_diagnostics_v80.py --input input --out results/v80_original_TRAIN_VALID_failure_audit.json
+      - name: Upload only derived TRAIN VALID failure mode JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v80-source-only-preTEST-valid-failure-diagnosis
+          path: |
+            results/v80_original_TRAIN_VALID_failure_audit.json
+          retention-days: 7
+          if-no-files-found: ignore
