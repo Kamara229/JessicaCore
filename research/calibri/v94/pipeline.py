@@ -11,6 +11,8 @@ import torch
 from transformers import AutoTokenizer
 from binary_geometry_v64 import MODEL,MODEL_SHA
 from paid_lowrank_v76 import make_model
+from v84.sources import original_teacher
+from .answers import summary
 from v92.validate import swap_one_block
 from .provenance import verify_sources
 from .qa import build_boolq,build_sciq,score_cases
@@ -32,6 +34,7 @@ def run(original_path:Path,candidate_path:Path,report_path:Path,out:Path):
         raise AssertionError("direct packed complete native model required")
     parent,leaf,old,new=swap_one_block(student,original_path.read_bytes(),
         candidate_path.read_bytes(),source["rewritten_complete_operator"])
+    pretrained=original_teacher()  # Only task correctness; NEVER teacher logits matching.
     domain_reports={}
     try:
         for domain,items,answers,origin in (
@@ -41,6 +44,9 @@ def run(original_path:Path,candidate_path:Path,report_path:Path,out:Path):
             setattr(parent,leaf,new)
             trial=score_cases(student,items,answers)
             domain_reports[domain]=paired(domain,baseline,trial,len(answers))
+            fp32_rows=score_cases(pretrained,items,answers)
+            domain_reports[domain]["original_FP32_task_correctness_only"]=summary(fp32_rows,len(answers))
+            domain_reports[domain]["candidate_minus_original_FP32_correct_answers"]=sum(r["correct"] for r in trial)-sum(r["correct"] for r in fp32_rows)
             domain_reports[domain]["original_public_train_holdout_provenance"]=origin
             domain_reports[domain]["original_paired_answers"]={"CB59":baseline,"rewritten":trial}
         generation=paired_greedy(student,tok,parent,leaf,old,new)
@@ -59,6 +65,7 @@ def run(original_path:Path,candidate_path:Path,report_path:Path,out:Path):
         "all_new_sources_original_public_train_split_only":True,
         "v89_independent_TEST_and_main_Render_Supabase_Jessica_untouched":True,
         "new_model_weights_not_trained_or_deployed":True,
+        "FP32_reference_only_real_correct_answers_not_probabilities":True,
         "study_limitations":"This is additional independent TRAIN-heldout comparison on a formerly "
            "selected research candidate. SciQ/BoolQ next-token constrained choices are "
            "task correctness signals, not an estimate of all human answer quality. "
@@ -69,6 +76,7 @@ def run(original_path:Path,candidate_path:Path,report_path:Path,out:Path):
     digest={"stage":"v94_measured_functional_preservation_no_distribution_metrics",
         "BoolQ":{key:domain_reports["BoolQ"][key]["correct"] for key in ("baseline","rewritten")},
         "SciQ":{key:domain_reports["SciQ"][key]["correct"] for key in ("baseline","rewritten")},
+        "FP32_correct_answers_only":{name:domain_reports[name]["original_FP32_task_correctness_only"]["correct"] for name in ("BoolQ","SciQ")},
         "generation_unique_ratio":{kind:generation[kind]["mean_distinct_ratio"]
                                    for kind in ("original","candidate")},
         "full_model_cpu_decode_speed_ratio":generation["paired_full_model_greedy_decode_speed_ratio"],
