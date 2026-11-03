@@ -30,7 +30,7 @@ export function onePlainJessicaTest(message) {
     const match=/^Тест\s*:\s*(.{30,220})$/iu.exec(body);
     if(!match)return null;
     const task=match[1].trim();
-    if(!/(?:рассчитай|вычисли|проверь|определи|найди|реши|сравни|покажи)\b/iu.test(task))
+    if(!/(?:рассчитай|вычисли|проверь|определи|найди|реши|сравни|покажи)(?=$|[^\p{L}\p{N}])/iu.test(task))
         return null;
     if(/(?:^|[.!?]\s+)Тест\s*:/iu.test(task))return null;
     // This is a single verbatim task. No fabrication, no source changes.
