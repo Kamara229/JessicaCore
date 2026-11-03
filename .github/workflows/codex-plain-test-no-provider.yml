@@ -1,0 +1,29 @@
+name: Codex plain one-test interpretation regression
+
+on:
+  pull_request:
+    paths:
+      - 'backend/core/codex/relayOnePlainTest.js'
+      - 'backend/core/codex/relayInterpreter.js'
+      - 'backend/scripts/regressionCodexPlainTestWithoutProvider.test.js'
+      - '.github/workflows/codex-plain-test-no-provider.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/core/codex/relayOnePlainTest.js'
+      - 'backend/core/codex/relayInterpreter.js'
+      - 'backend/scripts/regressionCodexPlainTestWithoutProvider.test.js'
+
+permissions:
+  contents: read
+
+jobs:
+  no-quota-one-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - run: node --test backend/scripts/regressionCodexPlainTestWithoutProvider.test.js backend/scripts/regressionCodexCompactTest.test.js backend/scripts/regressionCodexRelay.test.js
