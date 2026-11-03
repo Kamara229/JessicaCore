@@ -1,0 +1,50 @@
+name: CALIBRI v93 functional-quality-first outcome replay
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v93/**'
+      - 'research/calibri/calibri_quality_first_v93.py'
+      - 'research/calibri/test_v93_outcome_first.py'
+      - 'research/calibri/SESSION_93_OUTCOME_FIRST_QUALITY.md'
+      - '.github/workflows/calibri-v93-outcome-first.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality_outcomes_from_unchanged_original_train_valid_observations:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: research/calibri
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check correctness-only policy and original independent TEST isolation
+        run: |
+          python -m compileall -q research/calibri/v93 research/calibri/calibri_quality_first_v93.py research/calibri/test_v93_outcome_first.py
+          python -m unittest discover -s research/calibri -p test_v93_outcome_first.py -v
+      - name: Retrieve immutable v92 trained source outcomes only, not official TEST
+        run: |
+          mkdir -p input/v92 results/v93
+          gh run download 41729012091 --repo "$GITHUB_REPOSITORY" --name calibri-v92-research-automatic-TRAIN-only-full-block-rewrite --dir input/v92
+          test -s input/v92/v92_research_quality_doctor_report.json
+      - name: Apply correctness and generation-quality policy without any KL or NLL
+        run: |
+          python research/calibri/calibri_quality_first_v93.py --v92 input/v92/v92_research_quality_doctor_report.json --output results/v93
+          test -s results/v93/v93_outcome_first_v92_candidate_review.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v93-task-correctness-and-generation-quality-only
+          path: results/v93/v93_outcome_first_v92_candidate_review.json
+          retention-days: 7
+          if-no-files-found: ignore
