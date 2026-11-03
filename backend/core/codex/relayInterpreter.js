@@ -4,6 +4,7 @@ import {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 import {explicitJessicaTest} from "./relayExplicitTest.js";
 import {compactJessicaTest} from "./relayCompactTest.js";
 import {onePlainJessicaTest} from "./relayOnePlainTest.js";
+import {codexIncidentNoTestStatus} from "./relayIncidentNoTestStatus.js";
 import {numberedBenchmarkTest} from "./relayNumberedBenchmarkTest.js";
 import {workedAnswerNoTest} from "./relayWorkedAnswerNoTest.js";
 import {pendingZeroDayExplanationHandoff} from "./relayPendingDateExplanation.js";
@@ -85,6 +86,8 @@ export async function interpretRelayTurn(input, generate) {
     // Verified, no-test CALIBRI CI status needs no quota-limited AI call.
     const calibriReply = calibriResearchHandoff(message);
     if (calibriReply !== null) return {action:"reply",reply:calibriReply,task:"",continueThread:false};
+    const incidentNoTest=codexIncidentNoTestStatus(message);
+    if(incidentNoTest!==null)return {action:"reply",reply:incidentNoTest,task:"",continueThread:false};
     const blockedBackend=blockedBackendProgress(message);
     if(blockedBackend!==null)return {action:"reply",reply:blockedBackend,task:"",continueThread:false};
     const unverifiedPr=unverifiedPrProgress(message);
