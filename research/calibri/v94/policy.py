@@ -48,7 +48,7 @@ def evaluate(qa,generation,rate,semantic_quality_verified=False):
            "STAGE_RESEARCH_CANDIDATE_FOR_REVIEW" if ready else
            "PROMISING_NEEDS_BETTER_BEHAVIORAL_QUALITY")
     return {"status":status,"metrics":metrics,
-        "all_correctness_and_generation_checks_without_KL_NLL":True,
+        "selection_uses_direct_functional_metrics_only":True,
         "semantic_responses_not_claimed_proven":not semantic_quality_verified,
         "requires_new_unopened_official_TEST_after_freeze":True,
         "automatic_live_Jessica_deploy_forbidden":True}
