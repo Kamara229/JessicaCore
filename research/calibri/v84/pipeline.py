@@ -168,5 +168,5 @@ def run(original: Path, out_dir: Path) -> dict:
         "research_go":selection["newly_rewritten_source_valid_guard_pass"],
         "TEST_touched":False,
         "production_untouched":True,
-    }),ensure_ascii=False),flush=True)
+    },ensure_ascii=False),flush=True)
     return result
