@@ -26,7 +26,9 @@ def decide_candidate(*,source_bytes,valid_teacher_KL_gain,valid_QA_regression,
             "teacher_KL_gain_strict_positive":valid_teacher_KL_gain>0,
             "valid_QA_no_regression":valid_QA_regression>=0,
             "greedy_diversity":valid_greedy_ratio>=MIN_GREEDY_DISTINCT,
-            "native_speed":valid_speed_ratio>=MIN_SPEED_RATIO}
+            "native_speed":valid_speed_ratio>=MIN_SPEED_RATIO,
+            "full_model_speed_proven":bool(full_model_speed_proven),
+            "true_language_NLL_proven":bool(true_language_NLL_proven)}
     return {"checks":checks,"fully_paid":budget,
         "status":"STAGE_FOR_REVIEW" if all(checks.values()) else "REJECT",
         "automatic_merge_or_production_write":False,
