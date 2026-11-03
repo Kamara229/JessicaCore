@@ -32,7 +32,7 @@ export function onePlainJessicaTest(message) {
     const task=match[1].trim();
     if(!/(?:рассчитай|вычисли|проверь|определи|найди|реши|сравни|покажи)(?=$|[^\p{L}\p{N}])/iu.test(task))
         return null;
-    if(/(?:^|[.!?]\s+)Тест\s*:/iu.test(task))return null;
+    if(/(?:^|[.!?]\s+)Тест\s*:|(?:повтори|следующий|другой)\s+тест\s*:/iu.test(task))return null;
     // This is a single verbatim task. No fabrication, no source changes.
     if(!source.includes(task))return null;
     return {action:"test",reply:"",task,continueThread:false};
