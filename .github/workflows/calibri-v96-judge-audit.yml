@@ -1,0 +1,47 @@
+name: CALIBRI v96 judge-only audit against frozen CPU output artifact
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v96/answer_review.py'
+      - 'research/calibri/test_v96_answer_review.py'
+      - 'research/calibri/calibri_v96_review_scores.py'
+      - '.github/workflows/calibri-v96-judge-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  grade_original_saved_outputs_no_new_model_execution:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: research/calibri
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Strict scorer false-negative regression checks
+        run: |
+          python -m compileall -q research/calibri/v96/answer_review.py research/calibri/test_v96_answer_review.py
+          python research/calibri/test_v96_answer_review.py -v
+      - name: Read immutable v96 genuine CPU model output; do NOT rerun or train model
+        run: |
+          mkdir -p input results/v96-judge
+          gh run download 41738872483 --repo "$GITHUB_REPOSITORY" --name calibri-v96-FP32-versus-native-actual-answers-and-full-text --dir input
+          test -s input/v96_FP32_CB59_v92_genuine_answer_and_generation_diagnosis.json
+          python research/calibri/calibri_v96_review_scores.py --source input/v96_FP32_CB59_v92_genuine_answer_and_generation_diagnosis.json --out results/v96-judge
+          test -s results/v96-judge/v96_first_answer_reference_audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v96-original-output-scoring-false-negative-audit
+          path: results/v96-judge/v96_first_answer_reference_audit.json
+          retention-days: 7
+          if-no-files-found: ignore
