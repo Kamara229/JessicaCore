@@ -231,7 +231,7 @@ def train(args):
       "source_sha":sha(physically),"physical_bpw":round(meta["full_source_all_in_bpw"],9),
       "eligible":sum(c["eligible_according_to_preregistered_gates"] for c in checks),
       "qa_gains_by_step":{c["step"]:c["VALID_QA_gains"] for c in checks},
-      "max_projected_LANG_delta":max(max(z["TRAIN_CAL_KL_delta"].values()) for z in trace)},
+      "max_projected_LANG_delta":max(max(z["TRAIN_CAL_KL_delta"].values()) for z in trace)}),
       flush=True)
 
 def freeze(args):
