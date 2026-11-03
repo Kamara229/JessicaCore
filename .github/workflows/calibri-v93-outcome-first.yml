@@ -31,7 +31,7 @@ jobs:
       - name: Check correctness-only policy and original independent TEST isolation
         run: |
           python -m compileall -q research/calibri/v93 research/calibri/calibri_quality_first_v93.py research/calibri/test_v93_outcome_first.py
-          python -m unittest discover -s research/calibri -p test_v93_outcome_first.py -v
+          python research/calibri/test_v93_outcome_first.py -v
       - name: Retrieve immutable v92 trained source outcomes only, not official TEST
         run: |
           mkdir -p input/v92 results/v93
