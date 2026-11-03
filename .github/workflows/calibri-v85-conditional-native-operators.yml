@@ -1,0 +1,64 @@
+name: CALIBRI v85 - ACTUAL original pretrained adaptive native operators
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v85/**'
+      - 'research/calibri/conditional_native_v85.py'
+      - 'research/calibri/test_v85_conditional_native.py'
+      - 'research/calibri/SESSION_85.md'
+      - '.github/workflows/calibri-v85-conditional-native-operators.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit-original-real-pretrained-native-conditional-rewrite:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 110
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pinned genuine pretrained CPU original 135M scientific dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Full facades compile and original native-C adaptive model unit checks
+        run: |
+          python -m compileall -q research/calibri/v85 research/calibri/conditional_native_v85.py research/calibri/test_v85_conditional_native.py
+          python -m unittest discover -s research/calibri -p test_v85_conditional_native.py -v
+      - name: Download real original trained CB59 and verified v84 TRAIN rewrite
+        run: |
+          mkdir -p input/v84 results/v85
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          gh run download 41577360464 --repo "$GITHUB_REPOSITORY" --name calibri-v84-physically-rewritten-native-source-TRAIN-VALID --dir input/v84
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+          test -s input/v84/v84_research_only_three_operator_CB59.cb59
+      - name: Train genuine source-level adaptive operator gates on TRAIN then native VALID
+        run: |
+          python research/calibri/conditional_native_v85.py --original input/CALIBRI_v59_full_direct_sub070.cb59 --v84-rewritten input/v84/v84_research_only_three_operator_CB59.cb59 --output results/v85
+          test -s results/v85/v85_NATIVE_runtime_conditional_operator_TRAIN_VALID_audit.json
+          test -s results/v85/v85_RESEARCH_only_conditional_native_source.cb85
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v85-full-native-conditional-source-physical-TRAIN-VALID
+          path: |
+            results/v85/v85_NATIVE_runtime_conditional_operator_TRAIN_VALID_audit.json
+            results/v85/v85_RESEARCH_only_conditional_native_source.cb85
+          retention-days: 7
+          if-no-files-found: ignore
