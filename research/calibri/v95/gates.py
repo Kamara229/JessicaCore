@@ -10,7 +10,7 @@ MAX_BPP=.700
 ACHIEVED_NATIVE_PARENT_BYTES=11229303
 MIN_MATCHED_SPEED_RATIO=.98
 
-def decisions(candidate,old,teacher,physical_bytes,parent_bytes,speed_ratio):
+def decisions(candidate,old,teacher,physical_bytes,parent_bytes,speed_ratio,baseline_generation,candidate_generation):
     if parent_bytes!=ACHIEVED_NATIVE_PARENT_BYTES:
         raise AssertionError("the locked physical CB59 parent was replaced")
     if physical_bytes!=parent_bytes:
@@ -27,12 +27,18 @@ def decisions(candidate,old,teacher,physical_bytes,parent_bytes,speed_ratio):
                "balanced_accuracy_change":value["balanced_accuracy"]-baseline["balanced_accuracy"]}
     no_domain_loss=all(x["gain_over_CB59"]>=0 and x["balanced_accuracy_change"]>=0 for x in qa.values())
     fp32_preserved=all(x["difference_from_FP32_actual_answers"]>=0 for x in qa.values())
+    generation_ok=(candidate_generation["mean_distinct_ratio"]>=baseline_generation["mean_distinct_ratio"]-0.005
+      and candidate_generation["mean_most_frequent_share"]<=baseline_generation["mean_most_frequent_share"]+0.005)
     checks={"same_complete_archive_bytes":physical_bytes==parent_bytes,
         "all_in_bpp_under_original_ceiling":8*physical_bytes/EXPECTED_UNIQUE<=MAX_BPP,
         "no_labeled_domain_accuracy_regression_vs_CB59":no_domain_loss,
         "ground_truth_original_FP32_quality_preserved":fp32_preserved,
-        "full_model_native_speed_preserved_at_98pct":speed_ratio>=MIN_MATCHED_SPEED_RATIO}
-    return {"decision":"ELIGIBLE_FOR_RESEARCH_SEMANTIC_REVIEW" if all(checks.values())
+        "full_model_native_speed_preserved_at_98pct":speed_ratio>=MIN_MATCHED_SPEED_RATIO,
+        "greedy_generation_did_not_regress":generation_ok,
+        "greedy_distinct_ratio_at_least_0p25":candidate_generation["mean_distinct_ratio"]>=0.25,
+        "source_answers_semantically_verified":False}
+    return {"decision":"PROMISING_RESEARCH_CANDIDATE_NEEDS_SEMANTIC_REVIEW" if (
+                       all(v for k,v in checks.items() if k!="source_answers_semantically_verified"))
                     else "NEEDS_MORE_QUALITY_WORK",
         "size":physical_bytes,"source_bits_per_original_param":8*physical_bytes/EXPECTED_UNIQUE,
         "full_model_speed_ratio":speed_ratio,"correct_answers":qa,"checks":checks,
