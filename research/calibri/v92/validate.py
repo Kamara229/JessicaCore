@@ -50,7 +50,6 @@ def swap_one_block(student,original_archive:bytes,candidate_archive:bytes,module
 def compare_frozen_whole_models(student,teacher,cases,answers,archive_original,archive_rewritten,block_name):
     valid=cases["TRAIN_VALID"]
     orig=score_validation(student,teacher,valid,answers)
-    g0=generate_diagnostic(student,None) if False else None
     parent,leaf,old,new=swap_one_block(student,archive_original,archive_rewritten,block_name)
     try:
         setattr(parent,leaf,new)
