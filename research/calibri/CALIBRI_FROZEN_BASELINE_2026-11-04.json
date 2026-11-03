@@ -1,0 +1,57 @@
+{
+  "contract_version": "CALIBRI_BASELINE_LOCK_2026-11-04",
+  "purpose": "Protect experimentally achieved compact size, original native runtime, and measured CPU token speed while restoring actual task correctness and meaningful diverse generation. No experiment beyond the already running v94 verification.",
+  "status": "research_only_immutable_historical_references_not_a_new_scientific_PASS",
+  "original_unique_parameter_count": 134515008,
+  "original_model": "HuggingFaceTB/SmolLM2-135M-Instruct",
+  "original_model_revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+  "physical_limit": {
+    "max_bits_per_parameter": 0.7,
+    "max_full_archive_bytes": 11770063,
+    "includes_headers_crc_sha_and_all_corrections": true
+  },
+  "frozen_reference_sources": {
+    "CB59": {
+      "sha256": "50eac24ba7d7a452c495f8adced2cdef3f9cc44e024217fc21d8f2cebb87413c",
+      "complete_archive_bytes": 11229303,
+      "all_in_bits_per_parameter": 0.6678394131307638,
+      "source_workflow_run": 41507201766,
+      "original_source_byte_budget_margin": 540760
+    },
+    "CB88": {
+      "sha256": "d0f547e651c9a3b411fa7b19c0181839ab813c69e9092c77dca2a47d8e5d85ec",
+      "complete_archive_bytes": 11413683,
+      "all_in_bits_per_parameter": 0.6788050296960173,
+      "source_workflow_run": 41586136382,
+      "reference_head_correction_pinned_original": true,
+      "available_bytes_until_0p700_bpp": 356380
+    },
+    "v92_whole_block_inplace_candidate": {
+      "sha256": "f8d75912cf7e8991fe9c32817c407dc7d02ce07ce83ece53a877d2f29106eb9a",
+      "complete_archive_bytes": 11229303,
+      "additional_bytes": 0,
+      "native_5bit_K32V8_ABI_unchanged": true,
+      "source_workflow_run": 41729012091,
+      "quality_status": "PROMISING_BUT_NOT_YET_PROVEN",
+      "do_not_replace_frozen_sources": true
+    }
+  },
+  "historical_cpu_speed_reference": {
+    "source": "v89 frozen independent TEST benchmark. Historical speed measurements may define engineering baseline but never be used to retune or re-open that TEST for model selection.",
+    "run_id": 41586756881,
+    "reference_C_B_59_greedy_tokens_per_second": 22.731507486946665,
+    "reference_C_B_88_greedy_tokens_per_second": 22.43449030315007,
+    "reference_C_B_88_relative_to_C_B_59": 0.9869336785531204,
+    "note": "These are single-run 4-prompt CPU KV-cache figures; comparable CPU and settings required, repeat measurements with fresh TRAIN-only prompt suite. They do not certify current live speed."
+  },
+  "acceptance_policy": {
+    "do_not_worsen_current_physical_rate": true,
+    "size_ceiling_rule": "All in archive <=0.700 bpp, ideally no extra bytes versus the immediately chosen compact baseline. Never increase storage merely for easier quality gains unless explicitly justified and still inside original <=0.700 bpp ceiling.",
+    "speed_rule": "Preserve current measured compact-reference throughput under matched CPU, prompts and settings within reproducible benchmark uncertainty; 90% CB59 is a lower-bound fallback, not an automatic acceptance of 10% slowdown.",
+    "functional_rule": "Improve or restore correctness relative to original FP32 on actual labeled questions; no meaningful domain loss, hallucination, repetition increase or semantic incoherence.",
+    "distribution_matching_gates": false,
+    "original_v89_independent_TEST_reused_for_selection": false,
+    "no_automatic_live_or_main_changes": true,
+    "next_action": "Finish observation of already running v94; read results relative to frozen reference. Do not train new weights, alter CB59/CB88/v92 archive, or start v95 until verified."
+  }
+}
