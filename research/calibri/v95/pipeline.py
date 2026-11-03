@@ -77,7 +77,7 @@ def run(original_path:Path,v92_path:Path,v92_report:Path,locked:Path,out:Path):
     finally:setattr(original_parent,leaf,original_module)
     native_ratio=candidate_GEN["tokens_per_second"]/max(baseline_GEN["tokens_per_second"],1e-9)
     decision=decisions(candidate_QA,baseline_QA,teacher_QA,
-                       len(archives[winner]),len(source),native_ratio)
+                       len(archives[winner]),len(source),native_ratio,baseline_GEN,candidate_GEN)
     # No automated release even if tiny VALID succeeds: semantic review and larger
     # independent sample plus reproducible CPU runs are still outstanding.
     decision["exploratory_only"]=True
