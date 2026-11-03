@@ -1,0 +1,33 @@
+name: Codex Calibri CI non-test relay fallback regression
+on:
+  pull_request:
+    paths:
+      - 'backend/core/codex/relayInterpreter.js'
+      - 'backend/core/codex/relayNonTestCiTask.js'
+      - 'backend/scripts/regressionCodexNonTestCiTask.test.js'
+      - '.github/workflows/codex-calibri-nontest-relay-regression.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deterministic_interpretation_fallback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned backend dependencies
+        working-directory: backend
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Test no-model non-test CALIBRI Github CI interpretation fallback
+        working-directory: backend
+        run: |
+          node --test scripts/regressionCodexNonTestCiTask.test.js
+          node --test scripts/regressionCodexRelay.test.js
+      - name: Verify code syntax
+        working-directory: backend
+        run: |
+          node --check core/codex/relayInterpreter.js
+          node --check core/codex/relayNonTestCiTask.js
