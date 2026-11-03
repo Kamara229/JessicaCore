@@ -102,7 +102,7 @@ def run(original_path:Path, adapted_path:Path, out:Path):
         print(json.dumps({"stage":"v87_REAL_oracle_TRAIN_diagnostic",
                           "scenario":scenario,
                           "KL":{d:results[scenario]["real_original_TRAIN_full_model"][d][
-                              "full_vocab_KL"] for d in CORPORA}},flush=True)
+                              "full_vocab_KL"] for d in CORPORA}}),flush=True)
     source=CB85(adapted)
     if set(source.extra)!=set(TARGETS):
         raise AssertionError("unexpected frozen dynamic source")
