@@ -40,4 +40,50 @@ Four **actual** full pretrained model processes: original FP32 teacher, original
 Even if constrained update succeeds on 24/32-question VALID, it might fail true generalization. A 0.697bpw model whose generated outputs repeat and whose supported SciQ is near guessing is **NOT comparable to useful original FP32 assistant**. Failure after this iteration suggests paid correction needs to target early/central transform layers under explicit novel source-geometry storage and native decoder with all bytes counted, rather than endlessly tune the final output 4D factor. The user-facing Jessica must stay unchanged.
 
 ## CI outcome
-Pre-registered but NOT YET measured. The next successful independent Actions run must be inspected and any negative result appended.
+**Verified real pretrained 135M CI run 41555699743 SUCCESS**; measured truthful gains and regressions appended below. Stage remains draft research, not live Jessica.
+
+## VERIFIED v81 actual independent pretrained source experiment — 2026-11-03 UTC
+
+**Scientific result: MIXED — a genuine newly TRAIN-selected modified source significantly increased raw BoolQ heldout correct count in this small task slice, while SciQ barely changed, both independent text TEST KL/NLL regressed vs unmodified v76, and greedy token repetition remained severe. Do NOT promote as useful assistant.** Actual successful GitHub Actions run **41555699743**, all 23 steps successful. Research PR #211 isolated; main/Render/Supabase/APK/live Jessica unchanged.
+
+### Real physical original complete pretrained source and frozen TRAIN selection
+
+Original pinned complete CB59 source **11,229,303 bytes / 0.667839413 bpw**, pretrained 134,515,008 unique original parameters. Physically paid CB76 with entire exact original source, FP16 `U[49152,4]`, `V[576,4]`, `b[49152]`, 20B versioned header+CRC/SHA = **11,725,487 bytes / 0.697348923 bpw**, below 0.700 inclusive of all source 2D trained tensors and tied weights. Original pretrained source remains C direct 5-bit codebook kernels; paid output correction CPU Torch; **not** all-native or proven CPU speedup.
+
+NEW QA TRAIN FIT from actual native-packed source: SciQ original TRAIN 1050:1082 **32 valid**; BoolQ original TRAIN 2500:2564 **64 valid**; 96 TRAIN FIT QA instances, **343 original-answer token features**. NEW independent QA TRAIN VALID: SciQ original TRAIN 1180:1204 **24 valid**, BoolQ original TRAIN 2700:2732 **32 valid**; 56 QA VALID instances and 213 original-answer token features. Neither the v81 SciQ/BoolQ TEST nor new test text was used to select source; all source snapshots frozen first.
+
+**Projected hard two-corpus KL guard enforced at EVERY optimizer step on physically FP16-rounded factors** using previously seen original WikiText/AGNews TRAIN-CAL source; bounded each KL against original v76 CAL by +0.25 nats. This is a constraint on reused language TRAIN-CAL, **NOT** an independent bound on unknown TEST. Fixed optimizer trial snapshots 0,4,8,12,18, no TEST tuning. Candidate step18 was the **ONLY eligible** step: **QA TRAIN VALID** SciQ Δaccuracy **0/24**, BoolQ **+7/32** correct (∆accuracy +21.875pp); raw checkpoints steps4/8/12 slightly regressed SciQ (−1/24) and were rejected. Largest per-step enforced language TRAIN-CAL KL regression was **+0.249829 nats**, below +0.25 within original numerical precision. Both same-host independent optimizer repetitions selected step18 and produced exactly same frozen physical source SHA256 `94282c492713b053ccabc76510bad5f45791142866aa81abad62b35081e752c0`. Original complete source archive same length. Cross-host bitwise consistency is NOT proven; previous v76/v77 difference remains.
+
+### Truly independent NEW TEST data (frozen only after TRAIN source selection)
+
+Source real FP32 teacher, original native CB59, unmodified v76 paid rank4, newly selected v81 paid rank4 all independently executed as real pretrained complete models. SciQ original TEST [500,528): 28 rows, **27 source-valid**; support-truncated first320-token original context and full-answer-string normalized log-likelihood (not one-letter prompt). BoolQ original validation [2350,2382): **32** rows, first256-token passage, Yes/No forced choice. Neither is an official leaderboard or a large test.
+
+| Actual heldout QA | Original FP32 pretrained teacher | Native complete CB59 baseline | Parent v76 complete CB76 | NEW projected QA v81 CB76 |
+|---|---:|---:|---:|---:|
+| **SciQ supported TEST (27 valid)** | **25/27 = 92.6%** | 3/27 = 11.1% | 6/27 = 22.2% | **7/27 = 25.9%** |
+| **BoolQ TEST slice (32)** | **18/32 = 56.3%** | 13/32 = 40.6% | 9/32 = 28.1% | **17/32 = 53.1%** |
+
+**Key:** v81 paid improved BoolQ from parent 9/32 to 17/32 (**+8 correct**, +25 percentage points) and from original CB59 13/32 to 17/32 (+4 correct), on this **32-question** truncated-passage heldout slice. This is a genuine *raw-count* improvement for this one pinned checkpoint under a fixed post-TRAIN test; statistical confidence is NOT claimed. The source QA teacher's BoolQ 18/32 is only moderately above chance, so caution warranted. SciQ gain from paid parent 6/27 to 7/27 is just +1; teacher far superior **25/27**, so useful scientific-answer competence still NOT recovered.
+
+Independent actual text TEST source windows, 8×64 original sequences / 504 scored next tokens per domain:
+- WikiText2 official TEST tokens [115000,115512): original CB59 teacher-KL **11.26366**, true next-token NLL **14.92902**; parent paid v76 KL **7.93840**/NLL **11.9475**; NEW v81 KL **8.30190**, NLL **12.33116**, i.e. **regression vs parent +0.36350 KL and +0.38366 NLL**.
+- AG News original TEST rows [7200,7300): original CB59 KL **10.73905**/NLL **14.39932**; parent v76 KL **8.47333**/NLL **12.19657**; NEW v81 KL **8.60851**/NLL **12.31240**, i.e. **regression vs parent +0.13518 KL and +0.11583 NLL**.
+- Both new models still substantially reduce these numerical errors relative to original CB59, but that *inherited parent improvement* does not cancel the **new regression**. The original TRAIN-CAL guard of +0.25 did NOT generalize to WikiText external TEST (KL +0.3635 > +0.25). **Do NOT claim hard universal teacher-KL guarantee.**
+
+### Native-source CPU token speed and generative degeneration
+
+Actually generated 3 new ×24-token greedy KV-cached outputs per model on one Ubuntu CPU; post-prefill generation:
+- Original FP32 teacher **26.0643 tokens/s**; mean distinct generated token ratio **0.8611**.
+- Original native source CB59 **53.3308 tokens/s**, distinct ratio **0.25**.
+- Original paid v76 CB76 **54.3670 tokens/s**, distinct ratio **0.1389**.
+- NEW constrained QA v81 CB76 **53.9555 tokens/s**, distinct ratio **0.1389**.
+Thus raw cached decoding speed v81 ≈v76 within single-run noise, but the actual output is **still massively repetitive** (13.9% unique token IDs vs 86.1% original teacher). No QA/generation-speed generalization, no coherent-answers benchmark and no claim of useful assistant quality. Prefill and runtime paid Torch factor overhead also require independent controlled benchmarking.
+
+### Decision and v82 next experimental gate
+
+Keep v81 source as a **research candidate only**, not production-approved. Unlike v79 negative null, v81 shows hard projected guard *can* improve heldout BoolQ raw correct count while preserving unchanged 0.697349bpw physical source and C-native 5-bit trained base, but teacher-sane SciQ remains near guessing, generative repetition not fixed, and language KL on untouched WikiText TEST **violated its TRAIN-CAL ceiling**. As a result **the proposed objective is not yet a complete model-quality solution**.
+
+Next v82 should pre-register genuinely NEW independent QA TEST and language corpora, larger per-task samples and uncertainty; assess run-to-run/host source SHA, *explicit two-domain heldout-like QA+KL and entropy/argmax preservation objectives* using only TRAIN, and objective that addresses repetition without destroying language KL. Investigate earlier-layer native 2D/8D source correction and heterogenous bit-rate allocation if output-only U/V capacity demonstrably inadequate. Do not tune to any existing v79/v81 disclosed TEST examples. Keep native C+paid Torch split accurately described and all physical bytes paid. No Jessica ordinary-chat test required.
+
+Verified CI: https://github.com/Kamara229/JessicaCore/actions/runs/41555699743
+Research DRAFT PR: https://github.com/Kamara229/JessicaCore/pull/211
