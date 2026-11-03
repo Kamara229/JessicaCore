@@ -208,5 +208,5 @@ def run(original_path:Path,frozen_cb85_path:Path,out_dir:Path):
                       "real_tokens_per_second":{k:round(v[
                           "actual_KV_cached_greedy_2_prompts"][
                           "decode_tokens_per_second_single_CPU"],3)
-                          for k,v in results.items()}},flush=True)
+                          for k,v in results.items()}}),flush=True)
     return report
