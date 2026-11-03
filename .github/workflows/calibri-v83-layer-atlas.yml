@@ -1,0 +1,59 @@
+name: CALIBRI v83 - hierarchical facades real TRAIN native-C layer atlas
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v83/**'
+      - 'research/calibri/layer_atlas_v83.py'
+      - 'research/calibri/test_v83_facades.py'
+      - 'research/calibri/SESSION_83.md'
+      - '.github/workflows/calibri-v83-layer-atlas.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  cpu-original-pretrained-training-layer-atlas:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 85
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pinned pretrained real 135M CPU research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify nested facade syntax and independent numeric checks
+        run: |
+          python -m py_compile research/calibri/v83/**/*.py research/calibri/v83/*.py research/calibri/layer_atlas_v83.py research/calibri/test_v83_facades.py
+          python -m unittest discover -s research/calibri -p test_v83_facades.py -v
+      - name: Reuse original complete physically packed real pretrained CB59
+        run: |
+          mkdir -p input results
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input
+          test -s input/CALIBRI_v59_full_direct_sub070.cb59
+      - name: ACTUAL original FP32 teacher versus direct native CB59 operators on TRAIN
+        run: |
+          python research/calibri/layer_atlas_v83.py --original input/CALIBRI_v59_full_direct_sub070.cb59 --output results/v83_layer_atlas_TRAIN.json
+          test -s results/v83_layer_atlas_TRAIN.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v83-genuine-original-135m-train-only-facade-operator-atlas
+          path: results/v83_layer_atlas_TRAIN.json
+          retention-days: 7
+          if-no-files-found: ignore
