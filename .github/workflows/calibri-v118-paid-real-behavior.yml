@@ -1,0 +1,48 @@
+name: CALIBRI v118 genuine 135M gold-answer head adaptation under preserved 0.7bpp
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v118/**'
+      - 'research/calibri/test_v118_paid.py'
+      - '.github/workflows/calibri-v118-paid-real-behavior.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ground-truth-real-135m:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 65
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Audit physical source, TEST isolation, sidecar endian and corruption
+        run: python -m unittest test_v118_paid -v
+      - name: Recreate immutable 135M native C pretrained complete archive
+        run: |
+          python research/calibri/sub07_experiment_v59.py --stage encode --output results/base --source-revision 12fd25f77366fa6b3b4b768ec3050bf629380bac
+          echo '50eac24ba7d7a452c495f8adced2cdef3f9cc44e024217fc21d8f2cebb87413c  results/base/CALIBRI_v59_full_direct_sub070.cb59' | sha256sum -c -
+      - name: Real answer-target training, native free generation, strict full-model 0.7bpp
+        run: python -m v118.experiment results/base/CALIBRI_v59_full_direct_sub070.cb59 results/v118
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v118-135M-full-0p7-physically-trained-behaviour
+          path: |
+            results/v118/v118_paid_behaviour.json
+            results/v118/CALIBRI_v118_paid_135M_trained.cb118
+          if-no-files-found: error
+          retention-days: 30
