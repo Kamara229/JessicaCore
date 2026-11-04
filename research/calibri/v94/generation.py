@@ -29,26 +29,33 @@ NEW_PROMPTS=(
 GENERATION_TOKENS=32
 
 @torch.inference_mode()
-def generate_one(model,tok,prompt):
+def generate_one(model,tok,prompt,*,stop_at_eos=False):
     ids=tok.encode(prompt,add_special_tokens=False)
     if not 1<len(ids)<160:raise AssertionError("bad original TRAIN-only diagnostic prompt")
+    eos=tok.eos_token_id
+    if stop_at_eos and eos is None:
+        raise ValueError("chat generation requires the tokenizer's end-of-turn ID")
     x=torch.tensor(ids,dtype=torch.long)[None,:]
     start=time.perf_counter()
     out=model(input_ids=x,use_cache=True)
     cache=out.past_key_values
     token=out.logits[:,-1,:].argmax(dim=-1,keepdim=True)
     emitted=[int(token.item())]
+    first_token_time=time.perf_counter()
     for _ in range(GENERATION_TOKENS-1):
+        if stop_at_eos and emitted[-1]==eos:
+            break
         out=model(input_ids=token,past_key_values=cache,use_cache=True)
         cache=out.past_key_values
         token=out.logits[:,-1,:].argmax(dim=-1,keepdim=True)
         emitted.append(int(token.item()))
-    duration=time.perf_counter()-start
+    finish=time.perf_counter()
     return {"ids":emitted,"text":tok.decode(emitted,skip_special_tokens=True),
-            "elapsed_seconds":duration,
+            "elapsed_seconds":finish-start,"prefill_seconds":first_token_time-start,
+            "decode_seconds":finish-first_token_time,
             "prompt_SHA":hashlib.sha256(prompt.encode()).hexdigest(),
-            "full_model_token_steps":GENERATION_TOKENS,
-            "eos_generated":tok.eos_token_id in emitted if tok.eos_token_id is not None else False}
+            "full_model_token_steps":len(emitted),
+            "eos_generated":eos in emitted if eos is not None else False}
 
 def paired_greedy(student,tok,parent,leaf,original,new):
     baseline=[];candidate=[]

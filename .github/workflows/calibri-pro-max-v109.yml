@@ -1,0 +1,58 @@
+name: Calibri pro max v109 fixed-rate feedback and first-turn evaluation
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v109/**'
+      - 'research/calibri/test_v109_feedback_and_runtime.py'
+      - '.github/workflows/calibri-pro-max-v109.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      BASE: results/base/CALIBRI_v59_full_direct_sub070.cb59
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Test empty loading, physical inference, chat boundaries and feedback
+        run: python -m unittest discover -s research/calibri -p 'test_v109*.py' -v
+      - name: Rebuild frozen baseline from its public original revision
+        run: |
+          python research/calibri/sub07_experiment_v59.py --stage encode --output results/base --source-revision 12fd25f77366fa6b3b4b768ec3050bf629380bac
+          echo "50eac24ba7d7a452c495f8adced2cdef3f9cc44e024217fc21d8f2cebb87413c  $BASE" | sha256sum -c -
+      - name: Encode the physical candidate on TRAIN only
+        run: python -m v109.build "$BASE" results/v109
+      - name: Run independent processes for QA and free chat, then paired fixed-work timing
+        run: |
+          python -m v109.int6_control results/v109
+          for name in FP32 CB59 v109 speed; do
+            python -m v109.evaluate "$name" "$BASE" results/v109
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-pro-max-v109-full-evidence
+          path: |
+            results/v109/*.json
+            results/v109/v109.cb59
+          if-no-files-found: error
+          retention-days: 30

@@ -21,5 +21,6 @@ OPEN_PROMPTS=(
 ALL_PROMPTS=tuple((name,prompt,keys) for name,prompt,keys in GOLD_PROMPTS)+tuple(
     (name,prompt,()) for name,prompt in OPEN_PROMPTS)
 GENERATED_TOKENS=32
+V102_SOURCE_SHA256="8fb26d29c86f4070e1ad664450a04a13884f959754d62545e647cfc9062b8a60"
 assert len(ALL_PROMPTS)==9
 assert len({x[1] for x in ALL_PROMPTS})==len(ALL_PROMPTS)

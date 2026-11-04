@@ -24,6 +24,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from torch import nn
+from accelerate import init_empty_weights
 from datasets import load_dataset
 from huggingface_hub import HfApi
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
@@ -168,7 +169,10 @@ def make_model(kind,args):
     else:raise ValueError(kind)
     cfg=AutoConfig.from_pretrained(MODEL,revision=MODEL_SHA)
     cfg._attn_implementation="eager"
-    m=AutoModelForCausalLM.from_config(cfg,torch_dtype=torch.float32).eval()
+    # The archive supplies every trained parameter. Keep RoPE's computed
+    # buffers on CPU, but never allocate a full random dense checkpoint.
+    with init_empty_weights(include_buffers=False):
+        m=AutoModelForCausalLM.from_config(cfg,torch_dtype=torch.float32).eval()
     native=NativeKernel(compile_kernel(Path(__file__).with_name("direct_kernel_v59.c"),
                       args.folder/("libv76_"+kind+".so")))
     evidence=bind_into_llama(m,archive,native)
