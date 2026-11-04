@@ -44,9 +44,9 @@ def main(host_path,critic_path,out):
     after=evaluate(model,tok,paid,restored)
     shuffled=evaluate(model,tok,paid,restored,conditions="shuffled")
     # Genuine complete autonomous answer parity across un/serialized model.
+    in_memory=evaluate(model,tok,paid,policy)
     if [x["generated_ids"] for x in after["qa"]+after["open"]] != [
-        x["generated_ids"] for x in evaluate(model,tok,paid,policy)["qa"]+
-            evaluate(model,tok,paid,policy)["open"]]:
+        x["generated_ids"] for x in in_memory["qa"]+in_memory["open"]]:
         raise AssertionError("physically saved controller lost output behavior")
     original_speed=speed(model,tok,paid,initial)
     learned_speed=speed(model,tok,paid,restored)
