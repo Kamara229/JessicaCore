@@ -31,7 +31,7 @@ jobs:
           python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
           python -m pip install numpy==1.26.4 scipy==1.14.1 scikit-learn==1.5.2 transformers==4.46.3 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
       - name: Verify bitstream, checksum, direct blockwise inference and controls
-        run: python -m unittest discover -s research/calibri -p test_v112_structural.py -v
+        run: python -m unittest test_v112_structural -v
       - name: Run predeclared synthetic and REAL open pretrained 14M pilot
         run: python -m v112.pipeline results/v112
       - uses: actions/upload-artifact@v4
