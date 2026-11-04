@@ -1,0 +1,61 @@
+name: CALIBRI v123 same 8MB Green weights immutable on different real architectures
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v123/**'
+      - 'research/calibri/test_v123_host_contract.py'
+      - '.github/workflows/calibri-v123-same-green-weights-two-hosts.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  exact_frozen_policy_real_py14m_and_smol135m:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned real CPU model environment
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Prove exact six-coefficient controller independent of real target depth/width
+        run: python -m unittest test_v123_host_contract -v
+      - name: Use ONLY previously frozen learned GreenTunnel weights, no new training
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-v122-frozen-10mb-shared-gate-policy-real-135m
+          path: results/v122-frozen
+          run-id: 41828640085
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download physically same old real 135M packed source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-v119-real-135m-joint-native-c-vjp
+          path: results/v119-host
+          run-id: 41822331451
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run frozen 8MB weights unchanged on pretrained Pythia14M and packed SmolLM135M
+        run: |
+          python -m v123.pipeline \
+            results/v122-frozen/GreenTunnel_shared_10MB_6gates.safetensors \
+            results/v119-host/CALIBRI_v119_joint_native_135M.cb118 \
+            results/v123
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v123-frozen-green-two-real-architectures
+          path: results/v123/v123_two_architecture_fixed_policy.json
+          if-no-files-found: error
+          retention-days: 30
