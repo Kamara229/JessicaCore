@@ -1,0 +1,63 @@
+name: CALIBRI v124 one 8MB neural verifier learns ACTUAL errors of two pretrained LLMs
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v124/**'
+      - 'research/calibri/test_v124_hard.py'
+      - '.github/workflows/calibri-v124-real-hard-negatives.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real-two-host-hard-negative-training:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 80
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned actual native CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Verify no gold leakage and one physical small neural model contract
+        run: python -m unittest test_v124_hard -v
+      - name: Get unchanged complete pretrained 135M core CB59 from successful real v119
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-v119-real-135m-joint-native-c-vjp
+          path: results/v119
+          run-id: 41822331451
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get original full 8MB Green neural weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-v120-10mb-green-tunnel-real-evidence
+          path: results/v120
+          run-id: 41824783272
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Train and validate on actual GENERATED outputs from both LLM architectures
+        run: |
+          python -m v124.pipeline \
+            results/v119/CALIBRI_v119_joint_native_135M.cb118 \
+            results/v120/GREEN_TUNNEL_critic.safetensors \
+            results/v124
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v124-two-host-real-hard-negative-evidence
+          path: |
+            results/v124/v124_host_hard_negative.json
+            results/v124/GreenTunnel_v124_REAL_host_failures.safetensors
+          if-no-files-found: error
+          retention-days: 30
