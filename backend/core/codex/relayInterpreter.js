@@ -22,6 +22,7 @@ import {incidentCiStatusHandoff} from "./relayIncidentCiStatus.js";
 import {compactCodexStressProgress} from "./relayCompactStressProgress.js";
 import {interpretationFailureHandoff} from "./relayFailureHandoff.js";
 import {calibriResearchHandoff} from "./relayCalibriProgress.js";
+import {calibriNoTestNextStep} from "./relayCalibriNoTestNextStep.js";
 import {missingCalibriArtifactHandoff} from "./relayMissingCalibriArtifact.js";
 import {completedCalibriNoTestHandoff} from "./relayCalibriCompletedNoTest.js";
 import {v2PersistenceHandoff} from "./relayV2PersistenceHandoff.js";
@@ -85,6 +86,10 @@ export async function interpretRelayTurn(input, generate) {
     // Verified, no-test CALIBRI CI status needs no quota-limited AI call.
     const calibriReply = calibriResearchHandoff(message);
     if (calibriReply !== null) return {action:"reply",reply:calibriReply,task:"",continueThread:false};
+    // Explicitly no-Jessica-test CALIBRI progress must not consume Groq quota.
+    const researchNextStep = calibriNoTestNextStep(message);
+    if (researchNextStep !== null)
+        return {action:"reply",reply:researchNextStep,task:"",continueThread:false};
     const blockedBackend=blockedBackendProgress(message);
     if(blockedBackend!==null)return {action:"reply",reply:blockedBackend,task:"",continueThread:false};
     const unverifiedPr=unverifiedPrProgress(message);
