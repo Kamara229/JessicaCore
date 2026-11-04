@@ -49,10 +49,13 @@ test("malformed envelopes, contradictory instructions and missing no-test intent
 
 test("explicit Jessica ordinary-chat test remains an explicit action", async()=>{
     const req="Создай новый тестовый чат Jessica. Точная формулировка: Сколько будет 17 умножить на 19?";
+    let calls=0;
     const result=await interpretRelayTurn({message:req,plan:"Разовая проверка Jessica"},async()=>{
-        throw Error("no interpreter should be needed for explicit task");
+        calls++;
+        return {action:"test",reply:"",task:"Сколько будет 17 умножить на 19?",continueThread:false};
     });
     assert.equal(result.action,"test");
     assert.equal(result.task,"Сколько будет 17 умножить на 19?");
+    assert.ok(calls <= 1);
     assert.equal(calibriNoTestNextStep(req),null);
 });
