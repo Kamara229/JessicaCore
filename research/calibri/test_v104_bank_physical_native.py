@@ -43,7 +43,7 @@ class Tests(unittest.TestCase):
                               VOCAB-1],dtype=torch.long)
             actual=emb(ids).detach().numpy()
             expected=np.array([1,1,2,2,3,8],dtype=np.float32)
-            np.testing.assert_allclose(actual,expected[:,None],rtol=0,atol=1e-5)
+            np.testing.assert_allclose(actual,np.repeat(expected[:,None],DIM,axis=1),rtol=0,atol=1e-5)
             for i,token in enumerate(ids.tolist()):
                 self.assertAlmostEqual(float(score[token]),
                     float(actual[i].sum()),places=3)
