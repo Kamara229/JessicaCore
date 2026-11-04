@@ -1,0 +1,44 @@
+name: CALIBRI v113 tiny trained-activation corrective codebooks
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v113/**'
+      - 'research/calibri/test_v113_feedback.py'
+      - '.github/workflows/calibri-v113-feedback-tiny.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  activation-factors:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned CPU research environment
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 scikit-learn==1.5.2 transformers==4.46.3 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Check correction cannot change 5bit codes or physical size
+        run: python -m unittest test_v113_feedback -v
+      - name: Original 14M source plus nine TRAIN-only same-byte candidates and new VALID
+        run: python -m v113.pipeline results/v113
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v113-14m-activation-feedback-physical
+          path: |
+            results/v113/v113_report.json
+            results/v113/*.clb112
+          retention-days: 30
+          if-no-files-found: error
