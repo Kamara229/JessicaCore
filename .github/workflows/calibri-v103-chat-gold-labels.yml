@@ -1,0 +1,63 @@
+name: CALIBRI v103 correct original chat-template gold labeled native v102 audit
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v103/**'
+      - 'research/calibri/calibri_chat_ground_truth_v103.py'
+      - 'research/calibri/test_v103_true_labels.py'
+      - 'research/calibri/SESSION_103_CHAT_LABEL_GROUND_TRUTH.md'
+      - '.github/workflows/calibri-v103-chat-gold-labels.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  original_CB59_vs_paid_v102_with_actual_public_answer_ground_truth:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 95
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned original pretrained CPU research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'sentencepiece==0.2.0' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Validate gold truth prefix and original user chat prompt guard
+        run: |
+          python -m compileall -q research/calibri/v103 research/calibri/calibri_chat_ground_truth_v103.py research/calibri/test_v103_true_labels.py
+          python research/calibri/test_v103_true_labels.py -v
+      - name: Get separate immutable original and v102 physical whole model from exact previous runs
+        run: |
+          mkdir -p input/original input/v102 results/v103
+          gh run download 41507201766 --repo "$GITHUB_REPOSITORY" --name calibri-v59-ubuntu-22.04 --dir input/original
+          gh run download 41746831993 --repo "$GITHUB_REPOSITORY" --name calibri-v102-separate-whole-tied-head-same-byte-candidate-and-audit --dir input/v102
+          test -s input/original/CALIBRI_v59_full_direct_sub070.cb59
+          test -s input/v102/CALIBRI_v102_reencoded_whole_original_TIED_HEAD.cb59
+          test -s input/v102/v102_head_refit_same_byte_source_actual_text_speed_and_quality.json
+          test -s research/calibri/CALIBRI_FROZEN_BASELINE_2026-11-04.json
+      - name: Test real original public TRAIN BoolQ labels and visible pretrained chat answers
+        run: |
+          python research/calibri/calibri_chat_ground_truth_v103.py --original input/original/CALIBRI_v59_full_direct_sub070.cb59 --candidate input/v102/CALIBRI_v102_reencoded_whole_original_TIED_HEAD.cb59 --v102-report input/v102/v102_head_refit_same_byte_source_actual_text_speed_and_quality.json --locked research/calibri/CALIBRI_FROZEN_BASELINE_2026-11-04.json --out results/v103
+          test -s results/v103/v103_same_byte_head_candidate_chat_ground_truth_and_visible_text.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v103-original-chat-labeled-BoolQ-and-visible-native-text
+          path: results/v103/v103_same_byte_head_candidate_chat_ground_truth_and_visible_text.json
+          retention-days: 7
+          if-no-files-found: ignore
