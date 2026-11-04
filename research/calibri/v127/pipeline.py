@@ -20,15 +20,15 @@ from v122.steer import Installed
 from .protocol import SHARED_GREEN_SHA,ORACLE_CASES,TRAIN_MODES,MAX_DELTA,STEPS
 from .actuation import Actuator
 from .oracle import optimize
-from .targets import prompt_input,gold_first_token,score,answer
+from .targets import prompt_input,reference,score,answer
 
 def exact(text,truth):
     import re
     norm=lambda t:re.sub(r"[^\w]+"," ",t).strip().casefold()
     return norm(text)==norm(truth)
 
-def observation(model,tok,source,prompt,target,other,gold):
-    m=score(model,source,target,other)
+def observation(model,tok,source,prompt,ref,gold):
+    m=score(model,source,ref)
     a=answer(model,tok,prompt)
     return {"first_token_diagnostic":m,"real_autoregressive_answer":a,
             "whole_answer_exact_and_eos":bool(exact(a["text"],gold) and a["reached_eos"])}
@@ -65,16 +65,16 @@ def collect(core,shared,out):
         # No training or gold feedback to the ACTUAL frozen 8MB controller.
         for question,truth,category in ORACLE_CASES:
             raw,prompt=prompt_input(tok,question)
-            target=gold_first_token(tok,truth)
-            unspaced=tok.encode(truth,add_special_tokens=False)[0]
+            ref=reference(tok,truth)
             actuator.neutral()
-            neutral=observation(model,tok,raw,prompt,target,unspaced,truth)
+            neutral=observation(model,tok,raw,prompt,ref,truth)
             with torch.no_grad():
                 green_gains=actuator.frozen_shared(policy,question)
-                frozen_green=observation(model,tok,raw,prompt,target,unspaced,truth)
+                frozen_green=observation(model,tok,raw,prompt,ref,truth)
                 gain_span=[float(green_gains.min()),float(green_gains.max())]
             item={"question":question,"domain":category,"REFERENCE_ORACLE_ONLY":truth,
-                  "true_leading_space_first_subtoken":target,
+                  "correct_FULL_REFERENCE_tokens_including_EOS":ref["full_answer_tokens_with_EOS"],
+                  "leading_noncontent_token_count":len(ref["whitespace_prefix_ids"]),
                   "source_native_neutral":neutral,
                   "same_frozen_SHARED_8MB_GREEN":frozen_green,
                   "shared_neural_actual_gain_range":gain_span,
@@ -83,17 +83,17 @@ def collect(core,shared,out):
             # They cannot qualify as an actual generative improvement.
             for mode in TRAIN_MODES:
                 item["oracle_diagnostics"][mode]=optimize(
-                    model,tok,bridge,raw,prompt,target,unspaced,mode)
+                    model,tok,bridge,raw,prompt,ref,mode)
                 actual=item["oracle_diagnostics"][mode]["real_greedy_output_after_oracle"]
                 item["oracle_diagnostics"][mode]["whole_answer_exact_and_eos"]=bool(
                     exact(actual["text"],truth) and actual["reached_eos"])
             observations.append(item)
             print(json.dumps({"stage":"v127_DIAGNOSTIC_ORACLE",
                   "domain":category,"question":question,
-                  "native_rank":neutral["first_token_diagnostic"]["target_first_subtoken_rank"],
-                  "frozen_8MB_rank":frozen_green["first_token_diagnostic"]["target_first_subtoken_rank"],
-                  "six_oracle_rank":item["oracle_diagnostics"]["shared_six_oracle"]["first_token_diagnostic"]["target_first_subtoken_rank"],
-                  "sixty_oracle_rank":item["oracle_diagnostics"]["individual_sixty_oracle"]["first_token_diagnostic"]["target_first_subtoken_rank"]},
+                  "native_CONTENT_rank":neutral["first_token_diagnostic"]["first_NON_WHITESPACE_subtoken_rank_CONDITIONAL"],
+                  "frozen_8MB_CONTENT_rank":frozen_green["first_token_diagnostic"]["first_NON_WHITESPACE_subtoken_rank_CONDITIONAL"],
+                  "six_oracle_CONTENT_rank":item["oracle_diagnostics"]["shared_six_oracle"]["first_lexical_content_diagnostic"]["first_NON_WHITESPACE_subtoken_rank_CONDITIONAL"],
+                  "sixty_oracle_CONTENT_rank":item["oracle_diagnostics"]["individual_sixty_oracle"]["first_lexical_content_diagnostic"]["first_NON_WHITESPACE_subtoken_rank_CONDITIONAL"]},
                   ensure_ascii=False),flush=True)
         # Wrong-question control: apply the stored oracle's gains for q[i]
         # to q[(i+1)%n]. No gradient or gold used while inferring new q.
@@ -105,12 +105,11 @@ def collect(core,shared,out):
                 question=later["question"]
                 gold=later["REFERENCE_ORACLE_ONLY"]
                 raw,prompt=prompt_input(tok,question)
-                target=gold_first_token(tok,gold)
-                alternative=tok.encode(gold,add_special_tokens=False)[0]
+                ref=reference(tok,gold)
                 params=torch.tensor(row["oracle_diagnostics"][mode]["parameters_after_ORACLE_FIT"])
                 with torch.no_grad():
                     actuator.oracle(params,mode)
-                    result=observation(model,tok,raw,prompt,target,alternative,gold)
+                    result=observation(model,tok,raw,prompt,ref,gold)
                 shifted.append({"source_reference_question":row["question"],
                                 "actual_new_question":question,
                                 **result})
@@ -129,10 +128,12 @@ def collect(core,shared,out):
     def summary(rows):
         return {
           "cases":len(rows),
-          "gold_first_subtoken_top1":sum(
-              x["first_token_diagnostic"]["target_first_subtoken_is_top1"] for x in rows),
-          "mean_gold_first_subtoken_rank":sum(
-              x["first_token_diagnostic"]["target_first_subtoken_rank"] for x in rows)/len(rows),
+          "NONWHITESPACE_gold_content_top1_conditional":sum(
+              x.get("first_lexical_content_diagnostic",
+                    x.get("first_token_diagnostic"))["first_NON_WHITESPACE_subtoken_top1_CONDITIONAL"] for x in rows),
+          "mean_NONWHITESPACE_content_rank_CONDITIONAL":sum(
+              x.get("first_lexical_content_diagnostic",
+                    x.get("first_token_diagnostic"))["first_NON_WHITESPACE_subtoken_rank_CONDITIONAL"] for x in rows)/len(rows),
           "whole_autoregressive_correct_and_eos":sum(
               x["whole_answer_exact_and_eos"] for x in rows),
           "changed_sequence_from_neutral":sum(
@@ -143,7 +144,10 @@ def collect(core,shared,out):
         }
     stats={key:summary(counts(key)) for key in ("neutral","frozen",)+TRAIN_MODES}
     report={
-      "experiment":"v127 prereg real 135M oracle actuator capacity, not an AI quality claim",
+      "experiment":"v127b corrected real 135M FULL-answer+EOS oracle capacity, not an AI quality claim",
+      "v127a_prior_run_INVALID_due_to_whitespace_token_216":41838848382,
+      "oracle_trains_FULL_answer_and_EOS_not_just_leading_space":True,
+      "correct_reference_is_used_only_in_per_example_DIAGNOSTIC_oracle":True,
       "original_135M_full_core_SHA256":hashlib.sha256(src_bytes).hexdigest(),
       "original_trained_CB59_SHA_locked":True,
       "real_core_bpp_EXCLUDES_single_shared_controller":paid.stats()["all_in_bpp"],
