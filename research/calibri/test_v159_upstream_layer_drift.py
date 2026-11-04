@@ -104,7 +104,7 @@ class F159Tests(unittest.TestCase):
                  "upstream_drift_dominates_original_weight_only_error":True,
                  "paid_1bit_reduces_combined_actual_original_operator_error":False,
                  "ratio_upstream_drift_vs_original_5bit_weight_only_error":2.8
-               } for d in FIT_DOMAINS,
+               } for d in FIT_DOMAINS
             }
           }
         }
