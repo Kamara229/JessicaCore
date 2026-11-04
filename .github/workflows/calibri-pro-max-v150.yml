@@ -1,0 +1,50 @@
+name: CALIBRI v150 frozen CB149 fresh QA and real complete output generation
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v150/**'
+      - 'research/calibri/test_v150_semantic_native.py'
+      - '.github/workflows/calibri-pro-max-v150.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  untouched_QA_and_native_generation:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      PAID: inputs/paid/CALIBRI_v149_paid_int4_context_rank1.cb149
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU model and trustworthy validation datasets
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v149-paid-physical-context-int4-rank1
+          path: inputs/paid
+          run-id: 41907996048
+          github-token: ${{ github.token }}
+      - name: Precommitted SciQ BoolQ heldout questions and no silent QA regression tests
+        run: python -m unittest test_v150_semantic_native -v
+      - name: Real FP32/CB59/CB147/CB149 on untouched choice QA and 32-token generation
+        run: python -m v150.run "$PAID" results/v150
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v150-frozen-0p6987-native-real-QA-generation
+          path: results/v150/
+          if-no-files-found: warn
+          retention-days: 30
