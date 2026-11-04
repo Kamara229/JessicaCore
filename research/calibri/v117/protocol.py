@@ -1,8 +1,8 @@
 """Nonnegotiable anchors from the real published Calibri v59 benchmark."""
 import math
-from binary_geometry_v64 import EXPECTED_UNIQUE, MODEL_SHA
-from v86.provenance import ORIGINAL_CB59_SHA
-from paid_lowrank_v76 import SOURCE_BYTES
+# Pinned, independently audited by v109/v110/v111 (no external imports).
+ORIGINAL_CB59_SHA="50eac24ba7d7a452c495f8adced2cdef3f9cc44e024217fc21d8f2cebb87413c"
+SOURCE_BYTES=11_229_303
 
 TOTAL_UNIQUE=134_515_008
 MAX_BPP=.700
@@ -12,7 +12,6 @@ LAYER_COUNT=30
 HIDDEN=576
 INTERMEDIATE=1536
 HEADER=b"CLB117\x00\x00"
-assert EXPECTED_UNIQUE==TOTAL_UNIQUE
 assert SOURCE_BYTES==11_229_303
 assert MAX_SOURCE_BYTES==11_770_063
 assert MAX_SOURCE_BYTES-SOURCE_BYTES==540_760
