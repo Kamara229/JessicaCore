@@ -59,15 +59,15 @@ def old_fit_embedding_and_early_drift(teacher,student,paired):
             "paid_6bit_embedding_relative_RMSE":
                 measures["full_CB153_paid_vproj_teacher_vs_packed_drift_by_source_stage"]["input_embedding"]["relative_RMSE"],
             "actual_input_delta_at_block0":
-                measures["paid_vproj_minus_native_CB59_teacher_RMSE_by_stage"]["block_00_output"],
+                measures["paid_v_proj_minus_native_CB59_teacher_RMSE_by_stage"]["block_00_output"],
             "actual_input_delta_at_block9":
-                measures["paid_vproj_minus_native_CB59_teacher_RMSE_by_stage"]["block_09_output"],
+                measures["paid_v_proj_minus_native_CB59_teacher_RMSE_by_stage"]["block_09_output"],
             "actual_input_delta_at_block28":
-                measures["paid_vproj_minus_native_CB59_teacher_RMSE_by_stage"]["block_28_output"],
+                measures["paid_v_proj_minus_native_CB59_teacher_RMSE_by_stage"]["block_28_output"],
             "actual_input_delta_at_final_norm":
                 measures["paid_vproj_changes_drift_after_final_norm"],
             "post_input_operator_drift_by_all_32_stages":
-                measures["paid_vproj_minus_native_CB59_teacher_RMSE_by_stage"],
+                measures["paid_v_proj_minus_native_CB59_teacher_RMSE_by_stage"],
             "source_only_not_new_VALID":True,
         }
     paired.configure(0.,0.)
