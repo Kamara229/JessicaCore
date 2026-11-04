@@ -38,7 +38,7 @@ def pretend_FP32_module_swap(student,teacher,paths):
 
 class Tests(unittest.TestCase):
     def setUp(self):
-        self.teacher=Tiny(2.,.5)
+        self.teacher=Tiny(3.,.4)
         self.student=Tiny(1.,.25)
         self.ids=torch.ones((1,3),dtype=torch.long)
     def test_all_four_factorial_states_different_and_restored(self):
