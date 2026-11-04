@@ -1,0 +1,46 @@
+name: CALIBRI v110 INT6 CB59 fault localization
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v110/**'
+      - 'research/calibri/test_v110_localization.py'
+      - '.github/workflows/calibri-v110-localization.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Validate reversible module swaps and protocol
+        run: python -m unittest discover -s research/calibri -p test_v110_localization.py -v
+      - name: Reproduce frozen whole CB59 archive from source
+        run: |
+          python research/calibri/sub07_experiment_v59.py --stage encode --output results/base --source-revision 12fd25f77366fa6b3b4b768ec3050bf629380bac
+          echo '50eac24ba7d7a452c495f8adced2cdef3f9cc44e024217fc21d8f2cebb87413c  results/base/CALIBRI_v59_full_direct_sub070.cb59' | sha256sum -c -
+      - name: Execute real INT6 CB59 2x2 and layer boundary study
+        run: python -m v110.experiment results/base/CALIBRI_v59_full_direct_sub070.cb59 results/v110
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v110-int6-cb59-unpaid-localization
+          path: results/v110/v110_localization.json
+          retention-days: 30
+          if-no-files-found: error
