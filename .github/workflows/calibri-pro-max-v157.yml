@@ -1,0 +1,57 @@
+name: CALIBRI v157 fourth untouched 32window source v_proj robustness
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v157/**'
+      - 'research/calibri/test_v157_outlier_robustness.py'
+      - '.github/workflows/calibri-pro-max-v157.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original_layer6_vproj_genuine_robustness:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      SOURCE: inputs/paid/CALIBRI_v153_original_layer_paid_onebit.cb153
+      PREVIOUS: inputs/v156/v156_vproj_third_new_source_holdout.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original CPU SmolLM2 and source data dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v153-physical-sensitive-block-onebit-native-original
+          path: inputs/paid
+          run-id: 41911781429
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v156-third-holdout-physical-vproj-diagnostic
+          path: inputs/v156
+          run-id: 41914405749
+          github-token: ${{ github.token }}
+      - name: Reject improvements driven by a single exceptionally good validation window
+        run: python -m unittest test_v157_outlier_robustness -v
+      - name: Evaluate four original native arms on 32 new WikiText and AG News windows each
+        run: python -m v157.run "$SOURCE" "$PREVIOUS" results/v157
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v157-fourth-untouched-32window-original-vproj
+          path: results/v157/
+          if-no-files-found: warn
+          retention-days: 30
