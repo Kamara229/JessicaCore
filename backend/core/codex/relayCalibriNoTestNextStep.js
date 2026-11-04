@@ -42,7 +42,8 @@ export function calibriNoTestNextStep(message) {
 
     // Do not turn an ambiguous/conflicting instruction into consent to test.
     // Explicit ordinary-chat test requests use the existing strict path.
-    if (/(?:выполни|запусти|проведи|отправь|повтори|создай|открой)\s+(?:(?:один|этот|новый|следующий)\s+)?(?:тест(?:ы)?|тестовый\s+чат|задач[уа])\s+(?:в|через|для)\s+(?:обычн|сво[её]м|Jessica|Джессик)/iu.test(body) ||
+    if (/(?:создай|открой)\s+(?:новый\s+)?тестовый\s+чат\s+(?:Jessica|Джессик)/iu.test(body) ||
+        /(?:выполни|запусти|проведи|отправь|повтори|создай|открой)\s+(?:(?:один|этот|новый|следующий)\s+)?(?:тест(?:ы)?|тестовый\s+чат|задач[уа])\s+(?:в|через|для)\s+(?:обычн|сво[её]м|Jessica|Джессик)/iu.test(body) ||
         /(?:Точная\s+(?:формулировка|задача|инструкция)|https?:\/\/|[«»]|(?:парол|секрет|API[- ]?ключ|токен|установи|удали|удалить|deploy|merge))/iu.test(body) ||
         body.includes(String.fromCharCode(96)))
         return null;
