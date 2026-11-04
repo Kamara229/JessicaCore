@@ -47,10 +47,10 @@ export function calibriNoTestNextStep(message) {
     if (!noJessicaTest) return null;
 
     // Do not turn an ambiguous/conflicting instruction into consent to test.
-    // Explicit ordinary-chat test requests use the existing strict path.
+    // Explicit ordinary-chat test requests use the existing strict path.\n    // Credential TOKEN requests are unsafe, but LLM token terminology\n    // ('первом токене', 'токенов') is ordinary CALIBRI research, not a secret.
     if (/(?:создай|открой)\s+(?:новый\s+)?тестовый\s+чат\s+(?:Jessica|Джессик)/iu.test(body) ||
         /(?:выполни|запусти|проведи|отправь|повтори|создай|открой)\s+(?:(?:один|этот|новый|следующий)\s+)?(?:тест(?:ы)?|тестовый\s+чат|задач[уа])\s+(?:в|через|для)\s+(?:обычн|сво[её]м|Jessica|Джессик)/iu.test(body) ||
-        /(?:Точная\s+(?:формулировка|задача|инструкция)|https?:\/\/|[«»]|(?:парол|секрет|API[- ]?ключ|токен|установи|удали|удалить|deploy|merge))/iu.test(body) ||
+        /(?:Точная\s+(?:формулировка|задача|инструкция)|https?:\/\/|[«»]|(?:парол|секрет|API[- ]?ключ|(?:токен(?:а|ы|ов)?\\s+(?:доступа|авторизац\\w*|GitHub|API|Render|Supabase)|(?:выдай|покажи|пришли|отправь|раскрой|используй)\\s+(?:мне\\s+)?токен(?=$|[\\s.,;!?]))|установи|удали|удалить|deploy|merge))/iu.test(body) ||
         body.includes(String.fromCharCode(96)))
         return null;
 
