@@ -27,10 +27,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
       - name: Install backend dependencies
-        run: npm ci --ignore-scripts
+        run: npm install --ignore-scripts --no-audit --no-fund
       - name: Verify exact failed v108 case and existing Codex relay behavior
         run: |
           node --test scripts/regressionCodexMissingPrivateArtifact.test.js
