@@ -63,7 +63,7 @@ def create_archive(source, mode):
                        "code_count":int(row*(col//GROUP))})
         payload.extend(idxbytes)
         records.append(record)
-    metadata = {"schema":"CALIBRI-STRUCTURAL-v112-1","mode":mode,
+    metadata = {"schema":"CALIBRI-STRUCTURAL-v112-1","mode":mode.ljust(16),
                 "group":GROUP,"K":K,"banks":BANKS,
                 "selected_operator_count":len(records),
                 "selected_weight_elements":int(sum(w.size for w in source.values())),
@@ -110,7 +110,7 @@ class Archive:
             if rec["code_count"]!=groups or rec["codes_at"]!=last or rec["codes_bytes"]!=(groups*5+7)//8:
                 raise ValueError("code stream mismatch")
             last+=rec["codes_bytes"]
-            if bank_for(self.meta["mode"],name)!=rec["bank"]:
+            if bank_for(self.meta["mode"].strip(),name)!=rec["bank"]:
                 raise ValueError("role/layout bank mismatch")
             self.records[name]=rec
             count+=rows*cols
