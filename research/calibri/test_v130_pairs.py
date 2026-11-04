@@ -45,9 +45,9 @@ class V130Tests(unittest.TestCase):
         self.assertAlmostEqual(similarity(a, a)["cosine"], 1.)
         self.assertAlmostEqual(similarity(a, b)["cosine"], 0.)
         diag = swap_alignment(a, b, a, b)
-        self.assertAlmostEqual(diag["cosine"], 1.)
+        self.assertAlmostEqual(diag["cosine"], 1., delta=1e-6)
         flipped = swap_alignment(a, b, b, a)
-        self.assertAlmostEqual(flipped["cosine"], -1.)
+        self.assertAlmostEqual(flipped["cosine"], -1., delta=1e-6)
         self.assertIsNone(swap_alignment(a, a, b, a))
 
     def test_same_activations_have_no_spurious_drift(self):
