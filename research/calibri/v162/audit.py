@@ -77,9 +77,9 @@ def summarize(measurements,timings):
             "teacher_KL_new_minus_original_CB59":mean_kl,
             "new_PPL_over_CB59_PPL":b["perplexity"]/a["perplexity"],
             "teacher_top1_matches_new_out_of_2016":int(
-                b["exact_FP32_next_token_argmax_count"]),
+                sum(int(x["exact_FP32_next_token_argmax_count"]) for x in measurements[NATIVE_ARMS[1]][domain])),
             "teacher_top1_matches_original_CB59_out_of_2016":int(
-                a["exact_FP32_next_token_argmax_count"]),
+                sum(int(x["exact_FP32_next_token_argmax_count"]) for x in measurements[NATIVE_ARMS[0]][domain])),
             "paired_TRUE_NLL":nll,
             "paired_teacher_KL":kl,
             "original_full_model_CPU_seconds":timings[NATIVE_ARMS[0]][domain],
