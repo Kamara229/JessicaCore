@@ -1,58 +1,59 @@
-"""Ideal supervision reachability bound through genuine packed C backward.
+"""Per-example GOLD-ORACLE full-answer reachability through packed native C.
 
-Gold IS used to optimize EACH individual example. Therefore any gain from
-these oracle controls is NOT a deployable GreenTunnel model improvement.
-By comparing six-degree vs sixty-degree controls we diagnose whether
-prior small action bottleneck was too restrictive.
+We explicitly optimize every correct ANSWER token plus EOS, rather than
+one leading-space token. This is NOT a deployable controller; the original
+real autonomous answer may remain wrong despite oracle training success.
 """
 import time
 import torch
 from torch.nn import functional as F
 from .protocol import SEED,STEPS,LEARNING_RATE
 from .actuation import Actuator
-from .targets import score,answer
+from .targets import score,answer,teacher_forced_logits
 
-def optimize(model,tok,bridge,source,prompt,target,other,mode):
+def optimize(model,tok,bridge,source,prompt,ref,mode):
     torch.manual_seed(SEED)
-    count=6 if mode=="shared_six_oracle" else 60
-    raw=torch.nn.Parameter(torch.zeros(count,dtype=torch.float32))
-    optim=torch.optim.Adam([raw],lr=LEARNING_RATE)
+    n=6 if mode=="shared_six_oracle" else 60
+    parameters=torch.nn.Parameter(torch.zeros(n,dtype=torch.float32))
+    opt=torch.optim.Adam([parameters],lr=LEARNING_RATE)
     actuator=Actuator(bridge)
     trace=[]
-    began=time.perf_counter()
+    start=time.perf_counter()
     for step in range(STEPS):
-        gains=actuator.oracle(raw,mode)
-        logits=model(input_ids=source,use_cache=False).logits[0,-1].float()
-        loss=F.cross_entropy(logits[None,:],torch.tensor([target]))
-        total=loss+.02*(gains-1).square().mean()
-        optim.zero_grad(set_to_none=True)
+        gains=actuator.oracle(parameters,mode)
+        logits,truth=teacher_forced_logits(model,source,ref)
+        # The loss now includes ALL factual content tokens and the end marker.
+        gold_loss=F.cross_entropy(logits,truth)
+        total=gold_loss+.02*(gains-1).square().mean()
+        opt.zero_grad(set_to_none=True)
         total.backward()
-        if raw.grad is None or not bool(torch.isfinite(raw.grad).all()):
-            raise RuntimeError("native packed-model first-token gradient missing")
-        grad_norm=float(raw.grad.norm().detach())
-        if not grad_norm:
-            raise RuntimeError("no causal sensitivity to gold target")
-        torch.nn.utils.clip_grad_norm_([raw],3.)
-        optim.step()
+        if parameters.grad is None or not torch.isfinite(parameters.grad).all():
+            raise RuntimeError("no valid native packed backward through full-answer loss")
+        grad=float(parameters.grad.norm().detach())
+        if grad==0:
+            raise RuntimeError("no causal sensitivity of paid native residual to true answer")
+        torch.nn.utils.clip_grad_norm_([parameters],3.)
+        opt.step()
         if step in (0,STEPS//2,STEPS-1):
             trace.append({"step":step,
-                "ORACLE_gold_first_token_fit_loss":float(loss.detach()),
-                "gradient_norm":grad_norm,
+                "ORACLE_full_answer_CONTENT_and_EOS_teacher_forced_loss":float(gold_loss.detach()),
+                "gradient_norm":grad,
                 "gain_min":float(gains.min().detach()),
                 "gain_max":float(gains.max().detach())})
-    fixed=raw.detach().clone()
+    fixed=parameters.detach().clone()
     with torch.no_grad():
-        factors=actuator.oracle(fixed,mode)
-        outcome=score(model,source,target,other)
-        output=answer(model,tok,prompt)
+        gains=actuator.oracle(fixed,mode)
+        first_lexical=score(model,source,ref)
+        full=answer(model,tok,prompt)
     return {"parameters_after_ORACLE_FIT":fixed.tolist(),
-            "train_seconds_not_deployable_inference":time.perf_counter()-began,
-            "gold_used_for_example_specific_ORACLE_optimization":True,
-            "real_native_gradient_path":True,
-            "num_steered_native_operators":len(factors),
-            "control_parameter_count":count,
-            "gain_min":float(factors.min()),
-            "gain_max":float(factors.max()),
-            "first_token_diagnostic":outcome,
-            "real_greedy_output_after_oracle":output,
-            "trace":trace}
+            "oracle_train_seconds_UNUSABLE_as_regular_inference":time.perf_counter()-start,
+            "gold_used_for_EVERY_answer_token_AND_EOS":True,
+            "oracle_is_not_real_autonomous_green":True,
+            "real_native_C_forward_backward":True,
+            "native_operator_count":len(gains),
+            "num_action_variables":n,
+            "gain_min":float(gains.min()),
+            "gain_max":float(gains.max()),
+            "first_lexical_content_diagnostic":first_lexical,
+            "real_greedy_output_after_oracle":full,
+            "teacher_forced_TRACE_not_quality":trace}
