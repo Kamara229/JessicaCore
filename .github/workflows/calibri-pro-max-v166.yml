@@ -1,0 +1,57 @@
+name: CALIBRI v166 Green Tunnel original teacher hidden-stage causal oracle diagnostic
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v166/**'
+      - 'research/calibri/test_v166_green_tunnel_hidden_oracles.py'
+      - '.github/workflows/calibri-pro-max-v166.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compare_unpaid_reference_hidden_transplants_at_precommitted_stages:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      SOURCE: inputs/paid/CALIBRI_v161_original_block0_paid_onebit.cb153
+      PRIOR: inputs/v165/v165_original_paid_source_GREEN_TUNNEL_TOPK_feasibility.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original CPU pretrained model and historical FIT dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v161-original-block0-paid-onebit-under-0p7
+          path: inputs/paid
+          run-id: 41920207168
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v165-original-GreenTunnel-no-training-topK-feasibility
+          path: inputs/v165
+          run-id: 41924549705
+          github-token: ${{ github.token }}
+      - name: Verify Green Tunnel hidden oracle is unpaid and earlier topK ceiling is real
+        run: python -m unittest test_v166_green_tunnel_hidden_oracles -v
+      - name: Diagnose native and paid original 135M model with 5 reference hidden substitutions on OLD FIT ONLY
+        run: python -m v166.run "$SOURCE" "$PRIOR" results/v166
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v166-GreenTunnel-FP32-unpaid-hidden-causal-boundaries
+          path: results/v166/
+          if-no-files-found: warn
+          retention-days: 30
