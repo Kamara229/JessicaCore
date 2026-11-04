@@ -1,0 +1,69 @@
+name: CALIBRI v126 frozen Green 8MB generalization test on unseen GPT2-82M architecture
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v126/**'
+      - 'research/calibri/test_v126_unseen.py'
+      - '.github/workflows/calibri-v126-frozen-third-host.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  cross-host-unseen-architecture:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 50
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU runtime
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Validate predeclared unseen GPT2 controls
+        run: python -m unittest test_v126_unseen -v
+      - uses: actions/download-artifact@v4
+        name: Frozen 8MB original v120 critic
+        with:
+          name: calibri-v120-10mb-green-tunnel-real-evidence
+          path: results/v120
+          run-id: 41824783272
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        name: Frozen 8MB hard-negative v124 critic
+        with:
+          name: calibri-v124-two-host-real-hard-negative-evidence
+          path: results/v124
+          run-id: 41832842877
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        name: Frozen 8MB pairwise v125 critic
+        with:
+          name: calibri-v125-gold-pairwise-8mb-green-two-hosts
+          path: results/v125
+          run-id: 41833977682
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Evaluate never-trained third GPT2 architecture with IDENTICAL neural weight files
+        run: |
+          python -m v126.pipeline \
+            results/v120/GREEN_TUNNEL_critic.safetensors \
+            results/v124/GreenTunnel_v124_REAL_host_failures.safetensors \
+            results/v125/GreenTunnel_v125_pairwise_correctness.safetensors \
+            results/v126
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v126-frozen-neural-unseen-GPT2-host
+          path: results/v126/v126_unseen_gpt2.json
+          retention-days: 30
+          if-no-files-found: error
