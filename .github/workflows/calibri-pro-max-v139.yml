@@ -1,0 +1,50 @@
+name: CALIBRI v139 paid 1-bit tied embedding residual source-only pilot
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v139/**'
+      - 'research/calibri/test_v139_onebit_residual.py'
+      - '.github/workflows/calibri-pro-max-v139.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  source_refinement:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HOST: inputs/core/CALIBRI_v119_joint_native_135M.cb118
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v119-real-135m-joint-native-c-vjp
+          path: inputs/core
+          run-id: 41822331451
+          github-token: ${{ github.token }}
+      - name: Verify 1-bit source refinement on synthetic vectors and paid 0.7-bpp bound
+        run: python -m unittest test_v139_onebit_residual -v
+      - name: Measure real teacher tied-weight 5+1-bit held-out source distortions
+        run: python -m v139.run "$HOST" results/v139
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v139-source-only-extra-bit-tied-embeddings
+          path: results/v139/
+          if-no-files-found: warn
+          retention-days: 30
