@@ -37,7 +37,6 @@ test("malformed envelopes, contradictory instructions and missing no-test intent
     const bad=[
         mixedIncident.replace("Джессика тесты не запускает.", "Запусти тест в обычном чате Jessica."),
         mixedIncident.replace("PR #267 объединён", "PR #267 не проверен"),
-        mixedIncident.replace("JESSICA_REPLY_", "JESSICA_REPLY_"),
         envelope.replace("JESSICA_END_"+id,"JESSICA_END_00000000-0000-0000-0000-000000000000"),
         envelope.replace("JESSICA_END_"+id,""),
         "JESSICA_REPLY_bad\n"+previousExact,
