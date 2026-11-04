@@ -2,6 +2,7 @@
 import unittest
 from v130.protocol import PAIRS, tasks, validate, words
 from v130.scoring import evidence, summarize
+from v130.analysis import compare, ARMS
 
 
 class TestCounterfactualPairs(unittest.TestCase):
@@ -22,6 +23,33 @@ class TestCounterfactualPairs(unittest.TestCase):
         e = evidence("Blue.", "Which color?", "blue", "red", False)
         self.assertTrue(e["strict_exact_text"])
         self.assertFalse(e["strict_exact_with_eos"])
+
+    def test_teacher_conditioned_swapped_green_control(self):
+        arms = {}
+        for arm in ARMS:
+            rows = []
+            for pair in PAIRS:
+                for side, question, gold, foil in (
+                    ("left", pair.left, pair.left_answer, pair.right_answer),
+                    ("right", pair.right, pair.right_answer, pair.left_answer),
+                ):
+                    # Teacher has one valid pair only. Current Green fixes it.
+                    value = gold if (arm == "FP32" and pair == PAIRS[0]) or (
+                        arm == "v119_green_current" and pair == PAIRS[0]) else foil
+                    rows.append({"pair": pair.name, "side": side,
+                                 "question": question,
+                                 "reference_for_post_generation_grading_only": gold,
+                                 "generated_token_ids": [ord(value[0])],
+                                 "observation": evidence(value, question, gold, foil, True)})
+            arms[arm] = {"rows": rows}
+        report = compare(arms)
+        result = report["metrics"]["strict_exact_text"]
+        self.assertEqual(result["fp32_pair_eligible"], 1)
+        self.assertEqual(result["eligible_pairs"]["v119_green_current"], 1)
+        self.assertEqual(result["green_current_unique_wins_vs_both_controls"], 1)
+        arms["CB59"]["rows"][0]["question"] = "DIFFERENT"
+        with self.assertRaises(ValueError):
+            compare(arms)
 
     def test_negative_and_no_content(self):
         self.assertTrue(evidence("red", "", "blue", "red", True)["foil_visible_alone"])
