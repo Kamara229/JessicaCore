@@ -6,7 +6,7 @@ loaded. We use one fixed contiguous region per source; no model selection.
 SCI_Q="allenai/sciq"
 SCI_Q_COMMIT="2c94ad3"  # Hugging Face immutable 2024 Parquet conversion commit
 BOOL_Q="google/boolq"
-BOOL_Q_COMMIT="a78586b41ee7ad5529450607e6515d337e6acddd"
+BOOL_Q_COMMIT="8ab2d3e9ff5449d3957950129cea176fe214d884"
 SPLIT="validation"
 START=200
 COUNT=8
