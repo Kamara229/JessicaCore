@@ -22,6 +22,7 @@ import {incidentCiStatusHandoff} from "./relayIncidentCiStatus.js";
 import {compactCodexStressProgress} from "./relayCompactStressProgress.js";
 import {interpretationFailureHandoff} from "./relayFailureHandoff.js";
 import {calibriResearchHandoff} from "./relayCalibriProgress.js";
+import {calibriNoTestNextStep} from "./relayCalibriNoTestNextStep.js";
 import {missingCalibriArtifactHandoff} from "./relayMissingCalibriArtifact.js";
 import {completedCalibriNoTestHandoff} from "./relayCalibriCompletedNoTest.js";
 import {v2PersistenceHandoff} from "./relayV2PersistenceHandoff.js";
@@ -98,6 +99,10 @@ export async function interpretRelayTurn(input, generate) {
     if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
     const finishedResearch=completedCalibriNoTestHandoff(message);
     if (finishedResearch!==null)return {action:"reply",reply:finishedResearch,task:"",continueThread:false};
+    // Explicitly no-Jessica-test CALIBRI progress must not consume Groq quota.
+    const researchNextStep = calibriNoTestNextStep(message);
+    if (researchNextStep !== null)
+        return {action:"reply",reply:researchNextStep,task:"",continueThread:false};
     const directCalendarFix=pendingCalendarDirectFix(message);
     if(directCalendarFix!==null)return directCalendarFix;
     const absoluteFix=pendingAbsoluteDateFix(message);
