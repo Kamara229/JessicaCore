@@ -1,0 +1,52 @@
+name: CALIBRI v107 locked v103/v104 original-generation sentinel cross-run check
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v107/**'
+      - 'research/calibri/calibri_v107_crossrun_sentinels.py'
+      - 'research/calibri/test_v107_locked_crossrun_contract.py'
+      - 'research/calibri/SESSION_107_V96_SENTINEL_CROSS_RUN.md'
+      - '.github/workflows/calibri-v107-cross-run-generation-detection.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit_v96_locked_detector_on_v103_v104_original_text:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: research/calibri
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run standard-library validation guards without pretrained models
+        run: |
+          python -m compileall -q research/calibri/v107 research/calibri/calibri_v107_crossrun_sentinels.py research/calibri/test_v107_locked_crossrun_contract.py
+          python research/calibri/test_v107_locked_crossrun_contract.py -v
+      - name: Download SHA-locked existing original v103 and v104 result only
+        run: |
+          mkdir -p input/v103 input/v104 results/v107
+          gh run download 41747347901 --repo "$GITHUB_REPOSITORY" --name calibri-v103-original-chat-labeled-BoolQ-and-visible-native-text --dir input/v103
+          gh run download 41748235592 --repo "$GITHUB_REPOSITORY" --name calibri-v104-source-paid-eight-bank-native-physical-and-quality --dir input/v104
+          test -s input/v103/v103_same_byte_head_candidate_chat_ground_truth_and_visible_text.json
+          test -s input/v104/v104_actual_original_head_bank_source_real_CPU_and_semantic_tests.json
+      - name: Evaluate UNCHANGED v106 thresholds on original fixed 18 output texts
+        run: |
+          python research/calibri/calibri_v107_crossrun_sentinels.py --v103 input/v103/v103_same_byte_head_candidate_chat_ground_truth_and_visible_text.json --v104 input/v104/v104_actual_original_head_bank_source_real_CPU_and_semantic_tests.json --out results/v107
+          test -s results/v107/v107_frozen_v103_v104_cross_run_anomaly_out_of_v96.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v107-v96-detector-on-existing-v103-v104-without-fitting
+          path: results/v107/v107_frozen_v103_v104_cross_run_anomaly_out_of_v96.json
+          retention-days: 7
+          if-no-files-found: ignore
