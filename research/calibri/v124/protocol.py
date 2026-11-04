@@ -43,7 +43,7 @@ def arithmetic(seedstart,n,op):
 TRAIN=TRAIN_ANSWERS+arithmetic(31,20,"plus")+arithmetic(45,12,"minus")+arithmetic(1,7,"multiply")
 VALID=VALID_ANSWERS+arithmetic(141,7,"plus")+arithmetic(198,5,"minus")+(
  ("What is 5 multiplied by 11? Reply with the number.","55"),
- ("What is 8 multiplied by 6? Reply with the number.","48"),
+ ("What is 9 multiplied by 7? Reply with the number.","63"),
 )
 assert len(TRAIN)==51 and len(VALID)==20
 assert not {q for q,_ in TRAIN}&{q for q,_ in VALID}
