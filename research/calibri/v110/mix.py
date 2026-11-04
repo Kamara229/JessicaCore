@@ -33,7 +33,6 @@ def swap(packed, int6, *, head=False, block_ids=(), factor=None):
             replace(packed, "lm_head", original_output)
         for i in indices:
             if factor is None:
-                replace(packed.model.layers, str(i), int6.model.layers[i]) if False else None
                 # ModuleList uses __setitem__, not attribute replacement.
                 old = packed.model.layers[i]
                 updates.append((packed.model.layers, i, old))
