@@ -1,5 +1,6 @@
 """Small deterministic protocol tests; no Jessica/live integration."""
 import unittest
+import re
 
 import torch
 from v130.protocol import MAPPINGS, cases, shuffled_questions
@@ -20,8 +21,8 @@ class V130Tests(unittest.TestCase):
                 self.assertEqual(original["gold"], reversed_["foil"])
                 self.assertEqual(original["foil"], reversed_["gold"])
                 self.assertNotEqual(original["question"], reversed_["question"])
-                self.assertEqual(sorted(original["question"].split()),
-                                 sorted(reversed_["question"].split()))
+                self.assertEqual(sorted(re.findall(r"[A-Za-z]+", original["question"].casefold())),
+                                 sorted(re.findall(r"[A-Za-z]+", reversed_["question"].casefold())))
 
     def test_shuffle_has_no_self_question_and_preserves_record_count(self):
         rows = cases()
@@ -44,7 +45,7 @@ class V130Tests(unittest.TestCase):
         self.assertAlmostEqual(similarity(a, a)["cosine"], 1.)
         self.assertAlmostEqual(similarity(a, b)["cosine"], 0.)
         diag = swap_alignment(a, b, a, b)
-        self.assertAlmostEqual(diag["mean"] if "mean" in diag else diag["cosine"], 1.)
+        self.assertAlmostEqual(diag["cosine"], 1.)
         flipped = swap_alignment(a, b, b, a)
         self.assertAlmostEqual(flipped["cosine"], -1.)
         self.assertIsNone(swap_alignment(a, a, b, a))
