@@ -1,0 +1,57 @@
+name: CALIBRI v165 Green Tunnel topK teacher rescue information-theoretic ceiling
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v165/**'
+      - 'research/calibri/test_v165_green_tunnel_ceiling.py'
+      - '.github/workflows/calibri-pro-max-v165.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  green_tunnel_feasibility_without_training_or_test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      SOURCE: inputs/paid/CALIBRI_v161_original_block0_paid_onebit.cb153
+      PRIOR: inputs/v163/v163_original_block0_true_SciQ_BoolQ_and_greedy.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original CPU pretrained model and prior TRAIN FIT dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v161-original-block0-paid-onebit-under-0p7
+          path: inputs/paid
+          run-id: 41920207168
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v163-real-fully-paid-block0-semantics-and-greedy
+          path: inputs/v163
+          run-id: 41922383305
+          github-token: ${{ github.token }}
+      - name: Prove topK oracle upper bound is not a trained tunnel and previous language repetition is real
+        run: python -m unittest test_v165_green_tunnel_ceiling -v
+      - name: Measure real teacher TOP1 ranks in packed original topK on OLD TRAIN FIT only
+        run: python -m v165.run "$SOURCE" "$PRIOR" results/v165
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v165-original-GreenTunnel-no-training-topK-feasibility
+          path: results/v165/
+          if-no-files-found: warn
+          retention-days: 30
