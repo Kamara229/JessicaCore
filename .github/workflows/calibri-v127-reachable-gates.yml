@@ -1,0 +1,61 @@
+name: CALIBRI v127 REAL packed 135M oracle reachability for six vs sixty Green gates
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v127/**'
+      - 'research/calibri/test_v127_oracle.py'
+      - '.github/workflows/calibri-v127-reachable-gates.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnose_native_correct_token_reachability:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 85
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned native CPU LLM science environment
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Verify mathematical constraints on 6D and 60D pretrained paid hooks
+        run: python -m unittest test_v127_oracle -v
+      - uses: actions/download-artifact@v4
+        name: Restore full unchanged real 135M 0.69735 core
+        with:
+          name: calibri-v119-real-135m-joint-native-c-vjp
+          path: results/v119
+          run-id: 41822331451
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        name: Restore exactly frozen pretrained shared 8MB neural controller
+        with:
+          name: calibri-v122-frozen-10mb-shared-gate-policy-real-135m
+          path: results/v122
+          run-id: 41828640085
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Gold informed ORACLE only and frozen controller actual autonomous text comparisons
+        run: |
+          python -m v127.pipeline \
+            results/v119/CALIBRI_v119_joint_native_135M.cb118 \
+            results/v122/GreenTunnel_shared_10MB_6gates.safetensors \
+            results/v127
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v127-real-135m-oracle-gain-capacity-vs-frozen-green
+          path: results/v127/v127_oracle_gate_reachability.json
+          if-no-files-found: error
+          retention-days: 30
