@@ -22,6 +22,7 @@ from .metrics import (VALID,GENERATE,original_reference,activation_error,
 
 MODES=("global","layer_control","role")
 MODEL="EleutherAI/pythia-14m"
+PINNED_REVISION="cf967c0a9a04383db6f7b1108d86b2962634b4ac"
 
 def weight_error(source,archive):
     diff=0.;power=0.
@@ -73,9 +74,8 @@ def experiment(out):
     print(json.dumps({"stage":"v112_toy","structured":toy["structured"],
                       "unstructured":toy["unstructured"]}),flush=True)
 
-    from huggingface_hub import HfApi
     from transformers import AutoModelForCausalLM, AutoTokenizer
-    source_revision=HfApi().model_info(MODEL).sha
+    source_revision=PINNED_REVISION
     tok=AutoTokenizer.from_pretrained(MODEL,revision=source_revision)
     model=AutoModelForCausalLM.from_pretrained(
         MODEL,revision=source_revision,torch_dtype=torch.float32,
