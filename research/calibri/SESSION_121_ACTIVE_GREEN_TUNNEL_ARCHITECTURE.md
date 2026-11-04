@@ -41,3 +41,18 @@ A original CB59; B paid joint v119 (0.697353 bpp); C separate G_theta + only gat
 Original unique denominator N=134,515,008, native v119 full source=11,725,552 bytes (0.697352789 bpp). A physically separate 10,000,000-byte controller gives a complete single-host total 21,725,552 bytes = 1.292081966 bpp. Actual 8,223,732-byte v120 critic gives 19,949,284 bytes = 1.186442125 bpp. Remains only 44,511 bytes under 0.7bpp on the **original 135M single-host** checkpoint, impossible to fit 8–10MB independently without recompacting/removing other weights. One shared controller across many models could amortize cost for internal accounting, but total physical resident memory/storage must still be reported truthfully. Separate architecture and product goals must not be silently conflated.
 
 Next implementation should first verify gradient sensitivity/control authority of existing rank1 adapter *gate* with actual real 135M native packed autograd in v119 before spending larger experiments on standalone G_theta. Show that varying gates changes faulty continuation in a task-dependent useful way (not merely off-topic smoothness). Test answer correctness, multi-sentence coherence, EOS, repetitions, actual CPU, and full bytes. If gates can't recover useful semantics, must change source codebook allocation/training or augment verified external information. No scientific PASS or claims of universal LLM repair from architectural design alone.
+
+## Реальный интервенционный v121-опыт, GitHub Actions #41825905419 (SUCCESS, 2026-11-04)
+
+Испытали прямую управляемость вычислительной цепочки на настоящей v119 135M CB59-модели, без новых обучений и без новых сохраняемых весов. Четыре заранее определённых программы множителей для всех 60 уже оплаченных rank1 корректоров: оригинальная (attention=1, MLP=1), отключение (0,0), усиление (2,2), предпочитаем MLP (0.5,1.5). Исходная полная модель сохраняет **0.697352789 bpp**, все исторические CB59 байты и SHA неизменны. Исследовали 8 ранее уже использованных диагностических QA и 2 открытых вопроса (НЕ независимый TEST).
+
+| Режим | Изменённых последовательностей генерации из 10 | Строго правильных из 8 QA |
+|---|---:|---:|
+| Исходная v119, все alpha=1 | 0 | 1/8 |
+| Все alpha=0 | **10/10** | 0/8 |
+| Все alpha=2 | **8/10** | 0/8 |
+| Attention=0.5, MLP=1.5 | **2/10** | 1/8 |
+
+**Фактический вывод:** у адаптеров внутри упакованной 135M CB59 есть реальная причинная возможность менять потоки ответа. Не требуется разворачивать полный исходный FP32 для вмешательства. Тем самым «нейротуннель» теоретически может управлять уже существующими 60 корректирующими операторами посредством обучаемых динамических gate. Однако наивные фиксированные усиления/выключения **не восстанавливают связность или правильность речи**; местами ухудшают качество. v121 не содержала собственно ОБУЧЕННОГО активного контроллера, проверяла лишь actuators / control authority. Доказательство steerability ≠ доказательство пригодности модели, честный science FAIL.
+
+[Actions #41825905419](https://github.com/Kamara229/JessicaCore/actions/runs/41825905419), артефакт #13319830963 содержит все фактически полученные 40 прогонов 135M с полными ID токенов, действителен до 2026-12-04. При следующем обучении выбирать alpha(q, previous_tokens, layer_role) из отдельного общего мини-ИИ, а не фиксировать вручную; по качеству независимых содержательных ответов + по полной стоимости и CPU. Если нет семантического улучшения, менять фундаментальный сжатый оператор/информационную ёмкость, а не увеличивать количество внешних фильтров. Main/Render/Supabase/Jessica Live/APK не затронуты.
