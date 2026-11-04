@@ -109,8 +109,6 @@ def run(archive, out):
                           "top10":[r["top10_overlap"] for r in rows]}),flush=True)
 
     # Prove after all swaps no INT6 trained dense 2D module remains grafted.
-    if packed.model.embed_tokens.weight if hasattr(packed.model.embed_tokens, "weight") else False:
-        raise AssertionError("packed embeddings were not restored")
     from direct_runtime_v59 import PackedLinear, PackedEmbedding
     if not isinstance(packed.model.embed_tokens, PackedEmbedding) or not isinstance(packed.lm_head,PackedLinear):
         raise AssertionError("original native tied head not restored")
