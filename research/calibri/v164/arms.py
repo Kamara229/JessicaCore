@@ -1,5 +1,5 @@
 """All original bitplanes remain PAID, despite RAM-only operator toggles."""
-from v154.arms import subset
+from dataclasses import replace
 from .protocol import MATRIX_KEYS,SHORT,ARMS,check
 
 
@@ -16,4 +16,4 @@ def all_predeclared_arms(physical):
             x for x in MATRIX_KEYS if x!=path)
     if tuple(result)!=ARMS:
         raise ValueError("diagnostic arms reordered, dropped or postselected")
-    return {arm:subset(physical,enabled) for arm,enabled in result.items()}
+    return {arm:replace(physical,patches={key:physical.patches[key] for key in enabled})\n            for arm,enabled in result.items()}
