@@ -14,7 +14,7 @@ class T(unittest.TestCase):
         self.assertEqual(raw,pack5(unpack5(raw,len(ids))))
     def test_exact_toy_vocabulary_head_and_embedding_rows(self):
         rng=np.random.default_rng(101)
-        m,n=16,16
+        m,n=16,64
         groups=n//8
         codes=rng.integers(0,32,size=m*groups,dtype=np.uint8)
         scales=np.linspace(.02,.08,m,dtype=np.float32)
