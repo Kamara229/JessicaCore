@@ -1,0 +1,42 @@
+name: CALIBRI v115 replicated tiny answer quality without teacher imitation
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v115/**'
+      - 'research/calibri/test_v115_replication.py'
+      - '.github/workflows/calibri-v115-replicated-functional-tiny.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  repeated-tiny:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned CPU environment
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 safetensors==0.4.5
+      - name: Check separate train and validation combinations
+        run: python -m unittest test_v115_replication -v
+      - name: Actually train 18 genuine answer-generation models
+        run: python -m v115.pipeline results/v115
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v115-18-trained-tiny-qa-checkpoints
+          path: |
+            results/v115/*.json
+            results/v115/*.safetensors
+          if-no-files-found: error
+          retention-days: 30
