@@ -22,6 +22,7 @@ import {incidentCiStatusHandoff} from "./relayIncidentCiStatus.js";
 import {compactCodexStressProgress} from "./relayCompactStressProgress.js";
 import {interpretationFailureHandoff} from "./relayFailureHandoff.js";
 import {calibriResearchHandoff} from "./relayCalibriProgress.js";
+import {missingCalibriArtifactHandoff} from "./relayMissingCalibriArtifact.js";
 import {completedCalibriNoTestHandoff} from "./relayCalibriCompletedNoTest.js";
 import {v2PersistenceHandoff} from "./relayV2PersistenceHandoff.js";
 export {explicitJessicaTest} from "./relayExplicitTest.js";
@@ -88,6 +89,11 @@ export async function interpretRelayTurn(input, generate) {
     if(blockedBackend!==null)return {action:"reply",reply:blockedBackend,task:"",continueThread:false};
     const unverifiedPr=unverifiedPrProgress(message);
     if(unverifiedPr!==null)return {action:"reply",reply:unverifiedPr,task:"",continueThread:false};
+    // Private CALIBRI research artifacts are not accessible through this relay.
+    // An explicit missing-data contingency must not trigger provider fallback,
+    // repeated web searches, or an ungrounded Jessica test.
+    const missingArtifact=missingCalibriArtifactHandoff(message);
+    if(missingArtifact!==null) return missingArtifact;
     const requestedTest = explicitJessicaTest(message) || compactJessicaTest(message) || numberedBenchmarkTest(message);
     if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
     const finishedResearch=completedCalibriNoTestHandoff(message);
