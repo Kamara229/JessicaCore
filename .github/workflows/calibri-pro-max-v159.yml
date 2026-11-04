@@ -1,0 +1,64 @@
+name: CALIBRI v159 map upstream drift across all 30 original pretrained layers
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v159/**'
+      - 'research/calibri/test_v159_upstream_layer_drift.py'
+      - '.github/workflows/calibri-pro-max-v159.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  actual_original_30_block_teacher_vs_packed_drift:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 50
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      SOURCE: inputs/paid/CALIBRI_v153_original_layer_paid_onebit.cb153
+      FAIL: inputs/v157/v157_fourth_source_operator_robustness.json
+      DIAGNOSIS: inputs/v158/v158_vproj_native_weight_vs_upstream_input_drift.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original CPU teacher and direct packed model dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v153-physical-sensitive-block-onebit-native-original
+          path: inputs/paid
+          run-id: 41911781429
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v157-fourth-untouched-32window-original-vproj
+          path: inputs/v157
+          run-id: 41915254097
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v158-no-test-original-vproj-quantization-vs-drift
+          path: inputs/v158
+          run-id: 41916091128
+          github-token: ${{ github.token }}
+      - name: Test 32 bounded original activation hooks and prior negative evidence
+        run: python -m unittest test_v159_upstream_layer_drift -v
+      - name: Locate hidden-state drift over original embedding all 30 blocks and norm on OLD TRAIN FIT only
+        run: python -m v159.run "$SOURCE" "$FAIL" "$DIAGNOSIS" results/v159
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v159-real-original-30layer-activation-drift-map
+          path: results/v159/
+          if-no-files-found: warn
+          retention-days: 30
