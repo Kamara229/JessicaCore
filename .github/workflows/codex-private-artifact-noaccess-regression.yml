@@ -1,0 +1,35 @@
+name: Codex relay private source unavailable regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/core/codex/relayMissingCalibriArtifact.js'
+      - 'backend/core/codex/relayInterpreter.js'
+      - 'backend/scripts/regressionCodexMissingPrivateArtifact.test.js'
+      - '.github/workflows/codex-private-artifact-noaccess-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  no_test_source_unavailable_relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install backend dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Verify exact failed v108 case and existing Codex relay behavior
+        run: |
+          node --test scripts/regressionCodexMissingPrivateArtifact.test.js
+          node --test scripts/regressionCodexRelay.test.js
