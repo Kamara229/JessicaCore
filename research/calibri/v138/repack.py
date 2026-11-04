@@ -15,23 +15,23 @@ KEY="model.embed_tokens.weight"
 TIED="lm_head.weight"
 
 
-def checked_source(base):
+def checked_source(base, expected_shape=(49152,576)):
     model=CB59(base)
     if KEY not in model.meta["tensor_descriptors"]:
         raise ValueError("the canonical tied embedding is missing")
     if (model.handles.get(TIED) is not model.handles[KEY] or
             model.meta["source_alias_keys"].get(TIED)!=KEY):
         raise ValueError("input/output pretrained weight tying lost")
-    if model.handles[KEY].shape!=(49152,576):
+    if model.handles[KEY].shape!=expected_shape:
         raise ValueError("unexpected original embedding shape")
     return model
 
 
-def encoded_all(weight,scales,centers,chunk_groups=4096):
+def encoded_all(weight,scales,centers,chunk_groups=4096, *, expected_shape=(49152,576)):
     """Stream full 3,538,944 source groups, never full dense CB59 weights."""
     from direct_codebook_v59 import _nearest_integer_128
     w=np.asarray(weight,dtype=np.float32)
-    if w.ndim!=2 or w.shape!=(49152,576) or len(scales)!=w.shape[0]:
+    if w.ndim!=2 or w.shape!=expected_shape or len(scales)!=w.shape[0]:
         raise ValueError("teacher embedding source geometry changed")
     c=np.asarray(centers,dtype="<f2").astype(np.float32)
     if c.shape!=(32,8) or not np.isfinite(c).all() or not np.isfinite(w).all():
@@ -54,8 +54,8 @@ def encoded_all(weight,scales,centers,chunk_groups=4096):
     return packed
 
 
-def patch_one_matrix(base,centers,packed):
-    original=checked_source(base)
+def patch_one_matrix(base,centers,packed, *, expected_shape=(49152,576)):
+    original=checked_source(base,expected_shape)
     magic,version,mlen,blen=HEADER.unpack_from(base)
     if magic!=b"CB59" or version!=1:
         raise ValueError("incompatible old format")
@@ -94,7 +94,7 @@ def patch_one_matrix(base,centers,packed):
     patched[-36:-32]=struct.pack("<I",zlib.crc32(new_body))
     patched[-32:]=hashlib.sha256(bytes(patched[:-32])).digest()
     result=bytes(patched)
-    loaded=checked_source(result)
+    loaded=checked_source(result,expected_shape)
     if len(result)!=len(base) or loaded.meta!=original.meta:
         raise AssertionError("original full-model bit budget/manifest changed")
     if (loaded.handles[KEY].packed.tobytes()!=values["packed"] or
