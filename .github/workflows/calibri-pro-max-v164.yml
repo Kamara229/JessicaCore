@@ -1,0 +1,57 @@
+name: CALIBRI v164 original paid 7 first-block operator attribution on OLD TRAIN FIT
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v164/**'
+      - 'research/calibri/test_v164_original_paid_block0_ablation.py'
+      - '.github/workflows/calibri-pro-max-v164.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  attribute_seven_original_layer0_operator_effects:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      SOURCE: inputs/paid/CALIBRI_v161_original_block0_paid_onebit.cb153
+      V162_REPORT: inputs/v162/v162_block0_full_paid_dual_corpus_32window_robustness.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original CPU and packed native pretrained dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v161-original-block0-paid-onebit-under-0p7
+          path: inputs/paid
+          run-id: 41920207168
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v162-genuine-fully-paid-block0-32window-robustness
+          path: inputs/v162
+          run-id: 41921242142
+          github-token: ${{ github.token }}
+      - name: Prove 16 exact original diagnostic arms and preserved v162 AG News FAIL
+        run: python -m unittest test_v164_original_paid_block0_ablation -v
+      - name: Score original CB59 all7 seven alone and seven leave-one-out on ONLY prior TRAIN FIT
+        run: python -m v164.run "$SOURCE" "$V162_REPORT" results/v164
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v164-16arm-original-layer0-operator-TF-only-diagnostic
+          path: results/v164/
+          if-no-files-found: warn
+          retention-days: 30
