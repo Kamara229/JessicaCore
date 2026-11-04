@@ -1,0 +1,50 @@
+name: CALIBRI v148 frozen CB147 fresh SciQ and BoolQ validation QA
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v148/**'
+      - 'research/calibri/test_v148_fresh_qa.py'
+      - '.github/workflows/calibri-pro-max-v148.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  actual_fresh_QA:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      PAID: inputs/paid/CALIBRI_v147_paid_6bit_tied_plus_int8_logit_prior.cb147
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install fixed CPU research and dataset dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v147-native-6bit-paid-plus-vocab-int8-prior
+          path: inputs/paid
+          run-id: 41905813697
+          github-token: ${{ github.token }}
+      - name: Test separate SciQ BoolQ validation rows and honest negative QA
+        run: python -m unittest test_v148_fresh_qa -v
+      - name: Evaluate fresh 16+16 forced-choice accuracy on FP32 CB59 half head and paid CB147
+        run: python -m v148.run "$PAID" results/v148
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v148-new-qa-choice-frozen-int8-prior
+          path: results/v148/
+          if-no-files-found: warn
+          retention-days: 30
