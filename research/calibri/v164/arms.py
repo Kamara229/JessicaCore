@@ -16,4 +16,5 @@ def all_predeclared_arms(physical):
             x for x in MATRIX_KEYS if x!=path)
     if tuple(result)!=ARMS:
         raise ValueError("diagnostic arms reordered, dropped or postselected")
-    return {arm:replace(physical,patches={key:physical.patches[key] for key in enabled})\n            for arm,enabled in result.items()}
+    return {arm:replace(physical,patches={key:physical.patches[key] for key in enabled})
+            for arm,enabled in result.items()}
