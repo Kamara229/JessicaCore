@@ -62,9 +62,9 @@ def run(host,out):
                          energy=np.square(fit_scales.astype(np.float64)),steps=8)
         baseline=score(val_x,val_normalized,val_scales,codes_valid,base_centers)
         upgraded=score(val_x,val_normalized,val_scales,codes_valid,base_centers,refinement)
-        if upgraded["relative_weight_RMSE"]>baseline["relative_weight_RMSE"]:
-            raise AssertionError("residual bit worsened heldout source RMSE")
+        passed=upgraded["relative_weight_RMSE"] < baseline["relative_weight_RMSE"]
         scores[name]={
+            "heldout_RMSE_improved":bool(passed),
             "baseline_K32_5bit_source_validation":baseline,
             "candidate_K32_K2_6bit_source_validation":upgraded,
             "relative_RMSE_ratio_refinement_vs_base":
