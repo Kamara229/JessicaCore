@@ -10,11 +10,13 @@ from v102.recode import recode_source,swap_whole_tied_head_blob
 class Tiny(nn.Module):
     def __init__(self):
         super().__init__()
-        self.embed=nn.Embedding(64,64)
-        self.head=nn.Linear(64,64,bias=False)
-        self.head.weight=self.embed.weight
+        self.model=nn.Module()
+        self.model.embed_tokens=nn.Embedding(64,64)
+        self.lm_head=nn.Linear(64,64,bias=False)
+        self.lm_head.weight=self.model.embed_tokens.weight
         self.body=nn.Linear(64,64)
-    def forward(self,ids):return self.head(self.body(self.embed(ids)))
+    def forward(self,ids):
+        return self.lm_head(self.body(self.model.embed_tokens(ids)))
 
 class TestV102(unittest.TestCase):
     def test_archive_exact_size_alias_and_other_weights(self):
@@ -22,18 +24,18 @@ class TestV102(unittest.TestCase):
         model=Tiny()
         source,_,_=encode(model.state_dict())
         old=CB59(source,expected_keys=model.state_dict().keys())
-        new,summary=recode_source(source,model.head.weight)
+        new,summary=recode_source(source,model.lm_head.weight)
         target=CB59(new,expected_keys=model.state_dict().keys())
         self.assertEqual(len(new),len(source))
         self.assertNotEqual(new,source)
-        self.assertIs(target.handles["head.weight"] if "head.weight" in target.handles else
-                      target.handles["lm_head.weight"],target.handles["embed.weight"])
+        self.assertIs(target.handles["lm_head.weight"],
+                      target.handles["model.embed_tokens.weight"])
         self.assertEqual(summary["new_complete_archive_bytes"],len(new))
         self.assertEqual(old.handles["body.weight"].packed.tobytes(),
                          target.handles["body.weight"].packed.tobytes())
         self.assertTrue(np.array_equal(old.raw["body.bias"],target.raw["body.bias"]))
-        self.assertNotEqual(old.handles["embed.weight"].packed.tobytes(),
-                            target.handles["embed.weight"].packed.tobytes())
+        self.assertNotEqual(old.handles["lm_head.weight"].packed.tobytes(),
+                            target.handles["lm_head.weight"].packed.tobytes())
     def test_corrupted_physical_head_segments_rejected(self):
         torch.manual_seed(103)
         model=Tiny()
