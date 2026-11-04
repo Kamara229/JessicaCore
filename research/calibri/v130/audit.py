@@ -25,6 +25,7 @@ from v129.operators import installed
 from v129.run import load_green
 from .protocol import PAIRS, tasks
 from .scoring import evidence, summarize
+from .analysis import compare
 
 
 def predict(model, tokenizer, bridge, policy, mode):
@@ -102,6 +103,7 @@ def audit(host, green_path, out):
                 ("v119_green_constant", "green_constant"),
             ):
                 report["arms"][label] = predict(model, tokenizer, bridge, policy, mode)
+    report["posthoc_FP32_and_Green_controls"] = compare(report["arms"])
     path = out / "v130_paired_information_audit.json"
     path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
     return path, {k: v["summary"] for k, v in report["arms"].items()}
