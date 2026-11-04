@@ -1,0 +1,50 @@
+name: CALIBRI v149 physically paid contextual int4 rank1 output under 0.7bpp
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v149/**'
+      - 'research/calibri/test_v149_contextual_rank1.py'
+      - '.github/workflows/calibri-pro-max-v149.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  source_contextual_rank1:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      PAID: inputs/paid/CALIBRI_v147_paid_6bit_tied_plus_int8_logit_prior.cb147
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original CPU and source evaluation dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v147-native-6bit-paid-plus-vocab-int8-prior
+          path: inputs/paid
+          run-id: 41905813697
+          github-token: ${{ github.token }}
+      - name: Verify physically counted int4 codes and teacher-only FIT regression fixture
+        run: python -m unittest test_v149_contextual_rank1 -v
+      - name: Fit one source TRAIN-FIT contextual vector and serialize complete model before new VALID
+        run: python -m v149.run "$PAID" results/v149
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v149-paid-physical-context-int4-rank1
+          path: results/v149/
+          if-no-files-found: warn
+          retention-days: 30
