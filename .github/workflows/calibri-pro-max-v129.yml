@@ -1,0 +1,59 @@
+name: Calibri pro max v129 fixed Green and paid input-QKV comparison
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v129/**'
+      - 'research/calibri/test_v129_placement.py'
+      - '.github/workflows/calibri-pro-max-v129.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compare:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HOST: inputs/core/CALIBRI_v119_joint_native_135M.cb118
+      GREEN: inputs/green/GreenTunnel_shared_10MB_6gates.safetensors
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v119-real-135m-joint-native-c-vjp
+          path: inputs/core
+          run-id: 41822331451
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v122-frozen-10mb-shared-gate-policy-real-135m
+          path: inputs/green
+          run-id: 41828640085
+          github-token: ${{ github.token }}
+      - name: Verify archived layout, tied factors, lexical decisions and independent inputs
+        run: python -m unittest test_v128_lexical test_v129_placement -v
+      - name: Fit both placements, freeze physical weights, evaluate complete real responses and matched speed
+        run: |
+          for arm in fit_control fit_relocated CB59 FP32 v119_neutral v119_green control_green relocated_green relocated_neutral relocated_no_input speed; do
+            python -m v129.run "$arm" "$HOST" "$GREEN" results/v129
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v129-native-placement-and-frozen-green
+          path: results/v129/
+          if-no-files-found: error
+          retention-days: 30
