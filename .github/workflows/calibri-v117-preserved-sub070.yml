@@ -1,0 +1,48 @@
+name: CALIBRI v117 preserve original sub070 physical 135M archive plus paid structural adapters
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v117/**'
+      - 'research/calibri/test_v117_preserved_hybrid.py'
+      - '.github/workflows/calibri-v117-preserved-sub070.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  genuine-frozen-CB59:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU science environment
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Check all-in physical storage, corruption rejection and corrected operator
+        run: python -m unittest test_v117_preserved_hybrid -v
+      - name: Recreate original 135M packed archive with independently frozen original SHA
+        run: |
+          python research/calibri/sub07_experiment_v59.py --stage encode --output results/base --source-revision 12fd25f77366fa6b3b4b768ec3050bf629380bac
+          echo '50eac24ba7d7a452c495f8adced2cdef3f9cc44e024217fc21d8f2cebb87413c  results/base/CALIBRI_v59_full_direct_sub070.cb59' | sha256sum -c -
+      - name: Prove real original source unchanged and 60 paid native roles physically below 0.7bpp
+        run: python -m v117.experiment results/base/CALIBRI_v59_full_direct_sub070.cb59 results/v117
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v117-135m-locked-sub070-native-structural-hybrid
+          path: |
+            results/v117/v117_paid_integration.json
+            results/v117/v117_full_pinned_hybrid.cb117
+          if-no-files-found: error
+          retention-days: 30
