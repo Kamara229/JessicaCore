@@ -1,0 +1,13 @@
+# CALIBRI Green Tunnel v123 — same FROZEN 8.228MB weights, two real LLM architectures
+
+Date 2026-11-04. Directly addresses user’s nonnegotiable requirement: the universal Green Tunnel must stay the SAME size AND the SAME learned weight bytes when working with models that differ enormously in architecture, parameter count and original checkpoint size. v122 Green source SHA locked to `4a1f9ba4a0431569965ed9c0f786f7131b9426806ffd851f1b54ef8f6e585605` (full safetensors 8 228 664 bytes, <=10 000 000), trained only on prior 135M. **v123 does not retrain this network at all.**
+
+Use exactly one file in two actual independently pretrained languages:
+- Original real Llama-derived **SmolLM2-135M-Instruct** with physically complete pre-trained compact native CB59 v119 archive 11 725 552 bytes = **0.697352789 bpp**, original unique parameter denominator 134 515 008; uses its **already paid 60 rank1 U/V corrections** gated by the very same 6 coefficients;
+- **EleutherAI/pythia-14m**, pinned HF revision cf967c0a9a04383db6f7b1108d86b2962634b4ac, actual FP32 GPT-NeoX, different head/layout/depth. A host-side lightweight **parameter-free scale adapter** maps the 6 coefficients to 2 generic output roles per layer with normalized depth and a fixed conservative 0.15 transfer strength. This host is NOT sub-0.7bpp, not used as proof of compression.
+
+The common Green always receives only UTF8 query via its byte tokenizer, outputs **6 coefficients regardless of depth L** (2 generic roles × 3 normalized-depth basis values). Host-specific mapping code and per-host U/V are not stored inside Green's model. On the two hosts test full real greedy text, whether the causal intervention changes actual token IDs, and the wall time including controller. Core-only bpp per user convention still excludes one separately saved Green; physical full deployed bytes reported separately. The user’s hypothetical trillion-parameter generalization is **not proven** by testing 14M and 135M; 10GB and 1T models and robust response quality must be tested prospectively. If QA worsens, report negative; capability to *run* without reweighting is not ability to *improve speech*.
+
+The v122 negative fact is crucial: 8MB neural Green learned nearly question-independent gates; shuffling questions produced exactly identical 16 generated answers, source 0/12 vs Green 1/12 on QA. Therefore running this exact frozen model on a second architecture may further show poor performance. The hypothesis is narrowly controller-size invariance, not acceptable quality.
+
+Sources: `research/calibri/SESSION_122_GREEN_ONE_CONTROLLER_ANY_HOST_SIZE.md`; old genuine full 135M CB59 SHA. No v89 TEST and no production modifications. All implementation in modular facades.
