@@ -1,0 +1,50 @@
+name: CALIBRI v128 repair bare-whitespace first-token measurement on real packed 135M
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v128/**'
+      - 'research/calibri/test_v128_lexical.py'
+      - '.github/workflows/calibri-v128-lexical-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real_135m_corrected_info_content_audit:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 50
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned native CPU deps
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Prove bare leading whitespace cannot be counted as word token
+        run: python -m unittest test_v128_lexical -v
+      - uses: actions/download-artifact@v4
+        name: Download actual immutable complete CB59 and v119 paid core
+        with:
+          name: calibri-v119-real-135m-joint-native-c-vjp
+          path: results/v119
+          run-id: 41822331451
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compare OLD misleading ranks with new actual lexical ranks and full free text
+        run: python -m v128.pipeline results/v119/CALIBRI_v119_joint_native_135M.cb118 results/v128
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v128-tokenizer-lexical-audit-real-135M
+          path: results/v128/v128_lexical_target_audit.json
+          if-no-files-found: error
+          retention-days: 30
