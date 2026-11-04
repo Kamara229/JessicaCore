@@ -8,20 +8,21 @@ from v99.patch import capture_one,overwrite_one_student_stage,paired_one_token_l
 class Toy(nn.Module):
     def __init__(self,scale):
         super().__init__()
+        self.embed=nn.Embedding(11,3)
         self.layer=nn.Linear(3,3,bias=False)
         self.head=nn.Linear(3,5,bias=False)
         with torch.no_grad():
             self.layer.weight.copy_(torch.eye(3)*scale)
             self.head.weight.fill_(.17)
     def forward(self,input_ids,use_cache=False):
-        y=self.layer(input_ids.float())
+        y=self.layer(self.embed(input_ids))
         return type("Output",(),{"logits":self.head(y)})()
 
 class Tests(unittest.TestCase):
     def setUp(self):
         self.teacher=Toy(2.)
         self.native=Toy(1.)
-        self.ids=torch.ones(1,2,3)
+        self.ids=torch.ones((1,2),dtype=torch.long)
 
     def test_original_and_native_heads_remain_unchanged(self):
         old=self.native.layer.weight.detach().clone()
