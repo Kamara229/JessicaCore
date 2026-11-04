@@ -1,0 +1,50 @@
+name: CALIBRI v106 read-only historical v96 output anomaly features
+
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v106/**'
+      - 'research/calibri/calibri_v96_generation_signals_v106.py'
+      - 'research/calibri/test_v106_generation_signals.py'
+      - 'research/calibri/SESSION_106_V96_GENERATION_ANOMALY_AUDIT.md'
+      - '.github/workflows/calibri-v106-frozen-v96-repetition-signal-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  locked_original_v96_generated_answer_anomaly_summary:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: research/calibri
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test original output morphology features without external models
+        run: |
+          python -m compileall -q research/calibri/v106 research/calibri/test_v106_generation_signals.py research/calibri/calibri_v96_generation_signals_v106.py
+          python research/calibri/test_v106_generation_signals.py -v
+      - name: Download exact already-completed immutable historical v96 generated output
+        run: |
+          mkdir -p input results/v106
+          gh run download 41739479888 --repo "$GITHUB_REPOSITORY" --name calibri-v96-FP32-versus-native-actual-answers-and-full-text --dir input
+          test -s input/v96_FP32_CB59_v92_genuine_answer_and_generation_diagnosis.json
+      - name: Audit source-locked original generated answers and character repetition alarms
+        run: |
+          python research/calibri/calibri_v96_generation_signals_v106.py --source input/v96_FP32_CB59_v92_genuine_answer_and_generation_diagnosis.json --out results/v106
+          test -s results/v106/v106_v96_original_generation_repetition_detector_regression.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v106-source-locked-v96-generation-anomaly-posthoc-report
+          path: results/v106/v106_v96_original_generation_repetition_detector_regression.json
+          retention-days: 7
+          if-no-files-found: ignore
