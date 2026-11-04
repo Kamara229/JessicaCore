@@ -1,0 +1,48 @@
+name: CALIBRI v116 real saved compact weights and on-demand generated GEMV CPU
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v116/**'
+      - 'research/calibri/test_v116_fused.py'
+      - '.github/workflows/calibri-v116-fused-structural.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  frozen-source-audit:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin CPU research stack
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install safetensors==0.4.5 numpy==1.26.4
+      - name: Test functionally equivalent generated GEMV
+        run: python -m unittest test_v116_fused -v
+      - name: Download actual FROZEN v115 model archives (not retrained)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-v115-18-trained-tiny-qa-checkpoints
+          path: results/v115
+          run-id: 41815441331
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Measure real CPU speed, exact answer parity and hot buffer budget
+        run: python -m v116.pipeline results/v115 results/v116
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v116-frozen-source-fused-cpu-evidence
+          path: results/v116/v116_fused_cpu.json
+          if-no-files-found: error
+          retention-days: 30
