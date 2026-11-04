@@ -1,0 +1,52 @@
+name: CALIBRI v119 real 135M packed-native C autograd for gold answer joint train
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v119/**'
+      - 'research/calibri/test_v119_native.py'
+      - '.github/workflows/calibri-v119-joint-native-answer.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real-packed-gradient:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 95
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned research CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Unit-test exact packed 5bit VJP gradient numerics on tiny source
+        run: python -m unittest test_v119_native -v
+      - name: Download exact frozen FULL 135M paid trained v118 physical archive
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-v118-135M-full-0p7-physically-trained-behaviour
+          path: results/v118-source
+          run-id: 41820561285
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Train 60 actual transformer block residuals with GOLD answers and native C VJP
+        run: python -m v119.pipeline results/v118-source/CALIBRI_v118_paid_135M_trained.cb118 results/v119
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v119-real-135m-joint-native-c-vjp
+          path: |
+            results/v119/v119_joint_gold_cpu.json
+            results/v119/CALIBRI_v119_joint_native_135M.cb118
+          if-no-files-found: error
+          retention-days: 30
