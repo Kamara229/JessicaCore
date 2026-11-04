@@ -1,0 +1,50 @@
+name: CALIBRI v158 original layer6 vproj source error versus upstream input drift
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v158/**'
+      - 'research/calibri/test_v158_original_operator_drift.py'
+      - '.github/workflows/calibri-pro-max-v158.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  distinguish_source_quantization_from_propagated_hidden_error:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      SOURCE: inputs/paid/CALIBRI_v153_original_layer_paid_onebit.cb153
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned teacher and native CPU model dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v153-physical-sensitive-block-onebit-native-original
+          path: inputs/paid
+          run-id: 41911781429
+          github-token: ${{ github.token }}
+      - name: Verify input drift could overwhelm improved paid source weight error
+        run: python -m unittest test_v158_original_operator_drift -v
+      - name: Measure FP32-native input drift and original layer6 v_proj quantization on OLD TRAIN FIT ONLY
+        run: python -m v158.run "$SOURCE" results/v158
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v158-no-test-original-vproj-quantization-vs-drift
+          path: results/v158/
+          if-no-files-found: warn
+          retention-days: 30
