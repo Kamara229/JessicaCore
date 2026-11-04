@@ -57,9 +57,7 @@ def old_fit_embedding_and_early_drift(teacher,student,paired):
             "original_5bit_embedding_relative_RMSE":
                 measures["input_tied_embedding_original_CB59_RMSE"],
             "paid_6bit_embedding_relative_RMSE":
-                measures["full_CB153_paid_vproj_teacher_vs_packed_drift_by_source_stage"]["input_embedding"]["relative_RMSE"]
-                if "full_CB153_paid_vproj_teacher_vs_packed_drift_by_source_stage" in measures
-                else measures["full_CB153_paid_vproj_teacher_vs_packed_drift_by_source_stage"]["input_embedding"]["relative_RMSE"],
+                measures["full_CB153_paid_vproj_teacher_vs_packed_drift_by_source_stage"]["input_embedding"]["relative_RMSE"],
             "actual_input_delta_at_block0":
                 measures["paid_vproj_minus_native_CB59_teacher_RMSE_by_stage"]["block_00_output"],
             "actual_input_delta_at_block9":
