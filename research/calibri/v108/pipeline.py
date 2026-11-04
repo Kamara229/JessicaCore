@@ -15,7 +15,7 @@ from binary_geometry_v64 import MODEL,MODEL_SHA,EXPECTED_UNIQUE
 from direct_codebook_v59 import CB59
 from paid_lowrank_v76 import make_model
 from v84.sources import original_teacher
-from .spec import ALL_PROMPTS,GOLD_PROMPTS,OPEN_PROMPTS
+from .spec import ALL_PROMPTS,GOLD_PROMPTS,OPEN_PROMPTS,V102_SOURCE_SHA256
 from .generation import observed_answer
 
 def locked_sources(frozen:Path,candidate:Path,metadata:Path,contract:Path):
@@ -29,6 +29,7 @@ def locked_sources(frozen:Path,candidate:Path,metadata:Path,contract:Path):
     if (lock.get("contract_version")!="CALIBRI_BASELINE_LOCK_2026-11-04"
         or sha!=pin["sha256"]
         or len(base)!=pin["complete_archive_bytes"]
+        or recode_sha!=V102_SOURCE_SHA256
         or recode_sha!=info["new_separate_source_sha256"]
         or info["original_immutable_reference_sha256"]!=sha
         or MODEL_SHA!=lock["original_model_revision"]
@@ -105,6 +106,10 @@ def run(frozen:Path,candidate:Path,metadata:Path,contract:Path,out:Path):
             "fake_role_lines_in_generated_text":sum(int(
                 x["v106_frozen_unchanged_morphology"]["simulated_role_line_present"])
                 for x in rows),
+            "role_lines_within_real_first_assistant_turn":sum(
+                x["role_line_within_first_assistant_turn"] for x in rows),
+            "fixed_work_tokens_after_first_eos":sum(
+                x["first_assistant_turn"]["tokens_after_eos"] for x in rows),
             "actual_generated_tokens_per_second_including_prefill":
                 (32*len(rows))/max(1e-10,sum(
                     x["full_model_real_CPU_KV_cache_elapsed_seconds"] for x in rows)),

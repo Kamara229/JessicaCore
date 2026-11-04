@@ -16,6 +16,17 @@ def build_chat(tok,question):
         raise AssertionError("actual user question lost in chat formatting")
     return p
 
+def assistant_turn(tok, generated):
+    """Separate the real first turn from the tail of a fixed-work benchmark."""
+    eos = tok.eos_token_id
+    if eos is None:
+        raise ValueError("missing tokenizer end-of-turn ID")
+    ended = eos in generated
+    stop = generated.index(eos) if ended else len(generated)
+    return {"text": tok.decode(generated[:stop], skip_special_tokens=True),
+            "content_tokens": stop, "ended_by_eos": ended,
+            "tokens_after_eos": len(generated) - stop - int(ended)}
+
 def observed_answer(model,tok,category,question,gold):
     chat=build_chat(tok,question)
     data=generate_one(model,tok,chat)
@@ -23,6 +34,7 @@ def observed_answer(model,tok,category,question,gold):
     if len(generated)!=32:
         raise AssertionError("not exactly 32 genuine generated output tokens")
     text=data["text"]
+    turn=assistant_turn(tok,generated)
     grade=grade_answer(text,gold) if gold else None
     signal=leading_reference_signal(text,gold) if gold else None
     return {
@@ -32,6 +44,8 @@ def observed_answer(model,tok,category,question,gold):
         "original_pretrained_chat_template_rendered":True,
         "ground_truth_answers":list(gold),
         "actual_decoded_model_output":text,
+        "first_assistant_turn":turn,
+        "role_line_within_first_assistant_turn":generation_signals(turn["text"])["simulated_role_line_present"],
         "first_visible_response_before_fake_role_lines":first_response(text)[:300],
         "actual_32_generated_token_ids":generated,
         "full_model_real_CPU_KV_cache_elapsed_seconds":data["elapsed_seconds"],

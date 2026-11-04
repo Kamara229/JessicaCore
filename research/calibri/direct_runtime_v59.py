@@ -160,7 +160,15 @@ def bind_into_llama(model,archive:CB59,kernel:NativeKernel):
                 raise AssertionError("raw trained tensor isn't a live runtime parameter: "+name)
             if tuple(cur[name].shape)!=tuple(t.shape):
                 raise AssertionError("source 1D shape mismatch "+name)
-            cur[name].copy_(torch.from_numpy(np.array(t,copy=True)))
+            value=torch.from_numpy(np.array(t,copy=True))
+            if cur[name].is_meta:
+                owner,_,field=name.rpartition(".")
+                target=model.get_submodule(owner) if owner else model
+                setattr(target,field,nn.Parameter(value,requires_grad=cur[name].requires_grad))
+            else:
+                cur[name].copy_(value)
+    if any(t.is_meta for t in (*model.parameters(),*model.buffers())):
+        raise AssertionError("packed model contains unbound parameters or buffers")
     leftovers={n:tuple(p.shape) for n,p in model.named_parameters()
                if p.ndim>=2}
     if leftovers:
