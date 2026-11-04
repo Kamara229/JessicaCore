@@ -5,8 +5,10 @@ import {calibriNoTestNextStep} from "../core/codex/relayCalibriNoTestNextStep.js
 
 const id="d0ea8dcc-861a-4ad1-870e-8b98a39b15ff";
 const previousExact="Следующий тест CALIBRI v133: после результатов v132 отключить наиболее проблемную группу слоёв и сравнить 16 полных ответов с исходной v119. Проверить EOS, смысл, повторы и правильность. Запуск выполняю я через GitHub.";
+const mixedIncident = "Сбой Codex исправлен в GitHub: PR #267 объединён, регрессии прошли. Supabase доступен. Render требует подтверждения workspace. Следующий шаг — CALIBRI v133: сравнить генерацию с отключёнными слоями 0–4. Джессика тесты не запускает.";
 const messages = [
     previousExact,
+    mixedIncident,
     "CALIBRI v132: проверка в GitHub ещё выполняется. Следующий шаг — выявить группу слоёв. Джессика тесты не запускает.",
     "CALIBRI v131, PR #265: исследуем причины преждевременного EOS. Джессика тесты не запускает.",
     "CALIBRI v130: создан исследовательский PR #264. Джессика, тесты не запускай.",
@@ -33,6 +35,9 @@ for (const body of messages) {
 test("malformed envelopes, contradictory instructions and missing no-test intent are not swallowed",()=>{
     const envelope="JESSICA_REPLY_"+id+"\n"+previousExact+"\nJESSICA_END_"+id;
     const bad=[
+        mixedIncident.replace("Джессика тесты не запускает.", "Запусти тест в обычном чате Jessica."),
+        mixedIncident.replace("PR #267 объединён", "PR #267 не проверен"),
+        mixedIncident.replace("JESSICA_REPLY_", "JESSICA_REPLY_"),
         envelope.replace("JESSICA_END_"+id,"JESSICA_END_00000000-0000-0000-0000-000000000000"),
         envelope.replace("JESSICA_END_"+id,""),
         "JESSICA_REPLY_bad\n"+previousExact,
