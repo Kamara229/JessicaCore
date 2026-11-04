@@ -73,7 +73,7 @@ class OriginalFullyPaidTiedInputStudy(unittest.TestCase):
         result=summarize(obs)
         self.assertFalse(result[
             "paid_input_ONLY_improves_NLL_and_KL_on_both_new_domains"])
-        self.assertEqual(result[
+        self.assertAlmostEqual(result[
             "paired_per_domain_causal_input_head_effects"][DOMAINS[1]]
             ["paid_input_only_10"]["vs_CB59_TRUE_next_token_NLL"],.2)
         obs["native_CB59_00"][DOMAINS[0]].pop()
