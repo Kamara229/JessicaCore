@@ -1,0 +1,63 @@
+name: CALIBRI v122 shared 10MB active neural controller across host sizes
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v122/**'
+      - 'research/calibri/test_v122_shared_policy.py'
+      - '.github/workflows/calibri-v122-dynamic-green-tunnel.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  fixed-size-green-tunnel-real-135m:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 80
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install fully pinned CPU researcher dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Verify fixed-size six-gate neural controller is host width/layer independent
+        run: python -m unittest test_v122_shared_policy -v
+      - name: Restore actual 8.22MB independent pretrained Green Tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-v120-10mb-green-tunnel-real-evidence
+          path: results/v120-old-green
+          run-id: 41824783272
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Restore exact SHA-pinned full real 135M CB59 native joint body source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-v119-real-135m-joint-native-c-vjp
+          path: results/v119-host
+          run-id: 41822331451
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Train independent fixed-width controller via native compressed model GOLD gradients
+        run: |
+          python -m v122.pipeline \
+            results/v119-host/CALIBRI_v119_joint_native_135M.cb118 \
+            results/v120-old-green/GREEN_TUNNEL_critic.safetensors \
+            results/v122
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v122-frozen-10mb-shared-gate-policy-real-135m
+          path: |
+            results/v122/v122_shared_10mb_policy.json
+            results/v122/GreenTunnel_shared_10MB_6gates.safetensors
+          if-no-files-found: error
+          retention-days: 30
