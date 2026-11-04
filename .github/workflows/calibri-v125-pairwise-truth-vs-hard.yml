@@ -1,0 +1,72 @@
+name: CALIBRI v125 real two-host contrastive Green fixed 8MB correct vs bad
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v125/**'
+      - 'research/calibri/test_v125_pairwise.py'
+      - '.github/workflows/calibri-v125-pairwise-truth-vs-hard.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  two-model-pretrained-contrast:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 80
+    env:
+      PYTHONPATH: research/calibri
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned actual CPU stack
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Check causal answer grouping and preregistered positive/negative requirements
+        run: python -m unittest test_v125_pairwise -v
+      - uses: actions/download-artifact@v4
+        name: Restore exact old 135M compressed CB59 source
+        with:
+          name: calibri-v119-real-135m-joint-native-c-vjp
+          path: results/v119
+          run-id: 41822331451
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        name: Restore original ~8MB neural weights
+        with:
+          name: calibri-v120-10mb-green-tunnel-real-evidence
+          path: results/v120
+          run-id: 41824783272
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        name: Restore previous real two-host hard-negative training and evidence
+        with:
+          name: calibri-v124-two-host-real-hard-negative-evidence
+          path: results/v124
+          run-id: 41832842877
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Reproduce exact real generated data and train question-conditioned ranker
+        run: |
+          python -m v125.pipeline \
+            results/v119/CALIBRI_v119_joint_native_135M.cb118 \
+            results/v120/GREEN_TUNNEL_critic.safetensors \
+            results/v124/GreenTunnel_v124_REAL_host_failures.safetensors \
+            results/v124/v124_host_hard_negative.json \
+            results/v125
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v125-gold-pairwise-8mb-green-two-hosts
+          path: |
+            results/v125/v125_contrastive_hard_real.json
+            results/v125/GreenTunnel_v125_pairwise_correctness.safetensors
+          if-no-files-found: error
+          retention-days: 30
