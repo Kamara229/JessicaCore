@@ -1,0 +1,51 @@
+name: CALIBRI v189 actual original SmolLM2 360M vs 135M answer quality baseline
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v189/**'
+      - 'research/calibri/test_v189_teacher_provenance.py'
+      - '.github/workflows/calibri-pro-max-v189.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  stronger_original_teacher_no_compression:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      V188_SOURCE: inputs/v188/v188_actual_original_FP32_192QA_complete.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install original checkpoint and grading dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v188-original-pretrained-FP32-192-actual-DEV-answers
+          path: inputs/v188
+          run-id: 42088612519
+          github-token: ${{ github.token }}
+      - name: Confirm 192 identical archived original question IDs, templates and 135M provenance
+        run: python -m unittest test_v189_teacher_provenance -v
+      - name: Resolve & pin original 360M HF commit and generate 192 real DEV answers
+        run: python -m v189.run "$V188_SOURCE" results/v189
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v189-original-360M-vs-135M-192-historical-DEV
+          path: results/v189/
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 6
