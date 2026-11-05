@@ -1,0 +1,14 @@
+"""A bounded pilot, not a promise of FP32-level quality at 0.66784 bpp."""
+from v175.protocol import SOURCE_BYTES, SOURCE_SHA, TOTAL_UNIQUE
+
+SEED = 176
+STEPS = 128
+LR = 0.01
+NORM_LR = 0.001
+HIDDEN_WEIGHT = 1.0
+MARGIN_WEIGHT = 0.2
+MARGIN = 1.0
+MAX_TRAIN_LENGTH = 96
+CHECKPOINT_EVERY = 32
+ARMS = ('FP32', 'CB59', 'CB176')
+
