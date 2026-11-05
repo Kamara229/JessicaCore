@@ -44,7 +44,7 @@ jobs:
       - name: Install physical source model metadata parser
         run: |
           python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
-          python -m pip install numpy==1.26.4
+          python -m pip install numpy==1.26.4 scipy==1.14.1
       - uses: actions/download-artifact@v4
         with:
           name: calibri-v186-paid-balanced-code-swaps-native-QA
@@ -79,7 +79,7 @@ jobs:
       - name: Install genuine original 135M packed CB59 archive auditor
         run: |
           python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
-          python -m pip install numpy==1.26.4
+          python -m pip install numpy==1.26.4 scipy==1.14.1
       - uses: actions/download-artifact@v4
         with:
           name: calibri-v196-authentic-green-tunnel-135M-192steps-full-vocab-native-QA
