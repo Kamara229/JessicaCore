@@ -55,8 +55,13 @@ def recover(student,sources,train_teacher_refs,train_pairs,original_fp32_matrice
         def capture(_source,_args,reconstructed):
             if not reconstructed.requires_grad:
                 raise AssertionError("No end-to-end trainable source reconstruction")
-            reconstructed.retain_grad()
-            captured.append(reconstructed)
+            # Balanced-pair TRAIN makes TWO forwards through one cached
+            # paid source tensor. The module hook fires twice, but both
+            # visits share one reconstruction/gradient; deduplicate by
+            # tensor ID as in the already validated original v186 fit.
+            if not any(reconstructed is earlier for earlier in captured):
+                reconstructed.retain_grad()
+                captured.append(reconstructed)
         hook=target.register_forward_hook(capture)
         clear(sources)
         optimizer.zero_grad(set_to_none=True)
