@@ -28,16 +28,23 @@ from .sources import all_cases,digest
 from .grade import summarize
 
 @torch.inference_mode()
-def gen(models,packed,root,tokenizer,cases):
-    rec={a:[] for a in ARMS}
+def gen(models,tokenizer,cases):
+    """Three immutable model instances; residual C library compiled ONCE.
+
+    v169 incorrectly entered install_paid_block for EACH of 192 questions.
+    That rebuilt the same .so and swapped seven original operators 192
+    times; the inference speed measurements excluded compile overhead but
+    the overall pipeline and repeated library writes were inefficient.
+    Keep dedicated resident original packed and full-paid models instead.
+    """
+    rec={arm:[] for arm in ARMS}
     for i,case in enumerate(cases):
         prompt=build_chat(tokenizer,case["prompt"])
+        # Interleave inference order to control for CPU warmup; no mutable
+        # shared student layers or repeated paid .so compilations.
         order=ARMS[i%len(ARMS):]+ARMS[:i%len(ARMS)]
         for arm in order:
-            which=models["FP32"] if arm=="FP32" else models["CB59"]
-            ctx=install_paid_block(which,packed,root) if arm=="CB161" else nullcontext()
-            with ctx:
-                result=generate_one(which,tokenizer,prompt,stop_at_eos=True)
+            result=generate_one(models[arm],tokenizer,prompt,stop_at_eos=True)
             ids=result["ids"]
             if not 1<=len(ids)<=MAX_NEW_TOKENS or result["prompt_SHA"]!=digest(prompt):
                 raise ValueError("bad genuine model output")
@@ -59,11 +66,11 @@ def gen(models,packed,root,tokenizer,cases):
         rec[arm].sort(key=lambda x:(x["question_id"],x["style"]=="brief"))
         if len(rec[arm])!=EXPECTED_GENERATIONS_PER_ARM:
             raise ValueError("missing real generation")
-        # all_cases() is direct-then-brief; sorting key preserves this.
-        for target,source in zip(rec[arm],cases):
-            if target["question_id"]!=source["question_id"] or target["style"]!=source["style"]:
+        for actual,expected in zip(rec[arm],cases):
+            if actual["question_id"]!=expected["question_id"] or actual["style"]!=expected["style"]:
                 raise ValueError("bad per-arm order")
     return rec
+
 
 def run(archive,old_report,seal,output):
     check()
@@ -101,15 +108,26 @@ def run(archive,old_report,seal,output):
         root=Path(temp)
         original=root/"original_unchanged_CB59.cb59"
         original.write_bytes(physical.original)
-        student,meta,_=make_model("baseline",SimpleNamespace(original=original,folder=root))
-        if not meta["zero_dense_pretrained_2D_hot_weights"]:
-            raise ValueError("packed model contains original FP32 2D matrices")
-        if student.model.embed_tokens.handle is not student.lm_head.handle:
-            raise ValueError("original tied source was not packed")
-        actual=gen({"FP32":teacher,"CB59":student},physical,root,tok,cases)
-        evaluation=summarize(cases,actual)
-        if any(p.ndim>=2 for p in student.parameters()):
-            raise ValueError("unpaid dense original FP32 weights in packed runtime")
+        (root/"cb59").mkdir()
+        (root/"cb161").mkdir()
+        student,meta,_=make_model("baseline",SimpleNamespace(original=original,folder=root/"cb59"))
+        paid_student,paid_meta,_=make_model("baseline",SimpleNamespace(original=original,folder=root/"cb161"))
+        for item in (meta,paid_meta):
+            if not item["zero_dense_pretrained_2D_hot_weights"]:
+                raise ValueError("packed model contains original FP32 2D matrices")
+        for model in (student,paid_student):
+            if model.model.embed_tokens.handle is not model.lm_head.handle:
+                raise ValueError("original tied source was not packed")
+        # One resident 7-operator paid model. Actual original CB59 remains
+        # independent, enabling exact same prompts and real order rotation.
+        with install_paid_block(paid_student,physical,root/"cb161") as installed:
+            if installed["paid_2D_modules"]!=7:
+                raise AssertionError("not all seven physically paid original operators")
+            actual=gen({"FP32":teacher,"CB59":student,"CB161":paid_student},tok,cases)
+            evaluation=summarize(cases,actual)
+        for model in (student,paid_student):
+            if any(p.ndim>=2 for p in model.parameters()):
+                raise ValueError("unpaid dense original FP32 weights in packed runtime")
     out={
         "protocol":protocol,
         "origins":{"base":"HuggingFaceTB/SmolLM2-135M-Instruct",
