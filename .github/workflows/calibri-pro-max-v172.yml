@@ -1,0 +1,53 @@
+name: CALIBRI v172 actual original operator input-energy learned 5bit same-byte source and real answers
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v172/**'
+      - 'research/calibri/test_v172_activation_samebyte.py'
+      - '.github/workflows/calibri-pro-max-v172.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  train_source_operators_ACTIVATION_aware_equal_bits_then_measure_answers:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      SOURCE: inputs/v161/CALIBRI_v161_original_block0_paid_onebit.cb153
+      REPORT: inputs/v161/v161_original_block0_source_operator_valid.json
+      SEAL: inputs/v161/v161_source_only_layer0_frozen_before_VALID.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned pretrained teacher and native packed original CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v161-original-block0-paid-onebit-under-0p7
+          path: inputs/v161
+          run-id: 41920207168
+          github-token: ${{ github.token }}
+      - name: Test source input-importance 8D nearest algorithm without extra bits
+        run: python -m unittest test_v172_activation_samebyte -v
+      - name: Recode all real native 2D weights using FP32 source operator inputs then 40 actual outputs
+        run: python -m v172.run "$SOURCE" "$REPORT" "$SEAL" results/v172
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v172-input-weighted-full-source-unchanged-bpp-actual-answers
+          path: results/v172
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 0
