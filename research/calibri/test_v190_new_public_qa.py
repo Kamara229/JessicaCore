@@ -1,7 +1,7 @@
 """v190 new original model QA: rigorously paired, ungraded!=wrong."""
 import unittest
 from collections import Counter
-from . import protocol as p
+from v190 import protocol as p
 from .cases import cases
 from .grade import grade,summarize
 
