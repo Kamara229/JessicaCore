@@ -1,0 +1,53 @@
+name: CALIBRI v174 full factorial source family localization with 768 actual answers
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v174/**'
+      - 'research/calibri/test_v174_factorial.py'
+      - '.github/workflows/calibri-pro-max-v174.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  factorial_source_families_real_answers:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      SOURCE: inputs/v161/CALIBRI_v161_original_block0_paid_onebit.cb153
+      REPORT: inputs/v161/v161_original_block0_source_operator_valid.json
+      SEAL: inputs/v161/v161_source_only_layer0_frozen_before_VALID.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned actual SmolLM2 CPU model and codec audit dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v161-original-block0-paid-onebit-under-0p7
+          path: inputs/v161
+          run-id: 41920207168
+          github-token: ${{ github.token }}
+      - name: Verify intervention coverage and tied-source restoration
+        run: python -m unittest test_v174_factorial -v
+      - name: Generate 96 answers in each of eight precommitted diagnostic interventions
+        run: python -m v174.run "$SOURCE" results/v174
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v174-factorial-source-family-768-answers
+          path: results/v174/
+          if-no-files-found: warn
+          retention-days: 30
+
