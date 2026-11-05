@@ -1,0 +1,41 @@
+name: CALIBRI v168 corrected posthoc response-first semantic audit of original v167 answers
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v168/**'
+      - 'research/calibri/test_v168_behaviour_regrade.py'
+      - '.github/workflows/calibri-pro-max-v168.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review_frozen_v167_generation_vs_incorrect_literal_grade:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v167-FP32-first-288QA-48greedy-real-output
+          path: inputs/v167
+          run-id: 41966247057
+          github-token: ${{ github.token }}
+      - name: Validate original frozen posthoc adjudication labels
+        run: python -m unittest test_v168_behaviour_regrade -v
+      - name: Grade 40 exact frozen actual source answers by factual CONTENT not exact words
+        run: python -m v168.review inputs/v167/v167_original_vs_packed_behavioral_qa_and_full_generation.json results/v168
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v168-response-first-FP32-40factual-original-text-review
+          path: results/v168
+          if-no-files-found: warn
+          retention-days: 30
