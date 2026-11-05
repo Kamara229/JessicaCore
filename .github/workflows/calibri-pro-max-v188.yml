@@ -1,0 +1,43 @@
+name: CALIBRI v188 original pretrained FP32 actual answer capability 192 public DEV
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v188/**'
+      - 'research/calibri/test_v188_fp32_audit.py'
+      - '.github/workflows/calibri-pro-max-v188.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original_FP32_real_answer_audit_no_compressed_source:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install frozen original SmolLM2 scientific CPU libraries
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Verify original public 96-question two-style suite and conservative pair grading
+        run: python -m unittest test_v188_fp32_audit -v
+      - name: Generate 192 actual original pretrained FP32 answers and preserve raw outputs
+        run: python -m v188.run results/v188
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v188-original-pretrained-FP32-192-actual-DEV-answers
+          path: results/v188/
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 6
