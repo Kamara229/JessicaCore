@@ -1,5 +1,6 @@
 import {requireJessicaAuthorization} from "../auth/jessicaAuth.js";
 import {interpretRelayTurn} from "../../core/codex/relayInterpreter.js";
+import {calibriPassiveRelayHandoff} from "../../core/codex/relayCalibriPassiveHandoff.js";
 import {recordCodexPhase} from "../../core/codex/relayTelemetry.js";
 
 /** Codex is a chat participant. Repo-writing, paid and day routes are no longer registered. */
@@ -17,7 +18,10 @@ export function registerCodexRoutes(app) {
     app.post("/api/codex/relay/interpret", requireJessicaAuthorization, async (req,res) => {
         res.set("Cache-Control","no-store");
         try {
-            const decision = await interpretRelayTurn(req.body);
+            // Strict no-test relay-only CALIBRI status: never spend provider
+            // quota or confuse an idle instruction with a Jessica benchmark.
+            const passive=calibriPassiveRelayHandoff(req.body?.message);
+            const decision = passive ?? await interpretRelayTurn(req.body);
             res.json({success:true,...decision});
         } catch {
             res.status(503).json({success:false,reason:"relay-understanding-unavailable",
