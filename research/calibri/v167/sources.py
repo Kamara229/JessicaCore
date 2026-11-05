@@ -110,8 +110,18 @@ def binding_cases():
 
 def logic_cases():
     out=[]
-    names=("Ada","Boris","Cora","Deni")
+    groups=(
+        ("Ada","Boris","Cora","Deni"),
+        ("Evan","Faye","Gino","Hana"),
+        ("Ilya","Juno","Kira","Ludo"),
+        ("Mira","Niko","Oona","Pavi"),
+        ("Rena","Sulo","Tavi","Uma"),
+        ("Vera","Wino","Xara","Yuri"),
+        ("Zena","Aris","Bela","Cian"),
+        ("Dara","Elo","Fira","Glen"),
+    )
     for i in range(SYNTHETIC_COUNT):
+        names=groups[i//4]
         ordered=names[i%4:]+names[:i%4]
         question=(f"In a fictional race, {ordered[0]} finished before "
                   f"{ordered[1]}, and {ordered[1]} finished before "
