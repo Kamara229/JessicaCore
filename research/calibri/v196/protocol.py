@@ -7,7 +7,8 @@ Actual QA accepts only whole generated answers, not training losses.
 """
 from .policy import POLICY,suggested_cycles
 from v186.protocol import SCHEDULE as ORIGINAL_LAYER_SCHEDULE
-from v175.protocol import TOTAL_UNIQUE,MAX_BYTES,SOURCE_BYTES
+from v175.protocol import TOTAL_UNIQUE,SOURCE_BYTES
+from v184.protocol import MAX_BYTES
 from binary_geometry_v64 import MODEL,MODEL_SHA
 INITIAL_135M_SHA256="933daaecf9011f77e3705308faab9d6074b5fb7c4c847d5e1bdb830ad47b965a"
 INITIAL_TRAINED_ARTIFACT_RUN=42085087419
