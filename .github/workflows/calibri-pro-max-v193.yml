@@ -1,0 +1,48 @@
+name: CALIBRI v193 frozen v192 graded original FP32 96 NEW QA source audit
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v193/**'
+      - 'research/calibri/test_v193_original_newQA.py'
+      - '.github/workflows/calibri-pro-max-v193.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  actually_compare_two_original_pretrained_FP32_checkpoints:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install original FP32 scientific dependencies pinned to prior v190 run
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Assert NEW 96 questions disjoint, opposing answers and exact locked v192 grader
+        run: |
+          python -m unittest test_v192_frozen_grader test_v193_original_newQA -v
+      - name: BEFORE pretrained model load, write all 96 golds and locked SHA to file
+        run: |
+          python -m v193.precommit results/v193/precommitted_96_newQA_and_grader_sha.json
+      - name: Generate and grade 192 actual original pretrained FP32 answers using frozen grader
+        run: |
+          python -m v193.run results/v193/precommitted_96_newQA_and_grader_sha.json results/v193
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v193-actual-original-135M-vs-360M-frozen-grader-new-96QA
+          path: results/v193/
+          if-no-files-found: warn
+          retention-days: 45
+          compression-level: 6
