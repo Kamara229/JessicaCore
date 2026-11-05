@@ -1,0 +1,74 @@
+name: CALIBRI v200 original 135M autoregressive TRAIN sequence repair
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v200-sequence-rollout-train-guard'
+    paths:
+      - 'research/calibri/v200/**'
+      - 'research/calibri/test_v200_rollout.py'
+      - '.github/workflows/calibri-pro-max-v200.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v200/run.py'
+      - 'research/calibri/test_v200_rollout.py'
+      - 'research/calibri/v200/rollout.py'
+      - 'research/calibri/v200/__init__.py'
+      - '.github/workflows/calibri-pro-max-v200.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original_135m_REAL_paid_source_TRUST_REGION_16step:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 240
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original 135M and native CB59 CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Unit-test TRAIN-only full sequences and greedy repetition no-regression
+        run: |
+          python -m unittest test_v198_train_only_guard test_v199_baseline_relative_train_guard test_v200_rollout -v
+          python -m compileall -q research/calibri/v200
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v186-paid-balanced-code-swaps-native-QA
+          path: inputs/v186
+          run-id: 42085087419
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v161-original-block0-paid-onebit-under-0p7
+          path: inputs/v161
+          run-id: 41920207168
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v193-actual-original-135M-vs-360M-frozen-grader-new-96QA
+          path: inputs/v193
+          run-id: 42095901870
+          github-token: ${{ github.token }}
+      - name: Train original v186 paid 135M with autoregressive TRAIN rollout, seal, then independent native QA
+        run: |
+          python -m v200.run inputs/v186/CALIBRI_v186_balanced_5bit_full_source.cb59 inputs/v161/CALIBRI_v161_original_block0_paid_onebit.cb153 inputs/v193/v193_original_FP32_135M_vs_360M_new_96QA_complete.json results/v200
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v200-original-135m-autoregressive-TRAIN-full-sequence-native-QA
+          path: results/v200/
+          if-no-files-found: warn
+          retention-days: 45
+          compression-level: 0
