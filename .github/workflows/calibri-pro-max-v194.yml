@@ -1,0 +1,85 @@
+name: CALIBRI v194 actual physical original 360M below 0.7bpp plus direct native QA
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v194/**'
+      - 'research/calibri/test_v194_360m_physical.py'
+      - '.github/workflows/calibri-pro-max-v194.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  physically_encode_original_360m:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install actual original source FP32 codec runtime dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Verify physical 360M unique count, theoretical paid byte ceiling and real 5bit packing
+        run: python -m unittest test_v194_360m_physical -v
+      - name: Compress ALL original pretrained 360M matrices, writing actual physical bytes, SHA and alias
+        run: python -m v194.source results/v194_source
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v194-real-entire-360M-original-physically-packed-CB59-source
+          path: results/v194_source/
+          if-no-files-found: warn
+          retention-days: 45
+          compression-level: 0
+  execute_native_360m_compact_inference:
+    needs: physically_encode_original_360m
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install packed direct C native evaluation dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v194-real-entire-360M-original-physically-packed-CB59-source
+          path: inputs/v194_source
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v193-actual-original-135M-vs-360M-frozen-grader-new-96QA
+          run-id: 42095901870
+          path: inputs/v193
+          github-token: ${{ github.token }}
+      - name: Execute ONLY the physical original 360M archive via direct C packed source, no teacher
+        run: |
+          python -m v194.native_qa inputs/v194_source inputs/v193/v193_original_FP32_135M_vs_360M_new_96QA_complete.json results/v194_native
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v194-actual-native-packed-360M-16QA-and-original-FP32-comparison
+          path: results/v194_native/
+          if-no-files-found: warn
+          retention-days: 45
