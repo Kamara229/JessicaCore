@@ -145,6 +145,8 @@ def run(source,report_v161,seal_v161,destination):
         t=Path(temp)
         baseline=t/"frozen_original_CB59.cb59"
         baseline.write_bytes(original)
+        (t/"baseline").mkdir()
+        (t/"new").mkdir()
         cb59,old_meta,_=make_model("baseline",SimpleNamespace(original=baseline,folder=t/"baseline"))
         cb170,new_meta,_=make_model("baseline",SimpleNamespace(original=new_file,folder=t/"new"))
         for meta in (old_meta,new_meta):
