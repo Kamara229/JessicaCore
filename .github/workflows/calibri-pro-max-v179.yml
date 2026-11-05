@@ -1,0 +1,49 @@
+name: CALIBRI v179 exact physical index entropy and coder audit
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v179/**'
+      - 'research/calibri/test_v179_index_entropy.py'
+      - '.github/workflows/calibri-pro-max-v179.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  actual_source_entropy_no_QA:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      SOURCE: inputs/v161/CALIBRI_v161_original_block0_paid_onebit.cb153
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install reproducible parser dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v161-original-block0-paid-onebit-under-0p7
+          path: inputs/v161
+          run-id: 41920207168
+          github-token: ${{ github.token }}
+      - name: Verify entropy and row-conditioned source prediction mathematics
+        run: python -m unittest test_v179_index_entropy -v
+      - name: Inspect exact original source packed bits, per-matrix entropy, zlib and lzma bit-exact savings
+        run: python -m v179.index_entropy "$SOURCE" results/v179
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v179-original-source-entropy-diagnostic
+          path: results/v179/
+          if-no-files-found: warn
+          retention-days: 30
