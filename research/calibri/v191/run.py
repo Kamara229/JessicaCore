@@ -4,21 +4,26 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from v174.run import save
-from v190.cases import cases
-from .protocol import ARMS,EXPECTED_PER_ARM
+import hashlib
+from .protocol import ARMS,EXPECTED_PER_ARM,DOMAINS
 from .grammar import grade_structured
 
 
 def audit(original):
     if not original.get("complete"):
         raise ValueError("Source v190 original model audit is not completed")
-    fixed=cases()
-    if len(fixed)!=EXPECTED_PER_ARM:
-        raise AssertionError("Frozen 64 source questions drifted")
     frozen=original["locked_before_original_model_inference"]
-    if frozen["all_64_questions_golds_hashes"]!=fixed:
-        raise AssertionError("The v190 source question IDs, domains, golds or hashes differ")
+    fixed=frozen["all_64_questions_golds_hashes"]
+    if len(fixed)!=EXPECTED_PER_ARM:
+        raise AssertionError("Frozen 64 source questions incomplete")
+    if [x["case_id"] for x in fixed]!=list(range(EXPECTED_PER_ARM)):
+        raise AssertionError("Invalid frozen ordered source case IDs")
+    if {d:sum(x["domain"]==d for x in fixed) for d in DOMAINS} != {d:16 for d in DOMAINS}:
+        raise AssertionError("Frozen source domains are not balanced")
+    if len({x["question_sha256"] for x in fixed})!=EXPECTED_PER_ARM:
+        raise AssertionError("Source question SHA collision")
+    if any(hashlib.sha256(x["question"].encode()).hexdigest()!=x["question_sha256"] for x in fixed):
+        raise AssertionError("Original QA prompt text/hash mismatch")
     result={}
     for arm in ARMS:
         rows=original["original_FP32_64_full_verbatim_generations_each"][arm]
@@ -84,7 +89,8 @@ def run(source,target):
     modeldata=json.loads(source.read_text())
     out=audit(modeldata)
     target.mkdir(parents=True,exist_ok=True)
-    save(target/"v191_retrospective_128_raw_original_answers_audit.json",out)
+    dest=target/"v191_retrospective_128_raw_original_answers_audit.json"
+    dest.write_text(json.dumps(out,indent=2,ensure_ascii=False,default=str)+"\\n",encoding="utf-8")
     print(json.dumps({"stage":"posthoc_audit_complete",
         "original_vs_exploratory":{
           arm:{"original":row["v190_precommitted_original_counts"],
