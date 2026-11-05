@@ -126,7 +126,7 @@ def run(precommitted_path,output):
             "domains":z["domain_totals"],
             "paired":{d:{"total":p["total"],"both_correct":p["both_correct"]}
                       for d,p in z["opposite_pairs"].items()}}
-            for arm,z in scored.items()}},flush=True)
+            for arm,z in scored.items()}}),flush=True)
 
 
 if __name__=="__main__":
