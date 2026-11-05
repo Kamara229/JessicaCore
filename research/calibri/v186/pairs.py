@@ -35,7 +35,7 @@ def raw_pairs(split):
         a=354+9*j;b=4+j%5
         append("arithmetic",
             (f"What is {a} plus {b}? Reply with only the number.",str(a+b)),
-            (f"What is {a} plus {b+3}? Reply with only the number.",str(a+b+3)))
+            (f"What is {a} plus {b+200}? Reply with only the number.",str(a+b+200)))
     for idx in range(count):
         j=offset+idx
         owner=f"Reni{split}{j}";other=f"Zumi{split}{j}"
@@ -87,7 +87,7 @@ def build_pairs(tok,split,development_questions=()):
         left=tokenize_one(tok,*pair["positive"])
         right=tokenize_one(tok,*pair["negative"])
         if left["first_expected_id"]==right["first_expected_id"]:
-            raise AssertionError("Contrasting answer is same first token")
+            raise AssertionError(f"Contrasting {split} {pair['domain']} pair {pair['pair_index']} has same answer first token: {pair['positive'][1]} / {pair['negative'][1]}")
         result.append({"split":split,"domain":pair["domain"],
             "pair_id":pair["pair_index"],"left":left,"right":right})
     return result
