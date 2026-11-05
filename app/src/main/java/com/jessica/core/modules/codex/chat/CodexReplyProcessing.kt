@@ -33,6 +33,14 @@ internal suspend fun CodexChatCoordinator.processAcceptedReply(
     } catch (error: RelayInterpretationUnavailable) {
         if (PhoneChatRuntime.launch !== launch) return
         interpretationFailures++
+        if (interpretationFailureReportedInSession) {
+            // Last failure report was already delivered to the selected chat.
+            // A second unavailable interpretation cannot initiate another
+            // Jessica test, duplicate send, or recursive failure handoff.
+            reportPhase("interpret_failure_echo_stopped")
+            finish("Сервис анализа по-прежнему недоступен. Повторная передача сбоя остановлена; тест не запускался.")
+            return
+        }
         if (!CodexInterpretationFailurePolicy.handoffNow(error, interpretationFailures)) {
             pendingInterpretation = answer
             retryInterpretAt = SystemClock.elapsedRealtime() + 4000L
