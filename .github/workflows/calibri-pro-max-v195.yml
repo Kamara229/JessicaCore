@@ -1,0 +1,92 @@
+name: CALIBRI v195 numeric C oracle then UNPAID FP32 source-family diagnostic
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v195/**'
+      - 'research/calibri/test_v195_360m_source_diagnostics.py'
+      - '.github/workflows/calibri-pro-max-v195.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real360m_CB59_native_C_vs_exact_same_source_oracle:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned numeric/CB59 source dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v194-real-entire-360M-original-physically-packed-CB59-source
+          run-id: 42097753160
+          path: inputs/v194_real_360M
+          github-token: ${{ github.token }}
+      - name: Validate pinned source SHA, diagnostic labels and sample paths
+        run: python -m unittest test_v195_360m_source_diagnostics -v
+      - name: Compare actual native C 360M linear + embed with independently exact-decoded SAME CB59 weights
+        run: |
+          python -m v195.native_oracle inputs/v194_real_360M/CALIBRI_v194_original_360M_complete_native.cb59 results/v195_oracle
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v195-real360M-native-C-source-numeric-oracle
+          path: results/v195_oracle/
+          if-no-files-found: warn
+          retention-days: 45
+  diagnose_original_360m_quantization_source_families_UNPAID:
+    needs: real360m_CB59_native_C_vs_exact_same_source_oracle
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original FP32 and native packed diagnostic dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v194-real-entire-360M-original-physically-packed-CB59-source
+          run-id: 42097753160
+          path: inputs/v194_real_360M
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v193-actual-original-135M-vs-360M-frozen-grader-new-96QA
+          run-id: 42095901870
+          path: inputs/v193_original_360M_control
+          github-token: ${{ github.token }}
+      - name: Run 6 expressly UNPAID FP32 hybrid source-family interventions; never claim <=0.7 bpp
+        run: |
+          python -m v195.family inputs/v194_real_360M/CALIBRI_v194_original_360M_complete_native.cb59 inputs/v193_original_360M_control/v193_original_FP32_135M_vs_360M_new_96QA_complete.json results/v195_family
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v195-six-original-FP32-family-interventions-unpaid-NOT-sub0p7bpp
+          path: results/v195_family/
+          if-no-files-found: warn
+          retention-days: 45
