@@ -1,5 +1,12 @@
 name: CALIBRI v200 original 135M autoregressive TRAIN sequence repair
 on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v200-sequence-rollout-train-guard'
+    paths:
+      - 'research/calibri/v200/**'
+      - 'research/calibri/test_v200_rollout.py'
+      - '.github/workflows/calibri-pro-max-v200.yml'
   pull_request:
     paths:
       - 'research/calibri/v200/run.py'
