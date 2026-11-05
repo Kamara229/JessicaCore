@@ -1,0 +1,51 @@
+name: CALIBRI v183 first body-block operator sensitivity from original FP32
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v183/**'
+      - 'research/calibri/test_v183_first_block.py'
+      - '.github/workflows/calibri-pro-max-v183.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  first_body_block_causal_oracle:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      SOURCE: inputs/v181/CALIBRI_v181_ORACLE_V1.cb181
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install same frozen pretrained model and CPU scientific dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v181-physical-recovery-rate-oracles
+          path: inputs/v181
+          run-id: 42063234221
+          github-token: ${{ github.token }}
+      - name: Validate exact immutable source, intervention sets and negative rankings
+        run: python -m unittest test_v183_first_block -v
+      - name: Diagnose actual first-block V1 attention and MLP against original pretrained FP32
+        run: python -m v183.run "$SOURCE" results/v183
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v183-prepaid-source-unpaid-firstblock-operators
+          path: results/v183/
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 6
