@@ -1,0 +1,32 @@
+name: Codex CALIBRI no-test interpreter bypass regression
+on:
+  push:
+    branches:
+      - 'fix/codex-calibri-v200-no-test-progress-routing'
+    paths:
+      - 'backend/core/codex/relayCalibriNoTestNextStep.js'
+      - 'backend/scripts/regressionCodexCalibriNoTestNextStep.test.js'
+      - '.github/workflows/codex-calibri-no-test-guard.yml'
+  pull_request:
+    paths:
+      - 'backend/core/codex/relayCalibriNoTestNextStep.js'
+      - 'backend/scripts/regressionCodexCalibriNoTestNextStep.test.js'
+      - '.github/workflows/codex-calibri-no-test-guard.yml'
+permissions:
+  contents: read
+jobs:
+  deterministic_calibri_status_no_model_required:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install backend dependencies without lifecycle scripts
+        working-directory: backend
+        run: npm install --ignore-scripts --no-audit --no-fund --package-lock=false
+      - name: Run exact no-test relay regressions without AI credentials
+        run: node --test backend/scripts/regressionCodexCalibriNoTestNextStep.test.js
