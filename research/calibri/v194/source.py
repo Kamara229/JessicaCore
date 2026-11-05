@@ -22,6 +22,17 @@ from . import protocol as P
 def run(output):
     output=Path(output)
     output.mkdir(parents=True,exist_ok=True)
+    precommit={"before_model_loading":True,
+        "model":P.MODEL,"revision":P.REVISION,
+        "count_original_unique_parameters":P.ORIGINAL_UNIQUE_PARAMETERS,
+        "maximum_whole_source_0p700_bytes":P.MAX_0P700_PHYSICAL_BYTES,
+        "actual_bits_per_vector":P.BITS_PER_VECTOR,
+        "source_weights_per_vector":P.WEIGHTS_PER_VECTOR,
+        "codebook_entries":P.CODEBOOK_ENTRIES,
+        "source_codec":P.SOURCE_CODEC,
+        "no_answer_training":True,
+        "no_Jessica_chat_model_tests":True}
+    save(output/"v194_360M_protocol_FROZEN_BEFORE_MODEL_LOADING.json",precommit)
     torch.set_num_threads(2)
     torch.manual_seed(194)
     model=AutoModelForCausalLM.from_pretrained(
