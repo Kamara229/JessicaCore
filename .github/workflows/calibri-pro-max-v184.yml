@@ -1,0 +1,51 @@
+name: CALIBRI v184 physically paid shared rank2 QAT and native real QA
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v184/**'
+      - 'research/calibri/test_v184_shared_rank2.py'
+      - '.github/workflows/calibri-pro-max-v184.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  paid_joint_source_train_and_native_real_answers:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      SOURCE: inputs/v161/CALIBRI_v161_original_block0_paid_onebit.cb153
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original SmolLM2 CPU and datasets
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v161-original-block0-paid-onebit-under-0p7
+          path: inputs/v161
+          run-id: 41920207168
+          github-token: ${{ github.token }}
+      - name: Verify actual 0.7 budget, INT8 STE gradients and fused C native numerical correctness
+        run: python -m unittest test_v184_shared_rank2 -v
+      - name: Joint TRAIN of all 211 source adapters, physically seal, native QA and CPU speed
+        run: python -m v184.run "$SOURCE" results/v184
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v184-shared-rank2-QAT-complete-physical-native-QA
+          path: results/v184/
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 0
