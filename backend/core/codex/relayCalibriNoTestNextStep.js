@@ -46,7 +46,7 @@ export function calibriNoTestNextStep(message) {
         /Запуск\s+(?:теста\s+)?выполняю\s+я\s+через\s+GitHub/iu.test(body) ||
         // Owner's CALIBRI-only no-test relay: short "тесты не запускай".
         // Require a PR and a next-step heading to prevent generic bypass.
-        (/\bтест(?:ы)?\s+не\s+запускай(?:те)?\b/iu.test(body) &&
+        (/(?:^|[\s.,;!?])тест(?:ы)?\s+не\s+запускай(?:те)?(?=$|[\s.,;!?])/iu.test(body) &&
             /\bPR\s*#\d{1,6}\b/iu.test(body) &&
             /Следующ(?:ий|ая)\s+(?:шаг|проверка)/iu.test(body)) ||
         // "Jessica/LIVE не менять" is a strictly no-action CALIBRI notice.
