@@ -4,6 +4,7 @@ import unittest
 
 from green_tunnel import PhysicalSource,verify_physical_source,require_paid_update
 from green_tunnel.schedule import Operator,plan_cycles
+from green_tunnel.adapter_cb59 import operators_from_CB59_metadata,plan_complete_CB59_recovery
 from green_tunnel.parity import compare_machine_parity
 
 
@@ -75,6 +76,33 @@ class UniversalSourceScheduleTest(unittest.TestCase):
             plan_cycles([],2)
         with self.assertRaises(ValueError):
             plan_cycles(fake,0)
+
+    def test_model_independent_CB59_metadata_all_aliases_and_operators(self):
+        fake={
+           "bits_per_code":5,"vector_length":8,
+           "tensor_descriptors":{
+             "model.embed_tokens.weight":{"shape":[2,8],"dtype":"CB59_K32V8"},
+             "model.layers.0.self_attn.q_proj.weight":{"shape":[4,8],"dtype":"CB59_K32V8"},
+             "model.norm.weight":{"shape":[8],"dtype":"f4"},
+           },
+           "source_alias_keys":{"lm_head.weight":"model.embed_tokens.weight"},
+           "full_original_state_keys":[
+             "model.embed_tokens.weight","model.layers.0.self_attn.q_proj.weight",
+             "model.norm.weight","lm_head.weight"],
+           "original_unique_parameter_count":56,
+        }
+        operators=operators_from_CB59_metadata(fake)
+        self.assertEqual(len(operators),2)
+        self.assertEqual(operators[0].family,"shared_embedding_head")
+        self.assertEqual(operators[1].family,"attention")
+        manifest=plan_complete_CB59_recovery(fake,2)
+        self.assertEqual(manifest["total_original_unique_compressed_2d_operators"],2)
+        self.assertEqual(len(manifest["precommitted_targets"]),2)
+        self.assertEqual(set(manifest["precommitted_targets"][0]),
+              {"model.embed_tokens.weight","model.layers.0.self_attn.q_proj.weight"})
+        fake["original_unique_parameter_count"]=57
+        with self.assertRaises(AssertionError):
+            operators_from_CB59_metadata(fake)
 
 
 class FullAnswerParityTest(unittest.TestCase):
