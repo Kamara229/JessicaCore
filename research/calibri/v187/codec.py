@@ -63,7 +63,7 @@ def _rebuild(groups,shape):
 
 def quantize(name,full,blockpairs=p.SOURCE_BATCH):
     w=np.asarray(full,dtype=np.float32)
-    if w.ndim!=2 or w.shape[0]%2 or w.shape[1]%4 or not np.isfinite(w).all():
+    if w.ndim!=2 or w.shape[0]<=0 or w.shape[1]<=0 or w.shape[0]%2 or w.shape[1]%4 or not np.isfinite(w).all():
         raise ValueError("Unexpected original multi-axis pretrained tensor")
     m,n=w.shape
     scales=row_scales(w)
