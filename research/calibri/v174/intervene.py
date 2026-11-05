@@ -4,13 +4,14 @@ import numpy as np
 import torch
 from direct_codebook_v59 import CB59
 from v173.recover import exact_dense_matrix
+from v153.codec import unpack
 from .protocol import SOURCE_BYTES, SOURCE_SHA, FAMILIES, family, selected
 
 
 def extract_original(path):
-    # The original is the leading CB59 in the previously verified CB161 artifact.
-    # Its independent exact SHA and CB59 internal CRC/SHA are verified below.
-    blob = path.read_bytes()[:SOURCE_BYTES]
+    # CB161 is wrapped in CB153: use its validating container decoder rather
+    # than assuming that the inner CB59 begins at offset zero.
+    blob = unpack(path.read_bytes()).original
     if len(blob) != SOURCE_BYTES or hashlib.sha256(blob).hexdigest() != SOURCE_SHA:
         raise ValueError("Not the immutable original CB59 source")
     return CB59(blob)

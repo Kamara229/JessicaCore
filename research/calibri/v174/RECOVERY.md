@@ -24,6 +24,12 @@
 
 ## Next experiment and interpretation
 
+Historical v110/v111 already found broad damage on four INT6-control
+prompts; v111 separated input embedding, body and head. This is an
+expanded behavioral replication with original FP32, 96 questions, a longer
+generation cap, and attention versus MLP interactions. It does not claim
+that family localization itself is new, nor assume one easy module repair.
+
 v174 runs a full 2^3 intervention over tied embedding/head, all attention
 matrices and all MLP matrices. Every family is either original FP32 or the
 exact original CB59 decoded values. All eight combinations answer the same
