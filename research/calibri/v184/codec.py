@@ -25,7 +25,7 @@ def _matrix_alpha(alpha):
 def encode(base,alphas,betas):
     if not isinstance(base,CB59) or base.hash()!=p.SOURCE_SHA:
         raise ValueError("Changed frozen original CB59 source")
-    keys=sorted(base.meta["trained_unique_keys"])
+    keys=sorted(name for name,d in base.meta["tensor_descriptors"].items()\n                if d["dtype"]=="CB59_K32V8")\n    if len(keys)!=211:\n        raise ValueError("Expected 211 compressed 2D trained matrices")
     if set(alphas)!=set(keys) or set(betas)!={576,1536}:
         raise ValueError("Incomplete jointly trainable source")
     body=bytearray();desc={}
@@ -107,7 +107,7 @@ class Paid184:
             meta["original_unique_parameter_count"]!=p.TOTAL_UNIQUE or
             meta["rank"]!=p.RANK or meta["shared_widths"]!=[576,1536]):
             raise ValueError("Unsealed initial source geometry")
-        if set(meta["original_211_matrix_descriptors"])!=set(self.base.meta["trained_unique_keys"]):
+        trained=set(name for name,d in self.base.meta["tensor_descriptors"].items()\n                    if d["dtype"]=="CB59_K32V8")\n        if len(trained)!=211 or set(meta["original_211_matrix_descriptors"])!=trained:
             raise ValueError("Missing individual A matrix")
         area=memoryview(tail)[HEAD.size+mlen:-FOOTER]
         self.alpha={};self.betas={}
