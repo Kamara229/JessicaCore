@@ -1,0 +1,103 @@
+name: CALIBRI v197 Green Tunnel universal source contracts and hard FP32 parity
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/green_tunnel/**'
+      - 'research/calibri/test_v197_green_tunnel_generic_parity.py'
+      - 'research/calibri/v197/**'
+      - '.github/workflows/calibri-pro-max-v197.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify_codec_agnostic_recovery_and_strict_135m_FP32_gate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test physical packed source, tied aliases, 211-all-operator cycle schedule and strict FULL answer parity
+        run: |
+          python -m unittest test_v197_green_tunnel_generic_parity -v
+  validate_REAL_135M_original_source_complete_211_matrix_schedule:
+    needs: verify_codec_agnostic_recovery_and_strict_135m_FP32_gate
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install physical source model metadata parser
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v186-paid-balanced-code-swaps-native-QA
+          path: inputs/v186
+          run-id: 42085087419
+          github-token: ${{ github.token }}
+      - name: Inspect ACTUAL signed trained 135M binary and schedule all 211 original source matrices
+        run: |
+          python -m v197.check_real_135M inputs/v186/CALIBRI_v186_balanced_5bit_full_source.cb59 results/v197_real_135M_green_tunnel_schedule.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v197-real-trained-135M-all-211-operator-green-tunnel-schedule
+          path: results/
+          if-no-files-found: error
+          retention-days: 45
+  audit_REAL_v196_GREEN_TUNNEL_native_answers_against_original_135M_FP32:
+    needs: validate_REAL_135M_original_source_complete_211_matrix_schedule
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install genuine original 135M packed CB59 archive auditor
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v196-authentic-green-tunnel-135M-192steps-full-vocab-native-QA
+          path: inputs/v196
+          run-id: 42104283667
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v193-actual-original-135M-vs-360M-frozen-grader-new-96QA
+          path: inputs/v193
+          run-id: 42095901870
+          github-token: ${{ github.token }}
+      - name: Audit genuine v196 source SHA, 16 REAL compact responses vs identical presealed original FP32 QA and CPU
+        run: |
+          python -m v197.audit_v196 inputs/v196 inputs/v193/v193_original_FP32_135M_vs_360M_new_96QA_complete.json results/v197_checked_REAL_v196_FP32_parity
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v197-real-v196-v186-vs-original135M-FP32-full-answer-parity-gate
+          path: results/v197_checked_REAL_v196_FP32_parity/
+          if-no-files-found: error
+          retention-days: 45
