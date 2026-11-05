@@ -60,3 +60,44 @@ jobs:
           path: results/
           if-no-files-found: error
           retention-days: 45
+  audit_REAL_v196_GREEN_TUNNEL_native_answers_against_original_135M_FP32:
+    needs: validate_REAL_135M_original_source_complete_211_matrix_schedule
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install genuine original 135M packed CB59 archive auditor
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v196-authentic-green-tunnel-135M-192steps-full-vocab-native-QA
+          path: inputs/v196
+          run-id: 42104283667
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v193-actual-original-135M-vs-360M-frozen-grader-new-96QA
+          path: inputs/v193
+          run-id: 42095901870
+          github-token: ${{ github.token }}
+      - name: Audit genuine v196 source SHA, 16 REAL compact responses vs identical presealed original FP32 QA and CPU
+        run: |
+          python -m v197.audit_v196 inputs/v196 inputs/v193/v193_original_FP32_135M_vs_360M_new_96QA_complete.json results/v197_checked_REAL_v196_FP32_parity
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-v197-real-v196-v186-vs-original135M-FP32-full-answer-parity-gate
+          path: results/v197_checked_REAL_v196_FP32_parity/
+          if-no-files-found: error
+          retention-days: 45
