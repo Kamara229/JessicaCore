@@ -79,7 +79,7 @@ def report(rows):
         out["domains"][style]={dom:summary([x for x in subset if x["domain"]==dom])
              for dom in sorted({x["domain"] for x in subset})}
         out["opposite_pairs"][style]={}
-        for dom in ("binding","yesno","logic"):
+        for dom in ("binding","yesno"):
             pairs=paired_rows(rows,style,dom)
             out["opposite_pairs"][style][dom]={
                 "paired_groups":len(pairs),
