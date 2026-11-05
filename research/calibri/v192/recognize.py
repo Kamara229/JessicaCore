@@ -36,8 +36,8 @@ FACT_ASSERTIONS=(
     r"(?:the )?planet (?:known )?for (?:its )?(?:prominent )?rings is (?P<value>[a-z]+)",
     r"(?:there are )?(?P<value>\d+) days (?:are )?in (?:a )?(?:gregorian )?leap year",
     r"(?:the )?gas (?:that )?humans need for (?:aerobic )?respiration is (?P<value>[a-z]+)",
-    r"(?:the )?chemical element (?:represented by )?(?:the )?symbol (?:fe|au) is (?P<value>[a-z]+)",
-    r"(?:the )?capital of [a-z]+ is (?P<value>[a-z]+)",
+    r"(?:the )?chemical element (?:represented by )?(?:the )?symbol (?P<symbol>fe|au) is (?P<value>[a-z]+)",
+    r"(?:the )?capital of (?P<country>[a-z]+) is (?P<value>[a-z]+)",
     r"(?:the )?(?:right|perpendicular) angle is (?P<value>\d+) degrees",
 )
 
@@ -108,10 +108,47 @@ def _binding(question,text):
             return (m.group("value"),"complete_asked_owner_binding")
     return None
 
-def _factual(text):
-    for p in FACT_ASSERTIONS:
+def _factual(question,text):
+    # A full sentence may be scored only if it makes an assertion
+    # about the same entity/relationship actually asked. Merely
+    # mentioning the expected gold in a sentence about a DIFFERENT
+    # country/planet/symbol MUST NOT be accepted as correct.
+    q=question.casefold()
+    anchors=(
+        ("closest","sun"),
+        ("red planet",),
+        ("hexagon",),
+        ("formula","water"),
+        ("ocean",),
+        ("paint","blue"),
+        ("temperature",),
+        ("prime",),
+        ("sahara",),
+        ("rings",),
+        ("leap year",),
+        ("respiration",),
+        ("symbol",),
+        ("capital of",),
+        ("right angle",),
+    )
+    if len(anchors)!=len(FACT_ASSERTIONS):
+        raise AssertionError("Frozen factual source-claim mapping drift")
+    for anchors_needed,p in zip(anchors,FACT_ASSERTIONS):
+        if not all(a in q for a in anchors_needed):
+            continue
         m=re.fullmatch(p,text)
-        if m:return (m.group("value"),"complete_bounded_factual_assertion")
+        if not m:
+            continue
+        gd=m.groupdict()
+        if gd.get("country"):
+            question_country=re.search(r"capital of ([a-z]+)",q)
+            if not question_country or gd["country"]!=question_country.group(1):
+                continue
+        if gd.get("symbol"):
+            question_symbol=re.search(r"symbol ([a-z]{1,2})",q)
+            if not question_symbol or gd["symbol"]!=question_symbol.group(1):
+                continue
+        return (m.group("value"),"complete_question_matched_factual_assertion")
     return None
 
 def recognize(domain,question,raw):
@@ -122,5 +159,5 @@ def recognize(domain,question,raw):
     if parsed is not None:return parsed
     if domain=="arithmetic":return _arithmetic(question,text)
     if domain=="fictional_binding":return _binding(question,text)
-    if domain=="factual_short":return _factual(text)
+    if domain=="factual_short":return _factual(question,text)
     return None
