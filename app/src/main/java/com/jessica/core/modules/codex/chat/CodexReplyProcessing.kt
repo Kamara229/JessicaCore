@@ -51,6 +51,7 @@ internal suspend fun CodexChatCoordinator.processAcceptedReply(
         // No interpretation => no test executed. Deliver the failure as the
         // next normal ChatGPT message (with markers and selected-chat checks).
         interpretationFailed = true
+        interpretationFailureReportedInSession = true
         reportPhase("interpret_failed")
         RelayReply(CodexInterpretationFailurePolicy.report(error))
     }
