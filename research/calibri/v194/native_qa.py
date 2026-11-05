@@ -85,7 +85,7 @@ def run(source_directory,v193_original_record,output):
     config=AutoConfig.from_pretrained(P.MODEL,revision=P.REVISION)
     config._attn_implementation="eager"
     with init_empty_weights(include_buffers=False):
-        model=AutoModelForCausalLM.from_config(config,torch_dtype=torch.float32).cpu().eval()
+        model=AutoModelForCausalLM.from_config(config,torch_dtype=torch.float32).eval()
     kernel_file=Path(__file__).resolve().parents[1]/"direct_kernel_v59.c"
     native=NativeKernel(compile_kernel(kernel_file,output/"native_360m_cb59.so"))
     runtime_info=bind_into_llama(model,archive,native)
