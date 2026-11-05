@@ -35,13 +35,15 @@ int cb178_linear(const uint8_t *packed,size_t size,
         const float *x=input+b*columns;
         for(int64_t g=0;g<groups;g++){
             float *out_lut=lut+g*32;
+            float scaled_input[8];
+            for(int j=0;j<8;j++){
+                int64_t col=g*8+j;
+                scaled_input[j]=x[col]*column_scales[col];
+            }
             for(unsigned k=0;k<32;k++){
                 const float *cent=codebook+k*8;
                 float sum=0.0f;
-                for(int j=0;j<8;j++){
-                    int64_t col=g*8+j;
-                    sum+=x[col]*column_scales[col]*cent[j];
-                }
+                for(int j=0;j<8;j++) sum+=scaled_input[j]*cent[j];
                 out_lut[k]=sum;
             }
         }
