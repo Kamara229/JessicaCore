@@ -1,0 +1,43 @@
+name: CALIBRI v190 new 64-question paired FP32 original source capability QA
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v190/**'
+      - 'research/calibri/test_v190_new_public_qa.py'
+      - '.github/workflows/calibri-pro-max-v190.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  new_balanced_actual_original_135M_vs_360M_answers:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original pretrained FP32 model libraries
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Confirm fresh 64 prompts, balanced contradictory pairs and conservative graders
+        run: python -m unittest test_v190_new_public_qa -v
+      - name: Generate 64 NEW actual responses per original 135M/360M FP32 model
+        run: python -m v190.run results/v190
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v190-original-135M-vs-360M-new-public-balanced-64QA
+          path: results/v190/
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 6
