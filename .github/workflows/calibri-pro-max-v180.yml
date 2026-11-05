@@ -1,0 +1,51 @@
+name: CALIBRI v180 signed Hadamard actual compressed answers
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v180/**'
+      - 'research/calibri/test_v180_hadamard.py'
+      - '.github/workflows/calibri-pro-max-v180.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real_packed_hadamard_source_and_answers:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      SOURCE: inputs/v161/CALIBRI_v161_original_block0_paid_onebit.cb153
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original public SmolLM2 CPU model and scientific dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v161-original-block0-paid-onebit-under-0p7
+          path: inputs/v161
+          run-id: 41920207168
+          github-token: ${{ github.token }}
+      - name: Check reversible coordinates, C physical GEMV/embedding and byte budget
+        run: python -m unittest test_v180_hadamard -v
+      - name: Source-only refit actual 211 pretrained weights then native CPU real answers
+        run: python -m v180.run "$SOURCE" results/v180
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v180-hadamard-physical-native-answers
+          path: results/v180/
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 0
