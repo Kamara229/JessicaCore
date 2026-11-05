@@ -1,0 +1,51 @@
+name: CALIBRI v181 actual pretrained recovery threshold at higher rate
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v181/**'
+      - 'research/calibri/test_v181_recovery.py'
+      - '.github/workflows/calibri-pro-max-v181.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  pinned_native_high_rate_quality_controls:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      SOURCE: inputs/v161/CALIBRI_v161_original_block0_paid_onebit.cb153
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original pretrained SmolLM2 on CPU
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v161-original-block0-paid-onebit-under-0p7
+          path: inputs/v161
+          run-id: 41920207168
+          github-token: ${{ github.token }}
+      - name: Validate literal group-1 and group-2 source and native CPU lookup
+        run: python -m unittest test_v181_recovery -v
+      - name: Encode true V1/V2 original source and check actual native model outputs vs FP32/CB59
+        run: python -m v181.run "$SOURCE" results/v181
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v181-physical-recovery-rate-oracles
+          path: results/v181/
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 0
