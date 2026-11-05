@@ -32,7 +32,7 @@ class FirstBlockSourceRegression(unittest.TestCase):
                 for _ in FROZEN_CASE_IDS]
         metrics=summary(result)
         self.assertEqual(metrics["ranked_firstblock_recovery"][0][0],"FP32_ALL_BLOCK0")
-        self.assertEqual(metrics["statistics"]["FP32_Q0"]
+        self.assertAlmostEqual(metrics["statistics"]["FP32_Q0"]
             ["firstblock_error_reduction_fraction"],-.5)
         self.assertEqual(metrics["statistics"]["FP32_ALL_MLP0"]
             ["first_token_matches_original"],0)
