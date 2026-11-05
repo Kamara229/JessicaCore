@@ -1,0 +1,42 @@
+name: CALIBRI v191 read-only posthoc actual source answer format error audit
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v191/**'
+      - 'research/calibri/test_v191_posthoc_grammar.py'
+      - '.github/workflows/calibri-pro-max-v191.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  v190_originals_retrospective_readonly_no_model_inference:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: research/calibri
+      V190_SOURCE: inputs/v190/v190_original_135M_vs_360M_new_public_64QA_complete.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v190-original-135M-vs-360M-new-public-balanced-64QA
+          run-id: 42092017343
+          path: inputs/v190
+          github-token: ${{ github.token }}
+      - name: Test exact whole-response parsers and adversarial gold-word examples
+        run: python -m unittest test_v191_posthoc_grammar -v
+      - name: Inspect only historical actual v190 answers; never reload models
+        run: python -m v191.run "$V190_SOURCE" results/v191
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v191-retrospective-format-audit-not-independent-test
+          path: results/v191/
+          if-no-files-found: warn
+          retention-days: 30
