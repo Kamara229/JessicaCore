@@ -15,7 +15,13 @@ from direct_codebook_v59 import CB59
 from green_tunnel.contract import PhysicalSource,verify_physical_source
 from green_tunnel.parity import compare_machine_parity
 from v193.precommit import grading_fingerprint
-from v174.run import save
+def save(path,record):
+    """Atomic result without loading any model or changing its weights."""
+    path=Path(path)
+    tmp=path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(record,ensure_ascii=False,indent=2)+"\\n",encoding="utf8")
+    tmp.replace(path)
+
 
 
 def audit(experiment_dir,original_v193_json,output):
