@@ -1,0 +1,877 @@
+{
+  "review_type": "assistant posthoc content review, not blinded independent benchmark",
+  "do_not_replace_frozen_machine_scores": true,
+  "counts": {
+    "clear_correct": 46,
+    "incorrect": 41,
+    "incomplete_at_token_cap": 2,
+    "correct_color_with_unsupported_explanation": 1,
+    "indirect_correct_order_not_explicit_first_place": 6
+  },
+  "records": [
+    {
+      "question_id": 0,
+      "domain": "arithmetic",
+      "question": "Calculate 7 plus 3.",
+      "reference": "10",
+      "actual_text": "7 + 3 = 10",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 1,
+      "domain": "arithmetic",
+      "question": "Calculate 26 minus 16.",
+      "reference": "10",
+      "actual_text": "To calculate 26 minus 16, we need to subtract 16 from 26. \n\n26 - 16 = 12",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 2,
+      "domain": "arithmetic",
+      "question": "Calculate 45 times 29.",
+      "reference": "1305",
+      "actual_text": "45 times 29 equals 1075.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 3,
+      "domain": "arithmetic",
+      "question": "Calculate 832 divided by 13.",
+      "reference": "64",
+      "actual_text": "832 divided by 13 equals 59.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 4,
+      "domain": "arithmetic",
+      "question": "Calculate 83 plus 26.",
+      "reference": "109",
+      "actual_text": "To calculate 83 plus 26, we need to add 83 and 26, then subtract 83 from 26.\n\n26 - 83 = 1\n\nSo, 83 plus 26 equals 1.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 5,
+      "domain": "arithmetic",
+      "question": "Calculate 15 minus 10.",
+      "reference": "5",
+      "actual_text": "15 minus 10 equals 5.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 6,
+      "domain": "arithmetic",
+      "question": "Calculate 34 times 23.",
+      "reference": "782",
+      "actual_text": "To calculate 34 times 23, we need to follow these steps:\n\n1. Multiply 34 by 23: 34 * 23 = 776\n2. Add 34 to 776: 776 + 34 =",
+      "review": "incomplete_at_token_cap",
+      "reason": "64-token limit reached; no completed correct final answer."
+    },
+    {
+      "question_id": 7,
+      "domain": "arithmetic",
+      "question": "Calculate 371 divided by 7.",
+      "reference": "53",
+      "actual_text": "To calculate 371 divided by 7, we can use the division algorithm, which states that if you have a number and you divide it by another number, the quotient is the original number and the remainder is the other number.\n\nIn this case, we have 371 divided by ",
+      "review": "incomplete_at_token_cap",
+      "reason": "64-token limit reached; no completed correct final answer."
+    },
+    {
+      "question_id": 8,
+      "domain": "arithmetic",
+      "question": "Calculate 72 plus 20.",
+      "reference": "92",
+      "actual_text": "72 + 20 = 92",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 9,
+      "domain": "arithmetic",
+      "question": "Calculate 91 minus 4.",
+      "reference": "87",
+      "actual_text": "91 - 4 = 87",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 10,
+      "domain": "arithmetic",
+      "question": "Calculate 23 times 17.",
+      "reference": "391",
+      "actual_text": "23 times 17 is 391.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 11,
+      "domain": "arithmetic",
+      "question": "Calculate 1260 divided by 30.",
+      "reference": "42",
+      "actual_text": "1260 divided by 30 equals 45.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 12,
+      "domain": "arithmetic",
+      "question": "Calculate 61 plus 14.",
+      "reference": "75",
+      "actual_text": "61 + 14 = 75",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 13,
+      "domain": "arithmetic",
+      "question": "Calculate 80 minus 27.",
+      "reference": "53",
+      "actual_text": "To calculate 80 minus 27, we need to subtract 27 from 80. \n\n80 - 27 = 53",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 14,
+      "domain": "arithmetic",
+      "question": "Calculate 12 times 11.",
+      "reference": "132",
+      "actual_text": "12 times 11 equals 136.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 15,
+      "domain": "arithmetic",
+      "question": "Calculate 744 divided by 24.",
+      "reference": "31",
+      "actual_text": "744 divided by 24 equals 31.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 16,
+      "domain": "binding",
+      "question": "In a fictional story, Kavi has a red notebook, and Sorin has a blue notebook. What color is Kavi's notebook?",
+      "reference": "red",
+      "actual_text": "Kavi's notebook is blue.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 17,
+      "domain": "binding",
+      "question": "In a fictional story, Kavi has a blue notebook, and Sorin has a red notebook. What color is Kavi's notebook?",
+      "reference": "blue",
+      "actual_text": "Kavi's notebook is blue.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 18,
+      "domain": "binding",
+      "question": "In a fictional story, Lemi has a yellow notebook, and Poria has a purple notebook. What color is Lemi's notebook?",
+      "reference": "yellow",
+      "actual_text": "Lemi's notebook is purple.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 19,
+      "domain": "binding",
+      "question": "In a fictional story, Lemi has a purple notebook, and Poria has a yellow notebook. What color is Lemi's notebook?",
+      "reference": "purple",
+      "actual_text": "Lemi's notebook is yellow.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 20,
+      "domain": "binding",
+      "question": "In a fictional story, Dario has a black notebook, and Vena has a white notebook. What color is Dario's notebook?",
+      "reference": "black",
+      "actual_text": "Dario's notebook is black.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 21,
+      "domain": "binding",
+      "question": "In a fictional story, Dario has a white notebook, and Vena has a black notebook. What color is Dario's notebook?",
+      "reference": "white",
+      "actual_text": "Dario's notebook is black.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 22,
+      "domain": "binding",
+      "question": "In a fictional story, Alin has a blue notebook, and Faro has a green notebook. What color is Alin's notebook?",
+      "reference": "blue",
+      "actual_text": "Alin's notebook is blue.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 23,
+      "domain": "binding",
+      "question": "In a fictional story, Alin has a green notebook, and Faro has a blue notebook. What color is Alin's notebook?",
+      "reference": "green",
+      "actual_text": "Alin's notebook is blue.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 24,
+      "domain": "binding",
+      "question": "In a fictional story, Sira has a purple notebook, and Miro has a orange notebook. What color is Sira's notebook?",
+      "reference": "purple",
+      "actual_text": "Sira's notebook is purple.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 25,
+      "domain": "binding",
+      "question": "In a fictional story, Sira has a orange notebook, and Miro has a purple notebook. What color is Sira's notebook?",
+      "reference": "orange",
+      "actual_text": "Sira's notebook is purple.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 26,
+      "domain": "binding",
+      "question": "In a fictional story, Talin has a white notebook, and Bora has a red notebook. What color is Talin's notebook?",
+      "reference": "white",
+      "actual_text": "Talin's notebook is red.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 27,
+      "domain": "binding",
+      "question": "In a fictional story, Talin has a red notebook, and Bora has a white notebook. What color is Talin's notebook?",
+      "reference": "red",
+      "actual_text": "Talin's notebook is red.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 28,
+      "domain": "binding",
+      "question": "In a fictional story, Rivo has a green notebook, and Zela has a yellow notebook. What color is Rivo's notebook?",
+      "reference": "green",
+      "actual_text": "Rivo's notebook is yellow.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 29,
+      "domain": "binding",
+      "question": "In a fictional story, Rivo has a yellow notebook, and Zela has a green notebook. What color is Rivo's notebook?",
+      "reference": "yellow",
+      "actual_text": "Rivo's notebook is yellow.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 30,
+      "domain": "binding",
+      "question": "In a fictional story, Bina has a orange notebook, and Orin has a black notebook. What color is Bina's notebook?",
+      "reference": "orange",
+      "actual_text": "Orin has a black notebook.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 31,
+      "domain": "binding",
+      "question": "In a fictional story, Bina has a black notebook, and Orin has a orange notebook. What color is Bina's notebook?",
+      "reference": "black",
+      "actual_text": "Orin has a black notebook.",
+      "review": "incorrect",
+      "reason": "Answers about Orin instead of Bina; the asserted color for Orin also contradicts the supplied story. Parser false positive."
+    },
+    {
+      "question_id": 32,
+      "domain": "binding",
+      "question": "In a fictional story, Naro has a red notebook, and Tesi has a blue notebook. What color is Naro's notebook?",
+      "reference": "red",
+      "actual_text": "Naro's notebook is blue.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 33,
+      "domain": "binding",
+      "question": "In a fictional story, Naro has a blue notebook, and Tesi has a red notebook. What color is Naro's notebook?",
+      "reference": "blue",
+      "actual_text": "Naro's notebook is blue.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 34,
+      "domain": "binding",
+      "question": "In a fictional story, Varo has a yellow notebook, and Lina has a purple notebook. What color is Varo's notebook?",
+      "reference": "yellow",
+      "actual_text": "Varo's notebook is purple.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 35,
+      "domain": "binding",
+      "question": "In a fictional story, Varo has a purple notebook, and Lina has a yellow notebook. What color is Varo's notebook?",
+      "reference": "purple",
+      "actual_text": "Varo's notebook is yellow.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 36,
+      "domain": "binding",
+      "question": "In a fictional story, Zivo has a black notebook, and Pera has a white notebook. What color is Zivo's notebook?",
+      "reference": "black",
+      "actual_text": "Zivo's notebook is black.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 37,
+      "domain": "binding",
+      "question": "In a fictional story, Zivo has a white notebook, and Pera has a black notebook. What color is Zivo's notebook?",
+      "reference": "white",
+      "actual_text": "Zivo's notebook is black.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 38,
+      "domain": "binding",
+      "question": "In a fictional story, Nimi has a blue notebook, and Saro has a green notebook. What color is Nimi's notebook?",
+      "reference": "blue",
+      "actual_text": "Nimi's notebook is blue.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 39,
+      "domain": "binding",
+      "question": "In a fictional story, Nimi has a green notebook, and Saro has a blue notebook. What color is Nimi's notebook?",
+      "reference": "green",
+      "actual_text": "Nimi's notebook is blue.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 40,
+      "domain": "binding",
+      "question": "In a fictional story, Kena has a purple notebook, and Taro has a orange notebook. What color is Kena's notebook?",
+      "reference": "purple",
+      "actual_text": "Kena's notebook is purple.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 41,
+      "domain": "binding",
+      "question": "In a fictional story, Kena has a orange notebook, and Taro has a purple notebook. What color is Kena's notebook?",
+      "reference": "orange",
+      "actual_text": "Kena's notebook is purple.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 42,
+      "domain": "binding",
+      "question": "In a fictional story, Fira has a white notebook, and Bavi has a red notebook. What color is Fira's notebook?",
+      "reference": "white",
+      "actual_text": "Fira's notebook is red.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 43,
+      "domain": "binding",
+      "question": "In a fictional story, Fira has a red notebook, and Bavi has a white notebook. What color is Fira's notebook?",
+      "reference": "red",
+      "actual_text": "Fira's notebook is red.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 44,
+      "domain": "binding",
+      "question": "In a fictional story, Tena has a green notebook, and Loro has a yellow notebook. What color is Tena's notebook?",
+      "reference": "green",
+      "actual_text": "Tena's notebook is yellow.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 45,
+      "domain": "binding",
+      "question": "In a fictional story, Tena has a yellow notebook, and Loro has a green notebook. What color is Tena's notebook?",
+      "reference": "yellow",
+      "actual_text": "Tena's notebook is yellow.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 46,
+      "domain": "binding",
+      "question": "In a fictional story, Zira has a orange notebook, and Mena has a black notebook. What color is Zira's notebook?",
+      "reference": "orange",
+      "actual_text": "Zira's notebook is black.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 47,
+      "domain": "binding",
+      "question": "In a fictional story, Zira has a black notebook, and Mena has a orange notebook. What color is Zira's notebook?",
+      "reference": "black",
+      "actual_text": "Zira's notebook is likely a black notebook, as it is the primary means of communication and record-keeping among the characters in the story.",
+      "review": "correct_color_with_unsupported_explanation",
+      "reason": "Black matches the requested color, but the extra explanation is unsupported and answer is qualified as likely."
+    },
+    {
+      "question_id": 48,
+      "domain": "yesno",
+      "question": "In a fictional story, Kavi has a red notebook, and Sorin has a blue notebook. Does Kavi have a red notebook?",
+      "reference": "Yes",
+      "actual_text": "Yes.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 49,
+      "domain": "yesno",
+      "question": "In a fictional story, Kavi has a blue notebook, and Sorin has a red notebook. Does Kavi have a red notebook?",
+      "reference": "No",
+      "actual_text": "Yes.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 50,
+      "domain": "yesno",
+      "question": "In a fictional story, Lemi has a blue notebook, and Poria has a green notebook. Does Lemi have a blue notebook?",
+      "reference": "Yes",
+      "actual_text": "Yes. Lemi has a blue notebook.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 51,
+      "domain": "yesno",
+      "question": "In a fictional story, Lemi has a green notebook, and Poria has a blue notebook. Does Lemi have a blue notebook?",
+      "reference": "No",
+      "actual_text": "Yes. Lemi has a blue notebook.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 52,
+      "domain": "yesno",
+      "question": "In a fictional story, Dario has a green notebook, and Vena has a yellow notebook. Does Dario have a green notebook?",
+      "reference": "Yes",
+      "actual_text": "Yes.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 53,
+      "domain": "yesno",
+      "question": "In a fictional story, Dario has a yellow notebook, and Vena has a green notebook. Does Dario have a green notebook?",
+      "reference": "No",
+      "actual_text": "Yes.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 54,
+      "domain": "yesno",
+      "question": "In a fictional story, Alin has a yellow notebook, and Faro has a purple notebook. Does Alin have a yellow notebook?",
+      "reference": "Yes",
+      "actual_text": "Yes.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 55,
+      "domain": "yesno",
+      "question": "In a fictional story, Alin has a purple notebook, and Faro has a yellow notebook. Does Alin have a yellow notebook?",
+      "reference": "No",
+      "actual_text": "Yes.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 56,
+      "domain": "yesno",
+      "question": "In a fictional story, Sira has a purple notebook, and Miro has a orange notebook. Does Sira have a purple notebook?",
+      "reference": "Yes",
+      "actual_text": "Yes.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 57,
+      "domain": "yesno",
+      "question": "In a fictional story, Sira has a orange notebook, and Miro has a purple notebook. Does Sira have a purple notebook?",
+      "reference": "No",
+      "actual_text": "Yes.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 58,
+      "domain": "yesno",
+      "question": "In a fictional story, Talin has a orange notebook, and Bora has a black notebook. Does Talin have a orange notebook?",
+      "reference": "Yes",
+      "actual_text": "Yes.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 59,
+      "domain": "yesno",
+      "question": "In a fictional story, Talin has a black notebook, and Bora has a orange notebook. Does Talin have a orange notebook?",
+      "reference": "No",
+      "actual_text": "Yes.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 60,
+      "domain": "yesno",
+      "question": "In a fictional story, Rivo has a black notebook, and Zela has a white notebook. Does Rivo have a black notebook?",
+      "reference": "Yes",
+      "actual_text": "Yes.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 61,
+      "domain": "yesno",
+      "question": "In a fictional story, Rivo has a white notebook, and Zela has a black notebook. Does Rivo have a black notebook?",
+      "reference": "No",
+      "actual_text": "Yes.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 62,
+      "domain": "yesno",
+      "question": "In a fictional story, Bina has a white notebook, and Orin has a red notebook. Does Bina have a white notebook?",
+      "reference": "Yes",
+      "actual_text": "No",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 63,
+      "domain": "yesno",
+      "question": "In a fictional story, Bina has a red notebook, and Orin has a white notebook. Does Bina have a white notebook?",
+      "reference": "No",
+      "actual_text": "No",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 64,
+      "domain": "factual",
+      "question": "What is the capital of France?",
+      "reference": "Paris",
+      "actual_text": "The capital of France is Paris.",
+      "review": "clear_correct",
+      "reason": "Literal factual answer is correct; old parser deliberately left lexical answers ungraded."
+    },
+    {
+      "question_id": 65,
+      "domain": "factual",
+      "question": "What is the capital of Japan?",
+      "reference": "Tokyo",
+      "actual_text": "The capital of Japan is Tokyo.",
+      "review": "clear_correct",
+      "reason": "Literal factual answer is correct; old parser deliberately left lexical answers ungraded."
+    },
+    {
+      "question_id": 66,
+      "domain": "factual",
+      "question": "What is the capital of Italy?",
+      "reference": "Rome",
+      "actual_text": "The capital of Italy is Rome.",
+      "review": "clear_correct",
+      "reason": "Literal factual answer is correct; old parser deliberately left lexical answers ungraded."
+    },
+    {
+      "question_id": 67,
+      "domain": "factual",
+      "question": "What is the capital of Germany?",
+      "reference": "Berlin",
+      "actual_text": "The capital of Germany is Berlin.",
+      "review": "clear_correct",
+      "reason": "Literal factual answer is correct; old parser deliberately left lexical answers ungraded."
+    },
+    {
+      "question_id": 68,
+      "domain": "factual",
+      "question": "What is the capital of Spain?",
+      "reference": "Madrid",
+      "actual_text": "The capital of Spain is Madrid.",
+      "review": "clear_correct",
+      "reason": "Literal factual answer is correct; old parser deliberately left lexical answers ungraded."
+    },
+    {
+      "question_id": 69,
+      "domain": "factual",
+      "question": "What is the capital of Canada?",
+      "reference": "Ottawa",
+      "actual_text": "The capital of Canada is Ottawa.",
+      "review": "clear_correct",
+      "reason": "Literal factual answer is correct; old parser deliberately left lexical answers ungraded."
+    },
+    {
+      "question_id": 70,
+      "domain": "factual",
+      "question": "What is the chemical formula for water?",
+      "reference": "H2O",
+      "actual_text": "The chemical formula for water is H2O.",
+      "review": "clear_correct",
+      "reason": "Literal factual answer is correct; old parser deliberately left lexical answers ungraded."
+    },
+    {
+      "question_id": 71,
+      "domain": "factual",
+      "question": "What is the chemical symbol for oxygen?",
+      "reference": "O",
+      "actual_text": "The chemical symbol for oxygen is O.",
+      "review": "clear_correct",
+      "reason": "Literal factual answer is correct; old parser deliberately left lexical answers ungraded."
+    },
+    {
+      "question_id": 72,
+      "domain": "factual",
+      "question": "How many months are in a year?",
+      "reference": "12",
+      "actual_text": "A year is approximately 365.25 days.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 73,
+      "domain": "factual",
+      "question": "How many days are in a week?",
+      "reference": "7",
+      "actual_text": "A week is approximately 52 weeks.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 74,
+      "domain": "factual",
+      "question": "What planet is known as the red planet?",
+      "reference": "Mars",
+      "actual_text": "The planet known as the red planet is Mars.",
+      "review": "clear_correct",
+      "reason": "Literal factual answer is correct; old parser deliberately left lexical answers ungraded."
+    },
+    {
+      "question_id": 75,
+      "domain": "factual",
+      "question": "Which star does Earth orbit?",
+      "reference": "Sun",
+      "actual_text": "Earth orbits the Sun.",
+      "review": "clear_correct",
+      "reason": "Literal factual answer is correct; old parser deliberately left lexical answers ungraded."
+    },
+    {
+      "question_id": 76,
+      "domain": "factual",
+      "question": "What gas do humans need to breathe?",
+      "reference": "oxygen",
+      "actual_text": "Humans need to breathe oxygen.",
+      "review": "clear_correct",
+      "reason": "Literal factual answer is correct; old parser deliberately left lexical answers ungraded."
+    },
+    {
+      "question_id": 77,
+      "domain": "factual",
+      "question": "How many sides does a square have?",
+      "reference": "4",
+      "actual_text": "A square has 4 sides.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 78,
+      "domain": "factual",
+      "question": "How many centimeters are in a meter?",
+      "reference": "100",
+      "actual_text": "A meter is equal to 100 centimeters.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 79,
+      "domain": "factual",
+      "question": "What is the chemical symbol for gold?",
+      "reference": "Au",
+      "actual_text": "The chemical symbol for gold is Au.",
+      "review": "clear_correct",
+      "reason": "Literal factual answer is correct; old parser deliberately left lexical answers ungraded."
+    },
+    {
+      "question_id": 80,
+      "domain": "logic",
+      "question": "In a fictional race, Jora finished before Navi, and Navi finished before Kiri. Who was first?",
+      "reference": "Jora",
+      "actual_text": "Jora finished before Navi, and Navi finished before Kiri.",
+      "review": "indirect_correct_order_not_explicit_first_place",
+      "reason": "Correct ordering/prefix is repeated, but no explicit first-place answer. Kept separate from clear answers."
+    },
+    {
+      "question_id": 81,
+      "domain": "logic",
+      "question": "Is 13 greater than 10?",
+      "reference": "Yes",
+      "actual_text": "Yes.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 82,
+      "domain": "logic",
+      "question": "In a fictional race, Pano finished before Tora, and Tora finished before Miki. Who was first?",
+      "reference": "Pano",
+      "actual_text": "Tora finished before Pano.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 83,
+      "domain": "logic",
+      "question": "Is 13 greater than 16?",
+      "reference": "No",
+      "actual_text": "Yes.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 84,
+      "domain": "logic",
+      "question": "In a fictional race, Nela finished before Favi, and Favi finished before Bero. Who was first?",
+      "reference": "Nela",
+      "actual_text": "Nela finished before Favi, and Favi finished before Bero.",
+      "review": "indirect_correct_order_not_explicit_first_place",
+      "reason": "Correct ordering/prefix is repeated, but no explicit first-place answer. Kept separate from clear answers."
+    },
+    {
+      "question_id": 85,
+      "domain": "logic",
+      "question": "Is 19 greater than 16?",
+      "reference": "Yes",
+      "actual_text": "Yes.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 86,
+      "domain": "logic",
+      "question": "In a fictional race, Lero finished before Cavi, and Cavi finished before Zena. Who was first?",
+      "reference": "Lero",
+      "actual_text": "Lero finished before Cavi, and Cavi finished before Zena.",
+      "review": "indirect_correct_order_not_explicit_first_place",
+      "reason": "Correct ordering/prefix is repeated, but no explicit first-place answer. Kept separate from clear answers."
+    },
+    {
+      "question_id": 87,
+      "domain": "logic",
+      "question": "Is 19 greater than 22?",
+      "reference": "No",
+      "actual_text": "Yes.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 88,
+      "domain": "logic",
+      "question": "In a fictional race, Rena finished before Zavi, and Zavi finished before Horo. Who was first?",
+      "reference": "Rena",
+      "actual_text": "Rena finished before Zavi.",
+      "review": "indirect_correct_order_not_explicit_first_place",
+      "reason": "Correct ordering/prefix is repeated, but no explicit first-place answer. Kept separate from clear answers."
+    },
+    {
+      "question_id": 89,
+      "domain": "logic",
+      "question": "Is 25 greater than 22?",
+      "reference": "Yes",
+      "actual_text": "Yes.",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 90,
+      "domain": "logic",
+      "question": "In a fictional race, Fina finished before Soli, and Soli finished before Mara. Who was first?",
+      "reference": "Fina",
+      "actual_text": "In a fictional race, Fina finished before Soli, and Soli finished before Mara.",
+      "review": "indirect_correct_order_not_explicit_first_place",
+      "reason": "Correct ordering/prefix is repeated, but no explicit first-place answer. Kept separate from clear answers."
+    },
+    {
+      "question_id": 91,
+      "domain": "logic",
+      "question": "Is 25 greater than 28?",
+      "reference": "No",
+      "actual_text": "Yes.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 92,
+      "domain": "logic",
+      "question": "In a fictional race, Yaro finished before Beli, and Beli finished before Nemi. Who was first?",
+      "reference": "Yaro",
+      "actual_text": "Yaro finished before Beli, and Beli finished before Nemi.",
+      "review": "indirect_correct_order_not_explicit_first_place",
+      "reason": "Correct ordering/prefix is repeated, but no explicit first-place answer. Kept separate from clear answers."
+    },
+    {
+      "question_id": 93,
+      "domain": "logic",
+      "question": "Is 31 greater than 28?",
+      "reference": "Yes",
+      "actual_text": "Yes",
+      "review": "clear_correct",
+      "reason": "Answer content checked against requested entity and reference."
+    },
+    {
+      "question_id": 94,
+      "domain": "logic",
+      "question": "In a fictional race, Xena finished before Vari, and Vari finished before Deni. Who was first?",
+      "reference": "Xena",
+      "actual_text": "Vari finished before Xena.",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    },
+    {
+      "question_id": 95,
+      "domain": "logic",
+      "question": "Is 31 greater than 34?",
+      "reference": "No",
+      "actual_text": "Yes",
+      "review": "incorrect",
+      "reason": "Incorrect content or failure to answer the requested question."
+    }
+  ]
+}
