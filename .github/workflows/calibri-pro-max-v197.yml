@@ -1,0 +1,27 @@
+name: CALIBRI v197 Green Tunnel universal source contracts and hard FP32 parity
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/green_tunnel/**'
+      - 'research/calibri/test_v197_green_tunnel_generic_parity.py'
+      - 'research/calibri/v197/**'
+      - '.github/workflows/calibri-pro-max-v197.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify_codec_agnostic_recovery_and_strict_135m_FP32_gate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test physical packed source, tied aliases, 211-all-operator cycle schedule and strict FULL answer parity
+        run: |
+          python -m unittest test_v197_green_tunnel_generic_parity -v
