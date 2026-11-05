@@ -13,41 +13,41 @@ from . import contract as C
 # Allowed finite, *non-semantic* answer lead-ins. The remainder must
 # satisfy the same strict full-utterance recognizer as a bare answer.
 PREFIXES=(
-    r"the\\s+answer\\s+is\\s+",
-    r"the\\s+answer\\s*:\\s*",
-    r"answer\\s*:\\s*",
-    r"the\\s+result\\s+is\\s+",
-    r"result\\s*:\\s*",
-    r"it\\s+is\\s+",
-    r"it's\\s+",
+    r"the\s+answer\s+is\s+",
+    r"the\s+answer\s*:\s*",
+    r"answer\s*:\s*",
+    r"the\s+result\s+is\s+",
+    r"result\s*:\s*",
+    r"it\s+is\s+",
+    r"it's\s+",
 )
 # Older v191 used specific full factual claims; here frozen *before
 # future v193 answers* with conservative reusable whole-claim forms.
 FACT_ASSERTIONS=(
     r"(?:the )?planet closest to (?:the )?sun is (?:called )?(?P<value>[a-z]+)",
     r"(?:the )?red planet is (?:called )?(?P<value>[a-z]+)",
-    r"(?:a )?regular hexagon has (?P<value>\\d+) sides",
+    r"(?:a )?regular hexagon has (?P<value>\d+) sides",
     r"(?:the )?chemical formula (?:for|of) water is (?P<value>[a-z0-9]+)",
     r"(?:the )?largest ocean is (?:the )?(?P<value>[a-z]+)(?: ocean)?",
     r"(?:red and blue paint )?mix(?:ing|ed) (?:red and blue paint )?(?:make|makes|gives|produce|produces|creates?) (?P<value>[a-z]+)",
     r"(?:the )?instrument (?:that )?measures temperature is (?:the )?(?P<value>[a-z]+)",
-    r"(?:the )?smallest prime number is (?P<value>\\d+)",
+    r"(?:the )?smallest prime number is (?P<value>\d+)",
     r"(?:the )?sahara desert is (?:located )?in (?P<value>[a-z]+)",
     r"(?:the )?planet (?:known )?for (?:its )?(?:prominent )?rings is (?P<value>[a-z]+)",
-    r"(?:there are )?(?P<value>\\d+) days (?:are )?in (?:a )?(?:gregorian )?leap year",
+    r"(?:there are )?(?P<value>\d+) days (?:are )?in (?:a )?(?:gregorian )?leap year",
     r"(?:the )?gas (?:that )?humans need for (?:aerobic )?respiration is (?P<value>[a-z]+)",
     r"(?:the )?chemical element (?:represented by )?(?:the )?symbol (?:fe|au) is (?P<value>[a-z]+)",
     r"(?:the )?capital of [a-z]+ is (?P<value>[a-z]+)",
-    r"(?:the )?(?:right|perpendicular) angle is (?P<value>\\d+) degrees",
+    r"(?:the )?(?:right|perpendicular) angle is (?P<value>\d+) degrees",
 )
 
 def normalize(raw):
     """Neutral text cleanup; never strip clauses or remove negations."""
     if not isinstance(raw,str):
         raise TypeError("Expected generated answer text")
-    if not raw or len(raw)>C.MAX_ANSWER_CHARS or any(x in raw for x in ("\\n","\\r")):
+    if not raw or len(raw)>C.MAX_ANSWER_CHARS or any(x in raw for x in ("\n","\r")):
         return None
-    text=re.sub(r"\\s+"," ",raw.strip().casefold())
+    text=re.sub(r"\s+"," ",raw.strip().casefold())
     if not text:return None
     text=text.rstrip(".! ").strip()
     for part in PREFIXES:
@@ -55,19 +55,19 @@ def normalize(raw):
         if candidate!=text:
             text=candidate
             break
-    text=text.strip(" \\"'").rstrip(".! ").strip(" \\"'")
+    text=text.strip().strip(chr(34)+chr(39)+" ").rstrip(".! ").strip(chr(34)+chr(39)+" ")
     return text or None
 
 def _single(domain,text):
     """Bare single answer; exactly one numeric/YesNo/color/word claim."""
-    if domain=="arithmetic" and re.fullmatch(r"[-+]?\\d{1,12}",text):
+    if domain=="arithmetic" and re.fullmatch(r"[-+]?\d{1,12}",text):
         return (str(int(text)),"bare_numeric_answer")
     if domain=="opposite_yesno" and text in ("yes","no"):
         return (text,"bare_boolean_answer")
     if domain=="fictional_binding" and text in C.COLORS:
         return (text,"bare_color_answer")
     if domain=="factual_short" and text not in C.REFUSALS and (
-          re.fullmatch(r"\\d{1,8}",text) or
+          re.fullmatch(r"\d{1,8}",text) or
           re.fullmatch(r"[a-z][a-z0-9-]{0,31}",text)):
         return (text,"bare_single_factual_token")
     return None
@@ -76,18 +76,18 @@ def _arithmetic(question,text):
     # Phrase-bound reference operands: cannot return another problem's
     # correct result or a superficially plausible but different equation.
     q=re.fullmatch(
-      r"(?:compute|calculate) (\\d+) (plus|minus|times) (\\d+)\\. "
-      r"reply with (?:the result as one number|only the answer|one integer)\\.",
+      r"(?:compute|calculate) (\d+) (plus|minus|times) (\d+)\. "
+      r"reply with (?:the result as one number|only the answer|one integer)\.",
       question.casefold())
     if q is None:
-        q=re.fullmatch(r"what is (\\d+) (plus|minus|times) (\\d+)\\? reply with one integer\\.",
+        q=re.fullmatch(r"what is (\d+) (plus|minus|times) (\d+)\? reply with one integer\.",
                        question.casefold())
     if q is None:return None
     a,operation,b=q.groups()
-    op={"plus":r"\\+","minus":"-","times":r"\\*" }[operation]
+    op={"plus":r"\+","minus":"-","times":r"\*" }[operation]
     patterns=(
-      rf"{a}\\s*{op}\\s*{b}\\s*=\\s*(?P<value>[-+]?\\d+)",
-      rf"{a}\\s+{operation}\\s+{b}\\s+(?:equals|is)\\s+(?P<value>[-+]?\\d+)",
+      rf"{a}\s*{op}\s*{b}\s*=\s*(?P<value>[-+]?\d+)",
+      rf"{a}\s+{operation}\s+{b}\s+(?:equals|is)\s+(?P<value>[-+]?\d+)",
     )
     for p in patterns:
         m=re.fullmatch(p,text)
