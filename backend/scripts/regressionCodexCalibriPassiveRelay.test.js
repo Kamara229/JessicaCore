@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {calibriPassiveRelayHandoff} from "../core/codex/relayCalibriPassiveHandoff.js";
+import {safeCalibriPassiveHandoff} from "../core/codex/relayCalibriPassiveSafe.js";
 import {registerCodexRoutes} from "../http/routes/codexRoute.js";
 
 const cases=[
@@ -15,7 +15,7 @@ for(const body of cases)for(const message of [
     "JESSICA_REPLY_"+uuid+"\n"+body+"\nJESSICA_END_"+uuid,
 ]){
     test("passive CALIBRI v181 no-test message: "+message.length,()=>{
-        const result=calibriPassiveRelayHandoff(message);
+        const result=safeCalibriPassiveHandoff(message);
         assert.ok(result);
         assert.equal(result.action,"reply");
         assert.equal(result.task,"");
@@ -43,5 +43,5 @@ test("explicit test or malformed envelope is not swallowed",()=>{
         "JESSICA_REPLY_"+uuid+"\n"+cases[0],
         "JESSICA_REPLY_"+uuid+"\n"+cases[0]+"\nJESSICA_END_00000000-0000-0000-0000-000000000000",
     ];
-    for(const input of blocked)assert.equal(calibriPassiveRelayHandoff(input),null);
+    for(const input of blocked)assert.equal(safeCalibriPassiveHandoff(input),null);
 });
