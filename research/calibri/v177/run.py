@@ -151,7 +151,7 @@ def run(source, out):
             "total_unique":TOTAL_UNIQUE,"max_bytes":MAX_BYTES,
             "arms":{"ADAPT_A":"6-bit tied embedding+attention, 4-bit MLP gate/up, 5-bit MLP down",
                     "ADAPT_B":"6-bit tied embedding+MLP down, 4-bit MLP gate/up, 5-bit attention"},
-            "shared_codebook_groups":8,"code_indices":4,
+            "source_group_length":8,"index_widths_bits":[4,5,6],
             "retrain_against_original_source_weights_not_QA":True,
             "fit_uses_only_FP32_weights_and_no_QA_or_TEST":True,
             "cases":cases,"early_token_ids":list(SMOKE_IDS),
