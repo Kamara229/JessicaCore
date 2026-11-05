@@ -1,0 +1,43 @@
+name: CALIBRI v187 4D cross-row genuine pretrained source and native CPU screening
+on:
+  pull_request:
+    paths:
+      - 'research/calibri/v187/**'
+      - 'research/calibri/test_v187_4d_tiles.py'
+      - '.github/workflows/calibri-pro-max-v187.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real_source_4D_pilot_not_full_model_QA:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned PyTorch CPU and source preprocessing
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Verify native C 4D matrix and embedding exactness, physical bytes
+        run: python -m unittest test_v187_4d_tiles -v
+      - name: Compare same-byte 4D vs CB59 source on 8 actual pretrained matrices
+        run: python -m v187.run results/v187
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v187-4d-real-source-operator-pilot-only
+          path: results/v187/
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 6
