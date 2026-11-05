@@ -54,9 +54,14 @@ def train(student,sources,alphas,betas,references):
         sample=references[i]
         clear_frozen(sources)
         optimizer.zero_grad(set_to_none=True)
-        output=student(input_ids=sample["ids"],use_cache=False).logits
-        selected=output[0,sample["positions"]]
-        loss=F.cross_entropy(selected,sample["targets"])
+        # Original teacher references are frozen in inference_mode; indices
+        # must be ordinary leaf tensors for gradient-enabled embedding ops.
+        ids=torch.tensor(sample["ids"].tolist(),dtype=torch.long)
+        positions=torch.tensor(sample["positions"].tolist(),dtype=torch.long)
+        targets=torch.tensor(sample["targets"].tolist(),dtype=torch.long)
+        output=student(input_ids=ids,use_cache=False).logits
+        selected=output[0,positions]
+        loss=F.cross_entropy(selected,targets)
         if not torch.isfinite(loss):raise ValueError("Nonfinite supervised TRAIN CE")
         loss.backward()
         if step==0:
