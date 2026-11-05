@@ -17,6 +17,6 @@ export function safeCalibriPassiveHandoff(message) {
     const endCommand=/(?:^|[^\p{L}\p{N}])(?:план\s+(?:полностью\s+)?заверш[её]н|заверши\s+сессию)(?=$|[^\p{L}\p{N}])/iu;
     // A command to send a concrete prompt into a Jessica chat has priority,
     // even when adjacent sentences say that ordinary CALIBRI QA is GitHub-only.
-    const ordinaryChatTest=/(?:в\\s+(?:обычном\\s+)?чате\\s+(?:Jessica|Джессик[иауы])\\s+(?:выполни|отправь|проверь)|(?:выполни|отправь|проведи)\\s+(?:в\\s+)?(?:обычный\\s+)?чат\\s+(?:Jessica|Джессик[иауы])|Точная\\s+формулировка\\s*[:：]|Задача\\s+для\\s+(?:Jessica|Джессик[иауы])\\s*[:：])/iu;
+    const ordinaryChatTest=/(?:в\s+(?:обычном\s+)?чате\s+(?:Jessica|Джессики)\s+(?:выполни|отправь)|(?:выполни|отправь)\s+(?:в\s+)?(?:обычный\s+)?чат\s+(?:Jessica|Джессики))/iu;
     return explicitTest.test(text)||openTestChat.test(text)||ordinaryChatTest.test(text)||endCommand.test(text) ? null : status;
 }
