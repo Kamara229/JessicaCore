@@ -66,7 +66,7 @@ class FrozenConservativeAnswerGrader(unittest.TestCase):
         self.assert_grade(hexagon,"A regular hexagon has 5 sides.","machine_wrong")
         city=c("factual_short","What is the capital of France? Reply with one name.","Paris")
         self.assert_grade(city,"The capital of France is Paris.","machine_correct")
-        self.assert_grade(city,"The capital of Germany is Paris.","machine_wrong" if False else "ungraded")
+        self.assert_grade(city,"The capital of Germany is Paris.","ungraded")
 
     def test_opposite_yesno_requires_both_and_never_all_yes(self):
         first=c("opposite_yesno","Is 617 greater than 612? Reply with only Yes or No.","Yes",0,"cmp0")
@@ -87,7 +87,7 @@ class FrozenConservativeAnswerGrader(unittest.TestCase):
             grade({"case_id":1,"domain":"unknown","question":"Hello","gold":"x"},"x")
         with self.assertRaises(TypeError):
             grade(c("arithmetic","Compute 9 plus 7. Reply with the result as one number.","16"),42)
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             summarize([c("arithmetic","Compute 9 plus 7. Reply with the result as one number.","16",id=0)],{})
         self.assert_grade(c("factual_short","A question.","a"),"This is not a one-word answer","ungraded")
         self.assert_grade(c("opposite_yesno","Is 7 greater than 9?","No"),"No","machine_correct")
