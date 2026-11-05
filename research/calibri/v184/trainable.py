@@ -54,6 +54,9 @@ class AdditiveEmbedding(nn.Module):
 def build(archive):
     torch.manual_seed(p.SEED)
     model,sources=build_frozen_source(archive)
+    # Freeze every original 1D norm as well as the 211 source codebooks.
+    # Only the freshly installed compact rank-two factors are trainable.
+    model.requires_grad_(False)
     if len(sources)!=211:raise AssertionError("211 original source operators required")
     for src in sources.values():src.requires_grad_(False)
     shapes={source.shape[1] for source in sources.values()}
