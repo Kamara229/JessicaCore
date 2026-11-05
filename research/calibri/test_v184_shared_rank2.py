@@ -48,15 +48,15 @@ class SharedRank2(unittest.TestCase):
 
     def test_true_packed_source_plus_native_rank2_matches_decoded(self):
         rng=np.random.default_rng(184)
-        w=rng.normal(size=(13,32)).astype(np.float32)
+        w=rng.normal(size=(14,32)).astype(np.float32)
         encoded=compress_matrix(w)
-        handle=QuantHandle("toy.weight",(13,32),
+        handle=QuantHandle("toy.weight",(14,32),
             np.frombuffer(encoded["packed"],dtype=np.uint8),
             np.frombuffer(encoded["row_scales"],dtype="<f2").astype(np.float32),
             np.frombuffer(encoded["centroids"],dtype="<f2").astype(np.float32).reshape(32,8))
-        ids=unpack5(handle.packed.tobytes(),13*32//8)
+        ids=unpack5(handle.packed.tobytes(),14*32//8)
         base=handle.centroids[ids].reshape(handle.shape)*handle.row_scales[:,None]
-        a=rng.integers(-40,41,size=(13,2),dtype=np.int8)
+        a=rng.integers(-40,41,size=(14,2),dtype=np.int8)
         gain=.0014
         beta=rng.normal(size=(2,32)).astype(np.float32)
         with TemporaryDirectory() as folder:
@@ -68,7 +68,7 @@ class SharedRank2(unittest.TestCase):
             expected=x@base.T+(x@beta.T)@(a.astype(np.float32)*gain).T
             actual=kernel.linear(handle,x)
             np.testing.assert_allclose(actual,expected,atol=4e-5,rtol=4e-5)
-            rowids=np.array([0,12,1,5,12],dtype=np.int64)
+            rowids=np.array([0,13,1,5,13],dtype=np.int64)
             emb=kernel.embedding(handle,rowids)
             reference=base[rowids]+(a[rowids].astype(np.float32)*gain)@beta
             np.testing.assert_allclose(emb,reference,atol=4e-6,rtol=4e-6)
