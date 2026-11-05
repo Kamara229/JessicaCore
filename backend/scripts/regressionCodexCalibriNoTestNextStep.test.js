@@ -6,9 +6,11 @@ import {calibriNoTestNextStep} from "../core/codex/relayCalibriNoTestNextStep.js
 const id="d0ea8dcc-861a-4ad1-870e-8b98a39b15ff";
 const previousExact="Следующий тест CALIBRI v133: после результатов v132 отключить наиболее проблемную группу слоёв и сравнить 16 полных ответов с исходной v119. Проверить EOS, смысл, повторы и правильность. Запуск выполняю я через GitHub.";
 const mixedIncident = "Сбой Codex исправлен в GitHub: PR #267 объединён, регрессии прошли. Supabase доступен. Render требует подтверждения workspace. Следующий шаг — CALIBRI v133: сравнить генерацию с отключёнными слоями 0–4. Джессика тесты не запускает.";
+const nextAfterCI = "CALIBRI v200: CI завершён, качество 3/16 против 6/16 у FP32. Исправление интерпретатора PR #340 прошло CI, но не внедрено. Следующий шаг — передавать только новые сообщения владельца. Повторные сбои не пересылай, тесты не запускай.";
 const latestV200NoTest = "CALIBRI v200 подготовлен в изолированном GitHub PR #339. Добавлены обучение на собственных последовательностях и защита от повторов. Следующий шаг — проверить CI, полные ответы против FP32, bpp и скорость. Jessica/LIVE не менять.";
 const latestExact = "CALIBRI v133: отключение слоёв 0–4 устранило EOS на первом токене (12→0/16), но правильные ответы не восстановились. Создан PR #270 (v134): определяем первый слой расхождения с FP32. Проверка GitHub запущена. Джессика тесты не запускает.";
 const messages = [
+    nextAfterCI,
     latestV200NoTest,
     latestExact,
     "CALIBRI v134: измеряем ошибку токенов и восстановление токена без потери EOS. Джессика тесты не запускает.",
@@ -40,6 +42,10 @@ for (const body of messages) {
 test("malformed envelopes, contradictory instructions and missing no-test intent are not swallowed",()=>{
     const envelope="JESSICA_REPLY_"+id+"\n"+previousExact+"\nJESSICA_END_"+id;
     const bad=[
+        nextAfterCI + " Создай новый тестовый чат Jessica.",
+        nextAfterCI.replace("PR #340", "ошибка"),
+        nextAfterCI.replace("Следующий шаг", "План"),
+        nextAfterCI.replace("тесты не запускай", "запусти тест"),
         latestV200NoTest.replace("Jessica/LIVE не менять.", "Jessica/LIVE не менять. Запусти тест в обычном чате Jessica."),
         latestV200NoTest.replace("PR #339", "работу"),
         latestV200NoTest.replace("Следующий шаг", "Контроль"),
