@@ -76,3 +76,28 @@ original FP32 reference.
 
 This is isolated research; do not merge to main, change LIVE Jessica,
 Render, Supabase, APK, Green Tunnel, or open private v89 TEST.
+
+
+## Latest-branch confirmation (corrected balanced early QA selection)
+
+A second, complete targeted workflow, [run 42024960133](https://github.com/Kamara229/JessicaCore/actions/runs/42024960133) at code commit
+`fa63b149b58606142d02edb3970574957083c27c`,
+uploaded [artifact 13413697420](https://github.com/Kamara229/JessicaCore/actions/runs/42024960133/artifacts/13413697420).
+The corrected twenty-question triage spans all five historical development
+domains. Its result is the same negative scientific conclusion:
+
+- Both physical A/B archive sizes and full SHA256 values are **identical**
+  to the first completed run: no source-weight drift across runs.
+- Native A and B unique first tokens: 2 and 1 of 20; **0/20 FP32
+  first-token matches for both**, no full 96-answer expansion.
+- On 24 real questions each: **0/24** machine-confirmed correct for A,
+  B and original CB59; **24/24** no EOS in all three compact arms.
+- FP32 is **6/24 frozen machine-confirmed correct** (vs 5/24
+  in the first run) because the developmental subset now includes
+  yes/no prompts. Do not compare these two FP32 24-case tallies as
+  a model-accuracy change.
+- Paired 32-token native CPU speed: A **96.45%**, B **96.82%**
+  of CB59 on this run. CPU variations explain why this should not
+  replace the original 92.12%/92.06% observation without context.
+- This is a true completed 24-case early-stopped run, not a 96-case
+  qualitative benchmark. Both candidates remain rejected.
