@@ -2,8 +2,8 @@
 import unittest
 from collections import Counter
 from v190 import protocol as p
-from .cases import cases
-from .grade import grade,summarize
+from v190.cases import cases
+from v190.grade import grade,summarize
 
 class NewOriginalBehaviorQA(unittest.TestCase):
     def test_new_questions_all_distinct_balanced_and_pairs_opposite(self):
