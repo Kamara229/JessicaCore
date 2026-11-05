@@ -1,5 +1,7 @@
 import {requireJessicaAuthorization} from "../auth/jessicaAuth.js";
-import {interpretRelayTurn} from "../../core/codex/relayInterpreter.js";
+import {interpretRelayTurn,explicitJessicaTest} from "../../core/codex/relayInterpreter.js";
+import {compactJessicaTest} from "../../core/codex/relayCompactTest.js";
+import {numberedBenchmarkTest} from "../../core/codex/relayNumberedBenchmarkTest.js";
 import {safeCalibriPassiveHandoff} from "../../core/codex/relayCalibriPassiveSafe.js";
 import {recordCodexPhase} from "../../core/codex/relayTelemetry.js";
 
@@ -20,7 +22,10 @@ export function registerCodexRoutes(app) {
         try {
             // Strict no-test relay-only CALIBRI status: never spend provider
             // quota or confuse an idle instruction with a Jessica benchmark.
-            const passive=safeCalibriPassiveHandoff(req.body?.message);
+            const explicitTask=explicitJessicaTest(req.body?.message) ||
+                compactJessicaTest(req.body?.message) ||
+                numberedBenchmarkTest(req.body?.message);
+            const passive=explicitTask ? null : safeCalibriPassiveHandoff(req.body?.message);
             const decision = passive ?? await interpretRelayTurn(req.body);
             res.json({success:true,...decision});
         } catch {
