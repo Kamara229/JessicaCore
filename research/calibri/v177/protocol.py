@@ -7,7 +7,7 @@ ARMS = ("ADAPT_A", "ADAPT_B")
 MAX_BYTES = math.floor(0.700 * TOTAL_UNIQUE / 8)
 SEED = 177
 SPEED_IDS = (0, 16, 64, 80)
-SMOKE_IDS = (0, 1, 2, 3, 16, 17, 18, 19, 32, 33, 34, 35, 64, 65, 66, 67, 80, 81, 82, 83)
+SMOKE_IDS = (0, 1, 2, 3, 16, 17, 18, 19, 48, 49, 50, 51, 64, 65, 66, 67, 80, 81, 82, 83)
 # Both arms reserve six bits for the tied input-embedding/LM head.
 # A protects attention; B protects the MLP down-projection instead.
 # Both pay for this by reducing 60 gate/up MLP matrices to four bits.
