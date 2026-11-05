@@ -55,6 +55,9 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     internal var shareDialogBackAttempted = false
     internal var pendingInterpretation: String? = null
     internal var interpretationFailures = 0
+    // Once a failed interpretation has been sent to ChatGPT, a second failure
+    // must stop this session instead of creating an endless failure echo.
+    internal var interpretationFailureReportedInSession = false
     internal var retryInterpretAt = 0L
     internal var lastProgressAt = 0L
     internal var guardianJob: Job? = null
