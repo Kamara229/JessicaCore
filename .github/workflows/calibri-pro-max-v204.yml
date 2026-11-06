@@ -1,0 +1,72 @@
+name: CALIBRI v204 global frozen TRAIN guards on every 135M paid update
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v204-global-train-per-step-gates'
+    paths:
+      - 'research/calibri/v204/**'
+      - 'research/calibri/test_v204_global_train_guard.py'
+      - '.github/workflows/calibri-pro-max-v204.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v204/**'
+      - 'research/calibri/test_v204_global_train_guard.py'
+      - '.github/workflows/calibri-pro-max-v204.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original_135m_real_paid_source_global_guarded_16step:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 240
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install frozen CPU original 135M and native CB59 dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Unit-test full 24 first-token and 8 six-token TRAIN guards
+        run: |
+          python -m unittest test_v204_global_train_guard test_v202_repeat_unlikelihood test_v200_rollout test_v199_baseline_relative_train_guard -v
+          python -m compileall -q research/calibri/v204
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v186-paid-balanced-code-swaps-native-QA
+          path: inputs/v186
+          run-id: 42085087419
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v161-original-block0-paid-onebit-under-0p7
+          path: inputs/v161
+          run-id: 41920207168
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v193-actual-original-135M-vs-360M-frozen-grader-new-96QA
+          path: inputs/v193
+          run-id: 42095901870
+          github-token: ${{ github.token }}
+      - name: Train physically paid 135M with full TRAIN guards per step; seal then native QA
+        run: |
+          python -m v204.run inputs/v186/CALIBRI_v186_balanced_5bit_full_source.cb59 inputs/v161/CALIBRI_v161_original_block0_paid_onebit.cb153 inputs/v193/v193_original_FP32_135M_vs_360M_new_96QA_complete.json results/v204
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v204-original-135m-repeat-unlikelihood-native-QA
+          path: results/v204/
+          if-no-files-found: warn
+          retention-days: 45
+          compression-level: 0
