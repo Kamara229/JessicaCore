@@ -20,20 +20,24 @@ int calibri_onebit_head_add(const float *x, float *out,
     if ((rows * groups) % 8 != 0) return -2;
     for (int block = 0; block < rows / 16; ++block) {
         const float *d = direction + (size_t)block * 8;
-        /* Compute each 8D dot once for 16 neighboring rows. */
+        /* One 8D projection per group, shared by 16 output rows. */
+        float group_dot[groups];
+        for (int group = 0; group < groups; ++group) {
+            const float *v = x + (size_t)group * 8;
+            float value = 0.0f;
+            for (int k = 0; k < 8; ++k)
+                value += d[k] * v[k];
+            group_dot[group] = value;
+        }
         for (int row_in_block = 0; row_in_block < 16; ++row_in_block) {
             const int row = block * 16 + row_in_block;
             const size_t bit_begin = (size_t)row * (size_t)groups;
             float total = 0.0f;
             for (int group = 0; group < groups; ++group) {
-                const float *v = x + (size_t)group * 8;
-                float value = 0.0f;
-                for (int k = 0; k < 8; ++k)
-                    value += d[k] * v[k];
                 const size_t bit_index = bit_begin + (size_t)group;
                 const uint8_t bit = (packed[bit_index >> 3] >>
                                     (bit_index & 7)) & 1u;
-                total += bit ? value : -value;
+                total += bit ? group_dot[group] : -group_dot[group];
             }
             out[row] += total;
         }
