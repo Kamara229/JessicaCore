@@ -65,7 +65,7 @@ def nearest_group_indices(vectors,centers):
     if (vectors.ndim!=2 or centers.shape!=(K,DIMS) or
         vectors.shape[1]!=DIMS):
         raise AssertionError("Wrong vocabulary word-vector dictionary geometry")
-    scores=centers.square().sum(axis=1)[None,:]-2.0*(vectors@centers.T)
+    scores=np.square(centers).sum(axis=1)[None,:]-2.0*(vectors@centers.T)
     return np.argmin(scores,axis=1).astype(np.uint8)
 
 
