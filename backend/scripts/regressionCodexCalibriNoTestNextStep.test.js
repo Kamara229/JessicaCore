@@ -136,3 +136,18 @@ for (const message of [exactV220FirstLogits, "JESSICA_REPLY_"+id+"\n"+exactV220F
         assert.equal(result.continueThread,false);
     });
 }
+
+const currentV221MeasuredStep = "CALIBRI v221: CI #42301515662 уже измеряет логиты 48 TRAIN-запросов. Следующий шаг — сравнить FP32, v206 и v220, определить потерянные правильные ответы. Jessica не тестировать, LIVE не менять.";
+for (const message of [currentV221MeasuredStep, "JESSICA_REPLY_"+id+"\n"+currentV221MeasuredStep+"\nJESSICA_END_"+id]) {
+    test("v221 exact no-test message cannot call failed remote interpreter: "+message.length,async()=>{
+        let providerCalls=0;
+        const result=await interpretRelayTurn({message,plan:"CALIBRI GitHub only"},async()=>{
+            providerCalls++;throw Error("upstream failed");
+        });
+        assert.equal(providerCalls,0);
+        assert.equal(result.action,"reply");
+        assert.equal(result.task,"");
+        assert.equal(result.continueThread,false);
+        assert.match(result.reply,/тесты не запускаю/iu);
+    });
+}
