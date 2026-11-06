@@ -90,7 +90,7 @@ for (const message of [v220Exact, "JESSICA_REPLY_"+id+"\n\n"+v220Exact+"\n\nJESS
 
 
 const v220LatestExact = "CALIBRI v220: все 16 ответов уже извлечены. Следующий шаг — исследовать потерю правильного Yes на вопросе 24 и повторение цифры 5 на вопросе 0, затем исправить Green Tunnel. GitHub веду сам. Jessica не тестировать, LIVE не менять.";
-for (const message of [v220LatestExact, "JESSICA_REPLY_"+id+"\\n"+v220LatestExact+"\\nJESSICA_END_"+id]) {
+for (const message of [v220LatestExact, "JESSICA_REPLY_"+id+"\n"+v220LatestExact+"\nJESSICA_END_"+id]) {
     test("v220 latest read-only handoff is parsed without quota-bound provider: "+message.length,
         async () => {
             let providerCalls=0;
