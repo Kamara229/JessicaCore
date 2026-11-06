@@ -1,0 +1,53 @@
+name: CALIBRI v213 real 135M TRAIN-only causal head-vs-hidden probe
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v213-train-causal-recovery'
+    paths:
+      - 'research/calibri/v213/**'
+      - '.github/workflows/calibri-pro-max-v213-causal.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v213/**'
+      - '.github/workflows/calibri-pro-max-v213-causal.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  authentic_v206_causal_diagnosis_on_frozen_TRAIN_only:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact original verified CPU weights and training dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v206-original-135m-first-divergence-48step-native-QA
+          path: inputs/v206
+          run-id: 42255701945
+          github-token: ${{ github.token }}
+      - name: On TRAIN only, identify whether packed tied head or compact hidden states destroy token choices
+        run: |
+          python research/calibri/v213/causal_path.py inputs/v206/CALIBRI_v206_guarded_48step_135M.cb59 results/v213
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v213-authentic-v206-train-causal-FP32-head-hidden-injection
+          path: results/v213/
+          if-no-files-found: warn
+          retention-days: 45
