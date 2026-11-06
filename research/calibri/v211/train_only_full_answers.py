@@ -23,7 +23,8 @@ from v196.recover import build_trainable_from_paid_source
 from v200.rollout import probe_greedy_train, summarize_sequences
 from v198.guard import probe_first_tokens, summarize_guard
 
-SEALED_v208_SHA256 = "5a6d5f07f9e49fa6063dd772d7e2aee53beeb3527d10d5a429715593b68939de"
+SEALED_v208_SHA256 = "cd0947dcd34b1befee8aa2d58821b869a8476e8156a78a2a9747ea565f5b90ec"
+SOURCE_V206_SHA256 = "5a6d5f07f9e49fa6063dd772d7e2aee53beeb3527d10d5a429715593b68939de"
 TRAIN_ONLY_PAIRS = 24
 TRAIN_ONLY_SIDES = 48
 TRAIN_MAX_TOKENS = 6
