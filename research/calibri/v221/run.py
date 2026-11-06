@@ -106,7 +106,7 @@ def execute(source_v206,source_v220,out):
         data[label]=CB59(raw)
     tokenizer=AutoTokenizer.from_pretrained(MODEL,revision=MODEL_SHA)
     samples,train_pairs,valid_pairs,origin=training_inputs(tokenizer)
-    if len(samples)!=20 or len(train_pairs)!=24 or len(valid_pairs)!=24:
+    if len(samples)!=20 or len(train_pairs)!=24 or len(valid_pairs)!=P.VALID_PAIRS:
         raise AssertionError("Original public TRAIN/VALID protocol drift")
     teacher=original_teacher().cpu().eval()
     source_models={}
