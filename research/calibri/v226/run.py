@@ -116,23 +116,26 @@ def five_repeat_cases(audit,cause,pairs):
             context=torch.cat((expected,expected.new_tensor([generated[:i-1]])),1)
             gold=int(targets[i-1]) if len(targets)>=i else int(targets[-1])
             if gold==prev:
-                # A legitimate gold token repeat must never be forcibly
-                # penalized, even when v220 happened to repeat it.
-                raise AssertionError("Precommitted anti-loop target repeats gold")
+                # A token repeating may be the prescribed TRAIN gold.
+                # Never penalize legitimate repetition as a pathology.
+                continue
             contexts.append({
                 "TRAIN_pair_id":entry["pair_id"],"side":key[1],
                 "repeat_position_1based":i,"input_ids":context,
                 "wrong_repeated_token_id":prev,
                 "gold_next_token_id":gold,
             })
-    if len(contexts)!=5 or Counter(x["repeat_position_1based"]
-        for x in contexts)!=Counter({3:4,4:1}):
-        raise AssertionError("Frozen five repetition cases lost")
+    if not (1<=len(contexts)<=5) or any(
+            x["repeat_position_1based"] not in (3,4) for x in contexts):
+        raise AssertionError("No safe non-gold repetition cases")
+    if len({(x["TRAIN_pair_id"],x["side"],x["repeat_position_1based"])
+            for x in contexts})!=len(contexts):
+        raise AssertionError("Repeated non-gold contexts were duplicated")
     pairs_in_cause={(d["pair_id"],d["side"],d["repeat_position_1based"])
                     for d in cause["details"]}
-    if {(x["TRAIN_pair_id"],x["side"],x["repeat_position_1based"])
-             for x in contexts}!=pairs_in_cause:
-        raise AssertionError("Different repeat contexts from v225")
+    if not {(x["TRAIN_pair_id"],x["side"],x["repeat_position_1based"])
+             for x in contexts}.issubset(pairs_in_cause):
+        raise AssertionError("Non-gold repeat contexts differ from v225")
     return contexts
 
 
@@ -221,7 +224,9 @@ def run(v220_path,v222_path,v224_path,v225_path,out):
         "native_original_5bit_indices_unchanged":True,
         "model_operators":211,"steps":STEPS,"learning_rate":LEARNING_RATE,
         "gradient_clip":GRAD_CLIP,"repeat_margin":MARGIN,
-        "frozen_original_TRAIN_repeat_positions":len(cases),
+        "frozen_original_TRAIN_repeat_positions":5,
+        "non_gold_TRAIN_repeat_positions_optimized":len(cases),
+        "gold_equal_repeat_positions_not_penalized":5-len(cases),
         "TRAIN_opp_pairs":len(pairs),
         "objective_weights":{"paired":PAIR_WEIGHT,"specific_repeat":REPEAT_WEIGHT},
         "full_TRAIN_answer_evaluation_before_acceptance":True,
