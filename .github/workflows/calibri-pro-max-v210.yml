@@ -1,0 +1,57 @@
+name: CALIBRI v210 immutable v206-v208 original 135M full answer analysis
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v210-sealed-v206-v208-read-only-quality-forensics'
+    paths:
+      - 'research/calibri/v210/**'
+      - 'research/calibri/test_v210_read_only.py'
+      - '.github/workflows/calibri-pro-max-v210.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v210/**'
+      - 'research/calibri/test_v210_read_only.py'
+      - '.github/workflows/calibri-pro-max-v210.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  v206_to_v208_retrospective_read_only_native_quality:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate all frozen full-answer QA invariants without executing model
+        run: |
+          python -m unittest test_v210_read_only -v
+          python -m compileall -q research/calibri/v210
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v206-original-135m-first-divergence-48step-native-QA
+          path: inputs/v206
+          run-id: 42255701945
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v208-original-135m-first-divergence-48step-native-QA
+          path: inputs/v208
+          run-id: 42263456752
+          github-token: ${{ github.token }}
+      - name: Analyze sealed 16-case v206-v208 transition without selecting training checkpoints
+        run: |
+          python research/calibri/v210/read_only.py inputs/v206 inputs/v208 results/v210
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v210-original-135m-v206-v208-read-only-quality-forensics
+          path: results/v210/
+          if-no-files-found: warn
+          retention-days: 45
