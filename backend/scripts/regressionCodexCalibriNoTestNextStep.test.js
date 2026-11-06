@@ -69,3 +69,21 @@ test("explicit Jessica ordinary-chat test remains an explicit action", async()=>
     assert.ok(calls <= 1);
     assert.equal(calibriNoTestNextStep(req),null);
 });
+
+
+const v220Exact = "CALIBRI v220: CI #42298991456 ещё работает. Следующий шаг — проверить завершение обучения и SHA256 сжатых весов, затем сравнить правильные ответы, bpp и скорость CPU с v206. Jessica не тестировать, LIVE не менять.";
+
+for (const message of [v220Exact, "JESSICA_REPLY_"+id+"\n\n"+v220Exact+"\n\nJESSICA_END_"+id]) {
+    test("v220 exact 2026-11-06 no-test handoff avoids quota-bound provider: "+message.length,
+        async () => {
+            let providerCalls=0;
+            const result=await interpretRelayTurn(
+                {message,plan:"Only GitHub research; Jessica and LIVE unchanged"},
+                async()=>{providerCalls++;throw Error("429 Groq unavailable");});
+            assert.equal(providerCalls,0,"no unexpected model interpretation");
+            assert.equal(result.action,"reply");
+            assert.equal(result.task,"");
+            assert.equal(result.continueThread,false);
+            assert.match(result.reply,/тесты не запускаю/iu);
+        });
+}
