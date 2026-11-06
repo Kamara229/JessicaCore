@@ -1,0 +1,57 @@
+name: CALIBRI v205 read-only 135M v200 v204 sealed-answer forensics
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v205-sealed-v200-v204-answer-forensics'
+    paths:
+      - 'research/calibri/v205/**'
+      - 'research/calibri/test_v205_read_only.py'
+      - '.github/workflows/calibri-pro-max-v205.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v205/**'
+      - 'research/calibri/test_v205_read_only.py'
+      - '.github/workflows/calibri-pro-max-v205.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original_135m_v200_v204_read_only_diff:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Unit-test immutable exact 16-answer comparison (no model/dependencies)
+        run: |
+          python -m unittest test_v205_read_only -v
+          python -m compileall -q research/calibri/v205
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v200-original-135m-autoregressive-TRAIN-full-sequence-native-QA
+          path: inputs/v200
+          run-id: 42114682387
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v204-original-135m-repeat-unlikelihood-native-QA
+          path: inputs/v204
+          run-id: 42252007115
+          github-token: ${{ github.token }}
+      - name: Forensics on already sealed artifacts; NEVER train from PUBLIC DEV
+        run: |
+          python research/calibri/v205/read_only.py inputs/v200 inputs/v204 results/v205
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v205-read-only-original-135m-v200-v204-forensics
+          path: results/v205/
+          if-no-files-found: warn
+          retention-days: 45
