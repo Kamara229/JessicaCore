@@ -1,0 +1,84 @@
+name: CALIBRI v212 sealed source native QA recovery
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v212-fp32-trajectory-distillation'
+    paths:
+      - 'research/calibri/v212/**'
+      - 'research/calibri/test_v212_teacher_trajectory.py'
+      - '.github/workflows/calibri-pro-max-v212.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v212/**'
+      - 'research/calibri/test_v212_teacher_trajectory.py'
+      - '.github/workflows/calibri-pro-max-v212.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original_135m_existing_sealed_source_NATIVE_QA_only:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original 135M CPU and native CB59 dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Verify 48-to-71 operator continuation, teacher path, and frozen TRAIN boundaries
+        run: |
+          python -m unittest test_v212_teacher_trajectory test_v206_first_divergence test_v204_global_train_guard test_v202_repeat_unlikelihood test_v200_rollout -v
+          python -m compileall -q research/calibri/v212
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v206-original-135m-first-divergence-48step-native-QA
+          path: inputs/v206
+          run-id: 42255701945
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v161-original-block0-paid-onebit-under-0p7
+          path: inputs/v161
+          run-id: 41920207168
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v193-actual-original-135M-vs-360M-frozen-grader-new-96QA
+          path: inputs/v193
+          run-id: 42095901870
+          github-token: ${{ github.token }}
+      # The previous 24-step TRAIN completed successfully and sealed the
+      # physical 0.667839-bpp source before crashing in the v186 CPU score
+      # function (it requires input key CB186). Its artifact was uploaded,
+      # even though the overall GitHub job was marked failed. Do NOT retrain.
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v212-original-135m-first-divergence-24step-native-QA
+          path: inputs/v212
+          run-id: 42278290720
+          github-token: ${{ github.token }}
+      - name: Reuse immutable signed physical source and score native v212 only
+        run: |
+          mkdir -p results/v212
+          cp inputs/v212/* results/v212/
+          python -m v212.postprocess inputs/v206/CALIBRI_v206_guarded_48step_135M.cb59 inputs/v161/CALIBRI_v161_original_block0_paid_onebit.cb153 inputs/v193/v193_original_FP32_135M_vs_360M_new_96QA_complete.json results/v212 results/v212
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v212-immutable-sealed-source-real-native-QA-postseal
+          path: results/v212/
+          if-no-files-found: warn
+          retention-days: 45
+          compression-level: 0
