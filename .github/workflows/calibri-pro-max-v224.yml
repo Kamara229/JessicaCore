@@ -6,6 +6,10 @@ on:
     paths:
       - 'research/calibri/v224/**'
       - '.github/workflows/calibri-pro-max-v224.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v224/**'
+      - '.github/workflows/calibri-pro-max-v224.yml'
   workflow_dispatch:
 permissions:
   contents: read
