@@ -176,6 +176,15 @@ def analyze(v206_path,v220_path,rollout_path,audit_path,out):
                 ("on_v206_generated_context",original),
                 ("on_v220_generated_context",updated),
             ):
+                if len(generated) < position:
+                    # The original native v206 can stop at EOS before a later
+                    # position that only exists in the v220 rollout. Never
+                    # fabricate tokens beyond its own terminated generation.
+                    report[context_source] = {
+                        "not_applicable":True,
+                        "reason":"native_v206_rollout_terminated_before_position",
+                        "generated_token_length":len(generated)}
+                    continue
                 context=torch.cat(
                     (prompt,prompt.new_tensor([generated[:position-1]])),dim=1)
                 prev=int(generated[position-2])
