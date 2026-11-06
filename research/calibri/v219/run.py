@@ -69,11 +69,11 @@ def nearest(x,centers):
     return np.argmin(score,axis=1).astype(np.uint8)
 
 
-def centroid_refit(vectors,scales,ids,centers,passes):
+def centroid_refit(vectors,scales,centers,passes):
     """True FP32-original source weighted least squares on all groups."""
     out=np.asarray(centers,dtype=np.float32).copy()
     k,dim=out.shape
-    if k<2 or k>32 or vectors.shape!=(len(ids),dim):
+    if k<2 or k>32 or vectors.shape[1]!=dim:
         raise AssertionError("Incomplete authentic original FP32 source groups")
     for _ in range(passes):
         sums=np.zeros((k,dim),dtype=np.float64)
@@ -109,7 +109,7 @@ def train_subcode(vectors,weight,k):
             if len(subset):
                 centers[j]=subset.mean(axis=0)
         centers=centers.astype(np.float16).astype(np.float32)
-    return centroid_refit(vectors,weight,None,centers,FULL_ITER)
+    return centroid_refit(vectors,weight,centers,FULL_ITER)
 
 
 def fit_matrix(handle,weight):
