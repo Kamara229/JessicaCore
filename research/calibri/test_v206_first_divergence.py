@@ -29,9 +29,8 @@ class TestV206FirstDivergence(unittest.TestCase):
         loss,trace=first_divergence_margin(net,pair(),steps_cap=3)
         self.assertTrue(torch.isfinite(loss))
         self.assertEqual(trace["sides"]["left"]["first_mismatch_index"],0)
-        self.assertIsNone(trace["sides"]["right"]["first_mismatch_index"] if False else
-                          trace["sides"]["right"]["first_mismatch_index"] if
-                          trace["sides"]["right"]["correct_greedy_prefix_tokens"]==2 else None)
+        self.assertEqual(trace["sides"]["right"]["first_mismatch_index"],1)
+        self.assertEqual(trace["sides"]["right"]["correct_greedy_prefix_tokens"],1)
         self.assertTrue(trace["no_public_DEV_VALID_or_private_TEST"])
         loss.backward()
         self.assertIsNotNone(net.logits_table.grad)
