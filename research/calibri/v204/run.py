@@ -41,7 +41,7 @@ from v196.recover import build_trainable_from_paid_source
 from v196.run import newly_frozen_public_dev_16
 from v198.guard import probe_first_tokens, anti_collapse_gate, summarize_guard
 from v200.rollout import probe_greedy_train, sequence_no_regression_gate
-from v204.unlikelihood import train_rollout_ce_and_repeat_unlikelihood
+from v202.unlikelihood import train_rollout_ce_and_repeat_unlikelihood
 from .guards import evaluate_candidate
 
 PILOT_STEPS = 16
