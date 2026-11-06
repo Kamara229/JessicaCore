@@ -69,3 +69,85 @@ test("explicit Jessica ordinary-chat test remains an explicit action", async()=>
     assert.ok(calls <= 1);
     assert.equal(calibriNoTestNextStep(req),null);
 });
+
+
+const v220Exact = "CALIBRI v220: CI #42298991456 ещё работает. Следующий шаг — проверить завершение обучения и SHA256 сжатых весов, затем сравнить правильные ответы, bpp и скорость CPU с v206. Jessica не тестировать, LIVE не менять.";
+
+for (const message of [v220Exact, "JESSICA_REPLY_"+id+"\n\n"+v220Exact+"\n\nJESSICA_END_"+id]) {
+    test("v220 exact 2026-11-06 no-test handoff avoids quota-bound provider: "+message.length,
+        async () => {
+            let providerCalls=0;
+            const result=await interpretRelayTurn(
+                {message,plan:"Only GitHub research; Jessica and LIVE unchanged"},
+                async()=>{providerCalls++;throw Error("429 Groq unavailable");});
+            assert.equal(providerCalls,0,"no unexpected model interpretation");
+            assert.equal(result.action,"reply");
+            assert.equal(result.task,"");
+            assert.equal(result.continueThread,false);
+            assert.match(result.reply,/тесты не запускаю/iu);
+        });
+}
+
+
+const v220LatestExact = "CALIBRI v220: все 16 ответов уже извлечены. Следующий шаг — исследовать потерю правильного Yes на вопросе 24 и повторение цифры 5 на вопросе 0, затем исправить Green Tunnel. GitHub веду сам. Jessica не тестировать, LIVE не менять.";
+for (const message of [v220LatestExact, "JESSICA_REPLY_"+id+"\n"+v220LatestExact+"\nJESSICA_END_"+id]) {
+    test("v220 latest read-only handoff is parsed without quota-bound provider: "+message.length,
+        async () => {
+            let providerCalls=0;
+            const result=await interpretRelayTurn(
+                {message,plan:"CALIBRI source restoration is isolated, Jessica remains a passive relay"},
+                async()=>{providerCalls++;throw Error("upstream unavailable");});
+            assert.equal(providerCalls,0);
+            assert.equal(result.action,"reply");
+            assert.equal(result.task,"");
+            assert.equal(result.continueThread,false);
+            assert.match(result.reply,/тесты не запускаю/iu);
+        });
+}
+
+
+const currentExact220 = "CALIBRI v220: следующий шаг — проверить на TRAIN, как обучение Green Tunnel изменило логиты первого токена и выбор ответов Yes/No. Исследование выполняю через GitHub. Jessica не тестировать, LIVE не менять.";
+for (const message of [currentExact220,"JESSICA_REPLY_"+id+"\n"+currentExact220+"\nJESSICA_END_"+id]) {
+    test("v220 exact TRAIN logits diagnostic bypasses interpretation and Jessica tests: "+message.length,async()=>{
+        let attempts=0;
+        const value=await interpretRelayTurn({message,plan:"CALIBRI research only, no LIVE edits"},async()=>{
+            attempts++;
+            throw Error("429 simulated AI provider outage");
+        });
+        assert.equal(attempts,0);
+        assert.equal(value.action,"reply");
+        assert.equal(value.task,"");
+        assert.equal(value.continueThread,false);
+        assert.match(value.reply,/тесты не запускаю/iu);
+    });
+}
+
+
+const exactV220FirstLogits = "CALIBRI v220: следующий шаг — измерить на TRAIN изменение логитов первого токена относительно v206 и FP32. По результатам определить причину регресса Green Tunnel. GitHub веду самостоятельно. Jessica не тестировать, LIVE не менять.";
+for (const message of [exactV220FirstLogits, "JESSICA_REPLY_"+id+"\n"+exactV220FirstLogits+"\nJESSICA_END_"+id]) {
+    test("v220 first-token logits passive relay bypasses failed provider: "+message.length,async()=>{
+        let invoked=0;
+        const result=await interpretRelayTurn(
+            {message,plan:"CALIBRI research in GitHub, do not test in Jessica"},
+            async()=>{invoked++;throw Error("mock-provider-unavailable")});
+        assert.equal(invoked,0);
+        assert.equal(result.action,"reply");
+        assert.equal(result.task,"");
+        assert.equal(result.continueThread,false);
+    });
+}
+
+const currentV221MeasuredStep = "CALIBRI v221: CI #42301515662 уже измеряет логиты 48 TRAIN-запросов. Следующий шаг — сравнить FP32, v206 и v220, определить потерянные правильные ответы. Jessica не тестировать, LIVE не менять.";
+for (const message of [currentV221MeasuredStep, "JESSICA_REPLY_"+id+"\n"+currentV221MeasuredStep+"\nJESSICA_END_"+id]) {
+    test("v221 exact no-test message cannot call failed remote interpreter: "+message.length,async()=>{
+        let providerCalls=0;
+        const result=await interpretRelayTurn({message,plan:"CALIBRI GitHub only"},async()=>{
+            providerCalls++;throw Error("upstream failed");
+        });
+        assert.equal(providerCalls,0);
+        assert.equal(result.action,"reply");
+        assert.equal(result.task,"");
+        assert.equal(result.continueThread,false);
+        assert.match(result.reply,/тесты не запускаю/iu);
+    });
+}
