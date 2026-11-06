@@ -1,4 +1,4 @@
-name: CALIBRI v212 135M FP32 self-generated TRAIN distillation, sealed QA
+name: CALIBRI v212 sealed source native QA recovery
 on:
   push:
     branches:
@@ -17,9 +17,9 @@ permissions:
   contents: read
   actions: read
 jobs:
-  original_135m_real_paid_source_first_divergence_24step:
+  original_135m_existing_sealed_source_NATIVE_QA_only:
     runs-on: ubuntu-22.04
-    timeout-minutes: 240
+    timeout-minutes: 120
     env:
       PYTHONPATH: research/calibri
       OMP_NUM_THREADS: '2'
@@ -59,13 +59,25 @@ jobs:
           path: inputs/v193
           run-id: 42095901870
           github-token: ${{ github.token }}
-      - name: Restore sealed original 135M v206 on 24 paid operators using teacher trajectories, seal before QA
+      # The previous 24-step TRAIN completed successfully and sealed the
+      # physical 0.667839-bpp source before crashing in the v186 CPU score
+      # function (it requires input key CB186). Its artifact was uploaded,
+      # even though the overall GitHub job was marked failed. Do NOT retrain.
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v212-original-135m-first-divergence-24step-native-QA
+          path: inputs/v212
+          run-id: 42278290720
+          github-token: ${{ github.token }}
+      - name: Reuse immutable signed physical source and score native v212 only
         run: |
-          python -m v212.run inputs/v206/CALIBRI_v206_guarded_48step_135M.cb59 inputs/v161/CALIBRI_v161_original_block0_paid_onebit.cb153 inputs/v193/v193_original_FP32_135M_vs_360M_new_96QA_complete.json results/v212
+          mkdir -p results/v212
+          cp inputs/v212/* results/v212/
+          python -m v212.postprocess inputs/v206/CALIBRI_v206_guarded_48step_135M.cb59 inputs/v161/CALIBRI_v161_original_block0_paid_onebit.cb153 inputs/v193/v193_original_FP32_135M_vs_360M_new_96QA_complete.json results/v212 results/v212
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: calibri-v212-original-135m-first-divergence-24step-native-QA
+          name: calibri-v212-immutable-sealed-source-real-native-QA-postseal
           path: results/v212/
           if-no-files-found: warn
           retention-days: 45
