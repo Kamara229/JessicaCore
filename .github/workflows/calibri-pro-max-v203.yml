@@ -1,0 +1,53 @@
+name: CALIBRI v203 v202 sealed TRAIN rollback forensics
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v203-train-guard-rollback-forensics'
+    paths:
+      - 'research/calibri/v203/**'
+      - 'research/calibri/test_v203_v202_rollback_forensics.py'
+      - '.github/workflows/calibri-pro-max-v203.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v203/**'
+      - 'research/calibri/test_v203_v202_rollback_forensics.py'
+      - '.github/workflows/calibri-pro-max-v203.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  read_only_v202_global_train_guard_rollback:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify TRAIN-only guard analysis without loading a model
+        run: |
+          python -m unittest test_v203_v202_rollback_forensics -v
+          python -m compileall -q research/calibri/v203
+      - name: Retrieve previously sealed v202 source-training audit, no inference
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-v202-original-135m-repeat-unlikelihood-native-QA
+          path: inputs/v202
+          run-id: 42249365563
+          github-token: ${{ github.token }}
+      - name: Diagnose final guard rollback from immutable TRAIN records
+        run: |
+          python -m v203.forensics inputs/v202 results/v203
+      - name: Preserve independent diagnostic and SHA256
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v203-read-only-v202-TRAIN-global-rollback-diagnosis
+          path: results/v203/
+          if-no-files-found: warn
+          retention-days: 45
