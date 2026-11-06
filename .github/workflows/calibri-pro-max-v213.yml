@@ -1,0 +1,39 @@
+name: CALIBRI v213 diagnostic 206 vs 212 and causal TRAIN plan
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v213-train-causal-recovery'
+    paths:
+      - 'research/calibri/v213/**'
+      - '.github/workflows/calibri-pro-max-v213.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  v213_public_dev_retrospective_and_train_only_plan:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v212-immutable-sealed-source-real-native-QA-postseal
+          path: inputs/v212
+          run-id: 42281754802
+          github-token: ${{ github.token }}
+      - name: Diagnose per-case why v206 got 3 and v212 got 2 (NO training selection by DEV)
+        run: |
+          python research/calibri/v213/diagnose.py inputs/v212 results/v213/BASELINE_v206_AND_v212_DEV16_RETROSPECTIVE.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v213-qa-root-cause-retrospective-only
+          path: results/v213/
+          retention-days: 45
+          if-no-files-found: warn
