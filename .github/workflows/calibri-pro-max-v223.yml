@@ -1,0 +1,63 @@
+name: CALIBRI v223 TRAIN second-token FP32/v206/v220 margins
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v223-second-token-margin-audit'
+    paths:
+      - 'research/calibri/v223/**'
+      - '.github/workflows/calibri-pro-max-v223.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v223/**'
+      - '.github/workflows/calibri-pro-max-v223.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  read_only_train_second_token_logit_margin:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original 135M CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Verify TRAIN-only source comparison syntax
+        run: |
+          python -m compileall -q research/calibri/v223
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v206-original-135m-first-divergence-48step-native-QA
+          path: inputs/v206
+          run-id: 42255701945
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v220-original135m-all-layer-paid-green-tunnel
+          path: inputs/v220
+          run-id: 42298991456
+          github-token: ${{ github.token }}
+      - name: Compare complete second-token logit distributions on 48 unchanged TRAIN prompts
+        run: |
+          python research/calibri/v223/run.py inputs/v206/CALIBRI_v206_guarded_48step_135M.cb59 inputs/v220/CALIBRI_v220_all_layer_paid_TRAIN_tunnel.cb59 results/v223
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v223-train-only-48-second-token-logit-margin
+          path: results/v222/
+          if-no-files-found: warn
+          retention-days: 45
+          compression-level: 0
