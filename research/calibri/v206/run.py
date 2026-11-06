@@ -223,7 +223,7 @@ def pilot_recover(student, sources, teacher_refs, train_pairs,
     final_full = probe_first_tokens(student,sources,train_pairs)
     # v199: The immutable original v186 gets only 4 distinct first tokens
     # on 48 complete TRAIN prompts (8.33%). 25% is thus unattainable for
-    # a candidate required to retain v186 behavior in just 16 source steps.
+    # a candidate required to retain v186 behavior in just 48 source steps.
     # Preserve no-regression on ALL 24 full TRAIN pairs, keep the absolute
     # 25% anti-collapse floor on the precommitted 8-pair per-step subset,
     # and apply a baseline-relative diversity floor on the full set.
@@ -325,7 +325,7 @@ def run(v186_path,v161_path,v193_path,out):
     student,sources=build_trainable_from_paid_source(archive)
     fit=pilot_recover(student,sources,teacher_refs,train_pairs,
                       fp32_targets,schedule)
-    save(out/"ACTUAL_guarded_TRAIN_16_step_audit.json",fit)
+    save(out/"ACTUAL_guarded_TRAIN_48_step_audit.json",fit)
     clear(sources)
     blob,seal=replace_discrete(archive,sources,strict=False)
     complete=PhysicalSource(codec="CB59_K32V8_trained",
@@ -368,10 +368,10 @@ def run(v186_path,v161_path,v193_path,out):
         frozen_dev=freeze_cases(all_cases())
         native_speed=speed_pairs({"CB59":cb59,"CB186":cb198},tok,frozen_dev)
         save(out/"real_matched_native_32_token_CPU_vs_CB59.json",native_speed)
-        prior_valid=validation_pairs({"CB186":cb186,"GT204":cb198},tok,valid_pairs)
+        prior_valid=validation_pairs({"CB186":cb186,"GT206":cb198},tok,valid_pairs)
         save(out/"HELDOUT_v186_VALID_pair_comparison_AFTER_sealing.json",prior_valid)
         dev_16=newly_frozen_public_dev_16(
-            {"CB186":cb186,"GT204":cb198},tok,v193_path,out)
+            {"CB186":cb186,"GT206":cb198},tok,v193_path,out)
     result={"completed":True,"authentic_pretrained_135M_unique":p.FROZEN_SOURCE_135M_UNIQUE,
             "source_SHA256":seal["sha256"],"whole_original_source_bpp":seal["complete_bpp"],
             "guard_accepted_step_count":fit["accepted_steps_before_full_TRAIN_guard"],
@@ -379,8 +379,8 @@ def run(v186_path,v161_path,v193_path,out):
             "native_CPU_speed_ratio_CB59":native_speed["median_speed_ratio_vs_CB59"],
             "original_FP32_16_machine_correct":dev_16["scores"]["FP32_existing_135M"]["machine_confirmed"],
             "previous_v186_16_machine_correct":dev_16["scores"]["CB186"]["machine_confirmed"],
-            "new_v206_16_machine_correct":dev_16["scores"]["GT204"]["machine_confirmed"],
-            "new_v206_complete_answers":dev_16["native_compact_actual_QA"]["GT204"],
+            "new_v206_16_machine_correct":dev_16["scores"]["GT206"]["machine_confirmed"],
+            "new_v206_complete_answers":dev_16["native_compact_actual_QA"]["GT206"],
             "prescale_135M_FP32_quality_parity_NOT_certified":True,
             "no_user_chat_Jessica_tests":True,
             "NO_larger_models_or_LIVE_changes":True}
