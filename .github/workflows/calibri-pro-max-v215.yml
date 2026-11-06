@@ -1,0 +1,69 @@
+name: CALIBRI v215 broad-native-hidden FP32 teacher Green Tunnel QA
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v215-native-logit-distribution-distill'
+    paths:
+      - 'research/calibri/v215/**'
+      - '.github/workflows/calibri-pro-max-v215.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v215/**'
+      - '.github/workflows/calibri-pro-max-v215.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  authentic_135m_train_full_vocab_teacher_paid_rank4:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original real 135M CPU and native CB59 dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile v215 research-only Green Tunnel
+        run: |
+          python -m compileall -q research/calibri/v215
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v206-original-135m-first-divergence-48step-native-QA
+          path: inputs/v206
+          run-id: 42255701945
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v161-original-block0-paid-onebit-under-0p7
+          path: inputs/v161
+          run-id: 41920207168
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v193-actual-original-135M-vs-360M-frozen-grader-new-96QA
+          path: inputs/v193
+          run-id: 42095901870
+          github-token: ${{ github.token }}
+      - name: Distill original FP32 full vocabulary on diverse native TRAIN activations, seal <=0.700 bpp, then frozen QA
+        run: |
+          python research/calibri/v215/train.py inputs/v206/CALIBRI_v206_guarded_48step_135M.cb59 inputs/v161/CALIBRI_v161_original_block0_paid_onebit.cb153 inputs/v193/v193_original_FP32_135M_vs_360M_new_96QA_complete.json results/v215
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v215-broad-train-FP32-full-vocab-paid-0p700-native-qa
+          path: results/v215/
+          if-no-files-found: warn
+          retention-days: 45
+          compression-level: 0
