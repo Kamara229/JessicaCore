@@ -1,0 +1,53 @@
+name: CALIBRI v201 sealed-v200 read-only QA failure audit
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v201-sealed-qa-causal-audit'
+    paths:
+      - 'research/calibri/v201/**'
+      - 'research/calibri/test_v201_qa_fault_audit.py'
+      - '.github/workflows/calibri-pro-max-v201.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v201/**'
+      - 'research/calibri/test_v201_qa_fault_audit.py'
+      - '.github/workflows/calibri-pro-max-v201.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  read_only_sealed_public_DEV16:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate frozen public QA audit without loading any model
+        run: |
+          python -m unittest test_v201_qa_fault_audit -v
+          python -m compileall -q research/calibri/v201
+      - name: Retrieve already completed v200 sealed artifact (not new inference)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-v200-original-135m-autoregressive-TRAIN-full-sequence-native-QA
+          path: inputs/v200
+          run-id: 42114682387
+          github-token: ${{ github.token }}
+      - name: Analyze existing v200 complete answers and frozen FP32 verdicts
+        run: |
+          python -m v201.audit inputs/v200/REAL_GREEN_TUNNEL_new_public_DEV_16_full_QA.json results/v201
+      - name: Archive failure types only (model files remain unchanged)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v201-read-only-sealed-v200-public-dev16-diagnostics
+          path: results/v201/
+          if-no-files-found: warn
+          retention-days: 45
