@@ -150,7 +150,7 @@ def heldout_metric(dataset,weights,gain,batched=32):
         baseline=dataset["baseline"][start:start+batched]
         teacher=dataset["teacher"][start:start+batched]
         pred=baseline+gain*vals["bias"][None,:]
-        pred=pred+gain*((h@vals["B"])@vals["A"].T)
+        pred=pred+gain*((h@vals["B"].T)@vals["A"].T)
         chosen=pred.argmax(-1)
         original=teacher.argmax(-1)
         teacher_choice+=int((chosen==original).sum())
@@ -169,7 +169,7 @@ def choose_candidate(samples,heldout):
     torch.manual_seed(TRAIN_RESEARCH_SEED)
     # A,B are the only rank-4 factors in the physically paid sidecar.
     A=torch.nn.Parameter(torch.randn(p.VOCAB_SIZE,RANK)*0.001)
-    B=torch.nn.Parameter(torch.randn(576,RANK)*0.01)
+    B=torch.nn.Parameter(torch.randn(RANK,576)*0.01)
     bias=torch.nn.Parameter(torch.zeros(p.VOCAB_SIZE))
     optim=torch.optim.Adam([A,B,bias],lr=LR)
     n=len(samples["hidden"])
@@ -181,7 +181,7 @@ def choose_candidate(samples,heldout):
         hidden=samples["hidden"][ids]
         raw=samples["baseline"][ids]
         teacher=samples["teacher"][ids]
-        logits=raw+((hidden@B)@A.T)+bias[None]
+        logits=raw+((hidden@B.T)@A.T)+bias[None]
         # Each TRAIN position uses the full FP32 vocabulary distribution.
         # Teacher argmax term prioritizes actual first-token behavior.
         soft=F.softmax(teacher,dim=-1)
