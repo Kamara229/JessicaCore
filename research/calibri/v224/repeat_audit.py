@@ -20,8 +20,14 @@ def repeated_positions(token_ids):
 
 
 def analyze(data):
-    if data.get("completed") is not True or data.get("source_is_original_sealed") is not True:
-        raise AssertionError("Not a completed authenticated v222 source comparison")
+    if data.get("completed") is not True or data.get("never_train_or_update_source") is not True:
+        raise AssertionError("Not completed immutable v222 TRAIN source comparison")
+    expected_hashes = {
+        "v206":"5a6d5f07f9e49fa6063dd772d7e2aee53beeb3527d10d5a429715593b68939de",
+        "v220":"e7541169b5b2188393859953210f52a38ca24451129e246eebb20cb20466e34d",
+    }
+    if data.get("source_hashes") != expected_hashes:
+        raise AssertionError("Source SHA256 provenance differs from verified v222 archives")
     if data.get("public_DEV16_not_reused") is not True:
         raise AssertionError("v222 DEV isolation not confirmed")
     rows = data["all_48_opposing_TRAIN_rows"]
