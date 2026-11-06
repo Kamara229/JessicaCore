@@ -1,8 +1,8 @@
-name: CALIBRI v211 sealed all-24 TRAIN full answers versus v206
+name: CALIBRI v211 sealed 24 TRAIN pairs v206 versus v208
 on:
   push:
     branches:
-      - 'research/calibri-pro-max-v211-all24-train-full-answer-forensics'
+      - 'research/calibri-pro-max-v211-sealed-v206-v208-full-train-answers'
     paths:
       - 'research/calibri/v211/**'
       - 'research/calibri/test_v211_all24_train_full_answers.py'
@@ -43,9 +43,9 @@ jobs:
           python -m compileall -q research/calibri/v211
       - uses: actions/download-artifact@v4
         with:
-          name: calibri-v206-paid-balanced-code-swaps-native-QA
+          name: calibri-v206-original-135m-first-divergence-48step-native-QA
           path: inputs/v206
-          run-id: 42263456752
+          run-id: 42255701945
           github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
@@ -55,7 +55,7 @@ jobs:
           github-token: ${{ github.token }}
       - name: Read-only all 24 opposite TRAIN pairs with 6-token greedy continuations
         run: |
-          python -m v211.train_only_full_answers inputs/v206/CALIBRI_v206_balanced_5bit_full_source.cb59 inputs/v208/CALIBRI_v208_next48_135M.cb59 results/v211
+          python -m v211.train_only_full_answers inputs/v206/CALIBRI_v206_guarded_48step_135M.cb59 inputs/v208/CALIBRI_v208_guarded_48step_135M.cb59 results/v211
       - uses: actions/upload-artifact@v4
         if: always()
         with:
