@@ -1,0 +1,57 @@
+name: CALIBRI v207 read-only sealed 135M v204-v206 answer transitions
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v207-sealed-v204-v206-answer-transitions'
+    paths:
+      - 'research/calibri/v207/**'
+      - 'research/calibri/test_v207_read_only.py'
+      - '.github/workflows/calibri-pro-max-v207.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v207/**'
+      - 'research/calibri/test_v207_read_only.py'
+      - '.github/workflows/calibri-pro-max-v207.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original_135m_v204_v206_read_only_full_answer_deltas:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic immutable DEV and TRAIN invariance unit tests (no model)
+        run: |
+          python -m unittest test_v207_read_only -v
+          python -m compileall -q research/calibri/v207
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v204-original-135m-repeat-unlikelihood-native-QA
+          path: inputs/v204
+          run-id: 42252007115
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v206-original-135m-first-divergence-48step-native-QA
+          path: inputs/v206
+          run-id: 42255701945
+          github-token: ${{ github.token }}
+      - name: Retrospective read-only QA and TRAIN guard analysis
+        run: |
+          python research/calibri/v207/read_only.py inputs/v204 inputs/v206 results/v207
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v207-read-only-v204-v206-original-135m-answer-transitions
+          path: results/v207/
+          if-no-files-found: warn
+          retention-days: 45
