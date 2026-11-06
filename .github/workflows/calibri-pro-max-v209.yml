@@ -1,0 +1,65 @@
+name: CALIBRI v209 sealed all-24 TRAIN full answers versus v186
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v209-all24-train-full-answer-forensics'
+    paths:
+      - 'research/calibri/v209/**'
+      - 'research/calibri/test_v209_all24_train_full_answers.py'
+      - '.github/workflows/calibri-pro-max-v209.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v209/**'
+      - 'research/calibri/test_v209_all24_train_full_answers.py'
+      - '.github/workflows/calibri-pro-max-v209.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  all_24_original_135m_TRAIN_complete_sequence_read_only:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original 135M read-only CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Verify immutable 48-answer frozen TRAIN analysis (no model)
+        run: |
+          python -m unittest test_v209_all24_train_full_answers -v
+          python -m compileall -q research/calibri/v209
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v186-paid-balanced-code-swaps-native-QA
+          path: inputs/v186
+          run-id: 42085087419
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v206-original-135m-first-divergence-48step-native-QA
+          path: inputs/v206
+          run-id: 42255701945
+          github-token: ${{ github.token }}
+      - name: Read-only all 24 opposite TRAIN pairs with 6-token greedy continuations
+        run: |
+          python -m v209.train_only_full_answers inputs/v186/CALIBRI_v186_balanced_5bit_full_source.cb59 inputs/v206/CALIBRI_v206_guarded_48step_135M.cb59 results/v209
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v209-read-only-frozen-original-135m-all24-TRAIN-full-answers
+          path: results/v209/
+          if-no-files-found: warn
+          retention-days: 45
