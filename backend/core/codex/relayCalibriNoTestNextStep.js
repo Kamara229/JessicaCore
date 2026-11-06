@@ -43,7 +43,10 @@ export function calibriNoTestNextStep(message) {
     const noJessicaTest =
         /(?:Джессика|Jessica)\s*,?\s*тесты?\s+не\s+запуска(?:й|ет|ть|ю)/iu.test(body) ||
         /тест(?:ы)?\s+(?:в\s+(?:сво[её]м|обычном)\s+чате\s+)?Jessica\s+не\s+(?:запуска(?:й|ет|ть|ю)|нужен|требуется)/iu.test(body) ||
-        /Запуск\s+(?:теста\s+)?выполняю\s+я\s+через\s+GitHub/iu.test(body);
+        /Запуск\s+(?:теста\s+)?выполняю\s+я\s+через\s+GitHub/iu.test(body) ||
+        // The owner routinely writes "Jessica не тестировать" as a no-test
+        // prohibition. It is NOT a request for a Jessica benchmark.
+        /(?:Jessica|Джессик[ауыие])\s+не\s+тестировать(?=$|[^\p{L}\p{N}])/iu.test(body);
     if (!noJessicaTest) return null;
 
     // Do not turn an ambiguous/conflicting instruction into consent to test.
