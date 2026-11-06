@@ -121,3 +121,18 @@ for (const message of [currentExact220,"JESSICA_REPLY_"+id+"\n"+currentExact220+
         assert.match(value.reply,/тесты не запускаю/iu);
     });
 }
+
+
+const exactV220FirstLogits = "CALIBRI v220: следующий шаг — измерить на TRAIN изменение логитов первого токена относительно v206 и FP32. По результатам определить причину регресса Green Tunnel. GitHub веду самостоятельно. Jessica не тестировать, LIVE не менять.";
+for (const message of [exactV220FirstLogits, "JESSICA_REPLY_"+id+"\n"+exactV220FirstLogits+"\nJESSICA_END_"+id]) {
+    test("v220 first-token logits passive relay bypasses failed provider: "+message.length,async()=>{
+        let invoked=0;
+        const result=await interpretRelayTurn(
+            {message,plan:"CALIBRI research in GitHub, do not test in Jessica"},
+            async()=>{invoked++;throw Error("mock-provider-unavailable")});
+        assert.equal(invoked,0);
+        assert.equal(result.action,"reply");
+        assert.equal(result.task,"");
+        assert.equal(result.continueThread,false);
+    });
+}
