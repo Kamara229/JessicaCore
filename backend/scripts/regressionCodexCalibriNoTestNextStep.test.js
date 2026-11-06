@@ -104,3 +104,20 @@ for (const message of [v220LatestExact, "JESSICA_REPLY_"+id+"\n"+v220LatestExact
             assert.match(result.reply,/тесты не запускаю/iu);
         });
 }
+
+
+const currentExact220 = "CALIBRI v220: следующий шаг — проверить на TRAIN, как обучение Green Tunnel изменило логиты первого токена и выбор ответов Yes/No. Исследование выполняю через GitHub. Jessica не тестировать, LIVE не менять.";
+for (const message of [currentExact220,"JESSICA_REPLY_"+id+"\n"+currentExact220+"\nJESSICA_END_"+id]) {
+    test("v220 exact TRAIN logits diagnostic bypasses interpretation and Jessica tests: "+message.length,async()=>{
+        let attempts=0;
+        const value=await interpretRelayTurn({message,plan:"CALIBRI research only, no LIVE edits"},async()=>{
+            attempts++;
+            throw Error("429 simulated AI provider outage");
+        });
+        assert.equal(attempts,0);
+        assert.equal(value.action,"reply");
+        assert.equal(value.task,"");
+        assert.equal(value.continueThread,false);
+        assert.match(value.reply,/тесты не запускаю/iu);
+    });
+}
