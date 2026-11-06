@@ -393,7 +393,13 @@ def run(v206_path,v161_path,v193_path,out):
              train_pairs[0]["left"]["prompt_ids"][:8][None])
         save(out/"TRAIN_surrogate_vs_native_paid_numerical_consistency.json",numeric)
         frozen_dev=freeze_cases(all_cases())
-        native_speed=speed_pairs({"CB59":cb59,"CB212":cb212},tok,frozen_dev)
+        # The stable legacy v186 CPU scorer hardcodes the comparison key CB186.
+        # Alias its input only; restore the true CB212 identity in saved rows.
+        native_speed=speed_pairs({"CB59":cb59,"CB186":cb212},tok,frozen_dev)
+        for row in native_speed["paired_32_token_runs"]:
+            row["wall_seconds"]["CB212"]=row["wall_seconds"].pop("CB186")
+            row["speed_ratio_CB212_vs_CB59"]=row.pop("speed_ratio_CB186_vs_CB59")
+        native_speed["real_native_source_version"]="CB212"
         save(out/"real_matched_native_32_token_CPU_vs_CB59.json",native_speed)
         prior_valid=validation_pairs({"CB206":cb206,"GT212":cb212},tok,valid_pairs)
         save(out/"HELDOUT_v206_VALID_pair_comparison_AFTER_sealing.json",prior_valid)
