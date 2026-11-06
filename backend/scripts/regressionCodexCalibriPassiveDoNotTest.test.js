@@ -45,3 +45,26 @@ test("an explicit chat test must not be reclassified as passive", async()=>{
     assert.equal(decision.task,"Сколько будет 2+2?");
     assert.ok(interpreted<=1);
 });
+
+// Real v212 relay from the next owner-selected research turn: the old
+// production parser routes this passive status into an AI-provider request.
+// This must be handled without claiming to have tested Jessica.
+const v212Body = "CALIBRI v212: проверить, завершаются ли 24 шага восстановления в CI #42278290720 без зависания. После завершения извлечь результаты, не перезапуская обучение. Jessica не тестировать; LIVE не менять.";
+const v212Uuid = "fb6f94f3-bc4a-4576-8cb9-a4e70f798205";
+const v212Envelope = "JESSICA_REPLY_" + v212Uuid + "\n\n" + v212Body + "\n\nJESSICA_END_" + v212Uuid;
+for (const message of [v212Body, v212Envelope]) {
+    test("v212 no-test relay remains provider-free when quota unavailable: " + message.length, async () => {
+        let remoteCalls = 0;
+        const decision = await interpretRelayTurn({message, plan:"CALIBRI v212"}, async () => {
+            remoteCalls++;
+            throw Error("Groq unavailable");
+        });
+        assert.equal(remoteCalls, 0, "Passive CALIBRI status cannot use remote interpreter");
+        assert.equal(decision.action, "reply");
+        assert.equal(decision.task, "");
+        assert.equal(decision.continueThread, false);
+        assert.match(decision.reply, /CALIBRI v212/);
+        assert.match(decision.reply, /тесты не запускаю/);
+        assert.doesNotMatch(decision.reply, /тест выполнен|результат теста|сбой/u);
+    });
+}
