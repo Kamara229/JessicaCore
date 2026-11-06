@@ -35,11 +35,15 @@ def train_rollout_ce_and_repeat_unlikelihood(student, pair, *, steps_cap=6):
             token = int(predicted)
             if (generated and token == generated[-1]
                     and token != int(gold[step])):
-                probability = torch.softmax(logits.float(), -1)[token]
-                # Effective gradient even at extremely overconfident repeats;
-                # no inference-time suppression or externally stored biases.
-                repeat_penalties.append(
-                    -torch.log1p(-probability.clamp(max=1.0 - 1e-6)))
+                # Stable -log(1 - p_repeat) = softplus(logit_repeat -
+                # logsumexp(logits_of_all_other_tokens)). In contrast to
+                # clamping a probability near one, this keeps gradients alive
+                # on the strongest unwanted repetitions.
+                if logits.numel() < 2:
+                    raise AssertionError("Vocabulary needs alternatives")
+                others = torch.cat((logits[:token], logits[token + 1:]))
+                repeat_penalties.append(F.softplus(
+                    logits[token] - torch.logsumexp(others, dim=0)))
                 penalized_positions.append(step)
             generated.append(token)
             context = torch.cat((context, predicted.reshape(1, 1)), dim=1)
