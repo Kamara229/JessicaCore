@@ -1,0 +1,40 @@
+name: CALIBRI v224 read-only repeated TRAIN token positions
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v224-train-repeat-position-audit'
+    paths:
+      - 'research/calibri/v224/**'
+      - '.github/workflows/calibri-pro-max-v224.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  analyze_original_v222_sealed_train_artifact:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify source syntax
+        run: python -m compileall -q research/calibri/v224
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v222-train-only-48-twelve-token-divergence
+          path: inputs/v222
+          run-id: 42302182882
+          github-token: ${{ github.token }}
+      - name: Find all five original adjacent TRAIN repeat positions without running any model
+        run: python research/calibri/v224/repeat_audit.py inputs/v222/v222_ACTUAL_TRAIN_first_12token_rollout_divergence.json results/v224/v224_original_5_TRAIN_repeated_token_locations.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v224-read-only-original-TRAIN-repeat-positions
+          path: results/v224/
+          if-no-files-found: warn
+          retention-days: 45
