@@ -87,3 +87,20 @@ for (const message of [v220Exact, "JESSICA_REPLY_"+id+"\n\n"+v220Exact+"\n\nJESS
             assert.match(result.reply,/тесты не запускаю/iu);
         });
 }
+
+
+const v220LatestExact = "CALIBRI v220: все 16 ответов уже извлечены. Следующий шаг — исследовать потерю правильного Yes на вопросе 24 и повторение цифры 5 на вопросе 0, затем исправить Green Tunnel. GitHub веду сам. Jessica не тестировать, LIVE не менять.";
+for (const message of [v220LatestExact, "JESSICA_REPLY_"+id+"\\n"+v220LatestExact+"\\nJESSICA_END_"+id]) {
+    test("v220 latest read-only handoff is parsed without quota-bound provider: "+message.length,
+        async () => {
+            let providerCalls=0;
+            const result=await interpretRelayTurn(
+                {message,plan:"CALIBRI source restoration is isolated, Jessica remains a passive relay"},
+                async()=>{providerCalls++;throw Error("upstream unavailable");});
+            assert.equal(providerCalls,0);
+            assert.equal(result.action,"reply");
+            assert.equal(result.task,"");
+            assert.equal(result.continueThread,false);
+            assert.match(result.reply,/тесты не запускаю/iu);
+        });
+}
