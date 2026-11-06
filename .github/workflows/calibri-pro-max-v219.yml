@@ -1,0 +1,69 @@
+name: CALIBRI v219 native all-211 matrix product 5bit quantum source
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v219-5bit-product-quantizer'
+    paths:
+      - 'research/calibri/v219/**'
+      - '.github/workflows/calibri-pro-max-v219.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v219/**'
+      - '.github/workflows/calibri-pro-max-v219.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  v219_two_all_211_source_quantizer_arms_and_head_ablation:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned FP32 reference and packed-C model CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Static and native no-extra-weights code preflight
+        run: |
+          python -m compileall -q research/calibri/v219
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v206-original-135m-first-divergence-48step-native-QA
+          path: inputs/v206
+          run-id: 42255701945
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v161-original-block0-paid-onebit-under-0p7
+          path: inputs/v161
+          run-id: 41920207168
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v193-actual-original-135M-vs-360M-frozen-grader-new-96QA
+          path: inputs/v193
+          run-id: 42095901870
+          github-token: ${{ github.token }}
+      - name: Source-only global K32 vs 4x8 product quantization, seal all full models then real native whole-answer QA
+        run: |
+          python research/calibri/v219/run.py inputs/v206/CALIBRI_v206_guarded_48step_135M.cb59 inputs/v161/CALIBRI_v161_original_block0_paid_onebit.cb153 inputs/v193/v193_original_FP32_135M_vs_360M_new_96QA_complete.json results/v219
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v219-global-K32-vs-all211-product5bit-full-source-QA
+          path: results/v219/
+          if-no-files-found: warn
+          retention-days: 45
+          compression-level: 0
