@@ -1,0 +1,85 @@
+name: CALIBRI2 S4 recover sealed 22M after end-of-run probe cap failure
+on:
+  push:
+    branches: ['research/calibri2-s4-sealed-recovery-20261107']
+    paths: ['research/calibri2/s4/recover_sealed.py', '.github/workflows/calibri2-s4-recover.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  recover_s4_seal_and_score_160_answers:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 95
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Check no-retrain recovery source syntax
+        run: python -m compileall -q research/calibri2/s4/recover_sealed.py
+      - name: Restore immutable S4 physical archive from FAILED posttrain probe run
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s4-22M-2048-multitoken-paid
+          path: inputs/s4
+          run-id: 42381140396
+          github-token: ${{ github.token }}
+      - name: Download original S3 sealed comparison source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s3-22M-2560-TRAIN-diverse-task-paid
+          path: inputs/s3
+          run-id: 42375297132
+          github-token: ${{ github.token }}
+      - name: Recover S4 SHA, physical bpp, 43 codebooks and 32 TRAIN answers, no training
+        run: |
+          python research/calibri2/s4/recover_sealed.py inputs/s4/CALIBRI2_S4_22M_2048steps_paid.cb59 results/s4recovery/proof
+      - name: Upload recovered model SHA and actual TRAIN proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s4-RECOVERY-PROOF-22M
+          path: results/s4recovery/proof/
+          retention-days: 45
+      - name: Score frozen S4 160 new questions with earlier S3 source for comparison
+        run: python research/calibri2/s4/frozen_eval.py inputs/s3/CALIBRI2_S3_22M_2560steps_paid.cb59 results/s4recovery/s3 --label SEALED_S3_BEFORE_S4
+      - name: Upload S3 frozen independent baseline
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s4-RECOVERY-BEFORE-160-16
+          path: results/s4recovery/s3/
+          retention-days: 45
+      - name: Score unchanged frozen S4 160 and 16 open AFTER 2048 actual training steps
+        run: python research/calibri2/s4/frozen_eval.py inputs/s4/CALIBRI2_S4_22M_2048steps_paid.cb59 results/s4recovery/s4 --label SEALED_S4_AFTER_2048
+      - name: Upload 160 objective and 16 open actual trained S4 answers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s4-RECOVERY-AFTER-160-16
+          path: results/s4recovery/s4/
+          retention-days: 45
+      - name: Check native C matched S3 vs S4 22M CPU speed, no dense 2D source
+        run: |
+          python research/calibri2/s4/native_speed.py inputs/s3/CALIBRI2_S3_22M_2560steps_paid.cb59 inputs/s4/CALIBRI2_S4_22M_2048steps_paid.cb59 results/s4recovery/proof/ACTUAL_CALIBRI2_S4_RECOVERED_SEALED.json results/s4recovery/native
+      - name: Upload S4 native speed
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s4-RECOVERY-NATIVE
+          path: results/s4recovery/native/
+          retention-days: 45
