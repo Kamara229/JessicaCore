@@ -45,7 +45,7 @@ def suite():
                           "question":q,"gold":a})
     for i in range(64):
         owner=f"JariEval{i:03d}";other=f"KoriEval{i:03d}"
-        red=i%2==0
+        red=(i//2)%2==0
         c="red" if red else "blue"
         d="blue" if red else "red"
         if i%2==0:
@@ -58,7 +58,7 @@ def suite():
         put("color_binding",i,q,c)
         a=2207+i*43
         b=a+13+i%13
-        positive=i%2==0
+        positive=(i//4)%2==0
         if i%4<2:
             lhs,rhs=(b,a) if positive else (a,b)
             q=f"Is the number {lhs} greater than the number {rhs}? Say Yes or No."
@@ -71,9 +71,9 @@ def suite():
            f"'{label}'. Write that password using exactly two words.")
         put("two_word_recall",i,q,label)
     creative=[{"id":f"open_{i:02d}","question":text+(
-        " Reply with one short English sentence." if i%2 else "")}
+        " Reply with one short English sentence." if i>=len(TOPICS) else "")}
         for i,text in enumerate(TOPICS*2)]
-    if len(objective)!=192 or len(creative)!=24 or len(set(x["question"] for x in objective))!=192:
+    if len(objective)!=192 or len(creative)!=24 or len(set(x["question"] for x in objective))!=192 or len(set(x["question"] for x in creative))!=24:
         raise AssertionError("S3 independent 192+24 suite malformed")
     return objective,creative
 
