@@ -38,6 +38,7 @@ LR=.008
 MAX_BPP=.700
 EXPECTED_PARAMS=22368320
 EXPECTED_BYTES=1932195
+EXPECTED_S0_TRAINED_SHA256="dd7dc26501019a2907796f556c5383b1175b2577eecc823e7ef7ee8f3c555100"
 
 def probe(student,sources,pairs,step,arm):
     by_pair={}
@@ -182,6 +183,8 @@ def main():
     torch.set_num_threads(2)
     raw=args.trained_s0_paid_model.read_bytes()
     model_hash=hashlib.sha256(raw).hexdigest()
+    if model_hash!=EXPECTED_S0_TRAINED_SHA256:
+        raise AssertionError("Wrong S0 128-step trained physical archive")
     archive=CB59(raw)
     if archive.meta["original_unique_parameter_count"]!=EXPECTED_PARAMS:
         raise AssertionError("Source does not have 22M unique paid neural parameters")
