@@ -127,7 +127,6 @@ def build_cases(name,data):
     if name in ("boolq","piqa"):
         # This fixed prior balancing is based on dataset annotations ONLY
         # before model inference and never on either model's predictions.
-        yes=[x for x in ordered if x["gold"]=="A" if False]
         # Original answers recovered from visible option text, not model.
         groups=defaultdict(list)
         for x in ordered:
@@ -291,7 +290,8 @@ def evaluate(model_name,model,sources,tok,records,out):
     return result,round(time.perf_counter()-t0,2)
 
 def paired_results(fp32,packed):
-    if len(fp32)!=len(packed)!=len(TASKS)*PER_DOMAIN*len(FORMATS):
+    if (len(fp32)!=len(TASKS)*PER_DOMAIN*len(FORMATS) or
+        len(packed)!=len(TASKS)*PER_DOMAIN*len(FORMATS)):
         raise AssertionError("Paired benchmark count mismatched")
     keys=lambda rows:[(r["case_id"],r["variant"],r["gold"],r["prompt_sha256"])
                          for r in rows]
@@ -375,9 +375,6 @@ def run(path,out):
     torch.manual_seed(SEED)
     torch.set_num_threads(2)
     out=Path(out);out.mkdir(parents=True,exist_ok=True)
-    archive=sha_checked(path,ACCEPTED_V228_STEP12_SHA256)
-    if len(archive.raw) !=P.SOURCE_BYTES if hasattr(archive,"raw") else False:
-        raise AssertionError("Unexpected sealed packed archive")
     tok=AutoTokenizer.from_pretrained(MODEL,revision=MODEL_SHA)
     if tok.eos_token_id is None:
         raise AssertionError("Original model EOS token not defined")
@@ -390,6 +387,7 @@ def run(path,out):
          "n_cases":480,"n_prompts":960,
          "original_135M_revision":MODEL_SHA,
          "CB59_source_SHA":ACCEPTED_V228_STEP12_SHA256}),flush=True)
+    archive=sha_checked(path,ACCEPTED_V228_STEP12_SHA256)
     teacher=AutoModelForCausalLM.from_pretrained(
         MODEL,revision=MODEL_SHA,torch_dtype=torch.float32).cpu().eval()
     n_fp32=sum(p.numel() for p in teacher.parameters())
