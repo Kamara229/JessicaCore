@@ -32,6 +32,18 @@ for (const message of [repeatBody,
   assert.ok(ack.reply.includes("CALIBRI 2.0"));
   assert.equal(generateCalled,false,"Should not require AI provider for second incident");
 }
+// Third live relay incident also fails only because the tested fix remains DRAFT.
+const thirdId = "4c7a0d88-74d6-42ea-8165-0b43f58bbb01";
+const thirdBody = "CALIBRI 2.0: следующий шаг — проверить CI #42368066171 и сравнить обучение одной пары Yes/No с изменением 5-битных индексов и без него. Проверку веду я через GitHub. Джессика тесты не запускает. LIVE не менять.";
+for (const message of [thirdBody,
+  ["JESSICA_REPLY_"+thirdId, "", thirdBody, "", "JESSICA_END_"+thirdId].join("\\n")]) {
+  const ack = await interpretRelayTurn({message,plan:"CALIBRI 2.0 S0",history:[]},noProvider);
+  assert.equal(ack.action,"reply");
+  assert.equal(ack.task,"");
+  assert.equal(ack.continueThread,false);
+  assert.ok(ack.reply.includes("CALIBRI 2.0"));
+  assert.equal(generateCalled,false,"Third incident must not call provider");
+}
 const legacy = calibriNoTestNextStep(
   "CALIBRI v232: следующий шаг — проверить GitHub CI. Джессика тесты не запускает.");
 assert.match(legacy,/CALIBRI v232/u);
