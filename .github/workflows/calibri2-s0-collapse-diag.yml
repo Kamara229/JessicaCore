@@ -1,0 +1,58 @@
+name: CALIBRI2 S0 read-only TRAIN logit collapse diagnostics (5 frozen states)
+on:
+  push:
+    branches:
+      - 'research/calibri2-s0-small-first-paid-architecture'
+    paths:
+      - 'research/calibri2/s0/diagnose_collapse.py'
+      - '.github/workflows/calibri2-s0-collapse-diag.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  frozen_training_examples_only:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU runtime, no original FP32 teacher
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Check diagnostic syntax
+        run: python -m compileall -q research/calibri2/s0/diagnose_collapse.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s0-random-small-physically-paid-native-bootstrap
+          path: inputs/s0random
+          run-id: 42366228524
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s0-22M-64step-paid-TRAIN-source-and-real-answers
+          path: inputs/s0trained
+          run-id: 42366424415
+          github-token: ${{ github.token }}
+      - name: Compare frozen TRAIN token logits before and after four training checkpoints
+        run: |
+          python research/calibri2/s0/diagnose_collapse.py inputs/s0random/CALIBRI2_S0_RANDOM_INITIAL.cb59 inputs/s0trained results/calibri2/s0/diagnosis
+      - name: Preserve factual entropy / token-rank / contrastive predictions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s0-5-snapshot-16-TRAIN-logit-collapse
+          path: results/calibri2/s0/diagnosis/
+          if-no-files-found: warn
+          retention-days: 45
