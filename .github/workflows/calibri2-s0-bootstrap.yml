@@ -8,6 +8,7 @@ on:
       - '.github/workflows/calibri2-s0-bootstrap.yml'
       - 'research/calibri2/s0/diagnose_collapse.py'
       - 'research/calibri2/s0/one_pair_learnability.py'
+      - 'research/calibri2/s1/color_replay.py'
   pull_request:
     branches:
       - 'research/calibri2-v001-from-scratch-135m-paid-weights'
@@ -86,6 +87,24 @@ jobs:
         with:
           name: calibri2-s0-one-TRAIN-pair-64step-5bit-vs-centroids-only
           path: results/calibri2/s0/one_pair/
+          if-no-files-found: warn
+          retention-days: 45
+          compression-level: 0
+      - name: Download frozen S0 128-step physically trained Yes-No model
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s0-one-TRAIN-pair-64step-5bit-vs-centroids-only
+          path: inputs/s0learned
+          run-id: 42368307719
+          github-token: ${{ github.token }}
+      - name: Diagnose whether red-blue training forgets Yes-No without TRAIN rehearsal
+        run: python research/calibri2/s1/color_replay.py inputs/s0learned/CALIBRI2_S0_centroids_and_5bit_128steps.cb59 results/calibri2/s1/color_replay
+      - name: Preserve both S1 physically paid models and exact TRAIN responses before and after reload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s1-one-color-pair-replay-vs-forgetting-128-steps
+          path: results/calibri2/s1/color_replay/
           if-no-files-found: warn
           retention-days: 45
           compression-level: 0
