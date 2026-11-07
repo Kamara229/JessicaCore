@@ -1,0 +1,66 @@
+name: CALIBRI 2.0 v001 matched native C CPU speed vs packed v228
+on:
+  push:
+    branches:
+      - 'research/calibri2-v001-from-scratch-135m-paid-weights'
+    paths:
+      - 'research/calibri2/native_speed_v001.py'
+      - '.github/workflows/calibri2-native-speed-v001.yml'
+  pull_request:
+    branches:
+      - 'research/calibri-v231-heldout-fp32-v228-five-task-answer-benchmark'
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'research/calibri2/native_speed_v001.py'
+      - '.github/workflows/calibri2-native-speed-v001.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  native_packed_CPU_matched_token_throughput:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 140
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned identical C/CPU software
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Native benchmark syntax audit
+        run: |
+          python -m compileall -q research/calibri2/native_speed_v001.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri2-v001-FROM-SCRATCH-135M-real-physical-initial-and-trained
+          path: inputs/c2
+          run-id: 42350849918
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v228-TRAIN-paid-211-recovery-full-answer-gate
+          path: inputs/v228
+          run-id: 42336914724
+          github-token: ${{ github.token }}
+      - name: Measure native C-only source runtime same complete tokens CPU hardware
+        run: |
+          python research/calibri2/native_speed_v001.py inputs/c2/CALIBRI2_v001_AFTER_SCRATCH_TRAIN_135M.cb59 inputs/v228/CALIBRI_v228_TRAIN_ACCEPTED_fullanswer_paid_211.cb59 results/calibri2/native_speed
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri2-v001-REAL-native-C-CPU-speed-v228-paired-8tokens
+          path: results/calibri2/native_speed/
+          if-no-files-found: warn
+          retention-days: 45
+          compression-level: 6
