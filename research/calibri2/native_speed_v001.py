@@ -42,7 +42,7 @@ def model_from_packed(path,sha,kernel):
     cfg._attn_implementation="eager"
     with init_empty_weights(include_buffers=False):
         model=AutoModelForCausalLM.from_config(
-            cfg,torch_dtype=torch.float32).cpu().eval()
+            cfg,torch_dtype=torch.float32).eval()
     contract=bind_into_llama(model,archive,kernel)
     if contract["runtime_dense_multi_dim_source_parameters"]!=0:
         raise AssertionError("Unpaid dense FP32 source in native inference")
