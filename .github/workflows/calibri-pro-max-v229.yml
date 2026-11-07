@@ -7,6 +7,9 @@ on:
       - 'research/calibri/v229/**'
       - '.github/workflows/calibri-pro-max-v229.yml'
   pull_request:
+    branches:
+      - 'research/calibri-pro-max-v228-full-answer-protected-supervision'
+    types: [opened, synchronize, reopened]
     paths:
       - 'research/calibri/v229/**'
       - '.github/workflows/calibri-pro-max-v229.yml'
