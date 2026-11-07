@@ -7,6 +7,14 @@ on:
       - 'research/calibri2/s3/diverse_task_replay.py'
       - 'research/calibri2/s3/fresh_heldout.py'
       - '.github/workflows/calibri2-s3-diverse-replay.yml'
+  pull_request:
+    branches:
+      - 'research/calibri2-v001-from-scratch-135m-paid-weights'
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'research/calibri2/s3/diverse_task_replay.py'
+      - 'research/calibri2/s3/fresh_heldout.py'
+      - '.github/workflows/calibri2-s3-diverse-replay.yml'
   workflow_dispatch:
 permissions:
   contents: read
