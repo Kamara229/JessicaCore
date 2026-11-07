@@ -10,6 +10,7 @@ on:
       - 'research/calibri2/s0/one_pair_learnability.py'
       - 'research/calibri2/s1/color_replay.py'
       - 'research/calibri2/s2/benchmark_1024.py'
+      - 'research/calibri2/s2/capacity_ladder.py'
   pull_request:
     branches:
       - 'research/calibri2-v001-from-scratch-135m-paid-weights'
@@ -126,6 +127,31 @@ jobs:
         with:
           name: calibri2-s2-960-HELDOUT-plus-64-open-text-real-answers
           path: results/calibri2/s2/large-test/
+          retention-days: 45
+          if-no-files-found: warn
+          compression-level: 9
+      - name: Compile and run predeclared 22M 4-to-8-to-24 TRAIN pair capacity ladder
+        run: |
+          python -m compileall -q research/calibri2/s2/capacity_ladder.py
+          python research/calibri2/s2/capacity_ladder.py inputs/s1replay/CALIBRI2_S1_balanced_rehearsal_128paid_steps.cb59 results/calibri2/s2/capacity
+      - name: Upload physical learned S2 22M checkpoints, TRAIN answers, and full learning curves
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s2-22M-1920-train-step-4-8-24-pair-capacity-ladder
+          path: results/calibri2/s2/capacity/
+          retention-days: 45
+          if-no-files-found: warn
+          compression-level: 0
+      - name: Run same frozen independent 960 QA plus 64 freeform after S2 training
+        run: |
+          python research/calibri2/s2/benchmark_1024.py results/calibri2/s2/capacity/CALIBRI2_S2_24pairs_48answers_22M_paid.cb59 results/calibri2/s2/large-test-after --label S2_22M_48TRAIN
+      - name: Upload real S2 heldout QA and actual open-ended responses
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s2-after-1920steps-960-HELDOUT-plus-64-open-text
+          path: results/calibri2/s2/large-test-after/
           retention-days: 45
           if-no-files-found: warn
           compression-level: 9
