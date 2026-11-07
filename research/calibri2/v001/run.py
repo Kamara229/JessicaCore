@@ -98,7 +98,7 @@ def check_physical(archive,expect_equal_size=None):
 
 def native_direct_check(cb:CB59,out:Path):
     compiled=compile_kernel(
-        Path(__file__).resolve().parents[2]/"direct_kernel_v59.c",
+        Path(__file__).resolve().parents[2]/"calibri"/"direct_kernel_v59.c",
         out/"libcalibri2_v001_packed.so")
     kernel=NativeKernel(compiled)
     candidates=["model.layers.0.self_attn.q_proj.weight",
