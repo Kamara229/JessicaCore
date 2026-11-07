@@ -58,6 +58,17 @@ def transplant_old_paid_payloads(small_blob, generated_big_blob):
             target[lb+newstart:lb+newstart+newlength] = \
                 small_blob[sb+start:sb+start+length]
         transfer.append(key)
+    # Physically zero the actual FP16 codeword dictionary in the NEW residual
+    # output projection of every added layer, NOT its row scale. This yields
+    # exact identity on growth while retaining full trainability under the
+    # fixed CB59 paid format (no near-zero frozen scales).
+    for i in range(OLD_LAYERS, NEW_LAYERS):
+        for op in ("self_attn.o_proj", "mlp.down_proj"):
+            name = f"model.layers.{i}.{op}.weight"
+            d = b[name]
+            off, count = d["parts"]["centroids"]
+            assert count == 32 * 8 * 2
+            target[lb+off:lb+off+count] = bytes(count)
     target[-36:-32] = struct.pack("<I", zlib.crc32(target[:-36]))
     target[-32:] = hashlib.sha256(target[:-32]).digest()
     final = bytes(target)
@@ -107,12 +118,10 @@ def main():
     grown_n = sum(x.numel() for x in fresh.parameters())
     if not PARAMS < grown_n < 134515008:
         raise AssertionError("Depth growth is not actually a 22M->~30M intermediary")
-    # Residual x+attention(x), x+MLP(x): tiny o_proj and down_proj make
-    # each new block approximately an identity WITHOUT any dense sidecar.
-    with torch.no_grad():
-        for layer in fresh.model.layers[OLD_LAYERS:NEW_LAYERS]:
-            layer.self_attn.o_proj.weight.mul_(1.e-6)
-            layer.mlp.down_proj.weight.mul_(1.e-6)
+    # Keep normal-magnitude random row scales for new O/down matrices.
+    # Their paid centroids are zeroed IN THE PHYSICAL ARCHIVE below:
+    # added residual blocks are exactly identity now, but their new
+    # centroids can later grow into useful nonzero projections.
     big, meta, diag = encode(fresh.state_dict())
     if meta["original_unique_parameter_count"] != grown_n:
         raise AssertionError("Encoded source lost tied embedding/head")
@@ -120,6 +129,11 @@ def main():
     # 22M source stays physically intact. No decoding/re-quantization of it.
     migrated, transplant = transplant_old_paid_payloads(small_blob, big)
     grown = CB59(migrated)
+    for i in range(OLD_LAYERS, NEW_LAYERS):
+        for op in ("self_attn.o_proj", "mlp.down_proj"):
+            h = grown.handles[f"model.layers.{i}.{op}.weight"]
+            if np.any(h.centroids) or not np.all(h.row_scales > 1e-3):
+                raise AssertionError("S5 new identity decoder lacks trainable normal paid row scales")
     if grown.meta["original_unique_parameter_count"] != grown_n:
         raise AssertionError("New 12-layer physical original count disagrees")
     bpp = 8*len(migrated)/grown_n
