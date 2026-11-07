@@ -1,0 +1,78 @@
+name: CALIBRI2 S4 22M multi-token graduation
+on:
+  push:
+    branches: ['research/calibri2-s4-multitoken-graduation-20261107']
+    paths: ['research/calibri2/s4/**', '.github/workflows/calibri2-s4-graduation.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  train_22M_S4_and_evaluate_new_QA:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 140
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '2044'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU research requirements
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Check S4 syntax
+        run: python -m compileall -q research/calibri2/s4
+      - name: Download exact sealed S3 checkpoint
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s3-22M-2560-TRAIN-diverse-task-paid
+          path: inputs/s3
+          run-id: 42375297132
+          github-token: ${{ github.token }}
+      - name: Evaluate NEW frozen S4 cases BEFORE training
+        run: python research/calibri2/s4/frozen_eval.py inputs/s3/CALIBRI2_S3_22M_2560steps_paid.cb59 results/s4/before --label S3_SEALED_S4_BASELINE
+      - name: Upload baseline S4 unseen QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s4-BEFORE-160-16
+          path: results/s4/before/
+          retention-days: 45
+      - name: Train full 43 codebooks for 2048 predeclared multi-token TRAIN steps
+        run: python research/calibri2/s4/last_mile.py inputs/s3/CALIBRI2_S3_22M_2560steps_paid.cb59 results/s4/train
+      - name: Upload real physical S4 CB59 source and TRAIN-only records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s4-22M-2048-multitoken-paid
+          path: results/s4/train/
+          retention-days: 45
+          compression-level: 0
+      - name: Evaluate untouched S4 unseen QA AFTER training
+        run: python research/calibri2/s4/frozen_eval.py results/s4/train/CALIBRI2_S4_22M_2048steps_paid.cb59 results/s4/after --label S4_SEALED_2048
+      - name: Upload S4 full held-out answers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s4-AFTER-160-16
+          path: results/s4/after/
+          retention-days: 45
+      - name: Native C packed-only CPU 8-token speed matched S3 vs S4
+        run: python research/calibri2/s4/native_speed.py inputs/s3/CALIBRI2_S3_22M_2560steps_paid.cb59 results/s4/train/CALIBRI2_S4_22M_2048steps_paid.cb59 results/s4/train/ACTUAL_CALIBRI2_S4_TRAIN.json results/s4/native
+      - name: Upload native C paired CPU speed
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s4-NATIVE-SPEED-PAIRED
+          path: results/s4/native/
+          retention-days: 45
