@@ -1,0 +1,52 @@
+name: CALIBRI2 S5 320x6 to 320x12 physically paid growth
+on:
+  push:
+    branches: ['research/calibri2-s5-depth12-growth-preflight-20261107']
+    paths: ['research/calibri2/s5/**', '.github/workflows/calibri2-s5-growth.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  preserve_trained_22M_in_12layer_30M_paid_archive:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 160
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '2050'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependencies with no original pretrained weights
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Check depth-expansion source syntax
+        run: python -m compileall -q research/calibri2/s5/grow_depth.py
+      - name: Download EXACT sealed S3 22M source for initial growth feasibility
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s3-22M-2560-TRAIN-diverse-task-paid
+          path: inputs/s3
+          run-id: 42375297132
+          github-token: ${{ github.token }}
+      - name: Physically copy all 43 old 5-bit codes byte-for-byte, add six identity layers, check answer preservation and native C
+        run: |
+          python research/calibri2/s5/grow_depth.py inputs/s3/CALIBRI2_S3_22M_2560steps_paid.cb59 results/s5
+      - name: Upload candidate larger physical archive and TRAIN-only BEFORE/AFTER responses
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s5-320x12-depth-grown-paid-with-native-proofs
+          path: results/s5/
+          retention-days: 45
+          compression-level: 0
