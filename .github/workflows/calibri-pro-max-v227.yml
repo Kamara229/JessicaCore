@@ -2,7 +2,7 @@ name: CALIBRI v227 211 paid dictionaries correct-answer-protected TRAIN recovery
 on:
   push:
     branches:
-      - 'research/calibri-pro-max-v227-paid-codebook-antiloop-train'
+      - 'research/calibri-pro-max-v227-correct-answer-protected-recovery'
     paths:
       - 'research/calibri/v227/**'
       - '.github/workflows/calibri-pro-max-v227.yml'
