@@ -36,7 +36,7 @@ for (const message of [repeatBody,
 const thirdId = "4c7a0d88-74d6-42ea-8165-0b43f58bbb01";
 const thirdBody = "CALIBRI 2.0: следующий шаг — проверить CI #42368066171 и сравнить обучение одной пары Yes/No с изменением 5-битных индексов и без него. Проверку веду я через GitHub. Джессика тесты не запускает. LIVE не менять.";
 for (const message of [thirdBody,
-  ["JESSICA_REPLY_"+thirdId, "", thirdBody, "", "JESSICA_END_"+thirdId].join("\\n")]) {
+  ["JESSICA_REPLY_"+thirdId, "", thirdBody, "", "JESSICA_END_"+thirdId].join("\n")]) {
   const ack = await interpretRelayTurn({message,plan:"CALIBRI 2.0 S0",history:[]},noProvider);
   assert.equal(ack.action,"reply");
   assert.equal(ack.task,"");
