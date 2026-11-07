@@ -40,12 +40,12 @@ RIGHT_A = ("bright", "silver", "open", "winter", "fresh", "distant", "brave", "s
 LEFT_B = ("harbor", "planet", "thread", "lake", "station", "window", "river", "bridge")
 RIGHT_B = ("mountain", "beacon", "tunnel", "castle", "pillow", "market", "garden", "forest")
 SENTENCE_PAIRS = (
- ("What does a lock do?", "A lock keeps doors closed.", "What does a key do?", "A key opens a lock."),
+ ("What does a lock do?", "Locks keep doors closed.", "What does a key do?", "Keys open locks."),
  ("Why do people drink water?", "Water helps the body.", "Why do plants need rain?", "Rain gives plants water."),
- ("What does a bus carry?", "A bus carries passengers.", "What does a truck carry?", "A truck carries cargo."),
- ("What can a pencil do?", "A pencil can write words.", "What can an eraser do?", "An eraser removes marks."),
+ ("What does a bus carry?", "Buses carry passengers.", "What does a truck carry?", "Trucks carry cargo."),
+ ("What can a pencil do?", "Pencils can write words.", "What can an eraser do?", "Erasers remove marks."),
  ("Why do people cook food?", "Cooking makes food ready.", "Why do people use blankets?", "Blankets keep people warm."),
- ("What does a window provide?", "A window lets in light.", "What does a roof provide?", "A roof keeps rain out."),
+ ("What does a window provide?", "Windows let in light.", "What does a roof provide?", "Roofs keep rain out."),
  ("Where do fish live?", "Fish live in water.", "Where do birds build nests?", "Birds build nests in trees."),
  ("What helps a boat move?", "Moving water pushes boats.", "What helps a plane fly?", "Its wings produce lift."),
 )
@@ -164,7 +164,7 @@ def main():
     old_color_numeric = [q for q in s3 if q["domain"] not in ("s3_two_word_training", "s3_sentence_training")]
     old_multi = [q for q in s3 if q["domain"] in ("s3_two_word_training", "s3_sentence_training")]
     new_copy = [q for q in s4 if q["domain"] in ("s4_two_word_copy", "s4_three_word_copy")]
-    new_other = [q for q in s4 if q not in new_copy]
+    new_other = [q for q in s4 if q["domain"] not in ("s4_two_word_copy", "s4_three_word_copy")]
     pools = (old, old_color_numeric, old_multi, new_copy, new_other)
     seen = [0] * len(pools)
     model, sources = create_small_paid_model(cb, cfg)
