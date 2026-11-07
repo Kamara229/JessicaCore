@@ -29,7 +29,7 @@ for (const message of [repeatBody,
   assert.equal(ack.action,"reply");
   assert.equal(ack.task,"");
   assert.equal(ack.continueThread,false);
-  assert.match(ack.reply,/CALIBRI 2\\.0/u);
+  assert.ok(ack.reply.includes("CALIBRI 2.0"));
   assert.equal(generateCalled,false,"Should not require AI provider for second incident");
 }
 const legacy = calibriNoTestNextStep(
