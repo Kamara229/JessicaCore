@@ -1,0 +1,82 @@
+name: CALIBRI2 S6 recover 29M 2048 train and evaluate regression
+on:
+  push:
+    branches: ['research/calibri2-s6-sealed-recovery-20261107']
+    paths: ['research/calibri2/s6/recover_sealed.py', '.github/workflows/calibri2-s6-recovery.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  recover_sealed_29M_and_measure_reused_QA:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU research requirements
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Check S6 recovery code syntax
+        run: python -m compileall -q research/calibri2/s6/recover_sealed.py
+      - name: Restore 29M trained CB59 physical output from original post-training-probe failed run
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s6-29M-2048-TRAIN-paid-85
+          path: inputs/s6
+          run-id: 42382180410
+          github-token: ${{ github.token }}
+      - name: Restore exact S5 native-proven 29M baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s5-320x12-depth-grown-paid-with-native-proofs
+          path: inputs/s5
+          run-id: 42381865216
+          github-token: ${{ github.token }}
+      - name: Verify S6 29M sealed model SHA/bpp/85 matrices and twice-reloaded TRAIN answers without repeating 2048 TRAIN steps
+        run: |
+          python research/calibri2/s6/recover_sealed.py inputs/s6/CALIBRI2_S6_29M_2048steps_paid.cb59 results/s6recovery/proof
+      - name: Retain recovered S6 physical seal proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s6-RECOVERY-SEAL-29M
+          path: results/s6recovery/proof/
+          retention-days: 45
+      - name: Score 29M baseline S5 on reused S4 160 questions and 16 open prompts
+        run: |
+          python research/calibri2/s6/eval_29m.py inputs/s5/CALIBRI2_S5_320x12_PHYSICAL_GROWN.cb59 results/s6recovery/s5 --label S5_29M_BEFORE_S6
+      - name: Score 29M trained S6 on same reused exploratory S4 questions
+        run: |
+          python research/calibri2/s6/eval_29m.py inputs/s6/CALIBRI2_S6_29M_2048steps_paid.cb59 results/s6recovery/s6 --label S6_29M_AFTER_2048
+      - name: Retain before and after exploratory full answer files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s6-RECOVERY-160-EXPLORATORY-BEFORE-AFTER
+          path: |
+            results/s6recovery/s5/
+            results/s6recovery/s6/
+          retention-days: 45
+      - name: Matched 29M S5 vs S6 C-native 8-token CPU throughput, paid packed inference
+        run: |
+          python research/calibri2/s6/native_29m.py inputs/s5/CALIBRI2_S5_320x12_PHYSICAL_GROWN.cb59 inputs/s6/CALIBRI2_S6_29M_2048steps_paid.cb59 results/s6recovery/proof/ACTUAL_CALIBRI2_S6_RECOVERED_SEALED.json results/s6recovery/native
+      - name: Retain native C CPU speed measured on identical 29M architecture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s6-RECOVERY-C-NATIVE-29M
+          path: results/s6recovery/native/
+          retention-days: 45
