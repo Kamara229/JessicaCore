@@ -28,14 +28,17 @@ export function calibriNoTestNextStep(message) {
 
     // Explicitly restrict this shortcut to compact, stand-alone CALIBRI
     // progress or a suggested experiment, not arbitrary quoted instructions.
-    const direct = /^(?:Следующ(?:ий|ая)\s+(?:тест|шаг|проверка|эксперимент)\s+)?CALIBRI\s+v(\d{2,3})(?=\b|[,.:;—–-])/iu.exec(body);
+    // CALIBRI 2.0 is a distinct from-scratch project, not v2 of legacy CALIBRI.
+    const direct = /^(?:Следующ(?:ий|ая)\s+(?:тест|шаг|проверка|эксперимент)\s+)?CALIBRI\s+(?:v(\d{2,3})|(2\.0))(?=\b|[,.:;—–-])/iu.exec(body);
     // Mixed incident report (e.g. PR #267 fixed + CALIBRI next step) must not
     // fall through to quota-bound Groq simply because CALIBRI is not word 1.
     // Require an exact bounded incident shape rather than arbitrary prefix text.
     const mixedIncident = /^Сбой\s+(?:Codex|Кодекс)\s+исправлен\s+в\s+GitHub\s*:\s*PR\s*#\d{1,6}\s+объедин[её]н,\s+регрессии\s+прошли\./iu.test(body);
-    const nested = mixedIncident && /Следующ(?:ий|ая)\s+(?:тест|шаг|проверка|эксперимент)\s*[—–:-]\s*CALIBRI\s+v(\d{2,3})(?=\b|[,.:;—–-])/iu.exec(body);
-    const version = direct?.[1] ?? (nested || [])[1];
-    if (!version || Number(version) < 23) return null;
+    const nested = mixedIncident && /Следующ(?:ий|ая)\s+(?:тест|шаг|проверка|эксперимент)\s*[—–:-]\s*CALIBRI\s+(?:v(\d{2,3})|(2\.0))(?=\b|[,.:;—–-])/iu.exec(body);
+    const version = direct?.[1] ?? nested?.[1];
+    const isCalibri2 = direct?.[2] === "2.0" || nested?.[2] === "2.0";
+    if (!isCalibri2 && (!version || Number(version) < 23)) return null;
+    const projectName = isCalibri2 ? "CALIBRI 2.0" : "CALIBRI v" + version;
     if (!/(?:\b(?:GitHub|PR|EOS|Green|CPU|FP32|CB59|NLL|KL)\b|нейровес|сло[её]в|эксперимент|исследован|коррекц|сравнен|провер)/iu.test(body))
         return null;
 
@@ -56,7 +59,7 @@ export function calibriNoTestNextStep(message) {
         body.includes(String.fromCharCode(96)))
         return null;
 
-    return "Поняла: CALIBRI v" + version +
+    return "Поняла: " + projectName +
         " — следующий исследовательский шаг выполняет ChatGPT через GitHub. " +
         "В обычном чате Jessica тесты не запускаю. Продолжай исследование " +
         "в выбранном чате по фактическим результатам.";

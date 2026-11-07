@@ -5,6 +5,7 @@ on:
       - 'backend/core/codex/relayCalibriNoTestNextStep.js'
       - 'backend/core/codex/relayInterpreter.js'
       - 'backend/scripts/regressionCodexCalibriNoTestNextStep.test.js'
+      - 'backend/scripts/testCalib2RelayNoTest.mjs'
       - '.github/workflows/codex-calibri-no-test.yml'
   workflow_dispatch:
 permissions:
@@ -26,3 +27,4 @@ jobs:
         run: |
           node --test backend/scripts/regressionCodexCalibriNoTestNextStep.test.js
           node --test backend/scripts/regressionCodexCalibriNoQuota.test.js
+          node backend/scripts/testCalib2RelayNoTest.mjs

@@ -1,0 +1,28 @@
+name: CALIBRI2 no-test Codex relay interpreter regression (isolated)
+on:
+  push:
+    branches:
+      - 'research/codex-relay-calibri2-no-test-interpreter'
+    paths:
+      - 'backend/core/codex/relayCalibriNoTestNextStep.js'
+      - 'backend/scripts/testCalib2RelayNoTest.mjs'
+      - '.github/workflows/codex-relay-calibri2-no-test-regression.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit_no_external_tools_or_AI_calls:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install backend interpreter dependencies (no lifecycle hooks)
+        run: npm install --ignore-scripts --no-audit --no-fund
+        working-directory: backend
+      - name: Verify deterministic safe classification and zero provider calls
+        run: node backend/scripts/testCalib2RelayNoTest.mjs
