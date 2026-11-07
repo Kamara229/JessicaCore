@@ -9,6 +9,7 @@ on:
       - 'research/calibri2/s0/diagnose_collapse.py'
       - 'research/calibri2/s0/one_pair_learnability.py'
       - 'research/calibri2/s1/color_replay.py'
+      - 'research/calibri2/s2/benchmark_1024.py'
   pull_request:
     branches:
       - 'research/calibri2-v001-from-scratch-135m-paid-weights'
@@ -108,3 +109,23 @@ jobs:
           if-no-files-found: warn
           retention-days: 45
           compression-level: 0
+      - name: Download S1 successfully rehearsed compact model (4 of 4 TRAIN answers)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s1-one-color-pair-replay-vs-forgetting-128-steps
+          path: inputs/s1replay
+          run-id: 42369747578
+          github-token: ${{ github.token }}
+      - name: Compile and execute frozen 960 heldout objective + 64 freeform large QA test
+        run: |
+          python -m compileall -q research/calibri2/s2/benchmark_1024.py
+          python research/calibri2/s2/benchmark_1024.py inputs/s1replay/CALIBRI2_S1_balanced_rehearsal_128paid_steps.cb59 results/calibri2/s2/large-test --label S1_22M_4TRAIN
+      - name: Upload actual 1024 large-test responses and scored heldout outcomes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s2-960-HELDOUT-plus-64-open-text-real-answers
+          path: results/calibri2/s2/large-test/
+          retention-days: 45
+          if-no-files-found: warn
+          compression-level: 9
