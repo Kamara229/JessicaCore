@@ -1,0 +1,78 @@
+name: CALIBRI2 S6 real 29M paid dictionary TRAIN
+on:
+  push:
+    branches: ['research/calibri2-s6-depth12-29m-training-20261107']
+    paths: ['research/calibri2/s6/**', '.github/workflows/calibri2-s6-29m-train.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  train_all_85_29M_codebooks:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 160
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '2060'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Validate 29M training, answer evaluator and CPU benchmark syntax
+        run: python -m compileall -q research/calibri2/s6
+      - name: Download native-proven exact 29M grown source from S5 CI
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s5-320x12-depth-grown-paid-with-native-proofs
+          path: inputs/s5
+          run-id: 42381865216
+          github-token: ${{ github.token }}
+      - name: Baseline 29M full greedy responses on reused S4 exploratory prompts
+        run: python research/calibri2/s6/eval_29m.py inputs/s5/CALIBRI2_S5_320x12_PHYSICAL_GROWN.cb59 results/s6/before --label S5_GROWN_BEFORE_NEW_TRAIN
+      - name: Upload 29M pretrain responses
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s6-29M-BEFORE-160-16
+          path: results/s6/before/
+          retention-days: 45
+      - name: Genuine 2048 weighted full-answer TRAIN steps of all 85 paid compressed dictionaries
+        run: python research/calibri2/s6/train_29m.py inputs/s5/CALIBRI2_S5_320x12_PHYSICAL_GROWN.cb59 results/s6/train
+      - name: Upload trained 29M full 5bit physical model and TRAIN logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s6-29M-2048-TRAIN-paid-85
+          path: results/s6/train/
+          retention-days: 45
+          compression-level: 0
+      - name: Test actual 29M responses after training on unchanged reused S4 exploratory suite
+        run: python research/calibri2/s6/eval_29m.py results/s6/train/CALIBRI2_S6_29M_2048steps_paid.cb59 results/s6/after --label S6_29M_AFTER_2048
+      - name: Upload 29M posttrain complete answer record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s6-29M-AFTER-160-16
+          path: results/s6/after/
+          retention-days: 45
+      - name: Check C native CPU throughput S6 compared with same size S5 packed source
+        run: python research/calibri2/s6/native_29m.py inputs/s5/CALIBRI2_S5_320x12_PHYSICAL_GROWN.cb59 results/s6/train/CALIBRI2_S6_29M_2048steps_paid.cb59 results/s6/train/ACTUAL_CALIBRI2_S6_TRAIN.json results/s6/native
+      - name: Upload paired native 29M CPU speed
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s6-29M-NATIVE-SPEED
+          path: results/s6/native/
+          retention-days: 45
