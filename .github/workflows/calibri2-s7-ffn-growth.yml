@@ -1,0 +1,52 @@
+name: CALIBRI2 S7 29M to 36M physically paid FFN growth
+on:
+  push:
+    branches: ['research/calibri2-s7-ffn1536-36m-growth-20261107']
+    paths: ['research/calibri2/s7/**', '.github/workflows/calibri2-s7-ffn-growth.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  grow_29M_to_36M_and_check_96_unchanged_answers:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '2067'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact pinned research CPU requirements
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Validate exact FFN migration code
+        run: python -m compileall -q research/calibri2/s7
+      - name: Download the native-proven immutable 29M model source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s5-320x12-depth-grown-paid-with-native-proofs
+          path: inputs/s5
+          run-id: 42381865216
+          github-token: ${{ github.token }}
+      - name: Repack 29M into physically paid 36M via FFN expansion and evaluate 96 TRAIN response regressions plus native C
+        run: |
+          python research/calibri2/s7/ffn_growth.py inputs/s5/CALIBRI2_S5_320x12_PHYSICAL_GROWN.cb59 results/s7
+      - name: Retain complete grown 36M source and evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s7-36M-ffn1536-physical-and-regression-report
+          path: results/s7/
+          retention-days: 45
+          compression-level: 0
