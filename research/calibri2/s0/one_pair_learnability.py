@@ -1,7 +1,7 @@
 """CALIBRI2 S0 microscopic TRAIN-only learnability experiment, two frozen arms.
 
 Is a single opposing TRAIN Yes/No pair learnable AT ALL in our 22M paid
-representation? Two identically random 0.691bpp models, fixed 64 steps:
+representation? Two identically random 0.691bpp models, fixed 128 steps:
   A: paid FP16 centroids only (5-bit indices frozen)
   B: identical optimizer plus sparse 5-bit index proposals every 4 steps
 Compare on EXACT SAME memorized TRAIN pair with no QA/validation.
@@ -33,8 +33,8 @@ from calibri2.s0.train import create_small_paid_model
 
 SEED=2021
 LR=.008
-STEPS=64
-STOPS=(0,8,16,32,64)
+STEPS=128
+STOPS=(0,8,16,32,64,96,128)
 SHA0="2e807eb9c4f82018bcc72f0924726377cafb70df1ad529aefbd8513b6e538d80"
 PAIR_ID=0
 
@@ -153,7 +153,7 @@ def train_arm(name, source_bytes, cfg, pair, result_dir):
                         "code_indices_proposed":attempted,
                         "code_indices_accepted":accepted})
     out_bytes,change=replace_discrete(archive,sources,strict=False)
-    out_file=result_dir/f"CALIBRI2_S0_{name}_64steps.cb59"
+    out_file=result_dir/f"CALIBRI2_S0_{name}_128steps.cb59"
     out_file.write_bytes(out_bytes)
     n=archive.meta["original_unique_parameter_count"]
     bpp=8*len(out_bytes)/n
@@ -193,7 +193,7 @@ def main():
     cfg=build_config(next(c for c in CANDIDATES if c[0]=="small_320x6"))
     arms=[train_arm(name,raw,cfg,pair,args.out) for name in (
           "centroids_only","centroids_and_5bit")]
-    save(args.out/"ACTUAL_S0_SINGLE_PAIR_AB_LEARNABILITY.json",{
+    save(args.out/"ACTUAL_S0_SINGLE_PAIR_AB_LEARNABILITY_128.json",{
       "purpose":"Is an opposing simple TRAIN Yes/No pair learnable from scratch within paid codebooks and 5-bit indices?",
       "arch":"small_320x6","trained_original_FP32_teacher":False,
       "public_QA_DEV_VALID_TEST_leakage":False,
