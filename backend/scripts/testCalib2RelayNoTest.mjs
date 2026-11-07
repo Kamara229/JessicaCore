@@ -24,7 +24,7 @@ for (const message of [body, envelope]) {
 const repeatId = "4a8eddfd-e013-448e-8c4d-7fb06dcd3427";
 const repeatBody = "CALIBRI 2.0: следующий шаг — исследовать схлопывание ответов малой модели после 64 шагов обучения. GitHub проверяю и исправляю я. Джессика тесты не запускает, повторные подтверждения не отправляет. LIVE не менять.";
 for (const message of [repeatBody,
-  `JESSICA_REPLY_${repeatId}\\n\\n${repeatBody}\\n\\nJESSICA_END_${repeatId}`.replaceAll("\\\\n","\\n")]) {
+  ["JESSICA_REPLY_"+repeatId, "", repeatBody, "", "JESSICA_END_"+repeatId].join("\n")]) {
   const ack = await interpretRelayTurn({message,plan:"CALIBRI 2.0 S0",history:[]},noProvider);
   assert.equal(ack.action,"reply");
   assert.equal(ack.task,"");
