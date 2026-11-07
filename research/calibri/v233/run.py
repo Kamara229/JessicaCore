@@ -74,7 +74,7 @@ def evaluate(name,model,sources,tok,rows,out):
             x=generate(model,sources,tok,c)
             x.update(format=c["format"],source_case_id=c["source_case_id"],
                      original_gold=c["original_gold"],mapped_gold=c["gold"])
-            f.write(json.dumps(x,ensure_ascii=False)+"\\n")
+            f.write(json.dumps(x,ensure_ascii=False)+"\n")
             f.flush()
             if (i+1)%24==0:print(name,i+1,"/",len(rows),flush=True)
 
