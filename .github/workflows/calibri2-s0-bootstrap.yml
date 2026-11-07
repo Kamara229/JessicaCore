@@ -7,6 +7,7 @@ on:
       - 'research/calibri2/s0/bootstrap.py'
       - '.github/workflows/calibri2-s0-bootstrap.yml'
       - 'research/calibri2/s0/diagnose_collapse.py'
+      - 'research/calibri2/s0/one_pair_learnability.py'
   pull_request:
     branches:
       - 'research/calibri2-v001-from-scratch-135m-paid-weights'
@@ -77,3 +78,14 @@ jobs:
           path: results/calibri2/s0/diagnosis/
           if-no-files-found: warn
           retention-days: 45
+      - name: Compare one frozen contradictory TRAIN pair with paid centroids-only vs centroids-and-5bit from same random source
+        run: python research/calibri2/s0/one_pair_learnability.py inputs/s0random/CALIBRI2_S0_RANDOM_INITIAL.cb59 results/calibri2/s0/one_pair
+      - name: Preserve real 64-step paired microfit diagnostics and paid physical archives
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s0-one-TRAIN-pair-64step-5bit-vs-centroids-only
+          path: results/calibri2/s0/one_pair/
+          if-no-files-found: warn
+          retention-days: 45
+          compression-level: 0
