@@ -195,7 +195,7 @@ def training_pairs(tok):
 
 
 def real_answers(model, sources, pairs):
-    tested = probe_greedy_train(model, sources, pairs, max_new_tokens=14)
+    tested = probe_greedy_train(model, sources, pairs, max_new_tokens=12)
     data = []
     for p in pairs:
         for side in ("left", "right"):
