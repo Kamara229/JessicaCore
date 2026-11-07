@@ -2,7 +2,7 @@ name: CALIBRI v228 full answer protected 211 paid codebooks
 on:
   push:
     branches:
-      - 'research/calibri-pro-max-v228-correct-answer-protected-recovery'
+      - 'research/calibri-pro-max-v228-full-answer-protected-supervision'
     paths:
       - 'research/calibri/v228/**'
       - '.github/workflows/calibri-pro-max-v228.yml'
