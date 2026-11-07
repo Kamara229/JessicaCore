@@ -1,0 +1,61 @@
+name: CALIBRI v231 independent five-task actual answers FP32 vs paid CB59
+on:
+  push:
+    branches:
+      - 'research/calibri-v231-heldout-fp32-v228-five-task-answer-benchmark'
+    paths:
+      - 'research/calibri/v231/**'
+      - '.github/workflows/calibri-v231.yml'
+  pull_request:
+    branches:
+      - 'research/calibri-pro-max-v229-first-error-gold-margin-audit'
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'research/calibri/v231/**'
+      - '.github/workflows/calibri-v231.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compare_real_generated_answers_without_training:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 240
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install fixed original 135M CPU and evaluation dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Static source check with no model loading
+        run: |
+          python -m compileall -q research/calibri/v231
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v228-TRAIN-paid-211-recovery-full-answer-gate
+          path: inputs/v228
+          run-id: 42336914724
+          github-token: ${{ github.token }}
+      - name: Frozen 480 public validation cases across five domains and two prompt variants, paired original FP32 vs sealed v228 answers
+        run: |
+          python research/calibri/v231/run.py inputs/v228/CALIBRI_v228_TRAIN_ACCEPTED_fullanswer_paid_211.cb59 results/v231
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v231-independent-480-five-task-FP32-v228-real-answer-benchmark
+          path: results/v231/
+          if-no-files-found: warn
+          retention-days: 60
+          compression-level: 6
