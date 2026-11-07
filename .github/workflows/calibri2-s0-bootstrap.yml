@@ -1,0 +1,54 @@
+name: CALIBRI 2.0 S0 physically paid small-first architecture and native whole-model smoke
+on:
+  push:
+    branches:
+      - 'research/calibri2-s0-small-first-paid-architecture'
+    paths:
+      - 'research/calibri2/s0/bootstrap.py'
+      - '.github/workflows/calibri2-s0-bootstrap.yml'
+  pull_request:
+    branches:
+      - 'research/calibri2-v001-from-scratch-135m-paid-weights'
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'research/calibri2/s0/bootstrap.py'
+      - '.github/workflows/calibri2-s0-bootstrap.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  create_random_tiny_valid_physical_source:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 110
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU Python packages
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile S0 source, no pretrained model weights
+        run: python -m compileall -q research/calibri2/s0/bootstrap.py
+      - name: Build the smallest authentic <=0.7bpp source by physical rate only, native C whole model
+        run: python research/calibri2/s0/bootstrap.py results/calibri2/s0/bootstrap
+      - name: Upload physical model and frozen architectural details
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri2-s0-random-small-physically-paid-native-bootstrap
+          path: results/calibri2/s0/bootstrap/
+          retention-days: 45
+          compression-level: 0
+          if-no-files-found: warn
