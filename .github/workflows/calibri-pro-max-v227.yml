@@ -1,0 +1,75 @@
+name: CALIBRI v227 211 paid dictionaries correct-answer-protected TRAIN recovery
+on:
+  push:
+    branches:
+      - 'research/calibri-pro-max-v227-correct-answer-protected-recovery'
+    paths:
+      - 'research/calibri/v227/**'
+      - '.github/workflows/calibri-pro-max-v227.yml'
+  pull_request:
+    paths:
+      - 'research/calibri/v227/**'
+      - '.github/workflows/calibri-pro-max-v227.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  all_211_codebooks_TRAIN_only_recovery:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original 135M CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Verify research code syntax
+        run: |
+          python -m compileall -q research/calibri/v227
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v220-original135m-all-layer-paid-green-tunnel
+          path: inputs/v220
+          run-id: 42298991456
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v222-train-only-48-twelve-token-divergence
+          path: inputs/v222
+          run-id: 42302182882
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v224-read-only-original-TRAIN-repeat-positions
+          path: inputs/v224
+          run-id: 42303566225
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-v225-train-only-five-repeat-logit-cause
+          path: inputs/v225
+          run-id: 42304153849
+          github-token: ${{ github.token }}
+      - name: TRAIN-only guarded codebook restoration and four TRAIN checkpoint gates
+        run: |
+          python research/calibri/v227/run.py inputs/v220/CALIBRI_v220_all_layer_paid_TRAIN_tunnel.cb59 inputs/v222/v222_ACTUAL_TRAIN_first_12token_rollout_divergence.json inputs/v224/v224_original_5_TRAIN_repeated_token_locations.json inputs/v225/v225_ACTUAL_5_TRAIN_repeat_positions_FP32_v206_v220_logits.json results/v227
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-v227-TRAIN-paid-211-recovery-full-answer-gate
+          path: results/v227/
+          if-no-files-found: warn
+          retention-days: 45
+          compression-level: 0
