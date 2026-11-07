@@ -6,6 +6,7 @@ on:
     paths:
       - 'research/calibri2/s0/bootstrap.py'
       - '.github/workflows/calibri2-s0-bootstrap.yml'
+      - 'research/calibri2/s0/diagnose_collapse.py'
   pull_request:
     branches:
       - 'research/calibri2-v001-from-scratch-135m-paid-weights'
@@ -22,7 +23,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 110
     env:
-      PYTHONPATH: research/calibri
+      PYTHONPATH: research:research/calibri
       OMP_NUM_THREADS: '2'
       MKL_NUM_THREADS: '2'
       OPENBLAS_NUM_THREADS: '1'
@@ -52,3 +53,27 @@ jobs:
           retention-days: 45
           compression-level: 0
           if-no-files-found: warn
+      - name: Download frozen initial 22M source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s0-random-small-physically-paid-native-bootstrap
+          path: inputs/s0random
+          run-id: 42366228524
+          github-token: ${{ github.token }}
+      - name: Download the original finished 64-step compact TRAIN checkpoints
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s0-22M-64step-paid-TRAIN-source-and-real-answers
+          path: inputs/s0trained
+          run-id: 42366424415
+          github-token: ${{ github.token }}
+      - name: Compare gold-token rank and opposing-pair logits at 0 16 32 48 64 on frozen TRAIN only
+        run: python research/calibri2/s0/diagnose_collapse.py inputs/s0random/CALIBRI2_S0_RANDOM_INITIAL.cb59 inputs/s0trained results/calibri2/s0/diagnosis
+      - name: Preserve full five-checkpoint logit trajectory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s0-5-snapshot-16-TRAIN-logit-collapse
+          path: results/calibri2/s0/diagnosis/
+          if-no-files-found: warn
+          retention-days: 45
