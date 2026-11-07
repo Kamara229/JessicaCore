@@ -46,7 +46,7 @@ N_BOOTSTRAP=3000
 LETTERS="ABCD"
 RESPONSE=re.compile(
     r"^\s*(?:(?:the\s+)?(?:correct\s+)?answer\s*(?::|is)\s*|option\s*)?"
-    r"\\?\(?([A-D])\)?[.!)\s]*$",re.I)
+    r"\(?([A-D])\)?[.!)\s]*$",re.I)
 # Compare one answer per prompt. Wrong/invalid is always scored incorrect;
 # never infer an answer from letter occurrences later in an explanation.
 SOURCES={
