@@ -53,7 +53,8 @@ SOURCES={
   "boolq":("google/boolq",None,"validation"),
   "sciq":("allenai/sciq",None,"validation"),
   "arc_easy":("allenai/ai2_arc","ARC-Easy","validation"),
-  # Safe dataset-author-endorsed PIQA parquet mirror; upstream ybisk/piqa\n  # only offers untrusted remote Python loader at this library version.\n  "piqa":("lighteval/piqa","plain_text","validation"),
+  # Safe PIQA parquet mirror; avoid executing upstream dataset scripts.
+  "piqa":("lighteval/piqa","plain_text","validation"),
   "hellaswag":("Rowan/hellaswag",None,"validation"),
 }
 def sha(obj):
