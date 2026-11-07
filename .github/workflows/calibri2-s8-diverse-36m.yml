@@ -1,0 +1,84 @@
+name: CALIBRI2 S8 36M diverse TRAIN with frozen fresh quality gate
+on:
+  push:
+    branches: ['research/calibri2-s8-36m-diverse-replay-20261107']
+    paths:
+      - 'research/calibri2/s8/**'
+      - '.github/workflows/calibri2-s8-diverse-36m.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s8_36M_diverse_composition_qa_and_native:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 115
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '2080'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact CPU research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile S8 TRAIN, never-seen objective tests and matched C runtime
+        run: python -m compileall -q research/calibri2/s8
+      - name: Download verified exact 36M physically paid depth/FFN grown checkpoint
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s7-36M-ffn1536-physical-and-regression-report
+          path: inputs/s7
+          run-id: 42383040833
+          github-token: ${{ github.token }}
+      - name: Read-only fresh S8 independent 192+16 questions on frozen S7 baseline
+        run: |
+          python research/calibri2/s8/fresh_eval.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 results/s8/before --label SEALED_S7_BEFORE_S8
+      - name: Upload untrained S8 baseline to separate frozen artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s8-BEFORE-192-16-INDEPENDENT
+          path: results/s8/before/
+          retention-days: 45
+      - name: TRAIN only 768 fixed diverse pairs and real public WikiText TRAIN steps on ALL 85 paid 36M codebooks
+        run: |
+          python research/calibri2/s8/broad_replay.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 results/s8/train
+      - name: Upload sealed entire physically paid 36M model and full TRAIN-only audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s8-36M-768-DIVERSE-PAID
+          path: results/s8/train/
+          retention-days: 45
+          compression-level: 0
+      - name: Evaluate untouched S8 192 objective and 16 open questions AFTER single precommitted TRAIN run
+        run: |
+          python research/calibri2/s8/fresh_eval.py results/s8/train/CALIBRI2_S8_36M_BROAD_TRAIN_PAID.cb59 results/s8/after --label SEALED_S8_AFTER_FIXED_TRAIN
+      - name: Upload actual independent S8 192 plus 16 new open answers including negative outcomes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s8-AFTER-192-16-INDEPENDENT
+          path: results/s8/after/
+          retention-days: 45
+      - name: Direct C-native 36M packed-only CPU speed identical model size baseline S7 vs S8
+        run: |
+          python research/calibri2/s8/native_speed.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 results/s8/train/CALIBRI2_S8_36M_BROAD_TRAIN_PAID.cb59 results/s8/train/ACTUAL_CALIBRI2_S8_DIVERSE_TRAIN.json results/s8/native
+      - name: Upload actual native 36M source-only C-CPU throughput
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s8-36M-NATIVE-PAIRED
+          path: results/s8/native/
+          retention-days: 45
