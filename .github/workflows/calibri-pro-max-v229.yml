@@ -2,7 +2,7 @@ name: CALIBRI v229 sealed archive first wrong-token margin audit
 on:
   push:
     branches:
-      - 'research/calibri-pro-max-v229-full-answer-protected-supervision'
+      - 'research/calibri-pro-max-v229-first-error-gold-margin-audit'
     paths:
       - 'research/calibri/v229/**'
       - '.github/workflows/calibri-pro-max-v229.yml'
