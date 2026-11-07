@@ -99,7 +99,7 @@ def candidate_archive(spec):
 
 @torch.inference_mode()
 def native_forward_test(archive,cfg,out):
-    cfile=Path(__file__).resolve().parents[2]/"direct_kernel_v59.c"
+    cfile=Path(__file__).resolve().parents[2]/"calibri"/"direct_kernel_v59.c"
     dylib=compile_kernel(cfile,out/"libcalibri2_s0_native.so")
     kernel=NativeKernel(dylib)
     handles=("model.layers.0.self_attn.q_proj.weight",
