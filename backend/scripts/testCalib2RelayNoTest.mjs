@@ -44,6 +44,21 @@ for (const message of [thirdBody,
   assert.ok(ack.reply.includes("CALIBRI 2.0"));
   assert.equal(generateCalled,false,"Third incident must not call provider");
 }
+// Fourth reported relay failure is likewise safe on the patch branch;
+// main has not received PR #377, so a v232-prefixed handoff is a safe
+// *text-only* interim route through the existing deployed deterministic handler.
+const fourthId = "eba57a0e-b795-4ddd-b245-e856a5d385a8";
+const fourthBody = "CALIBRI 2.0: следующий шаг — проверить завершение GitHub CI #42368307719 и определить, научилась ли модель выдавать полные ответы Yes/No с EOS после 128 шагов. Проверку ведёт ChatGPT. Джессика тесты не запускает. LIVE не менять.";
+const legacySafeBody = "CALIBRI v232: следующий шаг — проверить GitHub CI #42368307719 и полные ответы Yes/No с EOS у CALIBRI 2.0. Джессика тесты не запускает. LIVE не менять.";
+for (const message of [fourthBody,
+  ["JESSICA_REPLY_"+fourthId, "", fourthBody, "", "JESSICA_END_"+fourthId].join("\n"),
+  legacySafeBody]) {
+  const ack=await interpretRelayTurn({message,plan:"CALIBRI 2.0 S0",history:[]},noProvider);
+  assert.equal(ack.action,"reply");
+  assert.equal(ack.task,"");
+  assert.equal(ack.continueThread,false);
+  assert.equal(generateCalled,false,"No provider fallback for fourth incident or legacy safe handoff");
+}
 const legacy = calibriNoTestNextStep(
   "CALIBRI v232: следующий шаг — проверить GitHub CI. Джессика тесты не запускает.");
 assert.match(legacy,/CALIBRI v232/u);
