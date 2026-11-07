@@ -216,7 +216,8 @@ def eval_one(name,model,sources,tok,items,out):
     return result
 
 def compare(fp32,cb59):
-    if len(fp32)!=len(cb59)!=VALID_SIDES+TOTAL_PUBLIC_CASES:
+    if (len(fp32)!=VALID_SIDES+TOTAL_PUBLIC_CASES or
+        len(cb59)!=VALID_SIDES+TOTAL_PUBLIC_CASES):
         raise AssertionError("Unpaired diagnostic")
     summaries={}
     keys=sorted({r["task"] for r in fp32})
