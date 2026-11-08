@@ -173,7 +173,7 @@ def main():
          "S7_after_FORCED_first_word":a["forced_second_token"],
          "S11_after_FORCED_first_word":b["forced_second_token"],
        } for a,b in list(zip(before["records"],after["records"]))[:8]],
-    },flush=True)
+    }),flush=True)
 
 
 if __name__=="__main__":
