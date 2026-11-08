@@ -35,7 +35,6 @@ class S30MatcingFp32Contract(unittest.TestCase):
         self.assertNotIn("from calibri2.s26.frozen_new_qa",source)
         self.assertNotIn("from calibri2.s26.independent_qa",source)
         self.assertNotIn("train_test_split",source)
-        self.assertIn("model=model",source) if False else None
 
 if __name__=="__main__":
     unittest.main()
