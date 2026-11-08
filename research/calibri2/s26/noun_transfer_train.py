@@ -151,7 +151,7 @@ def create_train_pairs(tok):
             B=f"{COLORS[second[0]]} {NOUNS[second[1]]}"
             if A==B:raise AssertionError("TRAIN contrasts identical")
             pattern=PATTERNS[(i//4)%len(PATTERNS)]
-            owner=f"TrainS26Kemi{kind}{i:03d}";other=f"TrainS26Haro{kind}{i:03d}"
+            owner=f"A26{i:03d}";other=f"B26{i:03d}"
             left=tokenize_one(tok,
                 pattern.format(n=i,a=owner,b=other,left=A,right=B),A)
             right=tokenize_one(tok,
