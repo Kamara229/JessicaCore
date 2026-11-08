@@ -1,0 +1,94 @@
+name: CALIBRI2 S11 protected 36M TRAIN and independent quality
+on:
+  push:
+    branches: ['research/calibri2-s11-protected-green-tunnel-36m-20261108']
+    paths:
+      - 'research/calibri2/s11/**'
+      - '.github/workflows/calibri2-s11-protected-36m.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  S11_gradient_guarded_paid_36M_2048_TRAIN:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '2110'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU research packages
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Check fixed S11 TRAIN, fresh quality and native speed syntax
+        run: python -m compileall -q research/calibri2/s11
+      - name: Restore immutable pre-S8 S7 36M paid CB59 archive (not chosen from QA)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s7-36M-ffn1536-physical-and-regression-report
+          path: inputs/s7
+          run-id: 42383040833
+          github-token: ${{ github.token }}
+      - name: Strict full-answer baseline on FRESH S11 independently composed 192 plus 16 open prompts
+        run: |
+          python research/calibri2/s11/independent_qa.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 results/s11/initial_qa --label SEALED_S7_BASELINE_FRESH_S11_SUITE
+      - name: Preserve S7 baseline benchmark BEFORE any new training
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s11-FROZEN-S7-BEFORE-192-16
+          path: results/s11/initial_qa/
+          retention-days: 45
+      - name: Actual S11 2048 full paid operator TRAIN steps with gradient-projected 32 TRAIN-only anchor guards
+        run: |
+          python research/calibri2/s11/green_tunnel_protected.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 results/s11/train
+      - name: Preserve the fully paid physically sealed 36M model and negative TRAIN results before any QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s11-36M-GREEN-TUNNEL-PROTECTED-PHYSICAL
+          path: results/s11/train/
+          retention-days: 45
+          compression-level: 0
+      - name: Strictly evaluate saved FINAL S11 one time on the same precommitted new 192+16 QA
+        run: |
+          python research/calibri2/s11/independent_qa.py results/s11/train/CALIBRI2_S11_36M_PROTECTED_2048steps_paid.cb59 results/s11/final_qa --label SEALED_S11_AFTER_2048_TRAIN
+      - name: Preserve all actual new S11 independent answers even if worse
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s11-FROZEN-S11-AFTER-192-16
+          path: results/s11/final_qa/
+          retention-days: 45
+      - name: Exploratory audit on PREVIOUSLY SEEN S8 QA 192 and 16 open (NOT independent or model selection)
+        run: |
+          python research/calibri2/s8/fresh_eval.py results/s11/train/CALIBRI2_S11_36M_PROTECTED_2048steps_paid.cb59 results/s11/old_exploratory --label S11_ON_OLD_S8_QA_EXPLORATORY_ONLY
+      - name: Preserve old suite as EXPLORATORY with full negative results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s11-OLD-S8-192-EXPLORATORY
+          path: results/s11/old_exploratory/
+          retention-days: 45
+      - name: Native C packed-only 36M CPU paired speed S7 versus S11
+        run: |
+          python research/calibri2/s11/native_speed.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 results/s11/train/CALIBRI2_S11_36M_PROTECTED_2048steps_paid.cb59 results/s11/train/ACTUAL_CALIBRI2_S11_PROTECTED_TRAIN.json results/s11/native
+      - name: Preserve same-architecture native C CPU speed report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s11-36M-NATIVE-C-SPEED
+          path: results/s11/native/
+          retention-days: 45
