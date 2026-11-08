@@ -24,10 +24,13 @@ export function compactCalibri2NoJessicaTest(message) {
     body=body.replace(/\s+/gu," ").trim();
     if(body.length>600)return null;
     // JS \b is ASCII-only; Russian word boundaries must be Unicode-safe.
-    const numbered=/^S(\d{1,3})\s*:\s*(?:обучение|эксперимент|исследование)(?=\s|[.,:;—–-])/iu.exec(body);
+    // CALIBRI research may report either "S24: обучение ... запущено"
+    // or "S24 ещё обучается в GitHub"; both are no-test status notes.
+    // JS \\b word boundary does not match Russian letters reliably.
+    const numbered=/^S(\\d{1,3})(?:(?:\\s*:\\s*(?:обучение|эксперимент|исследование)(?=\\s|[.,:;—–-]))|(?:\\s+ещ[её]\\s+обучается\\s+в\\s+GitHub(?=[.?!\\s])))/iu.exec(body);
     if(!numbered || Number(numbered[1])<1)return null;
     if(!/\bGitHub\b/iu.test(body) ||
-       !/Следующ(?:ий|ая)\s+шаг\s*[—–:-]\s*(?:проверить|сверить|изучить|дождаться)(?=\s)/iu.test(body) ||
+       !/Следующ(?:ий|ая)\s+шаг\s*[—–:-]\s*(?:после\s+завершения\s+)?(?:проверить|сверить|изучить|дождаться)(?=\s)/iu.test(body) ||
        !/(?:Jessica|Джессика)\s+тесты?\s+не\s+запуска(?:ет|етcя|й|ть)\s*[.!]?$/iu.test(body))
        return null;
     if(/(?:создай|запусти|выполни|проведи|повтори|открой)\s+(?:новый\s+|следующий\s+|этот\s+|один\s+)?(?:тест|тестовый\s+чат|задач[уа])/iu.test(body) ||
