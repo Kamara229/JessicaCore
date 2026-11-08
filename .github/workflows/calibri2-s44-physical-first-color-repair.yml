@@ -1,0 +1,66 @@
+name: CALIBRI S44 physical paid first color recovery 36M
+on:
+  push:
+    branches:
+      - research/calibri2-s44-first-color-protected-repair-20261108
+    paths:
+      - 'research/calibri2/s44/**'
+      - '.github/workflows/calibri2-s44-physical-first-color-repair.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  S44_train_real_first_color_paid_CB59_only:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 110
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '4444'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile isolated S44 paid training program
+        run: |
+          python -m compileall -q research/calibri2/s44/
+      - name: Download immutable actual 36M physical S41 CB59 checkpoint (not QA)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s41-physical-36M-CB59-only-if-accepted
+          path: inputs/s41
+          run-id: 42498851459
+          github-token: ${{ github.token }}
+      - name: Train and verify first token recovery at unchanged paid bpp on TRAIN only
+        run: |
+          python research/calibri2/s44/physical_first_color_paid_repair.py \
+            inputs/s41/CALIBRI2_S41_36M_GLOBAL_NOUN_PAID.cb59 \
+            results/s44
+      - name: Archive S44 true paid TRAIN results and rejected trials
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s44-real-paid-first-color-TRAIN-only-JSON
+          path: results/s44/*.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Archive actual same-budget CB59 only on successful paid physical updates
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s44-real-physical-CB59-only-if-accepted
+          path: results/s44/*.cb59
+          if-no-files-found: warn
+          retention-days: 60
