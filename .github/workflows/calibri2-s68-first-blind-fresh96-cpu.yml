@@ -1,0 +1,79 @@
+name: CALIBRI S68 first and only frozen fresh 96 blind QA CPU
+'on':
+  pull_request:
+    types: [opened]
+    branches:
+      - research/calibri2-s67-guarded-half-delta-candidate-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s68_first_one_shot_fresh_qa_no_training:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s68-fresh-blind-96-cpu-20261109'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 65
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax check evaluation-only research instrument
+        run: python -m compileall -q research/calibri2/s68
+      - name: Pinned CPU-only inference, no GPU
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Fetch original immutable S45 physical CB59 weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Fetch immutable S56 rank12 baseline Green Tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s56-paid-first-plus-later-dual-controller-if-accepted
+          path: inputs/s56
+          run-id: 42518099946
+          github-token: ${{ github.token }}
+      - name: Fetch unchanged S61 lossless CB61 physical envelope
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: Fetch S67 physically paid rank128 candidate frozen before fresh QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s67-fully-paid-new-safe-half-delta-research-only
+          path: inputs/s67
+          run-id: 42532945010
+          github-token: ${{ github.token }}
+      - name: One-time inspect NEW 96 exact full QA answers and CPU speed, do not train
+        run: |
+          python research/calibri2/s68/frozen_one_shot_fresh96_qa.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s56/S56_DUAL_ACTIVE_PAID_GREEN_TUNNEL.safetensors \
+            inputs/s67/S67_HALF_DELTA_RANK128_CANDIDATE_ONLY.safetensors \
+            inputs/s67/S67_FULLY_PAID_EXPLORATORY_MANIFEST.json \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            results/s68
+      - name: Archive permanently embargoed QA prompts and scoring
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s68-one-time-fresh-96-sealed-QA-permanent-embargo
+          path: results/s68/
+          if-no-files-found: warn
+          retention-days: 90
