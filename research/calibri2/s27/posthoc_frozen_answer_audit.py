@@ -14,6 +14,7 @@ from collections import Counter, defaultdict
 import hashlib
 import json
 import math
+import re
 from pathlib import Path
 
 QA_SHA="e8e3e75c5fedf845aef512a104723a4d04fab3980ecec7f4deb3575ae020ac3f"
@@ -22,6 +23,8 @@ PARAMS=36_380_480
 EXPECTED_BYTES=3_141_513
 PRETRAINED_135M_PARAMS=134_515_008
 NOVEL="reserved_novel_color_noun"
+VALID_TWO=re.compile(r"^\\s*(red|blue|green|yellow)\\s+"
+    r"(cup|book|bag|lamp|chair|hat|plate|scarf|clock|spoon|pencil|bottle|fork|glove|shirt|key)\\s*[.!]?\\s*$",re.I)
 DOMAINS={NOVEL:96,"color_one_word_control":24,"number_one_word_control":24}
 
 def read_json(path):
@@ -115,10 +118,8 @@ def audit_rows(before,after,external):
             for name,rows in (("S24",first),("S26",second),("public_135M_FP32",pretrained)):
                 d=result[domain]
                 d[name+"_valid_2word"]=sum(
-                    bool(rows[k]["actual_text"].strip().lower().split().__len__()==2)
+                    bool(VALID_TWO.fullmatch(rows[k]["actual_text"]))
                     for k in ordered)
-                # More stringent lexical correctness counts come from the
-                # actual archived per-domain scorer, not the split heuristic.
                 d[name+"_correct_first_token"]=sum(bool(rows[k]["correct_first_token"]) for k in ordered)
     result["open_response_pairs"]=[
         {"question":oldopen[i].get("question"),
