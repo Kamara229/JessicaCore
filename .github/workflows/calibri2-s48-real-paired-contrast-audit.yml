@@ -1,0 +1,42 @@
+name: CALIBRI S48 audit real S47 opposite noun answers TRAIN only
+on:
+  push:
+    branches:
+      - research/calibri2-s48-readonly-pair-contrast-audit-20261108
+    paths:
+      - 'research/calibri2/s48/**'
+      - '.github/workflows/calibri2-s48-real-paired-contrast-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  readonly_paired_noun_discrimination:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch S47 genuine physical-controller TRAIN report from completed CI
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s47-real-active-green-tunnel-TRAIN-report
+          path: inputs/s47
+          run-id: 42505575247
+          github-token: ${{ github.token }}
+      - name: Audit paired opposite-noun full answers without QA, retraining, or checkpoint choice
+        run: |
+          python research/calibri2/s48/s47_real_pair_contrast_collapse_readonly.py \
+            inputs/s47/S47_ACTIVE_GREEN_TUNNEL_TRAIN_ONLY.json \
+            results/S48_REAL_PAIRED_NOUN_COLLAPSE_TRAIN_ONLY.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri2-s48-opposing-noun-TRAIN-correctness-only-JSON
+          path: results/*.json
+          if-no-files-found: warn
+          retention-days: 90
