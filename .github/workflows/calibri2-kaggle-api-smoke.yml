@@ -54,6 +54,13 @@ jobs:
                           print("KAGGLE_"+label+"_SIGNAL_"+text.upper().replace(" ","_")+"="+str(text in s))
                       codes=re.findall(r"(?<!\d)(?:400|401|403|404|422|429|500|503)(?!\d)",s)
                       print("KAGGLE_"+label+"_HTTP_CODES="+(",".join(sorted(set(codes))) if codes else "none"))
+                      error_lines=[v.strip() for v in (r.stderr or "").splitlines() if v.strip()]
+                      if error_lines:
+                          tail=error_lines[-1].replace(token,"[REDACTED]")
+                          tail=re.sub(r"(?i)(Bearer\\s+)[^\\s]+",r"\\1[REDACTED]",tail)
+                          tail=re.sub(r"(?i)KGAT_[A-Za-z0-9_-]+","[REDACTED]",tail)
+                          tail=re.sub(r"[A-Za-z0-9_+/=-]{70,}","[LONG_VALUE]",tail)
+                          print("KAGGLE_"+label+"_ERROR_TAIL_SAFE="+tail[:180])
               except subprocess.TimeoutExpired:
                   print("KAGGLE_"+label+"_TIMEOUT")
           print("KAGGLE_AUTH_NOT_VERIFIED")
