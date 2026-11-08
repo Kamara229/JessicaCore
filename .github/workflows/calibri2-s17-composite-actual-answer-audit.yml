@@ -1,0 +1,57 @@
+name: CALIBRI2 S17 read-only actual S15 12 qualitative examples
+on:
+  push:
+    branches: ['research/calibri2-s17-composite-response-inspection-20261108']
+    paths:
+      - 'research/calibri2/s17/**'
+      - '.github/workflows/calibri2-s17-composite-actual-answer-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real_answer_texts_not_guessable_binary_scores:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: research:research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile pure read-only answer reporting code
+        run: python -m compileall -q research/calibri2/s17
+      - name: Download frozen S7 full actual 192 compound answers
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s15-NEW-COMPOSITE-S7-192-16
+          path: inputs/s7
+          run-id: 42461103744
+          github-token: ${{ github.token }}
+      - name: Download frozen S8 full actual 192 compound answers
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s15-NEW-COMPOSITE-S8-192-16
+          path: inputs/s8
+          run-id: 42461103744
+          github-token: ${{ github.token }}
+      - name: Download frozen S12 full actual 192 compound answers
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s15-NEW-COMPOSITE-S12-192-16
+          path: inputs/s12
+          run-id: 42461103744
+          github-token: ${{ github.token }}
+      - name: Print actual generated answers, most frequent incorrect patterns, and open responses
+        run: |
+          python research/calibri2/s17/inspect_actual_responses.py inputs/s7/ACTUAL_CALIBRI2_S15_MULTIATTRIBUTE_192_QA_16_OPEN.json inputs/s8/ACTUAL_CALIBRI2_S15_MULTIATTRIBUTE_192_QA_16_OPEN.json inputs/s12/ACTUAL_CALIBRI2_S15_MULTIATTRIBUTE_192_QA_16_OPEN.json results/s17
+      - name: Retain literal answered versus expected text evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s17-REAL-S15-12-PAIRED-EXAMPLES-8-OPEN
+          path: results/s17/
+          retention-days: 45
