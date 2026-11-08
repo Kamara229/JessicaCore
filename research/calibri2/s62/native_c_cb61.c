@@ -87,7 +87,7 @@ static void decode(const unsigned char *zip,size_t n,unsigned char *out,size_t c
     verify_legacy_cb59(out,capacity);
 }
 int main(int argc,char **argv){
-    if(argc!=6)die("expected original, envelope, tunnel, manifest, output-report arguments");
+    if(argc!=6 && argc!=7)die("expected original, envelope, tunnel, manifest, output-report, [verified_output_cb59] arguments");
     size_t raw_n,zip_n,side_n,manifest_n;
     unsigned char *raw=read_file(argv[1],&raw_n);
     unsigned char *zip=read_file(argv[2],&zip_n);
@@ -100,6 +100,16 @@ int main(int argc,char **argv){
     if(!restored)die("malloc restore failed");
     decode(zip,zip_n,restored,raw_n);
     if(memcmp(restored,raw,raw_n)!=0)die("S61 C bytes differ from S45 original");
+    /* Optional physical output for S63 neural CPU inference. This file has
+     * already passed raw bytewise SHA/CRC and exact original equality.
+     * Never save any experimental or unverified model weights. */
+    if(argc==7){
+        FILE *restored_file=fopen(argv[6],"wb");
+        if(!restored_file)die("cannot open verified CB59 output");
+        if(fwrite(restored,1,raw_n,restored_file)!=raw_n || fclose(restored_file)!=0)
+            die("verified CB59 file write failed");
+    }
+
     /* Real CPU clock measurements, warm in-process, no neural inference. */
     double times[51];
     for(int k=0;k<51;k++){
