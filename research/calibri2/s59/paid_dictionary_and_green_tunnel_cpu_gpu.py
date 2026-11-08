@@ -287,11 +287,15 @@ def main():
     old_retained=(b0[0]<=n0[0] and b1[0]<=n1[0] and b2[0]<=n2[0] and
                   b0[1]<=n0[1] and b1[1]<=n1[1])
     both_more=(n0[2]+n1[2])>(b0[2]+b1[2])
-    candidate_accepted=bool(old_retained and both_more)
+    train_guard_pass=bool(old_retained and both_more)
+    candidate_accepted=False  # Never promote on TRAIN. Require unseen QA + CPU speed.
     report={"stage":"CALIBRI_S59_PHYSICAL_CENTROID_AND_GREEN_TUNNEL_GLOBAL_TRAIN",
       "device_used":str(device),"train_steps":a.steps,"last_step":final,
       "source_sha":sha(packed),"result":{ "old_skills_preserved":old_retained,
-          "both_pairs_improved":both_more,"promote_on_train":candidate_accepted,
+          "both_pairs_improved":both_more,
+          "candidate_eligible_on_train_only":train_guard_pass,
+          "promote_on_train":False,
+          "requires_precommitted_independent_unseen_QA_and_CPU_speed_check":True,
           "baseline":{"original_full":len(b0[0]),"added_full":len(b1[0]),"old_full":len(b2[0]),
                       "original_pairs":b0[2],"added_pairs":b1[2]},
           "candidate":{"original_full":len(n0[0]),"added_full":len(n1[0]),"old_full":len(n2[0]),
@@ -301,7 +305,8 @@ def main():
       "no_S29_S26_S53_S55_S57_used":True,
       "no_LIVE_Jessica_Render_Supabase_APK_changes":True}
     (a.out/"S59_TRAIN_ONLY_COMPLETE_REPORT.json").write_text(json.dumps(report,indent=2))
-    print(json.dumps({"event":"CALIBRI_S59_RESULT","accepted":candidate_accepted,
+    print(json.dumps({"event":"CALIBRI_S59_RESULT","accepted":False,
+                       "train_guard_pass":train_guard_pass,
                        "metrics":report["result"]}),flush=True)
 
 if __name__=="__main__":
