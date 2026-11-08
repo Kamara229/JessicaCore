@@ -1,0 +1,74 @@
+name: CALIBRI2 S19 FAIR 96 two-slot FP32 original vs physically paid 36M
+on:
+  push:
+    branches: ['research/calibri2-s19-fair-new-two-slot-fp32-20261108']
+    paths:
+      - 'research/calibri2/s19/**'
+      - '.github/workflows/calibri2-s19-fair-two-slot.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original135M_FP32_and_compressed36M_independent_96_composite:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '2119'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact CPU reference and research packages
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Freeze a NEW 96-sample balanced two-slot QA with no literal answer placeholder
+        run: |
+          python -m compileall -q research/calibri2/s19
+          python - <<'PY'
+          from calibri2.s19.fair_two_slot import suite
+          from collections import Counter
+          data=suite()
+          assert len(data)==96
+          assert Counter(x['gold'] for x in data)=={
+           f'{flag}, {color}':12
+           for flag in ('Yes','No') for color in ('red','blue','green','yellow')}
+          print('S19_96_48_COUNTERFACTUAL_PAIRS_8_WAY_BALANCED_FROZEN')
+          PY
+      - name: Restore physically paid immutable 36M S7 archive for comparison
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s7-36M-ffn1536-physical-and-regression-report
+          path: inputs/s7
+          run-id: 42383040833
+          github-token: ${{ github.token }}
+      - name: Test original PRETRAINED 135M FP32 on NEW 96 real Yes plus color answers
+        run: |
+          python research/calibri2/s19/fair_two_slot.py results/s19/original_fp32 --engine fp32_135m_original
+      - name: Save complete original FP32 answer texts and failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s19-ORIGINAL-FP32-135M-NEW-96-JOINT-ANSWERS
+          path: results/s19/original_fp32/
+          retention-days: 45
+      - name: Test physically PAID 36M S7 on exactly same fresh 96 questions
+        run: |
+          python research/calibri2/s19/fair_two_slot.py results/s19/compressed36m --engine physical_cb59_36m --physical-archive inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59
+      - name: Save complete paid 36M answer texts and failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s19-PAID-36M-S7-NEW-96-JOINT-ANSWERS
+          path: results/s19/compressed36m/
+          retention-days: 45
