@@ -1,0 +1,36 @@
+name: CALIBRI S29 precommit NEW unseen QA before next paid training
+on:
+  push:
+    branches:
+      - research/calibri2-s29-precommitted-unseen-qa-20261108
+    paths:
+      - 'research/calibri2/s29/**'
+      - '.github/workflows/calibri2-s29-precommitted-frozen-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  freeze_novel_96_48_controls_16_open_without_training:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: research
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check S29 source and independent frozen question sets
+        run: |
+          python -m compileall -q research/calibri2/s29
+          python -m unittest -v calibri2.s29.test_frozen_transfer_qa
+      - name: Save independently frozen QA manifest and SHA before model training
+        run: python research/calibri2/s29/frozen_transfer_qa.py
+      - name: Preserve new QA contract without any results, weights or tests on Jessica
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s29-PRECOMMITTED-INDEPENDENT-96-48-16-NEVER-TRAIN
+          path: results/s29/frozen/S29_PRECOMMITTED_INDEPENDENT_96_48_16.json
+          retention-days: 90
