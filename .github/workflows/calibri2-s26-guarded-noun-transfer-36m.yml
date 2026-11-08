@@ -1,0 +1,117 @@
+name: CALIBRI2 S26 36M physically guarded new-noun transfer and fresh QA
+on:
+  push:
+    branches: ['research/calibri2-s26-guarded-noun-transfer-train-20261108']
+    paths:
+      - 'research/calibri2/s26/**'
+      - '.github/workflows/calibri2-s26-guarded-noun-transfer-36m.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  S26_1280_paid_36M_compositional_new_nouns:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '2126'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Verify QA SHA frozen in preceding PR before S26 training and 8 new combos never in TRAIN
+        run: |
+          python -m compileall -q research/calibri2/s26
+          python - <<'PY'
+          from transformers import AutoTokenizer
+          from binary_geometry_v64 import MODEL, MODEL_SHA
+          from calibri2.s26.spec import RESERVED
+          from calibri2.s26.frozen_new_qa import manifest
+          from calibri2.s26.noun_transfer_train import (
+              allowed_combos, create_train_pairs, START_SHA
+          )
+          expected="e8e3e75c5fedf845aef512a104723a4d04fab3980ecec7f4deb3575ae020ac3f"
+          assert manifest()["qa_suite_sha256"]==expected
+          assert START_SHA=="b21619b12ff6014b63129916857a525455960852c8f5a530de233acf10e8f900"
+          combos=allowed_combos()
+          assert len(combos)==40 and len(RESERVED)==8
+          tok=AutoTokenizer.from_pretrained(MODEL,revision=MODEL_SHA)
+          pairs=create_train_pairs(tok)
+          assert len(pairs["noun"])==480 and len(pairs["color"])==160
+          all_answers=[p[side]["answer"] for kind in pairs for p in pairs[kind] for side in ("left","right")]
+          assert all(gold!=" ".join(x) for x in RESERVED for gold in all_answers)
+          print("S26_TRAIN_640_NEW_PAIR_SOURCE_FROZEN_QA_DISJOINT_PASS")
+          PY
+      - name: Restore immutable S24 paid CB59 36M source from complete S24 CI
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s24-36M-NOUN-BINDING-640-GREEN-TUNNEL-PHYSICAL
+          path: inputs/s24
+          run-id: 42466621076
+          github-token: ${{ github.token }}
+      - name: Score original S24 on independently precommitted S26 96 plus 48 controls BEFORE training
+        run: |
+          python research/calibri2/s26/independent_qa.py \
+            inputs/s24/CALIBRI2_S24_36M_NOUN_GUARDED_640_PAID.cb59 \
+            results/s26/initial_qa --label S24_BEFORE_S26_FROZEN_96_QA
+      - name: Preserve full S24 baseline answers before any S26 training
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s26-SEALED-S24-BASELINE-96-NEW-NOUN-48-CONTROLS
+          path: results/s26/initial_qa/
+          retention-days: 60
+      - name: One 1280-step real physically paid Green Tunnel S26 multiple old-skill replay training
+        run: |
+          python research/calibri2/s26/noun_transfer_train.py \
+            inputs/s24/CALIBRI2_S24_36M_NOUN_GUARDED_640_PAID.cb59 \
+            results/s26/train
+      - name: Preserve paid 36M 5bit+FP16 archive, full TRAIN guard decisions and skill replays
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s26-36M-NOUN-TRANSFER-1280-GREEN-TUNNEL-PHYSICAL
+          path: results/s26/train/
+          compression-level: 0
+          retention-days: 60
+      - name: Score ONE final S26 checkpoint on 96 precommitted unseen new-noun combinations
+        run: |
+          python research/calibri2/s26/independent_qa.py \
+            results/s26/train/CALIBRI2_S26_36M_NOUN_TRANSFER_1280_PAID.cb59 \
+            results/s26/final_qa --label S26_SINGLE_FINAL_QA_NO_CHECKPOINT_SELECTION
+      - name: Preserve every final correct or incorrect greedy two-word answer plus controls
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s26-FINAL-96-NEW-NOUN-48-CONTROLS-16-OPEN
+          path: results/s26/final_qa/
+          retention-days: 60
+      - name: Compare paired 36M compact-only native C CPU S26 speed vs sealed S24
+        run: |
+          python research/calibri2/s26/native_speed.py \
+            inputs/s24/CALIBRI2_S24_36M_NOUN_GUARDED_640_PAID.cb59 \
+            results/s26/train/CALIBRI2_S26_36M_NOUN_TRANSFER_1280_PAID.cb59 \
+            results/s26/train/ACTUAL_CALIBRI2_S26_REAL_GUARDED_NOUN_TRAIN.json \
+            results/s26/native
+      - name: Preserve physical native C CPU speed regression
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s26-36M-NATIVE-C-CPU-SPEED
+          path: results/s26/native/
+          retention-days: 60
