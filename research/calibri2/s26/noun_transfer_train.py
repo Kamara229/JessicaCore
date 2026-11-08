@@ -151,7 +151,7 @@ def create_train_pairs(tok):
             B=f"{COLORS[second[0]]} {NOUNS[second[1]]}"
             if A==B:raise AssertionError("TRAIN contrasts identical")
             pattern=PATTERNS[(i//4)%len(PATTERNS)]
-            owner=f"TrainKemi{kind}{i:03d}";other=f"TrainHaro{kind}{i:03d}"
+            owner=f"TrainS26Kemi{kind}{i:03d}";other=f"TrainS26Haro{kind}{i:03d}"
             left=tokenize_one(tok,
                 pattern.format(n=i,a=owner,b=other,left=A,right=B),A)
             right=tokenize_one(tok,
@@ -278,9 +278,11 @@ def train():
     if len(keys)!=PAID_OPERATORS:raise AssertionError("S26 missing paid codebooks")
     params=[sources[k].centroids for k in keys]
     prev_probe=prev[:6]+prev[-6:]
+    s24_probe=s24_replay[:6]+s24_replay[-6:]
     old_probe=old[:6]+old[-6:]
     new_probe=new["noun"][:6]+new["noun"][-6:]
     before_prev=training_probe(model,sources,prev_probe)
+    before_s24=training_probe(model,sources,s24_probe)
     before_old=training_probe(model,sources,old_probe)
     before_new=training_probe(model,sources,new_probe)
     trace=[]
@@ -425,6 +427,7 @@ def train():
     if mem_new!=reload_new:
         raise AssertionError("Paid CB59 reload changed actual generated TRAIN words")
     after_prev=training_probe(reloaded,reload_src,prev_probe)
+    after_s24=training_probe(reloaded,reload_src,s24_probe)
     after_old=training_probe(reloaded,reload_src,old_probe)
     def n_correct(rows):return sum(x["correct_full_EOS"] for x in rows)
     def lost(before,after):
@@ -451,6 +454,9 @@ def train():
       "rehearsal_S20_TRAIN_pairs":len(prev),
       "actual_TRAIN_noun_pre_correct":n_correct(before_new),
       "actual_TRAIN_noun_post_correct":n_correct(reload_new),
+      "actual_TRAIN_S24_pre_correct":n_correct(before_s24),
+      "actual_TRAIN_S24_post_correct":n_correct(after_s24),
+      "lost_previous_S24_TRAIN_answers":lost(before_s24,after_s24),
       "actual_TRAIN_S20_pre_correct":n_correct(before_prev),
       "actual_TRAIN_S20_post_correct":n_correct(after_prev),
       "actual_TRAIN_old_pre_correct":n_correct(before_old),
@@ -459,6 +465,8 @@ def train():
       "lost_previous_multiword_TRAIN_answers":lost(before_prev,after_prev),
       "actual_pre_new_TRAIN_answers":before_new,
       "actual_post_new_TRAIN_answers":reload_new,
+      "actual_pre_S24_TRAIN_answers":before_s24,
+      "actual_post_S24_TRAIN_answers":after_s24,
       "actual_pre_S20_TRAIN_answers":before_prev,
       "actual_post_S20_TRAIN_answers":after_prev,
       "actual_pre_old_TRAIN_answers":before_old,
@@ -481,6 +489,8 @@ def train():
       "TRAIN_noun_after":report["actual_TRAIN_noun_post_correct"],
       "TRAIN_S20_before":report["actual_TRAIN_S20_pre_correct"],
       "TRAIN_S20_after":report["actual_TRAIN_S20_post_correct"],
+      "TRAIN_S24_before":report["actual_TRAIN_S24_pre_correct"],
+      "TRAIN_S24_after":report["actual_TRAIN_S24_post_correct"],
       "old_correct_lost":report["lost_old_TRAIN_answers"],
       "updated_5bit_groups":accepted_groups
     }),flush=True)
