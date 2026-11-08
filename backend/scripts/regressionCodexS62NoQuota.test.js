@@ -162,3 +162,27 @@ test("S69 no-provider status does not swallow Jessica test commands or dangerous
   assert.equal(quotaSafeCalibrIResearchProgress(latestRelayEnvelope.replace("JESSICA_END_"+latestRelayID,"JESSICA_END_00000000-0000-0000-0000-000000000000")),null);
   assert.equal(quotaSafeCalibrIResearchProgress(latestRelayEnvelope.replace("в GitHub PR #457","в Render PR #457")),null);
 });
+
+const statusOnlyCiID="c2bff4ba-eeb5-4dee-8707-404276b50e55";
+const statusOnlyCiBody="S70: GitHub CI #42534887096 ещё выполняется. Следующий шаг — проверить сохранение всех навыков S67 и прирост TRAIN без регресса. Render/Supabase исправны; 429 — квота Groq. PR #449 прошёл CI, но LIVE не обновлён. Jessica не тестировать.";
+const statusOnlyCiEnvelope="JESSICA_REPLY_"+statusOnlyCiID+"\n\n"+statusOnlyCiBody+"\n\nJESSICA_END_"+statusOnlyCiID;
+test("CI-run referenced GitHub-only S70 status consumes zero Groq requests even on daily quota",async()=>{
+  let calls=0;
+  const response=await interpretRelayTurn({message:statusOnlyCiEnvelope},async()=>{
+    calls++;
+    throw Object.assign(new Error("429 daily-quota"),{status:429});
+  });
+  assert.equal(calls,0);
+  assert.deepEqual([response.action,response.task,response.continueThread],["reply","",false]);
+  assert.match(response.reply,/S70/);
+  assert.match(response.reply,/не запрашивался и не запускался/);
+});
+test("CI-only provider-free status must reject malformed IDs, instructions and markers",()=>{
+  const body=statusOnlyCiBody.replace("PR #449 прошёл CI, но LIVE не обновлён. ","");
+  const envelope="JESSICA_REPLY_"+statusOnlyCiID+"\n\n"+body+"\n\nJESSICA_END_"+statusOnlyCiID;
+  assert.ok(quotaSafeCalibrIResearchProgress(envelope));
+  assert.equal(quotaSafeCalibrIResearchProgress(envelope.replace("GitHub CI #42534887096","GitHub CI #bad")),null);
+  assert.equal(quotaSafeCalibrIResearchProgress(envelope.replace("Jessica не тестировать.","Jessica, выполни тест.")),null);
+  assert.equal(quotaSafeCalibrIResearchProgress(envelope.replace("JESSICA_END_"+statusOnlyCiID,"JESSICA_END_00000000-0000-0000-0000-000000000000")),null);
+  assert.equal(quotaSafeCalibrIResearchProgress(envelope.replace("GitHub CI","Render CI")),null);
+});
