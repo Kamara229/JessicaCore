@@ -1,0 +1,92 @@
+name: CALIBRI2 S20 36M multiword EOS-aware Green Tunnel TRAIN plus independent QA
+on:
+  push:
+    branches: ['research/calibri2-s20-multiword-curriculum-36m-20261108']
+    paths:
+      - 'research/calibri2/s20/**'
+      - '.github/workflows/calibri2-s20-multiword-36m.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  S20_960_steps_multiword_and_strict_unseen_full_EOS_answers:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 130
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '2120'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile and check frozen independent NEW 96 two-word plus 48 control cases
+        run: |
+          python -m compileall -q research/calibri2/s20
+          python - <<'PY'
+          from calibri2.s20.independent_multiword import cases,unseen_combinations
+          a=cases()
+          assert len(a)==144 and len(unseen_combinations())==8
+          assert sum(x['kind']=='unseen_color_object_binding' for x in a)==96
+          print('S20_NEW_UNSEEN_COLOR_NOUN_QA_PRECOMMITTED_BEFORE_TRAIN')
+          PY
+      - name: Restore original pre-S8 physical 36M S7 model, never QA-selected
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s7-36M-ffn1536-physical-and-regression-report
+          path: inputs/s7
+          run-id: 42383040833
+          github-token: ${{ github.token }}
+      - name: Evaluate exactly one S7 baseline on NEW strict 96 unseen two-word bindings and 48 controls
+        run: |
+          python research/calibri2/s20/independent_multiword.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 results/s20/s7_baseline --label S7_BEFORE_S20_UNSEEN_2WORD
+      - name: Preserve original S7 actual answers before any S20 weight updates
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s20-FROZEN-96-NEW-TWOWORD-48CONTROL-S7-BEFORE
+          path: results/s20/s7_baseline/
+          retention-days: 45
+      - name: Train S20 960 REAL paid 36M two-word continuation/EOS protected steps
+        run: |
+          python research/calibri2/s20/multiword_curriculum.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 results/s20/train
+      - name: Preserve real physically paid model and old/new TRAIN answer quality, even if QA fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s20-36M-960-GREEN-TUNNEL-TWOWORD-PAID-PHYSICAL
+          path: results/s20/train/
+          retention-days: 45
+          compression-level: 0
+      - name: Evaluate exactly one FINAL sealed S20 multiword checkpoint on identical frozen 96+48+16
+        run: |
+          python research/calibri2/s20/independent_multiword.py results/s20/train/CALIBRI2_S20_36M_960_MULTIWORD_PROTECTED_PAID.cb59 results/s20/s20_after --label S20_AFTER_960_NEW_UNSEEN_2WORD
+      - name: Preserve ALL actual success and failure full answer sequences, not just summary score
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s20-FROZEN-96-NEW-TWOWORD-48CONTROL-S20-AFTER
+          path: results/s20/s20_after/
+          retention-days: 45
+      - name: Native C paired 36M compact-only CPU speed check S7 versus S20
+        run: |
+          python research/calibri2/s20/native_speed.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 results/s20/train/CALIBRI2_S20_36M_960_MULTIWORD_PROTECTED_PAID.cb59 results/s20/train/ACTUAL_CALIBRI2_S20_960_MULTIWORD_PROTECTED_TRAIN.json results/s20/native
+      - name: Preserve measured native C CPU speed and no dense inference
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s20-36M-NATIVE-C-PHYSICAL-CPU-SPEED
+          path: results/s20/native/
+          retention-days: 45
