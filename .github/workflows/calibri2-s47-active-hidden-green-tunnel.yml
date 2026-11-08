@@ -1,0 +1,66 @@
+name: CALIBRI S47 active hidden-state Green Tunnel all-inclusive under 0.7 bpp
+on:
+  push:
+    branches:
+      - research/calibri2-s47-active-lowrank-green-tunnel-20261108
+    paths:
+      - 'research/calibri2/s47/**'
+      - '.github/workflows/calibri2-s47-active-hidden-green-tunnel.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  S47_real_active_green_tunnel_isolated_36M:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 110
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '4747'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile actual Green Tunnel program
+        run: |
+          python -m compileall -q research/calibri2/s47
+      - name: Fetch exact real S45 physically paid CB59 without QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Train tiny active Green Tunnel and measure strict full TRAIN + old7, real all-inclusive physical cost
+        run: |
+          python research/calibri2/s47/active_small_green_tunnel.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            results/s47
+      - name: Preserve complete S47 experiment TRAIN evidence and physical cost
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s47-real-active-green-tunnel-TRAIN-report
+          path: results/s47/*.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Preserve genuinely useful self-contained neural controller only if old7 and some full TRAIN answers improve
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s47-active-green-tunnel-paid-under-0p7-if-accepted
+          path: results/s47/*.safetensors
+          if-no-files-found: warn
+          retention-days: 60
