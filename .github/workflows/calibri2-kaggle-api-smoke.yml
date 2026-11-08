@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install official Kaggle CLI
-        run: python -m pip install --quiet kaggle
+        run: python -m pip install --quiet 'kaggle>=1.8.0' six
       - name: Verify modern Kaggle token against authenticated GPU quota API
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
