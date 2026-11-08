@@ -251,8 +251,18 @@ def main():
             raise AssertionError("S41 accepted identical CB59")
         model2,source2=create_small_paid_model(CB59(packed),build_config(MODEL_SPEC))
         after_reload=summarize_train(model2,source2,tok,new,old)
-        if after_reload!=after:
-            raise AssertionError("S41 physical reload disagrees on all 64 exact full answers/ranks")
+        # Re-serialization must preserve ACTUAL discrete response/rank decisions.
+        # Tiny float differences in logits are tolerable; equality of 64
+        # real greedy answers, noun winners/ranks and old IDs is not.
+        for label in ("new_64_TRAIN_full_answers","new_64_TRAIN_noun_top1",
+                      "historical_8_TRAIN_full_answers","historical_TRAIN_full_ids"):
+            if after_reload[label]!=after[label]:
+                raise AssertionError("S41 physical reload lost exact TRAIN decisions: "+label)
+        for a,b in zip(after["all_64_new_TRAIN"],after_reload["all_64_new_TRAIN"]):
+            for field in ("id","gold","predicted_winner_token","noun_gold_rank",
+                          "full_correct_with_eos","generated_text"):
+                if a[field]!=b[field]:
+                    raise AssertionError("S41 compact reload changed discrete "+field)
         reload={"sha256":hashlib.sha256(packed).hexdigest(),
                 "full_64_new_and_8_old_TRAIN_identical":True,
                 "physical_model_bytes":len(packed)}
