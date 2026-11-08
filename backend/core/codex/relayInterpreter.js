@@ -24,6 +24,7 @@ import {interpretationFailureHandoff} from "./relayFailureHandoff.js";
 import {calibriResearchHandoff} from "./relayCalibriProgress.js";
 import {calibriNoTestNextStep} from "./relayCalibriNoTestNextStep.js";
 import {calibri2ResearchPassiveHandoff} from "./relayCalibriV2PassiveStep.js";
+import {compactCalibri2NoJessicaTest} from "./relayCalibriV2CompactNoTest.js";
 import {missingCalibriArtifactHandoff} from "./relayMissingCalibriArtifact.js";
 import {completedCalibriNoTestHandoff} from "./relayCalibriCompletedNoTest.js";
 import {v2PersistenceHandoff} from "./relayV2PersistenceHandoff.js";
@@ -60,6 +61,16 @@ export function validateRelayDecision(raw, message) {
     const reply = typeof value.reply === "string" ? value.reply.trim() : "";
     const task = typeof value.task === "string" ? value.task.trim() : "";
     if (reply.length > 3000 || (value.action !== "test" && !reply)) throw Error("invalid-reply");
+    // A provider may misread "следующий шаг — проверить X" as a Jessica
+    // task despite the explicit instruction not to launch any Jessica test.
+    // Explicit direct Jessica test requests have already been routed before
+    // this model-based validator. Never give an unrequested task to execution.
+    if (value.action === "test" &&
+        /(?:Jessica|Джессика)\s+тесты?\s+не\s+запуска(?:ет|й|ть)/iu.test(message)) {
+        return {action:"reply",task:"",continueThread:false,
+            reply:"Это исследовательская проверка ChatGPT через GitHub, а не тест Jessica. "+
+                  "Не запускаю тест в обычном чате; передаю продолжение плана."};
+    }
     if (value.action === "test" && (!task || task.length > 20000 || !message.includes(task)))
         throw Error("test-must-be-an-exact-quote");
     if (value.action !== "test" && task) throw Error("unexpected-test");
@@ -100,6 +111,8 @@ export async function interpretRelayTurn(input, generate) {
     if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
     const calibri2Passive=calibri2ResearchPassiveHandoff(message);
     if (calibri2Passive!==null) return calibri2Passive;
+    const compactNoTest=compactCalibri2NoJessicaTest(message);
+    if (compactNoTest!==null) return compactNoTest;
     const finishedResearch=completedCalibriNoTestHandoff(message);
     if (finishedResearch!==null)return {action:"reply",reply:finishedResearch,task:"",continueThread:false};
     // Explicitly no-Jessica-test CALIBRI progress must not consume Groq quota.
