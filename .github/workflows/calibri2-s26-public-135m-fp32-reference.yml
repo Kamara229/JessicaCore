@@ -1,0 +1,52 @@
+name: CALIBRI2 S26 public pretrained 135M FP32 reference read-only
+on:
+  push:
+    branches:
+      - research/calibri2-s26-public-135m-fp32-readonly-reference-20261108
+    paths:
+      - 'research/calibri2/s26/public_135m_fp32_readonly_reference.py'
+      - '.github/workflows/calibri2-s26-public-135m-fp32-reference.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  independent_public_pretrained_FP32_reference:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU-only pinned evaluation libraries
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Verify precommitted S26 96 QA SHA before reading external FP32 checkpoint
+        run: |
+          python - <<'PY'
+          from calibri2.s26.frozen_new_qa import manifest, cases, OPEN_QUESTIONS
+          assert manifest()["qa_suite_sha256"]=="e8e3e75c5fedf845aef512a104723a4d04fab3980ecec7f4deb3575ae020ac3f"
+          assert len(cases())==144 and len(OPEN_QUESTIONS)==16
+          print("S26_FROZEN_SHA_96_48_16_VERIFIED_NO_TRAIN")
+          PY
+      - name: Read-only 144 fixed-question same prompt/tokenizer reference from real pretrained 135M FP32
+        run: |
+          python research/calibri2/s26/public_135m_fp32_readonly_reference.py \
+            results/s26/public_135m_fp32_reference
+      - name: Preserve complete reference predictions and limitation flags
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s26-UNMATCHED-PUBLIC-135M-PRETRAINED-FP32-REFERENCE-144-16
+          path: results/s26/public_135m_fp32_reference/
+          retention-days: 90
