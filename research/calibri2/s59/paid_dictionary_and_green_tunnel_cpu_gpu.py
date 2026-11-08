@@ -210,6 +210,7 @@ def main():
         {"params":list(later.parameters()),"lr":a.tunnel_lr}
     ],weight_decay=.00001)
     start=0
+    sampler_version='wide_corpus_strided_v2'
     if a.resume:
         saved=torch.load(a.resume,map_location="cpu",weights_only=True)
         if (saved["source_sha"]!=BASE_SOURCE_SHA or
@@ -224,21 +225,29 @@ def main():
             for k,v in group.items():
                 if isinstance(v,torch.Tensor):group[k]=v.to(device)
         start=int(saved["step"])
+        sampler_version=saved.get('sampler_version','prefix_window_strided_v1')
     print(json.dumps({"event":"CALIBRI_S59_PHYSICAL_TRAIN_START",
       "device":str(device),"steps":a.steps,"resume_from":start,
       "source_bytes":len(source),"base_bpp":8*(len(source)+len(dual)+len(manifest))/SOURCE_PARAMS,
       "text_train_provenance":provenance,
       "learning_rates":{"centroids":a.centroid_lr,"tunnel":a.tunnel_lr},
       "loss_weights":{"LM":a.lm_weight,"historical":a.old_replay_weight},
-      "CPU_CONTINUATION_REQUIRES_NO_GPU":True}),flush=True)
+      "CPU_CONTINUATION_REQUIRES_NO_GPU":True,
+      "sampler_version":sampler_version}),flush=True)
     timer=time.monotonic()
     log=[]
     for step in range(start+1,start+a.steps+1):
         optimizer.zero_grad(set_to_none=True)
         # All sample indices fixed by step number, so resuming on CPU changes
         # only the compute backend (rounding differences possible, recorded).
-        k=(step*31+SEED)%a.windows
-        start_idx=k*a.context
+        if sampler_version=='prefix_window_strided_v1':
+            # Legacy S59 checkpoints remain resumable without a changed task.
+            k=(step*31+SEED)%a.windows
+            start_idx=k*a.context
+        else:
+            # Spread successive steps over ALL 2.56M TRAIN tokens rather
+            # than repeatedly sampling only the first 6144 tokens.
+            start_idx=(step*104729+SEED*8191)%(len(ids)-a.context)
         window=ids[start_idx:start_idx+a.context].to(device)
         pair_a=original[(step*7)%len(original)]
         pair_b=augmented[(step*11)%len(augmented)]
@@ -271,6 +280,7 @@ def main():
             cpu_opt=optimizer.state_dict()
             torch.save({"step":step,"source_sha":BASE_SOURCE_SHA,
               "dual_sha":BASE_DUAL_SHA,"token_sha":provenance["token_sha256"],
+              "sampler_version":sampler_version,
               "centroids":{k:q.centroids.detach().cpu() for k,q in sources.items()},
               "later":{k:v.detach().cpu() for k,v in later.state_dict().items()},
               "optimizer":cpu_opt},f)
