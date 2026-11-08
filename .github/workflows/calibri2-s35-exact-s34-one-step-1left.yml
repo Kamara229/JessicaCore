@@ -1,0 +1,60 @@
+name: CALIBRI S35 exact S34 one-step 1_left token logit diagnosis
+on:
+  push:
+    branches:
+      - research/calibri2-s35-1left-logit-diagnostic-20261108
+    paths:
+      - 'research/calibri2/s35/**'
+      - '.github/workflows/calibri2-s35-exact-s34-one-step-1left.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  S35_1left_S33_replay_then_one_rejected_S34_TRAIN_step:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 75
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '3030'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependencies as S33 and S34
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile isolated diagnostic
+        run: |
+          python -m compileall -q research/calibri2/s35/
+      - name: Restore exact S26 CB59 physical 36M seed, not any heldout QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-36M-NOUN-TRANSFER-1280-GREEN-TUNNEL-PHYSICAL
+          path: inputs/s26
+          run-id: 42470473505
+          github-token: \${{ github.token }}
+      - name: Reproduce S33 and inspect single rejected S34 LR 3e-6 update
+        run: |
+          python research/calibri2/s35/diagnose_exact_s34_step1_1left_logits.py \
+            inputs/s26/CALIBRI2_S26_36M_NOUN_TRANSFER_1280_PAID.cb59 \
+            results/s35
+      - name: Retain S35 one-step token and EOS diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s35-S34-one-step-1left-token-logits-TRAIN-only
+          path: results/s35/*.json
+          if-no-files-found: warn
+          retention-days: 90
