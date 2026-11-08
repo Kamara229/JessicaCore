@@ -10,7 +10,7 @@ permissions:
   contents: read
 jobs:
   one_short_private_gpu_preflight:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s59-gpu-cpu-portable-20261109'
+    if: false # QUOTA SAFETY: one-shot preflight already submitted. Never automatically resubmit on PR synchronize.
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
