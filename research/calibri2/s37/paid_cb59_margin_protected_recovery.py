@@ -267,7 +267,7 @@ def train():
             raise AssertionError("S37 physical budget exceeded")
         if hashlib.sha256(packed).hexdigest()==s30.SOURCE_SHA:
             raise AssertionError("Model accepted steps but unchanged packed bytes")
-        if physical["actual_changed_FP16_codebook_cells"]<=0:
+        if physical["actually_changed_FP16_codebook_cells"]<=0:
             raise AssertionError("S37 accepted updates have no persistent paid cells")
         packed_archive = CB59(packed)
         reloaded, re_sources = create_small_paid_model(
