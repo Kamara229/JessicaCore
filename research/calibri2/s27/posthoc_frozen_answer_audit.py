@@ -23,8 +23,8 @@ PARAMS=36_380_480
 EXPECTED_BYTES=3_141_513
 PRETRAINED_135M_PARAMS=134_515_008
 NOVEL="reserved_novel_color_noun"
-VALID_TWO=re.compile(r"^\\s*(red|blue|green|yellow)\\s+"
-    r"(cup|book|bag|lamp|chair|hat|plate|scarf|clock|spoon|pencil|bottle|fork|glove|shirt|key)\\s*[.!]?\\s*$",re.I)
+VALID_TWO=re.compile(r"^\s*(red|blue|green|yellow)\s+"
+    r"(cup|book|bag|lamp|chair|hat|plate|scarf|clock|spoon|pencil|bottle|fork|glove|shirt|key)\s*[.!]?\s*$",re.I)
 DOMAINS={NOVEL:96,"color_one_word_control":24,"number_one_word_control":24}
 
 def read_json(path):
