@@ -33,7 +33,7 @@ test("missing safeguards, malformed envelopes, test commands and unsafe requests
         exact.replace("CALIBRI S34","CALIBRI S20"),
         exact.replace("PR #417","PR #999"),
         exact.replace("GitHub Actions","инструмент"),
-        exact.replace("Следующий шаг","Итог"),
+        exact.replace("следующий шаг","итог"),
         exact+" Создай новый тестовый чат.",
         exact+" Выполни тест через обычный чат Jessica.",
         exact+" Точная формулировка задачи: 2+2?",
