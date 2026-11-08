@@ -4,7 +4,7 @@ on:
     branches: ['research/calibri2-s22-s20-second-token-readonly-20261108']
     paths:
       - 'research/calibri2/s22/**'
-      - '.github/workflows/calibri2-s22-second-token-eos.yml'
+      - '.github/workflows/calibri2-s22-s20-second-token.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -41,7 +41,7 @@ jobs:
           path: inputs/s7
           run-id: 42383040833
           github-token: ${{ github.token }}
-      - name: Retrieve S20 sealed 36M 2048 TRAIN-step physical model
+      - name: Retrieve S20 sealed 36M 960 TRAIN-step physical model
         uses: actions/download-artifact@v4
         with:
           name: calibri2-s20-36M-960-GREEN-TUNNEL-TWOWORD-PAID-PHYSICAL
