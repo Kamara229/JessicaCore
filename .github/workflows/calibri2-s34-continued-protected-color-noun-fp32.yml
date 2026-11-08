@@ -1,0 +1,70 @@
+name: CALIBRI S34 reproduce S33 and continue protected FP32 TRAIN
+on:
+  push:
+    branches:
+      - research/calibri2-s34-protected-color-noun-continuation-20261108
+    paths:
+      - 'research/calibri2/s34/**'
+      - '.github/workflows/calibri2-s34-continued-protected-color-noun-fp32.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  S34_replay_S33_then_80_guarded_dense_FP32_train_only:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '3030'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependencies exactly as S33
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: S34 compile and regress reproducibility and no QA leakage
+        run: |
+          python -m compileall -q research/calibri2/s34/
+          python -m unittest -v calibri2.s34.test_continued_protected_color_noun_fp32
+      - name: Restore identical S26 physical 36M starting archive (not QA)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-36M-NOUN-TRANSFER-1280-GREEN-TUNNEL-PHYSICAL
+          path: inputs/s26
+          run-id: 42470473505
+          github-token: ${{ github.token }}
+      - name: Reproduce all S33 then perform guarded S34 TRAIN continuation
+        run: |
+          python research/calibri2/s34/continued_protected_color_noun_fp32.py \
+            inputs/s26/CALIBRI2_S26_36M_NOUN_TRANSFER_1280_PAID.cb59 \
+            results/s34
+      - name: Retain S33 replay diagnosis and all S34 TRAIN outcomes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s34-replay-and-guarded-fp32-TRAIN-reports
+          path: results/s34/*.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Retain actual S34 dense FP32 weights, explicitly NOT 0.7bpp
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s34-dense-FP32-NOT-CB59-checkpoint
+          path: results/s34/*.pt
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 3
