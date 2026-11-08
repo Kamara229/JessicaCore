@@ -1,0 +1,80 @@
+name: CALIBRI S54 new distinct TRAIN contexts, protected S52 full answers, paid <=0.7bpp
+on:
+  push:
+    branches:
+      - research/calibri2-s54-diverse-train-protected-s52-20261108
+    paths:
+      - 'research/calibri2/s54/**'
+      - '.github/workflows/calibri2-s54-diverse-train-protected-S52.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s54_train_only_new_distinct_pairs:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 110
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU research environment
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Check independent S54-only TRAIN Python syntax (S53/S29 QA never imported)
+        run: python -m compileall -q research/calibri2/s54
+      - name: Download immutable S45 fully physically packed 36M CB59
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Download accepted S52 paid rank12 neural controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s52-active-paired-green-tunnel-if-accepted
+          path: inputs/s52
+          run-id: 42514912967
+          github-token: ${{ github.token }}
+      - name: Download S52 physically paid all-inclusive manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s52-real-paid-pair-TRAIN-report-JSON
+          path: inputs/s52_report
+          run-id: 42514912967
+          github-token: ${{ github.token }}
+      - name: Train entirely new labelled contrasts with full S52 29 and 7 old strict protection
+        run: |
+          python research/calibri2/s54/diverse_train_preserve_S52_full_sequences.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s52/S52_ACTIVE_GREEN_TUNNEL_RANK12.safetensors \
+            inputs/s52_report/S52_ACTIVE_GREEN_TUNNEL_MANIFEST.json \
+            results/s54
+      - name: Preserve real TRAIN results even if none are accepted
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s54-distinct-TRAIN-64-full-answers-protection-JSON
+          path: results/s54/*.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Preserve new S54 physical neural controller ONLY if accepted
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s54-paid-controller-if-accepted
+          path: results/s54/*.safetensors
+          if-no-files-found: warn
+          retention-days: 60
