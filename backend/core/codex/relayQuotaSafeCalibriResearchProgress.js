@@ -13,7 +13,8 @@ export function quotaSafeCalibrIResearchProgress(message) {
     if(!marker || lines[2]!=="JESSICA_END_"+marker[1])return null;
     const body=lines[1].replace(/\s+/gu," ").trim();
     if(body.length<75 || body.length>380)return null;
-    if(!/(?:CALIBRI|Green Tunnel|(?:^|[^A-Za-z0-9])S(?:[3-9][0-9]|1[0-9][0-9])(?=[^A-Za-z0-9]|$))/iu.test(body))return null;
+    const stage=/(?:^|[^A-Za-z0-9])S(\d{2,3})(?=[^A-Za-z0-9]|$)/iu.exec(body)?.[1];
+    if(!stage || Number(stage)<28)return null;
     if(!/\bGitHub\b/iu.test(body) || !/\bPR\s*#\d{1,5}\b/iu.test(body))return null;
     // No test can be inferred from a passive research status.
     if(!/(?:Jessica|Джессика)\s+не\s+тестировать\s*[.!]?$/iu.test(body))return null;
@@ -21,7 +22,7 @@ export function quotaSafeCalibrIResearchProgress(message) {
     if(/(?:^|\s)(?:создай|открой|запусти|выполни|проведи|повтори|отправь|измени|удали|разверни|деплой|merge|deploy)\s+(?:[^\s]+\s+){0,3}(?:тест|Jessica|Джессик|чат|Render|Supabase|LIVE|APK)/iu.test(body))return null;
     if(/(?:https?:\/\/|парол|секрет|API[- ]?ключ|токен\s+доступа|[«»\u0060]|JESSICA_(?:REPLY|END)_)/iu.test(body))return null;
     return {action:"reply",task:"",continueThread:false,
-      reply:"CALIBRI: статус GitHub принят без запроса к Groq. "+
-        "Новый тест в обычном чате Jessica не запрашивался и не запускался. "+
+      reply:"Поняла: CALIBRI S"+stage+". Статус GitHub принят без запроса к Groq. "+
+        "Тест в обычном чате Jessica не запрашивался и не запускался. "+
         "Исследование и проверки проводит ChatGPT; передаю следующие сообщения владельца."};
 }
