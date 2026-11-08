@@ -1,6 +1,12 @@
 name: CALIBRI S27 final frozen QA and native CPU artifact audit
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - research/calibri2-s27-posthoc-unseen-answer-audit-20261108
+    paths:
+      - '.github/workflows/calibri2-s27-final-posthoc-audit.yml'
+      - 'research/calibri2/s27/**'
 permissions:
   contents: read
   actions: read
