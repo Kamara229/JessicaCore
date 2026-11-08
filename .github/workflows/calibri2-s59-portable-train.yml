@@ -12,7 +12,7 @@ permissions:
   actions: read
 jobs:
   cpu_quantized_corpus_and_replay:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s59-gpu-cpu-portable-20261109'
+    if: false # 64-step guarded run was already launched once; protect CPU resource against accidental replay.
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     env:
