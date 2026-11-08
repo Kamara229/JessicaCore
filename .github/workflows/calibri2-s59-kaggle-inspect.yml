@@ -1,0 +1,44 @@
+name: CALIBRI S59 read-only Kaggle T4 result diagnostics
+'on':
+  pull_request:
+    branches:
+      - research/calibri2-s58-frozen-first-paired-noun-replay-20261108
+    paths:
+      - .github/workflows/calibri2-s59-kaggle-inspect.yml
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s59-gpu-cpu-portable-20261109'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Kaggle CLI + six
+        run: python -m pip install --quiet 'kaggle>=1.8.0' six
+      - name: Inspect previously submitted version only (never submit another GPU job)
+        shell: bash
+        run: |
+          set +e
+          kaggle kernels status kamara229/calibri-s59-gpu-preflight
+          kaggle kernels logs kamara229/calibri-s59-gpu-preflight > klog.txt 2>&1
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('klog.txt').read_text(errors='replace')
+          for line in s.splitlines()[-35:]:
+              line=re.sub(r'KGAT_[A-Za-z0-9_\-]+','[REDACTED]',line)
+              line=re.sub(r'[A-Za-z0-9+/=_\-]{80,}','[LONG_VALUE]',line)
+              print('KAGGLE_KERNEL_LOG:',line[:180])
+          PY
+          mkdir -p out
+          kaggle kernels output kamara229/calibri-s59-gpu-preflight -p out -o > output.log 2>&1
+          echo "KAGGLE_OUTPUT_CLI_EXIT_CODE=$?"
+          echo "KAGGLE_OUTPUT_FILES:"
+          find out -maxdepth 2 -type f -printf '%P\\n'
+          sed -E 's/(KGAT_[A-Za-z0-9_-]+)/[REDACTED]/g' output.log | tail -n 10
+          kaggle quota | grep -E '^GPU '
