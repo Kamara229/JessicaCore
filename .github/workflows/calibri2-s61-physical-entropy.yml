@@ -1,0 +1,62 @@
+name: CALIBRI S61 actual physical CB59 entropy compression
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s60-geometry-audit-20261109
+    paths:
+      - 'research/calibri2/s61/**'
+      - '.github/workflows/calibri2-s61-physical-entropy.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  physical_entropy_without_GPU:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s61-physical-entropy-cpu-20261109'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile S61 decoder, no ML runtime, zero GPU
+        run: python -m compileall -q research/calibri2/s61
+      - name: Fetch immutable actual physically compressed S45 model
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Fetch physically paid S56 dual Green Tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s56-paid-first-plus-later-dual-controller-if-accepted
+          path: inputs/s56
+          run-id: 42518099946
+          github-token: ${{ github.token }}
+      - name: Fetch sealed S56 physical accounting
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s56-first-token-paid-TRAIN-and-physical-report-JSON
+          path: inputs/s56_report
+          run-id: 42518099946
+          github-token: ${{ github.token }}
+      - name: Perform real zlib physical archive compression and exact CPU verification
+        run: |
+          python research/calibri2/s61/exact_entropy_cb59.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s56/S56_DUAL_ACTIVE_PAID_GREEN_TUNNEL.safetensors \
+            inputs/s56_report/S56_DUAL_ACTIVE_PAID_GREEN_TUNNEL_MANIFEST.json \
+            results/s61
+      - name: Keep actual compressed source, measured rate and CPU cold-decode evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: results/s61/
+          if-no-files-found: warn
+          retention-days: 90
