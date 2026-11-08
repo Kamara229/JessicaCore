@@ -55,7 +55,7 @@ export function calibriLaterResearchNoJessicaTest(message) {
       /(?:GitHub|CI\s*#\d{6,}|draft\s+PR\s*#\d+|TRAIN)/iu.test(body) &&
       /Следующ(?:ий|ая)\s+шаг\s+ChatGPT\s*[—–:-]\s*\S+/iu.test(body) &&
       /(?:Jessica|Джессика)\s+не\s+тестировать\s*[.!]?\s*$/iu.test(body) &&
-      /(?:LIVE\s+не\s+(?:измен[её]н|менять|обновл[её]н|трогать)|в\s+LIVE\s+(?:не\s+внедрено|пока\s+не\s+внедрено))/iu.test(body);
+      /(?:LIVE\s+не\s+(?:измен[её]н|изменял[аи]?|менять|менял[аи]?|меняли|обновл[её]н|трогать)|в\s+LIVE\s+(?:не\s+внедрено|пока\s+не\s+внедрено))/iu.test(body);
     // Any competing instruction always defeats provider-free classification.
     const unsafeOrAmbiguousResearch =
       /(?:создай|выполни|запусти|проведи|повтори|отправь|удали|измени|обнови|разверни|выпусти|установи|протестируй)\s+(?:(?:новый|один|ещё|этот|следующий)\s+)?(?:тест|тестовый|чат|задач|деплой|deploy|сервер|базу|модель|кодекс)/iu.test(body) ||
