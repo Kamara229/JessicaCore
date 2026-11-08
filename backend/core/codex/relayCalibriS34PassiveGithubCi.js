@@ -24,6 +24,26 @@ export function passiveS34GithubCiNoTest(message) {
     body = body.replace(/\s+/gu, " ").trim();
     if (!body || body.length > 850) return null;
 
+    // A real S34 JSON report was sent as a sandbox attachment, not as a
+    // GitHub-CI instruction. Without this narrowly scoped path the passive
+    // report hits the quota-limited model and incorrectly yields an incident.
+    // This is acknowledgement ONLY; it does not inspect, execute or test.
+    const s34TrainReport =
+        /^JSON\\s+S34\\s*:/iu.test(body) &&
+        /\\[скачать\\s+отч[её]т\\]\\(sandbox:\\/mnt\\/data\\/S34_actual_36M_FP32_TRAIN_report\\.json\\)/iu.test(body) &&
+        /\\b240\\b/u.test(body) && /\\b214\\b/u.test(body) &&
+        /\\b26\\b/u.test(body) && /\\b80\\b/u.test(body) &&
+        /(?:80\\s+шагов\\s+отклонены)/iu.test(body) &&
+        /\\bLIVE\\s+не\\s+меня(?:ть|й)\\b/iu.test(body) &&
+        !/(?:создай|открой|запусти|выполни|проведи|повтори|протестируй)\\s+(?:(?:новый|один|этот|текстовый|следующий)\\s+)?(?:тест(?:ы)?|тестовый\\s+чат)/iu.test(body) &&
+        !/(?:https?:\\/\\/|парол|секрет|API[-\\s]?ключ|токен\\s+доступа|deploy|merge|удали|установи\\s+(?:APK|пакет|приложение)|[«»\\x60])/iu.test(body);
+    if (s34TrainReport) return {
+        action: "reply", task: "", continueThread: false,
+        reply: "S34 JSON-отчёт получен: 80 шагов отклонены, новые веса не улучшились. " +
+            "Анализ причин отклонения — задача ChatGPT через GitHub. " +
+            "Jessica тест не запускает, LIVE не меняет."
+    };
+
     if (!/^CALIBRI\s+S34\s*[:—–-]\s*Следующий\s+шаг\s*[—–:-]\s*[^.!?]+/iu.test(body))
         return null;
     if (!/\bGitHub\b/iu.test(body) ||
