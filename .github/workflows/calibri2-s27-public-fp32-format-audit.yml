@@ -1,0 +1,53 @@
+name: CALIBRI S27 sealed QA strict vs public FP32 phrase presence posthoc
+on:
+  push:
+    branches:
+      - research/calibri2-s27-posthoc-unseen-answer-audit-20261108
+    paths:
+      - 'research/calibri2/s27/strict_vs_mention.py'
+      - '.github/workflows/calibri2-s27-public-fp32-format-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  strict_vs_target_mentioned_without_training:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 6
+    env:
+      PYTHONPATH: research
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download immutable S24 baseline from current S26 workflow prior to train
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-SEALED-S24-BASELINE-96-NEW-NOUN-48-CONTROLS
+          path: inputs/baseline
+          run-id: 42470473505
+          github-token: ${{ github.token }}
+      - name: Download separate completed 135M pretrained public FP32 read-only reference
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-UNMATCHED-PUBLIC-135M-PRETRAINED-FP32-REFERENCE-144-16
+          path: inputs/unmatched_fp32
+          run-id: 42473665349
+          github-token: ${{ github.token }}
+      - name: No model training — compare strict full answers to merely mentioning target phrase
+        run: |
+          python -m compileall -q research/calibri2/s27
+          python research/calibri2/s27/strict_vs_mention.py \
+            --s24 inputs/baseline/ACTUAL_CALIBRI2_S26_NOVEL_144_16_ANSWERS.json \
+            --unmatched-fp32 inputs/unmatched_fp32/ACTUAL_S26_INDEPENDENT_PUBLIC_135M_FP32_REFERENCE.json \
+            --output results/s27/ACTUAL_FROZEN_S24_VS_UNMATCHED_PRETRAINED_FP32_STRICT_VS_MENTION.json
+      - name: Retain every actual prediction, negative result and format-vs-knowledge caveat
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s27-UNMATCHED-PUBLIC-FP32-STRICT-VS-PHRASE-96-48-16
+          path: results/s27/
+          retention-days: 90
