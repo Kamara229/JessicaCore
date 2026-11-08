@@ -87,6 +87,7 @@ export function calibriLaterResearchNoJessicaTest(message) {
     // missed it and needlessly called the rate-limited interpreter.
     const hasResearchStep =
         /Следующ(?:ий|ая)\s+шаг(?:\s+ChatGPT)?\s*[—–:-]\s*\S+/iu.test(body) ||
+        /(?:^|[.!?]\s+)Шаг\s+S(?:2[89]|[3-9]\d|1\d\d)\s+для\s+ChatGPT\s*:\s*(?:тренировать|обучать|устранить|проверить|сравнить|исследовать|проанализировать|изучить|улучшить)(?=\s|[.!?])/iu.test(body) ||
         /(?:^|[.!?]\s+)Шаг\s+S(?:2[89]|[3-9]\d|1\d\d)\s*:\s*(?:тренировать|обучать|диагностир\w*|сравни\w*|исследов\w*|проверить|проанализиров\w*|изучить|улучш\w*)/iu.test(body);
     if(!hasResearchStep ||
        !/(?:FP32|TRAIN|Green Tunnel|bpp|QA|навык|обучени|обучать|исследован|сжатие|кодовые\s+книги)/iu.test(body) ||
