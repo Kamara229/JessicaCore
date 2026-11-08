@@ -1,0 +1,80 @@
+name: CALIBRI S27 final frozen QA and native CPU artifact audit
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/calibri2-s27-posthoc-unseen-answer-audit-20261108
+    paths:
+      - '.github/workflows/calibri2-s27-final-posthoc-audit.yml'
+      - 'research/calibri2/s27/**'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compare_one_sealed_S26_without_training:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: research
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate static audit and prevent QA changes
+        run: |
+          python -m compileall -q research/calibri2/s27
+          python -m unittest -v calibri2.s27.test_posthoc_frozen_answer_audit
+      - name: Download immutable S24 baseline on independent S26 QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-SEALED-S24-BASELINE-96-NEW-NOUN-48-CONTROLS
+          path: inputs/before
+          run-id: 42470473505
+          github-token: ${{ github.token }}
+      - name: Download single S26 final checkpoint QA once it finishes
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-FINAL-96-NEW-NOUN-48-CONTROLS-16-OPEN
+          path: inputs/after
+          run-id: 42470473505
+          github-token: ${{ github.token }}
+      - name: Download paid S26 36M training summary and physical archive evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-36M-NOUN-TRANSFER-1280-GREEN-TUNNEL-PHYSICAL
+          path: inputs/train
+          run-id: 42470473505
+          github-token: ${{ github.token }}
+      - name: Download paired native CPU S26 vs S24 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-36M-NATIVE-C-CPU-SPEED
+          path: inputs/native
+          run-id: 42470473505
+          github-token: ${{ github.token }}
+      - name: Download completed public 135M pretrained FP32 unmatched reference
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-UNMATCHED-PUBLIC-135M-PRETRAINED-FP32-REFERENCE-144-16
+          path: inputs/unmatched_fp32
+          run-id: 42473665349
+          github-token: ${{ github.token }}
+      - name: Verify sealed SHA, 96 full answers, regressions, physical bpp and CPU speed
+        run: |
+          python research/calibri2/s27/posthoc_frozen_answer_audit.py \
+            --s24 inputs/before/ACTUAL_CALIBRI2_S26_NOVEL_144_16_ANSWERS.json \
+            --s26 inputs/after/ACTUAL_CALIBRI2_S26_NOVEL_144_16_ANSWERS.json \
+            --pretrained-fp32 inputs/unmatched_fp32/ACTUAL_S26_INDEPENDENT_PUBLIC_135M_FP32_REFERENCE.json \
+            --s26-train inputs/train/ACTUAL_CALIBRI2_S26_REAL_GUARDED_NOUN_TRAIN.json \
+            --s26-native-speed inputs/native/ACTUAL_CALIBRI2_S26_NATIVE_SPEED.json \
+            --out results/s27/ACTUAL_POSTHOC_S24_S26_FP32_96_NOVEL_48_CTRL_16OPEN.json
+      - name: Preserve all gains, losses, raw open replies, bpp and native CPU conclusions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s27-FINAL-POSTHOC-UNSEEN-96-48-16-CPU-PAID
+          path: results/s27/
+          retention-days: 90
