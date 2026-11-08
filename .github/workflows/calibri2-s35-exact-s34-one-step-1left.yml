@@ -44,7 +44,7 @@ jobs:
           name: calibri2-s26-36M-NOUN-TRANSFER-1280-GREEN-TUNNEL-PHYSICAL
           path: inputs/s26
           run-id: 42470473505
-          github-token: \${{ github.token }}
+          github-token: ${{ github.token }}
       - name: Reproduce S33 and inspect single rejected S34 LR 3e-6 update
         run: |
           python research/calibri2/s35/diagnose_exact_s34_step1_1left_logits.py \
