@@ -41,4 +41,18 @@ jobs:
           echo "KAGGLE_OUTPUT_FILES:"
           find out -maxdepth 2 -type f -printf '%P\\n'
           sed -E 's/(KGAT_[A-Za-z0-9_-]+)/[REDACTED]/g' output.log | tail -n 10
+          kaggle kernels pull kamara229/calibri-s59-gpu-preflight -p pulled -m >pull.log 2>&1
+          echo "KAGGLE_METADATA_READ_EXIT=$?"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("pulled/kernel-metadata.json")
+          if p.exists():
+              m=json.loads(p.read_text())
+              print("KAGGLE_EFFECTIVE_ENABLE_GPU:",repr(m.get("enable_gpu")))
+              print("KAGGLE_EFFECTIVE_MACHINE_SHAPE:",repr(m.get("machine_shape")))
+              print("KAGGLE_EFFECTIVE_PRIVATE:",repr(m.get("is_private")))
+          else:
+              print("KAGGLE_EFFECTIVE_METADATA_MISSING")
+          PY
           kaggle quota | grep -E '^GPU '
