@@ -1,0 +1,68 @@
+name: CALIBRI S37 native C physical CPU speed audit
+on:
+  push:
+    branches:
+      - research/calibri2-s37-native-cpu-physical-audit-20261108
+    paths:
+      - 'research/calibri2/s37/native_cpu_physical_speed_audit.py'
+      - '.github/workflows/calibri2-s37-native-cpu-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  S37_native_C_rate_and_speed_vs_S26:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '3737'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU stack
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile native speed audit
+        run: |
+          python -m compileall -q research/calibri2/s37/native_cpu_physical_speed_audit.py
+      - name: Original S26 physical CB59 source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-36M-NOUN-TRANSFER-1280-GREEN-TUNNEL-PHYSICAL
+          path: inputs/s26
+          run-id: 42470473505
+          github-token: ${{ github.token }}
+      - name: Sealed S37 new compact weights; no QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s37-new-physical-36M-CB59-if-accepted
+          path: inputs/s37
+          run-id: 42495320582
+          github-token: ${{ github.token }}
+      - name: Compare direct C runtime, same 36M physical architecture
+        run: |
+          python research/calibri2/s37/native_cpu_physical_speed_audit.py \
+            inputs/s26/CALIBRI2_S26_36M_NOUN_TRANSFER_1280_PAID.cb59 \
+            inputs/s37/CALIBRI2_S37_36M_PAID_TRAIN.cb59 \
+            results/s37_native
+      - name: Save actual native paired CPU speed trial report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s37-native-c-CPU-paired-against-S26-report
+          path: results/s37_native/*.json
+          if-no-files-found: warn
+          retention-days: 90
