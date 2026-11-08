@@ -33,6 +33,19 @@ export function calibriLaterResearchNoJessicaTest(message) {
              "только в исследовательском PR, в LIVE не внедрено. "+
              "Jessica не выполняет тесты. Продолжаем план через GitHub."
     };
+    // S42 regression: an artifact card about 64 S41 TRAIN items is a
+    // passive GitHub-research handoff, never an ordinary Jessica test.
+    // Match only the exact known benign data citation; no broad URL allowance.
+    const s41AnswerArtifact =
+      "S41: [64 TRAIN до/после](sandbox:/mnt/data/CALIBRI_S41_64_TRAIN_answers.json). "+
+      "Шаг S42 — сравнить predicted_winner_token, noun_gold_rank и generated_text: "+
+      "после S41 лидируют «ж», «dor», «red». Jessica не тестировать, LIVE не менять.";
+    if(body===s41AnswerArtifact) return {
+      action:"reply",task:"",continueThread:false,
+      reply:"Получен исследовательский отчёт S41 о 64 TRAIN-ответах. "+
+            "Анализ S42 продолжает ChatGPT через GitHub и не через Jessica. "+
+            "Тест в обычном чате не запрашивался и не запускался. LIVE не меняю."
+    };
     const version=/^(?:CALIBRI\s+)?S(2[89]|[3-9]\d|1\d\d)(?=\s|[:.,;—–-])/iu.exec(body);
     if(!version)return null;
     // S38 incident: owner gave "Следующий шаг ChatGPT — S39" and
