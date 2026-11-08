@@ -317,21 +317,40 @@ def main():
            "reuses_pinned_host_tokenizer_no_additional_tokenizer_export":True,
            "model_frozen":True,"source_indices_and_centroids_frozen":True,
            "runtime_needs_CB59_and_sidecar":True}
-        # fixed-point: account for JSON's own variable digit lengths without
-        # undercounting any bytes or hiding a second state file.
-        for _ in range(10):
+        # Manifest is CHARGED too: the physical source+controller+final
+        # serialized manifest, never a hidden omitted metadata sidecar.
+        # Compute the self-referential byte count to an exact fixed point.
+        byte_cap=(SOURCE_PARAMS*7)//80
+        converged=False
+        for _ in range(40):
             payload=json.dumps(manifest,ensure_ascii=False,sort_keys=True,indent=2).encode("utf-8")
-            cost=SOURCE_BYTES+extras+len(payload)
-            actual_bpp=8*cost/SOURCE_PARAMS
-            old_value=manifest.get("all_inclusive_actual_bpp")
-            manifest["manifest_bytes"]=len(payload)
-            manifest["all_inclusive_actual_bpp"]=actual_bpp
-            manifest["all_inclusive_total_bytes"]=cost
-            if old_value==actual_bpp and len(payload)==manifest["manifest_bytes"]:break
+            actual_manifest_bytes=len(payload)
+            actual_total=SOURCE_BYTES+extras+actual_manifest_bytes
+            actual_bpp=8*actual_total/SOURCE_PARAMS
+            new_values={
+                "manifest_bytes":actual_manifest_bytes,
+                "all_inclusive_total_bytes":actual_total,
+                "all_inclusive_actual_bpp":actual_bpp}
+            if all(manifest.get(k)==v for k,v in new_values.items()):
+                converged=True
+                break
+            manifest.update(new_values)
         payload=json.dumps(manifest,ensure_ascii=False,sort_keys=True,indent=2).encode("utf-8")
-        total=SOURCE_BYTES+extras+len(payload)
-        if total>(SOURCE_PARAMS*7)//80 or total!=manifest["all_inclusive_total_bytes"]:
-            raise AssertionError("Actual Green Tunnel+source+manifest >0.700 physical all-inclusive")
+        actual_total=SOURCE_BYTES+extras+len(payload)
+        print(json.dumps({"event":"S47_PHYSICAL_BUDGET_CHECK",
+          "source_bytes":SOURCE_BYTES,"sidecar_bytes":extras,
+          "manifest_bytes":len(payload),"physical_total_bytes":actual_total,
+          "physical_byte_cap_0p7":byte_cap,
+          "physical_bpp":8*actual_total/SOURCE_PARAMS,
+          "self_consistent":converged}),flush=True)
+        if not converged:
+            raise AssertionError("Manifest byte accounting did not converge")
+        if actual_total>byte_cap:
+            raise AssertionError("Actual source+controller+manifest exceeds 0.7 bpp")
+        if (manifest["all_inclusive_total_bytes"]!=actual_total or
+            manifest["manifest_bytes"]!=len(payload) or
+            manifest["all_inclusive_actual_bpp"]!=8*actual_total/SOURCE_PARAMS):
+            raise AssertionError("Manifest physical bytes self-accounting mismatch")
         manifest_path.write_bytes(payload)
         after={"new_full":count(re_new,"full_correct"),
             "new_correct_first_color":count(re_new,"first_gold_correct"),
