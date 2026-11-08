@@ -6,11 +6,67 @@ code usage in immutable accepted S45 physical host + S56 Green Tunnel.
 Geometric entropy is NOT a proven compressible file format or model quality.
 """
 from __future__ import annotations
-import argparse, hashlib, json, math
+import argparse, hashlib, json, math, struct, zlib
 from pathlib import Path
+from types import SimpleNamespace
 import numpy as np
-from direct_codebook_v59 import CB59, unpack5
-from calibri2.s8.broad_replay import SOURCE_BYTES, SOURCE_PARAMS
+SOURCE_BYTES=3141513
+SOURCE_PARAMS=36380480
+
+# Self-contained read-only parser of the exact CB59 physical ABI. The
+# production codec cannot be modified, and its broad imports are intentionally
+# not loaded for this structural audit.
+HEADER=struct.Struct("<4sBII")
+def unpack5(data, n):
+    packed=np.asarray(data,dtype=np.uint8)
+    if len(packed)!=(n*5+7)//8:
+        raise ValueError("physical 5-bit index length mismatch")
+    index=np.arange(n,dtype=np.uint64)
+    bit=index*5
+    byte=(bit//8).astype(np.int64)
+    shift=bit%8
+    low=packed[byte].astype(np.uint16)
+    high=np.zeros_like(low)
+    mask=byte+1<len(packed)
+    high[mask]=packed[byte[mask]+1]
+    return np.asarray(((low|(high<<8))>>shift)&31,dtype=np.uint8)
+
+class FrozenCB59:
+    def __init__(self,blob):
+        if len(blob)<HEADER.size+36: raise ValueError("CB59 physical source too short")
+        magic,version,mlen,blen=HEADER.unpack_from(blob)
+        if magic!=b"CB59" or version!=1 or mlen>5_000_000 or blen>300_000_000:
+            raise ValueError("invalid CB59 file header")
+        if HEADER.size+mlen+blen+36!=len(blob):
+            raise ValueError("CB59 physical size mismatch")
+        if hashlib.sha256(blob[:-32]).digest()!=blob[-32:]:
+            raise ValueError("CB59 file SHA corrupted")
+        if zlib.crc32(blob[:-36])!=struct.unpack_from("<I",blob,len(blob)-36)[0]:
+            raise ValueError("CB59 file CRC corrupted")
+        self.meta=json.loads(blob[HEADER.size:HEADER.size+mlen])
+        if any(self.meta[x]!=v for x,v in (
+            ("bits_per_code",5),("codebook_entries",32),("vector_length",8))):
+            raise ValueError("wrong physical CB59 8D codebook ABI")
+        body=memoryview(blob)[HEADER.size+mlen:-36]
+        self.handles={}
+        for name,d in self.meta["tensor_descriptors"].items():
+            if d["dtype"]!="CB59_K32V8":continue
+            rows,cols=tuple(d["shape"])
+            def part(key):
+                off,n=d["parts"][key]
+                if off<0 or n<0 or off+n>len(body):raise ValueError("invalid physical descriptor")
+                return body[off:off+n]
+            packed=np.frombuffer(part("packed"),dtype=np.uint8)
+            scales=np.frombuffer(part("row_scales"),dtype="<f2")
+            centers=np.frombuffer(part("centroids"),dtype="<f2")
+            if (rows<=0 or cols%8 or len(packed)!=(rows*cols//8*5+7)//8
+                or len(scales)!=rows or len(centers)!=32*8):
+                raise ValueError("wrong physically paid CB59 matrix tensor")
+            self.handles[name]=SimpleNamespace(
+                shape=(rows,cols),packed=packed,
+                row_scales=scales.astype(np.float32),
+                centroids=centers.astype(np.float64).reshape(32,8))
+
 
 S45_SHA = "12a725b07d37a0dae870d7b47666488265a1fa71a58bebf10da1fc7f25a7c398"
 S56_SHA = "503926839336ed7161786fa6d8ccb2a4ae6fee876cb566d0e52db80ff128f6d4"
@@ -84,7 +140,7 @@ def main():
     manifest=json.loads(mbytes)
     if manifest["all_inclusive_total_bytes"]!=S56_TOTAL:
         raise AssertionError("S56 parent physical manifest mismatch")
-    archive=CB59(source)
+    archive=FrozenCB59(source)
     names=sorted(k for k,v in archive.meta["tensor_descriptors"].items()
                  if v["dtype"]=="CB59_K32V8")
     result=[analyze(name,archive.handles[name]) for name in names]
