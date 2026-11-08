@@ -20,41 +20,65 @@ jobs:
           python-version: '3.12'
       - name: Install official Kaggle CLI
         run: python -m pip install --quiet kaggle
-      - name: Check protected GitHub secret and authenticate read-only against Kaggle
+      - name: Check GitHub secret with two read-only Kaggle API probes
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         shell: bash
         run: |
           python - <<'PY'
           import os
+          import re
           import subprocess
           import sys
+          from urllib.error import HTTPError, URLError
+          from urllib.request import Request, urlopen
 
-          if not os.environ.get("KAGGLE_API_TOKEN"):
+          token = os.getenv("KAGGLE_API_TOKEN", "")
+          if not token:
               print("KAGGLE_SECRET_MISSING_OR_UNAVAILABLE")
               sys.exit(2)
-
           print("KAGGLE_SECRET_AVAILABLE")
+
           try:
               response = subprocess.run(
                   ["kaggle", "kernels", "list", "--mine", "--page-size", "1"],
                   capture_output=True, text=True, timeout=60, check=False
               )
+              print("KAGGLE_CLI_EXIT_CODE=" + str(response.returncode))
+              combined = (response.stdout + "\n" + response.stderr).lower()
+              codes = sorted(set(re.findall(r"(?<!\d)(?:400|401|403|404|408|422|429|500|502|503)(?!\d)", combined)))
+              print("KAGGLE_CLI_HTTP_ERROR_CODES=" + (",".join(codes) if codes else "none_detected"))
+              labels = {
+                  "auth": ["unauthorized", "authentication", "unauthenticated", "invalid token", "invalid api key", "credentials"],
+                  "permission": ["forbidden", "permission denied"],
+                  "cli_config": ["not configured", "kaggle.json", "no such option", "usage:"],
+                  "network": ["connection refused", "connectionerror", "connection error", "name or service not known", "timeout"],
+              }
+              for label, words in labels.items():
+                  print("KAGGLE_CLI_DIAGNOSTIC_" + label.upper() + "=" + str(any(word in combined for word in words)))
+              if response.returncode == 0:
+                  print("KAGGLE_CLI_AUTHENTICATED_READONLY_OK")
           except subprocess.TimeoutExpired:
-              print("KAGGLE_API_TIMEOUT")
-              sys.exit(3)
+              print("KAGGLE_CLI_TIMEOUT")
 
-          if response.returncode == 0:
-              print("KAGGLE_API_AUTHENTICATED_READONLY_OK")
+          try:
+              url = "https://www.kaggle.com/api/v1/kernels/list?mine=true&page_size=1"
+              request = Request(url, headers={"Authorization": "Bearer " + token, "Accept": "application/json"})
+              with urlopen(request, timeout=20) as reply:
+                  status = reply.status
+              print("KAGGLE_DIRECT_HTTP_STATUS=" + str(status))
+              if 200 <= status < 300:
+                  print("KAGGLE_DIRECT_AUTHENTICATED_READONLY_OK")
+                  sys.exit(0)
+          except HTTPError as error:
+              print("KAGGLE_DIRECT_HTTP_STATUS=" + str(error.code))
+          except URLError:
+              print("KAGGLE_DIRECT_NETWORK_ERROR")
+          except Exception as error:
+              print("KAGGLE_DIRECT_EXCEPTION_TYPE=" + type(error).__name__)
+
+          if "response" in locals() and response.returncode == 0:
               sys.exit(0)
-
-          combined = (response.stdout + "\n" + response.stderr).lower()
-          if any(code in combined for code in ("401", "unauthorized", "invalid token", "authentication failed")):
-              print("KAGGLE_API_AUTHENTICATION_REJECTED")
-          elif any(code in combined for code in ("403", "forbidden", "permission denied")):
-              print("KAGGLE_API_AUTHENTICATED_BUT_ACCESS_DENIED")
-          else:
-              print("KAGGLE_API_REQUEST_FAILED_REDACTED")
-          print("No API token or raw response is printed by this smoke test.")
+          print("KAGGLE_AUTH_NOT_YET_VERIFIED")
           sys.exit(4)
           PY
