@@ -164,6 +164,10 @@ def main():
     p.add_argument("--context",type=int,default=48)
     p.add_argument("--windows",type=int,default=128)
     p.add_argument("--checkpoint-every",type=int,default=8)
+    p.add_argument("--centroid-lr",type=float,default=.00004)
+    p.add_argument("--tunnel-lr",type=float,default=.0005)
+    p.add_argument("--lm-weight",type=float,default=.5)
+    p.add_argument("--old-replay-weight",type=float,default=2.0)
     p.add_argument("--resume",type=Path,default=None)
     a=p.parse_args()
     if not 1<=a.steps<=1000:raise ValueError("Bound training to <=1000 steps")
@@ -202,8 +206,8 @@ def main():
     later.train()
     paid_centroids=[q.centroids for q in sources.values()]
     optimizer=torch.optim.AdamW([
-        {"params":paid_centroids,"lr":.00004},
-        {"params":list(later.parameters()),"lr":.0005}
+        {"params":paid_centroids,"lr":a.centroid_lr},
+        {"params":list(later.parameters()),"lr":a.tunnel_lr}
     ],weight_decay=.00001)
     start=0
     if a.resume:
@@ -224,6 +228,8 @@ def main():
       "device":str(device),"steps":a.steps,"resume_from":start,
       "source_bytes":len(source),"base_bpp":8*(len(source)+len(dual)+len(manifest))/SOURCE_PARAMS,
       "text_train_provenance":provenance,
+      "learning_rates":{"centroids":a.centroid_lr,"tunnel":a.tunnel_lr},
+      "loss_weights":{"LM":a.lm_weight,"historical":a.old_replay_weight},
       "CPU_CONTINUATION_REQUIRES_NO_GPU":True}),flush=True)
     timer=time.monotonic()
     log=[]
@@ -237,12 +243,17 @@ def main():
         pair_a=original[(step*7)%len(original)]
         pair_b=augmented[(step*11)%len(augmented)]
         oldpair=old[(step*5)%4]
-        style="left" if step%2 else "right"
+        # Always train BOTH factual sides of the same contrasting noun
+        # pair, not a single parity-dependent side. This prevents
+        # appearance of correct single answers from unlearned pair binding.
         lm=text_loss(model,sources,later,window,device)
-        firstloss=example_loss(model,sources,first,later,pair_a[style],device)
-        secondloss=example_loss(model,sources,first,later,pair_b["right" if style=="left" else "left"],device)
-        historic=example_loss(model,sources,first,later,oldpair[style],device)
-        total=.5*lm+firstloss+secondloss+2*historic
+        firstloss=.5*(example_loss(model,sources,first,later,pair_a["left"],device)+
+                      example_loss(model,sources,first,later,pair_a["right"],device))
+        secondloss=.5*(example_loss(model,sources,first,later,pair_b["left"],device)+
+                       example_loss(model,sources,first,later,pair_b["right"],device))
+        historic=.5*(example_loss(model,sources,first,later,oldpair["left"],device)+
+                     example_loss(model,sources,first,later,oldpair["right"],device))
+        total=a.lm_weight*lm+firstloss+secondloss+a.old_replay_weight*historic
         if not torch.isfinite(total):raise FloatingPointError("Non-finite TRAIN update")
         total.backward()
         params=paid_centroids+list(later.parameters())
