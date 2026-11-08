@@ -15,7 +15,10 @@ export function quotaSafeCalibrIResearchProgress(message) {
     if(body.length<75 || body.length>380)return null;
     const stage=/(?:^|[^A-Za-z0-9])S(\d{2,3})(?=[^A-Za-z0-9]|$)/iu.exec(body)?.[1];
     if(!stage || Number(stage)<28)return null;
-    if(!/\bGitHub\b/iu.test(body) || !/\bPR\s*#\d{1,5}\b/iu.test(body))return null;
+    // GitHub-only research may be cited by a PR number OR an immutable CI run ID.
+    // This check only acknowledges a status; it cannot run that CI itself.
+    if(!/\bGitHub\b/iu.test(body) ||
+       !/(?:\bPR\s*#\d{1,5}\b|\bCI\s*#\d{5,15}\b)/iu.test(body))return null;
     // No test can be inferred from a passive research status.
     if(!(/(?:Jessica|Джессика)\s+не\s+тестировать\s*[.!]?$/iu.test(body) ||
          /Тест\s+(?:Jessica|Джессика)\s+не\s+запускался\s*[.!]?$/iu.test(body)))return null;
