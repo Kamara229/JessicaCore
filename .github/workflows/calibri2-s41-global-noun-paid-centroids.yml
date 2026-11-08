@@ -1,0 +1,68 @@
+name: CALIBRI S41 36M physical CB59 global noun winner recovery
+on:
+  push:
+    branches:
+      - research/calibri2-s41-global-noun-winner-paid-centroids-20261108
+    paths:
+      - 'research/calibri2/s41/**'
+      - '.github/workflows/calibri2-s41-global-noun-paid-centroids.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  S41_real_paid_36M_global_winner_training:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 110
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '4141'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependency stack
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile S41 recovery source
+        run: |
+          python -m compileall -q research/calibri2/s41/
+      - name: Download exact paid S39 CB59 compact model, never QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s39-new-real-5bit-CB59-if-accepted
+          path: inputs/s39
+          run-id: 42497173536
+          github-token: ${{ github.token }}
+      - name: Train true paid centroid tensors against strongest incorrect noun on TRAIN
+        run: |
+          python research/calibri2/s41/global_winner_noun_paid_centroids.py \
+            inputs/s39/CALIBRI2_S39_36M_INDEX_TRAIN_PAID.cb59 \
+            results/s41
+      - name: Upload complete S41 real physical paid training, including rejection reasons
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s41-global-noun-winning-token-TRAIN-only-JSON
+          path: results/s41/*.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Upload same-budget physical CB59 only if any training update survives old-7 and Yes-No guards
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s41-physical-36M-CB59-only-if-accepted
+          path: results/s41/*.cb59
+          if-no-files-found: warn
+          retention-days: 60
