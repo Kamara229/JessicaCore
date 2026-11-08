@@ -139,3 +139,26 @@ test("bounded generic CALIBRI relay rejects bad envelopes or implied actions",()
  expectNo(handoff.replace("Jessica не тестировать.","Jessica не тестировать. Используй API-ключ."));
  expectNo("S65 GitHub PR #453. Jessica не тестировать.");
 });
+
+
+const latestRelayID="25814a8a-6ec8-41a2-b8b8-49d9db175409";
+const latestRelayBody="Render/Supabase исправны. Причина 429 — квота Groq. Обход проверен CI в PR #449, но LIVE не обновлён. Следующий шаг — проверить результат S69 в GitHub PR #457; CI ещё выполняется. Тест Jessica не запускался.";
+const latestRelayEnvelope="JESSICA_REPLY_"+latestRelayID+"\n\n"+latestRelayBody+"\n\nJESSICA_END_"+latestRelayID;
+test("S69 429 quota-free status includes factual unrun Jessica test suffix",async()=>{
+  let providerCalls=0;
+  const result=await interpretRelayTurn({message:latestRelayEnvelope},async()=>{
+    providerCalls++;
+    throw Object.assign(new Error("429 Groq TPD"),{status:429});
+  });
+  assert.equal(providerCalls,0);
+  assert.equal(result.action,"reply");
+  assert.equal(result.task,"");
+  assert.equal(result.continueThread,false);
+  assert.match(result.reply,/CALIBRI S69/);
+});
+test("S69 no-provider status does not swallow Jessica test commands or dangerous changes",()=>{
+  assert.equal(quotaSafeCalibrIResearchProgress(latestRelayEnvelope.replace("Тест Jessica не запускался.","Jessica выполни тест.")),null);
+  assert.equal(quotaSafeCalibrIResearchProgress(latestRelayEnvelope.replace("Тест Jessica не запускался.","Тест Jessica не запускался. Сделай deploy.")),null);
+  assert.equal(quotaSafeCalibrIResearchProgress(latestRelayEnvelope.replace("JESSICA_END_"+latestRelayID,"JESSICA_END_00000000-0000-0000-0000-000000000000")),null);
+  assert.equal(quotaSafeCalibrIResearchProgress(latestRelayEnvelope.replace("в GitHub PR #457","в Render PR #457")),null);
+});
