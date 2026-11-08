@@ -25,6 +25,7 @@ import {calibriResearchHandoff} from "./relayCalibriProgress.js";
 import {calibriNoTestNextStep} from "./relayCalibriNoTestNextStep.js";
 import {calibri2ResearchPassiveHandoff} from "./relayCalibriV2PassiveStep.js";
 import {compactCalibri2NoJessicaTest} from "./relayCalibriV2CompactNoTest.js";
+import {externalResearchCiHandoff} from "./relayResearchExternalCiStatus.js";
 import {missingCalibriArtifactHandoff} from "./relayMissingCalibriArtifact.js";
 import {completedCalibriNoTestHandoff} from "./relayCalibriCompletedNoTest.js";
 import {v2PersistenceHandoff} from "./relayV2PersistenceHandoff.js";
@@ -71,6 +72,11 @@ export function validateRelayDecision(raw, message) {
             reply:"Это исследовательская проверка ChatGPT через GitHub, а не тест Jessica. "+
                   "Не запускаю тест в обычном чате; передаю продолжение плана."};
     }
+    // GitHub CI verification is never an ordinary Jessica test merely
+    // because a model extracts "после завершения CI проверить ...".
+    // Genuine explicit Jessica test commands remain eligible.
+    if (value.action === "test" && externalResearchCiHandoff(message)!==null)
+        return externalResearchCiHandoff(message);
     if (value.action === "test" && (!task || task.length > 20000 || !message.includes(task)))
         throw Error("test-must-be-an-exact-quote");
     if (value.action !== "test" && task) throw Error("unexpected-test");
@@ -107,6 +113,8 @@ export async function interpretRelayTurn(input, generate) {
     // repeated web searches, or an ungrounded Jessica test.
     const missingArtifact=missingCalibriArtifactHandoff(message);
     if(missingArtifact!==null) return missingArtifact;
+    const externalCi=externalResearchCiHandoff(message);
+    if(externalCi!==null)return externalCi;
     const requestedTest = explicitJessicaTest(message) || compactJessicaTest(message) || numberedBenchmarkTest(message);
     if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
     const calibri2Passive=calibri2ResearchPassiveHandoff(message);
