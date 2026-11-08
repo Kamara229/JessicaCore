@@ -1,0 +1,81 @@
+name: CALIBRI S71 train-only contextual neural gate over protected S67 on CPU
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s70-s69-step4-full-skill-line-search-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s71_frozen_routing_train_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s71-contextual-neural-gating-20261109'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 80
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify no sealed QA imports and compile research-only code
+        run: |
+          python -m compileall -q research/calibri2/s71
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68)' research/calibri2/s71/*.py; then exit 1; fi
+      - name: Pinned CPU-only PyTorch and model libraries
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Download original immutable S45 physically compressed neural source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Download exact S61 paid compressed envelope
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: Download original S67 accepted TRAIN-only controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s67-fully-paid-new-safe-half-delta-research-only
+          path: inputs/s67
+          run-id: 42532945010
+          github-token: ${{ github.token }}
+      - name: Download REJECTED S69 step4 frozen new116 delta, not full controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s69-fresh-TRAIN-contexts-rank128-old-skill-guard
+          path: inputs/s69
+          run-id: 42534127920
+          github-token: ${{ github.token }}
+      - name: Learn tiny neural 321-weight context gate and verify all REAL full TRAIN answers
+        run: |
+          python research/calibri2/s71/neural_context_gate_preserve_s67.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s67/S67_HALF_DELTA_RANK128_CANDIDATE_ONLY.safetensors \
+            inputs/s67/S67_FULLY_PAID_EXPLORATORY_MANIFEST.json \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            inputs/s69/S69_CPU_TRAIN_RESUME_STEP_004.pt \
+            results/s71
+      - name: Retain real TRAIN-only greedy results, negative outcomes, physical model
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s71-conditional-neural-tunnel-train-only-outcomes
+          path: results/s71/
+          if-no-files-found: warn
+          retention-days: 90
