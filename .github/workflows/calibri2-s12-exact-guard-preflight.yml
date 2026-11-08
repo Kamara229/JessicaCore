@@ -1,0 +1,54 @@
+name: CALIBRI2 S12 36M exact-guard transactional update preflight
+on:
+  push:
+    branches: ['research/calibri2-s12-transactional-guard-preflight-20261108']
+    paths:
+      - 'research/calibri2/s12/**'
+      - '.github/workflows/calibri2-s12-exact-guard-preflight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  S12_36M_paid_guarded_24_real_steps:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '2112'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned research CPU requirements
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile preflight source before any physical weight training
+        run: python -m compileall -q research/calibri2/s12
+      - name: Download exact S7 36M sealed physical 0.69081-bpp archive
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s7-36M-ffn1536-physical-and-regression-report
+          path: inputs/s7
+          run-id: 42383040833
+          github-token: ${{ github.token }}
+      - name: Execute 24 real 36M TRAIN-only exact-guard trial updates, physically save checkpoint
+        run: |
+          python research/calibri2/s12/transactional_guard_preflight.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 results/s12
+      - name: Retain negative and positive exact guard results, paid CB59 physical checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s12-36M-24-REAL-EXACT-GUARD-PILOT
+          path: results/s12/
+          retention-days: 45
+          compression-level: 0
