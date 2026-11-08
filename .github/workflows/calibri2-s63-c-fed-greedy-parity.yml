@@ -1,0 +1,84 @@
+name: CALIBRI S63 native-C-decoded source and real CPU greedy parity
+'on':
+  pull_request:
+    branches:
+      - research/calibri2-s62-native-c-cb61-20261109
+    paths:
+      - 'research/calibri2/s63/**'
+      - '.github/workflows/calibri2-s63-c-fed-greedy-parity.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s63_native_C_restored_full_greedy:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s63-native-c-fed-cpu-parity-20261109'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 65
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile independent native C decode and Python benchmark
+        run: |
+          cc -O2 -std=c11 -Wall -Wextra -Werror research/calibri2/s62/native_c_cb61.c -o /tmp/s62-cb61-native -lz -lcrypto
+          python -m compileall -q research/calibri2/s63
+      - name: Install pinned CPU-only inference toolchain
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Download immutable original 36M physical CB59
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Download immutable dual S56 Green Tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s56-paid-first-plus-later-dual-controller-if-accepted
+          path: inputs/s56
+          run-id: 42518099946
+          github-token: ${{ github.token }}
+      - name: Download physically paid S61 exact zlib envelope
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: Independently restore CB59 in compiled native C and confirm bit-exact SHA
+        run: |
+          mkdir -p results/s63
+          /tmp/s62-cb61-native \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            inputs/s56/S56_DUAL_ACTIVE_PAID_GREEN_TUNNEL.safetensors \
+            inputs/s61/S61_PHYSICAL_MANIFEST.json \
+            results/s63/physical_C_decode_report.json \
+            results/s63/C_verified_original.cb59
+      - name: Compare 16 TRAIN native full greedy answers and CPU times
+        run: |
+          python research/calibri2/s63/cpu_greedy_from_native_c_restored.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            results/s63/C_verified_original.cb59 \
+            inputs/s56/S56_DUAL_ACTIVE_PAID_GREEN_TUNNEL.safetensors \
+            results/s63/greedy_parity_and_cpu_speed.json
+      - name: Retain metrics and negative results, no copy of physical original weight
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-s63-C-fed-actual-CPU-TRAIN-greedy-parity-speed
+          path: results/s63/*.json
+          if-no-files-found: warn
+          retention-days: 60
