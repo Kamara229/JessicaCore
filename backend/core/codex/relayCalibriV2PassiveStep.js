@@ -26,7 +26,7 @@ export function calibri2ResearchPassiveHandoff(message) {
     const stage=/\bS(\d{1,3})\b/iu.exec(body)?.[1];
     if (!stage || Number(stage) < 1 || !/\bGitHub\b/iu.test(body))
         return null;
-    if (!/Следующ(?:ий|ая)\s+шаг\s*[—–:\-]?\s*(?:дождаться|проверить|сверить|изучить)\b/iu.test(body))
+    if (!/Следующ(?:ий|ая)\s+шаг\s*[—–:\-]?\s*(?:дождаться|проверить|сверить|изучить)(?=\s|[.!?,;]|$)/iu.test(body))
         return null;
     if (!/Разработку\s+и\s+тесты\s+вед[её]т\s+ChatGPT/iu.test(body) ||
         !/(?:Jessica|Джессика)\s+только\s+переда[её]т\s+сообщения/iu.test(body))
