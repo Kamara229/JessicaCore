@@ -6,6 +6,8 @@ on:
       - 'backend/core/codex/relayInterpreter.js'
       - 'backend/core/codex/relayResearchExternalCiStatus.js'
       - 'backend/core/codex/relayCalibriS26S27Pending.js'
+      - 'backend/core/codex/relayCalibriLaterResearchNoTest.js'
+      - 'backend/scripts/regressionCodexS30Fp32LaterResearchNoTest.test.js'
       - 'backend/scripts/regressionCodexS26S27PendingNoTest.test.js'
       - 'backend/scripts/regressionCodexS26CiPassiveNoTest.test.js'
       - 'backend/scripts/regressionCodexCalibriNoTestNextStep.test.js'
@@ -32,3 +34,4 @@ jobs:
           node --test backend/scripts/regressionCodexCalibriNoQuota.test.js
           node --test backend/scripts/regressionCodexS26CiPassiveNoTest.test.js
           node --test backend/scripts/regressionCodexS26S27PendingNoTest.test.js
+          node --test backend/scripts/regressionCodexS30Fp32LaterResearchNoTest.test.js
