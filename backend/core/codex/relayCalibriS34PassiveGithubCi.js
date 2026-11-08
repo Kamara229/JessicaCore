@@ -24,19 +24,18 @@ export function passiveS34GithubCiNoTest(message) {
     body = body.replace(/\s+/gu, " ").trim();
     if (!body || body.length > 850) return null;
 
-    // A real S34 JSON report was sent as a sandbox attachment, not as a
-    // GitHub-CI instruction. Without this narrowly scoped path the passive
-    // report hits the quota-limited model and incorrectly yields an incident.
-    // This is acknowledgement ONLY; it does not inspect, execute or test.
+    // A real S34 JSON report arrived as a sandbox attachment, not as a
+    // request to run tests. Recognize only the exact verified training outcome.
+    // Acknowledgement only: do not inspect, execute or claim a Jessica test.
     const s34TrainReport =
-        /^JSON\\s+S34\\s*:/iu.test(body) &&
-        /\\[скачать\\s+отч[её]т\\]\\(sandbox:\\/mnt\\/data\\/S34_actual_36M_FP32_TRAIN_report\\.json\\)/iu.test(body) &&
-        /\\b240\\b/u.test(body) && /\\b214\\b/u.test(body) &&
-        /\\b26\\b/u.test(body) && /\\b80\\b/u.test(body) &&
-        /(?:80\\s+шагов\\s+отклонены)/iu.test(body) &&
-        /\\bLIVE\\s+не\\s+меня(?:ть|й)\\b/iu.test(body) &&
-        !/(?:создай|открой|запусти|выполни|проведи|повтори|протестируй)\\s+(?:(?:новый|один|этот|текстовый|следующий)\\s+)?(?:тест(?:ы)?|тестовый\\s+чат)/iu.test(body) &&
-        !/(?:https?:\\/\\/|парол|секрет|API[-\\s]?ключ|токен\\s+доступа|deploy|merge|удали|установи\\s+(?:APK|пакет|приложение)|[«»\\x60])/iu.test(body);
+        /^JSON\s+S34\s*:/iu.test(body) &&
+        /\[скачать\s+отч[её]т\]\(sandbox:\/mnt\/data\/S34_actual_36M_FP32_TRAIN_report\.json\)/iu.test(body) &&
+        /\b240\b/u.test(body) && /\b214\b/u.test(body) &&
+        /\b26\b/u.test(body) && /\b80\b/u.test(body) &&
+        /80\s+шагов\s+отклонены/iu.test(body) &&
+        /\bLIVE\s+не\s+меня(?:ть|й)\b/iu.test(body) &&
+        !/(?:создай|открой|запусти|выполни|проведи|повтори|протестируй)\s+(?:(?:новый|один|этот|текстовый|следующий)\s+)?(?:тест(?:ы)?|тестовый\s+чат)/iu.test(body) &&
+        !/(?:https?:\/\/|парол|секрет|API[-\s]?ключ|токен\s+доступа|deploy|merge|удали|установи\s+(?:APK|пакет|приложение)|[«»\x60])/iu.test(body);
     if (s34TrainReport) return {
         action: "reply", task: "", continueThread: false,
         reply: "S34 JSON-отчёт получен: 80 шагов отклонены, новые веса не улучшились. " +
