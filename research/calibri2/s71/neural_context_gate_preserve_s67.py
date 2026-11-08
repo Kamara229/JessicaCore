@@ -211,7 +211,9 @@ def main():
     old=(
         records_for_class(model,sources,tok,orig,reference["original"],"protect")+
         records_for_class(model,sources,tok,aug,reference["augmented"],"protect")+
-        records_for_class(model,sources,tok,history[:4],reference["historical"],"protect")+
+        # Historical TRAIN answers are not guaranteed to be two-word+EOS.
+        # Do not incorrectly convert their token lengths into gate labels;
+        # preserve all seven via the exact full native greedy ID gate below.
         records_for_class(model,sources,tok,fresh,reference["fresh_TRAIN"],"protect")
     )
     novel=records_for_class(model,sources,tok,fresh,reference["fresh_TRAIN"],"improve")
