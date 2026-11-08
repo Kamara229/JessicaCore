@@ -1,0 +1,99 @@
+name: CALIBRI2 S15 genuine multi-attribute Yes+color answer QA 192+16
+on:
+  push:
+    branches: ['research/calibri2-s15-compositional-heldout-audit-20261108']
+    paths:
+      - 'research/calibri2/s15/**'
+      - '.github/workflows/calibri2-s15-composite-quality.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  S15_composite_counterfactual_grounding_on_3_frozen_paid_36M_models:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '2115'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU research model and dataset versions
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile exact S15 frozen test code and check eight-way answer class balance
+        run: |
+          python -m compileall -q research/calibri2/s15
+          python - <<'PY'
+          from calibri2.s15.compositional_qa import make_cases
+          from collections import Counter
+          xs=make_cases()
+          assert len(xs)==192
+          assert len({x['twin_id'] for x in xs})==96
+          assert Counter(x['gold'] for x in xs)=={
+            f'{b}, {c}':24 for b in ('Yes','No')
+            for c in ('red','blue','green','yellow')}
+          print('S15_192_MULTISLOT_COUNTERFACTUAL_SUITE_FROZEN_AND_BALANCED')
+          PY
+      - name: Restore physically sealed S7 original 36M before broad S8 training
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s7-36M-ffn1536-physical-and-regression-report
+          path: inputs/s7
+          run-id: 42383040833
+          github-token: ${{ github.token }}
+      - name: Restore physically sealed S8 36M after broad TRAIN with known old QA loss
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s8-36M-768-DIVERSE-PAID
+          path: inputs/s8
+          run-id: 42413614906
+          github-token: ${{ github.token }}
+      - name: Restore physically sealed S12 after 24 transactional TRAIN-only guard updates
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s12-36M-24-REAL-EXACT-GUARD-PILOT
+          path: inputs/s12
+          run-id: 42458640312
+          github-token: ${{ github.token }}
+      - name: Evaluate S7 (fresh baseline) on 192 COMPLEX joint answers and 16 open
+        run: |
+          python research/calibri2/s15/compositional_qa.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 results/s15/s7 --label S7_BASELINE_ONLY_NEW_COMPOSITE_192
+      - name: Retain ALL 192+16 original baseline answers before final comparisons
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s15-NEW-COMPOSITE-S7-192-16
+          path: results/s15/s7/
+          retention-days: 45
+      - name: Evaluate S8 without retraining or checkpoint selection on exact same 192 joint answers
+        run: |
+          python research/calibri2/s15/compositional_qa.py inputs/s8/CALIBRI2_S8_36M_BROAD_TRAIN_PAID.cb59 results/s15/s8 --label S8_COMPLETED_TRAIN_NEW_COMPOSITE_192
+      - name: Retain negative and positive S8 composite answers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s15-NEW-COMPOSITE-S8-192-16
+          path: results/s15/s8/
+          retention-days: 45
+      - name: Evaluate S12 24-step transactional guard on exact same new 192 composite questions
+        run: |
+          python research/calibri2/s15/compositional_qa.py inputs/s12/CALIBRI2_S12_36M_24_ACTUAL_GUARDED_TRAIN.cb59 results/s15/s12 --label S12_TRANSACTIONAL_24_STEPS_NEW_COMPOSITE_192
+      - name: Retain S12 actual composite answers with all failed cases
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s15-NEW-COMPOSITE-S12-192-16
+          path: results/s15/s12/
+          retention-days: 45
