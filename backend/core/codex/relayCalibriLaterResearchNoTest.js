@@ -20,6 +20,19 @@ export function calibriLaterResearchNoJessicaTest(message) {
     }
     body=body.replace(/\s+/gu," ").trim();
     if(!body || body.length>800)return null;
+    // S41 research-only backend incident report is not a command to
+    // Jessica; do not send it to a quota-limited interpretation provider.
+    // Exact fully bounded text prevents swallowing a real test or action.
+    const statusS41="Render: сбой интерпретации; Supabase исправна. "+
+      "Обработчик не узнавал «Шаг S41». Исправлено в draft PR #418, "+
+      "CI пройден; в LIVE пока не внедрено. Исследование S41 — draft "+
+      "PR #425, CI #42498851459. Jessica не тестировать.";
+    if(body===statusS41) return {
+       action:"reply",task:"",continueThread:false,
+       reply:"Поняла: S41 — отдельный GitHub CI. Исправление интерпретатора находится "+
+             "только в исследовательском PR, в LIVE не внедрено. "+
+             "Jessica не выполняет тесты. Продолжаем план через GitHub."
+    };
     const version=/^(?:CALIBRI\s+)?S(2[89]|[3-9]\d|1\d\d)(?=\s|[:.,;—–-])/iu.exec(body);
     if(!version)return null;
     // S38 incident: owner gave "Следующий шаг ChatGPT — S39" and
