@@ -140,7 +140,7 @@ def train_arm(name, source_bytes, cfg, pairs, result_dir, tok):
     reloaded=CB59(out_file.read_bytes())
     reload_model,reload_sources=create_small_paid_model(reloaded,cfg)
     reload_diag=snapshot(reload_model,reload_sources,pairs,tok)
-    if reload_diag!=progress[-1]:
+    if reload_diag!={k:v for k,v in progress[-1].items() if k!="step"}:
         raise AssertionError("Reloaded CB59 differs from in-memory final TRAIN generation")
     result={
       "reload_verified":True,"arm":name,"initial_sha256":SHA0,"final_source_sha256":change["sha256"],
@@ -183,7 +183,7 @@ def main():
          {"sha256":hashlib.sha256(manifest_bytes).hexdigest(),"pairs":manifest})
     arms=[train_arm("centroids_and_5bit",raw,cfg,pairs,args.out,tok)]
     save(args.out/"ACTUAL_S0_FOUR_PAIR_RETENTION_384.json",{
-      "purpose":"Frozen TRAIN-only two opposing pair retention after sequential training",
+      "purpose":"Frozen TRAIN-only four opposing pair retention with interleaved rehearsal",
       "steps_per_arm":384,"arms":arms,
       "no_pretrained_FP32":True,"no_public_DEV_VALID_QA_TEST":True,
       "not_generalization_or_FP32_parity":True})
