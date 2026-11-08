@@ -319,6 +319,9 @@ def main():
            "runtime_needs_CB59_and_sidecar":True}
         # Manifest is CHARGED too: the physical source+controller+final
         # serialized manifest, never a hidden omitted metadata sidecar.
+        # Use fixed-width bpp decimal STRING in the manifest to avoid a
+        # non-converging float representation-length cycle. Physical cost
+        # is ALWAYS checked by INTEGER bytes, not rounded bpp.
         # Compute the self-referential byte count to an exact fixed point.
         byte_cap=(SOURCE_PARAMS*7)//80
         converged=False
@@ -326,7 +329,7 @@ def main():
             payload=json.dumps(manifest,ensure_ascii=False,sort_keys=True,indent=2).encode("utf-8")
             actual_manifest_bytes=len(payload)
             actual_total=SOURCE_BYTES+extras+actual_manifest_bytes
-            actual_bpp=8*actual_total/SOURCE_PARAMS
+            actual_bpp=f"{8*actual_total/SOURCE_PARAMS:.12f}"
             new_values={
                 "manifest_bytes":actual_manifest_bytes,
                 "all_inclusive_total_bytes":actual_total,
@@ -349,7 +352,7 @@ def main():
             raise AssertionError("Actual source+controller+manifest exceeds 0.7 bpp")
         if (manifest["all_inclusive_total_bytes"]!=actual_total or
             manifest["manifest_bytes"]!=len(payload) or
-            manifest["all_inclusive_actual_bpp"]!=8*actual_total/SOURCE_PARAMS):
+            manifest["all_inclusive_actual_bpp"]!=f"{8*actual_total/SOURCE_PARAMS:.12f}"):
             raise AssertionError("Manifest physical bytes self-accounting mismatch")
         manifest_path.write_bytes(payload)
         after={"new_full":count(re_new,"full_correct"),
@@ -378,7 +381,7 @@ def main():
       "source_CB59_sha256":S45_SHA,
       "source_paid_bytes":SOURCE_BYTES,
       "unmodified_core_bpp":original["actual_complete_bpp"],
-      "all_inclusive_bpp_including_tunnel":manifest["all_inclusive_actual_bpp"] if manifest else None,
+      "all_inclusive_bpp_including_tunnel":float(manifest["all_inclusive_actual_bpp"]) if manifest else None,
       "controller_hidden_width":width,
       "controller_rank":RANK,"controller_params":tunnel_nparams,
       "precommitted_training_steps":STEPS,"learning_rate":LR,
@@ -411,7 +414,7 @@ def main():
       "new_first_color":after["new_correct_first_color"] if after else 34,
       "old_full":after["old_full"] if after else 7,
       "core_bpp":original["actual_complete_bpp"],
-      "inclusive_bpp":manifest["all_inclusive_actual_bpp"] if manifest else None,
+      "inclusive_bpp":float(manifest["all_inclusive_actual_bpp"]) if manifest else None,
       "CPU_ratio_sample":speed["speed_ratio_core_over_green"] if speed else None,
       "saved_controller":output.exists()},
       ensure_ascii=False),flush=True)
