@@ -1,0 +1,63 @@
+name: CALIBRI S60 immutable 8D geometry and physical bpp audit
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s59-gpu-cpu-portable-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s60_frozen_physical_geometry:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s60-geometry-audit-20261109'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install only numpy, no PyTorch, no GPU
+        run: python -m pip install numpy==1.26.4
+      - name: Fetch immutable S45 actual physically paid compressed weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Fetch accepted paid dual S56 Green Tunnel weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s56-paid-first-plus-later-dual-controller-if-accepted
+          path: inputs/s56
+          run-id: 42518099946
+          github-token: ${{ github.token }}
+      - name: Fetch S56 physical all-inclusive manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s56-first-token-paid-TRAIN-and-physical-report-JSON
+          path: inputs/s56_report
+          run-id: 42518099946
+          github-token: ${{ github.token }}
+      - name: Read-only K32x8 5-bit occupancy and PCA by original layer
+        run: |
+          python research/calibri2/s60/physical_8d_codebook_audit.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s56/S56_DUAL_ACTIVE_PAID_GREEN_TUNNEL.safetensors \
+            inputs/s56_report/S56_DUAL_ACTIVE_PAID_GREEN_TUNNEL_MANIFEST.json \
+            results/s60/physical_8d_geometry.json
+      - name: Preserve immutable geometric measurements and negative evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s60-physical-8d-frozen-codebook-audit
+          path: results/s60/*.json
+          if-no-files-found: warn
+          retention-days: 90
