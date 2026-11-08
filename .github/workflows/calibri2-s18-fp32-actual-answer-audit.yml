@@ -1,0 +1,43 @@
+name: CALIBRI2 S18 original FP32 actual S15 two-slot response inspection
+on:
+  push:
+    branches: ['research/calibri2-s18-fp32-composite-readonly-audit-20261108']
+    paths:
+      - 'research/calibri2/s18/**'
+      - '.github/workflows/calibri2-s18-fp32-actual-answer-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  S18_readonly_original_FP32_yes_color_actual_192_response_texts:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: research:research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile dependency-free JSON diagnostic
+        run: python -m compileall -q research/calibri2/s18
+      - name: Download genuine completed S16 135M FP32 QA artifact from identical NEW S15 suite
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s16-ORIGINAL-135M-FP32-REFERENCE-192-COMPOUND-16OPEN
+          path: inputs/s16_fp32
+          run-id: 42461279824
+          github-token: ${{ github.token }}
+      - name: Count real FP32 words and both answer fields; list actual 16 paired prompts and open answers
+        run: |
+          python research/calibri2/s18/fp32_actual_answer_audit.py inputs/s16_fp32/ACTUAL_CALIBRI2_S16_ORIGINAL_FP32_REFERENCE_192_AND_16.json results/s18
+      - name: Store read-only real FP32 answer errors
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s18-ORIGINAL-FP32-135M-COMPOSITE-REAL-ANSWERS
+          path: results/s18/
+          retention-days: 45
