@@ -26,7 +26,7 @@ from transformers import AutoTokenizer
 from binary_geometry_v64 import MODEL,MODEL_SHA
 from calibri2.s30 import matched_dense_fp32_train as s30
 from calibri2.s56 import paid_first_token_rank2_while_preserving_s54 as s56
-from calibri2.s61.cpu_native_greedy_parity import build
+from calibri2.s64.cpu_rank128_frozen_greedy_parity import instantiate
 from calibri2.s65 import train_only_new_rank116_and_guard_old as s65
 from v186.pairs import tokenize_one
 
@@ -133,8 +133,8 @@ def main():
     s56_controller=load_file(str(a.S56_immutable_rank12))
     s67_controller=load_file(str(a.S67_frozen_rank128))
     states={
-        "S56_immutable_reference":build(original,s56_controller,tok),
-        "S67_pretrained_only_candidate":build(original,s67_controller,tok),
+        "S56_immutable_reference":instantiate(original,s56_controller,12),
+        "S67_rank128_frozen_candidate":instantiate(original,s67_controller,128),
     }
     results={name:{} for name in states}
     times={name:[] for name in states}
@@ -173,10 +173,10 @@ def main():
                                   "both_opposing_correct":paired,
                                   "out_of_pairs":len(selection)}
     base=results["S56_immutable_reference"]
-    new=results["S67_pretrained_only_candidate"]
+    new=results["S67_rank128_frozen_candidate"]
     wins=[k for k in base if not base[k]["full_answer_plus_EOS_correct"] and new[k]["full_answer_plus_EOS_correct"]]
     regress=[k for k in base if base[k]["full_answer_plus_EOS_correct"] and not new[k]["full_answer_plus_EOS_correct"]]
-    ratio=statistics.median(times["S56_immutable_reference"])/statistics.median(times["S67_pretrained_only_candidate"])
+    ratio=statistics.median(times["S56_immutable_reference"])/statistics.median(times["S67_rank128_frozen_candidate"])
     evaluation={
         "stage":"CALIBRI_S68_FIRST_AND_ONLY_FRESH_96_RESEARCH_QA_AFTER_S67_FREEZE",
         "exact_challenge_SHA256":challenge_sha,
