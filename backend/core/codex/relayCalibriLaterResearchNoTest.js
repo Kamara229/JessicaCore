@@ -74,6 +74,13 @@ export function calibriLaterResearchNoJessicaTest(message) {
               "обычного теста Jessica. LIVE не меняю."
       };
     }
+    // A bare imperative research step is ambiguous: do not pretend it
+    // is a passive CI status even if the user forbade Jessica tests.
+    // The legacy S28+ fallback historically accepted any word after
+    // "Следующий шаг" and could silently swallow an execution request.
+    if (unsafeOrAmbiguousResearch ||
+        /Следующ(?:ий|ая)\s+шаг(?:\s+ChatGPT)?\s*[—–:-]\s*(?:создай|выполни|запусти|проведи|отправь|удали|измени|обнови|разверни|выпусти|установи|протестируй)(?=\s|[.,;:!?])/iu.test(body))
+        return null;
     const version=/^(?:CALIBRI\s+)?S(2[89]|[3-9]\d|1\d\d)(?=\s|[:.,;—–-])/iu.exec(body);
     if(!version)return null;
     // S38 incident: owner gave "Следующий шаг ChatGPT — S39" and
