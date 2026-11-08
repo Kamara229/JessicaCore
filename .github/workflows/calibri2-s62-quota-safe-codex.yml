@@ -1,0 +1,33 @@
+name: CALIBRI S62 Codex 429 quota-safe passive relay (research only)
+'on':
+  pull_request:
+    branches:
+      - main
+    paths:
+      - backend/core/codex/relayCalibriLaterResearchNoTest.js
+      - backend/scripts/regressionCodexS62NoQuota.test.js
+      - .github/workflows/calibri2-s62-quota-safe-codex.yml
+permissions:
+  contents: read
+jobs:
+  isolated_quota_safe_relay:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s62-quota-safe-codex-20261109'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked backend dependencies without secrets
+        working-directory: backend
+        run: |
+          if test -f package-lock.json; then npm ci --ignore-scripts --no-audit --no-fund; else npm install --ignore-scripts --no-audit --no-fund; fi
+      - name: Verify quota-free S62 handoff and existing Codex regression
+        working-directory: backend
+        run: |
+          node --test scripts/regressionCodexS62NoQuota.test.js
+          node --test scripts/regressionCodexCalibriNoQuota.test.js
+          node --test scripts/regressionCodexRelay.test.js
