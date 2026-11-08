@@ -4,6 +4,8 @@ on:
     paths:
       - 'backend/core/codex/relayCalibriNoTestNextStep.js'
       - 'backend/core/codex/relayInterpreter.js'
+      - 'backend/core/codex/relayResearchExternalCiStatus.js'
+      - 'backend/scripts/regressionCodexS26CiPassiveNoTest.test.js'
       - 'backend/scripts/regressionCodexCalibriNoTestNextStep.test.js'
       - '.github/workflows/codex-calibri-no-test.yml'
   workflow_dispatch:
@@ -26,3 +28,4 @@ jobs:
         run: |
           node --test backend/scripts/regressionCodexCalibriNoTestNextStep.test.js
           node --test backend/scripts/regressionCodexCalibriNoQuota.test.js
+          node --test backend/scripts/regressionCodexS26CiPassiveNoTest.test.js
