@@ -11,7 +11,6 @@ import argparse
 from collections import Counter
 import json
 from pathlib import Path
-from calibri2.s15.compositional_qa import make_cases
 
 EXPECTED_SHA="3ddb7bf64779c47990f1b729cb6a59a3b2a0ae9f3d0f1b575317c279ac5cb8a0"
 MODELS=("S7","S8","S12")
@@ -37,7 +36,10 @@ def read(path,name):
     if r["physical_SHA256"]!=MODEL_SHA[name]:
         raise AssertionError("Unexpected sealed physical checkpoint")
     rows=r["real_192_question_expected_vs_actual"]
-    expected={x["id"] for x in make_cases()}
+    expected={f"S15_{domain}_{i:02d}_{flip}"
+              for domain in ("number_plus_color","ownership_plus_color",
+                             "count_plus_color","transfer_plus_color")
+              for i in range(24) for flip in (0,1)}
     if len(rows)!=192 or {x["id"] for x in rows}!=expected:
         raise AssertionError("Not all actual frozen QA answers present")
     if len(r["real_16_multi_clause_open_answers"])!=16:
