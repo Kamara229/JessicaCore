@@ -33,7 +33,7 @@ export function passiveS34GithubCiNoTest(message) {
         /\b240\b/u.test(body) && /\b214\b/u.test(body) &&
         /\b26\b/u.test(body) && /\b80\b/u.test(body) &&
         /80\s+шагов\s+отклонены/iu.test(body) &&
-        /\bLIVE\s+не\s+меня(?:ть|й)\b/iu.test(body) &&
+        /\bLIVE\s+не\s+меня(?:ть|й)(?=\s|[.!?]|$)/iu.test(body) &&
         !/(?:создай|открой|запусти|выполни|проведи|повтори|протестируй)\s+(?:(?:новый|один|этот|текстовый|следующий)\s+)?(?:тест(?:ы)?|тестовый\s+чат)/iu.test(body) &&
         !/(?:https?:\/\/|парол|секрет|API[-\s]?ключ|токен\s+доступа|deploy|merge|удали|установи\s+(?:APK|пакет|приложение)|[«»\x60])/iu.test(body);
     if (s34TrainReport) return {
