@@ -1,0 +1,60 @@
+name: CALIBRI 2.0 Kaggle API connection smoke test
+'on':
+  pull_request:
+    branches:
+      - research/calibri2-s58-frozen-first-paired-noun-replay-20261108
+    paths:
+      - .github/workflows/calibri2-kaggle-api-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify_kaggle_secret_and_readonly_api:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-kaggle-api-smoke-20261108'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install official Kaggle CLI
+        run: python -m pip install --quiet kaggle
+      - name: Check protected GitHub secret and authenticate read-only against Kaggle
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          if not os.environ.get("KAGGLE_API_TOKEN"):
+              print("KAGGLE_SECRET_MISSING_OR_UNAVAILABLE")
+              sys.exit(2)
+
+          print("KAGGLE_SECRET_AVAILABLE")
+          try:
+              response = subprocess.run(
+                  ["kaggle", "kernels", "list", "--mine", "--page-size", "1"],
+                  capture_output=True, text=True, timeout=60, check=False
+              )
+          except subprocess.TimeoutExpired:
+              print("KAGGLE_API_TIMEOUT")
+              sys.exit(3)
+
+          if response.returncode == 0:
+              print("KAGGLE_API_AUTHENTICATED_READONLY_OK")
+              sys.exit(0)
+
+          combined = (response.stdout + "\n" + response.stderr).lower()
+          if any(code in combined for code in ("401", "unauthorized", "invalid token", "authentication failed")):
+              print("KAGGLE_API_AUTHENTICATION_REJECTED")
+          elif any(code in combined for code in ("403", "forbidden", "permission denied")):
+              print("KAGGLE_API_AUTHENTICATED_BUT_ACCESS_DENIED")
+          else:
+              print("KAGGLE_API_REQUEST_FAILED_REDACTED")
+          print("No API token or raw response is printed by this smoke test.")
+          sys.exit(4)
+          PY
