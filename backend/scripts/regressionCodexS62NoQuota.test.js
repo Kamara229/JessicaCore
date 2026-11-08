@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {calibriLaterResearchNoJessicaTest} from "../core/codex/relayCalibriLaterResearchNoTest.js";
 import {codexQuotaIncidentNoTestStatus} from "../core/codex/relayQuotaIncidentNoTestStatus.js";
+import {quotaSafeCalibrIResearchProgress} from "../core/codex/relayQuotaSafeCalibriResearchProgress.js";
 import {interpretRelayTurn} from "../core/codex/relayInterpreter.js";
 
 const marker="4aee81dd-e8f3-4b4a-8d35-d212b844d77c";
@@ -113,4 +114,28 @@ test("S64-to-S65 provider-free path refuses malformed, implicit, or executable t
  assert.equal(calibriLaterResearchNoJessicaTest(message64.replace("Jessica не тестировать.","Jessica, выполни тест.")),null);
  assert.equal(calibriLaterResearchNoJessicaTest(message64.replace("в GitHub PR #453","в Render PR #453")),null);
  assert.equal(calibriLaterResearchNoJessicaTest(message64.replace("Jessica не тестировать.","Jessica не тестировать. Merge.")),null);
+});
+
+const handoffID="b63a7ac3-41e0-4500-bcf7-a6aef6779b04";
+const handoffBody="Проверил: Render работает, Supabase исправен. Обход Groq 429 прошёл CI в PR #449, но LIVE не обновлён. Следующий шаг — завершить обучение S65 в GitHub PR #453 и проверить сохранение навыков. Jessica не тестировать.";
+const handoff='JESSICA_REPLY_'+handoffID+'\n\n'+handoffBody+'\n\nJESSICA_END_'+handoffID;
+
+test("no-test CALIBRI GitHub status bypasses Groq quota instead of generating repeated failure",async()=>{
+  let groq=0;
+  const decision=await interpretRelayTurn({message:handoff},async()=>{
+    groq++;throw Object.assign(new Error("429 TPD"),{status:429});
+  });
+  assert.equal(groq,0,"No provider call for unambiguous research status");
+  assert.deepEqual([decision.action,decision.task,decision.continueThread],["reply","",false]);
+  assert.match(decision.reply,/Тест.*не.*запускался/);
+});
+
+test("bounded generic CALIBRI relay rejects bad envelopes or implied actions",()=>{
+ const expectNo=(input)=>assert.equal(quotaSafeCalibrIResearchProgress(input),null);
+ expectNo(handoff.replace("JESSICA_END_"+handoffID,"JESSICA_END_00000000-0000-0000-0000-000000000000"));
+ expectNo(handoff.replace("Jessica не тестировать.","Jessica выполни тест."));
+ expectNo(handoff.replace("GitHub PR #453","Render PR #453"));
+ expectNo(handoff.replace("Jessica не тестировать.","Jessica не тестировать. Deploy на Render."));
+ expectNo(handoff.replace("Jessica не тестировать.","Jessica не тестировать. Используй API-ключ."));
+ expectNo("S65 GitHub PR #453. Jessica не тестировать.");
 });
