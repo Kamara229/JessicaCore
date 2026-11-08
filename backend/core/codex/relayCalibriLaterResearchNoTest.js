@@ -22,9 +22,15 @@ export function calibriLaterResearchNoJessicaTest(message) {
     if(!body || body.length>800)return null;
     const version=/^(?:CALIBRI\s+)?S(2[89]|[3-9]\d|1\d\d)(?=\s|[:.,;—–-])/iu.exec(body);
     if(!version)return null;
-    if(!/Следующ(?:ий|ая)\s+шаг\s*[—–:-]\s*\S+/iu.test(body) ||
-       !/(?:FP32|TRAIN|Green Tunnel|bpp|QA|навык|обучени|исследован)/iu.test(body) ||
-       !/(?:Jessica|Джессика)\s+тесты?\s+не\s+запуска(?:ет|ю|й|ть)\s*[.!]?$/iu.test(body))
+    // S62 native-C work is delegated to ChatGPT in GitHub, not Jessica.
+    // During a 429 outage this explicit no-test relay must not call Groq.
+    const legacyNext=/Следующ(?:ий|ая)\s+шаг\s*[—–:-]\s*\S+/iu.test(body);
+    const delegatedGithubNext=/Следующ(?:ий|ая)\s+шаг\s+(?:выполняю|выполняет\s+ChatGPT)\s+через\s+GitHub\s*:\s*\S+/iu.test(body);
+    const oldNoTest=/(?:Jessica|Джессика)\s+тесты?\s+не\s+запуска(?:ет|ю|й|ть)\s*[.!]?$/iu.test(body);
+    const delegatedNoTest=/(?:Jessica|Джессика)\s+не\s+тестировать\s*[.!]?$/iu.test(body);
+    if(!(legacyNext || delegatedGithubNext) ||
+       !/(?:FP32|TRAIN|Green Tunnel|bpp|QA|навык|обучени|исследован|native\s+C|CB59|скорост|весах|CPU)/iu.test(body) ||
+       !(oldNoTest || (delegatedGithubNext && delegatedNoTest)))
        return null;
     // A status note must not accidentally suppress an actual Jessica chat test,
     // credential request, external action or an explicitly finished plan.
