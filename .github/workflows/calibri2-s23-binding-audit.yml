@@ -1,0 +1,57 @@
+name: CALIBRI2 S23 read-only actual unseen two-word binding error audit
+on:
+  push:
+    branches: ['research/calibri2-s23-two-word-binding-error-analysis-20261108']
+    paths:
+      - 'research/calibri2/s23/**'
+      - '.github/workflows/calibri2-s23-binding-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  S23_real_96_holdout_two_word_error_vs_32_TRAIN_conditional:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 14
+    env:
+      PYTHONPATH: research
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile pure JSON evidence analysis (no model imports, no TRAIN)
+        run: python -m compileall -q research/calibri2/s23
+      - name: Download unmodified frozen S7 144 independent full answer QA artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s20-FROZEN-96-NEW-TWOWORD-48CONTROL-S7-BEFORE
+          path: inputs/s7
+          run-id: 42463712915
+          github-token: ${{ github.token }}
+      - name: Download unmodified physically paid S20 144 independent full answer QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s20-FROZEN-96-NEW-TWOWORD-48CONTROL-S20-AFTER
+          path: inputs/s20
+          run-id: 42463712915
+          github-token: ${{ github.token }}
+      - name: Download immutable S22 32 TRAIN-only second-token EOS conditional diagnostics
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s22-READONLY-32-OLDTRAIN-FIRST-SECOND-EOS-DIAGNOSTIC
+          path: inputs/s22
+          run-id: 42465609301
+          github-token: ${{ github.token }}
+      - name: Audit all ACTUAL 96 independent unseen composite generated answers with 32 TRAIN forced continuations
+        run: |
+          python research/calibri2/s23/binding_error_audit.py inputs/s7/ACTUAL_CALIBRI2_S20_96_NEW_MULTIWORD_48_CONTROL_16_OPEN.json inputs/s20/ACTUAL_CALIBRI2_S20_96_NEW_MULTIWORD_48_CONTROL_16_OPEN.json inputs/s22/ACTUAL_CALIBRI2_S22_TRAIN_2WORD_EOS_DIAGNOSTIC.json results/s23
+      - name: Archive every actual wrong answer and causal hypothesis evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s23-REAL-96-UNSEEN-BINDING-16-OPEN-32-TRAIN-AUDIT
+          path: results/s23/
+          retention-days: 45
