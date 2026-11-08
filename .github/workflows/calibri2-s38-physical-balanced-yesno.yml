@@ -1,0 +1,68 @@
+name: CALIBRI S38 physical CB59 balanced Yes-No learning
+on:
+  push:
+    branches:
+      - research/calibri2-s38-physical-balanced-yesno-guard-20261108
+    paths:
+      - 'research/calibri2/s38/**'
+      - '.github/workflows/calibri2-s38-physical-balanced-yesno.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  S38_balanced_original_36M_PAID_CB59_TRAIN_only:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '3838'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile S38 isolated research
+        run: |
+          python -m compileall -q research/calibri2/s38/
+      - name: Restore new S37 physical CB59 checkpoint not QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s37-new-physical-36M-CB59-if-accepted
+          path: inputs/s37
+          run-id: 42495320582
+          github-token: ${{ github.token }}
+      - name: Train compressed dictionary with opposing Yes/No margin repairs
+        run: |
+          python research/calibri2/s38/paid_balanced_yes_no_margin_recovery.py \
+            inputs/s37/CALIBRI2_S37_36M_PAID_TRAIN.cb59 \
+            results/s38
+      - name: Always retain real S38 TRAIN-only numerical report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s38-balanced-paid-Yes-No-TRAIN-results
+          path: results/s38/*.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Retain new actual physical CB59 archive if updates were accepted
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s38-actual-36M-CB59-if-accepted
+          path: results/s38/*.cb59
+          if-no-files-found: warn
+          retention-days: 60
