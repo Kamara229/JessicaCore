@@ -12,6 +12,7 @@ on:
       - 'backend/scripts/regressionCodexCompactTest.test.js'
       - 'backend/scripts/regressionCodexNumberedBenchmark.test.js'
       - 'backend/scripts/regressionCodexCalibriNoQuota.test.js'
+      - 'backend/scripts/regressionCodexCalibriV2PassiveStep.test.js'
       - 'backend/scripts/regressionCodexCalibriCompletedStatus.test.js'
       - 'backend/scripts/smokeCodexMainProgress.mjs'
       - 'backend/scripts/smokeCodexRelay.mjs'
@@ -59,4 +60,5 @@ jobs:
             backend/scripts/regressionCodexCompactTest.test.js \
             backend/scripts/regressionCodexNumberedBenchmark.test.js \
             backend/scripts/regressionCodexCalibriNoQuota.test.js \
+            backend/scripts/regressionCodexCalibriV2PassiveStep.test.js \
             backend/scripts/regressionCodexCalibriCompletedStatus.test.js
