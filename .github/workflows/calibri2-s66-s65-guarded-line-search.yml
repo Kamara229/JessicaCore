@@ -1,0 +1,87 @@
+name: CALIBRI S66 S65-negative TRAIN-only rank116 delta line search
+'on':
+  pull_request:
+    types: [opened]
+    branches:
+      - research/calibri2-s65-train-new-rank116-only-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  guard_frozen_native_train_interpolation:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s66-train-delta-line-search-20261109'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 75
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile S66 independent guarded search
+        run: python -m compileall -q research/calibri2/s66
+      - name: Install pinned CPU-only inference deps
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Retrieve immutable physical S45 weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Retrieve immutable S56 Green Tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s56-paid-first-plus-later-dual-controller-if-accepted
+          path: inputs/s56
+          run-id: 42518099946
+          github-token: ${{ github.token }}
+      - name: Retrieve unchanged physically compressed S61 host
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: Retrieve S64 paid rank128 initial controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s64-paid-rank128-green-tunnel-not-trained
+          path: inputs/s64
+          run-id: 42530687528
+          github-token: ${{ github.token }}
+      - name: Retrieve S65 rejected, TRAIN-only CPU optimizer resume (not promoted)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s65-guarded-rank116-TRAIN-real-probes-and-resume
+          path: inputs/s65
+          run-id: 42531290650
+          github-token: ${{ github.token }}
+      - name: Test scaled rejected S65 gradients under all original full-answer guards
+        run: |
+          python research/calibri2/s66/train_only_line_search_s65_delta.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s56/S56_DUAL_ACTIVE_PAID_GREEN_TUNNEL.safetensors \
+            inputs/s64/S64_RANK128_GREEN_TUNNEL_INIT.safetensors \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            inputs/s64/S64_PAID_MANIFEST.json \
+            inputs/s65/S65_STEP_016_TRAIN_RESUME.pt \
+            results/s66
+      - name: Archive all true TRAIN native responses and negative diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s66-s65-rejected-delta-guarded-TRAIN-interpolation
+          path: results/s66/
+          if-no-files-found: warn
+          retention-days: 90
