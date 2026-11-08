@@ -181,3 +181,27 @@ test("S40 safe guarded research status rejects test orders, LIVE changes and cor
     ];
     for(const message of bad)assert.equal(calibriLaterResearchNoJessicaTest(message),null,message);
 });
+
+
+const backendS41Status = "Render: сбой интерпретации; Supabase исправна. Обработчик не узнавал «Шаг S41». Исправлено в draft PR #418, CI пройден; в LIVE пока не внедрено. Исследование S41 — draft PR #425, CI #42498851459. Jessica не тестировать.";
+for(const message of [backendS41Status,"JESSICA_REPLY_"+id+"\n\n"+backendS41Status+"\n\nJESSICA_END_"+id]){
+    test("S41 failed-provider Render Supabase research incident never invokes Groq or runs Jessica chat test",async()=>{
+        let called=0;
+        const a=await interpretRelayTurn({message,plan:"CALIBRI S41 isolated GitHub research"},
+          async()=>{called++;throw Error("simulated quota");});
+        assert.equal(called,0);
+        assert.equal(a.action,"reply");
+        assert.equal(a.task,"");
+        assert.equal(a.continueThread,false);
+        assert.match(a.reply,/S41/);
+    });
+}
+test("S41 status route does not conceal a different instruction or malformed reply markers",()=>{
+  for(const x of [
+    backendS41Status+" Создай тест.",
+    backendS41Status.replace("Jessica не тестировать","Jessica проведи тест"),
+    backendS41Status.replace("в LIVE пока не внедрено","DEPLOY LIVE"),
+    backendS41Status.replace("#425","#426"),
+    "JESSICA_REPLY_"+id+"\n\n"+backendS41Status+"\n\nJESSICA_END_00000000-0000-0000-0000-000000000000"
+  ]) assert.equal(calibriLaterResearchNoJessicaTest(x),null);
+});
