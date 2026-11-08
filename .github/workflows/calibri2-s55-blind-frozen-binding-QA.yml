@@ -1,0 +1,88 @@
+name: CALIBRI S55 frozen QA novel 96 paired binding checks on S45 S47 S52 S54
+on:
+  push:
+    branches:
+      - research/calibri2-s55-blind-novel-binding-check-20261108
+    paths:
+      - 'research/calibri2/s55/**'
+      - '.github/workflows/calibri2-s55-blind-frozen-binding-QA.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s55_one_time_unseen_96_new_paired_readonly:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 85
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install frozen CPU inference environment
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Validate S55 only read-only Python (S29 S53 files never imported)
+        run: python -m compileall -q research/calibri2/s55
+      - name: Immutable S45 CB59 frozen physical core
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Immutable S47 paid rank8 controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s47-active-green-tunnel-paid-under-0p7-if-accepted
+          path: inputs/s47
+          run-id: 42505575247
+          github-token: ${{ github.token }}
+      - name: Immutable S52 paid rank12 controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s52-active-paired-green-tunnel-if-accepted
+          path: inputs/s52
+          run-id: 42514912967
+          github-token: ${{ github.token }}
+      - name: Immutable S54 paid rank12 newly trained controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s54-paid-controller-if-accepted
+          path: inputs/s54
+          run-id: 42516715008
+          github-token: ${{ github.token }}
+      - name: Immutable S54 real physically paid manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s54-distinct-TRAIN-64-full-answers-protection-JSON
+          path: inputs/s54_report
+          run-id: 42516715008
+          github-token: ${{ github.token }}
+      - name: Check S45 S47 S52 and S54 on 96 independent once-only paired QA
+        run: |
+          python research/calibri2/s55/blind_novel_binding_FROZEN_QA.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s47/S47_ACTIVE_GREEN_TUNNEL_SIDECAR.safetensors \
+            inputs/s52/S52_ACTIVE_GREEN_TUNNEL_RANK12.safetensors \
+            inputs/s54/S54_ACTIVE_GREEN_TUNNEL_RANK12.safetensors \
+            inputs/s54_report/S54_ALL_INCLUSIVE_PHYSICAL_MANIFEST.json \
+            results/s55
+      - name: Upload one-time QA evidence independent of training, positive or negative
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s55-FROZEN-UNSEEN-novel96-READONLY-QA
+          path: results/s55/*.json
+          if-no-files-found: warn
+          retention-days: 90
