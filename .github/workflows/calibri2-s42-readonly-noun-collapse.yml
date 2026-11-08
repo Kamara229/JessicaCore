@@ -1,0 +1,44 @@
+name: CALIBRI S42 read-only 64 TRAIN noun/free answer analysis
+on:
+  push:
+    branches:
+      - research/calibri2-s42-noun-collapse-readonly-20261108
+    paths:
+      - 'research/calibri2/s42/**'
+      - '.github/workflows/calibri2-s42-readonly-noun-collapse.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  S42_read_only_S41_actual_TRAIN_report:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download immutable S41 physical CB59 TRAIN JSON only
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s41-global-noun-winning-token-TRAIN-only-JSON
+          path: inputs/s41
+          run-id: 42498851459
+          github-token: ${{ github.token }}
+      - name: Run read-only analysis of all 64 paired TRAIN rows
+        run: |
+          python -m compileall -q research/calibri2/s42/
+          python research/calibri2/s42/s41_64_train_collapse_analysis.py \
+            inputs/s41/S41_REAL_PAID_GLOBAL_NOUN_WINNER_TRAIN_ONLY.json \
+            results/s42/S42_TRAIN_ONLY_NOUN_COLLAPSE.json
+      - name: Retain reproducible S42 TRAIN diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s42-real-S41-64-TRAIN-winner-collapse-JSON
+          path: results/s42/*.json
+          if-no-files-found: warn
+          retention-days: 90
