@@ -1,0 +1,61 @@
+name: CALIBRI S33 36M FP32 noun token contrast protected one-step TRAIN
+
+on:
+  push:
+    branches:
+      - research/calibri2-s33-guarded-lexical-noun-margin-20261108
+    paths:
+      - 'research/calibri2/s33/**'
+      - '.github/workflows/calibri2-s33-lexical-noun-one-step-fp32.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  S33_real_F32_one_step_noun_margin_old_train_guard:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '3030'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: S33 static regress source and no QA leakage
+        run: |
+          python -m compileall -q research/calibri2/s33/
+          python -m unittest -v calibri2.s33.test_one_step_lexical_noun_guard_fp32
+      - name: Restore immutable S26 physical 36M starting archive, not QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-36M-NOUN-TRANSFER-1280-GREEN-TUNNEL-PHYSICAL
+          path: inputs/s26
+          run-id: 42470473505
+          github-token: ${{ github.token }}
+      - name: Execute real S33 128 guarded FP32 TRAIN steps, no heldout scoring
+        run: |
+          python research/calibri2/s33/one_step_lexical_noun_guard_fp32.py \
+            inputs/s26/CALIBRI2_S26_36M_NOUN_TRANSFER_1280_PAID.cb59 \
+            results/s33
+      - name: Preserve every successful or negative candidate and all TRAIN answers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s33-36M-FP32-128-ONE-STEP-NOUN-GUARDED-REAL-TRAIN
+          path: results/s33/
+          retention-days: 90
