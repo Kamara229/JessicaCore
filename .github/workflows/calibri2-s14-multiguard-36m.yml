@@ -1,0 +1,84 @@
+name: CALIBRI2 S14 multi-guard 36M exact paid FP16 training and new independent QA
+on:
+  push:
+    branches: ['research/calibri2-s14-multi-guard-36m-20261108']
+    paths:
+      - 'research/calibri2/s14/**'
+      - '.github/workflows/calibri2-s14-multiguard-36m.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  S14_five_old_TRAIN_guards_and_frozen_new_192_QA:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '2114'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned PyTorch CPU and research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile every predeclared S14 task, QA and speed source
+        run: python -m compileall -q research/calibri2/s14
+      - name: Download original S7 36M physical CB59 archive (not selected by any QA)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s7-36M-ffn1536-physical-and-regression-report
+          path: inputs/s7
+          run-id: 42383040833
+          github-token: ${{ github.token }}
+      - name: Freeze S7 baseline against NEW S14 independent 192 full answers and 16 open prompts
+        run: |
+          python research/calibri2/s14/independent_qa.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 results/s14/baseline --label S7_BEFORE_S14_NEW_UNSEEN_QA
+      - name: Preserve strict independent baseline BEFORE new training
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s14-FROZEN-S7-BASELINE-192-16
+          path: results/s14/baseline/
+          retention-days: 45
+      - name: One fixed 192-step real multi-guard TRAIN using all 85 paid FP16 dictionaries and guarded 5bit swaps
+        run: |
+          python research/calibri2/s14/multi_guard_training.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 results/s14/train
+      - name: Preserve real paid S14 36M checkpoint, exact 5-guard training and negative results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s14-36M-192-STEPS-MULTIGUARD-PAID-TRAIN
+          path: results/s14/train/
+          retention-days: 45
+          compression-level: 0
+      - name: Evaluate EXACT final S14 on identical new 192 QA and 16 actual open responses
+        run: |
+          python research/calibri2/s14/independent_qa.py results/s14/train/CALIBRI2_S14_36M_192_MULTIGUARD_PAID.cb59 results/s14/after --label S14_FINAL_UNSEEN_QA_NO_WEIGHT_SELECTION
+      - name: Preserve ALL positive and negative S14 independent QA responses
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s14-FROZEN-S14-FINAL-192-16
+          path: results/s14/after/
+          retention-days: 45
+      - name: Measure same-architecture 36M native C CPU packed-only speed and 0.7bpp
+        run: |
+          python research/calibri2/s14/native_speed.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 results/s14/train/CALIBRI2_S14_36M_192_MULTIGUARD_PAID.cb59 results/s14/train/ACTUAL_CALIBRI2_S14_MULTIGUARD_TRAIN.json results/s14/native
+      - name: Preserve measured 9-trial native C CPU speed
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s14-36M-NATIVE-C-PACKED-SPEED
+          path: results/s14/native/
+          retention-days: 45
