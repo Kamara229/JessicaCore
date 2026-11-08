@@ -1,7 +1,7 @@
 name: CALIBRI S59 CPU continuity: physical S58 guarded training
 'on':
   pull_request:
-    types: [opened]
+    types: [synchronize]
     branches:
       - research/calibri2-s59-gpu-cpu-portable-20261109
 permissions:
