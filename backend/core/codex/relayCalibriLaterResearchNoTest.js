@@ -46,6 +46,33 @@ export function calibriLaterResearchNoJessicaTest(message) {
             "Анализ S42 продолжает ChatGPT через GitHub и не через Jessica. "+
             "Тест в обычном чате не запрашивался и не запускался. LIVE не меняю."
     };
+    // Stable category route, NOT one new hardcoded sentence per outage:
+    // GitHub-only CALIBRI research progress may start with Render or CI
+    // and still explicitly forbid Jessica ordinary-chat tests.
+    // Fail closed on anything resembling an action, deployment or secrets.
+    const protectedCalibrIResearch =
+      /(?:^|[^A-Za-z\d])S(?:2[89]|[3-9]\d|1\d\d)(?=[^A-Za-z\d]|$)/iu.test(body) &&
+      /(?:GitHub|CI\s*#\d{6,}|draft\s+PR\s*#\d+|TRAIN)/iu.test(body) &&
+      /Следующ(?:ий|ая)\s+шаг\s+ChatGPT\s*[—–:-]\s*\S+/iu.test(body) &&
+      /(?:Jessica|Джессика)\s+не\s+тестировать\s*[.!]?\s*$/iu.test(body) &&
+      /(?:LIVE\s+не\s+(?:измен[её]н|менять|обновл[её]н|трогать)|в\s+LIVE\s+(?:не\s+внедрено|пока\s+не\s+внедрено))/iu.test(body);
+    // Any competing instruction always defeats provider-free classification.
+    const unsafeOrAmbiguousResearch =
+      /(?:создай|выполни|запусти|проведи|повтори|отправь|удали|измени|обнови|разверни|выпусти|установи|протестируй)\s+(?:(?:новый|один|ещё|этот|следующий)\s+)?(?:тест|тестовый|чат|задач|деплой|deploy|сервер|базу|модель|кодекс)/iu.test(body) ||
+      /(?:Jessica|Джессика)[,:]?\s+(?:проведи|запусти|протестируй|выполни|открой|создай)/iu.test(body) ||
+      /(?:в\s+обычном\s+чате|тест\s+в\s+Jessica|через\s+Jessica|точная\s+(?:формулировка|задача)|API[- ]?ключ|парол|секрет|токен\s+доступа|deploy|merge|https?:\/\/|sandbox:|[<>{}`])/iu.test(body) ||
+      /(?:LIVE|Render|Supabase|APK)\s*(?:изменить|обновить|удалить|перезапустить|деплоить|задеплоить)/iu.test(body) ||
+      /(?:план|исследование)\s+(?:полностью\s+)?заверш[её]н/iu.test(body);
+    if(protectedCalibrIResearch && !unsafeOrAmbiguousResearch) {
+      const candidates = [...body.matchAll(/(?:^|[^A-Za-z\d])S(2[89]|[3-9]\d|1\d\d)(?=[^A-Za-z\d]|$)/giu)];
+      const number = candidates.length ? candidates.at(-1)[1] : "?";
+      return {
+        action:"reply",task:"",continueThread:false,
+        reply:"Поняла: CALIBRI S"+number+". Проверки и исследование ведёт ChatGPT через GitHub. "+
+              "Jessica тестов не выполняет. Сведения о CI не означают успешного "+
+              "обычного теста Jessica. LIVE не меняю."
+      };
+    }
     const version=/^(?:CALIBRI\s+)?S(2[89]|[3-9]\d|1\d\d)(?=\s|[:.,;—–-])/iu.exec(body);
     if(!version)return null;
     // S38 incident: owner gave "Следующий шаг ChatGPT — S39" and
