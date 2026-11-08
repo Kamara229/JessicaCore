@@ -1,4 +1,4 @@
-name: CALIBRI S59 CPU-portable paid-dictionary quality candidate
+name: CALIBRI S59 guarded 64step CPU paired-both recovery candidate
 'on':
   pull_request:
     types: [synchronize]
@@ -12,7 +12,7 @@ permissions:
   actions: read
 jobs:
   cpu_quantized_corpus_and_replay:
-    if: false # Original S59 CPU training already submitted once; do not relaunch on later PR commits.
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s59-gpu-cpu-portable-20261109'
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     env:
@@ -66,18 +66,18 @@ jobs:
           path: inputs/s56_report
           run-id: 42518099946
           github-token: ${{ github.token }}
-      - name: Run first 8 reproducible global codebook and Green Tunnel training steps on CPU
+      - name: Run 64 both-sides paired TRAIN steps with protected old skills on CPU
         run: |
           python research/calibri2/s59/paid_dictionary_and_green_tunnel_cpu_gpu.py \
             inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
             inputs/s56/S56_DUAL_ACTIVE_PAID_GREEN_TUNNEL.safetensors \
             inputs/s56_report/S56_DUAL_ACTIVE_PAID_GREEN_TUNNEL_MANIFEST.json \
-            results/s59 --device cpu --steps 8 --checkpoint-every 4 --context 48 --windows 128
+            results/s59_guarded --device cpu --steps 64 --checkpoint-every 16 --context 48 --windows 128 --centroid-lr .00001 --tunnel-lr .00025 --lm-weight .20 --old-replay-weight 5.0
       - name: Preserve real physical and CPU resumability artifacts even on TRAIN gate rejection
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: calibri-s59-cpu-training-checkpoint-and-train-report
-          path: results/s59/
+          name: calibri-s59-guarded-64step-CPU-checkpoints-and-report
+          path: results/s59_guarded/
           if-no-files-found: warn
           retention-days: 90
