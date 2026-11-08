@@ -1,0 +1,60 @@
+name: CALIBRI2 S22 read-only TRAIN second-token EOS diagnosis S7 vs S20
+on:
+  push:
+    branches: ['research/calibri2-s22-s20-second-token-readonly-20261108']
+    paths:
+      - 'research/calibri2/s22/**'
+      - '.github/workflows/calibri2-s22-second-token-eos.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  S22_readonly_free_greedy_versus_gold_first_word_continuation:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '2121'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned research CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile read-only precommitted diagnostic
+        run: python -m compileall -q research/calibri2/s22
+      - name: Retrieve original pre-S20 S7 36M physical model
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s7-36M-ffn1536-physical-and-regression-report
+          path: inputs/s7
+          run-id: 42383040833
+          github-token: ${{ github.token }}
+      - name: Retrieve S20 sealed 36M 2048 TRAIN-step physical model
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s20-36M-960-GREEN-TUNNEL-TWOWORD-PAID-PHYSICAL
+          path: inputs/s20
+          run-id: 42463712915
+          github-token: ${{ github.token }}
+      - name: Compare full free answer and teacher-forced 2nd word and final EOS on 32 fixed TRAIN cases
+        run: |
+          python research/calibri2/s22/s20_second_token_eos_audit.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 inputs/s20/CALIBRI2_S20_36M_960_MULTIWORD_PROTECTED_PAID.cb59 results/s22
+      - name: Preserve all literal responses plus second-token/EOS logits and ranks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s22-READONLY-32-OLDTRAIN-FIRST-SECOND-EOS-DIAGNOSTIC
+          path: results/s22/
+          retention-days: 45
