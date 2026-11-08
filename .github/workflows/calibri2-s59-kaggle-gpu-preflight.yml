@@ -1,0 +1,109 @@
+name: CALIBRI S59 private Kaggle T4 GPU short preflight
+'on':
+  pull_request:
+    branches:
+      - research/calibri2-s58-frozen-first-paired-noun-replay-20261108
+    paths:
+      - .github/workflows/calibri2-s59-kaggle-gpu-preflight.yml
+      - research/calibri2/s59/gpu_preflight.py
+permissions:
+  contents: read
+jobs:
+  one_short_private_gpu_preflight:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s59-gpu-cpu-portable-20261109'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Kaggle CLI with explicit runtime dependency
+        run: python -m pip install --quiet 'kaggle>=1.8.0' six
+      - name: Verify preflight permissions and remaining free GPU quota
+        shell: bash
+        run: |
+          test -n "$KAGGLE_API_TOKEN"
+          kaggle quota > quota.txt
+          python - <<'PY'
+          import re
+          s=open('quota.txt').read()
+          gpu=[line for line in s.splitlines() if re.match(r"\s*GPU\s+",line)]
+          if not gpu: raise SystemExit("Cannot confirm remaining GPU quota; no GPU job submitted")
+          print("QUOTA_GPU_LINE:",gpu[0])
+          fields=gpu[0].split()
+          if not any(float(v)>0.5 for v in re.findall(r'\d+\.\d+h',gpu[0])[:0]):
+              # The used/remaining/total are checked below by explicit column.
+              pass
+          if len(fields)<4 or not fields[2].endswith('h') or float(fields[2][:-1])<0.5:
+              raise SystemExit("Free GPU remaining <30 minutes; skip GPU job")
+          print("GPU_QUOTA_GUARD_OK")
+          PY
+      - name: Submit private budget-limited Kaggle CUDA notebook once
+        shell: bash
+        run: |
+          mkdir -p kaggle_job
+          cp research/calibri2/s59/gpu_preflight.py kaggle_job/calibri_s59_preflight.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m={
+            "id":"kamara229/calibri-s59-gpu-preflight",
+            "title":"calibri s59 gpu preflight",
+            "code_file":"calibri_s59_preflight.py",
+            "language":"python",
+            "kernel_type":"script",
+            "is_private":True,
+            "enable_gpu":True,
+            "enable_internet":False,
+            "machine_shape":"NvidiaTeslaT4",
+            "dataset_sources":[],
+            "competition_sources":[],
+            "kernel_sources":[],
+            "model_sources":[]
+          }
+          Path("kaggle_job/kernel-metadata.json").write_text(json.dumps(m,indent=2))
+          PY
+          kaggle kernels push -p kaggle_job --accelerator NvidiaTeslaT4 --timeout 300
+          echo "KAGGLE_GPU_PREFLIGHT_SUBMITTED_PRIVATE"
+      - name: Collect preflight result if Kaggle finished, no repeated GPU submission
+        shell: bash
+        run: |
+          set +e
+          for i in $(seq 1 14); do
+            kaggle kernels status kamara229/calibri-s59-gpu-preflight > status.txt 2>&1
+            echo "GPU_STATUS_POLL_$i: $(tail -n 1 status.txt | cut -c 1-160)"
+            grep -qiE 'complete|error|cancel|failed' status.txt && break
+            sleep 15
+          done
+          mkdir -p kaggle_out
+          kaggle kernels output kamara229/calibri-s59-gpu-preflight -p kaggle_out -o >output.log 2>&1
+          if test -s kaggle_out/calibri_s59_gpu_preflight.json; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          j=json.loads(Path("kaggle_out/calibri_s59_gpu_preflight.json").read_text())
+          print("CALIBRI_GPU_DEVICE",j.get("device"))
+          print("CALIBRI_GPU_MODEL",j.get("accelerator",{}).get("name"))
+          print("CALIBRI_GPU_VRAM_GB",round(j.get("accelerator",{}).get("memory_bytes",0)/2**30,2))
+          print("CALIBRI_GPU_NUMERIC_PASS",j.get("numerical_probe_pass"))
+          if j.get("device")!="cuda:0" or not j.get("numerical_probe_pass"):
+            raise SystemExit("Kaggle failed to provide working CUDA GPU")
+          PY
+          else
+            echo "NO_GPU_OUTPUT_YET; see Kaggle kernel status; no claims of GPU success"
+            exit 2
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-s59-short-gpu-preflight
+          path: |
+            kaggle_out/calibri_s59_gpu_preflight.json
+            status.txt
+          if-no-files-found: ignore
+          retention-days: 30
