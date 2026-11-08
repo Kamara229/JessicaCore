@@ -1,0 +1,68 @@
+name: CALIBRI S39 36M physical paid 5bit noun index training
+on:
+  push:
+    branches:
+      - research/calibri2-s39-paid-noun-index-proposals-20261108
+    paths:
+      - 'research/calibri2/s39/**'
+      - '.github/workflows/calibri2-s39-physical-paid-noun-index.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  S39_real_S38_CB59_gradient_ranked_5bit_changes:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 110
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '3939'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Syntax compile S39 research
+        run: |
+          python -m compileall -q research/calibri2/s39/
+      - name: Get immutable physical 36M CB59 S38 TRAIN model, never QA artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s38-actual-36M-CB59-if-accepted
+          path: inputs/s38
+          run-id: 42495934328
+          github-token: ${{ github.token }}
+      - name: Train and verify true 5bit index updates with old-seven exact EOS guard
+        run: |
+          python research/calibri2/s39/paid_5bit_noun_index_proposals.py \
+            inputs/s38/CALIBRI2_S38_36M_PAID_TRAIN.cb59 \
+            results/s39
+      - name: Retain all actual S39 TRAIN-only accepted and rejected proposals
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s39-real-5bit-index-training-json
+          path: results/s39/*.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Retain new paid compressed CB59 archive ONLY on successful real index changes
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s39-new-real-5bit-CB59-if-accepted
+          path: results/s39/*.cb59
+          if-no-files-found: warn
+          retention-days: 60
