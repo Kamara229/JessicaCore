@@ -17,8 +17,8 @@ export function quotaSafeCalibrIResearchProgress(message) {
     if(!stage || Number(stage)<28)return null;
     if(!/\bGitHub\b/iu.test(body) || !/\bPR\s*#\d{1,5}\b/iu.test(body))return null;
     // No test can be inferred from a passive research status.
-    if(!(/(?:Jessica|Джессика)\\s+не\\s+тестировать\\s*[.!]?$/iu.test(body) ||
-         /Тест\\s+(?:Jessica|Джессика)\\s+не\\s+запускался\\s*[.!]?$/iu.test(body)))return null;
+    if(!(/(?:Jessica|Джессика)\s+не\s+тестировать\s*[.!]?$/iu.test(body) ||
+         /Тест\s+(?:Jessica|Джессика)\s+не\s+запускался\s*[.!]?$/iu.test(body)))return null;
     if(!/(?:следующ(?:ий|ая)\s+шаг|продолжаю|запущен|проверка|исследование|обучение)/iu.test(body))return null;
     if(/(?:^|\s)(?:создай|открой|запусти|выполни|проведи|повтори|отправь|измени|удали|разверни|деплой|merge|deploy)\s+(?:[^\s]+\s+){0,3}(?:тест|Jessica|Джессик|чат|Render|Supabase|LIVE|APK)/iu.test(body))return null;
     if(/(?:https?:\/\/|парол|секрет|API[- ]?ключ|токен\s+доступа|[«»\u0060]|JESSICA_(?:REPLY|END)_)/iu.test(body))return null;
