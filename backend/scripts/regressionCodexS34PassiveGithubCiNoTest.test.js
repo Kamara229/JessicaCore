@@ -90,3 +90,31 @@ test("S34 JSON artifact route rejects dangerous or misleading variants",()=>{
         assert.equal(passiveS34GithubCiNoTest(message),null,message);
     }
 });
+
+
+const s35Status = "Запущен GitHub CI #42490133801: повтор S33 и один шаг S34 (LR=3e-6) с анализом логитов Yes/EOS для 1_left. Следующий шаг — изучить JSON после завершения. Render и Supabase проверены. Jessica не тестировать, LIVE не менять.";
+const s35Wrapped = "JESSICA_REPLY_"+id+"\n\n"+s35Status+"\n\nJESSICA_END_"+id;
+for (const message of [s35Status,s35Wrapped]) {
+    test("S35 one-step GitHub CI status is handled without provider or Jessica chat test", async()=>{
+        let providerCalls=0;
+        const result=await interpretRelayTurn({message,plan:"CALIBRI S35 GitHub research"},
+            async()=>{providerCalls++;throw Error("quota");});
+        assert.equal(providerCalls,0);
+        assert.equal(result.action,"reply");
+        assert.equal(result.task,"");
+        assert.equal(result.continueThread,false);
+        assert.match(result.reply,/S35/);
+    });
+}
+test("S35 passive status does not conceal genuine tests or dangerous changes",()=>{
+    for (const message of [
+        s35Wrapped.replace("JESSICA_END_"+id,"JESSICA_END_00000000-0000-0000-0000-000000000000"),
+        s35Status.replace("LIVE не менять","LIVE изменить"),
+        s35Status.replace("Jessica не тестировать","Jessica, проведи тест"),
+        s35Status.replace("#42490133801","#42490133802"),
+        s35Status.replace("LR=3e-6","LR=0.01"),
+        s35Status+" Создай новый тестовый чат.",
+        s35Status+" Deploy в Render.",
+        s35Status+" https://example.com",
+    ]) assert.equal(passiveS34GithubCiNoTest(message),null,message);
+});
