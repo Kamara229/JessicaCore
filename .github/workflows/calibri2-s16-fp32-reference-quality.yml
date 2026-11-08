@@ -1,0 +1,45 @@
+name: CALIBRI2 S16 pretrained 135M FP32 read-only qualitative comparison
+on:
+  push:
+    branches: ['research/calibri2-s16-fp32-composite-reference-20261108']
+    paths:
+      - 'research/calibri2/s16/**'
+      - '.github/workflows/calibri2-s16-fp32-reference-quality.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  S16_original_FP32_135M_same_frozen_S15_real_answers_reference_only:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '2116'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU research dependencies (no training)
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile read-only reference runner without importing reference weights into CALIBRI
+        run: python -m compileall -q research/calibri2/s16
+      - name: Evaluate original pretrained 135M FP32 INFERENCE ONLY on exact new S15 192 compound answers and 16 open
+        run: |
+          python research/calibri2/s16/canonical_fp32_reference.py results/s16
+      - name: Preserve full actual 135M FP32 responses without weights or training targets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s16-ORIGINAL-135M-FP32-REFERENCE-192-COMPOUND-16OPEN
+          path: results/s16/
+          retention-days: 45
