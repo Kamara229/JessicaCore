@@ -1,0 +1,66 @@
+name: CALIBRI2 S25 read-only second noun diagnosis for sealed S20 S24 36M
+
+on:
+  push:
+    branches: ['research/calibri2-s25-noun-transfer-teacherforced-readonly-20261108']
+    paths:
+      - 'research/calibri2/s25/**'
+      - '.github/workflows/calibri2-s25-noun-transfer-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  S25_readonly_teacher_forced_noun_after_true_color:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '2125'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile S25 read-only frozen diagnostic
+        run: python -m compileall -q research/calibri2/s25/
+      - name: Restore immutable S20 paid physical 36M archive
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s20-36M-960-GREEN-TUNNEL-TWOWORD-PAID-PHYSICAL
+          path: inputs/s20
+          run-id: 42463712915
+          github-token: ${{ github.token }}
+      - name: Restore immutable S24 paid physical 36M archive
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s24-36M-NOUN-BINDING-640-GREEN-TUNNEL-PHYSICAL
+          path: inputs/s24
+          run-id: 42466621076
+          github-token: ${{ github.token }}
+      - name: Analyze lexical noun selection after teacher forcing gold color
+        run: |
+          python research/calibri2/s25/noun_transfer_readonly.py \
+            inputs/s20/CALIBRI2_S20_36M_960_MULTIWORD_PROTECTED_PAID.cb59 \
+            inputs/s24/CALIBRI2_S24_36M_NOUN_GUARDED_640_PAID.cb59 \
+            results/s25/
+      - name: Preserve every actual second token, rank, EOS and distribution
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s25-36M-S20-S24-READONLY-SECOND-NOUN-DIAGNOSTIC
+          path: results/s25/
+          retention-days: 45
