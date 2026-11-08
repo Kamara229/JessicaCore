@@ -12,7 +12,7 @@ permissions:
   actions: read
 jobs:
   cpu_quantized_corpus_and_replay:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s59-gpu-cpu-portable-20261109'
+    if: false # Original S59 CPU training already submitted once; do not relaunch on later PR commits.
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     env:
