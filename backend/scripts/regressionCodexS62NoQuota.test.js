@@ -92,3 +92,25 @@ test("S63 passive status must keep exact delegation, no-action and markers",()=>
   assert.equal(calibriLaterResearchNoJessicaTest(envelope63.replace("JESSICA_END_"+id63,"JESSICA_END_00000000-0000-0000-0000-000000000000")),null);
   assert.equal(calibriLaterResearchNoJessicaTest(envelope63.replace("Jessica не тестировать.","Jessica не тестировать. Сделай deploy.")),null);
 });
+
+const id64="72347d33-096e-4cc9-aa30-e691fffc0fa2";
+const body64="S64 завершён: Green Tunnel rank128, 0,61337 bpp, ответы 16/16 совпали с S56, скорость CPU 1,005×. Следующий шаг — завершить обучение S65 в GitHub PR #453 и проверить сохранение навыков. Jessica не тестировать.";
+const message64=`JESSICA_REPLY_${id64}\n\n${body64}\n\nJESSICA_END_${id64}`;
+test("S64-to-S65 GitHub progress bypasses exhausted Groq without Jessica test",async()=>{
+ let providerCalls=0;
+ const result=await interpretRelayTurn({message:message64},async()=>{
+    providerCalls++;throw Object.assign(new Error("429 TPD quota"),{status:429});
+ });
+ assert.equal(providerCalls,0);
+ assert.equal(result.action,"reply");
+ assert.equal(result.task,"");
+ assert.equal(result.continueThread,false);
+ assert.match(result.reply,/S64/);
+ assert.match(result.reply,/не запрашивался и не запускался/);
+});
+test("S64-to-S65 provider-free path refuses malformed, implicit, or executable tasks",()=>{
+ assert.equal(calibriLaterResearchNoJessicaTest(message64.replace("JESSICA_END_"+id64,"JESSICA_END_00000000-0000-0000-0000-000000000000")),null);
+ assert.equal(calibriLaterResearchNoJessicaTest(message64.replace("Jessica не тестировать.","Jessica, выполни тест.")),null);
+ assert.equal(calibriLaterResearchNoJessicaTest(message64.replace("в GitHub PR #453","в Render PR #453")),null);
+ assert.equal(calibriLaterResearchNoJessicaTest(message64.replace("Jessica не тестировать.","Jessica не тестировать. Merge.")),null);
+});
