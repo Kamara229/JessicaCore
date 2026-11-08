@@ -1,0 +1,43 @@
+name: CALIBRI S46 readonly real S45 greedy noun and guard attribution
+on:
+  push:
+    branches:
+      - research/calibri2-s46-real-free-noun-bottleneck-20261108
+    paths:
+      - 'research/calibri2/s46/**'
+      - '.github/workflows/calibri2-s46-s45-real-noun-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit_real_S45_paid_training:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Retrieve actual immutable S45 report, not QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-actual-physical-noun-TRAIN-only-JSON
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Attribute original S45 rejections and free responses without new tests or training
+        run: |
+          python research/calibri2/s46/s45_real_free_noun_bottleneck_readonly.py \
+            inputs/s45/S45_REAL_FIRST_COLOR_GUARDED_NOUN_TRAIN.json \
+            results/S46_READONLY_S45_PAID_NOUN_BOTTLENECK.json
+      - name: Store compact factual S46 diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s46-real-S45-TRAIN-greedy-noun-bottleneck-JSON
+          path: results/*.json
+          if-no-files-found: warn
+          retention-days: 90
