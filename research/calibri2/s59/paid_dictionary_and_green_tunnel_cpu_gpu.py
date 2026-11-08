@@ -95,30 +95,28 @@ def frozen_train_source(tok,out,max_windows,context):
     return ids,provenance
 
 def example_loss(model,sources,first,later,row,device):
-    targets=[int(t) for t in row["targets"]]
-    if len(targets)!=3:
-        raise ValueError("Expected exact color + noun + EOS targets")
-    prefix=row["prompt_ids"].to(device)
-    if prefix.ndim!=1:raise ValueError("Expected 1D causal token sequence")
-    tokens=torch.cat((prefix,torch.tensor(targets[:2],device=device)))
+    """Full target sequence replay, including binary Yes/No and multi-token old skills."""
+    targets=row["targets"].tolist()
+    tokens=row["ids"][:-1].to(device)
+    positions=row["positions"].tolist()
+    if len(positions)!=len(targets) or not positions:
+        raise ValueError("Malformed TRAIN next-token positions")
     clear(sources)
     out=model(input_ids=tokens[None],use_cache=False,output_hidden_states=True)
     hidden=out.hidden_states[-1][0]
     raw=out.logits[0]
     paid_head=model.lm_head.source()
-    locs=[len(prefix)-1,len(prefix),len(prefix)+1]
-    adapters=(first,later,later)
     losses=[]
-    for pos,target,adapter in zip(locs,targets,adapters):
+    for k,(pos,target) in enumerate(zip(positions,targets)):
+        adapter=first if k==0 else later
         logits=raw[pos]+F.linear(adapter(hidden[pos]),paid_head)
-        gold=logits[target]
+        gold=logits[int(target)]
         competitor=logits.detach().clone()
-        competitor[target]=-1e9
-        # Objective is a real correct-token vs global-wrong-token margin;
-        # quality gate remains FULL native greedy responses, not NLL/KL.
+        competitor[int(target)]=-1e9
+        # Actual global-winner supervised margin on verified TRAIN label.
         loss=F.softplus(competitor.max()-gold+.2)
-        losses.append(loss)
-    return losses[0]+losses[1]+.75*losses[2]
+        losses.append(loss if k==0 else .75*loss)
+    return torch.stack(losses).mean()
 
 def text_loss(model,sources,later,ids,device):
     clear(sources)
