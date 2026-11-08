@@ -28,7 +28,13 @@ export function calibriLaterResearchNoJessicaTest(message) {
     // protected GitHub-only research step fell into quota-limited Groq.
     const legacyNoTest=/(?:Jessica|Джессика)\s+тесты?\s+не\s+запуска(?:ет|ю|й|ть)\s*[.!]?$/iu.test(body);
     const researchOnlyNoTest=/(?:Jessica|Джессика)\s+не\s+тестировать\s*,\s*LIVE\s+не\s+меня(?:ть|й)(?=\s|[.!?]|$)/iu.test(body);
-    if(!/Следующ(?:ий|ая)\s+шаг(?:\s+ChatGPT)?\s*[—–:-]\s*\S+/iu.test(body) ||
+    // S40 incident: a short research-only instruction starts "Шаг S41:"
+    // instead of "Следующий шаг ChatGPT —". The old strict phrase guard
+    // missed it and needlessly called the rate-limited interpreter.
+    const hasResearchStep =
+        /Следующ(?:ий|ая)\\s+шаг(?:\\s+ChatGPT)?\\s*[—–:-]\\s*\\S+/iu.test(body) ||
+        /(?:^|[.!?]\\s+)Шаг\\s+S(?:2[89]|[3-9]\\d|1\\d\\d)\\s*:\\s*(?:тренировать|обучать|диагностир\\w*|сравни\\w*|исследов\\w*|проверить|проанализиров\\w*|изучить|улучш\\w*)/iu.test(body);
+    if(!hasResearchStep ||
        !/(?:FP32|TRAIN|Green Tunnel|bpp|QA|навык|обучени|обучать|исследован|сжатие|кодовые\s+книги)/iu.test(body) ||
        !(legacyNoTest || researchOnlyNoTest))
        return null;
