@@ -53,7 +53,7 @@ test("malformed envelope, false stage, no explicit handoff and extraneous comman
 test("explicit ordinary-chat test is never swallowed by passive CALIBRI 2.0 status",async()=>{
     const ambiguous=body+" В чате Jessica выполни: Сколько будет 7 умножить на 8?";
     assert.equal(calibri2ResearchPassiveHandoff(ambiguous),null);
-    const explicit="Создай новый тестовый чат Jessica. Точная формулировка: Сколько будет 7 умножить на 8?";
+    const explicit="Создай новый тестовый чат Jessica. Точная формулировка задачи: Сколько будет 7 умножить на 8?";
     assert.equal(calibri2ResearchPassiveHandoff(explicit),null);
     const result=await interpretRelayTurn({message:explicit},async()=>{
         throw Error("Explicit safe test should bypass provider");
