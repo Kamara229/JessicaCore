@@ -53,7 +53,7 @@ export function calibriLaterResearchNoJessicaTest(message) {
     const protectedCalibrIResearch =
       /(?:^|[^A-Za-z\d])S(?:4\d|[5-9]\d|1\d\d)(?=[^A-Za-z\d]|$)/iu.test(body) &&
       /(?:GitHub|CI\s*#\d{6,}|draft\s+PR\s*#\d+|TRAIN)/iu.test(body) &&
-      /Следующ(?:ий|ая)\s+шаг(?:\s+ChatGPT)?\s*[—–:-]\s*(?:проверить|изучить|сравнить|проанализировать|исследовать|обучать|тренировать|устранить|исправить|выяснить)(?=\s|[.!?])/iu.test(body) &&
+      /Следующ(?:ий|ая)\s+шаг(?:\s+ChatGPT)?\s*[—–:-]\s*(?:проверить|изучить|сравнить|проанализировать|исследовать|обучать|тренировать|устранить|исправить|выяснить)(?=\s|[.,;:!?])/iu.test(body) &&
       /(?:Jessica|Джессика)\s+не\s+тестировать(?:\s*,\s*LIVE\s+не\s+менять)?\s*[.!]?\s*$/iu.test(body) &&
       /(?:LIVE\s+не\s+(?:измен[её]н|изменял[аи]?|менять|менял[аи]?|меняли|обновл[её]н|трогать)|в\s+LIVE\s+(?:не\s+внедрено|пока\s+не\s+внедрено))/iu.test(body);
     // Any competing instruction always defeats provider-free classification.
