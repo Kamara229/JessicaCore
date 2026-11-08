@@ -262,7 +262,7 @@ test("S42 generic research route fails closed on mutation, test requests, change
     s42GeneralStatus+" https://example.org",
     s42GeneralStatus.replace("Следующий шаг ChatGPT","Следующий шаг Jessica"),
     s42GeneralStatus.replace("CI #42499885683","тест Jessica"),
-    s42GeneralStatus.replace("S42","v27").replace("S41","v26")
+    s42GeneralStatus.replaceAll("S42","v27").replaceAll("S41","v26")
   ];
   for(const m of altered) assert.equal(calibriLaterResearchNoJessicaTest(m),null,m);
 });
