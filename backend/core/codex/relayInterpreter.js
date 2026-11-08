@@ -1,4 +1,5 @@
 import {getGroqClient} from "../../ai/groqClient.js";
+import {withDailyQuotaModelFallback} from "../../ai/dailyQuotaModelFallback.js";
 import {explicitSameTestChat} from "./relayThreadPolicy.js";
 import {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 import {explicitJessicaTest} from "./relayExplicitTest.js";
@@ -179,11 +180,19 @@ export async function interpretRelayTurn(input, generate) {
     if (stressReply!==null) return {action:"reply",reply:stressReply,task:"",continueThread:false};
     const payload = {message, plan:String(input.plan || "").slice(0,12000), history};
     const run = generate || (async (instructions, data) => {
-        const response = await getGroqClient().chat.completions.create({
-            model:"openai/gpt-oss-20b", temperature:0, reasoning_effort:"low", include_reasoning:false,
+        // Existing bounded Groq model alternative is used ONLY on confirmed
+        // daily quota exhaustion, never to loop on TPM or malformed responses.
+        // Passive CALIBRI notes take a deterministic no-provider route above.
+        const request = model => getGroqClient().chat.completions.create({
+            model, temperature:0, reasoning_effort:"low", include_reasoning:false,
             max_completion_tokens:1800, response_format:{type:"json_object"},
             messages:[{role:"system",content:instructions},{role:"user",content:JSON.stringify(data)}]
         }, {timeout:60000,maxRetries:0});
+        const response = await withDailyQuotaModelFallback({
+            primaryModel:"openai/gpt-oss-20b",
+            primaryRequest:()=>request("openai/gpt-oss-20b"),
+            alternateRequest:request
+        });
         if (response.choices?.[0]?.finish_reason === "length") throw Error("incomplete-decision");
         return response.choices?.[0]?.message?.content;
     });
