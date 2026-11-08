@@ -48,7 +48,7 @@ jobs:
         if: always()
         with:
           name: calibri2-s0-two-TRAIN-pair-256step-retention-paid-AB
-          path: results/calibri2/s0/one_pair/
-          if-no-files-found: warn
+          path: results/calibri2/s0/two_pair/
+          if-no-files-found: error
           retention-days: 45
           compression-level: 0
