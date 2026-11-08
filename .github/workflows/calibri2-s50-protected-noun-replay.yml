@@ -1,0 +1,80 @@
+name: CALIBRI S50 recover opposite nouns with paid active Green Tunnel <=0.7bpp
+on:
+  push:
+    branches:
+      - research/calibri2-s50-protected-noun-replay-20261108
+    paths:
+      - 'research/calibri2/s50/**'
+      - '.github/workflows/calibri2-s50-protected-noun-replay.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real_physical_S50_active_contrastive_recovery:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 110
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU research dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile actual S50 Python, separate from Jessica
+        run: python -m compileall -q research/calibri2/s50
+      - name: Download exact frozen physical S45 CB59
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Download actual S47 physical neural controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s47-active-green-tunnel-paid-under-0p7-if-accepted
+          path: inputs/s47_controller
+          run-id: 42505575247
+          github-token: ${{ github.token }}
+      - name: Download S47 real all-inclusive physical manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s47-real-active-green-tunnel-TRAIN-report
+          path: inputs/s47_report
+          run-id: 42505575247
+          github-token: ${{ github.token }}
+      - name: Train contrasting noun pairs against actual free first token with strict seven and color guard
+        run: |
+          python research/calibri2/s50/protected_new17_paired_noun_green_tunnel.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s47_controller/S47_ACTIVE_GREEN_TUNNEL_SIDECAR.safetensors \
+            inputs/s47_report/S47_PHYSICAL_ALL_INCLUSIVE_MANIFEST.json \
+            results/s50
+      - name: Preserve strict real TRAIN full response results even if no improvement
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri2-s50-real-paid-pair-TRAIN-report-JSON
+          path: results/s50/*.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Preserve new controller ONLY if actual both-sided contrast improves and all protected outputs survive
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: calibri2-s50-active-paired-green-tunnel-if-accepted
+          path: results/s50/*.safetensors
+          if-no-files-found: warn
+          retention-days: 60
