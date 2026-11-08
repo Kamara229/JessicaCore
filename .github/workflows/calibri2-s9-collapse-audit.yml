@@ -1,0 +1,48 @@
+name: CALIBRI2 S9 read-only S8 192-answer collapse audit
+on:
+  push:
+    branches: ['research/calibri2-s9-quality-collapse-audit-20261108']
+    paths:
+      - 'research/calibri2/s9/**'
+      - '.github/workflows/calibri2-s9-collapse-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect_actual_S7_to_S8_QA_regressions_without_training:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile pure standard-library read-only diagnostic
+        run: python -m compileall -q research/calibri2/s9
+      - name: Restore original independent 192-question frozen S7 before-training report
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s8-BEFORE-192-16-INDEPENDENT
+          path: inputs/before
+          run-id: 42413614906
+          github-token: ${{ github.token }}
+      - name: Restore S8 final independent 192-question frozen report
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s8-AFTER-192-16-INDEPENDENT
+          path: inputs/after
+          run-id: 42413614906
+          github-token: ${{ github.token }}
+      - name: Compare all real generated answers side by side, quantify color/yes-no collapse and alternative-label errors
+        run: |
+          python research/calibri2/s9/collapse_audit.py inputs/before/ACTUAL_CALIBRI2_S8_FROZEN_192_AND_OPEN.json inputs/after/ACTUAL_CALIBRI2_S8_FROZEN_192_AND_OPEN.json results/s9
+      - name: Archive full 192+16 evidence of failures and successes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s9-S7-S8-192-READONLY-RESPONSE-DIAGNOSTIC
+          path: results/s9/
+          retention-days: 45
