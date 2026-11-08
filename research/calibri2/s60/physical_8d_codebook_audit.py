@@ -18,7 +18,7 @@ SOURCE_PARAMS=36380480
 # not loaded for this structural audit.
 HEADER=struct.Struct("<4sBII")
 def unpack5(data, n):
-    packed=np.asarray(data,dtype=np.uint8)
+    packed=np.frombuffer(data,dtype=np.uint8)
     if len(packed)!=(n*5+7)//8:
         raise ValueError("physical 5-bit index length mismatch")
     index=np.arange(n,dtype=np.uint64)
