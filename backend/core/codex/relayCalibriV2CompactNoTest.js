@@ -23,7 +23,6 @@ export function compactCalibri2NoJessicaTest(message) {
     }
     body=body.replace(/\s+/gu," ").trim();
     if(body.length>600)return null;
-    const match=/^S(\d{1,3})\s*:\s*(?:обучение|эксперимент|исследование)\b/iu.exec(body);
     // JS \b is ASCII-only; Russian word boundaries must be Unicode-safe.
     const numbered=/^S(\d{1,3})\s*:\s*(?:обучение|эксперимент|исследование)(?=\s|[.,:;—–-])/iu.exec(body);
     if(!numbered || Number(numbered[1])<1)return null;
