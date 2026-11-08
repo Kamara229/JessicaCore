@@ -34,9 +34,17 @@ export function calibriLaterResearchNoJessicaTest(message) {
     const numberedResearchNext=/Следующ(?:ий|ая)\s+шаг\s*[—–:-]\s*S\d{1,3}\s*:\s*ChatGPT\s+[^.]{5,200}\./iu.test(body);
     const githubOnly=/Работа\s+только\s+в\s+GitHub\s+research\s*[.!]/iu.test(body);
     const explicitGithubOnlyNoTest=numberedResearchNext && githubOnly && delegatedNoTest;
+    // S64 -> S65 passive no-test handoff is phrased as completing the
+    // already-started experiment, not "ChatGPT executes through GitHub".
+    // Recognize only the constrained, numbered real research completion
+    // with both a GitHub PR and a terminal no-Jessica-test statement.
+    const numberedGitHubCompletion=/(?:^|\s)S6[45](?=\s|[:—–-])/iu.test(body) &&
+        /Следующ(?:ий|ая)\s+шаг\s*[—–:-]\s*завершить\s+обучение\s+S65\s+в\s+GitHub\s+PR\s+#\d+/iu.test(body) &&
+        delegatedNoTest;
+
     if(!(legacyNext || delegatedGithubNext) ||
        !/(?:FP32|TRAIN|Green Tunnel|bpp|QA|навык|обучени|исследован|native\s+C|CB59|скорост|весах|CPU)/iu.test(body) ||
-       !(oldNoTest || (delegatedGithubNext && delegatedNoTest) || explicitGithubOnlyNoTest))
+       !(oldNoTest || (delegatedGithubNext && delegatedNoTest) || explicitGithubOnlyNoTest || numberedGitHubCompletion))
        return null;
     // A status note must not accidentally suppress an actual Jessica chat test,
     // credential request, external action or an explicitly finished plan.
