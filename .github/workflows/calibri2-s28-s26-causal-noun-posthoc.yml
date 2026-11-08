@@ -1,0 +1,83 @@
+name: CALIBRI S28 read-only causal noun rank diagnosis S24 vs final S26
+
+on:
+  push:
+    branches:
+      - research/calibri2-s28-s26-frozen-noun-causal-postmortem-20261108
+    paths:
+      - 'research/calibri2/s28/**'
+      - '.github/workflows/calibri2-s28-s26-causal-noun-posthoc.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  S28_readonly_matched_paid_36M_noun_token_rank:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '2128'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile read-only posthoc analysis
+        run: python -m compileall -q research/calibri2/s28
+      - name: Restore sealed S24 physically paid 36M model
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s24-36M-NOUN-BINDING-640-GREEN-TUNNEL-PHYSICAL
+          path: inputs/s24
+          run-id: 42466621076
+          github-token: ${{ github.token }}
+      - name: Restore final S26 physically paid 36M model
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-36M-NOUN-TRANSFER-1280-GREEN-TUNNEL-PHYSICAL
+          path: inputs/s26
+          run-id: 42470473505
+          github-token: ${{ github.token }}
+      - name: Restore pretraining S24 baseline answers on already frozen S26 QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-SEALED-S24-BASELINE-96-NEW-NOUN-48-CONTROLS
+          path: inputs/s24qa
+          run-id: 42470473505
+          github-token: ${{ github.token }}
+      - name: Restore final S26 answers on exactly same QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-FINAL-96-NEW-NOUN-48-CONTROLS-16-OPEN
+          path: inputs/s26qa
+          run-id: 42470473505
+          github-token: ${{ github.token }}
+      - name: Measure 96 teacher-forced second noun ranks without any training
+        run: |
+          python research/calibri2/s28/causal_noun_posthoc.py \
+            --s24-archive inputs/s24/CALIBRI2_S24_36M_NOUN_GUARDED_640_PAID.cb59 \
+            --s26-archive inputs/s26/CALIBRI2_S26_36M_NOUN_TRANSFER_1280_PAID.cb59 \
+            --s24-qa inputs/s24qa/ACTUAL_CALIBRI2_S26_NOVEL_144_16_ANSWERS.json \
+            --s26-qa inputs/s26qa/ACTUAL_CALIBRI2_S26_NOVEL_144_16_ANSWERS.json \
+            --out results/s28
+      - name: Preserve full per-row ranks, predicted words and QC provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s28-S24-S26-36M-READONLY-96-CAUSAL-NOUN-POSTHOC
+          path: results/s28/
+          retention-days: 90
