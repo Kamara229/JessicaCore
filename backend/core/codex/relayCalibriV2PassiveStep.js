@@ -29,7 +29,7 @@ export function calibri2ResearchPassiveHandoff(message) {
     if (!/Следующ(?:ий|ая)\s+шаг\s*[—–:\-]?\s*(?:дождаться|проверить|сверить|изучить)(?=\s|[.!?,;]|$)/iu.test(body))
         return null;
     if (!/Разработку\s+и\s+тесты\s+вед[её]т\s+ChatGPT/iu.test(body) ||
-        !/(?:Jessica|Джессика)\s+только\s+переда[её]т\s+сообщения/iu.test(body))
+        !/(?:Jessica|Джессика)\s+только\s+переда[её]т\s+сообщения,\s*без\s+изменений\s+LIVE[.!]?$/iu.test(body))
         return null;
     // Explicit ordinary-chat tests must never be hidden by this shortcut.
     if (/(?:запусти|выполни|проведи|повтори|создай|открой)\s+(?:новый\s+|следующий\s+|этот\s+|один\s+)?(?:тест(?:ы)?|тестовый\s+чат|задач[уа])/iu.test(body) ||
