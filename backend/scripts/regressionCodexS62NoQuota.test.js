@@ -70,3 +70,25 @@ test("429 handoff fails closed on malformed envelopes / new commands",()=>{
   assert.equal(codexQuotaIncidentNoTestStatus(incident.replace(
     "LIVE не менял","LIVE изменил")),null);
 });
+
+const id63="434966b1-2720-4be3-9699-fb26a73248ab";
+const body63="S62: восстановление весов native C подтверждено (PR #450). Следующий шаг — S63: ChatGPT сравнит скорость генерации и точность ответов S56/S61 на CPU. Работа только в GitHub research. Jessica не тестировать.";
+const envelope63=`JESSICA_REPLY_${id63}\n\n${body63}\n\nJESSICA_END_${id63}`;
+test("S63 status avoids Groq 429 and remains a passive unexecuted Jessica test",async()=>{
+  let calls=0;
+  const response=await interpretRelayTurn({message:envelope63},async()=>{
+    calls++;throw Object.assign(new Error("429 daily quota"),{status:429});
+  });
+  assert.equal(calls,0,"Passively delegated S63 requires no AI provider calls");
+  assert.equal(response.action,"reply");
+  assert.equal(response.task,"");
+  assert.equal(response.continueThread,false);
+  assert.match(response.reply,/S62/);
+  assert.match(response.reply,/не запрашивался и не запускался/);
+});
+test("S63 passive status must keep exact delegation, no-action and markers",()=>{
+  assert.equal(calibriLaterResearchNoJessicaTest(envelope63.replace("Работа только в GitHub research.","Работа в Jessica.")),null);
+  assert.equal(calibriLaterResearchNoJessicaTest(envelope63.replace("Jessica не тестировать.","Jessica, выполни тест.")),null);
+  assert.equal(calibriLaterResearchNoJessicaTest(envelope63.replace("JESSICA_END_"+id63,"JESSICA_END_00000000-0000-0000-0000-000000000000")),null);
+  assert.equal(calibriLaterResearchNoJessicaTest(envelope63.replace("Jessica не тестировать.","Jessica не тестировать. Сделай deploy.")),null);
+});
