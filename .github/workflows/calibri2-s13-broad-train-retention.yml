@@ -1,0 +1,60 @@
+name: CALIBRI2 S13 read-only broad TRAIN skill retention after S12
+on:
+  push:
+    branches: ['research/calibri2-s13-full-train-retention-audit-20261108']
+    paths:
+      - 'research/calibri2/s13/**'
+      - '.github/workflows/calibri2-s13-broad-train-retention.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  S13_readonly_112_actual_greedy_ANSWERS_old_new_TRAIN:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 50
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '2113'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU research tools
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile independent diagnostic
+        run: python -m compileall -q research/calibri2/s13
+      - name: Fetch original unmodified physically paid S7 36M model
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s7-36M-ffn1536-physical-and-regression-report
+          path: inputs/s7
+          run-id: 42383040833
+          github-token: ${{ github.token }}
+      - name: Fetch exact sealed physical 36M S12 after 24 guarded TRAIN steps
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s12-36M-24-REAL-EXACT-GUARD-PILOT
+          path: inputs/s12
+          run-id: 42458640312
+          github-token: ${{ github.token }}
+      - name: Compare 112 real full-token old/new TRAIN answers and per-pair loss, no model change
+        run: |
+          python research/calibri2/s13/train_retention_audit.py inputs/s7/CALIBRI2_S7_320x12_FFN1536_PHYSICAL_GROWN.cb59 inputs/s12/CALIBRI2_S12_36M_24_ACTUAL_GUARDED_TRAIN.cb59 results/s13
+      - name: Save all correct/incorrect answers and full losses including negative effects
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s13-112-REAL-OLD-NEW-TRAIN-ANSWERS
+          path: results/s13/
+          retention-days: 45
