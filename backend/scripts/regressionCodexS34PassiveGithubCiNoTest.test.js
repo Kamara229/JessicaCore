@@ -401,9 +401,9 @@ const s49FailedLiveResearchRelay =
   "существительных, сохранив 34 цвета, 7 старых навыков и bpp ≤0,7. " +
   "Jessica не тестировать.";
 const s49Wrapped =
-  "JESSICA_REPLY_a2d6c54d-a887-4863-bee7-755b0cb8566a\\n\\n" +
+  "JESSICA_REPLY_a2d6c54d-a887-4863-bee7-755b0cb8566a\n\n" +
   s49FailedLiveResearchRelay +
-  "\\n\\nJESSICA_END_a2d6c54d-a887-4863-bee7-755b0cb8566a";
+  "\n\nJESSICA_END_a2d6c54d-a887-4863-bee7-755b0cb8566a";
 for(const msg of [s49FailedLiveResearchRelay,s49Wrapped]){
   test("S49 real CI-success but LIVE-old report bypasses provider only as passive research",async()=>{
     let providerCalls=0;
