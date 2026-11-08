@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {calibriLaterResearchNoJessicaTest} from "../core/codex/relayCalibriLaterResearchNoTest.js";
+import {codexQuotaIncidentNoTestStatus} from "../core/codex/relayQuotaIncidentNoTestStatus.js";
 import {interpretRelayTurn} from "../core/codex/relayInterpreter.js";
 
 const marker="4aee81dd-e8f3-4b4a-8d35-d212b844d77c";
@@ -38,4 +39,34 @@ test("Old CALIBRI S29+ passive no-test wording is preserved",()=>{
  const d=calibriLaterResearchNoJessicaTest(old);
  assert.equal(d?.action,"reply");
  assert.equal(d?.task,"");
+});
+
+const incidentID="26e73f25-b325-4a3e-9f9e-5b4122e6bb89";
+const incidentBody="Render: Groq 429 — суточный лимит 200 тыс. токенов; Supabase исправен. В research PR #449 проверен обход AI для S62 без теста Jessica. LIVE не менял; лимит провайдера не снят. Далее — native C в GitHub.";
+const incident=`JESSICA_REPLY_${incidentID}\n\n${incidentBody}\n\nJESSICA_END_${incidentID}`;
+
+test("verified Render 429 / S62 research relay does not spend Groq quota",async()=>{
+  let calls=0;
+  const result=await interpretRelayTurn({message:incident,plan:"CALIBRI S62 research"},async()=>{
+    calls++;throw new Error("429 quota error");
+  });
+  assert.equal(calls,0);
+  assert.equal(result.action,"reply");
+  assert.equal(result.task,"");
+  assert.equal(result.continueThread,false);
+  assert.match(result.reply,/S62/);
+  assert.match(result.reply,/тест Jessica не запускался/);
+});
+
+test("429 handoff fails closed on malformed envelopes / new commands",()=>{
+  assert.equal(codexQuotaIncidentNoTestStatus(incident.replace(
+    "JESSICA_END_"+incidentID,"JESSICA_END_00000000-0000-0000-0000-000000000000")),null);
+  assert.equal(codexQuotaIncidentNoTestStatus(incident.replace(
+    "Далее — native C в GitHub.","Далее — native C в GitHub. Запусти тест.")),null);
+  assert.equal(codexQuotaIncidentNoTestStatus(incident.replace(
+    "Далее — native C в GitHub.","Далее — native C в GitHub. Измени Render.")),null);
+  assert.equal(codexQuotaIncidentNoTestStatus(incident.replace(
+    "S62 без теста Jessica","S62 выполни тест Jessica")),null);
+  assert.equal(codexQuotaIncidentNoTestStatus(incident.replace(
+    "LIVE не менял","LIVE изменил")),null);
 });
