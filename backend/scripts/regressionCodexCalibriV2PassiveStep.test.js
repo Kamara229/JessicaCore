@@ -50,11 +50,13 @@ test("malformed envelope, false stage, no explicit handoff and extraneous comman
     for(const value of bad)assert.equal(calibri2ResearchPassiveHandoff(value),null,value);
 });
 
-test("actual direct test remains eligible, not swallowed by CALIBRI 2.0 handoff",async()=>{
-    const message=body+" В чате Jessica выполни: Сколько будет 7 умножить на 8?";
-    assert.equal(calibri2ResearchPassiveHandoff(message),null);
-    const result=await interpretRelayTurn({message},async()=>{
-        throw Error("Should parse explicit request without provider");
+test("explicit ordinary-chat test is never swallowed by passive CALIBRI 2.0 status",async()=>{
+    const ambiguous=body+" В чате Jessica выполни: Сколько будет 7 умножить на 8?";
+    assert.equal(calibri2ResearchPassiveHandoff(ambiguous),null);
+    const explicit="Создай новый тестовый чат Jessica. Точная формулировка: Сколько будет 7 умножить на 8?";
+    assert.equal(calibri2ResearchPassiveHandoff(explicit),null);
+    const result=await interpretRelayTurn({message:explicit},async()=>{
+        throw Error("Explicit safe test should bypass provider");
     });
     assert.equal(result.action,"test");
     assert.equal(result.task,"Сколько будет 7 умножить на 8?");
