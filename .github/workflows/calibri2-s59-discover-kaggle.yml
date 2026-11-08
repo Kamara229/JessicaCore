@@ -1,0 +1,49 @@
+name: CALIBRI S59 Kaggle GPU capability / identity preflight
+'on':
+  pull_request:
+    branches:
+      - research/calibri2-s58-frozen-first-paired-noun-replay-20261108
+    paths:
+      - .github/workflows/calibri2-s59-discover-kaggle.yml
+permissions:
+  contents: read
+jobs:
+  discover_kaggle:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s59-gpu-cpu-portable-20261109'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Kaggle CLI, including required six runtime
+        run: python -m pip install --quiet 'kaggle>=1.8.0' six
+      - name: Discover authenticated Kaggle account ID and quota, no GPU consumption
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KAGGLE_API_TOKEN"
+          kaggle quota > quota.out
+          echo "KAGGLE_QUOTA_AUTH_SUCCEEDED"
+          python - <<'PY'
+          import os,re
+          s=open('quota.out').read()
+          for line in s.splitlines():
+              if re.search(r'GPU|accelerator|remaining|hour|quota',line,re.I):
+                  print("QUOTA_INFO:",re.sub(r'[A-Za-z0-9_\-]{35,}','[REDACTED]',line[:160]))
+          PY
+          mkdir -p metadata
+          kaggle kernels init -p metadata
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("metadata/kernel-metadata.json")
+          if not p.is_file(): raise SystemExit("metadata missing")
+          m=json.loads(p.read_text())
+          print("KAGGLE_KERNEL_INIT_ID:",m.get("id","<missing>"))
+          print("KAGGLE_KERNEL_INIT_TITLE:",m.get("title","<missing>"))
+          PY
+          kaggle kernels list --mine --page-size 1 -v > mine.out
+          echo "KAGGLE_KERNELS_MINE_AUTH_SUCCEEDED"
