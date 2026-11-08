@@ -102,7 +102,7 @@ def parse_training_cache(model,sources,tok,new,old):
             if ident not in old_protected:continue
             actual=old_before[ident]["actual"]
             if len(actual)<2:continue
-            prefix=row["prompt_ids"][0]
+            prefix=row["prompt_ids"]
             full=torch.cat((prefix,torch.tensor(actual[:-1],dtype=torch.long)))
             with torch.inference_mode():
                 clear(sources)
@@ -113,12 +113,16 @@ def parse_training_cache(model,sources,tok,new,old):
                       output.logits[0,p].detach().clone(),int(actual[step])))
                 del output
                 clear(sources)
+    # Inference-mode tensors may not be saved in autograd for adapter
+    # gradients: materialize ordinary detached CPU tensors outside mode.
+    def ordinary(t):
+        return torch.tensor(t.detach().cpu().numpy().copy(),dtype=torch.float32)
     result={}
     for kind,rows in (("noun",fresh["noun"]),("eos",fresh["eos"]),("old",held)):
         if not rows and kind!="old":raise AssertionError("missing train tokens "+kind)
         result[kind]={
-            "hidden":torch.stack([r[0] for r in rows]) if rows else None,
-            "base":torch.stack([r[1] for r in rows]) if rows else None,
+            "hidden":torch.stack([ordinary(r[0]) for r in rows]) if rows else None,
+            "base":torch.stack([ordinary(r[1]) for r in rows]) if rows else None,
             "target":torch.tensor([r[2] for r in rows],dtype=torch.long),
             "count":len(rows)}
     if result["noun"]["count"]!=64 or result["eos"]["count"]!=64 or result["old"]["count"]<7:
@@ -203,6 +207,9 @@ def main():
     new,old=s30.make_training_pairs(tok),build_pairs(tok,"TRAIN")
     if len(new)!=32 or len(old)!=24:raise AssertionError("TRAIN set drift")
     model,sources=create_small_paid_model(CB59(raw),build_config(MODEL_SPEC))
+    # The small-first bootstrap normally exposes paid trainable centroids;
+    # S47 freezes EVERY core parameter before optimizing ONLY the tunnel.
+    model.requires_grad_(False)
     if sum(p.requires_grad for p in model.parameters()):
         raise AssertionError("S47 may not modify CB59 source weights")
     cache,old_ids=parse_training_cache(model,sources,tok,new,old)
