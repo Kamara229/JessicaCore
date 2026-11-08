@@ -28,6 +28,7 @@ import {compactCalibri2NoJessicaTest} from "./relayCalibriV2CompactNoTest.js";
 import {externalResearchCiHandoff} from "./relayResearchExternalCiStatus.js";
 import {pendingCalibrI26AuditHandoff} from "./relayCalibriS26S27Pending.js";
 import {calibriLaterResearchNoJessicaTest} from "./relayCalibriLaterResearchNoTest.js";
+import {codexQuotaIncidentNoTestStatus} from "./relayQuotaIncidentNoTestStatus.js";
 import {missingCalibriArtifactHandoff} from "./relayMissingCalibriArtifact.js";
 import {completedCalibriNoTestHandoff} from "./relayCalibriCompletedNoTest.js";
 import {v2PersistenceHandoff} from "./relayV2PersistenceHandoff.js";
@@ -107,6 +108,8 @@ export async function interpretRelayTurn(input, generate) {
     if (isStandaloneLengthNotice(message)) return lengthNoticeContinuation();
     const explicitReply = directCurrentChatReply(message);
     if (explicitReply !== null) return {action:"reply",reply:explicitReply,task:"",continueThread:false};
+    const quotaIncident=codexQuotaIncidentNoTestStatus(message);
+    if(quotaIncident!==null)return quotaIncident;
     // Verified, no-test CALIBRI CI status needs no quota-limited AI call.
     const calibriReply = calibriResearchHandoff(message);
     if (calibriReply !== null) return {action:"reply",reply:calibriReply,task:"",continueThread:false};
