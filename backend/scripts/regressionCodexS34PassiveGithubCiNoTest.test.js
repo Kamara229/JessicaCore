@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {passiveS34GithubCiNoTest} from "../core/codex/relayCalibriS34PassiveGithubCi.js";
 import {interpretRelayTurn} from "../core/codex/relayInterpreter.js";
+import {calibriLaterResearchNoJessicaTest} from "../core/codex/relayCalibriLaterResearchNoTest.js";
 
 const id="b30724d7-d48f-4603-a9ea-294ff12c922d";
 const exact="CALIBRI S34: следующий шаг — проверить настройки запуска GitHub Actions в PR #417. Если workflow не стартует, исправить триггер только в research-ветке. Затем выполнить S34 и сохранить реальные результаты. Jessica не тестировать, LIVE не менять.";
@@ -117,4 +118,36 @@ test("S35 passive status does not conceal genuine tests or dangerous changes",()
         s35Status+" Deploy в Render.",
         s35Status+" https://example.com",
     ]) assert.equal(passiveS34GithubCiNoTest(message),null,message);
+});
+
+
+const s38Exact = "S38: принято 10/32 обновлений, старые TRAIN 6→7/8, новые 0/16, сжатие 0,6908 bpp. Следующий шаг ChatGPT — S39: обучать существительные через 5-битные индексы с защитой Yes/No. Jessica не тестировать, LIVE не менять.";
+const s38Envelope = "JESSICA_REPLY_"+id+"\n\n"+s38Exact+"\n\nJESSICA_END_"+id;
+for (const message of [s38Exact,s38Envelope]) {
+    test("real S38-to-S39 paid 36M research status never invokes Groq or ordinary Jessica chat",async()=>{
+        let calls=0;
+        const result=await interpretRelayTurn(
+            {message,plan:"CALIBRI S38 compressed CB59 research, next S39"},
+            async()=>{calls++;throw Error("simulated Groq quota/invalid decision");});
+        assert.equal(calls,0);
+        assert.equal(result.action,"reply");
+        assert.equal(result.task,"");
+        assert.equal(result.continueThread,false);
+        assert.match(result.reply,/S38/);
+        assert.match(result.reply,/GitHub/);
+    });
+}
+test("S38 safe relay must not swallow an actual test, unsafe changes, or corrupted markers",()=>{
+    const negatives=[
+        s38Envelope.replace("JESSICA_END_"+id,"JESSICA_END_00000000-0000-0000-0000-000000000000"),
+        s38Exact.replace("LIVE не менять","LIVE изменить"),
+        s38Exact.replace("Jessica не тестировать","Jessica, проведи тест"),
+        s38Exact.replace("Следующий шаг ChatGPT","Следующий шаг Jessica"),
+        s38Exact+" Создай новый тестовый чат Jessica.",
+        s38Exact+" Проведи тест в обычном чате Jessica.",
+        s38Exact+" Deploy в Render.",
+        s38Exact+" https://example.com",
+        s38Exact+" Пришли пароль.",
+    ];
+    for(const message of negatives) assert.equal(calibriLaterResearchNoJessicaTest(message),null,message);
 });
