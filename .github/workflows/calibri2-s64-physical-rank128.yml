@@ -1,0 +1,54 @@
+name: CALIBRI S64 expand physically paid Green Tunnel rank 12 to 128
+'on':
+  pull_request:
+    branches:
+      - research/calibri2-s63-native-c-fed-cpu-parity-20261109
+    paths:
+      - 'research/calibri2/s64/**'
+      - '.github/workflows/calibri2-s64-physical-rank128.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  physical_paid_rank128_init_no_gpu:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s64-paid-rank-expand-20261109'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate stand-alone physical transform, no PyTorch or GPU
+        run: python -m compileall -q research/calibri2/s64
+      - name: Fetch immutable accepted S56 Green Tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s56-paid-first-plus-later-dual-controller-if-accepted
+          path: inputs/s56
+          run-id: 42518099946
+          github-token: ${{ github.token }}
+      - name: Fetch S61 true physically compressed source and manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: Build and verify fully paid rank128 Green Tunnel physical package
+        run: |
+          python research/calibri2/s64/physical_rank128_expand.py \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            inputs/s56/S56_DUAL_ACTIVE_PAID_GREEN_TUNNEL.safetensors \
+            inputs/s61/S61_PHYSICAL_MANIFEST.json \
+            results/s64
+      - name: Save physically generated candidate and unembellished budget
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s64-paid-rank128-green-tunnel-not-trained
+          path: results/s64/
+          if-no-files-found: warn
+          retention-days: 90
