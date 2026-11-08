@@ -4,7 +4,7 @@ Research-only experiment. Replay S33 exactly from immutable S26 CB59; no
 QA/VALID/DEV, no Jessica chat test, and no LIVE changes. At the SAME S34
 first new TRAIN pair/optimizer moments, compare:
  A) unchanged S34 lr=3e-6 (must reproduce S35's lost Yes)
- B) tiny trust-region LR=1e-7 (strict positive Yes-over-No margin)
+ B) tiny trust-region LR=5e-8 (strict positive Yes-over-No margin)
  C) same LR=3e-6 plus first-order logit-margin correction on 1_left.
 Every candidate is individually checked against original six historical
 TRAIN exact+EOS replies and new TRAIN loss. No trained weights exported.
@@ -31,7 +31,7 @@ from v186.pairs import build_pairs
 from v174.run import save
 
 LR_S34 = 3e-6
-LR_MICRO = 1e-7
+LR_MICRO = 5e-8
 S36_MARGIN_FLOOR = 0.02  # Fixed in advance, not selected using QA.
 S36_CORRECTION_PASSES = 4
 PAIR_ID = 5000
@@ -46,10 +46,9 @@ def describe(model, opt, tok, old, pair, row, protected, initial_loss, label):
     with torch.inference_mode():
         current_loss = float(s34.loss_s34(model, "new", pair, tok))
         out = one_prompt_logits(model, tok, row)
-        margin = (out["positions"]["first_answer_token"]["yes_logit"] -
-                  next(t["logit"] for t in
-                       out["positions"]["first_answer_token"]["top5"]
-                       if t["text"] == "No"))
+        yes_id = tok.encode("Yes", add_special_tokens=False)[0]
+        no_id = tok.encode("No", add_special_tokens=False)[0]
+        margin = float(margin_first(model, row, yes_id, no_id))
     kept = s34.exact_old(model, tok, old)
     return {
         "method": label,
@@ -176,7 +175,7 @@ def main():
     opt.load_state_dict(base_opt)
     micro_gradient = take_s34_step(model, opt, tok, old, pair, LR_MICRO)
     micro = describe(model, opt, tok, old, pair, row, protected,
-                     before_loss, "S36_micro_trust_LR1e-7")
+                     before_loss, "S36_micro_trust_LR5e-8")
 
     # Candidate C: the ORIGINAL S34 AdamW step, then correction along gradient
     # of historical 1_left first-answer Yes-No margin. This does not assume
