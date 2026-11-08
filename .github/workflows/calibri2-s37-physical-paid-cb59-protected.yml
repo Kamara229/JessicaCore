@@ -1,0 +1,68 @@
+name: CALIBRI S37 physical CB59 36M protected recovery
+on:
+  push:
+    branches:
+      - research/calibri2-s37-physical-cb59-protected-recovery-20261108
+    paths:
+      - 'research/calibri2/s37/**'
+      - '.github/workflows/calibri2-s37-physical-paid-cb59-protected.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  S37_physical_36M_CB59_protected_TRAIN_only:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '3737'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU stack as S26 to S36
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile physical research stage only
+        run: |
+          python -m compileall -q research/calibri2/s37/
+      - name: Restore exact sealed S26 physical CB59 only; no QA artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-36M-NOUN-TRANSFER-1280-GREEN-TUNNEL-PHYSICAL
+          path: inputs/s26
+          run-id: 42470473505
+          github-token: ${{ github.token }}
+      - name: Train actual compact codebooks and verify reloaded physical archive
+        run: |
+          python research/calibri2/s37/paid_cb59_margin_protected_recovery.py \
+            inputs/s26/CALIBRI2_S26_36M_NOUN_TRANSFER_1280_PAID.cb59 \
+            results/s37
+      - name: Keep real S37 TRAIN-only JSON even if no accepted updates
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s37-physical-training-outcomes-TRAIN-only
+          path: results/s37/*.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Keep physically paid new CB59, only if actual updates accepted
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s37-new-physical-36M-CB59-if-accepted
+          path: results/s37/*.cb59
+          if-no-files-found: warn
+          retention-days: 60
