@@ -1,0 +1,64 @@
+name: CALIBRI S51 compare same-source 36M FP32 learning capacity with paid S47
+on:
+  push:
+    branches:
+      - research/calibri2-s51-36m-fp32-capacity-ceiling-control-20261108
+    paths:
+      - 'research/calibri2/s51/**'
+      - '.github/workflows/calibri2-s51-matched-source-fp32-capacity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real_dense_36m_fp32_same_source_capacity_control:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 110
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU pinned research requirements
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Compile S51 analysis without Jessica tests or external QA
+        run: python -m compileall -q research/calibri2/s51
+      - name: Download immutable physically complete S45 compressed 36M source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Download immutable physically paid S47 trained neural Green Tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s47-active-green-tunnel-paid-under-0p7-if-accepted
+          path: inputs/s47
+          run-id: 42505575247
+          github-token: ${{ github.token }}
+      - name: Measure matched 36M dense FP32 vs original compressed and S47, then FP32 TRAIN
+        run: |
+          python research/calibri2/s51/dense36m_matched_source_capacity_control.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s47/S47_ACTIVE_GREEN_TUNNEL_SIDECAR.safetensors \
+            results/s51
+      - name: Save actual 64 TRAIN answer and old7 control evidence, even on run failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s51-dense36m-matched-source-fp32-TRAIN-capacity-JSON
+          path: results/s51/*.json
+          if-no-files-found: warn
+          retention-days: 90
