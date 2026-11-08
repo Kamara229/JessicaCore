@@ -60,7 +60,7 @@ test("normal explicit Jessica ordinary chat test remains eligible",async()=>{
 });
 
 const jsonReport = "JSON S34: [скачать отчёт](sandbox:/mnt/data/S34_actual_36M_FP32_TRAIN_report.json). Из 240 попыток 214 нарушили защиту старых ответов, 26 не улучшили loss. Все 80 шагов отклонены. Следующий шаг — изучить защиту навыков. LIVE не менять.";
-const jsonWrapped = "JESSICA_REPLY_"+id+"\\n\\n"+jsonReport+"\\n\\nJESSICA_END_"+id;
+const jsonWrapped = "JESSICA_REPLY_"+id+"\n\n"+jsonReport+"\n\nJESSICA_END_"+id;
 for (const message of [jsonReport,jsonWrapped]) {
     test("exact S34 TRAIN JSON artifact status does not invoke Groq or Jessica test", async()=>{
         let calls=0;
