@@ -26,6 +26,7 @@ import {calibriNoTestNextStep} from "./relayCalibriNoTestNextStep.js";
 import {calibri2ResearchPassiveHandoff} from "./relayCalibriV2PassiveStep.js";
 import {compactCalibri2NoJessicaTest} from "./relayCalibriV2CompactNoTest.js";
 import {externalResearchCiHandoff} from "./relayResearchExternalCiStatus.js";
+import {pendingCalibrI26AuditHandoff} from "./relayCalibriS26S27Pending.js";
 import {missingCalibriArtifactHandoff} from "./relayMissingCalibriArtifact.js";
 import {completedCalibriNoTestHandoff} from "./relayCalibriCompletedNoTest.js";
 import {v2PersistenceHandoff} from "./relayV2PersistenceHandoff.js";
@@ -77,6 +78,8 @@ export function validateRelayDecision(raw, message) {
     // Genuine explicit Jessica test commands remain eligible.
     if (value.action === "test" && externalResearchCiHandoff(message)!==null)
         return externalResearchCiHandoff(message);
+    if (value.action === "test" && pendingCalibrI26AuditHandoff(message)!==null)
+        return pendingCalibrI26AuditHandoff(message);
     if (value.action === "test" && (!task || task.length > 20000 || !message.includes(task)))
         throw Error("test-must-be-an-exact-quote");
     if (value.action !== "test" && task) throw Error("unexpected-test");
@@ -115,6 +118,9 @@ export async function interpretRelayTurn(input, generate) {
     if(missingArtifact!==null) return missingArtifact;
     const externalCi=externalResearchCiHandoff(message);
     if(externalCi!==null)return externalCi;
+    // Same exact S26 training/S27 audit research status, no Groq call or Jessica test.
+    const pendingAudit=pendingCalibrI26AuditHandoff(message);
+    if(pendingAudit!==null)return pendingAudit;
     const requestedTest = explicitJessicaTest(message) || compactJessicaTest(message) || numberedBenchmarkTest(message);
     if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
     const calibri2Passive=calibri2ResearchPassiveHandoff(message);
