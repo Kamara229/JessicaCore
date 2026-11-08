@@ -1,0 +1,37 @@
+name: CALIBRI2 S27 posthoc 96 QA comparison audit static checks
+on:
+  push:
+    branches:
+      - research/calibri2-s27-posthoc-unseen-answer-audit-20261108
+    paths:
+      - 'research/calibri2/s27/**'
+      - '.github/workflows/calibri2-s27-posthoc-precheck.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preflight_no_checkpoint_no_QA_data:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: research
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile auditable comparison without loading frozen QA or training weights
+        run: |
+          python -m compileall -q research/calibri2/s27
+          python -m unittest -v calibri2.s27.test_posthoc_frozen_answer_audit
+          python - <<'PY'
+          from calibri2.s27.posthoc_frozen_answer_audit import (
+              QA_SHA,EXPECTED_BYTES,PARAMS,PRETRAINED_135M_PARAMS
+          )
+          assert QA_SHA=="e8e3e75c5fedf845aef512a104723a4d04fab3980ecec7f4deb3575ae020ac3f"
+          assert 8*EXPECTED_BYTES/PARAMS<=.7
+          assert PARAMS!=PRETRAINED_135M_PARAMS
+          print("S27_STATIC_FROZEN_QA_COMPARISON_SELFTEST_SUCCESS_NO_INFERENCE")
+          PY
