@@ -1,0 +1,62 @@
+name: CALIBRI S62 native C physical CB61 decoder and startup benchmark
+'on':
+  pull_request:
+    branches:
+      - research/calibri2-s61-physical-entropy-cpu-20261109
+    paths:
+      - 'research/calibri2/s62/**'
+      - '.github/workflows/calibri2-s62-native-c-cb61.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  native_c_exact_and_cpu:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s62-native-c-cb61-20261109'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compile real native C zlib decoder (no ML runtime or GPU)
+        run: |
+          cc -O2 -std=c11 -Wall -Wextra -Werror research/calibri2/s62/native_c_cb61.c -o /tmp/s62-cb61-native -lz -lcrypto
+      - name: Read immutable actual S45 physically compressed model
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Read accepted immutable S56 paid Green Tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s56-paid-first-plus-later-dual-controller-if-accepted
+          path: inputs/s56
+          run-id: 42518099946
+          github-token: ${{ github.token }}
+      - name: Read S61 actual physical entropy-coded source and accounting
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: Measure C CPU physical restore / verify all immutable weights bitwise
+        run: |
+          mkdir -p results/s62
+          /tmp/s62-cb61-native \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            inputs/s56/S56_DUAL_ACTIVE_PAID_GREEN_TUNNEL.safetensors \
+            inputs/s61/S61_PHYSICAL_MANIFEST.json \
+            results/s62/native_C_startup_result.json
+          cat results/s62/native_C_startup_result.json
+      - name: Preserve real C measurement, including negative findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s62-native-C-physical-startup-measurement
+          path: results/s62/*.json
+          if-no-files-found: warn
+          retention-days: 90
