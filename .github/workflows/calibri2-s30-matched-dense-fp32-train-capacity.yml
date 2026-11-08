@@ -1,0 +1,60 @@
+name: CALIBRI S30 matched 36M FP32 trainability control on TRAIN only
+
+on:
+  push:
+    branches: ['research/calibri2-s30-matched-36m-dense-fp32-capacity-20261108']
+    paths:
+      - 'research/calibri2/s30/**'
+      - '.github/workflows/calibri2-s30-matched-dense-fp32-train-capacity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  S30_identical_36M_decompressed_fp32_capability_training:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '3030'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Verify S30 isolated TRAIN-only specification without any QA runtime use
+        run: |
+          python -m compileall -q research/calibri2/s30/
+          python -m unittest -v calibri2.s30.test_matched_dense_fp32_train
+      - name: Download immutable S26 36M paid source, NOT a QA artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s26-36M-NOUN-TRANSFER-1280-GREEN-TUNNEL-PHYSICAL
+          path: inputs/s26
+          run-id: 42470473505
+          github-token: ${{ github.token }}
+      - name: Reconstruct exactly matching 36M FP32 weights and train only novel TRAIN pairs
+        run: |
+          python research/calibri2/s30/matched_dense_fp32_train.py \
+            inputs/s26/CALIBRI2_S26_36M_NOUN_TRANSFER_1280_PAID.cb59 \
+            results/s30
+      - name: Preserve FP32 learning evidence even when failure occurs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-s30-MATCHED-36M-DENSE-FP32-TRAIN-ONLY-CAPABILITY
+          path: results/s30/
+          retention-days: 90
