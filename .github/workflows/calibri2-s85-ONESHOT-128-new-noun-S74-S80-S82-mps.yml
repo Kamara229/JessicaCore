@@ -9,7 +9,7 @@ permissions:
   actions: read
 jobs:
   s85_one_shot_frozen_all_real_models_novel_noun_QA:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s85-sealed-once-novel-nouns-s74-s80-s82-20261109'
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s85-sealed-once-novel-nouns-s74-s80-s82-20261109' && github.event.pull_request.head.sha == 'f8a06bb77ed0c10a24aea07a98377406932b68de'
     runs-on: macos-15
     timeout-minutes: 100
     env:
