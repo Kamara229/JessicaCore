@@ -1,0 +1,76 @@
+name: CALIBRI S97 frozen 456 TRAIN token breakdown and negative S96 diagnostic
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s96-frozen-router-new-prompts-20261110
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s97_frozen_json_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s97-train-token-failure-audit-20261110'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compile pure standard library diagnostic without loading models or QA
+        run: |
+          python3 -m compileall -q research/calibri2/s97/
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('research/calibri2/s97/frozen_token_failure_audit.py').read_text()
+          assert 'NO_S96_question_or_gold_labels_loaded' in s
+          assert 'no_training_no_new_CPU_generation' in s
+          assert 'candidate_accepted' in s
+          assert 'read_report' in s
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          path: inputs/s87
+          run-id: 42659248083
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-s91-full-456-strict-EOS-quality-no-forgetting-and-CPU
+          path: inputs/s91
+          run-id: 42674413574
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-full-456-strict-union-no-forgetting-and-CPU
+          path: inputs/s93
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-s95-unaccepted-prompt-only-router-456-strict-CPU
+          path: inputs/s95
+          run-id: 42698707784
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-s96-frozen-S95-new-noun-prompts-CPU-no-QA-negative-audit
+          path: inputs/s96
+          run-id: 42700926680
+          github-token: ${{ github.token }}
+      - name: Break down first/second/EOS failures across 456 frozen TRAIN outputs
+        run: |
+          python3 research/calibri2/s97/frozen_token_failure_audit.py \
+            inputs/s87/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s91/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s93/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            inputs/s96/S96_ONE_TIME_UNSEEN_CPU_GENERALIZATION_AUDIT.json \
+            results/s97
+      - name: Preserve numerical research diagnostic only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s97-TRAIN-first-second-EOS-diagnosis-S96-negative
+          path: results/s97/
+          retention-days: 90
+          if-no-files-found: warn
