@@ -25,14 +25,14 @@ def read_report(path):
     return {x["id"]:x for x in rows}
 
 def classify(actual, expected):
-    if len(expected)<3:
-        raise AssertionError("All S97 cases must have at least 2 words and EOS")
+    if len(expected)<2:
+        raise AssertionError("A complete target needs at least one word and EOS")
     first=bool(actual) and actual[0]==expected[0]
-    second=first and len(actual)>1 and actual[1]==expected[1]
+    second=first and len(expected)>2 and len(actual)>1 and actual[1]==expected[1]
     eos_exact=second and len(actual)==len(expected) and actual==expected
     if actual==expected: label="full_and_EOS_correct"
     elif not first:label="first_token_wrong"
-    elif not second:
+    elif len(expected)>2 and not second:
         label="early_EOS_instead_of_second" if len(actual)>1 and actual[1]==expected[-1] else "second_token_wrong"
     elif not eos_exact:
         label="correct_two_tokens_wrong_suffix_or_EOS"
@@ -48,7 +48,7 @@ def analyze(refs):
             if any(item[field]!=root[field] for field in ("id","question_sha256","target_ids","S82_ids")):
                 raise AssertionError("Frozen TRAIN identity / S82 baseline drift")
         expected=root["target_ids"]
-        if len(expected)<3 or expected[-1] in expected[:-1]:
+        if len(expected)<2 or expected[-1] in expected[:-1]:
             raise AssertionError("Expected full answer/EOS geometry differs")
         records[identity]={
             "family":identity.split("/")[0],"goal":expected,
@@ -70,6 +70,8 @@ def analyze(refs):
             total["total"]+=1
             total["first_correct"]+=int(first)
             total["first_and_second_correct"]+=int(second)
+            total["first_correct_in_multiword_targets"]+=int(first and len(row["goal"])>2)
+            total["one_word_targets"]+=int(len(row["goal"])==2)
             total["strict_full_with_EOS"]+=int(full)
             total["has_terminal_EOS"]+=int(bool(actual) and actual[-1]==row["goal"][-1])
             by_family[row["family"]][label]+=1
@@ -85,7 +87,7 @@ def analyze(refs):
             "most_common_wrong_second_token_ids_when_first_correct":
                 failing_second.most_common(8),
             "conditional_second_correct_given_first":
-                total["first_and_second_correct"]/max(1,total["first_correct"]),
+                total["first_and_second_correct"]/max(1,total["first_correct_in_multiword_targets"]),
             "conditional_full_EOS_given_first_second":
                 total["strict_full_with_EOS"]/max(1,total["first_and_second_correct"]),
         }
