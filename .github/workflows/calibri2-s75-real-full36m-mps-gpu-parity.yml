@@ -1,0 +1,75 @@
+name: CALIBRI S75 REAL full 36M MPS GPU throughput and exact TRAIN parity
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s74-real-mps-gpu-training-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s75_real_full_model_gpu_and_train_parity:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s75-mps-full36m-gpu-parity-benchmark-20261109'
+    runs-on: macos-15
+    timeout-minutes: 80
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Syntax and independent-QA embargo check
+        run: |
+          python -m compileall -q research/calibri2/s75
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72)' research/calibri2/s75/*.py; then exit 1; fi
+      - name: Install real Apple ARM64 MPS PyTorch and exact CPU reference dependencies
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Download immutable physically paid source CB59
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Download physically paid lossless compressed envelope
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: Download unchanged actual S71 context neural tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s71-conditional-neural-tunnel-train-only-outcomes
+          path: inputs/s71
+          run-id: 42536011124
+          github-token: ${{ github.token }}
+      - name: Reconstruct SAME 36M full weights TEMP and run REAL Apple MPS GPU vs compressed CPU
+        run: |
+          python research/calibri2/s75/full_36m_mps_gpu_parity_and_speed_train_only.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s71/S71_CONTEXT_NEURAL_PAID_CANDIDATE_ONLY.safetensors \
+            inputs/s71/S71_ALL_BYTES_PAID_NEURAL_GATE_MANIFEST.json \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            results/s75
+      - name: Save actual GPU full-core TRAIN parity and timing, never save dense weights
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s75-full36m-real-MPS-GPU-CPU-parity-TRAIN-only-no-QA
+          path: results/s75/
+          if-no-files-found: warn
+          retention-days: 90
