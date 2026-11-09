@@ -1,0 +1,37 @@
+name: Codex quota-safe continuous relay
+'on':
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/core/codex/**'
+      - 'backend/http/routes/codexRoute.js'
+      - 'backend/scripts/regressionCodexContinuousQuota.test.js'
+      - '.github/workflows/codex-groq-continuity.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/core/codex/**'
+      - 'backend/http/routes/codexRoute.js'
+      - 'backend/scripts/regressionCodexContinuousQuota.test.js'
+      - '.github/workflows/codex-groq-continuity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install backend without running install scripts
+        run: npm install --prefix backend --ignore-scripts --no-audit --no-fund
+      - name: Check JS syntax and continuity behavior
+        run: |
+          node --check backend/core/codex/relayContinuousResearch.js
+          node --check backend/core/codex/relayQuotaCircuit.js
+          node --check backend/core/codex/relayInterpreter.js
+          node --check backend/http/routes/codexRoute.js
+          node --test backend/scripts/regressionCodexContinuousQuota.test.js backend/scripts/regressionCodexRelay.test.js backend/scripts/regressionCodexCalibriNoQuota.test.js
