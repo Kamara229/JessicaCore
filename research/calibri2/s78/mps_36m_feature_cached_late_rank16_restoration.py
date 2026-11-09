@@ -164,7 +164,7 @@ def totals(rows,pairs):
                   "both_opposed_full":s58.both_correct(rows[name],p)}
             for name,p in pairs.items()}
 
-@torch.inference_mode()
+@torch.no_grad()
 def build_gpu_supervision_cache(dense,head,tok,frozen_later,pairs,baseline):
     """One GPU full-core forward per TRAIN item, noun/EOS at gold prefix.
     No gradients through source. Source is temporarily expanded to FP32
@@ -178,20 +178,22 @@ def build_gpu_supervision_cache(dense,head,tok,frozen_later,pairs,baseline):
                 item=pair[side];key=f'{pair["pair_id"]}_{side}'
                 prior=baseline[family][key]
                 gold=tok.encode(item["answer"],add_special_tokens=False)+[tok.eos_token_id]
-                if len(gold)!=3:
+                if len(gold) not in (2,3):
                     if family=="history":continue
                     raise AssertionError("new/old two-token+EOS target must have three tokens")
+                if family!="history" and len(gold)!=3:
+                    raise AssertionError("non-historical TRAIN must have two content tokens plus EOS")
                 # Only train second/EOS when FIRST token is actually
                 # correct on the immutable S74 model.
                 if not prior["first_gold_correct"]:continue
-                ids=item["prompt_ids"].tolist()+gold[:2]
+                ids=item["prompt_ids"].tolist()+gold[:-1]
                 if len(ids)>320:raise AssertionError("malformed S78 TRAIN prompt too long")
                 inp=torch.tensor([ids],device="mps",dtype=torch.long)
                 result=dense(input_ids=inp,use_cache=False,output_hidden_states=True)
                 hidden=result.hidden_states[-1][0]
                 base=result.logits[0]
-                start=len(ids)-2
-                for local_step in (0,1):
+                start=len(ids)-(len(gold)-1)
+                for local_step in range(len(gold)-1):
                     h=hidden[start+local_step].detach().clone()
                     b=base[start+local_step].detach()
                     gold_id=int(gold[local_step+1])
@@ -371,7 +373,7 @@ def main():
         "TRAIN_answer_token_sequences_identical":232,
         "all_232_protected_native_compressed_CPU_outputs_match_real_GPU":True}),flush=True)
     cache=build_gpu_supervision_cache(dense,gpu_head,tok,gpu_mixer,pairs,baseline_cpu)
-    for name in ("original","augmented","S69","S73","S78"):
+    for name in ("original","augmented","history","S69","S73","S78"):
         if not cache[name]:raise AssertionError("S78 lacks native GPU TRAIN hidden cache "+name)
     layer=LateResidual16(gpu_mixer).to("mps")
     if any(p.device.type!="mps" for p in layer.parameters() if p.requires_grad):
