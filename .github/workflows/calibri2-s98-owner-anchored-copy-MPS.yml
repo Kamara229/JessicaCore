@@ -1,0 +1,83 @@
+name: CALIBRI S98 physical-paid neural owner-based context noun copy on Apple MPS
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s97-train-token-failure-audit-20261110
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s98_source_sanity:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s98-neural-owner-anchored-copy-20261110'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compile source and verify TRAIN-only frozen and no QA dependencies
+        run: |
+          python3 -m compileall -q research/calibri2/s98/
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s96)' research/calibri2/s98/*.py; then exit 1; fi
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('research/calibri2/s98/train_owner_anchored_copy.py').read_text()
+          for p in ('TinyCopyScorer','frozen_train_pairs','new_noun_heldout_TRAIN_second_conditional','torch.backends.mps.is_available','candidate_accepted','QA_previous_S96_novel_prompts_never_accessed'):
+              assert p in s
+          print('S98_SOURCE_NO_QA_NO_LIVE_TRAIN_ONLY_PASS',flush=True)
+          PY
+  s98_real_GPU_owner_anchored_train_and_heldout:
+    needs: s98_source_sanity
+    if: needs.s98_source_sanity.result == 'success'
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '980098'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Install pinned actual Apple Metal research model stack
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Immutable physical S95 456 TRAIN report and conservative storage baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s95-unaccepted-prompt-only-router-456-strict-CPU
+          path: inputs/s95
+          run-id: 42698707784
+          github-token: ${{ github.token }}
+      - name: Require actual Apple MPS and learn from 192 TRAIN, evaluate 64 heldout TRAIN
+        run: |
+          python - <<'PY'
+          import torch,platform
+          assert platform.machine()=='arm64' and torch.backends.mps.is_available()
+          x=torch.randn(8,8,device='mps',requires_grad=True)
+          x.square().sum().backward()
+          assert x.grad.device.type=='mps'
+          print('S98_ACTUAL_MPS_GPU_LEARNING_AVAILABLE',flush=True)
+          PY
+          python research/calibri2/s98/train_owner_anchored_copy.py \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            results/s98
+      - name: Preserve trained numeric FP16 weights and all negative diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s98-unaccepted-MPS-neural-second-token-owner-copy-feasibility
+          path: results/s98/
+          retention-days: 90
+          if-no-files-found: warn
