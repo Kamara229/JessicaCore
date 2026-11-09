@@ -8,6 +8,27 @@ permissions:
   contents: read
   actions: read
 jobs:
+  s91_linux_lightweight_ci_sanity:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s91-joint-new-full-answers-adaptive-replay-20261109'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check Python source without GPU, secrets or model download
+        run: |
+          python3 -m compileall -q research/calibri2/s91/
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          p=Path('research/calibri2/s91/train_joint_quality_rehearsal.py')
+          tree=ast.parse(p.read_text())
+          assert any(isinstance(n,ast.FunctionDef) and n.name=='expand_curriculum' for n in tree.body)
+          assert 'soft_pointer_gate=torch.sigmoid' in p.read_text()
+          assert 'S89_FULL_456_audit' in p.read_text()
+          print('S91_RESEARCH_SOURCE_SANITY_PASS', flush=True)
+          PY
   s91_joint_paid_core_and_green_tunnel_MPS:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s91-joint-new-full-answers-adaptive-replay-20261109'
     runs-on: macos-15
