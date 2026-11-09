@@ -151,6 +151,53 @@ def main():
     if len(modified) != SOURCE_BYTES or CB59(modified).hash() != sha(modified):
         raise AssertionError("Repacked changed paid model failed integrity")
     packed = lossless_cb61(modified)
+    packed_path = a.out/"S87_UNACCEPTED_NEW_SOURCE_CB61.s61"
+    packed_path.write_bytes(packed)
+    if packed_path.read_bytes() != packed:
+        raise AssertionError("Changed physical source did not round-trip")
+
+    # Diagnose post-training behavior against the actual serialized CB59
+    # CPU source, not the transient GPU training weights. This is a small
+    # TRAIN-only safety preflight; it is NOT full 456-prompt acceptance.
+    cpu_joint, joint_sources = create_small_paid_model(
+        CB59(modified), build_config(MODEL_SPEC))
+    cpu_joint.eval().requires_grad_(False)
+    joint_inner = IntegratedGreenTunnel(
+        layers=TUNNEL_LAYERS, rank=TUNNEL_RANK).eval()
+    joint_inner.load_state_dict(inner.state_dict(), strict=True)
+    joint_inner.install(cpu_joint)
+    cpu_first, cpu_later = s78.controllers(weights)
+    cpu_first.eval().requires_grad_(False)
+    cpu_later.eval().requires_grad_(False)
+    cpu_head = cpu_joint.lm_head.source().detach().cpu().contiguous()
+    after_native = {}
+    protected_lost_full = []
+    protected_lost_first = []
+    newly_full = []
+    for i, row in enumerate(old_rows + new_rows):
+        generated = s82.full_cpu_generate(cpu_joint, joint_sources,
+                                          cpu_first, cpu_later, cpu_head,
+                                          tok, row["question"], ptr)
+        gold = tok.encode(row["answer"], add_special_tokens=False) + [tok.eos_token_id]
+        was = before[i]
+        prior_full = was == gold
+        now_full = generated == gold
+        prior_first = bool(was) and was[0] == gold[0]
+        now_first = bool(generated) and generated[0] == gold[0]
+        if prior_full and not now_full:
+            protected_lost_full.append(i)
+        if prior_first and not now_first:
+            protected_lost_first.append(i)
+        if now_full and not prior_full:
+            newly_full.append(i)
+        after_native[str(i)] = {
+            "TRAIN_question_sha256": sha(row["question"].encode()),
+            "expected_ids": gold, "original_S82_ids": was,
+            "joint_compressed_CPU_ids": generated,
+            "original_full": prior_full, "new_full": now_full,
+            "original_first": prior_first, "new_first": now_first,
+        }
+    joint_inner.uninstall()
     side = dict(weights)
     for name, tensor in inner.state_dict().items():
         side["internal_tunnel."+name] = tensor.detach().cpu().contiguous()
@@ -175,6 +222,12 @@ def main():
         "never_promote_unchecked_candidate":True,
         "GPU_training_real":True,
         "actual_gradients":steps,
+        "small_8_TRAIN_actual_serialized_CPU_outputs":after_native,
+        "pilot_8_TRAIN_lost_full_correct":protected_lost_full,
+        "pilot_8_TRAIN_lost_first_correct":protected_lost_first,
+        "pilot_8_TRAIN_new_full_correct":newly_full,
+        "pilot_8_TRAIN_guard_passed":not protected_lost_full and not protected_lost_first,
+        "physical_cb61_source_file":packed_path.name,
         "native_ALL_456_TRAIN_old_skills_guard_completed":False,
         "full_CPU_vs_GPU_post_training_parity_completed":False,
         "full_CPU_speed_guard_completed":False,
@@ -200,6 +253,9 @@ def main():
                       "joint_gradient_steps":len(steps),
                       "physical_bpp":proposed_meta["all_inclusive_physical_bpp"],
                       "within_bpp_limit":proposed_meta["within_0_7_bpp"],
+                      "pilot_8_TRAIN_protected_lost_full":len(protected_lost_full),
+                      "pilot_8_TRAIN_protected_lost_first":len(protected_lost_first),
+                      "pilot_8_TRAIN_new_full":len(newly_full),
                       "candidate_accepted":False}),flush=True)
 
 
