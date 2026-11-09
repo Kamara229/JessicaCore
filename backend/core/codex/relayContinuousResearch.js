@@ -29,7 +29,7 @@ export function continuousCalibrIResearchHandoff(message) {
         return null;
     // Only clearly delegated no-Jessica-test progress may bypass the model.
     const noJessicaTest =
-        /\bLIVE\s+не\s+менять\b/iu.test(body) ||
+        /LIVE\s+не\s+менять/iu.test(body) ||
         /(?:Jessica|Джессик[ауе])\s+не\s+(?:тестировать|запуска(?:ть|й|ет)\s+тест)/iu.test(body) ||
         /(?:Тест(?:ы)?\s+(?:в\s+(?:обычном\s+)?чате\s+)?(?:Jessica|Джессик[аи]))\s+не\s+(?:нужен|нужны|запрошен|требуется|запуска(?:ть|й|ет))/iu.test(body) ||
         /(?:HTTP\s*429|сбой)\s+(?:Jessica|Джессик[аи])\s+не\s+(?:является|считать)\s+тестом/iu.test(body);
