@@ -1,7 +1,7 @@
 name: CALIBRI S85 FIRST-AND-ONLY new 128 noun QA frozen S74 S80 S82 MPS
 'on':
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
     branches:
       - research/calibri2-s84-bitwise-all232-s80-cpu-gpu-provenance-20261109
 permissions:
