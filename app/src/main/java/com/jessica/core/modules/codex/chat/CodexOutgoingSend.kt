@@ -20,7 +20,12 @@ internal suspend fun CodexChatCoordinator.dispatchOutgoing(
                     return
                 }
                 calibrateButton?.visibility = android.view.View.GONE
-                check(state.beginSend(SystemClock.elapsedRealtime())) { "Достигнут предел 60 сообщений" }
+                if (!state.beginSend(SystemClock.elapsedRealtime())) {
+                    if (state.sends >= state.maxTurns || state.expired(SystemClock.elapsedRealtime()))
+                        finish("Достигнут предел сессии. История сохранена; новую сессию можно запустить вручную.")
+                    else notice("Предыдущая отправка ещё не подтверждена. Повторного нажатия нет.")
+                    return
+                }
                 // Mark before clicking: an uncertain click must not be automatically retried.
                 reportPhase("send_requested")
                 if (launch.stopRequested || state.stopped) return
@@ -47,6 +52,6 @@ internal suspend fun CodexChatCoordinator.dispatchOutgoing(
                 }
                 reportPhase("sent")
                 if (launch.endAfterSend) finish("Переписка завершена. История и тесты сохранены в чатах Джессики.")
-                else notice("Жду законченный ответ ChatGPT. Сообщений в сессии: ${state.sends}/60.")
+                else notice("Жду законченный ответ ChatGPT. Сообщений в сессии: ${state.sends}/${state.maxTurns}.")
             
 }
