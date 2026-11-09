@@ -157,7 +157,7 @@ def main():
                     generated=s82.full_cpu_generate(
                         model,sources,first,later,head,tok,item["question"],pointer)
                     elapsed=time.perf_counter()-t
-                    if warmup_per_backend <= stats["count"] < warmup_per_backend+measured_per_backend:
+                    if warmup_per_backend <= len(rows) < warmup_per_backend+measured_per_backend:
                         timings[label].append((elapsed, max(1, len(generated))))
                     values.append(generated)
                 before,after=values
