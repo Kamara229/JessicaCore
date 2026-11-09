@@ -36,8 +36,8 @@ def audit(payload):
                 raise ValueError(f"Duplicate or invalid opposing side for TRAIN pair {key}: {row['side']}")
             if not isinstance(ids, list) or not isinstance(gold, list):
                 raise ValueError("Expected token ID lists")
-            if bool(row["full_with_EOS"]) and ids != gold:
-                raise ValueError(f"Incorrect full_with_EOS flag for TRAIN row {key}")
+            if bool(row["full_with_EOS"]) != (ids == gold):
+                raise ValueError(f"Inconsistent full_with_EOS flag for TRAIN row {key}")
             grouped[key][row["side"]] = bool(row["full_with_EOS"])
             first[ids[0]] += 1
             row_details.append({
