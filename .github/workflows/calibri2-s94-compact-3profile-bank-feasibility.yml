@@ -1,0 +1,119 @@
+name: CALIBRI S94 physical three-profile Green Tunnel bank and CPU proof
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s93-repair-first-union-replay-mps-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s94_source_sanity:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s94-compact-multiprofile-green-tunnel-bank-20261109'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Restrict research to frozen TRAIN profiles
+        run: |
+          python3 -m compileall -q research/calibri2/s94/
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85)' research/calibri2/s94/*.py; then exit 1; fi
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('research/calibri2/s94/physical_profile_bank.py').read_text()
+          for token in ('three_profile_oracle_upper_bound_rate','representative_cpu_parity','all_inclusive_bpp_at_most_0_7','actual_trained_router_exists','candidate_accepted'): assert token in s
+          print('S94_SOURCE_NO_QA_NO_LIVE_NO_FAKE_ROUTER',flush=True)
+          PY
+  s94_lossless_bank_and_cpu_parity:
+    needs: s94_source_sanity
+    if: needs.s94_source_sanity.result == 'success'
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '940094'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Install pinned physical CPU inference dependencies
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Frozen real-MPS S87 physical core and tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-unaccepted-joint-core-internal-tunnel-feasibility
+          path: inputs/s87
+          run-id: 42657528666
+          github-token: ${{ github.token }}
+      - name: Independent S87 all-456 CPU reference
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          path: inputs/s87_full
+          run-id: 42659248083
+          github-token: ${{ github.token }}
+      - name: Frozen real-MPS S91 physical core and tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s91-unaccepted-MPS-joint-quality-TRAIN-prototypes
+          path: inputs/s91
+          run-id: 42674413574
+          github-token: ${{ github.token }}
+      - name: Independent S91 all-456 CPU reference
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s91-full-456-strict-EOS-quality-no-forgetting-and-CPU
+          path: inputs/s91_full
+          run-id: 42674413574
+          github-token: ${{ github.token }}
+      - name: Frozen real-MPS S93 physical core and tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          path: inputs/s93
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Independent S93 all-456 CPU reference
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-full-456-strict-union-no-forgetting-and-CPU
+          path: inputs/s93_full
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Build paid-weight-only lossless profile bank and check switched CPU parity
+        run: |
+          python research/calibri2/s94/physical_profile_bank.py \
+            inputs/s87/S87_UNACCEPTED_NEW_SOURCE_CB61.s61 \
+            inputs/s87/S87_UNACCEPTED_JOINT_PROTOTYPE.safetensors \
+            inputs/s87/S87_UNACCEPTED_JOINT_PHYSICAL_PROTOTYPE_REPORT.json \
+            inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s91/S91_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s91/S91_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s91/S91_UNACCEPTED_JOINT_PAID_MANIFEST.json \
+            inputs/s91_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s93/S93_UNACCEPTED_MANIFEST.json \
+            inputs/s93_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s94
+      - name: Save physical bank and negative result even if infeasible
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s94-unaccepted-lossless-three-profile-bank-456-TRAIN-feasibility
+          path: results/s94/
+          retention-days: 90
+          if-no-files-found: warn
