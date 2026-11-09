@@ -1,0 +1,86 @@
+name: CALIBRI S87 joint 36M compressed codebooks and internal Green Tunnel MPS feasibility
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s82-gpu-neural-context-copy-pointers-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s87_bounded_joint_core_and_internal_tunnel_no_promotion:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s87-joint-core-green-tunnel-20261109'
+    runs-on: macos-15
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '870087'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Require no inspected QA dependencies, compile prototype
+        run: |
+          python -m compileall -q research/calibri2/s87/
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85)' research/calibri2/s87/*.py; then exit 1; fi
+      - name: Install pinned real MPS model stack
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Require physical GPU gradients, reject CPU fallback
+        run: |
+          python - <<'PY'
+          import torch,platform
+          assert platform.machine()=='arm64' and torch.backends.mps.is_available()
+          x=torch.randn((32,32),device='mps',requires_grad=True)
+          loss=(x@x.T).square().mean();loss.backward();torch.mps.synchronize()
+          assert x.grad is not None and x.grad.device.type=='mps'
+          print('S87_REAL_APPLE_METAL_GPU_GRADIENT_PROVEN',flush=True)
+          PY
+      - name: Immutable 36M original packed CB59 source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Immutable original physically compressed CB61 source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: Accepted S82 controller and physical manifest, read-only
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s82-real-GPU-contextual-token-pointer-TRAIN-only-protected
+          path: inputs/s82
+          run-id: 42569548659
+          github-token: ${{ github.token }}
+      - name: Train ONE tiny joint MPS step, audit zero-init identity and physical storage only
+        run: |
+          python research/calibri2/s87/pilot_joint_core_tunnel.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            inputs/s82/S82_REAL_GPU_GENERAL_TOKEN_POINTER_PAID_TRAIN_CANDIDATE.safetensors \
+            inputs/s82/S82_REAL_GPU_ALL_INCLUSIVE_PAID_MANIFEST.json \
+            results/s87 --steps 1
+      - name: Preserve scientific feasibility only - NOT accepted model
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s87-unaccepted-joint-core-internal-tunnel-feasibility
+          path: results/s87/
+          retention-days: 90
+          if-no-files-found: warn
