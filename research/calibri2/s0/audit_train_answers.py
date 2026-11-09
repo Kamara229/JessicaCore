@@ -24,6 +24,7 @@ def audit(payload):
         first = Counter()
         row_details = []
         errors = Counter()
+        domains = defaultdict(lambda: Counter())
         for row in rows:
             if not {"id", "side", "generated_ids", "gold_ids", "full_with_EOS"} <= row.keys():
                 raise ValueError("Missing per-answer TRAIN fields")
@@ -39,6 +40,8 @@ def audit(payload):
             if bool(row["full_with_EOS"]) != (ids == gold):
                 raise ValueError(f"Inconsistent full_with_EOS flag for TRAIN row {key}")
             grouped[key][row["side"]] = bool(row["full_with_EOS"])
+            domains[row["domain"]]["total"] += 1
+            domains[row["domain"]]["full_EOS"] += int(ids == gold)
             first[ids[0]] += 1
             row_details.append({
                 "domain": row["domain"], "pair_id": row["id"], "side": row["side"],
@@ -46,8 +49,14 @@ def audit(payload):
                 "exact_full_EOS": ids == gold,
                 "first_token_correct": ids[0] == gold[0],
                 "expected_EOS_at_end": ids[-1] == gold[-1],
+                "premature_EOS": gold[-1] in ids[:-1],
+                "EOS_at_expected_position": len(ids) >= len(gold) and ids[len(gold)-1] == gold[-1],
             })
             if not row["full_with_EOS"]:
+                if gold[-1] in ids[:-1]:
+                    errors["premature_EOS"] += 1
+                if gold[-1] in ids and (len(ids) < len(gold) or ids[len(gold)-1] != gold[-1]):
+                    errors["EOS_at_wrong_position"] += 1
                 if gold[-1] not in ids:
                     errors["expected_EOS_token_absent"] += 1
                 if len(ids) > 1 and len(set(ids)) == 1:
@@ -72,6 +81,7 @@ def audit(payload):
             "total": len(rows), "unique_first_tokens": len(first),
             "opposing_pair_retention": dict(pair_counts),
             "nonexclusive_error_flags": dict(errors),
+            "per_domain_full_EOS": {k: dict(v) for k, v in sorted(domains.items())},
             "decoded_text_available": False,
             "per_answer_token_audit": row_details,
             "EOS_note": "EOS ID inferred from each TRAIN gold sequence; presence does not prove correct EOS position",
