@@ -38,6 +38,11 @@ export {explicitJessicaTest} from "./relayExplicitTest.js";
 export {directCurrentChatReply} from "./relayCurrentChatPolicy.js";
 export {explicitSameTestChat} from "./relayThreadPolicy.js";
 
+// The Android client readTimeout is 25 s, and may retry only transport
+// failures. Provider timeouts longer than that turn a safe server-side
+// interpretation fallback into a misleading client-side failure.
+export const CODEX_PROVIDER_INTERPRET_TIMEOUT_MS = 12000;
+
 const system = `Ты Джессика, участник рабочего диалога с ChatGPT вместо владельца Jessica Core.
 Цель сессии — продолжать выбранный план ChatGPT: улучшение backend Jessica Core или исследование CALIBRI по реальным открытым весам в отдельной research-ветке. Не выдавай запущенный CI за завершённый эксперимент.
 ChatGPT сам использует свои подключения GitHub, Render и Supabase. У тебя НЕТ таких инструментов.
@@ -183,7 +188,7 @@ export async function interpretRelayTurn(input, generate) {
             model:"openai/gpt-oss-20b", temperature:0, reasoning_effort:"low", include_reasoning:false,
             max_completion_tokens:1800, response_format:{type:"json_object"},
             messages:[{role:"system",content:instructions},{role:"user",content:JSON.stringify(data)}]
-        }, {timeout:60000,maxRetries:0});
+        }, {timeout:CODEX_PROVIDER_INTERPRET_TIMEOUT_MS,maxRetries:0,signal:AbortSignal.timeout(CODEX_PROVIDER_INTERPRET_TIMEOUT_MS + 2000)});
         if (response.choices?.[0]?.finish_reason === "length") throw Error("incomplete-decision");
         return response.choices?.[0]?.message?.content;
     });
