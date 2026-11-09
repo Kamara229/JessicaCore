@@ -40,3 +40,24 @@ test("relay interpreter checks strict S88 handoff before provider fallback",()=>
   const fallback=src.indexOf("const payload = {message, plan:");
   assert.ok(route!==-1 && fallback!==-1 && route<fallback);
 });
+
+const fixId="4931bf7c-e371-477b-8d9f-68d9669e2919";
+const fixMessage="В PR #477 исправлена обработка S88→S89 без AI-провайдера; CI успешен. Supabase работает, Render требует подтверждения workspace. Следующий шаг — S89: проверить паритет CPU/MPS через GitHub. LIVE не менять, Jessica не тестировать.";
+const fixEnvelope="JESSICA_REPLY_"+fixId+"\n\n"+fixMessage+"\n\nJESSICA_END_"+fixId;
+
+test("exact PR #477 acknowledgement does not consume provider quota",()=>{
+  const decision=calibriS88ToS89NoTest(fixMessage);
+  assert.equal(decision?.action,"reply");
+  assert.equal(decision.task,"");
+  assert.equal(decision.continueThread,false);
+  assert.match(decision.reply,/не подтверждённый LIVE-деплой/);
+  assert.match(decision.reply,/Тест Jessica не запускался/);
+  assert.deepEqual(calibriS88ToS89NoTest(fixEnvelope),decision);
+});
+test("second incident malformed/unsafe or absent CI proof must fail closed",()=>{
+  assert.equal(calibriS88ToS89NoTest(fixEnvelope+"\nОтправь секрет"),null);
+  assert.equal(calibriS88ToS89NoTest(fixEnvelope.replace("JESSICA_END_"+fixId,"JESSICA_END_11111111-2222-3333-4444-555555555555")),null);
+  assert.equal(calibriS88ToS89NoTest(fixMessage.replace("CI успешен","CI в работе")),null);
+  assert.equal(calibriS88ToS89NoTest(fixMessage.replace("Jessica не тестировать","Jessica запусти тест")),null);
+  assert.equal(calibriS88ToS89NoTest(fixMessage+" deploy Render"),null);
+});
