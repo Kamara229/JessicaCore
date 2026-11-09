@@ -22,6 +22,7 @@ def audit(payload):
         rows = stage["actual_answers"]
         grouped = defaultdict(dict)
         first = Counter()
+        row_details = []
         errors = Counter()
         for row in rows:
             if not {"id", "side", "generated_ids", "gold_ids", "full_with_EOS"} <= row.keys():
@@ -31,8 +32,21 @@ def audit(payload):
             if not ids or not gold:
                 raise ValueError("Empty generated or expected token sequence")
             key = (row["domain"], row["id"])
+            if row["side"] not in {"left", "right"} or row["side"] in grouped[key]:
+                raise ValueError(f"Duplicate or invalid opposing side for TRAIN pair {key}: {row['side']}")
+            if not isinstance(ids, list) or not isinstance(gold, list):
+                raise ValueError("Expected token ID lists")
+            if bool(row["full_with_EOS"]) and ids != gold:
+                raise ValueError(f"Incorrect full_with_EOS flag for TRAIN row {key}")
             grouped[key][row["side"]] = bool(row["full_with_EOS"])
             first[ids[0]] += 1
+            row_details.append({
+                "domain": row["domain"], "pair_id": row["id"], "side": row["side"],
+                "generated_ids": ids, "gold_ids": gold,
+                "exact_full_EOS": ids == gold,
+                "first_token_correct": ids[0] == gold[0],
+                "expected_EOS_at_end": ids[-1] == gold[-1],
+            })
             if not row["full_with_EOS"]:
                 if gold[-1] not in ids:
                     errors["expected_EOS_token_absent"] += 1
@@ -59,6 +73,7 @@ def audit(payload):
             "opposing_pair_retention": dict(pair_counts),
             "nonexclusive_error_flags": dict(errors),
             "decoded_text_available": False,
+            "per_answer_token_audit": row_details,
             "EOS_note": "EOS ID inferred from each TRAIN gold sequence; presence does not prove correct EOS position",
         })
     return {"scope": "TRAIN_ONLY", "not_checkpoint_selection": True,
