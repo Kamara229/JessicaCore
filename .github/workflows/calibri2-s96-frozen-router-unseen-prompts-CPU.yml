@@ -1,0 +1,112 @@
+name: CALIBRI S96 frozen-S95 true novel noun and prompt one-shot CPU
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s95-prompt-only-neural-profile-router-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s96_no_training_source_sanity:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s96-frozen-router-new-prompts-20261110'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify independent one-shot source, prohibit older QA access
+        run: |
+          python3 -m compileall -q research/calibri2/s96/
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85)' research/calibri2/s96/*.py; then exit 1; fi
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('research/calibri2/s96/unseen_prompt_immutable_router_cpu.py').read_text()
+          assert 'FROZEN_S96_UNSEEN_TEMPLATES' in s
+          assert 'independent_new_questions' in s
+          assert 'actual_profile_switches' in s
+          assert 'S95_neural_router_and_all_profile_weights_frozen' in s
+          assert 'candidate_accepted' in s
+          print('S96_FROZEN_NOVEL_PROMPT_SAFETY_PASS',flush=True)
+          PY
+  s96_one_time_independent_full_EOS_CPU:
+    needs: s96_no_training_source_sanity
+    if: needs.s96_no_training_source_sanity.result == 'success'
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '960096'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Install reproducible independent CPU inference dependencies
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Immutable S95 physical FP16 neural router and prior TRAIN-only audit
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s95-unaccepted-prompt-only-router-456-strict-CPU
+          path: inputs/s95
+          run-id: 42698707784
+          github-token: ${{ github.token }}
+      - name: Immutable S94 lossless alternative Green Tunnel profile bank
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s94-unaccepted-lossless-three-profile-bank-456-TRAIN-feasibility
+          path: inputs/s94
+          run-id: 42697267843
+          github-token: ${{ github.token }}
+      - name: Frozen S93 physically paid MPS-trained core and full sidecar
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          path: inputs/s93
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Frozen original S45 compressed core for S82 baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Frozen pre-S87 original S82 neural controllers
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s82-real-GPU-contextual-token-pointer-TRAIN-only-protected
+          path: inputs/s82
+          run-id: 42569548659
+          github-token: ${{ github.token }}
+      - name: Frozen 64 completely new prompt evaluation, all 3 profiles and S82
+        run: |
+          python research/calibri2/s96/unseen_prompt_immutable_router_cpu.py \
+            inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            inputs/s94/S94_ALTERNATE_EXACT_CORE_TUNNEL_BANK.bin \
+            inputs/s94/S94_PROFILE_BANK_FEASIBILITY_REPORT.json \
+            inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s82/S82_REAL_GPU_GENERAL_TOKEN_POINTER_PAID_TRAIN_CANDIDATE.safetensors \
+            results/s96
+      - name: Preserve independent outcome even if no-forgetting/speed guard fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s96-frozen-S95-new-noun-prompts-CPU-no-QA-negative-audit
+          path: results/s96/
+          retention-days: 90
+          if-no-files-found: warn
