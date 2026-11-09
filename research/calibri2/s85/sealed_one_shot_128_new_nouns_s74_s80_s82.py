@@ -273,7 +273,7 @@ def main():
     f74,l74=s78.controllers(w74)
     f74=f74.to("mps").eval().requires_grad_(False)
     l74=l74.to("mps").eval().requires_grad_(False)
-    l80=s84.frozen_late_s80(s78.controllers(w74)[1])
+    l80=s84.frozen_late_s80(s78.controllers(w74)[1],w80)
     l80=l80.to("mps").eval().requires_grad_(False)
     pointer=make_pointer(w82).to("mps").eval().requires_grad_(False)
     systems={
@@ -286,7 +286,7 @@ def main():
     model.eval().requires_grad_(False)
     head_cpu=model.lm_head.source().detach().cpu().contiguous()
     first_cpu,later_cpu=s78.controllers(w74)
-    late80_cpu=s84.frozen_late_s80(s78.controllers(w74)[1])
+    late80_cpu=s84.frozen_late_s80(s78.controllers(w74)[1],w80)
     ptr_cpu=make_pointer(w82)
     seen=s30.make_training_pairs(tok)[:4]
     matched=0
