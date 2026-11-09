@@ -33,7 +33,7 @@ internal fun CodexChatCoordinator.startCodexSession() {
         retryInterpretAt = 0L
         lastProgressAt = SystemClock.elapsedRealtime()
         val launch = PhoneChatRuntime.launch ?: return
-        run = ChatRunState(SystemClock.elapsedRealtime(), maxTurns = 60, durationMs = 8 * 60 * 60 * 1000L)
+        run = ChatRunState(SystemClock.elapsedRealtime(), maxTurns = CodexSessionLimits.MAX_MESSAGES, durationMs = CodexSessionLimits.MAX_DURATION_MS)
         reportPhase("started")
         try { showOverlay() } catch (e: Exception) {
             ChatServiceDiagnostics.record(service, "overlay-failed:${e.javaClass.simpleName}")
