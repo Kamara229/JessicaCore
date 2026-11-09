@@ -116,8 +116,8 @@ def policy_loss(model, tok, row, first, later, pointer, head,
         tokenize=False,add_generation_prompt=True)
     context=tok.encode(prompt,add_special_tokens=False)
     gold=row["expected"]
-    if not context or len(gold)!=3:
-        raise AssertionError("Only original two-token + EOS TRAIN authorized")
+    if not context or not (2<=len(gold)<=5):
+        raise AssertionError("Only original short full-answer + EOS TRAIN authorized")
     ids=torch.tensor([context+gold[:-1]],dtype=torch.long,device="mps")
     result=model(input_ids=ids,use_cache=False,output_hidden_states=True)
     hidden=result.hidden_states[-1][0]
@@ -140,15 +140,15 @@ def policy_loss(model, tok, row, first, later, pointer, head,
         ce=F.cross_entropy(total[None,:],label)
         # Weight known weak second-token and EOS completion instead of
         # optimizing S87's raw core logits against the wrong output policy.
-        weight=(0.5,2.5,1.5)[step]
-        losses.append(ce*weight)
+        weights=(0.5,2.5,1.5,1.0,1.0)[:len(gold)]
+        losses.append(ce*weights[step])
         if protected:
             best=total.masked_fill(
                 torch.arange(total.shape[0],device="mps")==token,
                 -1.e8).max()
             margin=total[token]-best
             margin_losses.append(F.softplus(0.9-margin))
-    objective=sum(losses)/sum((0.5,2.5,1.5))
+    objective=sum(losses)/sum(weights)
     if protected:
         objective=0.65*objective+1.4*torch.stack(margin_losses).mean()
     return objective
