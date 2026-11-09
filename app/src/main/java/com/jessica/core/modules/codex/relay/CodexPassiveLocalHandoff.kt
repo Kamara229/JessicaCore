@@ -24,7 +24,7 @@ object CodexPassiveLocalHandoff {
         }.replace(Regex("""\s+"""), " ").trim()
         if (body.length > 750 || body.isEmpty()) return null
 
-        val stage = Regex("""^CALIBRI\s+S(\d{1,3})(?=[:.,;\s—–-])""",
+        val stage = Regex("""^(?:CALIBRI\s+)?S(\d{1,3})(?=[:.,;\s—–-])""",
             RegexOption.IGNORE_CASE).find(body)?.groupValues?.get(1) ?: return null
         val stageNumber = stage.toIntOrNull() ?: return null
         if (stageNumber !in 1..999) return null

@@ -17,6 +17,23 @@ class CodexPassiveLocalHandoffTest {
         assertTrue(result.text.contains("Тест Jessica не запускала"))
     }
 
+    @Test fun shortSStageFromRealAssistantDoesNotCallGroqOrRender() {
+        // Previously the prefix CALIBRI was mandatory on Android despite
+        // the existing backend accepting /^S101:/ for safe no-test progress.
+        val short = "S101: 353/456, 0 расхождений, CPU 1,392× S82, 0,69957 bpp. " +
+            "Следующий шаг — проверить KV-cache и EOS. LIVE не менять."
+        val direct = CodexPassiveLocalHandoff.response(short)
+        assertNotNull(direct)
+        assertFalse(direct!!.endSession)
+        assertTrue(direct.text.contains("CALIBRI S101"))
+        assertTrue(direct.text.contains("Тест Jessica не запускала"))
+        val wrapped = "JESSICA_REPLY_$uuid\n\n$short\n\nJESSICA_END_$uuid"
+        assertNotNull(CodexPassiveLocalHandoff.response(wrapped))
+        assertNull(CodexPassiveLocalHandoff.response(
+            wrapped.replace("JESSICA_END_$uuid",
+                "JESSICA_END_00000000-0000-0000-0000-000000000000")))
+    }
+
     @Test fun fullMatchedEnvelopeIsSafeButIncompleteEnvelopeRejected() {
         val wrapped = "JESSICA_REPLY_$uuid\n$payload\nJESSICA_END_$uuid"
         assertNotNull(CodexPassiveLocalHandoff.response(wrapped))
