@@ -49,7 +49,7 @@ fun CodexScreen() {
         } else Button(onClick = { PhoneChatRuntime.stop() }, modifier = Modifier.fillMaxWidth()) { Text("■ Остановить Кодекс") }
         if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
         Text(if (status.text != "Не запущено") status.text else context.getSharedPreferences("jessica_phone_chat", Context.MODE_PRIVATE).getString("last_status", "Не запущено") ?: "Не запущено")
-        Text("Оставь экран разблокированным, ChatGPT открытым, а телефон подключённым к питанию. Не меняй переписку во время работы. Сессия — до 8 часов или 60 сообщений; остановить её можно кнопкой поверх ChatGPT. После перезапуска она сама не возобновляется.", style = MaterialTheme.typography.bodySmall)
+        Text("Оставь экран разблокированным, ChatGPT открытым, а телефон подключённым к питанию. Не меняй переписку во время работы. Сессия — до 24 часов или 600 сообщений; остановить её можно кнопкой поверх ChatGPT. При достижении лимита новую сессию можно запустить вручную; автоматических повторных отправок нет.", style = MaterialTheme.typography.bodySmall)
         Text("Переписка и тесты сохраняются в списке чатов Джессики под названиями «Кодекс — …».", style = MaterialTheme.typography.bodySmall)
         TextButton(onClick = { report = ChatServiceDiagnostics.report(context) }) { Text("Диагностика службы · v${BuildConfig.VERSION_NAME}") }
         if (report.isNotBlank()) {
