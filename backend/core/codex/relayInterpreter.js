@@ -21,6 +21,8 @@ import {mergedPrProgressHandoff} from "./relayMergedPrProgress.js";
 import {incidentCiStatusHandoff} from "./relayIncidentCiStatus.js";
 import {compactCodexStressProgress} from "./relayCompactStressProgress.js";
 import {interpretationFailureHandoff} from "./relayFailureHandoff.js";
+import {continuousCalibrIResearchHandoff} from "./relayContinuousResearch.js";
+import {isCodexQuotaOpen,recordCodexQuota} from "./relayQuotaCircuit.js";
 import {calibriResearchHandoff} from "./relayCalibriProgress.js";
 import {calibriS88ToS89NoTest} from "./relayCalibriS88ToS89NoTest.js";
 import {calibriNoTestNextStep} from "./relayCalibriNoTestNextStep.js";
@@ -167,6 +169,8 @@ export async function interpretRelayTurn(input, generate) {
     if (incidentReply!==null) return {action:"reply",reply:incidentReply,task:"",continueThread:false};
     const mergedPrReply=mergedPrProgressHandoff(message);
     if (mergedPrReply!==null) return {action:"reply",reply:mergedPrReply,task:"",continueThread:false};
+    const continuousResearch=continuousCalibrIResearchHandoff(message);
+    if(continuousResearch!==null)return continuousResearch;
     const statusReply=deterministicStatusHandoff(message);
     if (statusReply!==null) return {action:"reply",reply:statusReply,task:"",continueThread:false};
     const v2Reply=v2PersistenceHandoff(message);
@@ -183,9 +187,14 @@ export async function interpretRelayTurn(input, generate) {
         if (response.choices?.[0]?.finish_reason === "length") throw Error("incomplete-decision");
         return response.choices?.[0]?.message?.content;
     });
+    // Quota circuit affects ONLY the live provider, never deterministic
+    // interpretation or caller-injected test generators.
+    if (!generate && isCodexQuotaOpen())
+        return interpretationFailureHandoff({status:429,message:"Groq quota 429"});
     try {
         return validateRelayDecision(await run(system,payload),message);
     } catch (error) {
+        if (!generate) recordCodexQuota(error);
         // The quota cannot be fixed by retrying the same interpretation.
         // A deterministic FAILURE report keeps the owner-selected ChatGPT
         // conversation alive and requests a backend/Supabase diagnosis.

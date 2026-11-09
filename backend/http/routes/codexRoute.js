@@ -4,6 +4,7 @@ import {compactJessicaTest} from "../../core/codex/relayCompactTest.js";
 import {numberedBenchmarkTest} from "../../core/codex/relayNumberedBenchmarkTest.js";
 import {safeCalibriPassiveHandoff} from "../../core/codex/relayCalibriPassiveSafe.js";
 import {recordCodexPhase} from "../../core/codex/relayTelemetry.js";
+import {interpretationFailureHandoff} from "../../core/codex/relayFailureHandoff.js";
 
 /** Codex is a chat participant. Repo-writing, paid and day routes are no longer registered. */
 export function registerCodexRoutes(app) {
@@ -28,9 +29,14 @@ export function registerCodexRoutes(app) {
             const passive=explicitTask ? null : safeCalibriPassiveHandoff(req.body?.message);
             const decision = passive ?? await interpretRelayTurn(req.body);
             res.json({success:true,...decision});
-        } catch {
-            res.status(503).json({success:false,reason:"relay-understanding-unavailable",
-                text:"Не удалось уверенно понять ответ ChatGPT. Переписка приостановлена."});
+        } catch (error) {
+            // An interpretation outage must NOT disable the already-running
+            // Codex relay. Valid authenticated turns receive a safe non-test
+            // chat continuation instead of HTTP 503 / phone-side pause.
+            const message=req.body?.message;
+            if (typeof message!=="string" || !message.trim() || message.length>50000)
+                return res.status(400).json({success:false,reason:"invalid-message"});
+            return res.json({success:true,...interpretationFailureHandoff(error)});
         }
     });
 }
