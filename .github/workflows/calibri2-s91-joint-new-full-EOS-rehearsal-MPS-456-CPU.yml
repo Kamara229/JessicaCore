@@ -62,6 +62,13 @@ jobs:
           path: inputs/s89
           run-id: 42669753838
           github-token: ${{ github.token }}
+      - name: Independently measured S89 all-456 strict full-EOS negative audit
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s89-full-456-strict-EOS-quality-no-forgetting-and-CPU
+          path: inputs/s89_full
+          run-id: 42669753838
+          github-token: ${{ github.token }}
       - name: Frozen 456 TRAIN S87 negative baseline without QA
         uses: actions/download-artifact@v4
         with:
@@ -83,6 +90,7 @@ jobs:
             inputs/s89/S89_UNACCEPTED_SELECTED_CB61.s61 \
             inputs/s89/S89_UNACCEPTED_SELECTED_JOINT.safetensors \
             inputs/s89/S89_UNACCEPTED_JOINT_PAID_MANIFEST.json \
+            inputs/s89_full/S89_ALL_456_FULL_EOS_QUALITY_GUARD_REPORT.json \
             inputs/s87_guard/S87_ALL_456_TRAIN_GUARD_REPORT.json \
             inputs/s82/S82_REAL_GPU_GENERAL_TOKEN_POINTER_PAID_TRAIN_CANDIDATE.safetensors \
             results/s91
