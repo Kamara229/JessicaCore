@@ -22,10 +22,10 @@ export function calibriS88ToS89NoTest(message) {
   body=body.replace(/\s+/gu," ").trim();
   if (body.length>600) return null;
   if (!/^CALIBRI\s+S88\s*:\s*CI\s+успешен\s*[!.]/iu.test(body) ||
-      !/\b456\s+ответов\s+без\s+изменений\b/iu.test(body) ||
+      !/\b456\s+ответов\s+без\s+изменений(?=\s|[.,!?:;]|$)/iu.test(body) ||
       !/\bCPU\s+1[,.]070\s*[×xх]/iu.test(body) ||
       !/\bbpp\s+0[,.]6793\b/iu.test(body) ||
-      !/\bPR\s*#476\s+обновл[её]н\b/iu.test(body) ||
+      !/\bPR\s*#476\s+обновл[её]н(?=\s|[.,!?:;]|$)/iu.test(body) ||
       !/Следующ(?:ий|ая)\s+шаг\s*[—–:-]\s*S89\s*:\s*проверить\s+точный\s+паритет\s+CPU\s*\/\s*MPS/iu.test(body) ||
       !/(?:Jessica|Джессика)\s+не\s+тестировать\s*,\s*LIVE\s+не\s+менять\s*[.!]?$/iu.test(body))
     return null;
