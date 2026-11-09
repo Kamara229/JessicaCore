@@ -1,0 +1,82 @@
+name: CALIBRI S73 protected real first-token neural restore TRAIN-only CPU
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s72-once-blind-fresh96-with-fp32-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s73_real_train_native_protected:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s73-neural-first-token-new-train-20261109'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '730073'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax check and prohibit import of any inspected QA
+        run: |
+          python -m compileall -q research/calibri2/s73
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72)' research/calibri2/s73/*.py; then exit 1; fi
+      - name: Install pinned CPU-only model dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Download unchanged original 36M source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Download unchanged physically paid compressed source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: Download frozen S67 original after-first controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s67-fully-paid-new-safe-half-delta-research-only
+          path: inputs/s67
+          run-id: 42532945010
+          github-token: ${{ github.token }}
+      - name: Download S71 TRAIN-frozen first and after-first neural controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s71-conditional-neural-tunnel-train-only-outcomes
+          path: inputs/s71
+          run-id: 42536011124
+          github-token: ${{ github.token }}
+      - name: Train compact rank16 first-token neural residual and protect ALL native prior answers
+        run: |
+          python research/calibri2/s73/first_token_neural_recovery_protected_train.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s67/S67_HALF_DELTA_RANK128_CANDIDATE_ONLY.safetensors \
+            inputs/s71/S71_CONTEXT_NEURAL_PAID_CANDIDATE_ONLY.safetensors \
+            inputs/s71/S71_ALL_BYTES_PAID_NEURAL_GATE_MANIFEST.json \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            results/s73
+      - name: Archive TRAIN-only real native probes and candidate only if protected
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s73-first-token-neural-protected-physical-TRAIN-only
+          path: results/s73/
+          if-no-files-found: warn
+          retention-days: 90
