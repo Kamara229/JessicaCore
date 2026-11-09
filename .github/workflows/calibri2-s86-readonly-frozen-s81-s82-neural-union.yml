@@ -1,0 +1,106 @@
+name: CALIBRI S86 frozen S81 monotone late and S82 neural copy union QA-free GPU
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s84-bitwise-all232-s80-cpu-gpu-provenance-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s86_readonly_frozen_source_s81_s82_gpu_skill_union_composition:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s86-frozen-s81-s82-union-composition-20261109'
+    runs-on: macos-15
+    timeout-minutes: 110
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '860086'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Compile and guarantee NO import of any previous/active QA
+        run: |
+          python -m compileall -q research/calibri2/s86
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85)' research/calibri2/s86/*.py; then exit 1; fi
+      - name: Install PyTorch MPS and model stack pinned to immutable previous CI
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify real Apple Silicon GPU (no fallback)
+        run: |
+          python - <<'PY'
+          import torch,platform,json
+          if platform.machine()!='arm64' or not torch.backends.mps.is_available():
+              raise SystemExit('S86 real Apple MPS GPU required')
+          x=torch.randn(128,128,device='mps',requires_grad=True)
+          (x@x.T).square().mean().backward();torch.mps.synchronize()
+          if x.grad is None or x.grad.device.type!='mps':
+              raise SystemExit('S86 not real physical GPU')
+          print(json.dumps({'event':'S86_REAL_MPS_GPU_PROVEN','device':'mps'}),flush=True)
+          PY
+      - name: Frozen same 36M original compressed source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Frozen physical lossless compressed original source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: Download frozen common S74 paid first neural and after-first router
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s74-real-MPS-GPU-gradients-and-CPU-full-skill-TRAIN-guards
+          path: inputs/s74
+          run-id: 42562744529
+          github-token: ${{ github.token }}
+      - name: Download immutable S81 all-old monotone protected real-GPU late skill
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s81-MPS-GPU-all-old-token-monotone-replay-TRAIN
+          path: inputs/s81
+          run-id: 42568540863
+          github-token: ${{ github.token }}
+      - name: Download immutable S82 real GPU generic prompt-token pointer
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s82-real-GPU-contextual-token-pointer-TRAIN-only-protected
+          path: inputs/s82
+          run-id: 42569548659
+          github-token: ${{ github.token }}
+      - name: Evaluate physically paid composition without training or QA and preserve union old skills
+        run: |
+          python research/calibri2/s86/frozen_s81_late_plus_s82_context_pointer_union.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            inputs/s74/S74_REAL_GPU_MPS_TRAIN_ONLY_PAID_FIRST_NEURAL.safetensors \
+            inputs/s74/S74_REAL_GPU_ACTUAL_ALL_BYTES_PAID_MANIFEST.json \
+            inputs/s81/S81_REAL_GPU_MONOTONE_REPLAY_PROTECTED_CANDIDATE.safetensors \
+            inputs/s81/S81_ALL_INCLUSIVE_PAID_MONOTONE_GPU_TRAIN_MANIFEST.json \
+            inputs/s82/S82_REAL_GPU_GENERAL_TOKEN_POINTER_PAID_TRAIN_CANDIDATE.safetensors \
+            inputs/s82/S82_REAL_GPU_ALL_INCLUSIVE_PAID_MANIFEST.json \
+            results/s86
+      - name: Archive actual 456 native TRAIN model compositions, no QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s86-frozen-S81-plus-S82-no-new-training-combined-gpu-cpu-TRAIN-only
+          path: results/s86/
+          if-no-files-found: warn
+          retention-days: 90
