@@ -1,0 +1,89 @@
+name: CALIBRI S80 REAL GPU late rank16 safe alpha search strict old skill guard
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s78-mps-full36m-hidden-rank16-replay-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s80_gpu_safe_alpha_late_rank16_no_old_skill_losses:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s80-gpu-guarded-late-alpha-line-search-20261109'
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '780078'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Compile and exclude ALL inspected QA from GPU TRAIN
+        run: |
+          python -m compileall -q research/calibri2/s80
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72)' research/calibri2/s80/*.py; then exit 1; fi
+      - name: Install exact PyTorch MPS ARM64 plus pinned model stack
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Require physical Apple MPS GPU no fallback
+        run: |
+          python - <<'PY'
+          import platform,torch,json
+          if platform.machine()!='arm64' or not torch.backends.mps.is_available():
+              raise SystemExit('S78 real Apple Metal GPU required, refuse CPU fallback')
+          x=torch.randn((320,320),device='mps',requires_grad=True)
+          f=(x@x.T).square().mean();f.backward();torch.mps.synchronize()
+          if x.grad is None or x.grad.device.type!='mps':
+              raise SystemExit('S78 real Metal GPU gradient check failed')
+          print(json.dumps({'event':'S78_REAL_APPLE_MPS_GPU_TRAIN_DEVICE_PROVEN',
+            'torch':torch.__version__,'hardware':'arm64','gradient_device':'mps'}),flush=True)
+          PY
+      - name: Immutable S45 complete original compressed source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Immutable S61 lossless physically counted compressed source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: S74 completed TRAIN-only real-GPU first-token controller and paid manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s74-real-MPS-GPU-gradients-and-CPU-full-skill-TRAIN-guards
+          path: inputs/s74
+          run-id: 42562744529
+          github-token: ${{ github.token }}
+      - name: True MPS GPU rank16 late-tunnel gradients, protected alpha grid, full CPU all-skill gate
+        run: |
+          python research/calibri2/s80/real_mps_late_rank16_preserve_all_alpha_search.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s74/S74_REAL_GPU_MPS_TRAIN_ONLY_PAID_FIRST_NEURAL.safetensors \
+            inputs/s74/S74_REAL_GPU_ACTUAL_ALL_BYTES_PAID_MANIFEST.json \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            results/s80
+      - name: Archive physically paid real MPS native protected alpha-grid results and old-skill guard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s80-MPS-GPU-later-rank16-safe-alpha-old-skill-guard
+          path: results/s80/
+          if-no-files-found: warn
+          retention-days: 90
