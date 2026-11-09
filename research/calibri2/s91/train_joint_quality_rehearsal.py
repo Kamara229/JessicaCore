@@ -136,11 +136,23 @@ def policy_loss(model, tok, row, first, later, pointer, head,
         # trainable; the real autoregressive decode still gates as before.
         eos_escape=(F.softplus(total[tok.eos_token_id]-total[token]+0.5)
                     if step==1 and token!=tok.eos_token_id else None)
-        if step==1 and eligible and int(total.detach().argmax())!=tok.eos_token_id:
-            # Causal full-sequence prefix states match the first decode pass.
+        if step==1 and eligible:
+            # In the REAL decoder the pointer is hard-gated off when EOS is
+            # already argmax. That discontinuity prevented S89 from teaching
+            # an EOS-trapped query to COPY an answer noun. During TRAIN use a
+            # differentiable surrogate of the exact inference condition:
+            # sigmoid((strongest non-EOS logit - EOS logit) / temperature).
+            # This propagates gradient through the latent source-position
+            # pointer even when pre-pointer EOS would win. The separate
+            # physically reloaded CPU guard STILL uses the genuine hard gate.
             keys=hidden[torch.tensor(eligible,device="mps")]
             extra=pointer.full_vocab_bonus(h,keys,source_ids)
-            total=total.index_add(0,source_ids,extra)
+            eos_id=tok.eos_token_id
+            rival=total.masked_fill(
+                torch.arange(total.numel(),device=total.device)==eos_id,
+                -1.0e8).max()
+            soft_pointer_gate=torch.sigmoid((rival-total[eos_id])/0.7)
+            total=total.index_add(0,source_ids,extra*soft_pointer_gate)
         label=torch.tensor([token],device="mps",dtype=torch.long)
         ce=F.cross_entropy(total[None,:],label)
         if eos_escape is not None:
