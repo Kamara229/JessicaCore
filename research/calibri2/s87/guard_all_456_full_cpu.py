@@ -137,6 +137,10 @@ def main():
     lost_full=[];lost_first=[];gained_full=[];rows=[]
     by_family={}
     timings={"S82":[],"S87":[]}
+    warmup_per_backend=8
+    measured_per_backend=48
+    # Report paired per-generated-token latency, not incomparable prompt wall times.
+    # These are reconstructed PyTorch CPU diagnostics, never native-C acceptance.
     for family, pairs in grouped.items():
         stats={"count":0,"old_full":0,"new_full":0,
                "old_first":0,"new_first":0,"lost_full":0,
@@ -152,8 +156,9 @@ def main():
                     t=time.perf_counter()
                     generated=s82.full_cpu_generate(
                         model,sources,first,later,head,tok,item["question"],pointer)
-                    if len(timings[label])<48:
-                        timings[label].append(time.perf_counter()-t)
+                    elapsed=time.perf_counter()-t
+                    if warmup_per_backend <= stats["count"] < warmup_per_backend+measured_per_backend:
+                        timings[label].append((elapsed, max(1, len(generated))))
                     values.append(generated)
                 before,after=values
                 old_full=before==expected
@@ -183,9 +188,13 @@ def main():
                           **stats}),flush=True)
     if len(rows)!=456 or len({r["id"] for r in rows})!=456:
         raise AssertionError("Not exactly 456 unique TRAIN identities")
-    old_med=statistics.median(timings["S82"])
-    new_med=statistics.median(timings["S87"])
+    if any(len(v)!=measured_per_backend for v in timings.values()):
+        raise AssertionError("Paired CPU benchmark lacks 48 post-warmup samples")
+    old_med=statistics.median(t/nt for t,nt in timings["S82"])
+    new_med=statistics.median(t/nt for t,nt in timings["S87"])
     speed_ratio=old_med/new_med
+    raw_wall_ratio=(statistics.median(t for t,_ in timings["S82"])/
+                    statistics.median(t for t,_ in timings["S87"]))
     results={
         "stage":"S87_456_TRAIN_SERIALIZED_COMPRESSED_CPU_AUDIT",
         "source_old_sha256":sha(original),
@@ -199,8 +208,12 @@ def main():
         "lost_full_ids":lost_full,"lost_first_ids":lost_first,
         "gained_full_ids":gained_full,
         "full_safety_guard":not lost_full and not lost_first,
-        "cpu_speed_ratio_48_prompt_median_S82_over_S87":speed_ratio,
+        "cpu_speed_ratio_48_postwarmup_per_token_median_S82_over_S87":speed_ratio,
+        "cpu_speed_ratio_48_postwarmup_raw_wall_diagnostic":raw_wall_ratio,
+        "cpu_benchmark_warmup_pairs":warmup_per_backend,
+        "cpu_benchmark_samples_per_backend":measured_per_backend,
         "cpu_speed_90pct_guard":speed_ratio>=.9,
+        "native_C_cpu_speed_guard_verified":False,
         "cpu_backend":"PyTorch from actual CB59 compact source; NOT direct C",
         "GPU_CPU_exact_parity_checked":False,
         "never_promote_without_native_CPU_C_and_MPS_parity":True,
