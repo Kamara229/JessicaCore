@@ -1,0 +1,106 @@
+name: CALIBRI S85 FIRST-AND-ONLY new 128 noun QA frozen S74 S80 S82 MPS
+'on':
+  pull_request:
+    types: [opened]
+    branches:
+      - research/calibri2-s84-bitwise-all232-s80-cpu-gpu-provenance-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s85_one_shot_frozen_all_real_models_novel_noun_QA:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s85-sealed-once-novel-nouns-s74-s80-s82-20261109'
+    runs-on: macos-15
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '850085'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Compile and prohibit reading any previously inspected QA
+        run: |
+          python -m compileall -q research/calibri2/s85
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79)' research/calibri2/s85/*.py; then exit 1; fi
+      - name: Install exact pinned Apple Silicon MPS model stack
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: HARD REQUIRE actual Apple Metal GPU and no CPU fallback
+        run: |
+          python - <<'PY'
+          import torch,platform,json
+          if platform.machine()!='arm64' or not torch.backends.mps.is_available():
+              raise SystemExit('S85 actual Apple MPS required, no CPU fallback')
+          a=torch.randn(128,128,device='mps',requires_grad=True)
+          (a@a.T).square().mean().backward();torch.mps.synchronize()
+          if a.grad is None or a.grad.device.type!='mps':
+              raise SystemExit('S85 hardware MPS proof failed')
+          print(json.dumps({'event':'S85_ACTUAL_APPLE_MPS_GPU_PROVEN','hardware':'arm64','mps':True}),flush=True)
+          PY
+      - name: Download immutable S45 physical original 36M compressed CB59
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Download fully counted exact compressed S61 source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: Download frozen accepted real GPU S74 source neural weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s74-real-MPS-GPU-gradients-and-CPU-full-skill-TRAIN-guards
+          path: inputs/s74
+          run-id: 42562744529
+          github-token: ${{ github.token }}
+      - name: Download frozen accepted real GPU S80 later rank16 paid sidecar
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s80-MPS-GPU-later-rank16-safe-alpha-old-skill-guard
+          path: inputs/s80
+          run-id: 42567754593
+          github-token: ${{ github.token }}
+      - name: Download frozen accepted real GPU S82 generic neural pointer
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s82-real-GPU-contextual-token-pointer-TRAIN-only-protected
+          path: inputs/s82
+          run-id: 42569548659
+          github-token: ${{ github.token }}
+      - name: ONE-TIME 128 unseen novel nouns + 4 real open answers frozen candidate study
+        run: |
+          python research/calibri2/s85/sealed_one_shot_128_new_nouns_s74_s80_s82.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            inputs/s74/S74_REAL_GPU_MPS_TRAIN_ONLY_PAID_FIRST_NEURAL.safetensors \
+            inputs/s74/S74_REAL_GPU_ACTUAL_ALL_BYTES_PAID_MANIFEST.json \
+            inputs/s80/S80_GUARDED_ALPHA_GPU_LATER_RANK16_TRAIN_ONLY_CANDIDATE.safetensors \
+            inputs/s80/S80_ALL_INCLUSIVE_PAID_ALPHA_GPU_TRAIN_MANIFEST.json \
+            inputs/s82/S82_REAL_GPU_GENERAL_TOKEN_POINTER_PAID_TRAIN_CANDIDATE.safetensors \
+            inputs/s82/S82_REAL_GPU_ALL_INCLUSIVE_PAID_MANIFEST.json \
+            results/s85
+      - name: Archive one-time challenge SHA and permanently embargoed genuine QA and open text
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s85-ONE-AND-ONLY-new-noun-128-QA-S74-S80-S82-permanently-embargoed
+          path: results/s85/
+          if-no-files-found: warn
+          retention-days: 90
