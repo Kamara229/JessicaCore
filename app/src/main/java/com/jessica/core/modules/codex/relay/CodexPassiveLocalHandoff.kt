@@ -26,7 +26,8 @@ object CodexPassiveLocalHandoff {
 
         val stage = Regex("""^CALIBRI\s+S(\d{1,3})(?=[:.,;\s—–-])""",
             RegexOption.IGNORE_CASE).find(body)?.groupValues?.get(1) ?: return null
-        if (stage.toIntOrNull() !in 1..999) return null
+        val stageNumber = stage.toIntOrNull() ?: return null
+        if (stageNumber !in 1..999) return null
         if (!Regex("""(?:TRAIN|CPU|GPU|GitHub|Green\s+Tunnel|bpp|EOS)""",
                 RegexOption.IGNORE_CASE).containsMatchIn(body)) return null
         if (!Regex("""Следующ(?:ий|ая)\s+шаг\s*[—–:-]\s*\S""",
