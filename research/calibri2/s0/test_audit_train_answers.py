@@ -33,6 +33,26 @@ class TrainAuditTests(unittest.TestCase):
         self.assertEqual(r["nonexclusive_error_flags"]["EOS_at_wrong_position"], 0)
         self.assertEqual(r["full_EOS"], 1)
 
+    def test_missing_eos(self):
+        r = module.audit(payload([11,12,7]))["milestones"][0]
+        self.assertEqual(r["nonexclusive_error_flags"]["expected_EOS_token_absent"], 1)
+        self.assertEqual(r["full_EOS"], 1)
+
+    def test_eos_at_wrong_position(self):
+        r = module.audit(payload([11,99,7]))["milestones"][0]
+        self.assertEqual(r["nonexclusive_error_flags"]["premature_EOS"], 1)
+        self.assertEqual(r["nonexclusive_error_flags"]["EOS_at_wrong_position"], 1)
+
+    def test_adjacent_bigram_repetition(self):
+        r = module.audit(payload([11,12,11,12,99]))["milestones"][0]
+        self.assertEqual(r["nonexclusive_error_flags"]["adjacent_bigram_repetition"], 1)
+
+    def test_missing_opposite_side_rejected(self):
+        p = payload([11,12,99])
+        p["milestones"][0]["actual_answers"].pop()
+        with self.assertRaises(ValueError):
+            module.audit(p)
+
     def test_inconsistent_flag_rejected(self):
         p = payload([11,12,99])
         p["milestones"][0]["actual_answers"][0]["full_with_EOS"] = False
