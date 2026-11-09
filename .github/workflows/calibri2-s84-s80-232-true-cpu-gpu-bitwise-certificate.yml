@@ -1,0 +1,97 @@
+name: CALIBRI S84 immutable S80 full 232 bitwise CPU GPU identity certificate
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s83-original-train-noun-eos-bottleneck-audit-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s84_real_s80_frozen_232_exact_native_cpu_mps_tokens:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s84-bitwise-all232-s80-cpu-gpu-provenance-20261109'
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '840084'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Freeze script and ban all inspected independent QA imports
+        run: |
+          python -m compileall -q research/calibri2/s84
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79)' research/calibri2/s84/*.py; then exit 1; fi
+      - name: Install pinned CPU/MPS torch on actual Apple Silicon
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: HARD require real Apple Metal GPU and backward tensor
+        run: |
+          python - <<'PY'
+          import platform,torch,json
+          if platform.machine()!='arm64' or not torch.backends.mps.is_available():
+              raise SystemExit('S84 REAL Apple MPS GPU required')
+          x=torch.randn((128,128),device='mps',requires_grad=True)
+          (x@x.T).square().mean().backward();torch.mps.synchronize()
+          if x.grad is None or x.grad.device.type!='mps':
+              raise SystemExit('S84 MPS GPU not active')
+          print(json.dumps({'event':'S84_REAL_GPU_MPS_DEVICE_VERIFIED','device':'mps'}),flush=True)
+          PY
+      - name: Download original immutable source CB59
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Download original exact physically counted compressed source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: Download frozen S74 paid real GPU controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s74-real-MPS-GPU-gradients-and-CPU-full-skill-TRAIN-guards
+          path: inputs/s74
+          run-id: 42562744529
+          github-token: ${{ github.token }}
+      - name: Download immutable S80 accepted paid real GPU later controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s80-MPS-GPU-later-rank16-safe-alpha-old-skill-guard
+          path: inputs/s80
+          run-id: 42567754593
+          github-token: ${{ github.token }}
+      - name: Certify every FULL generated token for S74 and S80 on compressed CPU versus true full MPS GPU
+        run: |
+          python research/calibri2/s84/bitwise_certify_s80_physically_paid_232_real_cpu_mps.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            inputs/s74/S74_REAL_GPU_MPS_TRAIN_ONLY_PAID_FIRST_NEURAL.safetensors \
+            inputs/s74/S74_REAL_GPU_ACTUAL_ALL_BYTES_PAID_MANIFEST.json \
+            inputs/s80/S80_GUARDED_ALPHA_GPU_LATER_RANK16_TRAIN_ONLY_CANDIDATE.safetensors \
+            inputs/s80/S80_ALL_INCLUSIVE_PAID_ALPHA_GPU_TRAIN_MANIFEST.json \
+            results/s84
+      - name: Archive original exact 232-token identity certificate, no QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s84-S80-232-full-real-native-CPU-GPU-bitwise-TRAIN-certificate
+          path: results/s84/
+          if-no-files-found: warn
+          retention-days: 90
