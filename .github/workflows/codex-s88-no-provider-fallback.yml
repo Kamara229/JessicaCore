@@ -1,0 +1,27 @@
+name: Codex S88 no-provider-fallback regression
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  codex_s88_relay:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'fix/codex-calibri-s88-no-provider-fallback-20261109'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax-check strict S88 relay and interpreter
+        run: |
+          node --check backend/core/codex/relayCalibriS88ToS89NoTest.js
+          node --check backend/core/codex/relayInterpreter.js
+          node --check backend/scripts/codexS88NoProvider.test.mjs
+      - name: Run deterministic no-provider S88 relay regression
+        run: node --test backend/scripts/codexS88NoProvider.test.mjs
