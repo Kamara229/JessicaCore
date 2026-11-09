@@ -30,7 +30,7 @@ fun CodexScreen() {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("Кодекс", style = MaterialTheme.typography.headlineMedium)
         Text("Джессика участвует в переписке с ChatGPT вместо тебя и проверяет результаты через свой чат.")
-        Text("1. Подготовь в ChatGPT план улучшения backend и попроси его спросить: «Джессика, ты готова?»\n\n" +
+        Text("1. Подготовь в ChatGPT план работы над backend Jessica Core или CALIBRI и попроси его спросить: «Джессика, ты готова?»\n\n" +
             "2. Нажми «Запустить Кодекс», открой эту переписку и нажми «Чат выбран» на панели Джессики.\n\n" +
             "3. Джессика сообщит о готовности, прочитает ответы, выполнит предложенные тесты и вернёт фактические результаты.")
         Text("Код и развёртывание изменяет ChatGPT через свои подключения. Джессика работает с выбранной перепиской и собственными тестовыми чатами. Обновления APK в эту сессию не входят.", style = MaterialTheme.typography.bodySmall)
