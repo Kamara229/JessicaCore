@@ -1,0 +1,83 @@
+name: CALIBRI S72 one-time NEW blind 96 vs S67 S71 and original 135M FP32
+'on':
+  pull_request:
+    types: [opened]
+    branches:
+      - research/calibri2-s71-contextual-neural-gating-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s72_genuinely_fresh_qa_read_only_once:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s72-once-blind-fresh96-with-fp32-20261109'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '720072'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and guard fresh QA instrument against previously inspected QA
+        run: |
+          python -m compileall -q research/calibri2/s72
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68)' research/calibri2/s72/*.py; then exit 1; fi
+      - name: Install pinned CPU-only dependencies (no GPU)
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install numpy==1.26.4 scipy==1.14.1 transformers==4.46.3 datasets==2.21.0 pyarrow==17.0.0 pandas==2.2.3 python-dateutil==2.9.0.post0 safetensors==0.4.5 huggingface_hub==0.27.1 accelerate==1.1.1 protobuf==5.28.3
+      - name: Fetch immutable S45 native compressed FP32-derived source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Fetch immutable physically paid S61 source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: Fetch immutable 0.613 bpp S67 controller only
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s67-fully-paid-new-safe-half-delta-research-only
+          path: inputs/s67
+          run-id: 42532945010
+          github-token: ${{ github.token }}
+      - name: Fetch TRAIN-frozen 0.650 bpp S71 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s71-conditional-neural-tunnel-train-only-outcomes
+          path: inputs/s71
+          run-id: 42536011124
+          github-token: ${{ github.token }}
+      - name: One-shot 96 BRAND-NEW QA and 4 free-form prompts on three frozen models
+        run: |
+          python research/calibri2/s72/one_shot_96_unseen_fp32_context_qa.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s67/S67_HALF_DELTA_RANK128_CANDIDATE_ONLY.safetensors \
+            inputs/s67/S67_FULLY_PAID_EXPLORATORY_MANIFEST.json \
+            inputs/s71/S71_CONTEXT_NEURAL_PAID_CANDIDATE_ONLY.safetensors \
+            inputs/s71/S71_ALL_BYTES_PAID_NEURAL_GATE_MANIFEST.json \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            results/s72
+      - name: Preserve new permanently embargoed QA instrument and immutable results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s72-ONE-TIME-NO-REUSE-original-fp32-vs-s71-s67-sealed-QA
+          path: results/s72/
+          if-no-files-found: warn
+          retention-days: 90
