@@ -211,7 +211,7 @@ def representative_cpu_parity(base_raw,side,archives,all_sides,reports,by_profil
         if sha(text.encode())!=reports["S87"][k]["question_sha256"]:
             raise AssertionError("Prompt text differs from CPU baseline")
     model,sources,first,later,pointer,head,inner=s87.build_cpu(base_raw,side,True)
-    assert install_verified_fastpath(inner)==["3","9"]
+    assert install_verified_fastpath(inner)==("3","9")
     try:
         for profile in PROFILES:
             with torch.no_grad():
