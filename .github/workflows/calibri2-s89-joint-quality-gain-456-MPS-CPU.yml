@@ -1,0 +1,157 @@
+name: CALIBRI S89 real-MPS joint quality gain and full 456 CPU safety
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s88-zero-gate-cpu-fastpath-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s89_joint_paid_core_and_green_tunnel_MPS:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s89-joint-quality-recovery-20261109'
+    runs-on: macos-15
+    timeout-minutes: 95
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '890089'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Syntax and QA embargo
+        run: |
+          python -m compileall -q research/calibri2/s89/
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85)' research/calibri2/s89/*.py; then exit 1; fi
+      - name: Install exact GPU research stack
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Prove actual Apple MPS gradient (no CPU fallback)
+        run: |
+          python - <<'PY'
+          import platform, torch
+          assert platform.machine()=='arm64' and torch.backends.mps.is_available()
+          a=torch.randn((32,32),device='mps',requires_grad=True)
+          (a@a.T).square().mean().backward()
+          torch.mps.synchronize()
+          assert a.grad is not None and a.grad.device.type=='mps'
+          print('S89_REAL_APPLE_MPS_GRADIENT_PROVEN',flush=True)
+          PY
+      - name: Frozen physically trained but unaccepted S87 core and tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-unaccepted-joint-core-internal-tunnel-feasibility
+          path: inputs/s87
+          run-id: 42657528666
+          github-token: ${{ github.token }}
+      - name: Frozen 456 TRAIN S87 negative baseline without QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          path: inputs/s87_guard
+          run-id: 42659248083
+          github-token: ${{ github.token }}
+      - name: Frozen S82 paid controller (no changes)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s82-real-GPU-contextual-token-pointer-TRAIN-only-protected
+          path: inputs/s82
+          run-id: 42569548659
+          github-token: ${{ github.token }}
+      - name: Jointly learn actual controller/pointer-corrected 2-token plus EOS responses
+        run: |
+          python research/calibri2/s89/train_joint_full_policy_quality.py \
+            inputs/s87/S87_UNACCEPTED_NEW_SOURCE_CB61.s61 \
+            inputs/s87/S87_UNACCEPTED_JOINT_PROTOTYPE.safetensors \
+            inputs/s87/S87_UNACCEPTED_JOINT_PHYSICAL_PROTOTYPE_REPORT.json \
+            inputs/s87_guard/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s82/S82_REAL_GPU_GENERAL_TOKEN_POINTER_PAID_TRAIN_CANDIDATE.safetensors \
+            results/s89
+      - name: Archive every checked physically paid hypothesis even if rejected
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s89-unaccepted-MPS-joint-quality-TRAIN-prototypes
+          path: results/s89/
+          retention-days: 90
+          if-no-files-found: warn
+
+  s89_independent_all456_physical_CPU_guard:
+    needs: s89_joint_paid_core_and_green_tunnel_MPS
+    if: needs.s89_joint_paid_core_and_green_tunnel_MPS.result == 'success'
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Install pinned CPU research stack
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Download same-CI MPS-trained prototype
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s89-unaccepted-MPS-joint-quality-TRAIN-prototypes
+          path: inputs/s89
+      - name: Immutable S45 original 36M source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Immutable S82 paid frozen sidecar
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s82-real-GPU-contextual-token-pointer-TRAIN-only-protected
+          path: inputs/s82
+          run-id: 42569548659
+          github-token: ${{ github.token }}
+      - name: Immutable S87 complete 456 greedy and EOS reference
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          path: inputs/s87_guard
+          run-id: 42659248083
+          github-token: ${{ github.token }}
+      - name: Reconstruct physical S89 weights, check 456 TRAIN, require new FULL answers
+        run: |
+          python research/calibri2/s89/guard_gain_456_cpu.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s82/S82_REAL_GPU_GENERAL_TOKEN_POINTER_PAID_TRAIN_CANDIDATE.safetensors \
+            inputs/s89/S89_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s89/S89_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s89/S89_UNACCEPTED_JOINT_PAID_MANIFEST.json \
+            results/s89_full456 \
+            inputs/s87_guard/S87_ALL_456_TRAIN_GUARD_REPORT.json
+      - name: Preserve all 456 outcomes including failed candidates
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s89-full-456-strict-EOS-quality-no-forgetting-and-CPU
+          path: results/s89_full456/
+          retention-days: 90
+          if-no-files-found: warn
