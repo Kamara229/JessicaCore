@@ -1,0 +1,125 @@
+name: CALIBRI S100 one-time new noun full EOS S99 vs S95 S82 physical CPU
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s99-copypolicy-full456-cpu-20261110
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s100_one_shot_source_sanity:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s100-frozen-unseen-full-eos-20261110'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify no S96 imports, no S100 model training, no LIVE edits
+        run: |
+          python3 -m compileall -q research/calibri2/s100/
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s96)' research/calibri2/s100/*.py; then exit 1; fi
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('research/calibri2/s100/frozen_new_nouns_full_cpu.py').read_text()
+          for term in ('CANDIDATE_NOUNS','FROZEN_S100_FRAMES','freeze_developmental_questions','previously_used_S96_nouns_or_questions_never_read','no_training_or_posthoc_router_tuning','candidate_accepted'): assert term in p
+          print('S100_ONE_TIME_SOURCE_FROZEN_NO_SEALED_QA',flush=True)
+          PY
+  s100_actual_CPU_unseen_64:
+    needs: s100_one_shot_source_sanity
+    if: needs.s100_one_shot_source_sanity.result == 'success'
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '1000100'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Install frozen physical research stack
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Frozen S99 full physical 456 TRAIN CPU guard
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s99-unaccepted-full456-physical-neural-noun-copy-CPU
+          path: inputs/s99
+          run-id: 42705657584
+          github-token: ${{ github.token }}
+      - name: Frozen MPS-trained S98 neural copy numeric state
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s98-unaccepted-MPS-neural-second-token-owner-copy-feasibility
+          path: inputs/s98
+          run-id: 42704076897
+          github-token: ${{ github.token }}
+      - name: Frozen S95 numeric routing state
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s95-unaccepted-prompt-only-router-456-strict-CPU
+          path: inputs/s95
+          run-id: 42698707784
+          github-token: ${{ github.token }}
+      - name: Frozen S94 exact Green Tunnel states
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s94-unaccepted-lossless-three-profile-bank-456-TRAIN-feasibility
+          path: inputs/s94
+          run-id: 42697267843
+          github-token: ${{ github.token }}
+      - name: Frozen actual GPU S93 physical compressed source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          path: inputs/s93
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Frozen original CB59 for unchanged S82 baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Frozen S82 original generic context neural pointer
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s82-real-GPU-contextual-token-pointer-TRAIN-only-protected
+          path: inputs/s82
+          run-id: 42569548659
+          github-token: ${{ github.token }}
+      - name: Independent physical full EOS 64 newly-authored noun examples, never S96
+        run: |
+          python research/calibri2/s100/frozen_new_nouns_full_cpu.py \
+            inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
+            inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
+            inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            inputs/s94/S94_ALTERNATE_EXACT_CORE_TUNNEL_BANK.bin \
+            inputs/s94/S94_PROFILE_BANK_FEASIBILITY_REPORT.json \
+            inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s99/S99_ALL456_NEW_NEURAL_COPY_PHYSICAL_TRAIN_AUDIT.json \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s82/S82_REAL_GPU_GENERAL_TOKEN_POINTER_PAID_TRAIN_CANDIDATE.safetensors \
+            results/s100
+      - name: Save irrevocable one-time evidence even on negative results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s100-unaccepted-one-shot-unseen-nouns-CPU-S99-S95-S82
+          path: results/s100/
+          retention-days: 90
+          if-no-files-found: warn
