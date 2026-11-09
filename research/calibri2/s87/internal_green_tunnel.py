@@ -82,6 +82,9 @@ class JointStep:
     core_gradient_norm: float
     tunnel_gradient_norm: float
     selected_codebook_count: int
+    nonzero_core_gradient_tensors: int
+    nonzero_tunnel_gradient_tensors: int
+    zero_tunnel_gradient_tensors: tuple[str, ...]
 
 
 def select_paid_core_codebooks(sources: dict, target_layers=(3, 9)):
@@ -155,12 +158,23 @@ def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
         side = list(tunnel.parameters())
         if any(p.grad is None for p in core + side):
             raise AssertionError("Missing gradients in compressed core or tunnel")
+        # A zero-initialized up projection blocks first-step down/gate gradients.
+        # Count actual nonzero gradients rather than only checking grad != None.
+        nonzero_core = sum(bool(torch.count_nonzero(p.grad).item()) for p in core)
+        nonzero_tunnel = sum(bool(torch.count_nonzero(p.grad).item()) for p in side)
+        zero_tunnel = tuple(name for name, p in tunnel.named_parameters()
+                            if not bool(torch.count_nonzero(p.grad).item()))
+        up_names = tuple(name for name, _ in tunnel.named_parameters()
+                         if name.endswith(".up.weight"))
+        if nonzero_core != len(core) or any(name in zero_tunnel for name in up_names):
+            raise AssertionError("No real joint gradient in paid core or tunnel up")
         core_norm = float(torch.nn.utils.clip_grad_norm_(core, 1.0))
         tunnel_norm = float(torch.nn.utils.clip_grad_norm_(side, 1.0))
         optimizer.step()
         with torch.no_grad():
             for p in core: p.clamp_(-16.0, 16.0)
         return JointStep(float(loss.detach()), core_norm, tunnel_norm,
-                         len(selected_codebooks))
+                         len(selected_codebooks), nonzero_core, nonzero_tunnel,
+                         zero_tunnel)
     finally:
         clear(sources)
