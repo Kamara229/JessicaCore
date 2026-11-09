@@ -106,7 +106,6 @@ def main():
        "S78":s78.new_train(tok)}
     if [len(v)*2 for v in families.values()]!=[64,64,8,32,32,32]:
         raise AssertionError("S84 reference original 232 TRAIN sample count drift")
-    cmodel,sources,head,oldfirst,oldlater=s78.controllers(w74),None,None,None,None
     # Native compressed codebook, not an approximation through a dense
     # output projection; same original source on CPU + MPS.
     from calibri2.s0.bootstrap import build_config
