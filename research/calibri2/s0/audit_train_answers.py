@@ -49,11 +49,11 @@ def audit(payload):
                 "exact_full_EOS": ids == gold,
                 "first_token_correct": ids[0] == gold[0],
                 "expected_EOS_at_end": ids[-1] == gold[-1],
-                "premature_EOS": gold[-1] in ids[:-1],
+                "premature_EOS": gold[-1] in ids[:len(gold)-1],
                 "EOS_at_expected_position": len(ids) >= len(gold) and ids[len(gold)-1] == gold[-1],
             })
             if not row["full_with_EOS"]:
-                if gold[-1] in ids[:-1]:
+                if gold[-1] in ids[:len(gold)-1]:
                     errors["premature_EOS"] += 1
                 if gold[-1] in ids and (len(ids) < len(gold) or ids[len(gold)-1] != gold[-1]):
                     errors["EOS_at_wrong_position"] += 1
