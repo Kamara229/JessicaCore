@@ -119,7 +119,6 @@ class GenericContextPointer(nn.Module):
         attn,gain=self.attention(q[None],keys[None],
                                  torch.ones((1,len(token_ids)),
                                             dtype=torch.bool,device=q.device))
-        size=49152  # fixed is NOT used: actual vocab dimension comes from caller.
         return attn[0]*gain[0]
 
 WORD_CACHE={}
@@ -578,7 +577,16 @@ def main():
                     target[k]=actual
             native[family]=target
         native_summary=summarise(native)
-        exact_match=all(native_summary[k]==best["gpu_native_TRAIN"][k] for k in pairs)
+        # Exact full generated-token identity parity, not aggregate counts:
+        # CPU can achieve the same count on DIFFERENT response identities.
+        # This is an independent GPU repetition of TRAIN only (no QA).
+        pointer_gpu=GenericContextPointer().to("mps").eval()
+        pointer_gpu.load_state_dict(best["state"],strict=True)
+        final_gpu=all_gpu_probe(
+            dense,gpu_first,gpu_later,gpu_head,tok,pairs,pointer_gpu)["rows"]
+        exact_match=all(
+            native[family][key]["actual"]==final_gpu[family][key]["actual"]
+            for family in pairs for key in native[family])
         accepted=(not losses and exact_match and
           native_summary["S82_new"]["full"]>summary_before["S82_new"]["full"])
         result["accepted_native_CPU_safety"]={
