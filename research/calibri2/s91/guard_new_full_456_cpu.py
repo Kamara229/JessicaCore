@@ -95,6 +95,10 @@ def main():
     if len(result["all_456_per_identity_results"])!=456 or len(reference)!=456:
         raise AssertionError("S91 incomplete 456 TRAIN rows")
     fresh_gains=sorted(set(gains)&fresh_ids)
+    s89_old_full=meta.get("measured_original_S89_456_full_correct")
+    if s89_old_full!=225:
+        raise AssertionError("S91 needs same frozen 456 S89 full-accuracy reference")
+    s91_net_vs_s89=sum(r["new_full"] for r in result["all_456_per_identity_results"])-s89_old_full
     report={
         "stage":"S91_PHYSICAL_JOINT_CORE_INTERNAL_TUNNEL_456_FULL_TRAIN_AUDIT",
         "reference_S87_run":42659248083,
@@ -109,6 +113,8 @@ def main():
         "S87_previous_full_correct":sum(
             r["S87_ids"]==r["target_ids"] for r in reference.values()),
         "S91_full_correct":sum(r["new_full"] for r in result["all_456_per_identity_results"]),
+        "S89_previous_full_correct":s89_old_full,
+        "S91_net_full_change_vs_S89":s91_net_vs_s89,
         "physical_all_inclusive_bpp":result["all_inclusive_bpp"],
         "reconstructed_CPU_speed_ratio_S82_over_S91":
             result["cpu_speed_ratio_48_prompt_median_S82_over_S87"],
@@ -126,6 +132,7 @@ def main():
         "old_full":report["S87_previous_full_correct"],
         "new_full":report["S91_full_correct"],
         "new_gains":len(gains),"NEW_target_FULL_EOS_gains":len(fresh_gains),
+        "net_gain_vs_frozen_S89_full_456":s91_net_vs_s89,
         "new_gains_on_untrained_TRAIN":len(untrained),
         "lost_full":len(lost),"lost_first":len(lost_first),
         "physical_bpp":report["physical_all_inclusive_bpp"],
@@ -136,6 +143,8 @@ def main():
         raise SystemExit("REJECTED S91: "+guard_failure)
     if lost or lost_first:
         raise SystemExit("REJECTED S91: forgot old full or first token")
+    if s91_net_vs_s89<=0:
+        raise SystemExit("REJECTED S91: no net improvement on all 456 strict full/EOS TRAIN answers relative to S89")
     if not gains or not fresh_gains:
         raise SystemExit("REJECTED S91: no strictly NEW full/EOS TRAIN answers on additional contrastive pairs")
     if not result["cpu_speed_90pct_guard"]:
