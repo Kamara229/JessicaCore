@@ -1,0 +1,95 @@
+name: CALIBRI S90 physically paid no-forgetting Pareto recovery
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s89-joint-quality-recovery-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s90_physically_reloaded_42_TRAIN_pareto_then_strict_456:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s90-safety-interpolation-20261109'
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '900090'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Syntax, fixed sweep and permanent QA embargo
+        run: |
+          python -m compileall -q research/calibri2/s90/
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85)' research/calibri2/s90/*.py; then exit 1; fi
+          grep -q 'ALPHAS=(0.125,0.25,0.375,0.50,0.75,1.0)' research/calibri2/s90/physical_safe_interpolation.py
+      - name: Install pinned physical CPU stack
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Immutable S87 paid original full core and tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-unaccepted-joint-core-internal-tunnel-feasibility
+          path: inputs/s87
+          run-id: 42657528666
+          github-token: ${{ github.token }}
+      - name: Frozen S89 actual real-MPS joint full-policy prototype
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s89-unaccepted-MPS-joint-quality-TRAIN-prototypes
+          path: inputs/s89
+          run-id: 42669753838
+          github-token: ${{ github.token }}
+      - name: Immutable 456 S87 CPU TRAIN identities and strict EOS targets
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          path: inputs/s87_guard
+          run-id: 42659248083
+          github-token: ${{ github.token }}
+      - name: Immutable physical S45 original compact core
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Immutable frozen S82 neural controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s82-real-GPU-contextual-token-pointer-TRAIN-only-protected
+          path: inputs/s82
+          run-id: 42569548659
+          github-token: ${{ github.token }}
+      - name: Six precommitted physically repacked joint-core/tunnel updates; then full 456 guard
+        run: |
+          python research/calibri2/s90/physical_safe_interpolation.py \
+            inputs/s87/S87_UNACCEPTED_NEW_SOURCE_CB61.s61 \
+            inputs/s87/S87_UNACCEPTED_JOINT_PROTOTYPE.safetensors \
+            inputs/s87/S87_UNACCEPTED_JOINT_PHYSICAL_PROTOTYPE_REPORT.json \
+            inputs/s89/S89_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s89/S89_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s89/S89_UNACCEPTED_JOINT_PAID_MANIFEST.json \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s82/S82_REAL_GPU_GENERAL_TOKEN_POINTER_PAID_TRAIN_CANDIDATE.safetensors \
+            inputs/s87_guard/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s90
+      - name: Preserve positive and NEGATIVE real physical observations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s90-TRAIN-only-physical-Pareto-and-456-full-EOS-audit
+          path: results/s90/
+          retention-days: 90
+          if-no-files-found: warn
