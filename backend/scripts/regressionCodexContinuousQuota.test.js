@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {continuousCalibrIResearchHandoff} from "../core/codex/relayContinuousResearch.js";
-import {interpretRelayTurn} from "../core/codex/relayInterpreter.js";
+import {interpretRelayTurn,CODEX_PROVIDER_INTERPRET_TIMEOUT_MS} from "../core/codex/relayInterpreter.js";
 import {isCodexProviderQuota,recordCodexQuota,isCodexQuotaOpen} from "../core/codex/relayQuotaCircuit.js";
 import {registerCodexRoutes} from "../http/routes/codexRoute.js";
 
@@ -78,4 +78,29 @@ test("authenticated route's unexpected interpreter failure does not return a 503
   const bad=response();
   await handler({body:{message:""}},bad);
   assert.equal(bad.statusCode,400);
+});
+
+test("Groq interpretation deadline is strictly below Android's 25s read timeout",()=>{
+  // Regression: backend 60s used to time out on phone at 25s, so phone
+  // misclassified a safe quota/error handoff as a transport failure.
+  assert.ok(CODEX_PROVIDER_INTERPRET_TIMEOUT_MS>=1000);
+  assert.ok(CODEX_PROVIDER_INTERPRET_TIMEOUT_MS<=15000);
+  assert.ok(CODEX_PROVIDER_INTERPRET_TIMEOUT_MS+2000<25000);
+});
+
+test("Actual S99/S100 CALIBRI progress never spends a provider request",async()=>{
+  const messages=[
+    "CALIBRI S99: CPU-проверка 456 TRAIN продолжается в GitHub. Следующий шаг — установить число правильных полных ответов, потери прежних навыков и скорость. Сбой интерпретации Jessica не является тестом. LIVE не менять.",
+    "CALIBRI S100: создан исследовательский PR. Следующий шаг — проверить полные ответы EOS и CPU на новых вопросах. Jessica не тестировать. LIVE не менять."
+  ];
+  for(const message of messages) {
+    let called=0;
+    const result=await interpretRelayTurn({message},async()=>{
+       called++;throw new Error("Groq intentionally unavailable");
+    });
+    assert.equal(called,0,message);
+    assert.equal(result.action,"reply");
+    assert.equal(result.task,"");
+    assert.equal(result.continueThread,false);
+  }
 });
