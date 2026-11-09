@@ -18,7 +18,12 @@ internal suspend fun CodexChatCoordinator.prepareOutgoingDraft(
                 val alreadyPosted = RelayProtocol.reply(window.content, launch.replyId) != null ||
                     ChatUiPolicy.alreadyPosted(window.content, launch.prompt, launch.replyId)
                 if (alreadyPosted) {
-                    check(state.beginSend(SystemClock.elapsedRealtime())) { "Достигнут предел 60 сообщений" }
+                    if (!state.beginSend(SystemClock.elapsedRealtime())) {
+                        if (state.sends >= state.maxTurns || state.expired(SystemClock.elapsedRealtime()))
+                            finish("Достигнут предел сессии. История сохранена; новую сессию можно запустить вручную.")
+                        else notice("Предыдущая отправка ещё не подтверждена. Повторного нажатия нет.")
+                        return true
+                    }
                     launch.conversation.recordOutgoing(launch.message)
                     reportPhase("sent")
                     if (launch.endAfterSend) finish("Переписка завершена. История и тесты сохранены в чатах Джессики.")

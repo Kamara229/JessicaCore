@@ -1,5 +1,11 @@
 package com.jessica.core.modules.codex.chat
 
+/** Longer runs remain owner-started, bounded and immediately stoppable. */
+object CodexSessionLimits {
+    const val MAX_MESSAGES = 600
+    const val MAX_DURATION_MS = 24L * 60L * 60L * 1000L
+}
+
 /** One explicitly started, bounded session. No automatic retry of an ambiguous send. */
 class ChatRunState(val startedAt: Long, val maxTurns: Int = 3, val durationMs: Long = 60 * 60 * 1000L) {
     var sends = 0; private set

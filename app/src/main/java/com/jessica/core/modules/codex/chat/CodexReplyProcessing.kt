@@ -12,7 +12,7 @@ internal suspend fun CodexChatCoordinator.processAcceptedReply(
     val state = run ?: return
     if (state.sends >= state.maxTurns) {
         if (!retryingInterpretation) launch.conversation.recordIncoming(answer)
-        finish("Достигнут предел сообщений.")
+        finish("Достигнут предел ${state.maxTurns} сообщений. История сохранена. Можно запустить новую сессию вручную.")
         return
     }
     if (outgoingLogPending && !retryingInterpretation) {
