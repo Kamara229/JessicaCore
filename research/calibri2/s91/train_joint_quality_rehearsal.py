@@ -240,12 +240,22 @@ def stable_manifest(meta,packed,side):
 
 
 
-def expand_curriculum(found,targets,protected,trained_meta):
+def expand_curriculum(found,targets,protected,trained_meta,full_s89):
     """Select NEW paired incorrect authorized TRAIN contexts and explicit S89 failures.
 
     Selection uses only the immutable S87 456 TRAIN report plus S89 TRAIN
     mini-guard failures. No QA/DEV/TEST is read or indirectly selected.
     """
+    if (full_s89["stage"]!="S89_PHYSICAL_JOINT_CORE_INTERNAL_TUNNEL_456_FULL_TRAIN_AUDIT"
+            or full_s89["all_456_train_ids_checked"] is not True
+            or full_s89["S87_previous_full_correct"]!=196
+            or full_s89["S89_full_correct"]!=225):
+        raise AssertionError("S91 requires frozen measured S89 full 456 negative audit")
+    acquired=set(full_s89["S89_new_strict_full_EOS_correct_ids"])
+    regression=set(full_s89["lost_previous_full_correct_ids"])
+    regression_first=set(full_s89["lost_previous_first_correct_ids"])
+    if len(acquired)!=63 or len(regression)!=34 or len(regression_first)!=2:
+        raise AssertionError("S91 cannot guess S89 measured 63 gained / 34 lost")
     target_ids={x["id"] for x in targets}
     if (set(trained_meta["targeted_wrong_TRAIN_ids"])!=target_ids or
             not trained_meta["selected_miniguard"]["gained"]):
@@ -253,7 +263,7 @@ def expand_curriculum(found,targets,protected,trained_meta):
     fresh_pairs={}
     for item in found.values():
         old=item["prior"]
-        if (item["family"]=="S82_new" and item["id"] not in target_ids
+        if (item["family"]=="S82_new" and item["id"] not in target_ids and item["id"] not in acquired
                 and len(item["expected"])==3 and old["old_first"]
                 and not old["old_full"]):
             stem=item["id"].rsplit("/",1)[0]
@@ -264,11 +274,12 @@ def expand_curriculum(found,targets,protected,trained_meta):
            if len(pair)==2 for r in pair][:12]
     if len(fresh)!=12 or set(x["id"] for x in fresh)&target_ids:
         raise AssertionError("S91 requires six NEW never-used S89 TRAIN pairs")
-    hard_failures=list(dict.fromkeys(
-        trained_meta["selected_miniguard"].get("lost_full",[])+
-        trained_meta["selected_miniguard"].get("lost_first",[])))
+    hard_failures=sorted(regression|regression_first)
+    if not set(trained_meta["selected_miniguard"].get("lost_full",[])).issubset(
+            hard_failures):
+        raise AssertionError("S91 must replay every known S89 miniguard regression")
     repair=[found[k] for k in hard_failures]
-    if not repair or any(not x["prior"]["old_full"] for x in repair):
+    if not repair or any(not x["prior"]["old_first"] for x in repair):
         raise AssertionError("S91 expected authentic prior-correct S89 forgotten rows")
     # Replay from EVERY original family, not just the 30 S89 mini-sample.
     pool=sorted([r for r in found.values() if r["prior"]["old_full"]],
@@ -277,7 +288,8 @@ def expand_curriculum(found,targets,protected,trained_meta):
             any(r["family"]==family for r in pool)
             for family in ("S30","S54","history","S69","S73","S82_new")):
         raise AssertionError("S91 complete original correct TRAIN replay unavailable")
-    return fresh,repair,pool
+    acquired_replay=[found[k] for k in sorted(acquired)]
+    return fresh,repair,pool,acquired_replay
 
 
 def main():
@@ -286,6 +298,7 @@ def main():
     p.add_argument("S89_physical_CB61",type=Path)
     p.add_argument("S89_safetensors",type=Path)
     p.add_argument("S89_manifest",type=Path)
+    p.add_argument("S89_FULL_456_audit",type=Path)
     p.add_argument("S87_complete_456_guard",type=Path)
     p.add_argument("S82_original_safetensors",type=Path)
     p.add_argument("out",type=Path)
@@ -302,6 +315,7 @@ def main():
     old_side=load_file(str(a.S89_safetensors))
     old_meta=json.loads(a.S89_manifest.read_text())
     reference=json.loads(a.S87_complete_456_guard.read_text())
+    full_s89=json.loads(a.S89_FULL_456_audit.read_text())
     baseline_s82=a.S82_original_safetensors.read_bytes()
     if (hash_bytes(old_bytes)!=old_meta["source_CB61_physical_sha256"] or
         hash_bytes(old_raw)!=old_meta["source_sha256"] or
@@ -317,7 +331,7 @@ def main():
     tok=AutoTokenizer.from_pretrained(MODEL,revision=MODEL_SHA)
     s30.TOK=tok
     rows,targets,protected=references(tok,reference)
-    fresh,repair,pool=expand_curriculum(rows,targets,protected,old_meta)
+    fresh,repair,pool,acquired=expand_curriculum(rows,targets,protected,old_meta,full_s89)
     student,sources=create_small_paid_model(
         CB59(old_raw),build_config(s87.MODEL_SPEC))
     student.to("mps").eval().requires_grad_(False)
@@ -346,6 +360,7 @@ def main():
        "NEW_wrong_TRAIN_target_count":len(fresh),
        "new_target_ids":[r["id"] for r in fresh],
        "repair_previous_S89_forgetting_count":len(repair),
+       "replay_S89_NEW_FULL_EOS_gains":len(acquired),
        "all_previous_correct_TRAIN_replay_pool":len(pool),
        "protected_interleaved_count":len(protected),
        "trainable_paid_core_codebooks":list(core),
@@ -362,6 +377,7 @@ def main():
             targets[(step-1)%len(targets)]]
         chosen_protected=[
             repair[(step-1)%len(repair)],
+            acquired[(step*11)%len(acquired)],
             pool[(step*7)%len(pool)],
             rng.choice(protected)]
         loss_values=[]
@@ -397,7 +413,7 @@ def main():
             clear(sources)
             raw,side,src_path,side_path,mutation=materialize_candidate(
                 old_raw,sources,inner,old_side,a.out,step)
-            mini=sample_guard(raw,side,tok,targets+fresh,protected+repair,reference)
+            mini=sample_guard(raw,side,tok,targets+fresh+acquired,protected+repair,reference)
             fresh_ids={r["id"] for r in fresh}
             fresh_gains=[k for k in mini["gained"] if k in fresh_ids]
             within=(len(src_path.read_bytes())+len(side_path.read_bytes())+
@@ -429,7 +445,7 @@ def main():
        "source_sha256":hash_bytes(selected_raw),
        "source_CB61_physical_sha256":hash_bytes(out_source.read_bytes()),
        "old_S82_sidecar_sha256":hash_bytes(baseline_s82),
-       "base_S87_sidecar_sha256":hash_bytes(old_side_raw),
+
        "prototype_sidecar_sha256":hash_bytes(out_side.read_bytes()),
        "all_previous_inspected_QA_embargoed":True,
        "joint_MPS_train_both_physical_core_and_internal_tunnel":True,
@@ -438,6 +454,9 @@ def main():
        "targeted_wrong_TRAIN_ids":[r["id"] for r in targets+fresh],
        "newly_targeted_wrong_TRAIN_ids":[r["id"] for r in fresh],
        "old_S89_full_repair_TRAIN_ids":[r["id"] for r in repair],
+       "measured_original_S89_456_full_correct":225,
+       "measured_original_S89_456_gained_ids":sorted(r["id"] for r in acquired),
+       "measured_original_S89_456_lost_full_ids":sorted(r["id"] for r in repair),
        "new_full_gains_on_new_TRAIN_from_mini":info["newly_targeted_FULL_EOS_gains"],
        "selected_miniguard":info["mini"],
        "all_snapshot_preflight":snapshots,
