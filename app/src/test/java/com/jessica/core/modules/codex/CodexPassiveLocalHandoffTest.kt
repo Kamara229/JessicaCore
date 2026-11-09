@@ -27,7 +27,7 @@ class CodexPassiveLocalHandoffTest {
         assertFalse(direct!!.endSession)
         assertTrue(direct.text.contains("CALIBRI S101"))
         assertTrue(direct.text.contains("Тест Jessica не запускала"))
-        val wrapped = "JESSICA_REPLY_$uuid\\n\\n$short\\n\\nJESSICA_END_$uuid"
+        val wrapped = "JESSICA_REPLY_$uuid\n\n$short\n\nJESSICA_END_$uuid"
         assertNotNull(CodexPassiveLocalHandoff.response(wrapped))
         assertNull(CodexPassiveLocalHandoff.response(
             wrapped.replace("JESSICA_END_$uuid",
