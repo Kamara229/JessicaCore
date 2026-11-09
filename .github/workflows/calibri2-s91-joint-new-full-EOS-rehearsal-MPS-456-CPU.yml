@@ -9,7 +9,7 @@ permissions:
   actions: read
 jobs:
   s91_joint_paid_core_and_green_tunnel_MPS:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s91-joint-quality-recovery-20261109'
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s91-joint-new-full-answers-adaptive-replay-20261109'
     runs-on: macos-15
     timeout-minutes: 95
     env:
@@ -20,7 +20,7 @@ jobs:
       OPENBLAS_NUM_THREADS: '2'
       TOKENIZERS_PARALLELISM: 'false'
       HF_HUB_DISABLE_TELEMETRY: '1'
-      PYTHONHASHSEED: '890089'
+      PYTHONHASHSEED: '910091'
     steps:
       - uses: actions/checkout@v4
         with:
