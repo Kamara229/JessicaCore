@@ -59,6 +59,15 @@ class RelayConversation(
         context.takeLast(16).forEach { recent.put(JSONObject().put("role", if (it.isUser) "user" else "assistant")
             .put("content", it.text.takeLast(6000))) }
         if (!retryingInterpretation) recordIncoming(message)
+        // Passive research statuses need no network or AI provider. Route
+        // these on the device before contacting Groq/Render; explicit test
+        // commands, unknown formats and completion signals still go through
+        // the remote interpreter and its existing safety rules.
+        val localProgress = CodexPassiveLocalHandoff.response(message)
+        if (localProgress != null) {
+            notice("CALIBRI: сообщение принято без сетевого анализа и без теста.")
+            return localProgress
+        }
         notice("Вижу ответ ChatGPT и анализирую. Учитываю план и предыдущие результаты…")
         val decision = try {
             interpret(JSONObject().put("message", message).put("plan", plan.take(12000))
