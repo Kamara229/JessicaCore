@@ -150,7 +150,7 @@ def main():
     records=[]
     # Unscored warmups; only TRAIN prompts.
     s56.greedy_first_active(cpu_model,sources,cpu_first,cpu_mixer,head_cpu,tok,questions[0][1])
-    dense_mps_greedy(gpu_model,tok,gpu_first,gpu_mixer,head_gpu,questions[0])
+    dense_mps_greedy(gpu_model,tok,gpu_first,gpu_mixer,head_gpu,questions[0][1])
     for i,(family,q) in enumerate(questions):
         order=("cpu","mps") if i%2==0 else ("mps","cpu")
         answers={};times={}
