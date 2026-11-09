@@ -132,7 +132,7 @@ def load_frozen_numeric_weights(a):
     scorer=TinyCopyScorer()
     scorer.load_state_dict(load_file(str(a.S98_copy_net)),strict=True)
     scorer.eval().requires_grad_(False)
-    if not torch.all(torch.isfinite(t) for t in scorer.parameters()):
+    if not all(bool(torch.isfinite(t).all()) for t in scorer.parameters()):
         raise AssertionError("Nonfinite trained S98 neural copy scorer")
     return p94,p95,p98,bank,net,scorer
 
