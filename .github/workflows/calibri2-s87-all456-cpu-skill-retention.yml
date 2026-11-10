@@ -50,12 +50,32 @@ jobs:
           path: inputs/s82
           run-id: 42569548659
           github-token: ${{ github.token }}
+      - name: Resolve successful MPS artifact from exactly this PR HEAD
+        id: mps
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.payload.pull_request.head.sha;
+            const {data} = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner, repo: context.repo.repo,
+              workflow_id: 'calibri2-s87-joint-core-internal-green-tunnel-MPS.yml',
+              head_sha: sha, event: 'pull_request', per_page: 100
+            });
+            const runs = data.workflow_runs.filter(r => r.head_sha === sha &&
+              r.head_branch === 'research/calibri2-s87-joint-core-green-tunnel-20261109' &&
+              r.status === 'completed' && r.conclusion === 'success');
+            if (runs.length !== 1) {
+              core.setFailed('FAIL CLOSED: exactly one successful MPS run for identical HEAD SHA required; found '+runs.length);
+              return;
+            }
+            core.setOutput('run_id', String(runs[0].id));
+            core.setOutput('head_sha', sha);
       - name: S87 actual MPS-trained but UNACCEPTED compressed-source prototype
         uses: actions/download-artifact@v4
         with:
           name: calibri-s87-unaccepted-joint-core-internal-tunnel-feasibility
           path: inputs/s87
-          run-id: 42657528666
+          run-id: ${{ steps.mps.outputs.run_id }}
           github-token: ${{ github.token }}
       - name: Audit all 456 full TRAIN identities and measured reconstructed CPU speed
         run: |
