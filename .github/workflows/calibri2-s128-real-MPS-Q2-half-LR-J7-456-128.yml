@@ -8,7 +8,7 @@ permissions:
   actions: read
 concurrency:
   group: calibri-s128-actual-q2-gate-mps-physical-guard
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   s128_J7_actual_Q2_gate_12layer_456_128:
     runs-on: macos-15
@@ -21,7 +21,7 @@ jobs:
       OPENBLAS_NUM_THREADS: '2'
       TOKENIZERS_PARALLELISM: 'false'
       HF_HUB_DISABLE_TELEMETRY: '1'
-      PYTHONHASHSEED: '1270127'
+      PYTHONHASHSEED: '1280128'
     steps:
       - uses: actions/checkout@v4
         with:
