@@ -1,0 +1,26 @@
+# CALIBRI 2.0 S120 — paired counterfactual gradient projection, protected original skills
+
+**Research branch only. No model acceptance, production/Jessica test or live deployment.** Frozen original S101 compressed 36M core and trained Green Tunnel donors stay untouched. Original S87/S91/S93 full 456 TRAIN, S94 physical bank, S95 prompt-only router, S98 copy and S101 cached CPU are immutable. All inspected QA/TEST sets, **including S118's already inspected 128 fresh cases**, remain strictly excluded from experiment inputs, code imports, model selection and tuning.
+
+## Why a DIFFERENT experiment after S118
+
+- S115 found a tentative **354/456** full+EOS on historical TRAIN (one gained, zero forgotten), 0.699828 bpp, ~0.99 CPU S101.
+- S118 evaluated S115 once on 128 freshly held-out questions and found **30/128** full+EOS vs **31/128** for S101; first-token **64/128** vs **65/128**. This is a negative one-shot result: S115 is *not* generalization-validated. Those 128 questions are now **INSPECTED** and cannot be used to train, choose hyperparameters, or repeat validation. No source from S118 is imported in this branch.
+- S117 independently computed on real Apple MPS the 340D per-example gradient matrix for 8 wrong-first historical TRAIN questions vs 23 protected original TRAIN (7 S112-forgotten +16 diverse correct). 92/184 gradient pairs opposed, but the FP64 Dykstra halfspace projection left 71.2% of the unconstrained direction and violated zero protected FIRST-ORDER losses. This is NOT exact full+EOS retention.
+- S119 tests that 8-single-question gradient strategy physically, currently independent.
+- S120's *separate* algorithmic hypothesis is that 228 **already available TRAIN counterfactual pairs** should be trained symmetrically rather than treating each question independently. This can test an inductive owner-binding rule without introducing new unseen QA examples or tuning based on S118.
+
+## Prespecified S120 procedure
+
+1. Reconstruct original immutable physical S101 CPU and verify exactly 353/456 complete+EOS, 387/456 first; recheck source SHA hashes against S99.
+2. From the original 228 TRAIN pairs, select **8 complete left/right counterfactual pairs** (16 original TRAIN sides) deterministically, round robin by the six existing TRAIN families. Both sides must route to S93 by **frozen S95**, and at least one side must have a wrong first token. Never use answer identity at inference. Only original TRAIN targets determine which pairs to train.
+3. Add BOTH sides of every selected pair to the real Apple MPS loss. For each side use the original S91 differentiable full+EOS controller surrogate plus the **actual original S101 first-decoder logits cross entropy**. Protected first-correct examples get a lower first-token weight. Pair gradient is the MEAN of the two independent example gradients, making both counterfactual directions equally important.
+4. Freeze original 36M compressed core/GT3/GT9, original S82 first/later/pointer controllers, S87/S91 profile bank, S95 router and S98 copier. Only the **340 prompt-conditioned S111 coefficients** receive real MPS gradients at zero initialization.
+5. Define protected original TRAIN constraints as all **7** previously correct S112-forgotten examples, **16** other correct S93 TRAIN examples balanced by family, and **every already correct counterpart** of a chosen pair. Independently evaluate these gradients.
+6. Project the 8 mean-pair descent gradients onto a numerically constrained intersection of all protected loss-non-increase halfspaces (FP64 Dykstra). This is only a first-order *surrogate* guarantee.
+7. If and only if a finite, nonzero, locally feasible direction exists, try **three fixed predeclared L∞ strengths 0.015/0.030/0.060** on the S111 zero-initialized conditional 340 coefficient matrix; serialize them as a single FP16 `safetensors` tensor plus counted prefill-only runtime descriptor, then independently reload and regenerate ALL 456 historical TRAIN answers through the genuine S101 frozen S95/S98 KV-cache. Require **ZERO lost old 353 full+EOS and ZERO lost old 387 first tokens**, all-inclusive physical ≤0.700000 bpp and paired CPU speed ≥90% original S101. Any failure => candidate rejected.
+8. Candidate results are exploratory **TRAIN** evidence only. Neither S118 nor any previous inspected QA can validate a new S120 candidate. Before any new generalization claim, freeze a single candidate and preregister a completely NEW independent one-shot holdout, plus canonical native CPU, CPU/MPS and diverse free-form ability benchmarks. If no safe candidate exists, report the negative result rather than retuning against seen tests.
+
+## Data hygiene / no speculative quality claims
+
+The original 456 TRAIN set remains a development set rather than independent QA; repeated model choices based on 456 are subject to overfitting. The S118 negative outcome is final evidence about S115 only. S120 does not use S118 questions, words, names, case IDs, outcomes or aggregate split metrics as training inputs or optimization constraints. No lookup table or oracle target at inference. The only trusted quality score is real physically serialized S101 full greedy answers including EOS with frozen S95 route and S98 copied second token.
