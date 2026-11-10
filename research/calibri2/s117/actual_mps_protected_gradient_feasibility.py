@@ -193,7 +193,7 @@ def main():
                 loss,bridge.coefficients,retain_graph=False)
             if (grad is None or not bool(torch.isfinite(grad).all())):
                 raise AssertionError("S117 no real MPS gradient in 340D bridge")
-            gradients[key]=grad.detach().to("cpu",dtype=torch.float64).flatten()
+            gradients[key]=grad.detach().cpu().to(dtype=torch.float64).flatten()
             per_example_losses[key]=float(loss.detach())
             clear(sources)
             print(json.dumps({
