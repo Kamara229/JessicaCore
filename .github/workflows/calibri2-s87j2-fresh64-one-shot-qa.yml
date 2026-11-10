@@ -1,0 +1,75 @@
+name: CALIBRI S87-J2 sealed fresh64 one-shot held-out CPU QA (read-only)
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s87j2-controller-aligned-joint-green-tunnel-20261110
+permissions:
+  contents: read
+  actions: read
+jobs:
+  fresh64_one_shot_embargoed:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s87j2-fresh64-one-shot-20261110'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '870087'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify sealed QA-only code and disallow prior inspected QA imports
+        run: |
+          python -m compileall -q research/calibri2/s87
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s100)' research/calibri2/s87/qa_fresh64_one_shot.py; then exit 1; fi
+      - name: Install pinned CPU inference stack
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Download immutable original S45 36M CB59
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Download immutable S82 controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s82-real-GPU-contextual-token-pointer-TRAIN-only-protected
+          path: inputs/s82
+          run-id: 42569548659
+          github-token: ${{ github.token }}
+      - name: Download sealed S87-J2 checkpoint from successful full456 guarded run
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87j2-unaccepted-aligned-controller-joint-full456-CPU-GPU-evidence
+          path: inputs/j2
+          run-id: 42808371081
+          github-token: ${{ github.token }}
+      - name: Exactly one read-only fresh64 QA; compare original S82 to unchanged compressed S87-J2
+        run: |
+          python research/calibri2/s87/qa_fresh64_one_shot.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s82/S82_REAL_GPU_GENERAL_TOKEN_POINTER_PAID_TRAIN_CANDIDATE.safetensors \
+            inputs/j2/s87_joint/S87_UNACCEPTED_NEW_SOURCE_CB61.s61 \
+            inputs/j2/s87_joint/S87_UNACCEPTED_JOINT_PROTOTYPE.safetensors \
+            inputs/j2/s87_joint/S87_UNACCEPTED_JOINT_PHYSICAL_PROTOTYPE_REPORT.json \
+            results/qa64
+      - name: Preserve ONE-SHOT evidence; do not train or auto-promote
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s87j2-sealed-fresh64-one-shot-QA-no-promotion
+          path: results/qa64/
+          retention-days: 90
+          if-no-files-found: warn
