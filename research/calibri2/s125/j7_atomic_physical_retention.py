@@ -103,10 +103,13 @@ def atomic_train_block(
     only then adjust future LR. The callback is invoked again after
     rollback, proving physical old answers are restored.
     """
-    if (not trainable_params or not 0<reduction_factor<1
-            or not optimizer.param_groups or
-            any(p not in [q for group in optimizer.param_groups
-                          for q in group["params"]] for p in [])):
+    optimizer_ids={id(q) for group in optimizer.param_groups
+                   for q in group["params"]}
+    if (not trainable_params or not math.isfinite(reduction_factor)
+            or not 0<reduction_factor<1
+            or not optimizer.param_groups
+            or len({id(p) for p in trainable_params})!=len(trainable_params)
+            or any(id(p) not in optimizer_ids for p in trainable_params)):
         raise ValueError("Invalid transaction configuration")
     original_params=[x.detach().clone() for x in trainable_params]
     original_opt=copy.deepcopy(optimizer.state_dict())
