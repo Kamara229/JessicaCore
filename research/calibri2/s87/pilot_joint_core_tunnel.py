@@ -236,19 +236,34 @@ def main():
         "original_S82_was_not_modified":True,
         "main_LIVE_Jessica_Render_Supabase_APK_untouched":True,
     }
+    # Account for the EXACT bytes written, including JSON formatting and UTF-8.
+    # The manifest contains its own byte count, so solve that fixed point.
+    def manifest_bytes():
+        return json.dumps(proposed_meta, indent=2, ensure_ascii=False,
+                          sort_keys=True).encode("utf-8")
     for _ in range(30):
-        manifest = json.dumps(proposed_meta, indent=2, sort_keys=True).encode()
-        total = len(packed)+prototype_side.stat().st_size+len(manifest)
-        fields = {"physical_source_bytes":len(packed),
-                  "full_controller_bytes":prototype_side.stat().st_size,
-                  "manifest_bytes":len(manifest),
-                  "all_inclusive_physical_bytes":total,
-                  "all_inclusive_physical_bpp":f"{8*total/SOURCE_PARAMS:.12f}",
-                  "within_0_7_bpp":8*total/SOURCE_PARAMS <= MAX_BPP}
-        if all(proposed_meta.get(k) == v for k,v in fields.items()): break
+        manifest = manifest_bytes()
+        total = len(packed) + prototype_side.stat().st_size + len(manifest)
+        fields = {"physical_source_bytes": len(packed),
+                  "full_controller_bytes": prototype_side.stat().st_size,
+                  "manifest_bytes": len(manifest),
+                  "all_inclusive_physical_bytes": total,
+                  "all_inclusive_physical_bpp": f"{8*total/SOURCE_PARAMS:.12f}",
+                  "within_0_7_bpp": 8*total/SOURCE_PARAMS <= MAX_BPP}
+        if all(proposed_meta.get(k) == v for k, v in fields.items()):
+            break
         proposed_meta.update(fields)
+    else:
+        raise AssertionError("Physical manifest byte-count did not converge")
+    manifest = manifest_bytes()
+    if (len(manifest) != proposed_meta["manifest_bytes"] or
+            len(packed) + prototype_side.stat().st_size + len(manifest) !=
+            proposed_meta["all_inclusive_physical_bytes"]):
+        raise AssertionError("Physical manifest bytes mismatch")
+    if not proposed_meta["within_0_7_bpp"]:
+        raise AssertionError("S87 prototype exceeds physical all-in bpp cap")
     result_json = a.out/"S87_UNACCEPTED_JOINT_PHYSICAL_PROTOTYPE_REPORT.json"
-    result_json.write_text(json.dumps(proposed_meta,indent=2,ensure_ascii=False))
+    result_json.write_bytes(manifest)
     print(json.dumps({"event":"S87_UNACCEPTED_PROTOTYPE_END",
                       "joint_gradient_steps":len(steps),
                       "physical_bpp":proposed_meta["all_inclusive_physical_bpp"],
