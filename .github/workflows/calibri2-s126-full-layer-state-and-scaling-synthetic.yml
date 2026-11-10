@@ -1,0 +1,44 @@
+name: CALIBRI S126 full-12-layer recurrent GT and 36M-to-135M gate synthetic checks
+'on':
+  push:
+    branches:
+      - research/calibri2-s126-full-layer-gt-progressive-scale-20261111
+permissions:
+  contents: read
+concurrency:
+  group: calibri-s126-full-depth-synthetic-only
+  cancel-in-progress: true
+jobs:
+  s126_full_layer_and_capacity_synthetic_ONLY:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '1260126'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU tensor and physical sidecar libraries
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'safetensors==0.4.5'
+      - name: Compile S126 and ensure no inspected QA or LIVE imports
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri2/s126
+          if grep -RE '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s96|s100|s118)' research/calibri2/s126/*.py; then
+            echo 'Inspected heldout QA imported'; exit 1
+          fi
+      - name: Verify all twelve layers, exact zero parity and full Adam-ready gradient
+        run: |
+          python -m unittest -v calibri2.s126.test_full_layer_state_tunnel calibri2.s126.test_progressive_capacity
+      - name: Report research-only stage, no source model accepted
+        run: |
+          echo 'S126_SYNTHETIC_ONLY_NO_REAL_S101_MODEL_TRAINED_NO_QA_USED'
