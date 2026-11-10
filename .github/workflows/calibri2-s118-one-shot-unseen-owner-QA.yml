@@ -1,0 +1,120 @@
+name: CALIBRI S118 one shot new independent 128 counterfactual QA S101 vs S115 prefill
+'on':
+  push:
+    branches:
+      - research/calibri2-s118-once-only-fresh-heldout-s115-20261110
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri-s118-single-use-new-owner-QA
+  cancel-in-progress: true
+jobs:
+  one_shot_frozen_S115_fresh_unseen_qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '1180118'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Hard gate on frozen S115 real original 456 TRAIN full EOS guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42886730329 --jq .conclusion)" = "success"
+      - name: Install exact S101 frozen CPU inference dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify the precommitted new QA recipe was not trained on and passes syntax
+        run: |
+          python -m compileall -q research/calibri2/s118
+          if grep -RE '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s96|s100)' research/calibri2/s118/*.py; then exit 1; fi
+      - name: Immutable original S99 CPU source report
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s99-unaccepted-full456-physical-neural-noun-copy-CPU
+          path: inputs/s99
+          run-id: 42705657584
+          github-token: ${{ github.token }}
+      - name: Immutable S101 CPU KV cache baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s101-unaccepted-456-full-EOS-KV-cache-CPU-parity-and-speed
+          path: inputs/s101
+          run-id: 42710297657
+          github-token: ${{ github.token }}
+      - name: Immutable S115 prefill only physical sidecar and runtime config
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s115-unaccepted-S112-KV-phase-5-masks-real-456-CPU
+          path: inputs/s115
+          run-id: 42886730329
+          github-token: ${{ github.token }}
+      - name: Immutable S98 numeric second token copier
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s98-unaccepted-MPS-neural-second-token-owner-copy-feasibility
+          path: inputs/s98
+          run-id: 42704076897
+          github-token: ${{ github.token }}
+      - name: Immutable S95 three profile numeric router
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s95-unaccepted-prompt-only-router-456-strict-CPU
+          path: inputs/s95
+          run-id: 42698707784
+          github-token: ${{ github.token }}
+      - name: Immutable S94 exact three profile bank
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s94-unaccepted-lossless-three-profile-bank-456-TRAIN-feasibility
+          path: inputs/s94
+          run-id: 42697267843
+          github-token: ${{ github.token }}
+      - name: Immutable compressed S93 CB61 weights and original GT3 GT9
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          path: inputs/s93
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Run one shot novel synthetic owner binding QA 128 actual CPU full EOS cases
+        run: |
+          python research/calibri2/s118/one_shot_disjoint_owner_qa_cpu.py \
+            inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
+            inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
+            inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            inputs/s94/S94_ALTERNATE_EXACT_CORE_TUNNEL_BANK.bin \
+            inputs/s94/S94_PROFILE_BANK_FEASIBILITY_REPORT.json \
+            inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s99/S99_ALL456_NEW_NEURAL_COPY_PHYSICAL_TRAIN_AUDIT.json \
+            inputs/s101/S101_KV_CACHE_EXACT_S99_456_TRAIN_CPU_GUARD.json \
+            inputs/s115/S115_REJECTED_S112_TEMPORAL_GREEN_TUNNEL_REPORT.json \
+            inputs/s115/S115_UNACCEPTED_prefill_only_S93_SIDECAR.safetensors \
+            inputs/s115/S115_UNACCEPTED_prefill_only_RUNTIME_CONFIG.json \
+            results/s118
+      - name: Preserve first and ONLY one shot aggregate QA report no fitting
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s118-one-shot-new-128-owner-qa-S101-vs-S115-no-training
+          path: results/s118/
+          retention-days: 90
+          if-no-files-found: warn
