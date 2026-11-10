@@ -1,0 +1,40 @@
+name: CALIBRI S125 transplant J7 transaction atomic Adam rollback and complete S101 physical guard synthetic tests
+'on':
+  push:
+    branches:
+      - research/calibri2-s125-j7-transactional-s124-20261111
+permissions:
+  contents: read
+concurrency:
+  group: calibri-s125-J7-atomic-rollback-synthetic-tests
+  cancel-in-progress: true
+jobs:
+  test_J7_atomic_retention_synthetic_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '1250125'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU tensor library to test exact Adam rollback
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Static check that transplant never imports heldout QA or changes LIVE
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri2/s125
+          if grep -RE '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s96|s100|s118)' research/calibri2/s125/*.py; then
+            echo "Inspected QA import detected"; exit 1
+          fi
+      - name: Verify S125 atomic 8 step limit and rollback of both weight and Adam
+        run: |
+          python -m unittest -v calibri2.s125.test_j7_atomic_physical_retention
