@@ -133,3 +133,46 @@ presented as parameter-matched FP32.
   parity and a preregistered new held-out QA.
 - Never touch `main`, LIVE Jessica, Render, Supabase or APK; never merge
   or promote without explicit user instruction.
+
+
+## Original CALIBRI V-series transfer — newly verified research decision
+
+Read `V_LEGACY_INVENTORY.md` (144 V source directories, 118 session
+notes) and `V_LEGACY_TRANSFER_AUDIT.md` (physical evidence and
+prioritized hypotheses). Key external-to-S102 controls:
+
+- V128: a whitespace token falsely looked like gold content; our
+  new `v_legacy_quality_diagnostics.py` logs lexical empty first
+  tokens and **actual** full+EOS.
+- V165/V166: output top-K is often unable to recover absent truth;
+  place content-conditioned interventions upstream, not only on
+  logits, but confirm 36M-specific layer importance before changing
+  placement. 135M teacher hidden states are NOT compatible tensors.
+- V222/V225: equal first tokens can hide second-token and late-loop
+  regressions; diagnose FIRST DIVERGENCE on whole autoregressive
+  S101 greedy outputs.
+- V226/V228: four out of five observed repeats were actually gold;
+  never suppress a repeated token unless it disagrees with its
+  target or harms EOS.
+- V231/V232: arbitrary answer-format 'Yes' collapse and repeated
+  strict-parser failures; keep paired opposite prompts and human
+  review of raw answers, not naive one-letter accuracy.
+- V120–V126 standalone 8.2MB cross-host neural Green is **not** the
+  S102 2-layer internal Green Tunnel. Its numerical weights cannot
+  be transplanted into S102's ~1,940-byte remaining physical budget.
+  Only its experiment logic is transferable.
+
+**Measured S102 Stage B science verdict**: Actions #42847155291
+successfully executed real Apple MPS joint training, but the proposed
+8-step checkpoint fell from **353 to 348/456** exact TRAIN full+EOS,
+with five old successes forgotten, zero newly gained; physically
+0.699573837398 bpp, two extra bytes vs S101 and J7 full parameter/
+Adam **rollback verified**. No S102 training gain or promotion.
+
+The next cheap *research-only* step is already added to the S102
+experiment: on frozen authorized TRAIN outputs run first-divergence,
+route, S98 override, gold-aware repeat, early EOS, lexical token and
+opposing-pair analysis **before** adjusting training, without ever
+loading old exposed QA. Subsequently try a smaller ≤2-step update
+only if this diagnosis identifies a concrete mechanism; keep all
+353 full answers and 387 correct first tokens protected.
