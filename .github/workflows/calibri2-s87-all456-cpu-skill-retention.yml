@@ -56,20 +56,35 @@ jobs:
         with:
           script: |
             const sha = context.payload.pull_request.head.sha;
-            const {data} = await github.rest.actions.listWorkflowRuns({
-              owner: context.repo.owner, repo: context.repo.repo,
-              workflow_id: 'calibri2-s87-joint-core-internal-green-tunnel-MPS.yml',
-              head_sha: sha, event: 'pull_request', per_page: 100
-            });
-            const runs = data.workflow_runs.filter(r => r.head_sha === sha &&
-              r.head_branch === 'research/calibri2-s87-joint-core-green-tunnel-20261109' &&
-              r.status === 'completed' && r.conclusion === 'success');
-            if (runs.length !== 1) {
-              core.setFailed('FAIL CLOSED: exactly one successful MPS run for identical HEAD SHA required; found '+runs.length);
-              return;
+            // The MPS and CPU workflows start together on synchronize.
+            // Wait for the exact-HEAD producer rather than consuming an older artifact.
+            let runs = [];
+            for (let attempt = 0; attempt < 40; attempt++) {
+              const {data} = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner, repo: context.repo.repo,
+                workflow_id: 'calibri2-s87-joint-core-internal-green-tunnel-MPS.yml',
+                head_sha: sha, event: 'pull_request', per_page: 100
+              });
+              runs = data.workflow_runs.filter(r => r.head_sha === sha &&
+                r.head_branch === 'research/calibri2-s87-joint-core-green-tunnel-20261109');
+              const successful = runs.filter(r => r.status === 'completed' && r.conclusion === 'success');
+              if (successful.length > 1) {
+                core.setFailed('FAIL CLOSED: multiple successful MPS runs for HEAD SHA '+sha);
+                return;
+              }
+              if (successful.length === 1) {
+                core.setOutput('run_id', String(successful[0].id));
+                core.setOutput('head_sha', sha);
+                return;
+              }
+              if (runs.length && runs.every(r => r.status === 'completed')) {
+                core.setFailed('FAIL CLOSED: all matching MPS runs completed without success');
+                return;
+              }
+              if (attempt < 39) await new Promise(resolve => setTimeout(resolve, 30000));
             }
-            core.setOutput('run_id', String(runs[0].id));
-            core.setOutput('head_sha', sha);
+            core.setFailed('FAIL CLOSED: no successful matching MPS artifact after bounded 20-minute wait');
+            return;
       - name: S87 actual MPS-trained but UNACCEPTED compressed-source prototype
         uses: actions/download-artifact@v4
         with:
