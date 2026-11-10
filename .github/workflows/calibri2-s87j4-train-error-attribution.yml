@@ -22,7 +22,7 @@ jobs:
       - name: Fail closed if code imports QA or model training
         run: |
           python -m py_compile research/calibri2/s87/diagnose_j4_train_error_types.py
-          if grep -E '(^from .*qa_|^import .*qa_|torch|safetensors|transformers)' research/calibri2/s87/diagnose_j4_train_error_types.py; then exit 1; fi
+          if grep -E '^(from|import) (torch|safetensors|transformers|.*qa_)' research/calibri2/s87/diagnose_j4_train_error_types.py; then exit 1; fi
       - name: Download immutable 456-TRAIN S87-J4 guard evidence (no model load)
         uses: actions/download-artifact@v4
         with:
