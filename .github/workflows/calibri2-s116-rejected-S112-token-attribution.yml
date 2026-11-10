@@ -132,7 +132,7 @@ jobs:
           path: inputs/s93_full
           run-id: 42681768394
           github-token: ${{ github.token }}
-      - name: Compare original S101 and rejected S112 same 456 frozen TRAIN: first token, later/EOS, S98
+      - name: Compare original S101 and rejected S112 same 456 frozen TRAIN first token later EOS and S98
         run: |
           python research/calibri2/s116/rejected_s112_token_error_attribution_cpu.py \
             inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
