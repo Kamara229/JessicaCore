@@ -1,0 +1,172 @@
+name: CALIBRI S102 hybrid S101 353 full EOS and REAL MPS J7 rollback joint training
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s101-incremental-kv-cache-exact-456-20261110
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s102_source_no_QA_sanity:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s102-hybrid-s101-j7-mps-20261110'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify source syntax and strict full EOS CPU parity safeguards
+        run: |
+          python3 -m compileall -q research/calibri2/s102/
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s96|s100)' research/calibri2/s102/*.py; then exit 1; fi
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('research/calibri2/s102/hybrid_frozen_anchor.py').read_text()
+          trans=Path('research/calibri2/s102/hybrid_retention.py').read_text()
+          for token in ('cached_full_cpu_with_neural_copy','S101_full456_report','all_inclusive_bpp','current_prototype_trainable_weights_added','full_protected_TRAIN_answers'): assert token in src
+          for token in ('353','rollback','optimizer.load_state_dict','all_456_verified','lost_first','physical_bpp'): assert token in trans
+          print('S102_HYBRID_S101_FROZEN_SOURCE_AND_J7_TRANSACTION_ABI_VERIFIED',flush=True)
+          PY
+  s102_hybrid_reconstruct_456_CPU:
+    needs: s102_source_no_QA_sanity
+    if: needs.s102_source_no_QA_sanity.result == 'success'
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '1020102'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Install identical pinned compressed physical CPU stack
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verified prior physical S99 353/456 TRAIN result
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s99-unaccepted-full456-physical-neural-noun-copy-CPU
+          path: inputs/s99
+          run-id: 42705657584
+          github-token: ${{ github.token }}
+      - name: Frozen S101 actually generated 456 full/EOS and CPU speed proof
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s101-unaccepted-456-full-EOS-KV-cache-CPU-parity-and-speed
+          path: inputs/s101
+          run-id: 42710297657
+          github-token: ${{ github.token }}
+      - name: Frozen S98 real MPS paid neural copy weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s98-unaccepted-MPS-neural-second-token-owner-copy-feasibility
+          path: inputs/s98
+          run-id: 42704076897
+          github-token: ${{ github.token }}
+      - name: Frozen S95 numeric profile router
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s95-unaccepted-prompt-only-router-456-strict-CPU
+          path: inputs/s95
+          run-id: 42698707784
+          github-token: ${{ github.token }}
+      - name: Frozen S94 lossless Green Tunnel profile bank
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s94-unaccepted-lossless-three-profile-bank-456-TRAIN-feasibility
+          path: inputs/s94
+          run-id: 42697267843
+          github-token: ${{ github.token }}
+      - name: Frozen original S93 physical compressed source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          path: inputs/s93
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Frozen S87 independently generated full456 TRAIN results
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          path: inputs/s87_full
+          run-id: 42659248083
+          github-token: ${{ github.token }}
+      - name: Frozen S91 independently generated full456 TRAIN results
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s91-full-456-strict-EOS-quality-no-forgetting-and-CPU
+          path: inputs/s91_full
+          run-id: 42674413574
+          github-token: ${{ github.token }}
+      - name: Frozen S93 independently generated full456 TRAIN results
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-full-456-strict-union-no-forgetting-and-CPU
+          path: inputs/s93_full
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Reconstruct S101 frozen 353 exact TRAIN answers and prove transactional optimizer rollback
+        run: |
+          python research/calibri2/s102/hybrid_frozen_anchor.py \
+            inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
+            inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
+            inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            inputs/s94/S94_ALTERNATE_EXACT_CORE_TUNNEL_BANK.bin \
+            inputs/s94/S94_PROFILE_BANK_FEASIBILITY_REPORT.json \
+            inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s99/S99_ALL456_NEW_NEURAL_COPY_PHYSICAL_TRAIN_AUDIT.json \
+            inputs/s101/S101_KV_CACHE_EXACT_S99_456_TRAIN_CPU_GUARD.json \
+            inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s91_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s93_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s102
+      - name: Real S102 hybrid MPS S93 core + Green Tunnel 8-step transaction with 353-guard
+        run: |
+          python - <<'PY'
+          import torch, platform
+          assert platform.machine() == 'arm64' and torch.backends.mps.is_available()
+          p=torch.randn((12,12),device='mps',requires_grad=True)
+          (p@p.T).square().mean().backward()
+          assert p.grad is not None and p.grad.device.type=='mps'
+          print("S102_REAL_APPLE_MPS_BACKWARD_CONFIRMED",flush=True)
+          PY
+          python research/calibri2/s102/hybrid_mps_transaction.py \
+            inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
+            inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
+            inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            inputs/s94/S94_ALTERNATE_EXACT_CORE_TUNNEL_BANK.bin \
+            inputs/s94/S94_PROFILE_BANK_FEASIBILITY_REPORT.json \
+            inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s99/S99_ALL456_NEW_NEURAL_COPY_PHYSICAL_TRAIN_AUDIT.json \
+            inputs/s101/S101_KV_CACHE_EXACT_S99_456_TRAIN_CPU_GUARD.json \
+            results/s102/S102_FROZEN_S101_J7_HYBRID_353_TRAIN_ANCHOR.json \
+            inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s91_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s93_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s102_mps
+      - name: Preserve exact CPU parity and negative evidence on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s102-hybrid-S101-353-GPU-rollback-CPU-full456
+          path: |
+            results/s102/
+            results/s102_mps/
+          retention-days: 90
+          if-no-files-found: warn
