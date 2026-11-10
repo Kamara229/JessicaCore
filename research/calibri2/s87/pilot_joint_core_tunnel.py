@@ -215,6 +215,13 @@ def main():
             "original_first": prior_first, "new_first": now_first,
         }
     joint_inner.uninstall()
+    # Fail closed before publishing a prototype: per-identity pilot TRAIN
+    # regressions are a rejection, not merely diagnostic report fields.
+    # The independent 456-identity CPU audit remains mandatory as well.
+    if protected_lost_full or protected_lost_first:
+        raise AssertionError(
+            f"S87 pilot TRAIN regression after physical CB59 serialization: "
+            f"lost_full={protected_lost_full}, lost_first={protected_lost_first}")
     side = dict(weights)
     for name, tensor in inner.state_dict().items():
         side["internal_tunnel."+name] = tensor.detach().cpu().contiguous()
