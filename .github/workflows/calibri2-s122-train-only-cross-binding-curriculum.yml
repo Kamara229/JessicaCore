@@ -1,0 +1,55 @@
+name: CALIBRI S122 original S82 vocab train only balanced cross owner binding 128
+'on':
+  push:
+    branches:
+      - research/calibri2-s122-independent-color-binding-train-20261110
+permissions:
+  contents: read
+concurrency:
+  group: calibri-s122-TRAIN-only-curriculum-source
+  cancel-in-progress: true
+jobs:
+  validate_training_curriculum_not_qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '1220122'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Install original CALIBRI data preprocessing and tokenizer dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Check source no S118 QA or other inspected QA imports
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri2/s122
+          if grep -RE '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s96|s100|s118)' research/calibri2/s122/*.py; then
+            echo 'Inspected QA import forbidden'; exit 1
+          fi
+      - name: Synthetic invariant checks on strictly TRAIN-only examples
+        run: |
+          python -m unittest -v calibri2.s122.test_independent_binding_train_curriculum
+      - name: Validate actual original tokenizer, every 456 historical TRAIN hash and 128 new cross-binding TRAIN examples
+        run: |
+          python research/calibri2/s122/independent_binding_train_curriculum.py results/s122
+      - name: Archive aggregate TRAIN-only provenance, no raw questions or labels
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-s122-precommitted-64-pair-128-question-original-TRAIN-augmentation-only
+          path: results/s122/
+          retention-days: 90
+          if-no-files-found: warn
