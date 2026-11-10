@@ -68,14 +68,14 @@ jobs:
           path: inputs/s82
           run-id: 42569548659
           github-token: ${{ github.token }}
-      - name: Train ONE tiny joint MPS step, audit zero-init identity and physical storage only
+      - name: Train TWO bounded joint MPS steps, audit gradients and physical storage
         run: |
           python research/calibri2/s87/pilot_joint_core_tunnel.py \
             inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
             inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
             inputs/s82/S82_REAL_GPU_GENERAL_TOKEN_POINTER_PAID_TRAIN_CANDIDATE.safetensors \
             inputs/s82/S82_REAL_GPU_ALL_INCLUSIVE_PAID_MANIFEST.json \
-            results/s87 --steps 1
+            results/s87 --steps 2
       - name: Preserve scientific feasibility only - NOT accepted model
         if: always()
         uses: actions/upload-artifact@v4
