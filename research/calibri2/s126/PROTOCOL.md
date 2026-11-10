@@ -1,6 +1,6 @@
 # CALIBRI 2.0 S126 — FULL-LAYER GREEN TUNNEL + GRADUAL 135M ROADMAP
 
-**Draft / research only. No pretrained weights were transferred. No model has been enlarged, trained, deployed or accepted by the files in this PR. S125 real MPS workflow is not modified.**
+**Draft / research only. No pretrained weights were transferred. No model has been enlarged, trained, deployed or accepted by the files in this PR. The first real S101 zero-gate CPU audit now runs separately in GitHub Actions; until its final artifact exists, zero-gate parity on the real physical model remains unverified. S125 real MPS workflow is not modified.**
 
 ## Why S126 exists
 
@@ -13,7 +13,7 @@ S126 adds a new, explicit **sequential learned state** with a single shared narr
 - Total: **5,144 trainable S126-only logical parameters**; FP16 raw payload 10,288 bytes **before** safetensors headers and a counted runtime config. These are **not 5,144 new backbone/core parameters**.
 - All gates start exactly at zero: 36M S101/S125 behavior must be **exactly preserved** before training.
 - State is reset at each model.forward; **never persist it across requests**. Enable new tunnel during prompt prefill; disable for cached answer continuation until full 456 CPU proof.
-- CPU synthetic unit tests only verify *mechanism and identity*, not actual S101 compressed deployment.
+- CPU synthetic unit tests verify *mechanism and identity*. A separate real S101 456+128 TRAIN physical CPU workflow checks the model-level extension and its actual speed/bpp; successful code compilation is not equivalent to that result.
 
 ## S126 research stage gate
 
@@ -22,7 +22,7 @@ S126 adds a new, explicit **sequential learned state** with a single shared narr
 3. Physically serialize every new learned parameter including the new sidecar/config and original complete source, bank, router, controllers; compute **ALL-inclusive bpp <= 0.700000**.
 4. Benchmark same-host alternating CPU original-S101 vs candidate complete decoding with the original S95/S98 KV path. **Speed >= 90% of original S101**. Full-depth hooks cost CPU time even at zero gain, so no speed claims before measuring.
 5. Only after exact zero parity, train the new gates + shared low-rank state in bounded **1–2 MPS gradient steps** and use S125 atomic **optimizer+weights rollback**, with actual reserialized-and-reloaded full 456 identity verification after EVERY block. Protect all original S101 **353 full+EOS identities and 387 first-token identities**. Evaluate new S122 128 TRAIN full/first and both-correct 64 counterfactual pairs (baseline **14/128, 39/128, 0/64**), using S122 strictly as TRAIN, not as independent QA.
-6. Fail closed on an old-skill regression, >0.7 all-in bpp, <=0.9 CPU ratio, any frozen source mutation, incomplete test or exception. Training step success is NOT model acceptance. New unseen one-shot independent QA (not S118) and CPU/MPS parity/free-form speech are required before any quality claim or promotion.
+6. Fail closed on an old-skill regression, >0.7 all-in bpp, <0.9 CPU ratio, any frozen source mutation, incomplete test or exception. Training step success is NOT model acceptance. New unseen one-shot independent QA (not S118) and CPU/MPS parity/free-form speech are required before any quality claim or promotion.
 
 ## Progressive real-backbone growth, precommitted only (no automatic expansion)
 
