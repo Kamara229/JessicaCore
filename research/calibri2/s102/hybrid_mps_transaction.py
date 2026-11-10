@@ -43,6 +43,8 @@ from calibri2.s99.guard_neural_copy_456_cpu import (
 from calibri2.s101.kv_cache_full456_cpu import cached_full_cpu_with_neural_copy
 from calibri2.s102.hybrid_retention import (
     AtomicProtectedUpdate,strict_train_retention)
+from calibri2.s102.v_legacy_quality_diagnostics import (
+    sequence_diagnostics,synthetic_regressions)
 from v176.operators import clear
 from v185.codec import replace_discrete
 
@@ -101,10 +103,12 @@ def compare_full456_serialized(
     proposal=build_frozen_s101_cpu(new_raw,new_side,bank,copy_net)
     samples={"old":[],"proposed":[]}
     results={"old":{},"proposed":{}}
+    copy_notes={}
     try:
         selected={"old":None,"proposed":None}
         for i,ident in enumerate(ids):
             route=routed[ident]
+            note={}
             for label,state in (("old",original),("proposed",proposal)):
                 (model,sources,first,later,ptr,head,inner,
                  centroids,tunnel)=state
@@ -112,19 +116,21 @@ def compare_full456_serialized(
                     apply_profile(sources,inner,route,bank,centroids,tunnel)
                     selected[label]=route
                 t=time.perf_counter()
-                ids_out,_=cached_full_cpu_with_neural_copy(
+                ids_out,policy_note=cached_full_cpu_with_neural_copy(
                     model,sources,first,later,head,tok,
                     rows[ident]["question"],ptr,copy_net)
                 elapsed=time.perf_counter()-t
                 results[label][ident]=ids_out
+                note["old" if label=="old" else "new"]=policy_note
                 if i<48:
                     samples[label].append(elapsed)
+            copy_notes[ident]=note
     finally:
         original[6].uninstall()
         proposal[6].uninstall()
     ratio=statistics.median(samples["old"])/statistics.median(
         samples["proposed"])
-    return results["old"],results["proposed"],ratio
+    return results["old"],results["proposed"],ratio,copy_notes
 
 
 def main():
@@ -141,6 +147,7 @@ def main():
         raise RuntimeError("S102 requires REAL Apple Silicon MPS GPU gradients")
     torch.manual_seed(SEED)
     torch.set_num_threads(2)
+    print(json.dumps(synthetic_regressions()),flush=True)
     frozen=json.loads(args.S102_anchor.read_text())
     baseline=json.loads(args.S101_full456_report.read_text())
     old_s99=json.loads(args.S99_full456_report.read_text())
@@ -269,10 +276,20 @@ def main():
         raise AssertionError("S102 physical accounting invalid")
     # The full CPU quality experiment is valuable even if compressed
     # entropy grew beyond 0.7: this remains a REJECTED scientific prototype.
-    original,outcome,ratio=compare_full456_serialized(
+    original,outcome,ratio,copy_notes=compare_full456_serialized(
         rows,ids,routed,tok,bank,copy_net,
         raw_original,original_side,new_raw,new_side)
     expected={k:rows[k]["expected"] for k in ids}
+    legacy_diag=sequence_diagnostics(
+        expected,original,outcome,routed,tok=tok,copy_notes=copy_notes)
+    (args.out/"S102_V_LEGACY_FULL_SEQUENCE_DIAGNOSTICS.json").write_text(
+        json.dumps(legacy_diag,indent=2,sort_keys=True,ensure_ascii=False))
+    print(json.dumps({key:legacy_diag[key] for key in (
+        "event","checked_TRAIN","lost_full_count","gained_full_count",
+        "lost_first_divergence_position","lost_full_by_frozen_route",
+        "pairs_old_both_correct","pairs_new_both_correct",
+        "spurious_adjacent_repeats_old","spurious_adjacent_repeats_new",
+        "wrong_early_EOS_old","wrong_early_EOS_new","copy_policy")}),flush=True)
     guard=strict_train_retention(
         expected,original,outcome,physical_bpp=new_bpp,
         cpu_ratio=ratio,speed_required=False)
@@ -307,6 +324,7 @@ def main():
         "S101_new_full_correct":sum(outcome[k]==expected[k] for k in ids),
         "S101_full_correct_gained":guard["gained_full"],
         "S101_full_correct_lost":guard["lost_full"],
+        "V_LEGACY_GOLD_AWARE_FULL_SEQUENCE_CAUSAL_DIAGNOSTIC":legacy_diag,
         "S101_first_correct_lost":guard["lost_first"],
         "regressed_identity_sha256":[sha(k.encode()) for k in
                                      guard["lost_full_identities"]],
