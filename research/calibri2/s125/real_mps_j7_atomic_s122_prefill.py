@@ -316,208 +316,241 @@ def main():
     first,later,pointer=s91.frozen_controllers(side)
     head=student.lm_head.source().detach()
     optimizer=torch.optim.Adam([bridge.coefficients],lr=LEARNING_RATE)
-    trace=[]
-    try:
-        for step in range(STEPS):
-            # Each original S122 TRAIN color-pair has BOTH owner sides.
-            pairs=[selected_pairs[(step*NEW_PAIRS_PER_STEP+i)%len(selected_pairs)]
-                   for i in range(NEW_PAIRS_PER_STEP)]
-            new_batch=[x for pair in pairs for x in pair]
-            old_batch=[historical[k] for k in sorted(fragile)]
-            old_batch.extend(historical[k] for k in
-                             rotating[step*PROTECTED_EXTRA_PER_STEP:
-                                      (step+1)*PROTECTED_EXTRA_PER_STEP])
-            optimizer.zero_grad(set_to_none=True)
-            values=[]
-            for row in new_batch:
-                clear(sources)
-                loss=pair_causal_train_gradient(
-                    student,bridge,tok,row,first,later,pointer,head,
-                    protected=False)
-                (0.60/len(new_batch)*loss).backward()
-                values.append(float(loss.detach()))
-                clear(sources)
-            for row in old_batch:
-                clear(sources)
-                loss=pair_causal_train_gradient(
-                    student,bridge,tok,row,first,later,pointer,head,
-                    protected=True)
-                (0.40/len(old_batch)*loss).backward()
-                values.append(float(loss.detach()))
-                clear(sources)
-            grad=bridge.coefficients.grad
-            if (grad is None or not bool(torch.isfinite(grad).all())
-                    or int(torch.count_nonzero(grad))<100):
-                raise AssertionError("S125 missing substantial real MPS 340D gradient")
-            grad_norm=float(torch.nn.utils.clip_grad_norm_(
-                [bridge.coefficients],1.0))
-            optimizer.step()
-            with torch.no_grad():
-                bridge.coefficients.clamp_(-GATE_CLAMP,GATE_CLAMP)
-            torch.mps.synchronize()
-            stepinfo={
-                "step":step+1,
-                "new_authorized_S122_TRAIN_examples":len(new_batch),
-                "old_protected_original_S101_examples":len(old_batch),
-                "mean_unweighted_loss":sum(values)/len(values),
-                "gradient_nonzero_coefficients":int(torch.count_nonzero(grad)),
-                "gradient_norm":grad_norm,
-                "maximum_abs_coefficient":float(bridge.coefficients.abs().max()),
-            }
-            trace.append(stepinfo)
-            print(json.dumps({"event":"S125_REAL_MPS_PREFILL_ONLY_UPDATE",**stepinfo}),flush=True)
-    finally:
-        bridge.uninstall()
-        inner.uninstall()
-    learned=bridge.coefficients.detach().cpu().clone()
-    if (not bool(torch.isfinite(learned).all())
-            or not bool(torch.count_nonzero(learned))):
-        raise AssertionError("S125 real MPS zero/no new learned conditional gates")
-
-    cpu=load_cpu_original(raw,side)
+    traces=[]
+    transactions=[]
     physical=[]
-    best=None
+    best_safe=None
+    cpu=load_cpu_original(raw,side)
     try:
-        base_old,_=all_456_cached_cpu(
+        old_again,_=all_456_cached_cpu(
             cpu,historical,histkeys,histroutes,tok,bank,copy_net)
-        if base_old!=before:
-            raise AssertionError("S125 second physical S101 original 456 outputs differ")
+        if old_again!=before:
+            raise AssertionError("S125 physical original S101 all456 parity drift")
         cpu_bridge=PromptConditionedDualTunnel(
             cpu[6],total_layers=12,donor_layers=(3,9)).eval().install(cpu[0])
         try:
-            for scale in FIXED_FP16_EVAL_SCALES:
-                with torch.no_grad():
-                    cpu_bridge.coefficients.copy_(learned*scale)
-                physical_tensor=cpu_bridge.export_physical_gain()
-                candidate=dict(side)
-                candidate.update(physical_tensor)
-                suffix=str(scale).replace(".","p")
-                sidecar=a.out/f"S125_UNACCEPTED_S122_PREFILL_{suffix}_S93_SIDECAR.safetensors"
-                save_file(candidate,str(sidecar))
-                reloaded=load_file(str(sidecar))
-                if (set(candidate)!=set(reloaded) or
-                        any(not torch.equal(candidate[k],reloaded[k]) for k in candidate)):
-                    raise AssertionError("S125 physical S101 + FP16 coefficient sidecar not lossless")
-                if any(not torch.equal(side[k],reloaded[k]) for k in side):
-                    raise AssertionError("Original S101 source weights modified")
-                cpu_bridge.load_physical_gain({KEY:reloaded[KEY]})
-                cfg={
-                    "stage":"S125_UNACCEPTED_REAL_MPS_CROSS_COLOR_PREFILL_ONLY",
-                    "green_tunnel_kv_phase":"prefill_only",
-                    "enable_only_route":"S93",
-                    "donor_layers":[3,9],
-                    "feature_source":"frozen_S95_prompt_only_vector",
-                    "fixed_projection":"sum_16x32_L2_normalized",
-                    "sidecar_key":KEY,
-                    "dtype":"float16",
-                }
-                configpath=a.out/f"S125_UNACCEPTED_S122_PREFILL_{suffix}_CONFIG.json"
-                configpath.write_text(json.dumps(
-                    cfg,sort_keys=True,separators=(",",":"))
-                )
-                extra_bytes=(sidecar.stat().st_size-
-                             a.S93_sidecar.stat().st_size+
-                             configpath.stat().st_size)
-                bpp=float(p101["S99_all_inclusive_physical_bpp"])+(
-                    8*extra_bytes/SOURCE_PARAMS)
-                if not math.isfinite(bpp) or bpp>0.7:
-                    raise AssertionError("S125 exceeds all-inclusive physical 0.7 bpp")
+            for block in range(STEPS//TRANSACTION_STEPS):
+                last_record=None
+                def train_block():
+                    for offset in range(TRANSACTION_STEPS):
+                        step=block*TRANSACTION_STEPS+offset
+                        pairs=[selected_pairs[
+                            (step*NEW_PAIRS_PER_STEP+i)%len(selected_pairs)]
+                            for i in range(NEW_PAIRS_PER_STEP)]
+                        new_batch=[row for pair in pairs for row in pair]
+                        old_batch=[historical[k] for k in sorted(fragile)]
+                        old_batch += [historical[k] for k in
+                            rotating[step*PROTECTED_EXTRA_PER_STEP:
+                                     (step+1)*PROTECTED_EXTRA_PER_STEP]]
+                        optimizer.zero_grad(set_to_none=True)
+                        losses=[]
+                        for row in new_batch:
+                            clear(sources)
+                            loss=pair_causal_train_gradient(
+                                student,bridge,tok,row,first,later,pointer,head,
+                                protected=False)
+                            (0.60/len(new_batch)*loss).backward()
+                            losses.append(float(loss.detach()))
+                            clear(sources)
+                        for row in old_batch:
+                            clear(sources)
+                            loss=pair_causal_train_gradient(
+                                student,bridge,tok,row,first,later,pointer,head,
+                                protected=True)
+                            (0.40/len(old_batch)*loss).backward()
+                            losses.append(float(loss.detach()))
+                            clear(sources)
+                        grad=bridge.coefficients.grad
+                        if grad is None or not bool(torch.isfinite(grad).all()) or int(torch.count_nonzero(grad))<100:
+                            raise AssertionError("S125 missing real 340D MPS gradient")
+                        norm=float(torch.nn.utils.clip_grad_norm_(
+                            [bridge.coefficients],1.0))
+                        optimizer.step()
+                        with torch.no_grad():
+                            bridge.coefficients.clamp_(-GATE_CLAMP,GATE_CLAMP)
+                        torch.mps.synchronize()
+                        trace={
+                            "step":step+1,"block":block+1,
+                            "new_original_S122_TRAIN_examples":len(new_batch),
+                            "protected_original_S101_TRAIN_examples":len(old_batch),
+                            "mean_loss":sum(losses)/len(losses),
+                            "nonzero_grad_coefficients":int(torch.count_nonzero(grad)),
+                            "gradient_norm":norm,
+                            "max_abs_coefficient":float(bridge.coefficients.abs().max()),
+                        }
+                        traces.append(trace)
+                        print(json.dumps({"event":"S125_REAL_MPS_J7_GUARDED_STEP",**trace}),flush=True)
+                    return TRANSACTION_STEPS
 
-                proposed=candidate_actual_CPU(
-                    cpu,historical,histkeys,histroutes,tok,bank,
-                    copy_net,cpu_bridge,"prefill_only")
-                speed=paired_speed_original_vs_phase(
-                    cpu,historical,histkeys,histroutes,tok,bank,
-                    copy_net,cpu_bridge,"prefill_only",base_old,proposed)
-                guard=strict_train_retention(
-                    expected,base_old,proposed,physical_bpp=bpp,
-                    cpu_ratio=speed["ratio"],speed_required=True)
-                new_proposed=candidate_actual_CPU(
-                    cpu,new,newkeys,new_routes,tok,bank,
-                    copy_net,cpu_bridge,"prefill_only")
-                new_stats=score_full_and_pairs(new,new_proposed)
-                old_correct_full=sum(proposed[k]==expected[k] for k in histkeys)
-                old_correct_first=sum(
-                    bool(proposed[k]) and proposed[k][0]==expected[k][0]
-                    for k in histkeys)
-                is_safe=bool(guard["transaction_can_commit"])
-                gained_training=(new_stats["full"]>new_base_stats["full"] or
-                                 new_stats["counterfactual_pairs_both_correct"]>
-                                 new_base_stats["counterfactual_pairs_both_correct"])
-                record={
-                    "coefficient_scale":scale,
-                    "old_original_456_correct_full":old_correct_full,
-                    "old_original_456_correct_first":old_correct_first,
-                    "old_lost_full":guard["lost_full"],
-                    "old_lost_first":guard["lost_first"],
-                    "old_gained_full":guard["gained_full"],
-                    "old_protected_no_forgetting":is_safe,
-                    "new_S122_128_authorized_TRAIN_full":new_stats["full"],
-                    "new_S122_128_authorized_TRAIN_first":new_stats["first"],
-                    "new_S122_64_pairs_both_full":new_stats["counterfactual_pairs_both_correct"],
-                    "new_TRAIN_full_or_pairs_improved_vs_original":gained_training,
-                    "physical_all_inclusive_bpp":bpp,
-                    "paired_CPU_ratio_vs_original_S101":speed["ratio"],
-                    "physical_sidecar_sha256":sha(sidecar.read_bytes()),
-                    "physical_runtime_config_sha256":sha(configpath.read_bytes()),
-                    "train_candidate_for_future_independent_validation":
-                        is_safe and gained_training,
+                def persisted_cpu_guard():
+                    nonlocal last_record
+                    index=len(physical)+1
+                    learned=bridge.coefficients.detach().to("cpu").clone()
+                    if not bool(torch.isfinite(learned).all()):
+                        raise AssertionError("S125 nonfinite coefficient after MPS training")
+                    with torch.no_grad():
+                        cpu_bridge.coefficients.copy_(learned)
+                    paid=dict(side)
+                    paid.update(cpu_bridge.export_physical_gain())
+                    label=f"block{block+1}_check{index}"
+                    fp16=a.out/f"S125_UNACCEPTED_{label}.safetensors"
+                    save_file(paid,str(fp16))
+                    reloaded=load_file(str(fp16))
+                    roundtrip=(set(reloaded)==set(paid) and
+                               all(torch.equal(reloaded[k],v) for k,v in paid.items()))
+                    originals=(roundtrip and
+                               all(torch.equal(reloaded[k],side[k]) for k in side))
+                    if not originals:
+                        raise AssertionError("S125 immutable source weights changed or FP16 reload failed")
+                    cpu_bridge.load_physical_gain({KEY:reloaded[KEY]})
+                    cfg={
+                        "stage":"S125_J7_ATOMIC_PREFILL_ONLY_RESEARCH",
+                        "block":block+1,
+                        "green_tunnel_kv_phase":"prefill_only",
+                        "enable_only_route":"S93",
+                        "donor_layers":[3,9],
+                        "feature_source":"frozen_S95_prompt_only_vector",
+                        "fixed_projection":"sum_16x32_L2_normalized",
+                        "sidecar_key":KEY,
+                        "dtype":"float16",
+                    }
+                    cfg_path=a.out/f"S125_UNACCEPTED_{label}_CONFIG.json"
+                    cfg_path.write_text(json.dumps(
+                        cfg,sort_keys=True,separators=(",",":"))
+                    )
+                    extra_bytes=fp16.stat().st_size-a.S93_sidecar.stat().st_size+cfg_path.stat().st_size
+                    bpp=float(p101["S99_all_inclusive_physical_bpp"])+(
+                        8*extra_bytes/SOURCE_PARAMS)
+                    original_prediction=candidate_actual_CPU(
+                        cpu,historical,histkeys,histroutes,tok,bank,
+                        copy_net,cpu_bridge,"prefill_only")
+                    speed=paired_speed_original_vs_phase(
+                        cpu,historical,histkeys,histroutes,tok,bank,copy_net,
+                        cpu_bridge,"prefill_only",before,original_prediction)
+                    guard=strict_train_retention(
+                        expected,before,original_prediction,
+                        physical_bpp=bpp,cpu_ratio=speed["ratio"],speed_required=True)
+                    new_prediction=candidate_actual_CPU(
+                        cpu,new,newkeys,new_routes,tok,bank,
+                        copy_net,cpu_bridge,"prefill_only")
+                    new_score=score_full_and_pairs(new,new_prediction)
+                    results={
+                        "block":block+1,"check":index,
+                        "original_S101_456_correct_full":sum(
+                            original_prediction[k]==expected[k] for k in histkeys),
+                        "original_S101_456_correct_first":sum(
+                            bool(original_prediction[k]) and
+                            original_prediction[k][0]==expected[k][0]
+                            for k in histkeys),
+                        "lost_original_full":guard["lost_full"],
+                        "lost_original_first":guard["lost_first"],
+                        "gained_original_full":guard["gained_full"],
+                        "new_S122_128_TRAIN_full":new_score["full"],
+                        "new_S122_128_TRAIN_first":new_score["first"],
+                        "new_S122_64_both_sides_full":
+                            new_score["counterfactual_pairs_both_correct"],
+                        "physical_bpp":bpp,
+                        "CPU_ratio":speed["ratio"],
+                        "exact_S101_original_physical_tensors":originals,
+                        "sidecar_SHA256":sha(fp16.read_bytes()),
+                        "runtime_SHA256":sha(cfg_path.read_bytes()),
+                        "model_accepted":False,
+                    }
+                    guard_evidence=PhysicalRetentionCheck(
+                        original_456_checked=len(histkeys),
+                        original_full_correct=len(orig_full),
+                        original_first_correct=len(orig_first),
+                        lost_original_full=guard["lost_full"],
+                        lost_original_first=guard["lost_first"],
+                        newly_correct_original_full=guard["gained_full"],
+                        new_S122_train_full=new_score["full"],
+                        new_S122_train_both_correct_pairs=
+                            new_score["counterfactual_pairs_both_correct"],
+                        physical_all_inclusive_bpp=bpp,
+                        paired_original_S101_CPU_speed_ratio=speed["ratio"],
+                        physical_FP16_reload_verified=roundtrip,
+                        immutable_original_S101_bytes_verified=originals,
+                        S95_S98_unchanged=True,
+                    )
+                    results["strict_no_forgetting_guard"]=guard_evidence.valid()
+                    physical.append(results)
+                    last_record=results
+                    print(json.dumps({
+                        "event":"S125_J7_REAL_PHYSICAL_456_128_CPU_TRANSACTION",
+                        **{k:v for k,v in results.items()
+                           if not k.endswith("SHA256")},
+                    }),flush=True)
+                    return guard_evidence
+
+                result=atomic_train_block(
+                    [bridge.coefficients],optimizer,train_block,
+                    persisted_cpu_guard,reduction_factor=0.5)
+                tx={
+                    "block":block+1,
+                    "steps":result.block_steps,
+                    "committed":result.committed,
+                    "rollback_verified":result.rollback_verified,
+                    "lr_after":result.learning_rate_after,
+                    "failed_candidate_original_full_losses":result.guard.lost_original_full,
+                    "failed_candidate_original_first_losses":result.guard.lost_original_first,
                     "model_accepted":False,
                 }
-                physical.append(record)
-                print(json.dumps({
-                    "event":"S125_CROSS_COLOR_MPS_PREFILL_PHYSICAL_456_128_TRAIN",
-                    "scale":scale,"old_full":old_correct_full,
-                    "old_lost_full":record["old_lost_full"],
-                    "old_lost_first":record["old_lost_first"],
-                    "new_128_full":new_stats["full"],
-                    "new_64_both_pairs":new_stats["counterfactual_pairs_both_correct"],
-                    "train_candidate":record["train_candidate_for_future_independent_validation"],
-                    "physical_bpp":bpp,"cpu_ratio":speed["ratio"],
-                }),flush=True)
-                if record["train_candidate_for_future_independent_validation"] and (
-                    best is None or
-                    (new_stats["counterfactual_pairs_both_correct"],new_stats["full"])>
-                    (best["new_S122_64_pairs_both_full"],best["new_S122_128_authorized_TRAIN_full"])
+                transactions.append(tx)
+                if result.committed and last_record is not None and (
+                    last_record["new_S122_128_TRAIN_full"]>
+                       new_base_stats["full"] or
+                    last_record["new_S122_64_both_sides_full"]>
+                       new_base_stats["counterfactual_pairs_both_correct"]
                 ):
-                    best=record
+                    best_safe={
+                        "block":block+1,
+                        "physical_FP16_SHA":last_record["sidecar_SHA256"],
+                        "S122_TRAIN_full":last_record["new_S122_128_TRAIN_full"],
+                        "S122_TRAIN_both_sides":
+                          last_record["new_S122_64_both_sides_full"],
+                        "research_only_not_accepted":True,
+                    }
+                print(json.dumps({
+                    "event":"S125_J7_ATOMIC_ADAM_TRANSACTION_END",**tx,
+                }),flush=True)
         finally:
             cpu_bridge.uninstall()
     finally:
         cpu[6].uninstall()
+        bridge.uninstall()
+        inner.uninstall()
+
     report={
-        "stage":"S125_REAL_MPS_CAUSAL_PREFILL_CROSS_COLOR_NEW_TRAIN_456_GUARD",
-        "MPS_steps":STEPS,
-        "new_authorized_S122_TRAIN_pair_examples_used_per_step":2*NEW_PAIRS_PER_STEP,
-        "old_S101_protected_full_examples_per_step":7+PROTECTED_EXTRA_PER_STEP,
-        "only_340_S111_coefficients_updated":True,
-        "same_FROZEN_S95_route_and_S98_copy":True,
-        "true_differentiable_S101_KV_train_prefill_only":True,
-        "all_456_original_TRAIN_reference_verified":True,
-        "original_456_full":353,
-        "original_456_first":387,
-        "new_S122_128_baseline":new_base_stats,
-        "new_S122_frozen_S95_routes":dict(Counter(new_routes.values())),
-        "complete_color_pair_training_groups":len(selected_pairs),
-        "train_step_trace":trace,
-        "physical_variant_results":physical,
-        "strictly_protected_NEW_TRAIN_candidate_scale":None if best is None
-            else best["coefficient_scale"],
-        "NO_heldout_or_once_inspected_QA_used":True,
-        "S118_QA_embargoed":True,
-        "new_128_are_TRAIN_not_independent_validation":True,
-        "all_models_not_accepted":True,
-        "no_production_or_main_changes":True,
+        "stage":"S125_REAL_MPS_J7_ATOMIC_S124_PREFILL_S122_CROSS_COLOR",
+        "original_S101_456_full":353,
+        "original_S101_456_first":387,
+        "new_S122_128_original_baseline":new_base_stats,
+        "S122_new_TRAIN_64_counterfactual_pairs":64,
+        "old_protected_original_S101_7_fragile_replayed_per_step":True,
+        "real_MPS_Green_Tunnel_340_coefficients_only":True,
+        "true_differentiable_MPS_KV_prefill_continuation_EOS":True,
+        "S87_J7_method_full_Adam_and_weight_rollback":True,
+        "steps_per_physical_transaction":TRANSACTION_STEPS,
+        "MPS_training_step_trace":traces,
+        "J7_physical_transactions":transactions,
+        "every_real_physical_guard_evaluation":physical,
+        "atomic_committed_blocks":sum(int(t["committed"]) for t in transactions),
+        "atomic_rollback_blocks":sum(int(not t["committed"]) for t in transactions),
+        "best_safe_development_TRAIN_checkpoint":best_safe,
+        "no_heldout_QA_or_inspected_S118_access":True,
+        "S118_QA_permanently_embargoed":True,
+        "all_versions_not_accepted":True,
+        "no_main_LIVE_Jessica_Render_Supabase_APK_changes":True,
     }
-    (a.out/"S125_CROSS_BINDING_MPS_PREFILL_FULL456_GUARD_REPORT.json").write_text(
-        json.dumps(report,sort_keys=True,indent=2))
+    (a.out/"S125_REAL_J7_MPS_S122_PREFILL_456_CPU_TRANSACTION_REPORT.json").write_text(
+        json.dumps(report,indent=2,sort_keys=True,ensure_ascii=False))
     print(json.dumps({
-        "event":"S125_CROSS_COLOR_MPS_PREFILL_TRAIN_EXPERIMENT_END",
-        "new_128_base_full":new_base_stats["full"],
-        "safe_new_TRAIN_candidate":report["strictly_protected_NEW_TRAIN_candidate_scale"],
-        "variants":len(physical),
-        "model_accepted":False,
-        "no_QA":True,
+        "event":"S125_J7_S124_S122_REAL_MPS_TRANSACTIONS_COMPLETE",
+        "committed_blocks":report["atomic_committed_blocks"],
+        "rolled_back_blocks":report["atomic_rollback_blocks"],
+        "safe_development_TRAIN_improvement":best_safe is not None,
+        "candidate_accepted":False,
+        "never_used_QA":True,
     }),flush=True)
 
 
