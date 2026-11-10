@@ -1,0 +1,124 @@
+name: CALIBRI S111 prompt-conditioned dual GT full 456 physical CPU zero-parity
+'on':
+  push:
+    branches:
+      - research/calibri2-s111-context-gated-two-donor-20261110
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri-s111-conditional-dual-immutable-456
+  cancel-in-progress: true
+jobs:
+  physical_conditional_s101_456_parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '1110111'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Install original S101 physical CPU stack
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Fetch immutable S99 physical baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s99-unaccepted-full456-physical-neural-noun-copy-CPU
+          path: inputs/s99
+          run-id: 42705657584
+          github-token: ${{ github.token }}
+      - name: Fetch immutable S101 KV CPU baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s101-unaccepted-456-full-EOS-KV-cache-CPU-parity-and-speed
+          path: inputs/s101
+          run-id: 42710297657
+          github-token: ${{ github.token }}
+      - name: Fetch frozen S98 neural copy weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s98-unaccepted-MPS-neural-second-token-owner-copy-feasibility
+          path: inputs/s98
+          run-id: 42704076897
+          github-token: ${{ github.token }}
+      - name: Fetch frozen S95 profile selector
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s95-unaccepted-prompt-only-router-456-strict-CPU
+          path: inputs/s95
+          run-id: 42698707784
+          github-token: ${{ github.token }}
+      - name: Fetch frozen S94 compact bank
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s94-unaccepted-lossless-three-profile-bank-456-TRAIN-feasibility
+          path: inputs/s94
+          run-id: 42697267843
+          github-token: ${{ github.token }}
+      - name: Fetch immutable S93 codebooks and original Green Tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          path: inputs/s93
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Fetch S87 456 original TRAIN expectations
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          path: inputs/s87_full
+          run-id: 42659248083
+          github-token: ${{ github.token }}
+      - name: Fetch S91 456 full identity audit
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s91-full-456-strict-EOS-quality-no-forgetting-and-CPU
+          path: inputs/s91_full
+          run-id: 42674413574
+          github-token: ${{ github.token }}
+      - name: Fetch S93 456 full identity audit
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-full-456-strict-union-no-forgetting-and-CPU
+          path: inputs/s93_full
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Compare original S101 vs S111 prompt-conditioned dual donor twelve layers on 456 real CPU TRAIN
+        run: |
+          python research/calibri2/s111/zero_gain_prompt_conditioned_cpu_456.py \
+            inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
+            inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
+            inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            inputs/s94/S94_ALTERNATE_EXACT_CORE_TUNNEL_BANK.bin \
+            inputs/s94/S94_PROFILE_BANK_FEASIBILITY_REPORT.json \
+            inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s99/S99_ALL456_NEW_NEURAL_COPY_PHYSICAL_TRAIN_AUDIT.json \
+            inputs/s101/S101_KV_CACHE_EXACT_S99_456_TRAIN_CPU_GUARD.json \
+            inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s91_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s93_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s111
+      - name: Keep report plus unaccepted physical size evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s111-prompt-conditioned-dual-GT-456-CPU-zero-parity
+          path: results/s111/
+          retention-days: 90
+          if-no-files-found: warn
