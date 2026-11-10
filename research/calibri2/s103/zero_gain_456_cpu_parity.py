@@ -193,13 +193,16 @@ def main() -> None:
                     selected = route
                 question = questions[ident]
                 goal = reports["S87"][ident]["target_ids"]
-                with added.profile(None):
-                    t0 = time.perf_counter()
-                    baseline, _ = cached_full_cpu_with_neural_copy(
-                        model, sources, first, later, head, tok, question,
-                        pointer, copy_net,
-                    )
-                    elapsed_baseline = time.perf_counter() - t0
+                # Measure ORIGINAL S101 with bridge hooks actually REMOVED,
+                # not S101-on-an-S103-model with ten disabled hooks.
+                added.uninstall()
+                t0 = time.perf_counter()
+                baseline, _ = cached_full_cpu_with_neural_copy(
+                    model, sources, first, later, head, tok, question,
+                    pointer, copy_net,
+                )
+                elapsed_baseline = time.perf_counter() - t0
+                added.install(model)
                 with added.profile(route):
                     t0 = time.perf_counter()
                     candidate, _ = cached_full_cpu_with_neural_copy(
