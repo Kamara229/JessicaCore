@@ -431,7 +431,7 @@ def main():
                         for row in old_batch:
                             clear(sources)
                             loss=pair_causal_train_gradient(
-                                student,bridge,tok,row,first,later,pointer,head,
+                                student,bridge,full,tok,row,first,later,pointer,head,
                                 protected=True)
                             (0.40/len(old_batch)*loss).backward()
                             losses.append(float(loss.detach()))
