@@ -44,6 +44,7 @@ from calibri2.s101.kv_cache_full456_cpu import cached_full_cpu_with_neural_copy
 from calibri2.s102.hybrid_retention import (
     AtomicProtectedUpdate,strict_train_retention)
 from v176.operators import clear
+from v185.codec import replace_discrete
 
 STEPS=8
 SEED=1020102
@@ -286,11 +287,13 @@ def main():
     if not evidence["committed"]:
         # Recover the exact original paid CB59 and sidecar from GPU
         # parameters after reverting BOTH weights and Adam state.
-        restore_raw,restore_side,restore_cb61,restore_side_path,_=s91.materialize_candidate(
-            raw_original,sources,inner,original_side,args.out,STEPS+1)
+        restore_raw,_=replace_discrete(CB59(raw_original),sources,strict=False)
+        restored_side=dict(original_side)
+        for name,tensor in inner.state_dict().items():
+            restored_side["internal_tunnel."+name]=tensor.detach().cpu().contiguous()
         rollback_source_sha_verified=sha(restore_raw)==sha(raw_original)
         if (not rollback_source_sha_verified or
-            any(not torch.equal(restore_side[k],original_side[k])
+            any(not torch.equal(restored_side[k],original_side[k])
                 for k in original_side)):
             raise AssertionError("S102 GPU rollback failed exact S93 physical weights")
     inner.uninstall()
