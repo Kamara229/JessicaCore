@@ -1,4 +1,4 @@
-name: CALIBRI S102 hybrid S101 frozen 353 full EOS J7 rollback ABI and 456 CPU
+name: CALIBRI S102 hybrid S101 353 full EOS and REAL MPS J7 rollback joint training
 'on':
   pull_request:
     types: [opened, synchronize]
@@ -35,6 +35,7 @@ jobs:
     timeout-minutes: 120
     env:
       PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
       OMP_NUM_THREADS: '2'
       MKL_NUM_THREADS: '2'
       OPENBLAS_NUM_THREADS: '2'
@@ -133,11 +134,39 @@ jobs:
             inputs/s91_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
             inputs/s93_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
             results/s102
+      - name: Real S102 hybrid MPS S93 core + Green Tunnel 8-step transaction with 353-guard
+        run: |
+          python - <<'PY'
+          import torch, platform
+          assert platform.machine() == 'arm64' and torch.backends.mps.is_available()
+          p=torch.randn((12,12),device='mps',requires_grad=True)
+          (p@p.T).square().mean().backward()
+          assert p.grad is not None and p.grad.device.type=='mps'
+          print("S102_REAL_APPLE_MPS_BACKWARD_CONFIRMED",flush=True)
+          PY
+          python research/calibri2/s102/hybrid_mps_transaction.py \
+            inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
+            inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
+            inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            inputs/s94/S94_ALTERNATE_EXACT_CORE_TUNNEL_BANK.bin \
+            inputs/s94/S94_PROFILE_BANK_FEASIBILITY_REPORT.json \
+            inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s99/S99_ALL456_NEW_NEURAL_COPY_PHYSICAL_TRAIN_AUDIT.json \
+            inputs/s101/S101_KV_CACHE_EXACT_S99_456_TRAIN_CPU_GUARD.json \
+            results/s102/S102_FROZEN_S101_J7_HYBRID_353_TRAIN_ANCHOR.json \
+            inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s91_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s93_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s102_mps
       - name: Preserve exact CPU parity and negative evidence on failure
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: calibri-s102-hybrid-frozen-S101-353-J7-transactional-bridge
-          path: results/s102/
+          name: calibri-s102-hybrid-S101-353-GPU-rollback-CPU-full456
+          path: |
+            results/s102/
+            results/s102_mps/
           retention-days: 90
           if-no-files-found: warn
