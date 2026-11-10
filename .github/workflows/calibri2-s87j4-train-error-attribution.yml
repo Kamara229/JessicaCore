@@ -1,0 +1,45 @@
+name: CALIBRI S87-J4 read-only TRAIN error attribution (no QA)
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s87j4-s69-double-replay-20261110
+permissions:
+  contents: read
+  actions: read
+jobs:
+  train_only_second_token_eos_attribution:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s87j4-train-error-attribution-20261110'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fail closed if code imports QA or model training
+        run: |
+          python -m py_compile research/calibri2/s87/diagnose_j4_train_error_types.py
+          if grep -E '^(from|import) (torch|safetensors|transformers|.*qa_)' research/calibri2/s87/diagnose_j4_train_error_types.py; then exit 1; fi
+      - name: Download immutable 456-TRAIN S87-J4 guard evidence (no model load)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87j4-unaccepted-s69-double-replay-GPU-full456-CPU-guard
+          path: inputs/guard
+          run-id: 42816291592
+          github-token: ${{ github.token }}
+      - name: Attribute first/later/EOS errors from existing TRAIN results
+        run: |
+          python research/calibri2/s87/diagnose_j4_train_error_types.py \
+            inputs/guard/s87j4_456/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/attribution
+      - name: Preserve research-only TRAIN attribution; no autopromotion
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s87j4-TRAIN-only-error-attribution-no-QA
+          path: results/attribution/
+          retention-days: 90
+          if-no-files-found: warn
