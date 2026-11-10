@@ -1,0 +1,97 @@
+name: CALIBRI S87-J6 retain 196 old TRAIN skills with replay on MPS and full456 guard
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s87j5-second-token-weighted-20261110
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s87j6_protected_second_joint_physical_full456_guard:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s87j6-protected-second-20261110'
+    runs-on: macos-15
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '870087'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Fail closed on inspected QA or syntax failures
+        run: |
+          python -m compileall -q research/calibri2/s87/
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85)' research/calibri2/s87/*.py; then exit 1; fi
+      - name: Install exactly pinned 36M CPU and MPS stack
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Require actual Apple MPS GPU backward
+        run: |
+          python - <<'PY'
+          import torch, platform
+          assert platform.machine()=='arm64' and torch.backends.mps.is_available()
+          a=torch.randn((16,16),device='mps',requires_grad=True)
+          (a@a.T).square().mean().backward()
+          assert a.grad is not None and a.grad.device.type == 'mps'
+          print("S87_J6_REAL_APPLE_MPS_GRADIENT_CONFIRMED")
+          PY
+      - name: Original immutable S45 36M CB59 physical core
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Original immutable S61 CB61 packed core
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s61-real-physical-entropy-and-cold-cpu
+          path: inputs/s61
+          run-id: 42528473858
+          github-token: ${{ github.token }}
+      - name: Original immutable S82 controller + paid manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s82-real-GPU-contextual-token-pointer-TRAIN-only-protected
+          path: inputs/s82
+          run-id: 42569548659
+          github-token: ${{ github.token }}
+      - name: S87-J6 TRAIN only joint gradient through actual S82 greedy logits and EOS
+        run: |
+          python research/calibri2/s87/pilot_protected_second_j6.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s61/S61_SOURCE_EXACT_ZLIB_CB59.s61 \
+            inputs/s82/S82_REAL_GPU_GENERAL_TOKEN_POINTER_PAID_TRAIN_CANDIDATE.safetensors \
+            inputs/s82/S82_REAL_GPU_ALL_INCLUSIVE_PAID_MANIFEST.json \
+            results/s87j6_joint --steps 64
+      - name: Independently verify ALL 456 exact full+EOS existing skills and physical budget
+        run: |
+          python research/calibri2/s87/guard_all_456_full_cpu.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s82/S82_REAL_GPU_GENERAL_TOKEN_POINTER_PAID_TRAIN_CANDIDATE.safetensors \
+            results/s87j6_joint/S87_UNACCEPTED_NEW_SOURCE_CB61.s61 \
+            results/s87j6_joint/S87_UNACCEPTED_JOINT_PROTOTYPE.safetensors \
+            results/s87j6_joint/S87_UNACCEPTED_JOINT_PHYSICAL_PROTOTYPE_REPORT.json \
+            results/s87j6_456
+      - name: Preserve FULL research evidence including failures; NEVER promote automatically
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s87j6-unaccepted-second-token-protected-GPU-full456-CPU-guard
+          path: |
+            results/s87j6_joint/
+            results/s87j6_456/
+          retention-days: 90
+          if-no-files-found: warn
