@@ -128,6 +128,64 @@ def all_456_cached_cpu(
     return output, times
 
 
+
+def verified_interleaved_cpu_speed(
+    state, rows, keys, routes, tok, bank, scorer, bridge,
+    original_outputs, candidate_outputs,
+):
+    """Paired same-host 48 row timing AFTER training, alternated order.
+
+    Prevent cold-vs-warm comparison skew observed in S109. This still only
+    compares S101 on the same runner, not absolute speed vs original S82.
+    """
+    model,sources,first,later,pointer,head,tunnel,centroids,original_tunnel=state
+    selected=None
+    before=[]
+    after=[]
+    for i,key in enumerate(keys[:SPEED_SAMPLE]):
+        route=routes[key]
+        if selected!=route:
+            apply_profile(sources,tunnel,route,bank,centroids,original_tunnel)
+            selected=route
+        question=rows[key]["question"]
+        feature=torch.as_tensor(prompt_only_vector(tok,question),dtype=torch.float32)
+        def original():
+            bridge.uninstall()
+            start=time.perf_counter()
+            result,_=cached_full_cpu_with_neural_copy(
+                model,sources,first,later,head,tok,question,pointer,scorer)
+            elapsed=time.perf_counter()-start
+            bridge.install(model)
+            if result!=original_outputs[key]:
+                raise AssertionError("S112 CPU interleaved baseline token drift")
+            before.append(elapsed)
+        def new():
+            with bridge.prompt_scope(route,feature):
+                start=time.perf_counter()
+                result,_=cached_full_cpu_with_neural_copy(
+                    model,sources,first,later,head,tok,question,pointer,scorer)
+                elapsed=time.perf_counter()-start
+            if result!=candidate_outputs[key]:
+                raise AssertionError("S112 CPU interleaved candidate token drift")
+            after.append(elapsed)
+        if i%2:
+            new()
+            original()
+        else:
+            original()
+            new()
+    if len(before)!=SPEED_SAMPLE or len(after)!=SPEED_SAMPLE:
+        raise AssertionError("S112 missing paired CPU measurements")
+    return {
+        "ratio":statistics.median(before)/statistics.median(after),
+        "original_median_seconds":statistics.median(before),
+        "candidate_median_seconds":statistics.median(after),
+        "paired_prompts":SPEED_SAMPLE,
+        "alternating_evaluation_order":True,
+    }
+
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     for name in (
@@ -335,12 +393,14 @@ def main() -> None:
                     cpu, rows, keys, routes, tok, bank, scorer,
                     bridge=cpu_bridge,
                 )
+                speed_evidence=verified_interleaved_cpu_speed(
+                    cpu,rows,keys,routes,tok,bank,scorer,cpu_bridge,
+                    base,observed)
             finally:
                 cpu_bridge.uninstall()
-            # Same-host ratio is S111 over S101; S82 ratio should be
-            # checked in a separate full canonical native CPU benchmark.
-            same_run_ratio = (statistics.median(base_speed)
-                              / statistics.median(proposed_speed))
+            # A fair 48-item alternating paired S101 vs S112 benchmark
+            # avoids the severe cold-start skew seen in S109.
+            same_run_ratio=speed_evidence["ratio"]
             guard = strict_train_retention(
                 expected, base, observed, physical_bpp=bpp,
                 cpu_ratio=same_run_ratio, speed_required=True,
@@ -370,6 +430,7 @@ def main() -> None:
                 "guard": guard,
                 "rollback": evidence,
                 "speed_same_host_S101_to_S112": same_run_ratio,
+                "paired_cpu_speed_evidence":speed_evidence,
                 "same_host_S82_speed_still_pending": True,
                 "bpp": bpp,
                 "physical_bytes_added": added_bytes,
