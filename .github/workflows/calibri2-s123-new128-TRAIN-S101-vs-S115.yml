@@ -101,6 +101,27 @@ jobs:
           path: inputs/s93
           run-id: 42681768394
           github-token: ${{ github.token }}
+      - name: Original S87 original 456 authorized TRAIN profile
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          path: inputs/s87_full
+          run-id: 42659248083
+          github-token: ${{ github.token }}
+      - name: Original S91 completed 456 authorized TRAIN profile
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s91-full-456-strict-EOS-quality-no-forgetting-and-CPU
+          path: inputs/s91_full
+          run-id: 42674413574
+          github-token: ${{ github.token }}
+      - name: Original S93 completed 456 authorized TRAIN profile
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-full-456-strict-union-no-forgetting-and-CPU
+          path: inputs/s93_full
+          run-id: 42681768394
+          github-token: ${{ github.token }}
       - name: Actual original S101 full456 then S122 new128 TRAIN diagnostics S101 versus S115
         run: |
           python research/calibri2/s123/real_s101_s115_s122_train_diagnostic_cpu.py \
@@ -118,9 +139,9 @@ jobs:
             inputs/s115/S115_UNACCEPTED_prefill_only_S93_SIDECAR.safetensors \
             inputs/s115/S115_UNACCEPTED_prefill_only_RUNTIME_CONFIG.json \
             inputs/s122/S122_TRAIN_ONLY_CROSS_BINDING_CURRICULUM_REPORT.json \
-            inputs/s87/S87_ALL_456_TRAIN_GUARD_REPORT.json \
-            inputs/s91/S91_REAL_MPS_JOINT_TRAIN_REPORT.json \
-            inputs/s93/S93_REAL_MPS_PROTECTED_ADAM_456_TRAIN_REPORT.json \
+            inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s91_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s93_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
             results/s123
       - name: Preserve aggregate original TRAIN diagnostics never claim new QA
         if: always()
