@@ -48,7 +48,7 @@ from calibri2.s112.prompt_conditioned_first_token_mps import (
     cohort,load_cpu_original,all_456_cached_cpu,
 )
 from calibri2.s121.protected_nullspace import protected_nullspace_direction
-from calibri2.s121.paired_train_selection import select_train_counterfactual_pairs
+from calibri2.s120.paired_train_selection import select_train_counterfactual_pairs
 from v176.operators import clear
 
 N_NEW_PAIRS=8
@@ -99,7 +99,7 @@ def main():
     a.out.mkdir(parents=True,exist_ok=True)
     if not torch.backends.mps.is_available():
         raise RuntimeError("Real Apple MPS backprop is required")
-    torch.manual_seed(1170117)
+    torch.manual_seed(1210121)
     torch.set_num_threads(2)
     p99=json.loads(a.S99_full456_report.read_text())
     p101=json.loads(a.S101_full456_report.read_text())
