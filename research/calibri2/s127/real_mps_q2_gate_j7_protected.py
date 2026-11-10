@@ -278,7 +278,7 @@ def main():
         "S98_copy_net","S98_report","S95_router","S95_report",
         "S94_bank","S94_report","S93_CB61","S93_sidecar",
         "S99_full456_report","S101_full456_report",
-        "S122_curriculum_report","S112_report","S87_report","S91_report",
+        "S122_curriculum_report","S112_report","S126Q_physical","S126Q_report","S87_report","S91_report",
         "S93_report",
     ):
         p.add_argument(name,type=Path)
@@ -294,6 +294,15 @@ def main():
     p101=json.loads(a.S101_full456_report.read_text())
     p122=json.loads(a.S122_curriculum_report.read_text())
     p112=json.loads(a.S112_report.read_text())
+    p126q=json.loads(a.S126Q_report.read_text())
+    if (p126q.get("stage")!="S126Q_REAL_S101_ZERO_FULL_LAYER_GT12_2BIT"
+            or p126q.get("real_original_S101_456_all_token_exact_parity") is not True
+            or p126q.get("real_new_S122_128_exact_parity") is not True
+            or p126q.get("physical_below_0_7") is not True
+            or p126q.get("CPU_at_least_0_9") is not True
+            or p126q.get("zero_stage_eligible_for_future_training") is not True
+            or sha(a.S126Q_physical.read_bytes())!=p126q.get("physical_sha256")):
+        raise AssertionError("S127 requires actual physically proven S126-Q checkpoint")
     if (p101.get("cached_full_EOS_correct")!=353
             or p101.get("new_first_token_correct")!=387
             or p99.get("S99_new_correct_full_EOS")!=353
@@ -330,6 +339,14 @@ def main():
     historical,histkeys,histroutes=cohort(tok,protected_orig_reports,router)
     expected={k:historical[k]["expected"] for k in histkeys}
     side=load_file(str(a.S93_sidecar))
+    baseline_q2=load_file(str(a.S126Q_physical))
+    zero_q2={k:v for k,v in baseline_q2.items() if k.startswith(PREFIX)}
+    if (set(baseline_q2)!=set(side)|set(zero_q2)
+            or len(zero_q2)!=6
+            or any(not torch.equal(baseline_q2[k],v) for k,v in side.items())):
+        raise AssertionError("S127 Q2 original S101 physical source mismatch")
+    if not bool(torch.count_nonzero(zero_q2[PREFIX+"gates_fp16"])==0):
+        raise AssertionError("S127 Q2 prerequisite is not exact zero gates")
     raw=s87.open_envelope(a.S93_CB61.read_bytes())
     cpu=load_cpu_original(raw,side)
     try:
@@ -381,8 +398,9 @@ def main():
     head=student.lm_head.source().detach()
     bridge.coefficients.requires_grad_(False)
     full=FullLayerStateTunnel(width=320,depth=12,rank=4).to("mps").eval()
-    zero_q2=export_compact_q2(full)
     load_compact_q2(full,zero_q2)
+    if any(not torch.equal(export_compact_q2(full)[k],v) for k,v in zero_q2.items()):
+        raise AssertionError("S127 actual S126-Q loaded Q2 physical source mismatch")
     parameters=restrict_to_gate_only(full)
     if not torch.equal(full.gates.detach().cpu(),torch.zeros(12)):
         raise AssertionError("S127 packed baseline not zero initialized")
