@@ -30,14 +30,15 @@ from calibri2.s65 import train_only_new_rank116_and_guard_old as s65
 from calibri2.s78 import mps_36m_feature_cached_late_rank16_restoration as s78
 from calibri2.s82 import real_mps_generic_token_context_copy as s82
 from calibri2.s87.internal_green_tunnel import (
-    IntegratedGreenTunnel, select_paid_core_codebooks, joint_train_step)
+    IntegratedGreenTunnel, select_paid_core_codebooks)
+from calibri2.s87.aligned_loss import aligned_joint_step
 from v185.codec import replace_discrete
 
 SEED = 870087
 TUNNEL_LAYERS = (3, 9)
 TUNNEL_RANK = 8
 MIN_TRAIN_STEPS = 1
-MAX_TRAIN_STEPS = 2
+MAX_TRAIN_STEPS = 16
 MAX_BPP = 0.7
 
 
@@ -83,7 +84,7 @@ def main():
     p.add_argument("S82_controller", type=Path)
     p.add_argument("S82_paid_manifest", type=Path)
     p.add_argument("out", type=Path)
-    p.add_argument("--steps", type=int, default=1)
+    p.add_argument("--steps", type=int, default=16)
     a = p.parse_args()
     if not MIN_TRAIN_STEPS <= a.steps <= MAX_TRAIN_STEPS:
         raise ValueError("Bounded S87 feasibility TRAIN only")
@@ -132,18 +133,34 @@ def main():
     inner.install(student)
     paid_core = select_paid_core_codebooks(sources, TUNNEL_LAYERS)
     parameters = [src.centroids for src in paid_core.values()] + list(inner.parameters())
-    optimizer = torch.optim.Adam(parameters, lr=0.0005)
+    # S87-J2: train through the *actual inference scoring path*, not only raw LM CE.
+    # All three reference components are frozen S82 tensors. We differentiate
+    # through their input hidden states but never update their parameters.
+    mps_first, mps_later = s78.controllers(weights)
+    mps_first.to("mps").eval().requires_grad_(False)
+    mps_later.to("mps").eval().requires_grad_(False)
+    mps_pointer = _pointer(weights).to("mps")
+    train_legacy = [pairs[i][side] for i in range(len(pairs))
+                    for side in ("left", "right")]
+    train_new = [new_pairs[i][side] for i in range(len(new_pairs))
+                 for side in ("left", "right")]
+    optimizer = torch.optim.Adam(parameters, lr=0.00012)
     steps = []
     for step in range(a.steps):
-        # Each update includes one old and one new TRAIN relation. No QA labels.
-        old = old_rows[step]
-        fresh = new_rows[step]
-        report = joint_train_step(student, sources, inner, paid_core, tok,
-                                  [(old["question"], old["answer"]),
-                                   (fresh["question"], fresh["answer"])], optimizer)
+        # 4 real authorised TRAIN cases/update; deterministic opposing examples
+        # sampled from different offsets, no QA/TEST or question-ID routing.
+        batch = [train_legacy[(step * 5) % len(train_legacy)],
+                 train_legacy[(step * 5 + 11) % len(train_legacy)],
+                 train_new[(step * 17) % len(train_new)],
+                 train_new[(step * 17 + 39) % len(train_new)]]
+        cases = [(r["question"], r["answer"]) for r in batch]
+        report = aligned_joint_step(student, sources, inner, paid_core, tok,
+                                    cases, optimizer, mps_first, mps_later,
+                                    mps_pointer, step=step)
         steps.append(report.__dict__)
-        print(json.dumps({"event":"S87_REAL_MPS_JOINT_TRAIN_STEP",
+        print(json.dumps({"event":"S87_J2_MPS_ALIGNED_FULL_EOS_STEP",
                           "step":step+1, **report.__dict__}), flush=True)
+    del mps_first, mps_later, mps_pointer
     inner.uninstall()
     inner.to("cpu")
     student.to("cpu")
@@ -207,7 +224,10 @@ def main():
            for k in weights):
         raise AssertionError("Frozen S82 tensor modified")
     proposed_meta = {
-        "stage":"S87_UNACCEPTED_REAL_MPS_JOINT_CORE_AND_INTERNAL_TUNNEL_FEASIBILITY",
+        "stage":"S87_J2_UNACCEPTED_CONTROLLER_ALIGNED_JOINT_CORE_INTERNAL_TUNNEL",
+        "training_objective":"real frozen S82 first/later/pointer logits + full EOS",
+        "training_provenance":"authorized legacy S30 + newly authored S82 TRAIN only",
+        "candidate_accepted":False,
         "source_sha256":sha(modified), "source_unchanged_bytes":len(modified),
         "source_CB61_physical_sha256":sha(packed),
         "old_S82_sidecar_sha256":sha(old_side),
