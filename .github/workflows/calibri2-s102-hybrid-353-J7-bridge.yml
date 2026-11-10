@@ -9,7 +9,7 @@ permissions:
   actions: read
 jobs:
   s102_source_no_QA_sanity:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s102-hybrid-s101-j7-20261110'
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s102-hybrid-s101-j7-mps-20261110'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
