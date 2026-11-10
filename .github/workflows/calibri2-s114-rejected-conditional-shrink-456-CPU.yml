@@ -76,13 +76,6 @@ jobs:
           path: inputs/s111
           run-id: 42882001296
           github-token: ${{ github.token }}
-      - name: Get verified S104 learned gain and transaction report, no QA
-        uses: actions/download-artifact@v4
-        with:
-          name: calibri-s104-unaccepted-ten-layer-gains-real-MPS-full456-retention
-          path: inputs/s112
-          run-id: 42871125920
-          github-token: ${{ github.token }}
       - name: Rejected but physically verified S112 MPS coefficients and guard report
         uses: actions/download-artifact@v4
         with:
