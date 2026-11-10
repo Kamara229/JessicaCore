@@ -103,7 +103,7 @@ or claim a second independent victory. Include natural responses and a
 matched 36M FP32 control when available, not an incomparable 135M model
 presented as parameter-matched FP32.
 
-## Current S102 deliverables (stage A)
+## Current S102 deliverables (stage A + first guarded MPS stage B)
 
 - `hybrid_retention.py`: strict 353-full+first identity checks and atomic
   optimizer+weights rollback, with numerical Adam self-test.
@@ -111,9 +111,25 @@ presented as parameter-matched FP32.
   S101 CPU answers, frozen profile/sidecar provenance, numerical/physical
   headroom and correct-identity diagnostics. Produces a **research evidence
   artifact only**, not a stored inference lookup table.
-- GitHub Actions macOS-15 pinned CPU workflow; source QA-embargo check.
-- **No actual hybrid GPU update has been applied at stage A**. Stage B is
-  to port controller-aligned safeguarded gradient training to **S93 within
-  the S101 ABI** and run 8-step transactions, followed by all-456 CPU guard.
+- GitHub Actions macOS-15 pinned CPU + real-MPS workflow; source QA-embargo check.
+- **Stage A confirmed by CI #42845071504**: 353 correct full+EOS, 387 prior
+  correct first tokens, S95 router selected S93 on 436/456 TRAIN prompts
+  (333 of the 353 correct); S87 15/15, S91 5/5. Exact available physical
+  margin is 1,940 bytes, same frozen CPU ratio 1.39158 vs S82. Numeric
+  synthetic J7 rollback succeeded.
+- `hybrid_mps_transaction.py`: first **REAL Apple MPS 8-step S93 joint
+  codebook+internal-tunnel update** with 2 wrong + 4 protected S93-routed
+  TRAIN examples each step. Train through frozen S82 first/later policy;
+  S98 discrete override is evaluated in true final S101 greedy CPU path,
+  not falsely advertised as differentiable. Freeze S87/S91 alternatives,
+  S95 router, S98 copy and zero gates. Physically repack changed S93 source
+  and sidecar; compare ALL 456 S101 cached CPU outputs against original,
+  enforce 353 full+EOS / 387 first preservation, <=0.7 bpp, rollback BOTH
+  model and Adam on failure. This is a pilot: **results not yet verified**;
+  no new quality or acceptance should be claimed until its own CI completes.
+- Future Stage C: if the pilot fails, use exact failure categories to revise
+  MPS objective without touching inspected QA, re-run fresh training only.
+  Before any model acceptance require same-run S82 native CPU speed, GPU/CPU
+  parity and a preregistered new held-out QA.
 - Never touch `main`, LIVE Jessica, Render, Supabase or APK; never merge
   or promote without explicit user instruction.
