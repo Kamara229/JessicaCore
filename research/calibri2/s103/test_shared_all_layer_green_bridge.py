@@ -116,6 +116,36 @@ class TestSharedInterLayerGreenBridge(unittest.TestCase):
         self.assertNotEqual(torch.count_nonzero(self.bridge.layer_gains.grad).item(), 0)
         self.assertTrue(torch.equal(self.bridge.layer_gains, torch.zeros_like(self.bridge.layer_gains)))
 
+    def test_synthetic_gain_only_fit_without_changing_alternate_routes(self):
+        # This is a synthetic architecture feasibility test, NOT Calibri QA.
+        with torch.no_grad():
+            self.bridge.layer_gains[0] = 0.35
+            self.bridge.layer_gains[8] = -0.20
+            with self.bridge.profile("S93"):
+                target = self.model(self.x).detach().clone()
+            self.bridge.layer_gains.zero_()
+        with torch.inference_mode():
+            with self.bridge.profile("S87"):
+                preserved_s87 = self.model(self.x)
+            with self.bridge.profile("S91"):
+                preserved_s91 = self.model(self.x)
+        optimizer = torch.optim.Adam([self.bridge.layer_gains], lr=0.06)
+        with self.bridge.profile("S93"):
+            initial = (self.model(self.x) - target).square().mean().item()
+            for _ in range(35):
+                optimizer.zero_grad(set_to_none=True)
+                loss = (self.model(self.x) - target).square().mean()
+                loss.backward()
+                optimizer.step()
+            final = (self.model(self.x) - target).square().mean().item()
+        self.assertGreater(initial, 0.0)
+        self.assertLess(final, initial * 0.6)
+        with torch.inference_mode():
+            with self.bridge.profile("S87"):
+                self.assertTrue(torch.equal(preserved_s87, self.model(self.x)))
+            with self.bridge.profile("S91"):
+                self.assertTrue(torch.equal(preserved_s91, self.model(self.x)))
+
     def test_state_serialization_only_gain_and_scope_restoration(self):
         with torch.no_grad():
             self.bridge.layer_gains[4] = 0.125
