@@ -1,0 +1,33 @@
+name: CALIBRI S115 KV prefill versus continuation GT gate synthetic tests
+'on':
+  push:
+    branches:
+      - research/calibri2-s115-temporal-gt-decoder-gate-20261110
+permissions:
+  contents: read
+jobs:
+  s103_synthetic_cpu_architecture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install only PyTorch CPU (no HF, no pretrained model weights)
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Static syntax and no QA leakage
+        run: |
+          python -m compileall -q research/calibri2/s115/
+          if grep -RE '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s96|s100)' research/calibri2/s115/*.py; then exit 1; fi
+      - name: Run gradient, all-12-layer propagation, exact-zero parity and route isolation unit checks
+        run: |
+          python -m unittest -v calibri2.s115.test_cached_phase_gate
