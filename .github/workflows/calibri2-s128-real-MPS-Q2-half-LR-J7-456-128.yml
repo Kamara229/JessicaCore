@@ -1,5 +1,6 @@
 name: CALIBRI S128 half-LR actual Q2 GT12 MPS J7 atomic S101 full456 new128 guard
 'on':
+  workflow_dispatch: {}
   push:
     branches:
       - research/calibri2-s128-low-lr-Q2-gate-J7-20261111
