@@ -54,9 +54,22 @@ def design_pairs(words, colors, names, frames):
         label_b=f"{color_b} {words[noun_b]}"
         if label_a==label_b:
             raise AssertionError("S122 cannot train identical owner labels")
-        ident=(frame,label_a,label_b)
+        # Both counterfactual sides are materialized below. Thus an
+        # unordered pair (A,B) on the SAME frame must be unique: (B,A)
+        # would duplicate both TRAIN questions even when ordered specs
+        # differ. Resolve lexical collisions deterministically without
+        # viewing model outputs or any held-out QA.
+        ident=(frame,tuple(sorted((label_a,label_b))))
         if ident in distinct_specs:
-            raise AssertionError("Repeated pair specification")
+            for offset in range(1,24):
+                candidate=f"{color_b} {words[(noun_b+offset)%24]}"
+                proposed=(frame,tuple(sorted((label_a,candidate))))
+                if candidate!=label_a and proposed not in distinct_specs:
+                    label_b=candidate
+                    ident=proposed
+                    break
+            else:
+                raise AssertionError("No deterministic unique original-TRAIN pair available")
         distinct_specs.add(ident)
         items.append({
             "pair_id":122000+i,
