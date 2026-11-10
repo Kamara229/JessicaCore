@@ -74,8 +74,6 @@ def main():
         "internal_tunnel.blocks.3.down.weight",
         "internal_tunnel.blocks.9.down.weight")):
         raise AssertionError("S93 2-layer Green Tunnel ABI changed")
-    if any(k not in s87.build_cpu(original_raw, side, True)[1] for k in CHANGED):
-        raise AssertionError("Two existing paid S93 core dictionaries missing")
     _,_,_,bank,router,copy_net = load_frozen_numeric_weights(a)
     tok = AutoTokenizer.from_pretrained(MODEL,revision=MODEL_SHA)
     s30.TOK = tok
@@ -101,6 +99,8 @@ def main():
     routed={key: CHOICES[int(choice)] for key,choice in zip(ids,choices)}
     model, sources, first, later, ptr, head, inner=s87.build_cpu(
         original_raw, side, True)
+    if any(key not in sources for key in CHANGED):
+        raise AssertionError("Two existing paid S93 core dictionaries missing")
     if install_verified_fastpath(inner)!=("3","9"):
         raise AssertionError("S101 exact frozen two-layer Green Tunnel fastpath missing")
     original_centroids={
