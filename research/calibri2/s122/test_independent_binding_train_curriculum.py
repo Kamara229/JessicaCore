@@ -27,6 +27,12 @@ class TestTrainOnlyCounterfactualCurriculum(unittest.TestCase):
         self.assertEqual(len(set(x["pair_id"] for x in pairs)),64)
         self.assertEqual(len(set((p["frame"],p["left_label"],p["right_label"])
                                  for p in pairs)),64)
+        # The two sides of each counterfactual are both generated. A
+        # reversed pair with the same frame would DUPLICATE examples.
+        self.assertEqual(len(set((
+            p["frame"],
+            tuple(sorted((p["left_label"],p["right_label"])))
+        ) for p in pairs)),64)
         color_pairs=Counter(
             (p["left_color"],p["right_color"]) for p in pairs)
         self.assertEqual(len(color_pairs),12)
