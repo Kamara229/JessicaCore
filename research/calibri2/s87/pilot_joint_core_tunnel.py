@@ -135,15 +135,32 @@ def main():
     optimizer = torch.optim.Adam(parameters, lr=0.0005)
     steps = []
     for step in range(a.steps):
-        # Each update includes one old and one new TRAIN relation. No QA labels.
-        old = old_rows[step]
-        fresh = new_rows[step]
+        # Step 1 preserves the original bounded feasibility protocol.
+        # Step 2 replays ALL eight authorized pilot TRAIN rows rather than
+        # training on two fresh rows while silently forgetting step 1.
+        # This is NOT the full 456-identity protected replay required for
+        # scientific acceptance; the independent CPU guard remains mandatory.
+        if step == 0:
+            examples = [(old_rows[0]["question"], old_rows[0]["answer"]),
+                        (new_rows[0]["question"], new_rows[0]["answer"])]
+        else:
+            examples = [(row["question"], row["answer"])
+                        for row in old_rows + new_rows]
         report = joint_train_step(student, sources, inner, paid_core, tok,
-                                  [(old["question"], old["answer"]),
-                                   (fresh["question"], fresh["answer"])], optimizer)
+                                  examples, optimizer)
+        # The zero-init output matrices should unblock gradients to the
+        # down and gate matrices on the SECOND backward pass. Fail closed.
+        if step == 1:
+            missing = [name for name in report.zero_tunnel_gradient_tensors
+                       if name.endswith((".down.weight", ".gate.weight",
+                                         ".gate.bias"))]
+            if missing:
+                raise AssertionError(
+                    f"Second MPS step did not reach internal matrices: {missing}")
         steps.append(report.__dict__)
         print(json.dumps({"event":"S87_REAL_MPS_JOINT_TRAIN_STEP",
-                          "step":step+1, **report.__dict__}), flush=True)
+                          "step":step+1, "train_replay_rows":len(examples),
+                          **report.__dict__}), flush=True)
     inner.uninstall()
     inner.to("cpu")
     student.to("cpu")
