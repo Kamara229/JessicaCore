@@ -139,7 +139,10 @@ def main():
     timings={"S82":[],"S87":[]}
     warmup_per_backend=8
     measured_per_backend=48
-    # Report paired per-generated-token latency, not incomparable prompt wall times.
+    # Sample across all TRAIN families instead of only the first 48 S30 prompts.
+    # Alternate backend order to reduce drift bias; preserve paired prompt identity.
+    benchmark_indices = {warmup_per_backend + (i * (456-warmup_per_backend)) // measured_per_backend
+                         for i in range(measured_per_backend)}
     # These are reconstructed PyTorch CPU diagnostics, never native-C acceptance.
     for family, pairs in grouped.items():
         stats={"count":0,"old_full":0,"new_full":0,
@@ -151,16 +154,18 @@ def main():
                 expected=tok.encode(item["answer"],add_special_tokens=False)+[
                     tok.eos_token_id]
                 values=[]
-                for label, item_state in (("S82",old),("S87",new)):
+                order = (("S82",old),("S87",new)) if len(rows)%2 == 0 else (("S87",new),("S82",old))
+                outputs = {}
+                for label, item_state in order:
                     model,sources,first,later,pointer,head,_=item_state
                     t=time.perf_counter()
                     generated=s82.full_cpu_generate(
                         model,sources,first,later,head,tok,item["question"],pointer)
                     elapsed=time.perf_counter()-t
-                    if warmup_per_backend <= len(rows) < warmup_per_backend+measured_per_backend:
+                    if len(rows) in benchmark_indices:
                         timings[label].append((elapsed, max(1, len(generated))))
-                    values.append(generated)
-                before,after=values
+                    outputs[label] = generated
+                before,after=outputs["S82"],outputs["S87"]
                 old_full=before==expected
                 new_full=after==expected
                 old_first=bool(before) and before[0]==expected[0]
