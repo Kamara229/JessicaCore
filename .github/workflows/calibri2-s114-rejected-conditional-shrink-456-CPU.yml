@@ -1,0 +1,170 @@
+name: CALIBRI S114 rejected S112 contextual gate shrinkage and donor-mask CPU full456
+'on':
+  push:
+    branches:
+      - research/calibri2-s114-safe-context-gain-shrinkage-20261110
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri-s114-rejected-context-safe-shrink
+  cancel-in-progress: true
+jobs:
+  s114_rejected_context_cpu_456:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '1140114'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Confirm S111 real all-456 CPU parity completed successfully
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 100); do
+            current=$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42882001296 --jq .status)
+            if [ "$current" = "completed" ]; then
+              conclusion=$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42882001296 --jq .conclusion)
+              test "$conclusion" = "success" || { echo "S111 Stage A incomplete or rejected: $conclusion"; exit 1; }
+              echo "S111_STAGE_A_COMPLETE_SUCCESS"
+              break
+            fi
+            echo "S111 stage A status $current; prerequisite not yet satisfied"
+            sleep 30
+          done
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42882001296 --jq .conclusion)" = "success"
+      - name: Install exact S101 experiment Python dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify S114 immutable 456 TRAIN source and syntax
+        run: |
+          python -m compileall -q research/calibri2/s114 research/calibri2/s112 research/calibri2/s111
+          if grep -RE '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s96|s100)' research/calibri2/s114/*.py; then exit 1; fi
+      - name: Original S99 physical source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s99-unaccepted-full456-physical-neural-noun-copy-CPU
+          path: inputs/s99
+          run-id: 42705657584
+          github-token: ${{ github.token }}
+      - name: Original S101 KV baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s101-unaccepted-456-full-EOS-KV-cache-CPU-parity-and-speed
+          path: inputs/s101
+          run-id: 42710297657
+          github-token: ${{ github.token }}
+      - name: S111 actual physical all-456 zero-gain prerequisite
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s111-prompt-conditioned-dual-GT-456-CPU-zero-parity
+          path: inputs/s111
+          run-id: 42882001296
+          github-token: ${{ github.token }}
+      - name: Get verified S104 learned gain and transaction report, no QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s104-unaccepted-ten-layer-gains-real-MPS-full456-retention
+          path: inputs/s112
+          run-id: 42871125920
+          github-token: ${{ github.token }}
+      - name: Rejected but physically verified S112 MPS coefficients and guard report
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s112-unaccepted-prompt-conditioned-340-FP16-MPS-456-CPU-retention
+          path: inputs/s112
+          run-id: 42882671306
+          github-token: ${{ github.token }}
+      - name: Frozen neural second token policy
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s98-unaccepted-MPS-neural-second-token-owner-copy-feasibility
+          path: inputs/s98
+          run-id: 42704076897
+          github-token: ${{ github.token }}
+      - name: Frozen numeric profile router
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s95-unaccepted-prompt-only-router-456-strict-CPU
+          path: inputs/s95
+          run-id: 42698707784
+          github-token: ${{ github.token }}
+      - name: Frozen exact bank
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s94-unaccepted-lossless-three-profile-bank-456-TRAIN-feasibility
+          path: inputs/s94
+          run-id: 42697267843
+          github-token: ${{ github.token }}
+      - name: Frozen S93 compressed weights and existing tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          path: inputs/s93
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Frozen S87 authorized TRAIN gold and prior profiles
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          path: inputs/s87_full
+          run-id: 42659248083
+          github-token: ${{ github.token }}
+      - name: Frozen S91 full 456 TRAIN
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s91-full-456-strict-EOS-quality-no-forgetting-and-CPU
+          path: inputs/s91_full
+          run-id: 42674413574
+          github-token: ${{ github.token }}
+      - name: Frozen S93 full 456 TRAIN
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-full-456-strict-union-no-forgetting-and-CPU
+          path: inputs/s93_full
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Test five S112 rejected FP16 coefficient shrink and donor masks on genuine S101 CPU 456 TRAIN
+        run: |
+          python research/calibri2/s114/rejected_context_safe_shrinkage_cpu.py \
+            inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
+            inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
+            inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            inputs/s94/S94_ALTERNATE_EXACT_CORE_TUNNEL_BANK.bin \
+            inputs/s94/S94_PROFILE_BANK_FEASIBILITY_REPORT.json \
+            inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s99/S99_ALL456_NEW_NEURAL_COPY_PHYSICAL_TRAIN_AUDIT.json \
+            inputs/s101/S101_KV_CACHE_EXACT_S99_456_TRAIN_CPU_GUARD.json \
+            inputs/s111/S111_PROMPT_CONDITIONED_ZERO_FULL456_PARITY_REPORT.json \
+            inputs/s112/S112_MPS_GAIN_ONLY_456_CPU_GUARD_REPORT.json \
+            inputs/s112/S112_UNACCEPTED_CONTEXT_340_FP16_S93_SIDECAR.safetensors \
+            inputs/s112/S112_UNACCEPTED_RUNTIME_CONFIG.json \
+            inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s91_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s93_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s114
+      - name: Preserve five controlled rejected S112 variants, never promote
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s114-unaccepted-rejected-S112-5-shrink-masks-full456-CPU
+          path: results/s114/
+          retention-days: 90
+          if-no-files-found: warn
