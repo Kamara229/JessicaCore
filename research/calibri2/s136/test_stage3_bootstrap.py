@@ -179,7 +179,7 @@ class Stage3BootstrapTests(unittest.TestCase):
                 self.assertIn("verified_s135_stage3_entry(",workflow)
             else:
                 self.assertIn(required,workflow)
-        self.assertIn(' --jq .conclusion)\\" = \\"success\\"',workflow)
+        self.assertIn(' --jq .conclusion)" = "success"',workflow)
         self.assertIn("S135_GROWN_46M_ZERO_NEW_CHANNELS.safetensors",workflow)
         self.assertIn("S132_GROWN_43M_ZERO_NEW_CHANNELS.safetensors",workflow)
         self.assertIn("S136_GROWN_50M_ZERO_NEW_CHANNELS",Path(__file__).with_name(
