@@ -628,13 +628,27 @@ def main():
                             cpu,historical,histkeys,histroutes,tok,bank,copy_net,
                             cpu_full,cpu_bridge,cpu_expansion,original_before,original_prediction)
                         guard=strict_train_retention(
-                            expected,before,original_prediction,
+                            expected,original_before,original_prediction,
                             physical_bpp=bpp,cpu_ratio=speed["ratio"],speed_required=True)
                         with cpu_expansion.prefill_only(cpu[0]),prefill_only_tunnel(cpu[0],cpu_full):
                             new_prediction=candidate_actual_CPU(
                                 cpu,new,newkeys,new_routes,tok,bank,
                                 copy_net,cpu_bridge,"prefill_only")
                         new_score=score_full_and_pairs(new,new_prediction)
+                        # S102's strict gate deliberately anchors the original
+                        # 353 S101 correct IDs; S132 additionally protects all
+                        # 358+ skills learned by earlier J7-committed stages.
+                        current_full={k for k in histkeys if before[k]==expected[k]}
+                        current_first={k for k in histkeys if before[k] and
+                                      before[k][0]==expected[k][0]}
+                        current_lost_full=sorted(k for k in current_full
+                                                 if original_prediction[k]!=expected[k])
+                        current_lost_first=sorted(k for k in current_first
+                                                  if not original_prediction[k] or
+                                                  original_prediction[k][0]!=expected[k][0])
+                        current_new_full=sum(
+                            original_prediction[k]==expected[k]
+                            for k in histkeys if k not in current_full)
                         results={
                             "block":block+1,"check":index,"trial_scale":trial_scale,
                             "original_S101_456_correct_full":sum(
@@ -643,11 +657,11 @@ def main():
                                 bool(original_prediction[k]) and
                                 original_prediction[k][0]==expected[k][0]
                                 for k in histkeys),
-                            "lost_original_full":guard["lost_full"],
-                            "lost_original_full_identities":guard["lost_full_identities"],
-                            "lost_original_first_identities":guard["lost_first_identities"],
-                            "lost_original_first":guard["lost_first"],
-                            "gained_original_full":guard["gained_full"],
+                            "lost_original_full":len(current_lost_full),
+                            "lost_original_full_identities":current_lost_full,
+                            "lost_original_first_identities":current_lost_first,
+                            "lost_original_first":len(current_lost_first),
+                            "gained_original_full":current_new_full,
                             "new_S122_128_TRAIN_full":new_score["full"],
                             "new_S122_128_TRAIN_first":new_score["first"],
                             "new_S122_64_both_sides_full":
@@ -672,14 +686,14 @@ def main():
                                      (new_score['full']>new_base_stats['full'] or
                                      new_score['counterfactual_pairs_both_correct']>
                                        new_base_stats['counterfactual_pairs_both_correct'] or
-                                     guard['gained_full']>0))
+                                     current_new_full>0))
                         guard_evidence=GainOnlyRetentionCheck(
                             original_456_checked=len(histkeys),
                             original_full_correct=len(orig_full),
                             original_first_correct=len(orig_first),
-                            lost_original_full=guard["lost_full"],
-                            lost_original_first=guard["lost_first"],
-                            newly_correct_original_full=guard["gained_full"],
+                            lost_original_full=len(current_lost_full),
+                            lost_original_first=len(current_lost_first),
+                            newly_correct_original_full=current_new_full,
                             new_S122_train_full=new_score["full"],
                             new_S122_train_both_correct_pairs=
                                 new_score["counterfactual_pairs_both_correct"],
@@ -726,11 +740,14 @@ def main():
                             cpu,new,newkeys,new_routes,tok,bank,copy_net,
                             cpu_bridge,"prefill_only")
                     old_check=strict_train_retention(
-                        expected,before,accepted_old,
+                        expected,original_before,accepted_old,
                         physical_bpp=last_record["physical_bpp"],
                         cpu_ratio=last_record["CPU_ratio"],
                         speed_required=True)
                     if (old_check["lost_full"]!=0 or old_check["lost_first"]!=0
+                        or any(accepted_old[k]!=expected[k] for k in current_full)
+                        or any(not accepted_old[k] or accepted_old[k][0]!=expected[k][0]
+                               for k in current_first)
                         or any(accepted_new[k]!=new[k]["expected"]
                                for k in parent_correct_new_full)
                         or any(not accepted_new[k]
