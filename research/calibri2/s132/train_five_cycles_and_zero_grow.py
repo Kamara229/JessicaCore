@@ -263,9 +263,11 @@ class GainOnlyRetentionCheck(PhysicalRetentionCheck):
     """
     safe_train_gain: bool=False
     verified_base_rollback: bool=False
+    new_correct_identities_lost:int=0
 
     def valid(self):
-        return super().valid() and (self.safe_train_gain or self.verified_base_rollback)
+        return (super().valid() and self.new_correct_identities_lost==0 and
+                (self.safe_train_gain or self.verified_base_rollback))
 
 
 def main():
@@ -451,6 +453,33 @@ def main():
         cpu_full.install(cpu[0])
         cpu_expansion=RouteIsolatedAdditiveCore(active_rank=ACTIVE_RANK).eval().bind_original_route_bridge(cpu_bridge).install(cpu[0])
         try:
+            # Continue from actual physically committed S131, never restart
+            # five cycles from an obsolete S101 zero-new-weight checkpoint.
+            expansion.load_active_fp16({UP_KEY:inherited[UP_KEY]})
+            cpu_expansion.load_active_fp16({UP_KEY:inherited[UP_KEY]})
+            original_before=before
+            with cpu_expansion.prefill_only(cpu[0]),prefill_only_tunnel(cpu[0],cpu_full):
+                inherited_before=candidate_actual_CPU(
+                    cpu,historical,histkeys,histroutes,tok,bank,copy_net,
+                    cpu_bridge,"prefill_only")
+                inherited_new=candidate_actual_CPU(
+                    cpu,new,newkeys,new_routes,tok,bank,copy_net,
+                    cpu_bridge,"prefill_only")
+            old_ids_full={k for k in histkeys if original_before[k]==expected[k]}
+            old_ids_first={k for k in histkeys if original_before[k] and original_before[k][0]==expected[k][0]}
+            if (len(old_ids_full)!=353 or len(old_ids_first)!=387
+                or any(inherited_before[k]!=expected[k] for k in old_ids_full)
+                or any(not inherited_before[k] or inherited_before[k][0]!=expected[k][0] for k in old_ids_first)
+                or sum(inherited_before[k]==expected[k] for k in histkeys)!=358
+                or sum(bool(inherited_before[k]) and inherited_before[k][0]==expected[k][0] for k in histkeys)!=388
+                or score_full_and_pairs(new,inherited_new)["full"]!=14):
+                raise AssertionError("S132 S131+5 physical parent replay differs from actual S131 result")
+            before=inherited_before
+            new_base_stats=score_full_and_pairs(new,inherited_new)
+            parent_correct_new_full={k for k in new if inherited_new[k]==new[k]["expected"]}
+            parent_correct_new_first={k for k in new if inherited_new[k] and
+                                    inherited_new[k][0]==new[k]["expected"][0]}
+            cycle_evidence=[]
             for block in range(STEPS//TRANSACTION_STEPS):
                 last_record=None
                 block_start=expansion.up.detach().clone()
@@ -594,7 +623,7 @@ def main():
                                 copy_net,cpu_bridge,"prefill_only")
                         speed=paired_speed_S131(
                             cpu,historical,histkeys,histroutes,tok,bank,copy_net,
-                            cpu_full,cpu_bridge,cpu_expansion,before,original_prediction)
+                            cpu_full,cpu_bridge,cpu_expansion,original_before,original_prediction)
                         guard=strict_train_retention(
                             expected,before,original_prediction,
                             physical_bpp=bpp,cpu_ratio=speed["ratio"],speed_required=True)
@@ -631,10 +660,16 @@ def main():
                             "expanded_core_params":EXPANDED_CORE_PARAMS,
                             "active_new_fp16_weights":12*320*ACTIVE_RANK,
                         }
-                        actual_gain=(new_score['full']>new_base_stats['full'] or
+                        lost_parent_new_full=sum(new_prediction[k]!=new[k]['expected']
+                            for k in parent_correct_new_full)
+                        lost_parent_new_first=sum(
+                            not new_prediction[k] or new_prediction[k][0]!=new[k]['expected'][0]
+                            for k in parent_correct_new_first)
+                        actual_gain=(lost_parent_new_full==0 and lost_parent_new_first==0 and
+                                     (new_score['full']>new_base_stats['full'] or
                                      new_score['counterfactual_pairs_both_correct']>
                                        new_base_stats['counterfactual_pairs_both_correct'] or
-                                     guard['gained_full']>0)
+                                     guard['gained_full']>0))
                         guard_evidence=GainOnlyRetentionCheck(
                             original_456_checked=len(histkeys),
                             original_full_correct=len(orig_full),
@@ -652,8 +687,11 @@ def main():
                             S95_S98_unchanged=True,
                             safe_train_gain=bool(actual_gain and not restored_base),
                             verified_base_rollback=bool(restored_base),
+                            new_correct_identities_lost=lost_parent_new_full+lost_parent_new_first,
                         )
                         results["strict_no_forgetting_guard"]=PhysicalRetentionCheck.valid(guard_evidence)
+                        results["protected_new_full_losses"] = lost_parent_new_full
+                        results["protected_new_first_losses"] = lost_parent_new_first
                         results["safe_gain"] = guard_evidence.safe_train_gain
                         results["J7_gain_qualified"] = guard_evidence.valid()
                         physical.append(results)
