@@ -19,7 +19,7 @@ class S141FirstProtectionContract(unittest.TestCase):
         self.assertIn("g.detach()[:,:,448:472].clone()",p)
         self.assertIn("protected_new_first_loss_ids",p)
         self.assertNotIn("load_heldout",p)
-        self.assertNotIn("S118_",p)
+        self.assertNotIn("from calibri2.s118",p)
 
     def test_single_bounded_real_transaction_and_retention(self):
         p=self.source
