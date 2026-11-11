@@ -43,7 +43,10 @@ export function calibriNoTestNextStep(message) {
     const noJessicaTest =
         /(?:Джессика|Jessica)\s*,?\s*тесты?\s+не\s+запуска(?:й|ет|ть|ю)/iu.test(body) ||
         /тест(?:ы)?\s+(?:в\s+(?:сво[её]м|обычном)\s+чате\s+)?Jessica\s+не\s+(?:запуска(?:й|ет|ть|ю)|нужен|требуется)/iu.test(body) ||
-        /Запуск\s+(?:теста\s+)?выполняю\s+я\s+через\s+GitHub/iu.test(body);
+        /Запуск\s+(?:теста\s+)?выполняю\s+я\s+через\s+GitHub/iu.test(body) ||
+        // ChatGPT status may explicitly say "через GitHub, без тестов Jessica".
+        // This is a NO-TEST constraint, not permission for Jessica to execute QA.
+        /без\s+тест(?:а|ов)\s+(?:в\s+(?:обычном\s+)?чате\s+)?(?:Jessica|Джессики)(?=$|[^\p{L}\p{N}])/iu.test(body);
     if (!noJessicaTest) return null;
 
     // Do not turn an ambiguous/conflicting instruction into consent to test.
