@@ -757,6 +757,111 @@ def main():
                 print(json.dumps({
                     "event":"S132_J7_ATOMIC_ADAM_TRANSACTION_END",**tx,
                 }),flush=True)
+            next_rank=authorize_growth(cycle_evidence,START_RANK)
+            # Complete five J7 physical audits before changing model capacity.
+            learned_fp16=expansion.export_active_fp16()[UP_KEY]
+            cpu_expansion.load_active_fp16({UP_KEY:learned_fp16})
+            with cpu_expansion.prefill_only(cpu[0]),prefill_only_tunnel(cpu[0],cpu_full):
+                old_stage_456=candidate_actual_CPU(
+                    cpu,historical,histkeys,histroutes,tok,bank,copy_net,
+                    cpu_bridge,"prefill_only")
+                old_stage_128=candidate_actual_CPU(
+                    cpu,new,newkeys,new_routes,tok,bank,copy_net,
+                    cpu_bridge,"prefill_only")
+            prior_stage=ProgressiveRouteCore(rank=START_RANK).eval()
+            prior_stage.load_active_fp16({
+                "s132_progressive.active_indices_i32":
+                    torch.arange(ACTIVE_RANK,dtype=torch.int32),
+                "s132_progressive.active_up_fp16":learned_fp16,
+            })
+            next_stage=expand_preserving_previous(prior_stage,next_rank).eval()
+            if (not torch.equal(next_stage.up[:,:,:START_RANK],prior_stage.up)
+                    or next_stage.architectural_new_parameter_count()!=
+                        architecture_params(next_rank)-SOURCE_PARAMS):
+                raise AssertionError("S132 expanded structural core did not retain prior learned weights")
+            cpu_expansion.uninstall()
+            next_stage.bind_original_route_bridge(cpu_bridge).install(cpu[0])
+            try:
+                growth_sidecar=dict(side)
+                growth_sidecar.update(export_compact_q2(cpu_full))
+                growth_sidecar.update(next_stage.export_active_fp16())
+                growth_physical=a.out/"S132_GROWN_43M_ZERO_NEW_CHANNELS.safetensors"
+                save_file(growth_sidecar,str(growth_physical))
+                reloaded_growth=load_file(str(growth_physical))
+                if (set(reloaded_growth)!=set(growth_sidecar)
+                    or any(not torch.equal(reloaded_growth[k],v)
+                           for k,v in growth_sidecar.items())
+                    or any(not torch.equal(reloaded_growth[k],v)
+                           for k,v in side.items())):
+                    raise AssertionError("S132 full paid compressed archive roundtrip lost original tensors")
+                next_stage.load_active_fp16({
+                    k:reloaded_growth[k] for k in next_stage.export_active_fp16()
+                })
+                cfg={
+                    "stage":"S132_FIVE_CYCLES_THEN_ZERO_GROWTH",
+                    "next_rank":next_rank,
+                    "previous_core_architecture":architecture_params(START_RANK),
+                    "next_core_architecture":architecture_params(next_rank),
+                    "active_added_channel_ids":list(next_stage.active_indices),
+                    "fixed_down_seeds":"1290129+chunk_index",
+                    "new_channels_trained":False,
+                    "new_architecture_initial_up_exact_zero":True,
+                    "S101_original_core_immutable":True,
+                    "S126Q_quantization_immutable":True,
+                    "no_QA_no_LIVE":True,
+                }
+                cfg_path=a.out/"S132_GROWN_43M_RUNTIME.json"
+                cfg_path.write_text(json.dumps(cfg,separators=(",",":"),sort_keys=True))
+                with next_stage.prefill_only(cpu[0]),prefill_only_tunnel(cpu[0],cpu_full):
+                    grown_456=candidate_actual_CPU(
+                        cpu,historical,histkeys,histroutes,tok,bank,copy_net,
+                        cpu_bridge,"prefill_only")
+                    grown_128=candidate_actual_CPU(
+                        cpu,new,newkeys,new_routes,tok,bank,copy_net,
+                        cpu_bridge,"prefill_only")
+                if grown_456!=old_stage_456 or grown_128!=old_stage_128:
+                    raise AssertionError("S132 appended parameters changed old+new full/EOS replies")
+                speed_grown=paired_speed_S131(
+                    cpu,historical,histkeys,histroutes,tok,bank,copy_net,
+                    cpu_full,cpu_bridge,next_stage,original_before,grown_456)
+                extra_bytes=(growth_physical.stat().st_size
+                            -a.S93_sidecar.stat().st_size+cfg_path.stat().st_size)
+                paid_bpp=8*(float(p101["S99_all_inclusive_physical_bpp"])
+                          *SOURCE_PARAMS/8+extra_bytes)/(
+                          SOURCE_PARAMS+cpu_full.new_parameter_count()
+                          +next_stage.architectural_new_parameter_count())
+                if paid_bpp>.7 or speed_grown["ratio"]<.9:
+                    raise AssertionError("S132 expanded research checkpoint exceeds physical bpp or CPU")
+                growth_report={
+                    **cfg,
+                    "five_J7_cycles_verified":[c.__dict__ for c in cycle_evidence],
+                    "old_456_exact_EOS_parity":True,
+                    "new_128_exact_EOS_parity":True,
+                    "old_456_full_correct":sum(grown_456[k]==expected[k] for k in histkeys),
+                    "new_128_full_correct":score_full_and_pairs(new,grown_128)["full"],
+                    "rate_bpp_all_runtime_included":paid_bpp,
+                    "CPU_speed_ratio":speed_grown["ratio"],
+                    "additional_structural_core_params":
+                        architecture_params(next_rank)-architecture_params(START_RANK),
+                    "newly_learned_params_from_structural_growth":0,
+                    "physically_persisted_active_coefficients":
+                        12*320*len(next_stage.active_indices),
+                    "physical_sha256":sha(growth_physical.read_bytes()),
+                    "not_promoted_to_Jessica_or_MAIN":True,
+                }
+                (a.out/"S132_NEXT_STAGE_43M_PHYSICAL_GROWTH_REPORT.json").write_text(
+                    json.dumps(growth_report,indent=2,sort_keys=True,ensure_ascii=False))
+                print(json.dumps({
+                    "event":"S132_FIVE_J7_CYCLES_AND_ZERO_GROWTH_COMPLETE",
+                    "next_core_params":architecture_params(next_rank),
+                    "old_456_full":growth_report["old_456_full_correct"],
+                    "new_128_full":growth_report["new_128_full_correct"],
+                    "bpp":paid_bpp,
+                    "CPU_ratio":speed_grown["ratio"],
+                    "new_channels_not_yet_trained":True,
+                }),flush=True)
+            finally:
+                next_stage.uninstall()
         finally:
             cpu_expansion.uninstall()
             cpu_full.uninstall()
