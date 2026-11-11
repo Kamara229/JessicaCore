@@ -31,6 +31,7 @@ import {compactCalibri2NoJessicaTest} from "./relayCalibriV2CompactNoTest.js";
 import {externalResearchCiHandoff} from "./relayResearchExternalCiStatus.js";
 import {pendingCalibrI26AuditHandoff} from "./relayCalibriS26S27Pending.js";
 import {calibriLaterResearchNoJessicaTest} from "./relayCalibriLaterResearchNoTest.js";
+import {passiveS34GithubCiNoTest} from "./relayCalibriS34PassiveGithubCi.js";
 import {missingCalibriArtifactHandoff} from "./relayMissingCalibriArtifact.js";
 import {completedCalibriNoTestHandoff} from "./relayCalibriCompletedNoTest.js";
 import {v2PersistenceHandoff} from "./relayV2PersistenceHandoff.js";
@@ -137,6 +138,9 @@ export async function interpretRelayTurn(input, generate) {
     // CALIBRI S30 FP32/old-skill scientific next-step never requires Groq.
     const laterResearch=calibriLaterResearchNoJessicaTest(message);
     if(laterResearch!==null)return laterResearch;
+    // S34 GitHub Actions/PR #417 is a ChatGPT-only CI research status, never a Jessica test.
+    const s34Passive=passiveS34GithubCiNoTest(message);
+    if(s34Passive!==null)return s34Passive;
     const requestedTest = explicitJessicaTest(message) || compactJessicaTest(message) || numberedBenchmarkTest(message);
     if (requestedTest !== null) return validateRelayDecision(requestedTest,message);
     const calibri2Passive=calibri2ResearchPassiveHandoff(message);
