@@ -135,8 +135,9 @@ class ProgressiveRouteCore(RouteIsolatedAdditiveCore):
             raise ValueError("S132 active learned-weight payload inconsistent")
         with torch.no_grad():
             self.up.zero_()
-            self.up[:,:,list(self.active_indices)].copy_(
-                weights.to(device=self.up.device,dtype=self.up.dtype))
+            ids=torch.as_tensor(self.active_indices,dtype=torch.long,device=self.up.device)
+            self.up.index_copy_(
+                2,ids,weights.to(device=self.up.device,dtype=self.up.dtype))
         self.assert_inactive_zero()
 
 
