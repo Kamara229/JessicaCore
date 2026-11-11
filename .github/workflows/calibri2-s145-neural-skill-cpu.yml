@@ -1,0 +1,31 @@
+name: CALIBRI S145 neural skill blocks CPU-only contracts
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s144-pinned-fp16-source-20261111
+permissions:
+  contents: read
+jobs:
+  s145_neural_skills_cpu_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s145-neural-skill-blocks-20261112'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      PYTHONPATH: research
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU PyTorch only (no GPU, no S142 weights)
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+      - name: Verify isolated S145 neural skill structure and no-forgetting contracts
+        run: |
+          python -m compileall -q research/calibri2/s145
+          python -m unittest -v calibri2.s145.test_neural_skill_blocks
