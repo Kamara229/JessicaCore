@@ -134,6 +134,58 @@ class Stage3BootstrapTests(unittest.TestCase):
                 report=f.report,physical=f.physical,parent=f.parent,
                 output=f.physical)
 
+    def test_real_s136_stage3_trainer_compiles_and_freezes_all_old_coefficients(self):
+        source=Path(__file__).with_name(
+            "train_stage3_46m_five_cycles.py").read_text()
+        compile(source,"train_stage3_46m_five_cycles.py","exec")
+        for required in (
+            "verified_s135_stage3_entry(",
+            "a.S135_parent_sidecar",
+            "a.S132_parent_sidecar",
+            "mask_gradient_to_stage3_new_only(expansion)",
+            "verify_frozen_stage1_stage2(expansion,immutable_before)",
+            "expansion.up[:,:,896:920].clamp_",
+            "ProgressiveRouteCore(rank=1344)",
+            "authorize_growth(cycle_evidence,1344)",
+            "S136_GROWN_50M_ZERO_NEW_CHANNELS.safetensors",
+            "S136_NEXT_STAGE_50M_PHYSICAL_GROWTH_REPORT.json",
+            "strict_train_retention(",
+            "PhysicalRetentionCheck.valid(",
+            "atomic_train_block(",
+            "new_128_exact_EOS_parity",
+            "old_456_exact_EOS_parity",
+            "rate_bpp_all_runtime_included",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required,source)
+        for forbidden in (
+            "ProgressiveRouteCore(rank=896)",
+            "mask_gradient_to_new_channels_only(expansion)",
+            "a.S131_parent_sidecar",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden,source)
+
+    def test_stage3_gpu_workflow_is_fail_closed_until_s135_real_evidence(self):
+        workflow=(Path(__file__).resolve().parents[3]/
+            ".github"/"workflows"/
+            "calibri2-s136-stage3-five-J7-cycles-46-to-50m-physical.yml"
+        ).read_text()
+        for required in (
+            "s135-real-physical-approved",
+            "require real", # verified below by exact real gate source
+        ):
+            if required=="require real":
+                self.assertIn("verified_s135_stage3_entry(",workflow)
+            else:
+                self.assertIn(required,workflow)
+        self.assertIn(' --jq .conclusion)\\" = \\"success\\"',workflow)
+        self.assertIn("S135_GROWN_46M_ZERO_NEW_CHANNELS.safetensors",workflow)
+        self.assertIn("S132_GROWN_43M_ZERO_NEW_CHANNELS.safetensors",workflow)
+        self.assertIn("S136_GROWN_50M_ZERO_NEW_CHANNELS",Path(__file__).with_name(
+            "train_stage3_46m_five_cycles.py").read_text())
+        self.assertIn("research/calibri2/s136/train_stage3_46m_five_cycles.py",workflow)
+
     def test_mps_fp16_loader_has_no_unsupported_device_index_copy(self):
         source=(Path(__file__).resolve().parents[1]/
                 "s132"/"progressive_core.py").read_text()
