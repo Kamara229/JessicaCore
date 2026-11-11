@@ -175,8 +175,13 @@ def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
         core_norm = float(torch.nn.utils.clip_grad_norm_(core, 1.0))
         tunnel_norm = float(torch.nn.utils.clip_grad_norm_(side, 1.0))
         optimizer.step()
+        # Finite gradients do not guarantee finite optimizer-updated FP16
+        # centroids or adapter parameters. Reject before physical packing.
         with torch.no_grad():
-            for p in core: p.clamp_(-16.0, 16.0)
+            for p in core:
+                p.clamp_(-16.0, 16.0)
+            if any(not bool(torch.isfinite(p).all().item()) for p in core + side):
+                raise AssertionError("Nonfinite joint parameter after optimizer step")
         return JointStep(float(loss.detach()), core_norm, tunnel_norm,
                          len(selected_codebooks), nonzero_core, nonzero_tunnel,
                          zero_tunnel)
