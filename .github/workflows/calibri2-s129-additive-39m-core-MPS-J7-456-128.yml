@@ -3,7 +3,7 @@ name: CALIBRI S129 additive 39.82M core real MPS J7 456+128 CPU physical guard
   workflow_dispatch: {}
   pull_request:
     branches:
-      - research/calibri2-s129-low-lr-Q2-gate-J7-20261111
+      - research/calibri2-s128-low-lr-Q2-gate-J7-20261111
 permissions:
   contents: read
   actions: read
@@ -196,7 +196,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: calibri-s129-actual-Q2-gate-only-MPS-J7-physical456plus129-no-QA
+          name: calibri-s129-actual-Q2-gate-only-MPS-J7-physical456plus128-no-QA
           path: results/s129/
           retention-days: 90
           if-no-files-found: warn
