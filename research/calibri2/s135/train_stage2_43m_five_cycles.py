@@ -740,10 +740,16 @@ def main():
                         physical_bpp=last_record["physical_bpp"],
                         cpu_ratio=last_record["CPU_ratio"],
                         speed_required=True)
+                    # Recompute pre-transaction protected identities in
+                    # this outer scope; per-trial current_full/current_first
+                    # belong to persisted_cpu_guard and must not leak here.
+                    inherited_full={k for k in histkeys if before[k]==expected[k]}
+                    inherited_first={k for k in histkeys
+                                     if before[k] and before[k][0]==expected[k][0]}
                     if (old_check["lost_full"]!=0 or old_check["lost_first"]!=0
-                        or any(accepted_old[k]!=expected[k] for k in current_full)
+                        or any(accepted_old[k]!=expected[k] for k in inherited_full)
                         or any(not accepted_old[k] or accepted_old[k][0]!=expected[k][0]
-                               for k in current_first)
+                               for k in inherited_first)
                         or any(accepted_new[k]!=new[k]["expected"]
                                for k in parent_correct_new_full)
                         or any(not accepted_new[k]
