@@ -1,0 +1,40 @@
+name: CALIBRI S134 stage2 43M bootstrap and new-only masked gradient tests
+'on':
+  pull_request:
+    branches:
+      - research/calibri2-s133-stage2-43m-entry-guard-20261111
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: calibri-s134-43m-stage2-preflight
+  cancel-in-progress: false
+jobs:
+  stage2_new_channel_preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '1340134'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact isolated CPU testing requirements
+        run: python -m pip install 'torch==2.5.1' 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Ensure S132 actual evidence gating and inherited gradient immutability
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri2/s134 research/calibri2/s133 research/calibri2/s132
+          python -m unittest -v calibri2.s133.test_verify_stage2_entry calibri2.s134.test_stage2_bootstrap
+          if grep -RE '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s96|s100|s118)' research/calibri2/s134/*.py; then exit 1; fi
+      - name: Research-only stage2 not yet real neural training
+        run: |
+          grep -q 'new CHANNELS' /dev/null || test -f research/calibri2/s134/stage2_bootstrap.py
+          test ! -d research/calibri2/s134/heldout_QA
