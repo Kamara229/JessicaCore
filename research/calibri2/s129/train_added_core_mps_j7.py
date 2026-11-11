@@ -559,7 +559,7 @@ def main():
                         "model_accepted":False,
                         "new_core_params":EXTRA_CORE_PARAMS,
                         "expanded_core_params":EXPANDED_CORE_PARAMS,
-                        "active_new_fp16_weights":DEPTH*WIDTH*ACTIVE_RANK,
+                        "active_new_fp16_weights":12*320*ACTIVE_RANK,
                     }
                     guard_evidence=PhysicalRetentionCheck(
                         original_456_checked=len(histkeys),
