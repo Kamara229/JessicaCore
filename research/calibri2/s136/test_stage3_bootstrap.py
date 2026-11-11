@@ -12,6 +12,7 @@ from safetensors.torch import load_file,save_file
 from calibri2.s132.progressive_core import (
     IDS_KEY,WEIGHTS_KEY,initial_active_indices,
 )
+from calibri2.s136.attest_stage3_entry import attest_stage3
 from calibri2.s136.stage3_bootstrap import (
     prepare_stage3,mask_gradient_to_stage3_new_only,
     verify_frozen_stage1_stage2,
@@ -112,6 +113,26 @@ class Stage3BootstrapTests(unittest.TestCase):
         self.fixture.report.write_text(json.dumps(candidate))
         with self.assertRaises(AssertionError):
             self.load()
+
+    def test_real_gate_cli_attests_verified_inputs_only(self):
+        f=self.fixture
+        proof_path=f.physical.parent/"S136_RESEARCH_ONLY_ATTESTATION.json"
+        evidence=attest_stage3(
+            report=f.report,physical=f.physical,parent=f.parent,
+            output=proof_path)
+        self.assertEqual(evidence["completed_s135_J7_cycles"],5)
+        self.assertFalse(evidence["S136_stage3_GPU_training_started"])
+        self.assertTrue(evidence["five_real_J7_required"])
+        self.assertTrue(proof_path.exists())
+        with self.assertRaises(AssertionError):
+            attest_stage3(
+                report=f.report,physical=f.physical,
+                parent=proof_path.parent/"missing-S132.safetensors",
+                output=proof_path)
+        with self.assertRaises(AssertionError):
+            attest_stage3(
+                report=f.report,physical=f.physical,parent=f.parent,
+                output=f.physical)
 
     def test_mps_fp16_loader_has_no_unsupported_device_index_copy(self):
         source=(Path(__file__).resolve().parents[1]/
