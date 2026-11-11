@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: S143 fail-closed CPU synthetic tests and static integration; NO GPU/QA
+      - name: S143 CPU synthetic + audited S142 artifact reporting; NO GPU/QA
         run: |
           python -m compileall -q research/calibri2/s143 research/calibri2/s142
-          python -m unittest -v calibri2.s143.test_gain_reporting
+          python -m unittest -v calibri2.s143.test_gain_reporting calibri2.s143.test_s142_real_artifact_audit
