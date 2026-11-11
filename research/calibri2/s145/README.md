@@ -35,9 +35,13 @@ but the neural Skills here are real learned matrices and activation gates,
 - `LayerwiseNeuralSkillBank`: attach Skill to several layers, select one
   trainable Skill, freeze every inherited block **and** its gate, version
   Skill metadata, and account for ALL actual tensor bytes and manifest bytes.
-- Eight deterministic CPU contracts: identity insertion, invalid IDs,
+- `NeuralSkillHookBridge`: removable, zero-output PyTorch hooks matching the
+  real twelve-layer CALIBRI ABI; CPU tested on a synthetic decoder, **not**
+  the physically reloaded 43M S142 weights.
+- Ten deterministic CPU contracts: identity insertion, invalid IDs,
   frozen old weights, real gradients, causal routing, two-path composition,
-  stable versioned manifest, provisional FP16 byte accounting.
+  stable versioned manifest, provisional FP16 byte accounting, plus an isolated
+  removable 12-layer model hook bridge and tuple/cache-metadata preservation.
 
 **Limits:** no real S142/43M weights are loaded here; this module is not
 yet inserted into the true S101/S142 KV-cache prefill, active S82 neural
