@@ -721,6 +721,8 @@ def main():
                         raise AssertionError('S131 no actual physical candidate verified')
                     return last_guard
 
+                # Snapshot before J7 commit; the accepted baseline is updated below.
+                pre_cycle_new_base_stats=dict(new_base_stats)
                 result=atomic_train_block(
                     parameters,optimizer,train_block,
                     persisted_cpu_guard,reduction_factor=0.5)
@@ -797,9 +799,9 @@ def main():
 
                 if result.committed and last_record is not None and (
                     last_record["new_S122_128_TRAIN_full"]>
-                       new_base_stats["full"] or
+                       pre_cycle_new_base_stats["full"] or
                     last_record["new_S122_64_both_sides_full"]>
-                       new_base_stats["counterfactual_pairs_both_correct"]
+                       pre_cycle_new_base_stats["counterfactual_pairs_both_correct"]
                 ):
                     best_safe={
                         "block":block+1,
