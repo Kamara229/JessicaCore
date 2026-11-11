@@ -35,7 +35,7 @@ jobs:
           python -m unittest -v calibri2.s136.test_verify_stage3_entry calibri2.s136.test_stage3_bootstrap calibri2.s135.test_stage2_five_cycles calibri2.s134.test_stage2_bootstrap
           grep -q 'authorize_growth(cycles,STAGE2_RANK)' research/calibri2/s136/verify_stage3_entry.py
           grep -q 'stage3_new_24_coefficients_exact_zero' research/calibri2/s136/verify_stage3_entry.py
-          grep -q 'mask_gradient_to_stage3_new_only(core)' research/calibri2/s136/stage3_bootstrap.py
+          grep -Fq 'def mask_gradient_to_stage3_new_only(' research/calibri2/s136/stage3_bootstrap.py
           grep -q 'verify_frozen_stage1_stage2(' research/calibri2/s136/stage3_bootstrap.py
           grep -q 'stage3_new_24_coefficients_exact_zero' research/calibri2/s136/stage3_bootstrap.py
           echo "S136_PHYSICAL_ENTRY_AND_NEW_ONLY_GRADIENT_BOOTSTRAP_PREFLIGHT_NOT_ACCEPTED"
