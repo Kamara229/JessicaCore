@@ -58,6 +58,25 @@ class TestS142DualConeAdam(unittest.TestCase):
              float(torch.linalg.vector_norm(g))) for g in protected
         ), 1.0)
 
+    @unittest.skipUnless(torch.backends.mps.is_available(), "requires Apple MPS")
+    def test_real_mps_float32_stage_to_cpu_fp64_dual_qp_and_back(self):
+        # Regression: torch.to(device="cpu", dtype=float64) may attempt
+        # unsupported float64 on MPS. First stage CPU, then promote.
+        before = torch.zeros((1, 4, 24), dtype=torch.float32, device="mps")
+        after = before.clone()
+        after[0, 0, 0] = 0.05
+        after[0, 0, 1] = -0.04
+        first = torch.zeros_like(before)
+        first[0, 0, 0] = 1.0
+        second = torch.zeros_like(before)
+        second[0, 0, 1] = 1.0
+        safe, audit = correct_adam_stage2_displacement(
+            before, after, [first, second])
+        self.assertEqual(safe.device.type, "mps")
+        self.assertFalse(audit["post_adam_zero_fallback"])
+        self.assertLessEqual(float((safe * first).sum().cpu()), 1e-6)
+        self.assertLessEqual(float((safe * second).sum().cpu()), 1e-6)
+
     def test_fail_closed_on_nonfinite_wrong_shape_and_no_constraints(self):
         before = torch.zeros(2)
         with self.assertRaises(AssertionError):
