@@ -7,6 +7,7 @@ or automatic acceptance. Accepted S81/S82 source files remain immutable.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import copy
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -174,14 +175,26 @@ def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
             raise AssertionError("No real joint gradient in paid core or tunnel up")
         core_norm = float(torch.nn.utils.clip_grad_norm_(core, 1.0))
         tunnel_norm = float(torch.nn.utils.clip_grad_norm_(side, 1.0))
-        optimizer.step()
-        # Finite gradients do not guarantee finite optimizer-updated FP16
-        # centroids or adapter parameters. Reject before physical packing.
-        with torch.no_grad():
-            for p in core:
-                p.clamp_(-16.0, 16.0)
-            if any(not bool(torch.isfinite(p).all().item()) for p in core + side):
-                raise AssertionError("Nonfinite joint parameter after optimizer step")
+        # The optimizer mutates both parameters and Adam moments. A failed
+        # post-step check must restore BOTH, or a later retry starts from a
+        # corrupted state despite reporting a rejected candidate.
+        snapshot = [p.detach().clone() for p in core + side]
+        optimizer_snapshot = copy.deepcopy(optimizer.state_dict())
+        try:
+            optimizer.step()
+            # Finite gradients do not guarantee finite optimizer-updated FP16
+            # centroids or adapter parameters. Reject before physical packing.
+            with torch.no_grad():
+                for p in core:
+                    p.clamp_(-16.0, 16.0)
+                if any(not bool(torch.isfinite(p).all().item()) for p in core + side):
+                    raise AssertionError("Nonfinite joint parameter after optimizer step")
+        except Exception:
+            with torch.no_grad():
+                for p, old in zip(core + side, snapshot):
+                    p.copy_(old)
+            optimizer.load_state_dict(optimizer_snapshot)
+            raise
         return JointStep(float(loss.detach()), core_norm, tunnel_norm,
                          len(selected_codebooks), nonzero_core, nonzero_tunnel,
                          zero_tunnel)
