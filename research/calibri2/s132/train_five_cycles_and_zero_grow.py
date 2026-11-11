@@ -714,6 +714,39 @@ def main():
                 result=atomic_train_block(
                     parameters,optimizer,train_block,
                     persisted_cpu_guard,reduction_factor=0.5)
+                if result.committed:
+                    # The *new* accepted research checkpoint becomes the
+                    # protected baseline for the next of five J7 cycles.
+                    # This prevents stage-local catastrophic forgetting.
+                    with cpu_expansion.prefill_only(cpu[0]),prefill_only_tunnel(cpu[0],cpu_full):
+                        accepted_old=candidate_actual_CPU(
+                            cpu,historical,histkeys,histroutes,tok,bank,copy_net,
+                            cpu_bridge,"prefill_only")
+                        accepted_new=candidate_actual_CPU(
+                            cpu,new,newkeys,new_routes,tok,bank,copy_net,
+                            cpu_bridge,"prefill_only")
+                    old_check=strict_train_retention(
+                        expected,before,accepted_old,
+                        physical_bpp=last_record["physical_bpp"],
+                        cpu_ratio=last_record["CPU_ratio"],
+                        speed_required=True)
+                    if (old_check["lost_full"]!=0 or old_check["lost_first"]!=0
+                        or any(accepted_new[k]!=new[k]["expected"]
+                               for k in parent_correct_new_full)
+                        or any(not accepted_new[k]
+                               or accepted_new[k][0]!=new[k]["expected"][0]
+                               for k in parent_correct_new_first)):
+                        raise AssertionError("S132 staged J7 commit changed previously learned identities")
+                    before=accepted_old
+                    new_base_stats=score_full_and_pairs(new,accepted_new)
+                    parent_correct_new_full|={
+                        k for k in new if accepted_new[k]==new[k]["expected"]}
+                    parent_correct_new_first|={
+                        k for k in new if accepted_new[k] and
+                        accepted_new[k][0]==new[k]["expected"][0]}
+                    prior_gained={
+                        k for k in histkeys if before[k]==expected[k]
+                        and original_before[k]!=expected[k]}
                 tx={
                     "block":block+1,
                     "steps":result.block_steps,
