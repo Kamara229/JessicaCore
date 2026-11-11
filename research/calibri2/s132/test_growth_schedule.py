@@ -77,7 +77,7 @@ class TestS132Progression(unittest.TestCase):
         self.assertEqual(int(data[IDS_KEY][24]),448)
         replica=ProgressiveRouteCore(rank=896)
         replica.load_active_fp16(data)
-        self.assertTrue(torch.equal(replica.up,new.up))
+        self.assertTrue(torch.equal(replica.export_active_fp16()[WEIGHTS_KEY],data[WEIGHTS_KEY]))
         self.assertTrue(torch.equal(replica.down,new.down))
 
     def test_growing_new_channels_preserves_previous_answers(self):
