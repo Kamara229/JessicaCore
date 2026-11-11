@@ -30,7 +30,6 @@ class Stage3EntryTests(unittest.TestCase):
         old[0,0,24]=0.005
         newer=torch.zeros((12,320,72),dtype=torch.float16)
         newer[:,:,:48]=old
-        newer[0,0,24]=0.006
         side={"source.immutable":torch.tensor([17,29],dtype=torch.int32)}
         save_file({**side,IDS_KEY:torch.tensor(initial_active_indices(896),dtype=torch.int32),
                    WEIGHTS_KEY:old},str(self.parent))
@@ -111,6 +110,17 @@ class Stage3EntryTests(unittest.TestCase):
         frozen=load_file(str(self.physical))
         w=frozen[WEIGHTS_KEY].clone()
         w[0,0,0]=0.33
+        frozen[WEIGHTS_KEY]=w
+        save_file(frozen,str(self.physical))
+        self.record["physical_sha256"]=sha256_file(self.physical)
+        with self.assertRaises(AssertionError):
+            self.check()
+
+    def test_reject_altered_inherited_stage2_channels_24_to_47(self):
+        # Regression: stage2 trained channels were previously not checked.
+        frozen=load_file(str(self.physical))
+        w=frozen[WEIGHTS_KEY].clone()
+        w[0,0,24]=0.006
         frozen[WEIGHTS_KEY]=w
         save_file(frozen,str(self.physical))
         self.record["physical_sha256"]=sha256_file(self.physical)
