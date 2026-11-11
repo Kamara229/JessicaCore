@@ -1,0 +1,34 @@
+name: CALIBRI S139 CPU post-Adam J7 projection safety research-only
+'on':
+  push:
+    branches:
+      - research/calibri2-s139-post-adam-projected-j7-20261111
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated_cpu_projection_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: research
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU synthetic contract prerequisite
+        run: python -m pip install 'torch==2.5.1'
+      - name: Verify S139 post-Adam and historical J7 physical-rollback contracts
+        run: |
+          python -m compileall -q research/calibri2/s139 research/calibri2/s131 research/calibri2/s125
+          python -m unittest -v \
+            calibri2.s139.test_optimizer_aware_protection \
+            calibri2.s131.test_protected_gradients \
+            calibri2.s125.test_j7_atomic_physical_retention
+      - name: Affirm no physical model evidence from toy CPU tests
+        run: echo 'S139_CPU_SYNTHETIC_ONLY_NO_MODEL_ACCEPTANCE_NO_LIVE_NO_QA'
