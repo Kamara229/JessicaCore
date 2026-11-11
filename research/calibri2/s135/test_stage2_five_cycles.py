@@ -79,6 +79,18 @@ class TestS135FiveCycle43M(unittest.TestCase):
         with self.assertRaises(AssertionError):
             authorize_growth(records[:4],896)
 
+    def test_safe_gain_snapshot_precedes_j7_commit(self):
+        # A committed J7 cycle updates new_base_stats; compare the previous
+        # baseline or every valid improvement will be hidden in the report.
+        source=Path(__file__).with_name("train_stage2_43m_five_cycles.py").read_text()
+        self.assertIn("pre_cycle_new_base_stats=dict(new_base_stats)",source)
+        self.assertIn('pre_cycle_new_base_stats["full"]',source)
+        self.assertIn('pre_cycle_new_base_stats["counterfactual_pairs_both_correct"]',source)
+        self.assertLess(
+            source.index("pre_cycle_new_base_stats=dict(new_base_stats)"),
+            source.index("result=atomic_train_block("),
+        )
+
     def test_train_source_masks_new_channels_only(self):
         # Structural inspection ensures production cannot silently remove
         # the new-only mask or switch back to training inherited channels.
