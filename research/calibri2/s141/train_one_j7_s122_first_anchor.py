@@ -295,11 +295,15 @@ class GainOnlyRetentionCheck(PhysicalRetentionCheck):
     """
     safe_train_gain: bool=False
     verified_base_rollback: bool=False
+    rollback_recheck_allowed: bool=False
     new_correct_identities_lost:int=0
 
     def valid(self):
+        # A no-gain zero-displacement candidate may NEVER commit. J7's
+        # second callback verifies the exact baseline after rollback.
         return (super().valid() and self.new_correct_identities_lost==0 and
-                (self.safe_train_gain or self.verified_base_rollback))
+                (self.safe_train_gain or
+                 (self.verified_base_rollback and self.rollback_recheck_allowed)))
 
 
 def main():
@@ -505,6 +509,7 @@ def main():
             cycle_evidence=[]
             for block in range(STEPS//TRANSACTION_STEPS):
                 last_record=None
+                guard_calls=0
                 block_start=expansion.up.detach().clone()
                 proposed_delta=None
                 def train_block():
@@ -620,7 +625,8 @@ def main():
                     return TRANSACTION_STEPS
 
                 def persisted_cpu_guard():
-                    nonlocal last_record
+                    nonlocal last_record,guard_calls
+                    guard_calls+=1
                     restored_base=torch.equal(expansion.up.detach(),block_start)
                     scales=(0.0,) if restored_base else TRIAL_SCALES
                     last_guard=None
@@ -763,6 +769,7 @@ def main():
                             S95_S98_unchanged=True,
                             safe_train_gain=bool(actual_gain and not restored_base),
                             verified_base_rollback=bool(restored_base),
+                            rollback_recheck_allowed=bool(guard_calls>1 and restored_base),
                             new_correct_identities_lost=lost_parent_new_full+lost_parent_new_first,
                         )
                         results["strict_no_forgetting_guard"]=PhysicalRetentionCheck.valid(guard_evidence)
