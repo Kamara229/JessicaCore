@@ -133,11 +133,14 @@ class ProgressiveRouteCore(RouteIsolatedAdditiveCore):
             or weights.shape!=(DEPTH,WIDTH,len(self.active_indices))
             or not bool(torch.isfinite(weights).all())):
             raise ValueError("S132 active learned-weight payload inconsistent")
+        # Apple MPS lacks aten::index_copy.out in the pinned PyTorch build.
+        # Assemble the physical FP16 sidecar on CPU once, then perform a
+        # single GPU copy; all training and gradients still run on MPS.
         with torch.no_grad():
-            self.up.zero_()
-            ids=torch.as_tensor(self.active_indices,dtype=torch.long,device=self.up.device)
-            self.up.index_copy_(
-                2,ids,weights.to(device=self.up.device,dtype=self.up.dtype))
+            dense=torch.zeros(self.up.shape,dtype=self.up.dtype,device="cpu")
+            ids=torch.as_tensor(self.active_indices,dtype=torch.long,device="cpu")
+            dense.index_copy_(2,ids,weights.to(device="cpu",dtype=dense.dtype))
+            self.up.copy_(dense.to(device=self.up.device))
         self.assert_inactive_zero()
 
 
