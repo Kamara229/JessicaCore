@@ -13,6 +13,7 @@ from calibri2.s129.additive_core_expansion import (UP_KEY,ACTIVE_RANK,SEED as EX
 from calibri2.s130.route_protected_expansion import RouteIsolatedAdditiveCore
 from calibri2.s131.protected_gradients import project_against_old_loss_increase
 from calibri2.s142.dual_cone_adam import correct_adam_stage2_displacement
+from calibri2.s143.gain_reporting import classify_j7_development_gain
 from calibri2.s132.growth_schedule import ActualJ7Cycle,authorize_growth,architecture_params,START_RANK
 from calibri2.s132.progressive_core import IDS_KEY,WEIGHTS_KEY,initial_active_indices
 from calibri2.s133.verify_stage2_entry import verified_s132_stage2_entry
@@ -461,6 +462,7 @@ def main():
     transactions=[]
     physical=[]
     best_safe=None
+    gain_proof=None
     cpu=load_cpu_original(raw,side)
     try:
         old_again,_=all_456_cached_cpu(
@@ -793,6 +795,7 @@ def main():
                     return last_guard
 
                 # Snapshot before J7 commit; the accepted baseline is updated below.
+                pre_cycle_old_base_full=sum(before[k]==expected[k] for k in histkeys)
                 pre_cycle_new_base_stats=dict(new_base_stats)
                 result=atomic_train_block(
                     parameters,optimizer,train_block,
@@ -868,18 +871,41 @@ def main():
                     transaction_rollback_verified=result.rollback_verified,
                 ))
 
-                if result.committed and last_record is not None and (
-                    last_record["new_S122_128_TRAIN_full"]>
-                       pre_cycle_new_base_stats["full"] or
-                    last_record["new_S122_64_both_sides_full"]>
-                       pre_cycle_new_base_stats["counterfactual_pairs_both_correct"]
-                ):
+                gain_proof=classify_j7_development_gain(
+                    committed=bool(result.committed),
+                    before_old_full=pre_cycle_old_base_full,
+                    after_old_full=last_record["original_S101_456_correct_full"],
+                    before_new_full=pre_cycle_new_base_stats["full"],
+                    after_new_full=last_record["new_S122_128_TRAIN_full"],
+                    before_new_pairs=pre_cycle_new_base_stats["counterfactual_pairs_both_correct"],
+                    after_new_pairs=last_record["new_S122_64_both_sides_full"],
+                    lost_old_full=last_record["lost_original_full"],
+                    lost_old_first=last_record["lost_original_first"],
+                    lost_new_full=last_record["protected_new_full_losses"],
+                    lost_new_first=last_record["protected_new_first_losses"],
+                    fp16_reloaded=bool(last_record["exact_S101_original_physical_tensors"]),
+                    immutable_source=bool(last_record["frozen_original_all_S101_tensors"]),
+                    physical_guard=bool(last_record["strict_no_forgetting_guard"]),
+                    j7_guard=bool(last_record["J7_gain_qualified"]),
+                    physical_bpp=last_record["physical_bpp"],
+                    cpu_ratio=last_record["CPU_ratio"],
+                )
+                # A successfully committed J7 transaction must have a proven
+                # gain on either old 456 full/EOS or new S122 128/pairs.
+                # S142 gained +1 OLD answer, not an S122 answer: do not
+                # silently report that validated development progress as zero.
+                if result.committed and not gain_proof["safe_development_TRAIN_improvement"]:
+                    raise AssertionError("S143 J7 committed but safe development TRAIN gain absent")
+                if gain_proof["safe_development_TRAIN_improvement"]:
                     best_safe={
                         "block":block+1,
                         "physical_FP16_SHA":last_record["sidecar_SHA256"],
+                        "historical_old456_full_before":pre_cycle_old_base_full,
+                        "historical_old456_full_after":last_record["original_S101_456_correct_full"],
+                        "historical_old456_full_delta":gain_proof["historical_old456_full_delta"],
                         "S122_TRAIN_full":last_record["new_S122_128_TRAIN_full"],
-                        "S122_TRAIN_both_sides":
-                          last_record["new_S122_64_both_sides_full"],
+                        "S122_TRAIN_both_sides":last_record["new_S122_64_both_sides_full"],
+                        "gain_evidence":gain_proof,
                         "research_only_not_accepted":True,
                     }
                 print(json.dumps({
@@ -976,6 +1002,7 @@ def main():
                 raise AssertionError("S140 final 43M physical bpp/CPU safety violation")
             final_proof={
                 **runtime_config,
+                "development_TRAIN_gain_proof":gain_proof,
                 "real_S140_J7_transaction":transactions[0],
                 "real_S140_cycle_evidence":cycle_evidence[0].__dict__,
                 "old_456_full":final_old_full,
@@ -1042,6 +1069,7 @@ def main():
         "atomic_committed_blocks":sum(int(t["committed"]) for t in transactions),
         "atomic_rollback_blocks":sum(int(not t["committed"]) for t in transactions),
         "best_safe_development_TRAIN_checkpoint":best_safe,
+        "development_TRAIN_gain_proof":gain_proof,
         "no_heldout_QA_or_inspected_S118_access":True,
         "S118_QA_permanently_embargoed":True,
         "all_versions_not_accepted":True,
