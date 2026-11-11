@@ -122,5 +122,56 @@ class NeuralSkillContracts(unittest.TestCase):
             sized.provisional_bpp(parent_parameters=0,parent_physical_bytes=1)
 
 
+
+class _TinyDecoder(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.model = torch.nn.Module()
+        self.model.layers = torch.nn.ModuleList(
+            [torch.nn.Identity() for _ in range(12)]
+        )
+
+    def forward(self, hidden):
+        for layer in self.model.layers:
+            hidden = layer(hidden)
+        return hidden
+
+
+class NeuralSkillHookContracts(unittest.TestCase):
+    def test_removable_12layer_hooks_start_as_identical_model(self):
+        from .skill_model_hooks import NeuralSkillHookBridge
+        torch.manual_seed(145)
+        bank = LayerwiseNeuralSkillBank(8, 12)
+        bank.add_skill(NeuralSkillSpec("first", (3, 9), 2))
+        model = _TinyDecoder()
+        x = torch.randn(2, 4, 8)
+        parent = model(x)
+        bridge = NeuralSkillHookBridge(bank).install(model)
+        self.assertTrue(torch.equal(model(x), parent))
+        with self.assertRaises(RuntimeError):
+            bridge.install(model)
+        with torch.no_grad():
+            bank.layers["3"].blocks["first"].up.weight.fill_(0.1)
+        self.assertFalse(torch.equal(model(x), parent))
+        bridge.uninstall()
+        self.assertTrue(torch.equal(model(x), parent))
+
+    def test_tensor_tuple_metadata_is_preserved(self):
+        from .skill_model_hooks import NeuralSkillHookBridge
+        class TupleLayer(torch.nn.Module):
+            def forward(self, hidden):
+                return hidden, {"cache_marker": 145}
+        model = _TinyDecoder()
+        model.model.layers[3] = TupleLayer()
+        bank = LayerwiseNeuralSkillBank(8, 12)
+        bank.add_skill(NeuralSkillSpec("tuple_skill", (3,), 2))
+        bridge = NeuralSkillHookBridge(bank).install(model)
+        x = torch.ones(1, 2, 8)
+        result = model.model.layers[3](x)
+        self.assertTrue(torch.equal(result[0], x))
+        self.assertEqual(result[1], {"cache_marker": 145})
+        bridge.uninstall()
+        self.assertEqual(model.model.layers[3](x)[1]["cache_marker"], 145)
+
 if __name__ == "__main__":
     unittest.main()
