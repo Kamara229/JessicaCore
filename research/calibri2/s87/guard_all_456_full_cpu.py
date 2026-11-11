@@ -217,7 +217,9 @@ def main():
         "cpu_speed_ratio_48_postwarmup_raw_wall_diagnostic":raw_wall_ratio,
         "cpu_benchmark_warmup_pairs":warmup_per_backend,
         "cpu_benchmark_samples_per_backend":measured_per_backend,
-        "cpu_speed_90pct_guard":speed_ratio>=.9,
+        "cpu_speed_90pct_guard":speed_ratio>=.9 and raw_wall_ratio>=.9,
+        "cpu_speed_per_token_90pct_guard":speed_ratio>=.9,
+        "cpu_speed_raw_wall_90pct_guard":raw_wall_ratio>=.9,
         "native_C_cpu_speed_guard_verified":False,
         "cpu_backend":"PyTorch from actual CB59 compact source; NOT direct C",
         "GPU_CPU_exact_parity_checked":False,
@@ -235,6 +237,7 @@ def main():
                       "physical_bpp":8*all_bytes/SOURCE_PARAMS,
                       "safety_pass":results["full_safety_guard"],
                       "speed_pass":results["cpu_speed_90pct_guard"],
+                      "raw_wall_speed_ratio":raw_wall_ratio,
                       "candidate_accepted":False}),flush=True)
     if not results["full_safety_guard"] or not results["cpu_speed_90pct_guard"]:
         raise SystemExit("REJECTED: S87 456-TRAIN or CPU speed safety guard")
