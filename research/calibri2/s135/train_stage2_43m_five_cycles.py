@@ -12,6 +12,7 @@ from calibri2.s125.j7_atomic_physical_retention import PhysicalRetentionCheck,at
 from calibri2.s129.additive_core_expansion import (UP_KEY,ACTIVE_RANK,SEED as EXP_SEED,EXTRA_CORE_PARAMS,EXPANDED_CORE_PARAMS)
 from calibri2.s130.route_protected_expansion import RouteIsolatedAdditiveCore
 from calibri2.s131.protected_gradients import project_against_old_loss_increase
+from calibri2.s139.optimizer_aware_protection import correct_adam_stage2_displacement
 from calibri2.s132.growth_schedule import ActualJ7Cycle,authorize_growth,architecture_params,START_RANK
 from calibri2.s132.progressive_core import IDS_KEY,WEIGHTS_KEY,initial_active_indices
 from calibri2.s133.verify_stage2_entry import verified_s132_stage2_entry
@@ -534,8 +535,19 @@ def main():
                             raise AssertionError('S131 missing genuine MPS new-core constrained gradient')
                         stage2_grad_mask=mask_gradient_to_new_channels_only(expansion)
                         norm=float(torch.nn.utils.clip_grad_norm_(parameters,1.0))
-                        optimizer.step()
+                        # Adam momentum/preconditioning can rotate the already
+                        # projected gradient into an old-loss-increasing
+                        # displacement. Correct the REAL optimizer step.
                         with torch.no_grad():
+                            stage2_before_adam=expansion.up[:,:,448:472].detach().clone()
+                        optimizer.step()
+                        safe_stage2,post_adam_guard=correct_adam_stage2_displacement(
+                            stage2_before_adam,
+                            expansion.up[:,:,448:472].detach(),
+                            [g[:,:,448:472] for g in old_gradients],
+                        )
+                        with torch.no_grad():
+                            expansion.up[:,:,448:472].copy_(safe_stage2)
                             expansion.up[:,:,448:472].clamp_(-GATE_CLAMP,GATE_CLAMP)
                             expansion.assert_inactive_zero()
                             verify_frozen_inherited(expansion,immutable_before)
@@ -548,6 +560,7 @@ def main():
                             "nonzero_grad_coefficients":int(torch.count_nonzero(grad)),
                             "gradient_norm":norm,
                             "protected_projection":projection,
+                            "post_adam_guard":post_adam_guard,
                             "stage2_new_only_mask":stage2_grad_mask,
                             "max_abs_coefficient":float(expansion.up[:,:,448:472].abs().max()),
                         }
