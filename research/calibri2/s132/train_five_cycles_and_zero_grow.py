@@ -275,7 +275,7 @@ def main():
         "S94_bank","S94_report","S93_CB61","S93_sidecar",
         "S99_full456_report","S101_full456_report",
         "S122_curriculum_report","S112_report","S126Q_physical","S126Q_report","S87_report","S91_report",
-        "S93_report",
+        "S93_report","S131_parent_sidecar","S131_parent_report",
     ):
         p.add_argument(name,type=Path)
     p.add_argument("out",type=Path)
@@ -343,6 +343,32 @@ def main():
         raise AssertionError("S131 Q2 original S101 physical source mismatch")
     if not bool(torch.count_nonzero(zero_q2[PREFIX+"gates_fp16"])==0):
         raise AssertionError("S131 Q2 prerequisite is not exact zero gates")
+    prior=json.loads(a.S131_parent_report.read_text())
+    guards=prior.get("every_real_physical_guard_evaluation",[])
+    transactions131=prior.get("J7_physical_transactions",[])
+    if (prior.get("stage")!="S131_REAL_MPS_Q2_RANK4_12LAYER_GATE_ONLY_J7"
+            or prior.get("atomic_committed_blocks")!=1
+            or prior.get("atomic_rollback_blocks")!=0
+            or len(guards)!=1 or len(transactions131)!=1
+            or transactions131[0].get("committed") is not True
+            or guards[0].get("J7_gain_qualified") is not True
+            or guards[0].get("strict_no_forgetting_guard") is not True
+            or guards[0].get("original_S101_456_correct_full")!=358
+            or guards[0].get("original_S101_456_correct_first")!=388
+            or guards[0].get("lost_original_full")!=0
+            or guards[0].get("lost_original_first")!=0
+            or guards[0].get("new_S122_128_TRAIN_full")!=14
+            or guards[0].get("physical_bpp",9)>.7
+            or guards[0].get("CPU_ratio",0)<.9
+            or sha(a.S131_parent_sidecar.read_bytes())!=guards[0].get("sidecar_SHA256")):
+        raise AssertionError("S132 requires immutable physically accepted research S131 +5/-0 parent")
+    inherited=load_file(str(a.S131_parent_sidecar))
+    if (set(inherited)!=set(side)|set(zero_q2)|{UP_KEY}
+            or inherited[UP_KEY].dtype!=torch.float16
+            or inherited[UP_KEY].shape!=(12,320,ACTIVE_RANK)
+            or any(not torch.equal(inherited[k],v) for k,v in side.items())
+            or any(not torch.equal(inherited[k],v) for k,v in zero_q2.items())):
+        raise AssertionError("S132 source S131 modified original compressed weights or trained FP16")
     raw=s87.open_envelope(a.S93_CB61.read_bytes())
     cpu=load_cpu_original(raw,side)
     try:
