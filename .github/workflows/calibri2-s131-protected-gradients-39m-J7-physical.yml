@@ -1,0 +1,204 @@
+name: CALIBRI S131 protected-gradients 39.82M J7 MPS 456+128 physical guard
+'on':
+  workflow_dispatch: {}
+  pull_request:
+    branches:
+      - research/calibri2-s130-route-J7-line-search-39m-20261111
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri-s131-39m-old-gradient-physical
+  cancel-in-progress: false
+jobs:
+  s131_old_gradient_39m_J7_456_128:
+    runs-on: macos-15
+    timeout-minutes: 240
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '1290129'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Prerequisites validated S122 TRAIN and S126-Q physical 456plus129 zero checkpoint
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42961256468 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42958386675 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42921857272 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42900014855 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42911103838 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42914085372 --jq .conclusion)" = "success"
+          for n in $(seq 1 100); do
+            status=$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42901958611 --jq .status)
+            if [ "$status" = "completed" ]; then
+              test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42901958611 --jq .conclusion)" = "success"
+              echo "S123_IMMUTABLE_S101_456_AND_S122_NEW128_TRAIN_SOURCE_SUCCESS"
+              break
+            fi
+            sleep 30
+          done
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42901958611 --jq .conclusion)" = "success"
+      - name: Install exact S101 experiment Python dependencies
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify S129 J7 prefill gate-only MPS and actual physical reload source compiles
+        run: |
+          python -m compileall -q research/calibri2/s131 research/calibri2/s130 research/calibri2/s129 research/calibri2/s127 research/calibri2/s125 research/calibri2/s126 research/calibri2/s122 research/calibri2/s111
+          python -m unittest -v calibri2.s131.test_protected_gradients calibri2.s130.test_route_protected_expansion calibri2.s129.test_additive_core_expansion calibri2.s125.test_j7_atomic_physical_retention calibri2.s127.test_q2_prefill_gate_control
+          if grep -RE '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s96|s100|s118)' research/calibri2/s131/*.py; then exit 1; fi
+      - name: Original S99 physical source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s99-unaccepted-full456-physical-neural-noun-copy-CPU
+          path: inputs/s99
+          run-id: 42705657584
+          github-token: ${{ github.token }}
+      - name: Original S101 KV baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s101-unaccepted-456-full-EOS-KV-cache-CPU-parity-and-speed
+          path: inputs/s101
+          run-id: 42710297657
+          github-token: ${{ github.token }}
+      - name: Physically validated S126-Q exact ZERO-GATE archive 456+128 0.69989 and CPU 98.62%
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s126q-packed-2bit-rank4-GT12-456-128-CPU-research-only
+          path: inputs/s126q
+          run-id: 42911103838
+          github-token: ${{ github.token }}
+      - name: Verify S126Q record before allowing MPS
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('inputs/s126q/S126Q_REAL_S101_FULL456_ZERO_GT12_REPORT.json').read_text())
+          assert p["zero_stage_eligible_for_future_training"] and p["model_accepted"] is False
+          assert p["physical_bpp_with_full_runtime"]<=.7
+          assert p["CPU_48_alternating"]["ratio"]>=.9
+          assert p["real_original_S101_456_all_token_exact_parity"] is True
+          assert p["real_new_S122_128_exact_parity"] is True
+          print("S129_PHYSICAL_S126Q_PREREQUISITE_VERIFIED",flush=True)
+          PY
+      - name: S111 prompt-conditioned actual physical 456 zero-gain prerequisite
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s111-prompt-conditioned-dual-GT-456-CPU-zero-parity
+          path: inputs/s111
+          run-id: 42882001296
+          github-token: ${{ github.token }}
+      - name: Previously rejected S112 original TRAIN 7 forgotten identities for rehearsal only
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s112-unaccepted-prompt-conditioned-340-FP16-MPS-456-CPU-retention
+          path: inputs/s112
+          run-id: 42882671306
+          github-token: ${{ github.token }}
+      - name: Previously verified new S122 cross color TRAIN only original tokenizer and source digest
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s122-precommitted-64-pair-128-question-original-TRAIN-augmentation-only
+          path: inputs/s122
+          run-id: 42900014855
+          github-token: ${{ github.token }}
+      - name: Frozen neural second token policy
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s98-unaccepted-MPS-neural-second-token-owner-copy-feasibility
+          path: inputs/s98
+          run-id: 42704076897
+          github-token: ${{ github.token }}
+      - name: Frozen numeric profile router
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s95-unaccepted-prompt-only-router-456-strict-CPU
+          path: inputs/s95
+          run-id: 42698707784
+          github-token: ${{ github.token }}
+      - name: Frozen exact bank
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s94-unaccepted-lossless-three-profile-bank-456-TRAIN-feasibility
+          path: inputs/s94
+          run-id: 42697267843
+          github-token: ${{ github.token }}
+      - name: Frozen S93 compressed weights and existing tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          path: inputs/s93
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Frozen S87 authorized TRAIN gold and prior profiles
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          path: inputs/s87_full
+          run-id: 42659248083
+          github-token: ${{ github.token }}
+      - name: Frozen S91 full 456 TRAIN
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s91-full-456-strict-EOS-quality-no-forgetting-and-CPU
+          path: inputs/s91_full
+          run-id: 42674413574
+          github-token: ${{ github.token }}
+      - name: Frozen S93 full 456 TRAIN
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-full-456-strict-union-no-forgetting-and-CPU
+          path: inputs/s93_full
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: S131 Apple MPS additive-core old-gradient constraints J7 line search physical 456 plus128
+        run: |
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=="arm64" and torch.backends.mps.is_available()
+          x=torch.randn((4,4),device="mps",requires_grad=True)
+          (x@x.T).square().mean().backward()
+          assert x.grad is not None and x.grad.device.type=="mps"
+          print("S131_ACTUAL_MPS_ADDITIVE39M_PROTECTED_GRADIENT_CONFIRMED",flush=True)
+          PY
+          python research/calibri2/s131/train_protected_gradient_j7.py \
+            inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
+            inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
+            inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            inputs/s94/S94_ALTERNATE_EXACT_CORE_TUNNEL_BANK.bin \
+            inputs/s94/S94_PROFILE_BANK_FEASIBILITY_REPORT.json \
+            inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s99/S99_ALL456_NEW_NEURAL_COPY_PHYSICAL_TRAIN_AUDIT.json \
+            inputs/s101/S101_KV_CACHE_EXACT_S99_456_TRAIN_CPU_GUARD.json \
+            inputs/s122/S122_TRAIN_ONLY_CROSS_BINDING_CURRICULUM_REPORT.json \
+            inputs/s112/S112_MPS_GAIN_ONLY_456_CPU_GUARD_REPORT.json \
+            inputs/s126q/S126Q_UNACCEPTED_ZERO_GT12_REAL_Q2_PHYSICAL.safetensors \
+            inputs/s126q/S126Q_REAL_S101_FULL456_ZERO_GT12_REPORT.json \
+            inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s91_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s93_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s131
+      - name: Preserve S131 protected gradient and J7 CPU 456+128 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s131-39m-core-protected-gradients-J7-physical456plus128-no-QA
+          path: results/s131/
+          retention-days: 90
+          if-no-files-found: warn
