@@ -1,0 +1,28 @@
+name: CALIBRI S144 source J7 FP16 checksum CPU only
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s143-historical-gain-report-audit-20261111
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s144_read_only_real_s142_source_integrity:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s144-pinned-fp16-source-20261111'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: research
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check immutable S142 ZIP and physical FP16 plus fail-closed negative controls; NO training, QA, LIVE
+        run: |
+          python -m compileall -q research/calibri2/s144
+          python -m unittest -v calibri2.s144.test_source_pin
