@@ -231,7 +231,6 @@ jobs:
             inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
             inputs/s91_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
             inputs/s93_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
-            inputs/s131/S131_UNACCEPTED_block1_check1.safetensors \
             inputs/s132/S132_GROWN_43M_ZERO_NEW_CHANNELS.safetensors \
             inputs/s132/S132_NEXT_STAGE_43M_PHYSICAL_GROWTH_REPORT.json \
             inputs/s131/S131_UNACCEPTED_block1_check1.safetensors \
