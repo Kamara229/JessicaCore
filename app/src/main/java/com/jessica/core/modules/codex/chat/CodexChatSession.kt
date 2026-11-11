@@ -30,6 +30,7 @@ internal fun CodexChatCoordinator.startCodexSession() {
         shareDialogBackAttempted = false
         pendingInterpretation = null
         interpretationFailures = 0
+        interpretationFailureReportedInSession = false
         retryInterpretAt = 0L
         lastProgressAt = SystemClock.elapsedRealtime()
         val launch = PhoneChatRuntime.launch ?: return

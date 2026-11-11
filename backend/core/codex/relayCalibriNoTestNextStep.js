@@ -43,7 +43,17 @@ export function calibriNoTestNextStep(message) {
     const noJessicaTest =
         /(?:Джессика|Jessica)\s*,?\s*тесты?\s+не\s+запуска(?:й|ет|ть|ю)/iu.test(body) ||
         /тест(?:ы)?\s+(?:в\s+(?:сво[её]м|обычном)\s+чате\s+)?Jessica\s+не\s+(?:запуска(?:й|ет|ть|ю)|нужен|требуется)/iu.test(body) ||
-        /Запуск\s+(?:теста\s+)?выполняю\s+я\s+через\s+GitHub/iu.test(body);
+        /Запуск\s+(?:теста\s+)?выполняю\s+я\s+через\s+GitHub/iu.test(body) ||
+        // Owner's CALIBRI-only no-test relay: short "тесты не запускай".
+        // Require a PR and a next-step heading to prevent generic bypass.
+        (/(?:^|[\s.,;!?])тест(?:ы)?\s+не\s+запускай(?:те)?(?=$|[\s.,;!?])/iu.test(body) &&
+            /\bPR\s*#\d{1,6}\b/iu.test(body) &&
+            /Следующ(?:ий|ая)\s+(?:шаг|проверка)/iu.test(body)) ||
+        // "Jessica/LIVE не менять" is a strictly no-action CALIBRI notice.
+        // Require PR and next step to avoid classifying arbitrary text as progress.
+        (/Jessica\s*\/\s*LIVE\s+не\s+(?:менять|трогать)(?:[.!?,;]|$)/iu.test(body) &&
+            /\bPR\s*#\d{1,6}\b/iu.test(body) &&
+            /Следующ(?:ий|ая)\s+(?:шаг|проверка)/iu.test(body));
     if (!noJessicaTest) return null;
 
     // Do not turn an ambiguous/conflicting instruction into consent to test.
