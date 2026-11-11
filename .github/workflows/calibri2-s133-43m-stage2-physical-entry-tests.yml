@@ -1,0 +1,39 @@
+name: CALIBRI S133 validated 43M stage2 physical-entry gates
+'on':
+  pull_request:
+    branches:
+      - research/calibri2-s132-five-cycle-progressive-core-20261111
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: calibri-s133-43m-gate-preflight
+  cancel-in-progress: false
+jobs:
+  validate_43m_stage2_gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '1330133'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU test dependencies
+        run: python -m pip install 'torch==2.5.1' 'safetensors==0.4.5'
+      - name: Verify fail-closed stage2 S132 physical five-cycle gate tests
+        run: |
+          python -m compileall -q research/calibri2/s133 research/calibri2/s132
+          python -m unittest -v calibri2.s133.test_verify_stage2_entry
+          if grep -RE '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s96|s100|s118)' research/calibri2/s133/*.py; then exit 1; fi
+      - name: S133 never calls Jessica or held-out QA
+        run: |
+          grep -q 'verified_s132_stage2_entry' research/calibri2/s133/verify_stage2_entry.py
+          test ! -f results/s133/S133_MODEL_PROMOTED
