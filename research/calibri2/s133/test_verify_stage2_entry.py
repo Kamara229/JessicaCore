@@ -68,7 +68,17 @@ class Stage2EntryTests(unittest.TestCase):
         manifest=self.check()
         self.assertEqual(manifest["stage2_architecture_params"],43_261_760)
         self.assertEqual(manifest["completed_s132_j7_cycles"],5)
-        self.assertTrue(manifest["original_and_s131_weights_verified_immutable"])
+        self.assertTrue(manifest["original_S101_and_Q2_immutable"])
+
+    def test_updated_s131_learned_weights_allowed_after_five_J7_cycles(self):
+        latest=torch.zeros((12,320,48),dtype=torch.float16)
+        latest[0,0,0]=0.125  # old S131 coefficient has genuinely learned further
+        save_file({"original.frozen":torch.ones(4,dtype=torch.uint8),
+                   IDS_KEY:torch.tensor(initial_active_indices(896),dtype=torch.int32),
+                   WEIGHTS_KEY:latest},str(self.grown))
+        self.expected["physical_sha256"]=sha256_file(self.grown)
+        manifest=self.check()
+        self.assertTrue(manifest["original_S101_and_Q2_immutable"])
 
     def test_fails_on_missing_one_cycle(self):
         self.expected["five_J7_cycles_verified"].pop()
