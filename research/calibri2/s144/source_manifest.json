@@ -1,0 +1,26 @@
+{
+  "stage": "S144_RESEARCH_READ_ONLY_SOURCE_PIN",
+  "source_run_id": 43078895081,
+  "source_artifact_id": 13885634834,
+  "source_zip_sha256": "026399835d31eabf7780455bc6fc3b5ecc691c7652f14f815f1a0fe7425ad3e0",
+  "checkpoint_name": "S142_ACTUAL_43M_ONE_J7_FP16.safetensors",
+  "checkpoint_sha256": "5a706d9012a61f24678929a2a6ee20f77c922e7e0f4bb516c061f32742cc56c7",
+  "checkpoint_bytes": 1001348,
+  "tensor_count": 36,
+  "active_up_tensor": "s132_progressive.active_up_fp16",
+  "active_up_dtype": "F16",
+  "active_up_shape": [
+    12,
+    320,
+    48
+  ],
+  "physical_guard_name": "S142_ONE_J7_ACTUAL_PHYSICAL_GUARD.json",
+  "old_full_before": 361,
+  "old_full_after": 362,
+  "new_full_after": 17,
+  "min_cpu_ratio": 0.9,
+  "max_bpp": 0.7,
+  "never_promote_model": true,
+  "never_run_jessica_chat_tests": true,
+  "independent_unseen_QA_not_run": true
+}
