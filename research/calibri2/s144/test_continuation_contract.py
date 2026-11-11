@@ -12,7 +12,7 @@ class S144ContinuationContract(unittest.TestCase):
     def test_one_two_step_J7_from_exact_S142(self):
         script=(HERE/"train_one_continued_j7.py").read_text()
         tree=ast.parse(script)
-        self.assertEqual(ast.get_docstring(tree),"CALIBRI S144: ONE real protected MPS J7 continuing from committed S142 FP16.\nFreeze original S101/Q2 + first 24 S132 channels; train only new 24 channels.\nAtomic CPU 456+128 full+first rollback guard; no unseen QA and no LIVE changes.\n")
+        self.assertEqual(ast.get_docstring(tree).strip(),"CALIBRI S144: ONE real protected MPS J7 continuing from committed S142 FP16.\nFreeze original S101/Q2 + first 24 S132 channels; train only new 24 channels.\nAtomic CPU 456+128 full+first rollback guard; no unseen QA and no LIVE changes.")
         self.assertIn("STEPS=2",script)
         self.assertIn("TRANSACTION_STEPS=2",script)
         self.assertIn("parent_sha=sha(a.S142_parent_sidecar.read_bytes())",script)
