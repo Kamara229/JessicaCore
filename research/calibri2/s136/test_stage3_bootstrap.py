@@ -1,0 +1,127 @@
+"""S136 rank1344 new-channel-only preflight; synthetic CPU NOT a GPU result."""
+from __future__ import annotations
+
+import copy
+import unittest
+from pathlib import Path
+
+import torch
+from safetensors.torch import load_file,save_file
+
+from calibri2.s132.progressive_core import (
+    IDS_KEY,WEIGHTS_KEY,initial_active_indices,
+)
+from calibri2.s136.stage3_bootstrap import (
+    prepare_stage3,mask_gradient_to_stage3_new_only,
+    verify_frozen_stage1_stage2,
+    STAGE3_NEW_CHANNELS,FROZEN_STAGE1_CHANNELS,FROZEN_STAGE2_CHANNELS,
+    STAGE3_TRAINING_CYCLES,
+)
+from calibri2.s136.test_verify_stage3_entry import Stage3EntryTests
+
+
+class Stage3BootstrapTests(unittest.TestCase):
+    def setUp(self):
+        self.fixture=Stage3EntryTests(
+            methodName="test_five_verified_cycles_and_real_reconstructed_geometry")
+        self.fixture.setUp()
+        self.fixture.check()
+
+    def tearDown(self):
+        self.fixture.tearDown()
+
+    def load(self,device="cpu"):
+        f=self.fixture
+        return prepare_stage3(
+            s135_report=f.report,s135_physical=f.physical,
+            s132_physical=f.parent,device=device)
+
+    def test_only_new_stage3_capacity_is_initially_zero(self):
+        core,parent,immutable=self.load()
+        self.assertEqual(parent.stage3_rank,1344)
+        self.assertEqual(STAGE3_TRAINING_CYCLES,5)
+        self.assertEqual(parent.old_full_correct,361)
+        self.assertEqual(parent.new_full_correct,17)
+        self.assertEqual(core.architectural_new_parameter_count(),10_321_920)
+        self.assertEqual(FROZEN_STAGE1_CHANNELS,tuple(range(24)))
+        self.assertEqual(FROZEN_STAGE2_CHANNELS,tuple(range(448,472)))
+        self.assertEqual(STAGE3_NEW_CHANNELS,tuple(range(896,920)))
+        self.assertEqual(tuple(core.active_indices),initial_active_indices(1344))
+        self.assertEqual(
+            int(torch.count_nonzero(core.up[:,:,list(STAGE3_NEW_CHANNELS)])),0)
+        self.assertEqual(float(core.up[0,0,0]),.015625)
+        self.assertAlmostEqual(float(core.up[0,0,448]),float(
+            torch.tensor(.006,dtype=torch.float16)))
+        self.assertTrue(torch.equal(core.up,immutable))
+        verify_frozen_stage1_stage2(core,immutable)
+
+    def test_fresh_gradient_masks_all_inherited_coefficients(self):
+        core,parent,immutable=self.load()
+        core.up.grad=torch.ones_like(core.up)
+        report=mask_gradient_to_stage3_new_only(core)
+        self.assertEqual(report["nonzero_fresh_gradient_coefficients"],12*320*24)
+        self.assertEqual(int(torch.count_nonzero(core.up.grad[:,:,:896])),0)
+        self.assertEqual(int(torch.count_nonzero(core.up.grad[:,:,920:])),0)
+        optimizer=torch.optim.Adam([core.up],lr=.002)
+        optimizer.step()
+        with torch.no_grad():
+            core.up[:,:,896:920].clamp_(-.05,.05)
+        verify_frozen_stage1_stage2(core,immutable)
+        self.assertNotEqual(float(core.up[0,0,896]),0.)
+
+        # A real FP16 save/reload, not a claim that synthetic training
+        # has passed the protected 456+128 exact-EOS CPU evaluation.
+        physical=load_file(str(self.fixture.physical))
+        old_sidecar=dict(physical)
+        physical.update(core.export_active_fp16())
+        fp=self.fixture.physical.parent/"S136_SYNTHETIC_FP16_SIDE_EFFECTS.safetensors"
+        save_file(physical,str(fp))
+        after=load_file(str(fp))
+        for k in old_sidecar:
+            if k not in {IDS_KEY,WEIGHTS_KEY}:
+                self.assertTrue(torch.equal(after[k],old_sidecar[k]))
+        self.assertTrue(torch.equal(
+            after[WEIGHTS_KEY][:,:,:48],old_sidecar[WEIGHTS_KEY][:,:,:48]))
+        self.assertTrue(torch.any(after[WEIGHTS_KEY][:,:,48:]!=0))
+        self.assertEqual(tuple(after[IDS_KEY].tolist()),initial_active_indices(1344))
+        self.assertFalse(parent.grown_source_archive==fp)
+
+    def test_missing_or_nonfinite_new_gradients_are_rejected(self):
+        core,_,_=self.load()
+        with self.assertRaises(AssertionError):
+            mask_gradient_to_stage3_new_only(core)
+        core.up.grad=torch.zeros_like(core.up)
+        with self.assertRaises(AssertionError):
+            mask_gradient_to_stage3_new_only(core)
+        core.up.grad[0,0,896]=float("nan")
+        with self.assertRaises(AssertionError):
+            mask_gradient_to_stage3_new_only(core)
+
+    def test_altered_inherited_stage1_or_stage2_is_rejected(self):
+        for col in (0,448):
+            core,_,immutable=self.load()
+            with torch.no_grad():
+                core.up[0,0,col]+=.125
+            with self.subTest(channel=col),self.assertRaises(AssertionError):
+                verify_frozen_stage1_stage2(core,immutable)
+
+    def test_no_stage3_entry_without_five_real_protected_cycles(self):
+        candidate=copy.deepcopy(self.fixture.record)
+        candidate["five_J7_cycles_verified"].pop()
+        self.fixture.check(candidate) if False else None
+        self.fixture.report.write_text(__import__("json").dumps(candidate))
+        with self.assertRaises(AssertionError):
+            self.load()
+
+    def test_mps_fp16_loader_has_no_unsupported_device_index_copy(self):
+        source=(Path(__file__).resolve().parents[1]/
+                "s132"/"progressive_core.py").read_text()
+        loader=source.split("def load_active_fp16",1)[1].split(
+            "def expand_preserving_previous",1)[0]
+        self.assertNotIn("self.up.index_copy_",loader)
+        self.assertIn("dense.index_copy_",loader)
+        self.assertIn("self.up.copy_",loader)
+
+
+if __name__=="__main__":
+    unittest.main()
