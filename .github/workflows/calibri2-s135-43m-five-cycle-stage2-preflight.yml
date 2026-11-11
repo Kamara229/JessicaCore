@@ -1,0 +1,38 @@
+name: CALIBRI S135 43M five-cycle stage2 gradient isolation preflight
+'on':
+  pull_request:
+    branches:
+      - research/calibri2-s134-fivecycle-43m-stage2-prep-20261111
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: calibri-s135-stage2-cpu-safe-preflight
+  cancel-in-progress: false
+jobs:
+  s135_stage2_preflight_only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONHASHSEED: '1350135'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU-only pinned test packages
+        run: python -m pip install 'torch==2.5.1' 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Compile full real stage2 MPS trainer and verify five-cycle safety contract
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri2/s135 research/calibri2/s134 research/calibri2/s133 research/calibri2/s132
+          python -m unittest -v calibri2.s132.test_growth_schedule calibri2.s133.test_verify_stage2_entry calibri2.s134.test_stage2_bootstrap calibri2.s135.test_stage2_five_cycles
+          if grep -RE '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s96|s100|s118)' research/calibri2/s135/*.py; then exit 1; fi
+          grep -q 'verified_s132_stage2_entry' research/calibri2/s135/train_stage2_43m_five_cycles.py
+          grep -q 'mask_gradient_to_new_channels_only(expansion)' research/calibri2/s135/train_stage2_43m_five_cycles.py
