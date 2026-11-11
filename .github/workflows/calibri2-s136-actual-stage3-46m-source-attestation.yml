@@ -1,0 +1,115 @@
+name: CALIBRI S136 conditional REAL S135 46.70M stage3 physical source attestation
+'on':
+  workflow_dispatch:
+    inputs:
+      s135_run_id:
+        description: Successful corrected S135 five-J7 MPS run ID
+        required: false
+        type: string
+  pull_request:
+    branches:
+      - research/calibri2-s135-five-cycle-43m-to-46m-20261111
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri-s136-actual-stage3-physical-proof
+  cancel-in-progress: false
+jobs:
+  check_real_s135_source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    outputs:
+      ready: ${{ steps.probe.outputs.ready }}
+      source: ${{ steps.probe.outputs.source }}
+    steps:
+      - name: Require actual completed corrected S135 GPU run; otherwise block proof
+        id: probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_id="${{ inputs.s135_run_id || '42990346609' }}"
+          state=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq .status)
+          conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq .conclusion)
+          head=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq .head_sha)
+          branch=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq .head_branch)
+          echo "source=${run_id}" >> "${GITHUB_OUTPUT}"
+          if [[ "${state}" != completed || "${conclusion}" != success || \
+                "${head}" != c53eab3acecb403eefd20e82f8d8634d28c0b3c9 || \
+                "${branch}" != research/calibri2-s135-five-cycle-43m-to-46m-20261111 ]]; then
+            echo "ready=false" >> "${GITHUB_OUTPUT}"
+            echo "S136_BLOCKED_NO_REAL_SUCCESSFUL_CORRECTED_S135_FIVE_J7_MPS_SOURCE"
+            exit 0
+          fi
+          echo "ready=true" >> "${GITHUB_OUTPUT}"
+          echo "S136_REAL_CORRECTED_S135_SOURCE_COMPLETED_SUCCESS"
+
+  verify_real_stage3_entry:
+    needs: check_real_s135_source
+    if: needs.check_real_s135_source.outputs.ready == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require successful physically audited S132 predecessor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/42974251804" --jq .conclusion)" = success
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/42974251804" --jq .head_branch)" = research/calibri2-s132-five-cycle-progressive-core-20261111
+      - name: Download actual S132 five-J7 physically grown source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s132-5cycles-39m-to-43m-physical-J7-new128-no-QA
+          path: inputs/s132
+          run-id: 42974251804
+          github-token: ${{ github.token }}
+      - name: Download corrected S135 five-J7 physical 46.70M GPU result
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s135-5cycles-43m-to-46m-physical-J7-new128-no-QA
+          path: inputs/s135
+          run-id: ${{ needs.check_real_s135_source.outputs.source }}
+          github-token: ${{ github.token }}
+      - name: Check actual five J7 archived transactions, FP16, CPU and 456 plus 128 exact EOS
+        run: |
+          set -euo pipefail
+          python -m pip install 'torch==2.5.1' 'numpy==1.26.4' 'safetensors==0.4.5'
+          python -m calibri2.s136.attest_stage3_entry \
+            inputs/s135/S135_NEXT_STAGE_46M_PHYSICAL_GROWTH_REPORT.json \
+            inputs/s135/S135_GROWN_46M_ZERO_NEW_CHANNELS.safetensors \
+            inputs/s132/S132_GROWN_43M_ZERO_NEW_CHANNELS.safetensors \
+            results/s136/S136_REAL_STAGE3_ENTRY_ATTESTATION.json
+          python - <<'PY'
+          from pathlib import Path
+          from calibri2.s136.stage3_bootstrap import (
+              prepare_stage3,verify_frozen_stage1_stage2)
+          core,parent,original=prepare_stage3(
+              s135_report=Path("inputs/s135/S135_NEXT_STAGE_46M_PHYSICAL_GROWTH_REPORT.json"),
+              s135_physical=Path("inputs/s135/S135_GROWN_46M_ZERO_NEW_CHANNELS.safetensors"),
+              s132_physical=Path("inputs/s132/S132_GROWN_43M_ZERO_NEW_CHANNELS.safetensors"))
+          verify_frozen_stage1_stage2(core,original)
+          assert parent.stage3_rank==1344
+          assert parent.all_inclusive_physical_bpp<=.7
+          assert parent.previous_cpu_speed_ratio>=.9
+          print("S136_PHYSICALLY_RELOADED_46M_STAGE3_NEW_CHANNELS_ZERO_NO_QA",flush=True)
+          PY
+      - name: Preserve S136 genuine source proof, research only, no model acceptance
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s136-real-physical-stage3-46m-entry-attestation-no-QA
+          path: results/s136/
+          retention-days: 90
+          if-no-files-found: error
