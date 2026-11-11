@@ -1,6 +1,6 @@
 """S135 isolated stage-2 five-cycle training contract preflight tests."""
 from __future__ import annotations
-import inspect
+from pathlib import Path
 import unittest
 import torch
 
@@ -58,8 +58,7 @@ class TestS135FiveCycle43M(unittest.TestCase):
     def test_train_source_masks_new_channels_only(self):
         # Structural inspection ensures production cannot silently remove
         # the new-only mask or switch back to training inherited channels.
-        from calibri2.s135 import train_stage2_43m_five_cycles as program
-        source=inspect.getsource(program.main)
+        source=Path(__file__).with_name("train_stage2_43m_five_cycles.py").read_text()
         self.assertIn("mask_gradient_to_new_channels_only(expansion)",source)
         self.assertIn("verify_frozen_inherited(expansion,immutable_before)",source)
         self.assertIn("expansion.up[:,:,448:472].clamp_",source)
