@@ -117,7 +117,7 @@ def verified_s135_stage3_entry(
         or weights.dtype!=torch.float16
         or weights.shape!=(12,320,len(EXPECTED_ACTIVE_INDICES))
         or not bool(torch.isfinite(weights).all())
-        or not torch.equal(weights[:,:,:24],old_weights[:,:,:24])
+        or not torch.equal(weights[:,:,:OLD_ACTIVE_COUNT],old_weights)
         or int(torch.count_nonzero(weights[:,:,OLD_ACTIVE_COUNT:]))!=0
     ):
         raise AssertionError("S136 inherited learned stage1 channels changed or new stage3 not zero")
