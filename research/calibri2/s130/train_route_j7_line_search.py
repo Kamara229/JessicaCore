@@ -10,7 +10,7 @@ import argparse
 from collections import Counter,defaultdict
 from dataclasses import dataclass
 from calibri2.s125.j7_atomic_physical_retention import PhysicalRetentionCheck,atomic_train_block
-from calibri2.s130.additive_core_expansion import (UP_KEY,ACTIVE_RANK,SEED as EXP_SEED,EXTRA_CORE_PARAMS,EXPANDED_CORE_PARAMS)
+from calibri2.s129.additive_core_expansion import (UP_KEY,ACTIVE_RANK,SEED as EXP_SEED,EXTRA_CORE_PARAMS,EXPANDED_CORE_PARAMS)
 from calibri2.s130.route_protected_expansion import RouteIsolatedAdditiveCore
 import json
 import math
@@ -590,7 +590,8 @@ def main():
                         actual_gain=(new_score['full']>new_base_stats['full'] or
                                      new_score['counterfactual_pairs_both_correct']>
                                        new_base_stats['counterfactual_pairs_both_correct'] or
-                                     guard['gained_full']>0)\n                        guard_evidence=GainOnlyRetentionCheck(
+                                     guard['gained_full']>0)
+                        guard_evidence=GainOnlyRetentionCheck(
                             original_456_checked=len(histkeys),
                             original_full_correct=len(orig_full),
                             original_first_correct=len(orig_first),
