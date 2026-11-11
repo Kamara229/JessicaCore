@@ -38,6 +38,8 @@ def correct_adam_stage2_displacement(
         or not 0 < cosine_tolerance < 1e-3
     ):
         raise ValueError("S142 invalid optimizer displacement or settings")
+    # MPS has no float64 kernel: transfer native float32/16 to CPU FIRST,
+    # then promote to float64 on CPU for the small dual QP solver.
     rows = []
     for grad in old_gradients:
         if (
@@ -46,16 +48,15 @@ def correct_adam_stage2_displacement(
             or not bool(torch.isfinite(grad).all())
         ):
             raise ValueError("S142 invalid protected TRAIN constraint")
-        flat = grad.detach().to(device="cpu", dtype=torch.float64).reshape(-1).numpy()
+        flat = grad.detach().cpu().to(dtype=torch.float64).reshape(-1).numpy()
         norm = float(np.linalg.norm(flat))
         if norm > 1e-12:
             rows.append(flat / norm)
     if not rows:
         raise AssertionError("S142 no nonzero protected TRAIN gradients")
     unit = np.stack(rows, axis=0)
-    start = before.detach().to(device="cpu", dtype=torch.float64).numpy()
-    raw = start.reshape(-1) - after.detach().to(
-        device="cpu", dtype=torch.float64).reshape(-1).numpy()
+    start = before.detach().cpu().to(dtype=torch.float64).numpy()
+    raw = start.reshape(-1) - after.detach().cpu().to(dtype=torch.float64).reshape(-1).numpy()
     raw_norm = float(np.linalg.norm(raw))
 
     def minimum_cosine(direction: np.ndarray) -> float:
@@ -97,12 +98,11 @@ def correct_adam_stage2_displacement(
     audit["post_adam_dual_converged"] = bool(solution.success)
     direction = raw + unit.T @ solution.x
     projected = start - direction.reshape(start.shape)
-    result = torch.as_tensor(projected, dtype=before.dtype, device=before.device)
+    result = torch.from_numpy(projected).to(dtype=before.dtype).to(device=before.device)
     if not bool(torch.isfinite(result).all()):
         raise AssertionError("S142 nonfinite projected post-Adam coefficients")
     # Verify actual FP32/MPS rounded proposal (not just FP64 dual solution).
-    realized = start.reshape(-1) - result.detach().to(
-        "cpu", dtype=torch.float64).reshape(-1).numpy()
+    realized = start.reshape(-1) - result.detach().cpu().to(dtype=torch.float64).reshape(-1).numpy()
     actual = minimum_cosine(realized)
     audit["post_adam_min_cosine_after"] = actual
     audit["post_adam_dual_feasible"] = bool(actual >= -cosine_tolerance)
