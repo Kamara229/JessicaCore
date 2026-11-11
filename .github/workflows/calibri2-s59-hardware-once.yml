@@ -1,0 +1,90 @@
+name: CALIBRI S59 Kaggle GPU physical hardware one-shot
+'on':
+  pull_request:
+    types: [opened]
+    branches:
+      - research/calibri2-s59-gpu-cpu-portable-20261109
+permissions:
+  contents: read
+jobs:
+  physical_gpu_once:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s59-t4-hardware-check-20261109'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --quiet 'kaggle>=1.8.0' six
+      - name: Check free GPU hours and submit private single-shot physical probe
+        shell: bash
+        run: |
+          set -e
+          test -n "$KAGGLE_API_TOKEN"
+          kaggle quota | grep '^GPU '
+          mkdir -p kaggle_probe
+          cat > kaggle_probe/hardware.py <<'PY'
+          import json,os,pathlib,shutil,subprocess,torch
+          devices=sorted(pathlib.Path("/dev").glob("nvidia*"))
+          exe=shutil.which("nvidia-smi")
+          result={"stage":"CALIBRI_S59_HARDWARE_VERIFICATION",
+            "device_nodes":[str(p) for p in devices],
+            "nvidia_smi_present":exe is not None,
+            "nvidia_smi_return":None,
+            "nvidia_smi_devices":[],
+            "torch_version":torch.__version__,
+            "torch_cuda_version":torch.version.cuda,
+            "torch_cuda_available":torch.cuda.is_available(),
+            "cuda_visible_devices":os.getenv("CUDA_VISIBLE_DEVICES","not_set")}
+          if exe:
+            p=subprocess.run([exe,"--query-gpu=name,memory.total","--format=csv,noheader"],
+                 capture_output=True,text=True,timeout=10)
+            result["nvidia_smi_return"]=p.returncode
+            if p.returncode==0:result["nvidia_smi_devices"]=p.stdout.splitlines()[:4]
+          print("CALIBRI_S59_HARDWARE="+json.dumps(result),flush=True)
+          pathlib.Path("/kaggle/working/calibri_s59_hardware.json").write_text(json.dumps(result,indent=2))
+          PY
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          Path("kaggle_probe/kernel-metadata.json").write_text(json.dumps({
+           "id":"kamara229/calibri-s59-t4-hardware-check",
+           "title":"calibri s59 t4 hardware check",
+           "code_file":"hardware.py","language":"python","kernel_type":"script",
+           "is_private":"true","enable_gpu":"true","enable_internet":"false",
+           "machine_shape":"NvidiaTeslaT4","dataset_sources":[],
+           "competition_sources":[],"kernel_sources":[],"model_sources":[]}))
+          PY
+          kaggle kernels push -p kaggle_probe --accelerator NvidiaTeslaT4 --timeout 180
+          echo "KAGGLE_S59_PRIVATE_HARDWARE_PROBE_SUBMITTED"
+      - name: Read physical GPU diagnostics with bounded polling, no second launch
+        shell: bash
+        run: |
+          for i in $(seq 1 18); do
+            STATUS=$(kaggle kernels status kamara229/calibri-s59-t4-hardware-check 2>&1)
+            echo "KERNEL_STATUS_$i: $STATUS"
+            echo "$STATUS" | grep -qi 'COMPLETE\|ERROR\|FAILED' && break
+            sleep 10
+          done
+          kaggle kernels logs kamara229/calibri-s59-t4-hardware-check > log.txt
+          python - <<'PY'
+          import json
+          s=open("log.txt").read()
+          try:
+              records=json.loads(s)
+              for r in records:
+                  msg=r.get("data","")
+                  for line in msg.splitlines():
+                      if line.startswith("CALIBRI_S59_HARDWARE="):
+                          j=json.loads(line.split("=",1)[1])
+                          print("CUDA_TORCH",j["torch_cuda_available"])
+                          print("TORCH_BUILD",j["torch_version"])
+                          print("CUDA_COMPILER_BUILD",j["torch_cuda_version"])
+                          print("GPU_PHYSICAL",j["nvidia_smi_devices"])
+                          print("NVIDIA_NODE_COUNT",len(j["device_nodes"]))
+          except Exception as e:
+              print("KAGGLE_LOG_PARSE_ERROR",type(e).__name__)
+          PY
+          kaggle quota | grep '^GPU '
