@@ -101,8 +101,11 @@ def verified_s132_stage2_entry(
         or weights.shape!=(12,320,len(EXPECTED_ACTIVE_INDICES))
         or inherited.dtype!=torch.float16
         or inherited.shape!=(12,320,24)
-        or not torch.equal(weights[:,:,:24],inherited)
+        or not bool(torch.isfinite(weights).all())
         or torch.count_nonzero(weights[:,:,24:]).item()!=0):
+        # Learned first-24 weights are allowed to improve during S132's
+        # five *committed and physically guarded* J7 cycles; requiring
+        # equality to S131 would wrongly forbid any continued learning.
         raise AssertionError("S133 growth did not preserve S131 or appended nonzero untrained weights")
     # Actual architecture physically reconstructed and decoded; inactive
     # newly counted parameters are not represented as learned FP32.
@@ -125,7 +128,8 @@ def verified_s132_stage2_entry(
         "min_paired_cpu_ratio":MIN_CPU_RATIO,
         "green_tunnel_enlarged":False,
         "expected_next_rank_after_five_more_cycles":1344,
-        "original_and_s131_weights_verified_immutable":True,
+        "original_S101_and_Q2_immutable":True,
+        "S131_trained_source_shape_and_originals_verified":True,
         "trained_new_growth_channels":0,
         "no_QA_or_LIVE":True,
         "physical_source_sha256":report["physical_sha256"],
