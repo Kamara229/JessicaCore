@@ -2,13 +2,13 @@ name: CALIBRI S142 ONE real 43M J7 dual-cone 456+128
 'on':
   push:
     branches:
-      - research/calibri2-s142-s122-first-token-anchors-20261111
+      - research/calibri2-s142-dual-cone-adam-20261111
   workflow_dispatch:
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: calibri-s142-one-real-j7-new128-first-43m
+  group: calibri-s142-one-real-j7-dual-cone-43m
   cancel-in-progress: false
 jobs:
   s142_one_real_j7_with_S122_first_protection:
