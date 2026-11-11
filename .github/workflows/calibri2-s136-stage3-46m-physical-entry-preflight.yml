@@ -1,0 +1,38 @@
+name: CALIBRI S136 stage3 46.70M five-J7 physical entry verifier preflight
+'on':
+  workflow_dispatch: {}
+  pull_request:
+    branches:
+      - research/calibri2-s135-five-cycle-43m-to-46m-20261111
+permissions:
+  contents: read
+concurrency:
+  group: calibri-s136-stage3-46m-physical-gate-preflight
+  cancel-in-progress: false
+jobs:
+  stage3_physical_entry_synthetic_only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONHASHSEED: '1290136'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated pinned CPU-only dependencies
+        run: python -m pip install 'torch==2.5.1' 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Verify S136 gate and stage lineage; NOT a real S135 GPU result
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri2/s136 research/calibri2/s135 research/calibri2/s134 research/calibri2/s133 research/calibri2/s132
+          python -m unittest -v calibri2.s136.test_verify_stage3_entry calibri2.s135.test_stage2_five_cycles calibri2.s134.test_stage2_bootstrap
+          grep -q 'authorize_growth(cycles,STAGE2_RANK)' research/calibri2/s136/verify_stage3_entry.py
+          grep -q 'stage3_new_24_coefficients_exact_zero' research/calibri2/s136/verify_stage3_entry.py
+          echo "S136_PHYSICAL_ENTRY_GATE_PREFLIGHT_ONLY_NOT_ACCEPTED"
