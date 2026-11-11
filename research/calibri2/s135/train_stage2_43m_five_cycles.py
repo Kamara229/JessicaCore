@@ -536,7 +536,7 @@ def main():
                         norm=float(torch.nn.utils.clip_grad_norm_(parameters,1.0))
                         optimizer.step()
                         with torch.no_grad():
-                            expansion.up.clamp_(-GATE_CLAMP,GATE_CLAMP)
+                            expansion.up[:,:,448:472].clamp_(-GATE_CLAMP,GATE_CLAMP)
                             expansion.assert_inactive_zero()
                             verify_frozen_inherited(expansion,immutable_before)
                         torch.mps.synchronize()
@@ -577,7 +577,7 @@ def main():
                         if any(not torch.equal(paid[k],zero_q2[k]) for k in zero_q2):
                             raise AssertionError("S131 frozen Q2 rank4 projection or mix changed")
                         label=f"block{block+1}_check{index}"
-                        fp16=a.out/f"S132_UNACCEPTED_{label}.safetensors"
+                        fp16=a.out/f"S135_UNACCEPTED_{label}.safetensors"
                         save_file(paid,str(fp16))
                         reloaded=load_file(str(fp16))
                         roundtrip=(set(reloaded)==set(paid) and
@@ -608,7 +608,7 @@ def main():
                             "inactive_up": "exact_implicit_zero",
                             "new_active_up": "persisted_fp16_after_every_J7_block",
                         }
-                        cfg_path=a.out/f"S132_UNACCEPTED_{label}_CONFIG.json"
+                        cfg_path=a.out/f"S135_UNACCEPTED_{label}_CONFIG.json"
                         cfg_path.write_text(json.dumps(
                             cfg,sort_keys=True,separators=(",",":"))
                         )
@@ -848,6 +848,8 @@ def main():
                     "next_rank":next_rank,
                     "previous_core_architecture":architecture_params(896),
                     "next_core_architecture":architecture_params(next_rank),
+                    "inherited_trainable_channel_count":24,
+                    "stage2_trainable_new_channel_count":24,
                     "active_added_channel_ids":list(next_stage.active_indices),
                     "fixed_down_seeds":"1290129+chunk_index",
                     "new_channels_trained":False,
@@ -932,6 +934,8 @@ def main():
         "new_expansion_active_channels_per_layer":48,
         "new_expansion_total_channels_per_layer":896,
         "new_expansion_trainable_active_weights":12*320*24,
+        "original_S101_and_S132_learned_channels_frozen":True,
+        "five_stage2_training_cycles":5,
         "rest_expansion_inactive_zero":True,
         "immutable_original_core":True,
         "real_MPS_new_additive_up_weights":True,
