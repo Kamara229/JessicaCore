@@ -5,7 +5,10 @@ name: CALIBRI S135 stage2 five J7 MPS cycles 43.26M to 46.70M research-only
       s132_run_id:
         description: 'Successful S132 physical five-J7 43.26M source run ID'
         type: string
-        required: true
+        required: false
+  pull_request:
+    branches:
+      - research/calibri2-s134-fivecycle-43m-stage2-prep-20261111
 permissions:
   contents: read
   actions: read
@@ -38,7 +41,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          s132_id='${{ inputs.s132_run_id }}'
+          s132_id='${{ inputs.s132_run_id || '42974251804' }}'
           test "$s132_id" != ''
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"$s132_id" --jq .conclusion)" = "success"
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"$s132_id" --jq .head_branch)" = "research/calibri2-s132-five-cycle-progressive-core-20261111"
@@ -177,7 +180,7 @@ jobs:
         with:
           name: calibri-s132-5cycles-39m-to-43m-physical-J7-new128-no-QA
           path: inputs/s132
-          run-id: ${{ inputs.s132_run_id }}
+          run-id: ${{ inputs.s132_run_id || '42974251804' }}
           github-token: ${{ github.token }}
       - name: Verify S132 J7 five protected cycles and physical 43.26M stage2 entry
         run: |
