@@ -102,20 +102,24 @@ class NeuralSkillContracts(unittest.TestCase):
         self.assertIn(b'"version":3',self.bank.canonical_manifest())
 
     def test_physical_cost_and_bpp_include_router_and_metadata(self):
-        base = self.bank.provisional_bpp(parent_parameters=43_261_760,
+        # Production geometry for the accounting contract, not the tiny
+        # hidden_size=8 geometry used by the other unit tests.
+        sized = LayerwiseNeuralSkillBank(hidden_size=320, num_layers=12)
+        base = sized.provisional_bpp(parent_parameters=43_261_760,
+                                     parent_physical_bytes=3_550_000)
+        sized.add_skill(NeuralSkillSpec("math", (3, 9), 8))
+        self.assertEqual(sized.parameter_count(), 10_882)
+        sized.half()
+        self.assertEqual(sized.physical_bytes_in_current_dtype(), 21_764)
+        expanded = sized.provisional_bpp(parent_parameters=43_261_760,
                                          parent_physical_bytes=3_550_000)
-        self.bank.add_skill(NeuralSkillSpec("math", (3, 9), 8))
-        self.assertEqual(self.bank.parameter_count(), 10_882)
-        self.bank.half()
-        self.assertEqual(self.bank.physical_bytes_in_current_dtype(), 21_764)
-        self.assertGreater(self.bank.provisional_bpp(
-            parent_parameters=43_261_760,parent_physical_bytes=3_550_000),base)
-        self.assertGreaterEqual(self.bank.fixed_parent_reference_bpp(
+        self.assertGreater(expanded, base)
+        self.assertLess(expanded, 0.7)  # preliminary only, not real-file proof
+        self.assertGreaterEqual(sized.fixed_parent_reference_bpp(
             parent_parameters=43_261_760,parent_physical_bytes=3_550_000),
-            self.bank.provisional_bpp(
-            parent_parameters=43_261_760,parent_physical_bytes=3_550_000))
+            expanded)
         with self.assertRaises(ValueError):
-            self.bank.provisional_bpp(parent_parameters=0,parent_physical_bytes=1)
+            sized.provisional_bpp(parent_parameters=0,parent_physical_bytes=1)
 
 
 if __name__ == "__main__":
