@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import unittest
 from pathlib import Path
 
@@ -108,8 +109,7 @@ class Stage3BootstrapTests(unittest.TestCase):
     def test_no_stage3_entry_without_five_real_protected_cycles(self):
         candidate=copy.deepcopy(self.fixture.record)
         candidate["five_J7_cycles_verified"].pop()
-        self.fixture.check(candidate) if False else None
-        self.fixture.report.write_text(__import__("json").dumps(candidate))
+        self.fixture.report.write_text(json.dumps(candidate))
         with self.assertRaises(AssertionError):
             self.load()
 
