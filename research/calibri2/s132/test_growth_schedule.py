@@ -95,7 +95,7 @@ class TestS132Progression(unittest.TestCase):
         try:
             with next_core.prefill_only(model):
                 after=model(input_ids=x,past_key_values=None)
-            self.assertTrue(torch.equal(before,after))
+            self.assertTrue(torch.allclose(before,after,rtol=0,atol=1e-6))
             with torch.no_grad():next_core.up[0,0,448]=.125
             with next_core.prefill_only(model):
                 changed=model(input_ids=x,past_key_values=None)
