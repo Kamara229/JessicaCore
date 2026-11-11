@@ -37,6 +37,30 @@ class TestS135FiveCycle43M(unittest.TestCase):
         self.assertNotEqual(float(core.up[0,0,448]),0.0)
         self.assertEqual(float(core.up[0,0,0]),.015625)
 
+    def test_progressive_fp16_checkpoint_load_without_mps_index_copy(self):
+        # The production Apple MPS path cannot invoke aten::index_copy.out.
+        # Verify CPU-side dense assembly preserves every FP16 active channel.
+        from calibri2.s132.progressive_core import IDS_KEY,WEIGHTS_KEY,initial_active_indices
+        core=ProgressiveRouteCore(rank=896)
+        indices=initial_active_indices(896)
+        fp16=torch.zeros((12,320,len(indices)),dtype=torch.float16)
+        fp16[0,0,0]=0.03125
+        fp16[0,0,24]=0.015625
+        fp16[11,319,47]=0.0078125
+        core.load_active_fp16({
+            IDS_KEY:torch.tensor(indices,dtype=torch.int32),
+            WEIGHTS_KEY:fp16,
+        })
+        self.assertTrue(torch.equal(core.export_active_fp16()[WEIGHTS_KEY],fp16))
+        self.assertEqual(int(torch.count_nonzero(core.up[:,:,24:448])),0)
+        self.assertEqual(int(torch.count_nonzero(core.up[:,:,472:])),0)
+        with open(__file__.replace('s135/test_stage2_five_cycles.py',
+                                  's132/progressive_core.py'),encoding='utf-8') as _source:
+            body=_source.read().split('def load_active_fp16',1)[1].split(
+                'def expand_preserving_previous',1)[0]
+            self.assertNotIn('self.up.index_copy_',body)
+            self.assertIn('dense.index_copy_',body)
+
     def test_five_audited_cycles_only_then_46m(self):
         records=[
             ActualJ7Cycle(
