@@ -158,6 +158,10 @@ def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
         side = list(tunnel.parameters())
         if any(p.grad is None for p in core + side):
             raise AssertionError("Missing gradients in compressed core or tunnel")
+        # A finite scalar loss does not guarantee finite per-parameter gradients.
+        # Reject NaN/Inf before clipping or mutating the physically paid weights.
+        if any(not bool(torch.isfinite(p.grad).all().item()) for p in core + side):
+            raise AssertionError("Nonfinite joint gradient in paid core or internal tunnel")
         # A zero-initialized up projection blocks first-step down/gate gradients.
         # Count actual nonzero gradients rather than only checking grad != None.
         nonzero_core = sum(bool(torch.count_nonzero(p.grad).item()) for p in core)
