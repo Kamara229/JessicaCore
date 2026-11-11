@@ -1,0 +1,28 @@
+name: CALIBRI S139 Apple MPS post-Adam displacement smoke research-only
+'on':
+  push:
+    branches:
+      - research/calibri2-s139-post-adam-projected-j7-20261111
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  s139_actual_mps_optimizer_direction:
+    runs-on: macos-15
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: research
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Install pinned actual Apple MPS prerequisite
+        run: python -m pip install 'torch==2.5.1'
+      - name: S139 real GPU optimizer-aware projection check (not 456+128)
+        run: python -m calibri2.s139.mps_smoke
