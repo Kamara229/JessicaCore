@@ -392,19 +392,17 @@ def main():
         raise AssertionError("S125 original 7 known S112 damaged S93 skills invalid")
     extra=[k for k in histkeys if
            k in orig_full and histroutes[k]=="S93" and k not in fragile]
-    if len(extra)<STEPS*PROTECTED_EXTRA_PER_STEP:
-        raise AssertionError("S125 insufficient original correct S93 replay pool")
-    # Round-robin diverse old TRAIN families (zero QA labels).
+    if len(extra)<2:
+        raise AssertionError("S132 needs at least two protected S93 TRAIN items")
+    # Five cycles may repeat S93 TRAIN identities, never look at QA/VALID.
     by_family=defaultdict(list)
     for k in extra:by_family[k.split("/",1)[0]].append(k)
-    rotating=[]
-    while len(rotating)<STEPS*PROTECTED_EXTRA_PER_STEP:
-        for fam in sorted(by_family):
-            if len(rotating)>=STEPS*PROTECTED_EXTRA_PER_STEP:break
-            if by_family[fam]:
-                rotating.append(by_family[fam].pop(0))
-    if len(rotating)!=STEPS*PROTECTED_EXTRA_PER_STEP:
-        raise AssertionError("Cannot construct diverse original TRAIN protection")
+    ordered=[]
+    while any(by_family.values()):
+        for family in sorted(by_family):
+            if by_family[family]:
+                ordered.append(by_family[family].pop(0))
+    rotating=[ordered[i%len(ordered)] for i in range(STEPS*PROTECTED_EXTRA_PER_STEP)]
 
     student,sources=create_small_paid_model(
         CB59(raw),build_config(MODEL_SPEC))
@@ -474,6 +472,11 @@ def main():
                 or sum(bool(inherited_before[k]) and inherited_before[k][0]==expected[k][0] for k in histkeys)!=388
                 or score_full_and_pairs(new,inherited_new)["full"]!=14):
                 raise AssertionError("S132 S131+5 physical parent replay differs from actual S131 result")
+            prior_gained={k for k in histkeys
+                           if inherited_before[k]==expected[k]
+                           and original_before[k]!=expected[k]}
+            if len(prior_gained)!=5:
+                raise AssertionError("S132 must protect S131 5 gained full TRAIN identities")
             before=inherited_before
             new_base_stats=score_full_and_pairs(new,inherited_new)
             parent_correct_new_full={k for k in new if inherited_new[k]==new[k]["expected"]}
@@ -495,7 +498,7 @@ def main():
                         old_anchor=('S30/5002/left','S30/5004/left')
                         if any(k not in orig_full or histroutes[k]!='S93' for k in old_anchor):
                             raise AssertionError('S131 original S131 fragile historical TRAIN anchors invalid')
-                        old_ids=list(dict.fromkeys([*old_anchor,*sorted(fragile)]))
+                        old_ids=list(dict.fromkeys([*old_anchor,*sorted(fragile),*sorted(prior_gained)]))
                         old_batch=[historical[k] for k in old_ids]
                         old_batch += [historical[k] for k in
                             rotating[step*PROTECTED_EXTRA_PER_STEP:
@@ -531,7 +534,7 @@ def main():
                             clear(sources)
                         proposed=novel_grad+torch.stack(old_gradients).sum(dim=0)
                         protected_direction,projection=project_against_old_loss_increase(
-                            proposed,old_gradients,passes=8)
+                            proposed,old_gradients,passes=24)
                         expansion.up.grad=protected_direction
                         grad=expansion.up.grad
                         if grad is None or not bool(torch.isfinite(grad).all()) or int(torch.count_nonzero(grad))<1:
