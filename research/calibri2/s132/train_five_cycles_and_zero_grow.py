@@ -722,6 +722,24 @@ def main():
                     "model_accepted":False,
                 }
                 transactions.append(tx)
+                if last_record is None:
+                    raise AssertionError("S132 no physically verified 456+128 candidate for J7 cycle")
+                cycle_evidence.append(ActualJ7Cycle(
+                    cycle=block+1,old_456_checked=len(histkeys),
+                    lost_previously_correct_full=last_record["lost_original_full"],
+                    lost_previously_correct_first=last_record["lost_original_first"],
+                    physical_bpp=last_record["physical_bpp"],
+                    paired_cpu_ratio=last_record["CPU_ratio"],
+                    physical_reloaded=last_record["exact_S101_original_physical_tensors"],
+                    source_immutable=last_record["frozen_original_all_S101_tensors"],
+                    old_full_count=last_record["original_S101_456_correct_full"],
+                    old_first_count=last_record["original_S101_456_correct_first"],
+                    new_full_count=last_record["new_S122_128_TRAIN_full"],
+                    new_pairs_both_count=last_record["new_S122_64_both_sides_full"],
+                    transaction_committed=result.committed,
+                    transaction_rollback_verified=result.rollback_verified,
+                ))
+
                 if result.committed and last_record is not None and (
                     last_record["new_S122_128_TRAIN_full"]>
                        new_base_stats["full"] or
