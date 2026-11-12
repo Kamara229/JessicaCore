@@ -1,0 +1,79 @@
+name: CALIBRI S180 S179 immutable 456 posthoc SHA-only offline attribution
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s179-second-token-eos-diagnostics-20261113
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s180_offline_attribution:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s180-s179-offline-posthoc-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: S180 local mock posthoc safety guards, no pretrained model
+        env:
+          PYTHONPATH: research
+        run: |
+          python -m compileall -q research/calibri2/s180
+          python -m unittest -v calibri2.s180.test_offline_failure_attribution calibri2.s180.test_second_token_margin_posthoc calibri2.s180.test_compare_correct_and_wrong_second_margins calibri2.s180.test_copy_guard_posthoc calibri2.s180.test_s167_parser_family_attribution
+      - name: Download immutable successful S179 original456 real J7 trace
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s179-original456-real-second-token-eos-trace-only
+          run-id: 43323981995
+          path: inputs/s179
+          github-token: ${{ github.token }}
+      - name: Download original S87 456 TRAIN gold for post-inference scoring only
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          run-id: 42659248083
+          path: inputs/s87_gold
+          github-token: ${{ github.token }}
+      - name: Offline frozen 428/456 parity and reason groups; no model calls
+        run: |
+          python research/calibri2/s180/offline_failure_attribution.py \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s87_gold/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s180/S180_FROZEN_S179_28_ERRORS_SHA_ONLY.json
+      - name: S180 posthoc raw second-token margins on 18 first-right misses
+        run: |
+          PYTHONPATH=research python research/calibri2/s180/second_token_margin_posthoc.py \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s87_gold/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s180/S180_FROZEN_SECOND_TOKEN_18_MARGINS_SHA_ONLY.json
+      - name: S180 offline compare observed margins for 428 full-correct vs 18 second-wrong
+        run: |
+          PYTHONPATH=research python research/calibri2/s180/compare_correct_and_wrong_second_margins.py \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s87_gold/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s180/S180_FROZEN_428_VS_18_STEP2_MARGIN_COMPARISON.json
+      - name: S180 offline copy-net override versus guard events across 456 frozen decodes
+        run: |
+          PYTHONPATH=research python research/calibri2/s180/copy_guard_posthoc.py \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s87_gold/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s180/S180_FROZEN_COPY_NET_GUARD_456_OBSERVATIONS.json
+      - name: S180 offline S167 exact parser family attribution for 18 second-token errors
+        run: |
+          PYTHONPATH=research python research/calibri2/s180/s167_parser_family_attribution.py \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s87_gold/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s180/S180_FROZEN_S167_PARSER_FAMILY_REASON_28.json
+      - name: Preserve offline SHA-only attribution
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s180-s179-original456-28-error-posthoc-sha-only
+          path: results/s180/
+          if-no-files-found: warn
+          retention-days: 90
