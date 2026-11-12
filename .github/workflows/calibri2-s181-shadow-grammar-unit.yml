@@ -6,6 +6,7 @@ name: CALIBRI S181 S30 S54 lexical shadow parser research-only unit
       - research/calibri2-s180-s179-offline-posthoc-20261113
 permissions:
   contents: read
+  actions: read
 jobs:
   s181_shadow_parser_contracts:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s181-s30-s54-shadow-parser-20261113'
@@ -23,5 +24,33 @@ jobs:
           PYTHONPATH: research
         run: |
           python -m compileall -q research/calibri2/s181
-          python -m unittest -v calibri2.s181.test_source_grammar_shadow
+          python -m unittest -v calibri2.s181.test_source_grammar_shadow calibri2.s181.test_source_128_frozen_456_posthoc
           echo "S181_RESEARCH_ONLY_SHADOW_UNIT_PASS_NO_MODEL_NO_LIVE"
+      - name: Fetch immutable S179 full 456 CPU traces for offline-only comparison
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s179-original456-real-second-token-eos-trace-only
+          run-id: 43323981995
+          path: inputs/s179
+          github-token: ${{ github.token }}
+      - name: Fetch frozen original 456 S87 authorized TRAIN labels only after shadow source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          run-id: 42659248083
+          path: inputs/s87
+          github-token: ${{ github.token }}
+      - name: S181 SHA verified 128 TRAIN source shadow against immutable 456 CPU baseline
+        run: |
+          PYTHONPATH=research python research/calibri2/s181/source_128_frozen_456_posthoc.py \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s87/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s181/S181_SOURCE128_FROZEN456_SHADOW_ONLY.json
+      - name: Preserve candidate-only research measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s181-source128-frozen456-shadow-only
+          path: results/s181/
+          if-no-files-found: warn
+          retention-days: 90
