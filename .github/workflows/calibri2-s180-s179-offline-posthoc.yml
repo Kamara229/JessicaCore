@@ -1,0 +1,55 @@
+name: CALIBRI S180 S179 immutable 456 posthoc SHA-only offline attribution
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s179-second-token-eos-diagnostics-20261113
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s180_offline_attribution:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s180-s179-offline-posthoc-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: S180 local mock posthoc safety guards, no pretrained model
+        env:
+          PYTHONPATH: research
+        run: |
+          python -m compileall -q research/calibri2/s180
+          python -m unittest -v calibri2.s180.test_offline_failure_attribution
+      - name: Download immutable successful S179 original456 real J7 trace
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s179-original456-real-second-token-eos-trace-only
+          run-id: 43323981995
+          path: inputs/s179
+          github-token: ${{ github.token }}
+      - name: Download original S87 456 TRAIN gold for post-inference scoring only
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          run-id: 42659248083
+          path: inputs/s87_gold
+          github-token: ${{ github.token }}
+      - name: Offline frozen 428/456 parity and reason groups; no model calls
+        run: |
+          python research/calibri2/s180/offline_failure_attribution.py \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s87_gold/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s180/S180_FROZEN_S179_28_ERRORS_SHA_ONLY.json
+      - name: Preserve offline SHA-only attribution
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s180-s179-original456-28-error-posthoc-sha-only
+          path: results/s180/
+          if-no-files-found: warn
+          retention-days: 90
