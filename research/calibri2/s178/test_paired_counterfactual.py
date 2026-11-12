@@ -31,7 +31,7 @@ class S178PairedPosthocTests(unittest.TestCase):
                                  {"b": [2, 3, 0]}, gold, {})
         with self.assertRaises(AssertionError):
             compare_after_decode("fixture", {"a": [2, 3, 0]},
-                                 {"a": [2, 3, 0]}, {}, gold)
+                                 {"a": [2, 3, 0]}, {}, {})
 
 
 if __name__ == "__main__":
