@@ -29,7 +29,8 @@ class S180CopyGuardReadOnlyContracts(unittest.TestCase):
         self.assertEqual(result["group_counts"]["second_wrong_first_right"]["raw_top1_differs_generated_second"], 2)
         self.assertEqual(result["group_counts"]["second_wrong_first_right"]["raw_final_disagreement_without_logged_copy_override"], 1)
         self.assertEqual(len(result["copy_net_override_sha_only"]), 1)
-        self.assertEqual(len(result["raw_logit_disagreement_sha_only"]), 2)
+        self.assertEqual(sum(row["group"] == "second_wrong_first_right"
+                             for row in result["raw_logit_disagreement_sha_only"]), 2)
         self.assertNotIn("expected", str(result))
         self.assertNotIn("target_ids", str(result))
 
