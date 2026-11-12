@@ -294,6 +294,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: calibri-s154-s93-scoped-language-eos-real-s142-456-128
-          path: results/s152/
+          path: results/s154/
           retention-days: 90
           if-no-files-found: warn
