@@ -27,7 +27,7 @@ def context_from_s168_question(question):
     owner_names=[x for x in NAME.findall(body) if x in TRAIN_OWNERS]
     assert len(owner_names)==1
     asked=owner_names[0]
-    present=[x for x in TRAIN_OWNERS if re.search(r"\\b"+re.escape(x)+r"\\b",question)]
+    present=[x for x in TRAIN_OWNERS if re.search(r"\b"+re.escape(x)+r"\b",question)]
     assert len(present)==2 and asked in present
     other=next(x for x in present if x!=asked)
     source=owner_value(question)
