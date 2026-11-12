@@ -1,0 +1,46 @@
+name: CALIBRI S171 one frozen S170 miss diagnosis
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-s170-structural-owner-integrated-j7-20261112]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s171_only_posthoc_frozen_artifacts:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s171-novel-owner-one-miss-diagnostic-20261112'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: research
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require exact completed successful S170 frozen J7 runner
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43293552917 --jq .conclusion)" = "success"
+      - name: Read S170 immutable research artifact (no CPU J7 rerun)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s170-structural-owner-J7
+          run-id: 43293552917
+          github-token: ${{ github.token }}
+          path: inputs/s170
+      - name: Identify only S170 novel-frame miss, route and parser abstention
+        run: |
+          python -m py_compile research/calibri2/s171/frozen_one_miss_diagnostic.py
+          python research/calibri2/s171/frozen_one_miss_diagnostic.py inputs/s170 results/s171
+      - name: Save S171 diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s171-frozen-S170-one-miss
+          path: results/s171
+          retention-days: 90
+          if-no-files-found: warn
