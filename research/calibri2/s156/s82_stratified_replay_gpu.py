@@ -49,7 +49,7 @@ from calibri2.s144.train_one_continued_j7 import (
     pair_causal_train_gradient,protected_s122_first_token_margin,frozen_routes, score_full_and_pairs,select_train_pairs
 )
 from calibri2.s145.neural_skill_blocks import LayerwiseNeuralSkillBank,NeuralSkillSpec
-from calibri2.s156.route_scoped_skill_bridge import S93ScopedNeuralSkillHookBridge
+from calibri2.s154.route_scoped_skill_bridge import S93ScopedNeuralSkillHookBridge
 from v176.operators import clear
 
 SEED=1510151
