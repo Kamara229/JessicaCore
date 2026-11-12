@@ -47,7 +47,7 @@ jobs:
             results/s180/S180_FROZEN_S179_28_ERRORS_SHA_ONLY.json
       - name: S180 posthoc raw second-token margins on 18 first-right misses
         run: |
-          python research/calibri2/s180/second_token_margin_posthoc.py \
+          PYTHONPATH=research python research/calibri2/s180/second_token_margin_posthoc.py \
             inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
             inputs/s87_gold/S87_ALL_456_TRAIN_GUARD_REPORT.json \
             results/s180/S180_FROZEN_SECOND_TOKEN_18_MARGINS_SHA_ONLY.json
