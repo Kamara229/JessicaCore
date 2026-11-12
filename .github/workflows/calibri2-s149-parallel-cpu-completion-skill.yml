@@ -65,7 +65,7 @@ jobs:
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42901958611 --jq .conclusion)" = "success"
       - name: Install exact S101 experiment Python dependencies
         run: |
-          python -m pip install 'torch==2.5.1'
+          python -m pip install 'torch==2.5.1+cpu' --index-url https://download.pytorch.org/whl/cpu
           python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
       - name: Verify S135 stage2 43M MPS trainer, guarded identity and rollback before touching weights
         run: |
@@ -238,8 +238,8 @@ jobs:
           import torch
           from calibri2.s132.progressive_core import (
               IDS_KEY,WEIGHTS_KEY,ProgressiveRouteCore,initial_active_indices)
-          assert torch.backends.mps.is_available()
-          core=ProgressiveRouteCore(rank=896).to('mps')
+          assert not torch.backends.mps.is_available()
+          core=ProgressiveRouteCore(rank=896).to('cpu')
           ids=initial_active_indices(896)
           payload=torch.zeros((12,320,len(ids)),dtype=torch.float16)
           payload[0,0,0]=.03125
@@ -250,7 +250,7 @@ jobs:
           })
           assert torch.equal(core.export_active_fp16()[WEIGHTS_KEY],payload)
           core.assert_inactive_zero()
-          print("S135_MPS_NATIVE_PHYSICAL_FP16_RELOAD_NO_UNSUPPORTED_INDEX_COPY",flush=True)
+          print("S149_CPU_NATIVE_PHYSICAL_FP16_RELOAD",flush=True)
           PY
       - name: Validate S145 and S149 CPU contracts before any real S142 training
         run: |
