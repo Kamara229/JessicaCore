@@ -20,7 +20,7 @@ from pathlib import Path
 MAX_SECONDS=6900
 WORKERS=(
     ("binding_gpu","mps","research/calibri2/s148/protected_replay_neural_skill.py","S148"),
-    ("language_gpu","mps","research/calibri2/s151/language_eos_gpu.py","S152"),
+    ("language_gpu","mps","research/calibri2/s151/language_eos_gpu.py","S151"),
     ("completion_cpu","cpu","research/calibri2/s149/cpu_completion_neural_skill.py","S149"),
 )
 
