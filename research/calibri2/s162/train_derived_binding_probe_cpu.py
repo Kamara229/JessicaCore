@@ -235,8 +235,41 @@ def main():
         _, pred_probe, probe_activity, probe_examples = s160.audit_cpu_outputs(
             cpu,{},probe,[],probe_ids,probe_routes,tok,bank,copy_net,
             bridge,full,expansion,{},parent_probe,head)
-        probe_retention = s158.retention(
-            {},{},{},parent_probe,pred_probe,probe)
+        # S158.retention assumes exactly 64 S122 training pairs.
+        # This diagnostic has 32 NEW pairs; preserve the identical full/EOS
+        # retention policy without using the S122-only pair-count assertion.
+        def probe_pair_score(outputs):
+            pairs = {}
+            for key, row in probe.items():
+                pairs.setdefault(row["pair_id"], {})[row["side"]] = (
+                    outputs[key] == row["expected"])
+            if len(pairs) != 32 or any(
+                set(sides) != {"left", "right"} for sides in pairs.values()
+            ):
+                raise AssertionError("S162 probe 32-pair coverage incomplete")
+            return sum(sides["left"] and sides["right"] for sides in pairs.values())
+
+        protected_full = {
+            key for key in probe if parent_probe[key] == probe[key]["expected"]
+        }
+        protected_first = {
+            key for key in probe
+            if parent_probe[key] and
+            parent_probe[key][0] == probe[key]["expected"][0]
+        }
+        probe_retention = {
+            "new_full_before": len(protected_full),
+            "new_full_after": sum(
+                pred_probe[key] == probe[key]["expected"] for key in probe),
+            "lost_new_full_ids": sorted(
+                key for key in protected_full
+                if pred_probe[key] != probe[key]["expected"]),
+            "lost_new_first_ids": sorted(
+                key for key in protected_first if not pred_probe[key]
+                or pred_probe[key][0] != probe[key]["expected"][0]),
+            "new_pairs_both_before": probe_pair_score(parent_probe),
+            "new_pairs_both_after": probe_pair_score(pred_probe),
+        }
         probe_loss_free = not any(probe_retention[k] for k in (
             "lost_new_full_ids","lost_new_first_ids"))
         probe_gain = (
