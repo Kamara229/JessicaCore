@@ -26,7 +26,7 @@ def inspect(root: Path) -> dict:
     orchestrator = json.loads(
         (root / "S152_ALL_REAL_PARALLEL_SKILLS_AUDIT.json").read_text()
     )
-    if (orchestrator.get("all_completed") is not True
+    if (orchestrator.get("all_training_and_physical_audits_finished") is not True
             or orchestrator.get("model_accepted") is not False
             or orchestrator.get("joint_456_128_guard_not_run") is not True):
         raise AssertionError("S153 requires the exact completed, unaccepted S152 trial")
