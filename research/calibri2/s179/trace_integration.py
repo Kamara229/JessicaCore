@@ -33,81 +33,96 @@ def _sha(prompt: str) -> str:
     return hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
 
-def _conditional_step2_replay(
-    model, sources, first, later, lm_head, tok, question, pointer, generated,
-):
-    """Replay only token-1 prefill and token-2 conditional forward, READ ONLY.
+def _observed_step2_logits(observed, first, later, lm_head, tok, question, pointer, generated):
+    """Score observed frozen step-2 outputs; NEVER call model.forward twice.
 
-    Identical S160/101 logits computation through step==1, including pointer
-    score adjustment. The copy_net may override the final second token AFTER
-    these logits; this is recorded as a separate decoder guard note. A
-    two-token fastpath never evaluates autoregressive step 2: return None.
+    S115 phase gating has a per-decoder forward counter and cannot tolerate
+    additional model prefills in the same phase scope. A temporary post-hook
+    captures the exact original model.forward results instead, without
+    touching its KV cache or selecting any tokens.
     """
     if not generated or generated[0] == tok.eos_token_id:
         return None
+    if "first_hidden" not in observed or "second_hidden" not in observed:
+        raise AssertionError("S179 missing original S160 prefill/step2 observations")
     from calibri2.s82 import real_mps_generic_token_context_copy as s82
-    from v176.operators import clear
 
-    ids = s160.prompt_tokens(tok, question)
-    kept = s82.candidate_positions(tok, ids) if pointer is not None else []
-    source_ids = torch.tensor([ids[i] for i in kept], dtype=torch.long)
-    with torch.inference_mode():
-        clear(sources)
-        prefill = model(
-            input_ids=torch.tensor([ids], dtype=torch.long),
-            past_key_values=None, use_cache=True, output_hidden_states=True)
-        cache = prefill.past_key_values
-        if cache is None:
-            raise AssertionError("S179 replay missing frozen S176 prefill KV cache")
-        h0 = prefill.hidden_states[-1][0]
-        first_logits = prefill.logits[0, -1] + F.linear(first(h0[-1]), lm_head)
-        if int(first_logits.argmax()) != generated[0]:
-            raise AssertionError("S179 replay differs from actual S160 first token")
-        keys = h0[torch.tensor(kept, dtype=torch.long)].detach().clone() if kept else None
-        del prefill
-        clear(sources)
-        second = model(
-            input_ids=torch.tensor([[generated[0]]], dtype=torch.long),
-            past_key_values=cache, use_cache=True, output_hidden_states=True)
-        h1 = second.hidden_states[-1][0][-1]
-        logits = second.logits[0, -1] + F.linear(later(h1), lm_head)
-        if pointer is not None and kept and int(logits.argmax()) != tok.eos_token_id:
+    prefill_logits = observed["first_logits"] + F.linear(
+        first(observed["first_hidden"]), lm_head)
+    if int(prefill_logits.argmax()) != generated[0]:
+        raise AssertionError("S179 observed first logits differ from S160 token")
+    h1 = observed["second_hidden"]
+    logits = observed["second_logits"] + F.linear(later(h1), lm_head)
+    if pointer is not None:
+        ids = s160.prompt_tokens(tok, question)
+        kept = s82.candidate_positions(tok, ids)
+        if kept and int(logits.argmax()) != tok.eos_token_id:
+            keys = observed.get("source_keys")
+            if keys is None:
+                raise AssertionError("S179 S160 pointer source keys missing")
+            source_ids = torch.tensor([ids[i] for i in kept], dtype=torch.long)
             bonus = pointer.full_vocab_bonus(h1, keys, source_ids)
             logits = logits + torch.zeros_like(logits).index_add(
                 0, source_ids, bonus)
-        out = logits.detach().cpu().float().tolist()
-        del second, cache
-        clear(sources)
-    return out
+    return logits.detach().cpu().float().tolist()
 
 
 def _traced_decoder(
     model, sources, first, later, lm_head, tok, question, pointer,
     copy_net, parallel_head,
 ):
-    """Execute original frozen decoder first; replay only for observation."""
-    generated, route_note = ORIGINAL_DECODER(
-        model, sources, first, later, lm_head, tok, question, pointer,
-        copy_net, parallel_head)
+    """Observe real original decoder forwards; no model replay or KV mutation."""
+    observed = {}
+    step_count = 0
+    handle = None
+    if CAPTURING:
+        from calibri2.s82 import real_mps_generic_token_context_copy as s82
+        ids = s160.prompt_tokens(tok, question)
+        kept = s82.candidate_positions(tok, ids) if pointer is not None else []
+
+        def capture_forward(_model, _args, _kwargs, result):
+            nonlocal step_count
+            if step_count == 0:
+                hidden = result.hidden_states[-1][0]
+                observed["first_hidden"] = hidden[-1].detach().clone()
+                observed["first_logits"] = result.logits[0, -1].detach().clone()
+                observed["source_keys"] = (
+                    hidden[torch.tensor(kept, dtype=torch.long)].detach().clone()
+                    if kept else None)
+            elif step_count == 1:
+                hidden = result.hidden_states[-1][0]
+                observed["second_hidden"] = hidden[-1].detach().clone()
+                observed["second_logits"] = result.logits[0, -1].detach().clone()
+            step_count += 1
+
+        handle = model.register_forward_hook(capture_forward, with_kwargs=True)
+    try:
+        generated, route_note = ORIGINAL_DECODER(
+            model, sources, first, later, lm_head, tok, question, pointer,
+            copy_net, parallel_head)
+    finally:
+        if handle is not None:
+            handle.remove()
     if CAPTURING:
         sha = _sha(question)
         if sha in REPLAY_BY_SHA:
             raise AssertionError("S179 repeated prompt inside original cohort")
         route = dict(route_note)
         fastpath = bool(route.get("parallel"))
-        logits = None if fastpath else _conditional_step2_replay(
-            model, sources, first, later, lm_head, tok, question, pointer,
-            generated)
-        # Real same-KV replay parity: a non-overridden frozen autoregressive
-        # step-2 token MUST equal the actual conditional logit argmax.
-        # Neural copy may override token 2 only after these scores are formed.
+        if step_count < 1:
+            raise AssertionError("S179 original frozen decoder made no forward call")
+        if fastpath and step_count != 1:
+            raise AssertionError("S179 fastpath must use only one original prefill")
+        logits = None if fastpath else _observed_step2_logits(
+            observed, first, later, lm_head, tok, question, pointer, generated)
+        # Copy-net may change token 2 *after* these original conditional logits.
         if (logits is not None and len(generated) >= 2 and
                 not route.get("neural_override_applied")):
-            replay_second_id = max(range(len(logits)), key=logits.__getitem__)
-            if replay_second_id != generated[1]:
+            observed_second_id = max(range(len(logits)), key=logits.__getitem__)
+            if observed_second_id != generated[1]:
                 raise AssertionError(
-                    "S179 real conditional step2 logits differ from frozen "
-                    "S160 generated token (KV/profile/replay drift)")
+                    "S179 observed conditional step2 logits differ from frozen "
+                    "S160 generated token (KV/profile/observer drift)")
         REPLAY_BY_SHA[sha] = {
             "conditional": logits,
             "generated": list(generated),
