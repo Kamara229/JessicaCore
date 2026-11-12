@@ -1,0 +1,49 @@
+name: CALIBRI S173 unseen TRAIN-owner frames and adversarial negatives offline
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-s172-confident-owner-consistency-guard-20261112]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s173_novel_train_and_adversarial_source_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s173-unseen-phrases-adversarial-owner-20261112'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: research
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require frozen S168 diagnostic source and successful S172 research-only J7
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43289943629 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43295694441 --jq .conclusion)" = "success"
+      - name: Download immutable S168 TRAIN-derived cases, no QA or TEST
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s168-novel-train-frames-J7
+          run-id: 43289943629
+          github-token: ${{ github.token }}
+          path: inputs/s168
+      - name: Offline S173 64 never-seen TRAIN frames plus 32 adversarial negative cases
+        run: |
+          python -m py_compile research/calibri2/s173/novel_train_owner_adversarial_offline.py
+          python research/calibri2/s173/novel_train_owner_adversarial_offline.py \
+            inputs/s168/S168_NOVEL_TRAIN_FRAMES_64_GENERALIZATION.json \
+            results/s173
+      - name: Preserve complete offline miss and false-positive diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s173-novel-train-and-adversarial-offline
+          path: results/s173
+          retention-days: 90
+          if-no-files-found: warn
