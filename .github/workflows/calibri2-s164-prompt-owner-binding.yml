@@ -1,0 +1,49 @@
+name: CALIBRI S164 research-only prompt-owner binding diagnostic
+
+on:
+  push:
+    branches:
+      - research/calibri2-s164-prompt-owner-binding-diagnostic-20261112
+  pull_request:
+    paths:
+      - research/calibri2/s164/**
+      - .github/workflows/calibri2-s164-prompt-owner-binding.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  s164-owner-bind-diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout research only
+        uses: actions/checkout@v4
+      - name: Confirm immutable S163 successful research source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43280941993 --jq .conclusion)" = "success"
+      - name: Download immutable S163 64-case failure atlas; no QA or LIVE
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s163-frozen-owner-fallback-17-failure-atlas
+          path: inputs/s163
+          run-id: 43280941993
+          github-token: ${{ github.token }}
+      - name: Run prompt-only owner binding diagnostic against frozen S163 outputs
+        run: |
+          python3 -m py_compile research/calibri2/s164/owner_binding_offline_probe.py
+          python3 research/calibri2/s164/owner_binding_offline_probe.py \
+            inputs/s163/S163_OWNER_AMBIGUITY_17_FAILURE_ATLAS.json \
+            results/s164
+      - name: Archive diagnostics (not model candidate)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s164-owner-binding-offline-diagnostic-64
+          path: results/s164/
+          retention-days: 90
+          if-no-files-found: warn
