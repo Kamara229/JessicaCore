@@ -22,7 +22,7 @@ def guard(head,hidden,ids,tok):
     if q.startswith("TRAIN S82 ") and ". " in q:
         source,req=q.split(": ",1)[-1].rsplit(". ",1)
         unsafe=NEGATIVE_CLAIMS.search(source) or re.search(
-            r"\\b(?:both owners|both owner's|for [A-Z][a-z]+ and [A-Z][a-z]+)\\b",req,re.I)
+            r"\b(?:both owners|both owner's|for [A-Z][a-z]+ and [A-Z][a-z]+)\b",req,re.I)
         if unsafe:
             COUNTERS["S175_disputed_owner_fastpath_abstained"]+=1
             # Only source copy is vetoed. S142 may still answer.
