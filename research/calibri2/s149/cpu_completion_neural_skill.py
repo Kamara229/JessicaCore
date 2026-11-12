@@ -420,7 +420,16 @@ def main():
         cpu_bridge_training=(PromptConditionedDualTunnel(cpu_inner).to("cpu").eval()
                     .install(cpu_student))
         cpu_bridge_training.coefficients.requires_grad_(False)
-        first,later,pointer=s91.frozen_controllers(side)
+        # S91's helper hard-codes MPS; reconstruct the identical frozen
+        # controllers on native Linux CPU without modifying shared S91.
+        first,later=s91.s78.controllers(side)
+        pointer=s87.s82.GenericContextPointer()
+        pointer.load_state_dict({
+            k.removeprefix("generic_pointer."):v for k,v in side.items()
+            if k.startswith("generic_pointer.")},strict=True)
+        first=first.to("cpu").eval().requires_grad_(False)
+        later=later.to("cpu").eval().requires_grad_(False)
+        pointer=pointer.to("cpu").eval().requires_grad_(False)
         head=cpu_student.lm_head.source().detach()
         cpu_full_training=FullLayerStateTunnel(width=320,depth=12,rank=4).to("cpu").eval()
         load_compact_q2(cpu_full_training,q2)
