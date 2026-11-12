@@ -28,7 +28,8 @@ def analyze(trace_archive: dict, s87_report: dict) -> dict:
     expected = {}
     for r in labeled:
         sha, ids = r["question_sha256"], r["target_ids"]
-        if sha in expected or not isinstance(ids, list) or len(ids) != 3:
+        if (sha in expected or not isinstance(ids, list) or len(ids) < 2
+                or any(not isinstance(i, int) or i < 0 for i in ids)):
             raise AssertionError("S180 duplicated or invalid S87 labels")
         expected[sha] = ids
     observed = {}
