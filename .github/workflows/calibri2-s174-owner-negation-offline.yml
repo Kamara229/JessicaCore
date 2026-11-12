@@ -1,0 +1,50 @@
+name: CALIBRI S174 negation guard and conjunction TRAIN-only offline
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-s173-unseen-phrases-adversarial-owner-20261112]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s174_immutable_train_adversarial_offline_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s174-negation-conjunction-failclosed-20261112'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: research
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require frozen successful S168, S172, S173 research runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43289943629 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43295694441 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43297453550 --jq .conclusion)" = "success"
+      - name: Fetch immutable S168 TRAIN-derived 64-case probe artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s168-novel-train-frames-J7
+          run-id: 43289943629
+          github-token: ${{ github.token }}
+          path: inputs/s168
+      - name: S174 offline fail-closed S173 64+32 plus 32 new controls
+        run: |
+          python -m py_compile research/calibri2/s174/negation_veto_conjunction_offline.py
+          python research/calibri2/s174/negation_veto_conjunction_offline.py \
+            inputs/s168/S168_NOVEL_TRAIN_FRAMES_64_GENERALIZATION.json \
+            results/s174
+      - name: Archive exact S174 parser cases, errors and safe flag
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s174-negation-conjunction-64plus64
+          path: results/s174
+          retention-days: 90
+          if-no-files-found: warn
