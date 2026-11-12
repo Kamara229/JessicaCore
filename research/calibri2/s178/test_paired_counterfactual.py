@@ -18,7 +18,15 @@ class S178PairedPosthocTests(unittest.TestCase):
         self.assertEqual(result["lost_previous_first_token_ids"], [])
         self.assertEqual(len(result["changed_final_EOS_ids"]), 2)
 
-    def test_single_token_plus_eos_full_answer_is_scored(self):\n        gold = {"a": {"question": "single-token response", "expected": [2, 0]}}\n        out = compare_after_decode("fixture", {"a": [2, 0]},\n                                   {"a": [3, 0]}, gold, {})\n        self.assertEqual(out["baseline_full_correct"], 1)\n        self.assertEqual(out["counterfactual_full_correct"], 0)\n        self.assertEqual(out["lost_previous_full_EOS_ids"], ["a"])\n\n    def test_first_token_regression_detected_independently(self):
+    def test_single_token_plus_eos_full_answer_is_scored(self):
+        gold = {"a": {"question": "single-token response", "expected": [2, 0]}}
+        out = compare_after_decode("fixture", {"a": [2, 0]},
+                                   {"a": [3, 0]}, gold, {})
+        self.assertEqual(out["baseline_full_correct"], 1)
+        self.assertEqual(out["counterfactual_full_correct"], 0)
+        self.assertEqual(out["lost_previous_full_EOS_ids"], ["a"])
+
+    def test_first_token_regression_detected_independently(self):
         gold = {"a": {"question": "first prompt", "expected": [2, 3, 0]}}
         result = compare_after_decode("fixture", {"a": [2, 3, 0]},
                                      {"a": [7, 3, 0]}, gold, {})
