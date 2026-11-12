@@ -48,7 +48,7 @@ from calibri2.s127.q2_prefill_gate_control import prefill_only_tunnel
 from calibri2.s132.progressive_core import ProgressiveRouteCore, IDS_KEY, WEIGHTS_KEY
 from calibri2.s144.train_one_continued_j7 import frozen_routes, score_full_and_pairs
 from calibri2.s158 import targeted_retention_gpu as s158
-from calibri2.s159.parallel_slot_binding import ParallelSlotBindingHead, source_span_nll
+from calibri2.s159.parallel_slot_binding import ParallelSlotBindingHead
 from v176.operators import clear
 
 SEED = 1600160
@@ -69,6 +69,40 @@ def prompt_tokens(tok, question):
         [{"role": "user", "content": question}],
         tokenize=False, add_generation_prompt=True)
     return tok.encode(prompt, add_special_tokens=False)
+
+
+def normalized_candidate_spans(tok, ids):
+    """Convert literal source spans to generation-token forms, without labels.
+
+    Many BPE tokenizers encode a word after a space differently from the
+    identical word at the beginning of a generated answer. Decode a complete
+    source span and re-tokenize its trimmed *surface text* before comparing.
+    This is a generic tokenizer boundary conversion, never answer lookup.
+    Keep two-word contiguous spans only; no cross-owner slot recombination.
+    """
+    codes = []
+    for p in range(len(ids) - SLOT_COUNT + 1):
+        phrase = tok.decode(ids[p:p + SLOT_COUNT], skip_special_tokens=True).strip()
+        encoded = tok.encode(phrase, add_special_tokens=False) if phrase else []
+        valid = (
+            len(encoded) == SLOT_COUNT and
+            all(tok.decode([i], skip_special_tokens=True).strip() for i in encoded) and
+            tok.decode(encoded, skip_special_tokens=True).strip() == phrase
+        )
+        codes.append(encoded if valid else [-1] * SLOT_COUNT)
+    return torch.tensor(codes, dtype=torch.long)
+
+
+def joint_span_nll(scores, canonical, gold):
+    """Marginal source-span NLL for original TRAIN tokens only."""
+    if scores.shape != canonical.shape[:2] or canonical.shape[-1] != SLOT_COUNT:
+        raise ValueError("S160 score / canonical source span alignment lost")
+    matches = (canonical == gold[:, None, :]).all(dim=-1)
+    if not bool(matches.any(dim=-1).all()):
+        raise ValueError("S160 true expected source span unavailable in batch")
+    admissible = canonical.ge(0).all(dim=-1)
+    logp = F.log_softmax(scores.masked_fill(~admissible, -torch.inf), dim=-1)
+    return -torch.logsumexp(logp.masked_fill(~matches, -torch.inf), dim=-1).mean()
 
 
 def collect_real_prefills(cpu, old, new, old_ids, new_ids, routes, tok,
@@ -92,8 +126,9 @@ def collect_real_prefills(cpu, old, new, old_ids, new_ids, routes, tok,
         if len(gold) != SLOT_COUNT + 1 or gold[-1] != tok.eos_token_id:
             counts["not_two_token_EOS"] += 1
             continue
-        starts = [p for p in range(len(ids) - SLOT_COUNT + 1)
-                  if ids[p:p + SLOT_COUNT] == gold[:SLOT_COUNT]]
+        canonical = normalized_candidate_spans(tok, ids)
+        starts = [p for p in range(len(canonical))
+                  if canonical[p].tolist() == gold[:SLOT_COUNT]]
         if not starts:
             counts["no_exact_contiguous_source_target"] += 1
             continue
@@ -113,6 +148,7 @@ def collect_real_prefills(cpu, old, new, old_ids, new_ids, routes, tok,
             "states": states,
             "ids": torch.tensor(ids, dtype=torch.long),
             "gold": torch.tensor(gold[:2], dtype=torch.long),
+            "canonical": canonical,
             "answer": row.get("answer"),
             "target_span_count": len(starts),
             "group": "new" if key in new else "old",
@@ -131,6 +167,7 @@ def packed_batch(rows, keys, device):
     ids = torch.zeros(len(keys), maxlen, dtype=torch.long)
     masks = torch.zeros(len(keys), maxlen, dtype=torch.bool)
     labels = torch.zeros(len(keys), 2, dtype=torch.long)
+    canon = torch.full((len(keys), maxlen - 1, 2), -1, dtype=torch.long)
     for i, key in enumerate(keys):
         row = rows[key]
         size = len(row["ids"])
@@ -138,7 +175,9 @@ def packed_batch(rows, keys, device):
         ids[i, :size] = row["ids"]
         masks[i, :size] = True
         labels[i] = row["gold"]
-    return (states.to(device), ids.to(device), masks.to(device), labels.to(device))
+        canon[i, :size - 1] = row["canonical"]
+    return (states.to(device), ids.to(device), masks.to(device),
+            labels.to(device), canon.to(device))
 
 
 def train_neural_slot_head(rows):
@@ -160,10 +199,10 @@ def train_neural_slot_head(rows):
         half = BATCH // 2
         keys = ([old[(step * half + j) % len(old)] for j in range(half)] +
                 [new[(step * half + j) % len(new)] for j in range(half)])
-        states, ids, mask, labels = packed_batch(rows, keys, "mps")
+        states, ids, mask, labels, canonical = packed_batch(rows, keys, "mps")
         optimizer.zero_grad(set_to_none=True)
         out = head(states, ids, mask)
-        loss = source_span_nll(out, ids, labels, mask)
+        loss = joint_span_nll(out["span_logits"], canonical, labels)
         if not torch.isfinite(loss):
             raise AssertionError("S160 real MPS joint span loss is nonfinite")
         loss.backward()
@@ -182,16 +221,21 @@ def train_neural_slot_head(rows):
     return head, optimizer, initial, old_adam, trace
 
 
-def select_parallel(head, hidden, ids):
-    """Shared prefill and one vectorized joint span pass, original route S93."""
+def select_parallel(head, hidden, ids, tok):
+    """Shared prefill, one vectorized span pass and tokenizer-safe source copy."""
     with torch.inference_mode():
+        canon = normalized_candidate_spans(tok, ids[0].tolist())
+        valid = canon.ge(0).all(dim=-1)
+        if int(valid.sum()) < 2:
+            return None
         result = head(hidden.unsqueeze(0).float(), ids)
-        admitted = (
-            int(result["candidate_count"].item()) >= 2 and
-            float(result["confidence"].item()) >= MIN_CONFIDENCE and
-            float(result["margin"].item()) >= MIN_MARGIN
-        )
-        return result["slot_ids"][0].tolist() if admitted else None
+        logits = result["span_logits"][0].masked_fill(~valid, -torch.inf)
+        positions = logits.topk(2)
+        best = int(positions.indices[0])
+        confidence = float(logits.softmax(dim=-1)[best])
+        margin = float(positions.values[0] - positions.values[1])
+        admitted = confidence >= MIN_CONFIDENCE and margin >= MIN_MARGIN
+        return canon[best].tolist() if admitted else None
 
 
 def cached_full_cpu_parallel(
@@ -225,7 +269,7 @@ def cached_full_cpu_parallel(
                 raise AssertionError("S160 original S101 cached autoregressive forward failed")
             hidden = result.hidden_states[-1][0]
             if step == 0:
-                proposal = select_parallel(parallel_head, hidden, prompt_input)
+                proposal = select_parallel(parallel_head, hidden, prompt_input, tok)
                 if proposal is not None:
                     del result, cache
                     clear(sources)
