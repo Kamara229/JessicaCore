@@ -24,7 +24,7 @@ jobs:
           PYTHONPATH: research
         run: |
           python -m compileall -q research/calibri2/s180
-          python -m unittest -v calibri2.s180.test_offline_failure_attribution calibri2.s180.test_second_token_margin_posthoc
+          python -m unittest -v calibri2.s180.test_offline_failure_attribution calibri2.s180.test_second_token_margin_posthoc calibri2.s180.test_compare_correct_and_wrong_second_margins
       - name: Download immutable successful S179 original456 real J7 trace
         uses: actions/download-artifact@v4
         with:
@@ -51,6 +51,12 @@ jobs:
             inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
             inputs/s87_gold/S87_ALL_456_TRAIN_GUARD_REPORT.json \
             results/s180/S180_FROZEN_SECOND_TOKEN_18_MARGINS_SHA_ONLY.json
+      - name: S180 offline compare observed margins for 428 full-correct vs 18 second-wrong
+        run: |
+          PYTHONPATH=research python research/calibri2/s180/compare_correct_and_wrong_second_margins.py \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s87_gold/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s180/S180_FROZEN_428_VS_18_STEP2_MARGIN_COMPARISON.json
       - name: Preserve offline SHA-only attribution
         if: always()
         uses: actions/upload-artifact@v4
