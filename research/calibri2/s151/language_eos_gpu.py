@@ -2,7 +2,7 @@
 
 Loads the IMMUTABLE physical S142 checkpoint and the original S101/S122
 TRAIN sources (no QA). Twelve MPS steps train an independent language/EOS neural Skill at 4/10 against true causal original S122 labels with protected old TRAIN replay at
-layers 3/9, **never** altering pretrained S142 parameters. Physically
+skill layers 4/10, **never** altering pretrained S142 parameters. Physically
 serialize new skill FP16, reload on CPU, compare protected 456+128 exact
 full answer+EOS and first tokens, packed bpp and paired CPU. A failed
 trial is rejected and rolled back. Never promotes, merges, or deploys.
@@ -379,7 +379,7 @@ def main():
                     new[protected_new_id],first,head)
             loss=sum(losses)/len(losses)+0.35*old_replay+0.20*new_first_replay
             loss.backward()
-            first_layer=skill.layers["3"]
+            first_layer=skill.layers[str(SKILL_LAYERS[0])]
             up=first_layer.blocks[SKILL_ID].up.weight
             down=first_layer.blocks[SKILL_ID].down.weight
             gate=first_layer.routers[SKILL_ID].bias
