@@ -57,7 +57,7 @@ def _safe_counterfactual_selector(head, hidden, ids, tok):
             legacy_choice=legacy, eos_id=tok.eos_token_id)
     if decision.changes_legacy:
         ACTIVE_TRACES.append({
-            "sha256": _sha(question), "legacy_span": list(decision.legacy),
+            "sha256": _sha(question), "legacy_span": (list(decision.legacy) if decision.legacy is not None else None),
             "candidate_span": list(decision.proposed), "votes": decision.votes,
             "branches": decision.branch_count, "reason": decision.reason,
         })
