@@ -32,7 +32,7 @@ def owner_value(question):
     if not req_names:
         return None
     asked = req_names[-1]
-    if not re.search(r"\b" + re.escape(asked) + r"[.?]?$", request):
+    if not re.search(r"\b" + re.escape(asked) + r"(?:\x27s package)?[.?]?$", request):
         return None
     segments = [s.strip() for s in SEPARATOR.split(source) if s.strip()]
     all_values = [m.group(0) for m in VALUE.finditer(source)]
