@@ -208,11 +208,38 @@ def main():
             "traceback": traceback.format_exc()
         }, indent=2))
         raise
+    # Measure the same three genuine neural-Skill optimizer workloads
+    # serially on this SAME Apple Silicon host (identical seeds and shapes).
+    # Concurrency alone must not be mislabeled as throughput acceleration.
+    serial = [
+        run_training(name, device, layers, seed,
+                     steps=args.steps, seq_len=args.seq_len,
+                     ref_params=SOURCE_PARAMS)
+        for name, device, layers, seed in WORKERS
+    ]
+    serial_compute_seconds = sum(x["elapsed_seconds"] for x in serial)
+    earliest_parallel_start = min(x["start_monotonic_ns"] for x in report["workers"])
+    latest_parallel_end = max(x["end_monotonic_ns"] for x in report["workers"])
+    parallel_compute_span_seconds = (latest_parallel_end - earliest_parallel_start)/1e9
+    report["same_host_serial_training"] = serial
+    report["serial_compute_seconds"] = serial_compute_seconds
+    report["parallel_compute_span_seconds"] = parallel_compute_span_seconds
+    report["measured_compute_speedup_vs_serial"] = (
+        serial_compute_seconds/parallel_compute_span_seconds
+    )
+    report["comparability_limits"] = [
+        "synthetic hidden-state inputs; no S142 model forward or J7 quality",
+        "startup/model loading excluded from both training timers",
+        "serial MPS kernels and allocation cache may be warmed differently"
+    ]
     args.report.write_text(json.dumps(report, indent=2))
     if not report["all_3_training_intervals_overlap"]:
         raise AssertionError("S150 all workers trained, but no measured three-way overlap; full timings are in report")
     print("S150_THREE_WAY_SAME_HOST", json.dumps({
         "overlap_seconds": report["common_overlapping_seconds"],
+        "compute_speedup_vs_serial": report["measured_compute_speedup_vs_serial"],
+        "parallel_seconds": report["parallel_compute_span_seconds"],
+        "serial_seconds": report["serial_compute_seconds"],
         "workers": [
             {"skill": x["skill"], "device": x["device"],
              "elapsed": round(x["elapsed_seconds"], 3),
