@@ -33,7 +33,8 @@ WORKERS = (
 
 
 def run_training(name: str, device_name: str, layers: tuple[int, int], seed: int,
-                 *, steps: int, seq_len: int, ref_params: int) -> dict:
+                 *, steps: int, seq_len: int, ref_params: int,
+                 ready_barrier=None) -> dict:
     """Genuine independent Skill autograd; synthetic inputs are NOT QA evidence."""
     torch.set_num_threads(1)
     torch.manual_seed(seed)
@@ -54,6 +55,10 @@ def run_training(name: str, device_name: str, layers: tuple[int, int], seed: int
     opt = torch.optim.Adam(weights, lr=0.008)
     hidden = 0.55 * torch.randn(4, seq_len, 320, device=device)
     target = hidden + 0.11 * torch.tanh(hidden)
+    # GPU process initialization and MPS model setup happen before
+    # the shared barrier. Synchronize native GPU worker startup.
+    if ready_barrier is not None:
+        ready_barrier()
     first_loss = None
     last_loss = None
     begin = time.monotonic_ns()
@@ -98,13 +103,15 @@ def run_training(name: str, device_name: str, layers: tuple[int, int], seed: int
 def worker(entry, release, events, steps, seq_len, ref_params):
     name, device, layers, seed = entry
     try:
-        # Complete initialization BEFORE the shared release event.
-        events.put({"kind": "ready", "skill": name, "device": device})
-        if not release.wait(timeout=150):
-            raise TimeoutError("parallel startup barrier timed out")
+        def ready():
+            # Signal readiness only AFTER all model and device setup.
+            events.put({"kind": "ready", "skill": name, "device": device})
+            if not release.wait(timeout=150):
+                raise TimeoutError("parallel startup barrier timed out")
         outcome = run_training(name, device, layers, seed,
                                steps=steps, seq_len=seq_len,
-                               ref_params=ref_params)
+                               ref_params=ref_params,
+                               ready_barrier=ready)
         events.put({"kind": "result", "result": outcome})
     except BaseException as exc:
         events.put({"kind": "error", "skill": name,
@@ -159,11 +166,9 @@ def run_probe(*, steps=72, seq_len=192, ref_params=SOURCE_PARAMS):
         latest_start = max(r["start_monotonic_ns"] for r in outcomes)
         earliest_end = min(r["end_monotonic_ns"] for r in outcomes)
         overlap_seconds = max(0, (earliest_end - latest_start)/1e9)
-        if overlap_seconds <= 0:
-            raise AssertionError("three-way simultaneous training not demonstrated")
         report = {
             "stage": "S150_SINGLE_MACOS_HOST_THREE_INDEPENDENT_SKILLS",
-            "all_3_training_intervals_overlap": True,
+            "all_3_training_intervals_overlap": overlap_seconds > 0,
             "common_overlapping_seconds": overlap_seconds,
             "concurrent_gpu_workers": 2, "concurrent_cpu_workers": 1,
             "same_runner_processes": True,
@@ -204,6 +209,8 @@ def main():
         }, indent=2))
         raise
     args.report.write_text(json.dumps(report, indent=2))
+    if not report["all_3_training_intervals_overlap"]:
+        raise AssertionError("S150 all workers trained, but no measured three-way overlap; full timings are in report")
     print("S150_THREE_WAY_SAME_HOST", json.dumps({
         "overlap_seconds": report["common_overlapping_seconds"],
         "workers": [
