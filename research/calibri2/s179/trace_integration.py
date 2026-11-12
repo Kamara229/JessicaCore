@@ -98,6 +98,16 @@ def _traced_decoder(
         logits = None if fastpath else _conditional_step2_replay(
             model, sources, first, later, lm_head, tok, question, pointer,
             generated)
+        # Real same-KV replay parity: a non-overridden frozen autoregressive
+        # step-2 token MUST equal the actual conditional logit argmax.
+        # Neural copy may override token 2 only after these scores are formed.
+        if (logits is not None and len(generated) >= 2 and
+                not route.get("neural_override_applied")):
+            replay_second_id = max(range(len(logits)), key=logits.__getitem__)
+            if replay_second_id != generated[1]:
+                raise AssertionError(
+                    "S179 real conditional step2 logits differ from frozen "
+                    "S160 generated token (KV/profile/replay drift)")
         REPLAY_BY_SHA[sha] = {
             "conditional": logits,
             "generated": list(generated),
