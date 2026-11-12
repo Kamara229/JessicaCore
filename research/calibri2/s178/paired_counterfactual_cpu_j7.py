@@ -122,7 +122,9 @@ def shadow_paired_audit(cpu, old, new, old_ids, new_ids, routes, tok, bank,
             cpu, old, new, old_ids, new_ids, routes, tok, bank, copy_net,
             bridge, full, expansion, parent_old, parent_new, head)
     finally:
-        s168.ORIGINAL_SELECTOR = ORIGINAL_SLOT_SELECTOR
+        # Keep S178 active for the subsequent paired native CPU timing;
+        # each group explicitly switches to baseline before control decode.
+        s168.ORIGINAL_SELECTOR = _safe_counterfactual_selector
     before = {**baseline[0], **baseline[1]}
     after = {**experiment[0], **experiment[1]}
     audit = compare_after_decode(group, before, after, old, new)
