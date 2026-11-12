@@ -255,7 +255,7 @@ jobs:
       - name: Validate S145 and S151 CPU contracts before any real S142 training
         run: |
           python -m compileall -q research/calibri2/s145 research/calibri2/s148 research/calibri2/s149 research/calibri2/s151
-          python -m unittest -v calibri2.s145.test_neural_skill_blocks calibri2.s146.test_real_skill_contract
+          python -m unittest -v calibri2.s145.test_neural_skill_blocks calibri2.s146.test_real_skill_contract calibri2.s151.test_parallel_real_guards
       - name: S151 parallel real frozen-S142 Binding GPU + Language GPU + Completion CPU full J7
         run: |
           python - <<'PY'
