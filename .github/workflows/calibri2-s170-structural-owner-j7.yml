@@ -3,7 +3,7 @@ name: CALIBRI S170 structural owner integrated real J7 456+128+64+64
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
-      - research/calibri2-s167-confidence-owner-rescue-j7-20261112
+      - research/calibri2-s169-segment-owner-offline-20261112
 permissions:
   contents: read
   actions: read
