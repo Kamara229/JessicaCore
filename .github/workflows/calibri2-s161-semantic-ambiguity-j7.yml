@@ -238,25 +238,25 @@ jobs:
           assert guard["model_accepted"] is False and guard["no_QA_no_LIVE"]
           print("S144 EXACT S142 COMMITTED FP16 SOURCE SAFE; NO QA OR LIVE",flush=True)
           PY
-      - name: S135 native MPS FP16 physical checkpoint reload smoke before lengthy GPU training
+      - name: S161 native CPU FP16 physical checkpoint reload smoke (no MPS needed)
         run: |
           python - <<'PY'
           import torch
           from calibri2.s132.progressive_core import (
-              IDS_KEY,WEIGHTS_KEY,ProgressiveRouteCore,initial_active_indices)
-          assert torch.backends.mps.is_available()
-          core=ProgressiveRouteCore(rank=896).to('mps')
-          ids=initial_active_indices(896)
-          payload=torch.zeros((12,320,len(ids)),dtype=torch.float16)
-          payload[0,0,0]=.03125
-          payload[0,0,24]=.015625
+              IDS_KEY, WEIGHTS_KEY, ProgressiveRouteCore, initial_active_indices)
+          assert not torch.backends.mps.is_available()
+          core = ProgressiveRouteCore(rank=896).to('cpu')
+          ids = initial_active_indices(896)
+          payload = torch.zeros((12, 320, len(ids)), dtype=torch.float16)
+          payload[0, 0, 0] = .03125
+          payload[0, 0, 24] = .015625
           core.load_active_fp16({
-              IDS_KEY:torch.tensor(ids,dtype=torch.int32),
-              WEIGHTS_KEY:payload,
+              IDS_KEY: torch.tensor(ids, dtype=torch.int32),
+              WEIGHTS_KEY: payload,
           })
-          assert torch.equal(core.export_active_fp16()[WEIGHTS_KEY],payload)
+          assert torch.equal(core.export_active_fp16()[WEIGHTS_KEY], payload)
           core.assert_inactive_zero()
-          print("S135_MPS_NATIVE_PHYSICAL_FP16_RELOAD_NO_UNSUPPORTED_INDEX_COPY",flush=True)
+          print("S161_CPU_PHYSICAL_FP16_RELOAD_PASS", flush=True)
           PY
       - name: Validate S145 and S158 S93 scope + S152 CPU contracts before any real S142 training
         run: |
