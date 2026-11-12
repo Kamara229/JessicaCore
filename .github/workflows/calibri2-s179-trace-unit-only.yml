@@ -1,0 +1,47 @@
+name: CALIBRI S179 trace contract unit tests research-only
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s178-counterfactual-consensus-j7-20261113
+permissions:
+  contents: read
+concurrency:
+  group: calibri2-s179-unit-only-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  s179_trace_mock_unit_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s179-second-token-eos-diagnostics-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Install pinned experiment dependencies (no models or weight downloads)
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Compile S179 trace-only code
+        run: python -m compileall -q research/calibri2/s179
+      - name: Run S179 mock unit tests ONLY (no J7, no weights, no model)
+        run: |
+          python -m unittest -v \
+            calibri2.s179.test_trace_contract \
+            calibri2.s179.test_trace_integration
+      - name: Verify S179 no-write isolation contract
+        run: |
+          ! grep -RE '(^|[^a-zA-Z_])(optimizer\.step|backward\(|save_pretrained\(|model_accepted.*True)' research/calibri2/s179/*.py
+          echo 'S179 unit-only research execution, no Jessica, LIVE, Render, Supabase or APK changes'
