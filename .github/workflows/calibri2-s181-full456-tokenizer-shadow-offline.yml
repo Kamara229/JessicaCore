@@ -1,0 +1,64 @@
+name: CALIBRI S181 full 456 original TRAIN shadow offline tokenizer replay
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s180-s179-offline-posthoc-20261113
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s181_source_456_full_tokenized_shadow_replay:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s181-s30-s54-shadow-parser-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: research:research/calibri
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: S181 source-only fake tokenizer unit preflight and no answer key selector
+        run: |
+          python -m unittest -v calibri2.s181.test_source_grammar_shadow calibri2.s181.test_source_128_frozen_456_posthoc calibri2.s181.test_full_456_tokenized_shadow_replay
+          echo S181_PREP_FLAT_456_NO_GOLD_SELECTOR_NO_MODEL
+      - name: Install pinned S179 Python decoder compatibility for ONLY frozen public tokenizer and TRAIN source prompt generator
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Download frozen S179 real original CPU J7 456 label-free traces
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s179-original456-real-second-token-eos-trace-only
+          run-id: 43323981995
+          path: inputs/s179
+          github-token: ${{ github.token }}
+      - name: Download frozen S87 original TRAIN 456 report for posthoc scoring only
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          run-id: 42659248083
+          path: inputs/s87
+          github-token: ${{ github.token }}
+      - name: Source-only all 456 frozen tokenizer, literal shadow overlay and no-forgetting posthoc
+        run: |
+          python research/calibri2/s181/full_456_tokenized_shadow_replay.py \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s87/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s181/S181_ORIGINAL456_TOKENIZER_VERIFIED_SHADOW_OFFLINE.json
+      - name: Archive research-only original full 456 offline evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s181-456-frozen-source-tokenized-shadow-no-integrated-j7
+          path: results/s181/
+          if-no-files-found: warn
+          retention-days: 90
