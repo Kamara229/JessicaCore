@@ -138,7 +138,7 @@ def collect_real_prefills(cpu, old, new, old_ids, new_ids, routes, tok,
             with frozen_cpu_phase_scope(model, bridge, route, features, phase="prefill_only"):
                 clear(sources)
                 output = model(input_ids=torch.tensor([ids], dtype=torch.long),
-                               past_key_values=None, use_cache=False, output_hidden_states=True)
+                               past_key_values=None, use_cache=True, output_hidden_states=True)
                 states = output.hidden_states[-1][0].detach().float().contiguous()
                 del output
                 clear(sources)
