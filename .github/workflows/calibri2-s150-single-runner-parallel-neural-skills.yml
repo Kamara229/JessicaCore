@@ -1,0 +1,57 @@
+name: CALIBRI S150 one-runner 2 GPU and 1 CPU neural Skill feasibility
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s149-parallel-cpu-completion-skill-20261112
+permissions:
+  contents: read
+concurrency:
+  group: calibri-s150-parallel-one-runner
+  cancel-in-progress: false
+jobs:
+  s150_two_mps_one_cpu_same_runner:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s150-three-way-single-runner-probe-20261112'
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: research:research/calibri
+      TOKENIZERS_PARALLELISM: 'false'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Install ARM64 PyTorch with native Apple MPS support
+        run: |
+          python -m pip install 'torch==2.5.1'
+      - name: Verify real MPS on this one host
+        run: |
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=="arm64"
+          assert torch.backends.mps.is_available(), "No native Apple GPU"
+          print("S150_ONE_RUNNER_NATIVE_MPS_AVAILABLE", flush=True)
+          PY
+      - name: Validate new Skill CPU gradient before parallel pilot
+        run: |
+          python -m compileall -q research/calibri2/s145 research/calibri2/s150
+          python -m unittest -v calibri2.s150.test_parallel_neural_skills_probe
+      - name: Spawn simultaneous 2 Apple MPS and 1 CPU research Skill trainers
+        run: |
+          python research/calibri2/s150/parallel_neural_skills_probe.py --steps 72 --seq-len 192
+      - name: Preserve S150 genuine concurrency and memory envelope report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s150-single-runner-parallel-2GPU-1CPU-hardware-probe
+          path: results/s150/
+          retention-days: 90
+          if-no-files-found: warn
