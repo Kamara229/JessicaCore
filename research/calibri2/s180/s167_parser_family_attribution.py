@@ -49,9 +49,9 @@ def analyze_parser_scope(trace: dict, labels: dict) -> dict:
         row = errors.get(sha)
         if row is None:
             group = "correct"
-        elif row["first_token_error"]:
+        elif row["first_token_wrong"]:
             group = "first_wrong"
-        elif row["second_token_error"]:
+        elif row["second_wrong_after_first_right"]:
             group = "second_wrong"
         else:
             group = "other_wrong"
