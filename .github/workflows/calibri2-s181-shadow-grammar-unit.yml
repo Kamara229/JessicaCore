@@ -1,0 +1,27 @@
+name: CALIBRI S181 S30 S54 lexical shadow parser research-only unit
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s180-s179-offline-posthoc-20261113
+permissions:
+  contents: read
+jobs:
+  s181_shadow_parser_contracts:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s181-s30-s54-shadow-parser-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: S181 immutable original literal grammar and fail-closed synthetic cases
+        env:
+          PYTHONPATH: research
+        run: |
+          python -m compileall -q research/calibri2/s181
+          python -m unittest -v calibri2.s181.test_source_grammar_shadow
+          echo "S181_RESEARCH_ONLY_SHADOW_UNIT_PASS_NO_MODEL_NO_LIVE"
