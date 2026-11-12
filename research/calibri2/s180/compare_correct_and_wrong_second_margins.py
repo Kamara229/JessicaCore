@@ -119,6 +119,28 @@ def compare(trace_archive: dict, s87_archive: dict) -> dict:
             "second_wrong_observed_top2_margin": distribution(misses),
             "comparable_both_groups": bool(good and misses),
         }
+    # Descriptive (not calibrated) separability within ONE frozen S93 route.
+    # No fitted threshold, selector, training, new model calls, or gold-at-inference.
+    s93_correct = per_route.get("S93", {}).get("full_correct", [])
+    s93_wrong = per_route.get("S93", {}).get("token2_wrong_first_correct", [])
+    s93_overlap = {
+        "correct_with_observed_AR_logits": len(s93_correct),
+        "wrong_second_with_observed_AR_logits": len(s93_wrong),
+        "cross_group_comparable": bool(s93_correct and s93_wrong),
+        "pairwise_probability_correct_margin_gt_wrong": None,
+        "wrong_margins_in_correct_minmax": None,
+        "correct_margins_in_wrong_minmax": None,
+        "no_threshold_chosen": True,
+    }
+    if s93_correct and s93_wrong:
+        pairs = len(s93_correct) * len(s93_wrong)
+        win = sum(1.0 if g > w else 0.5 if g == w else 0.0
+                  for g in s93_correct for w in s93_wrong)
+        s93_overlap["pairwise_probability_correct_margin_gt_wrong"] = win / pairs
+        s93_overlap["wrong_margins_in_correct_minmax"] = sum(
+            min(s93_correct) <= w <= max(s93_correct) for w in s93_wrong)
+        s93_overlap["correct_margins_in_wrong_minmax"] = sum(
+            min(s93_wrong) <= g <= max(s93_wrong) for g in s93_correct)
     return {
         "stage": "S180_OFFLINE_TOP2_MARGIN_428_VS_18_NO_POLICY",
         "source_s179_run_id": 43323981995,
@@ -128,6 +150,7 @@ def compare(trace_archive: dict, s87_archive: dict) -> dict:
             summarized["token2_wrong_first_correct"],
         "other_wrong_10": summarized["other_wrong"],
         "within_route_comparison": route_comp,
+        "within_route_S93_descriptive_overlap": s93_overlap,
         "gold_join_after_inference_only": True,
         "no_training_or_inference_threshold_proposed": True,
         "model_accepted": False,
@@ -157,6 +180,9 @@ def main():
         "correct": report["frozen_correct_428"]["top1_minus_top2_logits"],
         "wrong_second": report["first_correct_second_wrong_18"]["top1_minus_top2_logits"],
         "correct_missing_logits": report["frozen_correct_428"]["no_actual_token2_logits"],
+        "S93_correct": report["within_route_comparison"].get("S93", {}).get("correct_observed_top2_margin"),
+        "S93_wrong": report["within_route_comparison"].get("S93", {}).get("second_wrong_observed_top2_margin"),
+        "S93_overlap": report["within_route_S93_descriptive_overlap"],
         "model_accepted": False,
     }), flush=True)
 
