@@ -1,0 +1,83 @@
+name: CALIBRI S155 frozen S95 router S82-S93 overlap diagnostic
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s154-route-scoped-eos-skill-20261112
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri2-s155-real-s95-s82-s93-router-audit
+  cancel-in-progress: false
+jobs:
+  s155_s95_s82_s93_frozen_router_overlap:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s155-router-overlap-audit-20261112'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify immutable S154 rejected audit and original S95 router CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43220901402 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42698707784 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42659248083 --jq .conclusion)" = "success"
+          echo "S155_FROZEN_SOURCE_RUNS_VERIFIED"
+      - name: Install CPU-only exact research tokenizer and numeric dependencies
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Physically frozen S95 numeric prompt router
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s95-unaccepted-prompt-only-router-456-strict-CPU
+          path: inputs/s95
+          run-id: 42698707784
+          github-token: ${{ github.token }}
+      - name: Immutable original S87 full TRAIN 456 source identities
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          path: inputs/s87
+          run-id: 42659248083
+          github-token: ${{ github.token }}
+      - name: Actual rejected S154 456+128 J7 loss identities
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s154-s93-scoped-language-eos-real-s142-456-128
+          path: inputs/s154
+          run-id: 43220901402
+          github-token: ${{ github.token }}
+      - name: Verify actual S82_new lost prompt routed into S93 without any training
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri2/s155
+          python research/calibri2/s155/verify_s82_s93_route_overlap.py \
+            inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            inputs/s87/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s154/S154_REAL_NEURAL_SKILL_456_128_AUDIT.json \
+            results/s155
+      - name: Preserve S155 actual frozen routing diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s155-s82-s93-actual-router-456-diagnostic
+          path: results/s155/
+          retention-days: 90
+          if-no-files-found: warn
