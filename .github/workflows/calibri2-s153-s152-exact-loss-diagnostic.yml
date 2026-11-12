@@ -1,0 +1,42 @@
+name: CALIBRI S153 archived S152 exact J7 loss-identity analysis (TRAIN only)
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s152-memory-safe-staggered-s142-skills-20261112
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri2-s153-s152-audit
+  cancel-in-progress: false
+jobs:
+  s153_loss_diagnostic:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s153-s152-loss-diagnostic-20261112'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Download only completed immutable S152 research artifact, no QA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s152-memory-safe-cpu-mps-real-s142-456-128
+          path: inputs/s152
+          run-id: 43211904296
+          github-token: ${{ github.token }}
+      - name: Analyze three independently rejected Skills' exact loss IDs
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri2/s153
+          python research/calibri2/s153/s152_failure_diagnostic.py \
+            inputs/s152 results/s153/S153_S152_LOSS_IDENTITY_456_128_AUDIT.json
+      - name: Preserve research-only loss map for guarded S154 follow-up
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s153-s152-exact-loss-id-diagnostic-no-QA
+          path: results/s153/
+          retention-days: 90
+          if-no-files-found: warn
