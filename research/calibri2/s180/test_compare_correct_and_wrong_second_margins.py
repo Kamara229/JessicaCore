@@ -43,7 +43,7 @@ class S180CorrectWrongMarginContracts(unittest.TestCase):
     def test_invalid_source_cohort_fails_closed(self):
         trace, gold = realistic_fixture()
         trace["cases"][-1]["full_generated_ids"] = [10, 21, 0]
-        with self.assertRaisesRegex(AssertionError, "baseline drift"):
+        with self.assertRaisesRegex(AssertionError, "source drift"):
             compare(trace, gold)
 
 
