@@ -46,7 +46,7 @@ jobs:
           python -m unittest -v calibri2.s150.test_parallel_neural_skills_probe
       - name: Spawn simultaneous 2 Apple MPS and 1 CPU research Skill trainers
         run: |
-          python research/calibri2/s150/parallel_neural_skills_probe.py --steps 72 --seq-len 192
+          python research/calibri2/s150/parallel_neural_skills_probe.py --steps 256 --seq-len 192
       - name: Preserve S150 genuine concurrency and memory envelope report
         if: always()
         uses: actions/upload-artifact@v4
