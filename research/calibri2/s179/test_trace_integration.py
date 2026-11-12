@@ -96,7 +96,7 @@ class S179IntegrationTests(unittest.TestCase):
         """Real observed scores may not override original copy-net's choice."""
         import torch
         model, frozen, calls = self._frozen_mock_decoder(
-            second_scores=[0.3, 0.5, 1.0, 0.0], token2=1, override=True)
+            second_scores=[0.25, 0.5, 1.0, 0.0], token2=1, override=True)
         tok = type("Tok", (), {"eos_token_id": 0})()
         traces = {}
         with (patch.object(t, "ORIGINAL_DECODER", frozen),
@@ -109,7 +109,7 @@ class S179IntegrationTests(unittest.TestCase):
         self.assertEqual(answer, [2, 1, 0])
         self.assertTrue(route["neural_override_applied"])
         self.assertEqual(next(iter(traces.values()))["conditional"],
-                         [0.3, 0.5, 1.0, 0.0])
+                         [0.25, 0.5, 1.0, 0.0])
         self.assertEqual(len(calls), 2)
 
     def test_actual_token2_disagreement_fails_closed(self):
