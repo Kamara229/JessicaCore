@@ -71,7 +71,9 @@ def compare_after_decode(group: str, base: dict, trial: dict, old: dict, new: di
     cases = []
     for key in sorted(base):
         row = old.get(key) or new[key]
-        assert (isinstance(row["question"], str) and isinstance(row["expected"], list)\n                and len(row["expected"]) >= 2\n                and all(isinstance(token, int) for token in row["expected"]))
+        assert (isinstance(row["question"], str) and isinstance(row["expected"], list)
+                and len(row["expected"]) >= 2
+                and all(isinstance(token, int) for token in row["expected"]))
         gold = row["expected"]
         before, after = base[key], trial[key]
         cases.append({
