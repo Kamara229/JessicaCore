@@ -3,7 +3,7 @@ name: CALIBRI S162 frozen S161 TRAIN-derived novel binding 64 probe J7
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
-      - research/calibri2-s162-train-derived-binding-generalization-20261112
+      - research/calibri2-s161-semantic-ambiguity-j7-20261112
 permissions:
   contents: read
   actions: read
