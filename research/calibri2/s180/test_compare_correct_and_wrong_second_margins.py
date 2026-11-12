@@ -21,6 +21,18 @@ class S180CorrectWrongMarginContracts(unittest.TestCase):
         self.assertNotIn("full_generated_ids", str(result))
         self.assertNotIn("prompt_sha256", str(result))
 
+    def test_s93_descriptive_overlap_no_learned_threshold(self):
+        trace, labels = realistic_fixture()
+        report = compare(trace, labels)
+        stats = report["within_route_S93_descriptive_overlap"]
+        self.assertEqual(stats["correct_with_observed_AR_logits"], 428)
+        self.assertEqual(stats["wrong_second_with_observed_AR_logits"], 18)
+        self.assertEqual(stats["pairwise_probability_correct_margin_gt_wrong"], 0.5)
+        self.assertEqual(stats["wrong_margins_in_correct_minmax"], 18)
+        self.assertEqual(stats["correct_margins_in_wrong_minmax"], 428)
+        self.assertTrue(stats["no_threshold_chosen"])
+        self.assertNotIn("expected", str(stats))
+
     def test_missing_logits_not_imputed_from_other_routes(self):
         trace, gold = realistic_fixture()
         trace["cases"][30]["route"] = "S87"
