@@ -197,7 +197,7 @@ def main():
             "parallel_kept":active.get("parallel_accepted",0),
             "ambiguity_fallback":COUNTERS["S161_same_attribute_conflict_parent_fallback"],
             "bpp":physical_bpp,"cpu_ratio":speed["ratio"],
-            "safe":safe},flush=True))
+            "safe":safe}),flush=True)
     finally:
         s160.select_parallel=ORIGINAL_SELECTOR
         if expansion is not None:expansion.uninstall()
