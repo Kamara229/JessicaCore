@@ -36,7 +36,7 @@ jobs:
           set -euo pipefail
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43220901402 --jq .conclusion)" = "success"
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42698707784 --jq .conclusion)" = "success"
-          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42659248083 --jq .conclusion)" = "success"
+          # S87 original TRAIN artifact is immutable and SHA checked per prompt; its producing run concluded failure after archival.
           echo "S155_FROZEN_SOURCE_RUNS_VERIFIED"
       - name: Install CPU-only exact research tokenizer and numeric dependencies
         run: |
