@@ -91,6 +91,21 @@ class S179IntegrationTests(unittest.TestCase):
         self.assertEqual(next(iter(traces.values()))["conditional"],
                          [0.3, 0.5, 1.0])
 
+    def test_actual_token2_disagreement_fails_closed(self):
+        """Mismatch between frozen output and real conditional scores must fail."""
+        with (patch.object(t, "ORIGINAL_DECODER",
+                           return_value=([2, 1, 0],
+                                         {"parallel": False,
+                                          "neural_override_applied": False})),
+              patch.object(t, "_conditional_step2_replay",
+                           return_value=[0.2, 0.3, 0.9]),
+              patch.object(t, "REPLAY_BY_SHA", {}),
+              patch.object(t, "CAPTURING", True)):
+            with self.assertRaisesRegex(AssertionError, "KV/profile/replay drift"):
+                t._traced_decoder(
+                    None, None, None, None, None, None, "frozen prompt",
+                    None, None, None)
+
     def test_original_decoder_replayed_only_during_audit(self):
         events = []
 
