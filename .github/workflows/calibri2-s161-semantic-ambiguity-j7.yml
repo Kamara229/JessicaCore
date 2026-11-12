@@ -8,7 +8,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: calibri2-s161-real-ambiguity-one-cpu
+  group: calibri2-s161-ubuntu-research-j7-r2
   cancel-in-progress: false
 jobs:
   s161_real_s142_semantic_ambiguity_j7_audit:
