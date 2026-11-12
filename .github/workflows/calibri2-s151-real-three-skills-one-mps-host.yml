@@ -286,7 +286,8 @@ jobs:
             inputs/s131/S131_UNACCEPTED_block1_check1.safetensors \
             inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
             inputs/s142/S142_ONE_J7_ACTUAL_PHYSICAL_GUARD.json \
-            results/s151      - name: Preserve S151 actual neural Skill FP16 and 456+128 proof including rejection
+            results/s151
+      - name: Preserve S151 actual neural Skill FP16 and 456+128 proof including rejection
         if: always()
         uses: actions/upload-artifact@v4
         with:
