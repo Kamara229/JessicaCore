@@ -85,6 +85,10 @@ def captured_full_audit(*args, **kwargs):
             hashlib.sha256(new[key]["question"].encode("utf-8")).hexdigest():
             list(pred_new[key]) for key in pred_new
         }
+        ALL_PRED["new_expected"] = {
+            hashlib.sha256(new[key]["question"].encode("utf-8")).hexdigest():
+            list(new[key]["expected"]) for key in new
+        }
     return result
 
 
@@ -129,6 +133,11 @@ def verify_after_frozen_j7(old_s179_file: Path, old_s87_file: Path, out: Path):
     old_full = len(after_correct)
      # J7 accepted S176 report carries protected 128 TRAIN count and 64 probe.
     original_new = s176_report["new_full"]
+    actual_new_correct = sum(
+        ALL_PRED["new"][sha] == value
+        for sha, value in ALL_PRED.get("new_expected", {}).items())
+    if (len(ALL_PRED.get("new_expected", {})) != 128 or actual_new_correct != 128):
+        raise AssertionError("S182 actual J7 new128 generated IDs did not equal complete protected targets")
     if original_new != 128:
         raise AssertionError("S182 new128 protected cohort no longer completely correct")
     bpp = (s176_report["bpp_all_sources"]
@@ -144,6 +153,7 @@ def verify_after_frozen_j7(old_s179_file: Path, old_s87_file: Path, out: Path):
         "old_original_train_after": old_full,
         "new_train128_protected_correct": original_new,
         "new_train128_actual_predictions_captured": len(ALL_PRED["new"]),
+        "new_train128_actual_full_EOS_correct": actual_new_correct,
         "old_gains": len(gains), "old_losses": len(losses),
         "first_losses": len(first_losses),
         "non_shadow_prediction_changes": len(unchanged),
