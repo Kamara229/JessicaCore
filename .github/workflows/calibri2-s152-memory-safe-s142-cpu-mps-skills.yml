@@ -256,7 +256,7 @@ jobs:
         run: |
           python -m compileall -q research/calibri2/s145 research/calibri2/s148 research/calibri2/s149 research/calibri2/s151 research/calibri2/s152
           python -m unittest -v calibri2.s145.test_neural_skill_blocks calibri2.s146.test_real_skill_contract calibri2.s151.test_parallel_real_guards calibri2.s152.test_memory_safe_contract
-      - name: S152 memory-safe native frozen S142: CPU with GPU, then independent GPU Skill
+      - name: "S152 memory-safe native frozen S142: CPU with GPU, then independent GPU Skill"
         run: |
           python - <<'PY'
           import platform,torch
