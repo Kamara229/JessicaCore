@@ -1,0 +1,71 @@
+name: CALIBRI S184 classify last two frozen original CPU J7 errors SHA-only offline
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s183-paired-samecpu-j7-speed-20261113
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s184_read_only_last_two_errors:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s184-last-two-frozen-j7-error-posthoc-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: research
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline source-only synthetic strict no-gold and 2-error parity units
+        run: |
+          python -m compileall -q research/calibri2/s180 research/calibri2/s184
+          python -m unittest -v calibri2.s184.test_last_two_frozen_j7_posthoc
+      - name: Download immutable S179 456 original real J7 traces
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s179-original456-real-second-token-eos-trace-only
+          run-id: 43323981995
+          path: inputs/s179
+          github-token: ${{ github.token }}
+      - name: Download immutable original S87 456 TRAIN posthoc gold only
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          run-id: 42659248083
+          path: inputs/s87
+          github-token: ${{ github.token }}
+      - name: Download frozen successful S182 real full 456 plus 128 no forgetting SHA report
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s182-real-456-128-shadow-no-forgetting-j7
+          run-id: 43331434088
+          path: inputs/s182
+          github-token: ${{ github.token }}
+      - name: Download frozen successful S183 independent same CPU speed certification
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s183-real-456-128-paired-samecpu-shadow-speed
+          run-id: 43332985210
+          path: inputs/s183
+          github-token: ${{ github.token }}
+      - name: S184 offline two remaining real J7 errors with SHA-only symptom classes
+        run: |
+          python research/calibri2/s184/last_two_frozen_j7_posthoc.py \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s87/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s182/S182_REAL_SOURCE_SHADOW_456_128_GUARD.json \
+            inputs/s183/S183_PAIRED_SAME_CPU_SOURCE_SHADOW_BENCHMARK.json \
+            results/s184/S184_LAST_TWO_SHA_ONLY_NO_INFERENCE_POSTHOC.json
+      - name: Archive research-only immutable S184 SHA report; no model updated
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s184-two-remaining-posthoc-sha-only
+          path: results/s184/
+          if-no-files-found: warn
+          retention-days: 90
