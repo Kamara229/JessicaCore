@@ -139,6 +139,7 @@ def main():
     # The genuine original native S190 CPU J7 code is used without modifying
     # the selector, profile routing, Green Tunnel, or any protected gold.
     from calibri2.s160 import real_parallel_slots_j7 as s160
+    from calibri2.s158 import targeted_retention_gpu as s158
     from calibri2.s168 import novel_train_frames_generalization_cpu as s168
     from calibri2.s182 import real_cpu_j7_shadow_guard as s182
     from calibri2.s190 import real_cpu_new_train_paraphrase_probe as s190
@@ -152,6 +153,7 @@ def main():
     original_core=s168.ProgressiveRouteCore
     original_base_decoder=s160.cached_full_cpu_parallel
     original_s168_decoder=s168.ORIGINAL_DECODER
+    original_parent_run_outputs=s158.run_outputs
     neural=[]
     grown=[]
     captured={}
@@ -186,6 +188,20 @@ def main():
             captured[identity]=ids
         return response
 
+    def actual_frozen_parent(*a,**kw):
+        # S168 must establish original S142 362/456 and 17/128 BEFORE
+        # comparing the trained candidate. Disable new NRA only for the
+        # parent inference; the physically loaded core + Green Tunnel remain.
+        # Every candidate decoder call has NRA re-enabled. No label lookup.
+        if len(neural)!=1 or not neural[0]._active:
+            raise AssertionError("S199 frozen-parent comparator requires loaded NRA")
+        neural[0]._active=False
+        try:
+            return original_parent_run_outputs(*a,**kw)
+        finally:
+            neural[0]._active=True
+
+    s158.run_outputs=actual_frozen_parent
     s112.load_cpu_original=physically_loaded_neural_core
     s168.load_cpu_original=physically_loaded_neural_core
     s168.ProgressiveRouteCore=new_46m_core_type(full,grown)
@@ -196,6 +212,7 @@ def main():
         s190.main()
     finally:
         sys.argv=previous_argv
+        s158.run_outputs=original_parent_run_outputs
         s112.load_cpu_original=original_cpu_loader
         s168.load_cpu_original=original_s168_loader
         s168.ProgressiveRouteCore=original_core
