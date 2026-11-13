@@ -35,12 +35,8 @@ class TestS202FourLostJ7Trace(unittest.TestCase):
             parent = {k:[1,2,3] for k in TARGET_IDS}
             candidate = {**parent}
             for k in LOSSES[2]: candidate[k]=[5,2,3]
-            with patch.object(s158,"retention",return_value={
-                "lost_old_full_ids":list(LOSSES[2]),
-                "lost_old_first_ids":list(LOSSES[2]),
-                "lost_new_full_ids":[],
-                "lost_new_first_ids":[],
-                "old_full_after":2,"new_full_after":0}):
+            with patch.object(s158, "score_full_and_pairs", return_value={
+                "counterfactual_pairs_both_correct": 0}):
                 hook(parent,candidate,old,{}, {}, {})
             self.assertEqual(state["matched"],0)
             self.assertEqual(list(Path(tmp).iterdir()),[])
