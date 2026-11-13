@@ -1,0 +1,28 @@
+name: NRA2 Stage4 public challenge oracle-only proof (no model)
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3f-token-attention-shadow-20261114
+permissions:
+  contents: read
+jobs:
+  stage4_public_oracle_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-stage4-preregistered-challenges-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate 48 public challenge keys with independent BFS/Dijkstra
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage4_public_examples
+      - name: Confirm this workflow loads no Calibri / NRA / Green Tunnel weights
+        run: |
+          test -f research/nra2_bridge/stage4_hard_public_examples.jsonl
+          test -f research/nra2_bridge/STAGE4_CHALLENGE_PROTOCOL.md
+          echo "PUBLIC_FIXTURE_ORACLE_ONLY_NOT_MODEL_EVALUATION"
