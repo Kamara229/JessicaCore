@@ -137,23 +137,6 @@ def new_46m_core_type(payload, originals):
     return Physical46MCore
 
 
-def bpp_invoice(*, frozen_s194:dict, package:dict, source_files:list[Path],
-                manifest_extra_bytes:int):
-    source_bytes=sum(p.stat().st_size for p in source_files)
-    if manifest_extra_bytes<0:
-        raise AssertionError("S197 negative manifest bytes")
-    # The complete new runtime payload REPLACES the old physical S142 file:
-    # do not count both, and do not pretend new zeros are learned competence.
-    return physical_budget(
-        parent_bpp=float(frozen_s194["physical_bpp_including_S194_source"]),
-        old_physical_bytes=package["original_S142_size"],
-        packed_growth_bytes=package["runtime_packed_bytes"],
-        packed_region_bytes=0,  # NRA is already physically INSIDE the one runtime package
-        new_source_bytes=source_bytes,
-        extra_manifest_bytes=manifest_extra_bytes,
-    )
-
-
 def physical_bpp_for_single_package(*, frozen_s194, package, source_files, manifest_extra_bytes):
     # S196 physical_budget requires two payload files; this is intentionally a
     # SINGLE combined S142/46M/NRA compressed safetensors runtime package.
@@ -205,6 +188,7 @@ def main():
     from calibri2.s194 import actual_cpu_j7_bridge as s194
 
     original_loader=s112.load_cpu_original
+    original_s168_loader=s168.load_cpu_original
     original_core=s168.ProgressiveRouteCore
     original_decoder=s168.ORIGINAL_DECODER
     probes={sha_text(q) for q,_a,_group in s190.new_train_paraphrase_probes()}
@@ -236,6 +220,7 @@ def main():
         return response
 
     s112.load_cpu_original=region_loader
+    s168.load_cpu_original=region_loader  # S168 bound its import before this patch
     s168.ProgressiveRouteCore=new_46m_core_type(full_payload,core_instances)
     s168.ORIGINAL_DECODER=capture_true_decoder
     try:
@@ -245,6 +230,7 @@ def main():
             args,old_s87=Path(args[-2]))
     finally:
         s112.load_cpu_original=original_loader
+        s168.load_cpu_original=original_s168_loader
         s168.ProgressiveRouteCore=original_core
         s168.ORIGINAL_DECODER=original_decoder
         for region in area_instances:
