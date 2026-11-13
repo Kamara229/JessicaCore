@@ -266,6 +266,11 @@ def main():
         raise AssertionError("S197 real 46M CPU fell below 90% S101 paired speed")
 
     source_files=[
+        Path("research/calibri2/s195_neuro_area/representation_area.py"),
+        Path("research/calibri2/s195_neuro_area/real_cpu_integration.py"),
+        Path("research/calibri2/s195_neuro_area/test_representation_area.py"),
+        Path("research/calibri2/s196/core_growth_budget.py"),
+        Path("research/calibri2/s196/test_core_growth_budget.py"),
         Path("research/calibri2/s197/real_46m_nra_j7.py"),
         Path("research/calibri2/s197/test_real_46m_nra_j7.py"),
     ]
