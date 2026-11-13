@@ -1,0 +1,39 @@
+name: CALIBRI S204 TRAIN-only protected NRA optimizer unit contracts
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s203-nra-first-token-ablation-20261113
+permissions:
+  contents: read
+concurrency:
+  group: calibri2-s204-train-only-first-token-guard
+  cancel-in-progress: false
+jobs:
+  s204_train_only_guard:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s204-train-protected-nra-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU-only PyTorch
+        run: python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Check strict S204 TRAIN-only optimizer contracts
+        run: |
+          python -m compileall -q research/calibri2/s204
+          python -m unittest -v calibri2.s204.test_first_token_grad_guard
+      - name: Never claim candidate approval from only unit tests
+        run: |
+          echo "S204_TRAIN_ONLY_FIRST_ORDER_TEST_NOT_A_NATIVE_J7"
+          echo "S204_REQUIRES_456_128_32_REAL_CPU_FULL_EOS_AND_PHYSICAL_BPP_SPEED"
