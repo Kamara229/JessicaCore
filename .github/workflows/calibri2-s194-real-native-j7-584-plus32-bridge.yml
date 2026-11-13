@@ -399,6 +399,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: calibri-s194-actual-real-cpu-J7-584plus32-FP16-baseline-adapter
-          path: results/s190/
+          path: results/s194/
           retention-days: 90
           if-no-files-found: warn
