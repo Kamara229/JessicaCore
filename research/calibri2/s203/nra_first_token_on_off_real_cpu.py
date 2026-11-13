@@ -125,7 +125,6 @@ def run_paired_ablation():
                     raise AssertionError("S203 OFF probe cannot nest original owner prompt scope")
                 area._active = False
                 try:
-                    import torch
                     with torch.inference_mode(), expansion.prefill_only(model), s160.prefill_only_tunnel(model, full):
                         with s160.frozen_cpu_phase_scope(model, bridge, route, features, phase="prefill_only"):
                             # Reenter original owner-capture scope; S175/S187
