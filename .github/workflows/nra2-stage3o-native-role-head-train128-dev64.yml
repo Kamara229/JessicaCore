@@ -44,15 +44,15 @@ jobs:
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43512049506 --jq .conclusion)" = success
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43517070838 --jq .conclusion)" = success
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43519730567 --jq .conclusion)" = success
-          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43521067551 --jq .conclusion)" = success
-          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43521501320 --jq .conclusion)" = success
-          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43521501320 --jq .head_branch)" = research/calibri2-nra2-s3n-real192-cpu-capture-20261114
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43522550138 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43522555326 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43522555326 --jq .head_branch)" = research/calibri2-nra2-s3n-real192-cpu-capture-20261114
       - name: Import immutable genuine 192 native frozen CPU token features + original 616 J7 audit
         uses: actions/download-artifact@v4
         with:
           name: nra2-stage3n-real43M-192pairedgraph-tokens320-616J7
           path: inputs/nra2_stage3n
-          run-id: '43521501320'
+          run-id: '43522555326'
           github-token: ${{ github.token }}
       - name: Import exact previous S3K real learned token-to-node FP16 weights
         uses: actions/download-artifact@v4
@@ -79,7 +79,7 @@ jobs:
           from pathlib import Path
           r=json.loads(Path("results/nra2_stage3o/NRA2_S3O_NEURAL_SEMANTIC_ROLES_128TRAIN_64DEV_AUDIT.json").read_text())
           assert r["stage"]=="NRA2_S3O_NATIVE_TOKEN_SEMANTIC_ROLES_TRAIN128_DEV64_EXPLORATORY"
-          assert r["S3N_successful_frozen_CPU_run"]==43521501320
+          assert r["S3N_successful_frozen_CPU_run"]==43522555326
           assert r["S3K_successful_train64_run"]==43519730567
           assert r["real_native_43M_cpu_frozen_full_token_inputs"]
           assert r["original_616_S194_generated_token_hash_preserved_by_S3N"]
