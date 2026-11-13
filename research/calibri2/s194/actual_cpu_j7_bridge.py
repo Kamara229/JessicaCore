@@ -187,8 +187,8 @@ def real_j7_baseline(argv: list[str], *, old_s87: Path):
 def main():
     from dataclasses import asdict
     from calibri2.s182.real_cpu_j7_shadow_guard import DENOM
-    if len(sys.argv)<28:
-        raise SystemExit("S194 requires exact full S190 pinned 27-input CPU J7 CLI")
+    if len(sys.argv)<15:
+        raise SystemExit("S194 requires exact full S190 pinned CPU J7 CLI")
     args=list(sys.argv)
     out=Path(args[-1])
     if (out/"S194_ACTUAL_REAL_CPU_J7_584_PLUS32_GATE.json").exists():
@@ -212,11 +212,11 @@ def main():
         raise AssertionError("S194 physical all-in source code pushes beyond 0.7 bpp")
     # S190 exact argv tail: S142 FP16, S142 report, S160 slot FP16,
     # S160 report, S179 no-label trace, S87 original TRAIN audit, output.
-    for ix,sub in ((-8,"S142_ACTUAL_43M_ONE_J7_FP16"),
-                   (-6,"S160_REAL_PARALLEL_SLOT_FP16")):
+    for ix,sub in ((-7,"S142_ACTUAL_43M_ONE_J7_FP16"),
+                   (-5,"S160_REAL_PARALLEL_SLOT_FP16")):
         if sub not in str(args[ix]):
             raise AssertionError("S194 exact original physical S142 and S160 43M sources required")
-    ckpt=actual_fp16_checkpoint_sha([Path(args[-8]),Path(args[-6])])
+    ckpt=actual_fp16_checkpoint_sha([Path(args[-7]),Path(args[-5])])
     (old,new,new_expected,old_gold,probes,probes_gold,eos,
      s190_source)=real_j7_baseline(args,old_s87=Path(args[-2]))
     if not s190_source["no_gold_or_SHA_at_inference_or_routing"]:
