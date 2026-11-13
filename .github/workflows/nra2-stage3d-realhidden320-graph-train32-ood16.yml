@@ -31,7 +31,7 @@ jobs:
         run: |
           python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
           python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
-      - name: S3D unit tests: frozen graph NRA, hidden320 ABI, normalization
+      - name: 'S3D unit tests: frozen graph NRA, hidden320 ABI, normalization'
         run: |
           python -m unittest -v research.nra2_bridge.test_stage3d_graph_bridge
       - name: Validate real CPU 616 S3C J7 original evidence
