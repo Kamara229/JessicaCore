@@ -1,0 +1,65 @@
+name: CALIBRI S185 source-only first-token EOS hypotheses 456 frozen no gold at inference
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s184-last-two-frozen-j7-error-posthoc-20261113
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s185_source_only_first_eos_456_before_posthoc:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s185-source-only-first-eos-diagnostic-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: research:research/calibri
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: S185 synthetic 456 source-only first EOS no-gold test contracts
+        run: |
+          python -m compileall -q research/calibri2/s185
+          python -m unittest -v calibri2.s185.test_first_eos_source_only_feasibility
+          echo S185_PREP_ALL_456_SOURCE_PROPOSALS_BEFORE_SHA_JOIN
+      - name: Install pinned S179 Python decoder compatibility for ONLY frozen public tokenizer and TRAIN source prompt generator
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Download frozen S179 real original CPU J7 456 label-free traces
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s179-original456-real-second-token-eos-trace-only
+          run-id: 43323981995
+          path: inputs/s179
+          github-token: ${{ github.token }}
+      - name: Download successful S184 two unresolved errors SHA-only report (no targets)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s184-two-remaining-posthoc-sha-only
+          run-id: 43334612878
+          path: inputs/s184
+          github-token: ${{ github.token }}
+      - name: S185 predeclare prompt-only FIRST/EOS guard feasibility on 456 before S184 posthoc join
+        run: |
+          python research/calibri2/s185/first_eos_source_only_feasibility.py \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s184/S184_LAST_TWO_SHA_ONLY_NO_INFERENCE_POSTHOC.json \
+            results/s185/S185_ALL456_FIRST_EOS_SOURCE_ONLY_DIAGNOSTIC.json
+      - name: Archive S185 original 456 source-only hypothesis report, no neural model or gold
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s185-source-only-first-eos-456-then-SHA-posthoc
+          path: results/s185/
+          if-no-files-found: warn
+          retention-days: 90
