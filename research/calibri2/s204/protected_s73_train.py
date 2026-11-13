@@ -14,8 +14,6 @@ from collections.abc import Mapping
 import torch
 from torch.nn import functional as F
 
-from calibri2.s160.real_parallel_slots_j7 import prompt_tokens
-
 ORIGINAL_S73_SHA = {
     "S73/73012/left": "f83736e83814ae27a25ba558e8b937d92b0460c67e947ab5f372c9254eca9a7f",
     "S73/73012/right": "f45f58b356add1302eb1502ae5f9e88100854293503dcb33ca986968125a7fa8",
@@ -54,6 +52,7 @@ def real_s73_first_token_loss(*, model, cpu, tok, question: str,
     """
     if not torch.is_grad_enabled() or not 0 <= first_token_id < int(tok.vocab_size):
         raise AssertionError("S204 requires grad-enabled original TRAIN first token")
+    from calibri2.s160.real_parallel_slots_j7 import prompt_tokens
     prompt = prompt_tokens(tok, question)
     if not prompt or not question.startswith("TRAIN S73 "):
         raise AssertionError("S204 first-token CE only on precommitted original TRAIN")
