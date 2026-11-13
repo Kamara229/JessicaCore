@@ -1,0 +1,78 @@
+name: CALIBRI S196 physical 46.70M main core + neural area bpp <=0.7
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-s195-neuro-representation-area-20261113]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri2-s196-46m-physical-bpp-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+jobs:
+  s196_real_growth_and_lossless_bpp:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s196-47m-core-physical-07bpp-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '196013'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin independent S135 46M five-J7 real MPS physical evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/42990346609 --jq .conclusion)" = "success"
+          test "$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/43345267876 --jq .conclusion)" = "success"
+      - name: Install pinned CPU tensor/runtime dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Unit checks for 46M architecture, weight preservation and byte accounting
+        run: |
+          python -m compileall -q research/calibri2/s132 research/calibri2/s195_neuro_area research/calibri2/s196
+          python -m unittest -v calibri2.s195_neuro_area.test_representation_area calibri2.s196.test_core_growth_budget
+      - name: Download actual 46.70M physical growth from successful S135
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s135-5cycles-43m-to-46m-physical-J7-new128-no-QA
+          run-id: 42990346609
+          github-token: ${{ github.token }}
+          path: inputs/s135
+      - name: Losslessly repackage true 46M main core and physically account all 21900 new region weights
+        run: |
+          python research/calibri2/s196/core_growth_budget.py \
+            inputs/s135/S135_NEXT_STAGE_46M_PHYSICAL_GROWTH_REPORT.json \
+            inputs/s135/S135_GROWN_46M_ZERO_NEW_CHANNELS.safetensors \
+            results/s196
+      - name: Verify actual bpp certificate does NOT claim 584 J7 or trained area
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path('results/s196/S196_46M_PHYSICAL_BPP_REBUDGET.json').read_text())
+          assert x['architectural_total_params']==46724300
+          assert x['main_core_params']==46702400
+          assert x['new_neural_area_training_steps']==0
+          assert x['S194_584_full_J7_after_growth_not_yet_run'] is True
+          assert x['budget']['architecture_gate_le_0_7'] is True
+          assert x['not_accepted'] is True
+          print('S196_46M_LOSSLESS_PHYSICAL_BPP_GATED_RESEARCH_ONLY',x['budget'],flush=True)
+          PY
+      - name: Preserve 46M growth package, NRA weights and physical byte invoice
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s196-real-46m-neuro-area-lossless-bpp-07-research-only
+          path: results/s196/
+          retention-days: 90
+          if-no-files-found: warn
