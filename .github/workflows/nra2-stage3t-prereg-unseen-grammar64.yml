@@ -1,0 +1,66 @@
+name: NRA2 S3T prereg 64 new query grammar and topology checks no model
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3s-s3q64-soft-hard-trial-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3t-new-grammar-prereg-only
+  cancel-in-progress: false
+jobs:
+  prereg_no_model_no_score:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3t-unseen-wording-prereg-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '2026111423'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify previous native CPU and independent paired score completed successfully
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43525586699 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43525997831 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43525211488 --jq .conclusion)" = success
+      - name: Verify novel wording and graph disjointness with ZERO inference
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3t_unseen_wording_prereg
+      - name: Physically archive SHA and query mention character offsets before native CPU
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          from research.nra2_bridge.stage3t_unseen_wording_prereg import build_rows,commitment
+          c=commitment(build_rows())
+          assert c['new_cpu_features_not_captured'] is True
+          assert c['candidate_predicted_graph_scores_not_inspected'] is True
+          assert c['S3O_actual_native_token_alignment_pending'] is True
+          assert c['S3O_frozen_adapter_fp16_sha256']=='40a8903d5419cd8641b5d01e75e429e10b449304b3ba140d2245bf7f8a9d00b6'
+          assert c['S3R_original_43M_cpu_fp16_sha256']=='ff9c24d8ddb8106841caeb62c04301295b54b729466d933f2ac4656732a4e42c'
+          assert c['edge_hard_threshold']==0.5
+          assert c['gate']==0.0
+          dest=Path('results/nra2_stage3t')
+          dest.mkdir(parents=True,exist_ok=False)
+          (dest/'NRA2_S3T_NEW_GRAMMAR64_PRECOMMITTED_NO_SCORE.json').write_text(json.dumps(c,indent=2,sort_keys=True)+'\n')
+          print('S3T_SHA',c['commitment_sha256'])
+          print('S3T_LOCKED_ONLY_NO_MODEL_NO_TUNING_NO_DEPLOY')
+          PY
+      - name: Archive full S3T prereg SHA before any model work
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3t-unseen-grammar64-preregistered-no-score
+          path: results/nra2_stage3t/
+          retention-days: 90
+          if-no-files-found: error
