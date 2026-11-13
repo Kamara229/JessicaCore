@@ -16,7 +16,7 @@ class StandaloneNRAContracts(unittest.TestCase):
 
     def test_balanced_disjoint_graphs_and_reproducible_inputs(self):
         a = graph_batch(12, 9, 96, (1, 2, 3, 4, 5))
-        b = graph_batch(12, 5, 96, (1, 2, 3, 4))
+        b = graph_batch(12, 9, 96, (1, 2, 3, 4, 5))
         for x, y in zip(a, b):
             self.assertTrue(torch.equal(x, y))
         self.assertEqual(int(a[3].sum()), 48)
@@ -49,7 +49,7 @@ class StandaloneNRAContracts(unittest.TestCase):
             self.assertEqual(result["train_distribution"]["total"], 1024)
             self.assertEqual(result["novel_graph_size_five_hop_dev"]["total"], 1024)
             self.assertGreaterEqual(result["train_distribution"]["accuracy"], .98)
-            self.assertGreaterEqual(result["unseen_five_hop_dev"]["accuracy"], .95)
+            self.assertGreaterEqual(result["novel_graph_size_five_hop_dev"]["accuracy"], .95)
             self.assertEqual(result["candidate_status"],
                              "EXPLORATORY_STANDALONE_PASS_NOT_INTEGRATION")
             self.assertFalse(result["calibri_2_integrated"])
