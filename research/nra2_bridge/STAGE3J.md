@@ -36,6 +36,21 @@ The model learns source/target on TRAIN but hallucinates many edges
 (208 FP vs 201 TP on TRAIN) and collapses on all four OOD controls.
 This is a **hypothesis**, not proof that token bindings alone solve it.
 
+## S3J token-identity prerequisite — verified
+
+S3J native tokenizer **preflight** GitHub Actions **#43518808282 SUCCESS**.
+It uses the original pinned `HuggingFaceTB/SmolLM2-135M-Instruct`
+tokenizer revision `12fd25f77366fa6b3b4b768ec3050bf629380bac`
+and its exact `apply_chat_template` + `encode(add_special_tokens=False)`
+contract. All 128 S3G prompts are now mapped from literal
+R0..R5 node mentions to actual token offsets, including multiple
+occurrences per entity, with token-order and mask tests. This uses
+zero graph labels, zero 43M model weights and does not predict
+adjacency/reachability. Importantly **this is only tokenizer plumbing**:
+no learned semantic binding, no heldout accuracy improvement, and
+no new FP16 candidate is demonstrated. Do not confuse S3J offset CI
+success with the rejected S3I neural adapter.
+
 ## Next falsifiable experiment — predeclare BEFORE observing scores
 
 Do not repeatedly tune S3I on already examined CTRL16. Design a
