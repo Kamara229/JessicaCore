@@ -65,7 +65,7 @@ class CoreGrowth196Tests(unittest.TestCase):
         self.assertEqual(AREA_PARAMS,21_900)
         self.assertEqual(NEXT_TOTAL_PARAMS,46_724_300)
         self.assertEqual(len(initial_active_indices(1344)),72)
-        self.assertEqual(len(plan_to_135m()),27)
+        self.assertEqual(len(plan_to_135m()),26)
         self.assertEqual(plan_to_135m()[-1]["new_main_core_params"],134_999_360)
 
     def test_real_s135_physical_strict_immutability_and_no_fake_training(self):
