@@ -68,7 +68,7 @@ class NeuroAreaTests(unittest.TestCase):
             opt.step()
             losses.append(float(loss.detach()))
         self.assertLess(losses[-1], losses[0])
-        self.assertFalse(torch.equal(parent, m(x) if not area._active else parent))
+        self.assertTrue(torch.equal(parent, m(x)))
         with area.activated():
             out = m(x)
         self.assertFalse(torch.equal(out, parent))
