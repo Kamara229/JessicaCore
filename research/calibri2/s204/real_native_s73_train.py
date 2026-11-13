@@ -131,11 +131,12 @@ def train_real_204(a):
                 features=torch.as_tensor(
                     s160.prompt_only_vector(tok,q),dtype=torch.float32)
                 s160.apply_profile(cpu[1],cpu[6],"S93",bank,cpu[7],cpu[8])
-                with expansion.prefill_only(model),prefill_only_tunnel(model,full):
-                    with bridge.prompt_scope("S93",features):
-                        pieces.append(new_train_loss(
-                            model=model,cpu=cpu,area=area,core=expansion,
-                            tok=tok,records=[record]))
+                # S198.new_train_loss already wraps expansion.prefill_only.
+                # Do not nest the same KV prefill hook for the real model.
+                with prefill_only_tunnel(model,full),bridge.prompt_scope("S93",features):
+                    pieces.append(new_train_loss(
+                        model=model,cpu=cpu,area=area,core=expansion,
+                        tok=tok,records=[record]))
             return torch.stack(pieces).mean()
         report=real_four_s73_guarded_step(
             original_456=old,source_routes=old_routes,source_scope=scope,
