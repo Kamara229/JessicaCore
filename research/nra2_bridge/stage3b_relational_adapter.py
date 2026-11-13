@@ -133,7 +133,7 @@ def frozen_proxy_forward(adapter:Hidden320ToRelationalEdges,area:RelationalNRA,
 
 
 def main():
-    if len(sys.argv)!=5:
+    if len(sys.argv)!=4:
         raise SystemExit("usage: python -m research.nra2_bridge.stage3b_relational_adapter "
                          "S3A_ARTIFACT_DIRECTORY NRA_STANDALONE_DIRECTORY OUTPUT_DIRECTORY")
     src,nra_dir,out=map(Path,sys.argv[1:])
