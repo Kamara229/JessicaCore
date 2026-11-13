@@ -1,0 +1,92 @@
+name: NRA2 S3D real hidden320 to graph bridge TRAIN32 novel heldout16 frozen
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3c-real-cpu-graph-pairs-20261113
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3d-real-graph-hidden320-train32-ood16
+  cancel-in-progress: false
+jobs:
+  independent_real_s3d_shadow_train32_holdout16:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3d-hidden320-graph-ood-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install reproducible native CPU shadow-bridge dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: S3D unit tests: frozen graph NRA, hidden320 ABI, normalization
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3d_graph_bridge
+      - name: Validate real CPU 616 S3C J7 original evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43486292082 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43486292082 --jq .head_branch)" = research/calibri2-nra2-s3c-real-cpu-graph-pairs-20261113
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43480311111 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43484392072 --jq .conclusion)" = success
+      - name: Download immutable REAL S3C 43M CPU FP16 graph pairs 32+16 and J7
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3c-real43M-48graph-hidden320-32train-16novel-616J7
+          path: inputs/nra2_stage3c
+          run-id: '43486292082'
+          github-token: ${{ github.token }}
+      - name: Download immutable independent frozen pretrained NRA core
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-standalone-relational-cpu-research-only
+          path: inputs/nra2
+          run-id: '43446925758'
+          github-token: ${{ github.token }}
+      - name: Train only hidden320-to-48D graph shadow with 32 TRAIN; score novel 16 ONCE
+        run: |
+          python -m research.nra2_bridge.stage3d_graph_bridge \
+            inputs/nra2_stage3c inputs/nra2 results/nra2_stage3d
+      - name: Assert physical FP16, zero gate, immutable S3C J7, no overstated acceptance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra2_stage3d/NRA2_S3D_REAL_GRAPH_BRIDGE_TRAIN32_OOD16_AUDIT.json")
+          r=json.loads(p.read_text())
+          assert r["train32_count"]==32 and r["untouched_6_node_structural_heldout16_count"]==16
+          assert r["train_only_normalization"] and r["no_heldout_in_optimizer_or_model_selection"]
+          assert r["real_calibri_cpu_hidden320_inputs"] and r["physically_reloaded_FP16_before_holdout"]
+          assert r["real_training_loss_after"]<r["real_training_loss_before"]
+          assert r["frozen_2241p_NRA_unchanged"] and r["calibri_43M_and_Green_Tunnel_frozen_unloaded"]
+          assert r["output_gate"]==0.0 and r["original_S3C_584_unchanged_J7_pinned"]
+          assert r["original_S3C_all_616_identical_to_S194_pinned"]
+          assert not r["S3D_replayed_original_616_decoder"]
+          assert not r["candidate_model_accepted"] and not r["new_full_EOS_gains_tested"]
+          assert r["frozen_graph_NRA_oracle_heldout_correct"]==16
+          assert 0 <= r["heldout_metrics"]["exact_graphs"] <= 16
+          assert 0 <= r["heldout_metrics"]["frozen_NRA_soft_graph_reachability_correct"] <= 16
+          print("S3D_REAL_HIDDEN320_GRAPH32_OOD16_SHADOW_RESULT_RECORDED_NOT_ACCEPTED")
+          PY
+      - name: Preserve S3D frozen-NRA shadow bridge FP16 and OOD16 audit
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3d-realhidden320-graph-32train-16novel-zero-gate-fp16
+          path: results/nra2_stage3d/
+          retention-days: 90
+          if-no-files-found: error
