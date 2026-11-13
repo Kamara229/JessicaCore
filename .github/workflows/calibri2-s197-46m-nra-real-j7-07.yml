@@ -419,6 +419,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: calibri-s197-real46M-plus-NRA-616-CPU-J7-physical-le07-research-only
-          path: results/s195_neuro_area/
+          path: results/s197/
           retention-days: 90
           if-no-files-found: warn
