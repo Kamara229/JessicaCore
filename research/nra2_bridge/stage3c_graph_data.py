@@ -72,7 +72,7 @@ def build_graph_rows()->list[GraphRecord]:
     seen_topology=set()
     for i in range(TOTAL_COUNT):
         held=i>=TRAIN_COUNT
-        active=NODE_COUNT if held else 4+i%2
+        active=NODE_COUNT if held else 4+(i//2)%2
         for _ in range(500):
             order=tuple(rng.sample(range(NODE_COUNT),active))
             topology=tuple((order[j],order[j+1]) for j in range(active-1))
@@ -115,6 +115,12 @@ def validate_graph_rows(rows:list[GraphRecord]):
         raise AssertionError("Graph topology leaked across split")
     if len(topology_train)!=TRAIN_COUNT or len(topology_held)!=HELD_COUNT:
         raise AssertionError("Graphs must have unique relation topology")
+    # Each TRAIN graph length must have both outcomes, rather than
+    # leak label via (4-node positive / 5-node negative).
+    for count in (4,5):
+        selected=[r for r in rows[:TRAIN_COUNT] if r.active_count==count]
+        if {r.reachable for r in selected}!={True,False}:
+            raise AssertionError("Graph length leaked answer direction")
     # A shortcut that maps prompt wording directly to answer must fail:
     # every declared wording template contains BOTH reachable outcomes.
     for is_held,templates in ((False,TRAIN_TEMPLATES),(True,HELD_TEMPLATES)):
@@ -129,7 +135,7 @@ def validate_graph_rows(rows:list[GraphRecord]):
         held=i>=TRAIN_COUNT
         if (r.split!="heldout_novel_structure")!= (not held):
             raise AssertionError("Split identity drift")
-        if r.active_count!=(6 if held else 4+i%2):
+        if r.active_count!=(6 if held else 4+(i//2)%2):
             raise AssertionError("New structured holdout must require longer paths")
         if len(r.edges)!=r.active_count-1 or len(set(r.edges))!=len(r.edges):
             raise AssertionError("Graph must be a directed acyclic chain")
