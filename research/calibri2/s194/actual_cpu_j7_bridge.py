@@ -184,6 +184,32 @@ def real_j7_baseline(argv: list[str], *, old_s87: Path):
         raise AssertionError("S194 S190 frozen CPU source vs protected baseline changed")
     return old,new,expected128,targets,REAL_CAPTURE,probe_target,tok.eos_token_id,s190_source
 
+def one_step_with_actual_physical_cpu_gate(
+    *, params, optimizer, train_one_step, physically_export_fp16,
+    independent_real_cpu_j7_on_export,
+):
+    """S194 attaches actual CPU validator to S193 atomic training.
+
+    Exporter must serialize candidate / recovered FP16 to two fresh
+    paths. Evaluator MUST load THOSE physical files and run full 616 J7.
+    Never substitute the pinned baseline report for candidate inference.
+    """
+    from calibri2.s193.atomic_one_step_584 import one_protected_step
+    def verify_fresh_physical():
+        paths=physically_export_fp16()
+        if not isinstance(paths,(list,tuple)) or len(paths)!=2:
+            raise AssertionError("S194 TWO physical FP16 exports required")
+        paths=[Path(p) for p in paths]
+        checkpoint_hash=actual_fp16_checkpoint_sha(paths)
+        cert=independent_real_cpu_j7_on_export(paths)
+        if not isinstance(cert,J7Retention584) or not cert.compatible():
+            raise AssertionError("S194 genuine 584+32 CPU J7 certificate required")
+        if cert.checkpoint_bytes_sha256!=checkpoint_hash:
+            raise AssertionError("S194 CPU J7 proof came from different physical weights")
+        return cert
+    return one_protected_step(params,optimizer,train_one_step,verify_fresh_physical)
+
+
 def main():
     from dataclasses import asdict
     from calibri2.s182.real_cpu_j7_shadow_guard import DENOM
@@ -243,6 +269,7 @@ def main():
         "baseline_identical_original_S187_S190_not_candidate":True,
         "actual_43M_training_steps":0,
         "candidate_weight_update_executed":False,
+        "S193_one_step_physical_J7_callback_connector_ready":True,
         "actual_one_step_candidate_J7_verification_pending":True,
         "source_only_no_QA_TEST_LIVE":True,
         "model_accepted":False,
