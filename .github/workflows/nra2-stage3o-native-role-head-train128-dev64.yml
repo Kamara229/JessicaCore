@@ -1,0 +1,116 @@
+name: NRA2 S3O real CPU learned semantic endpoint roles TRAIN128 DEV64 zero gate
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3n-real192-cpu-capture-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3o-native-role-syntax-shadow
+  cancel-in-progress: false
+jobs:
+  s3o_native_cpu_train128_role_head_dev64_after_fp16:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3o-semantic-role-head-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deterministic research CPU and original tokenizer dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Verify S3O source-target phrase context, zero gold feature leak and gradient flow
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3j_token_entity_alignment research.nra2_bridge.test_stage3k_neural_entity_bridge research.nra2_bridge.test_stage3m_role_balanced_graph_data research.nra2_bridge.test_stage3o_neural_query_roles
+      - name: Pin exact original 616 real CPU J7, new 192 real S3N and learned S3K FP16
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43512049506 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43517070838 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43519730567 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43521067551 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43521501320 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43521501320 --jq .head_branch)" = research/calibri2-nra2-s3n-real192-cpu-capture-20261114
+      - name: Import immutable genuine 192 native frozen CPU token features + original 616 J7 audit
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3n-real43M-192pairedgraph-tokens320-616J7
+          path: inputs/nra2_stage3n
+          run-id: '43521501320'
+          github-token: ${{ github.token }}
+      - name: Import exact previous S3K real learned token-to-node FP16 weights
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3k-real43M-native-entity-binding-train64-fp16-zero-gate
+          path: inputs/nra2_stage3k
+          run-id: '43519730567'
+          github-token: ${{ github.token }}
+      - name: Import unchanged independent physically trained 2241p graph NRA
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-standalone-relational-cpu-research-only
+          path: inputs/nra2
+          run-id: '43446925758'
+          github-token: ${{ github.token }}
+      - name: Fit ONLY TRAIN128 neural query role head, physically commit FP16 then ONE DEV64 read
+        run: |
+          python -m research.nra2_bridge.stage3o_train_neural_roles \
+            inputs/nra2_stage3n inputs/nra2_stage3k inputs/nra2 results/nra2_stage3o
+      - name: Guard provenance, no forgetting, no new decoder acceptance, and DEV after FP16 only
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3o/NRA2_S3O_NEURAL_SEMANTIC_ROLES_128TRAIN_64DEV_AUDIT.json").read_text())
+          assert r["stage"]=="NRA2_S3O_NATIVE_TOKEN_SEMANTIC_ROLES_TRAIN128_DEV64_EXPLORATORY"
+          assert r["S3N_successful_frozen_CPU_run"]==43521501320
+          assert r["S3K_successful_train64_run"]==43519730567
+          assert r["real_native_43M_cpu_frozen_full_token_inputs"]
+          assert r["original_616_S194_generated_token_hash_preserved_by_S3N"]
+          assert r["protected_584_control_answers_unchanged"]
+          assert r["train_count"]==128 and r["dev_count"]==64
+          assert r["optimizer_steps"]==240 and r["train_loss_after"]<r["train_loss_before"]
+          assert r["FP16_checkpoint_physical_reload_bitwise_equal"]
+          assert r["DEV_topologies_disjoint_from_TRAIN"]
+          assert r["DEV_never_in_optimizer"]
+          assert r["DEV_only_scored_after_physical_FP16_commit"]
+          assert not r["DEV_is_untouched_final_blind"]
+          assert not r["independent_final_blind_tested"]
+          assert not r["candidate_accepted"]
+          assert not r["full_decoder_new_EOS_gains_tested"]
+          assert not r["all_in_physical_bpp_tested"]
+          assert not r["same_CPU_speed_tested"]
+          assert r["Calibri_GreenTunnel_NRA_weights_unchanged"]
+          assert r["output_gate"]==0.0 and r["no_QA_TEST_LIVE_Render_Supabase_APK"]
+          for group,size in (("train_metrics",128),("dev_metrics",64)):
+              m=r[group]
+              assert m["count"]==size and 0<=m["exact_graphs"]<=size
+              assert 0<=m["source_correct"]<=size and 0<=m["target_correct"]<=size
+              assert 0<=m["NRA_predicted_graph_reachability_correct"]<=size
+          assert 0<=r["frozen_NRA_DEV_oracle_correct"]<=64
+          print("S3O_FROZEN_CPU_TRAIN128_DEV64_SEMANTIC_ROLE_FP16_ZERO_GATE_EXPLORATORY_ONLY")
+          PY
+      - name: Archive S3O genuine CPU neural semantic roles FP16+TRAIN128 and DEV64 research diagnostics
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3o-real43M-semantic-queryroles-train128-dev64-zero-gate-fp16
+          path: results/nra2_stage3o/
+          retention-days: 90
+          if-no-files-found: error
