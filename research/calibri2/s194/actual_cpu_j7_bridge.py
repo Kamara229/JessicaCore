@@ -117,7 +117,7 @@ def actual_fp16_checkpoint_sha(paths: list[Path]) -> str:
                 raise AssertionError("S194 serialized physical FP16 mismatch")
     return h.hexdigest()
 
-def real_j7_baseline(argv: list[str], *, old_s87: Path, source_bpp_plus_charge: float):
+def real_j7_baseline(argv: list[str], *, old_s87: Path):
     """Run full S190 real native CPU once. All capture before gold open."""
     from calibri2.s160 import real_parallel_slots_j7 as s160
     from calibri2.s182 import real_cpu_j7_shadow_guard as s182
@@ -182,5 +182,87 @@ def real_j7_baseline(argv: list[str], *, old_s87: Path, source_bpp_plus_charge: 
         or s190_source.get("NEW_TRAIN_full_EOS_correct")!=0
         or s190_source.get("NEW_TRAIN_first_correct")!=16):
         raise AssertionError("S194 S190 frozen CPU source vs protected baseline changed")
-    checkpoint_paths=[Path(argv[-6]),Path(argv[-4])]  # invariant? validated separately below
     return old,new,expected128,targets,REAL_CAPTURE,probe_target,tok.eos_token_id,s190_source
+
+def main():
+    from dataclasses import asdict
+    from calibri2.s182.real_cpu_j7_shadow_guard import DENOM
+    if len(sys.argv)<28:
+        raise SystemExit("S194 requires exact full S190 pinned 27-input CPU J7 CLI")
+    args=list(sys.argv)
+    out=Path(args[-1])
+    if (out/"S194_ACTUAL_REAL_CPU_J7_584_PLUS32_GATE.json").exists():
+        raise FileExistsError("S194 must never overwrite a true CPU J7 proof")
+    # Required source artifact is the real S193 preflight; no training claim.
+    pinned=Path("inputs/s193/S193_ATOMIC_ONE_STEP_584_PLUS32_PREFLIGHT_NO_WEIGHTS.json")
+    if not pinned.is_file():
+        raise AssertionError("S194 pinned S193 safety source artifact required")
+    source=json.loads(pinned.read_text())
+    if (source.get("stage")!="S193_ONE_STEP_GUARD_PREFLIGHT_ONLY"
+        or source.get("protected_full_and_first_token_train_identities")!=584
+        or source.get("actual_43M_GPU_weights_trained_in_S193") is not False
+        or source.get("parent_S192_run")!=43342581672
+        or source.get("model_accepted") is not False):
+        raise AssertionError("S194 S193 immutable 584+32 provenance mismatch")
+    total_bytes=sum(Path(p).stat().st_size for p in (
+        "research/calibri2/s194/actual_cpu_j7_bridge.py",
+        "research/calibri2/s194/test_actual_cpu_j7_bridge.py"))
+    bpp=source["physical_bpp_budget_charging_S193_sources"]+8*total_bytes/DENOM
+    if bpp>.7:
+        raise AssertionError("S194 physical all-in source code pushes beyond 0.7 bpp")
+    # S190 exact argv tail: S142 FP16, S142 report, S160 slot FP16,
+    # S160 report, S179 no-label trace, S87 original TRAIN audit, output.
+    for ix,sub in ((-8,"S142_ACTUAL_43M_ONE_J7_FP16"),
+                   (-6,"S160_REAL_PARALLEL_SLOT_FP16")):
+        if sub not in str(args[ix]):
+            raise AssertionError("S194 exact original physical S142 and S160 43M sources required")
+    ckpt=actual_fp16_checkpoint_sha([Path(args[-8]),Path(args[-6])])
+    (old,new,new_expected,old_gold,probes,probes_gold,eos,
+     s190_source)=real_j7_baseline(args,old_s87=Path(args[-2]))
+    if not s190_source["no_gold_or_SHA_at_inference_or_routing"]:
+        raise AssertionError("S194 S190 had target/identity router leakage")
+    cert=make_real_584_certificate(
+        old_pred=old,old_target=old_gold,
+        new_pred=new,new_target=new_expected,
+        probe_pred=probes,probe_target=probes_gold,eos_id=eos,
+        source_bpp=bpp,speed_ratio=1.0,  # exact frozen S187/S190 source baseline, never trained proposal
+        checkpoint_sha256=ckpt,physically_reloaded=True,
+        frozen_parent=True,captured_before_gold=True)
+    if (not cert.compatible()
+        or cert.train32_full_eos_correct!=s190_source["NEW_TRAIN_full_EOS_correct"]
+        or cert.train32_first_correct!=s190_source["NEW_TRAIN_first_correct"]
+        or cert.old_full_eos_correct!=456 or cert.new_full_eos_correct!=128):
+        raise AssertionError("S194 real 616 CPU J7 raw generated ID verification mismatch")
+    report={
+        "stage":"S194_TRUE_FROZEN_CPU_J7_584_PLUS32_BASELINE_ADAPTER",
+        "parent_S190_run":43340296813,
+        "parent_S193_run":43343676818,
+        "all_616_exact_real_CPU_generated_tokens_captured":True,
+        "no_labels_in_neural_decoder_or_router":True,
+        "posthoc_source_LABEL_scoring_only":True,
+        "baseline_identical_original_S187_S190_not_candidate":True,
+        "actual_43M_training_steps":0,
+        "candidate_weight_update_executed":False,
+        "actual_one_step_candidate_J7_verification_pending":True,
+        "source_only_no_QA_TEST_LIVE":True,
+        "model_accepted":False,
+        "checkpoint_fingerprint_sha256":ckpt,
+        "physical_FP16_reload_verified":True,
+        "physical_bpp_including_S194_source":bpp,
+        "J7Retention584_frozen_baseline":asdict(cert),
+    }
+    out.mkdir(parents=True,exist_ok=True)
+    (out/"S194_ACTUAL_REAL_CPU_J7_584_PLUS32_GATE.json").write_text(
+        json.dumps(report,sort_keys=True,indent=2),encoding="utf-8")
+    print(json.dumps({k:v for k,v in report.items()
+                      if k!="J7Retention584_frozen_baseline"},sort_keys=True),flush=True)
+    print(json.dumps({"event":"S194_REAL_CPU_J7_584_PLUS32_FULL_EOS",
+                      "456":cert.old_full_eos_correct,
+                      "128":cert.new_full_eos_correct,
+                      "new32_first":cert.train32_first_correct,
+                      "new32_full_EOS":cert.train32_full_eos_correct,
+                      "physical_bpp":bpp,
+                      "candidate_training_executed":False}),flush=True)
+
+if __name__=="__main__":
+    main()
