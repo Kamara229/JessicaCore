@@ -226,6 +226,7 @@ def main():
     model.requires_grad_(False)
     norm=normalize(tokens[:TRAIN],physical["train_mean320"].float(),
                    physical["train_scale320"].float(),mask[:TRAIN])
+    committed_sha=sha_file(weight_file)
     metrics=score_train_only(model,frozen,norm,mask[:TRAIN],binding,train_gold)
     with torch.inference_mode():
         oracle=frozen(train_gold["adjacency"].float(),train_gold["source"].float(),
@@ -235,7 +236,7 @@ def main():
         control=torch.arange(7,dtype=torch.float32)
         if zero_gate_passthrough(control,torch.zeros(7)) is not control:
             raise AssertionError("S3K output gate nonzero")
-    if (sha_file(weight_file)!=sha_file(weight_file)
+    if (committed_sha!=sha_file(weight_file)
         or any(not torch.equal(frozen_snapshot[k],v)
                for k,v in frozen.state_dict().items())):
         raise AssertionError("S3K frozen NRA or physical weights drift")
