@@ -45,9 +45,12 @@ def main() -> None:
             or pinned.get("J7Retention584_frozen_baseline", {}).get(
                 "new_full_eos_correct") != 128):
         raise AssertionError("S195 S194 physical parent provenance mismatch")
-    from calibri2.s160 import real_parallel_slots_j7 as s160
+    # S190 -> S187 -> S182 -> S176 -> S168 is the genuine frozen J7
+    # entrypoint. S168 imports its own load_cpu_original from S112;
+    # patch THAT bound import, not unused s160.load_cpu_original.
+    from calibri2.s168 import novel_train_frames_generalization_cpu as s168
 
-    original_load = s160.load_cpu_original
+    original_load = s168.load_cpu_original
     installed = []
 
     def load_with_region(*a, **kw):
@@ -61,13 +64,13 @@ def main() -> None:
         installed.append(area)
         return cpu
 
-    s160.load_cpu_original = load_with_region
+    s168.load_cpu_original = load_with_region
     try:
         (old, new, expected128, old_targets, probes,
          probe_targets, eos, source) = real_j7_baseline(
             args, old_s87=Path(args[-2]))
     finally:
-        s160.load_cpu_original = original_load
+        s168.load_cpu_original = original_load
         for region in installed:
             region._active = False
     # A few J7 questions are answered by an existing prompt-only selector
