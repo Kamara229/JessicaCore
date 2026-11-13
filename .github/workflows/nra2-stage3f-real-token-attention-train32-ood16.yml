@@ -41,14 +41,14 @@ jobs:
           set -euo pipefail
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43486292082 --jq .conclusion)" = success
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43506534289 --jq .conclusion)" = success
-          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43509178812 --jq .conclusion)" = success
-          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43509178812 --jq .head_branch)" = research/calibri2-nra2-s3e-real-token-read-20261114
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43512049506 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43512049506 --jq .head_branch)" = research/calibri2-nra2-s3e-real-token-read-20261114
       - name: Download immutable real CPU full-token S3E physical FP16 and 616 J7 audit
         uses: actions/download-artifact@v4
         with:
           name: nra2-stage3e-real43M-48graph-tokens320-616J7
           path: inputs/nra2_stage3e
-          run-id: '43509178812'
+          run-id: '43512049506'
           github-token: ${{ github.token }}
       - name: Download immutable independently pretrained frozen NRA2 2241p
         uses: actions/download-artifact@v4

@@ -4,7 +4,7 @@
 
 S3D #43506534289: 32/32 exact TRAIN graphs, 0/16 exact
 six-node untrained graph; NRA frozen graph-oracle 16/16.
-S3E #43509178812 captures full token-level 320D readouts
+S3E #43512049506 captures full token-level 320D readouts
 from the genuine frozen 43M CPU layer12 (not logits or synthetic features).
 Its output is pinned physically, and is not editable as a side effect.
 
@@ -37,3 +37,12 @@ decoder gains, all-in bpp<=0.7, CPU speed>=0.9 and protected
 584/584 + new full+EOS still require separate native decoder testing.
 No tests in Jessica ordinary chat, no LIVE, Render, Supabase, APK,
 main, production, or sealed QA/TEST changes.
+
+## Verified prerequisite (2026-11-14)
+
+S3E read-only CI #43512049506 completed SUCCESS. Artifact
+`nra2-stage3e-real43M-48graph-tokens320-616J7` is physically
+preserved. The successful run reported bitwise-equal 48 final vectors
+and graph labels, 456+128 unchanged full+EOS baseline, 616 unchanged
+original generated-token SHA digests, and no trained candidate.
+S3F must never use the previously failed S3E CI #43509178812.
