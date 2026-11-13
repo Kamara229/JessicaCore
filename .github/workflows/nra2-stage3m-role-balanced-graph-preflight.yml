@@ -1,0 +1,41 @@
+name: NRA2 S3M role-balanced graph topology split no model no labels to inference
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3l-frozen-ood-diagnostic-20261114
+permissions:
+  contents: read
+concurrency:
+  group: nra2-s3m-role-balanced-topology-preregistration
+  cancel-in-progress: false
+jobs:
+  s3m_research_graph_only_preregister:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3m-role-balanced-graphs-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check 192 source/target balanced prompts, topology splits, cycles and oracle
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3g_factorized_graph_controls research.nra2_bridge.test_stage3m_role_balanced_graph_data
+      - name: Verify only 128 TRAIN and 64 diagnostic DEV, no final-blind claims
+        run: |
+          python -m research.nra2_bridge.stage3m_role_balanced_graph_data
+          python - <<'PY'
+          from collections import Counter
+          from research.nra2_bridge.stage3m_role_balanced_graph_data import build_rows
+          rows=build_rows()
+          counts=Counter(x.split for x in rows)
+          assert dict(counts)=={"TRAIN128":128,"DEV64":64}
+          assert len({x.topology_key for x in rows})==48
+          assert len({x.prompt_sha256 for x in rows})==192
+          print("S3M_RESEARCH_TOPOLOGY_PAIRED_ORACLE_ONLY_NO_TRAINING_NO_LIVE")
+          PY
