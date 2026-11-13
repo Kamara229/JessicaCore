@@ -30,7 +30,7 @@ jobs:
           python -m unittest -v research.nra2_bridge.test_stage3g_factorized_graph_controls research.nra2_bridge.test_stage3j_token_entity_alignment
       - name: Install tokenizer only, never download 43M model weights
         run: |
-          python -m pip install 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1'
+          python -m pip install 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
       - name: Validate ALL 128 prompts on authentic pinned original frozen S160 tokenizer, no labels
         run: |
           python - <<'PY'
