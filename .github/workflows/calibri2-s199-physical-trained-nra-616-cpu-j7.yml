@@ -1,0 +1,444 @@
+name: CALIBRI S199 actual trained NRA 46M real 616 CPU J7 and physical bpp
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s198-nra-one-real-cpu-train-j7-20261113
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri2-s199-trained-nra-full-616-j7
+  cancel-in-progress: false
+jobs:
+  s199_trained_nra_full_616_j7:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s199-trained-nra-full-j7-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      S175_S168_JSON: inputs/s175_s168/S168_NOVEL_TRAIN_FRAMES_64_GENERALIZATION.json
+      S175_S172_DIR: inputs/s175_s172
+      S175_S174_DIR: inputs/s175_s174
+      PYTHONPATH: research:research/calibri
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '1290129'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Require a successful research-only S132 five-cycle source before stage2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43257556388 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43232585090 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43229009394 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43224518304 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43217644760 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43211904296 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43033928428 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43034900927 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43033538739 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43060902677 --jq .conclusion)" = "success"
+          echo "S142_RESEARCH_ONLY_S141_ZERO_GAIN_ROLLBACK_AND_S139_GPU_CPU_PREREQUISITES_PASS"
+          s132_id='42974251804'
+          test "$s132_id" != ''
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"$s132_id" --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"$s132_id" --jq .head_branch)" = "research/calibri2-s132-five-cycle-progressive-core-20261111"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42966148755 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42961256468 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42958386675 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42921857272 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42900014855 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42911103838 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42914085372 --jq .conclusion)" = "success"
+          for n in $(seq 1 100); do
+            status=$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42901958611 --jq .status)
+            if [ "$status" = "completed" ]; then
+              test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42901958611 --jq .conclusion)" = "success"
+              echo "S123_IMMUTABLE_S101_456_AND_S122_NEW128_TRAIN_SOURCE_SUCCESS"
+              break
+            fi
+            sleep 30
+          done
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42901958611 --jq .conclusion)" = "success"
+      - name: Install exact S101 experiment Python dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify S135 stage2 43M MPS trainer, guarded identity and rollback before touching weights
+        run: |
+          python -m compileall -q research/calibri2/s144 research/calibri2/s143 research/calibri2/s142 research/calibri2/s140 research/calibri2/s139 research/calibri2/s135 research/calibri2/s134 research/calibri2/s133 research/calibri2/s132 research/calibri2/s131 research/calibri2/s130 research/calibri2/s129 research/calibri2/s127 research/calibri2/s125 research/calibri2/s126 research/calibri2/s122 research/calibri2/s111
+          python -m unittest -v calibri2.s144.test_continuation_contract calibri2.s143.test_gain_reporting calibri2.s142.test_s142_protection_contract calibri2.s142.test_dual_cone_adam calibri2.s140.test_single_real_j7_contract calibri2.s139.test_optimizer_aware_protection calibri2.s135.test_stage2_five_cycles calibri2.s134.test_stage2_bootstrap calibri2.s133.test_verify_stage2_entry calibri2.s132.test_growth_schedule calibri2.s131.test_protected_gradients calibri2.s130.test_route_protected_expansion calibri2.s129.test_additive_core_expansion calibri2.s125.test_j7_atomic_physical_retention calibri2.s127.test_q2_prefill_gate_control
+          if grep -RE '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s96|s100|s118)' research/calibri2/s135/*.py; then exit 1; fi
+      - name: Original S99 physical source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s99-unaccepted-full456-physical-neural-noun-copy-CPU
+          path: inputs/s99
+          run-id: 42705657584
+          github-token: ${{ github.token }}
+      - name: Original S101 KV baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s101-unaccepted-456-full-EOS-KV-cache-CPU-parity-and-speed
+          path: inputs/s101
+          run-id: 42710297657
+          github-token: ${{ github.token }}
+      - name: Physically validated S126-Q exact ZERO-GATE archive 456+128 0.69989 and CPU 98.62%
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s126q-packed-2bit-rank4-GT12-456-128-CPU-research-only
+          path: inputs/s126q
+          run-id: 42911103838
+          github-token: ${{ github.token }}
+      - name: Verify S126Q record before allowing MPS
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('inputs/s126q/S126Q_REAL_S101_FULL456_ZERO_GT12_REPORT.json').read_text())
+          assert p["zero_stage_eligible_for_future_training"] and p["model_accepted"] is False
+          assert p["physical_bpp_with_full_runtime"]<=.7
+          assert p["CPU_48_alternating"]["ratio"]>=.9
+          assert p["real_original_S101_456_all_token_exact_parity"] is True
+          assert p["real_new_S122_128_exact_parity"] is True
+          print("S129_PHYSICAL_S126Q_PREREQUISITE_VERIFIED",flush=True)
+          PY
+      - name: S111 prompt-conditioned actual physical 456 zero-gain prerequisite
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s111-prompt-conditioned-dual-GT-456-CPU-zero-parity
+          path: inputs/s111
+          run-id: 42882001296
+          github-token: ${{ github.token }}
+      - name: Previously rejected S112 original TRAIN 7 forgotten identities for rehearsal only
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s112-unaccepted-prompt-conditioned-340-FP16-MPS-456-CPU-retention
+          path: inputs/s112
+          run-id: 42882671306
+          github-token: ${{ github.token }}
+      - name: Previously verified new S122 cross color TRAIN only original tokenizer and source digest
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s122-precommitted-64-pair-128-question-original-TRAIN-augmentation-only
+          path: inputs/s122
+          run-id: 42900014855
+          github-token: ${{ github.token }}
+      - name: Frozen neural second token policy
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s98-unaccepted-MPS-neural-second-token-owner-copy-feasibility
+          path: inputs/s98
+          run-id: 42704076897
+          github-token: ${{ github.token }}
+      - name: Frozen numeric profile router
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s95-unaccepted-prompt-only-router-456-strict-CPU
+          path: inputs/s95
+          run-id: 42698707784
+          github-token: ${{ github.token }}
+      - name: Frozen exact bank
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s94-unaccepted-lossless-three-profile-bank-456-TRAIN-feasibility
+          path: inputs/s94
+          run-id: 42697267843
+          github-token: ${{ github.token }}
+      - name: Frozen S93 compressed weights and existing tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          path: inputs/s93
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Frozen S87 authorized TRAIN gold and prior profiles
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          path: inputs/s87_full
+          run-id: 42659248083
+          github-token: ${{ github.token }}
+      - name: Frozen S91 full 456 TRAIN
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s91-full-456-strict-EOS-quality-no-forgetting-and-CPU
+          path: inputs/s91_full
+          run-id: 42674413574
+          github-token: ${{ github.token }}
+      - name: Verified S131 research +5 no-forgetting source weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s131-39m-core-protected-gradients-J7-physical456plus128-no-QA
+          path: inputs/s131
+          run-id: 42966148755
+          github-token: ${{ github.token }}
+      - name: Successful S132 all-five-cycle physically grown 43.26M source archive
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s132-5cycles-39m-to-43m-physical-J7-new128-no-QA
+          path: inputs/s132
+          run-id: ${{ inputs.s132_run_id || '42974251804' }}
+          github-token: ${{ github.token }}
+      - name: Verify S132 J7 five protected cycles and physical 43.26M stage2 entry
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from calibri2.s133.verify_stage2_entry import verified_s132_stage2_entry
+          info=verified_s132_stage2_entry(
+              Path('inputs/s132/S132_NEXT_STAGE_43M_PHYSICAL_GROWTH_REPORT.json'),
+              Path('inputs/s132/S132_GROWN_43M_ZERO_NEW_CHANNELS.safetensors'),
+              Path('inputs/s131/S131_UNACCEPTED_block1_check1.safetensors'))
+          assert info['completed_s132_j7_cycles']==5
+          assert info['stage2_architecture_params']==43_261_760
+          assert info['previous_39M_full_456']>=358
+          assert info['min_paired_cpu_ratio']>=.9
+          assert info['max_physical_bpp']<=.7
+          assert info['trained_new_growth_channels']==0
+          print('S135_REAL_S132_PHYSICAL_J7_STAGE2_SOURCE_VERIFIED',flush=True)
+          PY
+      - name: Frozen S93 full 456 TRAIN
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-full-456-strict-union-no-forgetting-and-CPU
+          path: inputs/s93_full
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Physically committed S142 J7 43M parent FP16 and CPU guard
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          path: inputs/s142
+          run-id: 43078895081
+          github-token: ${{ github.token }}
+      - name: Pin immutable real S142 parent ZIP and physically persisted FP16 before GPU
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python research/calibri2/s144/source_pin.py
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          m=json.loads(Path("research/calibri2/s144/source_manifest.json").read_text())
+          cp=Path("inputs/s142")/m["checkpoint_name"]
+          guard=json.loads((Path("inputs/s142")/m["physical_guard_name"]).read_text())
+          assert hashlib.sha256(cp.read_bytes()).hexdigest()==m["checkpoint_sha256"]
+          assert guard["physical_FP16_sha256"]==m["checkpoint_sha256"]
+          assert guard["old_456_full"]==362 and guard["S122_128_full"]==17
+          assert guard["committed_gain_no_forgetting"] and guard["physical_FP16_reload_pass"]
+          assert guard["model_accepted"] is False and guard["no_QA_no_LIVE"]
+          print("S144 EXACT S142 COMMITTED FP16 SOURCE SAFE; NO QA OR LIVE",flush=True)
+          PY
+      - name: S161 native CPU FP16 physical checkpoint reload smoke (no MPS needed)
+        run: |
+          python - <<'PY'
+          import torch
+          from calibri2.s132.progressive_core import (
+              IDS_KEY, WEIGHTS_KEY, ProgressiveRouteCore, initial_active_indices)
+          assert not torch.backends.mps.is_available()
+          core = ProgressiveRouteCore(rank=896).to('cpu')
+          ids = initial_active_indices(896)
+          payload = torch.zeros((12, 320, len(ids)), dtype=torch.float16)
+          payload[0, 0, 0] = .03125
+          payload[0, 0, 24] = .015625
+          core.load_active_fp16({
+              IDS_KEY: torch.tensor(ids, dtype=torch.int32),
+              WEIGHTS_KEY: payload,
+          })
+          assert torch.equal(core.export_active_fp16()[WEIGHTS_KEY], payload)
+          core.assert_inactive_zero()
+          print("S161_CPU_PHYSICAL_FP16_RELOAD_PASS", flush=True)
+          PY
+      - name: Validate S145 and S158 S93 scope + S152 CPU contracts before any real S142 training
+        run: |
+          python -m compileall -q research/calibri2/s145 research/calibri2/s148 research/calibri2/s149 research/calibri2/s151 research/calibri2/s152 research/calibri2/s158 research/calibri2/s159 research/calibri2/s160 research/calibri2/s161 research/calibri2/s162 research/calibri2/s163 research/calibri2/s164 research/calibri2/s165
+          python -m unittest -v calibri2.s145.test_neural_skill_blocks calibri2.s146.test_real_skill_contract calibri2.s151.test_parallel_real_guards calibri2.s152.test_memory_safe_contract calibri2.s154.test_profile_isolation calibri2.s159.test_parallel_slot_binding
+      - name: Immutable rejected S157 real full456+new128 physical audit
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s157-diverse-s122-s82-replay-real-s142-456-128
+          path: inputs/s157
+          run-id: 43229009394
+          github-token: ${{ github.token }}
+      - name: Verify exact rejected S157 original TRAIN identities before S158 GPU
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("inputs/s157/S157_REAL_NEURAL_SKILL_456_128_AUDIT.json").read_text())
+          a=r["full456_and_new128"]
+          assert a["lost_old_full_ids"]==["S30/5026/right","S82_new/82023/left"]
+          assert a["lost_new_first_ids"]==["S122/122052/left"]
+          assert a["old_full_before"]==362 and a["new_full_before"]==17
+          assert a["new_full_after"]==19 and r["J7_guarded_skill_rollback_verified"]
+          assert r["model_accepted"] is False and r["independent_heldout_QA_never_run"]
+          print("S158_REJECTED_S157_ORIGINAL_TRAIN_FORGETTING_PINNED",flush=True)
+          PY
+      - name: Import immutable rejected S160 MPS FP16 neural slot head and actual TRAIN/J7 audit
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s160-real-parallel-slot-binding-s142-456-128
+          path: inputs/s160
+          run-id: 43263202587
+          github-token: ${{ github.token }}
+      - name: Validate S160 real GPU MPS 120-step run success and rollback
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43263202587 --jq .conclusion)" = "success"
+          test -s inputs/s160/S160_REAL_PARALLEL_SLOT_FP16.safetensors
+          test -s inputs/s160/S160_REAL_PARALLEL_456_128_J7_AUDIT.json
+      - name: Verify immutable successful S161 parent CI before novel probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43272112284 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43272112284 --jq .head_sha)" = "ebb15507a3ee5f2c79d64decc846bf31829d6056"
+      - name: Download frozen S168 original novel 64 TRAIN prompts
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s168-novel-train-frames-J7
+          run-id: 43289943629
+          github-token: ${{ github.token }}
+          path: inputs/s175_s168
+      - name: Download S172 frozen accepted routing J7 baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s172-confident-owner-J7
+          run-id: 43295694441
+          github-token: ${{ github.token }}
+          path: inputs/s175_s172
+      - name: Download S174 frozen source-only 64+64 negative controls
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s174-negation-conjunction-64plus64
+          run-id: 43297991290
+          github-token: ${{ github.token }}
+          path: inputs/s175_s174
+      - name: Read-only download S177 successful REAL CPU J7 shadow vote archive
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s177-5x10-consensus-shadow-real-J7
+          path: inputs/s178_s177
+          run-id: 43312279029
+          github-token: ${{ github.token }}
+      - name: Download immutable successful S179 label-free frozen real J7 456 baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s179-original456-real-second-token-eos-trace-only
+          path: inputs/s179
+          run-id: 43323981995
+          github-token: ${{ github.token }}
+      - name: "S195 immutable real CPU source plus neural-area FP16 tests"
+        run: |
+          python -m compileall -q research/calibri2/s181 research/calibri2/s182 research/calibri2/s186 research/calibri2/s187 research/calibri2/s188 research/calibri2/s189 research/calibri2/s190 research/calibri2/s193 research/calibri2/s194 research/calibri2/s195_neuro_area research/calibri2/s196 research/calibri2/s197 research/calibri2/s198 research/calibri2/s199
+          python -m unittest -v calibri2.s181.test_source_grammar_shadow calibri2.s181.test_source_128_frozen_456_posthoc calibri2.s181.test_full_456_tokenized_shadow_replay calibri2.s182.test_real_cpu_j7_shadow_guard calibri2.s186.test_history_s69_source_shadow calibri2.s187.test_real_cpu_j7_history_s69_guard calibri2.s190.test_real_cpu_new_train_paraphrase_probe calibri2.s193.test_atomic_one_step_584 calibri2.s194.test_actual_cpu_j7_bridge calibri2.s195_neuro_area.test_representation_area calibri2.s196.test_core_growth_budget calibri2.s197.test_real_46m_nra_j7 calibri2.s198.test_one_step_real_nra calibri2.s199.test_real_trained_nra_cpu_j7
+      - name: Pin S193 one-step rollback preflight and original S190 full real CPU J7 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43343676818 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43340296813 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43342581672 --jq .conclusion)" = "success"
+      - name: Immutable S193 physical bpp and 584+32 Adam rollback contract
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s193-atomic-584plus32-j7-rollback-preflight-no-weights
+          path: inputs/s193
+          run-id: 43343676818
+          github-token: ${{ github.token }}
+      - name: Download independently verified S194 full 616 J7 parent
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s194-actual-real-cpu-J7-584plus32-FP16-baseline-adapter
+          run-id: 43345267876
+          github-token: ${{ github.token }}
+          path: inputs/s194
+      - name: Pin S196 independently verified physical 46M rank1344 growth and budget
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/43367914624 --jq .conclusion)" = "success"
+          test "$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/43367335713 --jq .conclusion)" = "success"
+      - name: Download physical S196 growth + NRA budget source proof
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s196-real-46m-neuro-area-lossless-bpp-07-research-only
+          run-id: 43367914624
+          github-token: ${{ github.token }}
+          path: inputs/s196
+      - name: Verify successful physically audited S197 and genuine S198 CPU weight update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/43369398297 --jq .conclusion)" = "success"
+          test "$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/43370918910 --jq .conclusion)" = "success"
+      - name: Download latest full-physical-budget actual S197 J7 baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s197-real46M-plus-NRA-616-CPU-J7-physical-le07-research-only
+          run-id: 43369398297
+          github-token: ${{ github.token }}
+          path: inputs/s197
+      - name: Download actual persisted S198 trained 10240 NRA FP16 weight updates
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s198-genuine-NRA-CPU-one-step-physical-46M-unaccepted
+          run-id: 43370918910
+          github-token: ${{ github.token }}
+          path: inputs/s198
+      - name: "S199 real S198-trained NRA physically reloaded 46M full 616 J7"
+        run: |
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S161_NATIVE_CPU_NO_GPU_TRAINING",flush=True)
+          PY
+          python research/calibri2/s199/real_trained_nra_cpu_j7.py \
+            inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
+            inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
+            inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            inputs/s94/S94_ALTERNATE_EXACT_CORE_TUNNEL_BANK.bin \
+            inputs/s94/S94_PROFILE_BANK_FEASIBILITY_REPORT.json \
+            inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s99/S99_ALL456_NEW_NEURAL_COPY_PHYSICAL_TRAIN_AUDIT.json \
+            inputs/s101/S101_KV_CACHE_EXACT_S99_456_TRAIN_CPU_GUARD.json \
+            inputs/s122/S122_TRAIN_ONLY_CROSS_BINDING_CURRICULUM_REPORT.json \
+            inputs/s112/S112_MPS_GAIN_ONLY_456_CPU_GUARD_REPORT.json \
+            inputs/s126q/S126Q_UNACCEPTED_ZERO_GT12_REAL_Q2_PHYSICAL.safetensors \
+            inputs/s126q/S126Q_REAL_S101_FULL456_ZERO_GT12_REPORT.json \
+            inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s91_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s93_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s132/S132_GROWN_43M_ZERO_NEW_CHANNELS.safetensors \
+            inputs/s132/S132_NEXT_STAGE_43M_PHYSICAL_GROWTH_REPORT.json \
+            inputs/s131/S131_UNACCEPTED_block1_check1.safetensors \
+            inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            inputs/s142/S142_ONE_J7_ACTUAL_PHYSICAL_GUARD.json \
+            inputs/s160/S160_REAL_PARALLEL_SLOT_FP16.safetensors \
+            inputs/s160/S160_REAL_PARALLEL_456_128_J7_AUDIT.json \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/s199
+      - name: Preserve S199 REAL changed NRA 46M+GT post-train 616 CPU J7 physical bpp
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s199-trained-NRA-46M-616-CPU-J7-physical-BPP-research-only
+          path: results/s197/
+          retention-days: 90
+          if-no-files-found: warn
