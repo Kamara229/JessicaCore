@@ -63,7 +63,6 @@ def verify_and_analyze_raw(raw, *, frozen_novel, source_flags, s204_full, eos_id
         frozen_q, gold_text,group=predeclared[identity]
         if question!=frozen_q:
             raise AssertionError("S205 original immutable prompt changed")
-        expected=item["expected_tokens_fn"](gold_text) if False else None
         # Actual tokenizer invoked in caller when constructing expected_ids:
         expected_ids=item.get("posthoc_expected_ids")
         if (not isinstance(expected_ids,list) or
