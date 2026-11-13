@@ -1,0 +1,38 @@
+name: NRA2 standalone relational CPU research
+on:
+  pull_request:
+    paths:
+      - 'research/nra2_standalone/**'
+      - '.github/workflows/nra2-standalone-relational-cpu.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  standalone_nra2_cpu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CPU-only PyTorch
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+      - name: Standalone unit + training + physical FP16 test
+        env:
+          OMP_NUM_THREADS: '1'
+          MKL_NUM_THREADS: '1'
+        run: python -m unittest -v research.nra2_standalone.test_experiment
+      - name: Save independent exploratory TRAIN result
+        env:
+          OMP_NUM_THREADS: '1'
+          MKL_NUM_THREADS: '1'
+        run: python -m research.nra2_standalone.experiment --out results/nra2_v0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nra2-standalone-relational-cpu-research-only
+          path: results/nra2_v0/
+          retention-days: 90
