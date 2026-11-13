@@ -1,0 +1,57 @@
+name: CALIBRI S191 offline real CPU NEW TRAIN 32 posthoc error attribution
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s190-real-new-train-paraphrase-probe-20261113
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s191_posthoc_real_new_train_32_full_eos_attribution:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s191-new-train-full-eos-error-diagnostic-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTHONHASHSEED: '1290129'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin successful S190 full true CPU J7 inference run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43340296813 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43339553135 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43338233327 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43336858062 --jq .conclusion)" = "success"
+          echo S191_IMMUTABLE_REAL_CPU_S190_AND_S187_S188_S189_PINNED
+      - name: Load immutable S190 true CPU 32 NEW TRAIN source-only audit
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s190-real-456-128-plus32-new-TRAIN-paraphrases-J7
+          path: inputs/s190
+          run-id: 43340296813
+          github-token: ${{ github.token }}
+      - name: Validate fail-closed posthoc classifier and attribute all 32 actual CPU results
+        run: |
+          python -m compileall -q research/calibri2/s191
+          python -m unittest -v calibri2.s191.test_real_new_train_error_attribution
+          python research/calibri2/s191/real_new_train_error_attribution.py \
+            inputs/s190/S190_REAL_CPU_32_NEW_TRAIN_PARAPHRASE_PROBES.json \
+            results/s191/S191_NEW_TRAIN_32_REAL_CPU_POSTHOC_ERROR_ATTRIBUTION.json
+          echo S191_NEW_TRAIN_ONLY_POSTHOC_FIRST_CONTINUATION_EOS_NO_WEIGHTS
+      - name: Archive S191 hashed-only error categorization
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s191-new-train32-posthoc-CPU-error-attribution
+          path: results/s191/
+          if-no-files-found: warn
+          retention-days: 90
