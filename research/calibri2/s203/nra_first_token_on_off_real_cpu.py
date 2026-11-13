@@ -119,18 +119,29 @@ def run_paired_ablation():
                     dtype=torch.float32,
                 ) if route == "S93" else None
                 counters = Counter(s168.COUNTERS)
+                had_trace = row["question"] in s168.S167_ROUTE_TRACE
+                previous_trace = s168.S167_ROUTE_TRACE.get(row["question"])
+                if s168.OWNER_PROMPT is not None:
+                    raise AssertionError("S203 OFF probe cannot nest original owner prompt scope")
                 area._active = False
                 try:
                     import torch
                     with torch.inference_mode(), expansion.prefill_only(model), s160.prefill_only_tunnel(model, full):
                         with s160.frozen_cpu_phase_scope(model, bridge, route, features, phase="prefill_only"):
-                            off_result = original_decoder(
+                            # Reenter original owner-capture scope; S175/S187
+                            # require its literal prompt in order to perform
+                            # the exact unchanged real source-only selection.
+                            off_result = s168.owner_capture_decoder(
                                 model, sources, first, later, lm_head, tok,
                                 row["question"], pointer, copy_net, head)
                 finally:
                     area._active = True
                     s168.COUNTERS.clear()
                     s168.COUNTERS.update(counters)
+                    if had_trace:
+                        s168.S167_ROUTE_TRACE[row["question"]] = previous_trace
+                    else:
+                        s168.S167_ROUTE_TRACE.pop(row["question"], None)
                 note = first_token_observation(on_first[key], off_result[0])
                 note["original_TRAIN_id"] = key
                 note["immutable_prompt_sha256"] = hashlib.sha256(
