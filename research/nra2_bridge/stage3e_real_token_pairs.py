@@ -169,8 +169,8 @@ def main():
                    for k,v in targets.items())):
         raise AssertionError("S3E new full-token acquisition changed original S3C 48 last states or labels")
     out.mkdir(parents=True,exist_ok=True)
-    feature_file=out/"NRA2_S3C_REAL_43M_GRAPH48_HIDDEN320_FP16.safetensors"
-    labels_file=out/"NRA2_S3C_GRAPH48_STRUCTURAL_LABELS.safetensors"
+    feature_file=out/"NRA2_S3E_REAL_43M_GRAPH48_HIDDEN320_FP16.safetensors"
+    labels_file=out/"NRA2_S3E_GRAPH48_STRUCTURAL_LABELS.safetensors"
     save_file({"hidden320":features},str(feature_file))
     save_file(targets,str(labels_file))
     token_file=out/"NRA2_S3E_REAL_CPU_GRAPH48_ALL_TOKENS_FP16.safetensors"
@@ -235,7 +235,7 @@ def main():
         "original_S194_checkpoint_sha256":s194["checkpoint_fingerprint_sha256"],
         "frozen_independent_NRA_sha256":sha_file(learned),
     }
-    (out/"NRA2_S3C_GRAPH48_REAL_CPU_PAIRS_AUDIT.json").write_text(
+    (out/"NRA2_S3E_FULL_TOKEN_CPU_GRAPH48_AUDIT.json").write_text(
         json.dumps(report,indent=2,sort_keys=True)+"\n")
     print(json.dumps({k:v for k,v in report.items()
                       if k not in ("graph48_prompt_sha256_in_order",
