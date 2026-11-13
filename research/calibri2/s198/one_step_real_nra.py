@@ -86,7 +86,7 @@ def new_train_loss(*,model,cpu,area,core,tok,records):
         # True forward through actual compressed 36M model, rank1344 adapter,
         # existing internal Green Tunnel and all 12 newly appended area hooks.
         with core.prefill_only(model):
-            result=model(input_ids=ids,use_cache=False,output_hidden_states=True)
+            result=model(input_ids=ids,past_key_values=None,use_cache=True,output_hidden_states=True)
         if not area.forward_calls or area.last_coverage!=tuple(range(12)):
             raise AssertionError("S198 NRA not connected to real 12-layer backprop path")
         hidden=result.hidden_states[-1][0]
