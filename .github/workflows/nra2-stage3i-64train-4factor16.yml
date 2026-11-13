@@ -43,14 +43,14 @@ jobs:
         run: |
           set -euo pipefail
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43512049506 --jq .conclusion)" = success
-          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43516017432 --jq .conclusion)" = success
-          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43516017432 --jq .head_branch)" = research/calibri2-nra2-s3h-128-real-token-cpu-20261114
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43517070838 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43517070838 --jq .head_branch)" = research/calibri2-nra2-s3h-128-real-token-cpu-20261114
       - name: Download immutable S3H full real CPU 128 FP16 tokens and 616 J7 audit
         uses: actions/download-artifact@v4
         with:
           name: nra2-stage3h-real43M-128factorial-tokens320-616J7
           path: inputs/nra2_stage3h
-          run-id: '43516017432'
+          run-id: '43517070838'
           github-token: ${{ github.token }}
       - name: Download immutable independently pretrained frozen NRA2 2241p
         uses: actions/download-artifact@v4
@@ -84,7 +84,7 @@ jobs:
           assert not r["candidate_real_full_EOS_gain_tested"]
           assert not r["candidate_all_in_bpp_tested"]
           assert not r["same_CPU_speed_tested"]
-          assert list(r["control_groups"].values())==[64,16,16,16,16]
+          assert r["control_groups"]=={"TRAIN64":64,"CTRL_MATCHED16":16,"CTRL_WORDING16":16,"CTRL_LENGTH16":16,"CTRL_BOTH16":16}
           for g,count in r["control_groups"].items():
               m=r["per_group_metrics"][g]
               assert m["count"]==count and 0<=m["exact_graphs"]<=count
