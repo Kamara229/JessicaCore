@@ -159,7 +159,23 @@ def main():
     report["CPU_ratio_independently_paired_for_new_candidate"]=False
     report["model_accepted"]=False
     report["research_candidate_S199_j7_gate_pass"]=False
-    payload=json.dumps(report,sort_keys=True,indent=2)
+    # Charge actual final S201 manifest bytes (rather than intermediate JSON).
+    parent_report=json.loads(Path("inputs/s197/S197_REAL_46M_NRA_616_CPU_J7.json").read_text())
+    report_size=0
+    for _ in range(40):
+        report["total_physical_budget"]=physical_invoice(
+            parent_report=parent_report,physical=report["physical_checkpoint"],
+            manifest_bytes=report_size,source_paths=())
+        report["J7_acceptance_guard"]["conservative_bpp_no_free_zeros_under_07"]=(
+            report["total_physical_budget"]["conservative_bpp_excluding_zero_structural_growth"]<=0.7)
+        report["J7_acceptance_guard"]["full_physical_bpp_architecture_under_07"]=(
+            report["total_physical_budget"]["architectural_bpp"]<=0.7)
+        payload=json.dumps(report,sort_keys=True,indent=2)
+        if len(payload.encode())==report_size:
+            break
+        report_size=len(payload.encode())
+    else:
+        raise AssertionError("S201 final source-inclusive physical report size did not converge")
     destination=out/f"S201_STEP_{step}_FULL_616_REAL_CPU_J7.json"
     destination.write_text(payload)
     old.unlink()
