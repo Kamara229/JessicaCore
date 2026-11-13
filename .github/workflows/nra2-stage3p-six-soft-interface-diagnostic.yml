@@ -1,0 +1,113 @@
+name: NRA2 S3P frozen six-error soft vs hard NRA interface diagnosis zero gate
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3o-semantic-role-head-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3p-frozen-six-error-diagnostic
+  cancel-in-progress: false
+jobs:
+  s3p_frozen_soft_hard_nra_separation:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3p-six-soft-interface-diagnostic-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deterministic CPU no GPU and original SmolLM native tokenizer
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Freeze successful S3N actual CPU J7 and S3O physical 128TRAIN 64DEV
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43522550138 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43522555326 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43522663612 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43522555326 --jq .head_branch)" = research/calibri2-nra2-s3n-real192-cpu-capture-20261114
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43522663612 --jq .head_branch)" = research/calibri2-nra2-s3o-semantic-role-head-20261114
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S3P_REAL_CPU_FROZEN_ZERO_GATE",flush=True)
+          PY
+      - name: Import frozen native 43M CPU 192 full token masks and gold generated after CPU capture
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3n-real43M-192pairedgraph-tokens320-616J7
+          path: inputs/nra2_stage3n
+          run-id: '43522555326'
+          github-token: ${{ github.token }}
+      - name: Import physically committed S3O 128TRAIN semantic role adapter FP16 without retraining
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3o-real43M-semantic-queryroles-train128-dev64-zero-gate-fp16
+          path: inputs/nra2_stage3o
+          run-id: '43522663612'
+          github-token: ${{ github.token }}
+      - name: Import unchanged standalone 2241 parameter NRA
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-standalone-relational-cpu-research-only
+          path: inputs/nra2
+          run-id: '43446925758'
+          github-token: ${{ github.token }}
+      - name: Diagnose all 6 frozen DEV NRA errors via 8 preregistered soft hard bridge interventions
+        run: |
+          python -m research.nra2_bridge.stage3p_six_soft_interface_diagnostic \
+            inputs/nra2_stage3n inputs/nra2_stage3o inputs/nra2 results/nra2_stage3p
+      - name: Guard original protected J7, immutable frozen FP16 and no selection on DEV
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3p/NRA2_S3P_SIX_SOFT_INTERFACE_DIAGNOSTIC.json").read_text())
+          assert r["stage"]=="NRA2_S3P_FROZEN_S3O_SIX_DEV_SOFT_INTERFACE_POSTHOC_DIAGNOSTIC"
+          assert r["S3N_success_run"]==43522555326
+          assert r["S3O_success_run"]==43522663612
+          assert r["original_616_generated_CPU_tokens_protected"]
+          assert r["original_584_full_EOS_protected"]
+          assert r["raw_soft_correct"]==58
+          assert len(r["six_failed_cases"])==6
+          assert r["graph64_exact"] and r["source64_exact"] and r["target64_exact"]
+          assert r["predicted_graph_and_roles_hard_control_correct"]==64
+          assert r["frozen_oracle_graph_and_roles_correct"]==64
+          assert len(r["all_8_soft_hard_factorial_control_counts"])==8
+          assert r["posthoc_DEV64_frozen_inference_only"]
+          assert not r["DEV_is_untouched_final_blind"]
+          assert not r["threshold_or_hardening_selected_on_DEV"]
+          assert not r["train_or_finetune_any_weights"]
+          assert not r["candidate_accepted"]
+          assert not r["independent_final_blind_tested"]
+          assert not r["real_new_decoder_full_EOS_tested"]
+          assert not r["all_in_physical_bpp_tested"]
+          assert not r["paired_native_CPU_speed_tested"]
+          assert r["output_gate"]==0
+          assert r["LIVE_GreenTunnel_Calibri_NRA_all_unchanged"]
+          print("S3P_6_FROZEN_POSTHOC_ERROR_DIAGNOSIS_NOT_NEW_MODEL_GAIN")
+          PY
+      - name: Archive S3P only immutable 6-case ABI diagnostic JSON, no weights changed
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3p-6-dev-soft-hard-frozen-interface-posthoc-zero-gate
+          path: results/nra2_stage3p/
+          retention-days: 90
+          if-no-files-found: error
