@@ -78,9 +78,8 @@ class S186SourceOnlyContracts(unittest.TestCase):
         a=list(inputs())
         sha=hashed("synthetic frozen TRAIN 28")
         a[5][sha]=[11,20,0]
-        r=score_after_predeclared(*a)
-        self.assertFalse(r["offline_gain_no_forgetting_gate"])
-        self.assertEqual(r["lost_prior_full_EOS"],1)
+        with self.assertRaisesRegex(AssertionError, "lost previously correct first tokens"):
+            score_after_predeclared(*a)
 
 
 if __name__=="__main__":
