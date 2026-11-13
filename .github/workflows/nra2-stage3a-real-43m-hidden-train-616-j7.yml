@@ -419,7 +419,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nra2-stage2-passive-real43M-616-cpu-J7-read-only
+          name: nra2-stage3a-real43M-32train-320d-fp16-616-j7
           path: results/nra2_stage3a_features/
           retention-days: 90
           if-no-files-found: warn
