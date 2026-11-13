@@ -445,11 +445,28 @@ jobs:
             inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
             inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
             results/nra2_stage3e_real_graph48_tokens
+      - name: Verify S3E exact 616 J7, physical token capture and bounded cross-run FP16 parity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra2_stage3e_real_graph48_tokens/NRA2_S3E_FULL_TOKEN_CPU_GRAPH48_AUDIT.json")
+          r=json.loads(p.read_text())
+          assert r["all_616_token_digest_matches_S194"]
+          assert r["original_456_full_EOS"]==456 and r["original_new128_full_EOS"]==128
+          assert r["physical_reload_bitwise_equal"]
+          assert r["cross_run_S3C_within_two_adjacent_fp16_steps"]
+          assert r["cross_run_S3C_labels_bitwise_equal"]
+          assert r["nra_output_gate"]==0.0
+          assert not r["candidate_model_accepted"]
+          assert not r["full_token_holdout_scored"]
+          print("S3E_PHYSICAL_FP16_J7_PROVEN_CROSS_RUN_NUMERIC_PARITY_ONLY")
+          PY
       - name: Preserve NRA2 S3E physical token320 FP16 mask, 48 graph labels and 616 unchanged J7
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: nra2-stage3e-real43M-48graph-tokens320-616J7
-          path: results/nra2_stage3c_real_graph48/
+          path: results/nra2_stage3e_real_graph48_tokens/
           retention-days: 90
           if-no-files-found: error

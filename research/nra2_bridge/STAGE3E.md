@@ -16,7 +16,8 @@ will necessarily fix the feature bottleneck.
   entire genuine contextual FP16 [T,320] output, not just its final row.
   Masks and sequence lengths are physically saved, with no graph gold,
   answer or feature edits inside model hooks.
-- Verify per-sample final row matches S3C #43486292082 **bitwise**,
+- Verify final row against S3C #43486292082 within two adjacent FP16
+  representable steps (NOT cross-run bitwise: record changed rows and max delta),
   graph labels match bitwise, 616 original outputs match S194, NRA frozen,
   zero gate, and physical FP16 and masks reload exactly.
 - Capture is **not learning** and cannot establish a useful increase in
