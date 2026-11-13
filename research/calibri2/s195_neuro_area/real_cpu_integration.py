@@ -45,12 +45,12 @@ def main() -> None:
             or pinned.get("J7Retention584_frozen_baseline", {}).get(
                 "new_full_eos_correct") != 128):
         raise AssertionError("S195 S194 physical parent provenance mismatch")
-    # S190 -> S187 -> S182 -> S176 -> S168 is the genuine frozen J7
-    # entrypoint. S168 imports its own load_cpu_original from S112;
-    # patch THAT bound import, not unused s160.load_cpu_original.
-    from calibri2.s168 import novel_train_frames_generalization_cpu as s168
+    # Critical import ordering: S168 freezes ORIGINAL_DECODER when imported.
+    # It MUST be imported AFTER S194 installs its generated-token interceptor.
+    # Patch S112 exported loader BEFORE s168 is lazily imported by S190.
+    from calibri2.s112 import prompt_conditioned_first_token_mps as s112
 
-    original_load = s168.load_cpu_original
+    original_load = s112.load_cpu_original
     installed = []
 
     def load_with_region(*a, **kw):
@@ -64,13 +64,13 @@ def main() -> None:
         installed.append(area)
         return cpu
 
-    s168.load_cpu_original = load_with_region
+    s112.load_cpu_original = load_with_region
     try:
         (old, new, expected128, old_targets, probes,
          probe_targets, eos, source) = real_j7_baseline(
             args, old_s87=Path(args[-2]))
     finally:
-        s168.load_cpu_original = original_load
+        s112.load_cpu_original = original_load
         for region in installed:
             region._active = False
     # A few J7 questions are answered by an existing prompt-only selector
