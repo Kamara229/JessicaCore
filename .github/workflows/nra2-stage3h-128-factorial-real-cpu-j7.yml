@@ -469,7 +469,7 @@ jobs:
           assert r["original_456_full_EOS"]==456 and r["original_new128_full_EOS"]==128
           assert r["S3E_successful_parent_run"]==43512049506
           assert r["graph_prefill_count"]==128 and r["train_count"]==64
-          assert list(r["group_sizes"].values())==[64,16,16,16,16]
+          assert r["group_sizes"]=={"TRAIN64":64,"CTRL_MATCHED16":16,"CTRL_WORDING16":16,"CTRL_LENGTH16":16,"CTRL_BOTH16":16}
           assert r["physical_reload_bitwise_equal"] and r["labels_materialized_after_native_CPU"]
           assert not r["control_groups_scored"] and not r["adapter_trained"]
           assert r["nra_output_gate"]==0.0 and not r["candidate_accepted"]
