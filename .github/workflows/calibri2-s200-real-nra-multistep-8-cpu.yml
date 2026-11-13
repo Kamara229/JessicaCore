@@ -1,0 +1,96 @@
+name: CALIBRI S200 genuine eight-step 46M NRA CPU immutable 2-4-8 FP16 snapshots
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-s199-trained-nra-full-j7-20261113]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri2-s200-nra-eight-step-research-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+jobs:
+  s200_actual_cpu_nra_multistep:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s200-nra-multistep-train-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '198013'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify actual 616 physical parent and no MAIN or LIVE writes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/43369398297 --jq .conclusion)" = "success"
+          test "$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/43372509394 --jq .conclusion)" = "success"
+      - name: Install original CPU compressed-model dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Real TRAIN cohort structural contract before using weights
+        run: |
+          python -m compileall -q research/calibri2/s195_neuro_area research/calibri2/s196 research/calibri2/s197 research/calibri2/s198 research/calibri2/s200
+          python -m unittest -v calibri2.s195_neuro_area.test_representation_area calibri2.s198.test_one_step_real_nra calibri2.s200.test_multistep_real_nra_train
+      - name: Download physically successful and immutable S197 46M+NRA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s197-real46M-plus-NRA-616-CPU-J7-physical-le07-research-only
+          path: inputs/s197
+          run-id: 43369398297
+          github-token: ${{ github.token }}
+      - name: Download original S93 compressed 36M core plus Green Tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          path: inputs/s93
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Actual original 46M CPU neural region 8 training steps, immutable FP16 alternatives
+        run: |
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=='x86_64' and not torch.cuda.is_available()
+          print('S198_ACTUAL_NATIVE_CPU_GRADIENT_NO_CUDA_NO_MOCK',flush=True)
+          PY
+          python research/calibri2/s200/multistep_real_nra_train.py \
+            inputs/s197/S197_S142_DERIVED_46M_PLUS_NRA_ALL_FP16.safetensors.zlib \
+            inputs/s197/S197_REAL_46M_NRA_616_CPU_J7.json \
+            inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            results/s200
+      - name: Verify no candidate accepted before independent full 616 CPU J7
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('results/s200/S200_REAL_NRA_MULTISTEP_TRAIN_REPORT.json').read_text())
+          assert d['actual_CPU_training_steps']==8
+          assert d['original_S197_protected_full_EOS']==584
+          assert [s['step'] for s in d['immutable_candidate_snapshots']]==[2,4,8]
+          assert d['old_non_NRA_tensors_byte_exact']
+          assert d['full_CPU_616_J7_protected_retention_NOT_YET_CHECKED']
+          assert d['independent_physical_bpp_AND_paired_CPU_speed_REQUIRED']
+          assert d['model_accepted'] is False
+          assert all(Path(s['filename']).is_file() and not s['accepted'] for s in d['immutable_candidate_snapshots'])
+          print('S200_UNACCEPTED_2_4_8_PHYSICAL_CPU_STAGES_REQUIRE_J7',flush=True)
+          PY
+      - name: Preserve actual changed neural weights and all-original-weight proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s200-real-NRA-CPU-eight-step-2-4-8-physical-46M-unaccepted
+          path: results/s200/
+          retention-days: 90
+          if-no-files-found: warn
