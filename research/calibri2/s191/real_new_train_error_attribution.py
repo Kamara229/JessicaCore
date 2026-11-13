@@ -80,9 +80,9 @@ def diagnostic(report: dict) -> dict:
             ref.get("full_EOS_correct") != score[key]["full_correct"] or
             ref.get("eos_present") != score[key]["EOS_present"]):
             raise AssertionError("S191 aggregated S190 SHA-only results mismatch")
-    if (sum(v["right_first"] for v in groups.values()) != report["NEW_TRAIN_first_correct"]
-        or sum(v["full_correct"] for v in groups.values()) != report["NEW_TRAIN_full_EOS_correct"]
-        or sum(v["EOS_present"] for v in groups.values()) != report["NEW_TRAIN_eos_present"]):
+    if (sum(v.get("right_first", 0) for v in groups.values()) != report["NEW_TRAIN_first_correct"]
+        or sum(v.get("full_correct", 0) for v in groups.values()) != report["NEW_TRAIN_full_EOS_correct"]
+        or sum(v.get("EOS_present", 0) for v in groups.values()) != report["NEW_TRAIN_eos_present"]):
         raise AssertionError("S191 S190 per-family global full/EOS count mismatch")
     return {
         "stage": "S191_POSTHOC_REAL_S190_NEW_TRAIN_FAILURE_MODES_NO_NEURAL",
