@@ -1,0 +1,99 @@
+name: NRA2 S3F real token attention graph TRAIN32 exploratory OOD16 frozen
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3e-real-token-read-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3f-actual-token-attention-real-frozen
+  cancel-in-progress: false
+jobs:
+  nra2_s3f_true_token_attention_train32_ood16:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3f-token-attention-shadow-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      PYTHONPATH: .
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install minimal deterministic CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: 'S3F unit tests: masked attention, frozen NRA, shape and fail closed'
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3f_token_attention
+      - name: Verify successful frozen S3D, corrected S3C, full S3E token CPU proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43486292082 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43506534289 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43509178812 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43509178812 --jq .head_branch)" = research/calibri2-nra2-s3e-real-token-read-20261114
+      - name: Download immutable real CPU full-token S3E physical FP16 and 616 J7 audit
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3e-real43M-48graph-tokens320-616J7
+          path: inputs/nra2_stage3e
+          run-id: '43509178812'
+          github-token: ${{ github.token }}
+      - name: Download immutable independently pretrained frozen NRA2 2241p
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-standalone-relational-cpu-research-only
+          path: inputs/nra2
+          run-id: '43446925758'
+          github-token: ${{ github.token }}
+      - name: 'S3F 240 fixed attention steps: train32 then physically reload FP16 before 16 OOD'
+        run: |
+          python -m research.nra2_bridge.stage3f_token_attention \
+            inputs/nra2_stage3e inputs/nra2 results/nra2_stage3f
+      - name: Verify FP16 and frozen graph NRA and no semantic acceptance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra2_stage3f/NRA2_S3F_TOKEN_ATTENTION_32TRAIN_16OOD_AUDIT.json")
+          r=json.loads(p.read_text())
+          assert r["stage"]=="NRA2_S3F_REAL_TOKEN320_ATTENTION_GRAPH32_OOD16_EXPLORATORY_ONLY"
+          assert r["full_real_token_hidden_input"] and r["train_normalization_only"]
+          assert r["train32"]==32 and r["novel_graph_heldout16"]==16
+          assert r["optimizer_steps"]==240
+          assert r["train_loss_after"]<r["train_loss_before"]
+          assert r["heldout_evaluated_once_after_FP16_commit"]
+          assert not r["heldout_in_training_or_model_selection"]
+          assert not r["reused_S3D_heldout_is_fully_blind"]
+          assert r["old_S3D_reused_OOD16_exact_graphs"]==0
+          assert r["old_S3D_reused_OOD16_reachability_correct"]==8
+          assert r["physical_reload_bitwise_equal"]
+          assert r["pretrained_NRA_frozen_unchanged"]
+          assert r["Calibri_and_Green_Tunnel_unloaded_and_unchanged"]
+          assert r["original_584_and_616_protected_by_S3E_J7"]
+          assert r["output_gate"]==0.
+          assert r["frozen_NRA_oracle_heldout_correct"]==16
+          assert not r["candidate_accepted"] and not r["genuine_new_full_EOS_gains_tested"]
+          assert not r["all_in_physical_bpp_tested"] and not r["same_CPU_speed_tested"]
+          assert 0<=r["heldout_metrics"]["exact_graphs"]<=16
+          print("S3F_TOKEN_ATTENTION_EXPLORATORY_OOD16_ONLY_NO_MODEL_ACCEPTANCE")
+          PY
+      - name: Preserve physical S3F token attention FP16 and first 16 OOD report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3f-real-token320-graph32train-16novel-zero-gate-fp16
+          path: results/nra2_stage3f/
+          retention-days: 90
+          if-no-files-found: error
