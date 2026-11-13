@@ -1,0 +1,67 @@
+name: CALIBRI S193 one-block atomic 584 plus32 J7 rollback synthetic preflight
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s192-protected-new-train-readiness-20261113
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s193_atomic_one_optimizer_step_synthetic_J7_guard_contract:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s193-atomic-584-one-block-preflight-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTHONHASHSEED: '1290129'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin full S192 protected 584 source readiness, original S187/S188 true J7 and S190 new32 real train
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43342581672 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43336858062 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43338233327 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43340296813 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43341738229 --jq .conclusion)" = "success"
+          echo S193_FROZEN_584_PROTECTED_J7_BPP_PROVENANCE_PINNED
+      - name: Install pinned CPU torch for synthetic Adam rollback only NO 43M model
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Download immutable S192 584 plus32 TRAIN contract artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s192-protected-584-plus32-pretrain-ready-no-weights
+          run-id: 43342581672
+          path: inputs/s192
+          github-token: ${{ github.token }}
+      - name: S193 compile and run strict synthetic ONE Adam update and exact weight optimizer rollback tests
+        run: |
+          python -m compileall -q research/calibri2/s193
+          python -m unittest -v calibri2.s193.test_atomic_one_step_584
+          echo S193_SYNTHETIC_ONLY_ATOMIC_584_PLUS32_J7_CERTIFICATE_NO_REAL_TRAINING
+      - name: S193 pin physical bpp headroom and immutable real-CPU training transaction contract
+        run: |
+          python research/calibri2/s193/atomic_584_preflight_report.py \
+            inputs/s192/S192_PROTECTED_584_PLUS32_NEW_TRAIN_READINESS.json \
+            results/s193/S193_ATOMIC_ONE_STEP_584_PLUS32_PREFLIGHT_NO_WEIGHTS.json
+          echo S193_ONE_STEP_PREPARED_NO_MODEL_CHECKPOINT_EDITED
+      - name: Archive S193 synthetic transaction tests and strict bpp manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s193-atomic-584plus32-j7-rollback-preflight-no-weights
+          path: results/s193/
+          if-no-files-found: warn
+          retention-days: 90
