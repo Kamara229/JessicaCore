@@ -9,7 +9,7 @@ import hashlib,json
 from pathlib import Path
 import sys
 
-from calibri2.s182.real_cpu_j7_shadow_guard import DENOM
+DENOM=43_261_760  # exact frozen S182/S192 full physical 43M denominator
 
 S193_SOURCES=(
     "research/calibri2/s193/atomic_one_step_584.py",
