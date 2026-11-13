@@ -376,7 +376,7 @@ jobs:
       - name: Download independently confirmed Stage2 real 616 native CPU final-layer attachment
         uses: actions/download-artifact@v4
         with:
-          name: nra2-stage3a-real43M-32train-320d-fp16-616-j7
+          name: nra2-stage2-passive-real43M-616-cpu-J7-read-only
           run-id: 43455911398
           github-token: ${{ github.token }}
           path: inputs/nra2_stage2
