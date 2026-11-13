@@ -10,7 +10,7 @@
 
 **No architecture search now.** Reuse precisely S3F's six learned node queries, 4-head 320→32 attention, bilinear directed-edge output, source/target heads, frozen 2241-parameter NRA reachability loss, seed 2026111401, 240 AdamW steps, lr .002, weight decay .02 and exactly the S3F loss weights. Only the 64 TRAIN graph prompts may influence model weights and normalization statistics.
 
-**Commit the physical FP16 bridge, TRAIN-only mean and scale, and their SHA before loading control graph gold.** Do not run gradient steps after commitment. Score once each:
+**Commit the physical FP16 bridge, TRAIN-only mean and scale, and their SHA before using control gold for any score or selection.** The complete label archive is loaded into memory to extract the first 64 rows, but the four control slices are not passed to the optimizer. This is a guarded research diagnostic, not cryptographically sealed gold. Do not run gradient steps after commitment. Score once each:
 - CTRL_MATCHED16: novel topology, same size & wording.
 - CTRL_WORDING16: novel topology and wording, same size.
 - CTRL_LENGTH16: novel topology and six nodes, same wording.

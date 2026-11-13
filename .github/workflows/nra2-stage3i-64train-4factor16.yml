@@ -74,7 +74,9 @@ jobs:
           assert r["train64"]==64 and r["optimizer_steps"]==240
           assert r["train_loss_after"]<r["train_loss_before"]
           assert r["controls_never_in_optimizer"]
-          assert r["control_gold_loaded_only_after_FP16_commit"]
+          assert r["control_gold_not_used_by_optimizer"]
+          assert r["complete_label_file_loaded_precommit_for_train_slice"]
+          assert r["control_gold_first_scored_after_FP16_commit"]
           assert r["all_controls_scored_once"]
           assert r["physical_FP16_reload_bitwise_equal"]
           assert r["pretrained_NRA_weights_unchanged"]

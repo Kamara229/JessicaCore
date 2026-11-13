@@ -116,8 +116,11 @@ def main():
         or not torch.isfinite(tokens).all()):
         raise AssertionError("S3I physical token mask/last hidden ABI invalid")
 
-    # PRE-TRAIN: only load the TRAIN64 labels through an explicit split
-    # before any parameter update. Four control answers are not read.
+    # PRE-TRAIN: safetensors loads the complete immutable physical label
+    # archive, but ONLY the [:64] slice is retained/passed to the optimizer.
+    # The four control label slices are never referenced or scored until
+    # AFTER the bridge parameters and normalizer are physically committed.
+    # File-level loading is not equivalent to information-theoretic sealing.
     gold_all=load_file(str(labels_path),device="cpu")
     if (set(gold_all)!={"adjacency","source","target","reachability"}
         or gold_all["adjacency"].shape!=(TOTAL,NODES,NODES)):
@@ -177,8 +180,8 @@ def main():
     saved_mean=physical["train_mean320"].float()
     saved_scale=physical["train_scale320"].float()
 
-    # First access to CTRL gold after commit. No optimization or model
-    # selection afterward; one evaluation for each of four shifts.
+    # First USE of control gold for scoring after physical commit.
+    # No optimization or model selection afterward; one evaluation per split.
     final_gold=load_file(str(labels_path),device="cpu")
     metrics={}
     oracle={}
@@ -213,7 +216,9 @@ def main():
         "train_loss_trace":trace,
         "train_normalization_only":True,
         "controls_never_in_optimizer":True,
-        "control_gold_loaded_only_after_FP16_commit":True,
+        "control_gold_not_used_by_optimizer":True,
+        "complete_label_file_loaded_precommit_for_train_slice":True,
+        "control_gold_first_scored_after_FP16_commit":True,
         "all_controls_scored_once":True,
         "independent_frozen_NRA_oracle_by_group":oracle,
         "per_group_metrics":metrics,
