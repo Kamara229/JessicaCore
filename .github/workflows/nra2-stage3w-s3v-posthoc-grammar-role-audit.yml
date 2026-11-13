@@ -1,0 +1,75 @@
+name: NRA2 S3W S3V post-hoc grammar role-order diagnosis frozen
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3v-newgrammar-frozen-soft-hard-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3w-newgrammar-posthoc-role-order-only
+  cancel-in-progress: false
+jobs:
+  s3w_posthoc_frozen_s3v_role_order_diagnosis:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3w-newgrammar-role-error-audit-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin successful S3T prereg S3U CPU and S3V original scoring (immutable)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43527496158 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43528076399 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43529457952 --jq .conclusion)" = success
+          echo "S3W frozen S3V posthoc diagnostics only"
+      - name: Import S3V fixed soft-hard original report without altering model
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3v-s3t64-independent-soft-hard-real43M-CPU-zero-gate
+          path: inputs/nra2_stage3v
+          run-id: '43529457952'
+          github-token: ${{ github.token }}
+      - name: Import S3T immutable novel grammar prereg report
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3t-unseen-grammar64-preregistered-no-score
+          path: inputs/nra2_stage3t
+          run-id: '43527496158'
+          github-token: ${{ github.token }}
+      - name: Diagnose original S3V performance by S3T query style and text mention order
+        env:
+          PYTHONPATH: .:research
+        run: |
+          python -m research.nra2_bridge.stage3w_role_order_posthoc_diagnostic \
+            inputs/nra2_stage3v inputs/nra2_stage3t results/nra2_stage3w
+      - name: Verify no training no acceptance exact 616 J7 and no omitted errors
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3w/NRA2_S3W_S3V_NOVEL_GRAMMAR_ROLE_ORDER_DIAGNOSTIC.json").read_text())
+          assert r["stage"]=="NRA2_S3W_POST_HOC_S3V_NOVEL_GRAMMAR_ROLE_DIAGNOSIS_ONLY"
+          assert r["S3V_original_successful_run"]==43529457952
+          assert r["all_616_original_J7_preserved"] and r["original_real_CPU_graphs_exact"]==64
+          assert not r["new_training"] and r["post_hoc_diagnosis_only"]
+          assert r["candidate_accepted"] is False and r["output_gate"]==0.0
+          assert r["by_textual_mention_order"]["forward_order"]["count"]==32
+          assert r["by_textual_mention_order"]["reversed_mention_order"]["count"]==32
+          print("S3W_POSTHOC_NO_TRAINING_NO_ACCEPTANCE_ORIGINAL_616_J7_PROTECTED",flush=True)
+          PY
+      - name: Preserve transparent S3W post-hoc failure analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3w-s3v-novelgrammar64-posthoc-role-order-diagnostic
+          path: results/nra2_stage3w/
+          retention-days: 90
+          if-no-files-found: error
