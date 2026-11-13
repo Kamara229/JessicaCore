@@ -90,8 +90,10 @@ def build_graph_rows()->list[GraphRecord]:
         mentions=[f"R{a} -> R{b}" for a,b in topology]
         rng.shuffle(mentions)
         links="; ".join(mentions)
-        tmpl=(HELD_TEMPLATES[(i-TRAIN_COUNT)%len(HELD_TEMPLATES)]
-              if held else TRAIN_TEMPLATES[i%len(TRAIN_TEMPLATES)])
+        # Pair each wording template with BOTH labels to prohibit answer
+        # prediction from phrasing alone (previous i%2 mapping was unsafe).
+        tmpl=(HELD_TEMPLATES[((i-TRAIN_COUNT)//2)%len(HELD_TEMPLATES)]
+              if held else TRAIN_TEMPLATES[(i//2)%len(TRAIN_TEMPLATES)])
         question=tmpl.format(links=links,src=f"R{src}",dst=f"R{dst}")
         if question in seen_prompt or sha_text(question) in seen_prompt:
             raise AssertionError("Duplicate graph question")
@@ -113,6 +115,16 @@ def validate_graph_rows(rows:list[GraphRecord]):
         raise AssertionError("Graph topology leaked across split")
     if len(topology_train)!=TRAIN_COUNT or len(topology_held)!=HELD_COUNT:
         raise AssertionError("Graphs must have unique relation topology")
+    # A shortcut that maps prompt wording directly to answer must fail:
+    # every declared wording template contains BOTH reachable outcomes.
+    for is_held,templates in ((False,TRAIN_TEMPLATES),(True,HELD_TEMPLATES)):
+        subset=rows[TRAIN_COUNT:] if is_held else rows[:TRAIN_COUNT]
+        for tmpl in templates:
+            # The fixed prefix uniquely identifies each declared format.
+            prefix=tmpl.split("{links}")[0]
+            selected=[r for r in subset if r.question.startswith(prefix)]
+            if not selected or {r.reachable for r in selected}!={True,False}:
+                raise AssertionError("Template wording leaked answer direction")
     for i,r in enumerate(rows):
         held=i>=TRAIN_COUNT
         if (r.split!="heldout_novel_structure")!= (not held):
