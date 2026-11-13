@@ -114,7 +114,7 @@ def validate_stage197_runtime(*, frozen_s194:dict, frozen_s196:dict, source:Path
         or frozen_s196["not_accepted"] is not True
         or report["original_S142_sha256"]!=hashlib.sha256(source.read_bytes()).hexdigest()
         or payload[WEIGHTS_KEY].shape!=(12,320,72)
-        or len([k for k in payload if k.startswith(AREA_PREFIX)])!=5):
+        or len([k for k in payload if k.startswith(AREA_PREFIX)])!=6):
         raise AssertionError("S197 immutable S194/S196 physical provenance mismatch")
 
 
