@@ -1,0 +1,104 @@
+name: NRA2 S3L frozen S3K neural entity binding read only four exploratory controls
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3k-native-entity-bridge-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3l-frozen-entity-4controls
+  cancel-in-progress: false
+jobs:
+  nra2_s3l_frozen_fp16_readonly_ctrl_four_groups:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3l-frozen-ood-diagnostic-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install locked CPU research dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Unit-check real tokenizer offsets and learned bridge boundary invariants
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3j_token_entity_alignment research.nra2_bridge.test_stage3k_neural_entity_bridge
+      - name: Require independent successful real S3H, S3J and S3K frozen source research
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43517070838 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43518808282 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43519730567 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43519730567 --jq .head_branch)" = research/calibri2-nra2-s3k-native-entity-bridge-20261114
+      - name: Immutable authentic 43M CPU token hidden and native 616 J7 source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3h-real43M-128factorial-tokens320-616J7
+          path: inputs/nra2_stage3h
+          run-id: '43517070838'
+          github-token: ${{ github.token }}
+      - name: Physically committed S3K neural entity bridge and TRAIN64 audit
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3k-real43M-native-entity-binding-train64-fp16-zero-gate
+          path: inputs/nra2_stage3k
+          run-id: '43519730567'
+          github-token: ${{ github.token }}
+      - name: Original independently frozen 2241-parameter graph NRA
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-standalone-relational-cpu-research-only
+          path: inputs/nra2
+          run-id: '43446925758'
+          github-token: ${{ github.token }}
+      - name: Read only ONE post-commit evaluation over reused S3G 4x16 CTRL groups
+        run: |
+          python -m research.nra2_bridge.stage3l_frozen_ctrl_probe \
+            inputs/nra2_stage3h inputs/nra2_stage3k inputs/nra2 results/nra2_stage3l
+      - name: Prevent accidental promotion of exploratory control metrics
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3l/NRA2_S3L_REUSED_FOUR_CTRL16_READONLY_AUDIT.json").read_text())
+          assert r["stage"]=="NRA2_S3L_FROZEN_S3K_REUSED_FOUR_CTRL16_EXPLORATORY"
+          assert r["total_scored"]==64 and len(r["control_groups"])==4
+          assert r["prior_S3I_examined_exact_same_control_labels"]
+          assert not r["is_untouched_independent_blind"]
+          assert r["S3K_model_frozen_after_physical_FP16_commit"]
+          assert r["control_data_never_used_for_training_or_model_selection"]
+          assert r["original_S3H_616_J7_preserved"]
+          assert r["calibri_GT_NRA_weights_unchanged"]
+          assert r["output_gate"]==0.0 and not r["model_accepted"]
+          assert not r["new_full_EOS_gain_tested"]
+          assert not r["all_in_bpp_tested"] and not r["paired_cpu_speed_tested"]
+          for g,m in r["control_groups"].items():
+              assert m["count"]==16
+              assert 0<=m["exact_graphs"]<=16
+              assert 0<=m["frozen_NRA_reachability_correct"]<=16
+              assert r["frozen_NRA_oracle_by_group"][g]==16
+          print("S3L_4x16_REUSED_EXPLORATORY_FP16_READONLY_NOT_BLIND_NOT_ACCEPTED")
+          PY
+      - name: Archive immutable S3L four-group exploratory evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3l-frozen-s3k-4x16-exploratory-only
+          path: results/nra2_stage3l/
+          retention-days: 90
+          if-no-files-found: error
