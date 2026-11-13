@@ -83,6 +83,7 @@ def verify_source_readiness(
     probes=new_train_paraphrase_probes()
     groups=Counter()
     new_hashes=set()
+    source_groups={}
     expected_length=Counter()
     for question,answer,group in probes:
         if group not in SUPPORTED_GROUPS:
@@ -91,6 +92,7 @@ def verify_source_readiness(
         if sha in new_hashes or sha in original_sha or sha in s122_sha:
             raise AssertionError("S192 new TRAIN duplicate or protected 584 collision")
         new_hashes.add(sha)
+        source_groups[sha]=group
         groups[group]+=1
         expected=tok.encode(answer, add_special_tokens=False)
         need=1 if group=="numeric_new_wording" else 2
@@ -105,8 +107,8 @@ def verify_source_readiness(
         raise AssertionError("S192 actual S190 real frozen CPU probe source SHA drift")
     if sum(r.get("full_EOS_correct") is True for r in audit)!=s190.get("NEW_TRAIN_full_EOS_correct"):
         raise AssertionError("S192 actual S190 output/count mismatched")
-    if any(r.get("group") not in SUPPORTED_GROUPS for r in audit):
-        raise AssertionError("S192 invalid source group")
+    if any(source_groups.get(r.get("prompt_sha256")) != r.get("group") for r in audit):
+        raise AssertionError("S192 original new TRAIN SHA-to-source-family drift")
     if not isinstance(charge_bytes,int) or charge_bytes<0:
         raise AssertionError("S192 exact nonnegative runtime code size required")
     inherited_bpp=s190["all_in_physical_bpp_charging_S188_S189_S190_source"]
