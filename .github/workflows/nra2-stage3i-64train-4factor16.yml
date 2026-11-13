@@ -1,0 +1,100 @@
+name: NRA2 S3I fixed token attention TRAIN64 four factorized CTRL16 frozen
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3h-128-real-token-cpu-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3i-factors64-tokens-real-frozen
+  cancel-in-progress: false
+jobs:
+  nra2_s3i_true_token_attention_train64_four_controls:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3i-factors-64train-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      PYTHONPATH: .
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install minimal deterministic CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: 'S3F unit tests: masked attention, frozen NRA, shape and fail closed'
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3f_token_attention
+      - name: 'Unit tests: fixed neural bridge, 128 unique graph controls, optimizer TRAIN-only'
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3g_factorized_graph_controls research.nra2_bridge.test_stage3i_controlled_attention
+      - name: Verify physically successful S3E and S3H native CPU J7 sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43512049506 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43516017432 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43516017432 --jq .head_branch)" = research/calibri2-nra2-s3h-128-real-token-cpu-20261114
+      - name: Download immutable S3H full real CPU 128 FP16 tokens and 616 J7 audit
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3h-real43M-128factorial-tokens320-616J7
+          path: inputs/nra2_stage3h
+          run-id: '43516017432'
+          github-token: ${{ github.token }}
+      - name: Download immutable independently pretrained frozen NRA2 2241p
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-standalone-relational-cpu-research-only
+          path: inputs/nra2
+          run-id: '43446925758'
+          github-token: ${{ github.token }}
+      - name: 'S3I 240 fixed steps on TRAIN64 only; commit FP16 before four controls'
+        run: |
+          python -m research.nra2_bridge.stage3i_controlled_attention \
+            inputs/nra2_stage3h inputs/nra2 results/nra2_stage3i
+      - name: Check 128 real input, 616 original native CPU guard and nonacceptance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3i/NRA2_S3I_64TRAIN_FOUR_CTRL16_AUDIT.json").read_text())
+          assert r["stage"]=="NRA2_S3I_FACTORIZED_64TRAIN_FOUR_CTRL16_EXPLORATORY_ONLY"
+          assert r["source_S3H_native_CPU_provenance"] and r["source_616_token_digest_unchanged"]
+          assert r["train64"]==64 and r["optimizer_steps"]==240
+          assert r["train_loss_after"]<r["train_loss_before"]
+          assert r["controls_never_in_optimizer"]
+          assert r["control_gold_loaded_only_after_FP16_commit"]
+          assert r["all_controls_scored_once"]
+          assert r["physical_FP16_reload_bitwise_equal"]
+          assert r["pretrained_NRA_weights_unchanged"]
+          assert r["output_gate"]==0.0 and not r["candidate_accepted"]
+          assert not r["candidate_real_full_EOS_gain_tested"]
+          assert not r["candidate_all_in_bpp_tested"]
+          assert not r["same_CPU_speed_tested"]
+          assert list(r["control_groups"].values())==[64,16,16,16,16]
+          for g,count in r["control_groups"].items():
+              m=r["per_group_metrics"][g]
+              assert m["count"]==count and 0<=m["exact_graphs"]<=count
+              assert 0<=m["frozen_NRA_reachability_correct"]<=count
+              assert r["independent_frozen_NRA_oracle_by_group"][g]==count
+          print("S3I_EXPLORATORY_FACTORIZED_CONTROLS_ONLY_NO_MODEL_ACCEPTANCE")
+          PY
+      - name: Preserve physical S3I FP16 adapter and all four factorial CTRL16 diagnostics
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3i-tokenattention-train64-4x16-factors-zero-gate-fp16
+          path: results/nra2_stage3i/
+          retention-days: 90
+          if-no-files-found: error
