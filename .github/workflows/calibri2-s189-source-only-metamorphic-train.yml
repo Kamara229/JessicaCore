@@ -1,0 +1,45 @@
+name: CALIBRI S189 source-only metamorphic TRAIN grammar safe abstain 983 checks
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s188-independent-samecpu-S182-S187-20261113
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s189_source_only_metamorphic_no_neural_inference:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s189-source-metamorphic-train-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTHONHASHSEED: '1290129'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin completed real CPU full J7 S187 and independent same CPU S188 before any followup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43336858062 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43338233327 --jq .conclusion)" = "success"
+          echo S189_S187_REAL_456_128_AND_S188_REAL_SAME_CPU_SPEED_PINNED
+      - name: Pure Python S189 source grammar metamorphic TRAIN cases and negative fail closed
+        run: |
+          python -m compileall -q research/calibri2/s181/source_grammar_shadow.py research/calibri2/s186/history_s69_prompt_only_shadow.py research/calibri2/s189
+          python -m unittest -v calibri2.s189.test_source_metamorphic_train_only
+          python research/calibri2/s189/source_metamorphic_train_only.py
+          echo S189_SYNTHETIC_SOURCE_ONLY_NO_NEURAL_MODEL_INFERENCE_NOT_GENERALIZATION
+      - name: Archive immutable S189 pure source grammar constraints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s189-metamorphic-983-source-only-no-real-J7
+          path: results/s189/
+          if-no-files-found: warn
+          retention-days: 90
