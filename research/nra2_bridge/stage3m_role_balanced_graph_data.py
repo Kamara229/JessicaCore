@@ -107,10 +107,17 @@ def build_rows():
     out=[]
     for split,per_family in (("TRAIN128",TRAIN_TOPOLOGIES_PER_FAMILY),
                              ("DEV64",DEV_TOPOLOGIES_PER_FAMILY)):
-        for family in FAMILIES:
+        for family_index,family in enumerate(FAMILIES):
             for j in range(per_family):
-                # Mix lengths independently for every family and split.
-                n=4+(j%3)
+                # Strict anti-shortcut counterbalance: every active-node
+                # length occurs with BOTH yes and no in each split.
+                # TRAIN: paired j even/odd hold the same n in each family.
+                # DEV: rotated family schedules give n4/n5/n6 all both
+                # truth values across the four topology families.
+                if per_family==TRAIN_TOPOLOGIES_PER_FAMILY:
+                    n=(4,4,5,5,6,6,4,4)[j]
+                else:
+                    n=((4,5,6,4) if family_index%2==0 else (4,6,5,4))[j]
                 for _ in range(5000):
                     order=tuple(rng.sample(range(NODE_POOL),n))
                     edges=make_graph(order,family)
@@ -140,7 +147,9 @@ def build_rows():
                     strings=[f"R{a} -> R{b}" for a,b in edges]
                     rng.shuffle(strings)
                     q=template.format(src=f"R{src}",dst=f"R{dst}")
-                    heading=HEADERS[(j+style)%len(HEADERS)]
+                    # IMPORTANT: (j+style)%2 was exactly the TRUE label.
+                    # Never let a header alone give away reachability.
+                    heading=HEADERS[(j//2+style)%len(HEADERS)]
                     full=heading.format(edges="; ".join(strings),query=q)
                     out.append(GraphPrompt(graph_id,split,family,n,edges,
                                            src,dst,yes,style,full))
@@ -179,6 +188,20 @@ def validate(rows):
         group=[x for x in rows if x.split==split]
         if len(group)!=total or sum(x.reachable for x in group)!=total//2:
             raise AssertionError("S3M split counts or label balance invalid")
+        for n in (4,5,6):
+            # Literal prompt length must not itself determine truth.
+            for style in range(4):
+                subset=[x for x in group if x.active_nodes==n and x.query_style==style]
+                if (not subset or len(subset)%2
+                    or sum(x.reachable for x in subset)!=len(subset)//2):
+                    raise AssertionError("S3M graph length / query template is a yes/no shortcut")
+        for style in range(4):
+            for header in HEADERS:
+                prefix=header.split("{edges}")[0]
+                subset=[x for x in group if x.query_style==style and x.question.startswith(prefix)]
+                if (not subset or len(subset)%2
+                    or sum(x.reachable for x in subset)!=len(subset)//2):
+                    raise AssertionError("S3M header / query template leaks yes/no label")
         for family in FAMILIES:
             subset=[x for x in group if x.family==family]
             if len(subset)!=4*per_family or {x.active_nodes for x in subset}!={4,5,6}:
