@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   nra2_true_cpu_s3t_independent64_all_tokens_frozen_layer12_616_j7:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3r-independent64-real-cpu-20261114'
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3u-newgrammar-real64-cpu-20261114'
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
