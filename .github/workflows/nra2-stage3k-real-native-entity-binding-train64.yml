@@ -1,0 +1,103 @@
+name: NRA2 S3K real frozen 43M CPU neural node-token bridge TRAIN64 only
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3j-explicit-entity-binding-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3k-real-entity-bridge-shadow
+  cancel-in-progress: false
+jobs:
+  nra2_s3k_real_cpu_entity_binding_train64_shadow:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3k-native-entity-bridge-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install strict CPU-only neural and original tokenizer research dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Test S3J native offsets and S3K differentiable entity-attached graph bridge
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3j_token_entity_alignment research.nra2_bridge.test_stage3k_neural_entity_bridge
+      - name: Verify immutable original CPU J7, full S3H physical tokens, and native tokenizer CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43512049506 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43517070838 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43518808282 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43517070838 --jq .head_branch)" = research/calibri2-nra2-s3h-128-real-token-cpu-20261114
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43518808282 --jq .head_branch)" = research/calibri2-nra2-s3j-explicit-entity-binding-20261114
+      - name: Download immutable full native 43M CPU token hidden [128,T,320] + original 616 J7 audit
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3h-real43M-128factorial-tokens320-616J7
+          path: inputs/nra2_stage3h
+          run-id: '43517070838'
+          github-token: ${{ github.token }}
+      - name: Download frozen independently trained graph NRA2 2241p source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-standalone-relational-cpu-research-only
+          path: inputs/nra2
+          run-id: '43446925758'
+          github-token: ${{ github.token }}
+      - name: Fit physically committed FP16 entity-bound adapter only on original TRAIN64
+        run: |
+          python -m research.nra2_bridge.stage3k_train_real_entity_binding \
+            inputs/nra2_stage3h inputs/nra2 results/nra2_stage3k
+      - name: Verify original 616 native CPU hashes, frozen core, no control scoring and no release
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3k/NRA2_S3K_ENTITY_BOUND_REAL_CPU_TRAIN64_AUDIT.json").read_text())
+          assert r["stage"]=="NRA2_S3K_NATIVE_ENTITY_BOUND_TRAIN64_ONLY_EXPLORATORY"
+          assert r["S3H_successful_native_CPU_run"]==43517070838
+          assert r["source_616_original_cpu_J7_SHA_protected"]
+          assert r["source_584_protected_original_answers"]
+          assert r["train_count"]==64 and r["optimizer_steps"]==240
+          assert r["native_tokenizer_sha_pinned"]=="12fd25f77366fa6b3b4b768ec3050bf629380bac"
+          assert r["real_frozen_43M_layer12_input"]
+          assert r["text_token_entity_alignment"]
+          assert r["node_mention_masks_only_from_text"]
+          assert r["edge_witness_candidates_not_oracle_graph"]
+          assert r["train_loss_after"]<r["train_loss_before"]
+          assert r["train_metrics_after_FP16_commit"]["count"]==64
+          assert r["frozen_graph_NRA_train_oracle_correct"]==64
+          assert r["pretrained_NRA_frozen_unchanged"]
+          assert r["physical_FP16_reload_bitwise_equal"]
+          assert r["control64_metrics_scored"] is False
+          assert r["control64_labels_used_to_optimize"] is False
+          assert r["candidate_accepted"] is False
+          assert r["output_gate"]==0.0
+          assert r["calibri_green_tunnel_unchanged"]
+          assert r["no_QA_TEST_LIVE_Render_Supabase_APK"]
+          print("S3K_REAL_CPU_TOKEN_ENTITY_BRIDGE_TRAIN64_FP16_SHADOW_ONLY_NO_ACCEPTANCE")
+          PY
+      - name: Preserve S3K independent frozen CPU research adapter physical FP16 and TRAIN64 audit
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3k-real43M-native-entity-binding-train64-fp16-zero-gate
+          path: results/nra2_stage3k/
+          retention-days: 90
+          if-no-files-found: error
