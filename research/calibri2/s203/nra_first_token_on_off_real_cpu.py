@@ -11,6 +11,8 @@ No candidate accepted, no training, no LIVE.
 from __future__ import annotations
 
 from collections import Counter
+
+import torch
 import hashlib
 import json
 from pathlib import Path
@@ -61,6 +63,8 @@ def run_paired_ablation():
         raise AssertionError("S203 fresh unchanged base CPU decoder required")
     installed = []
     paired = {}
+    on_first = {}
+    original_audit = s160.audit_cpu_outputs
 
     def register_area(area, model):
         result = original_install(area, model)
@@ -76,36 +80,71 @@ def run_paired_ablation():
         if identity is None or not installed or not installed[0]._active:
             return original_decoder(*args, **kwargs)
         on_result = original_decoder(*args, **kwargs)
-        if identity in paired:
-            if list(on_result[0]) != paired[identity]["NRA_ON_full_generated_ids"]:
-                raise AssertionError("S203 repeated NRA-ON CPU decode drift")
-            return on_result
-        if len(installed) != 1:
-            raise AssertionError("S203 expects one physically loaded real NRA")
+        if identity in on_first:
+            if list(on_result[0]) != on_first[identity]:
+                raise AssertionError("S203 repeated original NRA-ON CPU decode drift")
+        else:
+            on_first[identity] = list(on_result[0])
+        return on_result
+
+    def audit_and_ablate_after_phase_scope(*args, **kwargs):
+        # The S115 KV-phase hook requires ONE full generation per context:
+        # a second rollout inside the same scope would mislabel its prefill
+        # as a continuation token. Perform read-only OFF controls AFTER the
+        # original full original-TRAIN J7 audit has exited that hook.
+        result = original_audit(*args, **kwargs)
+        cpu, old, new, old_ids, new_ids, routes, tok, bank, copy_net, bridge, full, expansion, parent_old, parent_new, head = args
+        if len(old) != 456 or len(new) != 128:
+            return result
+        if set(on_first) != set(ORIGINAL_S73_TRAIN_SHA.values()) or len(installed) != 1:
+            raise AssertionError("S203 original full guarded J7 missing four real NRA-ON predictions")
         area = installed[0]
         if not area._active:
-            raise AssertionError("S203 real paired ON computation was inactive")
-        # Preserve existing owner/route counter telemetry. Only a second
-        # independent real CPU model pass changes activation; it is discarded.
-        counters = Counter(s168.COUNTERS)
-        area._active = False
+            raise AssertionError("S203 original physical candidate NRA must be ON")
+        model, sources, first, later, pointer, lm_head, *rest = cpu
+        # The extra controls are separate, discarded CPU rollouts under
+        # their own fresh causal S115 scope, with the original owner selector.
+        # Restore the original ending source profile for all later J7 probes.
+        ending_id = new_ids[-1] if new_ids else old_ids[-1]
+        ending_route = routes[ending_id]
         try:
-            off_result = original_decoder(*args, **kwargs)
+            for key in sorted(on_first):
+                if key not in old:
+                    raise AssertionError("S203 ablation keyed to non-original TRAIN")
+                row = old[key]
+                route = routes[key]
+                s160.apply_profile(sources, cpu[6], route, bank, cpu[7], cpu[8])
+                features = torch.as_tensor(
+                    s160.prompt_only_vector(tok, row["question"]),
+                    dtype=torch.float32,
+                ) if route == "S93" else None
+                counters = Counter(s168.COUNTERS)
+                area._active = False
+                try:
+                    import torch
+                    with torch.inference_mode(), expansion.prefill_only(model), s160.prefill_only_tunnel(model, full):
+                        with s160.frozen_cpu_phase_scope(model, bridge, route, features, phase="prefill_only"):
+                            off_result = original_decoder(
+                                model, sources, first, later, lm_head, tok,
+                                row["question"], pointer, copy_net, head)
+                finally:
+                    area._active = True
+                    s168.COUNTERS.clear()
+                    s168.COUNTERS.update(counters)
+                note = first_token_observation(on_first[key], off_result[0])
+                note["original_TRAIN_id"] = key
+                note["immutable_prompt_sha256"] = hashlib.sha256(
+                    row["question"].encode("utf-8")).hexdigest()
+                note["extra_OFF_decode_discarded_not_used_for_routing"] = True
+                paired[key] = note
         finally:
-            area._active = True
-            s168.COUNTERS.clear()
-            s168.COUNTERS.update(counters)
-        note = first_token_observation(on_result[0], off_result[0])
-        note["original_TRAIN_id"] = identity
-        note["immutable_prompt_sha256"] = hashlib.sha256(
-            question.encode("utf-8")).hexdigest()
-        note["extra_OFF_decode_discarded_not_used_for_routing"] = True
-        paired[identity] = note
-        return on_result
+            s160.apply_profile(sources, cpu[6], ending_route, bank, cpu[7], cpu[8])
+        return result
 
     NeuroRepresentationArea.install = register_area
     s160.cached_full_cpu_parallel = instrument_only_four_original_TRAIN
     s168.ORIGINAL_DECODER = instrument_only_four_original_TRAIN
+    s160.audit_cpu_outputs = audit_and_ablate_after_phase_scope
     try:
         # S202 verifies the unchanged strict real S201 456+128 protected J7
         # and its original S176 rejection. Never remove either guard.
@@ -113,6 +152,7 @@ def run_paired_ablation():
     finally:
         s160.cached_full_cpu_parallel = original_decoder
         s168.ORIGINAL_DECODER = original_s168_decoder
+        s160.audit_cpu_outputs = original_audit
         NeuroRepresentationArea.install = original_install
 
     raw = out / f"S202_STEP_{step}_FOUR_ORIGINAL_TRAIN_CPU_TRACE.json"
