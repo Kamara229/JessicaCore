@@ -1,0 +1,133 @@
+name: NRA2 S3V S3T independent64 locked soft vs hard 43M CPU frozen NRA trial
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3u-newgrammar-real64-cpu-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3v-s3t64-frozen-soft-hard
+  cancel-in-progress: false
+jobs:
+  s3v_s3t64_original_43m_frozen_cpu_soft_hard:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3v-newgrammar-frozen-soft-hard-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact CPU zero training dependencies and original SmolLM tokenizer
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Pin S3T sealed-before-capture commitments, original 616 J7 and frozen S3O FP16
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43527496158 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43522663612 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43524516584 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43528076399 --jq .head_branch)" = research/calibri2-nra2-s3u-newgrammar-real64-cpu-20261114
+          for i in $(seq 1 140); do
+            status="$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43528076399 --jq '.conclusion // ""')"
+            if [ "$status" = success ]; then
+              echo S3U_TRUE_CPU64_S194_616_SUCCESS
+              break
+            fi
+            if [ -n "$status" ]; then
+              echo "S3U failed precondition: $status" >&2
+              exit 1
+            fi
+            sleep 15
+          done
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43528076399 --jq .conclusion)" = success
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S3V_NO_GPU_NO_TRAINING_ONLY_FROZEN_REAL_CPU",flush=True)
+          PY
+      - name: Import genuinely frozen 43M native CPU 64 independent S3T graph token sequences
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3u-real43M-s3t-novelgrammar64-tokens320-616J7
+          path: inputs/nra2_stage3u
+          run-id: '43528076399'
+          github-token: ${{ github.token }}
+      - name: Import S3T 64 independently topology-disjoint graph input prereg SHA created before scoring
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3t-unseen-grammar64-preregistered-no-score
+          path: inputs/nra2_stage3t
+          run-id: '43527496158'
+          github-token: ${{ github.token }}
+      - name: Import physically committed S3O original learned 128-TRAIN FP16 bridge unchanged
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3o-real43M-semantic-queryroles-train128-dev64-zero-gate-fp16
+          path: inputs/nra2_stage3o
+          run-id: '43522663612'
+          github-token: ${{ github.token }}
+      - name: Import exact unchanged frozen standalone NRA 2241 parameter physical FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-standalone-relational-cpu-research-only
+          path: inputs/nra2
+          run-id: '43446925758'
+          github-token: ${{ github.token }}
+      - name: Score independent64 exactly once with locked SOFT vs fixed HARD edges and identical soft endpoints
+        run: |
+          python -m research.nra2_bridge.stage3v_s3t_frozen_soft_hard_trial \
+            inputs/nra2_stage3u inputs/nra2_stage3t inputs/nra2_stage3o inputs/nra2 results/nra2_stage3v
+      - name: Confirm frozen FP16 and NRA/GT untouched, zero thresholds or training selected on S3T
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3v/NRA2_S3V_S3T64_PRECOMMITTED_SOFT_HARD_CPU_TRIAL.json").read_text())
+          assert r["stage"]=="NRA2_S3V_PRECOMMITTED_S3T64_SOFT_VS_HARD_FROZEN_NATIVE_CPU_TRIAL"
+          assert r["S3U_successful_native_CPU_run"]==43528076399
+          assert r["S3T_successful_prereg_run"]==43527496158
+          assert r["S3T_prior_commitment_sha256"]=="034ebd6e1cf6f20ad04ccd00e70c6bc07ee08a46f47da843121524f1d7f0faf3"
+          assert r["S3O_frozen_adapter_sha256"]=="40a8903d5419cd8641b5d01e75e429e10b449304b3ba140d2245bf7f8a9d00b6"
+          assert r["original_616_S194_J7_hashes_preserved_by_S3U"]
+          assert r["original_584_retained_full_EOS_unchanged"]
+          assert r["S3T_rules_predeclared_before_new_model_scores"]
+          assert r["S3T_topologies_not_seen_during_S3O_TRAIN128"]
+          assert r["source_destination_probabilities_soft_both_arms"]
+          assert r["hardening_rule"]=="sigmoid(edge_logit)>0.5"
+          assert not r["new_training_or_parameter_tuning"]
+          assert not r["threshold_selected_using_S3T"]
+          assert r["this_is_not_sealed_final_blind"]
+          assert not r["candidate_accepted"]
+          assert not r["new_native_decoder_full_EOS_gain_tested"]
+          assert not r["all_in_physical_bpp_tested"]
+          assert not r["matched_CPU_speed_tested"]
+          assert r["output_gate"]==0.0
+          overall=r["all_and_family_yes_no_accuracy"]["all"]
+          assert overall["count"]==64 and overall["yes"]==32 and overall["no"]==32
+          assert 0<=overall["soft_correct"]<=64 and 0<=overall["hard_correct"]<=64
+          assert 0<=r["oracle_true_graph_and_roles_correct"]<=64
+          print("S3V_S3T64_INDEPENDENT_FROZEN_ZERO_TRAINING_ZERO_GATE_DIAGNOSIS_ONLY")
+          PY
+      - name: Archive S3V fixed original S3T 64 frozen CPU soft and hard research result
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3v-s3t64-independent-soft-hard-real43M-CPU-zero-gate
+          path: results/nra2_stage3v/
+          retention-days: 90
+          if-no-files-found: error
