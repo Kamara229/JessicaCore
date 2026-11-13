@@ -1,0 +1,71 @@
+name: NRA2 S3Q precommit 16 fresh topologies 64 CPU-input prompts soft hard criterion
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3p-six-soft-interface-diagnostic-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3q-prereg-future-64-no-model
+  cancel-in-progress: false
+jobs:
+  s3q_independent_graph64_shadow_prereg:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3q-independent-soft-hard-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '2026111417'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin immutable successful native CPU real tokens, learned adapter and six-error diagnosis
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43522550138 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43522555326 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43522663612 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43524516584 --jq .conclusion)" = success
+      - name: Test S3Q counterbalanced graph topology independence with no CPU weights or QA
+        run: |
+          python -m unittest -v \
+            research.nra2_bridge.test_stage3m_role_balanced_graph_data \
+            research.nra2_bridge.test_stage3q_independent_soft_hard_prereg
+      - name: Physically commit S3Q question SHA and locked FP16 soft hard evaluation ABI
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from research.nra2_bridge.stage3q_independent_soft_hard_prereg import build_rows,commitment
+          c=commitment(build_rows())
+          assert c["S3Q_predictions_not_inspected"] is True
+          assert c["new_43M_CPU_features_not_yet_captured"] is True
+          assert c["native_new_FULL_EOS_not_tested"] is True
+          assert c["query_wording_seen_in_prior_S3M"] is True
+          assert c["predeclared_edge_rule"]=="hard_edge = (sigmoid(edge_logit) > 0.5).float()"
+          assert c["predeclared_role_rule"]=="source and target remain SOFT in both arms"
+          assert c["S3O_frozen_sha256"]=="40a8903d5419cd8641b5d01e75e429e10b449304b3ba140d2245bf7f8a9d00b6"
+          assert c["S3N_previous_native_CPU_sha256"]=="b8a375982e556d67dfd5f741050c18c5460249184da9c3fcebc3d174d80db81b"
+          out=Path("results/nra2_stage3q")
+          out.mkdir(parents=True,exist_ok=False)
+          (out/"NRA2_S3Q_GRAPH64_NO_SCORE_PRIOR_COMMITMENT.json").write_text(
+              json.dumps(c,indent=2,sort_keys=True)+"\n")
+          print("S3Q_PREDECLARED_SHA",c["commitment_sha256"])
+          print("S3Q_64_INDEPENDENT_TOPOLOGY_NO_MODEL_SCORES_NO_DEPLOY")
+          PY
+      - name: Archive original S3Q prereg SHA before ANY future CPU capture and inference
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3q-64-independent-topologies-precommitted-no-score
+          path: results/nra2_stage3q/
+          retention-days: 90
+          if-no-files-found: error
