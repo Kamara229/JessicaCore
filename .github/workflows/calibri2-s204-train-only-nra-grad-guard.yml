@@ -32,7 +32,7 @@ jobs:
       - name: Check strict S204 TRAIN-only optimizer contracts
         run: |
           python -m compileall -q research/calibri2/s204
-          python -m unittest -v calibri2.s204.test_first_token_grad_guard calibri2.s204.test_protected_s73_train calibri2.s204.test_guarded_nra_optimizer calibri2.s204.test_real_s73_guarded_step
+          python -m unittest -v calibri2.s204.test_first_token_grad_guard calibri2.s204.test_protected_s73_train calibri2.s204.test_guarded_nra_optimizer calibri2.s204.test_real_s73_guarded_step calibri2.s204.test_original_train_source_scope
       - name: Never claim candidate approval from only unit tests
         run: |
           echo "S204_TRAIN_ONLY_FIRST_ORDER_TEST_NOT_A_NATIVE_J7"
