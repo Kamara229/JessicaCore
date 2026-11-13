@@ -1,0 +1,60 @@
+name: CALIBRI S205 novel32 token-position posthoc from authentic S204 J7
+
+on:
+  push:
+    branches:
+      - research/calibri2-s204-train-protected-nra-20261113
+    paths:
+      - research/calibri2/s205/**
+      - .github/workflows/calibri2-s205-novel32-posthoc.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: calibri2-s205-posthoc-token-diagnosis
+  cancel-in-progress: true
+
+jobs:
+  s205_true_cpu_transcript_posthoc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: research:research/calibri
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify successful immutable S204 full 616 real native CPU J7
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/43389569329 --jq .conclusion)" = "success"
+          test "$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/43389569329 --jq .head_sha)" = "08e0729878c2c2059d52ee1c6285eca214025f08"
+      - name: Download native actual S204 456+128+32 J7 source-only reports
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s204-real-616-native-CPU-J7-protected-S73-unaccepted
+          run-id: 43389569329
+          path: inputs/s204_j7
+          github-token: ${{ github.token }}
+      - name: S205 strict posthoc second-token EOS and true conservative physical budget
+        run: |
+          python -m compileall -q research/calibri2/s205
+          python -m unittest -v calibri2.s205.test_novel32_native_posthoc
+          python research/calibri2/s205/novel32_native_posthoc.py \
+            inputs/s204_j7/S204_REAL_616_CPU_J7.json \
+            inputs/s204_j7/S190_REAL_CPU_32_NEW_TRAIN_PARAPHRASE_PROBES.json \
+            results/s205/S205_REAL_NATIVE_NOVEL32_POSTHOC.json
+      - name: Publish read-only original TRAIN failure-position evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s205-novel32-source-only-real-J7-token-position-posthoc
+          path: results/s205/
+          retention-days: 90
+          if-no-files-found: warn
