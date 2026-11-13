@@ -15,12 +15,16 @@ class StandaloneNRAContracts(unittest.TestCase):
         torch.set_num_threads(1)
 
     def test_balanced_disjoint_graphs_and_reproducible_inputs(self):
-        a = graph_batch(12, 5, 96, (1, 2, 3, 4))
+        a = graph_batch(12, 9, 96, (1, 2, 3, 4, 5))
         b = graph_batch(12, 5, 96, (1, 2, 3, 4))
         for x, y in zip(a, b):
             self.assertTrue(torch.equal(x, y))
         self.assertEqual(int(a[3].sum()), 48)
-        self.assertTrue((a[0].sum((1, 2)) == 4).all())
+        self.assertTrue((a[0].sum((1, 2)) == 8).all())
+        # Endpoint-degree shortcut forbidden: queried nodes are both internal.
+        for queried in (a[1], a[2]):
+            self.assertTrue(((a[0].sum(1) * queried).sum(1) == 1).all())
+            self.assertTrue(((a[0].sum(2) * queried).sum(1) == 1).all())
         self.assertTrue((a[1].sum(1) == 1).all())
         self.assertTrue((a[2].sum(1) == 1).all())
 
@@ -28,7 +32,7 @@ class StandaloneNRAContracts(unittest.TestCase):
         torch.manual_seed(77)
         model = RelationalNRA(width=16, hops=5)
         self.assertGreater(model.parameter_count(), 100)
-        for nodes, distances in ((5, (1, 2)), (6, (5,))):
+        for nodes, distances in ((9, (1, 2)), (10, (5,))):
             edges, src, tgt, gold = graph_batch(55, nodes, 12, distances)
             logits = model(edges, src, tgt)
             self.assertEqual(tuple(logits.shape), (12,))
@@ -43,7 +47,7 @@ class StandaloneNRAContracts(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             result = run(out=Path(directory)/"s1", steps=300)
             self.assertEqual(result["train_distribution"]["total"], 1024)
-            self.assertEqual(result["unseen_five_hop_dev"]["total"], 1024)
+            self.assertEqual(result["novel_graph_size_five_hop_dev"]["total"], 1024)
             self.assertGreaterEqual(result["train_distribution"]["accuracy"], .98)
             self.assertGreaterEqual(result["unseen_five_hop_dev"]["accuracy"], .95)
             self.assertEqual(result["candidate_status"],
