@@ -162,12 +162,25 @@ def main():
     targets=build_graph_targets(rows)
     original_feature=Path("inputs/nra2_stage3c/NRA2_S3C_REAL_43M_GRAPH48_HIDDEN320_FP16.safetensors")
     original_labels=Path("inputs/nra2_stage3c/NRA2_S3C_GRAPH48_STRUCTURAL_LABELS.safetensors")
-    if (sha_file(original_feature)!=s3c["physical_feature_fp16_sha256"]
-            or sha_file(original_labels)!=s3c["physical_graph_labels_sha256"]
-            or not torch.equal(load_file(str(original_feature))["hidden320"],features)
-            or any(not torch.equal(load_file(str(original_labels))[k],v)
-                   for k,v in targets.items())):
-        raise AssertionError("S3E new full-token acquisition changed original S3C 48 last states or labels")
+    old_f=load_file(str(original_feature))["hidden320"]
+    old_y=load_file(str(original_labels))
+    checks={
+        "s3c_feature_sha_valid":sha_file(original_feature)==s3c["physical_feature_fp16_sha256"],
+        "s3c_label_sha_valid":sha_file(original_labels)==s3c["physical_graph_labels_sha256"],
+        "s3c_last_vectors_bitwise_equal":torch.equal(old_f,features),
+        "s3c_graph_labels_bitwise_equal":all(torch.equal(old_y[k],v) for k,v in targets.items()),
+    }
+    if not all(checks.values()):
+        checks["last_vector_mismatch_indices"]=[
+            i for i in range(TOTAL_COUNT) if not torch.equal(old_f[i],features[i])
+        ]
+        checks["last_vector_max_abs_difference"]=float(
+            (old_f.float()-features.float()).abs().max())
+        checks["graph_label_mismatch_keys"]=[
+            k for k,v in targets.items() if not torch.equal(old_y[k],v)
+        ]
+        print("S3E_DIAGNOSTIC_S3C_PARITY_FAIL "+json.dumps(checks,sort_keys=True),flush=True)
+        raise AssertionError("S3E strict S3C physical 48 vector/labels parity failed; no artifact accepted")
     out.mkdir(parents=True,exist_ok=True)
     feature_file=out/"NRA2_S3E_REAL_43M_GRAPH48_HIDDEN320_FP16.safetensors"
     labels_file=out/"NRA2_S3E_GRAPH48_STRUCTURAL_LABELS.safetensors"
