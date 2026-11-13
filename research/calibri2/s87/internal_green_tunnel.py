@@ -129,7 +129,7 @@ def teacher_forced_train_loss(model, tok, question: str, answer: str,
 
 
 def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
-                     selected_codebooks, tok, examples, optimizer) -> JointStep:
+                     selected_codebooks, tok, examples, optimizer, *, post_step_guard=None) -> JointStep:
     """One MPS joint gradient step through CB59 dictionaries AND internal tunnel.
 
     No physical acceptance is performed here: a separate guarded, replayed
@@ -189,6 +189,10 @@ def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
                     p.clamp_(-16.0, 16.0)
                 if any(not bool(torch.isfinite(p).all().item()) for p in core + side):
                     raise AssertionError("Nonfinite joint parameter after optimizer step")
+            # A guard may serialize the compact candidate and replay protected
+            # TRAIN identities. Its rejection must roll back Adam moments too.
+            if post_step_guard is not None:
+                post_step_guard()
         except Exception:
             with torch.no_grad():
                 for p, old in zip(core + side, snapshot):
