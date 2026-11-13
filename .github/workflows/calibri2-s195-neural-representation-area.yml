@@ -406,6 +406,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: calibri-s195-neural-representation-actual43M-616-cpu-J7-untrained
-          path: results/s194/
+          path: results/s195_neuro_area/
           retention-days: 90
           if-no-files-found: warn
