@@ -180,6 +180,8 @@ def main() -> None:
     from binary_geometry_v64 import MODEL,MODEL_SHA
     from calibri2.s122.independent_binding_train_curriculum import materialize_train_only
     tok=AutoTokenizer.from_pretrained(MODEL,revision=MODEL_SHA)
+    from calibri2.s30 import matched_dense_fp32_train as s30
+    s30.TOK=tok  # exact original S122 tokenizer ABI
     new128,checksum,_=materialize_train_only(tok)
     sha128={digest(x["question"]) for x in new128}
     if checksum!=source122.get("new_TRAIN_question_hashset_sha256"):
