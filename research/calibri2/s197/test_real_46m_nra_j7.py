@@ -42,7 +42,7 @@ class Real46MPhysicalJ7Tests(unittest.TestCase):
             self.assertTrue(torch.equal(physical[WEIGHTS_KEY][:,:,:48],
                                         prior.export_active_fp16()[WEIGHTS_KEY]))
             self.assertEqual(int(torch.count_nonzero(physical[WEIGHTS_KEY][:,:,48:])),0)
-            self.assertEqual(len([k for k in physical if k.startswith(PREFIX)]),5)
+            self.assertEqual(len([k for k in physical if k.startswith(PREFIX)]),6)
             self.assertEqual(sizes["area_physical_weight_count"],AREA_PARAMS)
             self.assertEqual(load(zlib.decompress(packaged.read_bytes()))[IDS_KEY].tolist(),
                              list(initial_active_indices(1344)))
