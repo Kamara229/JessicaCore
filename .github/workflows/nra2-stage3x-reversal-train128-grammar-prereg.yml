@@ -1,0 +1,61 @@
+name: NRA2 S3X reversal grammar TRAIN128 prereg only no CPU no scoring
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3w-newgrammar-role-error-audit-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3x-novel-train128-prereg
+  cancel-in-progress: false
+jobs:
+  s3x_reversal_train128_prereg_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3x-reversal-train128-prereg-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Confirm prior original S3W diagnosis and untouched S3U CPU evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43529926564 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43529457952 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43528076399 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43522555326 --jq .conclusion)" = success
+      - name: Validate TRAIN-only new reversal grammar and every anti-leakage control
+        env:
+          PYTHONPATH: .:research
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3x_reversal_train_prereg
+          mkdir -p results/nra2_stage3x
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from research.nra2_bridge.stage3x_reversal_train_prereg import build_rows,commitment
+          c=commitment(build_rows())
+          assert c["train_count"]==128 and c["unique_train_graphs"]==32
+          assert c["original_S3T64_excluded_from_new_TRAIN"]
+          assert c["original_S3T64_seen_during_failure_analysis_not_blind"]
+          assert c["new_training_not_started"] and c["native_43M_CPU_for_new_TRAIN_not_yet_captured"]
+          assert c["616_S194_J7_must_be_reverified_before_and_after_new_CPU"]
+          assert c["output_gate"]==0.0 and c["candidate_accepted"] is False
+          Path("results/nra2_stage3x/NRA2_S3X_TRAIN128_REVERSE_GRAMMAR_PREREG.json").write_text(
+              json.dumps(c,sort_keys=True,indent=2)+"\n")
+          print("S3X_NEW_TRAIN128_SHA_COMMITTED_BEFORE_NATIVE_CPU_OR_ADAPTER_TRAINING",c["commitment_sha256"],flush=True)
+          PY
+      - name: Preserve immutable S3X TRAIN-only grammar SHA before any real CPU
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3x-reversal-train128-grammar-prereg-no-score
+          path: results/nra2_stage3x/
+          retention-days: 90
+          if-no-files-found: error

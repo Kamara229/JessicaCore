@@ -1,0 +1,5 @@
+# NRA2 S3X: post-hoc remediation, TRAIN128 new wordings only
+
+S3V #43529457952 successful execution but failed generalization quality: 34/64 hard, 33/64 soft, despite exact graphs 64/64. Post-hoc S3W #43529926564 identified roles 32/32 on first-source questions but 2/32 when destination appeared first. This strongly points to **lexical/semantic role assignment under reversed mention order**, not graph recognition or the 2241p NRA as the main bottleneck.
+
+Freeze 128 **new training texts** on the same 32 S3M TRAIN graph topologies: four entirely new templates (2 destination-first, 2 source-first), yes/no and length/header/family balanced, with immutable prompt hashes and offsets committed prior to any CPU capture. None is an original S3T question. Next stage: generate true 43M native CPU frozen tokens + verify original 616 J7, then jointly replay original S3M 128 TRAIN with new S3X 128 TRAIN to teach semantics while freezing graph and NRA. Do not use the already-scored S3T as blind. Precommit a NEW genuinely disjoint final blind after training. New checkpoints separate from originals, no LIVE/Render/Supabase/main/APK/QA/TEST/Jessica.
