@@ -4,7 +4,7 @@
 - S3E successful native 43M CPU #43512049506, real full token [48,T,320], original 616 real CPU J7 retained.
 - S3F successful infrastructure #43514000830, but failed model generalization: TRAIN 32/32 graph, OOD 0/16 graph and reachability 7/16 (worse than S3D 8/16).
 - S3G #43514565056 preregistered and unit-validated unique 64 TRAIN and four groups of 16, separating topology, wording, node count and combined shifts.
-- S3H #43516017432 is the required upstream source for physical [128,T,320] frozen CPU hidden states, masks, labels and protected original 616 hash guard.
+- S3H #43517070838 is the required upstream source for physical [128,T,320] frozen CPU hidden states, masks, labels and protected original 616 hash guard.
 
 ## Locked before any control metric
 
