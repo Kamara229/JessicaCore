@@ -36,7 +36,7 @@ class SyntheticProof:
 
     def _proof(self,candidate,good,real_flag):
         # SHA of actual small mock tensor bytes, NOT neural model/checkpoint.
-        chk=digest(self.p.detach().cpu().numpy().tobytes())
+        chk=digest(bytes(self.p.detach().cpu().contiguous().view(torch.uint8).tolist()))
         old_dig=digest(b"immutable original 584 generated full token IDs")
         if candidate and self.kind=="regress":
             old_dig=digest(b"unsafe protected 584 generated token changes")
