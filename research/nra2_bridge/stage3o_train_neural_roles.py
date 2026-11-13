@@ -262,7 +262,7 @@ def main():
         raise AssertionError("S3O checkpoint selection after DEV or frozen NRA changed")
     report={
         "stage":"NRA2_S3O_NATIVE_TOKEN_SEMANTIC_ROLES_TRAIN128_DEV64_EXPLORATORY",
-        "S3N_successful_frozen_CPU_run":43521501320,
+        "S3N_successful_frozen_CPU_run":43522555326,
         "S3K_successful_train64_run":43519730567,
         "real_native_43M_cpu_frozen_full_token_inputs":True,
         "original_616_S194_generated_token_hash_preserved_by_S3N":True,
