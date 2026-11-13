@@ -125,12 +125,16 @@ def train_real_204(a):
         optimizer=torch.optim.AdamW(area.parameters(),lr=NEW_TRAIN_LR,weight_decay=0)
         def novel_train_loss():
             pieces=[]
+            # All novel32 TRAIN examples use the original S93 profile.
+            # Apply once BEFORE constructing their autograd graphs: loading
+            # profile in-place inside the loop invalidates tensors used
+            # by earlier examples during the shared backward pass.
+            s160.apply_profile(cpu[1],cpu[6],"S93",bank,cpu[7],cpu[8])
             for record in chosen:
                 q=record[0]
                 # S190 source-only TRAIN does not use gold to choose route.
                 features=torch.as_tensor(
                     s160.prompt_only_vector(tok,q),dtype=torch.float32)
-                s160.apply_profile(cpu[1],cpu[6],"S93",bank,cpu[7],cpu[8])
                 # S198.new_train_loss already wraps expansion.prefill_only.
                 # Do not nest the same KV prefill hook for the real model.
                 with prefill_only_tunnel(model,full),bridge.prompt_scope("S93",features):
