@@ -1,0 +1,94 @@
+name: CALIBRI S192 protected NEW TRAIN32 pretraining readiness 456+128 no weights
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s191-new-train-full-eos-error-diagnostic-20261113
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s192_prepare_32_new_TRAIN_protected_584_checkpoint_contract:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s192-protected-new-train-readiness-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: research:research/calibri
+      PYTHONHASHSEED: '1290129'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin immutable S179 original, S122 new128, S190 actual new32 CPU and S191 error diagnosis
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43323981995 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42900014855 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43336858062 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43338233327 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43340296813 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43341738229 --jq .conclusion)" = "success"
+          echo S192_ALL_AUTHORIZED_REAL_CPU_SOURCE_PROVENANCE_PINNED
+      - name: Install original S101 pinned CPU tokenizer and TRAIN source dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Download frozen label-free original 456 CPU trace for SHA uniqueness only
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s179-original456-real-second-token-eos-trace-only
+          run-id: 43323981995
+          path: inputs/s179
+          github-token: ${{ github.token }}
+      - name: Download pinned S122 128 original authorized TRAIN curriculum source digest
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s122-precommitted-64-pair-128-question-original-TRAIN-augmentation-only
+          run-id: 42900014855
+          path: inputs/s122
+          github-token: ${{ github.token }}
+      - name: Download immutable S190 true CPU J7 new TRAIN 32 and protected 456 plus128
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s190-real-456-128-plus32-new-TRAIN-paraphrases-J7
+          run-id: 43340296813
+          path: inputs/s190
+          github-token: ${{ github.token }}
+      - name: Download S191 posthoc SHA-only 32 TRAIN errors
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s191-new-train32-posthoc-CPU-error-attribution
+          run-id: 43341738229
+          path: inputs/s191
+          github-token: ${{ github.token }}
+      - name: S192 source-only readiness tests without neural training or weights
+        run: |
+          python -m compileall -q research/calibri2/s192
+          python -m unittest -v calibri2.s192.test_prepare_protected_new_train
+      - name: S192 reconstruct 456 original and 128 S122 TRAIN plus 32 NEW TRAIN under exact tokenizer
+        run: |
+          python research/calibri2/s192/prepare_protected_new_train.py \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s122/S122_TRAIN_ONLY_CROSS_BINDING_CURRICULUM_REPORT.json \
+            inputs/s190/S190_REAL_CPU_32_NEW_TRAIN_PARAPHRASE_PROBES.json \
+            inputs/s191/S191_NEW_TRAIN_32_REAL_CPU_POSTHOC_ERROR_ATTRIBUTION.json \
+            results/s192/S192_PROTECTED_584_PLUS32_NEW_TRAIN_READINESS.json
+          echo S192_PROTECTED_584_PLUS32_SOURCE_TRAIN_READY_NO_MODEL_WEIGHTS_EDITED
+      - name: Archive strictly research-only S192 training readiness and immutable source checks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s192-protected-584-plus32-pretrain-ready-no-weights
+          path: results/s192/
+          if-no-files-found: warn
+          retention-days: 90
