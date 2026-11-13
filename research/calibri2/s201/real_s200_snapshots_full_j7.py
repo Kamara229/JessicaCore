@@ -136,6 +136,37 @@ def main():
     source_original=s199.physical_and_parent
     budget_original=s199.physical_invoice
     stage_original=s199.S199_STAGE
+    # S160 speed audits compare the original frozen S142 parent decoder against
+    # a candidate decoder. An NRA learned at S200 step 8 may alter the parent's
+    # output if left active in the baseline leg. Freeze NRA ONLY on the baseline
+    # leg; keep it active on all candidate decoding and the S190 32 TRAIN probes.
+    from calibri2.s190 import real_cpu_new_train_paraphrase_probe as s190
+    from calibri2.s160 import real_parallel_slots_j7 as s160
+    old_area_install=s199.NeuroRepresentationArea.install
+    old_paired_speed=s190.BASE_SPEED
+    installed_areas=[]
+    def track_area_install(area,model):
+        result=old_area_install(area,model)
+        installed_areas.append(area)
+        return result
+    def parent_only_paired_speed(*args,**kwargs):
+        native_parent_decode=s160.cached_full_cpu_with_neural_copy
+        def frozen_parent_speed_decode(*a,**kw):
+            if len(installed_areas)!=1 or not installed_areas[0]._active:
+                raise AssertionError("S201 physical parent speed requires installed active candidate NRA")
+            area=installed_areas[0]
+            area._active=False
+            try:
+                return native_parent_decode(*a,**kw)
+            finally:
+                area._active=True
+        s160.cached_full_cpu_with_neural_copy=frozen_parent_speed_decode
+        try:
+            return old_paired_speed(*args,**kwargs)
+        finally:
+            s160.cached_full_cpu_with_neural_copy=native_parent_decode
+    s199.NeuroRepresentationArea.install=track_area_install
+    s190.BASE_SPEED=parent_only_paired_speed
     s199.physical_and_parent=lambda parent_zlib,parent_report,candidate_zlib,train_report,destination: load_precommitted_s200(
         step=step,parent_zlib=parent_zlib,parent_report=parent_report,output_path=destination)
     s199.physical_invoice=physical_invoice
@@ -147,6 +178,8 @@ def main():
         s199.physical_and_parent=source_original
         s199.physical_invoice=budget_original
         s199.S199_STAGE=stage_original
+        s199.NeuroRepresentationArea.install=old_area_install
+        s190.BASE_SPEED=old_paired_speed
         sys.argv=original
     out=Path(original[-1])
     old=out/"S199_TRAINED_NRA_REAL_616_CPU_J7_BPP.json"
