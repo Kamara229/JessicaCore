@@ -8,10 +8,10 @@ Learn whether a directed chain establishes a transitive left_of(source, target) 
 
 ## Independent curriculum
 
-- TRAIN: chains with 5 nodes; balanced positive/negative queries separated by 1, 2, 3, or 4 edges. 300 actual CPU gradient updates, mini-batch 96, frozen seed.
-- Exploratory development: new independently generated chains with 6 nodes and **5-edge** transitive relation, never included in training. Balanced negative reversed questions. Metric: full binary decision, correct/total, split by label.
-- Goal for first-stage development qualification: at least 98% TRAIN-distribution evaluation and 95% five-hop development accuracy **after physical FP16 save/reload**. Failure stays recorded; no fake PASS.
-- Limits: synthetic graph family only; development is not sealed QA, not evidence of broad generalization. A future **independent, untouched** test set with distractors, non-chain graphs, and altered relation templates is required before claiming robust generalization.
+- TRAIN: chains with 9 nodes; balanced positive/negative queries separated by 1, 2, 3, 4, or 5 edges, with BOTH queried nodes strictly internal (never endpoint nodes). 300 actual CPU gradient updates, mini-batch 96, frozen seed.
+- Exploratory development: new independently generated chains with 10 nodes and **5-edge** transitive relation. This hop distance IS seen in TRAIN, but the graph size and random label permutations are new; both queried nodes remain internal (degree-matched). An extra 11-node 6-hop stress check is recorded separately and NOT a passing gate. Balanced negative reversed questions. Metric: full binary decision, correct/total, split by label.
+- Goal for first-stage development qualification: at least 98% TRAIN-distribution evaluation and 95% novel-graph-size development accuracy **after physical FP16 save/reload**. Failure stays recorded; no fake PASS.
+- Limits: synthetic graph family only, and 6-hop transfer may fail. Development is not sealed QA, not evidence of broad generalization. A future **independent, untouched** test set with distractors, non-chain graphs, and altered relation templates is required before claiming robust generalization.
 
 ## Interfaces and growth
 
