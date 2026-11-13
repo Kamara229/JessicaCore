@@ -17,10 +17,10 @@ from torch import nn
 
 from .model import RelationalNRA
 
-TRAIN_NODES = 5
-TRAIN_DISTANCES = (1, 2, 3, 4)
-DEV_NODES = 6
-DEV_DISTANCES = (5,)  # a transitive path never present in training
+TRAIN_NODES = 9
+TRAIN_DISTANCES = (1, 2, 3, 4, 5)
+DEV_NODES = 10
+DEV_DISTANCES = (5,)  # new graph size and unseen permutations; depth seen in TRAIN
 MODEL_SEED = 19522026
 
 
@@ -28,7 +28,7 @@ def graph_batch(seed: int, nodes: int, size: int, distances: tuple[int, ...]):
     """Fresh random permutations; balanced positive and reverse-direction cases."""
     if nodes < 3 or size < 2 or size % 2 or not distances:
         raise ValueError("Invalid graph batch shape")
-    if any(d < 1 or d >= nodes for d in distances):
+    if any(d < 1 or d > nodes - 3 for d in distances):
         raise ValueError("Distance outside graph")
     rng = random.Random(seed)
     adj = torch.zeros(size, nodes, nodes)
@@ -41,7 +41,7 @@ def graph_batch(seed: int, nodes: int, size: int, distances: tuple[int, ...]):
         for left, right in zip(order[:-1], order[1:]):
             adj[item, left, right] = 1.0
         distance = rng.choice(distances)
-        start = rng.randrange(nodes - distance)
+        start = rng.randrange(1, nodes - distance - 1)  # keep both endpoints internal
         left, right = order[start], order[start + distance]
         yes = item % 2 == 0
         if not yes:
@@ -134,7 +134,9 @@ def run(*, out: Path, steps: int = 300, learning_rate: float = .006,
         "architecture": {"width": model.width, "hops": model.hops,
                          "trainable_parameters": model.parameter_count()},
         "train_distribution": trained,
-        "unseen_five_hop_dev": unseen,
+        "novel_graph_size_five_hop_dev": unseen,
+        "extra_six_hop_stress_not_gate": evaluate(
+            restored, seed=330001, nodes=11, distances=(6,)),
         "fp16_reloaded_dev": reread,
         "fp16_checkpoint_bytes": checkpoint.stat().st_size,
         "fp16_checkpoint_sha256": hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
