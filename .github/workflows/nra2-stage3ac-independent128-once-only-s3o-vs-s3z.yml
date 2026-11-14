@@ -1,0 +1,122 @@
+name: NRA2 S3AC pinned independent 128 S3O versus S3Z once-only frozen CPU
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3ab-newgrammar128-real-cpu-j7-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3ac-s3aa-independent128-once-only-role-compare
+  cancel-in-progress: false
+jobs:
+  s3ac_128_true_native_cpu_frozen_original_s3o_vs_reversal_s3z:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ac-independent128-frozen-role-compare-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU reader, native S160 tokenizer and original independent NRA
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Verify all four pinned research runs successful and CPU no GPU
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 43532719351 43534027087 43522663612 43532157094 43446925758; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43534027087 --jq .head_branch)" = research/calibri2-nra2-s3ab-newgrammar128-real-cpu-j7-20261114
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S3AC_FROZEN_CPU_ONLY_NO_TRAINING",flush=True)
+          PY
+      - name: Download original S3AA independent 128 topology plus grammar prereg NO SCORE
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3aa-independent-newgrammar128-topology32-preregistered-no-score
+          path: inputs/nra2_stage3aa
+          run-id: '43532719351'
+          github-token: ${{ github.token }}
+      - name: Download S3AB true frozen native 43M CPU128 FP16 and 616 J7 audit
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ab-real43M-s3aa-independent128-tokens320-616J7
+          path: inputs/nra2_stage3ab
+          run-id: '43534027087'
+          github-token: ${{ github.token }}
+      - name: Download original S3O physically frozen query role and graph weights
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3o-real43M-semantic-queryroles-train128-dev64-zero-gate-fp16
+          path: inputs/nra2_stage3o
+          run-id: '43522663612'
+          github-token: ${{ github.token }}
+      - name: Download S3Z trained-only query role head with frozen original graph
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3z-role-reversal256-frozen-graph-train-fp16-zero-gate
+          path: inputs/nra2_stage3z
+          run-id: '43532157094'
+          github-token: ${{ github.token }}
+      - name: Download independent original 2241p read-only NRA
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-standalone-relational-cpu-research-only
+          path: inputs/nra2
+          run-id: '43446925758'
+          github-token: ${{ github.token }}
+      - name: Verify S3AA 128 distinct new graphs and semantic query shapes before any score
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3aa_independent_newgrammar128_prereg research.nra2_bridge.test_stage3o_neural_query_roles
+          python -m compileall -q research/nra2_bridge/stage3ac_independent128_frozen_role_compare.py
+      - name: Score both physically frozen S3O and S3Z one time on same S3AB independent CPU128
+        run: |
+          python -m research.nra2_bridge.stage3ac_independent128_frozen_role_compare \
+            inputs/nra2_stage3ab inputs/nra2_stage3aa inputs/nra2_stage3o \
+            inputs/nra2_stage3z inputs/nra2 results/nra2_stage3ac
+      - name: Enforce honest precommitted paired report and research-only zero gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3ac/NRA2_S3AC_INDEPENDENT128_ROLE_COMPARE_NO_RETUNE.json").read_text())
+          assert r["stage"]=="NRA2_S3AC_ONCE_ONLY_INDEPENDENT128_S3O_VS_S3Z_ROLE_COMPARISON"
+          assert r["S3AA_commitment_sha256"]=="c6815f9bbb39d105d31f896f42edf96c4daac064956d724a9844f9d97818df7e"
+          assert r["S3AB_native_tokens_fp16_sha256"]=="fe240c2003b1251be7162b6fd1a516caba2070ece0184b59f43f2d65109d2c62"
+          assert r["original_616_S194_J7_digest_preserved_by_S3AB"]
+          assert r["graph_weights_bitwise_equal"] and r["graph_logits_bitwise_equal"]
+          assert r["hard_edge_threshold_predeclared"]==0.5
+          assert r["once_only_independent_128_rows_compared"]==128
+          assert r["metrics"]["all"]["count"]==128
+          assert r["metrics"]["source_first"]["count"]==64
+          assert r["metrics"]["destination_first"]["count"]==64
+          assert len(r["question_level"])==128
+          assert not r["train_or_retune_after_scoring"]
+          assert not r["candidate_accepted"] and r["output_gate"]==0.0
+          print("S3AC_INDEPENDENT128_FROZEN_S3O_S3Z_ONCE_ONLY_COMPARE_NO_LEAKAGE",flush=True)
+          PY
+      - name: Archive immutable once-only independent128 paired research score without accepting candidate
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3ac-independent128-s3o-vs-s3z-once-only-frozen-cpu
+          path: results/nra2_stage3ac/
+          retention-days: 90
+          if-no-files-found: error
