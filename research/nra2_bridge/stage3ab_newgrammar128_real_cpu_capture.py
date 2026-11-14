@@ -291,6 +291,7 @@ def main():
         "S3AA_no_training_or_candidate_scoring":True,
         "S3Z_frozen_role_head_fp16_sha256":prior["S3Z_role_head_physical_fp16_sha256_pinned"],
         "S3O_frozen_adapter_fp16_sha256":prior["S3O_original_frozen_fp16_sha256_pinned"],
+        "native_tokenizer_S3O_query_alignment_verified":True,
         "S3AA_query_char_offsets_sha256":hashlib.sha256(json.dumps(prior["query_char_offsets"],sort_keys=True,separators=(",",":")).encode()).hexdigest(),
         "S3N_native_CPU_source_run":43522555326,
         "S3N_192_source_token_fp16_sha256":sha_file(old_s3n_tokens),
