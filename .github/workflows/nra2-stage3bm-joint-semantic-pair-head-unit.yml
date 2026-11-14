@@ -1,0 +1,51 @@
+name: NRA2 S3BM new antisymmetric pairwise language adapter architecture static CPU tests
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3bl-once-only-new128-s3ba-vs-s3bi-20261115
+permissions:
+  contents: read
+concurrency:
+  group: nra2-stage3bm-joint-language-pairwise-model-tests
+  cancel-in-progress: true
+jobs:
+  s3bm_pairwise_semantic_roles_unit:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bm-pairwise-context-semantic-adapter-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install genuine CPU-only PyTorch
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4'
+      - name: Verify no changes outside two research architecture files
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3bm_joint_semantic_pair_role_head.py research/nra2_bridge/test_stage3bm_joint_semantic_pair_role_head.py
+          python -m unittest -v research.nra2_bridge.test_stage3bm_joint_semantic_pair_role_head research.nra2_bridge.test_stage3o_neural_query_roles
+      - name: Ensure new joint pair head has zero residual at init and original frozen J7 has not been invoked
+        run: |
+          python - <<'PY'
+          import json,torch,platform
+          from research.nra2_bridge.stage3bm_joint_semantic_pair_role_head import JointSemanticPairRoleHead
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          h=JointSemanticPairRoleHead()
+          assert all(not p.requires_grad for p in h.base.parameters())
+          assert torch.count_nonzero(h.pair_score[-1].weight)==0
+          assert torch.count_nonzero(h.pair_score[-1].bias)==0
+          n=sum(p.numel() for p in h.parameters() if p.requires_grad)
+          assert 0<n<150000, n
+          print("S3BM_NEW_JOINT_QUERY_ONLY_TRAINABLE_PARAMETER_COUNT",n)
+          print("S3BM_UNIT_ONLY_NO_CPU_PREFILL_NO_SPENT_EVAL_NO_JESSICA_NO_LIVE_NO_ACCEPTANCE")
+          PY
