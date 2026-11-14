@@ -1,18 +1,18 @@
-name: NRA2 S3BD native 43M CPU S3BC structural TRAIN512 original 616 J7 EVAL untouched
+name: NRA2 S3BD native 43M CPU S3BC contrastive TRAIN512 original 616 J7 EVAL untouched
 'on':
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
-      - research/calibri2-nra2-s3bc-structural-train512-prereg-20261114
+      - research/calibri2-nra2-s3bc-contrastive-train512-prereg-20261114
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: nra2-stage3az-new512-grammar-cpu-no-eval
+  group: nra2-stage3bd-new512-rolecontrast-cpu-no-eval
   cancel-in-progress: false
 jobs:
   nra2_true_cpu_s3bc_train512_readonly_616_j7:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bd-structural-train512-real43m-cpu-20261114'
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bd-contrastive512-native43m-cpu-prereg-20261114'
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
@@ -461,7 +461,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43591378375 --jq .conclusion)" = success
-          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43591378375 --jq .head_branch)" = research/calibri2-nra2-s3bc-structural-train512-prereg-20261114
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43591378375 --jq .head_branch)" = research/calibri2-nra2-s3bc-contrastive-train512-prereg-20261114
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43580373587 --jq .conclusion)" = success
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43581666491 --jq .conclusion)" = success
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43582046510 --jq .conclusion)" = success
@@ -553,7 +553,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: nra2-stage3az-real43M-s3bc-newtrain512-tokens320-616J7
+          name: nra2-stage3bd-real43M-s3bc-roletrain512-tokens320-616J7
           path: results/nra2_stage3bd_train512_newparaphrase_tokens/
           retention-days: 90
           if-no-files-found: error
