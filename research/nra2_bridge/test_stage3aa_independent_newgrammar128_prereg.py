@@ -15,7 +15,7 @@ class S3AAResearchPreregisterTests(unittest.TestCase):
         self.assertEqual(sum(r.reachable for r in rows),64)
         self.assertEqual(Counter(r.family for r in rows),
                          {"chain":32,"fork":32,"cycle_sink":32,"diamond":32})
-        old=set(r.topology_key for block in previous_rows() for r in block)
+        old=set(tuple(sorted(r.edges)) for block in previous_rows() for r in block)
         self.assertFalse(old & set(r.topology_key for r in rows))
     def test_two_reversed_two_forward_each_style_balanced(self):
         rows=build_rows()
