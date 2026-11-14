@@ -1,0 +1,128 @@
+name: NRA2 S3AM research TRAIN512 query-role symmetry frozen graph 616 J7
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3al-newtrain256-real43m-cpu-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-stage3am-role-symmetry-research-only
+  cancel-in-progress: false
+jobs:
+  s3am_s3ak_train256_symmetry_plus_rehearsal_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3am-role-symmetry-train512-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU-only research dependencies, no service access
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Verify immutable S3AL native real CPU and original TRAIN parent successes before training
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for n in 43522555326 43530742301 43530401603 43522663612 43539383181 43542086287 43543052453; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$n" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43543052453" --jq .head_branch)" = research/calibri2-nra2-s3al-newtrain256-real43m-cpu-20261114
+      - name: Frozen original real 43M CPU TRAIN128 and immutable 616 J7 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3n-real43M-192pairedgraph-tokens320-616J7
+          path: inputs/nra2_stage3n
+          run-id: '43522555326'
+          github-token: ${{ github.token }}
+      - name: Frozen source/destination reversal TRAIN128 CPU features
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3y-real43M-s3x-reversaltrain128-tokens320-616J7
+          path: inputs/nra2_stage3y
+          run-id: '43530742301'
+          github-token: ${{ github.token }}
+      - name: Pinned reversal TRAIN128 preregistered identities
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3x-reversal-train128-grammar-prereg-no-score
+          path: inputs/nra2_stage3x
+          run-id: '43530401603'
+          github-token: ${{ github.token }}
+      - name: Frozen original S3O graph and S3O-trained query head
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3o-real43M-semantic-queryroles-train128-dev64-zero-gate-fp16
+          path: inputs/nra2_stage3o
+          run-id: '43522663612'
+          github-token: ${{ github.token }}
+      - name: Pinned S3AG role parent physically locked before new TRAIN
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ag-role512-train-frozen-s3o-graph-fp16-zero-gate
+          path: inputs/nra2_stage3ag
+          run-id: '43539383181'
+          github-token: ${{ github.token }}
+      - name: Pinned S3AL original true 43M CPU only new S3AK TRAIN256
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3al-real43M-s3ak-train256-only-tokens320-616J7
+          path: inputs/nra2_stage3al
+          run-id: '43543052453'
+          github-token: ${{ github.token }}
+      - name: Verify dataset split and role query model before any optimizer update
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3am_newtrain256_role_symmetry.py
+          python -m unittest -v research.nra2_bridge.test_stage3ak_newtrain256_futureeval128_prereg research.nra2_bridge.test_stage3x_reversal_train_prereg research.nra2_bridge.test_stage3o_neural_query_roles
+      - name: Train S3AM isolated query-role head, symmetric TRAIN256 and rehearsal256, freeze S3O graph and gate 0
+        run: |
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S3AM_TRAIN_ONLY_ORIGINAL_CPU_FEATURES",flush=True)
+          PY
+          python -m research.nra2_bridge.stage3am_newtrain256_role_symmetry \
+            inputs/nra2_stage3n inputs/nra2_stage3y inputs/nra2_stage3x \
+            inputs/nra2_stage3o inputs/nra2_stage3ag inputs/nra2_stage3al \
+            results/nra2_stage3am_train512_symmetry
+      - name: Strict audit S3AK future EVAL untouched, original graph bitwise, unchanged 616 and SHA
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          d=Path("results/nra2_stage3am_train512_symmetry")
+          r=json.loads((d/"NRA2_S3AM_TRAIN512_ROLE_SYMMETRY_AUDIT.json").read_text())
+          p=d/"NRA2_S3AM_FROZEN_GRAPH_ROLE512_TRAIN_FP16.safetensors"
+          sha=hashlib.sha256(p.read_bytes()).hexdigest()
+          assert r["stage"]=="NRA2_S3AM_TRAIN512_S3AK_ROLE_SYMMETRY_FROZEN_S3O_GRAPH"
+          assert sha==r["new_S3AM_physical_fp16_sha256"] and len(sha)==64
+          assert r["S3AL_real_cpu_successful_run"]==43543052453
+          assert r["S3AK_precommit_SHA"]=="e1c8b0f9ad533482c351c5ac392f5923a59759c57c62d55080d692cbebf5354c"
+          assert r["original_graph_physical_fp16_bitwise_equal"] and r["physical_fp16_reload_equal"]
+          assert r["full_S194_original_616_J7_digests_from_S3AL_protected"]
+          assert r["S3AI_already_scored_EVAL128_NOT_reused_for_training_or_selection"]
+          assert r["S3AK_future_EVAL128_not_prefilled_scored_or_trained"]
+          assert r["train_count"]==512 and r["new_S3AK_TRAIN_count"]==256
+          assert r["only_query_role_head_trained"] and r["original_graph_and_independent_NRA_frozen"]
+          assert r["train_loss_after"]<r["train_loss_before"]
+          assert r["output_gate"]==0.0 and r["candidate_accepted"] is False
+          assert not r["full_original_CPU_J7_candidate_gain_tested"]
+          assert not r["all_in_physical_bpp_tested"] and not r["paired_candidate_CPU_speed_tested"]
+          assert r["Jessica_LIVE_Render_Supabase_APK_main_QA_TEST_unchanged"]
+          print("S3AM_TRAIN512_SYMMETRY_NATIVE_CPU_S3AL_SHA_GUARD_EVAL128_BLIND",sha)
+          PY
+      - name: Archive S3AM frozen-graph role-only research candidate FP16, not accepted, future EVAL128 unscored
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3am-symmetric-role-train512-frozen-s3o-graph-fp16-zero-gate
+          path: results/nra2_stage3am_train512_symmetry/
+          retention-days: 90
+          if-no-files-found: error
