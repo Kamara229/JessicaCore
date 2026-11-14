@@ -1,6 +1,6 @@
 """S3AY split, text-order role label and no DEV/EVAL leakage checks."""
 import unittest
-from research.nra2_bridge.stage3au_train512_paraphrase_prereg import (
+from research.nra2_bridge.stage3ay_structural_train512_prereg import (
     build_rows, commitment, validate, STYLES, DESTINATION_FIRST,
 )
 from research.nra2_bridge.stage3au_train512_paraphrase_prereg import build_rows as prior_s3au_rows
@@ -9,7 +9,7 @@ from research.nra2_bridge.stage3aq_train_dev_futureeval_prereg import (
 )
 
 
-class Stage3AUGuards(unittest.TestCase):
+class Stage3AYGuards(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.rows=build_rows()
