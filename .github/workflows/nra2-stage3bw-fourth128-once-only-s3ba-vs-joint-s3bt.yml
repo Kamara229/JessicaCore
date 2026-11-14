@@ -11,7 +11,7 @@ concurrency:
   group: nra2-s3bw-once-only-fourth128-original43m-zero-gate
   cancel-in-progress: false
 jobs:
-  s3bw_one_time_THIRD_s3bu128_new_joint_role_comparison:
+  s3bw_one_time_FOURTH_s3bu128_new_joint_semantic_roles:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bw-once-only-fourth128-s3ba-vs-s3bt-20261115'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
@@ -87,19 +87,19 @@ jobs:
           path: inputs/nra2
       - name: Validate one-time research code and independent fixed exact McNemar math without blind scoring
         run: |
-          python -m compileall -q research/nra2_bridge/stage3bq_once_only_third128_s3ba_vs_joint_s3bt.py
+          python -m compileall -q research/nra2_bridge/stage3bw_fourth_once_only_s3ba_vs_joint_s3bt.py
           python -m unittest -v research.nra2_bridge.test_stage3bh_mcnemar
       - name: S3BW ONCE ONLY evaluate frozen S3BA against safe S3BT on exactly 128 fresh CPU+gold graph questions
         run: |
-          python -m research.nra2_bridge.stage3bq_once_only_third128_s3ba_vs_joint_s3bt \
+          python -m research.nra2_bridge.stage3bw_fourth_once_only_s3ba_vs_joint_s3bt \
             inputs/s3bv inputs/s3bu inputs/s3ba inputs/s3bt inputs/nra2 \
-            results/nra2_stage3bq_third128_once_only
+            results/nra2_stage3bw_fourth128_once_only
       - name: Verify independent new 128 report no model promotion or test tuning
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          r=json.loads(Path("results/nra2_stage3bq_third128_once_only/NRA2_S3BW_FOURTH_ONCE_ONLY128_S3BA_VS_S3BT_NO_RETUNE.json").read_text())
+          r=json.loads(Path("results/nra2_stage3bw_fourth128_once_only/NRA2_S3BW_FOURTH_ONCE_ONLY128_S3BA_VS_S3BT_NO_RETUNE.json").read_text())
           assert r["stage"]=="NRA2_S3BW_FOURTH_ONCE_ONLY_S3BU128_S3BA_VS_JOINT_S3BT"
           assert r["S3BV_run"]==43650522935 and r["S3BU_prereg_successful_run"]==43649584951
           assert r["S3BU_prereg_commitment_sha256"]=="117fcd79776c6d163b572f8d04b81743429d8c72e74cd072b6a5bedbb38c7f7e"
@@ -125,7 +125,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: nra2-stage3bq-third128-once-only-s3ba-vs-new-joint-s3bt
-          path: results/nra2_stage3bq_third128_once_only/
+          name: nra2-stage3bw-fourth128-once-only-s3ba-vs-new-joint-s3bt
+          path: results/nra2_stage3bw_fourth128_once_only/
           retention-days: 90
           if-no-files-found: error
