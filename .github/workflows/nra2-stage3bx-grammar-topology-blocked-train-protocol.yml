@@ -1,0 +1,67 @@
+name: NRA2 S3BX grammar and topology blocked TRAIN-only protocol
+
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3bw-once-only-fourth128-s3ba-vs-s3bt-20261115
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: nra2-s3bx-frozen-train512-blocked-grammar-topology-protocol
+  cancel-in-progress: true
+
+jobs:
+  s3bx_no_eval_blocked_split_protocol:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bx-grammar-topology-blocked-train-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research:research/calibri
+    steps:
+      - name: Checkout research PR HEAD only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require all four OLD evaluation runs already consumed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for r in 43640363396 43644153544 43648038071 43651233135; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$r" --jq .conclusion)" = success
+          done
+      - name: Static research-only 2-axis splitting protocol tests
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3bx_blocked_family_topology_protocol.py research/nra2_bridge/test_stage3bx_blocked_family_topology_protocol.py
+          python -m unittest -v research.nra2_bridge.test_stage3bx_blocked_family_topology_protocol
+      - name: Seal TRAIN-only fold commitment; NO CPU or weights
+        run: |
+          python -m research.nra2_bridge.stage3bx_blocked_family_topology_protocol results/nra2_stage3bx_blocked_protocol
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          obj=json.loads(Path("results/nra2_stage3bx_blocked_protocol/NRA2_S3BX_BLOCKED_TRAIN_ONLY_PROTOCOL.json").read_text())
+          assert obj["subset_counts_expected"]=={"fit":192,"grammar_guard":192,"topology_guard":64,"double_guard":64}
+          assert not obj["candidate_accepted"] and obj["output_gate"]==0.0
+          assert obj["no_model_weights_CPU_features_training_or_scoring_this_step"]
+          assert obj["no_old_EVAL_content_loaded_retested_or_retuned"]
+          assert obj["these_512_were_used_by_rejected_S3BT_not_independent_EVAL"]
+          assert obj["future_training_must_only_load_fit_partition"]
+          print("S3BX_FROZEN_TRAIN_ONLY_BOTH_AXES_SHA",obj["commitment_sha256"])
+          PY
+      - name: Archive immutable training-only split declaration
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3bx-blocked-grammar-topology-train512-protocol
+          path: results/nra2_stage3bx_blocked_protocol/
+          retention-days: 90
+          if-no-files-found: error
