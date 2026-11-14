@@ -1,0 +1,213 @@
+name: NRA2 S3BN train-only joint clause pairwise role adapter CPU2048 frozen old graph J7
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3bm-pairwise-context-semantic-adapter-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-stage3bn-trainonly-joint-semantic-pair2048-frozen-head
+  cancel-in-progress: false
+jobs:
+  s3bn_train_only_new_pair_layers_2048:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bn-trainonly-joint-role2048-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned pure CPU research dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Verify pinned six genuine CPU TRAIN sources and original 616 J7
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for n in 43522555326 43530742301 43530401603 43522663612 43580373587 43581666491 43582403331 43582744317 43583928298 43587917560 43587711528; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$n" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43582744317" --jq .head_branch)" = research/calibri2-nra2-s3av-train512-native43m-cpu-20261114
+      - name: Frozen original S3N native CPU TRAIN128 and J7
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3n-real43M-192pairedgraph-tokens320-616J7
+          path: inputs/nra2_stage3n
+          run-id: '43522555326'
+          github-token: ${{ github.token }}
+      - name: Frozen S3Y reversal native CPU TRAIN128
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3y-real43M-s3x-reversaltrain128-tokens320-616J7
+          path: inputs/nra2_stage3y
+          run-id: '43530742301'
+          github-token: ${{ github.token }}
+      - name: Frozen S3X reversed TRAIN prereg
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3x-reversal-train128-grammar-prereg-no-score
+          path: inputs/nra2_stage3x
+          run-id: '43530401603'
+          github-token: ${{ github.token }}
+      - name: Frozen S3O original graph and role normalizer
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3o-real43M-semantic-queryroles-train128-dev64-zero-gate-fp16
+          path: inputs/nra2_stage3o
+          run-id: '43522663612'
+          github-token: ${{ github.token }}
+      - name: Frozen S3AS teacher role head 512 rehearsal plus original DEV128
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3as-s3z-init-train512-dev128-paired-roles-fp16-zero-gate
+          path: inputs/nra2_stage3as
+          run-id: '43581666491'
+          github-token: ${{ github.token }}
+      - name: Frozen S3AR original 43M CPU S3AQ TRAIN256 DEV128
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ar-real43M-s3aq-train256-dev128-tokens320-616J7
+          path: inputs/nra2_stage3ar
+          run-id: '43580373587'
+          github-token: ${{ github.token }}
+      - name: Frozen S3AV native CPU novel S3AU TRAIN512
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3av-real43M-s3au-newtrain512-tokens320-616J7
+          path: inputs/nra2_stage3av
+          run-id: '43582744317'
+          github-token: ${{ github.token }}
+      - name: Immutable S3AU new paraphrase TRAIN-only provenance
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3au-newtrain512-paraphrase-prereg-no-model-no-eval
+          path: inputs/nra2_stage3au
+          run-id: '43582403331'
+          github-token: ${{ github.token }}
+      - name: Frozen S3AW locked trained FP16 role-only parent
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3aw-roles-new512-replay512-dev128-fp16-zero-gate
+          path: inputs/nra2_stage3aw
+          run-id: '43583928298'
+          github-token: ${{ github.token }}
+      - name: Frozen S3AZ new S3AY native CPU 512 and original 616 J7
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3az-real43M-s3ay-newtrain512-tokens320-616J7
+          path: inputs/nra2_stage3az
+          run-id: '43587917560'
+          github-token: ${{ github.token }}
+      - name: Immutable S3AY new structural TRAIN512 preregistration
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ay-new-structural-train512-prereg-no-model
+          path: inputs/nra2_stage3ay
+          run-id: '43587711528'
+          github-token: ${{ github.token }}
+      - name: Verify S3BA / S3BC / S3BD physically proven CI before any optimizer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for n in 43590032315 43590817240 43591378375 43591957498; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$n" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43591957498" --jq .head_branch)" = research/calibri2-nra2-s3bd-contrastive512-native43m-cpu-prereg-20261114
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43591378375" --jq .head_branch)" = research/calibri2-nra2-s3bc-contrastive-train512-prereg-20261114
+      - name: Lock S3BA physical FP16 trained head from verified source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ba-role1536-replay1024-structural512-dev128-fp16-zero-gate
+          path: inputs/nra2_stage3ba
+          run-id: '43590032315'
+          github-token: ${{ github.token }}
+      - name: Lock S3BC immutable TRAIN-only contrastive512 prereg without DEV EVAL
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3bc-contrastive-role-train512-prereg-no-model
+          path: inputs/nra2_stage3bc
+          run-id: '43591378375'
+          github-token: ${{ github.token }}
+      - name: Lock S3BD true frozen original 43M CPU TRAIN512 token FP16 original 616 J7
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3bd-real43M-s3bc-roletrain512-tokens320-616J7
+          path: inputs/nra2_stage3bd
+          run-id: '43591957498'
+          github-token: ${{ github.token }}
+      - name: Fail closed S3BN new pair architecture, original J7 provenance and TRAIN split only
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3bn_trainonly_joint_role2048.py
+          python -m unittest -v research.nra2_bridge.test_stage3bm_joint_semantic_pair_role_head research.nra2_bridge.test_stage3o_neural_query_roles research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg
+      - name: Run S3BN brand new joint semantic pair 42869 parameters only on original CPU TRAIN2048
+        run: |
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S3BN_TRUE_CPU_TRAIN_ONLY_2048_S3BA_INIT_J7_ORIGINAL_FROZEN",flush=True)
+          PY
+          PYTHONPATH=.:research:research/calibri OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 python -m research.nra2_bridge.stage3bn_trainonly_joint_role2048 \
+            inputs/nra2_stage3n inputs/nra2_stage3y inputs/nra2_stage3x \
+            inputs/nra2_stage3o inputs/nra2_stage3as inputs/nra2_stage3ar \
+            inputs/nra2_stage3av inputs/nra2_stage3au inputs/nra2_stage3aw \
+            inputs/nra2_stage3az inputs/nra2_stage3ay inputs/nra2_stage3ba \
+            inputs/nra2_stage3bc inputs/nra2_stage3bd \
+            results/nra2_stage3bn_joint2048
+      - name: Physically attest S3BN SAFE joint role FP16 original graph/head frozen and original 616 J7
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path("results/nra2_stage3bn_joint2048")
+          a=json.loads((d/"NRA2_S3BN_JOINT_TRAIN2048_RESEARCH_AUDIT.json").read_text())
+          f=d/"NRA2_S3BN_JOINT_ROLE_SAFE_TRAIN2048_FP16.safetensors"
+          p=load_file(str(f),device="cpu")
+          assert a["stage"]=="NRA2_S3BN_JOINT_PAIR_SEMANTIC_TRAIN2048_NO_EVAL"
+          assert a["S3BM_new_pairwise_architecture"]
+          assert a["S3BM_only_new_pair_trainable_params"]==42869
+          assert a["S3BA_parent_FP16_SHA256"]=="4fedf391ee02b1d1c45c82c3690d212ba9a43e9d0da32446f5d32ac6c379bb09"
+          assert a["original_S3O_graph_FP16_SHA256"]=="40a8903d5419cd8641b5d01e75e429e10b449304b3ba140d2245bf7f8a9d00b6"
+          assert a["S3BD_full_token_fp16_sha256"]=="0d3596a6ef1bac4d7fc3b1b4edbe34103966d2f12b040757d3609eace59a5c78"
+          assert a["train_count"]==2048 and a["optimizer_steps"]==120
+          assert a["seed"]==2026111524 and a["optimizer_lr"]==0.00030
+          assert a["train_loss_after"]<a["train_loss_before"]
+          assert a["original_S194_616_J7_verified_across_six_CPU_TRAIN_sources"]
+          assert a["original_graph_frozen_physical_equal"]
+          assert a["original_S3BA_head_frozen_physical_equal"]
+          assert a["original_normalizer_frozen_physical_equal"]
+          assert a["safe_fp16_reload_bitwise_equal"]
+          assert a["S3AQ_old_independent_EVAL128_ALREADY_CONSUMED_not_loaded_for_fit"]
+          assert a["S3BJ_new_independent_EVAL128_ALREADY_CONSUMED_not_loaded_for_fit"]
+          assert a["no_independent_EVAL_evaluated_or_retuned"]
+          assert a["all_prior_DEV_not_passed_to_model_or_optimizer"]
+          assert a["only_new_role_pair_layers_trained"]
+          assert all(v["net"]>=0 for k,v in a["historic_five_TRAIN_groups_replay_guard"].items()
+                     if k!="S3BC_TRAIN512")
+          assert a["historic_five_TRAIN_groups_replay_guard"]["S3BC_TRAIN512"]["net"]>0
+          assert a["safe_residual_scale_alpha"] in (1.,.75,.5,.25,.125,.0625,.03125)
+          assert float(p["bridge.query.residual_scale"])==a["safe_residual_scale_alpha"]
+          assert hashlib.sha256(f.read_bytes()).hexdigest()==a["safe_new_pairwise_fp16_sha256"]
+          assert len(a["raw_optimizer_fp16_sha256"])==64
+          assert not a["candidate_accepted"] and a["output_gate"]==0.0
+          assert not a["full_EOS_gain_tested"] and not a["physical_all_in_bpp_tested"]
+          assert not a["paired_CPU_speed_tested"]
+          print("S3BN_TRUE_CPU_TRAIN2048_JOINT_SEMANTIC_SAFE_SHA_NO_OLD_EVAL",a["safe_new_pairwise_fp16_sha256"],flush=True)
+          PY
+      - name: Archive S3BN research-only joint semantic pair SAFE/RAW FP16 TRAIN2048, no EVAL
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3bn-joint-semantic-pair-train2048-fp16-zero-gate
+          path: results/nra2_stage3bn_joint2048/
+          retention-days: 90
+          if-no-files-found: error
