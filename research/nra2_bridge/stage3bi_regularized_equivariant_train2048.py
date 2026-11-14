@@ -483,24 +483,72 @@ def main():
         lambda r:r.query_style in S3AY_REVERSED,
         lambda r:r.query_style in S3BC_REVERSED,
     )
-    train_metrics_new=[metrics(candidate,data,rows,selector) for data,rows,selector
-                       in zip(inputs,source_rows,reversed_selectors)]
-    train_metrics_parent=[metrics(baseline,data,rows,selector) for data,rows,selector
+    # S3BI-R1: TRAIN-ONLY trust-region line search after strict replay guard
+    # rejected the unconstrained alpha=1 optimizer candidate in CI #43641294513.
+    # The prior blind S3AQ EVAL is CONSUMED and NEVER touched here. The new
+    # independent S3BJ test remains SEALED (prereg CI #43641688882).
+    # Guarded interpolation uses only the original 2048 TRAIN representations.
+    train_metrics_parent=[metrics(baseline,data,rows,selector)
+                          for data,rows,selector
                           in zip(inputs,source_rows,reversed_selectors)]
-    # No-forgetting guard on historical TRAIN groups (strict both-role floor).
     group_names=("S3M_TRAIN128","S3X_TRAIN128","S3AQ_TRAIN256",
                  "S3AU_TRAIN512","S3AY_TRAIN512","S3BC_TRAIN512")
-    replay_guard={}
-    for i,name in enumerate(group_names):
-        old_n=train_metrics_parent[i]["all"]["both_correct"]
-        new_n=train_metrics_new[i]["all"]["both_correct"]
-        replay_guard[name]={"parent_correct":old_n,"candidate_correct":new_n,
-                            "candidate_net":new_n-old_n}
-    require(all(replay_guard[k]["candidate_net"]>=0 for k in group_names[:5]),
-            "S3BI reject: loss of historical TRAIN semantic roles; zero gate")
-    require(sha_file(model_file)==fp16_sha and sha_file(parent)==S3BA_SHA
+    # Discrete predeclared TRUST-REGION candidate weights. Refuse any replay
+    # regression on the first five TRAIN group aggregates (not just mean loss).
+    trust_alphas=(1.0,.75,.5,.25,.125,.0625,.03125,.015625)
+    safe_model_file=out/"NRA2_S3BI_S3BA_INIT_SAFE_ROLE2048_FP16.safetensors"
+    raw_sha=fp16_sha
+    trials=[]
+    selected=None
+    chosen_metrics=None
+    for alpha in trust_alphas:
+        trial={}
+        for k,v in reloaded.items():
+            if k.startswith("bridge.query."):
+                trial[k]=(parent_weights[k].float()+alpha*(v.float()-parent_weights[k].float())).half().contiguous()
+            else:
+                trial[k]=parent_weights[k].detach().clone().contiguous()
+        candidate.load_state_dict({k.removeprefix("bridge."):v for k,v in trial.items()
+                                   if k.startswith("bridge.")},strict=True)
+        try_metrics=[metrics(candidate,data,rows,selector)
+                     for data,rows,selector
+                     in zip(inputs,source_rows,reversed_selectors)]
+        guard={}
+        for i,name in enumerate(group_names):
+            prev=train_metrics_parent[i]["all"]["both_correct"]
+            now=try_metrics[i]["all"]["both_correct"]
+            guard[name]={"parent_correct":prev,"candidate_correct":now,
+                         "candidate_net":now-prev}
+        safe=all(guard[k]["candidate_net"]>=0 for k in group_names[:5])
+        new_S3BC_gain=guard["S3BC_TRAIN512"]["candidate_net"]
+        changed_any=any(trial[k].ne(parent_weights[k]).any().item()
+                        for k in trial if k.startswith("bridge.query."))
+        trials.append({"alpha":alpha,"historical_TRAIN_replay_safe":safe,
+                       "new_S3BC_TRAIN_gain":new_S3BC_gain,
+                       "physical_changed_query":changed_any,
+                       "TRAIN_role_guard":guard})
+        if safe and changed_any and new_S3BC_gain>0:
+            selected=(alpha,trial,guard)
+            chosen_metrics=try_metrics
+            break
+    print(json.dumps({"stage":"S3BI_R1_TRAIN_ONLY_TRUST_REGION",
+                      "trial_diagnostics":trials},sort_keys=True),flush=True)
+    require(selected is not None,
+            "S3BI-R1 no trust-region step improves S3BC TRAIN without old TRAIN forgetting")
+    selected_alpha,selected_weights,replay_guard=selected
+    train_metrics_new=chosen_metrics
+    save_file(selected_weights,str(safe_model_file))
+    safe_reload=load_file(str(safe_model_file),device="cpu")
+    require(set(safe_reload)==set(selected_weights)
+            and all(torch.equal(safe_reload[k],v) for k,v in selected_weights.items()),
+            "safe role-head physical FP16 reload mismatch")
+    require(all(torch.equal(safe_reload[k],parent_weights[k])
+                for k in parent_weights if not k.startswith("bridge.query.")),
+            "S3BI-R1 frozen graph or normalizer changed")
+    fp16_sha=sha_file(safe_model_file)
+    require(sha_file(model_file)==raw_sha and sha_file(parent)==S3BA_SHA
             and sha_file(bd_tok)==S3BD_TOKEN_SHA,
-            "physical role-head or source model SHA changed after TRAIN-only readout")
+            "physical role-head, ancestor or source model SHA changed after TRAIN-only trust search")
     report={
         "stage":"NRA2_S3BI_S3BA_INIT_2048_TRAIN_ONLY_ROLE_HEAD_NO_DEV_SCORE",
         "S3BA_pinned_parent_run":S3BA_RUN,
@@ -513,7 +561,13 @@ def main():
         "S3BD_labels_sha256":S3BD_LABELS_SHA,
         "S3O_graph_original_fp16_sha256":S3O_SHA,
         "new_S3BI_physical_fp16_sha256":fp16_sha,
-        "new_S3BI_physical_fp16_size":model_file.stat().st_size,
+        "raw_optimizer_S3BI_physical_fp16_sha256":raw_sha,
+        "TRAIN_only_safe_candidate_alpha":selected_alpha,
+        "TRAIN_only_trust_region_trials":trials,
+        "TRAIN_only_checkpoint_selected_without_any_EVAL_DEV":True,
+        "S3BI_R0_rejected_train_guard_run":43641294513,
+        "S3BJ_new_blind128_unopened_and_cpu_not_captured":True,
+        "new_S3BI_physical_fp16_size":safe_model_file.stat().st_size,
         "physical_fp16_reload_equal":True,
         "original_graph_physical_fp16_bitwise_equal":True,
         "original_frozen_43M_normalizer_bitwise_equal":True,
