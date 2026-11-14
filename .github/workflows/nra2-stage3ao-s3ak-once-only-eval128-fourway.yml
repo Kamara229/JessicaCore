@@ -1,0 +1,145 @@
+name: NRA2 S3AO once-only S3AK EVAL128 fourway S3O S3Z S3AG S3AM
+'on':
+  pull_request:
+    types: [opened]
+    branches:
+      - research/calibri2-nra2-s3an-s3ak-eval128-real43m-cpu-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3ao-s3ak-frozen-fourway-once-only
+  cancel-in-progress: false
+jobs:
+  s3ao_once_only_s3ak_eval128_four_frozen_roles:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ao-once-only-eval128-fourway-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install immutable CPU reader, native S160 tokenizer and independent NRA
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Pin prior successful CI and role/CPU provenance; no GPU and no tuning
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 43542086287 43572358979 43522663612 43532157094 43539383181 43544245980 43446925758; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43572358979 --jq .head_branch)" = research/calibri2-nra2-s3an-s3ak-eval128-real43m-cpu-20261114
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43544245980 --jq .head_branch)" = research/calibri2-nra2-s3am-role-symmetry-train512-20261114
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S3AO_FOURWAY_CPU_FROZEN_ONCE_ONLY",flush=True)
+          PY
+      - name: Load locked S3AK original TRAIN256 and future EVAL128 prereg
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ak-newtrain256-futureeval128-preregistered-no-scores
+          path: inputs/nra2_stage3ak
+          run-id: '43542086287'
+          github-token: ${{ github.token }}
+      - name: Load original native 43M S3AN EVAL128 CPU FP16, never scored
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3an-independent-eval128-real43M-tokens320-616J7
+          path: inputs/nra2_stage3an
+          run-id: '43572358979'
+          github-token: ${{ github.token }}
+      - name: Load S3O original physically frozen graph and role FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3o-real43M-semantic-queryroles-train128-dev64-zero-gate-fp16
+          path: inputs/nra2_stage3o
+          run-id: '43522663612'
+          github-token: ${{ github.token }}
+      - name: Load S3Z physically fixed reversal role FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3z-role-reversal256-frozen-graph-train-fp16-zero-gate
+          path: inputs/nra2_stage3z
+          run-id: '43532157094'
+          github-token: ${{ github.token }}
+      - name: Load previously frozen S3AG role512 FP16 for historical comparison
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ag-role512-train-frozen-s3o-graph-fp16-zero-gate
+          path: inputs/nra2_stage3ag
+          run-id: '43539383181'
+          github-token: ${{ github.token }}
+      - name: Load S3AM new role-symmetry TRAIN512, physical SHA fixed BEFORE S3AN EVAL
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3am-symmetric-role-train512-frozen-s3o-graph-fp16-zero-gate
+          path: inputs/nra2_stage3am
+          run-id: '43544245980'
+          github-token: ${{ github.token }}
+      - name: Load independent frozen 2241p NRA
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-standalone-relational-cpu-research-only
+          path: inputs/nra2
+          run-id: '43446925758'
+          github-token: ${{ github.token }}
+      - name: Preflight original S3AK dataset, role inference and locked protocol before scoring
+        run: |
+          test -s research/nra2_bridge/STAGE3AO_LOCKED_EVAL128_FOURWAY_PROTOCOL.md
+          python -m unittest -v research.nra2_bridge.test_stage3ak_newtrain256_futureeval128_prereg research.nra2_bridge.test_stage3o_neural_query_roles
+          python -m compileall -q research/nra2_bridge/stage3ao_once_only_eval128_fourway_role_compare.py
+      - name: Once only score all four frozen heads on original S3AK EVAL128
+        run: |
+          python -m research.nra2_bridge.stage3ao_once_only_eval128_fourway_role_compare \
+            inputs/nra2_stage3an inputs/nra2_stage3ak inputs/nra2_stage3o \
+            inputs/nra2_stage3z inputs/nra2_stage3ag inputs/nra2_stage3am \
+            inputs/nra2 results/nra2_stage3ao
+      - name: Verify exactly once four-way audit and do not accept candidate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra2_stage3ao/NRA2_S3AO_ONCE_ONLY_EVAL128_FOURWAY_NO_RETUNE.json")
+          r=json.loads(p.read_text())
+          assert r["stage"]=="NRA2_S3AO_ONCE_ONLY_INDEPENDENT_EVAL128_S3O_VS_S3Z_VS_S3AG_VS_S3AM"
+          assert r["S3AK_commitment_sha256"]=="e1c8b0f9ad533482c351c5ac392f5923a59759c57c62d55080d692cbebf5354c"
+          assert r["S3AN_native_tokens_fp16_sha256"]=="0b75c0f271cf580b04c38af665c0d52c373f37444f9dc13c2588afdbd59b4863"
+          assert r["S3AM_role_head_FP16_sha256"]=="c5c400fc8249ea474263c9388f03e1496320bc8f6b793f93d155a962c3bf0eef"
+          assert r["original_616_S194_J7_digest_preserved_by_S3AN"]
+          assert r["hard_edge_threshold_predeclared"]==0.5
+          assert r["four_frozen_role_heads_only_compared"]
+          assert r["graph_weights_bitwise_equal"] and r["graph_logits_bitwise_equal"]
+          assert r["once_only_independent_128_rows_compared"]==128
+          assert r["metrics"]["all"]["count"]==128
+          assert r["metrics"]["source_first"]["count"]==64 and r["metrics"]["destination_first"]["count"]==64
+          assert len(r["question_level"])==128
+          for k in ("S3O","S3Z","S3AG","S3AM"):
+              assert k in r["metrics"]["all"]
+          assert "paired_reachability_S3O_vs_S3AM" in r["metrics"]["all"]
+          assert r["no_winner_selected_on_EVAL128"]
+          assert not r["train_or_retune_after_scoring"]
+          assert not r["candidate_accepted"] and r["output_gate"]==0.0
+          print("S3AO_EVAL128_S3O_S3Z_S3AG_S3AM_FROZEN_NO_TUNING_NO_ACCEPT",flush=True)
+          PY
+      - name: Archive immutable one-time EVAL128 comparison; never reuse for tuning
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3ao-once-only-eval128-s3o-s3z-s3ag-s3am
+          path: results/nra2_stage3ao/
+          retention-days: 90
+          if-no-files-found: error
