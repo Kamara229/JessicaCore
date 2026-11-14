@@ -16,7 +16,7 @@ from safetensors.torch import save_file,load_file
 from calibri2.s194.actual_cpu_j7_bridge import real_j7_baseline,output_digest
 from nra2_bridge.stage3e_token_features import FrozenAllTokenFeatures
 from nra2_bridge.passive_final_layer import NRA2PassiveFinalLayer
-from nra2_bridge.stage3bj_future_independent128_prereg import (
+from nra2_bridge.stage3bo_third_future_independent128_prereg import (
     build_rows,validate,commitment,SPLIT as EVAL,
 )
 from nra2_bridge.stage3t_unseen_wording_prereg import query_char_offsets
