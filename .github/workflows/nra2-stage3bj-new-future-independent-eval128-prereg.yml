@@ -1,0 +1,73 @@
+name: NRA2 S3BJ prereg new blind independent128 after prior EVAL consumed no model
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3bi-regularized-equivariant-adapter-train2048-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3bj-future-blind-new128-hash-prereg-only
+  cancel-in-progress: false
+jobs:
+  s3bj_new_unseen_graph_and_grammar_no_score:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bj-new-blind-eval128-prereg-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '20261115'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Confirm original independent S3AQ split and consumed S3BH success
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for n in 43579926284 43640363396 43590032315; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$n" --jq .conclusion)" = success
+          done
+      - name: Validate 128 fresh EVAL question IDs and topology not in old research (no inference)
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3bj_future_independent128_prereg.py research/nra2_bridge/test_stage3bj_future_independent128_prereg.py
+          python -m unittest -v research.nra2_bridge.test_stage3bj_future_independent128_prereg
+      - name: Materialize sha-locked new future blind 128 protocol ONLY, no CPU tokens or scoring
+        run: |
+          python -m research.nra2_bridge.stage3bj_future_independent128_prereg results/nra2_stage3bj_new_future_eval128
+      - name: Verify new future independent EVAL128 remains sealed and separate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3bj_new_future_eval128/NRA2_S3BJ_FUTURE_INDEPENDENT_EVAL128_PREREG.json").read_text())
+          assert r["stage"]=="NRA2_S3BJ_FUTURE_INDEPENDENT128_PREREG_NO_CPU_NO_MODEL"
+          assert r["protocol"]=="ONE_TIME_FUTURE_INDEPENDENT_UNOPENED_BLIND"
+          assert r["original_S3AQ_registered_sha256"]=="c55799793263d5b4175fdfd62c293bcc2cb1794c73fa6ba856cf8b0a961f7839"
+          assert r["S3AQ_old_EVAL128_ALREADY_CONSUMED_at_S3BH"]==43640363396
+          assert r["old_EVAL128_must_never_be_used_for_training_or_new_blind"]
+          assert r["count"]==128 and r["graph_count"]==32 and r["grammar_count"]==4
+          assert r["source_first"]==r["destination_first"]==64
+          assert r["yes"]==r["no"]==64
+          assert len(set(r["question_sha256"]))==128
+          assert len(set(r["topology_sha256"]))==32
+          assert r["no_model_weights_or_CPU_capture_or_adaptor_scoring"]
+          assert r["candidate_S3BI_physical_FP16_must_be_locked_before_new_eval_CPU"]
+          assert not r["future_candidate_accepted"] and r["output_gate"]==0
+          assert len(r["commitment_sha256"])==64
+          print("S3BJ_NEW_FUTURE_BLIND_128_SHA_LOCKED_NO_MODEL",r["commitment_sha256"])
+          PY
+      - name: Archive immutable new future independent EVAL128 prereg without CPU or candidate score
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3bj-new-independent-blind-eval128-prereg-only-no-cpu
+          path: results/nra2_stage3bj_new_future_eval128/
+          retention-days: 90
+          if-no-files-found: error
