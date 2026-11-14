@@ -21,3 +21,11 @@ Exactly 2048 existing genuine original CPU **TRAIN-only** token sequences, in fi
 ## After S3BI (a different branch/stage)
 
 If TRAIN-only guards pass, separately preregister NEW truly independent held-out graph topologies and novel question syntax, disjoint from all old S3AQ and historical datasets. Lock S3BI FP16 SHA and blind protocol before authentic original CPU captures. Only then one-time compare with fixed S3BA baseline; never reuse S3BH EVAL for model selection.
+
+## R1 amendment after TRAIN-only guard rejection (not from heldout)
+
+The initial S3BI research CI **#43641294513** successfully completed all 20 preliminary integrity tests and original frozen-CPU TRAIN2048 training but **rejected the full optimizer head** because at least one of five historical TRAIN role-group counts regressed. No S3BI model was promoted, published as successful or evaluated on blind questions. The S3BJ independent blind128 remains sealed (CI #43641688882 success; SHA `e48faef1a8b164cad9641f1b5946932f15c27baeeab47d829fb5ec754dd46265`).
+
+R1 preserves the *identical* original training objective, seed, 120-step optimizer and all six frozen CPU TRAIN2048 sources. After fitting and persisting the raw TRAIN candidate, it tests only a **predeclared TRAIN-only trust-region family**: physical query tensors = S3BA query tensors + alpha * (raw S3BI query tensors - S3BA query tensors), alpha in [1, 0.75, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625]. Choose the FIRST (largest alpha) with (1) zero negative net TRAIN both-role accuracy against S3BA in ALL five older TRAIN groups, (2) strictly positive TRAIN S3BC group gain, (3) at least one physical FP16 query tensor changed; otherwise fail closed. This is **training-set constrained rollback**, NOT validation on either old or new EVAL. Publish raw head separately and a newly SHA-locked safe FP16 research head only when the guard passes, gate 0 and candidate_accepted false regardless.
+
+Previous S3AQ DEV and consumed EVAL, as well as freshly precommitted S3BJ EVAL are **not read/scored/used** in R1; the held-out evaluation will need its own later stage and no retuning following that one-time test.
