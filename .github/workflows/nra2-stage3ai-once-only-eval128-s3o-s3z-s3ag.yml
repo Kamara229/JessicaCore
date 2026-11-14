@@ -106,7 +106,7 @@ jobs:
           r=json.loads(Path("results/nra2_stage3ai/NRA2_S3AI_ONCE_ONLY_EVAL128_THREEWAY_NO_RETUNE.json").read_text())
           assert r["stage"]=="NRA2_S3AI_ONCE_ONLY_INDEPENDENT_EVAL128_S3O_VS_S3Z_VS_S3AG"
           assert r["S3AE_commitment_sha256"]=="0ccbb2b19b3feb93b79f5dcbc892f2e414a564b6e4d83e52997098346e4f480f"
-          assert r["S3AH_native_tokens_fp16_sha256"]=="ef25951db280c9968932c200ba7b4b5c58625bdd69ac200e4e08e38861cb0f7"
+          assert r["S3AH_native_tokens_fp16_sha256"]=="ef25951db280c9968932c200ba7b4b5c58625bdd69ac200e4e08e38861cb80f7"
           assert r["S3AG_role_head_FP16_sha256"]=="2c23de87efc2369ed6fc0880604420070c116a4ee70b66a4eb0a946f1afeb118"
           assert r["original_616_S194_J7_digest_preserved_by_S3AH"]
           assert r["graph_weights_bitwise_equal"] and r["graph_logits_bitwise_equal"]
