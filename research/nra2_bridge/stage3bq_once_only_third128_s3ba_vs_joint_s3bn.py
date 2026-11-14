@@ -16,7 +16,7 @@ import torch
 import torch.nn.functional as F
 from safetensors.torch import load_file
 
-from research.nra2_bridge.stage3bj_future_independent128_prereg import (
+from research.nra2_bridge.stage3bo_third_future_independent128_prereg import (
     build_rows,validate,commitment,SPLIT as EVAL,DESTINATION_FIRST as REVERSED_STYLES,FAMILIES,
 )
 from research.nra2_bridge.stage3j_token_entity_alignment import validate_without_gold
