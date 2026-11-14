@@ -1,0 +1,116 @@
+name: NRA2 S3Z small role head 256 TRAIN rehearsal original graph frozen CPU
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3y-reversal-train128-real-cpu-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3z-256-train-role-reversal-only
+  cancel-in-progress: false
+jobs:
+  s3z_256_train_query_roles_only_frozen_s3o_graph_and_original_616_j7:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3z-role-reversal-train256-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU tools and literal original SmolLM tokenizer
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Pin original S3N S3O new S3X and final S3Y true 43M CPU success
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 43522555326 43522663612 43530401603 43530742301; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43530742301 --jq .head_branch)" = research/calibri2-nra2-s3y-reversal-train128-real-cpu-20261114
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S3Z_GENUINE_CPU_ONLY_QUERY_ROLE_TRAINING_ISOLATED",flush=True)
+          PY
+      - name: Import original TRAIN128 plus exploratory DEV64 full native CPU tokens and J7
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3n-real43M-192pairedgraph-tokens320-616J7
+          path: inputs/nra2_stage3n
+          run-id: '43522555326'
+          github-token: ${{ github.token }}
+      - name: Import S3Y truly frozen 43M CPU new TRAIN128 reversal grammar physical FP16 and J7
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3y-real43M-s3x-reversaltrain128-tokens320-616J7
+          path: inputs/nra2_stage3y
+          run-id: '43530742301'
+          github-token: ${{ github.token }}
+      - name: Import precommitted S3X new TRAIN-only grammar SHA and no-score audit
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3x-reversal-train128-grammar-prereg-no-score
+          path: inputs/nra2_stage3x
+          run-id: '43530401603'
+          github-token: ${{ github.token }}
+      - name: Import original physically frozen S3O learned roles baseline and graph adapter
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3o-real43M-semantic-queryroles-train128-dev64-zero-gate-fp16
+          path: inputs/nra2_stage3o
+          run-id: '43522663612'
+          github-token: ${{ github.token }}
+      - name: Validate old/new frozen grammar and nonoracle role classification
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3x_reversal_train_prereg research.nra2_bridge.test_stage3o_neural_query_roles
+          python -m compileall -q research/nra2_bridge/stage3z_train_reversal_roles_rehearsal256.py
+      - name: Role head only fixed 256 TRAIN original+reversed FP16 commit before one DEV64
+        run: |
+          python -m research.nra2_bridge.stage3z_train_reversal_roles_rehearsal256 \
+            inputs/nra2_stage3n inputs/nra2_stage3y inputs/nra2_stage3x \
+            inputs/nra2_stage3o results/nra2_stage3z
+      - name: Fail closed on old graph drift leakage original J7 candidate acceptance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra2_stage3z/NRA2_S3Z_ROLE_REVERSAL_REHEARSAL256_REPORT.json")
+          r=json.loads(p.read_text())
+          assert r["stage"]=="NRA2_S3Z_TRAIN_ONLY_ROLE_REVERSAL_REHEARSAL256_FROZEN_GRAPH"
+          assert r["S3Y_successful_frozen_cpu_run"]==43530742301
+          assert r["original_616_J7_preserved_independently_in_S3N_and_S3Y"]
+          assert r["original_S3O_graph_FP16_bitwise_equal"]
+          assert r["original_S3O_physical_fp16_unchanged_sha256"]=="40a8903d5419cd8641b5d01e75e429e10b449304b3ba140d2245bf7f8a9d00b6"
+          assert r["only_small_query_role_head_trained"]
+          assert r["optimizer_original_S3M_TRAIN128_and_new_S3X_TRAIN128"]
+          assert r["original_S3M_DEV64_never_in_optimizer"]
+          assert r["original_S3T64_never_in_optimizer_and_not_scored_in_this_stage"]
+          assert r["train_count"]==256 and r["exploratory_dev_count"]==64
+          assert r["new_grammar_loss_after"]<r["new_grammar_loss_before"] or r["train_loss_after"]<r["train_loss_before"]
+          assert not r["candidate_accepted"] and r["output_gate"]==0.0
+          assert r["new_independent_blind_future_test_required"]
+          print("S3Z_ROLE_ONLY_REHEARSAL_256_FP16_S3O_GRAPH_BITWISE_FROZEN_616_J7",flush=True)
+          PY
+      - name: Archive nonaccepted research-only physically committed S3Z FP16 and honest DEV score
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3z-role-reversal256-frozen-graph-train-fp16-zero-gate
+          path: results/nra2_stage3z/
+          retention-days: 90
+          if-no-files-found: error
