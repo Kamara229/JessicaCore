@@ -1,0 +1,89 @@
+name: NRA2 S3AE prereg fresh TRAIN256 future independent EVAL128 NO SCORING
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3ad-independent128-error-audit-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3ae-train256-future128-prereg-only
+  cancel-in-progress: false
+jobs:
+  s3ae_precommit_disjoint_train_and_future_eval_no_cpu_or_weights:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ae-new-train256-eval128-prereg-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin already scored S3AC128 and S3AD diagnostic; never recycle as new blind
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 43535868240 43536390826 43534027087; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+      - name: Validate 8 new query templates, 96 mutually unseen topology graphs and anti-leakage
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3ae_train256_future_eval128_prereg
+          python -m compileall -q research/nra2_bridge/stage3ae_train256_future_eval128_prereg.py
+          python - <<'PY'
+          from collections import Counter
+          from research.nra2_bridge.stage3ae_train256_future_eval128_prereg import *
+          rows=build_rows()
+          assert validate(rows)
+          assert len(rows)==384
+          assert Counter(r.split for r in rows)=={TRAIN:256,EVAL:128}
+          assert len({r.topology_key for r in rows})==96
+          assert len({r.prompt_sha256 for r in rows})==384
+          a=commitment(rows)
+          assert a==commitment(build_rows())
+          assert a["splits"][TRAIN]["yes_count"]==128
+          assert a["splits"][EVAL]["yes_count"]==64
+          assert a["splits"][TRAIN]["destination_first_count"]==128
+          assert a["splits"][EVAL]["destination_first_count"]==64
+          assert a["future_CPU_acquisition_and_training_not_started"]
+          assert a["no_weights_or_training_or_scores"]
+          assert a["gate"]==0.0
+          print("S3AE_NEW_TRAIN256_SEPARATE_FUTURE_EVAL128_LABEL_BALANCED_NO_CPU_OR_SCORING",flush=True)
+          PY
+      - name: Persist exact question/topology SHA for TRAIN and future EVAL before training
+        run: |
+          python -m research.nra2_bridge.stage3ae_train256_future_eval128_prereg results/nra2_stage3ae
+      - name: Validate immutable prereg structure and both splits before artifact
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra2_stage3ae/NRA2_S3AE_NEW_TRAIN256_FUTURE_EVAL128_PREREG.json")
+          r=json.loads(p.read_text())
+          assert r["stage"]=="NRA2_S3AE_PRECOMMIT_DISJOINT_NEW_TRAIN256_FUTURE_EVAL128_NO_SCORE"
+          assert r["original_S3AC_successful_run"]==43535868240
+          assert r["original_S3AD_post_score_diagnosis_successful_run"]==43536390826
+          assert r["previous_S3AA_is_already_scored_and_NOT_future_blind"]
+          assert r["splits"]["S3AE_NEW_TRAIN256"]["count"]==256
+          assert r["splits"]["S3AE_FUTURE_INDEPENDENT_EVAL128"]["count"]==128
+          assert r["new_eval_excluded_from_optimizer_and_checkpoint_selection"]
+          assert r["no_weights_or_training_or_scores"]
+          assert r["future_CPU_acquisition_and_training_not_started"]
+          assert r["original_S194_616_J7_guard_required"]
+          assert r["gate"]==0.0 and r["no_candidate_accepted"]
+          print("S3AE_PREREG_IMMUTABLE_SPLIT_SHAS_COMMITTED_BEFORE_CPU_TRAINING",flush=True)
+          PY
+      - name: Archive TRAIN256 and distinct independent FUTURE128 prereg-only
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3ae-newtrain256-futureeval128-distinct-graph-grammar-preregistered
+          path: results/nra2_stage3ae/
+          retention-days: 90
+          if-no-files-found: error
