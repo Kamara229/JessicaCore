@@ -56,7 +56,7 @@ def old_rows():
 
 def build_rows():
     old=old_rows()
-    used={r.topology_key for r in old}
+    used={tuple(sorted(r.edges)) for r in old}
     prior_prompt={r.prompt_sha256 for r in old}
     known_phrasings=set(S3M_STYLES)|set(S3T_STYLES)|set(S3X_STYLES)|set(S3AA_STYLES)
     all_styles=[s for value in STYLES.values() for s in value]
@@ -105,7 +105,7 @@ def build_rows():
 
 def validate(rows):
     old=old_rows()
-    old_t={r.topology_key for r in old}
+    old_t={tuple(sorted(r.edges)) for r in old}
     old_p={r.prompt_sha256 for r in old}
     if (len(rows)!=384 or len({r.prompt_sha256 for r in rows})!=384
         or {r.split for r in rows}!={TRAIN,EVAL}
