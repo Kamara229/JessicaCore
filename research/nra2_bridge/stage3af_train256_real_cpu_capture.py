@@ -146,7 +146,7 @@ def main():
         h for v in previously["split_groups"].values() for h in v["prompt_sha256"]
     )
     if prompt_hashes & previous_sha:
-        raise AssertionError("S3AF new independent S3AA prompts overlap previous CPU data")
+        raise AssertionError("S3AF new S3AE TRAIN256 prompts overlap previous CPU data")
     from calibri2.s112 import prompt_conditioned_first_token_mps as s112
     from calibri2.s160 import real_parallel_slots_j7 as s160
     from calibri2.s190 import real_cpu_new_train_paraphrase_probe as s190
