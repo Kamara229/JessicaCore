@@ -1,0 +1,76 @@
+name: NRA2 S3BO third independent future blind EVAL128 prereg only NO model
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3bn-trainonly-joint-role2048-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3bo-third-new-blind128-prereg-hash-only
+  cancel-in-progress: false
+jobs:
+  s3bo_third_new_blind128_sha_lock_no_models:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bo-third-untouched128-prereg-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '20261115'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify older two independent EVAL128s are consumed and not eligible for reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for n in 43579926284 43641688882 43640363396 43644153544; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$n" --jq .conclusion)" = success
+          done
+      - name: Validate fresh disjoint 16 graph topologies times eight unseen language patterns
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3bo_third_future_independent128_prereg.py research/nra2_bridge/test_stage3bo_third_future_independent128_prereg.py
+          python -m unittest -v research.nra2_bridge.test_stage3bo_third_future_independent128_prereg
+      - name: Commit THIRD independent future EVAL128 hash protocol no neural weights or CPU capture
+        run: |
+          python -m research.nra2_bridge.stage3bo_third_future_independent128_prereg results/nra2_stage3bo_future_third_eval128
+      - name: Verify frozen future protocol is independent of all previous model work
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra2_stage3bo_future_third_eval128/NRA2_S3BO_THIRD_FUTURE_EVAL128_PREREG.json")
+          d=json.loads(p.read_text())
+          assert d["stage"]=="NRA2_S3BO_THIRD_FUTURE_INDEPENDENT_EVAL128_NO_MODEL_NO_CPU"
+          assert d["prior_S3AQ_consume_heldout"]==43640363396
+          assert d["prior_S3BJ_consume_heldout"]==43644153544
+          assert d["prior_original_S3AQ_SHA256"]=="c55799793263d5b4175fdfd62c293bcc2cb1794c73fa6ba856cf8b0a961f7839"
+          assert d["prior_S3BJ_SHA256"]=="e48faef1a8b164cad9641f1b5946932f15c27baeeab47d829fb5ec754dd46265"
+          assert d["question_count"]==128 and d["new_graph_topology_count"]==16
+          assert d["new_grammar_style_count"]==8
+          assert d["yes_count"]==d["no_count"]==64
+          assert d["source_first_count"]==d["destination_first_count"]==64
+          assert len(set(d["questions_in_order_sha256"]))==128
+          assert len(set(d["graph_sha256_in_order"]))==16
+          assert d["S3BN_frozen_candidate_SHA_required_before_CPU_capture_or_scores"]
+          assert d["no_spent_EVALs_reused_as_NEW_blind_or_fit"]
+          assert d["no_model_weights_original_CPU_inference_or_adapter_scoring"]
+          assert not d["candidate_accepted"] and d["output_gate"]==0.
+          assert len(d["commitment_sha256"])==64
+          print("S3BO_THIRD_FUTURE_INDEPENDENT_128_SHA_LOCKED_NO_MODEL",d["commitment_sha256"],flush=True)
+          PY
+      - name: Archive immutable third future EVAL128 prereg without CPU or model scores
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3bo-third-independent-eval128-prereg-only-no-cpu
+          path: results/nra2_stage3bo_future_third_eval128/
+          retention-days: 90
+          if-no-files-found: error
