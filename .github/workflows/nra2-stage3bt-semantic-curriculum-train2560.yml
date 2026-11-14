@@ -151,12 +151,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          for r in 43590032315 43645412996 43648885215 43649037793 43648038071 43644153544 43640363396; do
+          for r in 43590032315 43645412996 43648885215 43649375691 43648038071 43644153544 43640363396; do
             test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$r" --jq .conclusion)" = success
           done
           test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43645412996" --jq .head_branch)" = research/calibri2-nra2-s3bn-trainonly-joint-role2048-20261115
           test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43648885215" --jq .head_branch)" = research/calibri2-nra2-s3br-semantic-role-curriculum-train512-20261115
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43649037793" --jq .head_branch)" = research/calibri2-nra2-s3bs-train512-frozen43m-cpu-616j7-20261115
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43649375691" --jq .head_branch)" = research/calibri2-nra2-s3bs-train512-frozen43m-cpu-616j7-20261115
       - name: Lock S3BN original 2048 TRAIN-only semantic pair FP16 and J7
         uses: actions/download-artifact@v4
         with:
@@ -176,7 +176,7 @@ jobs:
         with:
           name: nra2-stage3bs-new-directional-train512-original43M-tokens320-616J7
           path: inputs/nra2_stage3bs
-          run-id: '43649037793'
+          run-id: '43649375691'
           github-token: ${{ github.token }}
       - name: Preflight semantic curriculum TRAIN2560 code and original graph isolation, NO EVAL
         run: |
@@ -209,8 +209,8 @@ jobs:
           assert a["stage"]=="NRA2_S3BT_SEMANTIC_DIRECTIONAL_TRAIN2560_ONLY"
           assert a["S3BN_initialized_joint_pairwise_fp16_sha256"]=="ea8a81665370cba22c4e8bc75fbe82314089244d4b32278ee62c2c30d88ae811"
           assert a["S3BR_newTRAIN512_preregistered_commitment_sha256"]=="e941bd45f947b7fc16f0cce4307ed9ea69c0b0e8347da7c0754717430ff0262f"
-          assert a["S3BS_genuine_newTRAIN512_CPU_success_run"]==43649037793
-          assert a["S3BS_newTRAIN512_original43m_cpu_fp16_sha256"]=="FIX_AFTER_S3BS_SUCCESS_SHA"
+          assert a["S3BS_genuine_newTRAIN512_CPU_success_run"]==43649375691
+          assert a["S3BS_newTRAIN512_original43m_cpu_fp16_sha256"]=="95912db37d26077f4abb2e1e4050aad13155c3988aa7ee592e6da8d81c3eec5c"
           assert a["S3BA_original_graph_and_old_role_head_sha256"]=="4fedf391ee02b1d1c45c82c3690d212ba9a43e9d0da32446f5d32ac6c379bb09"
           assert a["train_count"]==2560 and a["historical_six_TRAIN_count"]==2048 and a["new_S3BR_TRAIN_count"]==512
           assert a["new_S3BM_only_pair_params_trained"]==42869
