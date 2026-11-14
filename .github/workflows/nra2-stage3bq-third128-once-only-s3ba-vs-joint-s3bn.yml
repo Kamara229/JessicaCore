@@ -11,7 +11,7 @@ concurrency:
   group: nra2-s3bq-once-only-third128-original43m-zero-gate
   cancel-in-progress: false
 jobs:
-  s3bq_one_time_new_s3bo128_source_target_and_reach:
+  s3bq_one_time_THIRD_s3bo128_new_joint_role_comparison:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bq-once-only-third128-s3ba-vs-s3bn-20261115'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
@@ -87,19 +87,19 @@ jobs:
           path: inputs/nra2
       - name: Validate one-time research code and independent fixed exact McNemar math without blind scoring
         run: |
-          python -m compileall -q research/nra2_bridge/stage3bl_once_only_new128_s3ba_vs_s3bn.py
+          python -m compileall -q research/nra2_bridge/stage3bq_once_only_third128_s3ba_vs_joint_s3bn.py
           python -m unittest -v research.nra2_bridge.test_stage3bh_mcnemar
       - name: S3BQ ONCE ONLY evaluate frozen S3BA against safe S3BN on exactly 128 fresh CPU+gold graph questions
         run: |
-          python -m research.nra2_bridge.stage3bl_once_only_new128_s3ba_vs_s3bn \
+          python -m research.nra2_bridge.stage3bq_once_only_third128_s3ba_vs_joint_s3bn \
             inputs/s3bp inputs/s3bo inputs/s3ba inputs/s3bn inputs/nra2 \
-            results/nra2_stage3bl_one_time_new128
+            results/nra2_stage3bq_third128_once_only
       - name: Verify independent new 128 report no model promotion or test tuning
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          r=json.loads(Path("results/nra2_stage3bl_one_time_new128/NRA2_S3BQ_ONCE_ONLY_THIRD128_S3BA_VS_S3BN_NO_RETUNE.json").read_text())
+          r=json.loads(Path("results/nra2_stage3bq_third128_once_only/NRA2_S3BQ_ONCE_ONLY_THIRD128_S3BA_VS_S3BN_NO_RETUNE.json").read_text())
           assert r["stage"]=="NRA2_S3BQ_ONCE_ONLY_THIRD_S3BO128_S3BA_VS_JOINT_S3BN"
           assert r["S3BP_run"]==43647105183 and r["S3BO_prereg_successful_run"]==43646187689
           assert r["S3BO_prereg_commitment_sha256"]=="01858b405fbb034055574fd27feb93d19a34833da342a664ca5daed2b3ad091b"
@@ -108,6 +108,9 @@ jobs:
           assert r["one_time_independent_EVAL128"]==128
           assert r["original_616_S194_J7_preserved_in_S3BP"]
           assert r["prior_S3AQ_old_independent_EVAL128_consumed"]
+          assert r["prior_S3BJ_second_independent_EVAL128_consumed"]
+          assert r["S3BM_42869_new_pairwise_params"]
+          assert r["third_unseen_16_topologies_and_8_new_grammars"]
           assert r["metrics"]["all"]["n"]==128
           assert r["metrics"]["source_first"]["n"]==64 and r["metrics"]["destination_first"]["n"]==64
           assert len(r["question_level"])==128
@@ -121,7 +124,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: nra2-stage3bl-once-only-new-s3bo128-s3ba-vs-s3bn-no-retune
-          path: results/nra2_stage3bl_one_time_new128/
+          name: nra2-stage3bq-third128-once-only-s3ba-vs-new-joint-s3bn
+          path: results/nra2_stage3bq_third128_once_only/
           retention-days: 90
           if-no-files-found: error
