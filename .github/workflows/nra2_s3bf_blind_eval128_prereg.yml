@@ -1,0 +1,72 @@
+name: NRA2 S3BF physical S3BE audit and future blind EVAL128 protocol only
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3be-s3ba-init-contrastive2048-prereg-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3bf-physical-audit-blind-eval128-protocol
+  cancel-in-progress: false
+jobs:
+  s3bf_readonly_sha_compare_and_prereg:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bf-blind-eval128-prereg-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify prior completed S3BA and S3BE authentic workflow run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43590032315" --jq .conclusion)" = success
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43593460123" --jq .conclusion)" = success
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43593460123" --jq .head_branch)" = research/calibri2-nra2-s3be-s3ba-init-contrastive2048-prereg-20261114
+      - name: Download pinned physical S3BA role head (no DEV scoring)
+        uses: actions/download-artifact@v4
+        with:
+          run-id: '43590032315'
+          github-token: ${{ github.token }}
+          name: nra2-stage3ba-role1536-replay1024-structural512-dev128-fp16-zero-gate
+          path: inputs/s3ba
+      - name: Download pinned physical S3BE role head and TRAIN-only report
+        uses: actions/download-artifact@v4
+        with:
+          run-id: '43593460123'
+          github-token: ${{ github.token }}
+          name: nra2-stage3be-s3ba-init-contrastive512-replay1536-train2048-fp16-zero-gate
+          path: inputs/s3be
+      - name: Independently verify FP16 frozen bytes and preregister future blind EVAL128 WITHOUT OPENING it
+        run: |
+          set -euo pipefail
+          python -m py_compile research/nra2_bridge/stage3bf_blind_eval128_prereg.py
+          python research/nra2_bridge/stage3bf_blind_eval128_prereg.py inputs/s3ba inputs/s3be results/s3bf
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("results/s3bf/NRA2_S3BF_PHYSICAL_AUDIT.json").read_text())
+          p=json.loads(Path("results/s3bf/NRA2_S3BF_BLIND_EVAL128_PROTOCOL.json").read_text())
+          assert a["TRAIN_only_parent_both_correct"]==1848
+          assert a["TRAIN_only_candidate_both_correct"]==2043
+          assert a["TRAIN_only_net_gain_not_generalization"]==195
+          assert a["future_EVAL128_unopened"] and a["no_blind_or_DEV_model_scoring"]
+          assert p["blind_n"]==128 and p["output_gate"]==0.0
+          assert not p["candidate_accepted"]
+          assert "PREREG_ONLY" in p["status"]
+          PY
+      - name: Archive only physical audit and future blind protocol (NO EVAL prompts / scores)
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3bf-physical-s3be-audit-future-blind-eval128-prereg-only
+          path: results/s3bf/
+          retention-days: 90
+          if-no-files-found: error
