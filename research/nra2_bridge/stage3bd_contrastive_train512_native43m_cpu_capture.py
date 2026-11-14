@@ -16,7 +16,7 @@ from safetensors.torch import save_file,load_file
 from calibri2.s194.actual_cpu_j7_bridge import real_j7_baseline,output_digest
 from nra2_bridge.stage3e_token_features import FrozenAllTokenFeatures
 from nra2_bridge.passive_final_layer import NRA2PassiveFinalLayer
-from nra2_bridge.stage3ay_structural_train512_prereg import (
+from nra2_bridge.stage3bc_contrastive_train512_prereg import (
     build_rows,validate,commitment,SPLIT as TRAIN,STYLES,
 )
 from nra2_bridge.stage3t_unseen_wording_prereg import query_char_offsets
@@ -103,7 +103,7 @@ def main():
         or len({r.prompt_sha256 for r in rows})!=512
         or any(r.split!=TRAIN for r in rows)):
         raise AssertionError("S3BD exact 512 new TRAIN-only prompts on 64 graph topologies")
-    prereg_path=Path("inputs/nra2_stage3ay/NRA2_S3BC_NEW_ROLE_CONTRASTIVE_TRAIN512_PARAPHRASE_PREREG.json")
+    prereg_path=Path("inputs/nra2_stage3bc/NRA2_S3BC_CONTRASTIVE_ROLE_TRAIN512_PREREG.json")
     prior=json.loads(prereg_path.read_text())
     immutable=commitment(precommitted_rows)
     if (prior!=json.loads(json.dumps(immutable))
