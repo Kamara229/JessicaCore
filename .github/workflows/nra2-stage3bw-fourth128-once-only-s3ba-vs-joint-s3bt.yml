@@ -1,7 +1,7 @@
 name: NRA2 S3BW FOURTH untouched128 once-only real original CPU S3BA vs new S3BT no retune
 'on':
   pull_request:
-    types: [opened, synchronize]
+    types: [opened]
     branches:
       - research/calibri2-nra2-s3bv-fourth128-true43m-cpu-only-20261115
 permissions:
