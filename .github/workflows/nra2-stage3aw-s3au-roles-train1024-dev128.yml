@@ -1,0 +1,153 @@
+name: NRA2 S3AW TRAIN1024 S3AS-init 512 new syntax DEV128 zero gate J7
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3av-train512-native43m-cpu-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-stage3aw-s3au-role-rehearsal-only
+  cancel-in-progress: false
+jobs:
+  s3aw_train1024_role_only_post_SHA_dev:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3aw-newparaphrase-role-rehearsal-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned pure CPU research dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Verify immutable old and new CPU original 616 J7, S3AS FP16, S3AU prereg
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for n in 43522555326 43530742301 43530401603 43522663612 43580373587 43581666491 43582403331 43582744317; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$n" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43582744317" --jq .head_branch)" = research/calibri2-nra2-s3av-train512-native43m-cpu-20261114
+      - name: Frozen original S3N native CPU TRAIN128 and J7
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3n-real43M-192pairedgraph-tokens320-616J7
+          path: inputs/nra2_stage3n
+          run-id: '43522555326'
+          github-token: ${{ github.token }}
+      - name: Frozen S3Y reversal native CPU TRAIN128
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3y-real43M-s3x-reversaltrain128-tokens320-616J7
+          path: inputs/nra2_stage3y
+          run-id: '43530742301'
+          github-token: ${{ github.token }}
+      - name: Frozen S3X reversed TRAIN prereg
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3x-reversal-train128-grammar-prereg-no-score
+          path: inputs/nra2_stage3x
+          run-id: '43530401603'
+          github-token: ${{ github.token }}
+      - name: Frozen S3O original graph and role normalizer
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3o-real43M-semantic-queryroles-train128-dev64-zero-gate-fp16
+          path: inputs/nra2_stage3o
+          run-id: '43522663612'
+          github-token: ${{ github.token }}
+      - name: Frozen S3AS teacher role head 512 rehearsal plus original DEV128
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3as-s3z-init-train512-dev128-paired-roles-fp16-zero-gate
+          path: inputs/nra2_stage3as
+          run-id: '43581666491'
+          github-token: ${{ github.token }}
+      - name: Frozen S3AR original 43M CPU S3AQ TRAIN256 DEV128
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ar-real43M-s3aq-train256-dev128-tokens320-616J7
+          path: inputs/nra2_stage3ar
+          run-id: '43580373587'
+          github-token: ${{ github.token }}
+      - name: Frozen S3AV native CPU novel S3AU TRAIN512
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3av-real43M-s3au-newtrain512-tokens320-616J7
+          path: inputs/nra2_stage3av
+          run-id: '43582744317'
+          github-token: ${{ github.token }}
+      - name: Immutable S3AU new paraphrase TRAIN-only provenance
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3au-newtrain512-paraphrase-prereg-no-model-no-eval
+          path: inputs/nra2_stage3au
+          run-id: '43582403331'
+          github-token: ${{ github.token }}
+      - name: Before optimizer check S3AU guarded TRAIN and query head invariants
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3aw_role_newparaphrase_train1024.py
+          python -m unittest -v research.nra2_bridge.test_stage3au_train512_paraphrase_prereg research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg research.nra2_bridge.test_stage3o_neural_query_roles
+      - name: S3AW train only S3AS query-role head on 1024 TRAIN, post-SHA DEV128 paired
+        run: |
+          python - <<'PY'
+          import torch,platform
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S3AW_TRAIN_ONLY_S3AU_NEW512_REPLAY512_FROZEN_43M_CPU",flush=True)
+          PY
+          PYTHONPATH=.:research:research/calibri OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 python -m research.nra2_bridge.stage3aw_role_newparaphrase_train1024 \
+            inputs/nra2_stage3n inputs/nra2_stage3y inputs/nra2_stage3x \
+            inputs/nra2_stage3o inputs/nra2_stage3as inputs/nra2_stage3ar \
+            inputs/nra2_stage3av inputs/nra2_stage3au \
+            results/nra2_stage3aw_newtrain512_role
+      - name: Check pinned S3AU 512 and S3AS, original 616 J7, DEV paired only after FP16 SHA
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          d=Path("results/nra2_stage3aw_newtrain512_role")
+          r=json.loads((d/"NRA2_S3AW_S3AS_INIT_TRAIN1024_DEV128_ROLE_AUDIT.json").read_text())
+          p=d/"NRA2_S3AW_S3AS_INIT_ROLE1024_FP16.safetensors"
+          sha=hashlib.sha256(p.read_bytes()).hexdigest()
+          assert r["stage"]=="NRA2_S3AW_S3AS_INIT_ROLE1024_TRAIN_S3AU512_DEV128_SCORED"
+          assert r["S3AS_locked_parent_run"]==43581666491
+          assert r["S3AV_native_CPU_run"]==43582744317
+          assert r["S3AU_prereg_run"]==43582403331
+          assert r["S3AS_parent_fp16_sha256"]=="06420e22270dd082116086a5174e95c04e9ff2b52664583bc8d5a1b4a074d488"
+          assert r["S3AV_real_CPU_token_sha256"]=="b48b74404009d67f24ba40830310c0e5aea95c47ef043bd8e74955d014c511d5"
+          assert r["S3AU_preregistered_sha256"]=="ac038f50dab0ace449f1df32ec7e8728476420615f60c85a8d8fce64c787558a"
+          assert sha==r["new_S3AW_physical_fp16_sha256"] and len(sha)==64
+          assert r["physical_fp16_reload_equal"] and r["original_graph_physical_fp16_bitwise_equal"]
+          assert r["full_S194_original_616_J7_digests_from_S3AV_protected"]
+          assert r["S3AQ_future_EVAL128_not_prefilled_scored_or_trained"]
+          assert r["S3AO_already_scored_EVAL128_NOT_reused_for_training_or_selection"]
+          assert r["train_count"]==1024 and r["S3AU_new_TRAIN_count"]==512
+          assert r["DEV128_excluded_from_gradient_optimizer"] and r["DEV128_scored_only_after_FP16_SHA_commit"]
+          assert r["only_query_role_head_trained"] and r["original_graph_and_independent_NRA_frozen"]
+          assert r["train_loss_after"]<r["train_loss_before"]
+          assert r["DEV128_paired_S3AS_baseline"]["all"]["both_correct"]==64
+          assert r["DEV128_paired_S3AW_candidate"]["all"]["count"]==128
+          assert r["output_gate"]==0.0 and not r["candidate_accepted"]
+          assert not r["full_original_CPU_J7_candidate_gain_tested"]
+          assert not r["all_in_physical_bpp_tested"] and not r["paired_candidate_CPU_speed_tested"]
+          print("S3AW_TRAIN1024_POST_LOCK_DEV128_S3AS_PAIRED_EVAL_UNTOUCHED",sha,flush=True)
+          print("S3AW_DEV128_S3AS",r["DEV128_paired_S3AS_baseline"])
+          print("S3AW_DEV128_S3AW",r["DEV128_paired_S3AW_candidate"])
+          print("S3AW_DEV_GAINS",r["DEV128_both_source_first_gain"],r["DEV128_both_destination_first_gain"])
+          PY
+      - name: Archive S3AW research-only FP16 role head, not accepted, future EVAL unopened
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3aw-roles-new512-replay512-dev128-fp16-zero-gate
+          path: results/nra2_stage3aw_newtrain512_role/
+          retention-days: 90
+          if-no-files-found: error
