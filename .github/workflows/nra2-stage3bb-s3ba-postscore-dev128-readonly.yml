@@ -1,0 +1,95 @@
+name: NRA2 S3BB read-only S3BA vs S3AW scored DEV128 role-error audit
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3ba-s3aw-init-structural-replay1536-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-stage3bb-postscore-dev128-readonly
+  cancel-in-progress: false
+jobs:
+  s3bb_readonly_scored_research_dev128:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bb-s3ba-dev128-readonly-grammar-audit-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU research read-only dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Verify successful original 43M CPU, S3AW and S3BA parent runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for n in 43580373587 43583928298 43590032315; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$n" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43590032315" --jq .head_branch)" = research/calibri2-nra2-s3ba-s3aw-init-structural-replay1536-20261114
+      - name: Frozen original S3AR DEV128 true 43M CPU and original 616 J7 guard
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ar-real43M-s3aq-train256-dev128-tokens320-616J7
+          path: inputs/nra2_stage3ar
+          run-id: '43580373587'
+          github-token: ${{ github.token }}
+      - name: Frozen S3AW baseline query-head 89/128
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3aw-roles-new512-replay512-dev128-fp16-zero-gate
+          path: inputs/nra2_stage3aw
+          run-id: '43583928298'
+          github-token: ${{ github.token }}
+      - name: Frozen S3BA new query-head 94/128 no accepted model
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ba-role1536-replay1024-structural512-dev128-fp16-zero-gate
+          path: inputs/nra2_stage3ba
+          run-id: '43590032315'
+          github-token: ${{ github.token }}
+      - name: Verify split prereg and query binding before any scored DEV reuse
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3bb_s3ba_dev128_readonly_failure.py
+          python -m unittest -v research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg research.nra2_bridge.test_stage3o_neural_query_roles
+      - name: Reproduce S3AW 89 and S3BA 94 on scored-only DEV128 and audit role swaps
+        run: |
+          PYTHONPATH=.:research:research/calibri OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 python -m research.nra2_bridge.stage3bb_s3ba_dev128_readonly_failure \
+            inputs/nra2_stage3ar inputs/nra2_stage3aw inputs/nra2_stage3ba \
+            results/nra2_stage3bb_s3ba_readonly_errors
+      - name: Require physical SHA and exact per-grammar paired changes without EVAL or optimizer
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3bb_s3ba_readonly_errors/NRA2_S3BB_S3BA_DEV128_ROLE_ERROR_DIAGNOSTIC.json").read_text())
+          assert r["stage"]=="NRA2_S3BB_S3BA_POSTSCORE_DEV128_ROLE_ERROR_DIAG_READONLY"
+          assert r["S3BA_successful_run"]==43590032315
+          assert r["S3BA_physical_fp16_sha256"]=="4fedf391ee02b1d1c45c82c3690d212ba9a43e9d0da32446f5d32ac6c379bb09"
+          assert r["DEV128_prior_correct"]==89 and r["DEV128_candidate_correct"]==94
+          assert sum(r["DEV128_paired_flips"].values())==128
+          assert len(r["DEV128_instance_flips_without_prompt_text"])==128
+          assert sum(v["correct"] for v in r["DEV128_S3BA_by_style"].values())==94
+          assert r["DEV128_already_scored_exploratory_not_independent"] and r["DEV128_not_used_for_optimizer_or_candidate_selection"]
+          assert r["S3AR_original_CPU_frozen_616_J7"] and r["S3AQ_future_EVAL128_not_prefilled_scored_or_trained"]
+          assert r["new_weights_or_optimizer_steps"]==0 and r["output_gate"]==0.0 and not r["candidate_accepted"]
+          assert r["LIVE_Render_Supabase_APK_main_QA_TEST_unchanged"]
+          print("S3BB_SHA_PINNED_DEV128_READONLY",r["DEV128_paired_flips"],r["DEV128_S3BA_by_style"])
+          PY
+      - name: Archive S3BB read-only postscore DEV128 research error audit
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3bb-s3ba-versus-s3aw-dev128-readonly-role-errors
+          path: results/nra2_stage3bb_s3ba_readonly_errors/
+          retention-days: 90
+          if-no-files-found: error
