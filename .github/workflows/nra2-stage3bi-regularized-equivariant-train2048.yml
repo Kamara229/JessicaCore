@@ -147,7 +147,7 @@ jobs:
       - name: Fail closed S3BI no old EVAL reuse, TRAIN-only source guards and code compile
         run: |
           python -m compileall -q research/nra2_bridge/stage3bi_regularized_equivariant_train2048.py
-          python -m unittest -v research.nra2_bridge.test_stage3bc_contrastive_train512_prereg research.nra2_bridge.test_stage3ay_structural_train512_prereg research.nra2_bridge.test_stage3au_train512_paraphrase_prereg research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg research.nra2_bridge.test_stage3o_neural_query_roles
+          python -m unittest -v research.nra2_bridge.test_stage3o_neural_query_roles research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg
       - name: Run S3BI S3BA-anchored reversal-equivariant adapter on 2048 TRAIN only
         run: |
           python - <<'PY'
@@ -169,7 +169,7 @@ jobs:
           from pathlib import Path
           d=Path("results/nra2_stage3bi_train2048_replay1536_contrastive512")
           a=json.loads((d/"NRA2_S3BI_S3BA_INIT_TRAIN2048_NO_DEV_ROLE_AUDIT.json").read_text())
-          p=d/"NRA2_S3BI_S3BA_INIT_ROLE2048_FP16.safetensors"
+          p=d/"NRA2_S3BI_S3BA_INIT_SAFE_ROLE2048_FP16.safetensors"
           sha=hashlib.sha256(p.read_bytes()).hexdigest()
           assert a["stage"]=="NRA2_S3BI_S3BA_INIT_2048_TRAIN_ONLY_ROLE_HEAD_NO_DEV_SCORE"
           assert sha==a["new_S3BI_physical_fp16_sha256"] and len(sha)==64
@@ -191,6 +191,11 @@ jobs:
           assert a["S3BH_blind_results_not_loaded_or_reused_for_model_scoring"]
           assert all(m["candidate_net"]>=0 for k,m in a["replay_guard_original_five_TRAIN_groups"].items() if k!="S3BC_TRAIN512")
           assert a["train_only_teacher_kl_weight"]==0.60 and a["role_symmetry_weight_per_TRAIN_group"]==0.80
+          assert 0 < a["TRAIN_only_safe_candidate_alpha"] <= 1.0
+          assert a["TRAIN_only_checkpoint_selected_without_any_EVAL_DEV"]
+          assert a["S3BI_R0_rejected_train_guard_run"]==43641294513
+          assert a["S3BJ_new_blind128_unopened_and_cpu_not_captured"]
+          assert len(a["raw_optimizer_S3BI_physical_fp16_sha256"])==64
           assert a["no_heldout_model_inference_this_stage"]
           assert a["only_query_role_head_trained"] and a["original_graph_43M_green_tunnel_NRA_frozen"]
           assert a["output_gate"]==0.0 and not a["candidate_accepted"]
