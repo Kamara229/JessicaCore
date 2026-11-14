@@ -1,0 +1,70 @@
+name: NRA2 S3AD post-score 128 independent role error taxonomy no model updates
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3ac-independent128-frozen-role-compare-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3ad-read-only-s3ac-role-error-audit
+  cancel-in-progress: false
+jobs:
+  post_score_role_taxonomy_without_further_cpu_or_training:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ad-independent128-error-audit-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin original S3AC completed once-only independent128 actual score
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43535868240 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43535868240 --jq .head_branch)" = research/calibri2-nra2-s3ac-independent128-frozen-role-compare-20261114
+      - name: Download immutable S3AC 128 S3O versus S3Z paired metrics only
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ac-independent128-s3o-vs-s3z-once-only-frozen-cpu
+          path: inputs/nra2_stage3ac
+          run-id: '43535868240'
+          github-token: ${{ github.token }}
+      - name: No inference and no training; strictly reconcile historical score/error categories
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3ad_post_score_error_taxonomy.py
+          python -m research.nra2_bridge.stage3ad_post_score_error_taxonomy \
+            inputs/nra2_stage3ac results/nra2_stage3ad
+      - name: Enforce original no-retune 128 graph SHA and output gate zero
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3ad/NRA2_S3AD_POST_SCORE_ROLE_ERROR_TAXONOMY_NO_RETUNE.json").read_text())
+          assert r["stage"]=="NRA2_S3AD_POST_SCORE_INDEPENDENT128_ERROR_TAXONOMY_ONLY"
+          assert r["source_successful_S3AC_run"]==43535868240
+          assert r["original_S3AA_commitment_sha256"]=="c6815f9bbb39d105d31f896f42edf96c4daac064956d724a9844f9d97818df7e"
+          assert r["original_S3AB_native_token_fp16_sha256"]=="fe240c2003b1251be7162b6fd1a516caba2070ece0184b59f43f2d65109d2c62"
+          assert r["same_original_616_S194_J7_digest_preserved_in_S3AB"]
+          assert r["original_graph_exact_on_independent128"]==128
+          assert r["groups"]["all"]["S3Z"]["reachability_correct"]==85
+          assert r["groups"]["all"]["S3O"]["reachability_correct"]==70
+          assert r["post_hoc_error_diagnosis_not_new_blind_eval"]
+          assert r["S3AA_must_not_be_reused_for_fresh_independent_model_selection"]
+          assert not r["new_dataset_or_new_inference_or_training"]
+          assert not r["candidate_accepted"] and r["output_gate"]==0.0
+          print("S3AD_POST_SCORE_ONLY_ORIGINAL_J7_SAFE_NO_NEW_INFERENCE_OR_TRAINING",flush=True)
+          PY
+      - name: Archive immutable diagnostic read-only; do not claim independent new score
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3ad-post-score-role-errors-independent128-no-tune
+          path: results/nra2_stage3ad/
+          retention-days: 90
+          if-no-files-found: error
