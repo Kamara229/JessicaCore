@@ -1,0 +1,75 @@
+name: NRA2 S3BU fourth new independent128 prereg only NO neural model or CPU
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3br-semantic-role-curriculum-train512-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-stage3bu-fourth-entirely-untouched-independent128-no-model
+  cancel-in-progress: true
+jobs:
+  s3bu_new_fourth_unseen128_prereg_sha:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bu-fourth-independent128-prereg-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .:research:research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate original three independent128 sets are permanently consumed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for r in 43640363396 43644153544 43648038071 43648885215; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$r" --jq .conclusion)" = success
+          done
+      - name: Verify exactly fourth never-seen 16 graphs and 8 language constructions
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3bu_fourth_future_unseen128_prereg.py research/nra2_bridge/test_stage3bu_fourth_future_unseen128_prereg.py
+          python -m unittest -v research.nra2_bridge.test_stage3bu_fourth_future_unseen128_prereg
+      - name: SHA preregister fourth future EVAL128 data-only, NO original CPU or model
+        run: |
+          python -m research.nra2_bridge.stage3bu_fourth_future_unseen128_prereg results/nra2_stage3bu_future_fourth128
+      - name: Verify immutable new SHA graph and grammar commitments with 0 model scores
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          a=json.loads(Path("results/nra2_stage3bu_future_fourth128/NRA2_S3BU_FOURTH_UNTOUCHED128_PREREG.json").read_text())
+          assert a["stage"]=="NRA2_S3BU_FOURTH_UNTOUCHED_EVAL128_PREREG_NO_CPU_OR_MODEL"
+          assert a["future_EVAL128_count"]==128 and a["fourth_independent_graphs"]==16
+          assert a["fourth_independent_new_grammar"]==8
+          assert a["source_first_count"]==a["destination_first_count"]==64
+          assert a["yes_count"]==a["no_count"]==64
+          assert len(set(a["sha_prompts_in_order"]))==128
+          assert len(set(a["sha_graphs_in_order"]))==16
+          assert a["S3BO_prior_third_consumed_commitment_sha256"]=="01858b405fbb034055574fd27feb93d19a34833da342a664ca5daed2b3ad091b"
+          assert a["S3BR_prior_new_TRAIN512_commitment_sha256"]=="e941bd45f947b7fc16f0cce4307ed9ea69c0b0e8347da7c0754717430ff0262f"
+          assert a["prior_first_independent_EVAL128_consumed_in"]==43640363396
+          assert a["prior_second_independent_EVAL128_consumed_in"]==43644153544
+          assert a["prior_third_independent_EVAL128_consumed_in"]==43648038071
+          assert a["ALL_previous_independent_EVALs_excluded_from_optimizer_and_candidate_selection"]
+          assert a["S3BT_candidate_physically_SHA_locked_before_first_fourth_EVAL_CPU"]
+          assert a["no_model_weights_or_Calibri_CPU_or_scores_or_training_this_stage"]
+          assert not a["candidate_accepted"] and a["output_gate"]==0.
+          assert len(a["commitment_sha256"])==64
+          print("S3BU_FOURTH_NEW_INDEPENDENT128_SHA_LOCKED_NO_MODEL",a["commitment_sha256"])
+          PY
+      - name: Archive immutable fourth future independent128 SHA only
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3bu-fourth-independent128-prereg-only-no-cpu
+          path: results/nra2_stage3bu_future_fourth128/
+          retention-days: 90
+          if-no-files-found: error
