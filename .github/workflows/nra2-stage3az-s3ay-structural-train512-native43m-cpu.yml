@@ -461,7 +461,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43587711528 --jq .conclusion)" = success
-          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43587711528 --jq .head_branch)" = research/calibri2-nra2-s3ay-train512-paraphrase-prereg-20261114
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43587711528 --jq .head_branch)" = research/calibri2-nra2-s3ay-structural-train512-prereg-20261114
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43580373587 --jq .conclusion)" = success
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43581666491 --jq .conclusion)" = success
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43582046510 --jq .conclusion)" = success
@@ -530,7 +530,7 @@ jobs:
           r=json.loads(p.read_text())
           assert r["stage"]=="NRA2_S3AZ_FROZEN_S3AY_NEW_TRAIN512_NO_SCORE_CPU_CAPTURE_ONLY"
           assert r["S3AY_successful_prereg_run"]==43587711528
-          assert r["S3AY_registered_commitment_sha256"]=="S3AY_SHA_PENDING"
+          assert r["S3AY_registered_commitment_sha256"]=="90ba2d0347a333dc9ff2e85adbbaca20becb4f92051c1ec43267102b63c8a118"
           assert r["original_456_full_EOS"]==456 and r["original_new128_full_EOS"]==128
           assert r["all_616_token_digest_matches_S194"]
           assert r["S3AY_train_graph_topologies"]==64 and r["S3AY_new_wording_count"]==8
