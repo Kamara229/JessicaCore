@@ -7,7 +7,7 @@ This is strictly research-only work. Jessica normal chat remains a relay and doe
 ## Immutable inputs fixed *before* looking at EVAL128 scores
 
 - New independent EVAL128: S3AE precommit SHA256 `0ccbb2b19b3feb93b79f5dcbc892f2e414a564b6e4d83e52997098346e4f480f`; 32 novel graph topologies × 4 held-out grammar templates, 128 prompts; 64 reachable / 64 unreachable; 64 source-first / 64 destination-first.
-- S3AH true original frozen 43M CPU EVAL128 capture: successful GitHub run `43539973968`; native token320 FP16 SHA256 `ef25951db280c9968932c200ba7b4b5c58625bdd69ac200e4e08e38861cb0f7`; graph-label FP16 SHA256 `cbfa5c27f114b0047d2f1c54917414bee7b7aeb1d55e3172608b1ae7caac494e`; hidden320 SHA256 `bb76e56825397ce4fd9a863348fb267b6fc1dc42f6b0ce36ba46f5493303c4a4`. Candidate EVAL128 predictions never scored in S3AH.
+- S3AH true original frozen 43M CPU EVAL128 capture: successful GitHub run `43539973968`; native token320 FP16 SHA256 `ef25951db280c9968932c200ba7b4b5c58625bdd69ac200e4e08e38861cb80f7`; graph-label FP16 SHA256 `cbfa5c27f114b0047d2f1c54917414bee7b7aeb1d55e3172608b1ae7caac494e`; hidden320 SHA256 `bb76e56825397ce4fd9a863348fb267b6fc1dc42f6b0ce36ba46f5493303c4a4`. Candidate EVAL128 predictions never scored in S3AH.
 - Frozen S3O original graph + query role weights: `40a8903d5419cd8641b5d01e75e429e10b449304b3ba140d2245bf7f8a9d00b6`.
 - Frozen S3Z role-only trained candidate: `60a7121b8270f647909776b58dc21b07c6cb885fd6ebeb6cb3158b23221f6e9f`.
 - Frozen S3AG role-only TRAIN512 candidate: `2c23de87efc2369ed6fc0880604420070c116a4ee70b66a4eb0a946f1afeb118`; training run `43539383181`. Its observed 512/512 TRAIN is not a generalization claim.
