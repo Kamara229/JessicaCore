@@ -18,7 +18,7 @@ class Stage3AEPreregTests(unittest.TestCase):
         prior=old_rows()
         t={r.topology_key for r in train}
         e={r.topology_key for r in evaluation}
-        p={r.topology_key for r in prior}
+        p={tuple(sorted(r.edges)) for r in prior}
         self.assertEqual(len(t),64)
         self.assertEqual(len(e),32)
         self.assertFalse(t&e)
