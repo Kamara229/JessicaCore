@@ -3,7 +3,7 @@ name: NRA2 S3BT genuine CPU TRAIN2560 semantic relation rehearsal S3BN frozen 61
   pull_request:
     # Initial draft PR has no S3BS CPU SHA until real CPU finishes.
     # Only subsequent physically pinned SHA synchronization may trigger TRAIN.
-    types: [synchronize]
+    types: [ready_for_review]
     branches:
       - research/calibri2-nra2-s3bs-train512-frozen43m-cpu-616j7-20261115
 permissions:
