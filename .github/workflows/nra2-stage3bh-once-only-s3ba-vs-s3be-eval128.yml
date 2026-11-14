@@ -93,7 +93,7 @@ jobs:
       - name: Compile and validate gold-free role ABI before once-only frozen score
         run: |
           python -m compileall -q research/nra2_bridge/stage3bh_once_only_s3ba_s3be_eval128.py
-          python -m unittest -v research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg research.nra2_bridge.test_stage3o_neural_query_roles
+          python -m unittest -v research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg research.nra2_bridge.test_stage3o_neural_query_roles research.nra2_bridge.test_stage3bh_mcnemar
       - name: One-time score of S3BA/S3BE physically frozen heads on exactly 128 original 43M CPU prompts
         run: |
           python -m research.nra2_bridge.stage3bh_once_only_s3ba_s3be_eval128 \
