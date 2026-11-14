@@ -52,7 +52,7 @@ def split_data():
 
     result = {split: [] for split in SPLITS}
     for index, graph_id in enumerate(sorted(by_graph)):
-        unseen_topology = index % 4 == 0  # 16 / 64, balanced deterministic holdout
+        unseen_topology = (index % 4) == ((index // 4) % 4)  # 16 / 64; 8 even / 8 odd
         for row in sorted(by_graph[graph_id], key=lambda v: v.query_style):
             unseen_family = row.query_style // 2 >= 2  # 2 / 4 full grammar families
             if not unseen_topology and not unseen_family:
@@ -121,7 +121,7 @@ def protocol(groups):
         "these_512_were_used_by_rejected_S3BT_not_independent_EVAL": True,
         "blocked_grammar_family_index": {"fit": [0,1], "guard": [2,3]},
         "grammar_family_names": list(CONSTRUCTIONS),
-        "blocked_graph_rule": "sorted(original S3BR graph_id) index modulo 4 == 0 is guard",
+        "blocked_graph_rule": "sorted(original S3BR graph_id) index%4 == (index//4)%4 is guard",
         "subset_counts_expected": EXPECTED,
         "subsets": {
             key: {
