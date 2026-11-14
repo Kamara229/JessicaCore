@@ -8,7 +8,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: nra2-stage3ab-frozen-independent128-real-cpu-j7
+  group: nra2-stage3af-frozen-train256-real-cpu-j7
   cancel-in-progress: false
 jobs:
   nra2_true_cpu_s3ae_TRAIN256_only_tokens_frozen_layer12_616_j7:
@@ -382,7 +382,7 @@ jobs:
           path: inputs/nra2_stage2
       - name: Verify preregistered S3AE TRAIN256 + isolated FUTURE EVAL128 only no leakage
         run: |
-          python -m unittest -v research.nra2_bridge.test_stage3aa_independent_newgrammar128_prereg research.nra2_bridge.test_stage3e_token_features
+          python -m unittest -v research.nra2_bridge.test_stage3ae_independent_newgrammar128_prereg research.nra2_bridge.test_stage3e_token_features
       - name: Pin successful S3A real 43M hidden320 and unchanged 616 J7
         uses: actions/download-artifact@v4
         with:
@@ -445,7 +445,7 @@ jobs:
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43525586699 --jq .conclusion)" = success
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43525997831 --jq .conclusion)" = success
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43537386173 --jq .conclusion)" = success
-          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43537386173 --jq .head_branch)" = research/calibri2-nra2-s3ae-independent-newgrammar128-prereg-20261114
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43537386173 --jq .head_branch)" = research/calibri2-nra2-s3ae-new-train256-eval128-prereg-20261114
       - name: Import corrected S3N 192 authentic CPU tokens and exact original 616 J7 audit
         uses: actions/download-artifact@v4
         with:
@@ -456,8 +456,8 @@ jobs:
       - name: Import pinned SHA S3AE only TRAIN256 identities; future EVAL128 remains untouched
         uses: actions/download-artifact@v4
         with:
-          name: nra2-stage3aa-independent-newgrammar128-topology32-preregistered-no-score
-          path: inputs/nra2_stage3aa
+          name: nra2-stage3ae-newtrain256-futureeval128-distinct-graph-grammar-preregistered
+          path: inputs/nra2_stage3ae
           run-id: '43537386173'
           github-token: ${{ github.token }}
       - name: "NRA2 S3AF true original 43M CPU TRAIN256 only, preserve 616 J7"
@@ -467,7 +467,7 @@ jobs:
           assert platform.machine()=="x86_64" and not torch.cuda.is_available()
           print("S161_NATIVE_CPU_NO_GPU_TRAINING",flush=True)
           PY
-          python research/nra2_bridge/stage3ab_newgrammar128_real_cpu_capture.py \
+          python research/nra2_bridge/stage3af_train256_real_cpu_capture.py \
             inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
             inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
             inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
@@ -494,7 +494,7 @@ jobs:
             inputs/s160/S160_REAL_PARALLEL_456_128_J7_AUDIT.json \
             inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
             inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
-            results/nra2_stage3ab_independent128_tokens
+            results/nra2_stage3af_train256_tokens
       - name: Verify TRAIN256 only original S194 616 J7 and never touch future EVAL128
         run: |
           python - <<'PY'
@@ -525,7 +525,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: nra2-stage3ab-real43M-s3ae-independent128-tokens320-616J7
-          path: results/nra2_stage3ab_independent128_tokens/
+          name: nra2-stage3af-real43M-s3ae-train256-only-tokens320-616J7
+          path: results/nra2_stage3af_train256_tokens/
           retention-days: 90
           if-no-files-found: error
