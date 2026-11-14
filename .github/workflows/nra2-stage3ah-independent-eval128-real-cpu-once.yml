@@ -455,7 +455,7 @@ jobs:
           path: inputs/nra2_stage3n
           run-id: '43522555326'
           github-token: ${{ github.token }}
-      - name: Import pinned SHA S3AE only TRAIN256 identities; future EVAL128 remains untouched
+      - name: Pin S3AE prereg TRAIN and EVAL 128 identifiers before once-only CPU
         uses: actions/download-artifact@v4
         with:
           name: nra2-stage3ae-newtrain256-futureeval128-distinct-graph-grammar-preregistered
@@ -483,7 +483,7 @@ jobs:
           assert platform.machine()=="x86_64" and not torch.cuda.is_available()
           print("S161_NATIVE_CPU_NO_GPU_TRAINING",flush=True)
           PY
-          python research/nra2_bridge/stage3af_train256_real_cpu_capture.py \
+          python research/nra2_bridge/stage3ah_eval128_real_cpu_once_only.py \
             inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
             inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
             inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
