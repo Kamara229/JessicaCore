@@ -1,0 +1,132 @@
+name: NRA2 S3BH once-only independent EVAL128 frozen S3BA vs S3BE exact roles CPU no retune
+'on':
+  pull_request:
+    types: [opened]
+    branches:
+      - research/calibri2-nra2-s3bg-blind-eval128-native43m-cpu-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3bh-once-only-eval128-s3ba-s3be-frozen-original-cpu
+  cancel-in-progress: false
+jobs:
+  s3bh_once_only_independent_128_frozen_role_comparison:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bh-once-only-eval128-s3ba-vs-s3be-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU-only research dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Fail closed before any one-time EVAL on true S3BG and sealed frozen heads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for r in 43579926284 43590032315 43593460123 43606222121 43639726200 43446925758; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$r" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43639726200" --jq .head_branch)" = research/calibri2-nra2-s3bg-blind-eval128-native43m-cpu-20261114
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S3BH_FROZEN_ORIGINAL_CPU_ONCE_ONLY_NO_TRAIN_OR_TUNE")
+          PY
+      - name: Load immutable original S3AQ 256 TRAIN 128 DEV and untouched EVAL128 split protocol
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3aq-newtrain256-dev128-futureeval128-preregistered-no-scores
+          run-id: '43579926284'
+          github-token: ${{ github.token }}
+          path: inputs/s3aq
+      - name: Load S3BF SHA sealed independent test protocol
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3bf-physical-s3be-audit-future-blind-eval128-prereg-only
+          run-id: '43606222121'
+          github-token: ${{ github.token }}
+          path: inputs/s3bf
+      - name: Load authenticated unscored true CPU S3BG independent EVAL128
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3bg-s3aq-blind-eval128-real43M-tokens320-616J7-no-score
+          run-id: '43639726200'
+          github-token: ${{ github.token }}
+          path: inputs/s3bg
+      - name: Load original physically locked S3BA baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ba-role1536-replay1024-structural512-dev128-fp16-zero-gate
+          run-id: '43590032315'
+          github-token: ${{ github.token }}
+          path: inputs/s3ba
+      - name: Load originally pinned S3BE candidate no DEV/EVAL inference
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3be-s3ba-init-contrastive512-replay1536-train2048-fp16-zero-gate
+          run-id: '43593460123'
+          github-token: ${{ github.token }}
+          path: inputs/s3be
+      - name: Load original frozen 2241-parameter NRA independent source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-standalone-relational-cpu-research-only
+          run-id: '43446925758'
+          github-token: ${{ github.token }}
+          path: inputs/nra2
+      - name: Compile and validate gold-free role ABI before once-only frozen score
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3bh_once_only_s3ba_s3be_eval128.py
+          python -m unittest -v research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg research.nra2_bridge.test_stage3o_neural_query_roles research.nra2_bridge.test_stage3bh_mcnemar
+      - name: One-time score of S3BA/S3BE physically frozen heads on exactly 128 original 43M CPU prompts
+        run: |
+          python -m research.nra2_bridge.stage3bh_once_only_s3ba_s3be_eval128 \
+            inputs/s3bg inputs/s3aq inputs/s3bf inputs/s3ba inputs/s3be inputs/nra2 \
+            results/nra2_stage3bh
+      - name: Verify single blind128 score and permanent zero-gate no acceptance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3bh/NRA2_S3BH_ONE_TIME_EVAL128_S3BA_VS_S3BE_NO_RETUNE.json").read_text())
+          assert r["stage"]=="NRA2_S3BH_ONE_TIME_BLIND_S3AQ_EVAL128_S3BA_VS_S3BE"
+          assert r["S3BG_run"]==43639726200
+          assert r["one_time_independent_EVAL128"]==128
+          assert r["original_616_S194_J7_preserved_in_S3BG"]
+          assert r["S3BF_protocol_sha256"]=="6286225dde86e444425bf853fd88811a472b4b962412c770a89b45c92d67ad2b"
+          assert r["graph_weights_bitwise_equal"] and r["graph_logits_bitwise_equal"]
+          assert r["metrics"]["all"]["n"]==128
+          assert r["metrics"]["source_first"]["n"]==64 and r["metrics"]["destination_first"]["n"]==64
+          assert len(r["question_level"])==128
+          assert 0<=r["metrics"]["all"]["paired_both_roles"]["exact_two_sided_mcnemar_p"]<=1
+          assert r["no_training_or_calibration_or_threshold_tuning"]
+          assert r["independent_EVAL_is_now_consumed"]
+          assert r["no_winner_accepted_based_on_this_EVAL"]
+          assert not r["candidate_accepted"] and r["output_gate"]==0.
+          assert not r["full_EOS_tested"] and not r["physical_all_in_bpp_tested"] and not r["paired_CPU_speed_tested"]
+          print("S3BH_ONCE_ONLY_EVAL128_FINISHED_J7_PRESERVED_0_GATE")
+          PY
+      - name: Archive once-only physical paired EVAL128 and do not reuse for training
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3bh-once-only-s3aq-eval128-s3ba-vs-s3be-frozen-noretune
+          path: results/nra2_stage3bh/
+          retention-days: 90
+          if-no-files-found: error
