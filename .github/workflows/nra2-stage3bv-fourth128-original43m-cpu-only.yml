@@ -2,7 +2,7 @@ name: NRA2 S3BV FOURTH untouched128 real frozen43M CPU original616 J7 no adapter
 'on':
   pull_request:
     # Enable only when S3BT training physical model SHA and run are pinned.
-    types: [synchronize]
+    types: [ready_for_review]
     branches:
       - research/calibri2-nra2-s3bu-fourth-independent128-prereg-20261115
 permissions:
