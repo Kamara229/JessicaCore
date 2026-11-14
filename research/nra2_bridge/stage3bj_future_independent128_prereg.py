@@ -53,7 +53,7 @@ def source_ancestry():
 
 def build_rows():
     old=source_ancestry()
-    used={r.topology_key for r in old}
+    used={tuple(sorted(r.edges)) for r in old}
     used_prompt={r.prompt_sha256 for r in old}
     previous_styles={v for ss in S3AQ_STYLES.values() for v in ss}
     previous_styles.update(S3AU_STYLES)
@@ -101,7 +101,7 @@ def validate(rows):
     require(len(rows)==128 and len({r.prompt_sha256 for r in rows})==128,
             "128 unique queries required")
     ancient=source_ancestry()
-    oldkeys={r.topology_key for r in ancient}
+    oldkeys={tuple(sorted(r.edges)) for r in ancient}
     oldhash={r.prompt_sha256 for r in ancient}
     require(not ({r.topology_key for r in rows}&oldkeys),"future EVAL graph reused")
     require(not ({r.prompt_sha256 for r in rows}&oldhash),"future EVAL prompt reused")
