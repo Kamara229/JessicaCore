@@ -8,6 +8,7 @@ NO neural model or original Calibri CPU invoked in this preregistration.
 """
 from __future__ import annotations
 from collections import defaultdict
+from functools import lru_cache
 import hashlib
 import json
 from pathlib import Path
@@ -56,6 +57,7 @@ def require(ok,msg):
     if not ok:
         raise AssertionError("S3BO sealed data-only prereg: "+msg)
 
+@lru_cache(maxsize=1)
 def ancestors():
     old=pre_s3aq_rows()
     aq=s3aq_rows()
