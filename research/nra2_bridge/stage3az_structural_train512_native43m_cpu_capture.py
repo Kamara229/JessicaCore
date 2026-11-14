@@ -108,7 +108,7 @@ def main():
     immutable=commitment(precommitted_rows)
     if (prior!=json.loads(json.dumps(immutable))
         or prior.get("stage")!="NRA2_S3AY_NEW_TRAIN512_PARAPHRASES_PRECOMMIT_NO_MODEL_NO_EVAL"
-        or prior.get("commitment_sha256")!="S3AY_SHA_PENDING"
+        or prior.get("commitment_sha256")!="90ba2d0347a333dc9ff2e85adbbaca20becb4f92051c1ec43267102b63c8a118"
         or prior.get("source_successful_S3AR_real_cpu_run")!=43580373587
         or prior.get("S3AS_successful_role_train_run")!=43581666491
         or prior.get("S3AT_exploratory_DEV_diagnostic_run")!=43582046510
