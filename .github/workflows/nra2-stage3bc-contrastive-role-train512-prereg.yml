@@ -1,0 +1,79 @@
+name: NRA2 S3BC immutable contrastive TRAIN512 role-direction prereg no model
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3bb-s3ba-dev128-readonly-grammar-audit-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-stage3bc-role-contrastive-train512-prereg-only
+  cancel-in-progress: false
+jobs:
+  s3bc_data_only_prereg:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bc-contrastive-train512-prereg-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '20261114'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify successful pinned S3AQ S3AY S3BA and S3BB scored-only audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for n in 43579926284 43587711528 43590032315 43590817240; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$n" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43590817240" --jq .head_branch)" = research/calibri2-nra2-s3bb-s3ba-dev128-readonly-grammar-audit-20261114
+      - name: Validate new 512 unique TRAIN prompts and protected 616 J7/future EVAL
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3bc_contrastive_train512_prereg.py research/nra2_bridge/test_stage3bc_contrastive_train512_prereg.py
+          python -m unittest -v research.nra2_bridge.test_stage3bc_contrastive_train512_prereg research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg
+      - name: Emit immutable S3BC TRAIN-only 512 contrastive role cases and commitment SHA
+        run: |
+          python research/nra2_bridge/stage3bc_contrastive_train512_prereg.py results/nra2_stage3bc
+      - name: Verify 64 authorized TRAIN graphs 8 balanced role grammars no model weights
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("results/nra2_stage3bc/NRA2_S3BC_CONTRASTIVE_ROLE_TRAIN512_PREREG.json").read_text())
+          assert d["stage"]=="NRA2_S3BC_CONTRASTIVE_ROLE_TRAIN512_PREREG_ONLY_NO_MODEL"
+          assert d["S3BA_successful_CI"]==43590032315 and d["S3BB_readonly_successful_CI"]==43590817240
+          assert d["S3BA_pinned_role_fp16_sha256"]=="4fedf391ee02b1d1c45c82c3690d212ba9a43e9d0da32446f5d32ac6c379bb09"
+          assert d["S3AQ_parent_commitment_sha256"]=="c55799793263d5b4175fdfd62c293bcc2cb1794c73fa6ba856cf8b0a961f7839"
+          assert d["TRAIN512_count"]==512 and d["TRAIN_graph_count"]==64
+          assert d["yes_count"]==d["no_count"]==256
+          assert d["source_first_count"]==d["destination_first_count"]==256
+          assert len(set(d["prompt_sha256_in_order"]))==512
+          assert len(d["graph_topology_sha256_in_order"])==512
+          assert len(set(d["graph_topology_sha256_in_order"]))==64
+          assert len(d["new_8_query_styles"])==8
+          for item in d["per_style_balanced"].values():
+            assert item["count"]==64 and item["yes"]==32
+          assert d["new_prompts_sha_disjoint_from_all_S3AQ_and_S3AU_S3AY"]
+          assert d["old_DEV128_already_scored_and_excluded_from_training"]
+          assert d["future_EVAL128_not_prefilled_scored_or_trained"]
+          assert d["no_new_CPU_prefill_or_model_weights_or_training_or_scores"]
+          assert d["output_gate"]==0.0 and not d["candidate_accepted"]
+          assert len(d["commitment_sha256"])==64
+          print("S3BC_CONTRASTIVE_ROLE_TRAIN512_DATA_ONLY_COMMIT",d["commitment_sha256"])
+          PY
+      - name: Archive immutable S3BC research TRAIN-only 512 with no CPU or model
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3bc-contrastive-role-train512-prereg-no-model
+          path: results/nra2_stage3bc/
+          retention-days: 90
+          if-no-files-found: error
