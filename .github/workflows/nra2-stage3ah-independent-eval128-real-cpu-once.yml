@@ -8,10 +8,10 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: nra2-stage3af-frozen-train256-real-cpu-j7
+  group: nra2-stage3ah-independent-eval128-real-cpu-once
   cancel-in-progress: false
 jobs:
-  nra2_true_cpu_s3ae_TRAIN256_only_tokens_frozen_layer12_616_j7:
+  nra2_true_cpu_s3ae_EVAL128_after_s3ag_frozen_layer12_616_j7:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ah-independent-eval128-cpu-once-20261114'
     runs-on: ubuntu-24.04
     timeout-minutes: 240
@@ -510,7 +510,7 @@ jobs:
             inputs/s160/S160_REAL_PARALLEL_456_128_J7_AUDIT.json \
             inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
             inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
-            results/nra2_stage3af_train256_tokens
+            results/nra2_stage3ah_eval128_tokens
       - name: Verify original 616 J7, locked S3AG, pristine EVAL128 no candidate scoring
         run: |
           python - <<'PY'
