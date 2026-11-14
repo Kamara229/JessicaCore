@@ -34,6 +34,7 @@ jobs:
           done
       - name: Validate 8 new query templates, 96 mutually unseen topology graphs and anti-leakage
         run: |
+          python -m unittest -v research.nra2_bridge.test_stage3ae_train256_future_eval128_prereg
           python -m compileall -q research/nra2_bridge/stage3ae_train256_future_eval128_prereg.py
           python - <<'PY'
           from collections import Counter
