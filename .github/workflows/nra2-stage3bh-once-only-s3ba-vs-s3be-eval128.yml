@@ -39,10 +39,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          for r in 43579926284 43590032315 43593460123 43606222121 43630364617 43446925758; do
+          for r in 43579926284 43590032315 43593460123 43606222121 43639726200 43446925758; do
             test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$r" --jq .conclusion)" = success
           done
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43630364617" --jq .head_branch)" = research/calibri2-nra2-s3bg-blind-eval128-native43m-cpu-20261114
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43639726200" --jq .head_branch)" = research/calibri2-nra2-s3bg-blind-eval128-native43m-cpu-20261114
           python - <<'PY'
           import platform,torch
           assert platform.machine()=="x86_64" and not torch.cuda.is_available()
@@ -66,7 +66,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: nra2-stage3bg-s3aq-blind-eval128-real43M-tokens320-616J7-no-score
-          run-id: '43630364617'
+          run-id: '43639726200'
           github-token: ${{ github.token }}
           path: inputs/s3bg
       - name: Load original physically locked S3BA baseline
@@ -106,7 +106,7 @@ jobs:
           from pathlib import Path
           r=json.loads(Path("results/nra2_stage3bh/NRA2_S3BH_ONE_TIME_EVAL128_S3BA_VS_S3BE_NO_RETUNE.json").read_text())
           assert r["stage"]=="NRA2_S3BH_ONE_TIME_BLIND_S3AQ_EVAL128_S3BA_VS_S3BE"
-          assert r["S3BG_run"]==43630364617
+          assert r["S3BG_run"]==43639726200
           assert r["one_time_independent_EVAL128"]==128
           assert r["original_616_S194_J7_preserved_in_S3BG"]
           assert r["S3BF_protocol_sha256"]=="6286225dde86e444425bf853fd88811a472b4b962412c770a89b45c92d67ad2b"
