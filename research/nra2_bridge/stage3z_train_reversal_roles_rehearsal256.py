@@ -157,11 +157,11 @@ def main():
         require(key["source"].shape==(size,NODES) and
                 key["target"].shape==(size,NODES),"role target ABI drift")
     tokenizer=exact_original_tokenizer()
-    a="token_hidden320";m="token_mask";ln="token_lengths"
+    a="token_hidden320";m="token_mask";length_key="token_lengths"
     oldq,_=bind(tokenizer,[r.question for r in oldrows[:TRAIN]],
-                orig[a][:TRAIN],orig[m][:TRAIN],orig[ln][:TRAIN])
+                orig[a][:TRAIN],orig[m][:TRAIN],orig[length_key][:TRAIN])
     newq,_=bind(tokenizer,[r.question for r in sxrows],
-                new[a],new[m],new[ln])
+                new[a],new[m],new[length_key])
     origweights=load_file(str(oldmodel),device="cpu")
     torch.manual_seed(SEED)
     torch.set_num_threads(2)
@@ -238,7 +238,7 @@ def main():
 
     # One post-physical-commit exploratory DEV64. No tuning or checkpoint re-selection.
     devq,_=bind(tokenizer,[r.question for r in oldrows[TRAIN:]],
-                orig[a][TRAIN:],orig[m][TRAIN:],orig[ln][TRAIN:])
+                orig[a][TRAIN:],orig[m][TRAIN:],orig[length_key][TRAIN:])
     dsrc,ddst=gold_roles(labels_orig,TRAIN,TRAIN+DEV)
     devdata=(normalize(orig[a][TRAIN:],rereadmean,rereadscale,orig[m][TRAIN:]),
              orig[m][TRAIN:],devq,dsrc,ddst)
