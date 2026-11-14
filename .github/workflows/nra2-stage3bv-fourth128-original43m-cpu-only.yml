@@ -489,11 +489,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          for r in 43590032315 43649584951 S3BT_RUN_PENDING 43648038071 43644153544 43640363396; do
+          for r in 43590032315 43649584951 43650092316 43648038071 43644153544 43640363396; do
             test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$r" --jq .conclusion)" = success
           done
           test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43649584951" --jq .head_branch)" = research/calibri2-nra2-s3bu-fourth-independent128-prereg-20261115
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/S3BT_RUN_PENDING" --jq .head_branch)" = research/calibri2-nra2-s3bt-joint-meaning-replay-train2560-20261115
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43650092316" --jq .head_branch)" = research/calibri2-nra2-s3bt-joint-meaning-replay-train2560-20261115
       - name: Lock S3BU fourth wholly untouched128 prereg SHA before any native CPU
         uses: actions/download-artifact@v4
         with:
@@ -512,7 +512,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: nra2-stage3bt-semantic-directional-train2560-safe-fp16-zero-gate
-          run-id: 'S3BT_RUN_PENDING'
+          run-id: '43650092316'
           github-token: ${{ github.token }}
           path: inputs/nra2_stage3bt
       - name: S3BV true frozen original43M CPU prefill on FOURTH untouched independent128 no adapter score
@@ -561,8 +561,8 @@ jobs:
           assert r["stage"]=="NRA2_S3BV_ORIGINAL43M_FOURTH_UNTOUCHED128_CPU_NO_SCORE"
           assert r["S3BU_fourth_future_prereg_sha256"]=="117fcd79776c6d163b572f8d04b81743429d8c72e74cd072b6a5bedbb38c7f7e"
           assert r["S3BU_fourth_future_prereg_run"]==43649584951
-          assert r["S3BT_joint_train2560_physically_pinned_candidate_sha256"]=="S3BT_SHA_PENDING"
-          assert r["S3BT_joint_train2560_success_run"]==S3BT_RUN_PENDING
+          assert r["S3BT_joint_train2560_physically_pinned_candidate_sha256"]=="a700b59d8f759d816fa151c1d21d340fe1f26772ee91e9788f6fe98a123c4262"
+          assert r["S3BT_joint_train2560_success_run"]==43650092316
           assert r["S3BA_original_frozen_baseline_sha256"]=="4fedf391ee02b1d1c45c82c3690d212ba9a43e9d0da32446f5d32ac6c379bb09"
           assert r["fourth_new_independent_graphs"]==16 and r["fourth_new_independent_grammar_styles"]==8
           assert r["fourth_yes"]==64 and r["fourth_destination_first"]==64
