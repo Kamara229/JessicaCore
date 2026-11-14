@@ -45,7 +45,7 @@ def load_safetensors_raw(path: Path) -> dict[str, tuple[str, tuple[int, ...], by
         start, end = entry["data_offsets"]
         dims = tuple(entry["shape"])
         dtype = entry["dtype"]
-        require(dtype == "F16" and len(dims) > 0, "FP16 ABI or shape drift: " + key)
+        require(dtype == "F16", "FP16 ABI drift: " + key)  # scalar shape [] is valid
         require(all(type(d) is int and d >= 0 for d in dims), "invalid shape")
         count = 1
         for d in dims:
