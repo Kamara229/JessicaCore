@@ -1,0 +1,95 @@
+name: NRA2 S3AX read-only DEV128 role-grammar error audit S3AW vs S3AS
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3aw-newparaphrase-role-rehearsal-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-stage3ax-dev-only-s3aw-error-audit
+  cancel-in-progress: false
+jobs:
+  s3ax_readonly_scored_research_dev128:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ax-s3aw-dev128-readonly-error-audit-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU-only research deps
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Verify original research ancestry S3AR S3AS S3AW
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for n in 43580373587 43581666491 43583928298; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$n" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43583928298" --jq .head_branch)" = research/calibri2-nra2-s3aw-newparaphrase-role-rehearsal-20261114
+      - name: Original S3AR CPU 384 unchanged 616 J7 split TRAIN256 DEV128 only
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ar-real43M-s3aq-train256-dev128-tokens320-616J7
+          path: inputs/nra2_stage3ar
+          run-id: '43580373587'
+          github-token: ${{ github.token }}
+      - name: Frozen S3AS physical FP16 prior query head
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3as-s3z-init-train512-dev128-paired-roles-fp16-zero-gate
+          path: inputs/nra2_stage3as
+          run-id: '43581666491'
+          github-token: ${{ github.token }}
+      - name: Frozen S3AW physical FP16 new query head
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3aw-roles-new512-replay512-dev128-fp16-zero-gate
+          path: inputs/nra2_stage3aw
+          run-id: '43583928298'
+          github-token: ${{ github.token }}
+      - name: Verify source-only research grammar provenance no future EVAL
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3ax_s3aw_dev128_readonly_failure.py
+          python -m unittest -v research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg research.nra2_bridge.test_stage3o_neural_query_roles
+      - name: Reuse already scored DEV128 only and compare S3AW vs S3AS by style
+        run: |
+          PYTHONPATH=.:research:research/calibri OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 python -m research.nra2_bridge.stage3ax_s3aw_dev128_readonly_failure \
+            inputs/nra2_stage3ar inputs/nra2_stage3as inputs/nra2_stage3aw \
+            results/nra2_stage3ax_dev_grammar_readonly
+      - name: Audit exact per-grammar and paired DEV128 failures without acceptance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3ax_dev_grammar_readonly/NRA2_S3AX_S3AW_DEV128_ROLE_ERROR_DIAGNOSTIC.json").read_text())
+          assert r["stage"]=="NRA2_S3AX_S3AW_POSTSCORE_DEV128_ROLE_ERROR_DIAG_READONLY"
+          assert r["S3AW_successful_run"]==43583928298 and r["S3AS_successful_run"]==43581666491
+          assert r["DEV128_baseline_both"]==64 and r["DEV128_candidate_both"]==89
+          assert sum(r["DEV128_paired_flips"].values())==128
+          assert sum(x["count"] for x in r["S3AW_by_style"].values())==128
+          assert sum(x["correct"] for x in r["S3AW_by_style"].values())==89
+          assert r["new_weights_or_optimizer_steps"]==0
+          assert r["S3AR_original_CPU_384_frozen_616_J7"] and r["S3AQ_future_EVAL128_never_prefilled_scored_or_trained"]
+          assert r["output_gate"]==0.0 and not r["candidate_accepted"]
+          assert r["no_original_LIVE_Render_Supabase_APK_main_QA_TEST_changes"]
+          print("S3AX_S3AW_DEV128_READONLY_STYLE",r["S3AW_by_style"])
+          print("S3AX_S3AW_DEV128_PAIRED_FLIPS",r["DEV128_paired_flips"])
+          PY
+      - name: Archive read-only DEV128 style/truth/graph failure report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3ax-s3aw-dev128-readonly-style-errors
+          path: results/nra2_stage3ax_dev_grammar_readonly/
+          retention-days: 90
+          if-no-files-found: error
