@@ -38,6 +38,8 @@ S3BU_PREREG_RUN=43649584951
 S3BA_SHA="4fedf391ee02b1d1c45c82c3690d212ba9a43e9d0da32446f5d32ac6c379bb09"
 S3BT_SHA="a700b59d8f759d816fa151c1d21d340fe1f26772ee91e9788f6fe98a123c4262"
 S3BV_RUN=43650522935
+S3BV_TOKEN_FP16_SHA="cba96da389eff3b545570fa1551dfa3a6457d2f22372f208298ca31db4d29f53"
+S3BV_GOLD_FP16_SHA="0f9c9a697a3b0dd772fff6c9f12f0d1b5cefeee9ef4356cb5066e36154873511"
 
 def require(ok,why):
     if not bool(ok):
@@ -147,6 +149,8 @@ def main(cpu:Path,pre:Path,adir:Path,bdir:Path,nra_dir:Path,out:Path):
             and audit.get("three_previous_independent_EVALs_permanently_consumed_excluded") is True
             and audit.get("fourth_original_CPU_only_after_new_model_and_data_sha_locks") is True
             and audit.get("fourth_no_model_role_or_reachability_scored_this_run") is True
+            and audit.get("full_token_fp16_sha256")==S3BV_TOKEN_FP16_SHA
+            and audit.get("physical_graph_labels_sha256")==S3BV_GOLD_FP16_SHA
             and audit.get("all_616_token_digest_matches_S194") is True
             and audit.get("original_456_full_EOS")==456
             and audit.get("original_new128_full_EOS")==128
