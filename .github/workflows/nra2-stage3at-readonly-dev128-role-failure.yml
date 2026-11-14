@@ -1,0 +1,96 @@
+name: NRA2 S3AT read-only DEV128 role order failure diagnostic
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3as-s3z-newtrain-dev-guard-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-stage3at-dev-only-readonly-diagnostic
+  cancel-in-progress: false
+jobs:
+  s3at_exploratory_dev128_readonly:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3at-dev128-readonly-role-diagnostic-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin CPU-only dependencies without services
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Prove immutable S3AR S3Z S3AS successes before read-only DEV
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for n in 43532157094 43579926284 43580373587 43581666491; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$n" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43581666491" --jq .head_branch)" = research/calibri2-nra2-s3as-s3z-newtrain-dev-guard-20261114
+      - name: Download S3AR original real 43M CPU TRAIN+DEV only
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ar-real43M-s3aq-train256-dev128-tokens320-616J7
+          path: inputs/nra2_stage3ar
+          run-id: '43580373587'
+          github-token: ${{ github.token }}
+      - name: Download original S3Z physically locked query-role parent
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3z-role-reversal256-frozen-graph-train-fp16-zero-gate
+          path: inputs/nra2_stage3z
+          run-id: '43532157094'
+          github-token: ${{ github.token }}
+      - name: Download successful immutable S3AS physically locked FP16 role head
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3as-s3z-init-train512-dev128-paired-roles-fp16-zero-gate
+          path: inputs/nra2_stage3as
+          run-id: '43581666491'
+          github-token: ${{ github.token }}
+      - name: Verify code and untouched S3AQ prereg
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3at_dev128_role_failure_diagnostic.py
+          python -m unittest -v research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg research.nra2_bridge.test_stage3o_neural_query_roles
+      - name: Read-only score existing DEV128 by query style, graph and paired flips
+        run: |
+          PYTHONPATH=.:research:research/calibri OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 python -m research.nra2_bridge.stage3at_dev128_role_failure_diagnostic \
+            inputs/nra2_stage3ar inputs/nra2_stage3z inputs/nra2_stage3as \
+            results/nra2_stage3at_dev_role_diagnostic
+      - name: Verify no new model or blind EVAL read and exact S3AS paired baseline
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra2_stage3at_dev_role_diagnostic/NRA2_S3AT_DEV128_ROLE_ERROR_DIAGNOSTIC.json")
+          r=json.loads(p.read_text())
+          assert r["stage"]=="NRA2_S3AT_POSTSCORE_DEV128_ROLE_ERROR_DIAG_READONLY"
+          assert r["S3AS_successful_run"]==43581666491
+          assert r["DEV128_baseline_both"]==37 and r["DEV128_candidate_both"]==64
+          assert sum(r["DEV128_paired_flips"].values())==128
+          assert sum(x["count"] for x in r["S3AS_by_style"].values())==128
+          assert sum(x["correct"] for x in r["S3AS_by_style"].values())==64
+          assert r["S3AR_original_CPU_384_frozen_616_J7"]
+          assert r["S3AQ_future_EVAL128_never_prefilled_scored_or_trained"]
+          assert r["new_weights_or_optimizer_steps"]==0
+          assert r["output_gate"]==0.0 and r["candidate_accepted"] is False
+          assert r["no_original_LIVE_Render_Supabase_APK_main_QA_TEST_changes"]
+          print("S3AT_DEV128_EXACT_UNSEEN_WORDING_ROLE_FAILURE_DIAG_SAFE_READONLY")
+          PY
+      - name: Archive S3AT read-only scientific source/destination DEV error audit
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3at-dev128-readonly-roles-by-style-paired
+          path: results/nra2_stage3at_dev_role_diagnostic/
+          retention-days: 90
+          if-no-files-found: error
