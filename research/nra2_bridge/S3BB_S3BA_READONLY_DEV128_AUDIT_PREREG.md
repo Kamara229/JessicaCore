@@ -1,0 +1,9 @@
+# NRA2 S3BB — preregistration: read-only audit of the already-scored DEV128
+
+S3BA CI 43590032315 **completed successfully**. Its archived FP16 query-role head is SHA256 `4fedf391ee02b1d1c45c82c3690d212ba9a43e9d0da32446f5d32ac6c379bb09`; 1536 TRAIN-only examples; exploratory DEV128 = **94/128** versus pinned S3AW = **89/128**. S3BA still remains a rejected/ungated research candidate (`output_gate=0`), never a production model. S194 616 original J7 are guarded through source SHA/digests; future independent S3AQ EVAL128 remains unopened.
+
+## S3BB next experiment contract (read-only, no new fit)
+
+Load physically immutable S3AW (`8541eea24d5074e29b6a4acd8b611d2d29d608dacf2dfe909e8df05eb0fb2130`) and S3BA (`4fedf391ee02b1d1c45c82c3690d212ba9a43e9d0da32446f5d32ac6c379bb09`) with verified S3AR original CPU DEV128 tokens, graph labels and original 616-J7 digest provenance. Reuse **only the previously scored and explicitly non-independent DEV128** to calculate per-style source/target swaps, 89→94 gains and losses, per-graph quartets, correctness by grammar and reachability truth. Investigate **32 wrong out of 64 source-first vs 2 wrong out of 64 destination-first** under S3BA. This is descriptive post-score diagnosis, not authorization to train/tune on DEV. Show actual instance-level differences without copying DEV prompts to TRAIN or reading future EVAL. There must be no optimizer, no new weights, no output-gate acceptance, no modification of LIVE/Render/Supabase/APK/main/QA/TEST.
+
+**Fail closed** if physical hashes, exact score counts or 616 protected original J7 lineage mismatch. S3BB analysis implementation and CI verification are still pending after this preregistration commit. No claim is made that S3BA improves full natural language responses, all-in bpp or CPU speed. Jessica ordinary chat must remain relay-only, no tests.
