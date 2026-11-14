@@ -1,0 +1,76 @@
+name: NRA2 S3AQ prereg NEW TRAIN256 DEV128 untouched EVAL128 no model
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3ap-readonly-postmortem-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3aq-newtrain-dev-eval-prereg
+  cancel-in-progress: false
+jobs:
+  s3aq_data_only_precommit_new_splits:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3aq-newtrain-dev-blind-eval-prereg-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '1290129'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify scored S3AO provenance; do not re-score scored EVAL128
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43579515862 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43579515862 --jq .head_branch)" = research/calibri2-nra2-s3ao-once-only-eval128-fourway-20261114
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43542086287 --jq .conclusion)" = success
+          echo S3AQ_PREVIOUS_EVAL128_SCORED_NEVER_REUSED_AS_BLIND
+      - name: Validate prereg source-only generator, unique topologies and separated TRAIN DEV EVAL
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3aq_train_dev_futureeval_prereg.py
+          python -m unittest -v research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg
+      - name: Produce deterministic immutable prereg SHA without CPU model or adapter inference
+        run: |
+          python research/nra2_bridge/stage3aq_train_dev_futureeval_prereg.py results/nra2_stage3aq
+      - name: Check new original-free data, no leakage or early EVAL prefill/scoring
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra2_stage3aq/NRA2_S3AQ_TRAIN256_DEV128_FUTURE_EVAL128_PREREG.json")
+          d=json.loads(p.read_text())
+          assert d["stage"]=="NRA2_S3AQ_PRECOMMIT_TRAIN256_DEV128_FUTURE_EVAL128_NO_SCORE"
+          assert d["original_S3AO_successful_run"]==43579515862
+          assert d["previous_S3AK_EVAL128_is_already_scored_and_NOT_future_blind"]
+          assert d["train_dev_eval_topology_and_prompt_disjoint"]
+          assert d["new_eval_excluded_from_optimizer_and_checkpoint_selection"]
+          assert d["future_eval_not_to_be_prefilled_before_candidate_physically_locked"]
+          assert d["no_weights_or_training_or_scores"]
+          assert d["no_candidate_accepted"] and d["gate"]==0.0
+          assert len(d["commitment_sha256"])==64
+          for group,cnt,top in (("S3AQ_NEW_TRAIN256",256,64),
+                                ("S3AQ_RESEARCH_DEV128",128,32),
+                                ("S3AQ_FUTURE_INDEPENDENT_EVAL128",128,32)):
+              g=d["splits"][group]
+              assert g["count"]==cnt and g["topology_count"]==top
+              assert g["yes_count"]==cnt//2 and g["destination_first_count"]==cnt//2
+              assert len(g["question_sha256"])==cnt and len(g["grammars"])==4
+          print("S3AQ_256_TRAIN_128_DEV_128_FUTURE_EVAL_DISJOINT_UNSCORED_SHA",d["commitment_sha256"],flush=True)
+          PY
+      - name: Store research-only prereg before next training, preserve future EVAL
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3aq-newtrain256-dev128-futureeval128-preregistered-no-scores
+          path: results/nra2_stage3aq/
+          retention-days: 90
+          if-no-files-found: error
