@@ -98,7 +98,7 @@ def main():
     # must have been physically saved, no old EVAL model/score used in fit.
     candidate=Path("inputs/nra2_stage3bt/NRA2_S3BT_SAFE_JOINT_RELATION_TRAIN2560_FP16.safetensors")
     baseline=Path("inputs/nra2_stage3ba/NRA2_S3BA_S3AW_INIT_ROLE1536_FP16.safetensors")
-    candidate_sha="FIX_AFTER_S3BT_SUCCESS_SHA"
+    candidate_sha="a700b59d8f759d816fa151c1d21d340fe1f26772ee91e9788f6fe98a123c4262"
     baseline_sha="4fedf391ee02b1d1c45c82c3690d212ba9a43e9d0da32446f5d32ac6c379bb09"
     if sha_file(candidate)!=candidate_sha or sha_file(baseline)!=baseline_sha:
         raise AssertionError("S3BV S3BT 2560 TRAIN model FP16 physical SHA not frozen")
@@ -315,7 +315,7 @@ def main():
         "S3BU_fourth_future_prereg_sha256":prior["commitment_sha256"],
         "S3BU_fourth_future_prereg_run":43649584951,
         "S3BT_joint_train2560_physically_pinned_candidate_sha256":candidate_sha,
-        "S3BT_joint_train2560_success_run":0,
+        "S3BT_joint_train2560_success_run":43650092316,
         "S3BA_original_frozen_baseline_sha256":baseline_sha,
         "fourth_new_independent_graphs":16,
         "fourth_new_independent_grammar_styles":8,
