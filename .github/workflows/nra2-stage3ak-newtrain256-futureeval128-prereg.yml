@@ -1,0 +1,72 @@
+name: NRA2 S3AK preregister fresh TRAIN256 and untouched future EVAL128 no scoring
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3aj-frozen-eval128-postmortem-20261114
+permissions:
+  contents: read
+concurrency:
+  group: nra2-s3ak-newtrain256-future-eval128-once-prereg
+  cancel-in-progress: false
+jobs:
+  s3ak_immutable_prereg_only_without_model:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ak-newtrain256-futureeval128-prereg-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install only dependencies needed by deterministic prereg and S160 tokenizer
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Verify prereg is deterministic, disjoint and balanced, no model called
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3ak_newtrain256_futureeval128_prereg.py
+          python -m unittest -v research.nra2_bridge.test_stage3ak_newtrain256_futureeval128_prereg
+      - name: Freeze S3AK 256 new TRAIN and 128 future EVAL question and graph SHA before training
+        run: |
+          python -m research.nra2_bridge.stage3ak_newtrain256_futureeval128_prereg results/nra2_stage3ak_prereg
+      - name: Assert SHA and split commitments without examining model scores
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra2_stage3ak_prereg/NRA2_S3AK_NEW_TRAIN256_FUTURE_EVAL128_PREREG.json")
+          r=json.loads(p.read_text())
+          assert r["stage"]=="NRA2_S3AK_PRECOMMIT_DISJOINT_NEW_TRAIN256_FUTURE_EVAL128_NO_SCORE"
+          assert r["original_S3AI_successful_run"]==43541542901
+          assert r["S3AE_previous_independent128_commitment_sha256"]=="0ccbb2b19b3feb93b79f5dcbc892f2e414a564b6e4d83e52997098346e4f480f"
+          assert r["previous_S3AE_EVAL128_is_already_scored_and_NOT_future_blind"]
+          assert r["S3AI_negative_reachability_S3O_S3Z_S3AG"]==[96,91,92]
+          assert r["future_eval_not_to_be_prefilled_before_next_candidate_physically_locked"]
+          assert r["new_eval_excluded_from_optimizer_and_checkpoint_selection"]
+          assert r["no_weights_or_training_or_scores"] and r["future_CPU_acquisition_and_training_not_started"]
+          assert r["original_S194_616_J7_guard_required"] and r["gate"]==0.0
+          assert r["splits"]["S3AK_NEW_TRAIN256"]["count"]==256
+          assert r["splits"]["S3AK_NEW_TRAIN256"]["topology_count"]==64
+          assert r["splits"]["S3AK_FUTURE_INDEPENDENT_EVAL128"]["count"]==128
+          assert r["splits"]["S3AK_FUTURE_INDEPENDENT_EVAL128"]["topology_count"]==32
+          assert len(r["commitment_sha256"])==64
+          print("S3AK_LOCKED_DISJOINT_TRAIN256_FUTURE_EVAL128_NO_CPU_NO_SCORE",flush=True)
+          PY
+      - name: Upload S3AK immutable prereg not training or scoring results
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3ak-newtrain256-futureeval128-preregistered-no-scores
+          path: results/nra2_stage3ak_prereg/
+          retention-days: 90
+          if-no-files-found: error
