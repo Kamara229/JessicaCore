@@ -10,6 +10,7 @@ No real CPU, weights, role-head scoring, speed or model changes here.
 """
 from __future__ import annotations
 from collections import defaultdict
+from functools import lru_cache
 import hashlib
 import json
 from pathlib import Path
@@ -17,7 +18,7 @@ import random
 import sys
 
 from research.nra2_bridge.stage3aq_train_dev_futureeval_prereg import (
-    build_rows as original_rows,commitment as parent_commit,
+    build_rows as _original_rows,commitment as parent_commit,
     TRAIN as ORIGINAL_TRAIN, DEV as ORIGINAL_DEV,EVAL as SPENT_OLD_EVAL,
     STYLES as AQ_STYLES,
 )
@@ -41,13 +42,18 @@ CONSTRUCTIONS=("signal_passing","formal_transition","process_terminal","successo
 STYLES=(
     "Where a signal begins at {src} and every hop follows an outgoing arrow, could it ultimately be received by {dst}?",
     "Could {dst} eventually receive a signal sent from {src} if every hop obeys the arrow direction?",
-    "Treat {src} as the initial state of a directed transition system. Is {dst} ever attainable by repeated transitions?",
+    "Treat {src} as the initial state of a directed transition system: is {dst} ever attainable by repeated transitions?",
     "Does repeated application of directed transitions allow attainment of {dst} from initial state {src}?",
     "Can an outbound process that originates in {src} terminate at {dst} using only permitted one-way moves?",
     "Can {dst} serve as the end state for a one-way process whose origin is {src}?",
     "If one starts with {src} and follows only successors, does any finite sequence finish at {dst}?",
     "Is there a finite predecessor-to-successor sequence ending at {dst} that begins with {src}?",
 )
+
+@lru_cache(maxsize=1)
+def original_rows():
+    # Preserve exact precommitted original dataset, do not mutate cached rows.
+    return _original_rows()
 
 def require(condition,why):
     if not condition:
