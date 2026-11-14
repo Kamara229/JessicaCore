@@ -68,7 +68,7 @@ def previous_rows():
 
 def build_rows():
     prior=previous_rows()
-    used={r.topology_key for group in prior for r in group}
+    used={tuple(sorted(r.edges)) for group in prior for r in group}
     old_sha={r.prompt_sha256 for group in prior for r in group}
     old_templates=set(S3M_STYLES)|set(S3T_STYLES)|set(S3X_STYLES)
     if len(set(QUERY_STYLES))!=4 or any(x in old_templates for x in QUERY_STYLES):
@@ -115,7 +115,7 @@ def build_rows():
 
 def validate(rows):
     prior=previous_rows()
-    prior_topology={r.topology_key for group in prior for r in group}
+    prior_topology={tuple(sorted(r.edges)) for group in prior for r in group}
     prior_sha={r.prompt_sha256 for group in prior for r in group}
     if (len(rows)!=PROMPTS
         or len({r.prompt_sha256 for r in rows})!=PROMPTS
