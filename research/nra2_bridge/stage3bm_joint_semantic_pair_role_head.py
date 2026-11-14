@@ -63,6 +63,9 @@ class JointSemanticPairRoleHead(nn.Module):
         # gradient step trains the residual output and later all new layers.
         nn.init.zeros_(self.pair_score[-1].weight)
         nn.init.zeros_(self.pair_score[-1].bias)
+        # Frozen FP16 checkpoint can later lock a TRAIN-guarded residual shrink.
+        # The scale is NEVER selected using previously spent independent EVALs.
+        self.register_buffer("residual_scale",torch.tensor(1.0,dtype=torch.float32))
 
     def forward(self,tokens:torch.Tensor,token_mask:torch.Tensor,q:QueryTextMask):
         base_src,base_dst=self.base(tokens,token_mask,q)
@@ -98,7 +101,7 @@ class JointSemanticPairRoleHead(nn.Module):
         rel=q.relative_positions[:,0:1]-q.relative_positions[:,1:2]
         fwd=torch.cat([side[:,0]-side[:,1],clause,common,rel],dim=-1)
         rev=torch.cat([side[:,1]-side[:,0],clause,common,-rel],dim=-1)
-        correction=(self.pair_score(fwd)-self.pair_score(rev)).squeeze(-1)
+        correction=(self.pair_score(fwd)-self.pair_score(rev)).squeeze(-1)*self.residual_scale
         # The two opposite endpoints are constrained in a single score; no
         # independent source and target classifiers can disagree.
         plusminus=torch.stack((correction,-correction),dim=-1)
