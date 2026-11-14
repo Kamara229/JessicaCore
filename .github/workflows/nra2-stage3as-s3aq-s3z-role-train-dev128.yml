@@ -1,0 +1,138 @@
+name: NRA2 S3AS S3Z-init train512 role-only paired DEV128 frozen 616 J7
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3ar-train256-dev128-real43m-cpu-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-stage3as-s3z-role-only-train-dev
+  cancel-in-progress: false
+jobs:
+  s3as_train512_s3z_init_dev128_post_fp16:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3as-s3z-newtrain-dev-guard-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned native CPU-only research dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Require locked S3AR real CPU 384 J7 S3Z original graph S3AQ
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for n in 43522555326 43530742301 43530401603 43522663612 43532157094 43579926284 43580373587; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$n" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43580373587" --jq .head_branch)" = research/calibri2-nra2-s3ar-train256-dev128-real43m-cpu-20261114
+      - name: Original S3N genuine 43M CPU TRAIN128 with immutable J7
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3n-real43M-192pairedgraph-tokens320-616J7
+          path: inputs/nra2_stage3n
+          run-id: '43522555326'
+          github-token: ${{ github.token }}
+      - name: Original S3Y CPU reversed-roles TRAIN128
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3y-real43M-s3x-reversaltrain128-tokens320-616J7
+          path: inputs/nra2_stage3y
+          run-id: '43530742301'
+          github-token: ${{ github.token }}
+      - name: S3X replay TRAIN128 immutable prereg
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3x-reversal-train128-grammar-prereg-no-score
+          path: inputs/nra2_stage3x
+          run-id: '43530401603'
+          github-token: ${{ github.token }}
+      - name: S3O frozen graph and true CPU query head
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3o-real43M-semantic-queryroles-train128-dev64-zero-gate-fp16
+          path: inputs/nra2_stage3o
+          run-id: '43522663612'
+          github-token: ${{ github.token }}
+      - name: S3Z frozen original role-head parent FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3z-role-reversal256-frozen-graph-train-fp16-zero-gate
+          path: inputs/nra2_stage3z
+          run-id: '43532157094'
+          github-token: ${{ github.token }}
+      - name: S3AR true 43M CPU TRAIN256 DEV128 artifact original 616
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ar-real43M-s3aq-train256-dev128-tokens320-616J7
+          path: inputs/nra2_stage3ar
+          run-id: '43580373587'
+          github-token: ${{ github.token }}
+      - name: Verify all split and graph query invariants
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3as_s3z_init_train_dev_roles.py
+          python -m unittest -v research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg research.nra2_bridge.test_stage3x_reversal_train_prereg research.nra2_bridge.test_stage3o_neural_query_roles
+      - name: Train only query-role head S3Z init using TRAIN512 DEV128 only after FP16 SHA
+        run: |
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S3AS_ONLY_RESEARCH_NATIVE_CPU_TRAIN_512",flush=True)
+          PY
+          PYTHONPATH=.:research:research/calibri python -m research.nra2_bridge.stage3as_s3z_init_train_dev_roles \
+            inputs/nra2_stage3n inputs/nra2_stage3y inputs/nra2_stage3x \
+            inputs/nra2_stage3o inputs/nra2_stage3z inputs/nra2_stage3ar \
+            results/nra2_stage3as_s3z_train512_dev128
+      - name: Verify only post-lock DEV128 paired roles, zero gate, untouched blind EVAL and J7
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          d=Path("results/nra2_stage3as_s3z_train512_dev128")
+          p=d/"NRA2_S3AS_S3Z_INIT_ROLE512_FP16.safetensors"
+          a=json.loads((d/"NRA2_S3AS_S3Z_INIT_TRAIN512_DEV128_ROLE_AUDIT.json").read_text())
+          sha=hashlib.sha256(p.read_bytes()).hexdigest()
+          assert a["stage"]=="NRA2_S3AS_S3Z_INITIALIZED_ROLE512_TRAIN_DEV128_EXPLORATORY_FROZEN_GRAPH"
+          assert sha==a["new_S3AS_physical_fp16_sha256"] and len(sha)==64
+          assert a["S3AR_real_cpu_successful_run"]==43580373587
+          assert a["S3Z_parent_training_successful_run"]==43532157094
+          assert a["S3AQ_preregistered_commitment_sha256"]=="c55799793263d5b4175fdfd62c293bcc2cb1794c73fa6ba856cf8b0a961f7839"
+          assert a["S3AR_cpu_token_fp16_unchanged_sha256"]=="5c44f4d52b5f2f618b93885f288975e269a4d44d21506cd7906368fd20467f2b"
+          assert a["S3Z_parent_fp16_unchanged_sha256"]=="60a7121b8270f647909776b58dc21b07c6cb885fd6ebeb6cb3158b23221f6e9f"
+          assert a["original_graph_physical_fp16_bitwise_equal"] and a["physical_fp16_reload_equal"]
+          assert a["full_S194_original_616_J7_digests_from_S3AR_protected"]
+          assert a["S3AQ_future_EVAL128_not_prefilled_scored_or_trained"]
+          assert a["S3AO_already_scored_EVAL128_NOT_reused_for_training_or_selection"]
+          assert a["train_count"]==512 and a["new_S3AQ_TRAIN_count"]==256 and a["DEV_count"]==128
+          assert a["only_query_role_head_trained"] and a["original_graph_and_independent_NRA_frozen"]
+          assert a["train_loss_after"]<a["train_loss_before"]
+          assert a["DEV128_scored_only_after_FP16_SHA_commit"] and a["DEV128_excluded_from_gradient_optimizer"]
+          assert a["DEV128_paired_S3Z_baseline"]["all"]["count"]==128
+          assert a["DEV128_paired_S3AS_candidate"]["all"]["count"]==128
+          assert a["output_gate"]==0.0 and a["candidate_accepted"] is False
+          assert not a["full_original_CPU_J7_candidate_gain_tested"]
+          assert not a["all_in_physical_bpp_tested"] and not a["paired_candidate_CPU_speed_tested"]
+          assert a["Jessica_LIVE_Render_Supabase_APK_main_QA_TEST_unchanged"]
+          print("S3AS_S3Z_INIT_ROLE_HEAD_ONLY_DEV_PAIRED_EVAL_UNTOUCHED",sha)
+          print("BASELINE",a["DEV128_paired_S3Z_baseline"])
+          print("CANDIDATE",a["DEV128_paired_S3AS_candidate"])
+          print("PAIR_GAINS",a["DEV128_both_source_first_gain"],a["DEV128_both_destination_first_gain"])
+          PY
+      - name: Archive S3AS research-only FP16 locked checkpoint and honest DEV128 result
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3as-s3z-init-train512-dev128-paired-roles-fp16-zero-gate
+          path: results/nra2_stage3as_s3z_train512_dev128/
+          retention-days: 90
+          if-no-files-found: error
