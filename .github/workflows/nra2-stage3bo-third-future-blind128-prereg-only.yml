@@ -9,7 +9,7 @@ permissions:
   actions: read
 concurrency:
   group: nra2-s3bo-third-new-blind128-prereg-hash-only
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   s3bo_third_new_blind128_sha_lock_no_models:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bo-third-untouched128-prereg-20261115'
