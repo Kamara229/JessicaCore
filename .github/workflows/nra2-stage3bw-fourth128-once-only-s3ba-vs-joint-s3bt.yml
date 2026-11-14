@@ -102,6 +102,9 @@ jobs:
           r=json.loads(Path("results/nra2_stage3bw_fourth128_once_only/NRA2_S3BW_FOURTH_ONCE_ONLY128_S3BA_VS_S3BT_NO_RETUNE.json").read_text())
           assert r["stage"]=="NRA2_S3BW_FOURTH_ONCE_ONLY_S3BU128_S3BA_VS_JOINT_S3BT"
           assert r["S3BV_run"]==43650522935 and r["S3BU_prereg_successful_run"]==43649584951
+          assert r["S3BV_original_CPU_token_fp16_sha256"]=="cba96da389eff3b545570fa1551dfa3a6457d2f22372f208298ca31db4d29f53"
+          assert r["S3BV_gold_fp16_sha256"]=="0f9c9a697a3b0dd772fff6c9f12f0d1b5cefeee9ef4356cb5066e36154873511"
+          assert r["graph_weights_bitwise_equal"] and r["graph_logits_bitwise_equal"]
           assert r["S3BU_prereg_commitment_sha256"]=="117fcd79776c6d163b572f8d04b81743429d8c72e74cd072b6a5bedbb38c7f7e"
           assert r["S3BA_fp16_sha256"]=="4fedf391ee02b1d1c45c82c3690d212ba9a43e9d0da32446f5d32ac6c379bb09"
           assert r["S3BT_fp16_sha256"]=="a700b59d8f759d816fa151c1d21d340fe1f26772ee91e9788f6fe98a123c4262"
