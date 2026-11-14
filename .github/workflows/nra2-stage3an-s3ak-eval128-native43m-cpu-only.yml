@@ -8,7 +8,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: nra2-stage3ah-independent-eval128-real-cpu-once
+  group: nra2-stage3an-independent-eval128-real-cpu-once
   cancel-in-progress: false
 jobs:
   nra2_true_cpu_s3ak_EVAL128_after_s3am_frozen_layer12_616_j7:
@@ -496,7 +496,7 @@ jobs:
           assert platform.machine()=="x86_64" and not torch.cuda.is_available()
           print("S161_NATIVE_CPU_NO_GPU_TRAINING",flush=True)
           PY
-          python research/nra2_bridge/stage3ah_eval128_real_cpu_once_only.py \
+          python research/nra2_bridge/stage3an_eval128_real_cpu_once_only.py \
             inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
             inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
             inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
@@ -523,13 +523,13 @@ jobs:
             inputs/s160/S160_REAL_PARALLEL_456_128_J7_AUDIT.json \
             inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
             inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
-            results/nra2_stage3ah_eval128_tokens
+            results/nra2_stage3an_eval128_tokens
       - name: Verify original 616 J7, locked S3AM, pristine EVAL128 no candidate scoring
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          p=Path("results/nra2_stage3ah_eval128_tokens/NRA2_S3AN_EVAL128_REAL_CPU_J7_AUDIT.json")
+          p=Path("results/nra2_stage3an_eval128_tokens/NRA2_S3AN_EVAL128_REAL_CPU_J7_AUDIT.json")
           r=json.loads(p.read_text())
           assert r["stage"]=="NRA2_S3AN_FROZEN_S3AK_INDEPENDENT_EVAL128_NO_SCORE_CPU_CAPTURE_ONLY"
           assert r["all_616_token_digest_matches_S194"]
@@ -555,7 +555,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: nra2-stage3ah-independent-eval128-real43M-tokens320-616J7
-          path: results/nra2_stage3ah_eval128_tokens/
+          name: nra2-stage3an-independent-eval128-real43M-tokens320-616J7
+          path: results/nra2_stage3an_eval128_tokens/
           retention-days: 90
           if-no-files-found: error
