@@ -133,13 +133,13 @@ def main():
         or prior.get("splits",{}).get(TRAIN,{}).get("count")!=256
         or prior["splits"][TRAIN]["yes_count"]!=128
         or prior["splits"][TRAIN]["destination_first_count"]!=128
-        or prior["splits"][TRAIN]["question_sha256"]!=[r.prompt_sha256 for r in rows]
-        or prior["splits"][TRAIN]["source_order_query_offsets"]!=[query_char_offsets(r.question) for r in rows]
+        or prior["splits"][EVAL]["question_sha256"]!=[r.prompt_sha256 for r in rows]
+        or prior["splits"][EVAL]["source_order_query_offsets"]!=[query_char_offsets(r.question) for r in rows]
         or prior.get("splits",{}).get(EVAL,{}).get("count")!=128
         or prior["splits"][EVAL]["topology_count"]!=32
         or prior["splits"][EVAL]["yes_count"]!=64
         or prior["splits"][EVAL]["destination_first_count"]!=64):
-        raise AssertionError("S3AH pinned TRAIN256 prereg / preserved future EVAL128 SHA drift")
+        raise AssertionError("S3AH pinned future EVAL128 order/hash/source and TRAIN256 prereg SHA drift")
     previously=json.loads(Path("inputs/nra2_stage3n/NRA2_S3N_192_ROLEBALANCED_REAL_CPU_AUDIT.json").read_text())
     old_s3n_tokens=Path("inputs/nra2_stage3n/NRA2_S3N_REAL_CPU_GRAPH192_ALL_TOKENS_FP16.safetensors")
     if (previously.get("stage")!="NRA2_S3N_REAL_CPU_FROZEN_192_ROLEBALANCED_TOKEN_CAPTURE_ONLY"
