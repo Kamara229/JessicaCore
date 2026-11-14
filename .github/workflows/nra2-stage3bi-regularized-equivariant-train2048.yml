@@ -9,7 +9,7 @@ permissions:
   actions: read
 concurrency:
   group: nra2-stage3bi-anchored-equivariance-2048-train-only-research
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   s3bi_teacher_anchored_equivariance_train2048_only:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bi-regularized-equivariant-adapter-train2048-20261115'
