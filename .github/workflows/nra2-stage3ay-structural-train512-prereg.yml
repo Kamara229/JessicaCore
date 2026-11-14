@@ -1,0 +1,73 @@
+name: NRA2 S3AY prereg new structural grammar TRAIN512 no DEV or future EVAL
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3ax-s3aw-dev128-readonly-error-audit-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-stage3ay-structural-train-prereg-only
+  cancel-in-progress: false
+jobs:
+  s3ay_data_only_train512:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ay-structural-train512-prereg-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '1290129'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require successful S3AQ S3AU S3AW and read-only S3AX grammar postmortem
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for n in 43579926284 43582403331 43582744317 43583928298 43587189605; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$n" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43587189605" --jq .head_branch)" = research/calibri2-nra2-s3ax-s3aw-dev128-readonly-error-audit-20261114
+      - name: Validate all S3AY structural wording and S3AQ future EVAL safeguards
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3ay_structural_train512_prereg.py
+          python -m unittest -v research.nra2_bridge.test_stage3ay_structural_train512_prereg research.nra2_bridge.test_stage3au_train512_paraphrase_prereg research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg
+      - name: Commit S3AY exact TRAIN512 new phrasing SHA no original CPU prefill
+        run: |
+          python research/nra2_bridge/stage3ay_structural_train512_prereg.py results/nra2_stage3ay
+      - name: Verify source-only 64 graphs 8 syntactic formulations, no optimizer, blind EVAL
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("results/nra2_stage3ay/NRA2_S3AY_NEW_TRAIN512_PARAPHRASE_PREREG.json").read_text())
+          assert d["stage"]=="NRA2_S3AY_NEW_TRAIN512_PARAPHRASES_PRECOMMIT_NO_MODEL_NO_EVAL"
+          assert d["S3AW_successful_role_train_run"]==43583928298
+          assert d["S3AX_successful_DEV_diagnostic_run"]==43587189605
+          assert d["S3AW_physical_query_role_sha256"]=="8541eea24d5074e29b6a4acd8b611d2d29d608dacf2dfe909e8df05eb0fb2130"
+          assert d["S3AU_prior_TRAIN512_commitment_sha256"]=="ac038f50dab0ace449f1df32ec7e8728476420615f60c85a8d8fce64c787558a"
+          assert d["TRAIN512_count"]==512 and d["reused_TRAIN_graph_topology_count"]==64
+          assert sum(x["yes_count"] for x in d["per_style_balanced"].values())==256
+          assert len(set(d["graph_prompt_sha256_in_order"]))==512
+          assert d["future_EVAL128_never_prefilled_scored_or_trained"]
+          assert d["old_scored_DEV128_NEVER_training_or_candidate_sealed_test"]
+          assert d["no_new_model_weights_or_training_or_scores"]
+          assert d["output_gate"]==0.0 and not d["candidate_accepted"]
+          assert len(d["commitment_sha256"])==64
+          print("S3AY_TRAIN512_FRONTED_GERUND_STRUCTURAL_ROLE_ONLY_SHA",d["commitment_sha256"])
+          PY
+      - name: Archive immutable S3AY syntactic TRAIN512 split prereg, no model touched
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3ay-new-structural-train512-prereg-no-model
+          path: results/nra2_stage3ay/
+          retention-days: 90
+          if-no-files-found: error
