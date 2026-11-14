@@ -1,0 +1,72 @@
+name: NRA2 S3BR new directional-relation TRAIN512 prereg no model no CPU
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3bq-once-only-third128-s3ba-vs-s3bn-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3br-512-independent-of-all-spent-evals-dataonly
+  cancel-in-progress: true
+jobs:
+  s3br_directional_train512_new_roles_data_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3br-semantic-role-curriculum-train512-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify all three previous EVAL128s are already one-time consumed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for r in 43640363396 43644153544 43648038071 43645412996 43646187689; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$r" --jq .conclusion)" = success
+          done
+      - name: Validate only 64 old TRAIN graph topologies and eight new grammars
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3br_relation_language_train512_prereg.py research/nra2_bridge/test_stage3br_relation_language_train512_prereg.py
+          python -m unittest -v research.nra2_bridge.test_stage3br_relation_language_train512_prereg
+      - name: SHA-seal 512 original TRAIN graph-only new questions before true CPU token capture
+        run: |
+          python -m research.nra2_bridge.stage3br_relation_language_train512_prereg results/nra2_stage3br_directional_train512
+      - name: Verify TRAIN-only question SHA and 616 J7 requirement without model
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          a=json.loads(Path("results/nra2_stage3br_directional_train512/NRA2_S3BR_DIRECTIONAL_TRAIN512_PREREG.json").read_text())
+          assert a["stage"]=="NRA2_S3BR_RELATION_LANGUAGE_TRAIN512_PREREG_ONLY"
+          assert a["TRAIN512_count"]==512 and a["TRAIN_graphs"]==64
+          assert a["source_first_count"]==a["destination_first_count"]==256
+          assert a["yes_count"]==a["no_count"]==256
+          assert len(set(a["query_sha256_in_order"]))==512
+          assert len(set(a["graph_sha256_in_order"]))==64
+          assert a["prior_EVAL1_consumed_run"]==43640363396
+          assert a["prior_EVAL2_consumed_run"]==43644153544
+          assert a["prior_EVAL3_consumed_run"]==43648038071
+          assert a["S3BN_frozen_initial_candidate_sha256"]=="ea8a81665370cba22c4e8bc75fbe82314089244d4b32278ee62c2c30d88ae811"
+          assert a["source_original_TRAIN_graphs_only"] and a["prior_EVALs_NEVER_model_input_nor_target_for_train"]
+          assert a["protected_616_original_S194_J7_must_remain_frozen"]
+          assert a["no_cpu_tokens_or_weights_or_training_or_scoring_this_step"]
+          assert not a["candidate_accepted"] and a["output_gate"]==0.
+          print("S3BR_NEW_RELATIONAL_DIRECTION_TRAIN512_SHA_LOCKED",a["commitment_sha256"])
+          PY
+      - name: Archive precommitted S3BR 512 TRAIN-only language relations
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3br-new-directional-relation-train512-prereg-only
+          path: results/nra2_stage3br_directional_train512/
+          retention-days: 90
+          if-no-files-found: error
