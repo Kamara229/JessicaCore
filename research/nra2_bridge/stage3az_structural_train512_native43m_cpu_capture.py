@@ -115,7 +115,7 @@ def main():
         or prior.get("S3AW_successful_role_train_run")!=43583928298
         or prior.get("S3AX_successful_DEV_diagnostic_run")!=43587189605
         or prior.get("S3AW_physical_query_role_sha256")!="8541eea24d5074e29b6a4acd8b611d2d29d608dacf2dfe909e8df05eb0fb2130"
-        or prior.get("S3AY_prior_TRAIN512_commitment_sha256")!="ac038f50dab0ace449f1df32ec7e8728476420615f60c85a8d8fce64c787558a"
+        or prior.get("S3AU_prior_TRAIN512_commitment_sha256")!="ac038f50dab0ace449f1df32ec7e8728476420615f60c85a8d8fce64c787558a"
         or prior.get("S3AQ_parent_preregistered_SHA256")!="c55799793263d5b4175fdfd62c293bcc2cb1794c73fa6ba856cf8b0a961f7839"
         or prior.get("original_S194_616_J7_CPU_required_before_all_future_training") is not True
         or prior.get("future_EVAL128_never_prefilled_scored_or_trained") is not True
@@ -301,7 +301,7 @@ def main():
     report={
         "stage":"NRA2_S3AZ_FROZEN_S3AY_NEW_TRAIN512_NO_SCORE_CPU_CAPTURE_ONLY",
         "S3AY_registered_commitment_sha256":prior["commitment_sha256"],
-        "S3AY_successful_prereg_run":43587491052,
+        "S3AY_successful_prereg_run":43587711528,
         "S3AY_TRAIN512_source_sha256":hashlib.sha256(json.dumps(
             prior["graph_prompt_sha256_in_order"],sort_keys=True,separators=(",",":")).encode()).hexdigest(),
         "S3AY_future_EVAL128_never_prefilled_scored_or_trained":True,
