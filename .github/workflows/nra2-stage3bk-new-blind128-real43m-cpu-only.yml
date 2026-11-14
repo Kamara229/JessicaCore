@@ -8,10 +8,10 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: nra2-stage3bg-independent-eval128-real-cpu-once
+  group: nra2-stage3bk-new-blind128-original-cpu-once-no-score
   cancel-in-progress: false
 jobs:
-  nra2_true_cpu_s3aq_train256_dev128_readonly_616_j7:
+  nra2_true_cpu_s3bj_new128_readonly_616_j7:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bk-frozen-new128-real43m-cpu-only-20261115'
     runs-on: ubuntu-24.04
     timeout-minutes: 240
