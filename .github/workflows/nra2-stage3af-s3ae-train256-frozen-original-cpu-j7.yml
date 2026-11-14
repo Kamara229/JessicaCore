@@ -382,7 +382,7 @@ jobs:
           path: inputs/nra2_stage2
       - name: Verify preregistered S3AE TRAIN256 + isolated FUTURE EVAL128 only no leakage
         run: |
-          python -m unittest -v research.nra2_bridge.test_stage3ae_independent_newgrammar128_prereg research.nra2_bridge.test_stage3e_token_features
+          python -m unittest -v research.nra2_bridge.test_stage3ae_train256_future_eval128_prereg research.nra2_bridge.test_stage3e_token_features
       - name: Pin successful S3A real 43M hidden320 and unchanged 616 J7
         uses: actions/download-artifact@v4
         with:
