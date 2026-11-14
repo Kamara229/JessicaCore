@@ -101,7 +101,7 @@ def main():
     rows=[r for r in precommitted_rows if r.split==TRAIN]
     if len(rows)!=TOTAL_COUNT or len({r.topology_key for r in rows})!=64:
         raise AssertionError("S3AL TRAIN-only 256 distinct SHA and 64 graph topology required")
-    prereg_path=Path("inputs/nra2_stage3ae/NRA2_S3AK_NEW_TRAIN256_FUTURE_EVAL128_PREREG.json")
+    prereg_path=Path("inputs/nra2_stage3ak/NRA2_S3AK_NEW_TRAIN256_FUTURE_EVAL128_PREREG.json")
     prior=json.loads(prereg_path.read_text())
     immutable=commitment(precommitted_rows)
     if (prior!=immutable
