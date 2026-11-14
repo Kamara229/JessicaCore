@@ -21,7 +21,7 @@ from nra2_bridge.stage3bo_third_future_independent128_prereg import (
 )
 from nra2_bridge.stage3t_unseen_wording_prereg import query_char_offsets
 
-S3BR_SHA_LOCK="FIXME_AFTER_S3BR_DATAONLY_CI_SUCCESS"
+S3BR_SHA_LOCK="e941bd45f947b7fc16f0cce4307ed9ea69c0b0e8347da7c0754717430ff0262f"
 GROUP_SIZES={TRAIN:512}
 
 TOTAL_COUNT=sum(GROUP_SIZES.values())
@@ -309,7 +309,7 @@ def main():
     report={
         "stage":"NRA2_S3BS_ORIGINAL43M_CPU_NEW_RELATION_TRAIN512_ONLY",
         "S3BR_new_relation_TRAIN512_prereg_sha256":prior["commitment_sha256"],
-        "S3BR_new_relation_TRAIN512_prereg_run":43648756682,
+        "S3BR_new_relation_TRAIN512_prereg_run":43648885215,
         "S3BN_TRAIN2048_initial_physically_locked_fp16_sha256":candidate_sha,
         "S3BN_TRAIN2048_success_run":43645412996,
         "S3BA_original_frozen_parent_sha256":baseline_sha,
