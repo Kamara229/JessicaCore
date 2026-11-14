@@ -16,7 +16,7 @@ from safetensors.torch import save_file,load_file
 from calibri2.s194.actual_cpu_j7_bridge import real_j7_baseline,output_digest
 from nra2_bridge.stage3e_token_features import FrozenAllTokenFeatures
 from nra2_bridge.passive_final_layer import NRA2PassiveFinalLayer
-from nra2_bridge.stage3ak_train256_future_eval128_prereg import (
+from nra2_bridge.stage3ak_newtrain256_futureeval128_prereg import (
     build_rows,validate,commitment,TRAIN,EVAL,REVERSED_STYLES,
 )
 from nra2_bridge.stage3t_unseen_wording_prereg import query_char_offsets
@@ -164,7 +164,7 @@ def main():
     # Original S3AF TRAIN256 was captured before S3AM training; future
     # independent EVAL128 must share no exact prompt with this group.
     train_capture=json.loads(Path("inputs/nra2_stage3af/NRA2_S3AF_TRAIN256_REAL_CPU_J7_AUDIT.json").read_text())
-    previous_sha.update(train_capture["split_groups"][TRAIN]["prompt_sha256"])
+    previous_sha.update(train_capture["split_groups"]["S3AE_NEW_TRAIN256"]["prompt_sha256"])
     s3al_capture=json.loads(Path("inputs/nra2_stage3al/NRA2_S3AL_TRAIN256_REAL_CPU_J7_AUDIT.json").read_text())
     if (s3al_capture.get("S3AK_registered_commitment_sha256")!=prior["commitment_sha256"]
             or s3al_capture.get("all_616_token_digest_matches_S194") is not True
