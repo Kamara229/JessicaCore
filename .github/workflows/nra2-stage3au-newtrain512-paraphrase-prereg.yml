@@ -1,0 +1,73 @@
+name: NRA2 S3AU prereg 512 fresh paraphrases TRAIN-only no future EVAL
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3at-dev128-readonly-role-diagnostic-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-stage3au-train512-paraphrase-data-only
+  cancel-in-progress: false
+jobs:
+  s3au_preregister_train_512_no_model:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3au-train512-paraphrase-prereg-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '1290129'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin S3AQ prereg S3AR real CPU S3AS role S3AT scored DEV research
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for n in 43579926284 43580373587 43581666491 43582046510; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$n" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43582046510" --jq .head_branch)" = research/calibri2-nra2-s3at-dev128-readonly-role-diagnostic-20261114
+      - name: Test 512 training-only balanced synthetic query paraphrases no DEV or EVAL graph
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3au_train512_paraphrase_prereg.py
+          python -m unittest -v research.nra2_bridge.test_stage3au_train512_paraphrase_prereg research.nra2_bridge.test_stage3aq_train_dev_futureeval_prereg
+      - name: Commit new TRAIN512 wording/identity SHA before any 43M CPU or role training
+        run: |
+          python research/nra2_bridge/stage3au_train512_paraphrase_prereg.py results/nra2_stage3au
+      - name: Verify research precommit no model inference no scored DEV/EVAL
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3au/NRA2_S3AU_NEW_TRAIN512_PARAPHRASE_PREREG.json").read_text())
+          assert r["stage"]=="NRA2_S3AU_NEW_TRAIN512_PARAPHRASES_PRECOMMIT_NO_MODEL_NO_EVAL"
+          assert r["source_successful_S3AR_real_cpu_run"]==43580373587
+          assert r["S3AS_successful_role_train_run"]==43581666491
+          assert r["S3AT_exploratory_DEV_diagnostic_run"]==43582046510
+          assert r["source_TRAIN256_count"]==256 and r["TRAIN512_count"]==512
+          assert r["reused_TRAIN_graph_topology_count"]==64
+          assert sum(x["yes_count"] for x in r["per_style_balanced"].values())==256
+          assert len(r["graph_prompt_sha256_in_order"])==512
+          assert len(set(r["graph_prompt_sha256_in_order"]))==512
+          assert r["future_EVAL128_never_prefilled_scored_or_trained"]
+          assert r["old_scored_DEV128_NEVER_training_or_candidate_sealed_test"]
+          assert r["no_new_model_weights_or_training_or_scores"]
+          assert r["output_gate"]==0.0 and r["candidate_accepted"] is False
+          assert len(r["commitment_sha256"])==64
+          print("S3AU_NEW_TRAIN512_PARAPHRASE_PHYSICAL_PRECOMMIT",r["commitment_sha256"])
+          PY
+      - name: Archive S3AU immutable novel paraphrase train-only data SHA never model score
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3au-newtrain512-paraphrase-prereg-no-model-no-eval
+          path: results/nra2_stage3au/
+          retention-days: 90
+          if-no-files-found: error
