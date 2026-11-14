@@ -1,0 +1,87 @@
+name: NRA2 S3AA independent grammar128 topology32 prereg NO CPU NO scoring
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3z-role-reversal-train256-20261114
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3aa-newgrammar128-prereg-only
+  cancel-in-progress: false
+jobs:
+  s3aa_precommit_128_new_wordings_graphs_without_cpu_or_scoring:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3aa-independent-newgrammar128-prereg-20261114'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify S3Z physical-role checkpoint committed in CI before independent prereg
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 43532157094 43530742301 43530401603 43529926564; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+      - name: Check fixed S3Z physically saved FP16 SHA from prior successful artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3z-role-reversal256-frozen-graph-train-fp16-zero-gate
+          path: inputs/nra2_stage3z
+          run-id: '43532157094'
+          github-token: ${{ github.token }}
+      - name: Pin original model SHA and forbid any training or scoring in this CI
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("inputs/nra2_stage3z/NRA2_S3Z_ROLE_REVERSAL_REHEARSAL256_REPORT.json").read_text())
+          assert r["stage"]=="NRA2_S3Z_TRAIN_ONLY_ROLE_REVERSAL_REHEARSAL256_FROZEN_GRAPH"
+          assert r["new_S3Z_physical_fp16_sha256"]=="60a7121b8270f647909776b58dc21b07c6cb885fd6ebeb6cb3158b23221f6e9f"
+          assert r["original_S3O_physical_fp16_unchanged_sha256"]=="40a8903d5419cd8641b5d01e75e429e10b449304b3ba140d2245bf7f8a9d00b6"
+          assert r["original_616_J7_preserved_independently_in_S3N_and_S3Y"]
+          assert not r["candidate_accepted"] and r["output_gate"]==0.
+          print("S3AA_ORIGINAL_S3Z_MODEL_SHA_FIXED_BEFORE_NEW_DATA_CPU_OR_SCORING",flush=True)
+          PY
+      - name: Unit-test disjoint graph topologies and truly novel balanced grammar
+        env:
+          PYTHONPATH: .:research
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3aa_independent_newgrammar128_prereg
+          python -m compileall -q research/nra2_bridge/stage3aa_independent_newgrammar128_prereg.py
+      - name: Seal SHA report before new original 43M CPU capture or model scores
+        env:
+          PYTHONPATH: .:research
+        run: |
+          mkdir -p results/nra2_stage3aa
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from research.nra2_bridge.stage3aa_independent_newgrammar128_prereg import build_rows,commitment
+          p=commitment(build_rows())
+          assert p["question_count"]==128 and p["graph_topology_count"]==32
+          assert p["text_mention_order"]=={"destination_first":64,"source_first":64}
+          assert p["novel_grammar_disjoint_from_S3M_S3Q_S3T_S3X"]
+          assert p["novel_graph_topologies_disjoint_from_S3G_S3M_S3Q_S3T_and_S3X_TRAIN"]
+          assert p["new_candidate_S3AA_predictions_not_inspected"]
+          assert p["new_real_43M_CPU_capture_not_started"]
+          assert p["no_additional_training_on_S3AA"]
+          assert p["candidate_accepted"] is False and p["gate"]==0.
+          Path("results/nra2_stage3aa/NRA2_S3AA_NEWGRAMMAR128_INDEPENDENT_PREREG_NO_SCORES.json").write_text(
+              json.dumps(p,sort_keys=True,indent=2)+"\n")
+          print("S3AA_REGISTERED_IN_GITHUB_RESEARCH_PREREG_SHA",p["commitment_sha256"],flush=True)
+          PY
+      - name: Preserve 128 previously unscored test prompts and strict model SHA
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3aa-independent-newgrammar128-topology32-preregistered-no-score
+          path: results/nra2_stage3aa/
+          retention-days: 90
+          if-no-files-found: error
