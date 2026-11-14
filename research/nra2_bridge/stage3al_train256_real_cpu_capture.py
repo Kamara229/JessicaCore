@@ -104,7 +104,9 @@ def main():
     prereg_path=Path("inputs/nra2_stage3ak/NRA2_S3AK_NEW_TRAIN256_FUTURE_EVAL128_PREREG.json")
     prior=json.loads(prereg_path.read_text())
     immutable=commitment(precommitted_rows)
-    if (prior!=immutable
+    # Prereg stores the tuple-valued historical result as a JSON list; compare
+    # canonical JSON objects, never weaken the pinned SHA or split checks.
+    if (prior!=json.loads(json.dumps(immutable))
         or prior.get("stage")!="NRA2_S3AK_PRECOMMIT_DISJOINT_NEW_TRAIN256_FUTURE_EVAL128_NO_SCORE"
         or prior.get("commitment_sha256")!="e1c8b0f9ad533482c351c5ac392f5923a59759c57c62d55080d692cbebf5354c"
         or prior.get("original_S3AI_successful_run")!=43541542901
