@@ -187,7 +187,7 @@ def main():
     require(so["FP16_checkpoint_sha256"]==S3O_SHA==sha_file(orig)
             and sz["new_S3Z_physical_fp16_sha256"]==S3Z_SHA==sha_file(parent)
             and sz["original_S3O_physical_fp16_unchanged_sha256"]==S3O_SHA
-            and sz["original_graph_physical_fp16_bitwise_equal"] is True
+            and sz["original_S3O_graph_FP16_bitwise_equal"] is True
             and sz["candidate_accepted"] is False and sz["output_gate"]==0.0,
             "pinned original S3O graph and S3Z role teacher SHA drift")
     rows0=s3m_rows()[:128]
