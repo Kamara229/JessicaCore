@@ -355,21 +355,23 @@ def main():
                 "physical source/target not among literal two query entities")
         inputs.append((normalize(tt,mean,scale,tm),tm,q,src,dst))
     # Freeze original 43M, original S3O graph and independent NRA.
-    # Optimizer only role head; 1024 authorized TRAIN rows, no DEV/EVAL.
+    # Optimizer only query-role head, 1536 TRAIN rows, never DEV/EVAL in optimizer.
     optimizer=torch.optim.AdamW(model.query.parameters(),lr=LR,weight_decay=0.02)
     def aggregate():
         ls=[role_loss(model,v) for v in inputs]
         sym=role_symmetry_loss(model,inputs[2],rows2)
         novel_sym=octet_symmetry_loss(model,inputs[3],rows3)
-        return (2*ls[0]+2*ls[1]+2*ls[2]+ls[3]+
-                SYMMETRY_WEIGHT*sym+S3AU_SYMMETRY_WEIGHT*novel_sym),ls,sym,novel_sym
+        newer_sym=octet_symmetry_loss(model,inputs[4],rows4)
+        return (2*ls[0]+2*ls[1]+2*ls[2]+ls[3]+ls[4]+
+                SYMMETRY_WEIGHT*sym+S3AU_SYMMETRY_WEIGHT*novel_sym+
+                S3AY_SYMMETRY_WEIGHT*newer_sym),ls,sym,novel_sym,newer_sym
     with torch.no_grad():
-        before,per_before,sym_before,novel_sym_before=aggregate()
+        before,per_before,sym_before,novel_sym_before,newer_sym_before=aggregate()
     trace=[]
     for step in range(STEPS):
         model.train()
         optimizer.zero_grad(set_to_none=True)
-        loss,parts,sym,novel_sym=aggregate()
+        loss,parts,sym,novel_sym,newer_sym=aggregate()
         require(bool(torch.isfinite(loss)),"nonfinite role-head loss")
         loss.backward()
         require(all(p.grad is None for p in model.graph.parameters()),
@@ -382,20 +384,22 @@ def main():
                           "reversal_TRAIN128_loss":float(parts[1].detach()),
                           "new_S3AQ_TRAIN256_loss":float(parts[2].detach()),
                           "new_S3AU_TRAIN512_loss":float(parts[3].detach()),
+                           "new_S3AY_TRAIN512_loss":float(parts[4].detach()),
                           "new_TRAIN_only_role_symmetry_loss":float(sym.detach()),
-                          "S3AU_TRAIN512_octet_symmetry_loss":float(novel_sym.detach())})
+                          "S3AU_TRAIN512_octet_symmetry_loss":float(novel_sym.detach()),
+                           "S3AY_TRAIN512_octet_symmetry_loss":float(newer_sym.detach())})
     model.eval()
     with torch.no_grad():
-        after,per_after,sym_after,novel_sym_after=aggregate()
+        after,per_after,sym_after,novel_sym_after,newer_sym_after=aggregate()
     require(bool(torch.isfinite(after)) and after<before,
             "TRAIN512 total role loss did not decrease")
     require(all(torch.equal(v,model.graph.state_dict()[k])
                 for k,v in graph_before.items()),"graph branch changed during role training")
-    require(sha_file(parent)==S3AS_SHA and sha_file(orig)==S3O_SHA,
+    require(sha_file(parent)==S3AW_SHA and sha_file(s3as_parent)==S3AS_SHA and sha_file(orig)==S3O_SHA,
             "parent S3AS or original S3O physical weights mutated")
     # Commit FP16 BEFORE calculating even TRAIN-only accuracy; never score EVAL128.
     out.mkdir(parents=True,exist_ok=False)
-    model_file=out/"NRA2_S3AW_S3AS_INIT_ROLE1024_FP16.safetensors"
+    model_file=out/"NRA2_S3BA_S3AW_INIT_ROLE1536_FP16.safetensors"
     packed={"bridge."+k:v.detach().cpu().half().contiguous()
             for k,v in model.state_dict().items()}
     packed["normalizer.mean"]=mean.half().contiguous()
@@ -436,29 +440,36 @@ def main():
              ((inputs[0],rows0,lambda r:False),
               (inputs[1],rows1,lambda r:r.query_style in (0,2)),
               (inputs[2],rows2,lambda r:r.query_style in S3AQ_REVERSED),
-              (inputs[3],rows3,lambda r:r.query_style in S3AU_REVERSED))]
+              (inputs[3],rows3,lambda r:r.query_style in S3AU_REVERSED),
+              (inputs[4],rows4,lambda r:r.query_style in S3AY_REVERSED))]
     dev_source_first_gain=(after_dev["source_first"]["both_correct"]
                            -prior_dev["source_first"]["both_correct"])
     dev_dest_first_gain=(after_dev["destination_first"]["both_correct"]
                          -prior_dev["destination_first"]["both_correct"])
-    require(sha_file(model_file)==new_fp16_sha and sha_file(parent)==S3AS_SHA
+    require(sha_file(model_file)==new_fp16_sha and sha_file(parent)==S3AW_SHA
             and sha_file(orig)==S3O_SHA,
             "parent or physical role-head SHA changed during DEV score")
     report={
-        "stage":"NRA2_S3AW_S3AS_INIT_ROLE1024_TRAIN_S3AU512_DEV128_SCORED",
+        "stage":"NRA2_S3BA_S3AW_INIT_ROLE1536_TRAIN_S3AY512_DEV128_EXPLORATORY",
         "S3AS_locked_parent_run":S3AS_RUN,"S3AV_native_CPU_run":S3AV_RUN,
+        "S3AW_locked_parent_run":S3AW_RUN,"S3AZ_native_CPU_run":S3AZ_RUN,
+        "S3AY_prereg_run":S3AY_RUN,
+        "S3AW_parent_fp16_sha256":S3AW_SHA,
+        "S3AZ_real_CPU_token_sha256":S3AZ_SHA,
+        "S3AY_preregistered_sha256":S3AY_SHA,
         "S3AU_prereg_run":S3AU_RUN,
         "S3AS_parent_fp16_sha256":S3AS_SHA,
         "S3AV_real_CPU_token_sha256":S3AV_SHA,
         "S3AU_preregistered_sha256":S3AU_SHA,
         "S3AR_real_CPU_token_sha256":S3AR_SHA,
         "S3O_original_fp16_unchanged_sha256":S3O_SHA,
-        "new_S3AW_physical_fp16_sha256":new_fp16_sha,
-        "new_S3AW_physical_fp16_size":model_file.stat().st_size,
+        "new_S3BA_physical_fp16_sha256":new_fp16_sha,
+        "new_S3BA_physical_fp16_size":model_file.stat().st_size,
         "physical_fp16_reload_equal":True,
         "original_graph_physical_fp16_bitwise_equal":True,
         "full_S194_original_616_J7_digests_from_S3AV_protected":True,
-        "train_count":1024,"S3AU_new_TRAIN_count":512,"S3AQ_prior_TRAIN_count":256,
+        "train_count":1536,"S3AY_new_TRAIN_count":512,"S3AU_prior_TRAIN_count":512,
+        "S3AQ_prior_TRAIN_count":256,
         "rehearsal_S3M_TRAIN_count":128,"rehearsal_S3X_TRAIN_count":128,
         "DEV_count":128,"DEV128_excluded_from_gradient_optimizer":True,
         "DEV128_scored_only_after_FP16_SHA_commit":True,
@@ -469,16 +480,22 @@ def main():
         "optimizer_steps":STEPS,"seed":SEED,"lr":LR,
         "S3AQ_TRAIN256_role_symmetry_weight":SYMMETRY_WEIGHT,
         "S3AU_TRAIN512_role_symmetry_weight":S3AU_SYMMETRY_WEIGHT,
+        "S3AY_TRAIN512_role_symmetry_weight":S3AY_SYMMETRY_WEIGHT,
         "S3AQ_role_symmetry_before":float(sym_before),
         "S3AQ_role_symmetry_after":float(sym_after),
         "S3AU_role_symmetry_before":float(novel_sym_before),
         "S3AU_role_symmetry_after":float(novel_sym_after),
+        "S3AY_role_symmetry_before":float(newer_sym_before),
+        "S3AY_role_symmetry_after":float(newer_sym_after),
         "train_loss_before":float(before),"train_loss_after":float(after),
         "train_trace":trace,"TRAIN_only_role_metrics":{
             "S3M_original128":train_results[0],"S3X_reversed128":train_results[1],
-            "S3AQ_new256":train_results[2],"S3AU_new512":train_results[3]},
-        "DEV128_paired_S3AS_baseline":prior_dev,
-        "DEV128_paired_S3AW_candidate":after_dev,
+            "S3AQ_new256":train_results[2],"S3AU_new512":train_results[3],
+            "S3AY_new512":train_results[4]},
+        "DEV128_paired_S3AW_baseline":prior_dev,
+        "DEV128_paired_S3BA_candidate":after_dev,
+        "DEV128_prior_S3AW_correct":89,
+        "DEV128_is_already_scored_exploratory_not_independent":True,
         "DEV128_both_source_first_gain":dev_source_first_gain,
         "DEV128_both_destination_first_gain":dev_dest_first_gain,
         "DEV128_source_first_non_regression":dev_source_first_gain>=0,
@@ -488,11 +505,12 @@ def main():
         "all_in_physical_bpp_tested":False,"paired_candidate_CPU_speed_tested":False,
         "Jessica_LIVE_Render_Supabase_APK_main_QA_TEST_unchanged":True,
     }
-    (out/"NRA2_S3AW_S3AS_INIT_TRAIN1024_DEV128_ROLE_AUDIT.json").write_text(
+    (out/"NRA2_S3BA_S3AW_INIT_TRAIN1536_DEV128_ROLE_AUDIT.json").write_text(
         json.dumps(report,indent=2,sort_keys=True)+"\n")
     print(json.dumps({k:report[k] for k in (
-         "stage","train_count","new_S3AW_physical_fp16_sha256",
+         "stage","train_count","new_S3BA_physical_fp16_sha256",
          "train_loss_before","train_loss_after","TRAIN_only_role_metrics",
+         "DEV128_paired_S3AW_baseline","DEV128_paired_S3BA_candidate",
          "candidate_accepted","output_gate")},sort_keys=True),flush=True)
 
 if __name__=="__main__":
