@@ -67,7 +67,8 @@ jobs:
           assert len(gold)==72 and r["S16_source_rows"]==72
           sha=hashlib.sha256(canonical_directed_train72(build_directed_train72())).hexdigest()
           assert sha==r["S16_complete_predicate_to_argument_gold_source_sha256"]
-          if S16_TRAIN_SOURCE_SHA:assert sha==S16_TRAIN_SOURCE_SHA
+          assert S16_TRAIN_SOURCE_SHA=="9843c35ee9aa75b8f5c9c963e441589dd2f0292e41ec7933971d5aa3dcd365d6"
+          assert sha==S16_TRAIN_SOURCE_SHA
           assert sum(r["S16_gold_directed_role_counts"].values())==r["S16_gold_directed_links"]
           assert set(r["S16_gold_directed_role_counts"])==set(ROLES[1:])
           assert r["S16_source_lexical_families"]==12 and r["S16_source_constructions"]==6
