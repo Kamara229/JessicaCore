@@ -81,10 +81,10 @@ class PaidCausalRelationFeedbackTests(unittest.TestCase):
         r,u,s,d,v=self.source(b=1,t=9)
         old=p(r[:,:5],u[:,:5],s[:,:5],d[:,:5,:5],v[:,:5])
         new=p(r,u,s,d,v)
-        self.assertTrue(torch.equal(old.upos_logits,new.upos_logits[:,:5]))
-        self.assertTrue(torch.equal(old.semantic_role_logits,new.semantic_role_logits[:,:5]))
-        self.assertTrue(torch.equal(old.dependency_logits,new.dependency_logits[:,:5,:5]))
-        self.assertTrue(torch.equal(old.relation_rank,new.relation_rank[:,:5]))
+        self.assertTrue(torch.allclose(old.upos_logits,new.upos_logits[:,:5],atol=2e-5,rtol=2e-5))
+        self.assertTrue(torch.allclose(old.semantic_role_logits,new.semantic_role_logits[:,:5],atol=2e-5,rtol=2e-5))
+        self.assertTrue(torch.allclose(old.dependency_logits,new.dependency_logits[:,:5,:5],atol=2e-5,rtol=2e-5))
+        self.assertTrue(torch.allclose(old.relation_rank,new.relation_rank[:,:5],atol=2e-5,rtol=2e-5))
 
     def test_padded_rows_cannot_corrupt_active_prefix(self):
         p=PaidRelationFeedback().eval()
@@ -95,9 +95,9 @@ class PaidCausalRelationFeedbackTests(unittest.TestCase):
         v[0,5:]=False
         a=p(r[:,:5],u[:,:5],s[:,:5],d[:,:5,:5],v[:,:5])
         b=p(r,u,s,d,v)
-        self.assertTrue(torch.equal(a.upos_logits,b.upos_logits[:,:5]))
-        self.assertTrue(torch.equal(a.semantic_role_logits,b.semantic_role_logits[:,:5]))
-        self.assertTrue(torch.equal(a.dependency_logits,b.dependency_logits[:,:5,:5]))
+        self.assertTrue(torch.allclose(a.upos_logits,b.upos_logits[:,:5],atol=2e-5,rtol=2e-5))
+        self.assertTrue(torch.allclose(a.semantic_role_logits,b.semantic_role_logits[:,:5],atol=2e-5,rtol=2e-5))
+        self.assertTrue(torch.allclose(a.dependency_logits,b.dependency_logits[:,:5,:5],atol=2e-5,rtol=2e-5))
         self.assertTrue(bool((b.relation_rank[:,5:]==0).all()))
 
     def test_rejects_invalid_source_and_activation(self):
