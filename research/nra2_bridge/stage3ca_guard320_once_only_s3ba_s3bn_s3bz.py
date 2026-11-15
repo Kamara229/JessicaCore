@@ -72,12 +72,6 @@ def query_head(weights):
     return m
 
 
-def main():
-    require(len(sys.argv)==5,"S3CA INPUT_S3BS INPUT_S3BA INPUT_S3BN INPUT_S3BZ OUTPUT")
-    # Exactly 4 args after executable? 4 folders + out => len=6.
-    require(False,"invalid CLI boundary")
-
-
 def run():
     require(len(sys.argv)==6,"S3CA expects four artifact dirs + NEW output dir")
     bs,ba,bn,bz,out=map(Path,sys.argv[1:])
@@ -176,7 +170,7 @@ def run():
     }
     out.mkdir(parents=True,exist_ok=False)
     (out/"NRA2_S3CA_GUARD320_ONCE_DIAGNOSTIC_NO_RETUNE.json").write_text(
-        json.dumps(report,sort_keys=True,indent=2)+"\\n")
+        json.dumps(report,sort_keys=True,indent=2)+"\n")
     print(json.dumps({"stage":STAGE,"subsets":subsets,
                       "candidate_accepted":False,"output_gate":0.0},sort_keys=True),flush=True)
 
