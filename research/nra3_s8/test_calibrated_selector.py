@@ -107,9 +107,41 @@ class S8CalibratedRouter(unittest.TestCase):
         self.assertTrue(torch.allclose(new.message[:,:5],
                                        shifted.message[:,:5],atol=1e-6,rtol=0))
         with self.assertRaises(ValueError):
-            parallel_three_relations(**keyword,selector_version=2)
+            parallel_three_relations(**keyword,selector_version=3)
         with self.assertRaises(ValueError):
             NRA3Config(parallel_hypotheses=1,parallel_selector_version=1)
+
+    def test_S8b_causal_running_mean_selector_preserves_past_only(self):
+        b,t,r=1,12,24
+        torch.manual_seed(308018)
+        q=torch.randn(b,t,r)
+        v=torch.randn(b,t,r)
+        scores=torch.randn(b,t,t)*.2
+        allowed=torch.tril(torch.ones(t,t,dtype=torch.bool))[None]
+        valid=torch.ones(b,t,dtype=torch.bool)
+        roles=torch.randn(b,t,len(SEMANTIC_ROLES))
+        kwargs=dict(query=q,value=v,scores=scores,allowed=allowed,
+                    valid=valid,semantic_role_logits=roles,local_window=8,
+                    selector_version=2)
+        original=parallel_three_relations(**kwargs)
+        changed_q=q.clone();changed_q[:,7:]+=100
+        changed_v=v.clone();changed_v[:,7:]-=100
+        changed_role=roles.clone();changed_role[:,7:]+=20
+        later=parallel_three_relations(**(kwargs|{
+            "query":changed_q,"value":changed_v,
+            "semantic_role_logits":changed_role
+        }))
+        self.assertTrue(torch.equal(original.hypothesis_gates[:,:7],
+                                    later.hypothesis_gates[:,:7]))
+        self.assertTrue(torch.equal(original.message[:,:7],
+                                    later.message[:,:7]))
+        self.assertTrue(torch.allclose(original.hypothesis_gates.sum(-1),
+                                       torch.ones(b,t),atol=1e-6))
+        self.assertGreater(float((original.hypothesis_gates-1/3).abs().max()),.02)
+        model=NRA3NeuralArea(self.config(2)).eval()
+        legacy=NRA3NeuralArea(self.config(0)).eval()
+        self.assertEqual(set(model.state_dict()),set(legacy.state_dict()))
+        self.assertEqual(model.parameter_count(),legacy.parameter_count())
 
     def test_S8_paid_source_no_new_parameters_joint_router_gradient(self):
         cfg=NRA3Config(parallel_hypotheses=3,parallel_selector_version=1)
