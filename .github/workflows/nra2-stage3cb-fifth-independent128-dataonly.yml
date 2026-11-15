@@ -2,7 +2,7 @@ name: NRA2 S3CB fifth NEVER-SEEN 128 EVAL data-only SHA prereg, no model
 
 'on':
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
     branches:
       - research/calibri2-nra2-s3ca-guard320-once-only-physical-cpu-20261115
 
