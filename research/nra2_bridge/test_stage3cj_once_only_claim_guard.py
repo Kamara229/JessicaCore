@@ -95,6 +95,21 @@ class GuardTests(unittest.TestCase):
         with self.assertRaises(ClaimDenied):
             claim_once(self.env, bad, lambda *_: 201)
 
+    def test_scoring_job_hard_stop_and_pre_eval_claim_order(self):
+        """Static workflow guard: scoring cannot run before separate authorization."""
+        from pathlib import Path
+        workflow = (Path(__file__).resolve().parents[2] / ".github" / "workflows" /
+                    "nra2-stage3ci-sixth128-once-only-paired-role-reach.yml")
+        text = workflow.read_text(encoding="utf-8")
+        conditions = [line.strip() for line in text.splitlines()
+                      if line.startswith("    if: ")]
+        self.assertEqual(len(conditions), 1)
+        self.assertTrue(conditions[0].endswith(" && false"))
+        claim = text.index("- name: S3CJ atomic sixth-EVAL claim")
+        first_data = text.index("- name: Load SEALED sixth S3CG")
+        self.assertLess(claim, first_data)
+        self.assertLess(first_data, text.index("- name: Load genuinely frozen original43M CPU"))
+
 
 if __name__ == "__main__":
     unittest.main()
