@@ -32,6 +32,7 @@ class NRA3Config:
     relation_width: int = 128
     relation_steps: int = 6
     parallel_hypotheses: int = 1  # S7 opt-in 3, original single remains default
+    parallel_selector_version: int = 0  # S8 opt-in evidence-calibrated selector
 
     def __post_init__(self):
         if not (self.io_width == 320 and self.hidden >= 16
@@ -39,7 +40,10 @@ class NRA3Config:
                 and self.grammar_blocks >= 1 and self.semantic_blocks >= 1
                 and self.ffn_multiplier >= 2 and self.relation_width >= 8
                 and self.relation_steps >= 1
-                and self.parallel_hypotheses in (1, 3)):
+                and self.parallel_hypotheses in (1, 3)
+                and self.parallel_selector_version in (0, 1)
+                and (self.parallel_selector_version == 0 or
+                     self.parallel_hypotheses == 3)):
             raise ValueError("NRA3 invalid dimension/causal architecture contract")
 
 
@@ -166,7 +170,8 @@ class NRA3NeuralArea(nn.Module):
                     query=self.rel_q(relation),value=self.rel_value(relation),
                     scores=scores,allowed=allowed,valid=valid,
                     semantic_role_logits=roles,
-                    local_window=min(4,t))
+                    local_window=min(4,t),
+                    selector_version=self.config.parallel_selector_version)
                 message=evidence.message
                 parallel_gates=evidence.hypothesis_gates
             else:
