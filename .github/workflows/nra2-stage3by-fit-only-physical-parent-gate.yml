@@ -1,0 +1,64 @@
+name: NRA2 S3BY fail-closed fit192 loader with physical S3BN FP16 source
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s3bx-grammar-topology-blocked-train-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3by-fit192-immutable-physical-parent-gate
+  cancel-in-progress: true
+jobs:
+  s3by_verified_parent_fit_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3by-fit192-loader-gate-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: .:research:research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify upstream sealed partition, physical old CPU and permanently consumed independent EVALs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 43652631197 43645412996 43640363396 43644153544 43648038071 43651233135; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$run" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43645412996" --jq .head_branch)" = research/calibri2-nra2-s3bn-trainonly-joint-role2048-20261115
+      - name: Fetch genuine SHA-pinned PRE-S3BR S3BN, NOT failed S3BT
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3bn-joint-semantic-pair-train2048-fp16-zero-gate
+          path: inputs/nra2_s3bn
+          run-id: '43645412996'
+          github-token: ${{ github.token }}
+      - name: Compile and run TRAIN-only negative controls with no weights loaded
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3by_fit_only_loader_gate.py research/nra2_bridge/test_stage3by_fit_only_loader_gate.py
+          python -m unittest -v research.nra2_bridge.test_stage3by_fit_only_loader_gate
+      - name: Physically SHA-verify genuine parent and check every one of 192 fit rows, reject guard320
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from research.nra2_bridge.stage3by_fit_only_loader_gate import FitOnlyGate
+          from research.nra2_bridge.stage3bx_blocked_family_topology_protocol import split_data, PRE_S3BR_PARENT_SHA
+          p=Path('inputs/nra2_s3bn/NRA2_S3BN_JOINT_ROLE_SAFE_TRAIN2048_FP16.safetensors')
+          g=FitOnlyGate()
+          assert g.verify_parent(p)==PRE_S3BR_PARENT_SHA
+          d=split_data()
+          assert len(g.minibatch(d["fit"]))==192
+          try: g.minibatch([d["grammar_guard"][0]])
+          except AssertionError: pass
+          else: raise AssertionError("guard leaked to optimizer")
+          print("S3BY_PARENT_S3BN_SHA_ATTESTED_FIT192_GUARD320_DENIED",PRE_S3BR_PARENT_SHA)
+          print("NO_TRAIN_NO_NEW_CPU_NO_OLD_EVAL_NO_GATE_PROMOTION")
+          PY
