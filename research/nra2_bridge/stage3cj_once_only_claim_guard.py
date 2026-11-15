@@ -64,6 +64,7 @@ def claim_once(
         and head.get("ref") == HEAD
         and head_repo.get("full_name") == REPO
         and env.get("S3CI_HEAD_SHA") == sha
+        and env.get("S3CI_APPROVED_HEAD_SHA") == sha
         and isinstance(sha, str)
         and SHA40.fullmatch(sha)
     ):
