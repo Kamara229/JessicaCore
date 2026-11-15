@@ -155,7 +155,7 @@ class GuardTests(unittest.TestCase):
         unit = (workflows / "nra2-stage3cj-once-only-guard-offline-unit.yml").read_text(encoding="utf-8")
         for label, source in (("scorer", scorer), ("unit", unit)):
             with self.subTest(workflow=label):
-                self.assertIn("permissions:\\n  contents: read", source)
+                self.assertIn("permissions:\n  contents: read", source)
                 self.assertNotIn("contents: write", source)
                 self.assertNotIn("pull_request_target:", source)
                 self.assertNotIn("workflow_dispatch:", source)
