@@ -13,6 +13,9 @@ class GuardTests(unittest.TestCase):
             "S3CI_ARM_TOKEN": ARM_TOKEN,
             "GITHUB_REPOSITORY": REPO,
             "GITHUB_EVENT_NAME": "pull_request",
+            "GITHUB_REF": f"refs/pull/{PR}/merge",
+            "GITHUB_BASE_REF": BASE,
+            "GITHUB_HEAD_REF": HEAD,
             "GITHUB_RUN_ATTEMPT": "1",
             "S3CI_HEAD_SHA": self.sha,
         }
@@ -90,6 +93,22 @@ class GuardTests(unittest.TestCase):
         with self.assertRaises(ClaimDenied):
             claim_once(env, self.event, lambda *_: 201)
 
+
+    def test_pull_request_merge_ref_head_base_env_fail_closed(self):
+        """Offline: reject other PR refs and mismatched runner head/base context."""
+        def never_call(*_):
+            raise AssertionError("GitHub API must not be called")
+        cases = (
+            ("GITHUB_REF", "refs/pull/703/merge"),
+            ("GITHUB_REF", f"refs/heads/{HEAD}"),
+            ("GITHUB_BASE_REF", "main"),
+            ("GITHUB_HEAD_REF", "unexpected-head"),
+            ("GITHUB_REF", ""),
+        )
+        for key, value in cases:
+            with self.subTest(key=key, value=value):
+                with self.assertRaises(ClaimDenied):
+                    claim_once(dict(self.env, **{key: value}), self.event, never_call)
 
     def test_wrong_base_branch_or_repository_denied_before_api(self):
         """Offline: only the intended S3CH base may claim the one-time tag."""
