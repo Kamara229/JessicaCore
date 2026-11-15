@@ -59,8 +59,8 @@ jobs:
           r=json.loads((root/"NRA3_S12_HELDOUT_EVAL16_SHA_PREREG_ONLY.json").read_text())
           assert r==sealed_eval16()
           assert hashlib.sha256(canonical_eval16(build_eval16())).hexdigest()==r["complete_annotation_sha256"]
-          if EVAL16_FULL_CANONICAL_SHA:
-              assert r["complete_annotation_sha256"]==EVAL16_FULL_CANONICAL_SHA
+          assert EVAL16_FULL_CANONICAL_SHA=="f2d2d5beba48dbe294a90f6918a3fd15870aa103abbd569e907c44729a43977c"
+          assert r["complete_annotation_sha256"]==EVAL16_FULL_CANONICAL_SHA
           assert r["rows"]==16 and r["new_eval_constructs_count"]==16
           assert r["overlap_s4_s9_train_count"]==0
           assert r["prior_S11_locked_pre_EVAL_run"]==43734571081
