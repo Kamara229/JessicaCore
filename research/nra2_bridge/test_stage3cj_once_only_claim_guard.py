@@ -105,6 +105,7 @@ class GuardTests(unittest.TestCase):
                       if line.startswith("    if: ")]
         self.assertEqual(len(conditions), 1)
         self.assertTrue(conditions[0].endswith(" && false"))
+        self.assertIn("permissions:\n  contents: read", text)
         claim = text.index("- name: S3CJ atomic sixth-EVAL claim")
         first_data = text.index("- name: Load SEALED sixth S3CG")
         self.assertLess(claim, first_data)
