@@ -1,0 +1,127 @@
+name: NRA2 3.0 S7 three parallel relation hypotheses real43M 5-bit QAT
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-nra3-s6-realhidden-ru12-physical-cb59-qat-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s7-parallel-3way-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  nra3_parallel_3way_cpu:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s7-three-parallel-relation-hypotheses-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Confirm original frozen S5 and physical S6 real CPU source SHA, no EVAL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43699866531 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43699866531 --jq .head_sha)" = "5a732097ad3d1001a483a425557fa4efa0a784d3"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43702088137 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43702088137 --jq .head_sha)" = "a387672cb398673789a6a8b9dacffc6c399136dc"
+      - name: Install exact existing Calibri native CB59 CPU research dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'tokenizers==0.20.3' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: New 3-hypothesis causal masks, diversity, original bpp and native packed C parity tests
+        run: |
+          python -m unittest -v research.nra3_s7.test_parallel_hypotheses
+      - name: Prior original S6 paid-only grammar+semantics CPU regression
+        run: |
+          python -m unittest -v research.nra3_s6.test_physical_joint_grammar_qat
+      - name: Download TRUE original frozen Calibri S5 post-GT layer8 Russian TRAIN12 only
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s5-frozen-real43M-CPU-layer8-ru-train12-tokens320-616J7-zero-gate
+          run-id: 43699866531
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s5
+      - name: Download ONLY physically trained S6 NRA3 6M CB59 source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s6-real43m-ru12-physically-trained-CB59-S61-zero-gate
+          run-id: 43702088137
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s6
+      - name: Physically source pin S5 actual 43M and S6 trained 6M artifact hashes
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          a=Path("inputs/nra3_s5")
+          b=Path("inputs/nra3_s6")
+          orig=a/"NRA3_S5_REAL_43M_LAYER8_RU_TRAIN12_HIDDEN320_FP16.safetensors"
+          prior=b/"NRA3_S6_43M_REAL_HIDDEN_RU_TRAIN12_PAID_CB59.cb59"
+          assert hashlib.sha256(orig.read_bytes()).hexdigest()=="ba04d54d399419ec857d01b8401af868213a7f8b2c219d384986b8cd08b1ba1f"
+          assert hashlib.sha256(prior.read_bytes()).hexdigest()=="f1248a74ba238a2a5da49310d1af3a1070b41cee592fddac60028ec95fb06b20"
+          e=json.loads((b/"NRA3_S6_REAL_HIDDEN_RUSSIAN_TRAIN12_PAID_QAT.json").read_text())
+          assert e["original_unique_new_NRA3_parameters"]==6_106_154
+          assert e["candidate_accepted"] is False and e["output_gate"]==0
+          assert e["reserved_6th_S3CI_EVAL128_untouched"]
+          print("S7_ONLY_REAL_S5_S6_TRAIN_SOURCE_NOT_EVAL",flush=True)
+          PY
+      - name: Real 43M S5 hidden + S6 physical CB59 three-way relation QAT with native C revalidation
+        run: |
+          python -m research.nra3_s7.real43m_parallel_train12 \
+            --s5-hidden inputs/nra3_s5/NRA3_S5_REAL_43M_LAYER8_RU_TRAIN12_HIDDEN320_FP16.safetensors \
+            --s5-report inputs/nra3_s5/NRA3_S5_REAL_CPU_43M_LAYER8_TRAIN12_J7_REPORT.json \
+            --s6-cb59 inputs/nra3_s6/NRA3_S6_43M_REAL_HIDDEN_RU_TRAIN12_PAID_CB59.cb59 \
+            --s6-report inputs/nra3_s6/NRA3_S6_REAL_HIDDEN_RUSSIAN_TRAIN12_PAID_QAT.json \
+            --out results/nra3_s7
+      - name: Verify three distinct internal branches and same physical 5-bit indices no activation
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from direct_codebook_v59 import CB59
+          from research.nra3_s1.entropy_envelope import restore_lossless_cb59
+          p=Path("results/nra3_s7")
+          j=json.loads((p/"NRA3_S7_PARALLEL_RELATIONS_RU12_TRAIN_PHYSICAL_REPORT.json").read_text())
+          raw=(p/j["CB59_filename"]).read_bytes()
+          compressed=(p/j["S61_filename"]).read_bytes()
+          assert restore_lossless_cb59(compressed)==raw
+          assert hashlib.sha256(raw).hexdigest()==j["CB59_trained_sha256"]
+          assert len(raw)==653798==j["CB59_original_bytes"]
+          assert CB59(raw).meta["original_unique_parameter_count"]==6_106_154
+          assert j["hypothesis_count"]==3
+          assert j["extra_paid_trainable_parameters_added_for_parallel_hypotheses"]==0
+          assert j["original_5bit_code_indices_unchanged"]
+          assert j["new_real_relation_ud_head_objective"]
+          assert j["after_train12_multitask_loss"]<j["before_train12_multitask_loss"]
+          assert abs(sum(j["parallel_branch_mean_probs_native"])-1)<1e-5
+          assert j["full_native_C_cpu_NRA3_parallel_inference"]
+          assert j["whole_NRA_only_single_hypothesis_median_ms"]>0
+          assert j["whole_NRA_only_three_hypotheses_median_ms"]>0
+          assert j["full_616_J7_candidate_protection_measured"] is False
+          assert j["actual_Calibri_GT_NRA_inclusive_bpp_certified"] is False
+          assert j["full_answer_EOS_unseen_generalization_measured"] is False
+          assert j["old_five_consumed_EVAL128_untouched"]
+          assert j["sixth_reserved_S3CI_EVAL128_untouched"]
+          assert j["candidate_accepted"] is False and j["output_gate"]==0
+          print("S7_THREE_INTERNAL_PARALLEL_RELATIONS_PHYSICAL_TRAIN_ONLY_NO_PROMOTION",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s7-parallel-3-shared-relation-physical-CB59-S61-trainonly
+          path: results/nra3_s7/
+          if-no-files-found: error
+          retention-days: 30

@@ -31,13 +31,15 @@ class NRA3Config:
     ffn_multiplier: int = 4
     relation_width: int = 128
     relation_steps: int = 6
+    parallel_hypotheses: int = 1  # S7 opt-in 3, original single remains default
 
     def __post_init__(self):
         if not (self.io_width == 320 and self.hidden >= 16
                 and self.hidden % self.heads == 0 and self.heads >= 1
                 and self.grammar_blocks >= 1 and self.semantic_blocks >= 1
                 and self.ffn_multiplier >= 2 and self.relation_width >= 8
-                and self.relation_steps >= 1):
+                and self.relation_steps >= 1
+                and self.parallel_hypotheses in (1, 3)):
             raise ValueError("NRA3 invalid dimension/causal architecture contract")
 
 
@@ -71,6 +73,7 @@ class NRA3Features:
     semantic_role_logits: torch.Tensor
     antecedent_logits: torch.Tensor
     readout: torch.Tensor
+    parallel_hypothesis_gates: torch.Tensor | None = None
 
 
 class NRA3NeuralArea(nn.Module):
@@ -151,11 +154,24 @@ class NRA3NeuralArea(nn.Module):
         antecedent = (self.ante_q(semantics) @ self.ante_k(semantics).transpose(1, 2)) / math.sqrt(self.config.hidden)
         antecedent = antecedent.masked_fill(~allowed, -1e4)
         relation = self.core_in(semantics)
+        parallel_gates = None
         for _ in range(self.config.relation_steps):
             scores = (self.rel_q(relation) @ self.rel_k(relation).transpose(1, 2)) / math.sqrt(self.config.relation_width)
             scores = scores.masked_fill(~allowed, -1e4)
-            weights = scores.softmax(dim=-1)
-            message = weights @ self.rel_value(relation)
+            if self.config.parallel_hypotheses == 3:
+                from research.nra3_s7.parallel_hypotheses import parallel_three_relations
+                # Three competing relation maps, but one GRU update and no
+                # additional paid parameters. No gold text labels enter.
+                evidence=parallel_three_relations(
+                    query=self.rel_q(relation),value=self.rel_value(relation),
+                    scores=scores,allowed=allowed,valid=valid,
+                    semantic_role_logits=roles,
+                    local_window=min(4,t))
+                message=evidence.message
+                parallel_gates=evidence.hypothesis_gates
+            else:
+                weights = scores.softmax(dim=-1)
+                message = weights @ self.rel_value(relation)
             relation = self.rel_update(message.reshape(-1, self.config.relation_width),
                                        relation.reshape(-1, self.config.relation_width)).reshape(b, t, -1)
             relation = relation.masked_fill(~valid.unsqueeze(-1), 0.)
@@ -163,7 +179,7 @@ class NRA3NeuralArea(nn.Module):
         if not all(torch.isfinite(z).all() for z in (readout, roles, upos, morph, relation)):
             raise AssertionError("NRA3 nonfinite stage features")
         return NRA3Features(grammar, semantics, relation, upos, morph, dep,
-                            roles, antecedent, readout)
+                            roles, antecedent, readout, parallel_gates)
 
     def fp16_lower_bound_bpp(self, parent_parameters: int,
                              parent_bpp: float) -> float:

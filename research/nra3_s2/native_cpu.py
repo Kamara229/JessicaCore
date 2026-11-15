@@ -230,20 +230,29 @@ class NRA3NativePackedCPU(nn.Module):
         ante=ante/math.sqrt(self.config.hidden)
         ante=ante.masked_fill(~allowed,-1e4)
         relation=self.linear("core_in",x)
+        parallel_gates=None
         for _ in range(self.config.relation_steps):
             q=self.linear("rel_q",relation)
             k=self.linear("rel_k",relation)
             score=(q@k.transpose(1,2))/math.sqrt(self.config.relation_width)
             score=score.masked_fill(~allowed,-1e4)
             v=self.linear("rel_value",relation)
-            message=score.softmax(dim=-1)@v
+            if self.config.parallel_hypotheses==3:
+                from research.nra3_s7.parallel_hypotheses import parallel_three_relations
+                evidence=parallel_three_relations(
+                    query=q,value=v,scores=score,allowed=allowed,valid=valid,
+                    semantic_role_logits=role,local_window=min(4,t))
+                message=evidence.message
+                parallel_gates=evidence.hypothesis_gates
+            else:
+                message=score.softmax(dim=-1)@v
             relation=self._gru_cell(message,relation)
             relation=relation.masked_fill(~valid.unsqueeze(-1),0.)
         read=self.linear("readout",relation)
         if any(not bool(torch.isfinite(v).all()) for v in
                (grammar,semantics,relation,upos,morph,role,read)):
             raise ValueError("NRA3 native generated nonfinite features")
-        return NRA3Features(grammar,semantics,relation,upos,morph,dep,role,ante,read)
+        return NRA3Features(grammar,semantics,relation,upos,morph,dep,role,ante,read,parallel_gates)
 
     def packed_matrix_count(self):
         return len(self.source.handles)
