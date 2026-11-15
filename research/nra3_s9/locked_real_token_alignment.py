@@ -22,9 +22,9 @@ def align_new_train72(tokenizer,row:NewRussianTrain,*,
     No gold syntax or semantic role enters tokenizer or frozen base model.
     A BPE piece spanning two different annotated words fails closed.
     """
-    registered={r.sha256() for r in build_s9_train72()}
+    registered={r.sha256():r for r in build_s9_train72()}
     if (not isinstance(row,NewRussianTrain) or
-        row.split!=S9_TRAIN_SPLIT or row.sha256() not in registered or
+        row.split!=S9_TRAIN_SPLIT or row!=registered.get(row.sha256()) or
         tokenizer is None):
         raise ValueError("NRA3 S9 rejects unknown/EVAL UD source")
     # SHA-check the full annotation manifest, not just text strings.
