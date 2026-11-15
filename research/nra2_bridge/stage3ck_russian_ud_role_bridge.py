@@ -26,8 +26,8 @@ UD_POS = frozenset({
     "VERB", "X",
 })
 NOMINAL_POS = frozenset({"NOUN", "PROPN", "PRON"})
-ENTITY = re.compile(r"R[0-5]\\Z")
-FEATURE = re.compile(r"[A-Z][A-Za-z0-9]*=[A-Za-z0-9]+\\Z")
+ENTITY = re.compile(r"R[0-5]")
+FEATURE = re.compile(r"[A-Z][A-Za-z0-9]*=[A-Za-z0-9]+")
 
 
 class GrammarContractError(ValueError):
