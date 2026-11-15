@@ -156,7 +156,14 @@ def budget_for_paid_components(*, parent_physical_bytes: bytes,
              isinstance(parent_unique_parameters, int) and
              parent_unique_parameters>0, "missing physical parent")
     _require(isinstance(nra_physical_bytes, bytes), "missing NRA physical bytes")
-    nra = CB59(nra_physical_bytes)
+    # Count the PHYSICALLY STORED variant, not both raw and entropy files.
+    # S61-style envelopes are validated and decoded only for metadata;
+    # the stored byte denominator remains the actual envelope file size.
+    if nra_physical_bytes.startswith(b"N3CB61A1"):
+        from research.nra3_s1.entropy_envelope import restore_lossless_cb59
+        nra = CB59(restore_lossless_cb59(nra_physical_bytes))
+    else:
+        nra = CB59(nra_physical_bytes)
     _require(isinstance(parent_includes_gt, bool), "GT membership unknown")
     if parent_includes_gt:
         _require(existing_gt_physical_bytes is None,
