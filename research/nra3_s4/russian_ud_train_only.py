@@ -21,6 +21,9 @@ from research.nra2_bridge.stage3ck_russian_ud_role_bridge import (
 from research.nra3_s0.neural_area import MORPH, SEMANTIC_ROLES, UPOS
 
 TRAIN_SPLIT="NRA3_S4_RU_UD_TRAIN_ONLY"
+# Physically obtained from independent S4 CI #43697781426; immutable TRAIN-only
+# annotation+offset canonical digest. Any edits require a NEW research stage.
+TRAIN12_CANONICAL_SHA256="a7c80f42b161349793bcb3977c223a5bc0a46f944cd5686acf6773c5ad1e9420"
 # (surface, UPOS, head, deprel, morphological-features, semantic role)
 Spec=tuple[str,str,int,str,tuple[str,...],str]
 
@@ -196,11 +199,14 @@ def commitment(rows:tuple[RussianTrainSentence,...])->dict:
     } for r in rows]
     serialized=json.dumps(canonical,sort_keys=True,ensure_ascii=False,
                           separators=(",",":")).encode("utf-8")
+    digest=hashlib.sha256(serialized).hexdigest()
+    if digest!=TRAIN12_CANONICAL_SHA256:
+        raise ValueError("S4 immutable TRAIN12 annotation SHA changed")
     return {
       "stage":"NRA3_S4_HAND_ANNOTATED_RUSSIAN_UD_TRAIN_ONLY",
       "split":TRAIN_SPLIT,
       "row_count":len(rows),
-      "canonical_training_rows_sha256":hashlib.sha256(serialized).hexdigest(),
+      "canonical_training_rows_sha256":digest,
       "ordered_prompt_sha256":[r.sha256() for r in rows],
       "independent_EVAL_count":0,
       "spent_five_EVAL128_not_loaded":True,
