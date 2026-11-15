@@ -31,7 +31,7 @@ from research.nra3_s4.russian_ud_train_only import (
 S9_TRAIN_SPLIT="NRA3_S9_NEW_RU_UD_TRAIN72_ONLY"
 # Independent SHA of complete canonical 72-row UD+semantic TRAIN annotations;
 # after first successful offline CI, freeze to observed SHA for all follow-ups.
-S9_TRAIN72_CANONICAL_SHA256=""
+S9_TRAIN72_CANONICAL_SHA256="b09d60a77a17d30c2dbf846e40ab97860def8635e2bf31a5b0ab8981832b744d"
 TEMPLATES=(
     "active_svo","fronted_object","recipient_subject",
     "passive_agent","fronted_adjective","temporal_adverb",
@@ -243,7 +243,7 @@ def seal_train72()->dict[str,Any]:
     rows=build_s9_train72()
     serialized=canonical_train72(rows)
     sha=hashlib.sha256(serialized).hexdigest()
-    if S9_TRAIN72_CANONICAL_SHA256 and sha!=S9_TRAIN72_CANONICAL_SHA256:
+    if sha!=S9_TRAIN72_CANONICAL_SHA256:
         raise ValueError("S9 immutable TRAIN72 gold/lexical manifest drift")
     return {
         "stage":"NRA3_S9_NEW_CONTRASTIVE_RUSSIAN_UD_TRAIN72_SOURCE_ONLY",
