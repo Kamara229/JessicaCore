@@ -167,7 +167,8 @@ class NRA3NativePackedCPU(nn.Module):
         z=self._layernorm(name+".norm_attn",x)
         # Original torch.nn.MultiheadAttention W_qkv and W_out are
         # directly executed in 5-bit C; no FP32 weight matrix.
-        qkv=self.kernel.matmul(self.source.handles[name+".attn.in_proj_weight"],z)\n        qkv=qkv+self._bias[name+".attn.in_proj_bias"]
+        qkv=self.kernel.matmul(self.source.handles[name+".attn.in_proj_weight"],z)
+        qkv=qkv+self._bias[name+".attn.in_proj_bias"]
         q,k,v=qkv.chunk(3,dim=-1)
         def to_heads(y):
             return y.reshape(b,t,c.heads,d//c.heads).transpose(1,2)
