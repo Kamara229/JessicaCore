@@ -53,9 +53,10 @@ class PaidDirectedValenceTests(unittest.TestCase):
         self.assertTrue(torch.equal(original.argument_now,roundtrip.argument_now))
         self.assertEqual(original.predicate_now.shape,(1,8,8,5))
         self.assertEqual(original.argument_now.shape,(1,8,8,5))
-        self.assertTrue(bool((~original.allowed[0].tril(-1)).all()))
-        self.assertTrue(bool((original.predicate_now[0].triu(0)==-1e4).all()))
-        self.assertTrue(bool((original.argument_now[0].triu(0)==-1e4).all()))
+        invalid=~torch.tril(torch.ones((8,8),dtype=torch.bool),diagonal=-1)
+        self.assertFalse(bool(original.allowed[0][invalid].any()))
+        self.assertTrue(bool((original.predicate_now[0][invalid]==-1e4).all()))
+        self.assertTrue(bool((original.argument_now[0][invalid]==-1e4).all()))
         self.assertTrue(bool((original.predicate_now[0,3,1]!=-1e4).all()))
         self.assertTrue(bool((original.argument_now[0,3,1]!=-1e4).all()))
 
