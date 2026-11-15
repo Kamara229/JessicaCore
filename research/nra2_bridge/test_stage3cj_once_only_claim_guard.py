@@ -150,7 +150,7 @@ class GuardTests(unittest.TestCase):
         from research.nra2_bridge.stage3cj_once_only_claim_guard import gh_post_tag, TAG_REF
 
         with patch("research.nra2_bridge.stage3cj_once_only_claim_guard.subprocess.run",
-                   return_value=CompletedProcess(["gh"], 1, "HTTP/2 201 Created\\n", "error")) as mocked:
+                   return_value=CompletedProcess(["gh"], 1, "HTTP/2 201 Created\n", "error")) as mocked:
             with self.assertRaises(ClaimDenied):
                 claim_once(self.env, self.event, gh_post_tag)
             mocked.assert_called_once()
@@ -165,7 +165,7 @@ class GuardTests(unittest.TestCase):
         from research.nra2_bridge.stage3cj_once_only_claim_guard import gh_post_tag
 
         with patch("research.nra2_bridge.stage3cj_once_only_claim_guard.subprocess.run",
-                   return_value=CompletedProcess(["gh"], 0, "HTTP/2 201 Created\\n", "")) as mocked:
+                   return_value=CompletedProcess(["gh"], 0, "HTTP/2 201 Created\n", "")) as mocked:
             self.assertTrue(claim_once(self.env, self.event, gh_post_tag).startswith("refs/tags/"))
             mocked.assert_called_once()
 
@@ -177,9 +177,9 @@ class GuardTests(unittest.TestCase):
         from research.nra2_bridge.stage3cj_once_only_claim_guard import gh_post_tag
 
         cases = (
-            "HTTP/2 500 Error\\nHTTP/2 201 Created\\n",
-            "HTTP/2 201 Created\\nHTTP/2 422 Unprocessable Entity\\n",
-            "HTTP 201 Created\\n",
+            "HTTP/2 500 Error\nHTTP/2 201 Created\n",
+            "HTTP/2 201 Created\nHTTP/2 422 Unprocessable Entity\n",
+            "HTTP 201 Created\n",
             "not an HTTP response",
         )
         for stdout in cases:
@@ -199,7 +199,7 @@ class GuardTests(unittest.TestCase):
         for code in (422, 500):
             with self.subTest(code=code):
                 with patch("research.nra2_bridge.stage3cj_once_only_claim_guard.subprocess.run",
-                           return_value=CompletedProcess(["gh"], 0, f"HTTP/2 {code} Error\\n", "")) as mocked:
+                           return_value=CompletedProcess(["gh"], 0, f"HTTP/2 {code} Error\n", "")) as mocked:
                     with self.assertRaises(ClaimDenied):
                         claim_once(self.env, self.event, gh_post_tag)
                     mocked.assert_called_once()
