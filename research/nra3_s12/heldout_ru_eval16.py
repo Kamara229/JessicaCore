@@ -28,7 +28,7 @@ PREVIOUS_S11_PHYSICAL_ROUTER_SHA="05ce14e20c9f4e7e09f85dbd9bd46f0dc0a700d72f1a96
 S9_TRAIN72_SHA="b09d60a77a17d30c2dbf846e40ab97860def8635e2bf31a5b0ab8981832b744d"
 # Obtained once from the first CI source-only audit; must be pinned before
 # any original model forward or S11 scoring on these 16 EVAL texts.
-EVAL16_FULL_CANONICAL_SHA=""
+EVAL16_FULL_CANONICAL_SHA="f2d2d5beba48dbe294a90f6918a3fd15870aa103abbd569e907c44729a43977c"
 
 
 @dataclass(frozen=True)
@@ -226,7 +226,7 @@ def sealed_eval16()->dict:
     rows=build_eval16()
     raw=canonical_eval16(rows)
     sha=hashlib.sha256(raw).hexdigest()
-    if EVAL16_FULL_CANONICAL_SHA and sha!=EVAL16_FULL_CANONICAL_SHA:
+    if sha!=EVAL16_FULL_CANONICAL_SHA:
         raise ValueError("S12 EVAL16 source changed after first source-only sealing")
     return {
       "stage":"NRA3_S12_PRE_REGISTERED_NEW_RU_HELDOUT16_NO_MODEL_EVAL_YET",
