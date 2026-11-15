@@ -78,6 +78,9 @@ def gh_post_tag(repo: str, tag_ref: str, sha: str) -> int:
         input=body, text=True, capture_output=True, timeout=30,
         check=False,
     )
+    # Fail closed even if stdout contains a stale/spoofed HTTP 201 status.
+    if proc.returncode != 0:
+        raise ClaimDenied("GitHub CLI failed: exit " + str(proc.returncode))
     # gh api --include prints the HTTP status line before response headers.
     status = re.search(r"(?m)^HTTP/\S+\s+(\d{3})\b", proc.stdout)
     if not status:
