@@ -11,3 +11,8 @@ S12 independently **preregisters a small, narrow evaluation-only set**: 16 novel
 S12 first pins an SHA256 commitment to **the complete source text + all UD and semantic labels**, and an immutable S11 model head and physical SHA, **without performing original43M inference, loading existing model results, or evaluating scores**. No training or model selection can use S12 labels. The next separate stage must use that exact sealed corpus once for frozen model performance, without tuning to this holdout. A genuine original Calibri 43M CPU post-GT 8th layer capture of 16 EVAL prompts can run read-only, with no EVAL labels passed to Calibri. The frozen S11 native 6-cycle C/39FP16 model can then be scored on that one-time heldout for branch selection / UD grammar and role correctness; any trained grammatical heads before the relation router may not improve by construction. Changes after seeing this holdout must use a new independent holdout rather than reusing it.
 
 **NO main, Jessica LIVE/chat tests, Render, Supabase, APK, Calibri/GT/6M weight changes or activation**. output_gate=0, candidate_accepted=false. Full-system bpp<=0.7 and >=90% CB59 CPU, actual protected-J7 with active generation and full EOS remain unproven.
+
+
+### Committed heldout SHA
+
+Source-only GitHub Actions **#43735239724 SUCCESS** (3/3 contract tests), generated source-only artifact **#14170232411**, all 16 labels+offsets+UD arcs/text fixed canonical digest: `f2d2d5beba48dbe294a90f6918a3fd15870aa103abbd569e907c44729a43977c`. The SHA is now hard-locked in module and CI **before any S12 model scoring**. No previous EVAL128 touched, and no new 43M or NRA CPU hidden was loaded in this stage.
