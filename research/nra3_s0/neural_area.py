@@ -41,7 +41,7 @@ class NRA3Config:
                 and self.ffn_multiplier >= 2 and self.relation_width >= 8
                 and self.relation_steps >= 1
                 and self.parallel_hypotheses in (1, 3)
-                and self.parallel_selector_version in (0, 1)
+                and self.parallel_selector_version in (0, 1, 2)
                 and (self.parallel_selector_version == 0 or
                      self.parallel_hypotheses == 3)):
             raise ValueError("NRA3 invalid dimension/causal architecture contract")
