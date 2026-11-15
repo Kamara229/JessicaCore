@@ -62,6 +62,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           S3CI_ARM_TOKEN: ${{ vars.NRA2_S3CI_SIXTH128_APPROVAL }}
           S3CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          S3CI_APPROVED_HEAD_SHA: ${{ vars.NRA2_S3CI_APPROVED_HEAD_SHA }} # unset until distinct SHA-specific authorization
         run: |
           set -euo pipefail
           python -m research.nra2_bridge.stage3cj_once_only_claim_guard
