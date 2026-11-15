@@ -170,5 +170,40 @@ class GuardTests(unittest.TestCase):
             mocked.assert_called_once()
 
 
+    def test_gh_cli_ambiguous_or_missing_status_denied_offline(self):
+        """Mock-only: even zero-exit CLI cannot authorize ambiguous HTTP status."""
+        from subprocess import CompletedProcess
+        from unittest.mock import patch
+        from research.nra2_bridge.stage3cj_once_only_claim_guard import gh_post_tag
+
+        cases = (
+            "HTTP/2 500 Error\\nHTTP/2 201 Created\\n",
+            "HTTP/2 201 Created\\nHTTP/2 422 Unprocessable Entity\\n",
+            "HTTP 201 Created\\n",
+            "not an HTTP response",
+        )
+        for stdout in cases:
+            with self.subTest(stdout=stdout):
+                with patch("research.nra2_bridge.stage3cj_once_only_claim_guard.subprocess.run",
+                           return_value=CompletedProcess(["gh"], 0, stdout, "")) as mocked:
+                    with self.assertRaises(ClaimDenied):
+                        claim_once(self.env, self.event, gh_post_tag)
+                    mocked.assert_called_once()
+
+    def test_gh_cli_http_422_and_500_denied_offline(self):
+        """Mock-only: no EVAL on already-claimed or server-failure responses."""
+        from subprocess import CompletedProcess
+        from unittest.mock import patch
+        from research.nra2_bridge.stage3cj_once_only_claim_guard import gh_post_tag
+
+        for code in (422, 500):
+            with self.subTest(code=code):
+                with patch("research.nra2_bridge.stage3cj_once_only_claim_guard.subprocess.run",
+                           return_value=CompletedProcess(["gh"], 0, f"HTTP/2 {code} Error\\n", "")) as mocked:
+                    with self.assertRaises(ClaimDenied):
+                        claim_once(self.env, self.event, gh_post_tag)
+                    mocked.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()
