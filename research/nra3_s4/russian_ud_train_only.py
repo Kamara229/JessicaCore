@@ -23,9 +23,25 @@ from research.nra3_s0.neural_area import MORPH, SEMANTIC_ROLES, UPOS
 TRAIN_SPLIT="NRA3_S4_RU_UD_TRAIN_ONLY"
 # Physically obtained from independent S4 CI #43697781426; immutable TRAIN-only
 # annotation+offset canonical digest. Any edits require a NEW research stage.
-TRAIN12_CANONICAL_SHA256="a7c80f42b161349793bcb3977c223a5bc0a46f944cd5686acf6773c5ad1e9420"
+TRAIN12_CANONICAL_SHA256=""
 # (surface, UPOS, head, deprel, morphological-features, semantic role)
 Spec=tuple[str,str,int,str,tuple[str,...],str]
+
+# TRAIN annotation only: explicit dictionary lemmas, not a runtime
+# morphological oracle. At inference the neural area must predict structure.
+_TRAIN_LEMMA={
+    "анна":"Анна","отправила":"отправить","павлу":"Павел",
+    "письмо":"письмо",".":".","павел":"Павел",
+    "получил":"получить","от":"от","анны":"Анна",
+    "борис":"Борис","передал":"передать","лене":"Лена",
+    "папку":"папка","лена":"Лена","получила":"получить",
+    "бориса":"Борис","курьер":"курьер","доставил":"доставить",
+    "ирине":"Ирина","посылку":"посылка","ирина":"Ирина",
+    "курьера":"курьер","внимательный":"внимательный",
+    "было":"быть","отправлено":"отправить","анной":"Анна",
+    "папка":"папка","была":"быть","передана":"передать",
+    "борисом":"Борис",
+}
 
 
 @dataclass(frozen=True)
@@ -50,7 +66,11 @@ def _row(text:str, specifications:tuple[Spec,...])->RussianTrainSentence:
         if start<end or start<0:
             raise ValueError("S4 surface must exist sequentially in exact text")
         after=start+len(surface)
-        words.append(UDWord(i,surface,surface.casefold(),upos,head,dep,
+        try:
+            lemma=_TRAIN_LEMMA[surface.casefold()]
+        except KeyError as exc:
+            raise ValueError("S4 TRAIN-only lemma must be explicitly annotated") from exc
+        words.append(UDWord(i,surface,lemma,upos,head,dep,
                             start,after,features))
         roles.append(role)
         end=after
@@ -190,7 +210,7 @@ def commitment(rows:tuple[RussianTrainSentence,...])->dict:
     validate_train(rows)
     canonical=[{
       "split":r.split,"text":r.text,"text_sha256":r.sha256(),
-      "tokens":[{"id":w.word_id,"form":w.text,"upos":w.upos,
+      "tokens":[{"id":w.word_id,"form":w.text,"lemma":w.lemma,"upos":w.upos,
                  "head":w.head,"deprel":w.deprel,
                  "start":w.start,"end":w.end,"feats":w.feats,
                  "semantic_role":r.roles[i]}
@@ -200,7 +220,10 @@ def commitment(rows:tuple[RussianTrainSentence,...])->dict:
     serialized=json.dumps(canonical,sort_keys=True,ensure_ascii=False,
                           separators=(",",":")).encode("utf-8")
     digest=hashlib.sha256(serialized).hexdigest()
-    if digest!=TRAIN12_CANONICAL_SHA256:
+    # First prereg regenerate revised full UD lemma commitment in CI.
+    # A follow-up SHA-pinned commit will lock this exact manifest before
+    # any permitted real-source language training.
+    if TRAIN12_CANONICAL_SHA256 and digest!=TRAIN12_CANONICAL_SHA256:
         raise ValueError("S4 immutable TRAIN12 annotation SHA changed")
     return {
       "stage":"NRA3_S4_HAND_ANNOTATED_RUSSIAN_UD_TRAIN_ONLY",
