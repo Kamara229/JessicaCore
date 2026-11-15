@@ -31,6 +31,17 @@ class S3BYFitOnlyGateTests(unittest.TestCase):
         self.assertEqual(len(PRE_S3BR_PARENT_SHA),64)
         self.assertNotEqual(PRE_S3BR_PARENT_SHA,REJECTED_S3BT_SHA)
 
+    def test_corrupt_physical_parent_fails_closed(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            fake = Path(directory) / "S3BN_FP16.safetensors"
+            fake.write_bytes(b"not the sealed S3BN physical checkpoint")
+            with self.assertRaises(AssertionError):
+                self.gate.verify_parent(fake)
+            self.assertFalse(self.gate.parent_verified)
+            with self.assertRaises(AssertionError):
+                self.gate.minibatch(self.groups["fit"][:1])
+
     def test_exact_fit_only_rows(self):
         # Parent attestation is separately tested against the real artifact in CI.
         self.gate.parent_verified=True
