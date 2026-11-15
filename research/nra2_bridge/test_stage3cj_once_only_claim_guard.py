@@ -18,6 +18,7 @@ class GuardTests(unittest.TestCase):
             "GITHUB_HEAD_REF": HEAD,
             "GITHUB_RUN_ATTEMPT": "1",
             "S3CI_HEAD_SHA": self.sha,
+            "S3CI_APPROVED_HEAD_SHA": self.sha,
         }
         self.event = {
             "action": "synchronize", "pull_request": {
@@ -93,6 +94,19 @@ class GuardTests(unittest.TestCase):
         with self.assertRaises(ClaimDenied):
             claim_once(env, self.event, lambda *_: 201)
 
+
+    def test_unpinned_or_mismatched_approved_sha_denied_before_api(self):
+        """Only explicitly SHA-pinned approved scoring context may reach GitHub."""
+        def never_call(*_):
+            raise AssertionError("GitHub API must not be called for SHA mismatch")
+        for invalid in ("", "b" * 40, "a" * 39, "not-a-sha"):
+            with self.subTest(approved_sha=invalid):
+                with self.assertRaises(ClaimDenied):
+                    claim_once(dict(self.env, S3CI_APPROVED_HEAD_SHA=invalid), self.event, never_call)
+        omitted = dict(self.env)
+        omitted.pop("S3CI_APPROVED_HEAD_SHA")
+        with self.assertRaises(ClaimDenied):
+            claim_once(omitted, self.event, never_call)
 
     def test_pull_request_merge_ref_head_base_env_fail_closed(self):
         """Offline: reject other PR refs and mismatched runner head/base context."""
