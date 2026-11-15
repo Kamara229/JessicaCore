@@ -230,9 +230,15 @@ def main(cpu:Path,pre:Path,adir:Path,ndir:Path,bdir:Path,nra_dir:Path,out:Path):
                 and torch.equal(wn["bridge.query.base."+k.removeprefix("bridge.query.")],v)
                 for k,v in wa.items() if k.startswith("bridge.query.")),
             "original frozen S3BA query teacher changed in novel S3BZ")
-    require(abs(float(wb["bridge.query.residual_scale"].item())-0.0625)<1e-6
-            and abs(float(wn["bridge.query.residual_scale"].item())-1.)<1e-6,
-            "S3BZ fixed trained joint residual scale changed")
+    # S3BZ 0.0625 is a TRAIN-only weight delta blend, NOT residual_scale.
+    # The residual_scale buffer remains 1.0 in both SHA-frozen models.
+    require(abs(float(wb["bridge.query.residual_scale"].item())-1.)<1e-6
+            and abs(float(wn["bridge.query.residual_scale"].item())-1.)<1e-6
+            and any(not torch.equal(wb[k],wn[k])
+                    for k in wn if k.startswith("bridge.query.")
+                    and not k.startswith("bridge.query.base.")
+                    and k!="bridge.query.residual_scale"),
+            "S3BZ TRAIN-only blended pair weights or original residual scale drift")
     x=normalize(hidden,wa["normalizer.mean"].float(),wa["normalizer.scale"].float(),mask)
     nr_file=nra_dir/"NRA2_STANDALONE_RELATIONAL_FP16.pt"
     nr_report=json.loads((nra_dir/"NRA2_STANDALONE_REPORT.json").read_text())
