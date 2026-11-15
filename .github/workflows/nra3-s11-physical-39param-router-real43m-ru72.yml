@@ -1,0 +1,137 @@
+name: NRA2 3.0 S11 TRUE43M new Russian TRAIN72 39-param physically paid causal 3way native router
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s10-real43m-layer8-ru-train72-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s11-physically-paid-real72-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  nra3_s11_true_43m_frozen_cb59_and_paid_tiny_fp16_router:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s11-physically-paid-3way-router-ru72-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      PYTHONHASHSEED: '311111'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Original immutable S10 genuine frozen43M/616J7 and S8b packed parent must be SUCCESS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43732621116 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43732621116 --jq .head_sha)" = "b5044c36d070d197f7141ecd44a0b833e22491b2"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43731968521 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43731085988 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43731085988 --jq .head_sha)" = "a3a7ab9f063254b5316931998e515c80e66ef041"
+          echo S11_VERIFIED_TRUE_ORIGINAL43M_RU72_616J7_AND_FROZEN_S8b_REJECTED_PARENT
+      - name: Install original pinned Calibri native CPU 5-bit/8D research dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'tokenizers==0.20.3' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: S11 39 paid FP16 route bytes with exact physical SHA, causal and no EVAL leakage unit tests
+        run: |
+          python -m unittest -v research.nra3_s11.test_paid_router
+      - name: Original S7/S8 3way frozen regression and S10 exact 72 prompt/UD SHA guards
+        run: |
+          python -m unittest -v research.nra3_s7.test_parallel_hypotheses research.nra3_s8.test_calibrated_selector research.nra3_s9.test_new_ru_train72 research.nra3_s9.test_train72_real_token_alignment
+      - name: Verify S11 source code compile and native C compiler available
+        run: |
+          python -m compileall -q research/nra3_s11 research/nra3_s2 research/nra3_s0 research/nra3_s7 research/nra3_s9
+          cc --version | head -1
+      - name: Download ORIGINAL S10 true frozen 43M post-GT layer8 72 new Russian TRAIN-only physical FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s10-genuine43M-CPU-layer8-newRU72-trainonly-616J7-zero-gate
+          run-id: 43732621116
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s10
+      - name: Download frozen S8b original all 43 truly packed CB59 matrices, already failed selector
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s8-adaptive-calibrated-3way-physical-CB59-S61-realRU12-trainonly
+          run-id: 43731085988
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s8
+      - name: Verify *actual physical* original 72 FP16 and original 6M packed CB59 hash BEFORE optimiser
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from safetensors.torch import load_file
+          from direct_codebook_v59 import CB59
+          a=Path("inputs/nra3_s10")
+          b=Path("inputs/nra3_s8")
+          f=a/"NRA3_S10_REAL_43M_LAYER8_RU_TRAIN72_HIDDEN320_FP16.safetensors"
+          r=json.loads((a/"NRA3_S10_REAL_CPU_43M_LAYER8_TRAIN72_J7_REPORT.json").read_text())
+          o=b/"NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59"
+          prior=json.loads((b/"NRA3_S8_CALIBRATED_ROUTER_RU12_TRAIN_PHYSICAL_REPORT.json").read_text())
+          assert hashlib.sha256(f.read_bytes()).hexdigest()=="ed262984c0fd48b60987308e7b135be7d05d3e5434fe9923f373aec178ff2b46"
+          assert r["actual_fp16_feature_sha256"]=="ed262984c0fd48b60987308e7b135be7d05d3e5434fe9923f373aec178ff2b46"
+          assert r["actual_genuine_43M_CPU_prefills"]==72 and r["all_616_native_CPU_generated_token_digests_unchanged"] is True
+          assert r["S9_RUSSIAN_UD_TRAIN72_CANONICAL_SHA256"]=="b09d60a77a17d30c2dbf846e40ab97860def8635e2bf31a5b0ab8981832b744d"
+          assert load_file(str(f))["token_hidden320"].shape==(72,59,320)
+          assert hashlib.sha256(o.read_bytes()).hexdigest()=="d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97"
+          assert CB59(o.read_bytes()).meta["original_unique_parameter_count"]==6106154
+          assert prior["CB59_trained_sha256"]=="d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97"
+          assert prior["candidate_accepted"] is False and prior["output_gate"]==0
+          print("S11_PINNED_TRUE_CALIBRI43M_GT_LAYER8_RU72_AND_FROZEN_S8b_CB59_PHYSICAL",flush=True)
+          PY
+      - name: Train only explicit 39 FP16 selector weights and run genuine full native-C 6-cycle NRA3 on all 72 real43M TRAIN
+        run: |
+          python -m research.nra3_s11.real43m_train72_paid_router \
+            --s10-hidden inputs/nra3_s10/NRA3_S10_REAL_43M_LAYER8_RU_TRAIN72_HIDDEN320_FP16.safetensors \
+            --s10-report inputs/nra3_s10/NRA3_S10_REAL_CPU_43M_LAYER8_TRAIN72_J7_REPORT.json \
+            --s8-cb59 inputs/nra3_s8/NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59 \
+            --s8-report inputs/nra3_s8/NRA3_S8_CALIBRATED_ROUTER_RU12_TRAIN_PHYSICAL_REPORT.json \
+            --out results/nra3_s11
+      - name: Physically re-open SHA-locked tiny FP16 router, forbid any activation and semantic inference claim
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          from research.nra3_s11.paid_router import PaidThreeWayRouter,PHYSICAL_BYTES
+          root=Path("results/nra3_s11")
+          r=json.loads((root/"NRA3_S11_PAID_3WAY_SELECTOR_REAL43M_TRAIN72_NO_PROMOTION.json").read_text())
+          a=(root/r["S11_router_FP16_physical_file"]).read_bytes()
+          assert len(a)==PHYSICAL_BYTES==123
+          assert r["S11_router_FP16_physical_sha256"]==hashlib.sha256(a).hexdigest()
+          assert PaidThreeWayRouter.from_physical(a).physical_bytes()==a
+          assert r["S11_raw_CB59_plus_router_physically_stored_bytes"]==653798+123
+          assert r["S11_total_unique_area_plus_router_parameters"]==6106154+39
+          assert r["S11_no_original_NRA3_6M_weight_updates"] is True
+          assert r["S11_every_original_6M_matrix_uses_same_native_C_CB59"] is True
+          assert r["S11_router_in_the_six_real_relation_GRU_cycles"] is True
+          assert r["S11_evidence_features_causal_no_gold_in_forward"] is True
+          assert r["independent_true_Russian_generalization_eval_measured"] is False
+          assert r["full_answer_EOS_candidate_quality_measured"] is False
+          assert r["protected_616_J7_with_S11_active_generation_performed"] is False
+          assert r["all_parent_GT_NRA_physical_bpp_below_point7_certified"] is False
+          assert r["old_five_consumed_EVAL128_not_loaded"] is True
+          assert r["sixth_reserved_S3CI_EVAL128_not_loaded"] is True
+          assert r["output_gate"]==0 and r["candidate_accepted"] is False
+          assert r["activation_allowed"] is False
+          print("S11_PHYSICALLY_PAID_39_FP16_REAL43M_TRAIN72_ONLY_RESEARCH_REJECT_ACTIVE_ZERO_GATE",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s11-real43M-ru72-39param-FP16-paid-router-native-C-trainonly
+          path: results/nra3_s11/
+          retention-days: 30
+          if-no-files-found: error

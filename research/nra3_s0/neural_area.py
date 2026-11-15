@@ -41,7 +41,7 @@ class NRA3Config:
                 and self.ffn_multiplier >= 2 and self.relation_width >= 8
                 and self.relation_steps >= 1
                 and self.parallel_hypotheses in (1, 3)
-                and self.parallel_selector_version in (0, 1, 2)
+                and self.parallel_selector_version in (0, 1, 2, 3)
                 and (self.parallel_selector_version == 0 or
                      self.parallel_hypotheses == 3)):
             raise ValueError("NRA3 invalid dimension/causal architecture contract")
@@ -78,6 +78,7 @@ class NRA3Features:
     antecedent_logits: torch.Tensor
     readout: torch.Tensor
     parallel_hypothesis_gates: torch.Tensor | None = None
+    parallel_router_features: torch.Tensor | None = None
 
 
 class NRA3NeuralArea(nn.Module):
@@ -90,6 +91,9 @@ class NRA3NeuralArea(nn.Module):
     def __init__(self, config: NRA3Config = NRA3Config()):
         super().__init__()
         self.config = config
+        # S11 router is installed only in explicit opt-in mode; all original
+        # S7/S8 state_dict keys and 6,106,154 parameters stay unchanged.
+        self.paid_router = None
         d = config.hidden
         r = config.relation_width
         self.input_projection = nn.Sequential(nn.LayerNorm(config.io_width),
@@ -159,6 +163,9 @@ class NRA3NeuralArea(nn.Module):
         antecedent = antecedent.masked_fill(~allowed, -1e4)
         relation = self.core_in(semantics)
         parallel_gates = None
+        parallel_router_features = None
+        if self.config.parallel_selector_version == 3 and self.paid_router is None:
+            raise ValueError("S11 explicit physically billed router not installed")
         for _ in range(self.config.relation_steps):
             scores = (self.rel_q(relation) @ self.rel_k(relation).transpose(1, 2)) / math.sqrt(self.config.relation_width)
             scores = scores.masked_fill(~allowed, -1e4)
@@ -170,10 +177,12 @@ class NRA3NeuralArea(nn.Module):
                     query=self.rel_q(relation),value=self.rel_value(relation),
                     scores=scores,allowed=allowed,valid=valid,
                     semantic_role_logits=roles,
-                    local_window=min((16 if self.config.parallel_selector_version==1 else 4),t),
-                    selector_version=self.config.parallel_selector_version)
+                    local_window=min((16 if self.config.parallel_selector_version in (1,3) else 4),t),
+                    selector_version=self.config.parallel_selector_version,
+                    paid_router=self.paid_router)
                 message=evidence.message
                 parallel_gates=evidence.hypothesis_gates
+                parallel_router_features=evidence.router_features
             else:
                 weights = scores.softmax(dim=-1)
                 message = weights @ self.rel_value(relation)
@@ -184,7 +193,8 @@ class NRA3NeuralArea(nn.Module):
         if not all(torch.isfinite(z).all() for z in (readout, roles, upos, morph, relation)):
             raise AssertionError("NRA3 nonfinite stage features")
         return NRA3Features(grammar, semantics, relation, upos, morph, dep,
-                            roles, antecedent, readout, parallel_gates)
+                            roles, antecedent, readout, parallel_gates,
+                            parallel_router_features)
 
     def fp16_lower_bound_bpp(self, parent_parameters: int,
                              parent_bpp: float) -> float:

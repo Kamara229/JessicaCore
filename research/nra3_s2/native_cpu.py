@@ -116,11 +116,20 @@ class NRA3NativePackedCPU(nn.Module):
     NRA3_NATIVE_CPU_PACKED=True
 
     def __init__(self, physical_cb59: bytes,
-                 config: NRA3Config, library_path: str | Path):
+                 config: NRA3Config, library_path: str | Path,
+                 *, paid_router_physical: bytes | None = None):
         super().__init__()
         if not isinstance(physical_cb59,bytes):
             raise ValueError("Native NRA3 needs verified complete physical CB59 bytes")
         self.config=config
+        self.paid_router=None
+        if config.parallel_selector_version==3:
+            from research.nra3_s11.paid_router import PaidThreeWayRouter
+            if paid_router_physical is None:
+                raise ValueError("S11 native paid router physical source mandatory")
+            self.paid_router=PaidThreeWayRouter.from_physical(paid_router_physical)
+        elif paid_router_physical is not None:
+            raise ValueError("S11 auxiliary selector source forbidden for S7/S8")
         self.kernel=NativeCB59Kernel(library_path)
         self.source=CB59(physical_cb59)
         shapes=expected_shapes(config)
@@ -231,6 +240,7 @@ class NRA3NativePackedCPU(nn.Module):
         ante=ante.masked_fill(~allowed,-1e4)
         relation=self.linear("core_in",x)
         parallel_gates=None
+        parallel_router_features=None
         for _ in range(self.config.relation_steps):
             q=self.linear("rel_q",relation)
             k=self.linear("rel_k",relation)
@@ -242,10 +252,12 @@ class NRA3NativePackedCPU(nn.Module):
                 evidence=parallel_three_relations(
                     query=q,value=v,scores=score,allowed=allowed,valid=valid,
                     semantic_role_logits=role,
-                    local_window=min((16 if self.config.parallel_selector_version==1 else 4),t),
-                    selector_version=self.config.parallel_selector_version)
+                    local_window=min((16 if self.config.parallel_selector_version in (1,3) else 4),t),
+                    selector_version=self.config.parallel_selector_version,
+                    paid_router=self.paid_router)
                 message=evidence.message
                 parallel_gates=evidence.hypothesis_gates
+                parallel_router_features=evidence.router_features
             else:
                 message=score.softmax(dim=-1)@v
             relation=self._gru_cell(message,relation)
@@ -254,7 +266,8 @@ class NRA3NativePackedCPU(nn.Module):
         if any(not bool(torch.isfinite(v).all()) for v in
                (grammar,semantics,relation,upos,morph,role,read)):
             raise ValueError("NRA3 native generated nonfinite features")
-        return NRA3Features(grammar,semantics,relation,upos,morph,dep,role,ante,read,parallel_gates)
+        return NRA3Features(grammar,semantics,relation,upos,morph,dep,role,ante,read,
+                            parallel_gates,parallel_router_features)
 
     def packed_matrix_count(self):
         return len(self.source.handles)
