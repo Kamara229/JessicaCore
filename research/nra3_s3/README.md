@@ -1,0 +1,11 @@
+# NRA2 3.0 S3 — strict physically-paid CB59 QAT (RESEARCH-ONLY)
+
+Stage S3 begins **training actual physically stored CB59 parameters**, not adding a separate FP32 deployed model. It only trains the pre-existing K32V8 FP16 centroid books and positive per-row scales; packed 5-bit vector indices remain unchanged. The source FP16 quantization operation uses a straight-through estimator (STE), so TRAIN forward reads precisely the FP16-rounded values that physical inference will use; optimizer/temporary dense surrogate exists only in the TRAIN job and cannot be saved into inference.
+
+Every optimizer step calls a strict SHA gate with explicitly predeclared **synthetic-only** source IDs. Unapproved, duplicate, overlapping forbidden IDs are rejected. **Real Russian text TRAIN is not yet admitted.** Historical 2048 TRAIN and any new Russian UD TRAIN must be sealed separately with full physical SHA and denied EVAL identities before a real experiment. No old 5 held-out EVAL128, no sixth S3CI/PR#702, no Jessica chat.
+
+The paid codebook is repacked via original Calibri `v176.codec.replace_fields`: only existing centroid/row-scale FP16 segments may change, CRC/SHA footer is recalculated, the total byte count and original K32V8 indices remain bit-for-bit unchanged, and all nonselected matrices and raw 1D weights are checked for exact parity. A native C v59 CB59 operator must agree numerically with the physically reloaded trained operator. This protects the all-inclusive storage contract but it DOES NOT certify full parent+GT <=0.7 bpp unless those complete physical bytes are separately audited.
+
+The initial numerical study fits one *synthetic* random tensor using a full-size teacher matrix **only during training**; any measured MSE decrease is a codebook optimizer feasibility result **not a Russian grammar/semantics result, not generalization, and not a CALIBRI J7 or model-quality claim**. No Green Tunnel weights touched. Preserve `output_gate=0`, `candidate_accepted=false`.
+
+Next necessary milestone: permitted actual Russian UD text/labels and true frozen Calibri layer-8 CPU token representations; train joint grammar/semantic/relational codebook weights with proper sequence labels, then measure complete compressed model+GT runtime, full EOS answers, real 616 J7 and independent new generalization.
