@@ -514,7 +514,7 @@ jobs:
           name: nra2-stage3bz-fit192-replay2240-safe-fp16-zero-gate
           run-id: '43678041407'
           github-token: ${{ github.token }}
-          path: inputs/nra2_stage3bz
+          path: inputs/nra2_stage3cf
       - name: S3CH true frozen original43M CPU prefill on SIXTH untouched independent128 no adapter score
         run: |
           python - <<'PY'
