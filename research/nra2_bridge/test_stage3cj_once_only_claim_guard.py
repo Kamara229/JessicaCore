@@ -147,6 +147,25 @@ class GuardTests(unittest.TestCase):
         with self.assertRaises(ClaimDenied):
             claim_once(self.env, bad, lambda *_: 201)
 
+    def test_workflow_permissions_and_manual_arm_are_fail_closed(self):
+        """Offline-only: neither workflow can write or arm EVAL by default."""
+        from pathlib import Path
+        workflows = Path(__file__).resolve().parents[2] / ".github" / "workflows"
+        scorer = (workflows / "nra2-stage3ci-sixth128-once-only-paired-role-reach.yml").read_text(encoding="utf-8")
+        unit = (workflows / "nra2-stage3cj-once-only-guard-offline-unit.yml").read_text(encoding="utf-8")
+        for label, source in (("scorer", scorer), ("unit", unit)):
+            with self.subTest(workflow=label):
+                self.assertIn("permissions:\\n  contents: read", source)
+                self.assertNotIn("contents: write", source)
+                self.assertNotIn("pull_request_target:", source)
+                self.assertNotIn("workflow_dispatch:", source)
+                self.assertNotIn("repository_dispatch:", source)
+        self.assertIn("S3CI_ARM_TOKEN: ${{ vars.NRA2_S3CI_SIXTH128_APPROVAL }}", scorer)
+        self.assertIn("S3CI_APPROVED_HEAD_SHA: ${{ vars.NRA2_S3CI_APPROVED_HEAD_SHA }}", scorer)
+        self.assertNotIn("S3CI_APPROVED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}", scorer)
+        self.assertIn(" && false", scorer)
+        self.assertNotIn("actions/download-artifact", unit)
+
     def test_scoring_job_hard_stop_and_pre_eval_claim_order(self):
         """Static workflow guard: scoring cannot run before separate authorization."""
         from pathlib import Path
