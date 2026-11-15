@@ -47,7 +47,8 @@ def expected_shapes(c: NRA3Config) -> dict[str, tuple[int, ...]]:
         for k in range(count):
             p=f"{family}.{k}"
             norm(p+".norm_attn",d)
-            linear(p+".attn.in_proj",3*d,d)
+            shapes[p+".attn.in_proj_weight"]=(3*d,d)
+            shapes[p+".attn.in_proj_bias"]=(3*d,)
             linear(p+".attn.out_proj",d,d)
             norm(p+".norm_ffn",d)
             linear(p+".ffn.0",f,d)
@@ -62,7 +63,6 @@ def expected_shapes(c: NRA3Config) -> dict[str, tuple[int, ...]]:
         linear(name,r,r,False)
     linear("ante_q",d,d,False)
     linear("ante_k",d,d,False)
-    linear("rel_update.weight_ih",3*r,r,False) if False else None
     shapes["rel_update.weight_ih"]=(3*r,r)
     shapes["rel_update.weight_hh"]=(3*r,r)
     shapes["rel_update.bias_ih"]=(3*r,)
@@ -167,7 +167,7 @@ class NRA3NativePackedCPU(nn.Module):
         z=self._layernorm(name+".norm_attn",x)
         # Original torch.nn.MultiheadAttention W_qkv and W_out are
         # directly executed in 5-bit C; no FP32 weight matrix.
-        qkv=self.linear(name+".attn.in_proj",z)
+        qkv=self.kernel.matmul(self.source.handles[name+".attn.in_proj_weight"],z)\n        qkv=qkv+self._bias[name+".attn.in_proj_bias"]
         q,k,v=qkv.chunk(3,dim=-1)
         def to_heads(y):
             return y.reshape(b,t,c.heads,d//c.heads).transpose(1,2)
@@ -182,7 +182,7 @@ class NRA3NativePackedCPU(nn.Module):
         return x.masked_fill(~valid.unsqueeze(-1),0.)
 
     def _gru_cell(self,inp,h):
-        gi=self.linear("rel_update_ih",inp) if False else self.kernel.matmul(
+        gi=self.kernel.matmul(
             self.source.handles["rel_update.weight_ih"],inp)+self._bias["rel_update.bias_ih"]
         gh=self.kernel.matmul(
             self.source.handles["rel_update.weight_hh"],h)+self._bias["rel_update.bias_hh"]
