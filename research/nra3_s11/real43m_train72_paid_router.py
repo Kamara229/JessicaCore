@@ -35,7 +35,7 @@ from research.nra3_s11.weak_ru72_train_labels import (
     BRANCHES,weak_train_router_labels,
 )
 
-S8b_ORIGINAL_PAID_CB59_SHA="b543c5b4692caa8764382271f94ccfbddeee8b2afdb096666676b2a68e1375f9"
+S8b_ORIGINAL_PAID_CB59_SHA="d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97"
 S8b_RUN=43731085988
 
 
