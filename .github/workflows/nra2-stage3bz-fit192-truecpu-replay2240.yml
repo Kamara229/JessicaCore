@@ -181,8 +181,8 @@ jobs:
       - name: Preflight semantic curriculum TRAIN2240 code and original graph isolation, NO EVAL
         run: |
           python -m compileall -q research/nra2_bridge/stage3bz_fit192_pairwise_replay2240.py
-          python -m unittest -v research.nra2_bridge.test_stage3bm_joint_semantic_pair_role_head research.nra2_bridge.test_stage3br_relation_language_train512_prereg
-      - name: S3BZ run only new S3BM attention/pair params on TRAIN2048 plus new TRUE CPU TRAIN512
+          python -m unittest -v research.nra2_bridge.test_stage3bm_joint_semantic_pair_role_head research.nra2_bridge.test_stage3br_relation_language_train512_prereg research.nra2_bridge.test_stage3bx_blocked_family_topology_protocol research.nra2_bridge.test_stage3by_fit_only_loader_gate
+      - name: S3BZ train only new S3BM 42869 params on original 2048 plus sealed FIT192; guard320 forbidden
         run: |
           python - <<'PY'
           import platform,torch
@@ -214,6 +214,7 @@ jobs:
           assert a["S3BA_original_graph_and_old_role_head_sha256"]=="4fedf391ee02b1d1c45c82c3690d212ba9a43e9d0da32446f5d32ac6c379bb09"
           assert a["train_count"]==2240 and a["historical_six_TRAIN_count"]==2048 and a["new_S3BR_TRAIN_count"]==192
           assert a["new_S3BR_grammar_styles"]==4
+          assert a["fit192_only"] and a["rejected_prior_S3BW_fourth_EVAL_run"]==43651233135
           assert a["new_S3BM_only_pair_params_trained"]==42869
           assert a["original_S194_616_J7_unchanged_in_all_seven_CPU_sources"]
           assert a["old_graph_and_original_S3BA_query_frozen_physical_FP16_equal"]
@@ -242,7 +243,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: nra2-stage3bz-semantic-directional-train2240-safe-fp16-zero-gate
+          name: nra2-stage3bz-fit192-replay2240-safe-fp16-zero-gate
           path: results/nra2_stage3bz_fit192_train2240/
           retention-days: 90
           if-no-files-found: error
