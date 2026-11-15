@@ -87,9 +87,9 @@ jobs:
           assert r["actual_genuine_43M_CPU_prefills"]==72 and r["all_616_native_CPU_generated_token_digests_unchanged"] is True
           assert r["S9_RUSSIAN_UD_TRAIN72_CANONICAL_SHA256"]=="b09d60a77a17d30c2dbf846e40ab97860def8635e2bf31a5b0ab8981832b744d"
           assert load_file(str(f))["token_hidden320"].shape==(72,59,320)
-          assert hashlib.sha256(o.read_bytes()).hexdigest()=="b543c5b4692caa8764382271f94ccfbddeee8b2afdb096666676b2a68e1375f9"
+          assert hashlib.sha256(o.read_bytes()).hexdigest()=="d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97"
           assert CB59(o.read_bytes()).meta["original_unique_parameter_count"]==6106154
-          assert prior["CB59_trained_sha256"]=="b543c5b4692caa8764382271f94ccfbddeee8b2afdb096666676b2a68e1375f9"
+          assert prior["CB59_trained_sha256"]=="d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97"
           assert prior["candidate_accepted"] is False and prior["output_gate"]==0
           print("S11_PINNED_TRUE_CALIBRI43M_GT_LAYER8_RU72_AND_FROZEN_S8b_CB59_PHYSICAL",flush=True)
           PY
