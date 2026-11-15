@@ -492,15 +492,15 @@ jobs:
           for r in 43590032315 43678694884 43678041407 43677179638 43651233135 43648038071 43644153544 43640363396; do
             test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$r" --jq .conclusion)" = success
           done
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43678694884" --jq .head_branch)" = research/calibri2-nra2-s3cg-sixth-unseen128-prereg-20261115
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43678041407" --jq .head_branch)" = research/calibri2-nra2-s3cf-fit192-real-cpu-pair-replay-20261115
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43678694884" --jq .head_branch)" = research/calibri2-nra2-s3cg-sixth-untouched128-prereg-20261115
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43678041407" --jq .head_branch)" = research/calibri2-nra2-s3cf-order-balanced-real-cpu-train2240-20261115
       - name: Lock S3CG sixth wholly untouched128 prereg SHA before any native CPU
         uses: actions/download-artifact@v4
         with:
-          name: nra2-stage3cb-sixth-independent128-graph-grammar-prereg-no-model
+          name: nra2-stage3cg-sixth-unseen128-prereg-graph-grammar-no-model
           run-id: '43678694884'
           github-token: ${{ github.token }}
-          path: inputs/nra2_stage3cb
+          path: inputs/nra2_stage3cg
       - name: Lock original S3BA frozen baseline FP16 SHA
         uses: actions/download-artifact@v4
         with:
