@@ -104,7 +104,9 @@ class NRA3NeuralArea(nn.Module):
         self.ante_q = nn.Linear(d, d, bias=False)
         self.ante_k = nn.Linear(d, d, bias=False)
         self.readout = nn.Linear(r, config.io_width, bias=False)
-        nn.init.zeros_(self.readout.weight)
+        # Keep source nondegenerate for exact CB59 K32V8 vector coding.
+        # The Calibri bridge, not a zero matrix, guarantees zero output influence.
+        nn.init.normal_(self.readout.weight, mean=0.0, std=0.01)
 
     def parameter_count(self):
         return sum(p.numel() for p in self.parameters())

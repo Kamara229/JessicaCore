@@ -1,0 +1,68 @@
+name: NRA2 3.0 S1 genuine CB59 physical source and Green Tunnel shadow ABI
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-nra3-s0-grammar-semantics-relations-shadow-20261115
+permissions:
+  contents: read
+concurrency:
+  group: nra3-s1-cb59-gt-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  nra3_s1_cpu_codec_gt:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s1-cb59-gt-shadow-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact CPU-only research codec dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'tokenizers==0.20.3' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: Offline strict actual CB59 and existing GT/S103 hook tests
+        run: |
+          python -m unittest -v research.nra3_s0.test_neural_area research.nra3_s1.test_compression_green_tunnel
+      - name: Physical pack FULL 6M untrained NRA area using original Calibri CB59 encoder
+        run: |
+          python -m research.nra3_s1.physical_preflight --out results/nra3_s1
+      - name: Verify actual physical bytes and no acceptance claims
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from direct_codebook_v59 import CB59
+          from research.nra3_s1.entropy_envelope import restore_lossless_cb59
+          p=Path("results/nra3_s1")
+          meta=json.loads((p/"NRA3_S1_PHYSICAL_UNTRAINED_RESEARCH.json").read_text())
+          artifact=p/meta["physical_archive"]
+          src=CB59(artifact.read_bytes())
+          assert artifact.stat().st_size == meta["complete_new_area_bytes"]
+          assert src.meta["original_unique_parameter_count"] == meta["unique_new_area_parameters"] == 6106154
+          assert meta["output_gate"] == 0 and meta["candidate_accepted"] is False
+          assert meta["native_packed_CPU_kernel_verified"] is False
+          assert meta["not_a_full_parent_plus_GT_budget_certificate"] is True
+          entropy=p/meta["lossless_CB61_physical_archive"]
+          assert entropy.stat().st_size == meta["lossless_CB61_stored_bytes"]
+          assert restore_lossless_cb59(entropy.read_bytes()) == artifact.read_bytes()
+          assert meta["all_inclusive_actual_rate_accepted"] is False
+          print("NRA3_S1_FULL_CB59_AND_LOSSLESS_S61_PHYSICAL_PROVEN_ZERO_GATE",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NRA3_S1_UNTRAINED_CB59_PHYSICAL_RESEARCH_ZERO_GATE
+          path: results/nra3_s1
+          if-no-files-found: error
+          retention-days: 14

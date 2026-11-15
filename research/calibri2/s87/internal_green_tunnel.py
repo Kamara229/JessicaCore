@@ -11,7 +11,6 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from v176.operators import clear
 
 
 class InternalTunnelBlock(nn.Module):
@@ -131,6 +130,8 @@ def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
     No physical acceptance is performed here: a separate guarded, replayed
     CPU inference + exact source/controller/manifest byte audit is mandatory.
     """
+    # Training-only CB59 operator loader; never import QA/data for read-only GT.
+    from v176.operators import clear
     if not torch.backends.mps.is_available():
         raise RuntimeError("Real MPS GPU is required")
     if not examples:
