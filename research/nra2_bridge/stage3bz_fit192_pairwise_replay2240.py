@@ -3,7 +3,7 @@
 Rehearse S3M original TRAIN128 and S3X reversed TRAIN128, initialize from
 physical S3AS; S3O graph, true 43M, Green Tunnel and independent NRA frozen.
 Four prompts per topology enforce same-role paraphrase and reversed-role symmetry.
-All three S3AQ/S3BJ/S3BO independent EVAL128 were consumed; none may be reused.
+All four earlier independent EVAL128s (including S3BU) are consumed; none may be reused.
 No DEV or old/new EVAL model inference; original protected 616 J7 unchanged.
 No Jessica, QA/TEST, LIVE, Render, Supabase, main, or accepted model changes.
 """
@@ -651,6 +651,8 @@ def main():
        "S3BA_original_graph_and_old_role_head_sha256":S3BA_SHA,
        "train_count":2240,"historical_six_TRAIN_count":2048,"new_S3BR_TRAIN_count":192,
        "new_S3BR_grammar_styles":4,
+       "fit192_only":True,
+       "rejected_prior_S3BW_fourth_EVAL_run":43651233135,
        "original_S194_616_J7_unchanged_in_all_seven_CPU_sources":True,
        "new_S3BM_only_pair_params_trained":42869,
        "old_graph_and_original_S3BA_query_frozen_physical_FP16_equal":True,
@@ -669,7 +671,7 @@ def main():
        "train_only_S3BX_fit192_SHA256":protocol(blocked)["subsets"]["fit"]["prompt_hashes_sha256"],
        "guard320_excluded_from_all_training_inference_and_selection":True,
        "S3BY_verified_parent_and_minibatch_gate_every_optimizer_step":True,
-       "rejected_S3BZ_never_initialized":True,
+       "rejected_S3BT_never_initialized":True,
        "train_7_group_before":dict(zip(group_names,baseline_metrics)),
        "train_7_group_after":dict(zip(group_names,new_metrics)),
        "training_trace":trace,
@@ -677,7 +679,7 @@ def main():
        "old_independent_S3BJ_EVAL128_consumed_never_used":True,
        "old_independent_S3BO_EVAL128_consumed_never_used":True,
        "no_heldout_DEV_or_EVAL_training_scoring_or_selection":True,
-       "requires_separate_fourth_independent128_before_generalization_claim":True,
+       "requires_separate_fifth_independent128_before_generalization_claim":True,
        "candidate_accepted":False,"output_gate":0.,
        "full_EOS_new_candidate_tested":False,"all_in_bpp_tested":False,
        "paired_CPU_speed_tested":False,
