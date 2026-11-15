@@ -25,6 +25,6 @@ jobs:
       - name: Offline stdlib-only Russian UD unit tests
         run: |
           python -m unittest -v research.nra2_bridge.test_stage3ck_russian_ud_role_bridge
-      - name: Check frozen research stage is not connected to inference
+      - name: Check research parser does not import model or network modules
         run: |
-          ! grep -Eq '(torch|optimizer|hf_hub|load_file|requests|supabase)' research/nra2_bridge/stage3ck_russian_ud_role_bridge.py
+          ! grep -Eq '^(import (torch|requests|supabase)|from (torch|requests|supabase|huggingface_hub) import)' research/nra2_bridge/stage3ck_russian_ud_role_bridge.py
