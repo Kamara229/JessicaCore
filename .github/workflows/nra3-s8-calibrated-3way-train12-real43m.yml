@@ -117,6 +117,22 @@ jobs:
           assert r["sixth_reserved_S3CI_EVAL128_untouched"] is True
           print("S8_TRIPLE_EVIDENCE_CALIBRATION_REAL_TRAIN12_ONLY_NO_HOLDOUT_NO_PROMOTION",flush=True)
           PY
+      - name: Rejection audit keeps technically valid but collapsed weak selector permanently zero-gated
+        run: |
+          python -m research.nra3_s8.selector_acceptance_audit \
+            --in-report results/nra3_s8/NRA3_S8_CALIBRATED_ROUTER_RU12_TRAIN_PHYSICAL_REPORT.json \
+            --out-audit results/nra3_s8/NRA3_S8_SEL_FAIL_CLOSED_NO_PROMOTION_AUDIT.json
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          r=json.loads(Path("results/nra3_s8/NRA3_S8_SEL_FAIL_CLOSED_NO_PROMOTION_AUDIT.json").read_text())
+          assert r["research_acceptance"] is False
+          assert r["activation_allowed"] is False
+          assert r["output_gate"]==0
+          assert "no_new_independent_grammar_semantic_full_EOS_evaluation" in r["reasons"]
+          assert "no_end_to_end_J7_bpp_CPU_candidate_certificate" in r["reasons"]
+          print("NRA3_S8_TRAIN_FIT_NOT_SEMANTIC_EVAL_ZERO_GATE_REJECTION",flush=True)
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: nra3-s8-adaptive-calibrated-3way-physical-CB59-S61-realRU12-trainonly
