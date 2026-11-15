@@ -10,11 +10,11 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: nra2-stage3bt-meaning-curriculum-train2240-original-43m-616j7
+  group: nra2-stage3bz-meaning-curriculum-train2240-original-43m-616j7
   cancel-in-progress: false
 jobs:
-  s3bz_train_joint_rehearsal_2048plus512:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bz-joint-meaning-replay-train2240-20261115'
+  s3bz_train_joint_rehearsal_2048plus192:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3bz-fit192-real-cpu-pair-replay-20261115'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -180,7 +180,7 @@ jobs:
           github-token: ${{ github.token }}
       - name: Preflight semantic curriculum TRAIN2240 code and original graph isolation, NO EVAL
         run: |
-          python -m compileall -q research/nra2_bridge/stage3bt_incremental_joint_language_train2240.py
+          python -m compileall -q research/nra2_bridge/stage3bz_fit192_pairwise_replay2240.py
           python -m unittest -v research.nra2_bridge.test_stage3bm_joint_semantic_pair_role_head research.nra2_bridge.test_stage3br_relation_language_train512_prereg
       - name: S3BZ run only new S3BM attention/pair params on TRAIN2048 plus new TRUE CPU TRAIN512
         run: |
@@ -189,21 +189,21 @@ jobs:
           assert platform.machine()=="x86_64" and not torch.cuda.is_available()
           print("S3BZ_REAL_CPU_TRAIN_ONLY_2240_ORIGINAL_616_J7_PROTECTED")
           PY
-          PYTHONPATH=.:research:research/calibri OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 python -m research.nra2_bridge.stage3bt_incremental_joint_language_train2240 \
+          PYTHONPATH=.:research:research/calibri OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 python -m research.nra2_bridge.stage3bz_fit192_pairwise_replay2240 \
             inputs/nra2_stage3n inputs/nra2_stage3y inputs/nra2_stage3x \
             inputs/nra2_stage3o inputs/nra2_stage3as inputs/nra2_stage3ar \
             inputs/nra2_stage3av inputs/nra2_stage3au inputs/nra2_stage3aw \
             inputs/nra2_stage3az inputs/nra2_stage3ay inputs/nra2_stage3ba \
             inputs/nra2_stage3bc inputs/nra2_stage3bd \
             inputs/nra2_stage3bn inputs/nra2_stage3br inputs/nra2_stage3bs \
-            results/nra2_stage3bt_semantic_train2240
+            results/nra2_stage3bz_fit192_train2240
       - name: Verify physical S3BZ SAFE FP16 train-only semantic gain while frozen original preserved
         run: |
           python - <<'PY'
           import hashlib,json
           from pathlib import Path
           from safetensors.torch import load_file
-          d=Path("results/nra2_stage3bt_semantic_train2240")
+          d=Path("results/nra2_stage3bz_fit192_train2240")
           a=json.loads((d/"NRA2_S3BZ_DIRECTIONAL_TRAIN2240_AUDIT.json").read_text())
           f=d/"NRA2_S3BZ_SAFE_JOINT_RELATION_TRAIN2240_FP16.safetensors"
           assert a["stage"]=="NRA2_S3BZ_SEMANTIC_DIRECTIONAL_TRAIN2240_ONLY"
@@ -229,7 +229,7 @@ jobs:
           assert a["S3BY_verified_parent_and_minibatch_gate_every_optimizer_step"]
           assert a["rejected_S3BT_never_initialized"] is True
           assert a["no_heldout_DEV_or_EVAL_training_scoring_or_selection"]
-          assert a["requires_separate_fourth_independent128_before_generalization_claim"]
+          assert a["requires_separate_fifth_independent128_before_generalization_claim"]
           assert not a["candidate_accepted"] and a["output_gate"]==0.
           assert not a["full_EOS_new_candidate_tested"] and not a["all_in_bpp_tested"]
           assert not a["paired_CPU_speed_tested"]
@@ -242,7 +242,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: nra2-stage3bt-semantic-directional-train2240-safe-fp16-zero-gate
-          path: results/nra2_stage3bt_semantic_train2240/
+          name: nra2-stage3bz-semantic-directional-train2240-safe-fp16-zero-gate
+          path: results/nra2_stage3bz_fit192_train2240/
           retention-days: 90
           if-no-files-found: error
