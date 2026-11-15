@@ -65,7 +65,7 @@ class SealedEvalSample:
 def load_real_frozen_eval16(hidden:Path,report:Path)->tuple[
                             tuple[SealedEvalSample,...],dict]:
     hidden=Path(hidden);report=Path(report)
-    guard(S12B_EVAL16_EXPECTED_FP16_SHA!="c14026852521dc8958dc8f82ea8453d70529d23083833696da86182856723ed8",
+    guard(S12B_EVAL16_EXPECTED_FP16_SHA=="c14026852521dc8958dc8f82ea8453d70529d23083833696da86182856723ed8",
           "must commit genuine read-only S12b FP16 SHA BEFORE first eval")
     guard(hidden.is_file() and report.is_file(),"missing true physical S12b source")
     sha=hashlib.sha256(hidden.read_bytes()).hexdigest()
