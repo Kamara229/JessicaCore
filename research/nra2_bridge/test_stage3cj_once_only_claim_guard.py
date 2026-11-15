@@ -39,6 +39,36 @@ class GuardTests(unittest.TestCase):
             claim_once(self.env, self.event, fake_post)
         self.assertEqual(len(claims), 1)
 
+    def test_two_concurrent_claims_only_one_wins(self):
+        """Mocked atomic GitHub-create: simultaneous claims cannot both authorize EVAL."""
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier, Lock
+
+        barrier = Barrier(2)
+        lock = Lock()
+        claimed = set()
+
+        def atomic_mock(repo, ref, sha):
+            barrier.wait(timeout=5)
+            with lock:
+                key = (repo, ref)
+                if key in claimed:
+                    return 422
+                claimed.add(key)
+                return 201
+
+        def attempt():
+            try:
+                claim_once(self.env, self.event, atomic_mock)
+            except ClaimDenied:
+                return "blocked"
+            return "claimed"
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda _: attempt(), range(2)))
+        self.assertEqual(sorted(results), ["blocked", "claimed"])
+        self.assertEqual(len(claimed), 1)
+
     def test_api_failure_denied(self):
         with self.assertRaises(ClaimDenied):
             claim_once(self.env, self.event, lambda *_: 500)
