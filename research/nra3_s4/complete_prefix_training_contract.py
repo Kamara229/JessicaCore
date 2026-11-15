@@ -186,7 +186,8 @@ class GrammarSemanticLoss:
 
 def train_only_multitask_loss(area:NRA3NeuralArea, hidden320:torch.Tensor,
                               row:RussianTrainSentence,
-                              alignment:CausalAlignment)->GrammarSemanticLoss:
+                              alignment:CausalAlignment,
+                              *, feature_override=None)->GrammarSemanticLoss:
     """Differentiable pure TRAIN objective; no optimizer, no weight export.
 
     The caller must prove a separate frozen Calibri source+tokenizer SHA
@@ -198,7 +199,9 @@ def train_only_multitask_loss(area:NRA3NeuralArea, hidden320:torch.Tensor,
     if (hidden320.ndim!=3 or hidden320.shape!=(1,alignment.tokenizer_token_count,320)
             or hidden320.dtype!=torch.float32 or not torch.isfinite(hidden320).all()):
         raise ValueError("S4 missing genuine finite hidden320 prefix")
-    features=area(hidden320)
+    # S7 may reuse the same causal features for BOTH grammar and relation
+    # supervision; no second full 6M forward or future-only tokens.
+    features=area(hidden320) if feature_override is None else feature_override
     predictions=complete_prefix_readout(area,features,alignment)
     ud=torch.tensor([UPOS.index(w.upos) for w in row.words],
                     device=hidden320.device)
