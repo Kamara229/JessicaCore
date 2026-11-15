@@ -21,7 +21,7 @@ from research.nra3_s9.new_ru_train72 import (
 )
 from research.nra3_s16.paid_directed_valence import ROLES
 
-S16_TRAIN_SOURCE_SHA="" # pin after first SOURCE-only GitHub Actions
+S16_TRAIN_SOURCE_SHA="9843c35ee9aa75b8f5c9c963e441589dd2f0292e41ec7933971d5aa3dcd365d6" # pin after first SOURCE-only GitHub Actions
 SPLIT="NRA3_S16_DIRECTED_PREDICATE_ARGUMENT_EXISTING_S9_TRAIN72_ONLY"
 
 
@@ -143,7 +143,7 @@ def sealed_directed_train72()->dict:
     rows=build_directed_train72()
     physical=canonical_directed_train72(rows)
     sha=hashlib.sha256(physical).hexdigest()
-    if S16_TRAIN_SOURCE_SHA and sha!=S16_TRAIN_SOURCE_SHA:
+    if sha!=S16_TRAIN_SOURCE_SHA:
         raise ValueError("S16 TRAIN directed label source mutated after seal")
     roles={name:sum(link.role==name for r in rows for link in r.links)
            for name in ROLES[1:]}
