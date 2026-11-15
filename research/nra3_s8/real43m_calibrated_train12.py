@@ -98,7 +98,7 @@ def main():
     _check(len(items)==12 and
            s5["S4_RU_UD_TRAIN12_CANONICAL_SHA256"]==S4_TRAIN12_SHA,
            "S5 physical TRAIN12 annotation SHA mismatch")
-    cfg=NRA3Config(parallel_hypotheses=3,parallel_selector_version=1)
+    cfg=NRA3Config(parallel_hypotheses=3,parallel_selector_version=2)
     qat=attach_parallel_objective(PhysicallyPaidNRA3QAT(s7_bytes,cfg))
     metrics=train_locked_12_real_hidden(qat,items,steps=24,lr=.006)
     paid=qat.save_full_paid_physical_cb59()
@@ -187,8 +187,10 @@ def main():
         "source_S5_real_43M_layer8_sha256":S5_SOURCE_SHA256,
         "source_S4_Russian_UD_TRAIN12_sha256":S4_TRAIN12_SHA,
         "hypothesis_count":3,
-        "selector_mode":"evidence_cosine_long_range_local_concentration_role_affinity",
+        "selector_mode":"S8b_causal_running_mean_evidence_normalization_no_new_weights",
         "selector_train_weak_target_counts":labeled,
+        "selector_version":2,
+        "S8v1_initial_attempt_known_collapsed_63_global_0_local":True,
         "selector_train_actual_word_target_counts":label_hist,
         "selector_train_prediction_counts":used_hist,
         "selector_train_ce_before_native":selector_ce_before,
