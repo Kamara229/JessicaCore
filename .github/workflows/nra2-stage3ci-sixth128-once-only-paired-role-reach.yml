@@ -14,7 +14,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   s3ci_one_time_SIXTH_s3cg128_new_joint_semantic_roles:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ci-sixth128-once-only-20261115'
+    # S3CJ REVIEW HARD STOP: all scoring disabled until a separately authorized change.
+    # In particular, synchronizing PR #702 after integration MUST NOT score EVAL128.
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ci-sixth128-once-only-20261115' && false
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
