@@ -1,0 +1,37 @@
+name: NRA2 3.0 S3 physically paid CB59 QAT synthetic TRAIN only
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-nra3-s2-native-cb59-cpu-gt-zero-20261115
+permissions:
+  contents: read
+concurrency:
+  group: nra3-s3-qat-phys-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  paid_source_trainonly:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s3-codebook-qat-physical-trainonly-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install source-pinned CPU-only experiment dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'tokenizers==0.20.3' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: Strict synthetic-only optimizer, unchanged 5bit codes, exact physical repack, native C parity
+        run: python -m unittest -v research.nra3_s3.test_paid_codebook_qat
+      - name: Inherited all-native 6M and GT zero-gate regression tests
+        run: python -m unittest -v research.nra3_s2.test_native_cpu
