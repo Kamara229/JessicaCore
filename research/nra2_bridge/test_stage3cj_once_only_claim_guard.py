@@ -112,5 +112,36 @@ class GuardTests(unittest.TestCase):
         self.assertLess(first_data, text.index("- name: Load genuinely frozen original43M CPU"))
 
 
+    def test_pr702_synchronize_mock_never_starts_scoring(self):
+        """Offline model of PR #702 synchronization, with actual workflow guards."""
+        from pathlib import Path
+        workflow = (Path(__file__).resolve().parents[2] / ".github" / "workflows" /
+                    "nra2-stage3ci-sixth128-once-only-paired-role-reach.yml")
+        source = workflow.read_text(encoding="utf-8")
+        base = "research/calibri2-nra2-s3ch-sixth128-real43m-cpu-no-score-20261115"
+        self.assertIn("types: [synchronize]", source)
+        self.assertIn("      - " + base, source)
+        mock_event = {"action": "synchronize", "pull_request": {
+            "number": 702, "base": {"ref": base},
+            "head": {"ref": HEAD, "repo": {"full_name": REPO}},
+        }}
+        event_allowed = (mock_event["action"] == "synchronize" and
+                         mock_event["pull_request"]["base"]["ref"] == base)
+        self.assertTrue(event_allowed)
+        lines = [line.strip() for line in source.splitlines()
+                 if line.startswith("    if: ")]
+        self.assertEqual(len(lines), 1)
+        job_condition = lines[0]
+        expected = ("if: github.event.pull_request.head.repo.full_name == github.repository"
+                    " && github.event.pull_request.head.ref == '" + HEAD + "' && false")
+        self.assertEqual(job_condition, expected)
+        # The source condition is deliberately FALSE, even on a matching PR #702 sync.
+        head_matches = (mock_event["pull_request"]["head"]["ref"] == HEAD and
+                        mock_event["pull_request"]["head"]["repo"]["full_name"] == REPO)
+        self.assertTrue(head_matches)
+        self.assertFalse(event_allowed and head_matches and job_condition.endswith(" && false") is False)
+        self.assertIn("permissions:\\n  contents: read", source)
+
+
 if __name__ == "__main__":
     unittest.main()
