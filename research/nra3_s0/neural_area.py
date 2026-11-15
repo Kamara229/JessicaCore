@@ -170,7 +170,7 @@ class NRA3NeuralArea(nn.Module):
                     query=self.rel_q(relation),value=self.rel_value(relation),
                     scores=scores,allowed=allowed,valid=valid,
                     semantic_role_logits=roles,
-                    local_window=min(4,t),
+                    local_window=min((16 if self.config.parallel_selector_version==1 else 4),t),
                     selector_version=self.config.parallel_selector_version)
                 message=evidence.message
                 parallel_gates=evidence.hypothesis_gates
