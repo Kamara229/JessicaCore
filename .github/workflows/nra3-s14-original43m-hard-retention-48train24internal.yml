@@ -1,0 +1,145 @@
+name: NRA2 3.0 S14 real43M 72 TRAIN only hard accuracy guard rank8 causal UPOS role head
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s13-causal-relation-feedback-paid-readouts-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s14-immutable-original43M-hard-head-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  precommitted_hard_accuracy_RU48train_24internal_dev_original43_nativeC:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s14-hard-accuracy-constrained-rank8-train72-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '314001'
+      CUBLAS_WORKSPACE_CONFIG: ':4096:8'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Original full native C, real original 43M TRAIN72 and S13 failure source immutable no EVAL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43732621116 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43732621116 --jq .head_sha)" = b5044c36d070d197f7141ecd44a0b833e22491b2
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43731085988 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43734571081 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43738978972 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43738978972 --jq .head_sha)" = 721ba7ffdf0736cae469eca042c64668efa2b49e
+          echo S14_REAL43M_RU72_S13_HARD_UPOS_REGRESSION_SOURCE_ACCEPTED_AS_RESEARCH_ONLY_PARENT
+      - name: Install physically frozen original CPU and rank8 dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'tokenizers==0.20.3' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: S14 precommitted objective, physical frozen UPOS, 8/4 family and paid FP16 contracts
+        run: |
+          python -m compileall -q research/nra3_s14
+          python -m unittest -v research.nra3_s14.test_hard_head_retention research.nra3_s13.test_paid_relation_feedback research.nra3_s13.test_research_acceptance_audit
+      - name: Download original true frozen 43M post-GT layer8 72 S9 TRAIN FP16+wordpiece map
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s10-genuine43M-CPU-layer8-newRU72-trainonly-616J7-zero-gate
+          run-id: 43732621116
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s10
+      - name: Download immutable original 43 physically compressed CB59 native C NRA matrix source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s8-adaptive-calibrated-3way-physical-CB59-S61-realRU12-trainonly
+          run-id: 43731085988
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s8
+      - name: Download immutable S11 physical 39FP16 router with 6 real relation cycles, not trainable
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s11-real43M-ru72-39param-FP16-paid-router-native-C-trainonly
+          run-id: 43734571081
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s11
+      - name: Reject entire run if hidden gold or SHA or any consumed EVAL sources are loaded
+        run: |
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          from direct_codebook_v59 import CB59
+          from research.nra3_s11.real_ru72_source import checked_real_train72
+          from research.nra3_s11.paid_router import PaidThreeWayRouter
+          from research.nra3_s13.paid_relation_feedback import PaidRelationFeedback
+          a=Path("inputs/nra3_s10"); b=Path("inputs/nra3_s8"); c=Path("inputs/nra3_s11")
+          samples,src=checked_real_train72(
+              a/"NRA3_S10_REAL_43M_LAYER8_RU_TRAIN72_HIDDEN320_FP16.safetensors",
+              a/"NRA3_S10_REAL_CPU_43M_LAYER8_TRAIN72_J7_REPORT.json")
+          assert len(samples)==72 and src["all_616_native_CPU_generated_token_digests_unchanged"]
+          packed=(b/"NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59").read_bytes()
+          router=(c/"NRA3_S11_TINY_PAID_RUSSIAN_TRAIN72_CAUSAL_3WAY_SELECTOR_FP16.n3r11").read_bytes()
+          assert hashlib.sha256(packed).hexdigest()=="d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97"
+          assert len(CB59(packed).handles)==43 and CB59(packed).meta["original_unique_parameter_count"]==6106154
+          assert hashlib.sha256(router).hexdigest()=="05ce14e20c9f4e7e09f85dbd9bd46f0dc0a700d72f1a96ffa921b2e822f235c3"
+          assert PaidThreeWayRouter.from_physical(router).physical_bytes()==router
+          assert len(PaidRelationFeedback().physical_bytes())==2581
+          assert not any(Path("inputs",name).exists() for name in ("nra3_s12","nra3_s12b","nra3_s12c"))
+          print("S14_HARD_RU72_PRECOMMITTED_TRAIN_ONLY_43_CB59_S11_39_SHA_NO_EVAL",flush=True)
+          PY
+      - name: Train two preregistered hard-linguistic objectives on original 48 TRAIN family rows; score 24 TRAIN-internal developer family rows
+        run: |
+          python -m research.nra3_s14.hard_head_retention_train72 \
+            --s10-hidden inputs/nra3_s10/NRA3_S10_REAL_43M_LAYER8_RU_TRAIN72_HIDDEN320_FP16.safetensors \
+            --s10-report inputs/nra3_s10/NRA3_S10_REAL_CPU_43M_LAYER8_TRAIN72_J7_REPORT.json \
+            --s8-cb59 inputs/nra3_s8/NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59 \
+            --s11-router inputs/nra3_s11/NRA3_S11_TINY_PAID_RUSSIAN_TRAIN72_CAUSAL_3WAY_SELECTOR_FP16.n3r11 \
+            --out results/nra3_s14
+      - name: Strict no active candidate and no false independent generalization from TRAIN-internal selection
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          from research.nra3_s13.paid_relation_feedback import PaidRelationFeedback
+          root=Path("results/nra3_s14")
+          r=json.loads((root/"NRA3_S14_CAUSAL_HARD_HEAD_INTERNAL_DEVELOPMENT_NO_PROMOTION.json").read_text())
+          assert r["S14_source_train_rows"]==48 and r["S14_internal_development_rows"]==24
+          assert r["S14_internal_development_is_NOT_independent_EVAL"]
+          assert r["S14_internal_development_partially_contaminated_by_pretrained_S11"]
+          assert r["S14_new_unseen_independent_EVAL_quality_measured"] is False
+          assert r["S14_lexical_families_optimizer_train"]==list(range(8))
+          assert r["S14_lexical_families_INTERNAL_development"]==list(range(8,12))
+          assert r["S14_PRECOMMITTED_train_regimes"]==["joint_margin","upos_locked"]
+          assert r["S14_PRECOMMITTED_checkpoints"]==[20,40,60,80,100,120,140,160]
+          assert all(len(r["S14_each_precommitted_candidate"][k])==8 for k in ["joint_margin","upos_locked"])
+          assert r["S14_new_1266_Fp16_paid_physical_bytes"]==2581
+          assert r["S14_new_1266_FP16_parameters"]==1266
+          assert r["S14_raw_nra_selector_readout_bpp"]>.7
+          for f in root.glob("*.n3s13"):
+              raw=f.read_bytes()
+              assert len(raw)==2581 and PaidRelationFeedback.from_physical(raw).physical_bytes()==raw
+          assert r["S14_old_consumed_S12c_eval16_NEVER_loaded"] is True
+          assert r["S14_old_five_EVAL128_never_loaded"] is True
+          assert r["S14_reserved_sixth_S3CI_EVAL128_never_loaded"] is True
+          assert r["S14_REAL_quality_gain_certified"] is False
+          assert r["S14_actual_active_616_J7_or_fullEOS_measured"] is False
+          assert r["S14_full_system_CPU_at_least90pct_CB59_verified"] is False
+          assert r["S14_full_system_43M_GT_NRA_inclusive_bpp_at_most_point7_verified"] is False
+          assert r["S14_research_acceptance"] is False and r["S14_candidate_accepted"] is False
+          assert r["S14_output_gate"]==0 and r["S14_activation_allowed"] is False
+          print("S14_GENUINE_43M_RU72_HARD_HEAD_PHYSICAL_PASS_ONLY_NO_INDEPENDENT_EVAL_NO_PROMOTION",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s14-original43M-48TRAIN24internal-hard-margin-uposlocked-FP16-physical-noEval
+          path: results/nra3_s14/
+          retention-days: 30
+          if-no-files-found: error
