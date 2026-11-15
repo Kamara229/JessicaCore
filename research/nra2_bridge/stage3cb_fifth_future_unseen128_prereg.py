@@ -19,7 +19,7 @@ from research.nra2_bridge.stage3bo_third_future_independent128_prereg import (
     ancestors as old_graph_rows,build_rows as third_spent_rows,
     commitment as third_commit,STYLES as THIRD_STYLES,
 )
-from research.nra2_bridge.stage3bu_fifth_future_unseen128_prereg import (
+from research.nra2_bridge.stage3bu_fourth_future_unseen128_prereg import (
     build_rows as fourth_spent_rows, commitment as fourth_commit,
     STYLES as FOURTH_STYLES,
 )
@@ -165,7 +165,7 @@ def commitment(rows):
         "prior_first_independent_EVAL128_consumed_in":43640363396,
         "prior_second_independent_EVAL128_consumed_in":43644153544,
         "prior_third_independent_EVAL128_consumed_in":43648038071,
-        "prior_fifth_independent_EVAL128_consumed_in":43651233135,
+        "prior_fourth_independent_EVAL128_consumed_in":43651233135,
         "S3BU_prior_fourth_consumed_commitment_sha256":S3BU_FOURTH_COMMITMENT_SHA,
         "S3BZ_safe_frozen_before_fifth_EVAL_sha256":S3BZ_SAFE_FP16_SHA,
         "fifth_independent_graphs":16,
