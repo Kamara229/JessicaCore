@@ -186,8 +186,9 @@ class PhysicallyPaidNRA3QAT(nn.Module):
         self.candidate_accepted=False
         self._source_names=set(self._host.area.state_dict())
         _ok(self._source_names==set(self.source.meta["tensor_descriptors"])
-            and len(self.names)==43 and all(x.endswith(".weight")
-                  or x.endswith("in_proj_weight") for x in self.names),
+            and len(self.names)==43 and all(x.endswith((
+                ".weight","in_proj_weight","weight_ih","weight_hh"
+            )) for x in self.names),
             "single original NRA3 6M 43-matrix source identity invalid")
         _ok(sum(p.numel() for p in self._host.area.parameters())==6_106_154
             or config!=NRA3Config(),"full NRA3 initial physical capacity drift")
