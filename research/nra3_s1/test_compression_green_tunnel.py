@@ -14,6 +14,8 @@ from research.nra3_s1.green_tunnel_compatibility import (
     NRA3WithExistingGreenTunnel, module_fingerprint,
 )
 from calibri2.s87.internal_green_tunnel import IntegratedGreenTunnel
+from direct_codebook_v59 import pack5, unpack5
+import numpy as np
 from calibri2.s103.shared_all_layer_green_bridge import SharedInterLayerGreenBridge
 
 
@@ -40,6 +42,17 @@ class NRA3PackedAndGTTests(unittest.TestCase):
         return NRA3NeuralArea(NRA3Config(
             hidden=32,heads=4,grammar_blocks=1,semantic_blocks=1,
             relation_width=24,relation_steps=2)).eval()
+
+    def test_original_CB59_bitstream_and_new_unaligned_group_counts(self):
+        for count in (1, 4, 7, 8, 9, 12, 17, 33, 64):
+            ids=(np.arange(count,dtype=np.uint8)*7)%32
+            actual=pack5(ids)
+            self.assertEqual(len(actual),(count*5+7)//8)
+            self.assertTrue(np.array_equal(unpack5(actual,count),ids))
+        # Historical eight-code CB59 byte packing is unchanged.
+        source=np.arange(8,dtype=np.uint8)
+        self.assertEqual(len(pack5(source)),5)
+        self.assertTrue(np.array_equal(unpack5(pack5(source),8),source))
 
     def test_exact_full_CB59_physical_roundtrip_and_corruption(self):
         area=self.small()
