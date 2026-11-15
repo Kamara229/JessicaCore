@@ -111,8 +111,8 @@ jobs:
           r=json.loads(Path("results/nra2_stage3cd_fifth128_once_only/NRA2_S3CD_FIFTH_ONCE_ONLY128_S3BA_S3BN_S3BZ_NO_RETUNE.json").read_text())
           assert r["stage"]=="NRA2_S3CD_FIFTH_ONCE_ONLY_S3CB128_S3BA_VS_S3BN_VS_JOINT_S3BZ"
           assert r["S3CC_run"]==43676015708 and r["S3CB_prereg_successful_run"]==43675557570
-          assert r["S3CC_original_CPU_token_fp16_sha256"]=="SHA256_PENDING_FINAL_S3CC_CAPTURE"
-          assert r["S3CC_gold_fp16_sha256"]=="SHA256_PENDING_FINAL_S3CC_CAPTURE"
+          assert r["S3CC_original_CPU_token_fp16_sha256"]=="cdb2828b02769d6236a1dd5e7600c81ed52c4cc6e17553e1793da036dce3e607"
+          assert r["S3CC_gold_fp16_sha256"]=="3512c45ffaf66dee5b5ca0bbe34863356f84d233af5b0d960fc2161ed2af42b7"
           assert r["graph_weights_bitwise_equal"] and r["graph_logits_bitwise_equal"]
           assert r["S3CB_prereg_commitment_sha256"]=="a23dd34eac45dfa17d00798c2e3837c6c837c490a9ba50e809d73d3c3374cd5b"
           assert r["S3BA_fp16_sha256"]=="4fedf391ee02b1d1c45c82c3690d212ba9a43e9d0da32446f5d32ac6c379bb09"
