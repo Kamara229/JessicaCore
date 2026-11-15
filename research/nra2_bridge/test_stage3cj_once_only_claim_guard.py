@@ -143,5 +143,32 @@ class GuardTests(unittest.TestCase):
         self.assertIn("permissions:" + chr(10) + "  contents: read", source)
 
 
+    def test_gh_cli_nonzero_exit_fail_closed_even_if_stdout_says_201(self):
+        """No network: mock gh process; CLI exit failure must block claim."""
+        from subprocess import CompletedProcess
+        from unittest.mock import patch
+        from research.nra2_bridge.stage3cj_once_only_claim_guard import gh_post_tag, TAG_REF
+
+        with patch("research.nra2_bridge.stage3cj_once_only_claim_guard.subprocess.run",
+                   return_value=CompletedProcess(["gh"], 1, "HTTP/2 201 Created\\n", "error")) as mocked:
+            with self.assertRaises(ClaimDenied):
+                claim_once(self.env, self.event, gh_post_tag)
+            mocked.assert_called_once()
+            command = mocked.call_args.args[0]
+            self.assertEqual(command[:4], ["gh", "api", "-X", "POST"])
+            self.assertIn(TAG_REF, mocked.call_args.kwargs["input"])
+
+    def test_gh_cli_http_201_success_only_with_zero_exit(self):
+        """No network: a single mocked success can claim, without EVAL loading."""
+        from subprocess import CompletedProcess
+        from unittest.mock import patch
+        from research.nra2_bridge.stage3cj_once_only_claim_guard import gh_post_tag
+
+        with patch("research.nra2_bridge.stage3cj_once_only_claim_guard.subprocess.run",
+                   return_value=CompletedProcess(["gh"], 0, "HTTP/2 201 Created\\n", "")) as mocked:
+            self.assertTrue(claim_once(self.env, self.event, gh_post_tag).startswith("refs/tags/"))
+            mocked.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()
