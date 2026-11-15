@@ -56,7 +56,7 @@ def main():
             or evidence["S15_new_EVAL24_scored"] is not False
             or evidence["S15_new_EVAL24_model_prefills"]!=0
             or evidence["S15_eval24_optimizer_steps"]!=0
-            or evidence["S15_prior_S12c_consumed_EVAL24_NOT_LOADED"] is not True
+            or evidence["S15_prior_S12c_consumed_EVAL16_NOT_LOADED"] is not True
             or evidence["S15_prior_five_consumed_EVAL128_NOT_LOADED"] is not True
             or evidence["S15_reserved_sixth_S3CI_EVAL128_NOT_LOADED"] is not True
             or evidence["S15_no_original43M_GT_NRA_S14_inference_or_weights_loaded"] is not True):
