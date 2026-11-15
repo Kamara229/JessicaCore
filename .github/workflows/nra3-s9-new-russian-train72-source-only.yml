@@ -1,0 +1,76 @@
+name: NRA2 3.0 S9 new contrastive Russian UD TRAIN72 SHA prerereg, no EVAL
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-nra3-s8-calibrated-relation-selector-20261115
+permissions:
+  contents: read
+concurrency:
+  group: nra3-s9-train72-ud-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  russian_train72_sha_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s9-ru-train72-contrastive-manifest-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install minimal pinned CPU-only original Calibri UD contract libraries
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'tokenizers==0.20.3' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: 72 new human-curated lexical triplet x 6 UD patterns, genuine full syntax and semantic labels
+        run: python -m unittest -v research.nra3_s9.test_new_ru_train72
+      - name: Fail-closed source-gold invariance and exact fast-tokenizer offset ABI
+        run: python -m unittest -v research.nra3_s9.test_train72_real_token_alignment
+      - name: Preserve all earlier S4 12 TRAIN SHA and original S3CK Russian UD source contract
+        run: python -m unittest -v research.nra3_s4.test_russian_ud_train research.nra2_bridge.test_stage3ck_russian_ud_role_bridge
+      - name: Seal new 72 true TRAIN-only Russian UD rows with physical canonical SHA
+        run: |
+          python -m research.nra3_s9.emit_prereg_train72 \
+            --out results/nra3_s9/NRA3_S9_RUSSIAN_UD_TRAIN72_ONLY_PREREG.json \
+            --include-train-annotations
+      - name: Reject any heldout reuse, overlap, untested false quality claims
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from research.nra3_s9.new_ru_train72 import canonical_train72,build_s9_train72
+          root=Path("results/nra3_s9")
+          report=json.loads((root/"NRA3_S9_RUSSIAN_UD_TRAIN72_ONLY_PREREG.json").read_text())
+          raw=canonical_train72(build_s9_train72())
+          assert hashlib.sha256(raw).hexdigest()==report["canonical_train72_sha256"]
+          assert report["canonical_train72_sha256"]=="b09d60a77a17d30c2dbf846e40ab97860def8635e2bf31a5b0ab8981832b744d"
+          assert report["source_rows"]==72 and report["lexical_families"]==12
+          assert len(report["constructions"])==6
+          assert all(v==12 for v in report["rows_per_construction"].values())
+          assert len(set(report["text_sha256_ordered"]))==72
+          assert report["s4_train12_not_reused_as_independent_evaluation"] is True
+          assert report["old_five_EVAL128_untouched"] is True
+          assert report["reserved_sixth_S3CI_EVAL128_untouched"] is True
+          assert report["future_independent_EVAL_requires_separate_creation_and_sealing"] is True
+          assert report["additional_independent_eval_rows_used"]==0
+          assert report["real_frozen_43M_cpu_layer8_hidden320_captured"] is False
+          assert report["physical_5bit_CB59_train_performed"] is False
+          assert report["actual_grammatical_or_semantic_generalization_evaluated"] is False
+          assert report["output_gate"]==0 and report["candidate_accepted"] is False
+          print("NRA3_S9_RUSSIAN_UD_TRAIN72_NEW_SOURCE_ONLY_NO_EVAL_NO_MODEL_QAT",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NRA3_S9_RUSSIAN_UD_TRAIN72_SHA_ANNOTATED_SOURCE_ONLY_NO_EVAL
+          path: results/nra3_s9/
+          if-no-files-found: error
+          retention-days: 30
