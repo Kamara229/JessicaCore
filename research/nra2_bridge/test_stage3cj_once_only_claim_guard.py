@@ -147,6 +147,27 @@ class GuardTests(unittest.TestCase):
         with self.assertRaises(ClaimDenied):
             claim_once(self.env, bad, lambda *_: 201)
 
+    def test_scoring_workflow_has_only_synchronize_trigger_and_one_job(self):
+        """Offline static check: no hidden extra trigger or unguarded scoring job."""
+        from pathlib import Path
+        workflow = (Path(__file__).resolve().parents[2] / ".github" / "workflows" /
+                    "nra2-stage3ci-sixth128-once-only-paired-role-reach.yml")
+        source = workflow.read_text(encoding="utf-8")
+        triggers = source.split("'on':\\n", 1)[1].split("\\npermissions:", 1)[0]
+        trigger_keys = [line for line in triggers.splitlines()
+                        if line.startswith("  ") and not line.startswith("    ")
+                        and line.endswith(":")]
+        self.assertEqual(trigger_keys, ["  pull_request:"])
+        self.assertIn("    types: [synchronize]", triggers)
+        self.assertIn("    branches:\\n      - " + BASE, triggers)
+        self.assertEqual(triggers.count("      - " + BASE), 1)
+        jobs = source.split("\\njobs:\\n", 1)[1]
+        job_keys = [line for line in jobs.splitlines()
+                    if line.startswith("  ") and not line.startswith("    ")
+                    and line.endswith(":")]
+        self.assertEqual(job_keys, ["  s3ci_one_time_SIXTH_s3cg128_new_joint_semantic_roles:"])
+        self.assertIn("  cancel-in-progress: false", source)
+
     def test_workflow_permissions_and_manual_arm_are_fail_closed(self):
         """Offline-only: neither workflow can write or arm EVAL by default."""
         from pathlib import Path
