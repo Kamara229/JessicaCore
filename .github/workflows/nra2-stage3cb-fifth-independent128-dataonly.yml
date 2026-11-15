@@ -1,0 +1,71 @@
+name: NRA2 S3CB fifth NEVER-SEEN 128 EVAL data-only SHA prereg, no model
+
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-nra2-s3ca-guard320-once-only-physical-cpu-20261115
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: nra2-s3cb-fifth-unseen128-sha-before-any-cpu-or-model
+  cancel-in-progress: false
+
+jobs:
+  s3cb_fifth_independent128_prereg_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3cb-fifth-unseen128-prereg-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: .:research:research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Strict order previous four independent EVALs already consumed, S3BZ physically locked, S3CA no retune
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 43640363396 43644153544 43648038071 43651233135 43674502209 43675093003; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$id" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43674502209" --jq .head_branch)" = research/calibri2-nra2-s3bz-fit192-real-cpu-pair-replay-20261115
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43675093003" --jq .head_branch)" = research/calibri2-nra2-s3ca-guard320-once-only-physical-cpu-20261115
+      - name: Validate only NEW graph and grammar data, immutable independent fifth
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3cb_fifth_future_unseen128_prereg.py research/nra2_bridge/test_stage3cb_fifth_future_unseen128_prereg.py
+          python -m unittest -v research.nra2_bridge.test_stage3cb_fifth_future_unseen128_prereg
+      - name: SHA commit fifth independent future EVAL128 with no model or original CPU
+        run: |
+          python -m research.nra2_bridge.stage3cb_fifth_future_unseen128_prereg results/nra2_stage3cb_fifth128_prereg
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra2_stage3cb_fifth128_prereg/NRA2_S3CB_FIFTH_UNTOUCHED128_PREREG.json")
+          x=json.loads(p.read_text())
+          assert x["stage"]=="NRA2_S3CB_FIFTH_UNTOUCHED_EVAL128_PREREG_NO_CPU_OR_MODEL"
+          assert x["future_EVAL128_count"]==128
+          assert x["fifth_independent_graphs"]==16 and x["fifth_independent_new_grammar"]==8
+          assert x["yes_count"]==x["no_count"]==64
+          assert x["source_first_count"]==x["destination_first_count"]==64
+          assert x["S3BZ_safe_frozen_before_fifth_EVAL_sha256"]=="6084061cb1f9ea46ef3b504179bee09b392f4427ac52ec58d768645da98872ee"
+          assert x["S3BU_prior_fourth_consumed_commitment_sha256"]=="117fcd79776c6d163b572f8d04b81743429d8c72e74cd072b6a5bedbb38c7f7e"
+          assert x["no_model_weights_or_Calibri_CPU_or_scores_or_training_this_stage"]
+          assert not x["candidate_accepted"] and x["output_gate"]==0.
+          print("S3CB_FIFTH_INDEPENDENT128_SHA_BEFORE_ANY_MODEL",x["commitment_sha256"])
+          PY
+      - name: Archive future untouched fifth independent128 only
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3cb-fifth-independent128-graph-grammar-prereg-no-model
+          path: results/nra2_stage3cb_fifth128_prereg/
+          retention-days: 90
+          if-no-files-found: error
