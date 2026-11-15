@@ -109,7 +109,8 @@ class PaidDirectedValenceTests(unittest.TestCase):
     def test_original_72_TRAIN_passive_and_receiver_role_direction_only(self):
         old=build_s9_train72()
         rows=build_directed_train72()
-        self.assertEqual(len(rows),len(old)==72)
+        self.assertEqual(len(rows),72)
+        self.assertEqual(len(old),72)
         self.assertEqual(len({r.text_sha256 for r in rows}),72)
         self.assertEqual(set(r.source_split for r in rows),{SPLIT})
         all_links=[z for row in rows for z in row.links]
