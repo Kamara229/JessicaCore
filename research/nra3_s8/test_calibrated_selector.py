@@ -143,6 +143,54 @@ class S8CalibratedRouter(unittest.TestCase):
         self.assertEqual(set(model.state_dict()),set(legacy.state_dict()))
         self.assertEqual(model.parameter_count(),legacy.parameter_count())
 
+    def test_fail_closed_rejects_green_training_but_collapsed_real_routes(self):
+        from research.nra3_s8.selector_acceptance_audit import (
+            audit_selector_training_only,
+        )
+        from research.nra3_s8.selector_supervision import BRANCHES
+        record={
+            "hypothesis_count":3,
+            "extra_paid_trainable_parameters_added_for_parallel_hypotheses":0,
+            "output_gate":0,"candidate_accepted":False,
+            "original_unique_NRA3_parameters":6_106_154,
+            "CB59_trained_physical_bytes":653_798,
+            "original_5bit_code_indices_unchanged":True,
+            "old_1d_physical_source_unchanged":True,
+            "old_five_consumed_EVAL128_untouched":True,
+            "sixth_reserved_S3CI_EVAL128_untouched":True,
+            "selector_uses_no_inference_gold":True,
+            "selector_train_prediction_counts":dict(zip(BRANCHES,(66,0,0))),
+            "selector_train_actual_word_target_counts":dict(
+                zip(BRANCHES,(34,14,18))),
+            "selector_train_ce_before_native":.96744,
+            "selector_train_ce_after_native":.83335,
+            "selector_train_accuracy_before_native":.51515,
+            "selector_train_accuracy_after_native":.51515,
+            "selector_real_independent_quality_gain_proven":False,
+            "independent_heldout_Russian_accuracy_measured":False,
+            "full_answer_EOS_unseen_generalization_measured":False,
+            "full_616_J7_candidate_protection_measured":False,
+            "actual_Calibri_GT_NRA_inclusive_bpp_certified":False,
+            "real_43M_plus_GT_CPU_speed_ratio_verified":False,
+        }
+        rejected=audit_selector_training_only(record)
+        self.assertFalse(rejected["research_acceptance"])
+        self.assertFalse(rejected["activation_allowed"])
+        self.assertEqual(rejected["output_gate"],0)
+        self.assertIn("collapsed_branch_usage_under_8pct",rejected["reasons"])
+        self.assertIn("no_new_independent_grammar_semantic_full_EOS_evaluation",
+                      rejected["reasons"])
+        # Even if a hypothetical TRAIN-only router predicts all three
+        # targets well, it still cannot pass without NEW independent EVAL.
+        record["selector_train_prediction_counts"]=dict(zip(BRANCHES,(34,14,18)))
+        record["selector_train_accuracy_after_native"]=.85
+        retried=audit_selector_training_only(record)
+        self.assertFalse(retried["research_acceptance"])
+        self.assertFalse(retried["activation_allowed"])
+        record["output_gate"]=1
+        with self.assertRaises(ValueError):
+            audit_selector_training_only(record)
+
     def test_S8_paid_source_no_new_parameters_joint_router_gradient(self):
         cfg=NRA3Config(parallel_hypotheses=3,parallel_selector_version=1)
         original=NRA3NeuralArea(cfg)
