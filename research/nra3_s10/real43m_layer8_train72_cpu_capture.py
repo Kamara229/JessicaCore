@@ -217,7 +217,7 @@ def main():
            [list(s.token_ids) for s in [
               collector.samples[row.sha256()] for row in rows]],
            sort_keys=True,separators=(",",":")).encode()).hexdigest(),
-      "true_train12_token_counts":token_batch["token_lengths"].tolist(),
+      "true_train72_token_counts":token_batch["token_lengths"].tolist(),
       "wordpiece_alignment":maps,
       "actual_NRA3_6M_weights_trained":False,
       "actual_NRA3_grammar_semantic_accuracy_tested":False,
@@ -232,7 +232,7 @@ def main():
         json.dumps(report,ensure_ascii=False,indent=2,sort_keys=True)+"\n",
         encoding="utf-8")
     print(json.dumps({k:v for k,v in report.items()
-                      if k not in ("wordpiece_alignment","true_train12_token_counts")},
+                      if k not in ("wordpiece_alignment","true_train72_token_counts")},
                      sort_keys=True,ensure_ascii=False),flush=True)
 
 
