@@ -101,7 +101,7 @@ def main():
     candidate_sha="6084061cb1f9ea46ef3b504179bee09b392f4427ac52ec58d768645da98872ee"
     baseline_sha="4fedf391ee02b1d1c45c82c3690d212ba9a43e9d0da32446f5d32ac6c379bb09"
     if sha_file(candidate)!=candidate_sha or sha_file(baseline)!=baseline_sha:
-        raise AssertionError("S3CC S3BZ 2560 TRAIN model FP16 physical SHA not frozen")
+        raise AssertionError("S3CC S3BZ 2240 TRAIN model FP16 physical SHA not frozen")
     sbt=json.loads(Path("inputs/nra2_stage3bz/NRA2_S3BZ_DIRECTIONAL_TRAIN2240_AUDIT.json").read_text())
     if (sbt.get("stage")!="NRA2_S3BZ_SEMANTIC_DIRECTIONAL_TRAIN2240_ONLY"
         or sbt.get("S3BN_initialized_joint_pairwise_fp16_sha256")!="ea8a81665370cba22c4e8bc75fbe82314089244d4b32278ee62c2c30d88ae811"
@@ -122,7 +122,7 @@ def main():
         or sbt.get("old_independent_S3BO_EVAL128_consumed_never_used") is not True
         or sbt.get("candidate_accepted") is not False
         or sbt.get("output_gate")!=0.):
-        raise AssertionError("S3CC S3BZ real CPU TRAIN2560 and original graph/J7 guard drift")
+        raise AssertionError("S3CC S3BZ real CPU TRAIN2240 and original graph/J7 guard drift")
     prior_path=Path("inputs/nra2_stage3cb/NRA2_S3CB_FIFTH_UNTOUCHED128_PREREG.json")
     prior=json.loads(prior_path.read_text())
     rows=build_rows()
@@ -137,7 +137,7 @@ def main():
         or prior.get("prior_first_independent_EVAL128_consumed_in")!=43640363396
         or prior.get("prior_second_independent_EVAL128_consumed_in")!=43644153544
         or prior.get("prior_third_independent_EVAL128_consumed_in")!=43648038071
-        or prior.get("prior_fifth_independent_EVAL128_consumed_in")!=43651233135
+        or prior.get("prior_fourth_independent_EVAL128_consumed_in")!=43651233135
         or prior.get("S3BU_prior_fourth_consumed_commitment_sha256")!="117fcd79776c6d163b572f8d04b81743429d8c72e74cd072b6a5bedbb38c7f7e"
         or prior.get("S3BZ_safe_frozen_before_fifth_EVAL_sha256")!=candidate_sha
         or prior.get("future_EVAL128_count")!=128
