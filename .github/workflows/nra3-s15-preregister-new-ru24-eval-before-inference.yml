@@ -67,8 +67,8 @@ jobs:
           assert manifest["number_of_new_EVAL24_cases"]==24
           complete=hashlib.sha256(canonical_new_eval24(new_russian_eval24())).hexdigest()
           assert complete==manifest["complete_UD_semantic_role_coreference_event_gold_sha256"]
-          if EVAL24_CANONICAL_SHA:
-              assert complete==EVAL24_CANONICAL_SHA
+          assert EVAL24_CANONICAL_SHA=="640bdfb0d817d1467eaf308fc1ba5dd9043361721af293b9666d89f4a2c7276d"
+          assert complete==EVAL24_CANONICAL_SHA
           assert manifest["S14_model_frozen_run_BEFORE_S15_source"]==43740415883
           assert manifest["S14_model_frozen_head_BEFORE_S15_source"]=="ab95483ef5dc985b8a32941163fb248bc9640ef3"
           assert manifest["S14_physical_fp16_selected_sha_BEFORE_S15_source"]=="5b96e2174e33da5232fcc2a4a397b6fab4370b6879adb684d75fea8a503f1279"
