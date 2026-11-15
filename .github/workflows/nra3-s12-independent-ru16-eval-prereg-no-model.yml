@@ -1,0 +1,79 @@
+name: NRA2 3.0 S12 precommitted NEW Russian heldout EVAL16 SHA before any scoring
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s11-physically-paid-3way-router-ru72-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s12-eval16-sha-prereg-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  new_ru16_source_prereg_only_no_model:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s12-ru-independent-heldout16-prereg-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preregister only AFTER original S11 trained and physically committed frozen SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43734571081 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43734571081 --jq .head_sha)" = 8d7cbf7fd8ed2acc5d903117a8b943d15d98d791
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43732621116 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43731968521 --jq .conclusion)" = success
+          echo S12_S11_FULL_39FP16_ROUTER_FROZEN_BEFORE_NEW_EVAL16_EXISTS
+      - name: Install exact prior CPU source-level UD test dependencies only
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'tokenizers==0.20.3'
+      - name: 16 novel fixed human UD grammar evaluation items, zero TRAIN overlap
+        run: python -m unittest -v research.nra3_s12.test_heldout_ru_eval16
+      - name: Preregister fixed 16 complete Russian UD semantic EVAL labels in full canonical SHA
+        run: |
+          python -m research.nra3_s12.emit_heldout_prereg \
+            --out results/nra3_s12/NRA3_S12_HELDOUT_EVAL16_SHA_PREREG_ONLY.json \
+            --include-annotations
+      - name: Audit source only; no original model/EVAL inference or target leakage
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          from research.nra3_s12.heldout_ru_eval16 import build_eval16,canonical_eval16,sealed_eval16,EVAL16_FULL_CANONICAL_SHA
+          root=Path("results/nra3_s12")
+          r=json.loads((root/"NRA3_S12_HELDOUT_EVAL16_SHA_PREREG_ONLY.json").read_text())
+          assert r==sealed_eval16()
+          assert hashlib.sha256(canonical_eval16(build_eval16())).hexdigest()==r["complete_annotation_sha256"]
+          assert EVAL16_FULL_CANONICAL_SHA=="f2d2d5beba48dbe294a90f6918a3fd15870aa103abbd569e907c44729a43977c"
+          assert r["complete_annotation_sha256"]==EVAL16_FULL_CANONICAL_SHA
+          assert r["rows"]==16 and r["new_eval_constructs_count"]==16
+          assert r["overlap_s4_s9_train_count"]==0
+          assert r["prior_S11_locked_pre_EVAL_run"]==43734571081
+          assert r["prior_S11_router_fp16_physical_sha256"]=="05ce14e20c9f4e7e09f85dbd9bd46f0dc0a700d72f1a96ffa921b2e822f235c3"
+          assert r["evaluation_started"] is False and r["optimizer_steps_on_eval"]==0
+          assert r["all_previous_five_consumed_EVAL128_untouched"]
+          assert r["original_sixth_S3CI_EVAL128_untouched"]
+          assert r["output_gate"]==0 and r["candidate_accepted"] is False
+          print("S12_REAL_NEW_RU16_EVAL_SOURCE_SHA_FIXED_BEFORE_ANY_MODEL_FORWARD",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s12-NEW-novelRU16-EVAL-preregistered-SHA-only-before-score
+          path: results/nra3_s12/
+          retention-days: 30
+          if-no-files-found: error

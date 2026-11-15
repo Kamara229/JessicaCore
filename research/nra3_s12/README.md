@@ -1,0 +1,18 @@
+# NRA2 3.0 S12 — preregister 16 NEW Russian heldout grammar/semantics EVAL cases
+
+**DRAFT / RESEARCH ONLY / zero production effects / source-only stage.**
+
+Original 39-parameter S11 physically trained FP16 router **already fixed** on its own S9 72 Russian **TRAIN** words before any S12 source was written: GitHub Actions #43734571081 SUCCESS on head `8d7cbf7fd8ed2acc5d903117a8b943d15d98d791`. SHA-locked physical router artifact #14170285995 has SHA `05ce14e20c9f4e7e09f85dbd9bd46f0dc0a700d72f1a96ffa921b2e822f235c3`. Original physical S8b 43 packed CB59 5-bit matrices are unchanged SHA `d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97`, prior Calibri 43M post-GT layer8 S10 true original 72 TRAIN SHA `ed262984c0fd48b60987308e7b135be7d05d3e5434fe9923f373aec178ff2b46` with original 616 J7 unchanged.
+
+S12 independently **preregisters a small, narrow evaluation-only set**: 16 novel Russian sentences with exact UPOS, morphology, UD arcs, text offsets and manually labeled semantic roles. They use unseen lexical families and different verbs (gift, deliver, bring, send, receive, return), temporal adverbs, adjective attachments, object fronting, passive voice and **negation**. Two pairs are paraphrastic sentence order variants. Not one item is reused from the original S4 TRAIN12 or the more recent S9 TRAIN72. The five previously consumed old EVAL128 and the reserved sixth S3CI EVAL128 are untouched.
+
+**Important scope limitations:** These 16 examples are *hand-authored*, not a statistically representative or third-party heldout Russian natural-language benchmark. Because related syntactic patterns exist in the TRAIN corpus, success here cannot prove broad Russian grammatical or semantic generalization. The S11 router's *weak heuristic branch targets* do **not** indicate ground truth semantic correctness. Negated predicates are labeled with grammatical argument roles, **not** asserted to have happened. There is no validated coreference, graph truth, QA, full output, or EOS assessment at this stage.
+
+S12 first pins an SHA256 commitment to **the complete source text + all UD and semantic labels**, and an immutable S11 model head and physical SHA, **without performing original43M inference, loading existing model results, or evaluating scores**. No training or model selection can use S12 labels. The next separate stage must use that exact sealed corpus once for frozen model performance, without tuning to this holdout. A genuine original Calibri 43M CPU post-GT 8th layer capture of 16 EVAL prompts can run read-only, with no EVAL labels passed to Calibri. The frozen S11 native 6-cycle C/39FP16 model can then be scored on that one-time heldout for branch selection / UD grammar and role correctness; any trained grammatical heads before the relation router may not improve by construction. Changes after seeing this holdout must use a new independent holdout rather than reusing it.
+
+**NO main, Jessica LIVE/chat tests, Render, Supabase, APK, Calibri/GT/6M weight changes or activation**. output_gate=0, candidate_accepted=false. Full-system bpp<=0.7 and >=90% CB59 CPU, actual protected-J7 with active generation and full EOS remain unproven.
+
+
+### Committed heldout SHA
+
+Source-only GitHub Actions **#43735239724 SUCCESS** (3/3 contract tests), generated source-only artifact **#14170232411**, all 16 labels+offsets+UD arcs/text fixed canonical digest: `f2d2d5beba48dbe294a90f6918a3fd15870aa103abbd569e907c44729a43977c`. The SHA is now hard-locked in module and CI **before any S12 model scoring**. No previous EVAL128 touched, and no new 43M or NRA CPU hidden was loaded in this stage.
