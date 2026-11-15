@@ -1,4 +1,4 @@
-"""NRA2 S3CD: FIFTH once-only untouched S3CB EVAL128, original43M CPU S3BA vs JOINT S3BZ.
+"""NRA2 S3CD: FIFTH once-only untouched S3CB EVAL128, original43M CPU S3BA vs S3BN vs S3BZ.
 
 Read-only research experiment. No DEV scoring, training, tuning, model selection,
 threshold search, repeated candidate comparisons or production mutations.
@@ -91,7 +91,7 @@ def main(cpu:Path,pre:Path,adir:Path,ndir:Path,bdir:Path,nra_dir:Path,out:Path):
     require(not out.exists() or not any(out.iterdir()),
             "one-time independent evaluation cannot overwrite prior report")
     # FIFTH once-only S3CB independent128 prereg was SEALED in original
-    # data-only CI #43649584951 BEFORE genuine original 43M EVAL CPU S3CC.
+    # data-only CI #43675557570 BEFORE genuine original 43M EVAL CPU S3CC.
     # S3BZ pairwise head was physically SHA locked from TRAIN2240 in
     # successful CI #43674502209, BEFORE any FIFTH EVAL CPU or model scores.
     prior=json.loads((pre/"NRA2_S3CB_FIFTH_UNTOUCHED128_PREREG.json").read_text())
@@ -140,7 +140,7 @@ def main(cpu:Path,pre:Path,adir:Path,ndir:Path,bdir:Path,nra_dir:Path,out:Path):
             and cand.get("new_S3BR_TRAIN_count")==192
             and cand.get("guard320_excluded_from_all_training_inference_and_selection") is True
             and cand.get("S3BY_verified_parent_and_minibatch_gate_every_optimizer_step") is True
-            and cand.get("rejected_S3BZ_never_initialized") is True
+            and cand.get("rejected_S3BT_never_initialized") is True
             and cand.get("original_S194_616_J7_unchanged_in_all_seven_CPU_sources") is True
             and cand.get("new_S3BM_only_pair_params_trained")==42869
             and cand.get("no_heldout_DEV_or_EVAL_training_scoring_or_selection") is True
@@ -303,6 +303,7 @@ def main(cpu:Path,pre:Path,adir:Path,ndir:Path,bdir:Path,nra_dir:Path,out:Path):
         "prior_S3AQ_old_independent_EVAL128_consumed":True,
         "prior_S3BJ_second_independent_EVAL128_consumed":True,
         "prior_S3BO_third_independent_EVAL128_consumed":True,
+        "prior_S3BU_fourth_independent_EVAL128_consumed":True,
         "S3BM_42869_new_pairwise_params":True,
         "fifth_unseen_16_topologies_and_8_new_grammars":True,
         "one_time_independent_EVAL128":N,
