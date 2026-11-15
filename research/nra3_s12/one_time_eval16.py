@@ -262,12 +262,15 @@ def main():
         for sample in samples:
             x=sample.hidden320.unsqueeze(0)
             a=v2(x)
+            neutral=v3null(x)
             b=v3(x)
             ix=torch.tensor([w.last_token for w in sample.aligned.word_alignment])
             ga=a.parallel_hypothesis_gates[0,ix,:]
+            gn=neutral.parallel_hypothesis_gates[0,ix,:]
             gb=b.parallel_hypothesis_gates[0,ix,:]
-            guard(ga.shape==gb.shape==(len(ix),3) and
+            guard(ga.shape==gn.shape==gb.shape==(len(ix),3) and
                   torch.allclose(ga.sum(-1),torch.ones(len(ix)),atol=3e-5) and
+                  torch.allclose(gn.sum(-1),torch.ones(len(ix)),atol=3e-5) and
                   torch.allclose(gb.sum(-1),torch.ones(len(ix)),atol=3e-5) and
                   torch.isfinite(a.relations).all() and
                   torch.isfinite(b.relations).all(),
@@ -275,7 +278,9 @@ def main():
             # S11 router is attached AFTER both grammar and semantic layers:
             # the architectural limitation is exact, not an empirical win.
             guard(torch.equal(a.grammar,b.grammar) and
+                  torch.equal(a.grammar,neutral.grammar) and
                   torch.equal(a.semantics,b.semantics) and
+                  torch.equal(a.semantics,neutral.semantics) and
                   torch.equal(a.upos_logits,b.upos_logits) and
                   torch.equal(a.semantic_role_logits,b.semantic_role_logits) and
                   torch.equal(a.dependency_logits,b.dependency_logits),
@@ -284,17 +289,18 @@ def main():
             pos_b=pure_inference_word_grammar_score(v3,b,sample.aligned)
             guard(all(torch.equal(u,v) for u,v in zip(pos_a,pos_b)),
                   "S11 relative to S8b MUST be identical upstream UD roles")
-            predictions.append((ga.clone(),gb.clone(),pos_a,pos_b,
+            predictions.append((ga.clone(),gn.clone(),gb.clone(),pos_a,pos_b,
                                 float((a.relations-b.relations).norm()),sample))
     # Gold EVAL opened ONLY after all 16 original native CPU forwards, no
     # optimizer steps or model re-entry after this point.
-    gate0=[];gate1=[];teacher=[]
+    gate0=[];gate_neutral=[];gate1=[];teacher=[]
     pos_correct=role_correct=dep_correct=words=0
     per_group=[]
-    for gates0,gates1,parts0,parts1,diff,sample in predictions:
+    for gates0,gates_n,gates1,parts0,parts1,diff,sample in predictions:
         row=sample.row
         y=weak_eval_labels_posthoc(row,sample.aligned)
         gate0.append(gates0)
+        gate_neutral.append(gates_n)
         gate1.append(gates1)
         teacher.append(y)
         p,r,d=parts0
@@ -316,17 +322,20 @@ def main():
             "dependency_head_correct":dc,
             "mean_relation_state_delta_norm":diff,
             "S8b_hard_selection":gates0.argmax(-1).tolist(),
+            "S11_neutral_hard_selection":gates_n.argmax(-1).tolist(),
             "S11_hard_selection":gates1.argmax(-1).tolist(),
         })
-    g0=torch.cat(gate0);g1=torch.cat(gate1);y=torch.cat(teacher)
+    g0=torch.cat(gate0);gn=torch.cat(gate_neutral);g1=torch.cat(gate1);y=torch.cat(teacher)
     guard(words==len(y) and len(per_group)==16
-          and all(torch.isfinite(s).all() for s in (g0,g1))
+          and all(torch.isfinite(s).all() for s in (g0,gn,g1))
           and set(y.tolist())=={0,1,2},
           "posthoc EVAL16 original CPU ground truth label validity")
-    b0=g0.argmax(-1);b1=g1.argmax(-1)
+    b0=g0.argmax(-1);bn=gn.argmax(-1);b1=g1.argmax(-1)
     weak_before=float((b0==y).float().mean())
+    weak_null=float((bn==y).float().mean())
     weak_after=float((b1==y).float().mean())
     ce_before=float(F.nll_loss(g0.clamp_min(1e-8).log(),y))
+    ce_null=float(F.nll_loss(gn.clamp_min(1e-8).log(),y))
     ce_after=float(F.nll_loss(g1.clamp_min(1e-8).log(),y))
     branches=("GLOBAL","LOCAL","PREDICTED_ROLE")
     result={
@@ -347,13 +356,19 @@ def main():
       "zero_eval_optimizer_steps":0,
       "no_eval_model_selection_or_hyperparameter_changes":True,
       "S8b_hard_selection_counts":{branches[k]:int((b0==k).sum()) for k in range(3)},
+      "S11_neutral_same_arch_hard_selection_counts":{branches[k]:int((bn==k).sum()) for k in range(3)},
       "S11_hard_selection_counts":{branches[k]:int((b1==k).sum()) for k in range(3)},
       "weak_heuristic_EVAL16_targets_counts":{branches[k]:int((y==k).sum()) for k in range(3)},
       "S8b_weak_routing_heldout_accuracy":weak_before,
+      "S11_neutral_same_arch_weak_routing_heldout_accuracy":weak_null,
       "S11_weak_routing_heldout_accuracy":weak_after,
       "S8b_weak_routing_heldout_crossentropy":ce_before,
+      "S11_neutral_same_arch_weak_routing_heldout_crossentropy":ce_null,
       "S11_weak_routing_heldout_crossentropy":ce_after,
       "S11_heldout_weak_selection_accuracy_change_pp":100*(weak_after-weak_before),
+      "S11_learned_vs_null_same_arch_weak_accuracy_change_pp":100*(weak_after-weak_null),
+      "S11_neutral_router_is_same_local_window_and_43_CB59_matrices":True,
+      "S8b_vs_S11_local_window_differs_4_vs_16_tokens":True,
       "router_weak_heuristic_is_not_actual_semantic_truth":True,
       "UPOS_heldout_word_accuracy_same_baseline_and_S11":pos_correct/words,
       "semantic_role_heldout_word_accuracy_same_baseline_and_S11":role_correct/words,
