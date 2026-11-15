@@ -9,7 +9,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: nra2-stage3cc-sixth-untouched128-original-cpu-only-616j7
+  group: nra2-stage3ch-sixth-untouched128-original-cpu-only-616j7
   cancel-in-progress: false
 jobs:
   nra2_true_cpu_s3ch_sixth128_readonly_616_j7:
@@ -522,7 +522,7 @@ jobs:
           assert platform.machine()=="x86_64" and not torch.cuda.is_available()
           print("S3CH_TRUE_ORIGINAL43M_CPU_SIXTH_UNSEEN128_NO_ADAPTER_SCORING")
           PY
-          python research/nra2_bridge/stage3cc_s3cg_sixth128_original43m_cpu.py \
+          python research/nra2_bridge/stage3ch_s3cg_sixth128_original43m_cpu.py \
             inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
             inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
             inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
@@ -549,14 +549,14 @@ jobs:
             inputs/s160/S160_REAL_PARALLEL_456_128_J7_AUDIT.json \
             inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
             inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
-            results/nra2_stage3cc_sixth128_cpu
+            results/nra2_stage3ch_sixth128_cpu
       - name: Verify sixth S3CH physical CPU SHA and original 616 J7 and ZERO scores
         run: |
           python - <<'PY'
           import hashlib,json
           from pathlib import Path
           from safetensors.torch import load_file
-          d=Path("results/nra2_stage3cc_sixth128_cpu")
+          d=Path("results/nra2_stage3ch_sixth128_cpu")
           r=json.loads((d/"NRA2_S3CH_EVAL128_REAL_CPU_J7_AUDIT.json").read_text())
           assert r["stage"]=="NRA2_S3CH_ORIGINAL43M_SIXTH_UNTOUCHED128_CPU_NO_SCORE"
           assert r["S3CG_sixth_future_prereg_sha256"]=="59209ccf9a2ceaa358e1e867b1e3a6395c962b89eff2b5e038901f73c2a61776"
@@ -590,7 +590,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: nra2-stage3cc-sixth-independent128-original43M-tokens320-J7-no-score
-          path: results/nra2_stage3cc_sixth128_cpu/
+          name: nra2-stage3ch-sixth-independent128-original43M-tokens320-J7-no-score
+          path: results/nra2_stage3ch_sixth128_cpu/
           retention-days: 90
           if-no-files-found: error
