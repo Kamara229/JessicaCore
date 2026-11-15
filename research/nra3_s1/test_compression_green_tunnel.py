@@ -10,6 +10,7 @@ from research.nra3_s0.neural_area import NRA3Config, NRA3NeuralArea
 from research.nra3_s1.physical_cb59 import (
     encode_area, reconstruct_state, save_and_validate, budget_for_paid_components,
 )
+from research.nra3_s1.entropy_envelope import store_lossless_cb59, restore_lossless_cb59
 from research.nra3_s1.green_tunnel_compatibility import (
     NRA3WithExistingGreenTunnel, module_fingerprint,
 )
@@ -68,6 +69,14 @@ class NRA3PackedAndGTTests(unittest.TestCase):
             self.assertFalse(report["native_packed_CPU_kernel_verified"])
             self.assertEqual(report["actual_new_area_bpp"],
                              8*p.stat().st_size/area.parameter_count())
+            raw=p.read_bytes()
+            lossless=store_lossless_cb59(raw)
+            self.assertEqual(restore_lossless_cb59(lossless),raw)
+            self.assertLessEqual(len(lossless),len(raw)*2)
+            bad=bytearray(lossless)
+            bad[-1]^=1
+            with self.assertRaises(ValueError):
+                restore_lossless_cb59(bytes(bad))
             restored=reconstruct_state(p.read_bytes(),area)
             self.assertEqual(set(restored),set(area.state_dict()))
             area2=self.small()
@@ -97,6 +106,17 @@ class NRA3PackedAndGTTests(unittest.TestCase):
             self.assertEqual(b["whole_package_bytes"],
                              12000+p.stat().st_size+len(b"GT-SIDE-REAL-CONTENT")+8)
             self.assertTrue(b["green_tunnel_accounted_exactly_once"])
+            envelope_b=budget_for_paid_components(
+                parent_physical_bytes=b"parent"*2000,
+                parent_unique_parameters=100000,
+                nra_physical_bytes=lossless,
+                existing_gt_physical_bytes=b"GT-SIDE-REAL-CONTENT",
+                parent_includes_gt=False,
+                package_manifest_bytes=b"manifest")
+            self.assertEqual(envelope_b["whole_package_bytes"],
+                             12000+len(lossless)+len(b"GT-SIDE-REAL-CONTENT")+8)
+            self.assertEqual(envelope_b["physical_new_nra_sha256"],
+                             __import__("hashlib").sha256(lossless).hexdigest())
             with self.assertRaises(ValueError):
                 budget_for_paid_components(
                     parent_physical_bytes=b"parent"*2000,
