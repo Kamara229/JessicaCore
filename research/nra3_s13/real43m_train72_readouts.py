@@ -89,9 +89,9 @@ def gather_native_fixed_training(samples,native:NRA3NativePackedCPU)->FixedNativ
                     f.semantic_role_logits.shape==(1,l,len(SEMANTIC_ROLES)) and
                     f.dependency_logits.shape==(1,l,l) and
                     f.parallel_hypothesis_gates is not None and
-                    native.paid_router.physical_bytes_sha()==S11_39_FP16_SHA
-                    if hasattr(native.paid_router,"physical_bytes_sha")
-                    else f.relations.shape==(1,l,128),
+                    f.parallel_hypothesis_gates.shape==(1,l,3) and
+                    hashlib.sha256(native.paid_router.physical_bytes()).hexdigest()==
+                       S11_39_FP16_SHA,
                     "genuine frozen prior S11 three-hypothesis native CPU ABI drift")
             rel[k,:l]=f.relations[0]
             up[k,:l]=f.upos_logits[0]
