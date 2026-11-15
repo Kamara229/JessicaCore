@@ -1,0 +1,168 @@
+name: NRA2 3.0 S13 physically paid rank8 causal relation feedback to true Russian linguistic TRAIN72
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s12c-one-time-ru16-frozen-heldout-audit-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s13-real-43M-paid-fp16-linguistic-readout-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  authentic_original43M_C_CB59_S11_frozen_S13_paid_grammar_role_head_train:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s13-causal-relation-feedback-paid-readouts-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      PYTHONHASHSEED: '313013'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin original S10 43M GT original CPU 616 J7 + physical S8b and S11 and consumed S12c only as audit provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43732621116 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43732621116 --jq .head_sha)" = "b5044c36d070d197f7141ecd44a0b833e22491b2"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43731085988 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43734571081 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43734571081 --jq .head_sha)" = "8d7cbf7fd8ed2acc5d903117a8b943d15d98d791"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43736775442 --jq .conclusion)" = success
+          echo S13_PRIOR_TRUE43M_TRAIN72_ORIGINAL_43_CB59_AND_S11_39FP16_PINNED_S12C_CONSUMED_NO_ACCESS
+      - name: Install pinned original CPU CB59 codec and Python research dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'tokenizers==0.20.3' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: Unit test physical FP16 1266-parameter rank8, original zero-output, no future token readout or EVAL
+        run: |
+          python -m compileall -q research/nra3_s13
+          python -m unittest -v research.nra3_s13.test_paid_relation_feedback research.nra3_s13.test_research_acceptance_audit
+      - name: Protect earlier S11 three-way router, source-only S9 TRAIN72 and native C S7 contracts
+        run: |
+          python -m unittest -v research.nra3_s11.test_paid_router research.nra3_s7.test_parallel_hypotheses research.nra3_s9.test_new_ru_train72
+      - name: Download original original43M native CPU post-GT layer8 72 S9 TRAIN and immutable real token offsets
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s10-genuine43M-CPU-layer8-newRU72-trainonly-616J7-zero-gate
+          run-id: 43732621116
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s10
+      - name: Download original 43 full physical S8b CB59 native C source, NEVER train or save changed source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s8-adaptive-calibrated-3way-physical-CB59-S61-realRU12-trainonly
+          run-id: 43731085988
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s8
+      - name: Download frozen S11 physically billed 39param FP16 three-way paid selector, never train
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s11-real43M-ru72-39param-FP16-paid-router-native-C-trainonly
+          run-id: 43734571081
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s11
+      - name: Physically authenticate only S10 TRAIN72, S8b original 43 CB59, S11 saved FP16 and no EVAL files
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from research.nra3_s13.paid_relation_feedback import PHYSICAL_BYTES,PARAMETERS
+          from research.nra3_s11.real_ru72_source import checked_real_train72
+          from direct_codebook_v59 import CB59
+          a=Path("inputs/nra3_s10")
+          b=Path("inputs/nra3_s8")
+          c=Path("inputs/nra3_s11")
+          train,report=checked_real_train72(
+              a/"NRA3_S10_REAL_43M_LAYER8_RU_TRAIN72_HIDDEN320_FP16.safetensors",
+              a/"NRA3_S10_REAL_CPU_43M_LAYER8_TRAIN72_J7_REPORT.json")
+          old=(b/"NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59").read_bytes()
+          paid=(c/"NRA3_S11_TINY_PAID_RUSSIAN_TRAIN72_CAUSAL_3WAY_SELECTOR_FP16.n3r11").read_bytes()
+          assert len(train)==72 and report["original_456_full_EOS"]==456 and report["original_new128_full_EOS"]==128
+          assert report["all_616_native_CPU_generated_token_digests_unchanged"] is True
+          assert hashlib.sha256(old).hexdigest()=="d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97"
+          assert CB59(old).meta["original_unique_parameter_count"]==6106154 and len(CB59(old).handles)==43
+          assert len(paid)==123 and hashlib.sha256(paid).hexdigest()=="05ce14e20c9f4e7e09f85dbd9bd46f0dc0a700d72f1a96ffa921b2e822f235c3"
+          assert PHYSICAL_BYTES==2581 and PARAMETERS==1266
+          assert not Path("inputs/nra3_s12").exists() and not Path("inputs/nra3_s12b").exists() and not Path("inputs/nra3_s12c").exists()
+          print("S13_REAL_ORIGINAL_CALIBRI43M_RU72_TRAIN_ONLY_NRA43_NATIVE_C_S11_39_PAID_PHYSICAL_PINNED",flush=True)
+          PY
+      - name: S13 real CPU native C original 43 matrices + original S11 router; train ONLY rank8 causal paid FP16 readout on existing genuine 72 TRAIN
+        run: |
+          python -m research.nra3_s13.real43m_train72_readouts \
+            --s10-hidden inputs/nra3_s10/NRA3_S10_REAL_43M_LAYER8_RU_TRAIN72_HIDDEN320_FP16.safetensors \
+            --s10-report inputs/nra3_s10/NRA3_S10_REAL_CPU_43M_LAYER8_TRAIN72_J7_REPORT.json \
+            --s8-cb59 inputs/nra3_s8/NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59 \
+            --s11-router inputs/nra3_s11/NRA3_S11_TINY_PAID_RUSSIAN_TRAIN72_CAUSAL_3WAY_SELECTOR_FP16.n3r11 \
+            --out results/nra3_s13
+      - name: Validate paid new FP16 rank8 SHA roundtrip, original 43 packed C + S11 untouched, training only, no candidate acceptance
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          from research.nra3_s13.paid_relation_feedback import PaidRelationFeedback,PHYSICAL_BYTES,PARAMETERS
+          p=Path("results/nra3_s13/NRA3_S13_PAID_RANK8_CAUSAL_RELATION_LINGUISTIC_TRAIN72_NO_PROMOTION.json")
+          r=json.loads(p.read_text(encoding="utf-8"))
+          q=Path("results/nra3_s13")/r["S13_new_rank8_feedback_physical_filename"]
+          raw=q.read_bytes()
+          assert len(raw)==PHYSICAL_BYTES==2581
+          assert r["S13_new_rank8_feedback_unique_parameters"]==PARAMETERS==1266
+          assert hashlib.sha256(raw).hexdigest()==r["S13_new_rank8_feedback_sha256"]
+          assert PaidRelationFeedback.from_physical(raw).physical_bytes()==raw
+          assert r["S8b_original_native_C_43_matrix_source_unchanged"] is True
+          assert r["S11_prior_39_selector_in_six_recurrent_relation_cycles"] is True
+          assert r["S13_train_only_words"]==408 and r["S13_real_calibri43M_train72_rows"]==72
+          assert r["S13_causal_previous_head_supervision_arcs"]>=65
+          assert r["S13_physical_fp16_roundtrip_only"] is True
+          assert all(r["S13_all_three_real_linguistic_outputs_modified"].values())
+          assert r["S13_paid_fp16_train_only_loss_reduction"]>0.02
+          assert r["S13_no_future_head_gold_used_in_train"] is True
+          assert r["S13_no_last_chat_prefix_hidden_added_to_earlier_word_prediction"] is True
+          assert r["S13_real_feedback_applied_to_earlier_grammar_semantic_layers"] is False
+          assert r["S13_real_feedback_applied_to_causal_linguistic_output_heads"] is True
+          assert r["S13_heldout16_S12c_now_CONSUMED_and_not_loaded"] is True
+          assert r["S13_any_independent_new_eval_or_full_answer_EOS_measured"] is False
+          assert r["S13_original_protected616_with_active_candidate_not_tested"] is True
+          assert r["S13_whole_system_less_equal_point7_bpp_certified"] is False
+          assert r["S13_whole_original43M_GT_NRA_CPU_speed_at_least_90percent_certified"] is False
+          assert r["five_prior_EVAL128_not_loaded"] and r["sixth_reserved_S3CI_EVAL128_not_loaded"]
+          assert r["candidate_accepted"] is False and r["activation_allowed"] is False and r["output_gate"]==0
+          print("S13_TRUE_43M_RANK8_CAUSAL_PAID_FP16_3_LINGUISTIC_HEADS_TRAIN_ONLY_ZERO_PROMOTION",flush=True)
+          PY
+      - name: Independently reject S13 research candidate if any hard UPOS regression / missing HELDOUT and whole-system certificates
+        run: |
+          python -m research.nra3_s13.research_acceptance_audit \
+            --report results/nra3_s13/NRA3_S13_PAID_RANK8_CAUSAL_RELATION_LINGUISTIC_TRAIN72_NO_PROMOTION.json \
+            --out results/nra3_s13/NRA3_S13_STRICT_NO_PROMOTION_HARD_LINGUISTIC_ACCEPTANCE_AUDIT.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra3_s13/NRA3_S13_STRICT_NO_PROMOTION_HARD_LINGUISTIC_ACCEPTANCE_AUDIT.json").read_text())
+          assert r["research_acceptance"] is False
+          assert r["candidate_regressed_UPOS"] is True
+          assert r["comparison"]["UPOS"]["delta_correct"] < 0
+          assert r["output_gate"] == 0 and r["activation_allowed"] is False and r["candidate_accepted"] is False
+          assert r["CE_in_sample_decrease_does_not_override_hard_UPOS_regression"] is True
+          assert r["S12c_consumed_eval16_touched_for_this_audit"] is False
+          assert r["independent_new_eval_measured"] is False
+          assert r["active_616_J7_and_full_answer_EOS_certified"] is False
+          print("S13_REAL_WEIGHTED_CE_TRAIN_GAIN_BUT_HARD_UPOS_REGRESSION_RESEARCH_REJECT",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s13-ORIGINAL43M-nativeC-1266paidFP16-rank8-3linguistic-readouts-train72-only
+          path: results/nra3_s13/
+          retention-days: 30
+          if-no-files-found: error
