@@ -33,6 +33,8 @@ class S7ParallelObjective:
     relational_ud_head:torch.Tensor
     mean_hypothesis_entropy:torch.Tensor
     branch_means:torch.Tensor
+    selector_train_ce:torch.Tensor | None = None
+    selector_gold_indices:torch.Tensor | None = None
 
 
 def parallel_train_objective(area:NRA3NeuralArea,
@@ -82,15 +84,31 @@ def parallel_train_objective(area:NRA3NeuralArea,
     loss_relation=F.cross_entropy(logits,labels)
     gates=features.parallel_hypothesis_gates[0,ids,:]
     entropy=-(gates*gates.clamp_min(1e-9).log()).sum(-1).mean()
-    # Make hypothesis selector trainable through PAID original rel_q/k/v and
-    # role_head; tiny entropy regularizer penalizes trivial branch collapse.
-    total=grammar.total+0.35*loss_relation-0.01*entropy
+    # S8: development TRAIN-only branch supervision. At a word's own
+    # causal prefix, the correct UD head can be to its RIGHT and is not
+    # available: never use it as a positive local/key target. Distinguish
+    # currently observable near dependency, earlier complementary role,
+    # and open/long-range causal context. These are *heuristic teaching
+    # labels*, NOT ground-truth claim that a branch is semantically correct.
+    selector_ce=None
+    selector_labels=None
+    if area.config.parallel_selector_version==1:
+        from research.nra3_s8.selector_supervision import (
+            train_only_causal_branch_targets,
+        )
+        selector_labels=train_only_causal_branch_targets(row,aligned)
+        selector_ce=F.nll_loss(gates.clamp_min(1e-8).log(),selector_labels)
+        total=(grammar.total+0.35*loss_relation-0.01*entropy
+               +0.40*selector_ce)
+    else:
+        # S7 unmodified baseline remains reproducible in the same branch.
+        total=grammar.total+0.35*loss_relation-0.01*entropy
     if (not bool(torch.isfinite(total)) or
         not bool(torch.isfinite(entropy)) or
         not bool(torch.isfinite(gates).all())):
         raise ValueError("S7 nonfinite parallel relational TRAIN loss")
     return S7ParallelObjective(total,grammar.total,loss_relation,entropy,
-                               gates.mean(0))
+                               gates.mean(0),selector_ce,selector_labels)
 
 
 class S7UnifiedParallelSupervision(nn.Module):
