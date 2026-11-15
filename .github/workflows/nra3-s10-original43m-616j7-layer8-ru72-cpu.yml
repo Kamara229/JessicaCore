@@ -469,7 +469,7 @@ jobs:
           assert tensors["token_hidden320"].shape[0]==72
           assert tensors["token_hidden320"].shape[-1]==320
           assert tensors["input_ids"].shape==tensors["token_mask"].shape
-          assert tensors["token_lengths"].tolist()==record["true_train12_token_counts"]
+          assert tensors["token_lengths"].tolist()==record["true_train72_token_counts"]
           assert len(record["wordpiece_alignment"])==72
           assert [x["text_sha256"] for x in record["wordpiece_alignment"]]==seal_train72()["text_sha256_ordered"]
           assert all(x["word_last_token_positions"] for x in record["wordpiece_alignment"])
