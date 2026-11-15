@@ -1,0 +1,91 @@
+name: NRA2 3.0 S15 source-only 24 new Russian UD semantic coref EVAL SHA post frozen S14
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s14-hard-accuracy-constrained-rank8-train72-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s15-sourceONLY-ru24-after-model-frozen-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  post_S14_model_lock_new_eval24_full_gold_SHA_sourceONLY:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s15-ru24-new-eval-prereg-post-s14-frozen-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '315025'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify original 39 FP16 router and S14 SHA-frozen 1266 FP16 selection before first eval24 definition
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43740415883 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43740415883 --jq .head_sha)" = ab95483ef5dc985b8a32941163fb248bc9640ef3
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43740072530 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43734571081 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43732621116 --jq .conclusion)" = success
+          echo S15_PRECOMMIT_AFTER_S14_FULL_IMMUTABLE_PHYSICAL_SHA_REPRODUCED_BEFORE_EVAL24
+      - name: Install prior source-only UD grammar Python dependencies, no model artifact download
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'tokenizers==0.20.3'
+      - name: New 24 Russian sentences with full morphological UD/semantic/coreref/negation SHA source-only tests
+        run: |
+          python -m compileall -q research/nra3_s15
+          python -m unittest -v research.nra3_s15.test_new_ru_eval24_prereg
+      - name: Emit one-time fully annotated new EVAL24 corpus with complete gold SHA; NO Calibri, GT, NRA/S14 forward
+        run: |
+          python -m research.nra3_s15.emit_ru24_prereg \
+            --out results/nra3_s15/NRA3_S15_RU24_NEW_POST_S14_FROZEN_SOURCE_ONLY_SHA_PREREG.json
+      - name: Verify precise full annot SHA and NEVER score or run model before public prereg seal
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from research.nra3_s15.new_ru_eval24_prereg import (
+            new_russian_eval24,canonical_new_eval24,sealed_new_eval24,EVAL24_CANONICAL_SHA
+          )
+          root=Path("results/nra3_s15")
+          manifest=json.loads((root/"NRA3_S15_RU24_NEW_POST_S14_FROZEN_SOURCE_ONLY_SHA_PREREG.json").read_text(encoding="utf-8"))
+          physical_gold=(root/"NRA3_S15_NEW_RU24_SOURCE_ONLY_LOCKED_GOLD.json").read_bytes()
+          assert manifest==sealed_new_eval24()
+          assert manifest["number_of_new_EVAL24_cases"]==24
+          complete=hashlib.sha256(canonical_new_eval24(new_russian_eval24())).hexdigest()
+          assert complete==manifest["complete_UD_semantic_role_coreference_event_gold_sha256"]
+          assert EVAL24_CANONICAL_SHA=="640bdfb0d817d1467eaf308fc1ba5dd9043361721af293b9666d89f4a2c7276d"
+          assert complete==EVAL24_CANONICAL_SHA
+          assert manifest["S14_model_frozen_run_BEFORE_S15_source"]==43740415883
+          assert manifest["S14_model_frozen_head_BEFORE_S15_source"]=="ab95483ef5dc985b8a32941163fb248bc9640ef3"
+          assert manifest["S14_physical_fp16_selected_sha_BEFORE_S15_source"]=="5b96e2174e33da5232fcc2a4a397b6fab4370b6879adb684d75fea8a503f1279"
+          assert manifest["S15_new_EVAL24_scored"] is False
+          assert manifest["S15_new_EVAL24_model_prefills"]==manifest["S15_eval24_optimizer_steps"]==0
+          assert manifest["S15_prior_S12c_consumed_EVAL16_NOT_LOADED"] is True
+          assert manifest["S15_prior_five_consumed_EVAL128_NOT_LOADED"] is True
+          assert manifest["S15_reserved_sixth_S3CI_EVAL128_NOT_LOADED"] is True
+          assert manifest["S15_no_original43M_GT_NRA_S14_inference_or_weights_loaded"] is True
+          assert manifest["S15_anaphora_labels_never_passed_to_model"] is True
+          assert manifest["output_gate"]==0 and manifest["candidate_accepted"] is False and manifest["activation_allowed"] is False
+          assert len(json.loads(physical_gold))==24
+          print("S15_FIXED_NEW_RUSSIAN24_EVAL_COMPLETE_GOLD_SHA_BEFORE_ANY_MODEL_FORWARD",complete,flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s15-afterS14-lock-newRU24-UD-semantic-coref-EVAL-sourceSHA-only
+          path: results/nra3_s15/
+          retention-days: 30
+          if-no-files-found: error
