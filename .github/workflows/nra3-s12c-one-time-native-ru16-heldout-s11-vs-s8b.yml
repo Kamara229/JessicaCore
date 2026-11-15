@@ -1,0 +1,138 @@
+name: NRA2 3.0 S12c ONE frozen original43M Russian EVAL16 native S8b vs S11 precommitted audit
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s12b-real43m-ru-eval16-frozen-read-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s12c-one-time-ru16-frozen-eval-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  genuine_frozen_CPU_original43M_sha_locked_new_ru16_once:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s12c-one-time-ru16-frozen-heldout-audit-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONHASHSEED: '312016'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require prior S11 physically FROZEN before any EVAL source, S12 prereg, and true S12b source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43734571081 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43734571081 --jq .head_sha)" = "8d7cbf7fd8ed2acc5d903117a8b943d15d98d791"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43735385201 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43735385201 --jq .head_sha)" = "c6b233ad282f859986940e67ae521d4d387fba3a"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43735792321 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43735792321 --jq .head_sha)" = "9a0a291a40eb4b7b67f287c2a857295fdfc85c50"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43731085988 --jq .conclusion)" = success
+          echo S12C_ORIGINAL_S11_MODEL_FROZEN_BEFORE_S12_GOLD_AND_S12B_TRUE_ORIGINAL_CPU_PREFILLS
+      - name: Install original pinned native original Calibri CPU research dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'tokenizers==0.20.3' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: One-time preregistered 16 heldout EVAL-only labels cannot enter original TRAIN and physical router cannot grow
+        run: |
+          python -m compileall -q research/nra3_s12 research/nra3_s11
+          python -m unittest -v research.nra3_s12.test_one_time_eval16 research.nra3_s12.test_heldout_ru_eval16 research.nra3_s12.test_heldout_eval16_alignment
+      - name: Download genuine S12b original 43M CPU post-GT layer8 read-only NEW EVAL16 physical FP16 SHA source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s12b-true43M-CPU-layer8-newRU16-heldout-readonly-616J7-zero-gate
+          run-id: 43735792321
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s12b
+      - name: Download immutable old S8b native-C CB59 paid 43 original matrices (not accepted)
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s8-adaptive-calibrated-3way-physical-CB59-S61-realRU12-trainonly
+          run-id: 43731085988
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s8
+      - name: Download physically snapped S11 39 FP16 source frozen BEFORE newly defined Russian EVAL16
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s11-real43M-ru72-39param-FP16-paid-router-native-C-trainonly
+          run-id: 43734571081
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s11
+      - name: Fail closed on actual byte hashes and EVAL prereg before first native model scoring
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from safetensors.torch import load_file
+          from research.nra3_s12.heldout_ru_eval16 import EVAL16_FULL_CANONICAL_SHA,sealed_eval16
+          from research.nra3_s12.one_time_eval16 import S12B_EVAL16_EXPECTED_FP16_SHA
+          h=Path("inputs/nra3_s12b/NRA3_S12B_REAL_43M_LAYER8_RU_EVAL16_HIDDEN320_FP16.safetensors")
+          r=json.loads(Path("inputs/nra3_s12b/NRA3_S12B_REAL_CPU_43M_LAYER8_EVAL16_J7_REPORT.json").read_text())
+          a=Path("inputs/nra3_s8/NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59")
+          b=Path("inputs/nra3_s11/NRA3_S11_TINY_PAID_RUSSIAN_TRAIN72_CAUSAL_3WAY_SELECTOR_FP16.n3r11")
+          assert S12B_EVAL16_EXPECTED_FP16_SHA == "c14026852521dc8958dc8f82ea8453d70529d23083833696da86182856723ed8"
+          assert hashlib.sha256(h.read_bytes()).hexdigest()==S12B_EVAL16_EXPECTED_FP16_SHA
+          assert r["actual_fp16_feature_sha256"]==S12B_EVAL16_EXPECTED_FP16_SHA
+          assert load_file(str(h))["token_hidden320"].shape[0]==16
+          assert r["S12_RUSSIAN_UD_EVAL16_CANONICAL_SHA256"]==EVAL16_FULL_CANONICAL_SHA=="f2d2d5beba48dbe294a90f6918a3fd15870aa103abbd569e907c44729a43977c"
+          assert r["S12_eval16_scored"] is False and r["S12_EVAL16_PREREG_BEFORE_MODEL"] is True
+          assert hashlib.sha256(a.read_bytes()).hexdigest()=="d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97"
+          assert hashlib.sha256(b.read_bytes()).hexdigest()=="05ce14e20c9f4e7e09f85dbd9bd46f0dc0a700d72f1a96ffa921b2e822f235c3"
+          assert r["all_616_native_CPU_generated_token_digests_unchanged"] is True
+          assert r["five_consumed_independent_EVAL128_not_loaded"] and r["sixth_reserved_S3CI_EVAL128_not_loaded"]
+          print("S12C_ONE_TIME_RU16_ORIGINAL_CALIBRI43M_AND_LOCKED_S11_S8B_SHA_VERIFIED",flush=True)
+          PY
+      - name: ONE frozen native CPU S8b + neutral same-architecture + trained S11 39param eval on 16 sealed examples
+        run: |
+          python -m research.nra3_s12.one_time_eval16 \
+            --eval16-hidden inputs/nra3_s12b/NRA3_S12B_REAL_43M_LAYER8_RU_EVAL16_HIDDEN320_FP16.safetensors \
+            --eval16-report inputs/nra3_s12b/NRA3_S12B_REAL_CPU_43M_LAYER8_EVAL16_J7_REPORT.json \
+            --s8-cb59 inputs/nra3_s8/NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59 \
+            --s11-router inputs/nra3_s11/NRA3_S11_TINY_PAID_RUSSIAN_TRAIN72_CAUSAL_3WAY_SELECTOR_FP16.n3r11 \
+            --out results/nra3_s12c
+      - name: No promotion despite any posthoc EVAL gain; no original 616 candidate active or full answer/EOS
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra3_s12c/NRA3_S12C_ONE_TIME_NEW_RU16_EVAL_S8B_VS_S11_NO_PROMOTION.json")
+          r=json.loads(p.read_text(encoding="utf-8"))
+          assert r["eval_sentences"]==16 and r["all_16_original_hidden_tested_without_filtering"]
+          assert r["complete_EVAL16_annotation_preregistered_SHA"]=="f2d2d5beba48dbe294a90f6918a3fd15870aa103abbd569e907c44729a43977c"
+          assert r["zero_eval_optimizer_steps"]==0 and r["no_eval_model_selection_or_hyperparameter_changes"]
+          assert r["both_S8b_and_S11_full_native_C_original_43_matrices_executed"]
+          assert r["S11_neutral_router_is_same_local_window_and_43_CB59_matrices"]
+          assert r["S8b_vs_S11_local_window_differs_4_vs_16_tokens"]
+          assert r["upstream_heads_unchanged_by_3way_router_by_architecture"]
+          assert sum(r["S8b_hard_selection_counts"].values())==r["eval_total_words"]
+          assert sum(r["S11_neutral_same_arch_hard_selection_counts"].values())==r["eval_total_words"]
+          assert sum(r["S11_hard_selection_counts"].values())==r["eval_total_words"]
+          assert sum(r["weak_heuristic_EVAL16_targets_counts"].values())==r["eval_total_words"]
+          assert len(r["per_sentence_readonly_report"])==16
+          assert r["S11_active_original_616_J7_generation_measured"] is False
+          assert r["full_answer_EOS_or_LIVE_communication_measured"] is False
+          assert r["whole_parent_GT_NRA_inclusive_bpp_le_point7_measured"] is False
+          assert r["true_broad_language_understanding_or_answer_quality_proven"] is False
+          assert r["five_previous_EVAL128_untouched"] and r["original_sixth_S3CI_EVAL128_untouched"]
+          assert r["activation_allowed"] is False and r["candidate_accepted"] is False and r["output_gate"]==0
+          print("S12C_FIRST_NEW_HELDOUT16_READ_ONLY_NO_TUNING_NO_REAL_ANSWER_GAIN_CLAIM_ZERO_GATE",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s12c-ONE-time-original43M-RU16-physical-S8b-vs-S11-no-promotion
+          path: results/nra3_s12c/
+          retention-days: 30
+          if-no-files-found: error
