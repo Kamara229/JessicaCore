@@ -91,9 +91,8 @@ class PaidDirectedValence(nn.Module):
         guard(w==WIDTH and t>=2 and valid.shape==(b,t) and
               valid.device.type=="cpu" and valid.dtype==torch.bool
               and bool(valid[:,0].all()) and
-              bool((valid.long().cummin(dim=1).values==valid.long()),
-                   "right-padded source cannot reveal future or padded token"),
-              "invalid native relation/valid mask")
+              bool((valid.long().cummin(dim=1).values==valid.long()).all()),
+              "right-padded source cannot reveal future or padded token")
         pred=F.linear(F.layer_norm(relation,(WIDTH,)),
                       self._paid(self.predicate_weight))
         arg=F.linear(F.layer_norm(relation,(WIDTH,)),
