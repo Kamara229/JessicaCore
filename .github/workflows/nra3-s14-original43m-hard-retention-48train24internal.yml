@@ -126,6 +126,24 @@ jobs:
           for f in root.glob("*.n3s13"):
               raw=f.read_bytes()
               assert len(raw)==2581 and PaidRelationFeedback.from_physical(raw).physical_bytes()==raw
+          # Precommit physical S14 internal winner to first SUCCESS run #43740072530.
+          winner=r["S14_internal_selected_mode_step_sha"]
+          assert r["S14_internal_training_only_eligible_candidate"] is True
+          assert winner["mode"]=="upos_locked" and winner["step"]==100
+          assert winner["SHA"]=="5b96e2174e33da5232fcc2a4a397b6fab4370b6879adb684d75fea8a503f1279"
+          fp=root/"NRA3_S14_INTERNAL_DEVELOPMENT_SELECTED_NOT_INDEPENDENT_FP16.n3s13"
+          assert hashlib.sha256(fp.read_bytes()).hexdigest()==winner["SHA"]
+          reload=PaidRelationFeedback.from_physical(fp.read_bytes())
+          from research.nra3_s13.paid_relation_feedback import UPOS_DIM
+          assert bool((reload.output_weight[:UPOS_DIM]==0).all())
+          assert bool((reload.output_bias[:UPOS_DIM]==0).all())
+          # Safe fallback UPOS remains unchanged; internal role fit improves
+          # by 4/136 while syntax is unchanged. These are NOT heldout gains.
+          before=r["S14_base_INTERNAL_development_hard"]
+          after=winner["INTERNAL_used_FOR_MODEL_SELECTION"]
+          assert after["upos"]["correct"]==before["upos"]["correct"]==81
+          assert after["roles"]["correct"]==86 and before["roles"]["correct"]==82
+          assert after["past_heads"]["correct"]==before["past_heads"]["correct"]==47
           assert r["S14_old_consumed_S12c_eval16_NEVER_loaded"] is True
           assert r["S14_old_five_EVAL128_never_loaded"] is True
           assert r["S14_reserved_sixth_S3CI_EVAL128_never_loaded"] is True
