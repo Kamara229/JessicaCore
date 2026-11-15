@@ -1,0 +1,75 @@
+name: NRA2 S3CE TRAIN-only paired order invariance objective 96 pairs no external EVAL
+'on':
+  pull_request:
+    types: [opened]
+    branches:
+      - research/calibri2-nra2-s3cd-fifth-once-only-independent128-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-stage3ce-order-paired-train192-no-model
+  cancel-in-progress: false
+jobs:
+  s3ce_train_only_order_semantics_zero_gate:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ce-order-paired-fit192-objective-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install only CPU PyTorch for synthetic order-balanced loss tests
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Verify fifth independent EVAL128 consumed and old S3BX split immutable WITHOUT loading score or any artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for r in 43652631197 43674502209 43677179638; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$r" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43677179638" --jq .head_branch)" = research/calibri2-nra2-s3cd-fifth-once-only-independent128-20261115
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43652631197" --jq .head_branch)" = research/calibri2-nra2-s3bx-grammar-topology-blocked-train-20261115
+          test ! -e inputs
+      - name: Unit-test only TRAIN192 paired order invariance and gradients, WITHOUT any heldout EVAL scores
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3ce_order_paired_fit192_objective.py research/nra2_bridge/test_stage3ce_order_paired_fit192_objective.py
+          python -m unittest -v research.nra2_bridge.test_stage3ce_order_paired_fit192_objective
+      - name: Seal research-only FIT192 protocol, no model training and no QA TEST LIVE
+        run: |
+          python -m research.nra2_bridge.stage3ce_order_paired_fit192_objective results/nra2_stage3ce_order_paired_fit192_only
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra2_stage3ce_order_paired_fit192_only/NRA2_S3CE_FIT192_ORDER_PAIR_OBJECTIVE_PROTOCOL.json")
+          a=json.loads(p.read_text())
+          assert a["fit_count"]==192 and a["same_semantics_sourcefirst_destinationfirst_pairs"]==96
+          assert a["fit_yes_count"]==96
+          assert a["guard320_excluded_from_gradient_and_selection"]
+          assert a["all_five_independent_EVAL128_excluded_from_gradient_scoring_selection"]
+          assert a["no_decoder_cpu_weights_model_inference_or_training_this_step"]
+          assert a["old_TRAINS3BN_safe_init_sha256"]=="ea8a81665370cba22c4e8bc75fbe82314089244d4b32278ee62c2c30d88ae811"
+          assert a["fifth_independent_EVAL128_permanently_consumed_run"]==43677179638
+          assert a["candidate_accepted"] is False and a["output_gate"]==0.
+          assert a["LIVE_Render_Supabase_APK_main_QA_TEST_unchanged"]
+          print("S3CE_TRAIN_ONLY_96_ORDER_PAIRS_SYMMETRIC_OBJECTIVE_READY_NO_EXTERNAL_SCORE",a["commitment_sha256"])
+          PY
+      - name: Archive immutable direction-order TRAIN-only objective protocol
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3ce-trainfit192-orderpaired96-objective-tests-zero-gate
+          path: results/nra2_stage3ce_order_paired_fit192_only/
+          retention-days: 90
+          if-no-files-found: error
