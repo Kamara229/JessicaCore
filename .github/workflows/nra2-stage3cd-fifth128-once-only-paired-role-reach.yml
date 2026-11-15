@@ -1,6 +1,8 @@
-name: NRA2 S3CD FIFTH untouched128 once-only real original CPU S3BA vs new S3BZ no retune
+name: NRA2 S3CD FIFTH one-time independent128 frozen S3BA S3BN S3BZ CPU roles and reachability
 'on':
   pull_request:
+    # S3CC CPU+gold FP16 physical SHA must be pinned BEFORE first evaluation.
+    # PR creation never triggers scoring: only later SHA-lock synchronize.
     types: [synchronize]
     branches:
       - research/calibri2-nra2-s3cc-fifth128-real43m-cpu-capture-20261115
@@ -44,7 +46,7 @@ jobs:
           done
           test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43675557570" --jq .head_branch)" = research/calibri2-nra2-s3cb-fifth-unseen128-prereg-20261115
           test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43674502209" --jq .head_branch)" = research/calibri2-nra2-s3bz-fit192-real-cpu-pair-replay-20261115
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43676015708" --jq .head_branch)" = research/calibri2-nra2-s3cc-fifth128-true43m-cpu-only-20261115
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43676015708" --jq .head_branch)" = research/calibri2-nra2-s3cc-fifth128-real43m-cpu-capture-20261115
           python - <<'PY'
           import torch,platform
           assert platform.machine()=="x86_64" and not torch.cuda.is_available()
@@ -53,14 +55,14 @@ jobs:
       - name: Load SEALED fifth S3CB completely unseen128 protocol SHA
         uses: actions/download-artifact@v4
         with:
-          name: nra2-stage3bu-fifth-independent128-prereg-only-no-cpu
+          name: nra2-stage3cb-fifth-independent128-graph-grammar-prereg-no-model
           run-id: '43675557570'
           github-token: ${{ github.token }}
           path: inputs/s3cb
       - name: Load genuinely frozen original43M CPU FIFTH untouched128 S3CC and original 616 J7
         uses: actions/download-artifact@v4
         with:
-          name: nra2-stage3bv-fifth-independent128-original43M-tokens320-J7-no-score
+          name: nra2-stage3cc-fifth-independent128-original43M-tokens320-J7-no-score
           run-id: '43676015708'
           github-token: ${{ github.token }}
           path: inputs/s3cc
@@ -81,7 +83,7 @@ jobs:
       - name: Lock new S3BZ physically verified TRAIN-only 2240 FP16 role head
         uses: actions/download-artifact@v4
         with:
-          name: nra2-stage3bt-semantic-directional-train2240-safe-fp16-zero-gate
+          name: nra2-stage3bz-fit192-replay2240-safe-fp16-zero-gate
           run-id: '43674502209'
           github-token: ${{ github.token }}
           path: inputs/s3bz
@@ -94,19 +96,19 @@ jobs:
           path: inputs/nra2
       - name: Validate one-time research code and independent fixed exact McNemar math without blind scoring
         run: |
-          python -m compileall -q research/nra2_bridge/stage3bw_fifth_once_only_s3ba_vs_joint_s3bz.py
+          python -m compileall -q research/nra2_bridge/stage3cd_fifth_once_only_s3ba_s3bn_s3bz.py
           python -m unittest -v research.nra2_bridge.test_stage3bh_mcnemar
       - name: S3CD ONCE ONLY evaluate frozen S3BA S3BN S3BZ on 128 fifth independent questions
         run: |
-          python -m research.nra2_bridge.stage3bw_fifth_once_only_s3ba_vs_joint_s3bz \
+          python -m research.nra2_bridge.stage3cd_fifth_once_only_s3ba_s3bn_s3bz \
             inputs/s3cc inputs/s3cb inputs/s3ba inputs/s3bn inputs/s3bz inputs/nra2 \
-            results/nra2_stage3bw_fifth128_once_only
+            results/nra2_stage3cd_fifth128_once_only
       - name: Verify independent new 128 report no model promotion or test tuning
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          r=json.loads(Path("results/nra2_stage3bw_fifth128_once_only/NRA2_S3CD_FIFTH_ONCE_ONLY128_S3BA_S3BN_S3BZ_NO_RETUNE.json").read_text())
+          r=json.loads(Path("results/nra2_stage3cd_fifth128_once_only/NRA2_S3CD_FIFTH_ONCE_ONLY128_S3BA_S3BN_S3BZ_NO_RETUNE.json").read_text())
           assert r["stage"]=="NRA2_S3CD_FIFTH_ONCE_ONLY_S3CB128_S3BA_VS_S3BN_VS_JOINT_S3BZ"
           assert r["S3CC_run"]==43676015708 and r["S3CB_prereg_successful_run"]==43675557570
           assert r["S3CC_original_CPU_token_fp16_sha256"]=="SHA256_PENDING_FINAL_S3CC_CAPTURE"
@@ -138,7 +140,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: nra2-stage3bw-fifth128-once-only-s3ba-vs-new-joint-s3bz
-          path: results/nra2_stage3bw_fifth128_once_only/
+          name: nra2-stage3cd-fifth128-once-only-s3ba-s3bn-s3bz
+          path: results/nra2_stage3cd_fifth128_once_only/
           retention-days: 90
           if-no-files-found: error
