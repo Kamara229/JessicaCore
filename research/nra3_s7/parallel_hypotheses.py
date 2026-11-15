@@ -54,7 +54,8 @@ def parallel_three_relations(*,
                              allowed:torch.Tensor,
                              valid:torch.Tensor,
                              semantic_role_logits:torch.Tensor,
-                             local_window:int=4)->ParallelRelationEvidence:
+                             local_window:int=4,
+                             selector_version:int=0)->ParallelRelationEvidence:
     """Three differentiable alternatives from ONE frozen neural forward.
 
     No random sampling and no hidden state modifying Calibri. Aggregation
@@ -71,6 +72,7 @@ def parallel_three_relations(*,
         allowed.shape!=(b,t,t) or allowed.dtype!=torch.bool or
         valid.shape!=(b,t) or valid.dtype!=torch.bool or
         not 1<=local_window<=t+1 or
+        selector_version not in (0,1,2) or
         query.device!=value.device or query.device!=scores.device or
         query.device!=semantic_role_logits.device or
         query.device!=allowed.device or query.device!=valid.device or
@@ -114,7 +116,43 @@ def parallel_three_relations(*,
     # No extra embedding/scorer matrices: branch scores are learned via the
     # existing paid rel_q/k/v and role_head upstream projections.
     agreement=(candidates*query.unsqueeze(2)).sum(dim=-1)/math.sqrt(r)
-    gates=F.softmax(agreement,dim=-1)
+    if selector_version==0:
+        # Preserves S7 original numerical path exactly, including its
+        # near-uniform branch weights. No hidden change to old model.
+        gate_logits=agreement
+    else:
+        # S8: amplify *measurable evidence*, not stochastic voting:
+        # - normalized alignment with existing paid relation query;
+        # - strong attention outside the local window for the global route;
+        # - concentration of local attention for the local route;
+        # - predicted complementary-role affinity for the semantic route.
+        # No new parameters. These scores are causal and differentiable
+        # through rel_q/k/v, role_head and all earlier NRA3 blocks.
+        normalized_query=F.normalize(query,dim=-1,eps=1e-5)
+        normalized_candidate=F.normalize(candidates,dim=-1,eps=1e-5)
+        cosine=(normalized_candidate*normalized_query.unsqueeze(2)).sum(-1)
+        far_valid=general_allowed & ~local_allowed
+        long_range_mass=(attn[:,:,0,:]*far_valid.float()).sum(-1)
+        local_peakedness=attn[:,:,1,:].square().sum(-1)
+        role_support=(attn[:,:,2,:]*affinity).sum(-1)
+        structural=torch.stack((2.0*long_range_mass,
+                                1.15*local_peakedness,
+                                3.0*role_support),dim=-1)
+        gate_logits=3.5*cosine+structural
+        # This is a small *bounded*, static temperature, not an untracked
+        # extra weight matrix or sample-specific learned calibration oracle.
+        gate_logits=gate_logits.clamp(-16.,16.)
+        if selector_version==2:
+            # S8b fail-closed debiasing: remove persistent global-vs-local
+            # calibration preference using ONLY the running *causal*
+            # history of this same already-visible prefix. No training
+            # labels, no additional learned parameters and no future leak.
+            # Avoids the S8-v1 tendency to pick GLOBAL for 63/66 words.
+            position=torch.arange(1,t+1,device=gate_logits.device,
+                                  dtype=torch.float32)[None,:,None]
+            causal_mean=gate_logits.cumsum(dim=1)/position
+            gate_logits=(2.5*(gate_logits-causal_mean)).clamp(-16.,16.)
+    gates=F.softmax(gate_logits,dim=-1)
     combined=(gates.unsqueeze(-1)*candidates).sum(dim=2)
     combined=combined.masked_fill(~valid.unsqueeze(-1),0.)
     gates=gates.masked_fill(~valid.unsqueeze(-1),0.)
