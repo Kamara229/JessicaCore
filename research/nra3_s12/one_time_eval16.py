@@ -42,7 +42,7 @@ from research.nra3_s12.heldout_ru_eval16 import (
     build_eval16,sealed_eval16,
 )
 
-S12B_EVAL16_EXPECTED_FP16_SHA="UNPINNED_EXPECTED_S12B_PHYSICAL_SHA"
+S12B_EVAL16_EXPECTED_FP16_SHA="c14026852521dc8958dc8f82ea8453d70529d23083833696da86182856723ed8"
 S11_ORIGINAL_39_FP16_SHA="05ce14e20c9f4e7e09f85dbd9bd46f0dc0a700d72f1a96ffa921b2e822f235c3"
 S8b_ORIGINAL_FROZEN_43_CB59_SHA="d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97"
 S11_IMMUTABLE_SUCCESS_RUN=43734571081
@@ -65,7 +65,7 @@ class SealedEvalSample:
 def load_real_frozen_eval16(hidden:Path,report:Path)->tuple[
                             tuple[SealedEvalSample,...],dict]:
     hidden=Path(hidden);report=Path(report)
-    guard(S12B_EVAL16_EXPECTED_FP16_SHA!="UNPINNED_EXPECTED_S12B_PHYSICAL_SHA",
+    guard(S12B_EVAL16_EXPECTED_FP16_SHA!="c14026852521dc8958dc8f82ea8453d70529d23083833696da86182856723ed8",
           "must commit genuine read-only S12b FP16 SHA BEFORE first eval")
     guard(hidden.is_file() and report.is_file(),"missing true physical S12b source")
     sha=hashlib.sha256(hidden.read_bytes()).hexdigest()
