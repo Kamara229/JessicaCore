@@ -109,7 +109,7 @@ def parallel_three_relations(*,
         (scores+3.0*affinity).masked_fill(~general_allowed,-1e4),
     ),dim=2) # [B,T,H=3,T]
     attn=F.softmax(masked,dim=-1)
-    candidates=attn@value.unsqueeze(2)  # [B,T,3,R], same shared values
+    candidates=attn@value[:,None,:,:]  # [B,T,3,R], same shared values
     # Compare each hypothesis against the SAME projected relation query.
     # No extra embedding/scorer matrices: branch scores are learned via the
     # existing paid rel_q/k/v and role_head upstream projections.
