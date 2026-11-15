@@ -64,7 +64,8 @@ def parallel_train_objective(area:NRA3NeuralArea,
     if packed:
         query=area.linear("rel_q",rel)
         keys=area.linear("rel_k",rel)
-        root_key=area.linear("rel_k",root)
+        # Original direct CB59 C kernel requires [N,R], not [R].
+        root_key=area.linear("rel_k",root.unsqueeze(0)).squeeze(0)
     else:
         query=area.rel_q(rel)
         keys=area.rel_k(rel)
