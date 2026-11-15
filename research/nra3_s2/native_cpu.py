@@ -241,7 +241,8 @@ class NRA3NativePackedCPU(nn.Module):
                 from research.nra3_s7.parallel_hypotheses import parallel_three_relations
                 evidence=parallel_three_relations(
                     query=q,value=v,scores=score,allowed=allowed,valid=valid,
-                    semantic_role_logits=role,local_window=min(4,t))
+                    semantic_role_logits=role,local_window=min(4,t),
+                    selector_version=self.config.parallel_selector_version)
                 message=evidence.message
                 parallel_gates=evidence.hypothesis_gates
             else:
