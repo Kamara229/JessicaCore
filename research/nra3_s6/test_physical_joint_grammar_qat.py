@@ -46,7 +46,7 @@ class PhysicallyPaidQATUnit(unittest.TestCase):
         n=10
         aligned=CausalAlignment(
             row.sha256(),n,tuple(range(100,100+n)),
-            tuple(AlignedWord(i+1,(i,),(i,)) for i in range(len(row.words))),
+            tuple(AlignedWord(i+1,(i,),i) for i in range(len(row.words))),
             n-1,
         )
         x=torch.randn(n,320)
