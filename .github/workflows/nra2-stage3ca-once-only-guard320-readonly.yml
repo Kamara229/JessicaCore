@@ -1,0 +1,112 @@
+name: NRA2 S3CA ONCE-ONLY read-only old-TRAIN guard320 original43M token diagnostic
+
+'on':
+  pull_request:
+    types: [opened]
+    branches:
+      - research/calibri2-nra2-s3bz-fit192-real-cpu-pair-replay-20261115
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: nra2-s3ca-once-only-after-physically-locked-s3bz-previously-used-guard320
+  cancel-in-progress: false
+
+jobs:
+  s3ca_once_only_previously_seen_train_guard320:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ca-guard320-once-only-physical-cpu-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install frozen CPU-only inference dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Confirm S3BZ physically sealed before diagnosing original TRAIN-only S3BX guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 43590032315 43645412996 43649375691 43674502209 43652631197 43674196810 43651233135; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$id" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43674502209" --jq .head_branch)" = research/calibri2-nra2-s3bz-fit192-real-cpu-pair-replay-20261115
+      - name: Genuine original 43M CPU S3BR TRAIN512 tokens (not new CPU or EVAL)
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3bs-new-directional-train512-original43M-tokens320-616J7
+          path: inputs/s3bs
+          run-id: '43649375691'
+          github-token: ${{ github.token }}
+      - name: Frozen S3BA baseline role head
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ba-role1536-replay1024-structural512-dev128-fp16-zero-gate
+          path: inputs/s3ba
+          run-id: '43590032315'
+          github-token: ${{ github.token }}
+      - name: Frozen pre-S3BR original S3BN joint head
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3bn-joint-semantic-pair-train2048-fp16-zero-gate
+          path: inputs/s3bn
+          run-id: '43645412996'
+          github-token: ${{ github.token }}
+      - name: Frozen S3BZ physical SAFE model (only 192 new FIT training + 2048 old replay)
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3bz-fit192-replay2240-safe-fp16-zero-gate
+          path: inputs/s3bz
+          run-id: '43674502209'
+          github-token: ${{ github.token }}
+      - name: Compile stage S3CA read-only guard diagnostic
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3ca_guard320_once_only_s3ba_s3bn_s3bz.py
+      - name: Exactly once score only 320 previously used TRAIN questions; never EVAL
+        run: |
+          python - <<'PY'
+          import torch,platform
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S3CA_ONE_TIME_ONLY_PREVIOUSLY_USED_320_TRAIN_DIAGNOSTIC_NOT_INDEPENDENT")
+          PY
+          python -m research.nra2_bridge.stage3ca_guard320_once_only_s3ba_s3bn_s3bz \
+            inputs/s3bs inputs/s3ba inputs/s3bn inputs/s3bz results/nra2_stage3ca_guard320
+      - name: Verify no acceptance and all guard groups balanced
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          f=Path("results/nra2_stage3ca_guard320/NRA2_S3CA_GUARD320_ONCE_DIAGNOSTIC_NO_RETUNE.json")
+          x=json.loads(f.read_text())
+          assert x["stage"]=="NRA2_S3CA_PREVIOUSLY_USED_TRAIN_ONLY_GUARD320_ONCE_DIAGNOSTIC"
+          assert {k:v["n"] for k,v in x["subsets"].items()}=={"grammar_guard":192,"topology_guard":64,"double_guard":64}
+          assert x["safe_new_S3BZ_FP16_sha256"]=="6084061cb1f9ea46ef3b504179bee09b392f4427ac52ec58d768645da98872ee"
+          assert x["model_weights_frozen_no_gradient_no_new_CPU_no_NEW_eval"]
+          assert x["three_guard_groups_NEVER_used_for_candidate_training_alpha_or_selection"]
+          assert x["diagnostic_guard_is_NOT_independent_evidence_of_generalization"]
+          assert x["fifth_independent_external128_required_for_future_quality_claim"]
+          assert not x["candidate_accepted"] and x["output_gate"]==0.
+          print("S3CA_PHYSICAL_PREVIOUSLY_USED_GUARD_DIAGNOSTIC_ONLY_ZERO_GATE",x["subsets"])
+          PY
+      - name: Archive immutable S3CA one-time TRAIN-only diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3ca-one-time-s3bx-previously-used-guard320-s3ba-s3bn-s3bz
+          path: results/nra2_stage3ca_guard320/
+          retention-days: 90
+          if-no-files-found: error
