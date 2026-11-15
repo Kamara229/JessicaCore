@@ -234,17 +234,27 @@ def main():
                     check=True)
     v2=NRA3NativePackedCPU(physical8,NRA3Config(
         parallel_hypotheses=3,parallel_selector_version=2),lib).eval()
+    # Fixed uniform-FP16 same-architecture control isolates learned
+    # 39-parameter route vs different S8b vs S11 local windows (4 vs 16).
+    null_physical=PaidThreeWayRouter().physical_bytes()
+    v3null=NRA3NativePackedCPU(physical8,NRA3Config(
+        parallel_hypotheses=3,parallel_selector_version=3),lib,
+        paid_router_physical=null_physical).eval()
     v3=NRA3NativePackedCPU(physical8,NRA3Config(
         parallel_hypotheses=3,parallel_selector_version=3),lib,
         paid_router_physical=physical11).eval()
     guard(not list(v2.parameters()) and
+          len([z for z in v3null.parameters()])==2 and
+          all(not z.requires_grad for z in v3null.parameters()) and
           len([z for z in v3.parameters()])==2 and
           all(not z.requires_grad for z in v3.parameters()) and
-          v2.source_sha256==v3.source_sha256==S8b_ORIGINAL_FROZEN_43_CB59_SHA
+          v2.source_sha256==v3.source_sha256==v3null.source_sha256==S8b_ORIGINAL_FROZEN_43_CB59_SHA
           and v2.native_cpu_weights_dense_resident is False
-          and v3.native_cpu_weights_dense_resident is False and
-          v2.output_gate==v3.output_gate==0 and
-          not v2.candidate_accepted and not v3.candidate_accepted,
+          and v3.native_cpu_weights_dense_resident is False
+          and v3null.native_cpu_weights_dense_resident is False and
+          v2.output_gate==v3.output_gate==v3null.output_gate==0 and
+          not v2.candidate_accepted and not v3.candidate_accepted
+          and not v3null.candidate_accepted,
           "actual native C original 43 packed matrix C source must be immutable")
     # Forward BEFORE reading any EVAL labels, on all 16 prompts.
     predictions=[]
@@ -268,7 +278,7 @@ def main():
                   torch.equal(a.semantics,b.semantics) and
                   torch.equal(a.upos_logits,b.upos_logits) and
                   torch.equal(a.semantic_role_logits,b.semantic_role_logits) and
-                  torch.equal(a.dep_logits,b.dep_logits),
+                  torch.equal(a.dependency_logits,b.dependency_logits),
                   "S11 changed upstream grammar or semantic heads unexpectedly")
             pos_a=pure_inference_word_grammar_score(v2,a,sample.aligned)
             pos_b=pure_inference_word_grammar_score(v3,b,sample.aligned)
