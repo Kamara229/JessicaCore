@@ -153,15 +153,15 @@ class GuardTests(unittest.TestCase):
         workflow = (Path(__file__).resolve().parents[2] / ".github" / "workflows" /
                     "nra2-stage3ci-sixth128-once-only-paired-role-reach.yml")
         source = workflow.read_text(encoding="utf-8")
-        triggers = source.split("'on':\\n", 1)[1].split("\\npermissions:", 1)[0]
+        triggers = source.split("'on':\n", 1)[1].split("\npermissions:", 1)[0]
         trigger_keys = [line for line in triggers.splitlines()
                         if line.startswith("  ") and not line.startswith("    ")
                         and line.endswith(":")]
         self.assertEqual(trigger_keys, ["  pull_request:"])
         self.assertIn("    types: [synchronize]", triggers)
-        self.assertIn("    branches:\\n      - " + BASE, triggers)
+        self.assertIn("    branches:\n      - " + BASE, triggers)
         self.assertEqual(triggers.count("      - " + BASE), 1)
-        jobs = source.split("\\njobs:\\n", 1)[1]
+        jobs = source.split("\njobs:\n", 1)[1]
         job_keys = [line for line in jobs.splitlines()
                     if line.startswith("  ") and not line.startswith("    ")
                     and line.endswith(":")]
