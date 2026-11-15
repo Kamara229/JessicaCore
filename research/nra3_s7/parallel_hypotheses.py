@@ -45,6 +45,7 @@ class ParallelRelationEvidence:
     hypothesis_gates:torch.Tensor    # [B,T,3] selected soft mixture
     hypothesis_attentions:torch.Tensor  # [B,T,3,T] causal support
     hypothesis_messages:torch.Tensor   # [B,T,3,R]
+    router_features:torch.Tensor|None=None  # S11 [B,T,12] causally computed
 
 
 def parallel_three_relations(*,
@@ -55,7 +56,8 @@ def parallel_three_relations(*,
                              valid:torch.Tensor,
                              semantic_role_logits:torch.Tensor,
                              local_window:int=4,
-                             selector_version:int=0)->ParallelRelationEvidence:
+                             selector_version:int=0,
+                             paid_router=None)->ParallelRelationEvidence:
     """Three differentiable alternatives from ONE frozen neural forward.
 
     No random sampling and no hidden state modifying Calibri. Aggregation
@@ -72,7 +74,7 @@ def parallel_three_relations(*,
         allowed.shape!=(b,t,t) or allowed.dtype!=torch.bool or
         valid.shape!=(b,t) or valid.dtype!=torch.bool or
         not 1<=local_window<=t+1 or
-        selector_version not in (0,1,2) or
+        selector_version not in (0,1,2,3) or
         query.device!=value.device or query.device!=scores.device or
         query.device!=semantic_role_logits.device or
         query.device!=allowed.device or query.device!=valid.device or
@@ -82,6 +84,13 @@ def parallel_three_relations(*,
         not bool(torch.isfinite(semantic_role_logits).all()) or
         not bool(valid[:,0].all())):
         raise ValueError("NRA3 S7 parallel relation CPU/full-sequence ABI drift")
+    if selector_version==3:
+        from research.nra3_s11.paid_router import PaidThreeWayRouter
+        if (not isinstance(paid_router,PaidThreeWayRouter) or
+            paid_router.output_gate!=0 or paid_router.candidate_accepted):
+            raise ValueError("S11 causal route requires physically registered paid router")
+    elif paid_router is not None:
+        raise ValueError("S11 paid router cannot change S7 or S8 sources")
     expected=torch.tril(torch.ones(t,t,dtype=torch.bool,
                                    device=valid.device))[None] & valid[:,None,:]
     if not torch.equal(allowed,expected):
@@ -116,6 +125,7 @@ def parallel_three_relations(*,
     # No extra embedding/scorer matrices: branch scores are learned via the
     # existing paid rel_q/k/v and role_head upstream projections.
     agreement=(candidates*query.unsqueeze(2)).sum(dim=-1)/math.sqrt(r)
+    router_features=None
     if selector_version==0:
         # Preserves S7 original numerical path exactly, including its
         # near-uniform branch weights. No hidden change to old model.
@@ -142,6 +152,25 @@ def parallel_three_relations(*,
         # This is a small *bounded*, static temperature, not an untracked
         # extra weight matrix or sample-specific learned calibration oracle.
         gate_logits=gate_logits.clamp(-16.,16.)
+        # S11 causal 12D router features: predicted relations only;
+        # no construction family, UD label or target enters inference.
+        message_energy=candidates.norm(dim=-1).div(math.sqrt(r)).clamp(0.,4.)
+        local_difference=1.0-F.cosine_similarity(
+            candidates[:,:,0,:],candidates[:,:,1,:],dim=-1,eps=1e-5)
+        position=torch.arange(1,t+1,device=query.device,dtype=torch.float32)
+        # Fixed bounded token-position encoding: never normalize by final T,
+        # since final T would leak future prefix length into earlier routes.
+        visible_age=(position.log1p()/math.log(256.)).clamp(0.,1.)
+        visible_age=visible_age[None,:,None].expand(b,-1,-1)
+        role_entropy=-(role_prob*role_prob.clamp_min(1e-8).log()).sum(-1)
+        role_entropy=(role_entropy/math.log(len(SEMANTIC_ROLES))).unsqueeze(-1)
+        router_features=torch.cat((cosine,structural,message_energy,
+                                   local_difference.unsqueeze(-1),
+                                   visible_age,role_entropy),dim=-1)
+        if router_features.shape!=(b,t,12):
+            raise AssertionError("S11 causal 12D router feature ABI changed")
+        if selector_version==3:
+            gate_logits=paid_router(router_features).clamp(-16.,16.)
         if selector_version==2:
             # S8b fail-closed debiasing: remove persistent global-vs-local
             # calibration preference using ONLY the running *causal*
@@ -162,4 +191,8 @@ def parallel_three_relations(*,
         not bool(torch.isfinite(gates).all()) or
         not bool(torch.isfinite(attn).all())):
         raise AssertionError("NRA3 S7 nonfinite parallel relation hypothesis")
-    return ParallelRelationEvidence(combined,gates,attn,candidates)
+    if router_features is not None:
+        router_features=router_features.masked_fill(~valid.unsqueeze(-1),0.)
+        if not bool(torch.isfinite(router_features).all()):
+            raise ValueError("S11 nonfinite causal router evidence")
+    return ParallelRelationEvidence(combined,gates,attn,candidates,router_features)
