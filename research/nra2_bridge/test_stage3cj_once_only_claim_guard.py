@@ -2,7 +2,7 @@
 import unittest
 
 from research.nra2_bridge.stage3cj_once_only_claim_guard import (
-    ARM_TOKEN, HEAD, PR, REPO, ClaimDenied, claim_once,
+    ARM_TOKEN, BASE, HEAD, PR, REPO, ClaimDenied, claim_once,
 )
 
 
@@ -18,7 +18,9 @@ class GuardTests(unittest.TestCase):
         }
         self.event = {
             "action": "synchronize", "pull_request": {
-                "number": PR, "head": {
+                "number": PR, "base": {
+                    "ref": BASE, "repo": {"full_name": REPO}
+                }, "head": {
                     "ref": HEAD, "sha": self.sha,
                     "repo": {"full_name": REPO}
                 }
@@ -87,6 +89,23 @@ class GuardTests(unittest.TestCase):
         env = dict(self.env, GITHUB_RUN_ATTEMPT="2")
         with self.assertRaises(ClaimDenied):
             claim_once(env, self.event, lambda *_: 201)
+
+
+    def test_wrong_base_branch_or_repository_denied_before_api(self):
+        """Offline: only the intended S3CH base may claim the one-time tag."""
+        def never_call(*_):
+            raise AssertionError("GitHub API must not be called for wrong base")
+        for malformed in (
+            {"ref": BASE + "-wrong", "repo": {"full_name": REPO}},
+            {"ref": BASE, "repo": {"full_name": "another/repo"}},
+            {"ref": BASE},
+            {},
+        ):
+            with self.subTest(malformed=malformed):
+                event = dict(self.event)
+                event["pull_request"] = dict(self.event["pull_request"], base=malformed)
+                with self.assertRaises(ClaimDenied):
+                    claim_once(self.env, event, never_call)
 
     def test_wrong_pr_or_branch_denied(self):
         bad = {"action": "synchronize", "pull_request": {
