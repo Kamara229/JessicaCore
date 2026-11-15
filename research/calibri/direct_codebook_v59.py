@@ -43,12 +43,13 @@ def pack5(ids):
         word|=blocks[:,k] << np.uint64(k*5)
     packed=np.column_stack([(word >> np.uint64(8*j))&255
                             for j in range(5)]).astype(np.uint8).tobytes()
-    if len(packed)!=(n*BITS+7)//8:
-        # 8-index groups pad to byte/5-byte boundary: this comparison
-        # only holds if n is divisible by eight.
-        if n%8==0:
-            raise AssertionError("5-bit source index packing wrong")
-    return packed
+    # CB59 legacy matrices are eight-index-aligned; NRA3 supports
+    # every logical 5bit index count without charging fake pad bytes.
+    # For n%8==0, the original archive bytes remain bit-for-bit unchanged.
+    expected=(n*BITS+7)//8
+    if len(packed)<expected:
+        raise AssertionError("5-bit source index packing underflow")
+    return packed[:expected]
 
 
 def unpack5(data,n):
@@ -141,7 +142,7 @@ def compress_matrix(w,blockrows=256):
     c=centers.astype(np.float32)
     center_norm=np.sum(c*c,axis=1)
     g=n//VECTOR
-    chunks=[]
+    code_chunks=[]
     lost=0.
     original_energy=0.
     for start in range(0,m,blockrows):
@@ -160,10 +161,14 @@ def compress_matrix(w,blockrows=256):
         diff=q.reshape(end-start,g,VECTOR)-decoded
         lost+=float(np.sum(diff.astype(np.float64)**2))
         original_energy+=float(np.sum(q.astype(np.float64)**2))
-        chunks.append(pack5(choice))
+        code_chunks.append(choice)
     if not original_energy>0:
         raise AssertionError("zero-only pretrained matrix not meaningful as source")
-    return {"packed":b"".join(chunks),
+    # Pack full logical stream once: per-chunk padding shifts later codes.
+    packed=pack5(np.concatenate(code_chunks))
+    if len(packed)!=(m*n//VECTOR*BITS+7)//8:
+        raise AssertionError("incorrect whole-matrix CB59 bit length")
+    return {"packed":packed,
             "row_scales":scales.tobytes(),
             "centroids":centers.tobytes(),
             "num_vectors":m*g,
@@ -172,7 +177,7 @@ def compress_matrix(w,blockrows=256):
             "relative_RMSE":math.sqrt(lost/original_energy),
             "squared_error":lost,
             "source_squared_energy":original_energy,
-            "actual_5bit_bytes":sum(len(chunk) for chunk in chunks)}
+            "actual_5bit_bytes":len(packed)}
 
 
 def encode(source):
