@@ -10,14 +10,21 @@ from pathlib import Path
 
 from research.nra2_bridge.stage3bx_blocked_family_topology_protocol import (
     split_data, validate_splits, PRE_S3BR_PARENT_SHA, REJECTED_S3BT_SHA,
-    OLD_S3BR_SHA, require,
+    OLD_S3BR_SHA, require, protocol,
 )
+from research.nra2_bridge.stage3br_relation_language_train512_prereg import SPLIT as S3BR_TRAIN
+from research.nra2_bridge.stage3m_role_balanced_graph_data import GraphPrompt
+
+S3BX_COMMITMENT_SHA = "f020319c9cfaa39becb03dca1aed90debf25632a90737707b0c1ff1aaa7ce6ee"
 
 
 class FitOnlyGate:
     def __init__(self):
         groups = split_data()
         validate_splits(groups)
+        require(protocol(groups)["commitment_sha256"] == S3BX_COMMITMENT_SHA,
+                "physically sealed S3BX data partition changed")
+        self.expected = {r.prompt_sha256:r for r in groups["fit"]}
         self.allowed = frozenset(r.prompt_sha256 for r in groups["fit"])
         self.denied = frozenset(
             r.prompt_sha256 for name in ("grammar_guard", "topology_guard", "double_guard")
@@ -30,7 +37,8 @@ class FitOnlyGate:
     def verify_parent(self, physical_fp16_path: str | Path):
         p = Path(physical_fp16_path)
         require(p.is_file() and not p.is_symlink(), "parent FP16 missing or symlink")
-        digest = hashlib.file_digest(p.open("rb"), "sha256").hexdigest()
+        with p.open("rb") as f:
+            digest = hashlib.file_digest(f, "sha256").hexdigest()
         require(digest != REJECTED_S3BT_SHA, "rejected S3BT parent")
         require(digest == PRE_S3BR_PARENT_SHA, "S3BN physical FP16 SHA mismatch")
         self.parent_verified = True
@@ -47,8 +55,9 @@ class FitOnlyGate:
                     "missing prompt SHA")
             require(digest in self.allowed and digest not in self.denied,
                     "guard, EVAL or unknown sample attempted optimizer entry")
-            require(getattr(row, "split", None) is not None,
-                    "sample missing original TRAIN split")
+            require(type(row) is GraphPrompt and row.split == S3BR_TRAIN
+                    and row == self.expected[digest],
+                    "sample metadata or original TRAIN split does not match SHA-pinned row")
             digests.append(digest)
         require(len(digests) == len(set(digests)), "duplicate within minibatch")
         return tuple(rows)
