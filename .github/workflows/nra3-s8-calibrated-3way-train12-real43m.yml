@@ -1,0 +1,125 @@
+name: NRA2 3.0 S8 calibrated 3way selector physically paid real43M TRAIN12
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-nra3-s7-three-parallel-relation-hypotheses-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s8-calibrated-selector-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  native_CB59_S8_3way_train:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s8-calibrated-relation-selector-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate original parent S5 and trained CB59 S7 source SHA/run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43699866531 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43699866531 --jq .head_sha)" = "5a732097ad3d1001a483a425557fa4efa0a784d3"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43710668076 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43710668076 --jq .head_sha)" = "ab94c132a054143624bd19ef455a6a647cb6ba67"
+          echo S8_PREVIOUS_TRUE_43M_AND_CB59_SOURCE_RUN_PINNED
+      - name: Install pinned original Calibri 5-bit CPU research dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'tokenizers==0.20.3' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: No extra params, true three-branch calibration, past-only weak labels, actual packed-C objective parity
+        run: |
+          python -m unittest -v research.nra3_s8.test_calibrated_selector
+      - name: Protect old S7 native 3way, prior codebook physical and role path unchanged
+        run: |
+          python -m unittest -v research.nra3_s7.test_parallel_hypotheses
+      - name: Download verified original Calibri S5 REAL frozen post-GT layer8 Russian TRAIN12
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s5-frozen-real43M-CPU-layer8-ru-train12-tokens320-616J7-zero-gate
+          run-id: 43699866531
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s5
+      - name: Download verified original NRA3 S7 physical CB59 and S61 TRAIN only
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s7-parallel-3-shared-relation-physical-CB59-S61-trainonly
+          run-id: 43710668076
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s7
+      - name: Real source byte hashes: fail closed before ANY training
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          a=Path("inputs/nra3_s5")
+          b=Path("inputs/nra3_s7")
+          prior=a/"NRA3_S5_REAL_43M_LAYER8_RU_TRAIN12_HIDDEN320_FP16.safetensors"
+          source=b/"NRA3_S7_THREE_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59"
+          report=json.loads((b/"NRA3_S7_PARALLEL_RELATIONS_RU12_TRAIN_PHYSICAL_REPORT.json").read_text())
+          assert hashlib.sha256(prior.read_bytes()).hexdigest()=="ba04d54d399419ec857d01b8401af868213a7f8b2c219d384986b8cd08b1ba1f"
+          assert hashlib.sha256(source.read_bytes()).hexdigest()=="a51a2984b422d188c8b4d0f67ab9dd10c52760923a8dfd2187bd1f1d57325641"
+          assert report["CB59_trained_sha256"]=="a51a2984b422d188c8b4d0f67ab9dd10c52760923a8dfd2187bd1f1d57325641"
+          assert report["candidate_accepted"] is False and report["output_gate"]==0
+          assert report["sixth_reserved_S3CI_EVAL128_untouched"] is True
+          print("S8_PINNED_TRUE_43M_LOCKED_RU_TRAIN12_ONLY",flush=True)
+          PY
+      - name: Actual S8 3way selector QAT using original 43M CPU representations and original paid matrices
+        run: |
+          python -m research.nra3_s8.real43m_calibrated_train12 \
+            --s5-hidden inputs/nra3_s5/NRA3_S5_REAL_43M_LAYER8_RU_TRAIN12_HIDDEN320_FP16.safetensors \
+            --s5-report inputs/nra3_s5/NRA3_S5_REAL_CPU_43M_LAYER8_TRAIN12_J7_REPORT.json \
+            --s7-cb59 inputs/nra3_s7/NRA3_S7_THREE_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59 \
+            --s7-report inputs/nra3_s7/NRA3_S7_PARALLEL_RELATIONS_RU12_TRAIN_PHYSICAL_REPORT.json \
+            --out results/nra3_s8
+      - name: Validate complete actual 5bit CB59 physical source, nonuniform router and zero gate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          from direct_codebook_v59 import CB59
+          from research.nra3_s1.entropy_envelope import restore_lossless_cb59
+          root=Path("results/nra3_s8")
+          r=json.loads((root/"NRA3_S8_CALIBRATED_ROUTER_RU12_TRAIN_PHYSICAL_REPORT.json").read_text())
+          a=(root/r["CB59_filename"]).read_bytes()
+          b=(root/r["S61_filename"]).read_bytes()
+          assert hashlib.sha256(a).hexdigest()==r["CB59_trained_sha256"]
+          assert hashlib.sha256(b).hexdigest()==r["S61_trained_sha256"]
+          assert restore_lossless_cb59(b)==a
+          assert len(a)==r["CB59_original_bytes"]==653798
+          assert CB59(a).meta["original_unique_parameter_count"]==6_106_154
+          assert r["hypothesis_count"]==3 and r["extra_paid_trainable_parameters_added_for_parallel_hypotheses"]==0
+          assert r["original_5bit_code_indices_unchanged"] and r["old_1d_physical_source_unchanged"]
+          assert r["selector_uses_no_inference_gold"] and r["selection_target_heuristic_is_training_only"]
+          assert len([x for x in r["selector_train_actual_word_target_counts"].values() if x>0])==3
+          assert r["after_train12_multitask_loss"]<r["before_train12_multitask_loss"]
+          assert r["candidate_accepted"] is False and r["output_gate"]==0
+          assert r["selector_real_independent_quality_gain_proven"] is False
+          assert r["full_answer_EOS_unseen_generalization_measured"] is False
+          assert r["actual_Calibri_GT_NRA_inclusive_bpp_certified"] is False
+          assert r["old_five_consumed_EVAL128_untouched"] is True
+          assert r["sixth_reserved_S3CI_EVAL128_untouched"] is True
+          print("S8_TRIPLE_EVIDENCE_CALIBRATION_REAL_TRAIN12_ONLY_NO_HOLDOUT_NO_PROMOTION",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s8-adaptive-calibrated-3way-physical-CB59-S61-realRU12-trainonly
+          path: results/nra3_s8/
+          retention-days: 30
+          if-no-files-found: error
