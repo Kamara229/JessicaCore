@@ -52,6 +52,7 @@ jobs:
           report=json.loads((root/"NRA3_S9_RUSSIAN_UD_TRAIN72_ONLY_PREREG.json").read_text())
           raw=canonical_train72(build_s9_train72())
           assert hashlib.sha256(raw).hexdigest()==report["canonical_train72_sha256"]
+          assert report["canonical_train72_sha256"]=="b09d60a77a17d30c2dbf846e40ab97860def8635e2bf31a5b0ab8981832b744d"
           assert report["source_rows"]==72 and report["lexical_families"]==12
           assert len(report["constructions"])==6
           assert all(v==12 for v in report["rows_per_construction"].values())
