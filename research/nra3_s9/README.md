@@ -28,3 +28,8 @@ The five previously consumed independent EVAL128 tests and **the reserved sixth 
 S10: obtain genuine frozen Calibri 43M CPU S93 post-GT layer-8 hidden320 for the new SHA-pinned 72 TRAIN texts (never gold); verify original 616 J7 unchanged. Then design a small **physically accounted** trainable branch router inside NRA3 and train it with balanced supervision on diverse examples. The existing S8 static gate is rejected; neither zero-gate nor old accepted skills may be changed until a truly new heldout evaluation demonstrates quality gains and the whole model meets physical <=0.7 bpp and CPU >=90%.
 
 No main/LIVE/Render/Supabase/APK changes; no model acceptance. output_gate=0, candidate_accepted=false.
+
+
+## S9 physical TRAIN72 SHA pinned
+
+GitHub Actions #43731830508 completed SUCCESS with 20/20 offline contract/regression tests and uploaded artifact #14168602999 `NRA3_S9_RUSSIAN_UD_TRAIN72_SHA_ANNOTATED_SOURCE_ONLY_NO_EVAL`. Original canonical SHA of the **entire 72-row Russian UD TRAIN source including every lemma, morphology, dependency, semantic role and lexical family**: `b09d60a77a17d30c2dbf846e40ab97860def8635e2bf31a5b0ab8981832b744d`. The source is now fail-closed SHA-pinned. This is still new, templated TRAIN **not** heldout and **not** a deployed or accepted Russian model. A future source edit requires a new training version and a separate SHA commitment.
