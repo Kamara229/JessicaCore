@@ -29,7 +29,7 @@ _PAIR=frozenset(tuple(sorted((a,b))) for a,b in _ROLE_EDGES)
 
 def train_only_causal_branch_targets(
         row:RussianTrainSentence, aligned:CausalAlignment,
-        *,local_window:int=4)->torch.Tensor:
+        *,local_window:int=16)->torch.Tensor:
     """One heuristic branch target per completed UD word, with no label leak.
 
     Targets are calculated ONLY in the optimizer's loss and MUST NOT enter
@@ -42,7 +42,7 @@ def train_only_causal_branch_targets(
         aligned.independent_eval_labels_loaded or
         aligned.original_prompt_sha256!=row.sha256() or
         len(row.words)!=len(row.roles)!=len(aligned.word_alignment) or
-        not 1<=local_window<=4 or
+        not 1<=local_window<=16 or
         aligned.complete_prefix_position!=aligned.tokenizer_token_count-1):
         raise ValueError("S8 branch supervision rejects unregistered TRAIN/offsets")
     pos=[w.last_token for w in aligned.word_alignment]
