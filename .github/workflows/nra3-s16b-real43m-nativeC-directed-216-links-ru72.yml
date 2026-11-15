@@ -149,7 +149,24 @@ jobs:
           assert r["S16b_physical_step_schedule"]==[0,25,50,75,100,125,150,175,200]
           assert len(r["S16b_all_precommitted_FP16_checkpoints"])==9
           assert r["S16b_selected_because_of_TRAIN_only"]
+          # Independent second CPU run must reproduce FIRST successful
+          # original43M 72 TRAIN / 216 role-link physical FP16 byte-for-byte.
+          # Pin from SUCCESS run #43758694264 BEFORE any subsequent fresh EVAL.
+          first_run_sha="3fe4bbce718e53e4e812e94367ce25834f873cbed646479c59b1e3949d2ecf38"
+          assert r["S16b_selected_TRAIN_only_FP16_step"]==200
+          assert r["S16b_selected_TRAIN_only_FP16_SHA"]==first_run_sha
+          assert hashlib.sha256(physical).hexdigest()==first_run_sha
           f=r["S16b_selected_TRAIN_only_metrics"]["all_two_direction_wordpair_exact_role"]
+          assert f["exact_directed_role_true_positive"]==181
+          assert f["gold_links"]==216 and f["predicted_positive"]==202
+          assert f["false_positive"]==21 and f["false_negative"]==35
+          assert abs(f["precision"]-0.8960396039603961)<1e-9
+          assert abs(f["recall"]-0.8379629629629629)<1e-9
+          assert abs(f["f1"]-0.8660287081339713)<1e-9
+          assert r["S16b_total_directed_wordpair_candidates"]==1920
+          assert r["S16b_actual_direction_counts"]=={
+              "predicate_now":960,"argument_now":960}
+          assert r["S16b_selected_TRAIN_only_metrics"]["per_role"]["SOURCE"]["gold"]==12
           assert 0<=f["f1"]<=1 and 0<=f["precision"]<=1 and 0<=f["recall"]<=1
           assert f["gold_links"]==216
           assert r["S16b_separate_future_NEW_independent_Russian_EVAL_performed"] is False
