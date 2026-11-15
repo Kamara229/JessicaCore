@@ -21,9 +21,9 @@ from research.nra2_bridge.stage3ck_russian_ud_role_bridge import (
 from research.nra3_s0.neural_area import MORPH, SEMANTIC_ROLES, UPOS
 
 TRAIN_SPLIT="NRA3_S4_RU_UD_TRAIN_ONLY"
-# Physically obtained from independent S4 CI #43697781426; immutable TRAIN-only
+# Physically obtained from S4 CPU CI #43698097398; immutable TRAIN-only
 # annotation+offset canonical digest. Any edits require a NEW research stage.
-TRAIN12_CANONICAL_SHA256=""
+TRAIN12_CANONICAL_SHA256="6ee1f270d413f4cfc79727bd48386ee29881520fcf6834309869733fd00f7a61"
 # (surface, UPOS, head, deprel, morphological-features, semantic role)
 Spec=tuple[str,str,int,str,tuple[str,...],str]
 
@@ -220,10 +220,9 @@ def commitment(rows:tuple[RussianTrainSentence,...])->dict:
     serialized=json.dumps(canonical,sort_keys=True,ensure_ascii=False,
                           separators=(",",":")).encode("utf-8")
     digest=hashlib.sha256(serialized).hexdigest()
-    # First prereg regenerate revised full UD lemma commitment in CI.
-    # A follow-up SHA-pinned commit will lock this exact manifest before
-    # any permitted real-source language training.
-    if TRAIN12_CANONICAL_SHA256 and digest!=TRAIN12_CANONICAL_SHA256:
+    # Immutable complete source was verified by independent S4 CPU CI
+    # #43698097398. Any future alteration needs a NEW research stage.
+    if digest!=TRAIN12_CANONICAL_SHA256:
         raise ValueError("S4 immutable TRAIN12 annotation SHA changed")
     return {
       "stage":"NRA3_S4_HAND_ANNOTATED_RUSSIAN_UD_TRAIN_ONLY",
