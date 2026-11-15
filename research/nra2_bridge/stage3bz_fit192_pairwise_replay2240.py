@@ -487,6 +487,41 @@ def main():
         inputs.append((normalize(tt,mean,scale,tm),tm,q,src,dst))
     require(sum(len(g[0]) for g in inputs)==2240,
             "S3BZ must be 2048 historical plus 192 fit-only NEW TRAIN, NO EVAL")
+    # S3CA: bind every optimizer input to its sealed TRAIN-only prompt SHA.
+    # Validate the complete 2048+192 input manifest, not just S3BY fit192.
+    expected_groups=tuple(tuple(r.prompt_sha256 for r in rows) for rows in source_rows)
+    denied_hashes=forbid | {
+        r.prompt_sha256 for key, subset in blocked.items() if key != "fit"
+        for r in subset
+    }
+    expected_flat=[h for group in expected_groups for h in group]
+    require(len(expected_flat)==2240 and len(set(expected_flat))==2240
+            and not (set(expected_flat)&denied_hashes),
+            "S3CA TRAIN2240 SHA allowlist/denylist collision")
+    def verify_all_optimizer_inputs(groups, tensors):
+        require(len(groups)==7 and len(tensors)==7,
+                "S3CA wrong optimizer group count")
+        seen=[]
+        for i,(rows,batch,expected) in enumerate(zip(groups,tensors,expected_groups)):
+            actual=tuple(r.prompt_sha256 for r in rows)
+            require(actual==expected and len(batch[0])==len(expected),
+                    f"S3CA optimizer group {i} SHA/order/tensor-count drift")
+            seen.extend(actual)
+        require(len(seen)==2240 and len(set(seen))==2240
+                and not (set(seen)&denied_hashes),
+                "S3CA forbidden/duplicate TRAIN SHA in optimizer")
+    verify_all_optimizer_inputs(source_rows,inputs)
+    # Negative controls must fail before any optimizer is constructed or stepped.
+    for poison in (next(iter(denied_hashes)), "0"*64):
+        poisoned=[list(rows) for rows in source_rows]
+        from types import SimpleNamespace
+        poisoned[0][0]=SimpleNamespace(prompt_sha256=poison)
+        try:
+            verify_all_optimizer_inputs(poisoned,inputs)
+        except (AssertionError,RuntimeError,ValueError):
+            pass
+        else:
+            raise RuntimeError("S3CA FAIL CLOSED negative optimizer SHA control failed")
     original_graph={k:v.detach().clone() for k,v in model.graph.state_dict().items()}
     original_teacher={k:v.detach().clone() for k,v in model.query.base.state_dict().items()}
     new_params=[p for p in model.query.parameters() if p.requires_grad]
@@ -553,7 +588,8 @@ def main():
     trace=[]
     for step in range(STEPS):
         model.train()
-        gate.minibatch(new_rows)  # EVERY optimizer step: forbid all guard320 / old EVAL
+        gate.minibatch(new_rows)  # S3BY fit-only parent gate
+        verify_all_optimizer_inputs(source_rows,inputs)  # S3CA all 2240 before optimizer.step()
         optimizer.zero_grad(set_to_none=True)
         loss,parts,teacher_kl,symmetry=aggregate()
         require(bool(torch.isfinite(loss)), "nonfinite TRAIN-only curriculum loss")
