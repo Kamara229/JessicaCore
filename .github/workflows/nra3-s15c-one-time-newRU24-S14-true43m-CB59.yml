@@ -1,0 +1,159 @@
+name: NRA2 3.0 S15c one-time frozen S14 vs S11 on new original43M CPU Russian EVAL24
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s15b-original43m-eval24-readonly-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s15c-ONCE-frozen-newRU24-original43m-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  true_frozen_original43M_ru24_first_once_full_nativeC_eval:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s15c-once-newru24-frozen-s14-true43m-eval-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONHASHSEED: '315024'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: REQUIRE S14 physical frozen before NEW EVAL24 SHA prereg before S15b real original 43M CPU only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43740415883 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43740415883 --jq .head_sha)" = ab95483ef5dc985b8a32941163fb248bc9640ef3
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43741334688 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43741334688 --jq .head_sha)" = 46f18f003fd13ddc0adf6300b0b7dff9d666be1f
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43742040678 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43742040678 --jq .head_sha)" = 6dd95d375432b8a64f474e9d57c916f5e8bf82e2
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43734571081 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43731085988 --jq .conclusion)" = success
+          echo S15C_24_NEW_PRECOMMITTED_ORIGINAL43M_GT_READONLY_PHYSICAL_PRE_FROZEN_S14_MODEL
+      - name: Original Calibri native CB59 and physically FP16 rank8 CPU exact dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface_hub==0.27.1'
+      - name: BEFORE 24 EVAL model scoring test frozen source, SHA and strictly causal no-future-head gold selection
+        run: |
+          python -m compileall -q research/nra3_s15 research/nra3_s13
+          python -m unittest -v research.nra3_s15.test_one_time_frozen_s14_eval24 research.nra3_s15.test_real_eval24_alignment research.nra3_s13.test_paid_relation_feedback
+      - name: Download original genuinely frozen Calibri43M native CPU post-GT layer8 24 new raw EVAL prompt FP16 only
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s15b-TRUE43M-nativeCPU-616J7-newRU24-afterGT-layer8-EVAL-hidden-only
+          run-id: 43742040678
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s15b
+      - name: Download exact frozen S14 previously accepted only on TRAIN-internal 2,581 FP16, never retune
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s14-original43M-48TRAIN24internal-hard-margin-uposlocked-FP16-physical-noEval
+          run-id: 43740415883
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s14
+      - name: Download original frozen 43 real packed C CB59 matrices from original S8b
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s8-adaptive-calibrated-3way-physical-CB59-S61-realRU12-trainonly
+          run-id: 43731085988
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s8b
+      - name: Download original prior frozen 39 physical FP16 3-hypothesis routing head
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s11-real43M-ru72-39param-FP16-paid-router-native-C-trainonly
+          run-id: 43734571081
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s11
+      - name: BEFORE any native EVAL forward SHA verify all original physical S14/S11/43CB59 and 24 real43M protected data
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          from safetensors.torch import load_file
+          from research.nra3_s15.one_time_frozen_s14_eval24 import (
+            S15B_TRUE43M_HIDDEN_FP16_SHA,S14_PAID_FP16_SHA,S11_ROUTER_SHA,S8B_CB59_SHA,read_frozen_original43m_eval24,physical_sources
+          )
+          inp=Path("inputs")
+          src=inp/"nra3_s15b/NRA3_S15B_REAL_43M_LAYER8_RU_EVAL24_HIDDEN320_FP16.safetensors"
+          rep=inp/"nra3_s15b/NRA3_S15B_REAL_CPU_43M_LAYER8_EVAL24_J7_REPORT.json"
+          packed=inp/"nra3_s8b/NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59"
+          router=inp/"nra3_s11/NRA3_S11_TINY_PAID_RUSSIAN_TRAIN72_CAUSAL_3WAY_SELECTOR_FP16.n3r11"
+          adapter=inp/"nra3_s14/NRA3_S14_INTERNAL_DEVELOPMENT_SELECTED_NOT_INDEPENDENT_FP16.n3s13"
+          samples,origin=read_frozen_original43m_eval24(src,rep)
+          fb=physical_sources(packed.read_bytes(),router.read_bytes(),adapter.read_bytes())
+          assert len(samples)==24 and all(s.hidden320.ndim==2 and s.hidden320.shape[1]==320 for s in samples)
+          assert origin["all_616_native_CPU_generated_token_digests_unchanged"] is True
+          assert origin["actual_fp16_feature_sha256"]==S15B_TRUE43M_HIDDEN_FP16_SHA
+          assert hashlib.sha256(adapter.read_bytes()).hexdigest()==S14_PAID_FP16_SHA
+          assert hashlib.sha256(router.read_bytes()).hexdigest()==S11_ROUTER_SHA
+          assert hashlib.sha256(packed.read_bytes()).hexdigest()==S8B_CB59_SHA
+          assert bool((fb.output_weight[:17]==0).all()) and bool((fb.output_bias[:17]==0).all())
+          for old in ("nra3_s12","nra3_s12b","nra3_s12c"):
+              assert not (inp/old).exists()
+          print("S15C_BILL_43_CB59_NATIVE_C_39_ROUTER_1266_RANK8_TRUE43M_SHA_FROZEN_EVAL24",flush=True)
+          PY
+      - name: ONE TIME score all 24 locked original43M CPU new EVAL prompts with untouched full native C 43 CB59, frozen S11 and rank8 S14
+        run: |
+          python -m research.nra3_s15.one_time_frozen_s14_eval24 \
+            --eval24-hidden inputs/nra3_s15b/NRA3_S15B_REAL_43M_LAYER8_RU_EVAL24_HIDDEN320_FP16.safetensors \
+            --eval24-report inputs/nra3_s15b/NRA3_S15B_REAL_CPU_43M_LAYER8_EVAL24_J7_REPORT.json \
+            --s8-cb59 inputs/nra3_s8b/NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59 \
+            --s11-router inputs/nra3_s11/NRA3_S11_TINY_PAID_RUSSIAN_TRAIN72_CAUSAL_3WAY_SELECTOR_FP16.n3r11 \
+            --s14-adapter inputs/nra3_s14/NRA3_S14_INTERNAL_DEVELOPMENT_SELECTED_NOT_INDEPENDENT_FP16.n3s13 \
+            --out results/nra3_s15c
+      - name: ZERO promotion regardless of 24 novel Russian EVAL score; never mistake gold event/coref for predictions
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra3_s15c/NRA3_S15C_ONE_TIME_NEW_RUSSIAN24_FROZEN_S14_RESEARCH_AUDIT_NO_PROMOTION.json").read_text(encoding="utf-8"))
+          assert r["actual_original_Calibri43M_GT_CPU_after_layer8_all24_scored_once"] is True
+          assert r["S15_source_only_SHA_lock_preceded_first_EVAL_forward"] is True
+          assert r["S14_full_PHYSICAL_model_frozen_before_S15_eval_gold"] is True
+          assert r["S15_new_Russian24_full_coreference_event_UD_precommitted_SHA256"]=="640bdfb0d817d1467eaf308fc1ba5dd9043361721af293b9666d89f4a2c7276d"
+          assert r["S14_locked_rank8_FP16_physical_SHA256"]=="5b96e2174e33da5232fcc2a4a397b6fab4370b6879adb684d75fea8a503f1279"
+          assert r["S11_locked_39param_router_physical_SHA256"]=="05ce14e20c9f4e7e09f85dbd9bd46f0dc0a700d72f1a96ffa921b2e822f235c3"
+          assert r["S8b_unchanged_original_43_native_C_CB59_sha256"]=="d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97"
+          assert r["model_native_sources_sha_locked_and_rechecked_after_eval"]
+          assert r["S14_UPOS_zero_correction_proves_exact_logits_parity"]
+          assert r["S14_UPOS_delta_correct"]==0
+          assert r["S15_word_predictions_strictly_causal_own_token_no_future_sentence_summary"]
+          assert r["causally_observable_past_governor_edges_only"]>=20
+          assert r["raw_NRA_43CB59_plus_router_plus_feedback_bpp"]>.7
+          assert r["EVAL24_optimizer_steps"]==0
+          assert r["any_EVAL24_training_or_adapter_reselection"] is False
+          assert r["no_prior_consumed_S12c_EVAL16_reopened"]
+          assert r["no_old_five_EVAL128_or_reserved_sixth_S3CI_used"]
+          assert r["native_russian_negation_event_truth_prediction_measured"] is False
+          assert r["native_russian_coreference_antecedent_prediction_measured"] is False
+          assert r["protected_616_J7_with_ACTIVE_S14_generation_performed"] is False
+          assert r["new_answer_fullEOS_quality_measured"] is False
+          assert r["full_Calibri43M_GT_NRA3_CPU_speed_ge90percent_certified"] is False
+          assert r["full_parent_and_nra_bpp_le_point7_certified"] is False
+          assert r["research_acceptance"] is False
+          assert r["candidate_accepted"] is False and r["activation_allowed"] is False and r["output_gate"]==0
+          assert len(r["per_sentence_readonly_gold_analysis"])==24
+          print("S15C_ONE_TIME_TRUE43M_NEW_RUSSIAN24_EVAL_NO_TUNING_NO_PROMOTION_RESEARCH_ONLY",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s15c-ONCE-new-RU24-original43M-CB59-S11-vs-S14-paid-rank8-no-promotion
+          path: results/nra3_s15c/
+          retention-days: 30
+          if-no-files-found: error
