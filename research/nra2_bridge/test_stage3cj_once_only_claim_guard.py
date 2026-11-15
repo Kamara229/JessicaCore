@@ -140,7 +140,7 @@ class GuardTests(unittest.TestCase):
                         mock_event["pull_request"]["head"]["repo"]["full_name"] == REPO)
         self.assertTrue(head_matches)
         self.assertFalse(event_allowed and head_matches and job_condition.endswith(" && false") is False)
-        self.assertIn("permissions:\\n  contents: read", source)
+        self.assertIn("permissions:" + chr(10) + "  contents: read", source)
 
 
 if __name__ == "__main__":
