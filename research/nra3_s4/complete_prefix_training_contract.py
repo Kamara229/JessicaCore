@@ -114,7 +114,7 @@ class CompletePrefixScores:
     relation_summary:torch.Tensor # [relation_width]
 
 
-def complete_prefix_readout(area:NRA3NeuralArea, features,
+def complete_prefix_readout(area, features,
                             aligned:CausalAlignment)->CompletePrefixScores:
     """Pure re-readout from *internal* existing NRA3 heads, no new adapter.
 
@@ -122,7 +122,12 @@ def complete_prefix_readout(area:NRA3NeuralArea, features,
     token state. This cannot operate on unseen future tokens and does NOT
     make the earlier prefix-local logits magically bidirectional.
     """
-    if (not isinstance(area,NRA3NeuralArea) or not hasattr(features,"grammar")
+    packed=(type(area).__name__=="NRA3NativePackedCPU"
+            and getattr(area,"NRA3_NATIVE_CPU_PACKED",False) is True
+            and getattr(area,"native_cpu_weights_dense_resident",True) is False)
+    if (not isinstance(area,NRA3NeuralArea) and not packed):
+        raise ValueError("S4 only accepts the unified NRA3 dense TRAIN or native packed CPU area")
+    if (not hasattr(features,"grammar")
             or features.grammar.ndim!=3 or features.grammar.shape[0]!=1
             or features.grammar.shape[1]!=aligned.tokenizer_token_count
             or features.semantics.shape[:2]!=features.grammar.shape[:2]
@@ -142,12 +147,22 @@ def complete_prefix_readout(area:NRA3NeuralArea, features,
     # NRA3 internal layers, no explicit train label is injected here.
     gram=features.grammar[0,ix,:]+grammar_end
     sem=features.semantics[0,ix,:]+semantic_end
-    upos=area.upos_head(gram)
-    morph=area.morph_head(gram)
-    roles=area.role_head(sem)
-    q=area.dep_q(gram)
-    k=area.dep_k(gram)
-    root=area.dep_k(grammar_end)
+    if packed:
+        # Same existing physically packed 5-bit heads; no extra decoder
+        # weights and no hidden dense matrix reconstruction.
+        upos=area.linear("upos_head",gram)
+        morph=area.linear("morph_head",gram)
+        roles=area.linear("role_head",sem)
+        q=area.linear("dep_q",gram)
+        k=area.linear("dep_k",gram)
+        root=area.linear("dep_k",grammar_end)
+    else:
+        upos=area.upos_head(gram)
+        morph=area.morph_head(gram)
+        roles=area.role_head(sem)
+        q=area.dep_q(gram)
+        k=area.dep_k(gram)
+        root=area.dep_k(grammar_end)
     normal=(q@k.T)/math.sqrt(area.config.hidden)
     root_logit=(q@root.T)/math.sqrt(area.config.hidden)
     full=torch.cat((normal,root_logit),dim=-1)
