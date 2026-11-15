@@ -16,6 +16,7 @@ from typing import Callable, Mapping
 REPO = "Kamara229/JessicaCore"
 PR = 702
 HEAD = "research/calibri2-nra2-s3ci-sixth128-once-only-20261115"
+BASE = "research/calibri2-nra2-s3ch-sixth128-real43m-cpu-no-score-20261115"
 TAG_REF = "refs/tags/research-nra2-s3ci-sixth128-eval-consumed-20261115"
 ARM_TOKEN = "S3CI_EXPLICIT_ONCE_ONLY_APPROVAL"
 SHA40 = re.compile(r"[0-9a-f]{40}\Z")
@@ -39,6 +40,10 @@ def claim_once(
     pr = event.get("pull_request", {})
     if not isinstance(pr, dict):
         raise ClaimDenied("missing pull_request object")
+    base = pr.get("base", {})
+    base = base if isinstance(base, dict) else {}
+    base_repo = base.get("repo", {})
+    base_repo = base_repo if isinstance(base_repo, dict) else {}
     head = pr.get("head", {})
     head = head if isinstance(head, dict) else {}
     head_repo = head.get("repo", {})
@@ -51,6 +56,8 @@ def claim_once(
         and env.get("GITHUB_RUN_ATTEMPT") == "1"
         and event.get("action") == "synchronize"
         and pr.get("number") == PR
+        and base.get("ref") == BASE
+        and base_repo.get("full_name") == REPO
         and head.get("ref") == HEAD
         and head_repo.get("full_name") == REPO
         and env.get("S3CI_HEAD_SHA") == sha
