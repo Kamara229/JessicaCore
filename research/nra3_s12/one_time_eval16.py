@@ -178,8 +178,8 @@ def weak_eval_labels_posthoc(row:S12NovelEval,aligned:CausalAlignment)->torch.Te
         comp=role!="NONE" and any(
             tuple(sorted((role,prior))) in _EDGES
             for prior in row.roles[:i])
-        seen=0<word.head<=len(row.words) and
-             positions[word.head-1]<=positions[i]
+        seen=(0<word.head<=len(row.words) and
+              positions[word.head-1]<=positions[i])
         near=seen and positions[i]-positions[word.head-1]<16
         classes.append(2 if comp else (1 if near else 0))
     return torch.tensor(classes,dtype=torch.long)
