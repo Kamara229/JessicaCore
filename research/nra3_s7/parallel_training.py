@@ -40,7 +40,10 @@ def parallel_train_objective(area:NRA3NeuralArea,
                              row:RussianTrainSentence,
                              aligned:CausalAlignment)->S7ParallelObjective:
     """Full-prefix UD head loss supervised on the SAME 12 locked TRAIN rows."""
-    if (not isinstance(area,NRA3NeuralArea) or
+    packed=(type(area).__name__=="NRA3NativePackedCPU"
+            and getattr(area,"NRA3_NATIVE_CPU_PACKED",False) is True
+            and getattr(area,"native_cpu_weights_dense_resident",True) is False)
+    if (not (isinstance(area,NRA3NeuralArea) or packed) or
         area.config.parallel_hypotheses!=3 or row.split!=TRAIN_SPLIT or
         aligned.independent_eval_labels_loaded or
         aligned.original_prompt_sha256!=row.sha256() or
@@ -56,9 +59,16 @@ def parallel_train_objective(area:NRA3NeuralArea,
                      device=hidden320.device,dtype=torch.long)
     rel=features.relations[0,ids,:]            # [W,R] past-only states
     root=features.relations[0,aligned.complete_prefix_position,:]  # full visible prefix
-    query=area.rel_q(rel)
-    keys=area.rel_k(rel)
-    root_key=area.rel_k(root)
+    # The same physical C CB59 projections are used on native inference.
+    # No temporary dense 2D matrix or train labels enter its forward.
+    if packed:
+        query=area.linear("rel_q",rel)
+        keys=area.linear("rel_k",rel)
+        root_key=area.linear("rel_k",root)
+    else:
+        query=area.rel_q(rel)
+        keys=area.rel_k(rel)
+        root_key=area.rel_k(root)
     logits=torch.cat((query@keys.T,
                       (query@root_key[:,None])),dim=-1)
     logits=logits/math.sqrt(area.config.relation_width)
