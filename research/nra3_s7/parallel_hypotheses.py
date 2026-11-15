@@ -72,7 +72,7 @@ def parallel_three_relations(*,
         allowed.shape!=(b,t,t) or allowed.dtype!=torch.bool or
         valid.shape!=(b,t) or valid.dtype!=torch.bool or
         not 1<=local_window<=t+1 or
-        selector_version not in (0,1) or
+        selector_version not in (0,1,2) or
         query.device!=value.device or query.device!=scores.device or
         query.device!=semantic_role_logits.device or
         query.device!=allowed.device or query.device!=valid.device or
@@ -142,6 +142,16 @@ def parallel_three_relations(*,
         # This is a small *bounded*, static temperature, not an untracked
         # extra weight matrix or sample-specific learned calibration oracle.
         gate_logits=gate_logits.clamp(-16.,16.)
+        if selector_version==2:
+            # S8b fail-closed debiasing: remove persistent global-vs-local
+            # calibration preference using ONLY the running *causal*
+            # history of this same already-visible prefix. No training
+            # labels, no additional learned parameters and no future leak.
+            # Avoids the S8-v1 tendency to pick GLOBAL for 63/66 words.
+            position=torch.arange(1,t+1,device=gate_logits.device,
+                                  dtype=torch.float32)[None,:,None]
+            causal_mean=gate_logits.cumsum(dim=1)/position
+            gate_logits=(2.5*(gate_logits-causal_mean)).clamp(-16.,16.)
     gates=F.softmax(gate_logits,dim=-1)
     combined=(gates.unsqueeze(-1)*candidates).sum(dim=2)
     combined=combined.masked_fill(~valid.unsqueeze(-1),0.)
