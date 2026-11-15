@@ -38,7 +38,7 @@ S14_INPUT_S10_REAL43M_HIDDEN_SHA="ed262984c0fd48b60987308e7b135be7d05d3e5434fe99
 S8B_FROZEN_NATIVE_43_CB59_SHA="d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97"
 S11_FROZEN_39FP16_SHA="05ce14e20c9f4e7e09f85dbd9bd46f0dc0a700d72f1a96ffa921b2e822f235c3"
 # Hard-lock AFTER the first source-only CI and BEFORE ANY model scoring.
-EVAL24_CANONICAL_SHA=""
+EVAL24_CANONICAL_SHA="640bdfb0d817d1467eaf308fc1ba5dd9043361721af293b9666d89f4a2c7276d"
 
 
 @dataclass(frozen=True)
@@ -354,7 +354,7 @@ def canonical_new_eval24(rows:tuple[S15NovelEval,...])->bytes:
 def sealed_new_eval24()->dict:
     rows=new_russian_eval24()
     digest=hashlib.sha256(canonical_new_eval24(rows)).hexdigest()
-    if EVAL24_CANONICAL_SHA and digest!=EVAL24_CANONICAL_SHA:
+    if digest!=EVAL24_CANONICAL_SHA:
         raise ValueError("S15 full EVAL24 source changed after original prereg")
     return {
        "stage":"NRA3_S15_SOURCE_ONLY_NEW_RU24_ONE_TIME_PRE_REGISTER_BEFORE_ANY_SCORE",
