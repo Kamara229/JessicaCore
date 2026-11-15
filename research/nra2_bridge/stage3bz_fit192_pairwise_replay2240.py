@@ -486,7 +486,7 @@ def main():
                 "S3BZ TRAIN literal source/target identity mismatch")
         inputs.append((normalize(tt,mean,scale,tm),tm,q,src,dst))
     require(sum(len(g[0]) for g in inputs)==2240,
-            "S3BZ must be 2048 historical plus 512 NEW TRAIN, NO EVAL")
+            "S3BZ must be 2048 historical plus 192 fit-only NEW TRAIN, NO EVAL")
     original_graph={k:v.detach().clone() for k,v in model.graph.state_dict().items()}
     original_teacher={k:v.detach().clone() for k,v in model.query.base.state_dict().items()}
     new_params=[p for p in model.query.parameters() if p.requires_grad]
@@ -572,7 +572,7 @@ def main():
     with torch.no_grad():
         after,per_after,kl_after,sym_after=aggregate()
     require(bool(torch.isfinite(after)) and after<before,
-            "S3BZ original plus novel TRAIN2560 objective did not improve")
+            "S3BZ original plus novel TRAIN2240 objective did not improve")
     require(all(torch.equal(v,model.graph.state_dict()[k])
                 for k,v in original_graph.items())
             and all(torch.equal(v,model.query.base.state_dict()[k])
@@ -583,7 +583,7 @@ def main():
             "old frozen or new TRAIN-only physical source SHA changed after fit")
 
     out.mkdir(parents=True,exist_ok=False)
-    raw_path=out/"NRA2_S3BZ_RAW_JOINT_RELATION_TRAIN2560_FP16.safetensors"
+    raw_path=out/"NRA2_S3BZ_RAW_JOINT_RELATION_TRAIN2240_FP16.safetensors"
     raw={"bridge."+k:v.detach().cpu().half().contiguous()
          for k,v in model.state_dict().items()}
     raw["normalizer.mean"]=mean.half().contiguous()
@@ -628,7 +628,7 @@ def main():
     require(accepted is not None,
             "new semantic TRAIN512 not improved with 6 old groups replay-safe: fail closed")
     alpha,safe_weights,new_metrics,nets=accepted
-    safe_file=out/"NRA2_S3BZ_SAFE_JOINT_RELATION_TRAIN2560_FP16.safetensors"
+    safe_file=out/"NRA2_S3BZ_SAFE_JOINT_RELATION_TRAIN2240_FP16.safetensors"
     save_file(safe_weights,str(safe_file))
     reread=load_file(str(safe_file),device="cpu")
     require(set(reread)==set(weights)
@@ -643,7 +643,7 @@ def main():
                "net":v} for g,orig,new,v in
             zip(group_names,baseline_metrics,new_metrics,nets)}
     report={
-       "stage":"NRA2_S3BZ_SEMANTIC_DIRECTIONAL_TRAIN2560_ONLY",
+       "stage":"NRA2_S3BZ_SEMANTIC_DIRECTIONAL_TRAIN2240_ONLY",
        "S3BN_initialized_joint_pairwise_fp16_sha256":S3BN_SHA,
        "S3BR_newTRAIN512_preregistered_commitment_sha256":S3BR_SHA,
        "S3BS_genuine_newTRAIN512_CPU_success_run":S3BS_RUN,
@@ -685,7 +685,7 @@ def main():
        "paired_CPU_speed_tested":False,
        "no_Jessica_LIVE_Render_Supabase_APK_main_QA_TEST_changes":True,
     }
-    (out/"NRA2_S3BZ_DIRECTIONAL_TRAIN2560_AUDIT.json").write_text(
+    (out/"NRA2_S3BZ_DIRECTIONAL_TRAIN2240_AUDIT.json").write_text(
         json.dumps(report,indent=2,sort_keys=True)+"\n")
     print(json.dumps({k:report[k] for k in (
          "stage","train_count","physical_fp16_safe_sha256",
