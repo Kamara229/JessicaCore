@@ -18,7 +18,7 @@ class S3CBFifthIndependent128Tests(unittest.TestCase):
         self.assertEqual(len({r.topology_key for r in self.rows}),16)
         self.assertEqual(len({r.prompt_sha256 for r in self.rows}),128)
         self.assertTrue({r.topology_key for r in self.rows}.isdisjoint(
-            {r.topology_key for r in ancestral_exclusions()}))
+            {tuple(sorted(r.edges)) for r in ancestral_exclusions()}))
 
     def test_balanced_grammars_truth_order(self):
         self.assertEqual(len(STYLES),len(set(STYLES)))
