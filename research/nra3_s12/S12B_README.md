@@ -1,0 +1,11 @@
+# NRA2 3.0 S12b — frozen original 43M CPU post-GT layer8 for 16 locked novel EVAL16 prompts
+
+**DRAFT, read-only physical source, not a model comparison or optimization.**
+
+Prerequisite S12 PR #720 committed and CI-verified all 16 Russian EVAL texts, Unicode word offsets, UD grammar and semantic role labels SHA `f2d2d5beba48dbe294a90f6918a3fd15870aa103abbd569e907c44729a43977c` **BEFORE any use of these items for inference/scoring** (prereg CI #43735385201 SUCCESS). The S11 39-param FP16 selector was frozen earlier, real S11 train-only CI #43734571081 SUCCESS and physical selector SHA `05ce14e20c9f4e7e09f85dbd9bd46f0dc0a700d72f1a96ffa921b2e822f235c3`. S8b original native 43 CB59 matrix bytes remain unchanged.
+
+S12b inherits the **exact real original S194 43M CPU+Green Tunnel+bridge+616 J7 replay workflow** used by S10. Only *after* the original 456+128+32 protected generation and SHA digest matching, the same original 43M frozen CPU executes 16 **new EVAL-only** raw user prompt prefills. A read-only `register_forward_hook` after the original 8th transformer layer and existing S93/GT hooks captures true CPU hidden320 in FP16; it returns None and leaves original outputs unchanged. The original tokenizer's exact chat prompt IDs/word offsets and prereg SHA must match. UD labels and role gold never enter the original model forward.
+
+Physical archived source is a real `[16, T, 320]` FP16 tensor, padded token IDs/masks/lengths and external per-word tokenizer map; SHA256 is persisted and checked by CI. **No training on 16 EVAL, no S11 model forward/scoring in this stage, and no visibility of any five consumed EVAL128 or sixth reserved S3CI EVAL128.**
+
+Next separate S12c evaluation may use frozen S11 original 39 parameter FP16 router and unchanged S8b original 43 CB59 packed native matrices once, report weak routing label accuracy / branch selection, and explicitly report unchanged upstream morphology, syntax and roles (router is downstream); do NOT tune against these 16. Should evaluate other novel independent datasets for broad confidence. Whole-model all-in bpp<=0.7 and CPU>=90% remain unproven, and raw standalone NRA+router bpp was **0.85673** (above target). No original model changes, LIVE, Render, Supabase, APK or Jessica regular chat tests; output_gate=0, candidate_accepted=false.
