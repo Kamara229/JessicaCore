@@ -1,0 +1,30 @@
+name: NRA2 S3CK Russian UD offline grammar contract (no model or EVAL)
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-nra2-s3cf-order-balanced-real-cpu-train2240-20261115
+permissions:
+  contents: read
+concurrency:
+  group: nra2-s3ck-ud-offline-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  s3ck_offline_unit:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ck-ru-ud-grammar-contract-offline-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline stdlib-only Russian UD unit tests
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3ck_russian_ud_role_bridge
+      - name: Check frozen research stage is not connected to inference
+        run: |
+          ! grep -Eq '(torch|optimizer|hf_hub|load_file|requests|supabase)' research/nra2_bridge/stage3ck_russian_ud_role_bridge.py
