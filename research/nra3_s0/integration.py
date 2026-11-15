@@ -18,8 +18,15 @@ class NRA3MidLayerPort:
     DECODER_LAYERS = 12
 
     def __init__(self, area: NRA3NeuralArea):
-        if not isinstance(area, NRA3NeuralArea):
-            raise TypeError("NRA3 requires an integrated neural area")
+        # The S2 native variant is an independently validated compressed
+        # CPU area with NO dense 2D weights. Keep the same zero-gate port and
+        # never permit arbitrary third-party modules through this boundary.
+        packed_ok=(isinstance(area,nn.Module)
+                   and type(area).__name__=="NRA3NativePackedCPU"
+                   and getattr(area,"NRA3_NATIVE_CPU_PACKED",False) is True
+                   and getattr(area,"native_cpu_weights_dense_resident",True) is False)
+        if not isinstance(area,NRA3NeuralArea) and not packed_ok:
+            raise TypeError("NRA3 requires approved dense research or native packed area")
         self.area = area
         self._handle = None
         self._active = False
