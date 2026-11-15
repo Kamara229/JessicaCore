@@ -7,7 +7,7 @@ name: NRA2 S3CI SIXTH one-time independent128 frozen S3BA S3BN S3CF CPU roles an
     branches:
       - research/calibri2-nra2-s3ch-sixth128-real43m-cpu-no-score-20261115
 permissions:
-  contents: write # S3CJ atomic one-time tag claim; only enabled after explicit arm variable
+  contents: read # S3CJ REVIEW HARD STOP: no token permission to create tag claims before separate approval
   actions: read
 concurrency:
   group: nra2-s3ci-once-only-sixth128-original43m-zero-gate
