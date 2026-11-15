@@ -291,8 +291,10 @@ def main():
                   "S11 relative to S8b MUST be identical upstream UD roles")
             predictions.append((ga.clone(),gn.clone(),gb.clone(),pos_a,pos_b,
                                 float((a.relations-b.relations).norm()),sample))
-    # Gold EVAL opened ONLY after all 16 original native CPU forwards, no
-    # optimizer steps or model re-entry after this point.
+    # Sealed annotations are present in source row objects for SHA and
+    # exact alignment checks, but none is passed into the native model.
+    # Only AFTER all 16 native forwards may evaluator READ UD/role gold for
+    # scoring; no optimizer steps or model re-entry after this point.
     gate0=[];gate_neutral=[];gate1=[];teacher=[]
     pos_correct=role_correct=dep_correct=words=0
     per_group=[]
