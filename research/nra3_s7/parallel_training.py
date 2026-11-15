@@ -92,7 +92,7 @@ def parallel_train_objective(area:NRA3NeuralArea,
     # labels*, NOT ground-truth claim that a branch is semantically correct.
     selector_ce=None
     selector_labels=None
-    if area.config.parallel_selector_version==1:
+    if area.config.parallel_selector_version in (1,2):
         from research.nra3_s8.selector_supervision import (
             train_only_causal_branch_targets,
         )
