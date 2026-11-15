@@ -1,0 +1,71 @@
+name: NRA2 S3CG SIXTH independent128 SHA data-only prereg after S3CF frozen CPU
+'on':
+  pull_request:
+    types: [opened]
+    branches:
+      - research/calibri2-nra2-s3cf-order-balanced-real-cpu-train2240-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3cg-sixth-sha-before-frozen-original43m-cpu-or-model-score
+  cancel-in-progress: false
+jobs:
+  sixth_unseen128_SHA_prereg_NO_model_CPU:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3cg-sixth-untouched128-prereg-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: .:research:research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require five prior EVAL128 consumed and S3CF safe TRAIN2240 SHA locked
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 43640363396 43644153544 43648038071 43651233135 43677179638 43677718791 43678041407; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$id" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43678041407" --jq .head_branch)" = research/calibri2-nra2-s3cf-order-balanced-real-cpu-train2240-20261115
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43677179638" --jq .head_branch)" = research/calibri2-nra2-s3cd-fifth-once-only-independent128-20261115
+          test ! -e inputs
+      - name: Verify sixth completely novel graph and grammar data without any model or CPU
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3cg_sixth_future_unseen128_prereg.py research/nra2_bridge/test_stage3cg_sixth_future_unseen128_prereg.py
+          python -m unittest -v research.nra2_bridge.test_stage3cg_sixth_future_unseen128_prereg
+      - name: Commit SHA-sealed sixth unseen128 graph+grammar BEFORE model score or CPU feature capture
+        run: |
+          python -m research.nra2_bridge.stage3cg_sixth_future_unseen128_prereg results/nra2_stage3cg_sixth128_prereg
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra2_stage3cg_sixth128_prereg/NRA2_S3CG_SIXTH_UNTOUCHED128_PREREG.json")
+          x=json.loads(p.read_text())
+          assert x["stage"]=="NRA2_S3CG_SIXTH_UNTOUCHED_EVAL128_PREREG_NO_CPU_OR_MODEL"
+          assert x["future_EVAL128_count"]==128
+          assert x["sixth_independent_graphs"]==16 and x["sixth_independent_new_grammar"]==8
+          assert x["yes_count"]==x["no_count"]==64
+          assert x["source_first_count"]==x["destination_first_count"]==64
+          assert x["S3CF_safe_frozen_before_sixth_EVAL_sha256"]=="3c0cb51ea9cdffba89666c043223044805e6d52397daa0ae6ca473f845efc312"
+          assert x["S3CF_successful_TRAIN_only_run"]==43678041407
+          assert x["S3CB_prior_fifth_consumed_commitment_sha256"]=="a23dd34eac45dfa17d00798c2e3837c6c837c490a9ba50e809d73d3c3374cd5b"
+          assert x["all_five_previous_independent_EVAL128_permanently_consumed"]
+          assert x["no_model_weights_or_Calibri_CPU_or_scores_or_training_this_stage"]
+          assert x["candidate_accepted"] is False and x["output_gate"]==0.0
+          print("S3CG_SHA_LOCK_SIXTH128_BEFORE_CPU_OR_EVAL",x["commitment_sha256"])
+          PY
+      - name: Archive virgin sixth independent128 registration without model or CPU
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3cg-sixth-unseen128-prereg-graph-grammar-no-model
+          path: results/nra2_stage3cg_sixth128_prereg/
+          retention-days: 90
+          if-no-files-found: error
