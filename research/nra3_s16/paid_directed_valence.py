@@ -71,7 +71,7 @@ class PaidDirectedValence(nn.Module):
         rng=torch.Generator(device="cpu").manual_seed(316001)
         self.predicate_weight=nn.Parameter(torch.randn((RANK,WIDTH),generator=rng)*.035)
         self.argument_weight=nn.Parameter(torch.randn((RANK,WIDTH),generator=rng)*.035)
-        self.role_bilinear=nn.Parameter(torch.zeros(len(ROLES)-1,RANK,RANK))
+        self.role_bilinear=nn.Parameter(torch.randn((len(ROLES)-1,RANK,RANK),generator=rng)*.015)
         self.bias=nn.Parameter(torch.tensor([.25,0.,0.,0.,0.]))
         self.output_gate=0
         self.candidate_accepted=False
