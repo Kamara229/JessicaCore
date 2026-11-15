@@ -35,3 +35,32 @@ jobs:
         run: python -m unittest -v research.nra3_s3.test_paid_codebook_qat
       - name: Inherited all-native 6M and GT zero-gate regression tests
         run: python -m unittest -v research.nra3_s2.test_native_cpu
+      - name: Physical full 6M single codebook TRAIN repack and native C source check
+        run: python -m research.nra3_s3.synthetic_physical_preflight --out results/nra3_s3
+      - name: Verify sealed TRAIN-only physical report and non-acceptance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from direct_codebook_v59 import CB59
+          from research.nra3_s1.entropy_envelope import restore_lossless_cb59
+          d=Path("results/nra3_s3")
+          r=json.loads((d/"NRA3_S3_PHYSICAL_SYNTHETIC_QAT_REPORT.json").read_text())
+          archive=(d/r["packed_file"]).read_bytes()
+          envelope=(d/r["physical_s61_file"]).read_bytes()
+          assert r["whole_area_unique_parameters"]==6_106_154
+          assert len(archive)==r["packed_archive_bytes"] and len(envelope)==r["physical_s61_archive_bytes"]
+          assert restore_lossless_cb59(envelope)==archive
+          assert CB59(archive).meta["original_unique_parameter_count"]==6_106_154
+          assert r["before_train_mse"]>r["after_physical_reload_mse"]
+          assert r["no_real_language_training"] is True
+          assert r["output_gate"]==0 and r["candidate_accepted"] is False
+          assert r["not_a_parent_GT_all_inclusive_bpp_certificate"] is True
+          print("S3_SYNTHETIC_QAT_PHYSICAL_CB59_NATIVE_SOURCE_PAID_ONLY",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NRA3_S3_TRAINONLY_PHYSICAL_6M_CB59_S61_QAT_NOT_ACCEPTED
+          path: results/nra3_s3
+          if-no-files-found: error
+          retention-days: 14
