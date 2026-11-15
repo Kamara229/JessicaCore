@@ -53,6 +53,9 @@ def claim_once(
         env.get("S3CI_ARM_TOKEN") == ARM_TOKEN
         and env.get("GITHUB_REPOSITORY") == REPO
         and env.get("GITHUB_EVENT_NAME") == "pull_request"
+        and env.get("GITHUB_REF") == f"refs/pull/{PR}/merge"
+        and env.get("GITHUB_BASE_REF") == BASE
+        and env.get("GITHUB_HEAD_REF") == HEAD
         and env.get("GITHUB_RUN_ATTEMPT") == "1"
         and event.get("action") == "synchronize"
         and pr.get("number") == PR
