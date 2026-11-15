@@ -115,7 +115,7 @@ jobs:
           assert PaidThreeWayRouter.from_physical(a).physical_bytes()==a
           assert r["S11_raw_CB59_plus_router_physically_stored_bytes"]==653798+123
           assert r["S11_total_unique_area_plus_router_parameters"]==6106154+39
-          assert r["S11_original_6M_weight_updates"] is False if "S11_original_6M_weight_updates" in r else r["S11_no_original_NRA3_6M_weight_updates"]
+          assert r["S11_no_original_NRA3_6M_weight_updates"] is True
           assert r["S11_every_original_6M_matrix_uses_same_native_C_CB59"] is True
           assert r["S11_router_in_the_six_real_relation_GRU_cycles"] is True
           assert r["S11_evidence_features_causal_no_gold_in_forward"] is True
