@@ -136,7 +136,7 @@ class RouterS11PhysicalContract(unittest.TestCase):
 
     def test_training_optimizer_exclusively_small_physical_selector(self):
         x=torch.randn(90,12)
-        teacher=(x[:,0]+x[:,1]*.5).bucketize(torch.tensor([-.5,.5]))
+        teacher=torch.bucketize(x[:,0]+x[:,1]*.5,torch.tensor([-.5,.5]))
         physical,report=train_balanced_router(x,teacher,
                                               optimizer_steps=120,lr=.02)
         self.assertEqual(len(physical),123)
@@ -166,7 +166,7 @@ class RouterS11PhysicalContract(unittest.TestCase):
                 weak_train_router_labels(dataclasses.replace(row,split="EVAL"),align)
             with self.assertRaises(ValueError):
                 weak_train_router_labels(
-                    dataclasses.replace(row,roles=("NONE",)+row.roles[1:]),align)
+                    dataclasses.replace(row,roles=(("AGENT" if row.roles[0]=="NONE" else "NONE"),)+row.roles[1:]),align)
         self.assertEqual(len(rows),72)
         self.assertEqual(len(BRANCHES),3)
         self.assertTrue(bool((counts>0).all()))
