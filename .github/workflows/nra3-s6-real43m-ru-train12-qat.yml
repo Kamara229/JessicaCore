@@ -1,0 +1,124 @@
+name: NRA2 3.0 S6 real 43M layer8 RU TRAIN12 physically paid CB59 QAT
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-nra3-s5-real43m-layer8-ru-train12-shadow-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s6-real43m-ru-train12-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  real_43m_ru12_trainpaid_CB59:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s6-realhidden-ru12-physical-cb59-qat-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Strict prerequisite GitHub physical runs (no historical EVAL)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43699866531 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43699866531 --jq .head_sha)" = "5a732097ad3d1001a483a425557fa4efa0a784d3"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43696909386 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43696909386 --jq .head_sha)" = "9e278a80bc43f7b5805024ed040a32800e57cacf"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43698351125 --jq .conclusion)" = success
+          echo NRA3_S6_SOURCE_RUNS_SHA_PINNED_ORIGINAL43M_PURETRAIN
+      - name: Install pinned CPU-only original Calibri K32V8 research dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'tokenizers==0.20.3' 'safetensors==0.4.5' 'huggingface_hub==0.27.1'
+      - name: Offline negative tests for genuine 43M SHA, paid-only all-43 gradient and zero gate
+        run: python -m unittest -v research.nra3_s6.test_physical_joint_grammar_qat
+      - name: Download AUTHENTIC original 43M post-GT layer8 RU TRAIN12 hidden (616 J7 baseline checked)
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s5-frozen-real43M-CPU-layer8-ru-train12-tokens320-616J7-zero-gate
+          run-id: 43699866531
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s5
+      - name: Download original 6M paid CB59 synthetic prerequisite ONLY
+        uses: actions/download-artifact@v4
+        with:
+          name: NRA3_S3_TRAINONLY_PHYSICAL_6M_CB59_S61_QAT_NOT_ACCEPTED
+          run-id: 43696909386
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s3
+      - name: Validate physically SHA-locked source artifacts and original 616 J7
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          s5=Path("inputs/nra3_s5")
+          p=s5/"NRA3_S5_REAL_43M_LAYER8_RU_TRAIN12_HIDDEN320_FP16.safetensors"
+          r=s5/"NRA3_S5_REAL_CPU_43M_LAYER8_TRAIN12_J7_REPORT.json"
+          assert p.is_file() and r.is_file()
+          assert hashlib.sha256(p.read_bytes()).hexdigest()=="ba04d54d399419ec857d01b8401af868213a7f8b2c219d384986b8cd08b1ba1f"
+          e=json.loads(r.read_text())
+          assert e["all_616_native_CPU_generated_token_digests_unchanged"] is True
+          assert e["NRA3_output_gate"] == 0 and e["NRA3_candidate_accepted"] is False
+          assert e["original_456_full_EOS"] == 456 and e["original_new128_full_EOS"] == 128
+          assert e["S4_RU_UD_TRAIN12_CANONICAL_SHA256"]=="6ee1f270d413f4cfc79727bd48386ee29881520fcf6834309869733fd00f7a61"
+          s3=Path("inputs/nra3_s3")
+          c=s3/"NRA3_S3_UNTRAINED_BASE_SYNTHETIC_QAT_PAID_CB59.cb59"
+          assert c.is_file() and hashlib.sha256(c.read_bytes()).hexdigest()=="b8257d28d127733a59bf32869d698983abe732f76222a6fbbe36b4c0b02d0d1f"
+          assert (s3/"NRA3_S3_PHYSICAL_SYNTHETIC_QAT_REPORT.json").is_file()
+          print("NRA3_S6_REAL_43M_TRAIN_ONLY_BYTES_PINNED_NO_EVAL",flush=True)
+          PY
+      - name: Train genuine Russian UD on frozen 43M post-GT layer8 with ONLY paid CB59 FP16 codebook source
+        run: |
+          python -m research.nra3_s6.real43m_russian_train12_qat_run \
+            --s5-hidden inputs/nra3_s5/NRA3_S5_REAL_43M_LAYER8_RU_TRAIN12_HIDDEN320_FP16.safetensors \
+            --s5-report inputs/nra3_s5/NRA3_S5_REAL_CPU_43M_LAYER8_TRAIN12_J7_REPORT.json \
+            --s3-cb59 inputs/nra3_s3/NRA3_S3_UNTRAINED_BASE_SYNTHETIC_QAT_PAID_CB59.cb59 \
+            --s3-report inputs/nra3_s3/NRA3_S3_PHYSICAL_SYNTHETIC_QAT_REPORT.json \
+            --out results/nra3_s6
+      - name: Ensure real source training reduces TRAIN-only loss and new physical CB59/S61 native C remains zero gated
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          from direct_codebook_v59 import CB59
+          from research.nra3_s1.entropy_envelope import restore_lossless_cb59
+          p=Path("results/nra3_s6")
+          j=json.loads((p/"NRA3_S6_REAL_HIDDEN_RUSSIAN_TRAIN12_PAID_QAT.json").read_text())
+          cb=(p/j["trained_cb59_filename"]).read_bytes()
+          s61=(p/j["trained_s61_filename"]).read_bytes()
+          assert restore_lossless_cb59(s61)==cb
+          assert hashlib.sha256(cb).hexdigest()==j["trained_cb59_new_physical_sha256"]
+          assert hashlib.sha256(s61).hexdigest()==j["trained_s61_new_sha256"]
+          assert len(cb)==653798 and len(cb)==j["prior_cb59_original_physical_bytes"]
+          assert CB59(cb).meta["original_unique_parameter_count"]==6106154
+          assert j["after_train12_multitask_loss"]<j["before_train12_multitask_loss"]
+          assert abs(j["true_native_C_cpu_training_source_mean_loss"]-j["after_train12_multitask_loss"])<.03
+          assert j["grammar_matrix_changes"]>0 and j["semantic_matrix_changes"]>0
+          assert j["all_original_43_matrix_5bit_indices_unchanged"] is True
+          assert j["original_5_spent_EVAL128_untouched"] is True
+          assert j["reserved_6th_S3CI_EVAL128_untouched"] is True
+          assert j["new_full_answer_EOS_generalization_tested"] is False
+          assert j["original_unique_new_NRA3_parameters"]==6106154
+          assert j["output_gate"]==0 and j["candidate_accepted"] is False
+          print("NRA3_S6_TRUE_43M_RU_TRAIN12_PHYSICAL_QAT_ONLY_NO_EVAL_NO_PROMOTION",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s6-real43m-ru12-physically-trained-CB59-S61-zero-gate
+          path: results/nra3_s6/
+          if-no-files-found: error
+          retention-days: 30

@@ -135,6 +135,11 @@ def complete_prefix_readout(area, features,
         raise ValueError("S4 complete-prefix NRA3 actual feature ABI mismatch")
     if aligned.independent_eval_labels_loaded:
         raise ValueError("S4 prohibited EVAL input")
+    if (not aligned.word_alignment or
+            any(type(w.last_token) is not int or
+                w.last_token<0 or w.last_token>=aligned.tokenizer_token_count
+                for w in aligned.word_alignment)):
+        raise ValueError("NRA3 S4 requires one integer completed-prefix token per UD word")
     ix=torch.tensor([w.last_token for w in aligned.word_alignment],
                     dtype=torch.long,device=features.grammar.device)
     end=aligned.complete_prefix_position
