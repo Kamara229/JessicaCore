@@ -63,7 +63,7 @@ jobs:
           run-id: 43710668076
           github-token: ${{ github.token }}
           path: inputs/nra3_s7
-      - name: Real source byte hashes: fail closed before ANY training
+      - name: 'Real source byte hashes: fail closed before ANY training'
         run: |
           python - <<'PY'
           import hashlib,json
