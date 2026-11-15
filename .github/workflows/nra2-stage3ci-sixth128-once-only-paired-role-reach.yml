@@ -7,14 +7,16 @@ name: NRA2 S3CI SIXTH one-time independent128 frozen S3BA S3BN S3CF CPU roles an
     branches:
       - research/calibri2-nra2-s3ch-sixth128-real43m-cpu-no-score-20261115
 permissions:
-  contents: read
+  contents: read # S3CJ REVIEW HARD STOP: no token permission to create tag claims before separate approval
   actions: read
 concurrency:
   group: nra2-s3ci-once-only-sixth128-original43m-zero-gate
   cancel-in-progress: false
 jobs:
   s3ci_one_time_SIXTH_s3cg128_new_joint_semantic_roles:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ci-sixth128-once-only-20261115'
+    # S3CJ REVIEW HARD STOP: all scoring disabled until a separately authorized change.
+    # In particular, synchronizing PR #702 after integration MUST NOT score EVAL128.
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3ci-sixth128-once-only-20261115' && false
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
@@ -52,6 +54,18 @@ jobs:
           assert platform.machine()=="x86_64" and not torch.cuda.is_available()
           print("S3CI_SIXTH_FROZEN_CPU128_ONCE_ONLY_NO_TRAIN")
           PY
+      - name: S3CJ OFFLINE-ONLY unit checks before any claim or EVAL read
+        run: |
+          python -m unittest -v research.nra2_bridge.test_stage3cj_once_only_claim_guard
+      - name: S3CJ atomic sixth-EVAL claim (deny missing approval, prior attempt or API error)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          S3CI_ARM_TOKEN: ${{ vars.NRA2_S3CI_SIXTH128_APPROVAL }}
+          S3CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          S3CI_APPROVED_HEAD_SHA: ${{ vars.NRA2_S3CI_APPROVED_HEAD_SHA }} # unset until distinct SHA-specific authorization
+        run: |
+          set -euo pipefail
+          python -m research.nra2_bridge.stage3cj_once_only_claim_guard
       - name: Load SEALED sixth S3CG completely unseen128 protocol SHA
         uses: actions/download-artifact@v4
         with:
