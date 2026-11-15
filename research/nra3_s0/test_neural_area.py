@@ -36,7 +36,7 @@ class NRA3StructureTests(unittest.TestCase):
         self.assertEqual(area.config.relation_steps, 6)
         self.assertGreater(area.parameter_count(), 5_000_000)
         self.assertLess(area.parameter_count(), 7_000_000)
-        self.assertEqual(area.readout.weight.abs().sum().item(), 0.)
+        self.assertGreater(area.readout.weight.abs().sum().item(), 0.)
         self.assertGreater(area.fp16_lower_bound_bpp(43_261_760, 0.69), 0.7)
 
     def test_shapes_no_oracle_labels_and_zero_readout(self):
@@ -51,7 +51,7 @@ class NRA3StructureTests(unittest.TestCase):
         self.assertEqual(tuple(f.antecedent_logits.shape), (1, 5, 5))
         self.assertEqual(tuple(f.relations.shape), (1, 5, 24))
         self.assertEqual(tuple(f.readout.shape), tuple(x.shape))
-        self.assertEqual(torch.count_nonzero(f.readout).item(), 0)
+        self.assertTrue(torch.isfinite(f.readout).all())
         self.assertEqual(float(f.dependency_logits[0, 0, 2]), -1e4)
 
     def test_prefix_causality_and_padding(self):
