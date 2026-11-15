@@ -1,0 +1,144 @@
+name: NRA2 S3CD FIFTH untouched128 once-only real original CPU S3BA vs new S3BZ no retune
+'on':
+  pull_request:
+    types: [synchronize]
+    branches:
+      - research/calibri2-nra2-s3cc-fifth128-real43m-cpu-capture-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s3cd-once-only-fifth128-original43m-zero-gate
+  cancel-in-progress: false
+jobs:
+  s3cd_one_time_FIFTH_s3cb128_new_joint_semantic_roles:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3cd-fifth-once-only-independent128-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact research-only CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface-hub>=0.26,<1' 'jinja2==3.1.6'
+      - name: Require fifth SHA-sealed prereg, genuine CPU no-score S3CC and S3BZ frozen before any independent score
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for r in 43675557570 43674502209 43676015708 43645412996 43590032315 43446925758 43640363396 43644153544 43648038071 43651233135; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$r" --jq .conclusion)" = success
+          done
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43675557570" --jq .head_branch)" = research/calibri2-nra2-s3cb-fifth-unseen128-prereg-20261115
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43674502209" --jq .head_branch)" = research/calibri2-nra2-s3bz-fit192-real-cpu-pair-replay-20261115
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/43676015708" --jq .head_branch)" = research/calibri2-nra2-s3cc-fifth128-true43m-cpu-only-20261115
+          python - <<'PY'
+          import torch,platform
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S3CD_FIFTH_FROZEN_CPU128_ONCE_ONLY_NO_TRAIN")
+          PY
+      - name: Load SEALED fifth S3CB completely unseen128 protocol SHA
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3bu-fifth-independent128-prereg-only-no-cpu
+          run-id: '43675557570'
+          github-token: ${{ github.token }}
+          path: inputs/s3cb
+      - name: Load genuinely frozen original43M CPU FIFTH untouched128 S3CC and original 616 J7
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3bv-fifth-independent128-original43M-tokens320-J7-no-score
+          run-id: '43676015708'
+          github-token: ${{ github.token }}
+          path: inputs/s3cc
+      - name: Load original S3BA FP16 baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3ba-role1536-replay1024-structural512-dev128-fp16-zero-gate
+          run-id: '43590032315'
+          github-token: ${{ github.token }}
+          path: inputs/s3ba
+      - name: Lock pre-S3BR S3BN physically SHA-verified TRAIN2048 FP16 pair-role parent
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3bn-joint-semantic-pair-train2048-fp16-zero-gate
+          run-id: '43645412996'
+          github-token: ${{ github.token }}
+          path: inputs/s3bn
+      - name: Lock new S3BZ physically verified TRAIN-only 2240 FP16 role head
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-stage3bt-semantic-directional-train2240-safe-fp16-zero-gate
+          run-id: '43674502209'
+          github-token: ${{ github.token }}
+          path: inputs/s3bz
+      - name: Lock independent frozen NRA2 original parameters
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-standalone-relational-cpu-research-only
+          run-id: '43446925758'
+          github-token: ${{ github.token }}
+          path: inputs/nra2
+      - name: Validate one-time research code and independent fixed exact McNemar math without blind scoring
+        run: |
+          python -m compileall -q research/nra2_bridge/stage3bw_fifth_once_only_s3ba_vs_joint_s3bz.py
+          python -m unittest -v research.nra2_bridge.test_stage3bh_mcnemar
+      - name: S3CD ONCE ONLY evaluate frozen S3BA S3BN S3BZ on 128 fifth independent questions
+        run: |
+          python -m research.nra2_bridge.stage3bw_fifth_once_only_s3ba_vs_joint_s3bz \
+            inputs/s3cc inputs/s3cb inputs/s3ba inputs/s3bn inputs/s3bz inputs/nra2 \
+            results/nra2_stage3bw_fifth128_once_only
+      - name: Verify independent new 128 report no model promotion or test tuning
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra2_stage3bw_fifth128_once_only/NRA2_S3CD_FIFTH_ONCE_ONLY128_S3BA_S3BN_S3BZ_NO_RETUNE.json").read_text())
+          assert r["stage"]=="NRA2_S3CD_FIFTH_ONCE_ONLY_S3CB128_S3BA_VS_S3BN_VS_JOINT_S3BZ"
+          assert r["S3CC_run"]==43676015708 and r["S3CB_prereg_successful_run"]==43675557570
+          assert r["S3CC_original_CPU_token_fp16_sha256"]=="SHA256_PENDING_FINAL_S3CC_CAPTURE"
+          assert r["S3CC_gold_fp16_sha256"]=="SHA256_PENDING_FINAL_S3CC_CAPTURE"
+          assert r["graph_weights_bitwise_equal"] and r["graph_logits_bitwise_equal"]
+          assert r["S3CB_prereg_commitment_sha256"]=="a23dd34eac45dfa17d00798c2e3837c6c837c490a9ba50e809d73d3c3374cd5b"
+          assert r["S3BA_fp16_sha256"]=="4fedf391ee02b1d1c45c82c3690d212ba9a43e9d0da32446f5d32ac6c379bb09"
+          assert r["S3BN_fp16_sha256"]=="ea8a81665370cba22c4e8bc75fbe82314089244d4b32278ee62c2c30d88ae811"
+          assert r["S3BZ_fp16_sha256"]=="6084061cb1f9ea46ef3b504179bee09b392f4427ac52ec58d768645da98872ee"
+          assert r["one_time_independent_EVAL128"]==128
+          assert r["original_616_S194_J7_preserved_in_S3CC"]
+          assert r["prior_S3AQ_old_independent_EVAL128_consumed"]
+          assert r["prior_S3BJ_second_independent_EVAL128_consumed"]
+          assert r["prior_S3BO_third_independent_EVAL128_consumed"]
+          assert r["prior_S3BU_fourth_independent_EVAL128_consumed"]
+          assert r["S3BM_42869_new_pairwise_params"]
+          assert r["fifth_unseen_16_topologies_and_8_new_grammars"]
+          assert r["metrics"]["all"]["n"]==128
+          assert set(r["metrics"]["all"]["paired_both_roles"])=={"S3BA_vs_S3BN","S3BA_vs_S3BZ","S3BN_vs_S3BZ"}
+          assert r["metrics"]["source_first"]["n"]==64 and r["metrics"]["destination_first"]["n"]==64
+          assert len(r["question_level"])==128
+          assert r["no_training_or_calibration_or_threshold_tuning"]
+          assert r["independent_EVAL_is_now_consumed"] and r["no_winner_accepted_based_on_this_EVAL"]
+          assert not r["candidate_accepted"] and r["output_gate"]==0.
+          assert not r["full_EOS_tested"] and not r["physical_all_in_bpp_tested"] and not r["paired_CPU_speed_tested"]
+          print("S3CD_FIFTH128_ONE_TIME_SEMANTIC_MODEL_COMPARE_ZERO_GATE",r["metrics"]["all"])
+          PY
+      - name: Archive one-time independent new128 role+reachability scores, forbid reuse for future training
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3bw-fifth128-once-only-s3ba-vs-new-joint-s3bz
+          path: results/nra2_stage3bw_fifth128_once_only/
+          retention-days: 90
+          if-no-files-found: error
