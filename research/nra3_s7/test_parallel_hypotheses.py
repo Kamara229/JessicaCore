@@ -41,10 +41,9 @@ class ParallelS7Tests(unittest.TestCase):
         self.assertEqual(original.parameter_count(),6_106_154)
         self.assertEqual(parallel.parameter_count(),original.parameter_count())
         self.assertEqual(set(original.state_dict()),set(parallel.state_dict()))
-        self.assertTrue(all(torch.equal(original.state_dict()[key],
-                                        parallel.state_dict()[key])
-                            for key in original.state_dict()
-                            if key.endswith("bias") is False) is False or True)
+        self.assertTrue(all(tuple(original.state_dict()[k].shape)==
+                            tuple(parallel.state_dict()[k].shape)
+                            for k in original.state_dict()))
         with self.assertRaises(ValueError):
             NRA3Config(parallel_hypotheses=2)
         self.assertEqual(NRA3Config().parallel_hypotheses,1)
@@ -137,6 +136,19 @@ class ParallelS7Tests(unittest.TestCase):
                 self.assertEqual(a.shape,b.shape)
                 self.assertTrue(torch.allclose(a,b,atol=7e-4,rtol=6e-4),
                                 f"{name}: maxdiff={(a-b).abs().max().item()}")
+            # Full relational supervised head objective must use the same
+            # native CB59 operator ABI, including root [1,R] readout.
+            row=build_train()[0]
+            aligned=CausalAlignment(
+                row.sha256(),9,tuple(range(100,109)),
+                tuple(AlignedWord(i+1,(i,),i)
+                      for i in range(len(row.words))),8)
+            with torch.inference_mode():
+                reference_obj=parallel_train_objective(copy,hidden,row,aligned)
+                native_obj=parallel_train_objective(packed,hidden,row,aligned)
+            self.assertTrue(torch.allclose(reference_obj.total,
+                                           native_obj.total,
+                                           atol=8e-4,rtol=8e-4))
             self.assertEqual(len(list(packed.parameters())),0)
             self.assertEqual(packed.output_gate,0)
             self.assertFalse(packed.candidate_accepted)
