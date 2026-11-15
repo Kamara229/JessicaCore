@@ -35,17 +35,17 @@ def main():
     report["illustrative_combined_bpp_EXCLUDING_GT_MANIFEST"]=(
         (baseline_n*assumed_parent_bpp+len(physical.read_bytes())*8)/
         (baseline_n+model.parameter_count()))
-    report["minimum_additional_headroom_required_for_GT_and_manifest_bytes"]=(
-        max(0,math.floor(.7*(baseline_n+model.parameter_count())/8
-                         - baseline_n*assumed_parent_bpp/8
-                         - physical.stat().st_size)))
+    report["illustrative_signed_remaining_bytes_for_GT_and_manifest"]=(
+        math.floor(.7*(baseline_n+model.parameter_count())/8
+                   - baseline_n*assumed_parent_bpp/8
+                   - physical.stat().st_size))
     report["all_inclusive_gt_and_Calibri_source_loaded"]=False
     report["all_inclusive_actual_rate_accepted"]=False
     report["native_CB59_CPU_operator_dispatch"]=False
     report["locked_before_any_full_EOS_or_616_J7"]=True
     report["no_prior_five_or_reserved_sixth_EVAL_data"]=True
     (args.out/"NRA3_S1_PHYSICAL_UNTRAINED_RESEARCH.json").write_text(
-        json.dumps(report,indent=2,sort_keys=True)+"\\n",encoding="utf-8")
+        json.dumps(report,indent=2,sort_keys=True)+"\n",encoding="utf-8")
     print(json.dumps(report,sort_keys=True),flush=True)
 
 
