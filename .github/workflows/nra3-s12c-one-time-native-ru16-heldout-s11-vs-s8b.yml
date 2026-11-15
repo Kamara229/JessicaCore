@@ -83,7 +83,7 @@ jobs:
           r=json.loads(Path("inputs/nra3_s12b/NRA3_S12B_REAL_CPU_43M_LAYER8_EVAL16_J7_REPORT.json").read_text())
           a=Path("inputs/nra3_s8/NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59")
           b=Path("inputs/nra3_s11/NRA3_S11_TINY_PAID_RUSSIAN_TRAIN72_CAUSAL_3WAY_SELECTOR_FP16.n3r11")
-          assert S12B_EVAL16_EXPECTED_FP16_SHA != "c14026852521dc8958dc8f82ea8453d70529d23083833696da86182856723ed8"
+          assert S12B_EVAL16_EXPECTED_FP16_SHA == "c14026852521dc8958dc8f82ea8453d70529d23083833696da86182856723ed8"
           assert hashlib.sha256(h.read_bytes()).hexdigest()==S12B_EVAL16_EXPECTED_FP16_SHA
           assert r["actual_fp16_feature_sha256"]==S12B_EVAL16_EXPECTED_FP16_SHA
           assert load_file(str(h))["token_hidden320"].shape[0]==16
