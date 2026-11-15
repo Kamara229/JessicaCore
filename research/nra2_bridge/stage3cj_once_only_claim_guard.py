@@ -82,10 +82,11 @@ def gh_post_tag(repo: str, tag_ref: str, sha: str) -> int:
     if proc.returncode != 0:
         raise ClaimDenied("GitHub CLI failed: exit " + str(proc.returncode))
     # gh api --include prints the HTTP status line before response headers.
-    status = re.search(r"(?m)^HTTP/\S+\s+(\d{3})\b", proc.stdout)
-    if not status:
-        raise ClaimDenied("cannot verify GitHub atomic-create status")
-    return int(status.group(1))
+    statuses = re.findall(r"(?m)^HTTP/\S+\s+(\d{3})\b", proc.stdout)
+    # No status or ambiguous status lines must never authorize one-time EVAL.
+    if len(statuses) != 1:
+        raise ClaimDenied("cannot uniquely verify GitHub atomic-create status")
+    return int(statuses[0])
 
 
 def main() -> None:
