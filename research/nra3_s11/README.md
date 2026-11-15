@@ -2,7 +2,7 @@
 
 **RESEARCH ONLY / DRAFT / DO NOT MERGE / zero Calibri output gate**.
 
-S10 successfully produced original **real** frozen Calibri 43M after-GT layer8 CPU hidden320 for exactly 72 new Russian TRAIN utterances, with complete original protected **616 J7 generation digests unchanged** (CI #43732621116 SUCCESS). Physical SHA `ed262984c0fd48b60987308e7b135be7d05d3e5434fe9923f373aec178ff2b46`; actual [72,59,320] FP16 and source S9 SHA `b09d60a77a17d30c2dbf846e40ab97860def8635e2bf31a5b0ab8981832b744d`. S10 source was **read only**, no new candidate activation or weight updates. Original S8b paid NRA3 6M archive SHA `b543c5b4692caa8764382271f94ccfbddeee8b2afdb096666676b2a68e1375f9` with 43 real 5-bit CB59 matrices remains unmodified; its three-hypothesis selector collapsed on TRAIN12 and was rejected.
+S10 successfully produced original **real** frozen Calibri 43M after-GT layer8 CPU hidden320 for exactly 72 new Russian TRAIN utterances, with complete original protected **616 J7 generation digests unchanged** (CI #43732621116 SUCCESS). Physical SHA `ed262984c0fd48b60987308e7b135be7d05d3e5434fe9923f373aec178ff2b46`; actual [72,59,320] FP16 and source S9 SHA `b09d60a77a17d30c2dbf846e40ab97860def8635e2bf31a5b0ab8981832b744d`. S10 source was **read only**, no new candidate activation or weight updates. Original S8b paid NRA3 6M archive SHA `d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97` with 43 real 5-bit CB59 matrices remains unmodified; its three-hypothesis selector collapsed on TRAIN12 and was rejected.
 
 ## New stage
 
