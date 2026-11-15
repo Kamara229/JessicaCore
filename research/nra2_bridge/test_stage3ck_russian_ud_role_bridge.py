@@ -107,6 +107,24 @@ class RussianGrammarContractTests(unittest.TestCase):
                       [(x.head_id, x.child_id, x.relation) for x in f.arcs])
         self.assertEqual(f.words[0].upos, "ADJ")
 
+    def test_grammatical_subject_is_not_semantic_source(self):
+        # In "R1 received from R0" the subject is the recipient. Returning
+        # subject as graph source would reverse a directed relation.
+        text = "R1 получил письмо от R0."
+        w = annotated(text, [
+            ("R1", "R1", "PROPN", 2, "nsubj"),
+            ("получил", "получить", "VERB", 0, "root"),
+            ("письмо", "письмо", "NOUN", 2, "obj"),
+            ("от", "от", "ADP", 5, "case"),
+            ("R0", "R0", "PROPN", 2, "obl"),
+            (".", ".", "PUNCT", 2, "punct"),
+        ])
+        f = extract_grammar(text, w, (EntityMention("R1", 1),
+                                      EntityMention("R0", 5)))
+        self.assertEqual(f.role_entities("subject"), ("R1",))
+        self.assertIsNone(f.semantic_direction)
+        self.assertIsNone(f.graph_reachability)
+
     def test_reject_malformed_or_untrusted_annotations(self):
         text = "Иван увидел Марию."
         f = self.active(text, True)
