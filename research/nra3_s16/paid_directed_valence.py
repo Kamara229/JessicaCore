@@ -118,6 +118,56 @@ class PaidDirectedValence(nn.Module):
               "invalid paid direction/role link score")
         return DirectedCausalLinks(logits_pred,logits_arg,allow,pred,arg)
 
+    def score_pairs(self, predicate_features:torch.Tensor,
+                    argument_features:torch.Tensor,
+                    predicate_positions:torch.Tensor,
+                    argument_positions:torch.Tensor,
+                    current_positions:torch.Tensor)->torch.Tensor:
+        """Exact physical forward scores only specified visible directed pairs.
+
+        Never receives a gold POS, verb/argument identity, semantic class,
+        or an EOS/final-prompt feature. The caller passes EVERY candidate
+        word pair in both directions; gold is used only outside this
+        method to compute a TRAIN loss. Positions are true Calibri native
+        token indices, not synthetic word numbers.
+        """
+        if self.output_gate!=0 or self.candidate_accepted:
+            raise RuntimeError("S16 pair source cannot activate original decoder")
+        guard(predicate_features.ndim==argument_features.ndim==2
+              and predicate_features.shape==argument_features.shape
+              and predicate_features.shape[1]==WIDTH
+              and predicate_features.device.type=="cpu"
+              and argument_features.device.type=="cpu"
+              and predicate_features.dtype==argument_features.dtype==torch.float32
+              and bool(torch.isfinite(predicate_features).all())
+              and bool(torch.isfinite(argument_features).all()),
+              "paired original native CPU relation128 vectors expected")
+        n=predicate_features.shape[0]
+        guard(n>=1
+              and predicate_positions.shape==(n,)
+              and argument_positions.shape==(n,)
+              and current_positions.shape==(n,)
+              and all(z.dtype==torch.long and z.device.type=="cpu"
+                      for z in (predicate_positions,argument_positions,current_positions))
+              and bool((predicate_positions>=0).all())
+              and bool((argument_positions>=0).all())
+              and bool((predicate_positions!=argument_positions).all())
+              and bool((torch.maximum(predicate_positions,argument_positions)
+                        ==current_positions).all()),
+              "directional edge must exist only once both wordpieces are visible")
+        p=F.linear(F.layer_norm(predicate_features,(WIDTH,)),
+                   self._paid(self.predicate_weight))
+        a=F.linear(F.layer_norm(argument_features,(WIDTH,)),
+                   self._paid(self.argument_weight))
+        positive=torch.einsum("ni,rij,nj->nr",
+                              p,self._paid(self.role_bilinear),a)
+        bs=self._paid(self.bias)
+        logits=torch.cat((bs[0].expand(n,1),positive+bs[1:]),dim=-1)
+        guard(logits.shape==(n,len(ROLES)) and
+              bool(torch.isfinite(logits).all()),
+              "physical original causal paired score must be finite")
+        return logits
+
     def physical_bytes(self)->bytes:
         if self.output_gate!=0 or self.candidate_accepted:
             raise RuntimeError("S16 unaccepted live output gate must be zero")
