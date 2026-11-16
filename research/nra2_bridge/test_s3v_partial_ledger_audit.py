@@ -70,6 +70,13 @@ class PartialLedgerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             checked(payload)
 
+    def test_producer_float_zero_gate_accepted(self):
+        payload = fixture()
+        payload["output_gate"] = 0.0
+        result = checked(payload)
+        self.assertEqual(result["output_gate"], 0)
+        self.assertFalse(result["candidate_accepted"])
+
     def test_boolean_gate_rejected(self):
         payload = fixture()
         payload["output_gate"] = False
