@@ -55,7 +55,7 @@ def main():
         evidence["S17_model_forward_calls"]!=0 or
         evidence["S17_model_evaluation_scored"] is not False or
         evidence["S17_optimizer_steps"]!=0 or
-        evidence["S17_old_consumed_S17c_EVAL24_never_loaded"] is not True or
+        evidence["S17_old_consumed_S15c_EVAL24_never_loaded"] is not True or
         evidence["S17_old_consumed_S12c_EVAL16_never_loaded"] is not True or
         evidence["S17_old_five_EVAL128_and_reserved_sixth_S3CI_never_loaded"] is not True or
         evidence["S17_original_Calibri43M_GT_nativeC_NRA_not_loaded"] is not True):
