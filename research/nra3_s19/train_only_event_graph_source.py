@@ -12,6 +12,9 @@ from research.nra3_s19.graph_schema import (
 )
 
 
+TRAIN_ONLY_FROZEN_SHA256 = "fd424c8584a7a8ee719bd44b9540141cd94c687b892bb6d559ef231e78327bb2"
+
+
 def _row(text, heads, roles, refs=(), relations=()):
     tokens = raw_model_input(text).tokens
     def idx(form):
@@ -108,11 +111,14 @@ def build_s19_train_only():
 
 def train_only_manifest():
     rows = build_s19_train_only()
+    sha = canonical_train_only_sha(rows)
+    if sha != TRAIN_ONLY_FROZEN_SHA256:
+        raise ValueError("S19 frozen TRAIN-only event annotation SHA changed")
     return {
         "stage": "NRA3_S19_NEW_SOURCE_ONLY_GRAMMAR_EVENT_GRAPH",
         "split": "TRAIN_ONLY",
         "new_train_examples": len(rows),
-        "new_train_annotations_sha256": canonical_train_only_sha(rows),
+        "new_train_annotations_sha256": sha,
         "gold_role_links": sum(len(x.arguments) for x in rows),
         "events": sum(len(x.events) for x in rows),
         "coreference_links": sum(len(x.coreferences) for x in rows),
