@@ -1,0 +1,163 @@
+name: NRA2 S17c ONE-TIME true original43M GT NEW Russian24 frozen 2309FP16 directed role F1
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s17b-real43m-newru24-raw-readonly-20261116
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s17c-ONE-TIME-frozen-s16b-NEW-RU24-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  new_russian24_original43M_C_native_one_time_2way_directed_eval:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s17c-once-frozen-directed-newru24-eval-20261116'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      PYTHONHASHSEED: '317103'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: HARD PIN frozen S16b prior to full S17 fresh EVAL prereg prior to original43M REAL CPU S17b goldfree capture
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43758892125 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43758892125 --jq .head_sha)" = ea063bf1fa0e856111c54f3b045220ca7aa5319e
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43898826121 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43898826121 --jq .head_sha)" = d9c87095ca90e84a807e7853bbd3f6355369d79a
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/__S17B_RUN__ --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/__S17B_RUN__ --jq .head_sha)" = __S17B_SHA__
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43731085988 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43734571081 --jq .conclusion)" = success
+          echo S17C_TRUE_ORIGINAL43M_AFTER_SHA_LOCK_GOLD24_NO_TUNING
+      - name: Install pinned original native CB59 research CPU and FP16 source dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface_hub==0.27.1'
+      - name: BEFORE new24 scoring unit-test source SHA and WRONG role FP+FN metrics, all directed candidate pairs
+        run: |
+          python -m compileall -q research/nra3_s17 research/nra3_s16
+          python -m unittest -v research.nra3_s17.test_one_time_true43m_directed_valence_eval research.nra3_s17.test_ru24_directed_eval_prereg research.nra3_s16.test_real43m_train72_directed_pairs
+      - name: Download only new real original43M+GT CPU new 24 READONLY hidden FP16 and unchanged 616 J7 S17b source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s17b-TRUE43M-616J7-newRU24-directed-EVAL-postGT-layer8-goldfree-FP16
+          run-id: __S17B_RUN__
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s17b
+      - name: Download S16b physically frozen 2309-FP16 valence selected solely from old 72 TRAIN, never retrain
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s16b-original43M-CB59-S11-new2309FP16-216-directed-links-72TRAIN-only
+          run-id: 43758892125
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s16b
+      - name: Download immutable original 43 5bit CB59 full native-C packed NRA6M
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s8-adaptive-calibrated-3way-physical-CB59-S61-realRU12-trainonly
+          run-id: 43731085988
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s8
+      - name: Download immutable S11 original 39-FP16 3way selector for 6-cycle native C relation
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s11-real43M-ru72-39param-FP16-paid-router-native-C-trainonly
+          run-id: 43734571081
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s11
+      - name: BEFORE any NEW EVAL candidate forward authenticate original GT 43M hidden SHA and all physical S16b 2309FP16 sources
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from research.nra3_s17.one_time_true43m_new24_directed_eval import (
+             original_cpu_new24_source,frozen_physical_sources,
+             S17B_FROZEN_ORIGINAL43M_CPU_HIDDEN_SHA,
+             S16B_FROZEN_MODEL_SHA,S11_FROZEN_39_FP16_SHA,
+             S8B_FROZEN_CB59_SHA,S17_GOLD_SHA
+          )
+          root=Path("inputs")
+          feats=root/"nra3_s17b/NRA3_S17B_TRUE43M_GT_NEW_RU24_DIRECTED_HIDDEN320_FP16.safetensors"
+          audit=root/"nra3_s17b/NRA3_S17B_TRUE43M_CPU_NEW_RU24_DIRECTED_J7_REPORT.json"
+          cb59=root/"nra3_s8/NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59"
+          router=root/"nra3_s11/NRA3_S11_TINY_PAID_RUSSIAN_TRAIN72_CAUSAL_3WAY_SELECTOR_FP16.n3r11"
+          source=root/"nra3_s16b/NRA3_S16B_2309FP16_DIRECTED_VALENCE_REAL43M_TRAIN72_ONLY.n3s16"
+          report=root/"nra3_s16b/NRA3_S16B_TRUE43M_GOLD216_DIRECTED_VALENCE_FP16_TRAIN_ONLY_REPORT.json"
+          rows,parent=original_cpu_new24_source(feats,audit)
+          old=json.loads(report.read_text(encoding="utf-8"))
+          paid=frozen_physical_sources(cb59.read_bytes(),router.read_bytes(),source.read_bytes(),old)
+          assert len(rows)==24
+          assert parent["all_616_native_CPU_generated_token_digests_unchanged"]
+          assert S17B_FROZEN_ORIGINAL43M_CPU_HIDDEN_SHA=="__S17C_HIDDEN_SHA__"
+          assert hashlib.sha256(feats.read_bytes()).hexdigest()==S17B_FROZEN_ORIGINAL43M_CPU_HIDDEN_SHA
+          assert hashlib.sha256(source.read_bytes()).hexdigest()==S16B_FROZEN_MODEL_SHA
+          assert hashlib.sha256(router.read_bytes()).hexdigest()==S11_FROZEN_39_FP16_SHA
+          assert hashlib.sha256(cb59.read_bytes()).hexdigest()==S8B_FROZEN_CB59_SHA
+          assert old["S16b_separate_future_NEW_independent_Russian_EVAL_performed"] is False
+          for consumed in ("nra3_s12","nra3_s12b","nra3_s12c","nra3_s15","nra3_s15b","nra3_s15c"):
+              assert not (root/consumed).exists()
+          print("S17C_GENUINE43M_NEW24_FROZEN_SOURCE_SHA_43_CB59_S11_2309FP16_PHYSICAL",flush=True)
+          PY
+      - name: ONE-TIME FROZEN SCORE all 24 novel RU sentences with all n(n-1) ordered word pairs and NO GOLD candidate filtering
+        run: |
+          python -m research.nra3_s17.one_time_true43m_new24_directed_eval \
+            --s17b-hidden inputs/nra3_s17b/NRA3_S17B_TRUE43M_GT_NEW_RU24_DIRECTED_HIDDEN320_FP16.safetensors \
+            --s17b-report inputs/nra3_s17b/NRA3_S17B_TRUE43M_CPU_NEW_RU24_DIRECTED_J7_REPORT.json \
+            --s8-cb59 inputs/nra3_s8/NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59 \
+            --s11-router inputs/nra3_s11/NRA3_S11_TINY_PAID_RUSSIAN_TRAIN72_CAUSAL_3WAY_SELECTOR_FP16.n3r11 \
+            --s16b-valence inputs/nra3_s16b/NRA3_S16B_2309FP16_DIRECTED_VALENCE_REAL43M_TRAIN72_ONLY.n3s16 \
+            --s16b-report inputs/nra3_s16b/NRA3_S16B_TRUE43M_GOLD216_DIRECTED_VALENCE_FP16_TRAIN_ONLY_REPORT.json \
+            --out results/nra3_s17c
+      - name: Fail CLOSED regardless of independent F1, no GOLD used in model, no new candidate acceptance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra3_s17c/NRA3_S17C_ONE_TIME_NEW24_DIRECTED_ROLE_RESEARCH_NO_PROMOTION.json").read_text(encoding="utf-8"))
+          assert r["stage"]=="NRA3_S17C_ONE_TIME_TRUE43M_NEW24_FROZEN_S16B_DIRECTED_ROLE_EVAL"
+          assert r["S17_NEW24_COMPLETE_UD_DIRECTED_GOLD_PREREG_SHA"]=="fca54736aa555d9c5b3665d1bb9a1fc1979ad7abdeb083af015d90dc05ed1a32"
+          assert r["S16b_candidate_SHA_FROZEN_BEFORE_S17_new_EVAL24"]=="3fe4bbce718e53e4e812e94367ce25834f873cbed646479c59b1e3949d2ecf38"
+          assert r["S17b_original_real43M_GT_CPU_hidden_SHA"]=="__S17C_HIDDEN_SHA__"
+          assert r["S17c_true_original43M_GT_NATIVE_C_all24_scored_once"]
+          assert r["S17c_no_gold_POS_verb_or_direct_link_candidate_filter"]
+          assert r["S17c_actual_scoring_all_24_after_model_SHA_freeze"]
+          assert r["S17c_EVAL24_optimizer_steps"]==0
+          assert r["S17c_no_EVAL24_training_or_checkpoint_selection"]
+          assert r["S17c_new_EVAL24_now_CONSUMED_no_future_retesting_or_tuning"]
+          assert r["S17c_independent_NEW24_gold_true_directed_edges"]==74
+          assert len(r["S17c_per_sentence_readonly_diagnostic"])==24
+          assert r["S17c_all24_frozen_directed_role_micro"]["tp"]+r["S17c_all24_frozen_directed_role_micro"]["fn"]==74
+          assert r["S17c_standalone_raw_NRA_plus_S11_plus_S16b_bpp"]>.7
+          assert r["S17c_active_S16b_candidate_616_J7_or_fullEOS_tested"] is False
+          assert r["S17c_negation_future_event_truth_prediction_measured"] is False
+          assert r["S17c_pronoun_antecedent_coreference_prediction_measured"] is False
+          assert r["S17c_RussianQA_or_dialogue_generation_quality_measured"] is False
+          assert r["S17c_native_full_system_43M_GT_NRA_speed_at_least90pct_certified"] is False
+          assert r["S17c_full_inclusive_original43M_GT_NRA_bpp_at_most07_certified"] is False
+          assert r["S17c_no_prior_consumed_S15c_EVAL24_or_S12c_EVAL16_used"]
+          assert r["S17c_no_prior_five_EVAL128_or_reserved_sixth_S3CI_used"]
+          assert r["research_acceptance"] is False
+          assert r["candidate_accepted"] is False and r["activation_allowed"] is False and r["output_gate"]==0
+          print("S17C_ONE_TIME_TRUE43M_NEW24_FROZEN_NATIVE_CB59_2309PAID_FP16_F1_NO_TUNE_NO_PROMOTION",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s17c-ONE-TIME-original43M-GT-newRU24-directed-S16b-2309FP16-full-orderedpair-F1-no-promotion
+          path: results/nra3_s17c/
+          retention-days: 30
+          if-no-files-found: error
