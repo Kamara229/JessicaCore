@@ -36,6 +36,8 @@ jobs:
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43913448392 --jq .conclusion)" = success
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43913448392 --jq .head_sha)" = a4838b1bf2cc2d1fcb3c1134f7983ebd58d80c53
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43918044123 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43919440242 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43919440242 --jq .head_sha)" = 63c0b6ca775969ef3ed3348dc1be4a1fa0bbee25
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43918044123 --jq .head_sha)" = 63ffdfff65972dc284a4fbd6d89b2e715d5beeb3
           echo PRIOR_2597FP16_CANDIDATE_AND_2309FP16_CONTROL_FROZEN_NO_EVAL_CREATED_YET
       - name: Install MINIMAL source-only check dependencies, NO candidate model or Calibri weights
@@ -64,6 +66,7 @@ jobs:
                          for n in imports)
           r=seal_new_eval32_source()
           assert r["new_eval_gold_predicate_to_argument_links"]==104
+          assert r["first_prereg_source_only_CI"]==43919440242
           assert r["precommitted_exact_new_eval_sentences"]==32
           assert r["gold_roles_counts"]=={"AGENT":32,"PATIENT":36,"RECIPIENT":32,"SOURCE":4}
           assert not r["candidate_scored_on_eval32"]
