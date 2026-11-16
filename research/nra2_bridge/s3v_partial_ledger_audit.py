@@ -32,7 +32,13 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
             obj[key] = value
         return obj
 
-    report = json.loads(raw, object_pairs_hook=unique_pairs)
+    # Python's JSON decoder accepts NaN/Infinity by default although they are
+    # not valid JSON. Reject them before inspecting provenance or aggregates.
+    def reject_nonfinite(token):
+        raise ValueError("FAIL CLOSED: non-finite JSON constant: " + token)
+
+    report = json.loads(raw, object_pairs_hook=unique_pairs,
+                        parse_constant=reject_nonfinite)
     if not isinstance(report, dict):
         raise ValueError("FAIL CLOSED: source report must be an object")
     if (report.get("stage") != STAGE
