@@ -58,6 +58,28 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
         or hard_errors != N - metrics["hard_correct"]):
         raise ValueError("FAIL CLOSED: sparse record / aggregate inconsistency")
     unknown = N - len(seen)
+    # Cross-check producer-side role aggregates against the sparse observations.
+    # This checks internal consistency, NOT independent reproduction of predictions.
+    for role_field, aggregate_field in (
+        ("source_correct", "correct_source"),
+        ("target_correct", "correct_destination"),
+    ):
+        total = metrics.get(aggregate_field)
+        observed = sum(r[role_field] for r in records)
+        if type(total) is not int or not observed <= total <= observed + unknown:
+            raise ValueError("FAIL CLOSED: producer role aggregate outside sparse bounds")
+    # Producer's original family and yes/no aggregates must partition all 64
+    # cases; do not invent missing per-row roles or order-specific accuracies.
+    slices = report["all_and_family_yes_no_accuracy"]
+    yes_slice, no_slice = slices.get("true_yes"), slices.get("true_no")
+    if not isinstance(yes_slice, dict) or not isinstance(no_slice, dict):
+        raise ValueError("FAIL CLOSED: missing original truth partition")
+    for field in ("count", "correct_source", "correct_destination",
+                  "soft_correct", "hard_correct"):
+        if (type(yes_slice.get(field)) is not int
+            or type(no_slice.get(field)) is not int
+            or yes_slice[field] + no_slice[field] != metrics[field]):
+            raise ValueError("FAIL CLOSED: producer yes/no aggregates inconsistent")
     def bounds(field):
         correct = sum(bool(r[field]) for r in records)
         return {"observed_correct": correct, "unknown": unknown,
