@@ -1,0 +1,75 @@
+name: NRA3 S18b0 locked original fast-tokenizer new96 TRAIN preflight only
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s18-new96-multiverb-graph-trainonly-20261116
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s18b0-new96-alignment-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  train96_original_tokenizer_contract_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s18b0-new96-original-token-alignment-20261116'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '3180096'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify sealed source-only S18 new96 TRAIN before tokenizer preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43904457245 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43904457245 --jq .head_sha)" = 05a3fad25a3c80bfd50d93c504095d4ca7dc293f
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43902361580 --jq .conclusion)" = success
+          echo S18B0_NEW96_TRAIN_SOURCE_ONLY_OLD_S17C_HOLDOUT_CONSUMED
+      - name: Install minimal original S18 source contract dependencies (NO checkpoints)
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Original 96 TRAIN SHA and fast-tokenizer word boundary negative tests, no model forward
+        run: |
+          python -m compileall -q research/nra3_s18
+          python -m unittest -v research.nra3_s18.test_ru96_train_source research.nra3_s18.test_locked_original43m_new96_alignment
+      - name: Check that new alignment never imports spent eval, original weights, or serving dependencies
+        run: |
+          python - <<'PY'
+          import ast,hashlib,inspect,json
+          import research.nra3_s18.locked_original43m_new96_token_alignment as m
+          from research.nra3_s18.ru96_multiverb_train_source import (
+              S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256,
+              canonical_s18_new96_train,build_s18_new_train96,seal_s18_new96_train,
+          )
+          s=inspect.getsource(m)
+          tree=ast.parse(s)
+          imports=[x.module or '' for x in ast.walk(tree) if isinstance(x,ast.ImportFrom)]
+          imports += [name.name for node in ast.walk(tree) if isinstance(node,ast.Import) for name in node.names]
+          banned=('nra3_s17','nra3_s15','nra3_s12','render','supabase','calibri2.s194','transformers','safetensors')
+          assert not any(any(b in x.lower() for b in banned) for x in imports)
+          assert set(imports) == {
+            '__future__','research.nra3_s4.complete_prefix_training_contract',
+            'research.nra3_s18.ru96_multiverb_train_source'}
+          rows=build_s18_new_train96()
+          assert len(rows)==96
+          full_sha=hashlib.sha256(canonical_s18_new96_train(rows)).hexdigest()
+          assert full_sha == S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256
+          assert seal_s18_new96_train()["S18_new_directed_verb_to_argument_links"]==300
+          assert "torch." not in s and "model(" not in s
+          assert not any(x.startswith("inputs/") for x in (__import__('os').listdir('.') if __import__('os').path.exists('inputs') else []))
+          print("S18B0_TRAIN96_REAL_TOKENIZER_INTERFACE_PREPARED_NO_CPU_RUN_NO_EVAL_NO_PROMOTION",full_sha)
+          PY
