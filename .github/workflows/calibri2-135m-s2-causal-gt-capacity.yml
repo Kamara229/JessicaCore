@@ -1,0 +1,70 @@
+name: CALIBRI135 S2 original FP32 root cause and scaled paid Green Tunnel
+'on':
+  push:
+    branches:
+      - 'research/calibri2-135m-s2-rootcause-gt-capacity-20261117'
+    paths:
+      - 'research/calibri2/independent_135m/s2/**'
+      - '.github/workflows/calibri2-135m-s2-causal-gt-capacity.yml'
+  workflow_dispatch:
+concurrency:
+  group: calibri2-135m-s2-causal-capacity
+  cancel-in-progress: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  physical_sweep_and_FP32_causal:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '13521117'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install reproducible CPU model stack
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Synthetic compatibility contracts, original original-135M physical safety
+        run: |
+          python -m compileall -q research/calibri2/independent_135m/s2
+          python -m unittest calibri2.independent_135m.arch_no_nra.test_architecture -v
+          python -m unittest test_v197_green_tunnel_generic_parity test_v185_discrete_index -v
+      - name: Load existing authenticated physical S0 and S1 compact delta, no double-counting
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-original-pretrained-135M-full-architecture-NO-NRA-vs-FP32
+          run-id: 43946485860
+          path: inputs/original_arch
+          github-token: ${{ github.token }}
+      - name: Physical GT architecture capacity sweep with full-depth gradients
+        run: |
+          python research/calibri2/independent_135m/s2/gt_capacity.py \
+            inputs/original_arch/CALIBRI2_135M_SOURCE_CB59.cb59 \
+            inputs/original_arch/S1_PROFILE_SPARSE_PAID_DELTA.safetensors \
+            results/calibri2/135m_S2/physical_capacities
+      - name: CAUSAL localization of compressed degradation using original FP32 input/output diagnostic
+        run: |
+          python research/calibri2/independent_135m/s2/rootcause.py \
+            inputs/original_arch/CALIBRI2_135M_SOURCE_CB59.cb59 \
+            results/calibri2/135m_S2/rootcause
+      - name: Preserve real source geometry, all physically packed GT variants, and all negative findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-independent-trained135M-S2-FP32-causal-GT-capacity
+          path: results/calibri2/135m_S2/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 90
