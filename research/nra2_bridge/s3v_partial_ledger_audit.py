@@ -20,6 +20,8 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
     if len(expected_sha256) != 64 or actual != expected_sha256.lower():
         raise ValueError("FAIL CLOSED: raw source JSON physical SHA256 mismatch")
     report = json.loads(raw)
+    if not isinstance(report, dict):
+        raise ValueError("FAIL CLOSED: source report must be an object")
     if (report.get("stage") != STAGE
         or report.get("S3T_prior_commitment_sha256") != S3T_SHA
         or report.get("S3O_frozen_adapter_sha256") != S3O_SHA
@@ -30,13 +32,17 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
         or report.get("new_training_or_parameter_tuning") is not False):
         raise ValueError("FAIL CLOSED: report provenance or zero gate mismatch")
     metrics = report["all_and_family_yes_no_accuracy"]["all"]
-    if metrics.get("count") != N or metrics.get("yes") != 32 or metrics.get("no") != 32:
+    if (type(metrics.get("count")) is not int or metrics["count"] != N
+        or type(metrics.get("yes")) is not int or metrics["yes"] != 32
+        or type(metrics.get("no")) is not int or metrics["no"] != 32):
         raise ValueError("FAIL CLOSED: preregistered population mismatch")
     records = report["disagreement_or_error_cases"]
     if not isinstance(records, list) or len(records) > N:
         raise ValueError("FAIL CLOSED: invalid sparse record collection")
     seen = set()
     for r in records:
+        if not isinstance(r, dict):
+            raise ValueError("FAIL CLOSED: sparse record must be an object")
         i = r.get("index")
         if type(i) is not int or not 0 <= i < N or i in seen:
             raise ValueError("FAIL CLOSED: duplicate/out-of-range case index")
@@ -52,6 +58,10 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
         # have an answer disagreement, which is impossible with fixed binary truth.
         if r["soft_correct"] and r["hard_correct"]:
             raise ValueError("FAIL CLOSED: record contradicts S3V producer predicate")
+    for field in ("soft_correct", "hard_correct", "correct_source", "correct_destination"):
+        value = metrics.get(field)
+        if type(value) is not int or not 0 <= value <= N:
+            raise ValueError("FAIL CLOSED: invalid aggregate count")
     soft_errors = sum(not r["soft_correct"] for r in records)
     hard_errors = sum(not r["hard_correct"] for r in records)
     if (soft_errors != N - metrics["soft_correct"]
@@ -78,6 +88,8 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
                   "soft_correct", "hard_correct"):
         if (type(yes_slice.get(field)) is not int
             or type(no_slice.get(field)) is not int
+            or not 0 <= yes_slice[field] <= 32
+            or not 0 <= no_slice[field] <= 32
             or yes_slice[field] + no_slice[field] != metrics[field]):
             raise ValueError("FAIL CLOSED: producer yes/no aggregates inconsistent")
     def bounds(field):
