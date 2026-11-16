@@ -65,8 +65,8 @@ jobs:
           assert m==preregister_new_eval24()
           sha=hashlib.sha256(canonical_eval24(build_new_eval24())).hexdigest()
           assert sha==m["S17_new_Russian_EVAL_complete_UD_and_directed_link_SHA256"]
-          if S17_EVAL24_COMPLETE_SHA:
-              assert sha==S17_EVAL24_COMPLETE_SHA
+          assert S17_EVAL24_COMPLETE_SHA=="fca54736aa555d9c5b3665d1bb9a1fc1979ad7abdeb083af015d90dc05ed1a32"
+          assert sha==S17_EVAL24_COMPLETE_SHA
           annotated=json.loads((root/"NRA3_S17_NEW_RUSSIAN24_DIRECTED_PREDICATE_ARGUMENT_GOLD_SOURCE_ONLY.json").read_text())
           assert len(annotated)==24
           assert m["S17_new_Russian_EVAL_sentence_count"]==24
