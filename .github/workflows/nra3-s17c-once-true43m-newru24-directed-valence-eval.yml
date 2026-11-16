@@ -39,8 +39,8 @@ jobs:
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43758892125 --jq .head_sha)" = ea063bf1fa0e856111c54f3b045220ca7aa5319e
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43898826121 --jq .conclusion)" = success
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43898826121 --jq .head_sha)" = d9c87095ca90e84a807e7853bbd3f6355369d79a
-          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/__S17B_RUN__ --jq .conclusion)" = success
-          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/__S17B_RUN__ --jq .head_sha)" = __S17B_SHA__
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43900663076 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43900663076 --jq .head_sha)" = db11cb2d2bbecebd71ac2e06dfec3f3a2a1b2b59
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43731085988 --jq .conclusion)" = success
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43734571081 --jq .conclusion)" = success
           echo S17C_TRUE_ORIGINAL43M_AFTER_SHA_LOCK_GOLD24_NO_TUNING
@@ -56,7 +56,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: nra3-s17b-TRUE43M-616J7-newRU24-directed-EVAL-postGT-layer8-goldfree-FP16
-          run-id: __S17B_RUN__
+          run-id: 43900663076
           github-token: ${{ github.token }}
           path: inputs/nra3_s17b
       - name: Download S16b physically frozen 2309-FP16 valence selected solely from old 72 TRAIN, never retrain
@@ -103,7 +103,7 @@ jobs:
           paid=frozen_physical_sources(cb59.read_bytes(),router.read_bytes(),source.read_bytes(),old)
           assert len(rows)==24
           assert parent["all_616_native_CPU_generated_token_digests_unchanged"]
-          assert S17B_FROZEN_ORIGINAL43M_CPU_HIDDEN_SHA=="__S17C_HIDDEN_SHA__"
+          assert S17B_FROZEN_ORIGINAL43M_CPU_HIDDEN_SHA=="22af4b8420bc0091fd53dad10be1c5e8c0700a09f08e006b043419567d8e44d4"
           assert hashlib.sha256(feats.read_bytes()).hexdigest()==S17B_FROZEN_ORIGINAL43M_CPU_HIDDEN_SHA
           assert hashlib.sha256(source.read_bytes()).hexdigest()==S16B_FROZEN_MODEL_SHA
           assert hashlib.sha256(router.read_bytes()).hexdigest()==S11_FROZEN_39_FP16_SHA
@@ -132,7 +132,7 @@ jobs:
           assert r["stage"]=="NRA3_S17C_ONE_TIME_TRUE43M_NEW24_FROZEN_S16B_DIRECTED_ROLE_EVAL"
           assert r["S17_NEW24_COMPLETE_UD_DIRECTED_GOLD_PREREG_SHA"]=="fca54736aa555d9c5b3665d1bb9a1fc1979ad7abdeb083af015d90dc05ed1a32"
           assert r["S16b_candidate_SHA_FROZEN_BEFORE_S17_new_EVAL24"]=="3fe4bbce718e53e4e812e94367ce25834f873cbed646479c59b1e3949d2ecf38"
-          assert r["S17b_original_real43M_GT_CPU_hidden_SHA"]=="__S17C_HIDDEN_SHA__"
+          assert r["S17b_original_real43M_GT_CPU_hidden_SHA"]=="22af4b8420bc0091fd53dad10be1c5e8c0700a09f08e006b043419567d8e44d4"
           assert r["S17c_true_original43M_GT_NATIVE_C_all24_scored_once"]
           assert r["S17c_no_gold_POS_verb_or_direct_link_candidate_filter"]
           assert r["S17c_actual_scoring_all_24_after_model_SHA_freeze"]
