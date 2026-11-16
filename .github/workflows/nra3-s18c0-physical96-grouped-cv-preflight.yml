@@ -4,6 +4,8 @@ name: NRA3 S18c0 genuine S18b 96 TRAIN physical feature SHA and 12 fixed grouped
     types: [opened, synchronize, reopened]
     branches:
       - research/calibri2-nra3-s18b-real43m-cpu-new96-train-capture-20261116
+env:
+  PYTHONPATH: .:research:research/calibri
 permissions:
   contents: read
   actions: read
