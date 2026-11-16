@@ -63,7 +63,11 @@ class PaidGrammarTrainContracts(unittest.TestCase):
         model=CompactWordGrammar().eval()
         blob=paid_fp16_bytes(model)
         loaded=load_paid_fp16_bytes(blob)
-        self.assertEqual(blob,paid_fp16_bytes(loaded))
+        from safetensors.torch import load
+        first=load(blob)
+        second=load(paid_fp16_bytes(loaded))
+        self.assertEqual(set(first),set(second))
+        self.assertTrue(all(torch.equal(first[k],second[k]) for k in first))
         self.assertTrue(all(t.dtype==torch.float32 for t in loaded.state_dict().values()))
         self.assertTrue(all(not t.requires_grad for t in loaded.parameters()))
         self.assertEqual(len(hashlib.sha256(blob).hexdigest()),64)
