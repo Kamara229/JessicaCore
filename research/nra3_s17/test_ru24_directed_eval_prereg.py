@@ -70,7 +70,7 @@ class NewIndependentRussian24SourceOnly(unittest.TestCase):
         self.assertEqual(m["S17_model_forward_calls"],0)
         self.assertFalse(m["S17_model_evaluation_scored"])
         self.assertEqual(m["S17_optimizer_steps"],0)
-        self.assertFalse(m["S17_old_consumed_S15c_EVAL24_never_loaded"] is False)
+        self.assertTrue(m["S17_old_consumed_S15c_EVAL24_never_loaded"])
         self.assertFalse(m["candidate_accepted"])
         self.assertFalse(m["activation_allowed"])
         self.assertEqual(m["output_gate"],0)
