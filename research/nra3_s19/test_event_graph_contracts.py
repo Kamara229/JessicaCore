@@ -12,7 +12,7 @@ from research.nra3_s19.graph_schema import (
     validate_graph, SPLIT,
 )
 from research.nra3_s19.train_only_event_graph_source import (
-    build_s19_train_only, train_only_manifest,
+    build_s19_train_only, train_only_manifest, TRAIN_ONLY_FROZEN_SHA256,
 )
 
 
@@ -32,6 +32,8 @@ class TrainOnlyEventGraphContracts(unittest.TestCase):
         self.assertEqual(manifest["new_train_examples"], 9)
         self.assertEqual(manifest["new_train_annotations_sha256"],
                          canonical_train_only_sha(rows))
+        self.assertEqual(manifest["new_train_annotations_sha256"],
+                         TRAIN_ONLY_FROZEN_SHA256)
         self.assertFalse(manifest["evaluation_reused"])
         self.assertFalse(manifest["trained_or_inferred"])
         self.assertFalse(manifest["live_changed"])
