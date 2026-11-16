@@ -30,7 +30,7 @@ S16B_FROZEN_SOURCE_RUN=43758892125
 S16B_FROZEN_SOURCE_SHA="3fe4bbce718e53e4e812e94367ce25834f873cbed646479c59b1e3949d2ecf38"
 S16B_FROZEN_FULL_HEAD_SHA="ea063bf1fa0e856111c54f3b045220ca7aa5319e"
 S16B_ORIGINAL_TRAIN72_GOLD_SHA="9843c35ee9aa75b8f5c9c963e441589dd2f0292e41ec7933971d5aa3dcd365d6"
-S17_EVAL24_COMPLETE_SHA="" # strictly set after FIRST successful source-only CI
+S17_EVAL24_COMPLETE_SHA="fca54736aa555d9c5b3665d1bb9a1fc1979ad7abdeb083af015d90dc05ed1a32" # FIRST SOURCE-ONLY CI 43898185861 before model calls
 
 # Surface, UD UPOS, 1-based head, UD relation, DIRECT semantic role.
 # An optional 5th tuple field gives UD morphological features.
@@ -329,7 +329,7 @@ def preregister_new_eval24()->dict:
     rows=build_new_eval24()
     encoded=canonical_eval24(rows)
     sha=hashlib.sha256(encoded).hexdigest()
-    if S17_EVAL24_COMPLETE_SHA and sha!=S17_EVAL24_COMPLETE_SHA:
+    if sha!=S17_EVAL24_COMPLETE_SHA:
         raise ValueError("S17 EVAL24 mutated after first source-only SHA")
     gold=[link for r in rows for link in gold_links(r)]
     rcounts={role:sum(z[2]==role for z in gold) for role in ROLES[1:]}
