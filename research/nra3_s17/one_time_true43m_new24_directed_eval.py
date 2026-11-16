@@ -50,13 +50,13 @@ from research.nra3_s17.new_ru24_directed_eval_prereg import (
     gold_links,SPLIT
 )
 
-S17B_FROZEN_ORIGINAL43M_CPU_HIDDEN_SHA="" # MUST be set from first successful physical S17b BEFORE scoring
+S17B_FROZEN_ORIGINAL43M_CPU_HIDDEN_SHA="22af4b8420bc0091fd53dad10be1c5e8c0700a09f08e006b043419567d8e44d4" # immutable genuine CPU SUCCESS run 43900663076 before any S17c score
 S17_GOLD_SHA="fca54736aa555d9c5b3665d1bb9a1fc1979ad7abdeb083af015d90dc05ed1a32"
 S16B_FROZEN_MODEL_SHA="3fe4bbce718e53e4e812e94367ce25834f873cbed646479c59b1e3949d2ecf38"
 S16B_TRAIN_SOURCE_SHA="9843c35ee9aa75b8f5c9c963e441589dd2f0292e41ec7933971d5aa3dcd365d6"
 S8B_FROZEN_CB59_SHA="d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97"
 S11_FROZEN_39_FP16_SHA="05ce14e20c9f4e7e09f85dbd9bd46f0dc0a700d72f1a96ffa921b2e822f235c3"
-S17B_REAL_ORIGINAL_SOURCE_CPU_RUN=0 # pin successful S17b GitHub Actions before first score
+S17B_REAL_ORIGINAL_SOURCE_CPU_RUN=43900663076 # immutable genuine CPU SUCCESS SHA verified before NEW EVAL scoring
 
 
 def require(b,reason):
