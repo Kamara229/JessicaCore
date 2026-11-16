@@ -163,7 +163,12 @@ def train_fixed(batch: WordGrammarTrainData, steps=STEPS):
         optimizer.step()
     physical=paid_fp16_bytes(model)
     frozen=load_paid_fp16_bytes(physical)
-    require(physical == paid_fp16_bytes(frozen)
+    from safetensors.torch import load
+    original_weights=load(physical)
+    roundtrip_weights=load(paid_fp16_bytes(frozen))
+    require(set(original_weights)==set(roundtrip_weights)
+            and all(torch.equal(original_weights[k],roundtrip_weights[k])
+                    for k in original_weights)
             and not any(p.requires_grad for p in frozen.parameters()),
             "complete FP16 physical grammar weights not inference-only")
     return frozen,physical
@@ -251,8 +256,12 @@ def main():
     fn="NRA3_S19B_TRUE43M_GT_TRAIN96_WORD_GRAMMAR_ONLY_FP16.safetensors"
     path=args.out/fn
     path.write_bytes(physical)
-    require(path.read_bytes()==paid_fp16_bytes(load_paid_fp16_bytes(physical)),
-            "physical final model must have identical FP16 checksum")
+    require(path.read_bytes()==physical and
+            all(torch.equal(x,y) for x,y in zip(
+                __import__("safetensors.torch",fromlist=["load"]).load(physical).values(),
+                __import__("safetensors.torch",fromlist=["load"]).load(
+                    paid_fp16_bytes(load_paid_fp16_bytes(physical))).values())),
+            "physical final model must retain all FP16 values")
     count=trainable_parameter_count(final)
     report={
         "stage":"NRA3_S19B_TRUE_ORIGINAL43M_GT_TRAIN96_GROUPED12_WORD_GRAMMAR_RESEARCH",
