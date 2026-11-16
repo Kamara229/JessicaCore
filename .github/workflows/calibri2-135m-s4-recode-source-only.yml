@@ -1,0 +1,63 @@
+name: CALIBRI135 S4 source-only original FP32 recode 8192/12 at same 5bit rate
+'on':
+  push:
+    branches:
+      - 'research/calibri2-135m-s4-source-aware-codebook-20261117'
+    paths:
+      - 'research/calibri2/independent_135m/s4/**'
+      - '.github/workflows/calibri2-135m-s4-recode-source-only.yml'
+  workflow_dispatch:
+concurrency:
+  group: calibri2-135m-original-FP32-source-only-5bit-codebook-improvement
+  cancel-in-progress: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  reencode_all_211_and_compare_original_FP32:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '13541117'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install source-only pretrained FP32 K32V8 quantizer and CPU
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Original K32V8 full weight, neural architecture and alias ABI preflight
+        run: |
+          python -m compileall -q research/calibri2/independent_135m/s4
+          python -m unittest test_v197_green_tunnel_generic_parity test_v185_discrete_index -v
+      - name: Download verified original pretrained source (not quantized retrained S1)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-original-pretrained-135M-full-architecture-NO-NRA-vs-FP32
+          run-id: 43946485860
+          path: inputs/S0
+          github-token: ${{ github.token }}
+      - name: Actually recompress all 211 original full FP32 matrices at same physical 5bit rate
+        run: |
+          python research/calibri2/independent_135m/s4/retune_original_kmeans.py \
+            inputs/S0/CALIBRI2_135M_SOURCE_CB59.cb59 \
+            results/calibri2/135m_S4/source_only
+      - name: Retain full authenticated 135M source, original FP32 weight errors and all QA-negative outcomes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-135M-S4-source-only-original-FP32-8192sample-12iter
+          path: results/calibri2/135m_S4/
+          retention-days: 90
+          compression-level: 0
+          if-no-files-found: warn
