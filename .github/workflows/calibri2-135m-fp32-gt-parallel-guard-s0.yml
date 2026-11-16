@@ -43,7 +43,7 @@ jobs:
       - name: Compile isolated pilot and source-geometry suite
         run: |
           python -m compileall -q research/calibri2/independent_135m/s0
-          python -m unittest test_v197_green_tunnel_generic_parity test_v196_green_tunnel_policy test_v185_discrete_recovery -v
+          python -m unittest test_v197_green_tunnel_generic_parity test_v196_green_tunnel_policy test_v185_discrete_index -v
         continue-on-error: false
       - name: Independently seal original FP32 into new physical CB59 and evaluate GT/J7/multipath TRAIN-only
         run: |
