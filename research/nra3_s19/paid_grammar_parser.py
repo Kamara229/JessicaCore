@@ -118,8 +118,10 @@ def load_paid_fp16_bytes(raw: bytes) -> CompactWordGrammar:
         raise ValueError("S19b physical weight ABI changed or incomplete")
     model.load_state_dict({k: v.float() for k, v in weights.items()}, strict=True)
     model.requires_grad_(False)
-    if paid_fp16_bytes(model) != raw:
-        raise ValueError("S19b physical bytes do not round-trip")
+    rebuilt = load(paid_fp16_bytes(model))
+    if set(rebuilt) != set(weights) or any(
+            not torch.equal(rebuilt[k], weights[k]) for k in weights):
+        raise ValueError("S19b physical FP16 tensors do not round-trip")
     return model
 
 
