@@ -1,0 +1,61 @@
+name: CALIBRI 2.0 independent FP32 135M source + paid GT/J7/multipath S0
+on:
+  push:
+    branches:
+      - 'research/calibri2-135m-fp32-gt-parallel-guard-20261116'
+    paths:
+      - 'research/calibri2/independent_135m/**'
+      - '.github/workflows/calibri2-135m-fp32-gt-parallel-guard-s0.yml'
+  pull_request:
+    branches:
+      - 'research/calibri-v231-heldout-fp32-v228-five-task-answer-benchmark'
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'research/calibri2/independent_135m/**'
+      - '.github/workflows/calibri2-135m-fp32-gt-parallel-guard-s0.yml'
+concurrency:
+  group: independent-calibri-135m-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original_frozen_FP32_new_physically_paid_CB59_gt_J7_parallel:
+    if: github.event_name == 'push' || github.event.pull_request.head.ref == 'research/calibri2-135m-fp32-gt-parallel-guard-20261116'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '13520261'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned identical true FP32/CB59 CPU stack
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Compile isolated pilot and source-geometry suite
+        run: |
+          python -m compileall -q research/calibri2/independent_135m/s0
+          python -m unittest test_v197_green_tunnel_generic_parity test_v196_green_tunnel_policy test_v185_discrete_index -v
+        continue-on-error: false
+      - name: Independently seal original FP32 into new physical CB59 and evaluate GT/J7/multipath TRAIN-only
+        run: |
+          python research/calibri2/independent_135m/s0/run.py results/independent_135m/S0 --steps 2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri2-independent-135M-original-FP32-direct-CB59-GT-J7-multipath-S0
+          path: results/independent_135m/S0/
+          if-no-files-found: warn
+          retention-days: 90
+          compression-level: 0
