@@ -6,6 +6,7 @@ This is NOT a full 64-row ledger or a new candidate score.
 """
 import hashlib
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -37,8 +38,14 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
     def reject_nonfinite(token):
         raise ValueError("FAIL CLOSED: non-finite JSON constant: " + token)
 
+    def finite_float(token):
+        value = float(token)
+        if not math.isfinite(value):
+            raise ValueError("FAIL CLOSED: non-finite JSON numeric overflow")
+        return value
+
     report = json.loads(raw, object_pairs_hook=unique_pairs,
-                        parse_constant=reject_nonfinite)
+                        parse_constant=reject_nonfinite, parse_float=finite_float)
     if not isinstance(report, dict):
         raise ValueError("FAIL CLOSED: source report must be an object")
     if (report.get("stage") != STAGE
