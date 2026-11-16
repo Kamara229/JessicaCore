@@ -212,12 +212,12 @@ def validate_s18_train96(rows:tuple[TrainSentence,...])->None:
         r.sha256() for r in build_s4_train()}
     if known & {r.text_sha256() for r in rows}:
         raise ValueError("S18 source reused original TRAIN texts")
+    # Across 12 families: 8 AGENT, 8 PATIENT, 8 RECIPIENT, 1 SOURCE
+    # per family. Multi-clause has 2 agents, recipient-subject 0 agents.
     expected={"AGENT":96,"PATIENT":96,"RECIPIENT":96,"SOURCE":12}
     edges=[z for r in rows for z in direct_predicate_argument_gold(r)]
     observed={role:sum(z[2]==role for z in edges) for role in ROLES[1:]}
-    # subclause 'сосед работал' adds 12 AGENT links to primary verb links.
-    expected["AGENT"]+=12
-    if observed!=expected or len(edges)!=312:
+    if observed!=expected or len(edges)!=300:
         raise ValueError(f"S18 full verb→argument TRAIN labels drift: {observed}")
     for r in rows:
         w=r.words
@@ -289,7 +289,7 @@ def seal_s18_new96_train()->dict:
     rows=build_s18_new_train96()
     edges=[z for r in rows for z in direct_predicate_argument_gold(r)]
     return {
-        "stage":"NRA3_S18_NEW96_RU_12VERB_8STRUCTURES_312_DIRECTIONAL_LINKS_SOURCE_ONLY_TRAIN",
+        "stage":"NRA3_S18_NEW96_RU_12VERB_8STRUCTURES_300_DIRECTIONAL_LINKS_SOURCE_ONLY_TRAIN",
         "S18_complete_original_96_new_TRAIN_full_annotation_SHA256":sha,
         "S18_original_source_rows":96,
         "S18_new_lexical_families":12,
