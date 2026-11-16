@@ -89,7 +89,7 @@ class New96RealRussianMultiVerbTrainGold(unittest.TestCase):
         self.assertFalse(manifest["activation_allowed"])
         self.assertEqual(manifest["output_gate"],0)
         origrow=rows[0]
-        changed=replace(origrow.words[0],semantic_role="PATIENT")
+        changed=replace(origrow.words[0],lemma="новая_лемма_только_для_SHA_проверки")
         altered=(replace(origrow,words=(changed,)+origrow.words[1:]),)+rows[1:]
         self.assertEqual(origrow.text_sha256(),altered[0].text_sha256())
         self.assertNotEqual(sha,hashlib.sha256(
