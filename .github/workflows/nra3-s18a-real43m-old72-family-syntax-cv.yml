@@ -1,0 +1,158 @@
+name: NRA2 S18a ORIGINAL 43M+GT old72 TRAIN internal lexical 4fold and construction 6fold CV
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s16b-real43m-train72-directed-links-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s18a-OLDTRAIN72-NO-EVAL-grouped-family-construction-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  ten_predeclared_TRAIN_internal_folds_original43M_native_C:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s18-train72-crossfamily-morphology-gates-20261116'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '318018'
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Certify only ORIGINAL 72 pre-S17 TRAIN source, physical frozen 43M+GT and S8b 43 CB59 and S11
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43732621116 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43731085988 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43734571081 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43758892125 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43758892125 --jq .head_sha)" = ea063bf1fa0e856111c54f3b045220ca7aa5319e
+          echo S18A_LEXICAL_4_FAMILY_AND_SYNTAX_6_CONSTRUCTION_CV_OLD72_TRAIN_ONLY
+      - name: Original pinned CPU torch and native CB59 research dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5' 'transformers==4.46.3' 'tokenizers==0.20.3' 'huggingface_hub==0.27.1'
+      - name: Verify ALL source-only existing S9/S16 and new ten S18a split invariants WITHOUT looking at consumed EVAL
+        run: |
+          python -m compileall -q research/nra3_s18
+          python -m unittest -v research.nra3_s18.test_grouped_original43m_train72_cv research.nra3_s16.test_directed_valence_source research.nra3_s16.test_real43m_train72_directed_pairs
+      - name: Download ONLY original S10 43M+GT real CPU 72 TRAIN FP16 feature and token alignments
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s10-genuine43M-CPU-layer8-newRU72-trainonly-616J7-zero-gate
+          run-id: 43732621116
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s10
+      - name: Download ONLY original physically packed CB59 full native-C source 43 matrix 6M
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s8-adaptive-calibrated-3way-physical-CB59-S61-realRU12-trainonly
+          run-id: 43731085988
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s8
+      - name: Download ONLY original frozen S11 physically paid 39 FP16 hypothesis selection router
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s11-real43M-ru72-39param-FP16-paid-router-native-C-trainonly
+          run-id: 43734571081
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s11
+      - name: Assert NO S17 new consumed EVAL source, original prior EVAL or any hidden candidate model changes
+        run: |
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          from research.nra3_s18.grouped_original43m_train72_cv import controlled_group_folds,STEPS
+          from research.nra3_s16.direct_train72_edges import S16_TRAIN_SOURCE_SHA
+          from research.nra3_s9.new_ru_train72 import S9_TRAIN72_CANONICAL_SHA256
+          from research.nra3_s11.real_ru72_source import checked_real_train72
+          from research.nra3_s11.paid_router import PaidThreeWayRouter
+          from direct_codebook_v59 import CB59
+          inp=Path("inputs")
+          a=inp/"nra3_s10/NRA3_S10_REAL_43M_LAYER8_RU_TRAIN72_HIDDEN320_FP16.safetensors"
+          b=inp/"nra3_s10/NRA3_S10_REAL_CPU_43M_LAYER8_TRAIN72_J7_REPORT.json"
+          samples,report=checked_real_train72(a,b)
+          assert len(samples)==72
+          assert report["all_616_native_CPU_generated_token_digests_unchanged"] is True
+          assert S9_TRAIN72_CANONICAL_SHA256=="b09d60a77a17d30c2dbf846e40ab97860def8635e2bf31a5b0ab8981832b744d"
+          assert S16_TRAIN_SOURCE_SHA=="9843c35ee9aa75b8f5c9c963e441589dd2f0292e41ec7933971d5aa3dcd365d6"
+          c=(inp/"nra3_s8/NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59").read_bytes()
+          d=(inp/"nra3_s11/NRA3_S11_TINY_PAID_RUSSIAN_TRAIN72_CAUSAL_3WAY_SELECTOR_FP16.n3r11").read_bytes()
+          assert len(c)==653798
+          assert hashlib.sha256(c).hexdigest()=="d710aed710a44719b6003434a2dd83150861928ce167364cb92329beabf7be97"
+          assert len(CB59(c).handles)==43
+          assert hashlib.sha256(d).hexdigest()=="05ce14e20c9f4e7e09f85dbd9bd46f0dc0a700d72f1a96ffa921b2e822f235c3"
+          assert PaidThreeWayRouter.from_physical(d).physical_bytes()==d
+          assert len(controlled_group_folds())==10 and STEPS==150
+          for name in ("nra3_s12","nra3_s12b","nra3_s12c","nra3_s15","nra3_s15b","nra3_s15c","nra3_s17","nra3_s17b","nra3_s17c"):
+              assert not Path("inputs",name).exists()
+          assert not Path("research/nra3_s17").exists(), "S18a must branch PRE-S17 without any spent EVAL source"
+          print("S18A_NO_S17_OR_ANY_OLD_EVAL_IMPORTED_PREDECLARED_4_FAMILY_6_CONSTRUCTION",flush=True)
+          PY
+      - name: Evaluate only OLD S9 TRAIN72 internal 4 lexical-group plus 6 syntax-group folds on true native 43M CPU
+        run: |
+          python -m research.nra3_s18.grouped_original43m_train72_cv \
+            --s10-hidden inputs/nra3_s10/NRA3_S10_REAL_43M_LAYER8_RU_TRAIN72_HIDDEN320_FP16.safetensors \
+            --s10-report inputs/nra3_s10/NRA3_S10_REAL_CPU_43M_LAYER8_TRAIN72_J7_REPORT.json \
+            --s8-cb59 inputs/nra3_s8/NRA3_S8_CALIBRATED_PARALLEL_RELATION_RU_TRAIN12_PAID_CB59.cb59 \
+            --s11-router inputs/nra3_s11/NRA3_S11_TINY_PAID_RUSSIAN_TRAIN72_CAUSAL_3WAY_SELECTOR_FP16.n3r11 \
+            --out results/nra3_s18a
+      - name: Check all 10 folds real original43M+GT native original 43 CB59 and physically paid models WITHOUT selecting any validation checkpoint
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from research.nra3_s16.paid_directed_valence import PaidDirectedValence,PARAMETERS,PHYSICAL_BYTES
+          root=Path("results/nra3_s18a")
+          r=json.loads((root/"NRA3_S18A_ORIGINAL43M_TRAIN72_GROUPED10_CV_F1_REPORT.json").read_text(encoding="utf-8"))
+          folds=r["S18a_precommitted_folds_all_physical_S16_Rank8"]
+          assert len(folds)==10
+          assert sum(z["split_kind"]=="TRAIN_INTERNAL_LEXICAL" for z in folds)==4
+          assert sum(z["split_kind"]=="TRAIN_INTERNAL_SYNTAX" for z in folds)==6
+          for z in folds:
+              q=root/z["physical_new_FP16_file"]
+              source=q.read_bytes()
+              assert len(source)==PHYSICAL_BYTES==4665
+              assert hashlib.sha256(source).hexdigest()==z["physical_new_FP16_full_SHA256"]
+              assert PaidDirectedValence.from_physical(source).physical_bytes()==source
+              assert z["fixed_optimizer_steps"]==150
+              assert z["selected_checkpoint_using_holdout"] is False
+              assert z["initial_model_not_prior_S16b_all72_learned_source"] is True
+              assert z["no_gold_POS_filtered_candidate_pairs"]
+              assert z["S17c_consumed_EVAL24_not_loaded"]
+              assert z["S15c_consumed_EVAL24_not_loaded"]
+              assert z["train_s9_rows"]+z["internal_holdout_s9_rows"]==72
+              assert z["train_all_ordered_wordpairs"]+z["internal_holdout_all_ordered_wordpairs"]==1920
+          for v in r["S18a_grouped_CV_metrics"].values():
+              assert v["original_S9_TRAIN_gold_once_per_axis"]==216
+              assert v["micro_tp"]+v["micro_fn"]==216
+              assert 0<=v["f1"]<=1 and 0<=v["precision"]<=1 and 0<=v["recall"]<=1
+          assert r["S18a_grouped_cv_heldout_is_OLD_TRAIN_not_independent_NEW_EVAL"]
+          assert r["S18a_no_OLD_EVAL12c_S15c_or_consumed_S17c_loaded"]
+          assert r["S18a_frozen_S95_prompt_scope_uses_full_sentence_context"] is True
+          assert r["S18a_end_to_end_online_word_causality_certified"] is False
+          assert r["S18a_active_new_candidate_616_J7_or_eos_tested"] is False
+          assert r["S18a_whole_Calibri43M_GT_NRA_speed_ge90pct_tested"] is False
+          assert r["S18a_whole_inclusive_bpp_le07_certified"] is False
+          assert r["candidate_accepted"] is False and r["activation_allowed"] is False and r["output_gate"]==0
+          print("S18A_REAL43M_NATIVE_CB59_TEN_OLD72_TRAIN_GROUPED_CV_PHYSICAL_NO_EVAL",r["S18a_grouped_CV_metrics"],flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s18a-original43M-TRAIN72-only-10fold-4lexical6syntax-2309FP16-failclose
+          path: results/nra3_s18a/
+          retention-days: 30
+          if-no-files-found: error
