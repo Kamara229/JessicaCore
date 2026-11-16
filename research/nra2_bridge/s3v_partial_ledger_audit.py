@@ -22,7 +22,17 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
         or re.fullmatch(r"[0-9a-fA-F]{64}", expected_sha256) is None
         or actual != expected_sha256.lower()):
         raise ValueError("FAIL CLOSED: raw source JSON physical SHA256 mismatch")
-    report = json.loads(raw)
+    # Reject ambiguous JSON objects: Python normally accepts duplicate keys and
+    # silently keeps the last value, weakening provenance/gate checks.
+    def unique_pairs(pairs):
+        obj = {}
+        for key, value in pairs:
+            if key in obj:
+                raise ValueError("FAIL CLOSED: duplicate JSON key: " + key)
+            obj[key] = value
+        return obj
+
+    report = json.loads(raw, object_pairs_hook=unique_pairs)
     if not isinstance(report, dict):
         raise ValueError("FAIL CLOSED: source report must be an object")
     if (report.get("stage") != STAGE
