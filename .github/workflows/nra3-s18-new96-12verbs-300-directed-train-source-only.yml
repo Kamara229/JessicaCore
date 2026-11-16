@@ -66,8 +66,8 @@ jobs:
           raw=canonical_s18_new96_train(build_s18_new_train96())
           sha=hashlib.sha256(raw).hexdigest()
           assert sha==m["S18_complete_original_96_new_TRAIN_full_annotation_SHA256"]
-          if S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256:
-              assert sha==S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256
+          assert S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256=="abde63c34534d90e00a6ac61808d2453ce0cfc966c83d45377c1fb620999cca9"
+          assert sha==S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256
           gold=json.loads(Path("results/nra3_s18/NRA3_S18_NEW96_MULTIVERB_300_DIRECTED_TRAIN_GOLD.json").read_text(encoding="utf-8"))
           assert len(gold)==96
           assert sum(len(row["gold_directed_predicate_argument_links"]) for row in gold)==300
