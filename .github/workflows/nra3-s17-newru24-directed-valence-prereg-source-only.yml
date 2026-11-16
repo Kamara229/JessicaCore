@@ -1,0 +1,91 @@
+name: NRA2 S17 SOURCE ONLY 24 new Russian directed role EVAL prereg after S16b physical freeze
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s16b-real43m-train72-directed-links-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s17-NEW-24-source-only-sha-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  first_source_only_new_RU24_directed_eval_prereg:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s17-newru24-directed-eval-prereg-20261116'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '317024'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin S16b TRUE original43M training candidate SHA fully REPRODUCED before any new source text authored
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43758892125 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43758892125 --jq .head_sha)" = ea063bf1fa0e856111c54f3b045220ca7aa5319e
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43758694264 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43744621643 --jq .conclusion)" = success
+          echo S17_S16B_FIXED_2309_FP16_MODEL_SHA_REPRODUCED_BEFORE_ANY_NEW_EVAL_SOURCE
+      - name: Install only source-only TRAIN text schemas dependencies, DO NOT download candidate weights or previous EVAL
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Check all new 24 Russian manual UD and 5-way directed role source hashes, offsets, graphs and modality labels
+        run: |
+          python -m compileall -q research/nra3_s17
+          python -m unittest -v research.nra3_s17.test_ru24_directed_eval_prereg
+      - name: Register one-time 24 new Russian EVAL fully annotated UD direct links SHA BEFORE running ANY model on texts
+        run: |
+          python -m research.nra3_s17.emit_new_ru24_prereg \
+            --out results/nra3_s17/NRA3_S17_NEW_RUSSIAN24_DIRECTED_VALENCE_COMPLETE_SOURCE_ONLY_SHA.json
+      - name: Enforce source-only and no S16b retraining or reuse of old spent EVAL
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from research.nra3_s17.new_ru24_directed_eval_prereg import (
+            S17_EVAL24_COMPLETE_SHA,build_new_eval24,canonical_eval24,preregister_new_eval24
+          )
+          root=Path("results/nra3_s17")
+          source=root/"NRA3_S17_NEW_RUSSIAN24_DIRECTED_VALENCE_COMPLETE_SOURCE_ONLY_SHA.json"
+          m=json.loads(source.read_text(encoding="utf-8"))
+          assert m==preregister_new_eval24()
+          sha=hashlib.sha256(canonical_eval24(build_new_eval24())).hexdigest()
+          assert sha==m["S17_new_Russian_EVAL_complete_UD_and_directed_link_SHA256"]
+          assert S17_EVAL24_COMPLETE_SHA=="fca54736aa555d9c5b3665d1bb9a1fc1979ad7abdeb083af015d90dc05ed1a32"
+          assert sha==S17_EVAL24_COMPLETE_SHA
+          annotated=json.loads((root/"NRA3_S17_NEW_RUSSIAN24_DIRECTED_PREDICATE_ARGUMENT_GOLD_SOURCE_ONLY.json").read_text())
+          assert len(annotated)==24
+          assert m["S17_new_Russian_EVAL_sentence_count"]==24
+          assert m["S17_new_gold_predicate_argument_links"]>=65
+          assert m["S16b_frozen_physical_source_run_BEFORE_EVAL"]==43758892125
+          assert m["S16b_frozen_physical_SHA_BEFORE_EVAL"]=="3fe4bbce718e53e4e812e94367ce25834f873cbed646479c59b1e3949d2ecf38"
+          assert m["S17_model_forward_calls"]==m["S17_optimizer_steps"]==0
+          assert m["S17_model_evaluation_scored"] is False
+          assert m["S17_old_consumed_S15c_EVAL24_never_loaded"]
+          assert m["S17_old_consumed_S12c_EVAL16_never_loaded"]
+          assert m["S17_old_five_EVAL128_and_reserved_sixth_S3CI_never_loaded"]
+          assert m["S17_original_Calibri43M_GT_nativeC_NRA_not_loaded"]
+          assert m["output_gate"]==0 and m["candidate_accepted"] is False and m["activation_allowed"] is False
+          assert not Path("inputs").exists()
+          print("NRA3_S17_24_NEW_INDEPENDENT_RUSSIAN_DIRECTED_VALENCE_EVAL_SOURCE_SHA",sha,flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s17-afterS16b-physical-lock-NEWru24-full-directed-gold-EVAL-SHA-SOURCEONLY
+          path: results/nra3_s17/
+          retention-days: 30
+          if-no-files-found: error
