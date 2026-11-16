@@ -1,0 +1,63 @@
+name: CALIBRI independent 135M S1 four real QAT cycles + J7 protection
+on:
+  push:
+    branches:
+      - 'research/calibri2-135m-fp32-gt-parallel-guard-s1-20261116'
+    paths:
+      - 'research/calibri2/independent_135m/s1/**'
+      - '.github/workflows/calibri2-independent-135m-s1-four-cycles.yml'
+  workflow_dispatch:
+concurrency:
+  group: calibri2-independent-135m-s1-four-cycles
+  cancel-in-progress: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  train_four_cycles_only_paid_source:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 210
+    env:
+      PYTHONPATH: research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '13520261'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU numerical and tokenizer stack
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify four-cycle code and physical index-source baseline tests
+        run: |
+          python -m compileall -q research/calibri2/independent_135m/s1
+          python -m unittest test_v197_green_tunnel_generic_parity test_v196_green_tunnel_policy test_v185_discrete_index -v
+      - name: Download sealed original trained FP32 135M direct compressed S0, not teacher weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-independent-135M-original-FP32-direct-CB59-GT-J7-multipath-S0
+          path: inputs/S0
+          run-id: 43939264823
+          github-token: ${{ github.token }}
+      - name: 32 actual paid QAT steps, eight per cycle, protected replay and true 5bit index proposals
+        run: |
+          python research/calibri2/independent_135m/s1/run.py \
+            inputs/S0/S0_NEW_DIRECT_FP32_TO_CB59_135M.cb59 \
+            results/calibri2/independent_135m/S1
+      - name: Preserve packed training outputs, complete metrics and negative results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-independent-135M-S1-four-physical-QAT-cycles-replay-J7
+          path: results/calibri2/independent_135m/S1/
+          if-no-files-found: warn
+          retention-days: 90
+          compression-level: 0
