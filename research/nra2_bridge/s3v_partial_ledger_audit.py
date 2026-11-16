@@ -6,6 +6,7 @@ This is NOT a full 64-row ledger or a new candidate score.
 """
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -17,7 +18,9 @@ S3O_SHA = "40a8903d5419cd8641b5d01e75e429e10b449304b3ba140d2245bf7f8a9d00b6"
 
 def audit(raw: bytes, expected_sha256: str) -> dict:
     actual = hashlib.sha256(raw).hexdigest()
-    if len(expected_sha256) != 64 or actual != expected_sha256.lower():
+    if (not isinstance(expected_sha256, str)
+        or re.fullmatch(r"[0-9a-fA-F]{64}", expected_sha256) is None
+        or actual != expected_sha256.lower()):
         raise ValueError("FAIL CLOSED: raw source JSON physical SHA256 mismatch")
     report = json.loads(raw)
     if not isinstance(report, dict):
@@ -28,7 +31,8 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
         or report.get("original_616_S194_J7_hashes_preserved_by_S3U") is not True
         or report.get("original_584_retained_full_EOS_unchanged") is not True
         or report.get("candidate_accepted") is not False
-        or report.get("output_gate") != 0
+        or type(report.get("output_gate")) is not int
+        or report["output_gate"] != 0
         or report.get("new_training_or_parameter_tuning") is not False):
         raise ValueError("FAIL CLOSED: report provenance or zero gate mismatch")
     metrics = report["all_and_family_yes_no_accuracy"]["all"]
@@ -52,7 +56,7 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
             or type(r.get("source_correct")) is not bool
             or type(r.get("target_correct")) is not bool
             or not isinstance(r.get("prompt_sha256"), str)
-            or len(r["prompt_sha256"]) != 64):
+            or re.fullmatch(r"[0-9a-fA-F]{64}", r["prompt_sha256"]) is None):
             raise ValueError("FAIL CLOSED: malformed observed record")
         # Producer emits all incorrect answers. Any both-correct record must
         # have an answer disagreement, which is impossible with fixed binary truth.
