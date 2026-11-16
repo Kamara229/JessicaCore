@@ -55,7 +55,7 @@ class LockedNew96OriginalTokenAlignment(unittest.TestCase):
         self.assertFalse(aligned.independent_eval_labels_loaded)
         self.assertEqual(
             align_s18_new96_train(
-                tok, row, expected_input_ids=aligned.original_input_ids
+                tok, row, expected_input_ids=aligned.prefill_token_ids
             ), aligned
         )
         with self.assertRaises(ValueError):
