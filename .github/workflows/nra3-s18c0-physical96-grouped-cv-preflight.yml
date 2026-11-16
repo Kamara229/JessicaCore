@@ -1,0 +1,108 @@
+name: NRA3 S18c0 genuine S18b 96 TRAIN physical feature SHA and 12 fixed grouped CV preflight only
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s18b-real43m-cpu-new96-train-capture-20261116
+env:
+  PYTHONPATH: .:research:research/calibri
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s18c0-physical96-trainonly-groups
+  cancel-in-progress: false
+jobs:
+  s18c0_96_physical_features_grouped_contract:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s18c0-new96-physical-feature-groupedcv-contract-20261116'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify original real43M S18b physical CI and exact frozen prerequisite success
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43910479658 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43910479658 --jq .head_sha)" = 8626bb64175ed38778709363cfd902d80a5df21e
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43908545721 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43904457245 --jq .conclusion)" = success
+          echo S18C0_SOURCE_96_PHYSICAL_REAL43M_GT_AND_ORIGINAL_616_J7_FROZEN
+      - name: Install minimal CPU original source reader dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Read only exact S18b actual frozen Calibri43M GT 96 TRAIN features, no scores
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s18b-TRUE43M-616J7-new96-TRAIN-postGT-layer8-goldfree-FP16
+          path: inputs/nra3_s18b
+          run-id: 43910479658
+          github-token: ${{ github.token }}
+      - name: Validate genuine S18b physical features and 4 lexical + 8 syntactic disjoint GROUPS, no optimization
+        run: |
+          python -m compileall -q research/nra3_s18
+          python -m unittest -v research.nra3_s18.test_ru96_train_source research.nra3_s18.test_locked_original43m_new96_alignment
+          python - <<'PY'
+          import json,ast
+          from pathlib import Path
+          from research.nra3_s18.real43m_train96_physical_source import (
+              S18B_TRUE_CPU_RUN, checked_real_train96, grouped_train96_split_contract
+          )
+          assert S18B_TRUE_CPU_RUN == 43910479658
+          source=Path('research/nra3_s18/real43m_train96_physical_source.py').read_text()
+          mods=[node.module or "" for node in ast.walk(ast.parse(source))
+                if isinstance(node,ast.ImportFrom)]
+          assert not any("nra3_s17" in mod or "nra3_s15" in mod
+                         or "nra3_s12" in mod for mod in mods)
+          for forbidden in ("nra3_s17","nra3_s15","nra3_s15c","nra3_s12",
+                            "nra3_s12c","s3ci"):
+              assert not Path('inputs',forbidden).exists()
+          root=Path('inputs/nra3_s18b')
+          names=[p for p in root.glob('*.safetensors')]
+          assert len(names)==1 and names[0].name == (
+              'NRA3_S18B_TRUE43M_GT_NEW_RU96_DIRECTED_HIDDEN320_FP16.safetensors')
+          samples,report=checked_real_train96(
+              names[0],
+              root/'NRA3_S18B_TRUE43M_CPU_NEW96_TRAINONLY_J7_REPORT.json')
+          assert len(samples)==96
+          assert all(s.hidden320.ndim==2 and s.hidden320.shape[1]==320
+                     and s.hidden320.dtype.is_floating_point for s in samples)
+          folds=grouped_train96_split_contract()
+          assert len(folds)==12
+          summary={
+              "stage":"NRA3_S18C0_ONLY_GENUINE_S18B_NEW96_TRAIN_PHYSICAL_INPUT_GROUPED_SPLIT_PREFLIGHT",
+              "source_original43M_physical_run":S18B_TRUE_CPU_RUN,
+              "source_original43M_fp16_sha256":report["actual_fp16_feature_sha256"],
+              "new96_complete_gold_source_sha256":report["S18_NEW96_TRAIN_COMPLETE_SOURCE_SHA256"],
+              "real_original43M_GT_96_CPU_prefills":len(samples),
+              "original_616_J7_unchanged":report["all_616_native_CPU_generated_token_digests_unchanged"],
+              "original_Calibri_wordpiece_boundaries_verified":True,
+              "TRAIN_internal_lexical_group_folds":4,
+              "TRAIN_internal_syntax_group_folds":8,
+              "fold_heldout_group_sizes":[len(f[-1]) for f in folds],
+              "old_consumed_EVAL_source_not_loaded":True,
+              "native_CB59_C_train_or_forward_executed":False,
+              "new_rank8_model_train_or_forward_executed":False,
+              "optimizer_steps":0,
+              "independent_EVAL_scored":False,
+              "candidate_accepted":False,
+              "output_gate":0,
+              "activation_allowed":False,
+              "LIVE_Jessica_Render_Supabase_APK_modified":False,
+          }
+          Path('results').mkdir(exist_ok=True)
+          Path('results/NRA3_S18C0_NEW96_PHYSICAL_GROUPED_TRAIN_PREFLIGHT.json').write_text(
+              json.dumps(summary,ensure_ascii=False,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(summary,sort_keys=True),flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s18c0-new96-genuine-original43M-physical-source-grouped-trainonly-preflight
+          path: results/NRA3_S18C0_NEW96_PHYSICAL_GROUPED_TRAIN_PREFLIGHT.json
+          retention-days: 30
+          if-no-files-found: error
