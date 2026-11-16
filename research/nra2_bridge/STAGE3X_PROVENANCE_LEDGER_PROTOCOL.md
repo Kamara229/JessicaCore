@@ -1,6 +1,6 @@
-# S3X — immutable S3V provenance and complete-row ledger protocol (NO execution)
+# S3V-LEDGER (not S3X TRAIN) — immutable S3V provenance and complete-row ledger protocol (NO execution)
 
-Research-only design. **output gate=0**. No model inference, training, scoring, labels inspection, threshold changes or CI execution in this PR. This document is NOT evidence of successful validation.
+Research-only design. This document is the S3V-LEDGER audit protocol, NOT the separate S3X reversal TRAIN128 preregistration in PR #639. **output gate=0**. No model inference, training, scoring, labels inspection, threshold changes or CI execution in this PR. This document is NOT evidence of successful validation.
 
 ## Problem
 S3V `disagreement_or_error_cases` records only cases with incorrect soft/hard answers or answer disagreement. S3W fills omitted cases with correct source and target roles. That inference is unsound: both answers may be correct despite incorrect role predictions. S3W role/order slices are **not independently verified**. Prior S3V aggregate scores remain historical, not independently reproduced.
@@ -11,6 +11,11 @@ S3V `disagreement_or_error_cases` records only cases with incorrect soft/hard an
 3. A genuinely complete 64-row ledger requires **separately preregistered** read-only capture from frozen, pinned inputs, after verifying original 616 J7 CPU token digests and protected 584 full+EOS. Each row: immutable ID, prompt hash, family, wording, mention order, truth (sealed until gates), source/target predicted IDs, soft/hard answer predictions, role confidences, edge logit, threshold exactly sigmoid(edge_logit)>0.5, artifact and tensor hashes, provenance and schema version. Validate 64 unique rows and exact prompt identity; no recomputation on changed data.
 4. Keep all truth/score exposure gated behind verified source J7, S3T prereg and physical manifests. If any check fails, fail closed; no labels or score output. No tuning based on S3T; any later independent blind acceptance must use a separately sealed dataset.
 5. Original source weights, native tokenizer, S3O adapter and NRA stay physically immutable. Compare source hashes before/after. This proposal neither establishes native decoder full+EOS improvements nor all-in <=0.7 bpp or >=90% CB59 CPU speed.
+
+## Exact producer predicate and safe partial bounds (static code audit)
+S3V PR #637 emits a row iff `not soft_right[i] or not hard_right[i] or (soft_prediction[i] != hard_prediction[i])`. Therefore an omitted row establishes only that **both answer predictions were correct and agree**; it establishes nothing about either role. Before computing slices, validate recorded IDs are unique and in [0,63], each recorded row satisfies this predicate, and `omitted = 64 - recorded_unique`. Never infer role correctness for omitted rows.
+
+For any predefined slice with `n` committed IDs, `k` observed rows and `u=n-k` omitted rows, let `s` be the number of observed rows with correct source and `t` the number with correct target. Report source accuracy **bounds** `[s/n, (s+u)/n]` and target accuracy bounds `[t/n, (t+u)/n]` (when `n>0`), plus `u`. For joint source-and-target correctness, use observed joint count `j` and bounds `[j/n,(j+u)/n]`. Do not report exact role/order accuracy unless `u=0` or a separately validated full 64-row ledger exists. These bounds do not require guessing missing predictions and are not new candidate scores.
 
 ## Scope and acceptance
 Documentation-only protocol; do not modify main, LIVE, Render, Supabase, APK, QA, TEST, original weights or protected reference sets. Do not trigger Jessica (HTTP429). No CI/workflow added. Any future implementation must be separate isolated research draft PR and must not treat post-hoc role slices as ground truth. **Candidate not accepted.**
