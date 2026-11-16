@@ -46,8 +46,8 @@ from research.nra3_s9.new_ru_train72 import build_s9_train72
 from research.nra3_s4.russian_ud_train_only import build_train as build_s4_train
 
 SPLIT = "NRA3_S18C6_PREREG_NEW_RUSSIAN_32_ONE_TIME_EVAL_NEVER_TRAIN"
-NEW_EVAL_SOURCE_CI = None  # lock after first SOURCE-ONLY CI, before ANY EVAL scoring
-EVAL32_COMPLETE_CANONICAL_SHA256 = None  # set exactly once after source-only CI
+NEW_EVAL_SOURCE_CI = 43919440242  # FIRST SOURCE-ONLY successful CI; no model inference
+EVAL32_COMPLETE_CANONICAL_SHA256 = "16cb3964a0c4220afc82ff67756534a180623f0303c92aede6eff48e0416a5fe"  # first SOURCE-ONLY CI #43919440242, frozen before any EVAL inference
 S18_TRAIN96_SHA = "abde63c34534d90e00a6ac61808d2453ce0cfc966c83d45377c1fb620999cca9"
 PRE_FROZEN_CANDIDATE_TRAIN_CI = 43916875445
 PRE_FROZEN_CANDIDATE_2597_FP16_SHA = (
@@ -315,6 +315,7 @@ def seal_new_eval32_source():
     return {
         "stage":"NRA3_S18C6_NEW32_ONE_TIME_EVAL_SOURCE_ONLY_PREREG_NOT_SCORED",
         "new_eval_source_complete_sha256":digest,
+        "first_prereg_source_only_CI":NEW_EVAL_SOURCE_CI,
         "sha_locked_in_source":EVAL32_COMPLETE_CANONICAL_SHA256 is not None,
         "source_prior_candidate_train_run":PRE_FROZEN_CANDIDATE_TRAIN_CI,
         "source_prior_candidate_2597_FP16_sha":PRE_FROZEN_CANDIDATE_2597_FP16_SHA,
