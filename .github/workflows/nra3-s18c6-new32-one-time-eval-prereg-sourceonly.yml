@@ -1,0 +1,94 @@
+name: NRA3 S18c6 preregister new 32 Russian one-time EVAL source 104 directed roles SHA NO inference
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s18c5-new96-rawgrammar-12fold-traincv-20261116
+permissions:
+  contents: read
+concurrency:
+  group: nra3-s18c6-onetime-new32-source-prereg
+  cancel-in-progress: false
+jobs:
+  s18c6_new32_source_only_precommit_before_any_model_scoring:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s18c6-new32-preregister-one-time-EVAL-source-20261116'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Audit original prior S18c4 candidate and S18c1 control both frozen BEFORE this new EVAL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43916875445 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43916875445 --jq .head_sha)" = 8ab1a8f591aab6f5aa80e050e795fe97a847599e
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43913448392 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43913448392 --jq .head_sha)" = a4838b1bf2cc2d1fcb3c1134f7983ebd58d80c53
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43918044123 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43918044123 --jq .head_sha)" = 63ffdfff65972dc284a4fbd6d89b2e715d5beeb3
+          echo PRIOR_2597FP16_CANDIDATE_AND_2309FP16_CONTROL_FROZEN_NO_EVAL_CREATED_YET
+      - name: Install MINIMAL source-only check dependencies, NO candidate model or Calibri weights
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Test new32 manual labels, disjoint TRAIN source, 104 directed gold and raw offsets WITHOUT any model
+        run: |
+          python -m compileall -q research/nra3_s18/s18c6_new32_one_time_eval_prereg.py research/nra3_s18/test_s18c6_new32_prereg.py
+          python -m unittest -v research.nra3_s18.test_s18c6_new32_prereg
+      - name: Produce complete canonical source SHA new32 BEFORE any scoring, no model import or original tokenizer
+        run: |
+          python - <<'PY'
+          import ast,json
+          from pathlib import Path
+          from research.nra3_s18.s18c6_new32_one_time_eval_prereg import (
+              EVAL32_COMPLETE_CANONICAL_SHA256, NEW_EVAL_SOURCE_CI,
+              seal_new_eval32_source, build_new_eval32, canonical_eval32_bytes)
+          source=Path("research/nra3_s18/s18c6_new32_one_time_eval_prereg.py").read_text()
+          tree=ast.parse(source)
+          imports=[n.module or "" for n in ast.walk(tree)
+                   if isinstance(n,ast.ImportFrom)]
+          assert not any(("s18c4" in n or "s18c1" in n or "s18c5" in n
+                          or "s15" in n or "s12" in n or "s17" in n
+                          or "native_cpu" in n or "transformers" in n or "torch" in n)
+                         for n in imports)
+          r=seal_new_eval32_source()
+          assert r["new_eval_gold_predicate_to_argument_links"]==104
+          assert r["precommitted_exact_new_eval_sentences"]==32
+          assert r["gold_roles_counts"]=={"AGENT":32,"PATIENT":36,"RECIPIENT":32,"SOURCE":4}
+          assert not r["candidate_scored_on_eval32"]
+          assert not r["original43M_GT_inference_executed_on_eval32"]
+          assert not r["new_independent_eval_used_for_training_or_model_selection"]
+          assert r["output_gate"]==0 and r["candidate_accepted"] is False
+          assert r["activation_allowed"] is False
+          assert r["old_training_texts_disjoint"] is True
+          assert r["previous_consumed_EVAL16_EVAL24_EVAL128_and_S3CI_not_loaded"] is True
+          assert r["LIVE_Jessica_chat_Render_Supabase_APK_modified"] is False
+          if EVAL32_COMPLETE_CANONICAL_SHA256 is None:
+              assert NEW_EVAL_SOURCE_CI is None and r["sha_locked_in_source"] is False
+              print("FIRST_SOURCE_ONLY_CI_DIGEST_TO_PIN_BEFORE_ANY_EVAL",r["new_eval_source_complete_sha256"],flush=True)
+          else:
+              assert len(EVAL32_COMPLETE_CANONICAL_SHA256)==64 and r["sha_locked_in_source"] is True
+              assert r["new_eval_source_complete_sha256"]==EVAL32_COMPLETE_CANONICAL_SHA256
+              print("IMMUTABLE_ONE_TIME_EVAL32_SHA_LOCKED_BEFORE_ANY_MODEL_SCORING",EVAL32_COMPLETE_CANONICAL_SHA256,flush=True)
+          Path("results").mkdir(exist_ok=True)
+          Path("results/NRA3_S18C6_NEW32_ONE_TIME_EVAL_SOURCE_ONLY_SEAL.json").write_text(
+              json.dumps(r,ensure_ascii=False,sort_keys=True,indent=2)+"\n",
+              encoding="utf-8")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s18c6-new32-preregister-source-only-104directed-gold-SHA-no-inference
+          path: results/NRA3_S18C6_NEW32_ONE_TIME_EVAL_SOURCE_ONLY_SEAL.json
+          retention-days: 30
+          if-no-files-found: error
