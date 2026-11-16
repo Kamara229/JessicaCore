@@ -1,0 +1,51 @@
+name: NRA3 S19 source-only Russian grammar event-graph contract (no eval)
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s18c7-one-time-new32-real43m-cpu-2309-v2597-20261116
+permissions:
+  contents: read
+concurrency:
+  group: nra3-s19-source-only
+  cancel-in-progress: true
+jobs:
+  verify_new_source_only_grammar_event_graph:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: .
+      PYTHONHASHSEED: '191926'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile research source only, no models or external eval
+        run: python -m compileall -q research/nra3_s19
+      - name: Verify source-only TRAIN graph invariants and event role scopes
+        run: python -m unittest -v research.nra3_s19.test_event_graph_contracts
+      - name: SHA and manifest for new TRAIN-only annotated event graphs
+        run: |
+          mkdir -p results/nra3_s19
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          from research.nra3_s19.train_only_event_graph_source import train_only_manifest
+          m=train_only_manifest()
+          assert m["split"]=="TRAIN_ONLY" and m["new_train_examples"]==9
+          assert m["output_gate"]==0 and m["model_accepted"] is False
+          assert m["trained_or_inferred"] is False
+          assert m["evaluation_reused"] is False and m["live_changed"] is False
+          p=Path("results/nra3_s19/S19_NEW9_TRAIN_ONLY_GRAPH_SHA_MANIFEST.json")
+          p.write_text(json.dumps(m,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8")
+          print(p.read_text(encoding="utf-8"))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s19-new9-TRAINonly-typed-event-graph-no-model-no-eval
+          path: results/nra3_s19/S19_NEW9_TRAIN_ONLY_GRAPH_SHA_MANIFEST.json
+          if-no-files-found: error
+          retention-days: 30
