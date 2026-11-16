@@ -233,7 +233,7 @@ def main():
       "native_NRA3_live_generation_tested":False,
       "native_CPU_speed_relative_CB59_measured":False,
       "physical_all_inclusive_GT_NRA3_bpp_certified":False,
-      "old_S17c_EVAL24_and_S12c_EVAL16_consumed_sources_not_loaded":True,
+      "old_S15c_EVAL24_and_S12c_EVAL16_consumed_sources_not_loaded":True,
       "five_consumed_independent_EVAL128_not_loaded":True,
       "sixth_reserved_S3CI_EVAL128_not_loaded":True,
       "no_Render_Supabase_APK_LIVE_or_Jessica_chat":True
