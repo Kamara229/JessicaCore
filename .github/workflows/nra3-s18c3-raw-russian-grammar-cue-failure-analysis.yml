@@ -1,0 +1,157 @@
+name: NRA3 S18c3 S18c2 real train-group failures and raw-only Russian grammar case-voice feature contract
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s18c2-new96-native43-12fold-traincv-20261116
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s18c3-surface-grammar-no-gold-traincv-diagnostic
+  cancel-in-progress: false
+jobs:
+  s18c3_real_training_failure_analysis_raw_morphological_preflight:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s18c3-raw-russian-grammar-cues-failure-diagnostic-20261116'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify original successful real43M native-C S18c2 TRAIN-CV, strict SHA-pinned head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43914384102 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43914384102 --jq .head_sha)" = 4bfb5e82fc52b6690ddeea2da11f73c0e85631f2
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43910479658 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43913448392 --jq .conclusion)" = success
+          echo S18C3_ORIGINAL_TRAIN96_SOURCE_GROUP_CV_PROVENANCE_SUCCESS
+      - name: Install minimum pure CPU TRAIN/source check dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Audit source-only grammar case/voice cues against raw text and ORIGINAL TRAIN96 offsets, no model inference
+        run: |
+          python -m compileall -q research/nra3_s18/s18c3_raw_russian_grammar_cues.py research/nra3_s18/test_s18c3_raw_russian_grammar_cues.py
+          python -m unittest -v research.nra3_s18.test_s18c3_raw_russian_grammar_cues
+      - name: Download verified original physical S18c2 12-fold TRAIN-internal report and FP16 sources
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s18c2-TRUE43M-GT-native43-S11-TRAIN96-12fold-lexical-syntax-CV-only
+          run-id: 43914384102
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s18c2
+      - name: Real grouped CV targeted failure report; prohibit any heldout training, no EVAL or original model changes
+        run: |
+          python - <<'PY'
+          import ast,hashlib,json
+          from pathlib import Path
+          from research.nra3_s18.s18c3_raw_russian_grammar_cues import (
+              FEATURES,DIM,raw_surface_grammar)
+          from research.nra3_s18.ru96_multiverb_train_source import (
+              build_s18_new_train96,CONSTRUCTIONS,
+              S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256)
+          root=Path("inputs/nra3_s18c2")
+          names=list(root.rglob("NRA3_S18C2_NEW96_ORIGINAL43M_NATIVE43_CV12_F1_REPORT.json"))
+          assert len(names)==1
+          p=names[0]
+          r=json.loads(p.read_text(encoding="utf-8"))
+          assert r["stage"]=="NRA3_S18C2_TRUE_ORIGINAL43M_GT_NATIVE43_S11_NEW96_GROUPED12_TRAIN_INTERNAL_CV"
+          assert r["original_S18_96_TRAIN_source_SHA"]==S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256
+          assert r["original_S18b_cpu_run"]==43910479658
+          assert r["original_S18c1_FULL_TRAIN_run"]==43913448392
+          assert r["original_616_J7_generated_tokens_unchanged"] is True
+          assert r["native_C_original_all_96_true43M_rows"] is True
+          assert r["original_43M_GT_CB59_S11_all_frozen"] is True
+          assert r["lexical_heldout_FOLDS"]==4 and r["syntax_heldout_FOLDS"]==8
+          assert r["all_300_gold_positive_role_edges"]==300
+          assert r["TRAIN_INTERNAL_CV_not_new_independent_EVAL"] is True
+          assert r["candidate_accepted"] is False and r["activation_allowed"] is False
+          assert r["output_gate"]==0
+          folds=r["individual_fold_results"]
+          assert len(folds)==12 and len({z["fold_id"] for z in folds})==12
+          exact={z["fold_id"]:z for z in folds}
+          assert set(exact)=={f"lex_{j}" for j in range(4)}|{f"syntax_{j}" for j in range(8)}
+          for f in folds:
+              path=root/f["physical_fp16_filename"]
+              assert path.exists()
+              b=path.read_bytes()
+              assert len(b)==f["physical_fp16_bytes"]==4665
+              assert hashlib.sha256(b).hexdigest()==f["physical_fp16_sha256"]
+          passive=exact["syntax_2"]
+          recipient_subject=exact["syntax_3"]
+          assert passive["heldout_lexical_or_syntactic_groups"]==[CONSTRUCTIONS[2]]
+          assert recipient_subject["heldout_lexical_or_syntactic_groups"]==[CONSTRUCTIONS[3]]
+          assert all(k in passive["per_role_heldout"] and k in recipient_subject["per_role_heldout"]
+                     for k in ("AGENT","PATIENT","RECIPIENT","SOURCE"))
+          rows=build_s18_new_train96()
+          assert len(rows)==96
+          assert all(len(raw_surface_grammar(row.text))==len(row.words) for row in rows)
+          source=Path("research/nra3_s18/s18c3_raw_russian_grammar_cues.py").read_text()
+          tree=ast.parse(source)
+          used={node.attr for node in ast.walk(tree) if isinstance(node,ast.Attribute)}
+          assert not any(x in used for x in ("words","upos","lemma","deprel","semantic_role","gold","head"))
+          observed={
+              "stage":"NRA3_S18C3_RAW_ONLY_GRAMMAR_CUES_REAL_S18C2_FAIL_DIAGNOSTIC_NOT_MODEL_TRAINING",
+              "S18c2_SOURCE_RUN":43914384102,
+              "original_S18_TRAIN96_complete_SHA":S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256,
+              "original_43M_GT_native43_CB59_S11_frozen":True,
+              "original_616_J7_unchanged_only_for_OLD_frozen_parent":True,
+              "lexical_TRAIN_internal_micro_F1":r["micro_grouped_metrics"]["TRAIN_INTERNAL_LEXICAL"]["micro_F1"],
+              "syntactic_TRAIN_internal_micro_F1":r["micro_grouped_metrics"]["TRAIN_INTERNAL_SYNTAX"]["micro_F1"],
+              "passive_heldout_TRAIN_F1":passive["final_holdout_TRAIN_internal_F1"],
+              "recipient_subject_heldout_TRAIN_F1":recipient_subject["final_holdout_TRAIN_internal_F1"],
+              "passive_heldout_TRAIN_per_role":passive["per_role_heldout"],
+              "recipient_subject_heldout_TRAIN_per_role":recipient_subject["per_role_heldout"],
+              "passive_heldout_TRAIN_by_orientation":passive["by_orientation_heldout"],
+              "recipient_subject_heldout_TRAIN_by_orientation":recipient_subject["by_orientation_heldout"],
+              "raw_Russian_Unicode_surface_cue_dim":DIM,
+              "raw_Russian_unicode_surface_feature_names":list(FEATURES),
+              "real_original96_RAW_TEXT_word_boundaries_match_TRAIN_audit":True,
+              "raw_grammar_features_trainable":False,
+              "raw_grammar_features_gold_POS_lemma_dependency_or_roles_provided":False,
+              "original_native_C_new_training_executed":False,
+              "new_role_head_training_executed":False,
+              "new_independent_EVAL_executed":False,
+              "TRAIN_internal_holdouts_not_used_for_model_or_checkpoint_selection":True,
+              "S17c_S15c_S12c_and_other_consumed_EVAL_sources_not_loaded":True,
+              "standalone_S18c1_58pct_TRAIN_F1_is_not_transfer_accuracy":True,
+              "new_model_candidate_616_J7_tested":False,
+              "new_candidate_full_system_bpp_and_CPU_speed_certified":False,
+              "output_gate":0,
+              "candidate_accepted":False,
+              "activation_allowed":False,
+              "LIVE_Jessica_Render_Supabase_APK_modified":False,
+          }
+          Path("results").mkdir(exist_ok=True)
+          Path("results/NRA3_S18C3_TRUE_TRAIN96_FAILURE_AUDIT_AND_RAW_GRAMMAR_PRECURSOR.json").write_text(
+              json.dumps(observed,ensure_ascii=False,indent=2,sort_keys=True)+"\n",
+              encoding="utf-8")
+          print(json.dumps({
+              "passive_F1":observed["passive_heldout_TRAIN_F1"],
+              "recipient_subject_F1":observed["recipient_subject_heldout_TRAIN_F1"],
+              "lexical_F1":observed["lexical_TRAIN_internal_micro_F1"],
+              "syntactic_F1":observed["syntactic_TRAIN_internal_micro_F1"],
+              "not_new_EVAL":True,
+              "no_new_model_training":True,
+              "no_live":True
+          },ensure_ascii=False,sort_keys=True),flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s18c3-real-trainCV-passive-recipient-failure-diagnostic-raw-grammar-cues
+          path: results/NRA3_S18C3_TRUE_TRAIN96_FAILURE_AUDIT_AND_RAW_GRAMMAR_PRECURSOR.json
+          retention-days: 30
+          if-no-files-found: error
