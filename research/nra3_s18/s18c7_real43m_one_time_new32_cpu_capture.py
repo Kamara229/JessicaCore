@@ -168,8 +168,8 @@ def main():
         raise AssertionError("S18c7 original 43M/GT CPU J7 616 checkpoint drift")
     token_batch=collector.frozen_batch(tuple(r.text for r in rows))
     tok=real_tokenizer[0]
-    alignments=[align_s18_new32_train(
-        tok,row,expected_input_ids=token_batch["input_ids"][i,
+    alignments=[align_s18c7_raw_eval_text(
+        tok,row.text,expected_input_ids=token_batch["input_ids"][i,
             :int(token_batch["token_lengths"][i])].tolist())
                 for i,row in enumerate(rows)]
     for i,aligned in enumerate(alignments):
@@ -180,7 +180,7 @@ def main():
     # Only after original J7 and native CPU prefills: store ACTUAL hidden
     # features, lengths and subtoken offsets; NEVER export gold labels.
     out.mkdir(parents=True,exist_ok=True)
-    feature_file=out/"NRA3_S18C7_TRUE43M_GT_NEW_RU96_DIRECTED_HIDDEN320_FP16.safetensors"
+    feature_file=out/"NRA3_S18C7_TRUE43M_GT_NEW_EVAL32_GOLDFREE_HIDDEN320_FP16.safetensors"
     save_file(token_batch,str(feature_file))
     saved=load_file(str(feature_file),device="cpu")
     if (set(saved)!=set(token_batch)
