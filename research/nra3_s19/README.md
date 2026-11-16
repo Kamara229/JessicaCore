@@ -61,6 +61,12 @@ analytical future, inverted future, separate verbs, coordinated future verbs
 sharing an AGENT, conditional clause, future temporal clause, event-level
 negation, rejected recipient, past temporal clause with cross-clause coref.
 
+The first S19 source-only CI #43932427314 passed all eight tests and sealed
+source TRAIN9 gold/offsets SHA256
+fd424c8584a7a8ee719bd44b9540141cd94c687b892bb6d559ef231e78327bb2.
+The typed graphs contain 15 events, 40 positive/rejected argument links,
+five coreferences and six typed event links. No model quality is measured.
+
 This **does not** modify S18 source96, train any network, run a model, calculate
 F1, use old evaluation prompts, or connect to Jessica, LIVE, Render, Supabase
 or APK. This is a foundation for model/data implementation, not proof that
