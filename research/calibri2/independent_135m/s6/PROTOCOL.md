@@ -1,0 +1,19 @@
+# S6 — **TRAIN-activation-aware physically unchanged 5bit codebooks** for ORIGINAL trained FP32 135M
+
+Research-only; no NRA, no Jessica chat testing, no production/Render/Supabase/APK/main changes.
+
+**Why S6?** S2: FP32/CB59 final-layer hidden cosine 0.04–0.08, no coherent output. S3: 48 real 211-codebook + 5×rank24/30×rank32 GT updates still **0/8** FP32 first/full TRAIN output agreement (0.69656 bpp). S4: increasing source-only K-means samples/iterations lowered source weight SSE 1.67% but final hidden cosine worsened and 0/4 first-token agreement. S5: replacing up to 25/30 pretrained FP32 decoder layers or separately every attention/MLP left 0/3 first-token agreement; all 30 FP32 layers + tied FP32 embed restored exactly. The core issue appears distributed, and raw weight MSE optimization is not a sufficient measure.
+
+## Prespecified scientific intervention, without new neural weights
+
+**One fully physically paid experimental candidate**, using the *same* original CB59 K32V8 codec and parser, 5-bit index per 8 weights, K=32 FP16 dictionary and original FP16 row-scales. Keep original 211 2D matrices, exactly original 134,515,008 unique weight denominator, source aliases, and no new tensor shape or bits. Source S0 pinned SHA `50eac24ba7d7a452c495f8adced2cdef3f9cc44e024217fc21d8f2cebb87413c` 11,229,303 bytes.
+
+**Change what the quantizer minimizes:** On 20 fixed original-S0/S1/S3 **TRAIN only** prompts, run the authentic original pretrained `HuggingFaceTB/SmolLM2-135M-Instruct` revision `12fd25f77366fa6b3b4b768ec3050bf629380bac` and capture actual input activation second moments for each of its 210 decoder linear modules + tied output/embedding projection (211 distinct source matrices). For a weight vector `w[group,8]`, use normalized clipped original FP32 activation `E[x_j²]` as per-coordinate distortion weight to choose one of 32 original 8D codebook entries. Use **8192 source-weight vectors and 8 independent deterministic, weighted kmeans iterations**, FP16-snapshotted centroids, and then reconstruct the complete original checkpoint exactly through existing CB59 decoder. The activation calibration is OFFLINE TRAIN only and no activation stats or FP32 teacher is shipped.
+
+**A/B and mandatory metrics, no acceptance on loss alone:**
+- Report full 211-matrix FP32 source-weight SSE/RMSE, mean of original TRAIN-activation-weighted squared source error; do not use QA/VALID/TEST for selection.
+- Same four previously exposed S0/S2 TRAIN-DEBUG questions only: raw full 8-token generated text, EOS, FP32 first-token agreement, FP32-vs-student hidden cosine at embedding and layers 1,10,20,30. Compare frozen original pretrained FP32, baseline original CB59, and new activation-aware CB59. Flag loss if new source remains incoherent.
+- Full physical SHA/CRC, exact complete original source size, tied weights, 1D and row scales byte-for-byte unchanged, canonical aliases, no additional inference matrices, **<=0.7 bpp**. No GT hidden sidecar or failed S1 profile in S6; a separate S7 training step may insert successful source into actual calibrated CALIBRI GT if it passes functional gates.
+- Preserve scientific negative evidence. Do not infer that matching FP32 on four disclosed DEBUG cases means generalization. Independent blind QA/TEST stays unopened for this stage; native C >=90% is a separate gate.
+
+**Technical concern:** Diagonal activation calibration discards cross-channel covariance, so there is no guarantee of improved autoregressive generation even if activation-weighted SSE improves. If it fails, next stage should test structured correlated low-rank/activation-aware codec with a *different* bit layout rather than another codebook tuning cycle. Do not claim the ≤0.7 bpp goal is impossible; establish only whether this particular algorithm fails.
