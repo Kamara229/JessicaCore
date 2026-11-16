@@ -1,0 +1,96 @@
+name: NRA2 S18 SOURCE ONLY 96 new Russian multi-verb directed TRAIN graph no consumed EVAL
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s16b-real43m-train72-directed-links-20261115
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s18-new96-original-TRAIN-only-sha-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  original_new_96_russian_multiverb_directed_graph_TRAIN_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s18-new96-multiverb-graph-trainonly-20261116'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '3180096'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify S16b real frozen original43M CPU source and S17c truly independent 24 EVAL FAILED, spent forever
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43758892125 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43758892125 --jq .head_sha)" = ea063bf1fa0e856111c54f3b045220ca7aa5319e
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43902361580 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43902361580 --jq .head_sha)" = 081cb3f3f350ab9d06b2b4655f46cbdfd4820a4a
+          echo S18_TRAIN_ONLY_NO_REUSE_OF_CONSUMED_S17C_NEW24_EVAL
+      - name: Install source-only original S9 and tiny physical FP16 import dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: UNIT TEST original 96 new TRAIN Russian multiple verb groups 8 structures and 300 actual directed gold links
+        run: |
+          python -m compileall -q research/nra3_s18
+          python -m unittest -v research.nra3_s18.test_ru96_train_source
+      - name: Physically preregister complete 96 TRAIN Unicode text wordpiece offsets UD semantic gold source SHA before training
+        run: |
+          python -m research.nra3_s18.emit_96_train_source \
+            --out results/nra3_s18/NRA3_S18_NEW96_MULTIVERB_GRAPH_TRAIN_ONLY_SOURCE_MANIFEST.json
+      - name: Assert no S17c/S15c/S12c consumed EVAL, no original Calibri 43M or trained S16b inference, 0 optimizer
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from research.nra3_s18.ru96_multiverb_train_source import (
+              build_s18_new_train96,canonical_s18_new96_train,
+              seal_s18_new96_train,S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256
+          )
+          p=Path("results/nra3_s18/NRA3_S18_NEW96_MULTIVERB_GRAPH_TRAIN_ONLY_SOURCE_MANIFEST.json")
+          m=json.loads(p.read_text(encoding="utf-8"))
+          assert m==seal_s18_new96_train()
+          raw=canonical_s18_new96_train(build_s18_new_train96())
+          sha=hashlib.sha256(raw).hexdigest()
+          assert sha==m["S18_complete_original_96_new_TRAIN_full_annotation_SHA256"]
+          if S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256:
+              assert sha==S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256
+          gold=json.loads(Path("results/nra3_s18/NRA3_S18_NEW96_MULTIVERB_300_DIRECTED_TRAIN_GOLD.json").read_text(encoding="utf-8"))
+          assert len(gold)==96
+          assert sum(len(row["gold_directed_predicate_argument_links"]) for row in gold)==300
+          assert m["S18_new_directed_verb_to_argument_links"]==300
+          assert m["S18_grammatical_role_link_counts"]=={"AGENT":96,"PATIENT":96,"RECIPIENT":96,"SOURCE":12}
+          assert m["S18_new_distinct_verb_lemmas"]==12
+          assert m["S18_new_syntactic_constructions"]==8
+          assert m["S18_original_source_rows"]==96
+          assert m["S18_frozen_original_S16b_2309FP16_SHA"]=="3fe4bbce718e53e4e812e94367ce25834f873cbed646479c59b1e3949d2ecf38"
+          assert m["S18_original_43M_GT_NRA_C_or_2309FP16_model_loaded"] is False
+          assert m["S18_original_S16b_model_trained_or_updated"] is False
+          assert m["S18_new_optimizer_steps"]==0
+          assert m["S18_separate_future_unseen_EVAL_generated_or_scored"] is False
+          assert m["S18_old_S17c_24_independent_EVAL_now_consumed_not_read"]
+          assert m["S18_old_S15c_24_and_S12c_16_consumed_EVAL_never_loaded"]
+          assert m["S18_old_five_EVAL128_and_reserved_sixth_S3CI_never_loaded"]
+          assert m["output_gate"]==0 and m["candidate_accepted"] is False and m["activation_allowed"] is False
+          assert not Path("inputs").exists()
+          print("S18_NEW96_TRAIN_ONLY_12_VERBS_8_STRUCTURES_300_DIRECTED_UD_LINKS_COMPLETE_SHA",sha,flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s18-NEW96-TRAINonly-12verbs-8constructions-300directedlinks-full-SHA-gold
+          path: results/nra3_s18/
+          retention-days: 30
+          if-no-files-found: error
