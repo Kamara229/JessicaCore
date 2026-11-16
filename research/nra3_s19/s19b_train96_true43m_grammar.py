@@ -16,6 +16,7 @@ from pathlib import Path
 
 import torch
 from torch.nn import functional as F
+from safetensors.torch import load
 
 from research.nra3_s0.neural_area import UPOS
 from research.nra3_s18.s18c3_raw_russian_grammar_cues import (
@@ -163,7 +164,6 @@ def train_fixed(batch: WordGrammarTrainData, steps=STEPS):
         optimizer.step()
     physical=paid_fp16_bytes(model)
     frozen=load_paid_fp16_bytes(physical)
-    from safetensors.torch import load
     original_weights=load(physical)
     roundtrip_weights=load(paid_fp16_bytes(frozen))
     require(set(original_weights)==set(roundtrip_weights)
@@ -256,11 +256,10 @@ def main():
     fn="NRA3_S19B_TRUE43M_GT_TRAIN96_WORD_GRAMMAR_ONLY_FP16.safetensors"
     path=args.out/fn
     path.write_bytes(physical)
-    require(path.read_bytes()==physical and
-            all(torch.equal(x,y) for x,y in zip(
-                __import__("safetensors.torch",fromlist=["load"]).load(physical).values(),
-                __import__("safetensors.torch",fromlist=["load"]).load(
-                    paid_fp16_bytes(load_paid_fp16_bytes(physical))).values())),
+    saved=load(physical)
+    checked=load(paid_fp16_bytes(load_paid_fp16_bytes(physical)))
+    require(path.read_bytes()==physical and set(saved)==set(checked)
+            and all(torch.equal(saved[k],checked[k]) for k in saved),
             "physical final model must retain all FP16 values")
     count=trainable_parameter_count(final)
     report={
