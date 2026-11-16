@@ -1,0 +1,72 @@
+name: CALIBRI2 native 135M architecture no NRA vs real pretrained FP32
+'on':
+  push:
+    branches:
+      - 'research/calibri2-135m-no-nra-architecture-fp32-20261116'
+    paths:
+      - 'research/calibri2/independent_135m/arch_no_nra/**'
+      - '.github/workflows/calibri2-135m-no-nra-architecture-fp32.yml'
+  workflow_dispatch:
+concurrency:
+  group: independent-135M-calibri2-architecture-no-nra-paired-fp32
+  cancel-in-progress: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  architecture_transplant_and_paired_fp32_generation:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 210
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '261116'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned original FP32 and physically compressed CB59 CPU stack
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Test real S87/S126/S159-style hook contracts on CPU toy
+        run: |
+          python -m compileall -q research/calibri2/independent_135m/arch_no_nra
+          python -m unittest calibri2.independent_135m.arch_no_nra.test_architecture -v
+          python -m unittest test_v197_green_tunnel_generic_parity test_v196_green_tunnel_policy test_v185_discrete_index -v
+      - name: Download original *pretrained* source independently compressed to physical <=0.7 bpp
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-independent-135M-original-FP32-direct-CB59-GT-J7-multipath-S0
+          run-id: 43939264823
+          path: inputs/S0
+          github-token: ${{ github.token }}
+      - name: Download actual 4-cycle paid S1 alternative source for compact profile bank
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-independent-135M-S1-four-physical-QAT-cycles-replay-J7
+          run-id: 43942308994
+          path: inputs/S1
+          github-token: ${{ github.token }}
+      - name: Compare real original trained FP32 to physically packed 135M CALIBRI2 architecture without NRA
+        run: |
+          python research/calibri2/independent_135m/arch_no_nra/compare_fp32.py \
+            inputs/S0/S0_NEW_DIRECT_FP32_TO_CB59_135M.cb59 \
+            inputs/S1/S1_FINAL_135M_4CYCLES_PAID.cb59 \
+            results/calibri2/135m_architecture_no_nra
+      - name: Preserve full generated FP32/packed/GT/profile/parallel outputs and paid physical package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri2-original-pretrained-135M-full-architecture-NO-NRA-vs-FP32
+          path: results/calibri2/135m_architecture_no_nra/
+          retention-days: 90
+          compression-level: 0
+          if-no-files-found: warn
