@@ -7,6 +7,15 @@ new 24 Russian EVAL sentences were written. S17 FULL annotations SHA
 was then preregistered BEFORE any 43M forward. S17b captures genuine
 layer8 source states under original protected J7 baseline without labels.
 
+IMPORTANT: the original frozen S95 prompt_only_vector hashes ALL tokens
+of the complete sentence, and S111 dual-GT prompt_scope applies that
+FULL-PROMPT feature to layer hooks before the NRA3 read port. Thus
+the per-word native readout DOES NOT necessarily provide a strictly
+online-left-to-right representation, even though the rank8 scorer
+itself indexes only the individual two original wordpiece states.
+This is a valid whole-sentence directed role parsing diagnostic,
+NOT proof of online causality/streaming comprehension.
+
 This script MUST NOT run unless real S17b FP16 source SHA is pinned.
 There is no training, calibration, checkpoint selection, and no data
 from previously consumed S15c EVAL24/S12c EVAL16 or EVAL128.
@@ -359,7 +368,9 @@ def main():
       "original_S11_39FP16_router_unchanged_SHA":S11_FROZEN_39_FP16_SHA,
       "S17c_true_original43M_GT_NATIVE_C_all24_scored_once":True,
       "S17c_no_gold_POS_verb_or_direct_link_candidate_filter":True,
-      "S17c_inference_strictly_word_token_causal":True,
+      "S17c_native_NRA_pair_scorer_only_reads_own_wordpiece_positions":True,
+      "S17c_upstream_frozen_GT_S95_gate_conditions_on_FULL_PROMPT":True,
+      "S17c_STRICT_ONLINE_CAUSALITY_end_to_end_certified":False,
       "S17c_actual_scoring_all_24_after_model_SHA_freeze":True,
       "S17c_no_EVAL24_training_or_checkpoint_selection":True,
       "S17c_EVAL24_optimizer_steps":0,
