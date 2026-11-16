@@ -13,6 +13,9 @@ on:
     paths:
       - 'research/calibri2/independent_135m/**'
       - '.github/workflows/calibri2-135m-fp32-gt-parallel-guard-s0.yml'
+concurrency:
+  group: independent-calibri-135m-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 permissions:
   contents: read
   actions: read
