@@ -29,7 +29,7 @@ from research.nra3_s4.russian_ud_train_only import build_train as build_s4_train
 from research.nra3_s16.paid_directed_valence import ROLES
 
 S18_SPLIT="NRA3_S18_12_FAMILIES_8_MORPHOSYNTACTIC_CONSTRUCTIONS_NEW96_TRAIN_ONLY"
-S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256=""  # pin after FIRST SOURCE-ONLY CI
+S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256="abde63c34534d90e00a6ac61808d2453ce0cfc966c83d45377c1fb620999cca9"  # physically precommitted FIRST CI 43904185921
 S18_PARENT_FROZEN_S16B_MODEL_SHA256="3fe4bbce718e53e4e812e94367ce25834f873cbed646479c59b1e3949d2ecf38"
 S18_PARENT_S9_DIRECTED_72_TRAIN_GOLD_SHA256="9843c35ee9aa75b8f5c9c963e441589dd2f0292e41ec7933971d5aa3dcd365d6"
 CONSTRUCTIONS=(
@@ -284,7 +284,7 @@ def canonical_s18_new96_train(rows:tuple[TrainSentence,...])->bytes:
 def seal_s18_new96_train()->dict:
     source=canonical_s18_new96_train(build_s18_new_train96())
     sha=hashlib.sha256(source).hexdigest()
-    if S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256 and sha!=S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256:
+    if sha!=S18_CANONICAL_96_FULL_UD_AND_ROLES_SHA256:
         raise ValueError("S18 TRAIN-only source SHA changed after seal")
     rows=build_s18_new_train96()
     edges=[z for r in rows for z in direct_predicate_argument_gold(r)]
