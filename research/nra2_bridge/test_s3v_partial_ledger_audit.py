@@ -47,6 +47,29 @@ class PartialLedgerTests(unittest.TestCase):
         self.assertFalse(result["full_64_row_ledger_verified"])
         self.assertEqual(result["output_gate"], 0)
 
+    def test_sparse_role_aggregate_outside_bounds_rejected(self):
+        payload = fixture()
+        payload["disagreement_or_error_cases"] = [{
+            "index": 0, "soft_correct": False, "hard_correct": True,
+            "source_correct": False, "target_correct": False,
+            "prompt_sha256": "a" * 64,
+        }]
+        metrics = payload["all_and_family_yes_no_accuracy"]["all"]
+        metrics["soft_correct"] = 63
+        payload["all_and_family_yes_no_accuracy"]["true_yes"]["soft_correct"] = 31
+        # With one observed incorrect source role, aggregate 64 is impossible.
+        with self.assertRaises(ValueError):
+            checked(payload)
+
+    def test_duplicate_sparse_index_rejected(self):
+        payload = fixture()
+        row = {"index": 0, "soft_correct": False, "hard_correct": False,
+               "source_correct": False, "target_correct": False,
+               "prompt_sha256": "b" * 64}
+        payload["disagreement_or_error_cases"] = [row, dict(row)]
+        with self.assertRaises(ValueError):
+            checked(payload)
+
     def test_boolean_gate_rejected(self):
         payload = fixture()
         payload["output_gate"] = False
