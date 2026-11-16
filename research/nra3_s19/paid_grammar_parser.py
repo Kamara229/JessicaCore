@@ -24,14 +24,15 @@ WIDTH = 320
 RANK = 16
 INPUT_DIM = WIDTH + RAW_DIM
 DEP_LABELS = ("root", "nsubj", "iobj", "obj", "punct", "nsubj:pass",
-              "aux", "obl:agent", "obl", "case", "advmod", "amod", "mark")
+              "aux", "obl:agent", "obl", "case", "advmod", "amod", "mark",
+              "advcl")
 PHYSICAL_FORMAT = "NRA3_S19B_GOLD_BLIND_RAW43M_CPU_WORD_GRAMMAR_FP16_V1"
 
 
 @dataclass(frozen=True)
 class GrammarLogits:
     upos: torch.Tensor           # [batch, words, 17]
-    dependency: torch.Tensor     # [batch, words, 13]
+    dependency: torch.Tensor     # [batch, words, 14]
     predicate: torch.Tensor      # [batch, words], VERB anchors only
     heads: torch.Tensor          # [batch, words, words+1], 0=ROOT
 
