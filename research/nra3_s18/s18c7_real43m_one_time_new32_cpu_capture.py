@@ -159,7 +159,7 @@ def main():
             or sum(old[k]==old_gold[k] for k in old)!=456
             or sum(new[k]==expected128[k] for k in new)!=128
             or sum(novel[k]==novel_gold[k] for k in novel)!=0
-            or s190_source["NEW_EVAL_first_correct"]!=16
+            or s190_source["NEW_TRAIN_first_correct"]!=16
             or source_cert["old_full_eos_correct"]!=456
             or source_cert["new_full_eos_correct"]!=128
             or output_digest(joined)!=source_cert["protected_584_generation_digest"]
