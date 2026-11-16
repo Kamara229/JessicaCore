@@ -70,6 +70,18 @@ class PartialLedgerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             checked(payload)
 
+    def test_both_correct_sparse_row_rejected(self):
+        # S3V only records incorrect answers or soft/hard disagreement.
+        # With a fixed binary truth, two correct answers cannot disagree.
+        payload = fixture()
+        payload["disagreement_or_error_cases"] = [{
+            "index": 0, "soft_correct": True, "hard_correct": True,
+            "source_correct": True, "target_correct": True,
+            "prompt_sha256": "c" * 64,
+        }]
+        with self.assertRaises(ValueError):
+            checked(payload)
+
     def test_producer_float_zero_gate_accepted(self):
         payload = fixture()
         payload["output_gate"] = 0.0
