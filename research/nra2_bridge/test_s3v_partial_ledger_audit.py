@@ -100,6 +100,13 @@ class PartialLedgerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             audit(raw, hashlib.sha256(raw).hexdigest())
 
+    def test_exponent_overflow_rejected(self):
+        # Valid JSON numeric syntax can overflow Python float to Infinity.
+        raw = json.dumps(fixture()).replace('"output_gate": 0',
+                                            '"output_gate": 1e999').encode()
+        with self.assertRaises(ValueError):
+            audit(raw, hashlib.sha256(raw).hexdigest())
+
     def test_duplicate_key_rejected(self):
         raw = json.dumps(fixture()).replace('"output_gate": 0',
                                             '"output_gate": 0, "output_gate": 0').encode()
