@@ -34,7 +34,7 @@ from oscar.v1g.real_onpolicy_gt8 import (
     V1F_GT_SHA,DEBUG_NEW,
 )
 from oscar.v1h.real_dual_phase_inference import (
-    V1G_SHA,NEW_DEBUG,PHASES,dual_phase_greedy,
+    V1G_SHA,NEW_DEBUG as V1H_PUBLIC_DEBUG,PHASES,dual_phase_greedy,
 )
 from oscar.v1i.real_functional_codebook import NEW_TEST_DEBUG
 from oscar.v1k.real_joint_source_gt8 import EXTRA_DEBUG
@@ -79,7 +79,7 @@ NEW_DEBUG=(
 )
 COHORTS={
     "previously_exposed_36_public_debug":
-        EVAL_OLD+EVAL_OTHER+DEBUG_NEW+NEW_DEBUG+NEW_TEST_DEBUG+EXTRA_DEBUG,
+        EVAL_OLD+EVAL_OTHER+DEBUG_NEW+V1H_PUBLIC_DEBUG+NEW_TEST_DEBUG+EXTRA_DEBUG,
     "eight_new_predeclared_v1M_public_debug":NEW_DEBUG,
 }
 
