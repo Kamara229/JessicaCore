@@ -103,7 +103,10 @@ def audit(args):
     require(args.parent.is_file() and hashlib.sha256(args.parent.read_bytes()).hexdigest()==
             S19D_FULL_PHYSICAL_SHA,
             "frozen genuine original 43M+GT S19d 9332 parent SHA drift")
-    torch.set_num_threads(2)
+    # Refit diagnostic uses ONE CPU execution thread to test whether
+    # the observed same-runner FP16 drift came from parallel reductions.
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
     torch.use_deterministic_algorithms(True)
     physical_parent=args.parent.read_bytes()
     trraw,trvalid,trgold=(take(raw,trids),take(valid,trids),take(gold,trids))
@@ -208,6 +211,7 @@ def audit(args):
         "same_runner_same_seed_S22d_sha_reproduced":same_host_base,
         "same_runner_same_seed_S26_sha_reproduced":same_host_trial,
         "fresh_refit_NOT_equivalent_to_historical_exact_fold":True,
+        "fresh_refit_one_CPU_thread_to_probe_concurrent_reduction_drift":True,
         "archived_fold33_baseline_REJECTED_TP":historical_base_TP,
         "archived_fold33_trial_REJECTED_TP":historical_trial_TP,
         "S26_3_trained_FP16_event_scoped_head_weights":[float(x) for x in
