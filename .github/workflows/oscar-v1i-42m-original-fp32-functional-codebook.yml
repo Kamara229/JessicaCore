@@ -1,0 +1,72 @@
+name: 'OSCAR v1I actual 42M original pretrained FP32 functional K32V8 tied-codebook refinement with dual GT'
+'on':
+  push:
+    branches:
+      - research/oscar-v1i-fp32-functional-codebook-20261117
+    paths:
+      - research/oscar/v1i/**
+      - .github/workflows/oscar-v1i-42m-original-fp32-functional-codebook.yml
+  workflow_dispatch:
+concurrency:
+  group: oscar-v1i-original42m-physical-source-k32v8
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  independent_original_FP32_42M_functional_codebook_reencode:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '421919'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install original CPU pretrained model and all required research libraries
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'pandas==2.2.3' 'pyarrow==17.0.0' 'datasets==2.21.0' 'python-dateutil==2.9.0.post0' 'huggingface_hub==0.27.1' 'transformers==4.46.3' 'safetensors==0.4.5' 'sentencepiece==0.2.0' 'protobuf==5.28.3' 'accelerate==1.1.1'
+      - name: Verify original Oscar source codec, trusted original 8layer LLaMA, and Green Tunnel carry/grad/physical ABI
+        run: |
+          python -m compileall -q research/oscar/v1i/
+          python -m unittest oscar.test_encoder oscar.v1e.test_safe_pretrained_llama oscar.v1f.test_green_tunnel oscar.v1g.test_real_onpolicy oscar.v1h.test_dual_phase -v
+      - name: Download authenticated original v1F FP32 independent pretrained 42M source and FIRST-token Green Tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: oscar-v1f-real-42M-original-FP32-recurrent-GT8-r32-head-r8-actual
+          run-id: 44157008799
+          path: input/original_v1f
+          github-token: ${{ github.token }}
+      - name: Download authenticated later-token on-policy trained original 42M Green Tunnel v1G
+        uses: actions/download-artifact@v4
+        with:
+          name: oscar-v1g-real-42M-FP32-onpolicy-GT8-original-source-frozen
+          run-id: 44159025260
+          path: input/original_v1g
+          github-token: ${{ github.token }}
+      - name: Real independent original 41.69M pretrained FP32 teacher functionally recalibrates existing ORIGINAL 5bit tied source and physically repacks CB59/CB61
+        run: |
+          python research/oscar/v1i/real_functional_codebook.py \
+            input/original_v1f/OSCAR_V1F_ACTUAL_PRETRAINED_42M_SOURCE_ONLY_COLD.cb59 \
+            input/original_v1f/OSCAR_V1F_REAL_PAID_RUNTIME_SOURCE/OSCAR_V1F_REAL_INDEPENDENT_42M_FP32_ENCODED_CORE.cb61 \
+            input/original_v1f/OSCAR_V1F_GT_ONLY_EXPLORATORY_RESEARCH_RUNTIME/OSCAR_V1F_FULL8_ONLY_R32_FP16.safetensors \
+            input/original_v1g/OSCAR_V1G_REAL_42M_F32_ON_POLICY_GT_ONLY_R32_ALL8_FP16.safetensors \
+            results/OSCAR_v1I_original42M_real_FP32_source_codebook/
+      - name: Preserve NEW physically repacked independent pretrained original 42M K32V8 CB61 source, both unchanged GT phases, all real teacher debug and complete optimizer trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oscar-v1i-real-42M-FP32-source-codebook-reencode-GT8-two-paid
+          path: results/OSCAR_v1I_original42M_real_FP32_source_codebook/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 90
