@@ -67,6 +67,9 @@ def train_exact_prefix(physical_parent,raw,valid,labels,steps):
     model=new_graph_model(frozen,SEED+FOLD)
     initial=model.head_physical()
     initial_physical=model.physical_bytes()
+    initial_canonical=canonical_paid_semantic_fp16_sha(model)
+    parent_bytes1=model.parent.physical_bytes()
+    parent_bytes2=model.parent.physical_bytes()
     optimizer=torch.optim.AdamW(list(model.semantic_params()),
                                 lr=LR,weight_decay=.001)
     losses=[]
@@ -83,11 +86,19 @@ def train_exact_prefix(physical_parent,raw,valid,labels,steps):
         if iteration in (0,steps-1):
             losses.append(float(loss.detach()))
     paid=model.physical_bytes()
+    post_head=model.head_physical()
+    post_canonical=canonical_paid_semantic_fp16_sha(model)
     param=[p.detach().cpu().clone() for p in model.semantic_params()]
     return {
         "initial_head_sha256":sha(initial),
         "initial_full_fp16_sha256":sha(initial_physical),
+        "initial_canonical_paid_FP16_SHA256":initial_canonical,
+        "same_model_two_frozen_parent_serializations_identical":parent_bytes1==parent_bytes2,
+        "parent_payload_first_sha":sha(parent_bytes1),
+        "parent_payload_second_sha":sha(parent_bytes2),
         "paid_prefix_SHA256":sha(paid),
+        "post_head_FP16_SHA256":sha(post_head),
+        "post_canonical_paid_FP16_SHA256":post_canonical,
         "first_last_logged_train_losses":losses,
         "actual_prefix_steps":steps,
     },param
@@ -159,8 +170,14 @@ def main():
             "same_runner_initial_head_equal":one["initial_head_sha256"]==two["initial_head_sha256"],
             "same_runner_initial_full_physical_equal":one["initial_full_fp16_sha256"]==two["initial_full_fp16_sha256"],
             "same_runner_post_steps_full_FP16_equal":one["paid_prefix_SHA256"]==two["paid_prefix_SHA256"],
+            "same_runner_post_steps_head_FP16_equal":one["post_head_FP16_SHA256"]==two["post_head_FP16_SHA256"],
+            "same_runner_post_steps_canonical_paid_FP16_equal":one["post_canonical_paid_FP16_SHA256"]==two["post_canonical_paid_FP16_SHA256"],
+            "same_runner_initial_canonical_paid_FP16_equal":one["initial_canonical_paid_FP16_SHA256"]==two["initial_canonical_paid_FP16_SHA256"],
             "post_steps_fp32_difference":fp,
         }
+        check(fp["fp32_all_equal"] and entry["same_runner_post_steps_head_FP16_equal"]
+              and entry["same_runner_post_steps_canonical_paid_FP16_equal"],
+              "actual paid FP16 tensors/FP32 model weights changed, NOT merely physical serializer")
         report["tests"].append(entry)
         print("S28_REAL_SINGLE_CPU_THREAD_PREFIX_COMPARE",
               json.dumps({k:v for k,v in entry.items()
