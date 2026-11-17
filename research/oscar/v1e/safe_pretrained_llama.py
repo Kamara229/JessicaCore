@@ -98,7 +98,7 @@ class LocalOriginalPretrained42M(nn.Module):
         self.output=nn.Linear(p.dim,p.vocab,bias=False)
         self.output.weight=self.tok_embeddings.weight
         half=p.dim//p.heads//2
-        freq=1./(10000.**(torch.arange(half,dtype=torch.float32)/half/2))
+        freq=1./(10000.**(torch.arange(half,dtype=torch.float32)/half))
         at=torch.arange(p.max_ctx,dtype=torch.float32)[:,None]*freq[None,:]
         self.register_buffer("cos",at.cos(),persistent=False)
         self.register_buffer("sin",at.sin(),persistent=False)
