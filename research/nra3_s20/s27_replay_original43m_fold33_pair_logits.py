@@ -1,9 +1,13 @@
-"""S27: genuine S22d/S26 fold 33 train-only, SHA-verified pair-logit audit.
+"""S27: SHA-audited FRESH REFIT of S22d/S26 fold33 on true 43M+GT TRAIN.
 
 WHY: physical S22c RAW negative+dative cue is present 8/8, but S24 and S26
 predicted REJECTED 0/8 for one leave-construction-out pattern. Need to
 discover which directed head, polarity margin, or predicted event gating
-fails before inventing yet another adapter. Model forward receives ONLY
+fails before inventing yet another adapter. The historical S22d/S26 per-fold
+FP16 SHA could NOT be reproduced across CI runs. Both archived full models
+are SHA-verified for provenance, but NO claim is made that the fresh fold
+weights reproduce the archived fold or its scores. A repeat on the same
+runner probes whether even same-host bytewise reproducibility holds. Model forward receives ONLY
 frozen original43M+GT word338, NEVER human graph gold/held row metadata.
 Human synthetic TRAIN labels are used ONLY for training and offline
 inspection; original 616 J7 and all independent EVAL remain untouched.
@@ -101,23 +105,44 @@ def audit(args):
             "frozen genuine original 43M+GT S19d 9332 parent SHA drift")
     torch.set_num_threads(2)
     torch.use_deterministic_algorithms(True)
-    frozen=PaidContextualEventScope.from_physical(args.parent.read_bytes())
+    physical_parent=args.parent.read_bytes()
     trraw,trvalid,trgold=(take(raw,trids),take(valid,trids),take(gold,trids))
     dvraw,dvvalid=(take(raw,heldids),take(valid,heldids))
-    old,pold=train_base(build_base(frozen,BASE_SEED+FOLD),trraw,trvalid,trgold)
-    new,pnew=train_trial(build_trial(frozen,EXPERIMENT_SEED+FOLD),trraw,trvalid,trgold)
+    old,pold=train_base(
+        build_base(PaidContextualEventScope.from_physical(physical_parent),BASE_SEED+FOLD),
+        trraw,trvalid,trgold)
+    new,pnew=train_trial(
+        build_trial(PaidContextualEventScope.from_physical(physical_parent),EXPERIMENT_SEED+FOLD),
+        trraw,trvalid,trgold)
     shaold=hashlib.sha256(pold).hexdigest()
     shanew=hashlib.sha256(pnew).hexdigest()
+    # Fresh exact-same-host independent refits test deterministic replay.
+    old_repeat,pold_repeat=train_base(
+        build_base(PaidContextualEventScope.from_physical(physical_parent),BASE_SEED+FOLD),
+        trraw,trvalid,trgold)
+    new_repeat,pnew_repeat=train_trial(
+        build_trial(PaidContextualEventScope.from_physical(physical_parent),EXPERIMENT_SEED+FOLD),
+        trraw,trvalid,trgold)
+    same_host_base=(pold==pold_repeat)
+    same_host_trial=(pnew==pnew_repeat)
+    print("S27_SAME_RUNNER_BASE_TRAIN_SHA_REPRODUCIBLE",
+          same_host_base,hashlib.sha256(pold_repeat).hexdigest(),flush=True)
+    print("S27_SAME_RUNNER_TRIAL_TRAIN_SHA_REPRODUCIBLE",
+          same_host_trial,hashlib.sha256(pnew_repeat).hexdigest(),flush=True)
     expected_old=base_info["all40_fixed_TRAIN_internal_folds"][FOLD]["fold_paid_FP16_SHA256"]
     expected_new=trial_info["all40_fixed_TRAIN_internal_folds"][FOLD]["fold_paid_FP16_SHA256"]
     print("S27_BASELINE_FOLD33_SHA_REPLAY",shaold,
           "ORIGINAL_ACTUAL_RUN",expected_old,flush=True)
     print("S27_S26_FOLD33_SHA_REPLAY",shanew,
           "ORIGINAL_ACTUAL_RUN",expected_new,flush=True)
-    require(shaold==expected_old,
-            "original S22d fold 33 physical FP16 mismatch; no trusted pair-logit inference")
-    require(shanew==expected_new,
-            "S26 matched fold 33 physical FP16 mismatch; no trusted pair-logit inference")
+    historical_base_identical=(shaold==expected_old)
+    historical_trial_identical=(shanew==expected_new)
+    print("S27_CROSS_RUN_HISTORICAL_SHA_IDENTICAL",historical_base_identical,
+          historical_trial_identical,flush=True)
+    # Provenance is established by original full-physical model SHA + source
+    # SHA; absent archived fold weights, historical exact refit is unproven.
+    # This NEW run is a separate TRAIN-only research diagnostic, not an
+    # original archived fold33 reconstruction or independent EVAL.
     with torch.inference_mode():
         old_out=old(dvraw,dvvalid)
         new_out=new(dvraw,dvvalid)
@@ -163,18 +188,28 @@ def audit(args):
                for x in records)
     after=sum(x["trial_S26_pred_to_recipient"]["polarity_predicted_class_index"]==2
               for x in records)
-    require(before==base_info["all40_fixed_TRAIN_internal_folds"][FOLD][
+    historical_base_TP=base_info["all40_fixed_TRAIN_internal_folds"][FOLD][
                 "REJECTED_specific_held_TRAIN"]["TP"]
-            and after==trial_info["all40_fixed_TRAIN_internal_folds"][FOLD][
-                "REJECTED_specific_held_TRAIN"]["TP"],
-            "replayed precise original physical fold disagrees with training report")
+    historical_trial_TP=trial_info["all40_fixed_TRAIN_internal_folds"][FOLD][
+                "REJECTED_specific_held_TRAIN"]["TP"]
+    print("S27_FRESH_REFIT_VS_HISTORICAL_TP",before,after,
+          historical_base_TP,historical_trial_TP,flush=True)
     return {
-        "stage":"NRA3_S27_GENUINE_ORIGINAL43M_GT_MATCHED_FOLD33_REJECTED_LOGIT_DIAGNOSTIC",
+        "stage":"NRA3_S27_FRESH_REAL43M_GT_SAME_SPLIT_FOLD33_LOGIT_DIAGNOSTIC_NOT_ARCHIVED_REPLAY",
         "model_forward_input":"ONLY original SHA-locked 43M+GT 338D raw embedding+surface bits",
         "original_S22d_full_FP16_SHA256":S22D_MODEL_SHA,
         "original_S26_full_FP16_SHA256":EXPECTED_S26_FULL_FP16_SHA,
-        "replayed_exact_real_fold33_S22d_physical_sha256":shaold,
-        "replayed_exact_real_fold33_S26_physical_sha256":shanew,
+        "fresh_refit_real_fold33_S22d_physical_sha256":shaold,
+        "fresh_refit_real_fold33_S26_physical_sha256":shanew,
+        "archived_fold33_S22d_SHA":expected_old,
+        "archived_fold33_S26_SHA":expected_new,
+        "fresh_fold33_matches_historical_S22d_SHA":historical_base_identical,
+        "fresh_fold33_matches_historical_S26_SHA":historical_trial_identical,
+        "same_runner_same_seed_S22d_sha_reproduced":same_host_base,
+        "same_runner_same_seed_S26_sha_reproduced":same_host_trial,
+        "fresh_refit_NOT_equivalent_to_historical_exact_fold":True,
+        "archived_fold33_baseline_REJECTED_TP":historical_base_TP,
+        "archived_fold33_trial_REJECTED_TP":historical_trial_TP,
         "S26_3_trained_FP16_event_scoped_head_weights":[float(x) for x in
              new.event_scoped_recipient_weights.detach().cpu()],
         "preposed_polarity_TP_baseline":before,
@@ -226,9 +261,9 @@ def main():
               "S26_rejected_p":round(x["trial_S26_pred_to_recipient"]["polarity_REJECTED_probability"],3),
               "S26_REJECTED_delta_logit":round(x["actual_S26_delta_REJECTED_polarity_logit"],3),
           } for x in report["per_example_error_evidence"]],ensure_ascii=False),flush=True)
-    print("S27_VERIFIED_S26_FOLD33_TRAINED_LOCAL_WEIGHTS",
+    print("S27_FRESH_REFIT_S26_FOLD33_TRAINED_LOCAL_WEIGHTS",
           json.dumps(report["S26_3_trained_FP16_event_scoped_head_weights"]),flush=True)
-    print("S27_PREPOSED_PHYSICAL_FP16_FOLD_SHA_VERIFIED",flush=True)
+    print("S27_PREPOSED_REAL43M_FRESH_REFIT_SOURCE_AND_MODEL_PROVENANCE_SHA_VERIFIED",flush=True)
 
 
 if __name__=="__main__":
