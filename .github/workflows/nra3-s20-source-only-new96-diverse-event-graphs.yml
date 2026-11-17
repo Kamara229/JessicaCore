@@ -1,0 +1,71 @@
+name: NRA3 S20 96 new TRAIN graph source only and grouped fold invariants
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s19h-nine-fold-generalization-diagnostics-20261117
+permissions:
+  contents: read
+concurrency:
+  group: nra3-s20-new96-diverse-TRAIN-source-only
+  cancel-in-progress: true
+jobs:
+  sealed_96_train_sources_no_eval:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '320096'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile new source-only Russian grammar event graphs
+        run: python -m compileall -q research/nra3_s20
+      - name: Verify exact 8 families x 12 syntactic patterns, 20 source TRAIN-only folds
+        run: |
+          python -m unittest -v research.nra3_s19.test_event_graph_contracts research.nra3_s20.test_s20_train96_source_contract
+      - name: SHA and canonical source-only TRAIN96 manifest; no hidden weights or independent EVAL
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from dataclasses import asdict
+          from research.nra3_s20.s20_new96_synthetic_graph_train_source import (
+              train_only_manifest,build_s20_synthetic_train96,
+              FAMILY_COUNT,PATTERN_COUNT,train_only_split_contract)
+          source=build_s20_synthetic_train96()
+          m=train_only_manifest()
+          assert len(source)==96 and len(train_only_split_contract())==20
+          assert m["train_only_sentences"]==96 and m["curated_lexical_families"]==8
+          assert m["authored_syntax_patterns"]==12 and m["gold_rejected_recipients"]==16
+          assert m["gold_events"]==160 and m["gold_directed_role_edges"]==432
+          assert m["gold_coreference_edges"]==64 and m["gold_event_relation_edges"]==64
+          assert m["all_human_graph_annotations_target_only"]
+          assert m["original43M_GT_hidden_for_new96_NOT_YET_CAPTURED"]
+          assert not m["independent_EVAL_accessed"] and not m["model_inference_or_train_performed"]
+          assert not m["model_accepted"] and m["output_gate"]==0 and not m["LIVE_changed"]
+          folder=Path("results/nra3_s20")
+          folder.mkdir(parents=True,exist_ok=False)
+          (folder/"S20_TRAIN96_ONLY_SOURCE_MANIFEST.json").write_text(
+              json.dumps(m,ensure_ascii=False,sort_keys=True,indent=2)+"\n",encoding="utf-8")
+          (folder/"S20_TRAIN96_ONLY_HUMAN_TEMPLATE_GOLD.json").write_text(
+              json.dumps([asdict(g) for g in source],ensure_ascii=False,
+                         sort_keys=True,indent=2)+"\n",encoding="utf-8")
+          print("S20_NEW96_TRAIN_ONLY_SOURCE_SHA",m["source_sha256"])
+          print("S20_SOURCE_ONLY_COUNTS",json.dumps(
+              {k:m[k] for k in ("train_only_sentences","gold_events",
+                "gold_directed_role_edges","gold_rejected_recipients",
+                "gold_coreference_edges","gold_event_relation_edges",
+                "factuality_class_counts","event_relation_class_counts")},
+              sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s20-new96-12patterns-8families-graph-TRAIN-only-not-EVAL
+          path: results/nra3_s20/
+          if-no-files-found: error
+          retention-days: 30
