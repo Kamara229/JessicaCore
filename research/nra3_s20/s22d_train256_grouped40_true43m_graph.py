@@ -30,7 +30,7 @@ from research.nra3_s20.s22_new256_counterfactual_train_graph_source import (
     FROZEN_S22_TRAIN256_SHA256,splits,EXPECTED,
 )
 
-SEED=320096
+SEED=320256
 PAID_PARENT=9332
 PAID_GRAPH=3049
 PAID_TOTAL=12381
@@ -51,7 +51,7 @@ def load_physical_training_source(raw_file:Path,gold_file:Path,manifest_file:Pat
     info=json.loads(manifest_file.read_text(encoding="utf-8"))
     require(info["stage"]=="NRA3_S22C_REAL_ORIGINAL43M_GT_NEW256_SEPARATE_GRAPH_TRAIN_SHARDS"
             and info["S22_sha_locked_synthetic_TRAIN256_graph_gold"]==FROZEN_S22_TRAIN256_SHA256
-            and info["96_curated_synthetic_train_texts"]==256
+            and info["256_curated_synthetic_train_texts"]==256
             and info["S22_original_protected_616_J7_parent_unchanged"]
             and info["TRAIN_only_events"]==448
             and info["TRAIN_only_directed_role_links"]==976
@@ -187,10 +187,17 @@ def aggregate(records,axis):
             "TRAIN_INTERNAL_grouped_micro_F1_NOT_independent":
                 2*tp/(2*tp+fp+fn) if 2*tp+fp+fn else 0.,
         }
+    rc={k:sum(x["REJECTED_specific_held_TRAIN"][k] for x in group)
+        for k in ("TP","FP","FN","held_REJECTED_positive_support")}
+    tp,fp,fn=(rc[k] for k in ("TP","FP","FN"))
+    result["rejected_specific"]={**rc,
+        "precision":tp/(tp+fp) if tp+fp else 0.,
+        "recall":tp/(tp+fn) if tp+fn else 0.,
+        "F1":2*tp/(2*tp+fp+fn) if 2*tp+fp+fn else 0.}
     return result
 
 
-def run_fixed_20_folds(raw,valid,y,parent):
+def run_fixed_40_folds(raw,valid,y,parent):
     records=[]
     groups=splits()
     require(len(groups)==40,"S22 precommitted 40 TRAIN-only split contract")
@@ -263,7 +270,7 @@ def main():
     require(hashlib.sha256(parent_physical).hexdigest()==S19D_FULL_PHYSICAL_SHA,
             "original frozen S19d original43M GT physical FP16 SHA drift")
     parent=PaidContextualEventScope.from_physical(parent_physical)
-    folds,lexical,syntax=run_fixed_20_folds(raw,valid,y,parent)
+    folds,lexical,syntax=run_fixed_40_folds(raw,valid,y,parent)
     full_model=new_graph_model(parent,SEED+40)
     trained,paid=fixed_train_head(full_model,raw,valid,y)
     with torch.inference_mode():
