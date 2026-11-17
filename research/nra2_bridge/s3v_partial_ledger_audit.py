@@ -58,7 +58,10 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
         or report["output_gate"] != 0
         or report.get("new_training_or_parameter_tuning") is not False):
         raise ValueError("FAIL CLOSED: report provenance or zero gate mismatch")
-    metrics = report["all_and_family_yes_no_accuracy"]["all"]
+    slices = report.get("all_and_family_yes_no_accuracy")
+    if not isinstance(slices, dict) or not isinstance(slices.get("all"), dict):
+        raise ValueError("FAIL CLOSED: missing or malformed producer metrics")
+    metrics = slices["all"]
     if (type(metrics.get("count")) is not int or metrics["count"] != N
         or type(metrics.get("yes")) is not int or metrics["yes"] != 32
         or type(metrics.get("no")) is not int or metrics["no"] != 32):
@@ -157,7 +160,7 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
     for r in records:
         family = r.get("family")
         truth = r.get("gold_yes")
-        if family not in families or type(truth) is not bool:
+        if type(family) is not str or family not in families or type(truth) is not bool:
             raise ValueError("FAIL CLOSED: sparse family/truth metadata missing")
     for family in families:
         for truth_name, truth_value in (("yes", True), ("no", False)):
