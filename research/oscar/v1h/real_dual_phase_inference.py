@@ -331,7 +331,7 @@ def run(a):
       "real_original_FP32_full_teacher_public_debug_match":
           metrics["all_twenty_PUBLIC_debug"][PHASES[2]][
               "full_actual_free_autoregressive_8tokens_with_EOS_matches_FP32"],
-      "model_not_accepted_or_production_deployed":True,
+      "model_NOT_accepted_or_deployed":True,
       "independent_sealed_QA_and_original616J7_NOT_run":True,
     }
     blob=(json.dumps(final_manifest,sort_keys=True,indent=2,
@@ -344,7 +344,7 @@ def run(a):
         raise AssertionError("Oscar v1H physical model GT2 rate not literal")
     report={
       **prereg,
-      "all_modes 실제 actually evaluated_on_independent_original_FP32_teacher":True,
+      "all_modes_actually_evaluated_against_independent_original_FP32_teacher":True,
       "actual_20_PUBLIC_DEBUG_real_original_FP32_answers_and_all_GT_modes":rows,
       "actual_original_FP32_match_and_repetition_metrics":metrics,
       "physical_original_42M_rate":{
