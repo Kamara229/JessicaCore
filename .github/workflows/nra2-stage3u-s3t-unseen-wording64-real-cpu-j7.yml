@@ -72,6 +72,27 @@ jobs:
             sleep 30
           done
           test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42901958611 --jq .conclusion)" = "success"
+      - name: Fail closed on independent S3T run and artifact provenance metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, subprocess
+          repo = os.environ["GITHUB_REPOSITORY"]
+          def api(path):
+              return json.loads(subprocess.check_output(["gh", "api", f"repos/{repo}/{path}"], text=True))
+          run = api("actions/runs/43527496158")
+          assert run["conclusion"] == "success", "S3T source run not successful"
+          assert run["head_branch"] == "research/calibri2-nra2-s3t-unseen-wording-prereg-20261114", "S3T branch mismatch"
+          assert run["head_sha"] == "c7c8b84d1247ee6939d7c5d894f364eea40d0f2e", "S3T commit mismatch"
+          artifact = api("actions/artifacts/14085702245")
+          assert artifact["workflow_run"]["id"] == 43527496158, "S3T artifact run mismatch"
+          assert artifact["name"] == "nra2-stage3t-unseen-grammar64-preregistered-no-score", "S3T artifact name mismatch"
+          assert not artifact["expired"], "S3T artifact expired"
+          assert artifact["digest"] == "sha256:41c3c67966d14443bd1011521b6d197e9dc22839b8581561a68f4cb6a1932cb1", "S3T artifact digest mismatch"
+          print("S3T_SOURCE_METADATA_PIN_PASS; NOT_PHYSICAL_ZIP_OR_JSON_VERIFICATION", flush=True)
+          PY
       - name: Install exact S101 experiment Python dependencies
         run: |
           python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
