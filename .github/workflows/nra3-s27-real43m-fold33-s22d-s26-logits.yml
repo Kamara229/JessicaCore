@@ -1,4 +1,4 @@
-name: NRA3 S27 real original43M+GT fold33 S22d vs S26 pair-logit audit
+name: NRA3 S27 original43M+GT fresh fold33 SHA reproduction diagnosis and pair logits
 'on':
   pull_request:
     types: [opened, synchronize, reopened]
@@ -8,7 +8,7 @@ permissions:
   contents: read
   actions: read
 jobs:
-  sha_exact_original43m_pair_level_failure:
+  original43m_verified_source_fresh_refit_pair_logits:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
@@ -69,7 +69,7 @@ jobs:
           run-id: 44196720655
           github-token: ${{ github.token }}
           path: inputs/s26
-      - name: Reproduce SHA-exact physically trained fold33 without independent EVAL; inspect only model predictions on held TRAIN8
+      - name: Audit historic SHA drift and same-runner deterministic refits, then inspect fresh TRAIN8 logits
         run: |
           python -m research.nra3_s20.s27_replay_original43m_fold33_pair_logits \
             --features inputs/s22c/S22C_REAL43M_GT_NEW256_RAWONLY_WORD338.safetensors \
@@ -81,28 +81,40 @@ jobs:
             --trial-model inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26 \
             --trial-report inputs/s26/NRA3_S26_REAL43M_GT_TRAIN256_GROUPED40_MATCHED_DIAGNOSTICS.json \
             --out results/nra3_s27
-      - name: Verify original AND new fold33 actual FP16 SHA exactly reproduced, no candidate activation
+      - name: Verify historical full model physical SHA, mark refit mismatch and preserve strict no-EVAL provenance
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           p=Path("results/nra3_s27/NRA3_S27_ORIGINAL43M_GT_MATCHED_PREPOSED_FOLD33_S22D_VS_S26.json")
           x=json.loads(p.read_text())
-          assert x["stage"]=="NRA3_S27_GENUINE_ORIGINAL43M_GT_MATCHED_FOLD33_REJECTED_LOGIT_DIAGNOSTIC"
+          assert x["stage"]=="NRA3_S27_FRESH_REAL43M_GT_SAME_SPLIT_FOLD33_LOGIT_DIAGNOSTIC_NOT_ARCHIVED_REPLAY"
           assert len(x["per_example_error_evidence"])==8
           assert len(x["S26_3_trained_FP16_event_scoped_head_weights"])==3
           assert x["original_S26_full_FP16_SHA256"]=="4819c8b0dfc402bddf036f16e04f85486c51a9a6600af63374cf40a1f6c00951"
-          assert x["preposed_polarity_TP_baseline"]==0
-          assert x["preposed_polarity_TP_trial"]==0
+          assert x["archived_fold33_baseline_REJECTED_TP"]==0
+          assert x["archived_fold33_trial_REJECTED_TP"]==0
+          assert x["fresh_refit_NOT_equivalent_to_historical_exact_fold"]
+          assert len(x["archived_fold33_S22d_SHA"])==64
+          assert len(x["archived_fold33_S26_SHA"])==64
+          assert len(x["fresh_refit_real_fold33_S22d_physical_sha256"])==64
+          assert len(x["fresh_refit_real_fold33_S26_physical_sha256"])==64
+          assert isinstance(x["same_runner_same_seed_S22d_sha_reproduced"],bool)
+          assert isinstance(x["same_runner_same_seed_S26_sha_reproduced"],bool)
+          print("S27_REPRODUCIBILITY_ANNOTATION",{
+              "historical_sha_equal":[x["fresh_fold33_matches_historical_S22d_SHA"],x["fresh_fold33_matches_historical_S26_SHA"]],
+              "same_host_repeat_equal":[x["same_runner_same_seed_S22d_sha_reproduced"],x["same_runner_same_seed_S26_sha_reproduced"]],
+              "fresh_TP":[x["preposed_polarity_TP_baseline"],x["preposed_polarity_TP_trial"]],
+          },flush=True)
           assert x["held_gold_never_passed_to_neural_forward"]
           assert x["independent_EVAL_not_opened_or_replayed"]
           assert x["no_production_edits"] and x["output_gate"]==0
           assert not x["candidate_accepted"] and not x["activation_allowed"]
-          print("S27_GENUINE_CPU_43M_GT_FOLD33_REPLAYED_SHA_VERIFIED",flush=True)
+          print("S27_REAL_CPU_43M_GT_FRESH_REFIT_PROVENANCE_SHA_VERIFIED_NOT_HISTORIC_REPLAY",flush=True)
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: nra3-s27-REAL43M-GT-S22d-S26-matched-fold33-pair-logit-noEVAL
+          name: nra3-s27-REAL43M-GT-S22d-S26-fresh-refit-fold33-SHA-drift-diagnostic-noEVAL
           path: results/nra3_s27/
           if-no-files-found: error
           retention-days: 30
