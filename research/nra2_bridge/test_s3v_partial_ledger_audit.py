@@ -53,6 +53,24 @@ def checked(payload):
 
 
 class PartialLedgerTests(unittest.TestCase):
+    def test_malformed_producer_metrics_fail_closed(self):
+        for malformed in (None, [], {"all": []}):
+            with self.subTest(malformed=malformed):
+                payload = fixture()
+                payload["all_and_family_yes_no_accuracy"] = malformed
+                with self.assertRaisesRegex(ValueError, "FAIL CLOSED: missing or malformed producer metrics"):
+                    checked(payload)
+
+    def test_unhashable_sparse_family_fail_closed(self):
+        payload = fixture()
+        payload["disagreement_or_error_cases"] = [{
+            "index": 0, "soft_correct": False, "hard_correct": True,
+            "source_correct": True, "target_correct": True,
+            "prompt_sha256": "f" * 64, "family": ["chain"], "gold_yes": True,
+        }]
+        with self.assertRaisesRegex(ValueError, "FAIL CLOSED: sparse family/truth metadata missing"):
+            checked(payload)
+
     def test_missing_family_partition_rejected(self):
         payload = fixture()
         del payload["all_and_family_yes_no_accuracy"]["family_diamond_no"]
