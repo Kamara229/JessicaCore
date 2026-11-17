@@ -1,0 +1,48 @@
+name: Oscar v1E real independent pretrained original 42M FP32 source provenance and geometry audit
+'on':
+  push:
+    branches:
+      - research/oscar-v1e-independent-pretrained42m-control-20261117
+    paths:
+      - research/oscar/v1e/**
+      - .github/workflows/oscar-v1e-public-42m-fp32-control.yml
+  workflow_dispatch:
+concurrency:
+  group: oscar-v1e-true-pretrained-42m-source
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  independent_original_42M_FP32_public_source:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 110
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install safe FP32 checkpoint loader and CPU torch
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'pandas==2.2.3' 'pyarrow==17.0.0' 'datasets==2.21.0' 'python-dateutil==2.9.0.post0' 'huggingface_hub==0.27.1' 'transformers==4.46.3' 'safetensors==0.4.5' 'sentencepiece==0.2.0' 'protobuf==5.28.3' 'accelerate==1.1.1'
+      - name: Safe original pretrained 41.69M FP32 model, independent Oscar 5bit compressed authentic paired inference and physical size
+        run: |
+          python -m compileall -q research/oscar/v1e
+          python -m unittest oscar.test_encoder oscar.v1e.test_safe_pretrained_llama -v
+          python research/oscar/v1e/independent42m_vs_compressed.py results/oscar_v1e_public_pretrained_42m/
+      - name: Preserve full external original pretrained FP32 provenance, independently reencoded original 42M CB59/CB61, token/hidden/logit quality and failure
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: oscar-v1e-original-pretrained-42M-FP32-direct-CB59-vs-actual-generation
+          path: results/oscar_v1e_public_pretrained_42m/
+          if-no-files-found: warn
+          retention-days: 90
