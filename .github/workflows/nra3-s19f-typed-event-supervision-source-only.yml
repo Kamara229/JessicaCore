@@ -1,0 +1,58 @@
+name: NRA3 S19f gold-blind new9 event graph target/source ABI
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s19e-new9-original43m-readonly-20261117
+permissions:
+  contents: read
+concurrency:
+  group: nra3-s19f-source-only-goldblind
+  cancel-in-progress: true
+jobs:
+  verify_genuine43m_train9_supervision_join_schema_only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '319105'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CPU-only data ABI and graph supervision dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Validate nine sealed TRAIN-only graph targets and original source aligner contracts
+        run: |
+          python -m compileall -q research/nra3_s19
+          python -m unittest -v research.nra3_s19.test_event_graph_contracts research.nra3_s19.test_s19e_original43m_raw_capture_contract research.nra3_s19.test_s19f_graph_supervision_join
+      - name: Assert no model, no consumed EVAL, no hidden synthetic data claimed as real
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          from research.nra3_s19.s19f_real43m_train9_graph_targets import (
+             STATUS,ROLE,ARG_POLARITY,EVENT_RELATION)
+          from research.nra3_s19.train_only_event_graph_source import (
+             train_only_manifest,TRAIN_ONLY_FROZEN_SHA256)
+          m=train_only_manifest()
+          assert m["new_train_annotations_sha256"]==TRAIN_ONLY_FROZEN_SHA256
+          assert len(STATUS)==6 and len(ROLE)==9 and len(ARG_POLARITY)==2
+          assert len(EVENT_RELATION)==5
+          source=Path("research/nra3_s19/s19f_real43m_train9_graph_targets.py").read_text()
+          imports=[n.module or "" for n in ast.walk(ast.parse(source)) if isinstance(n,ast.ImportFrom)]
+          assert not any(z in name for name in imports for z in (
+            "s18c6","s18c7","nra3_s17","nra3_s15","nra3_s12","s3ci"))
+          for s in ("nra3_s18c7","EVAL32","EVAL128","s3ci"):
+            assert not (Path("inputs")/s).exists()
+          assert not Path("results/nra3_s19f").exists()
+          print("S19F_GOLD_BLIND_SCHEMA_PASS_REAL43M_CAPTURE_PENDING_UNTIL_SEPARATE_S19E_CI")
+          PY

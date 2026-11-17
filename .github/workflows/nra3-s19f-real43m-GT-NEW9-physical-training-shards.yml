@@ -1,0 +1,121 @@
+name: NRA3 S19f actual original43M GT NEW9 physical word338 and typed event graph
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s19e-new9-original43m-readonly-20261117
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s19f-original43m-NEW9-physical-train-shards
+  cancel-in-progress: true
+jobs:
+  genuine43m_gold_blind_NEW9_event_graph_train_data:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s19f-real43m-eventgraph-supervision-20261117'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '319106'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify original protected S19e genuine 43M CPU nine-TRAIN artifact and no independent EVAL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44132334034 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44132334034 --jq .head_sha)" = 449a228417f83d11acb6f00ce4d5abc990c10992
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44132765722 --jq .conclusion)" = success
+          echo REAL43M_POST_GT_NEW9_CPU_GOLD_BLIND_PARENT_J7_616_VERIFIED
+      - name: Install CPU-only physical source audit dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Fresh source-only graph and raw BPE alignment invariants
+        run: |
+          python -m compileall -q research/nra3_s19
+          python -m unittest -v research.nra3_s19.test_event_graph_contracts research.nra3_s19.test_s19e_original43m_raw_capture_contract research.nra3_s19.test_s19f_graph_supervision_join
+      - name: Fetch only original S19e real43M GT new9 gold-free CPU TRAIN physical hidden
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s19e-TRUE43M-616J7-NEW9-TRAIN-graph-raw-hidden320-FP16
+          run-id: 44132334034
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s19e
+      - name: Validate original model CPU hidden SHA without any graph/label features
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from research.nra3_s19.s19f_real43m_train9_graph_targets import load_real_new9_feature_tensors
+          root=Path('inputs/nra3_s19e')
+          h=root/'NRA3_S19E_TRUE43M_GT_NEW9_EVENTGRAPH_HIDDEN320_FP16.safetensors'
+          m=root/'NRA3_S19E_TRUE43M_CPU_NEW9_TRAIN_ONLY_J7_REPORT.json'
+          tensors,meta,sha=load_real_new9_feature_tensors(h,m)
+          assert sha=="213fe770868e5b6ad76c1f3955200ee4e648581a3371e6c53b3fc707ff764c08"
+          assert meta['S194_ORIGINAL_CHECKPOINT_SHA256']=="b1e58fde43bc9d4593f6db78f1c9b55d556255f4dcac7c96bce09302b68b34c2"
+          assert tensors['token_hidden320'].shape==(9,78,320)
+          assert meta['all_616_native_CPU_generated_token_digests_unchanged'] is True
+          print('S19F_NATIVE_ACTUAL_CALIBRI43M_GT_CPU_SOURCE9_SHA_VERIFIED',sha)
+          PY
+      - name: Separate real original43M GT NEW9 raw-338 neural features from human graph gold physically
+        run: |
+          python -m research.nra3_s19.s19f_emit_real43m_training_graph_shards \
+            --source-hidden inputs/nra3_s19e/NRA3_S19E_TRUE43M_GT_NEW9_EVENTGRAPH_HIDDEN320_FP16.safetensors \
+            --source-report inputs/nra3_s19e/NRA3_S19E_TRUE43M_CPU_NEW9_TRAIN_ONLY_J7_REPORT.json \
+            --out results/nra3_s19f
+      - name: Inspect sealed input-only source and separate TRAIN-only graph target tensors
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          import torch
+          from safetensors.torch import load_file
+          from research.nra3_s19.train_only_event_graph_source import TRAIN_ONLY_FROZEN_SHA256
+          from research.nra3_s19.s19f_real43m_train9_graph_targets import (
+            ROLE,STATUS,EVENT_RELATION,ARG_POLARITY)
+          root=Path('results/nra3_s19f')
+          meta=json.loads((root/'S19F_TRUE43M_GT_NEW9_SEPARATE_TRAIN_GRAPH_TARGETS_MANIFEST.json').read_text())
+          assert meta['stage']=='NRA3_S19F_TRUE_ORIGINAL43M_GT_TRAIN9_TYPED_GRAPH_TARGETS_ONLY'
+          assert meta['TRAIN9_source_gold_SHA256']==TRAIN_ONLY_FROZEN_SHA256
+          assert meta['original43M_GT_new9_real_hidden_SHA256']=='213fe770868e5b6ad76c1f3955200ee4e648581a3371e6c53b3fc707ff764c08'
+          assert meta['supervised_events']==15 and meta['positive_and_rejected_pred_argument_targets']==40
+          assert meta['REJECTED_argument_links']==1 and meta['supervised_coreference_edges']==5
+          assert meta['supervised_event_relation_edges']==6
+          assert meta['optimizer_steps']==0 and meta['no_optimizer_no_new_model_scoring']
+          assert not meta['candidate_accepted'] and not meta['activation_allowed'] and meta['output_gate']==0
+          a=root/meta['gold_blind_only_feature_file']
+          b=root/meta['source_human_targets_filename']
+          assert a!=b and hashlib.sha256(a.read_bytes()).hexdigest()==meta['gold_blind_only_feature_sha256']
+          assert hashlib.sha256(b.read_bytes()).hexdigest()==meta['source_human_targets_sha256']
+          feat=load_file(str(a),device='cpu'); gold=load_file(str(b),device='cpu')
+          assert set(feat)=={'raw_text_frozen_word338','valid_word_mask'}
+          assert set(gold)=={'event_status_TRAIN_ONLY','predicate_argument_role_TRAIN_ONLY',
+             'argument_polarity_TRAIN_ONLY','coreference_TRAIN_ONLY','event_relation_TRAIN_ONLY'}
+          x=feat['raw_text_frozen_word338']; valid=feat['valid_word_mask']
+          assert x.shape[0]==9 and x.shape[2]==338 and int(valid.sum())==meta['all_real_Calibri_word_vectors']
+          assert torch.isfinite(x).all()
+          assert (x[~valid]==0).all()
+          assert int((gold['event_status_TRAIN_ONLY']>0).sum())==15
+          assert int((gold['predicate_argument_role_TRAIN_ONLY']>0).sum())==40
+          assert int((gold['argument_polarity_TRAIN_ONLY']==1).sum())==1
+          assert int((gold['coreference_TRAIN_ONLY']==1).sum())==5
+          assert int((gold['event_relation_TRAIN_ONLY']>0).sum())==6
+          print('S19F_REAL_ORIGINAL43M_GT_9_TRAIN_ONLY_PHYSICAL_GOLDBLIND_JOIN_VALIDATED')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s19f-TRUE43M-GT-NEW9-TRAINonly-raw338-SEPARATE-HUMAN-GRAPHS-noEVAL
+          path: results/nra3_s19f/
+          if-no-files-found: error
+          retention-days: 30
