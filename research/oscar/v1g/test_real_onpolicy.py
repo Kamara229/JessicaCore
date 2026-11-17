@@ -37,6 +37,11 @@ class SameGenuineStudentCausalPrefix(unittest.TestCase):
         torch.manual_seed(1103)
         b=1;prompt_length=4;n=3;L=prompt_length+n-1
         slogits=torch.randn(b,L,32000,requires_grad=True)
+        # Make the teacher-conditioned excess repetition check deterministic:
+        # repeated real student token 88 is too likely at second/third step.
+        with torch.no_grad():
+            slogits[0,prompt_length,88]=17.
+            slogits[0,prompt_length+1,88]=17.
         tlogits=torch.randn(b,L,32000)
         # Independent original FP32 teacher produces distinct greedy target
         for j,t in enumerate((42,314,55)):
