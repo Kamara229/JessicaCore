@@ -1,0 +1,114 @@
+name: NRA3 S22c real Calibri43M GT 256 TRAIN separate raw338 and graph gold
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s22b-real43m-GT-256-cpu-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s22c-original43m-256-physical-shards
+  cancel-in-progress: true
+jobs:
+  source_and_rare_scope_structure_tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    env:
+      PYTHONPATH: .:research:research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU-only PyTorch and safetensors
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Synthetic test geometry only, not claimed original model accuracy
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s22_counterfactual_train256_contract research.nra3_s20.test_s22b_true43m_readonly_capture research.nra3_s20.test_s22c_real43m_new256_source_separation
+  audited_true_original43m_train256_physical_shards:
+    needs: source_and_rare_scope_structure_tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    env:
+      PYTHONPATH: .:research:research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify original true Calibri43M CPU 616 J7 source completed, no spent EVAL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44189739539 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44189114971 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44136205007 --jq .conclusion)" = success
+          echo REAL_ORIGINAL43M_GT_S22B_256_PROTECTED_CPU_AND_SHA_AUDITED
+      - name: Install CPU-only physical tensor audit libraries
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Download only genuine original43M GT S22b NEW256 raw hidden320 source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s22b-REAL43M-GT-616J7-NEW256-synthetic-TRAIN-only-hidden320-FP16
+          run-id: 44189739539
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s22b
+      - name: Only plain raw word vectors into model-features and human TRAIN gold into separate file
+        run: |
+          python -m research.nra3_s20.s22c_emit_real43m_raw_256_and_graph_gold \
+            --source-hidden inputs/nra3_s22b/NRA3_S22_TRUE43M_GT_NEW256_SYNTH_GRAPH_HIDDEN320_FP16.safetensors \
+            --source-report inputs/nra3_s22b/NRA3_S22_TRUE43M_CPU_NEW256_SYNTH_TRAIN_ONLY_J7_REPORT.json \
+            --out results/nra3_s22c
+      - name: Verify 256 human TRAIN graphs never mixed with physically pinned original43M inputs
+        run: |
+          python - <<'PY'
+          import hashlib,json,torch
+          from pathlib import Path
+          from safetensors.torch import load_file
+          from research.nra3_s20.s22_new256_counterfactual_train_graph_source import FROZEN_S22_TRAIN256_SHA256
+          root=Path("results/nra3_s22c")
+          m=json.loads((root/"S22C_REAL43M_GT_NEW256_RAWONLY_AND_TRAIN_GOLD_SEPARATE_REPORT.json").read_text())
+          assert m["S22_sha_locked_synthetic_TRAIN256_graph_gold"]==FROZEN_S22_TRAIN256_SHA256
+          assert m["256_curated_synthetic_train_texts"]==256
+          assert m["TRAIN_only_events"]==448 and m["TRAIN_only_directed_role_links"]==976
+          assert m["TRAIN_only_rejected_recipient_links"]==32
+          assert m["TRAIN_only_coreference_edges"]==192 and m["TRAIN_only_event_relations"]==192
+          assert m["strict_predeclared_lexical_and_syntax_TRAIN_folds"]==40
+          assert m["genuine_original_CPU_hidden_plus_plain_raw18_ONLY_as_model_inputs"]
+          assert m["human_graph_targets_NEVER_passed_to_original_or_adapter_forward"]
+          assert m["no_new_optimizer_no_model_scoring_or_quality_claim"]
+          assert m["no_consumed_EVAL32_EVAL128_S17c_S15c_S12c"]
+          assert m["new_active_candidate_616_J7_CPU_bpp_NOT_CERTIFIED"]
+          assert m["output_gate"]==0 and not m["candidate_accepted"] and not m["activation_allowed"]
+          raw=root/m["raw338_word_features_filename"]
+          gold=root/m["TRAIN_only_gold_filename"]
+          assert hashlib.sha256(raw.read_bytes()).hexdigest()==m["raw338_word_features_SHA256"]
+          assert hashlib.sha256(gold.read_bytes()).hexdigest()==m["TRAIN_only_gold_SHA256"]
+          x=load_file(str(raw),device="cpu")
+          y=load_file(str(gold),device="cpu")
+          assert set(x)=={"raw_text_frozen_word338","valid_word_mask"}
+          assert set(y)=={"event_status_TRAIN_ONLY","predicate_argument_role_TRAIN_ONLY",
+              "argument_polarity_TRAIN_ONLY","coreference_TRAIN_ONLY","event_relation_TRAIN_ONLY"}
+          assert x["raw_text_frozen_word338"].shape[0]==256
+          assert x["raw_text_frozen_word338"].shape[2]==338
+          assert torch.isfinite(x["raw_text_frozen_word338"]).all()
+          assert int((y["event_status_TRAIN_ONLY"]>0).sum())==160
+          print("S22C_TRUE43M_GOLD_FREE_256_TRAIN_GRAPH_SHARDS_SHA_SEPARATE_VALIDATED")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s22c-TRUE43M-GT-256-TRAIN-raw338-and-gold-separated-20fold
+          path: results/nra3_s22c/
+          if-no-files-found: error
+          retention-days: 30
