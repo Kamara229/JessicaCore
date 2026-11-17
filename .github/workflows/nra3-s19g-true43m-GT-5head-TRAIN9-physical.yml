@@ -1,0 +1,131 @@
+name: NRA3 S19g true Calibri43M GT TRAIN9 semantic graph 5 learned heads
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s19f-real43m-eventgraph-supervision-20261117
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s19g-true43m-5head-graph-TRAIN9-noEVAL
+  cancel-in-progress: true
+jobs:
+  real_original43m_GT_five_graph_heads_TRAIN9_shadow:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s19g-true43m-graph-head-20261117'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 26
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '319107'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require successful original CPU protected J7, raw9 physical join and frozen context
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44132334034 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44133991642 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44128707585 --jq .conclusion)" = success
+          echo ORIGINAL_TRUE43M_GREEN_TUNNEL_AND_SEPARATE_TRAIN9_GRAPH_SHA_LOCKED
+      - name: Install CPU-only original Calibri physical FP16 dependency set
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Static/synthetic tests only; no independent evaluation accessed
+        run: |
+          python -m compileall -q research/nra3_s19
+          python -m unittest -v research.nra3_s19.test_event_graph_contracts research.nra3_s19.test_s19f_graph_supervision_join research.nra3_s19.test_s19g_paid_event_graph
+      - name: Download only genuine original43M GT S19f TRAIN9 physically separated raw338 and human graph targets
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s19f-TRUE43M-GT-NEW9-TRAINonly-raw338-SEPARATE-HUMAN-GRAPHS-noEVAL
+          run-id: 44133991642
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s19f
+      - name: Download frozen previously learned original43M+GT S19d 9332-FP16 contextual parent
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s19d-TRUE43M-GT-9332paidFP16-context-event-TRAIN96-internalCV-no-EVAL
+          run-id: 44128707585
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s19d
+      - name: Verify paid parent SHA + separate trueCPU raw-338 and human-only TRAIN9 gold SHA
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, json
+          from research.nra3_s19.s19d_paid_contextual_scope import PaidContextualEventScope
+          from research.nra3_s19.s19g_train9_real43m_graph import load_segregated_real_source
+          root=Path('inputs')
+          parent=root/'nra3_s19d/NRA3_S19D_TRUE43M_GT_CONTEXT_SCOPE_GRAMMAR_AND_EVENT_TRAINONLY_FP16.n3s19d'
+          blob=parent.read_bytes()
+          assert hashlib.sha256(blob).hexdigest()=='928f735a2018604db2ffe649799778df3805162b79a989a36e282dc3cb61c774'
+          assert PaidContextualEventScope.from_physical(blob).output_gate==0
+          p=root/'nra3_s19f'
+          data,valid,gold,meta=load_segregated_real_source(
+              p/'S19F_TRUE43M_GT_NEW9_RAWONLY_WORD338.safetensors',
+              p/'S19F_HUMAN_NEW9_GRAPH_GOLD_TARGETS_ONLY.safetensors',
+              p/'S19F_TRUE43M_GT_NEW9_SEPARATE_TRAIN_GRAPH_TARGETS_MANIFEST.json')
+          assert data.shape[0]==9 and data.shape[-1]==338
+          assert meta['original43M_GT_new9_real_hidden_SHA256']=='213fe770868e5b6ad76c1f3955200ee4e648581a3371e6c53b3fc707ff764c08'
+          assert meta['optimizer_steps']==0 and meta['parent_616_J7_generation_digest_unchanged']
+          print('S19G_SOURCE_TRUE_ORIGINAL43M_GT_TRAIN9_GOLD_AND_FEATURES_PHYSICALLY_SEPARATE')
+          PY
+      - name: TRAIN-only learned five graph heads; freeze physically billed original43M grammar/context
+        run: |
+          python -m research.nra3_s19.s19g_train9_real43m_graph \
+            --features inputs/nra3_s19f/S19F_TRUE43M_GT_NEW9_RAWONLY_WORD338.safetensors \
+            --gold inputs/nra3_s19f/S19F_HUMAN_NEW9_GRAPH_GOLD_TARGETS_ONLY.safetensors \
+            --manifest inputs/nra3_s19f/S19F_TRUE43M_GT_NEW9_SEPARATE_TRAIN_GRAPH_TARGETS_MANIFEST.json \
+            --s19d-parent inputs/nra3_s19d/NRA3_S19D_TRUE43M_GT_CONTEXT_SCOPE_GRAMMAR_AND_EVENT_TRAINONLY_FP16.n3s19d \
+            --out results/nra3_s19g
+      - name: Complete physical FP16 model and no heldout / LIVE / J7 / CPU certification
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          from research.nra3_s19.s19g_paid_semantic_graph import (
+              PaidSemanticEventGraph,semantic_parameter_count,full_parameter_count)
+          root=Path('results/nra3_s19g')
+          m=json.loads((root/'NRA3_S19G_REAL43M_GT_NEW9_TRAIN_ONLY_GRAPH_SHADOW_REPORT.json').read_text())
+          assert m['stage']=='NRA3_S19G_REAL43M_GT_NEW9_TRAIN_ONLY_SEMANTIC_GRAPH_SHADOW'
+          assert m['source_sealed_9_TRAIN_sentences']==9
+          assert m['loss_after_physical_FP16_training_TRAIN_ONLY']<m['loss_before_training_TRAIN_ONLY']
+          assert m['train_optimizer_steps_on_9_human_TRAIN_sentences_only']==240
+          assert m['all_predicate_event_role_rejection_coreference_disourse_predictions_NO_gold_inputs']
+          assert m['all_physically_included_FP16_parameters']==12381
+          assert m['learned_graph_head_FP16_parameters']==3049
+          assert m['frozen_S19d_parent_FP16_parameters']==9332
+          assert m['no_old_or_spent_EVAL32_EVAL128_S17c_S15c_S12c_loaded']
+          assert m['overfit_on_nine_training_examples_NOT_independent_evaluation']
+          assert m['new_candidate_active_616_J7_NOT_certified'] and m['new_candidate_all_in_bpp_le07_NOT_certified']
+          assert m['new_candidate_CPU_throughput_ge90pct_CB59_NOT_certified']
+          assert m['strict_online_generation_NOT_supported_or_measured']
+          assert not m['candidate_accepted'] and not m['activation_allowed'] and m['output_gate']==0
+          assert not m['NRA2_decoding_gate_connected']
+          paid=(root/m['full_FP16_joint_model_filename']).read_bytes()
+          assert hashlib.sha256(paid).hexdigest()==m['full_FP16_joint_model_sha256']
+          loaded=PaidSemanticEventGraph.from_physical(paid)
+          assert full_parameter_count(loaded)==12381 and semantic_parameter_count(loaded)==3049
+          assert not loaded.candidate_accepted and loaded.output_gate==0
+          assert set(m['train_only_full9_resubstitution_NOT_generalization'])=={
+              'event','directed_role','argument_polarity','coreference','event_relation'}
+          print('S19G_TRUE43M_5HEAD_9_TRAIN_FULL_PAID_FP16_NO_EVAL_NO_ACTIVATION',
+                m['full_FP16_joint_model_sha256'])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s19g-REAL43M-GT-5heads-TRAIN9-12381FP16-unaccepted-noEVAL
+          path: results/nra3_s19g/
+          if-no-files-found: error
+          retention-days: 30
