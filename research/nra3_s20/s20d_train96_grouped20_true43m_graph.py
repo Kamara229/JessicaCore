@@ -1,0 +1,295 @@
+"""S20d fixed real original43M+GT 96 TRAIN-only grouped graph learning.
+
+20 predeclared TRAIN-internal folds: eight leave-lexical-family-out and
+twelve leave-syntax-template-out. Each fold freshly initializes learned
+five-head graph adapter; frozen S19d parent 9332-FP16 never trains.
+Replays NO spent independent EVAL; no model outputs connected to NRA/LIVE.
+Measures the severe previous S19h generalization issue under more
+systematically populated (but still synthetic) semantic classes.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+
+import torch
+from safetensors.torch import load_file
+from research.nra3_s19.s19d_paid_contextual_scope import PaidContextualEventScope
+from research.nra3_s19.s19g_paid_semantic_graph import (
+    PaidSemanticEventGraph, full_parameter_count, semantic_parameter_count,
+    STATUS, EVENT_RELATION,
+)
+from research.nra3_s19.s19g_train9_real43m_graph import (
+    fixed_multitask_loss, task_train_reuse_report,
+    S19D_FULL_PHYSICAL_SHA, LR, STEPS,
+)
+from research.nra3_s19.s19h_true43m_train9_loo_diagnostics import take
+from research.nra3_s20.s20_new96_synthetic_graph_train_source import (
+    FROZEN_S20_TRAIN96_SHA256,train_only_split_contract,EXPECTED_ROWS,
+)
+
+SEED=320096
+PAID_PARENT=9332
+PAID_GRAPH=3049
+PAID_TOTAL=12381
+
+
+def require(ok,msg):
+    if not bool(ok):
+        raise ValueError("S20d original43M+GT 96 TRAIN grouped graph: "+msg)
+
+
+def sha(f:Path):
+    return hashlib.sha256(f.read_bytes()).hexdigest()
+
+
+def load_physical_training_source(raw_file:Path,gold_file:Path,manifest_file:Path):
+    for p in (raw_file,gold_file,manifest_file):
+        require(p.is_file(),"must download real S20c physically separated source")
+    info=json.loads(manifest_file.read_text(encoding="utf-8"))
+    require(info["stage"]=="NRA3_S20C_REAL_ORIGINAL43M_GT_NEW96_SEPARATE_GRAPH_TRAIN_SHARDS"
+            and info["S20_sha_locked_synthetic_TRAIN96_graph_gold"]==FROZEN_S20_TRAIN96_SHA256
+            and info["96_curated_synthetic_train_texts"]==96
+            and info["S20_original_protected_616_J7_parent_unchanged"]
+            and info["TRAIN_only_events"]==160
+            and info["TRAIN_only_directed_role_links"]==432
+            and info["TRAIN_only_rejected_recipient_links"]==16
+            and info["TRAIN_only_coreference_edges"]==64
+            and info["TRAIN_only_event_relations"]==64
+            and info["strict_predeclared_lexical_and_syntax_TRAIN_folds"]==20
+            and info["genuine_original_CPU_hidden_plus_plain_raw18_ONLY_as_model_inputs"]
+            and info["human_graph_targets_NEVER_passed_to_original_or_adapter_forward"]
+            and info["no_new_optimizer_no_model_scoring_or_quality_claim"]
+            and info["no_consumed_EVAL32_EVAL128_S17c_S15c_S12c"]
+            and info["new_active_candidate_616_J7_CPU_bpp_NOT_CERTIFIED"]
+            and not info["candidate_accepted"] and not info["activation_allowed"]
+            and info["output_gate"]==0
+            and info["raw338_word_features_filename"]==raw_file.name
+            and info["TRAIN_only_gold_filename"]==gold_file.name
+            and sha(raw_file)==info["raw338_word_features_SHA256"]
+            and sha(gold_file)==info["TRAIN_only_gold_SHA256"],
+            "original real CPU protected parent/train96 source SHA or output gate drift")
+    x=load_file(str(raw_file),device="cpu")
+    y=load_file(str(gold_file),device="cpu")
+    require(set(x)=={"raw_text_frozen_word338","valid_word_mask"}
+            and set(y)=={"event_status_TRAIN_ONLY",
+                         "predicate_argument_role_TRAIN_ONLY",
+                         "argument_polarity_TRAIN_ONLY","coreference_TRAIN_ONLY",
+                         "event_relation_TRAIN_ONLY"},
+            "model input must not contain human roles or parser gold")
+    raw=x["raw_text_frozen_word338"]
+    valid=x["valid_word_mask"]
+    require(raw.dtype==torch.float32 and raw.device.type=="cpu"
+            and raw.shape[0]==EXPECTED_ROWS and raw.shape[2]==338
+            and valid.shape==raw.shape[:2] and valid.dtype==torch.bool
+            and bool(valid[:,0].all())
+            and bool((valid.long().cummin(1).values==valid.long()).all())
+            and bool(torch.isfinite(raw).all())
+            and bool((raw[~valid]==0).all())
+            and bool(((raw[...,-18:]==0)|(raw[...,-18:]==1)).all()),
+            "gold-free actual original CPU 338-D raw word input invalid")
+    b,w=valid.shape
+    allowed=(valid.unsqueeze(1)&valid.unsqueeze(2)) & (
+        ~torch.eye(w,dtype=torch.bool).unsqueeze(0))
+    require(y["event_status_TRAIN_ONLY"].shape==(b,w)
+            and all(t.shape==(b,w,w) for name,t in y.items()
+                    if name!="event_status_TRAIN_ONLY")
+            and all(bool((t[~allowed]==-1).all()) for name,t in y.items()
+                    if name!="event_status_TRAIN_ONLY")
+            and int((y["event_status_TRAIN_ONLY"]>0).sum())==160
+            and int((y["predicate_argument_role_TRAIN_ONLY"]>0).sum())==432
+            and int((y["argument_polarity_TRAIN_ONLY"]==1).sum())==16
+            and int((y["coreference_TRAIN_ONLY"]==1).sum())==64
+            and int((y["event_relation_TRAIN_ONLY"]>0).sum())==64,
+            "human TRAIN96 supervision/word valid indices drift")
+    return raw,valid,y,info
+
+
+def new_graph_model(parent:PaidContextualEventScope,seed:int):
+    require(all(not p.requires_grad for p in parent.parameters())
+            and parent.output_gate==0 and not parent.candidate_accepted,
+            "original S19d 9332-FP16 contextual parent must remain frozen")
+    torch.manual_seed(seed)
+    m=PaidSemanticEventGraph(parent).train()
+    require(full_parameter_count(m)==PAID_TOTAL
+            and semantic_parameter_count(m)==PAID_GRAPH
+            and m.output_gate==0 and not m.candidate_accepted
+            and not m.activation_allowed,"full physical 12381 FP16 ABI changed")
+    return m
+
+
+def fixed_train_head(model,raw,valid,gold):
+    optimizer=torch.optim.AdamW(list(model.semantic_params()),
+                                lr=LR,weight_decay=.001)
+    for _ in range(STEPS):
+        optimizer.zero_grad(set_to_none=True)
+        loss=fixed_multitask_loss(model(raw,valid),gold,valid)
+        require(bool(torch.isfinite(loss)),"nonfinite source-only TRAIN loss")
+        loss.backward()
+        require(all(p.grad is None for p in model.parent.parameters()),
+                "training path updated frozen original Calibri grammar/context")
+        require(all(p.grad is not None and bool(torch.isfinite(p.grad).all())
+                    for p in model.semantic_params()),"untrained semantic head")
+        torch.nn.utils.clip_grad_norm_(list(model.semantic_params()),1.)
+        optimizer.step()
+    payload=model.physical_bytes()
+    physical=PaidSemanticEventGraph.from_physical(payload).eval()
+    require(physical.head_physical()==model.head_physical()
+            and not any(p.requires_grad for p in physical.parameters())
+            and physical.output_gate==0 and not physical.candidate_accepted
+            and not physical.activation_allowed,
+            "real physically billed FP16 roundtrip failed")
+    return physical,payload
+
+
+def source_only_counts(pred,truth,valid):
+    """Rename S19g in-sample arithmetic to honest held TRAIN-internal scores."""
+    raw=task_train_reuse_report(pred,truth,valid)
+    return {task:{
+        "TP":score["TP"],"FP":score["FP"],"FN":score["FN"],
+        "TRAIN_INTERNAL_held_positive_support":score["TRAIN_ONLY_supervised_labels_nonNONE"],
+    } for task,score in raw.items()}
+
+
+def aggregate(records,axis):
+    group=[x for x in records if x["axis"]==axis]
+    require(len(group)==(8 if axis=="LEXICAL" else 12),
+            "grouped TRAIN-internal 96 total coverage changed")
+    result={}
+    for task in ("event","directed_role","argument_polarity","coreference","event_relation"):
+        counts={key:sum(x["held_TRAIN_metrics"][task][key] for x in group)
+                for key in ("TP","FP","FN","TRAIN_INTERNAL_held_positive_support")}
+        tp,fp,fn=(counts[k] for k in ("TP","FP","FN"))
+        result[task]={
+            **counts,
+            "TRAIN_INTERNAL_grouped_micro_F1_NOT_independent":
+                2*tp/(2*tp+fp+fn) if 2*tp+fp+fn else 0.,
+        }
+    return result
+
+
+def run_fixed_20_folds(raw,valid,y,parent):
+    records=[]
+    groups=train_only_split_contract()
+    require(len(groups)==20,"S20 precommitted 20 TRAIN-only split contract")
+    for foldno,(axis,group,train_ids,held_ids) in enumerate(groups):
+        require(len(train_ids)+len(held_ids)==96
+                and not set(train_ids).intersection(held_ids)
+                and set(train_ids)|set(held_ids)==set(range(96)),
+                "TRAIN-only lexical/construction split leakage")
+        trraw,trvalid,trgold=(
+            take(raw,train_ids),take(valid,train_ids),take(y,train_ids))
+        dvraw,dvvalid,dvgold=(
+            take(raw,held_ids),take(valid,held_ids),take(y,held_ids))
+        # Fixed optimizer schedule was chosen BEFORE any S20 held TRAIN
+        # group scores were computed. No fold checkpoint selection.
+        model=new_graph_model(parent,SEED+foldno)
+        trained,payload=fixed_train_head(model,trraw,trvalid,trgold)
+        with torch.inference_mode():
+            metrics=source_only_counts(trained(dvraw,dvvalid),dvgold,dvvalid)
+        train_event=trgold["event_status_TRAIN_ONLY"][trvalid]
+        held_event=dvgold["event_status_TRAIN_ONLY"][dvvalid]
+        support={
+            name:{"TRAIN_side":int((train_event==i).sum()),
+                  "held_TRAIN":int((held_event==i).sum())}
+            for i,name in enumerate(STATUS)}
+        require(all(support[z]["TRAIN_side"]>0 for z in (
+            "ASSERTED","NEGATED","CONDITIONAL","FUTURE_UNREALIZED"))
+            and int((trgold["argument_polarity_TRAIN_ONLY"]==1).sum())>0,
+            "rare class absent in S20 TRAIN-side grouped fold")
+        relation_types={
+            label:int((trgold["event_relation_TRAIN_ONLY"]==i).sum())
+            for i,label in enumerate(EVENT_RELATION)}
+        records.append({
+            "axis":axis,"held_group_index":group,
+            "fold_number":foldno,
+            "TRAIN_side_rows":len(train_ids),
+            "held_TRAIN_rows":len(held_ids),
+            "held_rows_never_in_gradient_checkpoint_or_model_selection":True,
+            "original_true43M_GT_grammar_context_parent_frozen":True,
+            "fixed_optimizer_steps":STEPS,
+            "TRAIN_event_status_support":support,
+            "TRAIN_relation_label_support":relation_types,
+            "TRAIN_rejected_recipient_support":int(
+                (trgold["argument_polarity_TRAIN_ONLY"]==1).sum()),
+            "held_TRAIN_rejected_recipient_support":int(
+                (dvgold["argument_polarity_TRAIN_ONLY"]==1).sum()),
+            "fold_paid_FP16_SHA256":hashlib.sha256(payload).hexdigest(),
+            "held_TRAIN_metrics":metrics,
+        })
+        print("S20D_HELD_TRAIN_FOLD",axis,group,
+              "EVENT",metrics["event"],"ROLE",metrics["directed_role"],
+              flush=True)
+    require(len(records)==20,"S20 complete 20-fold group schedule did not finish")
+    return records,aggregate(records,"LEXICAL"),aggregate(records,"CONSTRUCTION")
+
+
+def main():
+    p=argparse.ArgumentParser()
+    for item in ("features","gold","manifest","s19d-parent","out"):
+        p.add_argument("--"+item,type=Path,required=True)
+    args=p.parse_args()
+    require(not args.out.exists(),"do not overwrite prior research models")
+    torch.set_num_threads(2)
+    torch.use_deterministic_algorithms(True)
+    raw,valid,y,source=load_physical_training_source(
+        args.features,args.gold,args.manifest)
+    parent_physical=args.s19d_parent.read_bytes()
+    require(hashlib.sha256(parent_physical).hexdigest()==S19D_FULL_PHYSICAL_SHA,
+            "original frozen S19d original43M GT physical FP16 SHA drift")
+    parent=PaidContextualEventScope.from_physical(parent_physical)
+    folds,lexical,syntax=run_fixed_20_folds(raw,valid,y,parent)
+    full_model=new_graph_model(parent,SEED+20)
+    trained,paid=fixed_train_head(full_model,raw,valid,y)
+    with torch.inference_mode():
+        full_metrics=source_only_counts(trained(raw,valid),y,valid)
+    args.out.mkdir(parents=True,exist_ok=False)
+    name="NRA3_S20D_TRUE43M_GT_TRAIN96_GROUPED20_EVENT_GRAPH_12381_FP16.n3s20d"
+    (args.out/name).write_bytes(paid)
+    require((args.out/name).read_bytes()==paid
+            and PaidSemanticEventGraph.from_physical(paid).head_physical()==trained.head_physical(),
+            "final physical FP16 candidate failed roundtrip")
+    record={
+        "stage":"NRA3_S20D_REAL43M_GT_NEW96_SYNTHETIC_TRAIN_ONLY_GROUPED20_GRAPH",
+        "true_frozen_original43M_GT_from_source_S20b":True,
+        "true_physical_96_SHAlocked_separate_model_vs_gold_S20c":True,
+        "protected_original_616_J7_digest_unchanged_at_source_capture_ONLY":True,
+        "source_96_synthetic_graph_SHA256":FROZEN_S20_TRAIN96_SHA256,
+        "source_true43M_CPU_96_hidden_SHA256":source["S20b_original43M_GT_CPU_hidden320_FP16_sha"],
+        "source_raw_input_sha":source["raw338_word_features_SHA256"],
+        "source_human_gold_sha":source["TRAIN_only_gold_SHA256"],
+        "optimizer_scope":"ONLY_SEMANTIC_HEAD_3049_FP16",
+        "original_S19d_grammar_context_9332_FP16_frozen_sha":S19D_FULL_PHYSICAL_SHA,
+        "full_physical_FP16_parameters":PAID_TOTAL,
+        "frozen_parent_FP16_parameters":PAID_PARENT,
+        "trainable_graph_FP16_parameters":PAID_GRAPH,
+        "physical_FP16_candidate_SHA256":hashlib.sha256(paid).hexdigest(),
+        "physical_FP16_filename":name,
+        "all20_fixed_TRAIN_internal_folds":folds,
+        "lexical_8fold_TRAIN_internal_NOT_independent":lexical,
+        "syntax_12fold_TRAIN_internal_NOT_independent":syntax,
+        "full96_TRAIN_resubstitution_NOT_generalization":full_metrics,
+        "fixed_training_steps_per_fold_and_full":STEPS,
+        "no_EVAL32_EVAL128_or_prior_spent_EVAL":True,
+        "synthetic_TRAIN_template_generalization_only_not_real_language_understanding":True,
+        "no_active_candidate_616_J7_certification":True,
+        "no_all_in_bpp_le07_certification":True,
+        "no_full_CPU_ge90pct_CB59_certification":True,
+        "original_Calibri_GT_LIVE_Render_Supabase_Jessica_APK_untouched":True,
+        "NRA2_live_event_graph_decoder_bridge_not_connected":True,
+        "output_gate":0,
+        "candidate_accepted":False,
+        "activation_allowed":False,
+    }
+    (args.out/"NRA3_S20D_REAL43M_GT_TRAIN96_GROUPED20_DIAGNOSTICS.json").write_text(
+        json.dumps(record,sort_keys=True,ensure_ascii=False,indent=2)+"\n",
+        encoding="utf-8")
+    print("S20D_TRAIN_INTERNAL_LEXICAL_8FOLD",json.dumps(lexical,sort_keys=True),flush=True)
+    print("S20D_TRAIN_INTERNAL_SYNTAX_12FOLD",json.dumps(syntax,sort_keys=True),flush=True)
+    print("S20D_TRUE43M_FP16_SHA",record["physical_FP16_candidate_SHA256"],flush=True)
+
+
+if __name__=="__main__":
+    main()
