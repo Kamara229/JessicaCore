@@ -103,12 +103,12 @@ jobs:
           assert x["raw_text_frozen_word338"].shape[0]==256
           assert x["raw_text_frozen_word338"].shape[2]==338
           assert torch.isfinite(x["raw_text_frozen_word338"]).all()
-          assert int((y["event_status_TRAIN_ONLY"]>0).sum())==160
+          assert int((y["event_status_TRAIN_ONLY"]>0).sum())==448
           print("S22C_TRUE43M_GOLD_FREE_256_TRAIN_GRAPH_SHARDS_SHA_SEPARATE_VALIDATED")
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: nra3-s22c-TRUE43M-GT-256-TRAIN-raw338-and-gold-separated-20fold
+          name: nra3-s22c-TRUE43M-GT-256-TRAIN-raw338-and-gold-separated-40fold
           path: results/nra3_s22c/
           if-no-files-found: error
           retention-days: 30
