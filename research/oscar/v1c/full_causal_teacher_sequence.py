@@ -198,7 +198,7 @@ def run(args):
     torch.set_num_threads(2)
     out=Path(args.out)
     out.mkdir(parents=True,exist_ok=True)
-    if out.iterdir():
+    if any(out.iterdir()):
         raise FileExistsError("Oscar v1C results must start in empty immutable directory")
     old_v1b=Path(args.V1B_TRAINED_FP16)
     raw_v1b=old_v1b.read_bytes()
