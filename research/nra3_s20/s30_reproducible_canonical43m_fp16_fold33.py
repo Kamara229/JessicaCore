@@ -253,7 +253,7 @@ def audit(args):
         "preposed_polarity_TP_baseline":before,
         "preposed_polarity_TP_trial":after,
         "per_example_error_evidence":records,
-        "held_8_TRAlN_only_roles_predicted_RECIPIENT_baseline":sum(
+        "held_8_TRAIN_only_roles_predicted_RECIPIENT_baseline":sum(
           x["baseline_S22d_pred_to_recipient"]["role_predicted_class_index"]==ROLE_RECIPIENT
           for x in records),
         "held_8_TRAIN_only_roles_predicted_RECIPIENT_trial":sum(
@@ -316,7 +316,7 @@ def main():
     print("S30_CANONICAL_NUMERIC_FP16_FOLD33_INVERSION_CONFIRMED",
           json.dumps({"S22d_rejected_TP":report["preposed_polarity_TP_baseline"],
                       "S26_rejected_TP":report["preposed_polarity_TP_trial"],
-                      "S22d_correct_RECIPIENT":report["held_8_TRAlN_only_roles_predicted_RECIPIENT_baseline"],
+                      "S22d_correct_RECIPIENT":report["held_8_TRAIN_only_roles_predicted_RECIPIENT_baseline"],
                       "S26_correct_RECIPIENT":report["held_8_TRAIN_only_roles_predicted_RECIPIENT_trial"],
                       "S26_rejected_probability_range":report["held_8_TRAIN_only_trial_REJECTED_probability_range"]},sort_keys=True),flush=True)
     print("S30_FRESH_REFIT_S26_FOLD33_TRAINED_LOCAL_WEIGHTS",
