@@ -177,7 +177,7 @@ def paired_debug(teacher,compressed,green,head,tok,stories,tag):
         }
         result.append(row)
         log("OSCAR_V1F_ACTUAL_ORIGINAL_FP32_VS_RELOADED_GT",
-            stage=tag,debug_ix=ix+1,
+            phase=tag,debug_ix=ix+1,
             same_first=row["same_teacher_original_first_token"],
             same_full=row["original_pretrained_42M_same_full_8token_greedy"],
             final_hidden_cos=round(row["after_last_layer_cosine"],4),
