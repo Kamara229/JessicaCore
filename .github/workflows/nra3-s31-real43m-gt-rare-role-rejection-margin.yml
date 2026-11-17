@@ -1,0 +1,125 @@
+name: NRA3 S31 real43M+GT TRAIN-only joint RECIPIENT/REJECTED fixed margin probe
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s30-reproducible-fp16-fold33-roles-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s31-original43m-trainonly-fixed8margin-loss-no-EVAL
+  cancel-in-progress: true
+jobs:
+  actual_original43m_train_side_joint_role_rejected_margin:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '320256'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require original frozen43M+GT 616 J7, sealed S22c raw/gold, original S26 and canonical S30
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 44189114971 44189739539 44191302703 44192186916 44196720655 44200775382 44201326575 44202675198; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          echo S31_GENUINE_ORIGINAL43M_GT_TRAIN256_MODEL_SHA_PROVENANCE_LOCKED
+      - name: Install CPU PyTorch and original paid FP16 physical libraries
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Test TRAIN-only joint loss directions, hard negatives, no gold forward, no independent EVAL
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s31_joint_rejected_role_margin_contract
+      - name: Download only genuine S22c original43M GT raw338 features and separately SHA-sealed synthetic TRAIN256 gold
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s22c-TRUE43M-GT-256-TRAIN-raw338-and-gold-separated-40fold
+          run-id: 44191302703
+          github-token: ${{ github.token }}
+          path: inputs/s22c
+      - name: Download SHA-pinned frozen original S19d 9332 FP16 grammar/context
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s19d-TRUE43M-GT-9332paidFP16-context-event-TRAIN96-internalCV-no-EVAL
+          run-id: 44128707585
+          github-token: ${{ github.token }}
+          path: inputs/s19d
+      - name: Download original real S22d 12381 FP16 archive solely for SHA integrity
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s22d-REAL43M-GT-256TRAIN-40fold-12381FP16-5heads-noEVAL
+          run-id: 44192186916
+          github-token: ${{ github.token }}
+          path: inputs/s22d
+      - name: Download original real S26 12384 FP16 archive and original completed 40fold metrics
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s26-REAL43M-GT-TRAIN256-40fold-12384FP16-event-inversion-ablation-noEVAL
+          run-id: 44196720655
+          github-token: ${{ github.token }}
+          path: inputs/s26
+      - name: Fixed 8-fold original43M CPU TRAIN-side role and REJECTED joint margin optimization, measure matched held TRAIN only
+        run: |
+          python -m research.nra3_s20.s31_train256_rare_pair_margin_probe \
+            --features inputs/s22c/S22C_REAL43M_GT_NEW256_RAWONLY_WORD338.safetensors \
+            --gold inputs/s22c/S22C_256_SYNTHETIC_EVENT_GRAPH_TARGETS_TRAIN_ONLY.safetensors \
+            --manifest inputs/s22c/S22C_REAL43M_GT_NEW256_RAWONLY_AND_TRAIN_GOLD_SEPARATE_REPORT.json \
+            --s19d-parent inputs/s19d/NRA3_S19D_TRUE43M_GT_CONTEXT_SCOPE_GRAMMAR_AND_EVENT_TRAINONLY_FP16.n3s19d \
+            --baseline-s22d-model inputs/s22d/NRA3_S22D_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12381_FP16.n3s22d \
+            --baseline-s26-model inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26 \
+            --baseline-s26-report inputs/s26/NRA3_S26_REAL43M_GT_TRAIN256_GROUPED40_MATCHED_DIAGNOSTICS.json \
+            --out results/nra3_s31
+      - name: Certify exact original source, baseline canonical FP16, eight predeclared folds, all metric failures and output gate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          m=json.loads(Path("results/nra3_s31/NRA3_S31_REAL43M_GT_TRAIN256_FIXED8FOLD_RARE_PAIR_MARGIN_ABLATION.json").read_text())
+          assert m["stage"]=="NRA3_S31_TRAIN_ONLY_RARE_PAIR_JOINT_MARGIN_SEMANTIC_FP16_ABLATION"
+          assert m["original_genuine_frozen43M_GT_source_S22c_sha256"]=="8963e2e8758b1c6a6fbd28eb597a77be1a454d732d0ecac93df6f5a753f6a361"
+          assert m["original_S22d_archived_canonical_sha256"]=="35102946886b9f35d86f57f791b6ab6001b813e4f79397cff8e4d25c04e7a538"
+          assert m["original_S26_archived_canonical_sha256"]=="02d4403ffbce01632d54d66349a01c3f10b81650d26d9540bb86f495cac62807"
+          assert m["same_architecture_as_S26_zero_new_weights"]
+          assert m["actual_paid_original_S26_total_FP16"]==m["actual_paid_new_S31_total_FP16"]==12384
+          assert m["same_train256_only_four_REJECTED_and_four_control_folds"]==[32,33,34,35,36,15,24,30]
+          assert len(m["per_fold_8_rows_synthetic_TRAIN_internal_NOT_independent"])==8
+          assert all(f["fixed_steps"]==240 and f["actual_training_side"]==248 and f["held_synthetic_TRAIN_rows"]==8
+                     and f["gold_roles_NEVER_passed_to_neural_forward"] and
+                     len(f["canonical_S31_paid_FP16_numeric_SHA256"])==64
+                     for f in m["per_fold_8_rows_synthetic_TRAIN_internal_NOT_independent"])
+          assert m["preposed_rejected_TRAIN_only_8_fold33"]["fold"]==33
+          assert m["preposed_rejected_TRAIN_only_8_fold33"]["S26_held_REJECTED"]["TP"]==0
+          assert m["preposed_rejected_TRAIN_only_8_fold33"]["S31_held_REJECTED"]["held_REJECTED_positive_support"]==8
+          assert m["no_hyperparameter_or_checkpoint_selection_using_held_data"]
+          assert m["original_616_J7_and_independent_EVAL_never_touched"]
+          assert m["frozen_43M_GT_S19d_parent_no_grad"]
+          assert m["output_gate"]==0 and not m["candidate_accepted"] and not m["activation_allowed"]
+          p=m["preposed_rejected_TRAIN_only_8_fold33"]
+          print("S31_ACTUAL_ORIGINAL43M_GT_PAIRED_TRAIN_ONLY_PREPOSED",json.dumps({
+              "S26_rejected_recall":p["S26_held_REJECTED"]["recall"],
+              "S31_rejected_recall":p["S31_held_REJECTED"]["recall"],
+              "S31_rejected_FP":p["S31_held_REJECTED"]["FP"],
+              "S31_correct_RECIPIENT":p["S31_held_role_rejection_joint"]["correct_RECIPIENT_at_gold_rejected_pairs"],
+              "S31_joint_correct":p["S31_held_role_rejection_joint"]["jointly_correct_at_gold_rejected_pairs"]},sort_keys=True),flush=True)
+          print("S31_TRUE_CPU_SHA_GOLD_BLIND_TRAIN_ONLY_PASS",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s31-real43M-GT-8fixed-TRAINonly-rare-role-rejection-12384FP16-noEVAL
+          path: results/nra3_s31/
+          if-no-files-found: error
+          retention-days: 30
