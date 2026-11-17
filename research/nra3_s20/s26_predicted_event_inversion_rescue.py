@@ -45,7 +45,7 @@ class EventGroundedInversionGraph(PaidSemanticEventGraph):
     def forward(self,x:torch.Tensor,valid:torch.Tensor)->GraphLogits:
         base=super().forward(x,valid)
         # i is a potential source event, j a candidate recipient.
-        # No known token order, predicate anchor or human gold is used.
+        # No known token order, predetermined anchors or reference labels.
         event_prob=1.-torch.softmax(base.event_status,dim=-1)[...,0]
         local_negative_dative=(x[...,320+PREV_NEG]*x[...,320+LIKELY_DATIVE])
         pair_cue=event_prob.unsqueeze(2)*local_negative_dative.unsqueeze(1)
