@@ -1,0 +1,104 @@
+name: NRA3 S19h 9fold original43M GT TRAIN-internal event graph leave-one-out
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s19g-true43m-graph-head-20261117
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s19h-original43m-GT-ninefold-TRAINonly
+  cancel-in-progress: true
+jobs:
+  ninefold_internal_original43m_semantic_graph_diagnostics:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s19h-nine-fold-generalization-diagnostics-20261117'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '319108'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify immutable genuine original 43M+GT and paid source-only TRAIN9
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44132334034 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44133991642 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44135054417 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44128707585 --jq .conclusion)" = success
+          echo ORIGINAL43M_NEW9_TRAIN_AND_CONTEXT_PARENT_LOCKED_NO_INDEPENDENT_EVAL
+      - name: Install CPU research dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Static/source-only model and LOOCV no-label-leakage tests
+        run: |
+          python -m compileall -q research/nra3_s19
+          python -m unittest -v research.nra3_s19.test_event_graph_contracts research.nra3_s19.test_s19f_graph_supervision_join research.nra3_s19.test_s19g_paid_event_graph research.nra3_s19.test_s19h_ninefold_diagnostics
+      - name: Download genuine real original43M GT nine raw338 human graph separate TRAIN shards
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s19f-TRUE43M-GT-NEW9-TRAINonly-raw338-SEPARATE-HUMAN-GRAPHS-noEVAL
+          run-id: 44133991642
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s19f
+      - name: Download frozen real original43M S19d 9332-params contextual parent
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s19d-TRUE43M-GT-9332paidFP16-context-event-TRAIN96-internalCV-no-EVAL
+          run-id: 44128707585
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s19d
+      - name: Reinitialize semantic graph on eight TRAIN rows, hold ninth entirely out, repeat nine
+        run: |
+          python -m research.nra3_s19.s19h_true43m_train9_loo_diagnostics \
+            --features inputs/nra3_s19f/S19F_TRUE43M_GT_NEW9_RAWONLY_WORD338.safetensors \
+            --gold inputs/nra3_s19f/S19F_HUMAN_NEW9_GRAPH_GOLD_TARGETS_ONLY.safetensors \
+            --manifest inputs/nra3_s19f/S19F_TRUE43M_GT_NEW9_SEPARATE_TRAIN_GRAPH_TARGETS_MANIFEST.json \
+            --s19d-parent inputs/nra3_s19d/NRA3_S19D_TRUE43M_GT_CONTEXT_SCOPE_GRAMMAR_AND_EVENT_TRAINONLY_FP16.n3s19d \
+            --out results/nra3_s19h
+      - name: Fail closed if 9-fold TRAIN internal diagnostic was mistaken for independent quality
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('results/nra3_s19h')
+          m=json.loads((root/'NRA3_S19H_TRUE43M_GT_TRAIN9_LOO_NO_EVAL_REPORT.json').read_text())
+          assert m["number_fixed_group_disjoint_loocv_TRAIN_folds"]==9
+          assert len(m["per_fold_TRAIN_INTERNAL"])==9
+          assert m["new_semantic_FP16_parameters_reinitialized_in_each_fold"]==3049
+          assert m["parent_grammar_context_FP16_parameters_frozen"]==9332
+          assert m["total_physical_FP16_params_per_fold"]==12381
+          assert m["train_side_only_optimizer_and_fixed_steps"]
+          assert m["held_TRAIN_only_all_nine_rows_seen_as_development_ONCE"]
+          assert m["LOO_TRAIN_INTERNAL_NOT_pristine_or_independent_EVAL"]
+          assert m["architecture_was_informed_by_previous_S19_TRAIN_source"]
+          assert m["no_hyperparameter_selection_from_nine_LOO_scores"]
+          assert m["no_consumed_EVAL32_EVAL128_S17c_S15c_S12c_loaded"]
+          assert m["active_candidate_616_J7_NOT_CERTIFIED"] and m["inclusive_bpp_le07_NOT_CERTIFIED"]
+          assert m["total_CPU_ge90pct_CB59_NOT_CERTIFIED"]
+          assert m["NRA2_graph_bridge_not_integrated"]
+          assert not m["candidate_accepted"] and not m["activation_allowed"] and m["output_gate"]==0
+          assert m["no_LIVE_Render_Supabase_Jessica_APK_changes"]
+          for t,v in m["aggregate_TRAIN_INTERNAL_LOO_NOT_independent"].items():
+              assert 0<=v["TRAIN_INTERNAL_LOO_micro_F1_NOT_independent"]<=1
+          print('S19H_TRUE_CPU_9TRAIN_GROUP_HELDOUT_DIAGNOSTIC_NOT_EVAL')
+          print(json.dumps(m['aggregate_TRAIN_INTERNAL_LOO_NOT_independent'],sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s19h-REAL43M-GT-9fold-TRAIN-internal-NOT-independent-EVAL
+          path: results/nra3_s19h/
+          if-no-files-found: error
+          retention-days: 30
