@@ -32,7 +32,7 @@ def s20_train_texts() -> tuple[str, ...]:
 
 def align_s20_raw_train96(tokenizer, text: str, *, expected_ids=None) -> CausalAlignment:
     if tokenizer is None or text not in set(s20_train_texts()):
-        raise ValueError("S20 accepts only exact sealed TRAIN9 plaintext")
+        raise ValueError("S20 accepts only exact sealed TRAIN96 plaintext")
     raw = raw_model_input(text)
     try:
         full = tokenizer.apply_chat_template(
