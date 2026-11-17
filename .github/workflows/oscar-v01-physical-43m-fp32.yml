@@ -78,7 +78,7 @@ jobs:
           github-token: ${{ github.token }}
       - name: OSCAR independently converts original trained 12layer FP32 into authentic complete physical 43M GT runtime
         run: |
-          python research/oscar/experiment_working43.py \
+          python -m oscar.experiment_working43 \
             input/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
             input/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
             input/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
