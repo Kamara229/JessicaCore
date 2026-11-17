@@ -116,6 +116,40 @@ class OscarCodecTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             CB59(bytes(broken))
 
+    def test_executable_FP32_safetensors_inherited_roundtrip(self):
+        import tempfile
+        import json
+        from pathlib import Path
+        from safetensors.torch import save_file
+        from oscar.__main__ import main
+        model=decoded_mirror(self.prior,self.model)
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            checkpoint=root/"dense_FP32.safetensors"
+            prior_file=root/"actual_trained_prior.cb59"
+            # The original canonical tied weight is persisted ONCE; Oscar
+            # must reconstruct the alias from the authenticated prior.
+            tensors={name:value.detach().cpu().contiguous()
+                     for name,value in model.state_dict().items()
+                     if name!="lm_head.weight"}
+            save_file(tensors,str(checkpoint))
+            prior_file.write_bytes(self.prior.blob)
+            out=root/"oscar_result"
+            main(["--fp32",str(checkpoint),
+                  "--prior",str(prior_file),
+                  "--mode","inherited",
+                  "--depth","1",
+                  "--output",str(out),
+                  "--derived-from-calibri"])
+            from oscar.pack import cb61_unpack
+            self.assertEqual(
+                cb61_unpack((out/"Oscar_full_converted_CB61.s61").read_bytes()),
+                self.prior.blob)
+            report=json.loads(
+                (out/"Oscar_convert_FP32_actual_physical_report.json").read_text())
+            self.assertEqual(report["conversion"]["full_original_2D_matrices"],2)
+            self.assertFalse(report["model_quality_accepted"])
+
     def test_full_bundle_measures_literal_disk_bytes(self):
         import tempfile
         from pathlib import Path
