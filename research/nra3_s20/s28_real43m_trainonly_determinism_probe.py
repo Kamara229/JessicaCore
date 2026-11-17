@@ -30,7 +30,7 @@ from research.nra3_s20.s22_new256_counterfactual_train_graph_source import (
 
 FOLD=33
 OBSERVED_HISTORIC_BASE_FOLD_SHA="097b4471b3049e738bdf84b32b4066408d6f27fc878dee878dc0b0e26922a67a"
-PROBE_STEPS=(0,1,5,40)
+PROBE_STEPS=(0,1,5,40,240)
 
 
 def check(ok,message):
@@ -40,6 +40,23 @@ def check(ok,message):
 
 def sha(data:bytes)->str:
     return hashlib.sha256(data).hexdigest()
+
+
+
+def canonical_paid_semantic_fp16_sha(model):
+    """Stable digest of numerically paid FP16 tensors, NOT the serializer."""
+    h=hashlib.sha256(b"NRA3_CANONICAL_PAID_FP16_TENSORS_V1")
+    with torch.no_grad():
+        for name,param in sorted(model.named_parameters(),key=lambda pair:pair[0]):
+            values=param.detach().cpu().half().contiguous().numpy().astype("<f2",copy=False).tobytes()
+            meta=json.dumps({"name":name,"shape":list(param.shape),
+                             "paid_dtype":"float16"},sort_keys=True,
+                            separators=(",",":")).encode("utf-8")
+            h.update(len(meta).to_bytes(4,"little"))
+            h.update(meta)
+            h.update(len(values).to_bytes(8,"little"))
+            h.update(values)
+    return h.hexdigest()
 
 
 def train_exact_prefix(physical_parent,raw,valid,labels,steps):
