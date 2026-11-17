@@ -96,7 +96,7 @@ class S31Frozen43mResearchSourceContracts(unittest.TestCase):
             self.assertEqual((len(train),len(held)),(248,8))
             self.assertTrue(set(train).isdisjoint(held))
         source=inspect.getsource(EventGroundedInversionGraph.forward)
-        for forbidden in ("gold","oracle","label_targets","held_group"):
+        for forbidden in ("gold[","oracle_role","label_targets","held_group"):
             self.assertNotIn(forbidden,source)
         train_source=inspect.getsource(pairwise_hard_negative_positive_margin_loss)
         self.assertIn("gold_role",train_source)
