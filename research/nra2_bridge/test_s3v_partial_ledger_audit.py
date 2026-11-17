@@ -193,7 +193,23 @@ class PartialLedgerTests(unittest.TestCase):
         # Aggregate says the sole soft failure belongs to chain/yes.
         for key in ("all", "true_yes", "family_chain", "family_chain_yes"):
             slices[key]["soft_correct"] -= 1
-        with self.assertRaisesRegex(ValueError, "sparse family/truth aggregate mismatch"):
+        with self.assertRaisesRegex(ValueError, "sparse family/truth answer count mismatch"):
+            checked(payload)
+
+    def test_answer_family_aggregate_requires_exact_sparse_errors(self):
+        # A soft failure declared in chain/yes cannot be shifted into
+        # chain/no even when both groups' loose bounds would permit it.
+        payload = fixture()
+        payload["disagreement_or_error_cases"] = [{
+            "index": 0, "family": "chain", "gold_yes": True,
+            "soft_correct": False, "hard_correct": True,
+            "source_correct": True, "target_correct": True,
+            "prompt_sha256": "a" * 64,
+        }]
+        slices = payload["all_and_family_yes_no_accuracy"]
+        for key in ("all", "true_no", "family_chain", "family_chain_no"):
+            slices[key]["soft_correct"] -= 1
+        with self.assertRaisesRegex(ValueError, "sparse family/truth answer count mismatch"):
             checked(payload)
 
     def test_coherent_sparse_error_keeps_omitted_roles_unknown(self):
