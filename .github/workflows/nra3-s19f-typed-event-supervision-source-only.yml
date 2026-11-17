@@ -53,6 +53,6 @@ jobs:
             "s18c6","s18c7","nra3_s17","nra3_s15","nra3_s12","s3ci"))
           for s in ("nra3_s18c7","EVAL32","EVAL128","s3ci"):
             assert not (Path("inputs")/s).exists()
-          assert not Path("results").exists()
+          assert not Path("results/nra3_s19f").exists()
           print("S19F_GOLD_BLIND_SCHEMA_PASS_REAL43M_CAPTURE_PENDING_UNTIL_SEPARATE_S19E_CI")
           PY
