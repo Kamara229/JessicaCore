@@ -23,6 +23,7 @@ S20_SOURCE_SPLIT = "NRA3_S20_96_NEW_SYNTHETIC_TRAIN_ONLY"
 FAMILY_COUNT = 8
 PATTERN_COUNT = 12
 EXPECTED_ROWS = FAMILY_COUNT * PATTERN_COUNT
+FROZEN_S20_TRAIN96_SHA256 = "303b6748c3a5be5b344924196546de22e96d74ddccb850b6e99f3d525eb33a3f"
 
 
 @dataclass(frozen=True)
@@ -273,6 +274,8 @@ def train_only_manifest():
         for link in row.event_relations:
             rel[link.relation] = rel.get(link.relation, 0) + 1
     sha = canonical_train_only_sha(rows)
+    if sha != FROZEN_S20_TRAIN96_SHA256:
+        raise ValueError("S20 frozen NEW96 TRAIN-only graph SHA drift")
     return {
         "stage": S20_SOURCE_SPLIT,
         "source_sha256": sha,
