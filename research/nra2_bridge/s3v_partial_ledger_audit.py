@@ -70,6 +70,7 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
     if not isinstance(records, list) or len(records) > N:
         raise ValueError("FAIL CLOSED: invalid sparse record collection")
     seen = set()
+    seen_prompt_hashes = set()
     for r in records:
         if not isinstance(r, dict):
             raise ValueError("FAIL CLOSED: sparse record must be an object")
@@ -84,6 +85,10 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
             or not isinstance(r.get("prompt_sha256"), str)
             or re.fullmatch(r"[0-9a-fA-F]{64}", r["prompt_sha256"]) is None):
             raise ValueError("FAIL CLOSED: malformed observed record")
+        prompt_hash = r["prompt_sha256"].lower()
+        if prompt_hash in seen_prompt_hashes:
+            raise ValueError("FAIL CLOSED: duplicate sparse prompt SHA256")
+        seen_prompt_hashes.add(prompt_hash)
         # Producer emits all incorrect answers. Any both-correct record must
         # have an answer disagreement, which is impossible with fixed binary truth.
         if r["soft_correct"] and r["hard_correct"]:
