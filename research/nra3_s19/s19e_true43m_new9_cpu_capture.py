@@ -211,7 +211,7 @@ def main():
         "LIVE_Render_Supabase_APK_Jessica_unchanged":True,
     }
     (out/"NRA3_S19E_TRUE43M_CPU_NEW9_TRAIN_ONLY_J7_REPORT.json").write_text(
-        json.dumps(report,ensure_ascii=False,indent=2,sort_keys=True)+"\\n",
+        json.dumps(report,ensure_ascii=False,indent=2,sort_keys=True)+"\n",
         encoding="utf-8")
     print(json.dumps({k:v for k,v in report.items()
         if k not in ("wordpiece_alignment","true_train9_token_counts")},
