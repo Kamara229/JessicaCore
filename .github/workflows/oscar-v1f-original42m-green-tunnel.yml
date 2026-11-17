@@ -42,6 +42,9 @@ jobs:
       - name: Real independent pretrained original 41.6896M FP32 192-step full8 recurrent Green Tunnel state distillation and physical load
         run: |
           python research/oscar/v1f/train_real_all8_green_tunnel.py results/OSCAR_v1F_original42M_REAL_FP32_all8_GT/
+      - name: Physically export trained recurrent 8layer GT-only research candidate without the first-token-degrading head
+        run: |
+          python research/oscar/v1f/pack_gt_only.py results/OSCAR_v1F_original42M_REAL_FP32_all8_GT/
       - name: Preserve literal original 42M trained-FP32 source provenance, complete new CB61/FP16 runtime, 8 test outputs, and ALL training trace
         if: always()
         uses: actions/upload-artifact@v4
