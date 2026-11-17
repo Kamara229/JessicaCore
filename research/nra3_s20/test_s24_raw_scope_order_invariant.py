@@ -62,7 +62,7 @@ class S24ScopedRejectionOnlyContracts(unittest.TestCase):
         self.assertEqual(FEATURES[PREV_NEG],"previous_word_negative_particle")
         self.assertEqual(FEATURES[LIKELY_DATIVE],"ending_dative_possible")
         import research.nra3_s20.s24_neural_role_local_negation_scope as module
-        s=inspect.getsource(module)
+        s=inspect.getsource(module.ScopedRejectionGraph.forward)
         self.assertIn("torch.softmax(base.role",s)
         self.assertIn("prev_negative=x[...,320+PREV_NEG]",s)
         self.assertIn("dative=x[...,320+LIKELY_DATIVE]",s)
@@ -82,6 +82,9 @@ class S24ScopedRejectionOnlyContracts(unittest.TestCase):
         x=build_features(texts,h,meta)
         raw=x.raw_word_hidden320_and_raw18[:5].clone()
         valid=x.valid_word_mask[:5]
+        # Controlled *input-only* negative particle cue, not a gold role.
+        # The first five coordination templates contain no 'не'.
+        raw[0,1,320+PREV_NEG]=1.
         # Compare model base logits using same physical weights.
         with torch.inference_mode():
             parent=PaidSemanticEventGraph.forward(model,raw,valid)
