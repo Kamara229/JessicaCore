@@ -1,0 +1,53 @@
+name: OSCAR v1F independently pretrained 42M FP32 8layer recurrent Green Tunnel calibration
+'on':
+  push:
+    branches:
+      - research/oscar-v1f-recurrent-green-tunnel-42m-20261117
+    paths:
+      - research/oscar/v1f/**
+      - .github/workflows/oscar-v1f-original42m-green-tunnel.yml
+  workflow_dispatch:
+concurrency:
+  group: oscar-v1f-original42m-real-fp32-interlayer-green-tunnel
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  independent_original_FP32_42M_recurrent_all8_GreenTunnel:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '421919'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install original CPU pretrained model and all required research libraries
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'pandas==2.2.3' 'pyarrow==17.0.0' 'datasets==2.21.0' 'python-dateutil==2.9.0.post0' 'huggingface_hub==0.27.1' 'transformers==4.46.3' 'safetensors==0.4.5' 'sentencepiece==0.2.0' 'protobuf==5.28.3' 'accelerate==1.1.1'
+      - name: Verify original Oscar source codec, trusted original 8layer LLaMA, and Green Tunnel carry/grad/physical ABI
+        run: |
+          python -m compileall -q research/oscar/v1f/
+          python -m unittest oscar.test_encoder oscar.v1e.test_safe_pretrained_llama oscar.v1f.test_green_tunnel -v
+      - name: Real independent pretrained original 41.6896M FP32 192-step full8 recurrent Green Tunnel state distillation and physical load
+        run: |
+          python research/oscar/v1f/train_real_all8_green_tunnel.py results/OSCAR_v1F_original42M_REAL_FP32_all8_GT/
+      - name: Preserve literal original 42M trained-FP32 source provenance, complete new CB61/FP16 runtime, 8 test outputs, and ALL training trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oscar-v1f-real-42M-original-FP32-recurrent-GT8-r32-head-r8-actual
+          path: results/OSCAR_v1F_original42M_REAL_FP32_all8_GT/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 90
