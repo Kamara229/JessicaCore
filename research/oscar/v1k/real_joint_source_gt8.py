@@ -178,15 +178,18 @@ def real_fp32_functional_loss(logits,reference,student_hidden,teacher_hidden):
 
 
 def source_gt_anchor(curr,previous):
-    if len(curr)!=len(previous):
-        raise AssertionError("Missing original trained GT FP16 per-layer matrices")
-    vals=[]
-    for name,x in curr.items():
-        if name not in previous:
-            raise AssertionError("No original real GT FP16 trained anchor: "+name)
-        ref=previous[name].float()
-        vals.append((x-ref).square().mean())
-    return sum(vals)/len(vals)
+    # Anchor the live differentiable full-precision pretrained GT values,
+    # never the intentionally detached source_paid_tensors() export.
+    trainable={
+        "oscar_v1f.down_fp16":curr.down,
+        "oscar_v1f.up_fp16":curr.up,
+        "oscar_v1f.gains_fp16":curr.gain,
+        "oscar_v1f.mix_fp16":curr.mix_logits,
+    }
+    if set(trainable)!=set(previous):
+        raise AssertionError("Missing pretrained original full8 GT FP16 physical anchors")
+    return sum((val-previous[name].float()).square().mean()
+               for name,val in trainable.items())/len(trainable)
 
 
 def full_trained_GT_params(m):
@@ -321,8 +324,8 @@ def run(a):
                 loss1,metrics1=real_fp32_functional_loss(
                     logits1,orig1,later.latest_layers,h1[1:9])
             reg=(.05*source.original_anchoring_loss()+
-                 .03*source_gt_anchor(first.source_paid_tensors(),anchored1)+
-                 .03*source_gt_anchor(later.source_paid_tensors(),anchored2))
+                 .03*source_gt_anchor(first,anchored1)+
+                 .03*source_gt_anchor(later,anchored2))
             loss=2.0*loss0+.85*loss1+reg
             if not torch.isfinite(loss):
                 raise AssertionError("Oscar v1K real original 42M pretrained FP32 joint source+GT loss nonfinite")
