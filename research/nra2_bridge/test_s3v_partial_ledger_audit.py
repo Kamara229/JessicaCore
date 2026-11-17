@@ -157,5 +157,29 @@ class PartialLedgerTests(unittest.TestCase):
             checked(payload)
 
 
+    def test_coherent_sparse_error_keeps_omitted_roles_unknown(self):
+        payload = fixture()
+        payload["disagreement_or_error_cases"] = [{
+            "index": 0, "soft_correct": False, "hard_correct": True,
+            "source_correct": False, "target_correct": True,
+            "prompt_sha256": "d" * 64,
+        }]
+        slices = payload["all_and_family_yes_no_accuracy"]
+        # One yes/chain example is wrong for soft and source only.
+        for key in ("all", "true_yes", "family_chain", "family_chain_yes"):
+            slices[key]["soft_correct"] -= 1
+            slices[key]["correct_source"] -= 1
+        result = checked(payload)
+        self.assertEqual(result["recorded"], 1)
+        self.assertEqual(result["omitted"], 63)
+        self.assertEqual(result["source_bounds"]["lower"], 0)
+        self.assertEqual(result["source_bounds"]["upper"], 63 / 64)
+        self.assertEqual(result["target_bounds"]["lower"], 1 / 64)
+        self.assertEqual(result["target_bounds"]["upper"], 1)
+        self.assertFalse(result["full_64_row_ledger_verified"])
+        self.assertFalse(result["independent_source_j7_digest_recomputed"])
+        self.assertEqual(result["output_gate"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
