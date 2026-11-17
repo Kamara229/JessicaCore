@@ -1,4 +1,4 @@
-name: OSCAR v1H real 42M FP32 two physically paid Green Tunnel routes: initial vs later tokens
+name: 'OSCAR v1H real 42M FP32 two physically paid Green Tunnel routes: initial vs later tokens'
 'on':
   push:
     branches:
