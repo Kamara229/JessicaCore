@@ -152,6 +152,27 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
             raise ValueError("FAIL CLOSED: family yes totals inconsistent")
         if sum(row[2][field] for row in family_slices) != no_slice[field]:
             raise ValueError("FAIL CLOSED: family no totals inconsistent")
+    # Sparse rows must agree with their declared family/truth producer slices.
+    # This is an internal consistency gate, not independent S3T row identity.
+    for r in records:
+        family = r.get("family")
+        truth = r.get("gold_yes")
+        if family not in families or type(truth) is not bool:
+            raise ValueError("FAIL CLOSED: sparse family/truth metadata missing")
+    for family in families:
+        for truth_name, truth_value in (("yes", True), ("no", False)):
+            subset = [r for r in records if r["family"] == family and r["gold_yes"] is truth_value]
+            producer = slices["family_" + family + "_" + truth_name]
+            missing = producer["count"] - len(subset)
+            if missing < 0:
+                raise ValueError("FAIL CLOSED: too many sparse rows for family/truth")
+            for row_key, aggregate_key in (("soft_correct", "soft_correct"),
+                                           ("hard_correct", "hard_correct"),
+                                           ("source_correct", "correct_source"),
+                                           ("target_correct", "correct_destination")):
+                observed = sum(r[row_key] for r in subset)
+                if not observed <= producer[aggregate_key] <= observed + missing:
+                    raise ValueError("FAIL CLOSED: sparse family/truth aggregate mismatch")
     def bounds(field):
         correct = sum(bool(r[field]) for r in records)
         return {"observed_correct": correct, "unknown": unknown,
