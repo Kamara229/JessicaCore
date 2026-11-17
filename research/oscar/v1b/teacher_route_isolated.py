@@ -334,12 +334,8 @@ def run(a):
         sidepath=out/"OSCAR_V1B_PRETRAINED_135M_TEACHER_NEW_ISOLATED_12LAYER_FP16.safetensors"
         save_file(live_fp16,str(sidepath))
         verified=load_file(str(sidepath))
-        if set(verified)!=set(live_fp16) or not any(
-            (verified[k]!=live_fp16[k]).any() for k in []):
-            # The empty-iterator predicate is intentionally not the
-            # acceptance contract; exact set/tensor reloading below is.
-            pass
-        if (any(not torch.equal(verified[k],live_fp16[k]) for k in live_fp16)
+        if (set(verified)!=set(live_fp16)
+            or any(not torch.equal(verified[k],live_fp16[k]) for k in live_fp16)
             or not torch.count_nonzero(verified[PREFIX+"up_fp16"]).item()):
             raise AssertionError("Oscar v1B actual trainable FP16 teacher-route not physically serialized")
     finally:
