@@ -11,7 +11,7 @@ from research.nra2_bridge.s3v_partial_ledger_audit import audit, STAGE, S3T_SHA,
 
 
 def fixture():
-    return {
+    result = {
         "stage": STAGE,
         "S3T_prior_commitment_sha256": S3T_SHA,
         "S3O_frozen_adapter_sha256": S3O_SHA,
@@ -31,6 +31,20 @@ def fixture():
         },
         "disagreement_or_error_cases": [],
     }
+    # Exact S3T four-family balance: 16 per family, 8 yes and 8 no.
+    m = result["all_and_family_yes_no_accuracy"]
+    for family in ("chain", "fork", "cycle_sink", "diamond"):
+        m["family_" + family] = {
+            "count": 16, "yes": 8, "no": 8,
+            "soft_correct": 16, "hard_correct": 16,
+            "correct_source": 16, "correct_destination": 16}
+        for truth in ("yes", "no"):
+            m["family_" + family + "_" + truth] = {
+                "count": 8, "yes": 8 if truth == "yes" else 0,
+                "no": 8 if truth == "no" else 0,
+                "soft_correct": 8, "hard_correct": 8,
+                "correct_source": 8, "correct_destination": 8}
+    return result
 
 
 def checked(payload):
@@ -39,6 +53,24 @@ def checked(payload):
 
 
 class PartialLedgerTests(unittest.TestCase):
+    def test_missing_family_partition_rejected(self):
+        payload = fixture()
+        del payload["all_and_family_yes_no_accuracy"]["family_diamond_no"]
+        with self.assertRaisesRegex(ValueError, "family/truth partition"):
+            checked(payload)
+
+    def test_family_aggregate_drift_rejected(self):
+        payload = fixture()
+        payload["all_and_family_yes_no_accuracy"]["family_chain"]["correct_source"] = 15
+        with self.assertRaisesRegex(ValueError, "family yes/no aggregates"):
+            checked(payload)
+
+    def test_family_truth_partition_drift_rejected(self):
+        payload = fixture()
+        payload["all_and_family_yes_no_accuracy"]["family_fork_yes"]["yes"] = 7
+        with self.assertRaisesRegex(ValueError, "family truth balance"):
+            checked(payload)
+
     def test_empty_sparse_rows_remain_unknown(self):
         result = checked(fixture())
         self.assertEqual(result["omitted"], 64)
