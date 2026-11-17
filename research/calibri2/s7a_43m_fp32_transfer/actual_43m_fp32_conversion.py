@@ -30,7 +30,8 @@ from calibri2.s30 import matched_dense_fp32_train as s30
 from calibri2.s87 import guard_all_456_full_cpu as s87
 from calibri2.s87.internal_green_tunnel import IntegratedGreenTunnel
 from calibri2.s88.zero_gate_fastpath import install_verified_fastpath
-from calibri2.s91 import train_joint_quality_rehearsal as s91
+from calibri2.s78 import mps_36m_feature_cached_late_rank16_restoration as s78
+from calibri2.s82 import real_mps_generic_token_context_copy as s82
 from calibri2.s95.train_and_audit_router import CHOICES,prompt_only_vector
 from calibri2.s99.guard_neural_copy_456_cpu import load_frozen_numeric_weights
 from calibri2.s101.kv_cache_full456_cpu import cached_full_cpu_with_neural_copy
@@ -119,7 +120,15 @@ class Stack:
         if dense:
             self.model=s30.dense_from_paid(cb)
             self.sources={}
-            self.first,self.later,self.ptr=s91.frozen_controllers(s142)
+            # The original S91 frozen_controllers helper forces Apple MPS;
+            # mirror actual S87 CPU loader with the SAME paid tensors.
+            self.first,self.later=s78.controllers(s142)
+            self.ptr=s82.GenericContextPointer()
+            self.ptr.load_state_dict({
+                k.removeprefix('generic_pointer.'):v for k,v in s142.items()
+                if k.startswith('generic_pointer.')
+            },strict=True)
+            self.ptr.eval().requires_grad_(False)
             self.head=self.model.lm_head.weight.detach().cpu().contiguous()
             self.inner=IntegratedGreenTunnel(layers=(3,9),rank=8).eval()
             self.inner.load_state_dict({
