@@ -1,0 +1,76 @@
+name: NRA3 S25 original43M physical word338 'не' cue alignment audit
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s24-raw-negation-scope-matched40-20261118
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real_original43m_only_rejected_raw_cue_audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    env:
+      PYTHONPATH: .:research:research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Original S22c and S24 physical CPU provenance pinned and training finished
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 44189114971 44189739539 44191302703 44192186916 44193628871 44194898261; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          echo S25_S22C_AND_S24_SOURCE_ORIGINAL_GENUINE_CPU_LOCKED
+      - name: Install pinned CPU torch to verify real original model hidden320 plus18 word features
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: 8x REJECTED preposed source-only unit checks, no original CPU evidence claimed
+        run: |
+          python -m unittest -v research.nra3_s20.test_s25_rejected_preposed_raw_cue_contract
+      - name: Read existing SHA-segregated S22c ORIGINAL43M+GT words and separately sealed human TRAIN graph
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s22c-TRUE43M-GT-256-TRAIN-raw338-and-gold-separated-40fold
+          run-id: 44191302703
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s22c
+      - name: Actual physics of correct REJECTED recipient raw18 for each of 8x four patterns, no model forward
+        run: |
+          python -m research.nra3_s20.s25_real43m_rejected_raw_cue_alignment_audit \
+            --features inputs/nra3_s22c/S22C_REAL43M_GT_NEW256_RAWONLY_WORD338.safetensors \
+            --gold inputs/nra3_s22c/S22C_256_SYNTHETIC_EVENT_GRAPH_TARGETS_TRAIN_ONLY.safetensors \
+            --manifest inputs/nra3_s22c/S22C_REAL43M_GT_NEW256_RAWONLY_AND_TRAIN_GOLD_SEPARATE_REPORT.json \
+            --out results/nra3_s25
+      - name: SHA-locked report fully covers true CPU raw geometry and forbids adaptation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra3_s25/NRA3_S25_ACTUAL_43M_GT_RAW_REJECTED_SURFACE_CUE_AUDIT.json").read_text())
+          assert r["stage"]=="NRA3_S25_REAL_43M_GT_RAW_INPUT_ONLY_CUE_AUDIT_NO_TRAINING"
+          assert r["source_SHA256"]=="8963e2e8758b1c6a6fbd28eb597a77be1a454d732d0ecac93df6f5a753f6a361"
+          assert r["actual_S22c_source_input_SHA256"]=="162dfbf9cf74d1395bc97cf74564e04a731ab1d890c65141cb05bae98ffef228"
+          assert r["actual_S22c_source_human_gold_SHA256"]=="f206d38e3566104b1da1caa16647fc8e26d12b16ccbb1391db508676701c9216"
+          assert not r["model_forward_or_optimizer_executed"]
+          assert r["no_spent_independent_EVAL"] and r["human_train_gold_never_forwarded"]
+          assert r["output_gate"]==0 and not r["candidate_accepted"] and not r["activation_allowed"]
+          assert r["preposed_source_rejected_8"]["count"]==8
+          assert r["preposed_source_rejected_8"]["recipient_precedes_predicate"]==8
+          assert sum(z["count"] for z in r["other_rejected_surface_groups"].values())==24
+          print("S25_TRUE_CPU_RAW_CUES_SOURCE_PINNED_NO_OPTIMIZER",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s25-real-43M-GT-32-REJECTED-raw-scope-cue-audit-noEVAL
+          path: results/nra3_s25/
+          if-no-files-found: error
+          retention-days: 30
