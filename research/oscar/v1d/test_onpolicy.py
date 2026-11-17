@@ -48,7 +48,7 @@ class OscarRealOnpolicyContracts(unittest.TestCase):
         self.assertEqual([r["source_actual_student_token_id"] for r in result],
                          [10,11,3])
         # First teacher sees prompt ending in 2, then student-greedy 10 and 11.
-        self.assertEqual([r["original_pretrained_FP32_teacher_target_id_on_student_prefix"]
+        self.assertEqual([r["original_teacher_target_id_on_student_prefix"]
                            for r in result],[3,11,12])
         self.assertTrue(result[2]["actual_student_emitted_EOS"])
         self.assertFalse(result[2]["teacher_EXPECTED_EOS"])
@@ -67,7 +67,7 @@ class OscarRealOnpolicyContracts(unittest.TestCase):
             teacher[predicted]=7
             teacher_rows.append({
                 "whole_vocab_target":teacher,
-                "original_pretrained_FP32_teacher_target_id_on_student_prefix":predicted,
+                "original_teacher_target_id_on_student_prefix":predicted,
                 "source_actual_student_token_id":[6,3][i],
             })
         objective,trace=loss_against_real_student_policy(
