@@ -104,11 +104,12 @@ def pair_targets(y):
     # Original S19f human role edge polarity is 0=POSITIVE, 1=REJECTED;
     # all nonedges become the explicit classifier NONE=0. Pure TARGETS.
     polarity=torch.where(p<0,0,p+1)
-    require(int((polarity==2).sum())==1
-            and int((polarity==1).sum())==39
+    require(int((polarity==2).sum())==int((p==1).sum())
+            and int((polarity==1).sum())==int((p==0).sum())
+            and int((polarity>0).sum())==int((role>0).sum())
             and bool((p[role>0]>=0).all())
             and bool((p[role<=0]==-1).all()),
-            "rejected/positive participants must be supervised separately")
+            "rejected/positive participants must be supervised separately, even if rare class absent in TRAIN subset")
     return polarity
 
 
