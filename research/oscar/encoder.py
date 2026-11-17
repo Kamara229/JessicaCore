@@ -304,15 +304,27 @@ def encode_fp32(state: Mapping[str,torch.Tensor], *,
 
 
 def to_cb61(source:bytes)->bytes:
-    """Original CALIBRI binary CB61 envelope; real CRC/SHA, no code change."""
-    from calibri2.s87.guard_all_456_full_cpu import open_envelope
+    """Generic OSCAR CB61 zlib envelope for any original 12- or 30-layer CB59.
+
+    Historical S87 loader accepts only its fixed 36M physical size, which is
+    intentional. Oscar's standalone packer must also accept 135M physical
+    sources without silently changing 135M model geometry.
+    """
     parsed=CB59(source)
     if parsed.blob!=source:
-        raise AssertionError("Oscar source mismatch")
+        raise AssertionError("Oscar authenticated full source mismatch")
     header=struct.Struct("<8sQI32s")
     packed=(header.pack(b"CB61ZL01",len(source),zlib.crc32(source),
                         bytes.fromhex(_sha(source)))+
             zlib.compress(source,level=9))
-    if open_envelope(packed)!=source:
-        raise AssertionError("Oscar original full 43M CB61 physical envelope corrupt")
+    magic,n,crc,sha=header.unpack_from(packed)
+    if magic!=b"CB61ZL01" or n!=len(source):
+        raise AssertionError("Oscar CB61 source size/header mismatch")
+    d=zlib.decompressobj()
+    unpacked=d.decompress(packed[header.size:],n+1)
+    if (not d.eof or d.unused_data or d.unconsumed_tail or
+        unpacked!=source or zlib.crc32(unpacked)!=crc or
+        hashlib.sha256(unpacked).digest()!=sha):
+        raise AssertionError("Oscar CB61 full physical CRC/SHA roundtrip corrupt")
+    CB59(unpacked)
     return packed
