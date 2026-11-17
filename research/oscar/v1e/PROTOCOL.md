@@ -1,0 +1,25 @@
+# Oscar v1E — independent REAL pretrained ~42M FP32 control, honest 8-layer versus 12-layer comparison
+
+### Why v1E is a better scientific control than continuing repetitive teacher outputs blindly
+Oscar v1D did 48 steps and 186 real teacher queries on actual student-generated prefixes and preserved original 43M S142 default, but its teacher branch still generated `FPTPTPT...` with **0/8 complete independent FP32 teacher responses**. The previously used 135M pretrained FP32 *teacher* had 30 layers×576 and a different tokenizer than CALIBRI 12×320 43M. A 12-layer GT rank8 route can retain initial soft logits while failing language transfer. Repeating synthetic S30/FPTrain names is inadequate evidence of universal weight conversion.
+
+**Necessary control**: before trying further adapters, run Oscar's actual **independently pretrained FP32 weight encoder on an open ~42M LLaMA model**, keep source network geometry fixed, compare original pretrained FP32 vs new CB59+CB61 on actual next-token probabilities and freely generated complete token IDs. This separates *codec-induced loss* from *30→12 layer/student training loss* and meets the original research prerequisite of a real open ~43M FP32 test. This experiment **does not use or alter the functioning S142 model**; all code under research/oscar/v1e.
+
+### Pinned provenance and local trusted implementation
+- Open source checkpoint: **`karpathy/tinyllamas` / `stories42M.pt`**, MIT license; an **independently pretrained** LLaMA-style TinyStories, documented as **42M** trained parameters, hidden **512**, **8 decoder layers**, **8 heads**, context **1024**. Full provenance commit is resolved by HuggingFace Hub and SHA256 of complete downloaded PT archive recorded **BEFORE** reading its weights.
+- **Never execute remote Python or torch pickle code**. Use `torch.load(...,map_location='cpu',weights_only=True)` to read numeric tensors and a **local reviewed minimal PyTorch LLaMA architecture** (RMSNorm, RoPE, causal attention, SwiGLU) with exact checkpoint keys, shape, tied embeddings and full last-token logits. Do not load `trust_remote_code=True`.
+- Exact original unique weights are **measured** from the checkpoint, never made up from model card. Check real LLaMA key geometry. The original model is 8×512, **NOT CALIBRI 12×320**. This first-stage check remains in the actual FP32 geometry; output is **not** a functional 12-layer CALIBRI yet and must not be presented as one.
+- Decoder source archive `CB59`: all real FP32 2D matrices encoded at 5bit/K32/V8, FP16 row scale and 32×8 FP16 codebook per source tensor, source FP32 1D scalars physically raw with CRC and SHA; source tied embedding aliases deduplicated. `CB61` recompresses physically; no teacher FP32 at inference.
+- The pretrained original weights and original source code are immutable.
+
+### Precommitted experiment & tests
+1. Fetch & pin original real pretrained 42M external FP32 checkpoint, measure all tensors/unique parameter count, geometry, source SHA256 and single original teacher FP32 state checksum before ANY compression.
+2. Build a fresh original-geometry 8-layer FP32 model from local reviewed code, load original state strict. Log original FP32 teacher actual top-token, original output entropy, softmax logits on **four precommitted deterministic token-ID prompts** (no QA/TEST or leaked labels).
+3. Actually `encode_fp32(state,mode='cold')` from the independent pretrained full 42M FP32, reconstruct **new physical CB59/CB61**, decode into an independent dense 8-layer PyTorch **diagnostic** mirror (never shipped), and compare the exact same prompts, per-hidden-layer drift, full greedily generated 8-token IDs, first-token agreements, EOS and proper first-token rank. To prove compression preserves pretrained behavior requires actual generative matches — not source-vector SSE. If 0/4, publish 0/4.
+4. Additional **analytic sensitivity test**: restore original FP32 embedding+head only as explicitly **unpaid diagnostic**, compare first-token logits; do not claim this hybrid ≤0.7 bpp. Original FP32 logits plus separate real compressed logits measured identically with per-layer probes.
+5. Save actual CB59 and optionally CB61 if <= actual bytes, full K32/V8 source SHA, physical size bits/unique pretrained parameter, decoder CB61 backend charged physical inference file + model config/parser manifest. No external trained prior is accepted to encoder. Do not count extra structural zero parameters. Forcing 12 layers would require real cross-architecture training, not weight relabeling.
+6. Show how much quality loss happened in the 8-layer SAME-architecture case, and only after codec is established attempt transfer to S142 12×320 with explicit trained bridge/tokenizer alignment and physical GT/sidecar budget.
+
+### No shortcuts
+- Don't claim this is a 12-layer CALIBRI conversion. Don't use original 43.26M **structural** denominator for external 42M pretrained sources. No original 616 J7, unseen QA or native C throughput tested.
+- No main/LIVE/Render/Supabase/APK, no NRA or Jessica ordinary chat, no model deployment. Draft PR only.
