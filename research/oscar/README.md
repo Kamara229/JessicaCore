@@ -62,3 +62,32 @@ S7A **proved that refitting source-only generic codebooks breaks** the previousl
 
 ## Safety
 Research-only in a separate branch. No edits to LIVE Jessica, Render, Supabase, APK, main, parallel CALIBRI or NRA. No model deployment. No testing via ordinary Jessica chat.
+
+
+## Direct OSCAR CLI (safe real source files, no GitHub/Calibri artifact dependency)
+
+OSCAR's executable accepts an existing **FP32 safetensors checkpoint** and produces one fully authenticated CB61 source. The full trained Green Tunnel/other sidecars may additionally be packaged into one authenticated `.oscar.zip` runtime candidate. An explicit prior is required for inherited mode:
+
+```bash
+PYTHONPATH=research:research/calibri python -m oscar \
+  --fp32 /path/to/original_weights_fp32.safetensors \
+  --mode inherited \
+  --prior /path/to/learned_codebooks.cb59 \
+  --depth 12 \
+  --nominal-params 43261760 \
+  --component S142_GT12.safetensors=/path/to/trained_full_gt_fp16.safetensors \
+  --component S94_bank.bin=/path/to/trained_profile_bank.bin \
+  --component S95_router.safetensors=/path/to/trained_router.safetensors \
+  --component S98_copy.safetensors=/path/to/trained_neural_copy.safetensors \
+  --output /path/to/oscar_output
+```
+
+For **independently pretrained FP32** with no source model prior, run `--mode cold` **without** `--prior`. Specify an optional `--aliases /path/to/aliases.json` to restore weight tying from safetensors (e.g. `{"lm_head.weight":"model.embed_tokens.weight"}`). OSCAR infers aliases automatically from an inherited prior. Accepts CPU FP32 only, never unpickles files. The cold mode produces a *physical source codec candidate*, not a pretrained-ability guarantee; do not bypass independent QA.
+
+`Oscar_convert_FP32_actual_physical_report.json` truthfully includes SHA256 hashes, source physical bytes, rate on both original core and structural nominal denominators, and explicit `model_quality_accepted=false`. `Oscar_complete_runtime_candidate.oscar.zip` contains each actual inference component **once**, with full SHA/CRC validation.
+
+Run the built-in independent CPU unit suite:
+
+```bash
+PYTHONPATH=research:research/calibri python -m unittest oscar.test_codec -v
+```
