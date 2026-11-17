@@ -46,6 +46,23 @@ class TrainOnlyNineFoldContracts(unittest.TestCase):
         self.assertEqual(result["argument_polarity"]["held_TRAIN_gold_nonNONE"],40)
         self.assertEqual(int((pair_targets(targets)==2).sum()),1)
 
+    def test_held_sole_rejected_role_absent_from_eight_train_rows(self):
+        data,y=fake_geometry_only()
+        human={
+          "event_status_TRAIN_ONLY":y.event_status,
+          "predicate_argument_role_TRAIN_ONLY":y.predicate_argument_role,
+          "argument_polarity_TRAIN_ONLY":y.argument_polarity,
+          "coreference_TRAIN_ONLY":y.coreference,
+          "event_relation_TRAIN_ONLY":y.event_links,
+        }
+        train_ids=tuple(k for k in range(9) if k!=7)
+        from research.nra3_s19.s19g_train9_real43m_graph import pair_targets
+        p=pair_targets(take(human,train_ids))
+        self.assertEqual(int((p==2).sum()),0)
+        self.assertEqual(int((pair_targets(take(human,(7,)))==2).sum()),1)
+        self.assertEqual(int((p==1).sum()), int(
+            (take(human,train_ids)["predicate_argument_role_TRAIN_ONLY"]>0).sum()))
+
     def test_aggregation_uses_sum_of_counts_not_average_of_f1(self):
         def group(tp,fp,fn):
             return {k:{"TP":tp,"FP":fp,"FN":fn,
