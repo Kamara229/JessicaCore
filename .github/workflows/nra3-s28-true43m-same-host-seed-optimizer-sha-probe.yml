@@ -1,0 +1,99 @@
+name: NRA3 S28 original43M+GT single CPU thread seed-vs-optimizer SHA audit
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s27-preposed-fold33-real-logit-audit-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s28-frozen43m-real-fold33-train-only-SHA-determinism
+  cancel-in-progress: true
+jobs:
+  s28_seeded_model_vs_optimizer_physical_probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      PYTHONHASHSEED: '320256'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require original S22c physical REAL43M and original frozen grammar parent, no EVAL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44189114971 44189739539 44191302703 44192186916 44199370253 44199680207; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$id" --jq .conclusion)" = success
+          done
+          echo S28_ORIGINAL_REAL43M_GT_AND_TRAIN256_PROVENANCE_SEALED
+      - name: Install original pinned CPU-only torch and physical safetensors deps
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Compile S28 instrumentation and verify old sealed synthetic source
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s22_counterfactual_train256_contract
+      - name: Download actual frozen original43M+GT CPU raw338 and segregated TRAIN graph source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s22c-TRUE43M-GT-256-TRAIN-raw338-and-gold-separated-40fold
+          run-id: 44191302703
+          github-token: ${{ github.token }}
+          path: inputs/s22c
+      - name: Download actual original frozen S19d 9332 FP16 parent
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s19d-TRUE43M-GT-9332paidFP16-context-event-TRAIN96-internalCV-no-EVAL
+          run-id: 44128707585
+          github-token: ${{ github.token }}
+          path: inputs/s19d
+      - name: Run same-host repeated 0/1/5/40 real original43M prefix steps, no held TRAIN8 or independent EVAL
+        run: |
+          python -m research.nra3_s20.s28_real43m_trainonly_determinism_probe \
+            --features inputs/s22c/S22C_REAL43M_GT_NEW256_RAWONLY_WORD338.safetensors \
+            --gold inputs/s22c/S22C_256_SYNTHETIC_EVENT_GRAPH_TARGETS_TRAIN_ONLY.safetensors \
+            --manifest inputs/s22c/S22C_REAL43M_GT_NEW256_RAWONLY_AND_TRAIN_GOLD_SEPARATE_REPORT.json \
+            --parent inputs/s19d/NRA3_S19D_TRUE43M_GT_CONTEXT_SCOPE_GRAMMAR_AND_EVENT_TRAINONLY_FP16.n3s19d \
+            --out results/nra3_s28
+      - name: Validate actual physical source, fresh refit SHA and safe diagnostic-only gate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          data=json.loads(Path("results/nra3_s28/NRA3_S28_ACTUAL43M_GT_FOLD33_SEEDED_PREFIX_FP16_REPRODUCIBILITY.json").read_text())
+          assert data["stage"]=="NRA3_S28_REAL43M_GT_SINGLE_HOST_INITIAL_AND_OPTIMIZER_PREFIX_SHA_PROBE"
+          assert data["source_s22c_train256_SHA256"]=="8963e2e8758b1c6a6fbd28eb597a77be1a454d732d0ecac93df6f5a753f6a361"
+          assert data["frozen_real_9332_FP16_S19d_SHA256"]=="928f735a2018604db2ffe649799778df3805162b79a989a36e282dc3cb61c774"
+          assert data["fixed_predeclared_fold"]==33 and data["TRAIN_side_rows"]==248
+          assert data["completely_held_synthetic_TRAIN_rows_NOT_used_in_training"]==8
+          assert [x["prefix_steps"] for x in data["tests"]]==[0,1,5,40]
+          assert data["no_independent_EVAL_or_original_616_J7_replay"]
+          assert data["no_original43M_GT_or_live_model_training"]
+          assert data["LIVE_Render_Supabase_Jessica_APK_unchanged"]
+          assert data["torch_deterministic_algorithms"]
+          assert data["torch_num_threads"]==1
+          assert data["output_gate"]==0 and not data["candidate_accepted"] and not data["activation_allowed"]
+          for row in data["tests"]:
+            print("S28_SHA_PROBE_RESULT",row["prefix_steps"],
+                  "init",row["same_runner_initial_head_equal"],
+                  "post",row["same_runner_post_steps_full_FP16_equal"],
+                  "FP32_DIFF",row["post_steps_fp32_difference"]["number_of_differing_parameters"],
+                  flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s28-REAL43M-GT-fold33-0-1-5-40-TRAIN-prefix-SHA-only
+          path: results/nra3_s28/
+          if-no-files-found: error
+          retention-days: 30
