@@ -15,13 +15,13 @@ from research.nra3_s4.complete_prefix_training_contract import (
 from research.nra3_s19.graph_schema import raw_model_input
 from research.nra3_s20.s22_new256_counterfactual_train_graph_source import (
     EXPECTED, FROZEN_S22_TRAIN256_SHA256, build_s22_train256,
-    manifest, text_only_inputs,
+    manifest as source_manifest, text_only_inputs,
 )
 
 
 @lru_cache(maxsize=1)
 def s22_train_texts() -> tuple[str, ...]:
-    manifest = manifest()
+    manifest = source_manifest()
     rows = build_s22_train256()
     if (
         manifest["source_sha256"] != FROZEN_S22_TRAIN256_SHA256
