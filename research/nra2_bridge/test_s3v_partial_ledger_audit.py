@@ -106,6 +106,14 @@ class PartialLedgerTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "truth-slice yes/no population mismatch"):
                     checked(payload)
 
+    def test_output_gate_requires_canonical_integer_zero(self):
+        for value in (0.0, False, "0", None):
+            with self.subTest(value=value):
+                payload = fixture()
+                payload["output_gate"] = value
+                with self.assertRaisesRegex(ValueError, "FAIL CLOSED: report provenance or zero gate mismatch"):
+                    checked(payload)
+
     def test_empty_sparse_rows_remain_unknown(self):
         result = checked(fixture())
         self.assertEqual(result["omitted"], 64)
