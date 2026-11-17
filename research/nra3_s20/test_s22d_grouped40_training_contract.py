@@ -41,7 +41,7 @@ class S22dFortyFoldTrainOnlyContracts(unittest.TestCase):
     def test_every_paid_parameter_and_decoder_gate_remain_frozen_in_source(self):
         frozen=PaidContextualEventScope(
             CompactWordGrammar().eval().requires_grad_(False)).eval().requires_grad_(False)
-        model=new_graph_model(frozen,3200256)
+        model=new_graph_model(frozen,320256)
         self.assertEqual((PAID_PARENT,PAID_GRAPH,PAID_TOTAL),(9332,3049,12381))
         self.assertEqual(STEPS,240)
         self.assertTrue(all(not p.requires_grad for p in model.parent.parameters()))
@@ -64,7 +64,7 @@ class S22dFortyFoldTrainOnlyContracts(unittest.TestCase):
         model=new_graph_model(
             PaidContextualEventScope(
                 CompactWordGrammar().eval().requires_grad_(False)).eval().requires_grad_(False),
-            3200256)
+            320256)
         with torch.inference_mode():
             logits=model(features.raw_word_hidden320_and_raw18,features.valid_word_mask)
             metrics=source_only_counts(logits,gold,features.valid_word_mask)
