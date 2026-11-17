@@ -54,7 +54,7 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
         or report.get("original_616_S194_J7_hashes_preserved_by_S3U") is not True
         or report.get("original_584_retained_full_EOS_unchanged") is not True
         or report.get("candidate_accepted") is not False
-        or type(report.get("output_gate")) not in (int, float)
+        or type(report.get("output_gate")) is not int
         or report["output_gate"] != 0
         or report.get("new_training_or_parameter_tuning") is not False):
         raise ValueError("FAIL CLOSED: report provenance or zero gate mismatch")
