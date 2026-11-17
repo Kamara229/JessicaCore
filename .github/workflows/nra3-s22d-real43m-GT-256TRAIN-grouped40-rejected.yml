@@ -1,0 +1,118 @@
+name: NRA3 S22d 256 new TRUE43M GT TRAIN graph 40fold lexical syntax
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s22c-256-physical-shards-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s22d-true43m-GT-256-40fold-TRAINonly
+  cancel-in-progress: true
+jobs:
+  learned_fivehead_original43m_GT_train256_grouped40:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONHASHSEED: '320256'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify original true43M parent 616 J7, source SHA and separate new256 TRAIN shards
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44189739539 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44191302703 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44128707585 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44136205007 --jq .conclusion)" = success
+          echo TRUE43M_GT_CPU_256_TRAIN_ONLY_SHARDS_LOCKED
+      - name: Install original CPU-only physical FP16 training dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Verify grouped 40-fold strict TRAIN-only source and physical graph head guards
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s19.test_s19g_paid_event_graph research.nra3_s20.test_s22_counterfactual_train256_contract research.nra3_s20.test_s22c_real43m_new256_source_separation research.nra3_s20.test_s22d_grouped40_training_contract
+      - name: Download REAL original43M/GT CPU new256 only; no prior spent EVAL
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s22c-TRUE43M-GT-256-TRAIN-raw338-and-gold-separated-40fold
+          run-id: 44191302703
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s22c
+      - name: Download original frozen S19d 9332 FP16 grammar/context source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s19d-TRUE43M-GT-9332paidFP16-context-event-TRAIN96-internalCV-no-EVAL
+          run-id: 44128707585
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s19d
+      - name: Train fixed graph-head optimizer 40 grouped lexical/syntax TRAIN folds, full paid FP16
+        run: |
+          python -m research.nra3_s20.s22d_train256_grouped40_true43m_graph \
+            --features inputs/nra3_s22c/S22C_REAL43M_GT_NEW256_RAWONLY_WORD338.safetensors \
+            --gold inputs/nra3_s22c/S22C_256_SYNTHETIC_EVENT_GRAPH_TARGETS_TRAIN_ONLY.safetensors \
+            --manifest inputs/nra3_s22c/S22C_REAL43M_GT_NEW256_RAWONLY_AND_TRAIN_GOLD_SEPARATE_REPORT.json \
+            --s19d-parent inputs/nra3_s19d/NRA3_S19D_TRUE43M_GT_CONTEXT_SCOPE_GRAMMAR_AND_EVENT_TRAINONLY_FP16.n3s19d \
+            --out results/nra3_s22d
+      - name: Verify real full FP16 model payment, group TRAIN holdout but NO independent EVAL or LIVE
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from research.nra3_s19.s19g_paid_semantic_graph import (
+              PaidSemanticEventGraph,full_parameter_count,semantic_parameter_count)
+          from research.nra3_s20.s22_new256_counterfactual_train_graph_source import FROZEN_S22_TRAIN256_SHA256
+          root=Path("results/nra3_s22d")
+          m=json.loads((root/"NRA3_S22D_REAL43M_GT_TRAIN256_GROUPED40_DIAGNOSTICS.json").read_text())
+          assert m["source_256_synthetic_graph_SHA256"]==FROZEN_S22_TRAIN256_SHA256
+          assert m["true_frozen_original43M_GT_from_source_S22b"]
+          assert m["true_physical_256_SHAlocked_separate_model_vs_gold_S22c"]
+          assert m["protected_original_616_J7_digest_unchanged_at_source_capture_ONLY"]
+          assert m["original_S19d_grammar_context_9332_FP16_frozen_sha"]=="928f735a2018604db2ffe649799778df3805162b79a989a36e282dc3cb61c774"
+          assert m["optimizer_scope"]=="ONLY_SEMANTIC_HEAD_3049_FP16"
+          assert m["full_physical_FP16_parameters"]==12381
+          assert m["frozen_parent_FP16_parameters"]==9332 and m["trainable_graph_FP16_parameters"]==3049
+          assert len(m["all40_fixed_TRAIN_internal_folds"])==40
+          assert all(z["held_rows_never_in_gradient_checkpoint_or_model_selection"] for z in m["all40_fixed_TRAIN_internal_folds"])
+          assert all(z["original_true43M_GT_grammar_context_parent_frozen"] for z in m["all40_fixed_TRAIN_internal_folds"])
+          assert m["no_EVAL32_EVAL128_or_prior_spent_EVAL"]
+          assert m["synthetic_TRAIN_template_generalization_only_not_real_language_understanding"]
+          assert m["no_active_candidate_616_J7_certification"]
+          assert m["no_all_in_bpp_le07_certification"] and m["no_full_CPU_ge90pct_CB59_certification"]
+          assert m["NRA2_live_event_graph_decoder_bridge_not_connected"]
+          assert m["output_gate"]==0 and not m["candidate_accepted"] and not m["activation_allowed"]
+          path=root/m["physical_FP16_filename"]
+          physical=path.read_bytes()
+          assert hashlib.sha256(physical).hexdigest()==m["physical_FP16_candidate_SHA256"]
+          model=PaidSemanticEventGraph.from_physical(physical)
+          assert full_parameter_count(model)==12381 and semantic_parameter_count(model)==3049
+          for axis in ("lexical_8fold_TRAIN_internal_NOT_independent",
+                       "syntax_32fold_TRAIN_internal_NOT_independent"):
+              assert set(m[axis])=={"event","directed_role","argument_polarity","coreference","event_relation","rejected_specific"}
+              for task,z in m[axis].items():
+                  assert 0<= (z["F1"] if task=="rejected_specific" else z["TRAIN_INTERNAL_grouped_micro_F1_NOT_independent"]) <=1
+          assert m["lexical_8fold_TRAIN_internal_NOT_independent"]["rejected_specific"]["held_REJECTED_positive_support"]==32
+          assert m["syntax_32fold_TRAIN_internal_NOT_independent"]["rejected_specific"]["held_REJECTED_positive_support"]==32
+          print("S22D_REAL_CPU_REJECTED_CLASS",m["syntax_32fold_TRAIN_internal_NOT_independent"]["rejected_specific"])
+          print("S22D_REAL_CPU_LEX_GROUP",m["lexical_8fold_TRAIN_internal_NOT_independent"])
+          print("S22D_REAL_CPU_SYNTAX_GROUP",m["syntax_32fold_TRAIN_internal_NOT_independent"])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s22d-REAL43M-GT-256TRAIN-40fold-12381FP16-5heads-noEVAL
+          path: results/nra3_s22d/
+          if-no-files-found: error
+          retention-days: 30
