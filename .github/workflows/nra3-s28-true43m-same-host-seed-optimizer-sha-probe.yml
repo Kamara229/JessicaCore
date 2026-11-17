@@ -58,7 +58,7 @@ jobs:
           run-id: 44128707585
           github-token: ${{ github.token }}
           path: inputs/s19d
-      - name: Run same-host repeated 0/1/5/40 real original43M prefix steps, no held TRAIN8 or independent EVAL
+      - name: Run same-host repeated 0/1/5/40/240 real original43M prefix steps, no held TRAIN8 or independent EVAL
         run: |
           python -m research.nra3_s20.s28_real43m_trainonly_determinism_probe \
             --features inputs/s22c/S22C_REAL43M_GT_NEW256_RAWONLY_WORD338.safetensors \
@@ -77,7 +77,7 @@ jobs:
           assert data["frozen_real_9332_FP16_S19d_SHA256"]=="928f735a2018604db2ffe649799778df3805162b79a989a36e282dc3cb61c774"
           assert data["fixed_predeclared_fold"]==33 and data["TRAIN_side_rows"]==248
           assert data["completely_held_synthetic_TRAIN_rows_NOT_used_in_training"]==8
-          assert [x["prefix_steps"] for x in data["tests"]]==[0,1,5,40]
+          assert [x["prefix_steps"] for x in data["tests"]]==[0,1,5,40,240]
           assert data["no_independent_EVAL_or_original_616_J7_replay"]
           assert data["no_original43M_GT_or_live_model_training"]
           assert data["LIVE_Render_Supabase_Jessica_APK_unchanged"]
@@ -85,15 +85,20 @@ jobs:
           assert data["torch_num_threads"]==1
           assert data["output_gate"]==0 and not data["candidate_accepted"] and not data["activation_allowed"]
           for row in data["tests"]:
+            assert row["same_runner_initial_head_equal"]
+            assert row["same_runner_post_steps_head_FP16_equal"]
+            assert row["same_runner_post_steps_canonical_paid_FP16_equal"]
+            assert row["post_steps_fp32_difference"]["fp32_all_equal"]
             print("S28_SHA_PROBE_RESULT",row["prefix_steps"],
                   "init",row["same_runner_initial_head_equal"],
                   "post",row["same_runner_post_steps_full_FP16_equal"],
                   "FP32_DIFF",row["post_steps_fp32_difference"]["number_of_differing_parameters"],
+                  "CANONICAL_EQUAL",row["same_runner_post_steps_canonical_paid_FP16_equal"],
                   flush=True)
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: nra3-s28-REAL43M-GT-fold33-0-1-5-40-TRAIN-prefix-SHA-only
+          name: nra3-s28-REAL43M-GT-fold33-0-1-5-40-240-TRAIN-canonical-vs-serializer-SHA
           path: results/nra3_s28/
           if-no-files-found: error
           retention-days: 30
