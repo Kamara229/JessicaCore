@@ -95,6 +95,17 @@ class PartialLedgerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "family truth balance"):
             checked(payload)
 
+    def test_truth_slice_yes_no_counts_fail_closed(self):
+        for key, field, value in (("true_yes", "yes", 31),
+                                  ("true_yes", "no", 1),
+                                  ("true_no", "yes", 1),
+                                  ("true_no", "no", 31)):
+            with self.subTest(slice=key, field=field):
+                payload = fixture()
+                payload["all_and_family_yes_no_accuracy"][key][field] = value
+                with self.assertRaisesRegex(ValueError, "truth-slice yes/no population mismatch"):
+                    checked(payload)
+
     def test_empty_sparse_rows_remain_unknown(self):
         result = checked(fixture())
         self.assertEqual(result["omitted"], 64)
