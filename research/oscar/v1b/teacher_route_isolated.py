@@ -410,7 +410,7 @@ def run(a):
         teacher_first_after=actual["teacher_first_matches_teacher_route_after"],
         bpp_nominal=physical["nominal_43M_bpp"],
         bpp_conservative=physical["conservative_excluding_untrained_generated_growth_bpp"],
-        456_128_J7_not_rerun=True,
+        original_J7_456_128_not_rerun=True,
         independent_heldout_QA_not_run=True,
         quality_accepted=False)
 
