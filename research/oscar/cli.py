@@ -94,24 +94,24 @@ def run(args):
        "encoder":enc.report,
     }
     report=out/"OSCAR_COMPILER_SOURCE_PROVENANCE_AND_PHYSICAL_BUDGET.json"
-    prior_size=-1
-    for _ in range(32):
-        report.write_text(json.dumps(summary,indent=2,ensure_ascii=False,
-                            sort_keys=True)+"\n",encoding="utf8")
-        size=report.stat().st_size
-        total=len(physical)+size
-        summary["all_in_nominal_bpp"]=8*total/n
-        summary["all_in_conservative_bpp"]=8*total/denom
-        summary["under_budget_core_only"]=8*total/n<=args.max_bpp
-        summary["under_budget_conservative_core_only"]=8*total/denom<=args.max_bpp
-        if size==prior_size:break
-        prior_size=size
-    else: raise AssertionError("Oscar physical JSON manifest failed stable byte accounting")
-    report.write_text(json.dumps(summary,indent=2,ensure_ascii=False,
-                      sort_keys=True)+"\n",encoding="utf8")
-    if (report.stat().st_size!=prior_size or
-        len(physical)+report.stat().st_size !=total):
-        raise AssertionError("Oscar physical source size and provenance manifest differ")
+    # Charge a deterministic fully physical manifest, including its own
+    # reported size; reserve 1KB to avoid float/decimal-length oscillation.
+    initial=(json.dumps(summary,indent=2,ensure_ascii=False,
+                        sort_keys=True)+"\n").encode("utf-8")
+    charged_size=len(initial)+1024
+    total=len(physical)+charged_size
+    summary["all_in_nominal_bpp"]=8*total/n
+    summary["all_in_conservative_bpp"]=8*total/denom
+    summary["under_budget_core_only"]=8*total/n<=args.max_bpp
+    summary["under_budget_conservative_core_only"]=8*total/denom<=args.max_bpp
+    summary["physically_paid_manifest_bytes"]=charged_size
+    physical_json=(json.dumps(summary,indent=2,ensure_ascii=False,
+                              sort_keys=True)+"\n").encode("utf-8")
+    if len(physical_json)>charged_size:
+        raise AssertionError("Oscar CLI physically reserved manifest bytes inadequate")
+    report.write_bytes(physical_json+b" "*(charged_size-len(physical_json)))
+    if len(physical)+report.stat().st_size!=total:
+        raise AssertionError("Oscar CLI physical source and full JSON manifest not counted")
     if args.require_conservative_pass and not summary["under_budget_conservative_core_only"]:
         raise SystemExit("Oscar conservative physical bpp exceeded "+str(args.max_bpp))
     print(json.dumps({
