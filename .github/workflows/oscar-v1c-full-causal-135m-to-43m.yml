@@ -1,0 +1,108 @@
+name: OSCAR v1C pretrained independent 135M FP32 full-causal-sequence teacher with isolated 43M GT12
+'on':
+  push:
+    branches:
+      - 'research/oscar-v1c-full-sequence-gt12-20261117'
+    paths:
+      - 'research/oscar/v1c/**'
+      - '.github/workflows/oscar-v1c-full-causal-135m-to-43m.yml'
+  workflow_dispatch:
+concurrency:
+  group: oscar-v1c-original-S142-unchanged-causal-sequence
+  cancel-in-progress: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real_independent_135M_FP32_teacher_full_8token_causal_KV_43M_GT12:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '431171'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned real FP32 external pretrained teacher and original Calibri CB61 neural weights CPU runtime
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Original Oscar v0 independent source/integrity and 12layer GT physical source contract tests
+        run: |
+          python -m compileall -q research/oscar/v1c/
+          python -m unittest oscar.test_encoder -v
+          python -m unittest calibri2.s132.test_growth_schedule calibri2.s142.test_dual_cone_adam -v
+      - name: Original S142 physically authentic trained 43.26M 12layer actual source and GT weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          run-id: 43078895081
+          path: input/s142
+          github-token: ${{ github.token }}
+      - name: Original S93 trained 12x320 CB61 source with real GT3 and GT9
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          run-id: 42681768394
+          path: input/s93
+          github-token: ${{ github.token }}
+      - name: Original physically verified S94 profile bank
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s94-unaccepted-lossless-three-profile-bank-456-TRAIN-feasibility
+          run-id: 42697267843
+          path: input/s94
+          github-token: ${{ github.token }}
+      - name: Original S95 trained prompt router
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s95-unaccepted-prompt-only-router-456-strict-CPU
+          run-id: 42698707784
+          path: input/s95
+          github-token: ${{ github.token }}
+      - name: Original S98 trained second-token source copier
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s98-unaccepted-MPS-neural-second-token-owner-copy-feasibility
+          run-id: 42704076897
+          path: input/s98
+          github-token: ${{ github.token }}
+      - name: Authenticated actually pretrained Oscar v1B full12 rank8 isolated FP16 teacher route
+        uses: actions/download-artifact@v4
+        with:
+          name: oscar-v1b-trained-FP32-teacher-isolated-rank8-GT12-original-43M-preserved
+          run-id: 44140306012
+          path: input/oscar_v1b
+          github-token: ${{ github.token }}
+      - name: REAL original pretrained 135M FP32 8-token KV sequence distillation 64 steps into preserved Oscar rank8 GT12
+        run: |
+          python research/oscar/v1c/full_causal_teacher_sequence.py \
+            input/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            input/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            input/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            input/s94/S94_ALTERNATE_EXACT_CORE_TUNNEL_BANK.bin \
+            input/s94/S94_PROFILE_BANK_FEASIBILITY_REPORT.json \
+            input/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            input/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            input/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
+            input/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
+            input/oscar_v1b/OSCAR_V1B_PRETRAINED_135M_TEACHER_NEW_ISOLATED_12LAYER_FP16.safetensors \
+            results/OSCAR_V1C_TRUE_FP32_135M_8token_KV_43M_GT12/
+      - name: Preserve full authentic original 135M teacher vs actually trained 43M FP16 model, negative full GT12 QA and physical rate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oscar-v1c-trained-FP32-135M-full-sequence-isolated-rank8-GT12-original-preserved
+          path: results/OSCAR_V1C_TRUE_FP32_135M_8token_KV_43M_GT12/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 90
