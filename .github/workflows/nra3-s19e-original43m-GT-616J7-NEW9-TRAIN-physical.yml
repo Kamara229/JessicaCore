@@ -361,6 +361,8 @@ jobs:
           run-id: 43343676818
           github-token: ${{ github.token }}
       - name: Verify immutable protected S194 parent and S19 source-only graph SHA before CPU
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/43345267876 --jq .conclusion)" = success
