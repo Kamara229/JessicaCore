@@ -13,9 +13,9 @@ jobs:
     timeout-minutes: 35
     env:
       PYTHONPATH: .:research:research/calibri
-      OMP_NUM_THREADS: '2'
-      OPENBLAS_NUM_THREADS: '2'
-      MKL_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
       PYTHONHASHSEED: '320256'
     steps:
       - uses: actions/checkout@v4
@@ -95,6 +95,7 @@ jobs:
           assert x["archived_fold33_baseline_REJECTED_TP"]==0
           assert x["archived_fold33_trial_REJECTED_TP"]==0
           assert x["fresh_refit_NOT_equivalent_to_historical_exact_fold"]
+          assert x["fresh_refit_one_CPU_thread_to_probe_concurrent_reduction_drift"]
           assert len(x["archived_fold33_S22d_SHA"])==64
           assert len(x["archived_fold33_S26_SHA"])==64
           assert len(x["fresh_refit_real_fold33_S22d_physical_sha256"])==64
