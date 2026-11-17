@@ -1,0 +1,64 @@
+name: OSCAR v1G original 42M FP32 teacher on real GT8 student-generated causal prefixes
+'on':
+  push:
+    branches:
+      - research/oscar-v1g-onpolicy-recurrent-gt8-20261117
+    paths:
+      - research/oscar/v1g/**
+      - .github/workflows/oscar-v1g-real-onpolicy-interlayer-gt.yml
+  workflow_dispatch:
+concurrency:
+  group: oscar-v1g-original42m-real-fp32-onpolicy-GT
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  independent_original_FP32_42M_onpolicy_8layer_GreenTunnel:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '421919'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install original CPU pretrained model and all required research libraries
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'pandas==2.2.3' 'pyarrow==17.0.0' 'datasets==2.21.0' 'python-dateutil==2.9.0.post0' 'huggingface_hub==0.27.1' 'transformers==4.46.3' 'safetensors==0.4.5' 'sentencepiece==0.2.0' 'protobuf==5.28.3' 'accelerate==1.1.1'
+      - name: Verify original Oscar source codec, trusted original 8layer LLaMA, and Green Tunnel carry/grad/physical ABI
+        run: |
+          python -m compileall -q research/oscar/v1g/
+          python -m unittest oscar.test_encoder oscar.v1e.test_safe_pretrained_llama oscar.v1f.test_green_tunnel oscar.v1g.test_real_onpolicy -v
+      - name: Download EXACT successful v1F independently pretrained source and physically trained rank32 original 8layer GT-only
+        uses: actions/download-artifact@v4
+        with:
+          name: oscar-v1f-real-42M-original-FP32-recurrent-GT8-r32-head-r8-actual
+          run-id: 44157008799
+          path: input/original_v1f
+          github-token: ${{ github.token }}
+      - name: TRUE original independently pretrained FP32 teacher on actual recursively generated student prefixes through all 8 Green Tunnel layers
+        run: |
+          python research/oscar/v1g/real_onpolicy_gt8.py \
+            input/original_v1f/OSCAR_V1F_ACTUAL_PRETRAINED_42M_SOURCE_ONLY_COLD.cb59 \
+            input/original_v1f/OSCAR_V1F_REAL_PAID_RUNTIME_SOURCE/OSCAR_V1F_REAL_INDEPENDENT_42M_FP32_ENCODED_CORE.cb61 \
+            input/original_v1f/OSCAR_V1F_GT_ONLY_EXPLORATORY_RESEARCH_RUNTIME/OSCAR_V1F_FULL8_ONLY_R32_FP16.safetensors \
+            results/OSCAR_v1G_original42M_FP32_student_prefix_GT8/
+      - name: Preserve full authentic original 42M onpolicy interlayer Green Tunnel experiment, actual source and new FP16 sidecar, and complete original teacher comparisons
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oscar-v1g-real-42M-FP32-onpolicy-GT8-original-source-frozen
+          path: results/OSCAR_v1G_original42M_FP32_student_prefix_GT8/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 90
