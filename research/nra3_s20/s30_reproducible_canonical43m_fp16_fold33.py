@@ -314,7 +314,8 @@ def main():
               "S26_REJECTED_delta_logit":round(x["actual_S26_delta_REJECTED_polarity_logit"],3),
           } for x in report["per_example_error_evidence"]],ensure_ascii=False),flush=True)
     print("S30_CANONICAL_NUMERIC_FP16_FOLD33_INVERSION_CONFIRMED",
-          json.dumps({"S22d_rejected_TP":before,"S26_rejected_TP":after,
+          json.dumps({"S22d_rejected_TP":report["preposed_polarity_TP_baseline"],
+                      "S26_rejected_TP":report["preposed_polarity_TP_trial"],
                       "S22d_correct_RECIPIENT":report["held_8_TRAlN_only_roles_predicted_RECIPIENT_baseline"],
                       "S26_correct_RECIPIENT":report["held_8_TRAIN_only_roles_predicted_RECIPIENT_trial"],
                       "S26_rejected_probability_range":report["held_8_TRAIN_only_trial_REJECTED_probability_range"]},sort_keys=True),flush=True)
