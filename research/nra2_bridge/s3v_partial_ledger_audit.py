@@ -66,7 +66,7 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
         or type(metrics.get("yes")) is not int or metrics["yes"] != 32
         or type(metrics.get("no")) is not int or metrics["no"] != 32):
         raise ValueError("FAIL CLOSED: preregistered population mismatch")
-    records = report["disagreement_or_error_cases"]
+    records = report.get("disagreement_or_error_cases")
     if not isinstance(records, list) or len(records) > N:
         raise ValueError("FAIL CLOSED: invalid sparse record collection")
     seen = set()
