@@ -32,16 +32,17 @@ jobs:
       - name: Install safe FP32 checkpoint loader and CPU torch
         run: |
           python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
-          python -m pip install 'numpy==1.26.4' 'huggingface_hub==0.27.1'
-      - name: Original independent third-party pretrained 42M FP32 safely loaded, checkpoint pinned and actually counted
+          python -m pip install 'numpy==1.26.4' 'huggingface_hub==0.27.1' 'transformers==4.46.3' 'safetensors==0.4.5' 'sentencepiece==0.2.0' 'protobuf==5.28.3' 'accelerate==1.1.1'
+      - name: Safe original pretrained 41.69M FP32 model, independent Oscar 5bit compressed authentic paired inference and physical size
         run: |
           python -m compileall -q research/oscar/v1e
-          python research/oscar/v1e/audit_checkpoint.py results/oscar_v1e_public_pretrained_42m/
-      - name: Preserve actual independently pretrained FP32 checkpoint SHA and source shape manifest
+          python -m unittest oscar.test_encoder oscar.v1e.test_safe_pretrained_llama -v
+          python research/oscar/v1e/independent42m_vs_compressed.py results/oscar_v1e_public_pretrained_42m/
+      - name: Preserve full external original pretrained FP32 provenance, independently reencoded original 42M CB59/CB61, token/hidden/logit quality and failure
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: oscar-v1e-real-independent-pretrained-42M-FP32-original-checkpoint-audit
+          name: oscar-v1e-original-pretrained-42M-FP32-direct-CB59-vs-actual-generation
           path: results/oscar_v1e_public_pretrained_42m/
           if-no-files-found: warn
           retention-days: 90
