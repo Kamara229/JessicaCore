@@ -128,6 +128,21 @@ class PartialLedgerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             checked(payload)
 
+    def test_distinct_indices_cannot_reuse_prompt_hash(self):
+        # Distinct S3T prompts must not share a committed prompt identity.
+        payload = fixture()
+        rows = []
+        for index in (0, 1):
+            rows.append({
+                "index": index, "family": "chain", "gold_yes": True,
+                "soft_correct": False, "hard_correct": True,
+                "source_correct": True, "target_correct": True,
+                "prompt_sha256": "A" * 64 if index == 0 else "a" * 64,
+            })
+        payload["disagreement_or_error_cases"] = rows
+        with self.assertRaisesRegex(ValueError, "FAIL CLOSED: duplicate sparse prompt SHA256"):
+            checked(payload)
+
     def test_duplicate_sparse_index_rejected(self):
         payload = fixture()
         row = {"index": 0, "soft_correct": False, "hard_correct": False,
