@@ -28,7 +28,7 @@ FAMILY_COUNT = 8
 PATTERN_COUNT = 32
 # Filled only after source-generation CI reports the real canonical SHA.
 # A follow-up commit must pin it and rerun CI before downstream use.
-FROZEN_S22_TRAIN256_SHA256 = ""
+FROZEN_S22_TRAIN256_SHA256 = "8963e2e8758b1c6a6fbd28eb597a77be1a454d732d0ecac93df6f5a753f6a361"
 
 @dataclass(frozen=True)
 class Lexicon:
