@@ -278,13 +278,13 @@ def main():
         full_metrics=source_only_counts(full_logits,y,valid)
         full_rare=rejected_specific_counts(full_logits,y,valid)
     args.out.mkdir(parents=True,exist_ok=False)
-    name="NRA3_S22D_TRUE43M_GT_TRAIN256_GROUPED20_EVENT_GRAPH_12381_FP16.n3s22d"
+    name="NRA3_S22D_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12381_FP16.n3s22d"
     (args.out/name).write_bytes(paid)
     require((args.out/name).read_bytes()==paid
             and PaidSemanticEventGraph.from_physical(paid).head_physical()==trained.head_physical(),
             "final physical FP16 candidate failed roundtrip")
     record={
-        "stage":"NRA3_S22D_REAL43M_GT_NEW256_SYNTHETIC_TRAIN_ONLY_GROUPED20_GRAPH",
+        "stage":"NRA3_S22D_REAL43M_GT_NEW256_SYNTHETIC_TRAIN_ONLY_GROUPED40_GRAPH",
         "true_frozen_original43M_GT_from_source_S22b":True,
         "true_physical_256_SHAlocked_separate_model_vs_gold_S22c":True,
         "protected_original_616_J7_digest_unchanged_at_source_capture_ONLY":True,
@@ -316,11 +316,11 @@ def main():
         "candidate_accepted":False,
         "activation_allowed":False,
     }
-    (args.out/"NRA3_S22D_REAL43M_GT_TRAIN256_GROUPED20_DIAGNOSTICS.json").write_text(
+    (args.out/"NRA3_S22D_REAL43M_GT_TRAIN256_GROUPED40_DIAGNOSTICS.json").write_text(
         json.dumps(record,sort_keys=True,ensure_ascii=False,indent=2)+"\n",
         encoding="utf-8")
     print("S22D_TRAIN_INTERNAL_LEXICAL_8FOLD",json.dumps(lexical,sort_keys=True),flush=True)
-    print("S22D_TRAIN_INTERNAL_SYNTAX_12FOLD",json.dumps(syntax,sort_keys=True),flush=True)
+    print("S22D_TRAIN_INTERNAL_SYNTAX_32FOLD",json.dumps(syntax,sort_keys=True),flush=True)
     print("S22D_TRUE43M_FP16_SHA",record["physical_FP16_candidate_SHA256"],flush=True)
 
 
