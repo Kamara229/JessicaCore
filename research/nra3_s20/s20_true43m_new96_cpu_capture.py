@@ -22,7 +22,7 @@ from research.nra3_s20.s20_original43m_raw_alignment import (
     align_s20_raw_train96, s20_train_texts,
 )
 from research.nra3_s20.s20_new96_synthetic_graph_train_source import (
-    train_only_manifest, FROZEN_S20_TRAIN966_SHA256,
+    train_only_manifest, FROZEN_S20_TRAIN96_SHA256,
 )
 from research.nra3_s5.frozen_layer8_read_port import FrozenLayer8ReadPort
 
@@ -37,12 +37,12 @@ def main():
         raise SystemExit("S20 requires full genuine original S194 CPU protected 616 J7 CLI")
     out = Path(argv[-1])
     if out.exists() and any(out.iterdir()):
-        raise FileExistsError("S20 will not overwrite original S19 TRAIN96 CPU features")
+        raise FileExistsError("S20 will not overwrite original S20 TRAIN96 CPU features")
     if sys.platform != "linux" or torch.cuda.is_available():
         raise RuntimeError("S20 genuine original43M capture only on Linux CPU")
     texts=s20_train_texts()
     manifest=train_only_manifest()
-    if len(texts)!=96 or manifest["source_sha256"]!=FROZEN_S20_TRAIN966_SHA256:
+    if len(texts)!=96 or manifest["source_sha256"]!=FROZEN_S20_TRAIN96_SHA256:
         raise AssertionError("S20 requires sealed NEW96 synthetic TRAIN source")
     # Only raw text enters the original Calibri tokenizer and forward.
     # Human graph gold never enters any neural input or feature tensor.
@@ -172,7 +172,7 @@ def main():
     } for q,aligned in zip(texts,alignments)]
     report = {
         "stage":"NRA3_S20_TRUE_ORIGINAL43M_GT_LAYER8_CPU_NEW96_SYNTHETIC_TRAIN_ONLY",
-        "S20_NEW96_TRAIN_GRAPH_SOURCE_SHA256":FROZEN_S20_TRAIN966_SHA256,
+        "S20_NEW96_TRAIN_GRAPH_SOURCE_SHA256":FROZEN_S20_TRAIN96_SHA256,
         "S20_SOURCE_ONLY_CI_RUN_ID":44177574160,
         "S194_ORIGINAL_616_J7_BASELINE_PARENT_RUN_ID":43345267876,
         "S194_ORIGINAL_CHECKPOINT_SHA256":fp16_src,
