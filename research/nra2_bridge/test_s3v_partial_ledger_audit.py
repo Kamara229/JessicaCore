@@ -61,6 +61,12 @@ class PartialLedgerTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "FAIL CLOSED: missing or malformed producer metrics"):
                     checked(payload)
 
+    def test_missing_sparse_collection_fails_closed(self):
+        payload = fixture()
+        del payload["disagreement_or_error_cases"]
+        with self.assertRaisesRegex(ValueError, "FAIL CLOSED: invalid sparse record collection"):
+            checked(payload)
+
     def test_unhashable_sparse_family_fail_closed(self):
         payload = fixture()
         payload["disagreement_or_error_cases"] = [{
