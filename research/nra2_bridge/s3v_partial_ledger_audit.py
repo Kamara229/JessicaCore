@@ -174,7 +174,12 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
                                            ("source_correct", "correct_source"),
                                            ("target_correct", "correct_destination")):
                 observed = sum(r[row_key] for r in subset)
-                if not observed <= producer[aggregate_key] <= observed + missing:
+                if row_key in ("soft_correct", "hard_correct"):
+                    # S3V emits every incorrect binary answer; omitted rows
+                    # must therefore be correct for both answer variants.
+                    if producer[aggregate_key] != observed + missing:
+                        raise ValueError("FAIL CLOSED: sparse family/truth answer count mismatch")
+                elif not observed <= producer[aggregate_key] <= observed + missing:
                     raise ValueError("FAIL CLOSED: sparse family/truth aggregate mismatch")
     def bounds(field):
         correct = sum(bool(r[field]) for r in records)
