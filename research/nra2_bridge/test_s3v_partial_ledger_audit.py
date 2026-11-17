@@ -84,7 +84,7 @@ class PartialLedgerTests(unittest.TestCase):
         payload["disagreement_or_error_cases"] = [{
             "index": 0, "soft_correct": False, "hard_correct": True,
             "source_correct": False, "target_correct": False,
-            "prompt_sha256": "a" * 64,
+            "prompt_sha256": "a" * 64, "family": "chain", "gold_yes": True,
         }]
         metrics = payload["all_and_family_yes_no_accuracy"]["all"]
         metrics["soft_correct"] = 63
@@ -97,7 +97,7 @@ class PartialLedgerTests(unittest.TestCase):
         payload = fixture()
         row = {"index": 0, "soft_correct": False, "hard_correct": False,
                "source_correct": False, "target_correct": False,
-               "prompt_sha256": "b" * 64}
+               "prompt_sha256": "b" * 64, "family": "chain", "gold_yes": True}
         payload["disagreement_or_error_cases"] = [row, dict(row)]
         with self.assertRaises(ValueError):
             checked(payload)
@@ -109,7 +109,7 @@ class PartialLedgerTests(unittest.TestCase):
         payload["disagreement_or_error_cases"] = [{
             "index": 0, "soft_correct": True, "hard_correct": True,
             "source_correct": True, "target_correct": True,
-            "prompt_sha256": "c" * 64,
+            "prompt_sha256": "c" * 64, "family": "chain", "gold_yes": True,
         }]
         with self.assertRaises(ValueError):
             checked(payload)
@@ -157,12 +157,27 @@ class PartialLedgerTests(unittest.TestCase):
             checked(payload)
 
 
+    def test_sparse_wrong_family_truth_aggregate_rejected(self):
+        payload = fixture()
+        payload["disagreement_or_error_cases"] = [{
+            "index": 0, "family": "fork", "gold_yes": False,
+            "soft_correct": False, "hard_correct": True,
+            "source_correct": True, "target_correct": True,
+            "prompt_sha256": "e" * 64,
+        }]
+        slices = payload["all_and_family_yes_no_accuracy"]
+        # Aggregate says the sole soft failure belongs to chain/yes.
+        for key in ("all", "true_yes", "family_chain", "family_chain_yes"):
+            slices[key]["soft_correct"] -= 1
+        with self.assertRaisesRegex(ValueError, "sparse family/truth aggregate mismatch"):
+            checked(payload)
+
     def test_coherent_sparse_error_keeps_omitted_roles_unknown(self):
         payload = fixture()
         payload["disagreement_or_error_cases"] = [{
             "index": 0, "soft_correct": False, "hard_correct": True,
             "source_correct": False, "target_correct": True,
-            "prompt_sha256": "d" * 64,
+            "prompt_sha256": "d" * 64, "family": "chain", "gold_yes": True,
         }]
         slices = payload["all_and_family_yes_no_accuracy"]
         # One yes/chain example is wrong for soft and source only.
