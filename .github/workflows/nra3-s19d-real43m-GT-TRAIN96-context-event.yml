@@ -1,0 +1,127 @@
+name: NRA3 S19d true43M GT contextual event scope TRAIN96 CPU
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s19c-true43m-event-factuality-20261117
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s19d-true43m-context-only
+  cancel-in-progress: true
+jobs:
+  original43m_Green_Tunnel_context_scope_TRAIN96_only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONHASHSEED: '319104'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check immutable original43M/GT, physical S19b grammar and S19c local baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43910479658 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43934877964 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/44126483606 --jq .conclusion)" = success
+          echo ORIGINAL43M_GT_616J7_S19B_S19C_FROZEN_SOURCE_VERIFIED
+      - name: Install CPU source-only model dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Source only and synthetic scope invariants, no external EVAL
+        run: |
+          python -m compileall -q research/nra3_s19
+          python -m unittest -v research.nra3_s18.test_ru96_train_source research.nra3_s19.test_event_graph_contracts research.nra3_s19.test_s19b_compact_grammar research.nra3_s19.test_s19c_event_scope research.nra3_s19.test_s19d_contextual_scope
+      - name: Download genuine frozen original43M + GT CPU TRAIN96 hidden only
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s18b-TRUE43M-616J7-new96-TRAIN-postGT-layer8-goldfree-FP16
+          run-id: 43910479658
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s18b
+      - name: Download SHA-locked 6528-FP16 original S19b trained grammar
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s19b-TRUE43M-GT-96TRAIN-grouped12-physical-FP16-grammar-no-EVAL
+          run-id: 43934877964
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s19b
+      - name: Verify training source and existing physical parent before context optimizer
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,ast
+          from research.nra3_s18.real43m_train96_physical_source import checked_real_train96
+          from research.nra3_s19.paid_grammar_parser import load_paid_fp16_bytes,trainable_parameter_count
+          root=Path("inputs")
+          samples,report=checked_real_train96(
+            root/"nra3_s18b/NRA3_S18B_TRUE43M_GT_NEW_RU96_DIRECTED_HIDDEN320_FP16.safetensors",
+            root/"nra3_s18b/NRA3_S18B_TRUE43M_CPU_NEW96_TRAINONLY_J7_REPORT.json")
+          assert len(samples)==96 and report["all_616_native_CPU_generated_token_digests_unchanged"]
+          physical=(root/"nra3_s19b/NRA3_S19B_TRUE43M_GT_TRAIN96_WORD_GRAMMAR_ONLY_FP16.safetensors").read_bytes()
+          assert hashlib.sha256(physical).hexdigest()=="7341becd1693fa0de09d1bce8252e2f5f7a00ae96c255664112277b024bc3915"
+          assert trainable_parameter_count(load_paid_fp16_bytes(physical))==6528
+          source=Path("research/nra3_s19/s19d_train96_real43m_contextual_scope.py").read_text()
+          imports=[n.module or "" for n in ast.walk(ast.parse(source)) if isinstance(n,ast.ImportFrom)]
+          assert not any(z in name for name in imports for z in ("s18c6","s18c7","nra3_s17","nra3_s15","nra3_s12"))
+          assert not any((root/p).exists() for p in ("EVAL32","EVAL128","nra3_s18c7","nra3_s15","s3ci"))
+          print("TRUE43M_GT_96TRAIN_CONTEXT_FROZEN_FP16_ONLY_NO_SPENT_EVAL")
+          PY
+      - name: TRAIN-only fixed contextual scope head and fresh train-side grammar in 12 source group folds
+        run: |
+          python -m research.nra3_s19.s19d_train96_real43m_contextual_scope \
+            --s18b-hidden inputs/nra3_s18b/NRA3_S18B_TRUE43M_GT_NEW_RU96_DIRECTED_HIDDEN320_FP16.safetensors \
+            --s18b-report inputs/nra3_s18b/NRA3_S18B_TRUE43M_CPU_NEW96_TRAINONLY_J7_REPORT.json \
+            --s19b-full-grammar inputs/nra3_s19b/NRA3_S19B_TRUE43M_GT_TRAIN96_WORD_GRAMMAR_ONLY_FP16.safetensors \
+            --out results/nra3_s19d
+      - name: Verify complete FP16 source, no LIVE, no EVAL reuse, no unsupported quality claims
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          from research.nra3_s19.s19d_paid_contextual_scope import PaidContextualEventScope,EXTRA_PARAMETERS
+          root=Path("results/nra3_s19d")
+          m=json.loads((root/"NRA3_S19D_TRUE43M_GT_TRAIN96_CONTEXTUAL_SCOPE_REPORT.json").read_text())
+          assert len(m["train_only_folds"])==12
+          assert m["S19b_full_train_frozen_grammar_sha"]=="7341becd1693fa0de09d1bce8252e2f5f7a00ae96c255664112277b024bc3915"
+          assert m["grammar_6528_FP16_parameters"]==6528
+          assert m["context_2804_paid_FP16_parameters"]==EXTRA_PARAMETERS==2804
+          assert m["combined_9332_FP16_parameters"]==9332
+          assert m["NO_consumed_EVAL32_EVAL128_S17c_S15c_S12c_reused"]
+          assert m["all_predicates_and_status_predicted_without_gold"]
+          assert m["S19_train9_new_human_event_source_not_captured_on_true43M"]
+          assert m["strict_online_word_causality_NOT_PROVEN"]
+          assert m["candidate_active_616_J7_NOT_CERTIFIED"]
+          assert m["all_in_bpp_le07_NOT_CERTIFIED"]
+          assert m["full_CPU_ge90pct_CB59_NOT_CERTIFIED"]
+          assert m["output_gate"]==0 and m["candidate_accepted"] is False and m["activation_allowed"] is False
+          assert m["original_Calibri_GT_LIVE_Render_Supabase_Jessica_APK_unchanged"]
+          physical=(root/m["physical_filename"]).read_bytes()
+          assert hashlib.sha256(physical).hexdigest()==m["combined_FP16_SHA256"]
+          model=PaidContextualEventScope.from_physical(physical)
+          assert model.head_physical() and model.output_gate==0
+          for name in ("train_only_lexical_aggregate","train_only_syntax_aggregate"):
+            z=m[name]
+            assert z["all_raw_words"]==600 and z["event_gold_count"]==108
+            assert 0<=z["joint_predicate_factuality_micro_F1"]<=1
+          print("S19D_REAL_CPU_TRAIN_INTERNAL_LEX",m["train_only_lexical_aggregate"])
+          print("S19D_REAL_CPU_TRAIN_INTERNAL_SYNTAX",m["train_only_syntax_aggregate"])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s19d-TRUE43M-GT-9332paidFP16-context-event-TRAIN96-internalCV-no-EVAL
+          path: results/nra3_s19d/
+          if-no-files-found: error
+          retention-days: 30
