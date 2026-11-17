@@ -119,6 +119,39 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
             or not 0 <= no_slice[field] <= 32
             or yes_slice[field] + no_slice[field] != metrics[field]):
             raise ValueError("FAIL CLOSED: producer yes/no aggregates inconsistent")
+    # S3V producer emits four fixed families, each split by truth. Validate
+    # the full partition without reconstructing any omitted individual roles.
+    families = ("chain", "fork", "cycle_sink", "diamond")
+    additive = ("count", "yes", "no", "soft_correct", "hard_correct",
+                "correct_source", "correct_destination")
+    family_slices = []
+    for family in families:
+        parent = slices.get("family_" + family)
+        fy, fn = slices.get("family_" + family + "_yes"), slices.get("family_" + family + "_no")
+        if not all(isinstance(v, dict) for v in (parent, fy, fn)):
+            raise ValueError("FAIL CLOSED: missing S3V family/truth partition")
+        for key, obj, expected in ((family, parent, 16),
+                                   (family + "_yes", fy, 8),
+                                   (family + "_no", fn, 8)):
+            if type(obj.get("count")) is not int or obj["count"] != expected:
+                raise ValueError("FAIL CLOSED: family/truth population mismatch: " + key)
+            for field in additive[1:]:
+                v = obj.get(field)
+                if type(v) is not int or not 0 <= v <= expected:
+                    raise ValueError("FAIL CLOSED: malformed family aggregate: " + key)
+        if fy["yes"] != 8 or fy["no"] != 0 or fn["yes"] != 0 or fn["no"] != 8:
+            raise ValueError("FAIL CLOSED: family truth balance mismatch")
+        for field in additive:
+            if fy[field] + fn[field] != parent[field]:
+                raise ValueError("FAIL CLOSED: family yes/no aggregates inconsistent")
+        family_slices.append((parent, fy, fn))
+    for field in additive:
+        if sum(row[0][field] for row in family_slices) != metrics[field]:
+            raise ValueError("FAIL CLOSED: family totals inconsistent")
+        if sum(row[1][field] for row in family_slices) != yes_slice[field]:
+            raise ValueError("FAIL CLOSED: family yes totals inconsistent")
+        if sum(row[2][field] for row in family_slices) != no_slice[field]:
+            raise ValueError("FAIL CLOSED: family no totals inconsistent")
     def bounds(field):
         correct = sum(bool(r[field]) for r in records)
         return {"observed_correct": correct, "unknown": unknown,
