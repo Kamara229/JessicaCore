@@ -427,7 +427,31 @@ def run(args):
        "teacher_generated_full_sequence_quality_verified":False,
        "model_accepted":False,
     }
-    physical=physical_package(out,args,packed_source,new_route_path,summary)
+    # Runtime manifest is NOT an evaluation report or teacher-logit table:
+    # store all long training/debug evidence separately in artifact, with
+    # only a signed small receipt inside the *physically paid* model.
+    runtime_attestation={
+       "stage":"Oscar v1C real 135M pretrained FP32 full-token distillation",
+       "original_S142_SHA256":pre["actual_original_43M_SHA"],
+       "inherited_OSCAR_v1B_teacher_route_SHA256":V1B_SHA,
+       "new_teacher_route_FP16_SHA256":digest(new_route_path.read_bytes()),
+       "train_true_causal_FP32_steps":STEPS,
+       "trained_only_original_4_TRAIN_questions":TRAIN,
+       "original_default_S142_old8_full_outputs_unchanged":
+           summary["old_S142_8_full_generations_exactly_retained"],
+       "old_S142_6_of8_correct_preserved":protected,
+       "new_FP32_teacher_first_matches_on_preexposed_debug":
+           summary["real_pretrained_teacher_first_match_after"],
+       "new_FP32_teacher_full_matches_on_preexposed_debug":
+           summary["real_pretrained_teacher_full_EOS_match_after"],
+       "full_training_trace_and_8_debug_not_embedded_in_runtime":True,
+       "full_heldout_QA_not_run":True,
+    }
+    runtime_attestation["external_research_report_sha256"]=hashlib.sha256(
+        json.dumps(summary,sort_keys=True,ensure_ascii=False,
+                   default=str).encode("utf8")).hexdigest()
+    physical=physical_package(out,args,packed_source,new_route_path,
+                              runtime_attestation)
     summary["complete_physical_source_bpp"]={
        "original_43M_nominal":physical["nominal_43M_bpp"],
        "conservative_excluding_6p88M":physical[
