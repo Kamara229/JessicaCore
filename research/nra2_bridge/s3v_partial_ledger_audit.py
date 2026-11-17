@@ -114,6 +114,13 @@ def audit(raw: bytes, expected_sha256: str) -> dict:
     yes_slice, no_slice = slices.get("true_yes"), slices.get("true_no")
     if not isinstance(yes_slice, dict) or not isinstance(no_slice, dict):
         raise ValueError("FAIL CLOSED: missing original truth partition")
+    # Truth slices are defined by the gold label, not predicted answers.
+    # Additive consistency alone cannot detect mutually swapped yes/no counts.
+    if (type(yes_slice.get("yes")) is not int or yes_slice["yes"] != 32
+        or type(yes_slice.get("no")) is not int or yes_slice["no"] != 0
+        or type(no_slice.get("yes")) is not int or no_slice["yes"] != 0
+        or type(no_slice.get("no")) is not int or no_slice["no"] != 32):
+        raise ValueError("FAIL CLOSED: truth-slice yes/no population mismatch")
     for field in ("count", "correct_source", "correct_destination",
                   "soft_correct", "hard_correct"):
         if (type(yes_slice.get(field)) is not int
