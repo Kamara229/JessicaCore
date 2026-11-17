@@ -158,8 +158,11 @@ def exact_real_report_audit(report:dict, physical_sha:str):
         out={}
         for task in (*TASKS,REJECTED):
             source="REJECTED_specific_held_TRAIN" if task==REJECTED else "held_TRAIN_metrics"
-            counts=_counts([f[source] for f in section],source) if False else {
-                k:sum(f[source][k] for f in section) for k in ("TP","FP","FN")}
+            counts={
+                k:sum((f[source] if task==REJECTED else f[source][task])[k]
+                      for f in section)
+                for k in ("TP","FP","FN")
+            }
             actual=summary[task]
             required(all(actual[k]==counts[k] for k in ("TP","FP","FN")),
                      "pooled grouped metrics were not computed from fold counts")
