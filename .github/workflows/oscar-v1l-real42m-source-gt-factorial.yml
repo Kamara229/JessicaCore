@@ -1,0 +1,83 @@
+name: 'OSCAR v1L original FP32 42M factorial 5bit-source vs FIRST/LATER GT physical ablation'
+'on':
+  push:
+    branches:
+      - research/oscar-v1l-joint-physical-ablation-20261117
+    paths:
+      - research/oscar/v1l/**
+      - .github/workflows/oscar-v1l-real42m-source-gt-factorial.yml
+  workflow_dispatch:
+concurrency:
+  group: oscar-v1l-real-original42m-full2GT-factorial
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  independent_original_FP32_42M_factorial_source_vs_GT:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '421919'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install original CPU pretrained model and all required research libraries
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'pandas==2.2.3' 'pyarrow==17.0.0' 'datasets==2.21.0' 'python-dateutil==2.9.0.post0' 'huggingface_hub==0.27.1' 'transformers==4.46.3' 'safetensors==0.4.5' 'sentencepiece==0.2.0' 'protobuf==5.28.3' 'accelerate==1.1.1'
+      - name: Verify original Oscar source codec, trusted original 8layer LLaMA, and Green Tunnel carry/grad/physical ABI
+        run: |
+          python -m compileall -q research/oscar/v1l/
+          python -m unittest oscar.test_encoder oscar.v1e.test_safe_pretrained_llama oscar.v1f.test_green_tunnel oscar.v1g.test_real_onpolicy oscar.v1h.test_dual_phase oscar.v1k.test_joint_original_codebooks -v
+      - name: Download authenticated original v1F FP32 independent pretrained 42M source and FIRST-token Green Tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: oscar-v1f-real-42M-original-FP32-recurrent-GT8-r32-head-r8-actual
+          run-id: 44157008799
+          path: input/original_v1f
+          github-token: ${{ github.token }}
+      - name: Download authenticated later-token on-policy trained original 42M Green Tunnel v1G
+        uses: actions/download-artifact@v4
+        with:
+          name: oscar-v1g-real-42M-FP32-onpolicy-GT8-original-source-frozen
+          run-id: 44159025260
+          path: input/original_v1g
+          github-token: ${{ github.token }}
+      - name: Download VERIFIED original pretrained 42M v1K new 4matrix binary source and new two full8 Green Tunnels
+        uses: actions/download-artifact@v4
+        with:
+          name: oscar-v1k-real-original42M-joint-K32V8-codebook-two-GT
+          run-id: 44168224133
+          path: input/original_v1k
+          github-token: ${{ github.token }}
+      - name: REAL 42M independent pretrained FP32 36 public debug original/updated source vs old/updated first/later GT 6way FACTORIAL no training
+        run: |
+          python research/oscar/v1l/causal_source_gt_ablation.py \
+            input/original_v1f/OSCAR_V1F_ACTUAL_PRETRAINED_42M_SOURCE_ONLY_COLD.cb59 \
+            input/original_v1f/OSCAR_V1F_REAL_PAID_RUNTIME_SOURCE/OSCAR_V1F_REAL_INDEPENDENT_42M_FP32_ENCODED_CORE.cb61 \
+            input/original_v1f/OSCAR_V1F_GT_ONLY_EXPLORATORY_RESEARCH_RUNTIME/OSCAR_V1F_FULL8_ONLY_R32_FP16.safetensors \
+            input/original_v1g/OSCAR_V1G_REAL_42M_F32_ON_POLICY_GT_ONLY_R32_ALL8_FP16.safetensors \
+            input/original_v1k/OSCAR_V1K_PHYSICALLY_REPACKED_ORIGINAL42M_4SOURCE.cb59 \
+            input/original_v1k/OSCAR_V1K_PHYSICALLY_REPACKED_ORIGINAL42M_4SOURCE.cb61 \
+            input/original_v1k/OSCAR_V1K_JOINT_TRAINED_FULL8_FIRST_GT_FP16.safetensors \
+            input/original_v1k/OSCAR_V1K_JOINT_TRAINED_FULL8_LATER_GT_FP16.safetensors \
+            results/OSCAR_v1L_original42M_6way_source_GT_factory/
+      - name: Preserve REAL original pretrained FP32 42M 6way physical source/GT inference-only ablation, full 36 repeated gold and generated sequences and rate checks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oscar-v1l-real-original42M-six-way-paid-source-GT-ablation
+          path: results/OSCAR_v1L_original42M_6way_source_GT_factory/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 90
