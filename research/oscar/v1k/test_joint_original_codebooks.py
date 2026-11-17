@@ -50,8 +50,12 @@ class OriginalPhysicallyPaidSourceOnlyTests(unittest.TestCase):
         self.assertGreater(float(mod.center.grad.norm()),0)
         self.assertGreater(float(mod.log_scale.grad.norm()),0)
         with torch.no_grad():
-            mod.center.sub_(.1*mod.center.grad)
-            mod.log_scale.sub_(.1*mod.log_scale.grad)
+            # Normalized synthetic update large enough to survive actual
+            # FP16 physical rounding, regardless of random gradient scale.
+            mod.center.sub_(.12*mod.center.grad/
+                            mod.center.grad.norm().clamp_min(1e-12))
+            mod.log_scale.sub_(.12*mod.log_scale.grad/
+                               mod.log_scale.grad.norm().clamp_min(1e-12))
         self.assertGreater(mod.changed_fp16()["centroid_fp16_changed"],0)
         self.assertGreater(mod.changed_fp16()["row_scale_fp16_changed"],0)
         self.assertEqual(mod.changed_fp16()["5bit_codeword_indices_changed"],0)
