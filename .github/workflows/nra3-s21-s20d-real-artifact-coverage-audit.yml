@@ -1,0 +1,79 @@
+name: NRA3 S21 read-only actual S20d train holdout coverage audit
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s20d-real43m-96-grouped-training-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s21-s20d-real-artifact-readonly-audit
+  cancel-in-progress: true
+jobs:
+  s21_read_only_s20d_actual_artifact_support:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '320096'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require original frozen 43M 616 J7 capture plus actual S20d completed CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44179026651 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44179957027 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44180643254 --jq .conclusion)" = success
+          echo S21_ORIGINAL_FROZEN_616_J7_AND_S20D_COMPLETED_SOURCE_PINNED
+      - name: Install pinned S20d source-only imports (NO optimizer execution)
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Unit test source structural zero-shot and no invented performance
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s20_train96_source_contract research.nra3_s20.test_s21_actual_s20d_coverage_audit
+      - name: Download immutable REAL S20d physical FP16 and all20-fold report
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s20d-REAL43M-GT-96TRAIN-20fold-12381FP16-5heads-noEVAL
+          run-id: 44180643254
+          github-token: ${{ github.token }}
+          path: inputs/real_s20d
+      - name: Audit real completed S20d held TRAIN folds; NO new training or EVAL
+        run: |
+          python -m research.nra3_s20.s21_audit_s20d_fold_coverage \
+            --s20d-report inputs/real_s20d/NRA3_S20D_REAL43M_GT_TRAIN96_GROUPED20_DIAGNOSTICS.json \
+            --s20d-paid-model inputs/real_s20d/NRA3_S20D_TRUE43M_GT_TRAIN96_GROUPED20_EVENT_GRAPH_12381_FP16.n3s20d \
+            --out results/nra3_s21
+      - name: Confirm structural audit only with disabled output gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path("results/nra3_s21/NRA3_S21_S20D_20FOLD_REAL_ARTIFACT_SUPPORT_AUDIT.json").read_text())
+          assert m["S20d_completed_CI"]==44180643254
+          assert m["S20d_paid_12381_FP16_SHA256"]=="1c2564d488722228b15cd6db0c1486eb5f1ae4678b6826275c880e765a4f467d"
+          assert m["S20d_actual_completed_fold_count"]==20
+          assert m["structurally_unseen_relation_fold_count"]==1
+          assert m["S20_TRAIN_gold_rejected_role_count"]==16
+          assert m["no_new_optimizer_no_model_forward_no_new_accuracy_claim"]
+          assert m["no_old_or_new_independent_EVAL_access"]
+          assert m["NRA2_decoder_connection_not_attempted"]
+          assert m["output_gate"]==0 and not m["candidate_accepted"] and not m["activation_allowed"]
+          print("S21_REAL_S20D_AUDIT_PASS_READ_ONLY_NO_EVAL")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s21-REAL-S20d-20fold-source-support-readonly-NO-EVAL
+          path: results/nra3_s21/
+          if-no-files-found: error
+          retention-days: 30
