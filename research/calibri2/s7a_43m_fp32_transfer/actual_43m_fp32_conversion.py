@@ -415,7 +415,7 @@ def run(args):
         fresh_CB61_sha=digest(packed),
         full_physical_bpp=report["all_inclusive_recompressed_43M_bpp"],
         old_456_new128_retested=False,
-        135M_generalization_proven=False)
+        generalization_135M_proven=False)
 
 
 if __name__=="__main__":
