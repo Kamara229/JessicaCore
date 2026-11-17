@@ -1,0 +1,121 @@
+name: NRA3 S26 actual43M+GT predicted-event-gated inversion rescue matched40
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s25-preposed-real-raw-cues-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s26-real-original43m-40fold-scoped-rejection-noEVAL
+  cancel-in-progress: true
+jobs:
+  nra3_s26_fixed_40fold_scope_real43m_cpu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONHASHSEED: '320256'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin successful exact S22 physical raw and separate target SHA, S22d and S23 audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44189114971 44189739539 44191302703 44192186916 44193628871; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$id" --jq .conclusion)" = success
+          done
+          echo S26_SAME_REAL_ORIGINAL43M_GT_TRAIN256_AND_BASELINE_VALIDATED
+      - name: Install exact original CPU FP16 graph experiment dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Assert original S22d zero-residual parity, no oracle, physical FP16 plus event-pred role rescue
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s22_counterfactual_train256_contract research.nra3_s20.test_s22d_grouped40_training_contract research.nra3_s20.test_s26_event_grounded_inversion
+      - name: Real frozen 43M GT post-layer8 256 plaintext raw338 source with separately sealed graph TRAIN gold
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s22c-TRUE43M-GT-256-TRAIN-raw338-and-gold-separated-40fold
+          run-id: 44191302703
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s22c
+      - name: Actual S22d 40-fold original FP16 baseline model and fold report for exact matched comparison
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s22d-REAL43M-GT-256TRAIN-40fold-12381FP16-5heads-noEVAL
+          run-id: 44192186916
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s22d
+      - name: Frozen S19d 9332 FP16 original 43M GT grammar/context parent
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s19d-TRUE43M-GT-9332paidFP16-context-event-TRAIN96-internalCV-no-EVAL
+          run-id: 44128707585
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s19d
+      - name: Physically train only 3052 scope/semantic head params 240-step each on the same 40 strict TRAIN-internal folds
+        run: |
+          python -m research.nra3_s20.s26_train256_event_grounded_matched40 \
+            --features inputs/nra3_s22c/S22C_REAL43M_GT_NEW256_RAWONLY_WORD338.safetensors \
+            --gold inputs/nra3_s22c/S22C_256_SYNTHETIC_EVENT_GRAPH_TARGETS_TRAIN_ONLY.safetensors \
+            --manifest inputs/nra3_s22c/S22C_REAL43M_GT_NEW256_RAWONLY_AND_TRAIN_GOLD_SEPARATE_REPORT.json \
+            --s19d-parent inputs/nra3_s19d/NRA3_S19D_TRUE43M_GT_CONTEXT_SCOPE_GRAMMAR_AND_EVENT_TRAINONLY_FP16.n3s19d \
+            --baseline-s22d-report inputs/nra3_s22d/NRA3_S22D_REAL43M_GT_TRAIN256_GROUPED40_DIAGNOSTICS.json \
+            --baseline-s22d-model inputs/nra3_s22d/NRA3_S22D_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12381_FP16.n3s22d \
+            --out results/nra3_s26
+      - name: Verify physical 12384 FP16 exact SHA, paired holdouts, measured preposed REJECTED and no EVAL
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from research.nra3_s20.s26_predicted_event_inversion_rescue import EventGroundedInversionGraph
+          from research.nra3_s19.s19g_paid_semantic_graph import semantic_parameter_count,full_parameter_count
+          root=Path("results/nra3_s26")
+          m=json.loads((root/"NRA3_S26_REAL43M_GT_TRAIN256_GROUPED40_MATCHED_DIAGNOSTICS.json").read_text(encoding="utf-8"))
+          assert m["stage"]=="NRA3_S26_REAL43M_GT_NEW256_SYNTHETIC_TRAIN_ONLY_GROUPED40_GRAPH"
+          assert m["source_256_synthetic_graph_SHA256"]=="8963e2e8758b1c6a6fbd28eb597a77be1a454d732d0ecac93df6f5a753f6a361"
+          assert m["optimizer_scope"]=="ONLY_SEMANTIC_HEAD_3052_FP16"
+          assert m["original_S19d_grammar_context_9332_FP16_frozen_sha"]=="928f735a2018604db2ffe649799778df3805162b79a989a36e282dc3cb61c774"
+          assert m["trainable_graph_FP16_parameters"]==3052 and m["frozen_parent_FP16_parameters"]==9332
+          assert m["full_physical_FP16_parameters"]==12384
+          assert m["baseline_same_split_genuine_S22d_model_SHA"]=="bd56293aa6ada2411152f0ac528633315731c39de6e74a759704577defbadcbb"
+          assert len(m["all40_fixed_TRAIN_internal_folds"])==40
+          assert len(m["strictly_matched_S22d_vs_S26_40fold_TRAIN_internal_pairs"])==40
+          assert m["held_out_preposed_rejected_fold_pair"]["held_group_index"]==25
+          assert m["held_out_preposed_rejected_fold_pair"]["held_REJECTED_support"]==8
+          assert m["MODEL_NOT_SELECTED_ON_HELD_FOLDS"]
+          assert m["S25_genuine_real_CPU_preposed_8_negative_dative_confirmed"]
+          assert m["no_EVAL32_EVAL128_or_prior_spent_EVAL"]
+          assert m["NRA2_live_event_graph_decoder_bridge_not_connected"]
+          assert m["output_gate"]==0 and not m["candidate_accepted"] and not m["activation_allowed"]
+          p=root/m["physical_FP16_filename"]
+          raw=p.read_bytes()
+          assert hashlib.sha256(raw).hexdigest()==m["physical_FP16_candidate_SHA256"]
+          model=EventGroundedInversionGraph.from_physical(raw)
+          assert full_parameter_count(model)==12384 and semantic_parameter_count(model)==3052
+          assert not any(x.requires_grad for x in model.parameters())
+          print("S26_PAIRED_PREPOSED",json.dumps(m["held_out_preposed_rejected_fold_pair"],sort_keys=True),flush=True)
+          print("S26_GENUINE_PAIRED_COMPARISON",json.dumps({
+              k:m[k] for k in ("S22d_REJECTED_syntax_32fold_recall",
+                              "S26_REJECTED_syntax_32fold_recall",
+                              "S22d_relation_syntax_32fold_F1","S26_relation_syntax_32fold_F1",
+                              "S26_rejected_preposed_improved")},sort_keys=True),flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s26-REAL43M-GT-TRAIN256-40fold-12384FP16-event-inversion-ablation-noEVAL
+          path: results/nra3_s26/
+          if-no-files-found: error
+          retention-days: 30
