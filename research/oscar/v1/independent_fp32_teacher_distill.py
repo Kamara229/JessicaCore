@@ -62,7 +62,9 @@ def original_fp32_full_greedy(teacher,tok,question):
             break
         output.append(token)
         ids=torch.cat((ids,ids.new_tensor([[token]])),1)
-    return {"ids":output,"text":tok.decode(output,skip_special_tokens=True),
+    return {"ids":output,
+            "full_token_ids_with_EOS":output+([tok.eos_token_id] if eos else []),
+            "text":tok.decode(output,skip_special_tokens=True),
             "EOS":eos}
 
 
@@ -106,7 +108,7 @@ def score_teacher_vs_student(teacher,stu,tok,rows,copy,*,label):
           "CALIBRI43M_reloaded_generated_ids":generated,
           "CALIBRI43M_reloaded_text":tok.decode(generated,skip_special_tokens=True),
           "full_EOS_exact_original_135M_match":
-              generated==source["ids"] and not source["EOS"],
+              generated==source["full_token_ids_with_EOS"],
           "S142_original_43M_expected_gold":row["expected"],
           "protected_S142_old_full_EOS":generated==row["expected"],
           "teacher_FP32_first_token_id":teacher_first,
@@ -244,8 +246,8 @@ def run(args):
     try:
         old_results=score_teacher_vs_student(teacher,original,tok,rows,copy,
                                              label="BEFORE_ACTUAL_135M_DISTILLATION")
-        if not all(r["protected_S142_old_full_EOS"] for r in old_results):
-            raise AssertionError("Oscar v1 same-source learned 43M S142 baseline failed its 8 previously correct original TRAIN rows")
+        if sum(int(r["protected_S142_old_full_EOS"]) for r in old_results)!=6:
+            raise AssertionError("Oscar v1 original 43M S142 reference must reproduce its previously measured 6/8 gold TRAIN, NOT falsely claim 8/8")
     finally:
         original.close()
     student=Stack(archive,oscar.blob,s142,dense=False)
