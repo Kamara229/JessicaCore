@@ -108,10 +108,16 @@ def audit(args):
     new,pnew=train_trial(build_trial(frozen,EXPERIMENT_SEED+FOLD),trraw,trvalid,trgold)
     shaold=hashlib.sha256(pold).hexdigest()
     shanew=hashlib.sha256(pnew).hexdigest()
-    require(shaold==base_info["all40_fixed_TRAIN_internal_folds"][FOLD]["fold_paid_FP16_SHA256"],
-            "original S22d fold 33 physical FP16 mismatch")
-    require(shanew==trial_info["all40_fixed_TRAIN_internal_folds"][FOLD]["fold_paid_FP16_SHA256"],
-            "S26 matched fold 33 physical FP16 mismatch")
+    expected_old=base_info["all40_fixed_TRAIN_internal_folds"][FOLD]["fold_paid_FP16_SHA256"]
+    expected_new=trial_info["all40_fixed_TRAIN_internal_folds"][FOLD]["fold_paid_FP16_SHA256"]
+    print("S27_BASELINE_FOLD33_SHA_REPLAY",shaold,
+          "ORIGINAL_ACTUAL_RUN",expected_old,flush=True)
+    print("S27_S26_FOLD33_SHA_REPLAY",shanew,
+          "ORIGINAL_ACTUAL_RUN",expected_new,flush=True)
+    require(shaold==expected_old,
+            "original S22d fold 33 physical FP16 mismatch; no trusted pair-logit inference")
+    require(shanew==expected_new,
+            "S26 matched fold 33 physical FP16 mismatch; no trusted pair-logit inference")
     with torch.inference_mode():
         old_out=old(dvraw,dvvalid)
         new_out=new(dvraw,dvvalid)
