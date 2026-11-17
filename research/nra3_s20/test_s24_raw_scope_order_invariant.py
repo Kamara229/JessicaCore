@@ -71,7 +71,7 @@ class S24ScopedRejectionOnlyContracts(unittest.TestCase):
         self.assertNotIn("role_targets",s)
         self.assertNotIn("optimizer.step(",s)
         self.assertNotIn("from_pretrained",s)
-        self.assertNotIn("EVAL128",s[s.index("class ScopedRejectionGraph"):])
+        self.assertNotIn("EVAL128",s)
 
     def test_trained_residual_changes_only_rejected_logit_and_is_scope_local(self):
         torch.manual_seed(SEED)
