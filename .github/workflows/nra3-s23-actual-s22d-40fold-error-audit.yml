@@ -1,0 +1,79 @@
+name: NRA3 S23 actual S22d 40-fold synthetic TRAIN error audit (read-only)
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s22d-real256-grouped40-rejection-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s23-actual-s22d-fortyfold-error-audit-no-EVAL
+  cancel-in-progress: true
+jobs:
+  sha_verified_readonly_actual_40fold_audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '320023'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify S22d real 40-fold training CI and original S22b/S22c successes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 44189114971 44189739539 44191302703 44192186916; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          echo S23_OLD_REAL_43M_GT_AND_S22D_40FOLD_SUCCESS_LOCKED
+      - name: Validate read-only audit guards and strict synthetic TRAIN source
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s22_counterfactual_train256_contract research.nra3_s20.test_s23_actual_s22d_fold_error_audit
+      - name: Download only physical S22d full FP16 adapter and 40-fold diagnostics
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s22d-REAL43M-GT-256TRAIN-40fold-12381FP16-5heads-noEVAL
+          run-id: 44192186916
+          github-token: ${{ github.token }}
+          path: inputs/nra3_s22d
+      - name: Read-only physical SHA and all 40 held TRAIN folds without forward or optimizer
+        run: |
+          python -m research.nra3_s20.s23_real_s22d_40fold_failure_audit \
+            --report inputs/nra3_s22d/NRA3_S22D_REAL43M_GT_TRAIN256_GROUPED40_DIAGNOSTICS.json \
+            --model inputs/nra3_s22d/NRA3_S22D_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12381_FP16.n3s22d \
+            --out results/nra3_s23
+      - name: Validate physical audit summary and no independent EVAL claims
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path("results/nra3_s23/NRA3_S23_ACTUAL_S22D_40FOLD_STRUCTURAL_FAILURE_AUDIT.json")
+          m=json.loads(path.read_text(encoding="utf-8"))
+          assert m["stage"]=="NRA3_S23_REAL_S22D_SYNTH_TRAIN40_FOLD_DIAGNOSTIC_ONLY"
+          assert m["actual_S22d_run"]==44192186916
+          assert m["actual_S22d_FP16_sha256"]=="bd56293aa6ada2411152f0ac528633315731c39de6e74a759704577defbadcbb"
+          assert m["physical_FP16_verified_but_no_forward_or_optimizer"]
+          assert m["not_independent_evaluation"]
+          assert m["old_S20d_vs_S22d_not_a_matched_comparison"]
+          assert m["label_level_relation_confusion_NOT_AVAILABLE_without_fresh_fold_predictions"]
+          assert len(m["construction_folds_ordered_by_lowest_relation_micro_F1"])==32
+          assert len(m["REJECTED_construction_folds_ordered_by_lowest_recall"])==4
+          assert m["output_gate"]==0 and not m["candidate_accepted"] and not m["activation_allowed"]
+          assert m["syntax_32fold_synthetic_TRAIN_only"]["event_relation"]["TP"]==106
+          assert m["syntax_32fold_synthetic_TRAIN_only"]["rejected_specific"]["FN"]==9
+          print("S23_READONLY_REAL_S22D_40FOLD_ERROR_AUDIT_SHA_VERIFIED",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s23-real-S22d-40fold-relation-rejected-trainerror-readonly
+          path: results/nra3_s23/
+          if-no-files-found: error
+          retention-days: 30
