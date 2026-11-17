@@ -1,0 +1,100 @@
+name: OSCAR v0 genuine FP32 source compiler + trained 12-layer GT source conversion
+'on':
+  push:
+    branches:
+      - 'research/oscar-v0-standalone-fp32-to-calibri-20261117'
+    paths:
+      - 'research/oscar/**'
+      - '.github/workflows/oscar-v0-independent-fp32-calibri.yml'
+  workflow_dispatch:
+concurrency:
+  group: oscar-v0-43m-standalone-conversion
+  cancel-in-progress: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  fp32_oscar_standalone_and_real_43m_GT12:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '430917'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU stack for full pretrained FP32 source compression
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Actual independent synthetic source+prior Oscar contracts and full CB59 binary corruption protection
+        run: |
+          python -m compileall -q research/oscar
+          python -m unittest oscar.test_encoder -v
+          python -m unittest calibri2.s132.test_growth_schedule calibri2.s142.test_dual_cone_adam -v
+      - name: Original immutable physically verified working S142 43.26M trained FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          run-id: 43078895081
+          path: input/s142
+          github-token: ${{ github.token }}
+      - name: Original trained 12layer S93 36.38M compressed FP32 5bit plus learned Green Tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          run-id: 42681768394
+          path: input/s93
+          github-token: ${{ github.token }}
+      - name: Frozen physically verified original S94 three-profile bank
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s94-unaccepted-lossless-three-profile-bank-456-TRAIN-feasibility
+          run-id: 42697267843
+          path: input/s94
+          github-token: ${{ github.token }}
+      - name: Frozen original trained S95 prompt route
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s95-unaccepted-prompt-only-router-456-strict-CPU
+          run-id: 42698707784
+          path: input/s95
+          github-token: ${{ github.token }}
+      - name: Frozen original trained S98 neural completion
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s98-unaccepted-MPS-neural-second-token-owner-copy-feasibility
+          run-id: 42704076897
+          path: input/s98
+          github-token: ${{ github.token }}
+      - name: OSCAR three modes REAL FP32-to-43M GT12 saved physical inference packages and literal full-EOS outcomes
+        run: |
+          python research/oscar/benchmark_43m.py \
+            input/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            input/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            input/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            input/s94/S94_ALTERNATE_EXACT_CORE_TUNNEL_BANK.bin \
+            input/s94/S94_PROFILE_BANK_FEASIBILITY_REPORT.json \
+            input/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            input/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            input/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
+            input/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
+            results/OSCAR_v0_FP32_43M_GT12/
+      - name: Preserve complete physical Oscar sources, original S142 GT weights, negative QA and conservative rate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oscar-v0-original43M-12layer-trainedGT-FP32-converter-three-methods
+          path: results/OSCAR_v0_FP32_43M_GT12/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 90
