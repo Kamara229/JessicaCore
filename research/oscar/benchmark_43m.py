@@ -148,24 +148,27 @@ def paid_package(mode,result,benchmark_dir,a,per_model_report):
       "compiled_CB59_original_sha":result.report["source_sha256"],
     }
     manifest=target/"OSCAR_REPRODUCIBLE_MODEL_MANIFEST.json"
-    prior_size=-1
-    for _ in range(32):
-        dump(manifest,summary)
-        size=manifest.stat().st_size
-        total=size+sum(x["bytes"] for x in physical.values())
-        summary["physical_manifest_bytes"]=size
-        summary["actual_inference_physical_all_in_bytes"]=total
-        summary["actual_nominal_43M_bpp"]=8*total/TOTAL_43M
-        summary["conservative_original_36M_without_growth_bpp"]=8*total/BASE_36M
-        summary["nominal_under_0p7"]=8*total/TOTAL_43M<=MAX_BPP
-        summary["conservative_under_0p7"]=8*total/BASE_36M<=MAX_BPP
-        if size==prior_size:break
-        prior_size=size
-    else:raise AssertionError("Oscar original GT/sidecar physical manifest did not stabilize")
-    dump(manifest,summary)
+    # Reserve a fixed physical JSON size BEFORE filling self-referencing
+    # byte fields. A naive iterative float repr can oscillate by 1-2 bytes.
+    # Charge every trailing whitespace byte: valid readable JSON.
+    template=(json.dumps(summary,ensure_ascii=False,sort_keys=True,
+                         indent=2)+"\n").encode("utf-8")
+    charged_manifest_bytes=len(template)+1024
+    total=charged_manifest_bytes+sum(x["bytes"] for x in physical.values())
+    summary["physical_manifest_bytes"]=charged_manifest_bytes
+    summary["actual_inference_physical_all_in_bytes"]=total
+    summary["actual_nominal_43M_bpp"]=8*total/TOTAL_43M
+    summary["conservative_original_36M_without_growth_bpp"]=8*total/BASE_36M
+    summary["nominal_under_0p7"]=8*total/TOTAL_43M<=MAX_BPP
+    summary["conservative_under_0p7"]=8*total/BASE_36M<=MAX_BPP
+    data=(json.dumps(summary,ensure_ascii=False,sort_keys=True,
+                     indent=2)+"\n").encode("utf-8")
+    if len(data)>charged_manifest_bytes:
+        raise AssertionError("Oscar physically reserved manifest bytes too small")
+    manifest.write_bytes(data+b" "*(charged_manifest_bytes-len(data)))
     if (manifest.stat().st_size!=summary["physical_manifest_bytes"] or
-        not summary["actual_inference_physical_all_in_bytes"]==
-            sum(x["bytes"] for x in physical.values())+manifest.stat().st_size):
+        sum(x["bytes"] for x in physical.values())+manifest.stat().st_size!=
+             summary["actual_inference_physical_all_in_bytes"]):
         raise AssertionError("Oscar real original physical package components not counted exactly")
     if not summary["nominal_under_0p7"]:
         raise AssertionError("Oscar fails even 43.26M structural 0.7 budget")
