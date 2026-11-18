@@ -13,7 +13,7 @@ def sample():
     old=torch.full((n,K,w+1),-1e9)
     old[:,0,3]=2.
     old[:,0,w]=0.
-    old[:,1,4]=3.
+    old[:,1,4]=5.
     old[:,1,w]=-.5
     polar=torch.zeros((n,K,w))
     polar[:,1,4]=1.
