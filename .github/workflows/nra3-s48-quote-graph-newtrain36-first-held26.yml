@@ -1,0 +1,99 @@
+name: NRA3 S48 typed nested Unicode quote graph TRAIN36 HELD26 CPU
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s47-frozen-adversarial-quote-boundaries-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s48-new-typed-quote-stack-first-held26
+  cancel-in-progress: true
+jobs:
+  s48_sealed_manual_train36_first_held26:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '431118'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify prior S47 succeeded and new sources frozen before algorithm
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/44257660271 --jq .conclusion)" = success
+          test "$(git hash-object research/nra3_s20/s48_frozen_manual_train36_source.py)" = ed6a76001aa1b593ddf2e7877af9ac9cbb59c416
+          test "$(git hash-object research/nra3_s20/s48_frozen_manual_held26_source.py)" = 98812ce767720857817f3ecceeb36cb5d5408cff
+          test "$(gh api "repos/$GITHUB_REPOSITORY/contents/research/nra3_s20/s48_frozen_manual_train36_source.py?ref=95592557e95965b149ee9b7780ceba164f93a7ff" --jq .sha)" = ed6a76001aa1b593ddf2e7877af9ac9cbb59c416
+          test "$(gh api "repos/$GITHUB_REPOSITORY/contents/research/nra3_s20/s48_frozen_manual_held26_source.py?ref=cbf5641e9ab4a36e7dddfe4b830cab0833ab7fe5" --jq .sha)" = 98812ce767720857817f3ecceeb36cb5d5408cff
+          test "$(git hash-object research/nra3_s20/s38_novel_russian_structure_challenge_source.py)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          test "$(git hash-object research/nra3_s20/s43_new128_multi_event_trainonly_source.py)" = 891f3f081fa974cce92b9be37561f10b48e4a3d7
+          test "$(git hash-object research/nra3_s20/s45_separately_frozen_new64_scope_curriculum.py)" = 3cc3ed61a9798e78dffbbad0692dd6f8789c59b8
+          echo S48_MANUAL_TRAIN_HELD_SOURCES_FROZEN_BEFORE_ALGORITHM
+      - name: Install deterministic CPU dependencies only
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Run structural unit tests without loading held26 or protected S47/S38
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s48_structural_quote_trainonly
+      - name: Physically train original S45 fold3 and original S46, train four S48 scalars only on TRAIN36 then FIRST score held26
+        run: |
+          python -m research.nra3_s20.s48_train36_structural_quote_HELD26_cpu --out results/nra3_s48
+      - name: Verify exact source SHA and no leaks / quote TP FP FN report
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("results/nra3_s48/NRA3_S48_TYPED_QUOTE_GRAPH_TRAIN36_HELD26_FIRST_CPU.json").read_text(encoding="utf-8"))
+          assert r["stage"]=="NRA3_S48_MATCHED_UNICODE_QUOTE_GRAPH_TRAIN36_HELD26_PHYSICAL_CPU"
+          assert r["frozen_S47_prior_unretuned_first_pass_CI"]==44257660271
+          assert r["S48_TRAIN_source_precommitted_commit"]=="95592557e95965b149ee9b7780ceba164f93a7ff"
+          assert r["S48_TRAIN_source_git_blob"]=="ed6a76001aa1b593ddf2e7877af9ac9cbb59c416"
+          assert r["S48_HELD_source_precommitted_commit"]=="cbf5641e9ab4a36e7dddfe4b830cab0833ab7fe5"
+          assert r["S48_HELD_source_git_blob"]=="98812ce767720857817f3ecceeb36cb5d5408cff"
+          assert len(r["S48_TRAIN36_manual_source_SHA256"])==64
+          assert len(r["S48_HELD26_manual_source_SHA256"])==64
+          assert r["fixed_original_S45_fold"]==3
+          assert len(r["original_S45_CPU_SHA256"])==64
+          assert r["S48_new_TRAIN36_fit_diagnostic"]["TRAIN36_tokens"]>36
+          assert r["S48_new_TRAIN36_fit_diagnostic"]["train_steps"]==180
+          assert r["S48_new_TRAIN36_fit_diagnostic"]["trained_scalar_count"]==4
+          assert r["S48_fitted_parameters"]==4
+          assert len(r["all_26_individual_manual_HELD_diagnostics"])==26
+          assert r["S48_structural_quote_graph_is_raw_text_only"]
+          assert r["HELD26_labels_imported_only_after_all_fitting"]
+          assert r["no_HELD26_training_threshold_search_or_selection"]
+          assert r["known_S47_challenge_36_not_imported_scored_or_tuned"]
+          assert r["S38_protected32_not_imported_scored_or_tuned"]
+          assert r["HELD26_author_designed_NOT_random_independent_EVAL"]
+          assert r["no_original_Calibri43M_GreenTunnel_NRA2_inference_or_training"]
+          assert r["J7_616_EVAL32_EVAL128_bpp_CB59_not_touched"]
+          assert r["LIVE_Render_Supabase_Jessica_APK_unchanged"]
+          assert r["output_gate"]==0 and not r["candidate_accepted"] and not r["activation_allowed"]
+          assert all(row["raw_features_only_no_gold_in_any_forward"]
+                     for row in r["all_26_individual_manual_HELD_diagnostics"])
+          print("S48_FIRST_HELD26_PHYSICAL_QUOTE_COUNTS",
+                json.dumps(r["S48_originally_frozen_HELD26_first_cpu_comparison"],sort_keys=True))
+          print("S48_FROZEN_HELD26_ERRORS",
+                json.dumps(r["S48_HELD26_error_case_breakdown"],sort_keys=True))
+          print("S48_NOT_MODEL_ACCEPTED_NO_S47_S38_NO_TRUE43M",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s48-first-held26-typed-quote-TRAIN36-noS47-noEVAL
+          path: results/nra3_s48/
+          if-no-files-found: error
+          retention-days: 30
