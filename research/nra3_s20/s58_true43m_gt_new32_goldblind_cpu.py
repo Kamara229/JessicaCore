@@ -294,7 +294,7 @@ def main():
         s51_valid[j,:len(source_words)]=True
         overlap_maps.append({
             "source_row":i,
-            "original_raw_sha256":m.original_plainraw_sha256,
+            "original_raw_sha256":m.original_plaintext_sha256,
             "original_native_token_count":m.original_token_count,
             "raw_unicode_word_count":m.words_recovered,
             "shared_BPE_tokens_count":len(m.shared_native_token_ids),
