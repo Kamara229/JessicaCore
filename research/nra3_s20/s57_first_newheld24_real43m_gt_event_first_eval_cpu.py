@@ -125,7 +125,7 @@ def main():
             and fit["new_108_FP16_standalone_weights_SHA256"]==sha(a.s56)
             and fit["sum_training_gold_RECIPIENT"]==48
             and fit["sum_training_gold_REJECTED"]==30
-            and fit["fixed_optimizer_and_training_CONSUMED_SPENT72_ONLY"]["S57_HELD24_never_loaded_in_train"]
+            and fit["fixed_optimizer_and_training_CONSUMED_SPENT72_ONLY"]["S56_HELD24_never_loaded_in_train"]
             and fit["S56_fresh_new_scope_HELD24_text_and_gold_NOT_IMPORTED"]
             and fit["output_gate"]==0 and not fit["candidate_accepted"],
             "fresh HELD24 could have entered new model training — prohibited")
