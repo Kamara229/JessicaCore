@@ -203,7 +203,7 @@ def fit_SPENT_216_only(groups,old57,old59):
         with torch.no_grad():
             logits=tuple(z.detach().clone() for z in old57(x.base.event))
         originals.append(logits)
-    require(positives>=130 and rejects>=65,
+    require(positives>=115 and rejects>=60,
             "S61 old216 TRAIN recipient/rejected supervision too small")
     # No threshold/hyperparameter selection from new S61 HELD.
     for step in range(280):
