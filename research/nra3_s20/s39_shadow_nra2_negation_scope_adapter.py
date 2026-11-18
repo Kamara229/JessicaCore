@@ -170,22 +170,30 @@ class ShadowNRA2S39(nn.Module):
         self.activation_allowed=False
 
     def forward(self,pred:torch.Tensor,quote:torch.Tensor,pair:torch.Tensor):
-        require(pred.ndim==2 and quote.ndim==2 and pair.ndim==3
-                and pred.shape[0]==pair.shape[0]==pair.shape[1]==quote.shape[0]
+        """Plain raw-only inference, one sentence or padded text batch."""
+        single=(pred.ndim==2)
+        if single:
+            pred=pred.unsqueeze(0)
+            quote=quote.unsqueeze(0)
+            pair=pair.unsqueeze(0)
+        require(pred.ndim==3 and quote.ndim==3 and pair.ndim==4
+                and pred.shape[:2]==pair.shape[:2]==pair.shape[0:1]+pair.shape[2:3]
+                and quote.shape[:2]==pred.shape[:2]
                 and pred.shape[-1]==PRED_DIM and quote.shape[-1]==QUOTE_DIM
-                and pair.shape[-1]==S39_DIM,"unannotated raw text geometry required")
+                and pair.shape[-1]==S39_DIM,"unannotated raw text batch geometry required")
+        b,w=pred.shape[:2]
         ev=self.event(pred).squeeze(-1)
         qc=self.quote(quote).squeeze(-1)
-        w=pred.shape[0]
-        # Self-produced event and quote logits, never TRAIN gold.
-        # Positive REJECTED links require appropriate predicate and non-
-        # quoted target. Explicit learned scope handles nonlocal negative.
+        # Learned event and quote predictions, never reference labels.
         features=torch.cat((
             pair,
-            ev.unsqueeze(1).expand(w,w).unsqueeze(-1),
-            qc.unsqueeze(0).expand(w,w).unsqueeze(-1),
+            ev.unsqueeze(2).unsqueeze(-1).expand(b,w,w,1),
+            qc.unsqueeze(1).unsqueeze(-1).expand(b,w,w,1),
         ),dim=-1)
-        return GraphPrediction(ev,qc,self.scope(features).squeeze(-1))
+        rejection=self.scope(features).squeeze(-1)
+        if single:
+            return GraphPrediction(ev[0],qc[0],rejection[0])
+        return GraphPrediction(ev,qc,rejection)
 
 def labels_train_only(row):
     """Only supervised TRAIN targets; never pass to model.forward."""
