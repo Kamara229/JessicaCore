@@ -9,7 +9,7 @@ objective cannot erase known rejection semantics without explicit cost.
 The teacher uses TRAIN-side input only; no held group, gold labels or oracle
 are fed to model forward. Fixed schedule no held-based checkpoint choice.
 Original Calibri43M+GT/616 J7, independent EVAL and LIVE remain untouched.
-""
+"""
 from __future__ import annotations
 
 import argparse
