@@ -46,7 +46,7 @@ jobs:
       - name: Download archived original S39 18fold physical development baseline without retraining it
         uses: actions/download-artifact@v4
         with:
-          name: nra3-s40-compositional-scope-NRA2-shadow-NEW80-TRAIN-18fold-noEVAL
+          name: nra3-s39-NEW80-TRAINonly-NRA2-shadow-russian-grammar-18fold-noEVAL
           run-id: 44215938499
           github-token: ${{ github.token }}
           path: inputs/s39
@@ -103,7 +103,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: nra3-s39-NEW80-TRAINonly-NRA2-shadow-russian-grammar-18fold-noEVAL
+          name: nra3-s40-compositional-scope-NRA2-shadow-NEW80-TRAIN-18fold-noEVAL
           path: results/nra3_s40/
           if-no-files-found: error
           retention-days: 30
