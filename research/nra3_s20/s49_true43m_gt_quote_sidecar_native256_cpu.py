@@ -8,7 +8,7 @@ S50 native-runtime capture/retention experiment. This stage checks real
 native ABI compatibility, exact identity with gate0 and the presence of
 word320 vs quote raw feature in an isolated 339-D adapter workspace.
 
-ONLY S22c raw338 + manifest are downloaded; graph gold omitted entirely.
+S22c artifact bundle includes separately sealed TRAIN graph gold; CI deletes\nthat gold shard before this evaluator starts. It is NEVER read or passed\nto any adapter input or model forward.
 S47 and S38 adversarial sources are not imported. 616 J7 unmodified by
 construction, NOT rerun as part of this script. No model gain claims.
 """
@@ -56,6 +56,8 @@ def main():
     torch.use_deterministic_algorithms(True)
     require(args.features.is_file() and args.manifest.is_file(),
             "missing original 43M/GT real capture")
+    require(not (args.features.parent/"S22C_256_SYNTHETIC_EVENT_GRAPH_TARGETS_TRAIN_ONLY.safetensors").exists(),
+            "gold shard must be removed from S22c bundle before S49 runs")
     m=json.loads(args.manifest.read_text(encoding="utf-8"))
     require(m.get("stage")==S22C_STAGE
             and m.get("S22_sha_locked_synthetic_TRAIN256_graph_gold")
@@ -158,7 +160,7 @@ def main():
         "nonzero_quote_gate_explicitly_rejected":True,
         "learned_S48_four_parameter_shadow_NOT_assumed_compatible_with_REAL43M":True,
         "original43M_post_GT_12layer_tensor_only_READ_after_prior_replay":True,
-        "no_S22c_graph_gold_file_downloaded_or_loaded":True,
+        "S22c_bundle_gold_shard_deleted_before_s49_and_never_loaded":True,
         "no_gold_in_quote_parser_or_sidecar_forward":True,
         "original_S38_protected32_not_accessed":True,
         "previously_examined_S47_challenge36_not_accessed_or_tuned":True,
