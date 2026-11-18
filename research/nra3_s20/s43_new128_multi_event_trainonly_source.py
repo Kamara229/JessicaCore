@@ -125,7 +125,7 @@ def make_row(f:Lex,family:int,pattern:int)->TrainGraph:
         edges=[(f.passive,f.person_a),(f.other_past,f.person_b)]
     elif pattern==9:
         text=f"{f.agent} {decide} {f.infinitive} {f.document} не {f.person_a}, а {f.other_agent} {f.other_past} {f.other_document} не {f.person_b}."
-        events=["решил",f.infinitive,f.other_past]
+        events=[decide,f.infinitive,f.other_past]
         edges=[(f.infinitive,f.person_a),(f.other_past,f.person_b)]
     elif pattern==10:
         text=f"{f.agent} {read} фразу «не {f.person_b}» и {f.past} {f.document} не {f.person_a}."
