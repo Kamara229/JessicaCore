@@ -42,6 +42,8 @@ class NativeOverlapAlignment:
     ambiguous_raw_word_ids:tuple[int,...]
     words_recovered:int
     invalid_or_uncovered_characters:int
+    original_duplicate_native_offset_characters:int
+    original_template_crossing_native_token_positions:tuple[int,...]
     source_gold_loaded:bool=False
     original_token_ids_unchanged:bool=True
     causal_token_training_allowed:bool=False
@@ -58,10 +60,10 @@ def align_offsets_from_raw_text(
     """Construct exact many-to-many overlap; no model or human gold input.
 
     Coordinates are from ORIGINAL tokenizer output; overlap token weights
-    are literal character intersection divided by visible characters of
-    each word. Returns weights summing to 1.0 per word. Disallow empty
-    word coverage, conflicting overlap of two token spans on one char,
-    offset truncation, or unsafe template/boundary crossing.
+    conserve each original Unicode character, even when several BPE
+    byte pieces map to the same character. Returns per-word mass sums 1.
+    Disallow uncovered chars. Native pieces crossing text/chat boundary
+    are explicitly marked causally unsafe rather than silently dropped.
     """
     raw=raw_model_input(text)
     require(len(raw.tokens)>=3 and len(raw.tokens)<=40,
@@ -76,43 +78,59 @@ def align_offsets_from_raw_text(
             "native original tokenizer absolute Unicode offsets invalid")
     wordpiece=[]
     uses={}
+    template_crossing=set()
+    duplicate_offset_chars=0
     for tok in raw.tokens:
         lo=plain_start+tok.start
         hi=plain_start+tok.end
         require(hi>lo and text[tok.start:tok.end]==tok.form,
                 "raw word Unicode source token offset changed")
-        pieces=[]
-        cover=set()
+        # Byte-level BPE fast tokenizers legitimately map multiple byte
+        # pieces to the SAME original Unicode character (e.g. “ or «).
+        # Their offset map is NOT guaranteed to be a disjoint character
+        # partition. Give each character total weight ONE, distributed
+        # evenly among all native pieces whose offsets cover that char.
+        # Never drop, synthesize or change original native token IDs.
+        owners={j:[] for j in range(lo,hi)}
+        seen_pieces=[]
         overlaps=[]
-        for j,(a,b) in enumerate(absolute_offsets):
-            n=max(0,min(hi,b)-max(lo,a))
+        for native_j,(a,b) in enumerate(absolute_offsets):
+            a1=max(lo,a)
+            b1=min(hi,b)
+            n=max(0,b1-a1)
             if n<=0:continue
-            # The native BPE piece may include interword whitespace, but
-            # must never mix model's role/template prefix with sentence.
-            require(a>=plain_start and b<=plain_start+len(text),
-                    "BPE piece merges original chat template and input text")
-            piece_chars=set(range(max(lo,a),min(hi,b)))
-            require(not piece_chars.intersection(cover),
-                    "original fast tokenizer offsets cover one raw character twice")
-            cover.update(piece_chars)
-            pieces.append(j)
+            if a<plain_start or b>plain_start+len(text):
+                # A piece crosses into original chat template; retain
+                # genuine original offsets but mark causal attribution
+                # unsafe, never allow next-token word supervision.
+                template_crossing.add(native_j)
+            for char in range(a1,b1):
+                owners[char].append(native_j)
+            seen_pieces.append(native_j)
             overlaps.append(n)
-            uses.setdefault(j,[]).append(tok.index-1)
-        require(cover==set(range(lo,hi)) and pieces,
+            uses.setdefault(native_j,[]).append(tok.index-1)
+        require(bool(seen_pieces) and all(owners.values()),
                 "genuine tokenizer left raw word characters uncovered")
-        total=sum(overlaps)
-        require(total==hi-lo and total>0,
-                "character intersection must exactly reconstruct raw word")
-        weights=tuple(n/total for n in overlaps)
-        require(abs(sum(weights)-1.0)<1e-12,
-                "native BPE fractional word pooling weights drift")
-        wordpiece.append((tok.index-1,tuple(pieces),tuple(overlaps),weights))
+        duplicate_offset_chars+=sum(len(v)>1 for v in owners.values())
+        masses={j:0. for j in seen_pieces}
+        for covers in owners.values():
+            unit=1.0/len(covers)
+            for j in covers:
+                masses[j]+=unit
+        # All original Unicode source characters contribute total 1.0
+        # irrespective of byte-level duplicate offsets.
+        weights=tuple(masses[j]/(hi-lo) for j in seen_pieces)
+        require(abs(sum(weights)-1.0)<1e-8
+                and all(w>0 for w in weights),
+                "native byte-level BPE intersection mass not conserved")
+        wordpiece.append((tok.index-1,tuple(seen_pieces),tuple(overlaps),weights))
     shared={j for j,words in uses.items() if len(set(words))>1}
+    unsafe_native=shared|template_crossing
     words=tuple(
         NativeOverlapWord(index,positions,weights,overlaps,
                           tuple(j for j in positions if j in shared),
                           len(positions)>1,
-                          not any(j in shared for j in positions))
+                          not any(j in unsafe_native for j in positions))
         for index,positions,overlaps,weights in wordpiece
     )
     ambiguous=tuple(row.index for row in words if not row.causally_safe)
@@ -124,7 +142,8 @@ def align_offsets_from_raw_text(
     return NativeOverlapAlignment(
         hashlib.sha256(text.encode("utf-8")).hexdigest(),
         token_ids,len(token_ids),words,
-        tuple(sorted(shared)),ambiguous,len(words),0)
+        tuple(sorted(shared)),ambiguous,len(words),0,
+        duplicate_offset_chars,tuple(sorted(template_crossing)))
 
 
 def align_s51_original_tokenizer(tokenizer,text,*,expected_ids=None):
