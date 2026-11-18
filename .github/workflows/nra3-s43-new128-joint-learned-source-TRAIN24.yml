@@ -35,7 +35,7 @@ jobs:
           test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/44246124526 --jq .conclusion)" = success
           test "$(git hash-object research/nra3_s20/s38_novel_russian_structure_challenge_source.py)" = d1c5be4402fb456adab896a828e742f5f34c48dd
           test "$(git hash-object research/nra3_s20/s39_new80_trainonly_scope_graph_source.py)" = 0126bfc7e9dd53fe9f94debc187a7ca9b71da0ed
-          test "$(git hash-object research/nra3_s20/s43_new128_multi_event_trainonly_source.py)" = 278b66307ed812cbffe20fb2a677a13d01b9301f
+          test "$(git hash-object research/nra3_s20/s43_new128_multi_event_trainonly_source.py)" = 891f3f081fa974cce92b9be37561f10b48e4a3d7
           echo S43_SHA_PINNED_NEW_TRAIN128_S38_RESERVED
       - name: Pinned CPU PyTorch; do not download original Calibri43M+GT FP16 weights
         run: |
