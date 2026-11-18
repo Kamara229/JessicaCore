@@ -144,12 +144,9 @@ def main():
             words=raw_surface_grammar(sentence[2])
             require(len(words)==int(valid[i].sum()),
                     "S56 TRAIN original native+text word positions differ")
-            receiver=(getattr(ref,"recipient",None) if tag=="S53"
-                      else ref.transferred_recipient)
-            predicate=(getattr(ref,"predicate") if tag=="S53"
-                       else ref.main_predicate)
-            polarity=(ref.recipient_polarity if tag=="S53"
-                      else ref.transfer_polarity)
+            receiver=(ref.transferred_recipient if tag=="S55" else ref.recipient)
+            predicate=(ref.main_predicate if tag=="S55" else ref.predicate)
+            polarity=(ref.transfer_polarity if tag=="S55" else ref.recipient_polarity)
             if receiver is None:continue
             src=find(words,predicate)
             dst=find(words,receiver)
