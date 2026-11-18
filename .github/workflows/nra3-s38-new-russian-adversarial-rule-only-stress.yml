@@ -1,0 +1,93 @@
+name: NRA3 S38 frozen 32 novel Russian structures adversarial RAW rules only
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s37-raw-verb-source-scope-trainonly-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s38-new-32-russian-structure-frozen-predeclared-rule-only
+  cancel-in-progress: true
+jobs:
+  genuine_new_texts_raw_decoder_without_neural_faking:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify original S37 frozen true43M+GT TRAIN-only success and precommitted S38 challenge blob
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/44212710547 --jq .conclusion)" = success
+          test "$(git hash-object research/nra3_s20/s38_novel_russian_structure_challenge_source.py)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          test "$(git show 61ee235ea9e7ebfe4d19ba13be0dd0516afba231:research/nra3_s20/s38_novel_russian_structure_challenge_source.py | git hash-object --stdin)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          echo S38_CHALLENGE_PRECOMMITTED_BEFORE_SCORE_AND_IMMUTABLE
+      - name: Install pinned CPU-only tensors; never download real43M model weights or independent eval
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Source-only semantic data seals and frozen S35+S37 no-oracle rule tests
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s35_local_neg_dative_trainonly research.nra3_s20.test_s37_source_verb_scope_trainonly research.nra3_s20.test_s38_novel_russian_structure_policy
+      - name: Run S38 32 new post-hoc Russian structures through unchanged input-only decode rule
+        run: |
+          python -m research.nra3_s20.s38_novel_russian_structure_rule_only_audit --out results/nra3_s38
+      - name: Strict classify policy eligibility, distinguish model-free failure from model FP and independent EVAL
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path("results/nra3_s38/NRA3_S38_NEW_RUSSIAN_STRUCTURE_32_RULE_ELIGIBILITY_STRESS.json").read_text(encoding="utf-8"))
+          assert data["stage"]=="NRA3_S38_NEW_RUSSIAN_ADVERSARIAL_RAW_RULE_ONLY_ELIGIBILITY_AUDIT_V1"
+          assert data["frozen_source_stage"]=="NRA3_S38_NEW_POSTHOC_RUSSIAN_NEGATION_CHALLENGE_SOURCE32_V1"
+          assert data["frozen_source_git_blob_sha"]=="d1c5be4402fb456adab896a828e742f5f34c48dd"
+          assert len(data["frozen_S38_source_sha256"])==64
+          assert data["source_texts_disjoint_from_prior_synthetic_TRAIN256"]
+          assert data["new_challenge_design_is_adversarial_and_NOT_statistically_blind"]
+          assert data["source_fixed_before_any_S38_model_predictions"]
+          assert data["scores_are_policy_eligibility_NOT_NEURAL_precision_recall"]
+          assert data["genuine_original43M_GT_embeddings_NOT_computed_on_S38"]
+          assert data["frozen_original_43M_GT_weights_and_616J7_NOT_loaded"]
+          assert data["NO_NRA3_FP16_model_loaded_or_trained"]
+          assert data["all_candidates_have_deliberately_saturated_FAKE_REJECTED_logits"]
+          assert data["no_change_to_S35_or_S37_decoders"]
+          assert data["all_role_event_relation_coref_logits_unchanged"]
+          assert len(data["case_level_offline_details"])==32
+          assert len(data["by_predeclared_new_structure"])==4
+          assert data["S35_eligibility_counts"]["reference_positive"]==24
+          assert data["S37_eligibility_counts"]["reference_positive"]==24
+          assert data["S37_eligibility_counts"]["reference_negative"]==8
+          assert data["S37_eligibility_counts"]["true_rejected_pairs_blocked"]>0
+          assert data["not_independent_EVAL_or_candidate_validation"] if "not_independent_EVAL_or_candidate_validation" in data else data["independent_EVAL128_EVAL32_not_used"]
+          assert data["rule_is_NOT_accepted_as_robust_Russian_grammar"]
+          assert data["future_real43M_test_requires_new_separately_frozen_CPU_capture"]
+          assert data["do_not_train_or_tune_on_these_NEW_held_cases"]
+          assert data["output_gate"]==0 and not data["candidate_accepted"] and not data["activation_allowed"]
+          assert data["LIVE_Render_Supabase_Jessica_APK_NRA2_active_Calibri_unchanged"]
+          print("S38_POSTHOC_NEW_RUSSIAN_TEXTS_NOT_IN_TRAIN256_RULE_STRESS_RESULT",
+                json.dumps({"S35":data["S35_eligibility_counts"],
+                            "S37":data["S37_eligibility_counts"],
+                            "groups":data["by_predeclared_new_structure"]},
+                            sort_keys=True,ensure_ascii=False),flush=True)
+          print("S38_NOT_A_NATIVE_43M_EVAL_NO_MODEL_ACCEPTANCE",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s38-FROZEN-novel32-russian-RAW-rule-only-eligibility-no-neural-EVAL
+          path: results/nra3_s38/
+          if-no-files-found: error
+          retention-days: 30
