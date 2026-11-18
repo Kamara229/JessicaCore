@@ -1,0 +1,91 @@
+name: NRA3 S46 frozen S45 RAW quote boundary TRAIN-only 24fold CPU
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s45-disjoint64-scope-curriculum-TRAINonly-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s46-raw-boundary-one-scalar-TRAINonly
+  cancel-in-progress: true
+jobs:
+  s46_raw_boundary_scalar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '431118'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fail closed on S45 provenance and S38 / TRAIN immutable sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/44252197919 --jq .conclusion)" = success
+          test "$(git hash-object research/nra3_s20/s38_novel_russian_structure_challenge_source.py)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          test "$(git hash-object research/nra3_s20/s39_new80_trainonly_scope_graph_source.py)" = 0126bfc7e9dd53fe9f94debc187a7ca9b71da0ed
+          test "$(git hash-object research/nra3_s20/s43_new128_multi_event_trainonly_source.py)" = 891f3f081fa974cce92b9be37561f10b48e4a3d7
+          test "$(git hash-object research/nra3_s20/s45_separately_frozen_new64_scope_curriculum.py)" = 3cc3ed61a9798e78dffbbad0692dd6f8789c59b8
+          echo S46_S38_S39_S43_S45_SOURCE_LOCKED
+      - name: Install deterministic CPU research dependencies (no 43M model)
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Verify single-parameter raw quote boundary readout and exact original grouped splits
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s46_quote_boundary_trainonly
+      - name: Physical S45 CPU refit and separate TRAIN-only scalar calibration 24fold
+        run: |
+          python -m research.nra3_s20.s46_train_fitted_quote_boundary_24fold --out results/nra3_s46
+      - name: Validate actual source/link frozen identity and quote positive TP/FP/FN
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra3_s46/NRA3_S46_TRAIN_FITTED_QUOTE_BOUNDARY_24FOLD.json")
+          d=json.loads(p.read_text(encoding="utf-8"))
+          assert d["stage"]=="NRA3_S46_TRAIN_FITTED_RAW_QUOTE_BOUNDARY_CALIBRATION_24FOLD"
+          assert d["S45_previous_SUCCESS_workflow_run"]==44252197919
+          assert d["S45_original_NEW64_frozen_git_blob"]=="3cc3ed61a9798e78dffbbad0692dd6f8789c59b8"
+          assert len(d["same_24_previous_inspected_synthetic_TRAIN_development_folds"])==24
+          assert d["original_S45_weights_loss_optimizer_120steps_UNCHANGED"]
+          assert d["only_train_held_disjoint_training_of_quote_calibrator"]
+          assert d["no_held_labels_or_group_for_calibration_training"]
+          assert d["quote_gold_auto_generated_using_same_quote_parser_as_raw_feature"]
+          assert d["boundary_consistency_does_not_prove_general_Russian_grammar"]
+          assert d["not_independent_validation_NOT_CANDIDATE_ACCEPTANCE"]
+          assert d["S38_adversarial32_not_imported_train_eval_tune"]
+          assert d["no_real_Calibri43M_GT_NRA2_loaded_or_updated"]
+          assert d["J7_616_EVAL32_EVAL128_bpp_CB59_NOT_TESTED"]
+          assert d["LIVE_Render_Supabase_Jessica_APK_unmodified"]
+          assert d["output_gate"]==0 and not d["candidate_accepted"] and not d["activation_allowed"]
+          assert all(r["source_AND_link_output_unchanged_by_design"]
+                     and r["no_S38_control_ever_loaded_scored"]
+                     and r["output_gate"]==0
+                     and r["TRAIN_rows"] in (176,184)
+                     and r["original_held_synthetic_TRAIN_dev_rows"] in (8,16)
+                     and len(r["S45_frozen_CPU_weights_SHA256"])==64
+                     and r["calibration_train_only"]["learned_positive_boundary_strength"]>0
+                     for r in d["same_24_previous_inspected_synthetic_TRAIN_development_folds"])
+          print("S46_SYNTHETIC_TRAIN_DEV_PHYSICAL_QUOTE_COMPARE",
+                json.dumps(d["quote_summary"],sort_keys=True))
+          print("S46_RESEARCH_NOT_ACCEPTED_NO_REAL43M_NO_S38")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s46-train-only-quote-boundary-24fold-noEVAL
+          path: results/nra3_s46/
+          if-no-files-found: error
+          retention-days: 30
