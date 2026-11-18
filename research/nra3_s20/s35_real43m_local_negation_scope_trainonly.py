@@ -96,7 +96,9 @@ def verify_logits_unmodified(old:GraphLogits,new:GraphLogits,raw,valid):
     # Local structural mask may ONLY alter REJECTED logits outside scope.
     can=(valid & (raw[...,320+PREV_NEG]>0.5)
          & (raw[...,320+LIKELY_DATIVE]>0.5))
-    pair=can.unsqueeze(1).expand_as(old.argument_polarity[...,2])
+    n=valid.shape[1]
+    pair=(valid.unsqueeze(2) & can.unsqueeze(1)
+          & ~torch.eye(n,dtype=torch.bool,device=valid.device).unsqueeze(0))
     require(torch.equal(old.argument_polarity[...,2][pair],
                         new.argument_polarity[...,2][pair]),
             "decoder modified a legitimate local NEG+DATIVE candidate")
