@@ -290,7 +290,7 @@ def main():
         "S41_precommitted_edge_floor_logit":S41_ELIGIBLE_LOWER_LOGIT,
         "S41_fixed_rule":S41_RULE,
         "S41_pure_output_postprocessor_no_extra_training":True,
-        "S40_physical_12384_FP16_not_retrained_or_touched":True,
+        "original_true43M_12384FP16_not_loaded_or_modified":True,
         "S40_not_original_43M_or_12384_model_but_separate_shadow":True,
         "precommitted_grammar_prior_allowed":PREDECLARED_BIAS_ALLOWED,
         "precommitted_grammar_prior_blocked":PREDECLARED_BIAS_BLOCKED,
@@ -316,8 +316,6 @@ def main():
     }
     args.out.mkdir(parents=True,exist_ok=False)
     target=args.out/"NRA3_S41_TRAIN80_GENERIC_GRAPH_EDGE_COMPLETION_AGAINST_S40.json"
-    target.write_text(json.dumps(report,sort_keys=True,ensure_ascii=False,indent=2)+"\n",
-                      encoding="utf-8")
     paired40={}
     for axis in ("LEXICAL","CONSTRUCTION"):
         old=[z["S40_same_run_held_TRAIN_metrics"] for z in records if z["axis"]==axis]
@@ -327,8 +325,16 @@ def main():
         paired40[axis]={"TP":tp,"FP":fp,"FN":fn,
                         "F1":2*tp/(2*tp+fp+fn) if 2*tp+fp+fn else 0.}
     report["matched_same_run_original_S40"] = paired40
-    # Revision only adds paired metrics in the JSON; the initial report
-    # write above is replaced below so it captures these audits.
+    target_constructions={}
+    for ix,label in ((12,"short_passive"),(13,"infinitive_complement")):
+        item=records[ix]
+        require(item["axis"]=="CONSTRUCTION" and item["held_group"]==ix-8,
+                "passive/infinitive held TRAIN fixed indices drift")
+        target_constructions[label]={
+            "S40_same_run":item["S40_same_run_held_TRAIN_metrics"],
+            "S41_rule_completed":item["held_TRAIN_internal_metrics"],
+        }
+    report["fixed_passive_infinitive_construction_diagnostics"]=target_constructions
     target.write_text(json.dumps(report,sort_keys=True,ensure_ascii=False,indent=2)+"\n",
                       encoding="utf-8")
     print("S41_REAL_TRAIN80_GRAPH_COMPLETION_18FOLD_INTERNAL_RESULTS",
