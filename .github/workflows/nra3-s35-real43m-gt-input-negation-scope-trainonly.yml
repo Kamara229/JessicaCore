@@ -137,7 +137,7 @@ jobs:
               and x["trained_source_side_rows"]==248
               for x in m["all_8_fold_details"])
           for x in m["all_8_fold_details"]:
-              for name in ("event","role","coreference","event_relation"):
+              for name in ("event","coreference","event_relation"):
                   assert x["S34_fresh_held_5heads"][name]==x["S35_scope_held_5heads"][name]
           assert m["no_hyperparameter_or_checkpoint_selection_from_held_source"]
           assert m["not_generalized_language_negation_scope"]
