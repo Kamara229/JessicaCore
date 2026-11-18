@@ -64,7 +64,7 @@ def require(ok,why):
     if not bool(ok):raise ValueError("S65 true43M GT OLD344 fitting: "+why)
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 
-def old_spent312():
+def old_spent344():
     rows,gold=old_spent280()
     from research.nra3_s20.s63_new32_raw_only_precommitted import SOURCE_ROWS as R63
     from research.nra3_s20.s63_new32_separate_manual_gold_NEVER_TRAIN import held_gold32 as G63
@@ -127,7 +127,7 @@ def main():
             "S65 source parent S26/S57/S59/S61/S62/S63 SHA immutable ancestry")
     torch.set_num_threads(1)
     torch.use_deterministic_algorithms(True)
-    rows,gold=old_spent312()
+    rows,gold=old_spent344()
     old26=EventGroundedInversionGraph.from_physical(a.s26.read_bytes())
     old57=S57EventFirstRecipient.from_physical_fp16(
         load_file(str(a.s57),device="cpu")["S57_EVENTFIRST_PAID231_FP16"])
