@@ -1,0 +1,120 @@
+name: NRA3 S42 S40 vs S41 vs structured sparse source-recipient pairs TRAIN80 physical 18fold
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s41-structural-edge-completion-train80-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s42-paired-sparse-source-recipient-matching-18fold
+  cancel-in-progress: true
+jobs:
+  s42_sparse_graph_predicate_recipient_18fold_no_eval:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '391118'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify S37/S38 complete, S38 32 protected challenge unchanged and new S39 TRAIN source pinned separately
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 44212710547 44214503122 44215938499 44217309516 44244725606; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          test "$(git hash-object research/nra3_s20/s38_novel_russian_structure_challenge_source.py)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          test "$(git hash-object research/nra3_s20/s39_new80_trainonly_scope_graph_source.py)" = 0126bfc7e9dd53fe9f94debc187a7ca9b71da0ed
+          test "$(gh api "repos/$GITHUB_REPOSITORY/contents/research/nra3_s20/s38_novel_russian_structure_challenge_source.py?ref=61ee235ea9e7ebfe4d19ba13be0dd0516afba231" --jq .sha)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          echo S39_S38_RESERVED_AND_S39_NEW80_COMMIT_SHA_PINNED
+      - name: Install pinned CPU PyTorch only; no Calibri43M original weights downloaded
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Download archived original S39 18fold physical development baseline without retraining it
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s39-NEW80-TRAINonly-NRA2-shadow-russian-grammar-18fold-noEVAL
+          run-id: 44215938499
+          github-token: ${{ github.token }}
+          path: inputs/s39
+      - name: Read completed S40 baseline 18fold from sealed prior CI (no training from it)
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s40-compositional-scope-NRA2-shadow-NEW80-TRAIN-18fold-noEVAL
+          run-id: 44217309516
+          github-token: ${{ github.token }}
+          path: inputs/s40
+      - name: Download completed S41 18fold same-run data for provenance only
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s41-TRAIN80-S40-paired-readonly-compositional-edge-completion-noEVAL
+          run-id: 44244725606
+          github-token: ${{ github.token }}
+          path: inputs/s41
+      - name: Verify S38 preserved and S42 source/target matching does not read gold or mutate S40 weights
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s39_train80_shadow_grammar research.nra3_s20.test_s40_compositional_graph_trainonly research.nra3_s20.test_s41_readonly_eligible_graph_completion research.nra3_s20.test_s42_structural_pair_matching
+      - name: Physically refit original S40 and diagnose all sparse S42 source/recipient matching on the same TRAIN80 folds
+        run: |
+          python -m research.nra3_s20.s42_pairwise_sparse_matching_real_train80_18fold --baseline-s40-report inputs/s40/NRA3_S40_TRAIN80_COMPOSITIONAL_GRAPH_18FOLD_AGAINST_S39.json --baseline-s41-report inputs/s41/NRA3_S41_TRAIN80_GENERIC_GRAPH_EDGE_COMPLETION_AGAINST_S40.json --out results/nra3_s42
+      - name: Verify matched original S40/S41 vs S42 per-fold TP/FP/FN and no false independent EVAL claims
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("results/nra3_s42/NRA3_S42_TRAIN80_S40_S41_S42_MATCHED18_SPARSE_EDGE_SOURCE_AUDIT.json").read_text(encoding="utf-8"))
+          assert d["stage"]=="NRA3_S42_SYNTHETIC_TRAIN80_SPARSE_SOURCE_TARGET_MATCHING_18FOLD_ABLATION"
+          assert d["previous_S40_completed_run"]==44217309516
+          assert d["previous_S41_completed_run"]==44244725606
+          assert d["source_grammar_rule_fixed_before_results"]=="one_source_one_target_directed_structural_greedy_matching"
+          assert d["precommitted_selected_edge_minimum_logit"]==.25
+          assert d["one_to_one_matching_is_hand_chosen_synthetic_prior_not_general_language"]
+          assert d["S38_held32_source_not_loaded_touched_tuned_or_scored"]
+          assert d["same_already_exposed_S39_80TRAIN_internal_folds_used"]
+          assert d["unchanged_S40_learned_event_quote_heads"]
+          assert d["same_run_physical_S40_weights_no_new_training_for_S42"]
+          assert len(d["per_fold"])==18
+          assert len(d["source_sha256"])==64
+          assert set(d["matched_same_run_three_way_internal_only"])=={"LEXICAL","CONSTRUCTION"}
+          assert set(d["passive_and_infinitive_construction_diagnostics"])=={
+              "short_passive","infinitive_complement"}
+          assert all(f["TRAIN_and_held_disjoint"] and
+                     f["three_head_forward_gold_blind"] and
+                     f["event_quote_network_outputs_bitwise_unmodified"] and
+                     f["no_model_weights_updated_by_decoder"] and
+                     f["TRAIN_rows"] in (70,72) and
+                     f["held_synthetic_TRAIN_rows"] in (8,10) and
+                     len(f["physical_S40_shadow_weights_sha256"])==64 and
+                     f["S42_false_positive_taxonomy_OFFLINE_ONLY"]["FP_total"]==
+                     f["S42_one_to_one_matched_held_TRAIN_metrics"]["FP"]
+                     for f in d["per_fold"])
+          assert d["all_results_synthetic_TRAIN_development_NOT_independent"]
+          assert d["link_derived_source_metrics_NOT_trained_event_head"]
+          assert d["no_real_Calibri43M_GT_or_original_NRA2_weights_loaded"]
+          assert d["old_616J7_independent_EVAL32_128_bpp_CB59_not_tested"]
+          assert d["LIVE_Render_Supabase_Jessica_APK_unchanged"]
+          assert d["output_gate"]==0 and not d["candidate_accepted"] and not d["activation_allowed"]
+          print("S42_PAIRED_SPARSE_GRAPH_TRAIN80_DEVELOPMENT_ONLY",
+            json.dumps(d["matched_same_run_three_way_internal_only"],sort_keys=True),flush=True)
+          print("S42_TRUE_EVENT_HEAD_UNCHANGED_NOT_GENERAL_RUSSIAN_GRAMMAR",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s42-TRAIN80-S40-S41-vs-sparse-predicate-matching-18fold-noEVAL
+          path: results/nra3_s42/
+          if-no-files-found: error
+          retention-days: 30
