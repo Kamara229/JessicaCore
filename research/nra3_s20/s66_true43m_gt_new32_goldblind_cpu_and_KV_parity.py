@@ -36,6 +36,10 @@ from research.nra3_s20.s67_original_cache_phase_isolation import (
 from research.nra3_s20.s69_original_43m_gt_expansion_phase_matrix import (
     MODES as S69_MODES, physical_spent_row, final_audit,
 )
+from research.nra3_s20.s70_true43m_native_s95_source_prefix_counterfactual import (
+    audited_source_row as s70_native_s95_row,
+    audit_rows as s70_native_s95_audit,
+)
 from research.nra3_s20.s49_real43m_gt_quote_sidecar_zero_gate import (
     Frozen43MGreenTunnelQuotePort, frozen_native_manifest_digest,
 )
@@ -92,6 +96,7 @@ def main():
     s66_layer8_KV_parity=[]
     s67_physical_rows=[]  # only previously spent S66 source, NO human GOLD
     s69_physical_rows=[]  # 3 original nontrainable phase toggles × same 8 rows
+    s70_native_s95_rows=[]  # source-only S95 prefix native BPE A/B
     parity_collector=FrozenLayer8ReadPort()
 
     def load_original_with_read_only_port(*args,**kwargs):
@@ -236,6 +241,10 @@ def main():
                     s69_physical_rows.append(physical_spent_row(
                         model,sources,bridge,expansion,full,prompt_vec,
                         ids,cut))
+                    s70_native_s95_rows.append(s70_native_s95_row(
+                        model,sources,bridge,expansion,full,tok,
+                        q,frac.raw_words,selected["word_index"],
+                        ids,cut,prompt_vec))
             capture_count+=1
 
     s112.load_cpu_original=load_original_with_read_only_port
@@ -492,6 +501,21 @@ def main():
     s69_out=out/"NRA3_S69_GENUINE_ORIGINAL43M_GT_S132_KV_PHASE_FACTOR_ABLATION.json"
     s69_out.write_text(json.dumps(s69_result,ensure_ascii=False,
                     sort_keys=True,indent=2)+"\n",encoding="utf-8")
+    s70_result=s70_native_s95_audit(s70_native_s95_rows)
+    s70_out=out/"NRA3_S70_REAL43M_NATIVE_S95_PREFIX_FUTURE_ABLATION.json"
+    s70_out.write_text(json.dumps(s70_result,ensure_ascii=False,
+                    indent=2,sort_keys=True)+"\n",encoding="utf-8")
+    print("S70_REAL43M_NATIVE_S95_TRUE_PREFIX_FIXED_TOKENS",
+          json.dumps({
+              "rows":len(s70_native_s95_rows),
+              "feature_full_vs_prefix_changed":
+                  s70_result["source_feature_full_vs_prefix_changed"],
+              "real_H8_full_vs_prefix_changed":
+                  s70_result["same_native_H8_full_vs_prefix_changed"],
+              "real_logits_full_vs_prefix_changed":
+                  s70_result["same_native_logits_full_vs_prefix_changed"],
+              "activation_allowed":False,
+          },sort_keys=True),flush=True)
     print("S69_ORIGINAL43M_GT_S132_KV_DECODE_PHASE_FACTOR",
           json.dumps({
               "rows":len(s69_physical_rows),
