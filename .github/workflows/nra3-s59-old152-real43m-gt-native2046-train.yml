@@ -1,0 +1,148 @@
+name: NRA3 S59 actual43M GT OLD152 native320 semantic2046 TRAIN ONLY (protected fresh32)
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s58-selective-abstention-spent57-research-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s59-real43m-gt-spent152-training-only
+  cancel-in-progress: true
+jobs:
+  s59_true43m_gt_old152_train_native2046:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s59-native-semantic-transfer-polarity-20261118'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '591118'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned original S57/S58 CPU semantic stack
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Test S59 new TRUE native320 semantic ABI with no old gold/EVAL
+        run: |
+          python -m compileall -q research/nra3_s20/s59_native320_contrastive_event_polarity.py research/nra3_s20/s59_fit_spent152_true43m_gt_native2046.py research/nra3_s20/test_s59_native_semantic_ablation.py
+          python -m unittest -v research.nra3_s20.test_s59_native_semantic_ablation
+      - name: Require all previous genuine frozen original43M sources successful, no new S59 HELD access
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 44274389010 44279445613 44282672013 44308286512 44312765248 44324723824 44196720655; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          test "$(git hash-object research/nra3_s20/s59_new32_first_frozen_raw_only_NEVER_TRAIN.py)" = 1d36b159b58288991c9efb6529c389fda19468c0
+          test "$(git hash-object research/nra3_s20/s59_new32_first_frozen_manual_gold_NEVER_TRAIN.py)" = c8a519a94daf470c274c783bd708ff3053071eac
+          echo 'S59_NEW_FIRST32_RAW_AND_MANUAL_GOLD_LOCKED_BUT_NEVER_IMPORTED_IN_OLD152_TRAIN'
+      - name: Frozen S53 true43M GT native OLD TRAIN24
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s53-original43M-GT-protected616J7-NEW24-RAW-native-only-before-gold
+          run-id: 44274389010
+          github-token: ${{ github.token }}
+          path: inputs/s53
+      - name: Frozen S54 true43M GT native OLD TRAIN24
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s54-original43M-GT-616J7-HELD24-goldblind-native-raw-capture
+          run-id: 44279445613
+          github-token: ${{ github.token }}
+          path: inputs/s54
+      - name: Frozen S55 true43M GT native OLD TRAIN24
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s55-real43M-GT-J7-structural24-new-native-no-gold
+          run-id: 44282672013
+          github-token: ${{ github.token }}
+          path: inputs/s55
+      - name: Frozen S56 true43M GT native OLD TRAIN24
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s56-original43M-GT-protected616J7-NEW24-held-goldblind
+          run-id: 44308286512
+          github-token: ${{ github.token }}
+          path: inputs/s56
+      - name: Frozen S57 true43M GT native SPENT TRAIN24
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s57-original43M-GT-616J7-NEW24-held-goldblind-native
+          run-id: 44312765248
+          github-token: ${{ github.token }}
+          path: inputs/s57native
+      - name: Frozen S58 true43M GT native SPENT TRAIN32
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s58-original43M-GT-616J7-NEW32-held-goldblind-native
+          run-id: 44324723824
+          github-token: ${{ github.token }}
+          path: inputs/s58native
+      - name: S26 original GT native 12384FP16 frozen semantic
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s26-REAL43M-GT-TRAIN256-40fold-12384FP16-event-inversion-ablation-noEVAL
+          run-id: 44196720655
+          github-token: ${{ github.token }}
+          path: inputs/s26
+      - name: S57 old96-trained 231FP16 frozen event-first source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s57-original43M-GT-96spent-only-eventfirst231-FP16-before-HELD24
+          run-id: 44312765248
+          github-token: ${{ github.token }}
+          path: inputs/s57paid
+      - name: Physically train S59 2046FP16 using ONLY old genuine native152 and original paid heads
+        run: |
+          python -m research.nra3_s20.s59_fit_spent152_true43m_gt_native2046 \
+            --s53 inputs/s53/NRA3_S53_GENUINE43M_GT_NEGATION24_WORD339_AND_UNSAFE.safetensors \
+            --s54 inputs/s54/NRA3_S54_GENUINE43M_GT_HELD24_WORD339_AND_UNSAFE.safetensors \
+            --s55 inputs/s55/NRA3_S55_GENUINE43M_GT_STRUCTURAL24_WORD339_AND_UNSAFE.safetensors \
+            --s56 inputs/s56/NRA3_S56_GENUINE43M_GT_SCOPE24_WORD339_AND_UNSAFE.safetensors \
+            --s57-native inputs/s57native/NRA3_S57_GENUINE43M_GT_EVENTFIRST24_WORD339_AND_UNSAFE.safetensors \
+            --s58-native inputs/s58native/NRA3_S58_GENUINE43M_GT_EVENTFIRST32_WORD339_AND_UNSAFE.safetensors \
+            --s57-prov inputs/s57native/NRA3_S57_GENUINE43M_GT_EVENTFIRST24_OFFSET_PROVENANCE.json \
+            --s58-prov inputs/s58native/NRA3_S58_GENUINE43M_GT_EVENTFIRST32_OFFSET_PROVENANCE.json \
+            --s26 inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26 \
+            --s57-paid inputs/s57paid/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors \
+            --s57-fit inputs/s57paid/NRA3_S57_EVENTFIRST_SPENT96_231FP16_TRAIN_REPORT.json \
+            --out results/s59_old152_paid2046
+      - name: SHA freeze 2046 physical FP16 and original S26/S57 source gate0, before any NEW S59 HELD
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('results/s59_old152_paid2046')
+          m=json.loads((d/'NRA3_S59_OLD152_TRAIN_NATIVE2046_FP16_MANIFEST.json').read_text())
+          p=d/'NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors'
+          assert m['stage']=='NRA3_S59_FROZEN_ORIGINAL43M_GT_OLD152_NATIVE320_TRAIN2046_FP16'
+          assert m['new_semantic_FP16_parameters']==2046
+          assert sum(row['rows'] for row in m['spent_OLD152_manual_training_gold_counts'])==152
+          assert m['never_imported_S59_new32_RAW_or_GOLD_into_training']
+          assert m['original_Calibri43M_GT_S26_S57_unchanged']
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          assert hashlib.sha256(p.read_bytes()).hexdigest()==m['new_S59_semantic_paid2046_sha256']
+          assert load_file(str(p))['S59_NATIVE320_SEMANTIC2046_FP16'].shape==(2046,)
+          print('S59_ORIGINAL43M_GT_PAID2046_FROZEN_BEFORE_NEW32',
+                m['new_S59_semantic_paid2046_sha256'],flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s59-REAL43M-GT-OLD152-NATIVE320-PAID2046-FP16-frozen-before-HELD
+          path: results/s59_old152_paid2046/
+          retention-days: 30
+          if-no-files-found: error
