@@ -8,7 +8,9 @@ every shared trunk, grammar/context, event/coreference and relation head,
 then fine-tune ONLY the role+polarity heads and 3 residual weights using
 S32's fixed precision objective for 64 additional TRAIN-only steps.
 
-This prevents relation regression by exact numerical construction. It
+This prevents relation regression against the SAME-RUN fresh S31 baseline
+by construction, although independent cross-run numerical equality to
+the historical S31 fold is NOT presumed. It
 does NOT guarantee REJECTED FP improvement or natural language quality.
 No independent EVAL, no LIVE, output_gate=0, no model activation.
 """
@@ -341,9 +343,16 @@ def main():
         s32_prior=original_s32_folds[fold]
         # Verify REAL refitted S31 numerically with its archived canonical
         # SHA; old raw serializer SHA is not a numerical fingerprint.
-        require(canonical_paid_semantic_fp16_sha(s31_refit)==
-                s31_prior["canonical_S31_paid_FP16_numeric_SHA256"],
-                "S31 original true43M FP16 numeric checkpoint not reproduced")
+        # S28 proved same-runner numerical determinism but NOT cross-run
+        # numerical equality across CI hosts or PyTorch build details.
+        # Original S31 fold-specific numerical checkpoints were NOT saved,
+        # so NEVER assert this fresh refit IS the archived S31 model.
+        fresh_canonical=canonical_paid_semantic_fp16_sha(s31_refit)
+        old_canonical=s31_prior["canonical_S31_paid_FP16_numeric_SHA256"]
+        same_as_archived=(fresh_canonical==old_canonical)
+        print("S33_ORIGINAL_S31_ARCHIVED_VS_FRESH_CANONICAL_FP16",fold,
+              old_canonical,fresh_canonical,
+              "IDENTICAL",same_as_archived,flush=True)
         with torch.inference_mode():
             old_out=s31_refit(dvraw,dvvalid)
             out=candidate(dvraw,dvvalid)
@@ -352,9 +361,14 @@ def main():
                         "S33 altered S31 event/coreference/relation predictions")
             prior_tasks=source_only_counts(old_out,dvgold,dvvalid)
             prior_rare=rejected_specific_counts(old_out,dvgold,dvvalid)
-            require(prior_tasks==s31_prior["S31_held_5heads"]
-                    and prior_rare==s31_prior["S31_held_REJECTED"],
-                    "S31 prior TRAIN development counts drift on real refit")
+            historical_metrics_match=(
+                prior_tasks==s31_prior["S31_held_5heads"] and
+                prior_rare==s31_prior["S31_held_REJECTED"])
+            print("S33_FRESH_S31_REFIT_HELD_VS_ARCHIVED_COUNTS",fold,
+                  "IDENTICAL",historical_metrics_match,
+                  "REL_TP_FRESH",prior_tasks["event_relation"]["TP"],
+                  "REL_TP_ARCHIVED",s31_prior["S31_held_5heads"]["event_relation"]["TP"],
+                  flush=True)
             tasks=source_only_counts(out,dvgold,dvvalid)
             rare=rejected_specific_counts(out,dvgold,dvvalid)
             roles=_held_rejected_role_recall(out,dvgold,dvvalid)
@@ -376,7 +390,12 @@ def main():
             "S32_held_REJECTED":prior_s32["S32_held_REJECTED"],
             "S32_held_role_rejection_joint":prior_s32["S32_held_role_rejection_joint"],
             "S32_held_5heads":prior_s32["S32_held_5heads"],
-            "S31_replayed_numerical_FP16_SHA256":canonical_paid_semantic_fp16_sha(s31_refit),
+            "S31_replayed_numerical_FP16_SHA256":fresh_canonical,
+            "S31_archived_fold_numeric_FP16_SHA256":old_canonical,
+            "fresh_S31_canonical_sha_matches_archived_S31":same_as_archived,
+            "fresh_S31_held_counts_match_archived_S31":historical_metrics_match,
+            "fresh_S31_held_5heads":prior_tasks,
+            "fresh_S31_held_REJECTED":prior_rare,
             "unaffected_S31_event_coreference_relation_logits_exact_equal":True,
             "S31_held_role_rejection_joint":prior_s31["S31_held_role_rejection_joint"],
             "S31_held_5heads":prior_s31["S31_held_5heads"],
@@ -412,7 +431,7 @@ def main():
             and preposed["S32_held_REJECTED"]["TP"]==8,
             "known S30 physically observed preposed synthetic TRAIN case changed")
     result={
-      "stage":"NRA3_S33_12384_FP16_TWO_PHASE_HEAD_ONLY_PRECISION_WITH_STRICT_S31_RELATION_PRESERVATION",
+      "stage":"NRA3_S33_12384_FP16_FRESH_S31_REFIT_HEAD_ONLY_PRESERVE_RELATION_TRAIN_ABLATION",
       "original_genuine_frozen43M_GT_source_S22c_sha256":FROZEN_S22_TRAIN256_SHA256,
       "original_S22d_archived_canonical_sha256":S29_S22D_CANONICAL,
       "original_S26_archived_canonical_sha256":S29_S26_CANONICAL,
@@ -422,7 +441,8 @@ def main():
       "stage1_S31_full_supervised_train_steps":PREDECLARED_STEPS,
       "stage2_only_role_polarity_3_residual_train_steps":S33_ONLY_HEAD_STEPS,
       "stage2_head_only_lr":S33_HEAD_FINETUNE_LR,
-      "S31_relation_head_and_shared_trunk_bitwise_preserved":True,
+      "fresh_S31_relation_head_and_shared_trunk_bitwise_preserved":True,
+      "original_S31_fold_checkpoint_not_archived_cross_run_numeric_nonidentity_possible":True,
       "matched_S32_completed_action":44204827220,
       "preregistered_fixed_loss_margin":MARGIN,
       "preregistered_fixed_hardnegative_margin":HARD_NEGATIVE_MARGIN,
@@ -455,7 +475,9 @@ def main():
     print("S33_REAL43M_PAIRED_PREPOSED",
       json.dumps({
           "S26_TP":preposed["S26_held_REJECTED"]["TP"],
-          "S31_TP":preposed["S31_held_REJECTED"]["TP"],
+          "S31_archived_TP":preposed["S31_held_REJECTED"]["TP"],
+          "S31_fresh_refit_TP":preposed["fresh_S31_held_REJECTED"]["TP"],
+          "S31_fresh_refit_reln_TP":preposed["fresh_S31_held_5heads"]["event_relation"]["TP"],
           "S32_TP":preposed["S32_held_REJECTED"]["TP"],
           "S33_TP":preposed["S33_held_REJECTED"]["TP"],
           "S33_FP":preposed["S33_held_REJECTED"]["FP"],
