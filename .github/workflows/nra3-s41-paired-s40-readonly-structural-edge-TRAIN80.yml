@@ -1,0 +1,119 @@
+name: NRA3 S41 paired S40 read-only structural edge completion TRAIN80 18fold
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s40-compositional-grammar-graph-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s41-readonly-eligible-edges-same-run-s40-18fold
+  cancel-in-progress: true
+jobs:
+  s41_readonly_graph_completion_paired_s40_18fold_no_eval:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '391118'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify S37/S38 complete, S38 32 protected challenge unchanged and new S39 TRAIN source pinned separately
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 44212710547 44214503122 44215938499 44217309516; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          test "$(git hash-object research/nra3_s20/s38_novel_russian_structure_challenge_source.py)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          test "$(git hash-object research/nra3_s20/s39_new80_trainonly_scope_graph_source.py)" = 0126bfc7e9dd53fe9f94debc187a7ca9b71da0ed
+          test "$(gh api "repos/$GITHUB_REPOSITORY/contents/research/nra3_s20/s38_novel_russian_structure_challenge_source.py?ref=61ee235ea9e7ebfe4d19ba13be0dd0516afba231" --jq .sha)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          echo S39_S38_RESERVED_AND_S39_NEW80_COMMIT_SHA_PINNED
+      - name: Install pinned CPU PyTorch only; no Calibri43M original weights downloaded
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Download archived original S39 18fold physical development baseline without retraining it
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s39-NEW80-TRAINonly-NRA2-shadow-russian-grammar-18fold-noEVAL
+          run-id: 44215938499
+          github-token: ${{ github.token }}
+          path: inputs/s39
+      - name: Read completed S40 baseline 18fold from sealed prior CI (no training from it)
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s40-compositional-scope-NRA2-shadow-NEW80-TRAIN-18fold-noEVAL
+          run-id: 44217309516
+          github-token: ${{ github.token }}
+          path: inputs/s40
+      - name: Assert unchanged TRAIN80, no gold in S41 inference, explicit edge eligibility, protected S38
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s39_train80_shadow_grammar research.nra3_s20.test_s40_compositional_graph_trainonly research.nra3_s20.test_s41_readonly_eligible_graph_completion
+      - name: Refit same S40 three-head model and compare matched same-run S41 read-only directed graph completion
+        run: |
+          python -m research.nra3_s20.s41_physical_paired_train80_edge_completion_18fold --baseline-s39-report inputs/s39/NRA3_S39_TRAIN80_RAW_RUSSIAN_GRAPH_SHADOW_18FOLD.json --baseline-s40-report inputs/s40/NRA3_S40_TRAIN80_COMPOSITIONAL_GRAPH_18FOLD_AGAINST_S39.json --out results/nra3_s41
+      - name: Validate S41 matched S40 physical weights, all 18 synthetic TRAIN-only splits, event and quote protected
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra3_s41/NRA3_S41_TRAIN80_GENERIC_GRAPH_EDGE_COMPLETION_AGAINST_S40.json")
+          x=json.loads(p.read_text(encoding="utf-8"))
+          assert x["stage"]=="NRA3_S41_TRAIN80_READONLY_GENERIC_STRUCTURAL_EDGE_COMPLETION_18FOLD"
+          assert x["original_archived_S39_completed_run"]==44215938499
+          assert x["original_archived_S40_completed_run"]==44217309516
+          assert x["S41_precommitted_edge_floor_logit"]==.25
+          assert x["S41_fixed_rule"]=="generic_directed_grammatical_eligible_edge_floor_for_all_predicate_types"
+          assert x["S41_pure_output_postprocessor_no_extra_training"]
+          assert x["original_true43M_12384FP16_not_loaded_or_modified"]
+          assert x["S40_not_original_43M_or_12384_model_but_separate_shadow"]
+          assert x["new_TRAIN80_source"]["TRAIN_rows"]==80
+          assert x["new_TRAIN80_source"]["internal_folds"]==18
+          assert x["original_256_TRAIN_disjoint"]
+          assert x["untouched_S38_32_adversarial_reserved_for_later_control"]
+          assert x["no_S38_text_or_label_loaded_in_training_loss_or_model_selection"]
+          assert x["not_original43M_GT_inference_or_joint_trained_architecture"]
+          assert x["paid_original_NRA2_Calibri43M_GT_616J7_untouched"]
+          assert x["fixed_TRAIN_steps_per_fold"]==96 and x["fixed_optimizer_lr"]==.018
+          assert x["fixed_prediction_threshold"]==.5
+          assert len(x["all18_strict_synthetic_TRAIN_grouped_folds"])==18
+          assert set(x["summary_internal_only_by_fold_axis"])=={"LEXICAL","CONSTRUCTION"}
+          assert set(x["matched_same_run_original_S40"])=={"LEXICAL","CONSTRUCTION"}
+          assert all(f["TRAIN_and_held_disjoint"] and
+                     f["S41_readonly_logits_and_protected_event_quote_preserved"] and
+                     f["gold_never_used_in_neural_forward"] and
+                     len(f["fresh_model_weights_sha256"])==64 and
+                     len(f["S40_prior_archived_numeric_fingerprint"])==64 and
+                     isinstance(f["S40_same_run_numeric_matches_archived"],bool) and
+                     f["output_gate"]==0
+                     for f in x["all18_strict_synthetic_TRAIN_grouped_folds"])
+          assert set(x["fixed_passive_infinitive_construction_diagnostics"])=={
+                 "short_passive","infinitive_complement"}
+          assert not x["candidate_accepted"] and not x["activation_allowed"] and x["output_gate"]==0
+          assert x["not_independent_EVAL32_EVAL128_or_616J7_tested"]
+          assert x["LIVE_Render_Supabase_Jessica_APK_unchanged"]
+          print("S41_S40_SAME_RUN_TRAIN80_SYNTHETIC_18FOLD_PAIRED",json.dumps({
+              "S40":x["matched_same_run_original_S40"],
+              "S41":x["summary_internal_only_by_fold_axis"],
+              "passive_infinitive":x["fixed_passive_infinitive_construction_diagnostics"]
+          },sort_keys=True),flush=True)
+          print("S41_NOT_INDEPENDENT_ORIGINAL_43M_GT_NRA2_EVAL",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s41-TRAIN80-S40-paired-readonly-compositional-edge-completion-noEVAL
+          path: results/nra3_s41/
+          if-no-files-found: error
+          retention-days: 30
