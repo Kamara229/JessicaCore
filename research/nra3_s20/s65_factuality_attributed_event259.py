@@ -229,7 +229,7 @@ class S65FactualityJoint(nn.Module):
         return model.eval().requires_grad_(False)
 
 def fit_SPENT344_only(groups,old62,old63):
-    """Ten? Actually 11 old groups: S53..S64 =24x5 +32x6 =312.
+    """Twelve OLD groups S53..S64 =24x5 +32x7 =344, already scored.
 
     Source-only frozen beam and older model predictions. Training labels
     enter the loss only; no S65 NEW32 source/gold is ever imported.
@@ -298,7 +298,7 @@ def fit_SPENT344_only(groups,old62,old63):
     frozen=S65FactualityJoint.from_fp16(model.fp16())
     return frozen,frozen.fp16(),{
         "old_SPENT_group_counts":expected,
-        "old_312_SOURCE_rows":sum(expected),
+        "old_344_SOURCE_rows":sum(expected),
         "old_gold_directed_recipient":npos,
         "old_gold_directed_REJECTED":nrej,
         "old_predicate_in_source_top8":ncovered,
