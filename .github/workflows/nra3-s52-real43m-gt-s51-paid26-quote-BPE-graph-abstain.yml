@@ -1,0 +1,137 @@
+name: NRA3 S52 actual 43M+GT native 339 to S26 paid semantic graph quote BPE safety
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s51-native-overlap-offset-pooling-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s52-true43m-gt-paid-s26-graph-native36-safe-mask
+  cancel-in-progress: true
+jobs:
+  actual_original43m_gt_paid12384_event_graph_quote_bpe_abstain:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '521118'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require SHA-locked original43M GT S51 J7 native36 and previous genuine S26 paid model success
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/44267779820 --jq .conclusion)" = success
+          test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/44196720655 --jq .conclusion)" = success
+          test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/44259167542 --jq .conclusion)" = success
+          test "$(git hash-object research/nra3_s20/s38_novel_russian_structure_challenge_source.py)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          test "$(git hash-object research/nra3_s20/s48_matched_unicode_quote_graph.py)" = bdd67d8a76aa11f5de9218c15692ec19317af772
+          echo S52_PINNED_OLD_ORIGINAL43M_GT_J7_S51_AND_PAID_S26_PRIOR_TRAINONLY
+      - name: Install minimal CPU research dependencies only
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Unit tests for original five-head graph unchanged, structural quote/BPE abstentions and fail-closed gate
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s52_paidgraph_quote_unsafe_gate
+      - name: Load genuine physically observed original Calibri43M GT 36 word339 and unsafe masks, no gold files
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s51-REAL43M-GT-616J7-quote36-fractional-BPE-word339-noEVAL
+          run-id: 44267779820
+          github-token: ${{ github.token }}
+          path: inputs/s51
+      - name: Load previously trained on original S22 256 genuine43M GT S26 12384 FP16 paid graph
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s26-REAL43M-GT-TRAIN256-40fold-12384FP16-event-inversion-ablation-noEVAL
+          run-id: 44196720655
+          github-token: ${{ github.token }}
+          path: inputs/s26
+      - name: Confirm no gold source or original model checkpoint included in either artifact
+        run: |
+          set -euo pipefail
+          test -s inputs/s51/NRA3_S51_DERIVED_REAL43M_GT_WORD339_QUOTE_AND_UNSAFE.safetensors
+          test -s inputs/s51/NRA3_S51_ORIGINAL_GT_QUOTE36_BPE_FRACTIONAL_CHAR_OVERLAP_AUDIT.json
+          test -s inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26
+          test -s inputs/s26/NRA3_S26_REAL43M_GT_TRAIN256_GROUPED40_MATCHED_DIAGNOSTICS.json
+          test ! -e inputs/s51/S22C_256_SYNTHETIC_EVENT_GRAPH_TARGETS_TRAIN_ONLY.safetensors
+          test ! -e inputs/s26/S22C_256_SYNTHETIC_EVENT_GRAPH_TARGETS_TRAIN_ONLY.safetensors
+          echo S52_REAL_NATIVE_ONLY_AND_FROZEN_S26_PAID_GRAPH_NO_GOLD_OR_ORIGINAL_CHECKPOINT
+      - name: Physical original43M+GT derived layer8 S51 36 native word forward through old paid S26 graph, five heads bitwise same
+        run: |
+          python -m research.nra3_s20.s52_real43m_gt_paidgraph_native36_cpu \
+            --s51-features inputs/s51/NRA3_S51_DERIVED_REAL43M_GT_WORD339_QUOTE_AND_UNSAFE.safetensors \
+            --s51-provenance inputs/s51/NRA3_S51_ORIGINAL_GT_QUOTE36_BPE_FRACTIONAL_CHAR_OVERLAP_AUDIT.json \
+            --s26-graph inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26 \
+            --s26-provenance inputs/s26/NRA3_S26_REAL43M_GT_TRAIN256_GROUPED40_MATCHED_DIAGNOSTICS.json \
+            --out results/nra3_s52
+      - name: Fail-closed results contract; only abstention counts not quality scores, original model not activated
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra3_s52/NRA3_S52_GENUINE43M_GT_S26_PAIDGRAPH_QUOTE_BPE_ABSTAIN_FIRST_CPU.json")
+          d=json.loads(p.read_text(encoding="utf-8"))
+          assert d["stage"]=="NRA3_S52_S26_PAID12384_NATIVE_TRUE43M_GT_S51_QUOTE_BPE_ABSTAIN_FIRST_CPU"
+          assert d["genuine_original_Calibri43M_GT_S51_source_CPU_run"]==44267779820
+          assert d["original_paid_S26_true43M_GT_train256_source_CPU_run"]==44196720655
+          assert d["physical_true_original_GreenTunnel_layer8_inputs_36"]==36
+          assert d["previous_S51_quote_words"]==72
+          assert d["causal_unsafe_native_BPE_words_excluded"]==24
+          assert 0<d["eligible_word_candidates_no_gold"]<d["original_NATIVE_GT_total_words"]
+          assert 0<d["eligible_directed_pair_candidates_no_gold"]<d["raw_all_directed_nonself_pair_count"]
+          assert len(d["S52_36_case_offline_description"])==36
+          assert d["S26_old_original_five_heads_bitwise_equal_masked_observer"]
+          assert d["S26_old_12384_loaded_parameter_tensors_identical_pre_post"]
+          assert d["original_S26_physical_file_SHA256_pinned_unmodified"]
+          assert d["S51_true_original43M_GT_native_hidden_and_masks_identical_pre_post"]
+          assert d["S48_quote_signals_not_passed_into_original_S26_incompatible338D_model"]
+          assert d["original_S26_PARENT_context_uses_both_word_directions_NO_CAUSAL_CERTIFICATION"]
+          assert d["original43M_S93_GT_full_prefill_causal_safety_NOT_proven"]
+          assert d["S52_candidate_masks_are_conservative_abstention_NOT_ONLINE_DECODER"]
+          assert d["S52_masked_edges_NOT_semantically_validated_NO_F1"]
+          assert d["no_S51_36_source_training_hyperparameter_tuning_or_selection"]
+          assert d["S26_original_model_trained_in_prior_RUN_only_not_retrained"]
+          assert d["S38_S47_S48_HELD26_independent_EVAL_not_imported"]
+          assert d["original_616_J7_retention_replayed_IN_PRIOR_S51_not_here"]
+          assert d["active_candidate_616J7_bpp_CB59_NOT_CERTIFIED"]
+          assert d["LIVE_Render_Supabase_Jessica_APK_unchanged"]
+          assert d["output_gate"]==0 and not d["candidate_accepted"] and not d["activation_allowed"]
+          assert len(d["original_trained_S26_five_head_prediction_counts_NOT_accuracy"])==5
+          for k,v in d["original_trained_S26_five_head_prediction_counts_NOT_accuracy"].items():
+              assert v["original_frozen_S26_argmax_nonNONE_unvalidated"]>=v["structurally_eligible_unvalidated"]
+              assert v["abstained_due_to_quote_BPE_or_punctuation"]==(
+                  v["original_frozen_S26_argmax_nonNONE_unvalidated"]-v["structurally_eligible_unvalidated"])
+          assert all(s["no_gold_or_answer_in_model_or_bridge_forward"]
+                     for s in d["S52_36_case_offline_description"])
+          print("S52_TRUE43M_GT_S26_PAIDGRAPH_SAFE_ABSTENTION",
+              json.dumps({
+                 "original_native_words":d["original_NATIVE_GT_total_words"],
+                 "quoted_words":d["previous_S51_quote_words"],
+                 "causal_unsafe_words":d["causal_unsafe_native_BPE_words_excluded"],
+                 "eligible_words":d["eligible_word_candidates_no_gold"],
+                 "eligible_pairs":d["eligible_directed_pair_candidates_no_gold"],
+                 "raw_pairs":d["raw_all_directed_nonself_pair_count"],
+                 "five_heads_unchanged":d["S26_old_original_five_heads_bitwise_equal_masked_observer"]
+              },sort_keys=True),flush=True)
+          print("S52_NO_EVAL_J7_MODEL_GAIN_OR_ACTIVATION",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s52-original43M-GT-s51-native36-S26-paid12384-quote-BPE-abstain-noEVAL
+          path: results/nra3_s52/
+          if-no-files-found: error
+          retention-days: 30
