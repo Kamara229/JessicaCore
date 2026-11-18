@@ -99,13 +99,7 @@ class S61NativePairNull(nn.Module):
         candidate=candidate.masked_fill(~safe,-1e9)
         null=F.linear(x.fused[bi,source],self.null,self.null_bias)
         joined=torch.cat((candidate,null[:,None]),dim=-1)
-        base_rejected=(old_polarity[bi,source,None,:].gather(
-                       2,torch.arange(w,device=source.device)[None,None,:]
-                           .expand(b,1,-1)).squeeze(1)
-                       if False else None)
         # Frozen S59 source-local negation correction + old S57 pair local.
-        rej=(old_rej +
-             sem[bi,source]@old59.reject[:,None] if False else old_rej)
         s59_rej=(sem[bi,source]@old59.reject+
                  old59.reject_bias).unsqueeze(-1)
         polar=old_rej+s59_rej+F.linear(combined,self.polar,self.polar_bias)
