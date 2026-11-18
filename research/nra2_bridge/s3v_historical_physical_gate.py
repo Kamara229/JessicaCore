@@ -7,6 +7,7 @@ import hashlib
 import json
 import io
 import math
+import re
 import zipfile
 
 
@@ -71,7 +72,7 @@ def verify_physical_gate(producer_bytes, manifest_bytes, artifact_zip_bytes=None
         raise ValueError("FAIL CLOSED: ZIP physical SHA mismatch")
     member_path = manifest["json_member_path"]
     if (not isinstance(member_path, str) or not member_path
-            or member_path.startswith("/") or "\\" in member_path
+            or member_path.startswith("/") or re.match(r"^[A-Za-z]:", member_path) or "\\" in member_path
             or any(p in ("", ".", "..") for p in member_path.split("/"))):
         raise ValueError("FAIL CLOSED: unsafe JSON member path")
     try:
@@ -82,7 +83,7 @@ def verify_physical_gate(producer_bytes, manifest_bytes, artifact_zip_bytes=None
             # Validate all entries, not only the selected JSON.
             for entry in members:
                 name = entry.filename
-                if (not name or name.startswith("/") or chr(92) in name
+                if (not name or name.startswith("/") or re.match(r"^[A-Za-z]:", name) or chr(92) in name
                         or any(part in ("", ".", "..") for part in name.rstrip("/").split("/"))
                         or (entry.create_system == 3 and ((entry.external_attr >> 16) & 0o170000) == 0o120000)):
                     raise ValueError("FAIL CLOSED: unsafe ZIP entry")
