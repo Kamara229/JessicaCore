@@ -1,0 +1,61 @@
+name: NRA3 S68 frozen original S95 full-prompt future-feature source audit (NOT native causal inference)
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s67-cache-phase-ablation-20261119
+permissions:
+  contents: read
+concurrency:
+  group: nra3-s68-s95-source-ast-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  source_only_exact_s95_ast_future_feature_forensics:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s68-source-prefix-conditioning-audit-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install only numpy; absolutely no Calibri model or BPE inference
+        run: python -m pip install numpy==1.26.4
+      - name: Exact immutable S66 spent RAW source and frozen original S95 AST unit invariants
+        run: |
+          set -euo pipefail
+          test "$(git hash-object research/nra3_s20/s66_frozen_new32_raw_only_DO_NOT_TRAIN.py)" = "1d344cbc67bf85f81917009dbec0a5b146ac3961"
+          python -m unittest -v research.nra3_s20.test_s68_s95_future_conditioning_source_audit
+      - name: Run NO-GOLD original S95 source-only surrogate causal-feature falsification
+        run: |
+          set -euo pipefail
+          python -m research.nra3_s20.s68_s95_future_conditioning_source_audit --out results/nra3_s68/NRA3_S68_S95_ORIGINAL_FUTURE_FEATURE_COUNTERFACTUAL_SOURCE_ONLY.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('results/nra3_s68/NRA3_S68_S95_ORIGINAL_FUTURE_FEATURE_COUNTERFACTUAL_SOURCE_ONLY.json').read_text())
+          assert d['stage']=='NRA3_S68_S95_ORIGINAL_SOURCE_ALGORITHM_PREFIX_FUTURE_ABLATION'
+          assert d['original_S95_python_function_unmodified_AST_executed']
+          assert not d['native_calibri_BPE_or_real_43M_H8_test']
+          assert d['byte_token_surrogate_only_NOT_native']
+          assert d['already_spent_S66_RAW_only']
+          assert d['n_rows']==32
+          assert d['n_full_vs_prefix_feature_change']==32
+          assert d['n_equal_prefix_suffix_swap_feature_change']==32
+          assert not d['causal_original_streaming_root_cause_or_safety_proven']
+          assert d['no_fresh_held_or_EVAL32_128_or_gold']
+          assert d['output_gate']==0 and not d['candidate_accepted'] and not d['activation_allowed']
+          print('S68_ORIGINAL_S95_FULL_PROMPT_HASH_NON_PREFIX_INVARIANCE_EXPLICIT_NOT_NATIVE_NO_ACTIVATION')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s68-original-S95-source-only-future-feature-noBPE-noGold
+          path: results/nra3_s68/
+          retention-days: 30
+          if-no-files-found: error
