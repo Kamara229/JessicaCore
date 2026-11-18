@@ -58,7 +58,7 @@ def source_only_prefix_audit(tokenizer,text,*,expected_ids=None):
     tokens=raw_surface_grammar(text)
     require(len(tokens)==len(whole.raw_words),"original word alignment mismatch")
     per=[]
-    for t,w in zip(tokens,whole.raw_words):
+    for word_index,(t,w) in enumerate(zip(tokens,whole.raw_words)):
         # Same original chat format, but source truncation is only a
         # diagnostic tokenizer probe: it NEVER enters model forward.
         ptext=text[:t.end]
@@ -69,7 +69,7 @@ def source_only_prefix_audit(tokenizer,text,*,expected_ids=None):
         # fail strict per-word native causal safety.
         prefix_stable=(prefix==original)
         per.append({
-            "source_word_index":t.index-1,
+            "source_word_index":word_index,
             "raw_start":t.start,"raw_end":t.end,
             "strict_shared_BPE_word_safe":bool(w.causally_safe),
             "prefix_native_token_piece_identical":prefix_stable,
