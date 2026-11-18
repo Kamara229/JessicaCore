@@ -24,6 +24,9 @@ from research.nra3_s20.s64_held32_original43m_native_offsets import (
 from research.nra3_s20.s64_new32_raw_only_preregistered import (
     raw_only_inputs,raw_sha256,
 )
+from research.nra3_s20.s64_native_prefix_causal_boundary_audit import (
+    source_only_prefix_audit,
+)
 from research.nra3_s20.s49_real43m_gt_quote_sidecar_zero_gate import (
     Frozen43MGreenTunnelQuotePort, frozen_native_manifest_digest,
 )
@@ -76,6 +79,7 @@ def main():
     capture_count=0
     real_tokenizer=[]
     align_failed=[]
+    s64_prefix_audits=[]
 
     def load_original_with_read_only_port(*args,**kwargs):
         cpu=original_load(*args,**kwargs)
@@ -112,6 +116,11 @@ def main():
             except ValueError as ex:
                 align_failed.append({'raw_sha256':hashlib.sha256(q.encode('utf-8')).hexdigest(),
                                      'reason':str(ex)[:180]})
+            # S64 source-only experiment: separate original tokenizer prefix
+            # stability diagnostic, with original input IDs absolutely unchanged.
+            # This is NOT a substitute for online Calibri43M GT causal proof.
+            s64_prefix_audits.append(source_only_prefix_audit(
+                tok,q,expected_ids=ids))
             prompt_vec=torch.as_tensor(s160.prompt_only_vector(tok,q),dtype=torch.float32)
             with (torch.inference_mode(),expansion.prefill_only(model),
                   s160.prefill_only_tunnel(model,full)):
@@ -348,6 +357,30 @@ def main():
         raise AssertionError("S51 physically persisted real 43M read-only fractional word339 changed")
     s51_derived_sha=sha_file(s51_derived_feature_path)
 
+    if len(s64_prefix_audits)!=32:
+        raise AssertionError('S64 source-only prefix audit must cover all 32')
+    prefix_audit_path=out/'NRA3_S64_ORIGINAL_NATIVE_BPE_PREFIX_STABILITY_AUDIT.json'
+    prefix_audit_path.write_text(json.dumps({
+        'stage':'NRA3_S64_TRUE_ORIGINAL43M_GT_NEW32_GOLDBLIND_BPE_PREFIX_AUDIT',
+        'only_unmodified_original_model_tokenizer_used':True,
+        'same_full_original_model_prompt_BPE_IDs_verified':True,
+        'all_616_original_J7_replayed_BEFORE_audit':True,
+        'does_NOT_certify_full_context_original_GT_online_causality':True,
+        'source_ONLY_never_imported_S64_gold_or_EVAL':True,
+        'rows':s64_prefix_audits,
+        'rows_all_strict_shared_piece_safe_and_prefix_stable':sum(
+            z['strict_word_masks_and_all_prefix_tokens_stable']
+            for z in s64_prefix_audits),
+        'rows_with_prefix_token_instability':sum(
+            z['prefix_token_identifier_mismatch_words']>0
+            for z in s64_prefix_audits),
+        'rows_with_shared_native_BPE_word':sum(
+            z['strict_shared_native_words_unsafe']>0
+            for z in s64_prefix_audits),
+        'no_optimizer_or_deploy':True,
+        'output_gate':0,
+    },ensure_ascii=False,sort_keys=True,indent=2)+'\n',encoding='utf-8')
+
     s51_map_report=out/"NRA3_S64_GENUINE43M_GT_EVENTFIRST32_OFFSET_PROVENANCE.json"
     s51_map_report.write_text(json.dumps({
        "stage":"NRA3_S64_GENUINE43M_GT_EVENTFIRST32_BPE_SOURCE_ONLY",
@@ -361,6 +394,11 @@ def main():
        "new_BPE_fractional_remaining_failed":fractional_failures,
        "new_BPE_fractional_ambiguous_rows":new_unsafe_rows,
        "new_BPE_fractional_shared_native_piece_count":native_shared_count,
+       "S64_source_only_native_prefix_audit_filename":prefix_audit_path.name,
+       "S64_source_only_native_prefix_audit_SHA256":sha_file(prefix_audit_path),
+       "S64_source_only_prefix_mismatch_rows":sum(
+           z['prefix_token_identifier_mismatch_words']>0
+           for z in s64_prefix_audits),
        "new_BPE_fractional_duplicate_offset_unicode_char_count":sum(
            m.original_duplicate_native_offset_characters
            for m in fractional_map if m is not None),
@@ -423,6 +461,11 @@ def main():
         "S51_originally_unmapped_S50_rows":unsupported,
         "S51_ambiguous_causally_unsafe_rows":new_unsafe_rows,
         "S51_shared_native_BPE_piece_count":native_shared_count,
+        "S64_original_BPE_prefix_audit_filename":prefix_audit_path.name,
+        "S64_original_BPE_prefix_audit_SHA256":sha_file(prefix_audit_path),
+        "S64_original_BPE_prefix_mismatch_rows":sum(
+            z['prefix_token_identifier_mismatch_words']>0
+            for z in s64_prefix_audits),
         "S51_native_duplicate_offset_unicode_chars":sum(
             m.original_duplicate_native_offset_characters
             for m in fractional_map if m is not None),
