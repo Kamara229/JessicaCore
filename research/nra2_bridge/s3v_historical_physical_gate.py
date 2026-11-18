@@ -5,7 +5,8 @@ does not fetch artifacts, score, train, or expose labels. No runtime side effect
 """
 import hashlib
 import json
-from pathlib import Path
+import io
+import zipfile
 
 
 def _pairs_unique(pairs):
@@ -58,6 +59,27 @@ def verify_physical_gate(producer_bytes, manifest_bytes, artifact_zip_bytes=None
         raise ValueError("FAIL CLOSED: original ZIP bytes required")
     if _sha(artifact_zip_bytes) != manifest["zip_sha256"]:
         raise ValueError("FAIL CLOSED: ZIP physical SHA mismatch")
+    member_path = manifest["json_member_path"]
+    if (not isinstance(member_path, str) or not member_path
+            or member_path.startswith("/") or "\\\\" in member_path
+            or any(p in ("", ".", "..") for p in member_path.split("/"))):
+        raise ValueError("FAIL CLOSED: unsafe JSON member path")
+    try:
+        with zipfile.ZipFile(io.BytesIO(artifact_zip_bytes)) as archive:
+            members = archive.infolist()
+            if len(members) > 1000 or len({m.filename for m in members}) != len(members):
+                raise ValueError("FAIL CLOSED: duplicate or excessive ZIP members")
+            matches = [m for m in members if m.filename == member_path]
+            if len(matches) != 1 or matches[0].is_dir() or matches[0].flag_bits & 1:
+                raise ValueError("FAIL CLOSED: missing, directory, or encrypted JSON member")
+            if matches[0].file_size > 16 * 1024 * 1024:
+                raise ValueError("FAIL CLOSED: JSON member too large")
+            with archive.open(matches[0]) as member:
+                extracted = member.read(16 * 1024 * 1024 + 1)
+            if extracted != producer_bytes:
+                raise ValueError("FAIL CLOSED: JSON bytes differ from pinned ZIP member")
+    except (zipfile.BadZipFile, RuntimeError, OSError, EOFError) as exc:
+        raise ValueError("FAIL CLOSED: unreadable original ZIP") from exc
     if _sha(producer_bytes) != manifest["json_sha256"]:
         raise ValueError("FAIL CLOSED: JSON physical SHA mismatch")
     producer = _load(producer_bytes)
