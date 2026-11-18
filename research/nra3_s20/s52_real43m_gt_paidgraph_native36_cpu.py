@@ -141,11 +141,17 @@ def main():
                             getattr(observed.original_paid_graph_logits,name))
                 for name in heads),
             "S52 new quote/BPE masks modified original five S26 paid logits")
-    require(tensor_sha(x,valid,unsafe)==old_x_sha
-            and hashlib.sha256(graph.physical_bytes()).hexdigest()==sha_paid_before
-            and bridge.output_gate==0 and bridge.model.output_gate==0
-            and bridge.model.parent.output_gate==0,
-            "S52 changed original GT features or trained/tampered old S26 graph")
+    invariant={
+        "S51_true43M_source_SHA_unchanged":tensor_sha(x,valid,unsafe)==old_x_sha,
+        "S26_paid_FP16_bytes_unchanged":hashlib.sha256(graph.physical_bytes()).hexdigest()==sha_paid_before,
+        "S52_bridge_gate_zero":bridge.output_gate==0,
+        "S26_model_gate_zero":bridge.model.output_gate==0,
+        "S26_parent_gate_zero":bridge.model.parent.output_gate==0,
+    }
+    print("S52_PRECISE_ORIGINAL_IDENTITY_CHECK",
+          json.dumps(invariant,sort_keys=True),flush=True)
+    require(all(invariant.values()),
+            "S52 real original source or paid graph invariant drift "+json.dumps(invariant,sort_keys=True))
     num_words=int(valid.sum())
     quote_words=int((observed.quote_word_mask&valid).sum())
     unsafe_words=int((unsafe&valid).sum())
