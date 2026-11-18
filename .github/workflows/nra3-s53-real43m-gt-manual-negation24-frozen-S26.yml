@@ -438,6 +438,13 @@ jobs:
             inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
             inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
             results/nra3_s53_native
+      - name: Persist original true Calibri43M GT CPU J7-protected NEW24 raw native even if later manual audit fails
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s53-original43M-GT-protected616J7-NEW24-RAW-native-only-before-gold
+          path: results/nra3_s53_native/
+          retention-days: 30
+          if-no-files-found: error
       - name: Validate real original 12-layer Calibri43M+GT 616 J7 and NEW24 native raw339 before reading human gold
         run: |
           python - <<'PY'
@@ -460,7 +467,7 @@ jobs:
           assert m['observed_layer_index_zero_based']==7
           assert m['GT_residuals_before_readport_in_same_active_S93_scope']
           assert m['actual_genuine_43M_CPU_new_negation24_TRAIN_prefills']==24
-          assert m['S53_fractional_report_file']=='NRA3_S53_GENUINE43M_GT_NEGATION24_OFFSET_PROVENANCE.json' or m['S51_fractional_report_file']=='NRA3_S53_GENUINE43M_GT_NEGATION24_OFFSET_PROVENANCE.json'
+          assert m.get('S51_fractional_report_file')=='NRA3_S53_GENUINE43M_GT_NEGATION24_OFFSET_PROVENANCE.json'
           assert m['S51_fractional_BPE_words_recovered']==24
           assert m['S51_causal_token_training_allowed'] is False
           assert m['S53_manual_gold_SEPARATE_NOT_imported_during_model_or_adapter_forward']
