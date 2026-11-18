@@ -108,7 +108,7 @@ def make_row(f:Lex,family:int,pattern:int)->TrainGraph:
         events=[decide,f.infinitive]
         edges=[(f.infinitive,f.person_a)]
     elif pattern==5:
-        text=f"Не {f.person_a} {f.agent} хотел {f.infinitive} {f.document}."
+        text=f"Не {f.person_a} {f.agent} {want} {f.infinitive} {f.document}."
         events=[want,f.infinitive]
         edges=[(f.infinitive,f.person_a)]
     elif pattern==6:
