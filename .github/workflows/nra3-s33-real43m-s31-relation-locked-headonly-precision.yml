@@ -105,14 +105,15 @@ jobs:
           from pathlib import Path
           import json
           m=json.loads(Path("results/nra3_s33/NRA3_S33_REAL43M_GT_TRAIN256_FIXED8FOLD_HEAD_ONLY_PRECISION_VS_S31_S32.json").read_text())
-          assert m["stage"]=="NRA3_S33_12384_FP16_TWO_PHASE_HEAD_ONLY_PRECISION_WITH_STRICT_S31_RELATION_PRESERVATION"
+          assert m["stage"]=="NRA3_S33_12384_FP16_FRESH_S31_REFIT_HEAD_ONLY_PRESERVE_RELATION_TRAIN_ABLATION"
           assert m["original_genuine_frozen43M_GT_source_S22c_sha256"]=="8963e2e8758b1c6a6fbd28eb597a77be1a454d732d0ecac93df6f5a753f6a361"
           assert m["original_S22d_archived_canonical_sha256"]=="35102946886b9f35d86f57f791b6ab6001b813e4f79397cff8e4d25c04e7a538"
           assert m["original_S26_archived_canonical_sha256"]=="02d4403ffbce01632d54d66349a01c3f10b81650d26d9540bb86f495cac62807"
           assert m["same_architecture_as_S26_zero_new_weights"]
           assert m["matched_S31_completed_action"]==44203704916
           assert m["matched_S32_completed_action"]==44204827220
-          assert m["S31_relation_head_and_shared_trunk_bitwise_preserved"]
+          assert m["fresh_S31_relation_head_and_shared_trunk_bitwise_preserved"]
+          assert m["original_S31_fold_checkpoint_not_archived_cross_run_numeric_nonidentity_possible"]
           assert m["stage1_S31_full_supervised_train_steps"]==240
           assert m["stage2_only_role_polarity_3_residual_train_steps"]==64
           assert m["stage2_head_only_lr"]==0.003
@@ -134,10 +135,10 @@ jobs:
           assert m["preposed_rejected_TRAIN_only_8_fold33"]["S31_held_REJECTED"]["TP"]==7
           assert m["preposed_rejected_TRAIN_only_8_fold33"]["S32_held_REJECTED"]["TP"]==8
           assert all(
-              f["S33_held_5heads"][head]==f["S31_held_5heads"][head]
+              f["S33_held_5heads"][head]==f["fresh_S31_held_5heads"][head]
               for f in m["per_fold_8_rows_synthetic_TRAIN_internal_NOT_independent"]
               for head in ("event","coreference","event_relation")
-          ), "held original S31 event/coreference/relation MUST remain unchanged"
+          ), "same-run fresh S31 event/coreference/relation MUST remain bitwise unchanged"
           assert m["preposed_rejected_TRAIN_only_8_fold33"]["S32_held_REJECTED"]["held_REJECTED_positive_support"]==8
           assert m["no_hyperparameter_or_checkpoint_selection_using_held_data"]
           assert m["original_616_J7_and_independent_EVAL_never_touched"]
