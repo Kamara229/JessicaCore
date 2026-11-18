@@ -61,25 +61,24 @@ def directed_source_recipient_contrast(logits,reference,legal):
     per source; one-to-one matching is NEVER imposed.
     """
     positive=(reference>.5)&legal
-    gold_positions=torch.nonzero(positive,as_tuple=False)
-    require(len(gold_positions)>0,"S44 requires positive TRAIN links")
-    source_losses=[]
-    target_losses=[]
-    for b,s,t in gold_positions.tolist():
-        correct=logits[b,s,t]
-        wrong_sources=legal[b,:,t] & ~positive[b,:,t]
-        wrong_targets=legal[b,s,:] & ~positive[b,s,:]
-        if bool(wrong_sources.any()):
-            best_wrong=logits[b,:,t][wrong_sources].max()
-            source_losses.append(
-                F.relu(S44_WRONG_SOURCE_PAIR_MARGIN + best_wrong-correct))
-        if bool(wrong_targets.any()):
-            best_wrong=logits[b,s,:][wrong_targets].max()
-            target_losses.append(
-                F.relu(S44_WRONG_RECIPIENT_PAIR_MARGIN+best_wrong-correct))
-    require(source_losses and target_losses,
-            "no valid TRAIN wrong-source / wrong-recipient contrast")
-    return torch.stack(source_losses).mean()+torch.stack(target_losses).mean()
+    require(bool(positive.any()),"S44 requires positive TRAIN links")
+    # Vectorized exact same-recipient wrong-source and same-source
+    # wrong-recipient highest competitors; multiple gold links from
+    # one source are ALL excluded from negative candidates.
+    incorrect=logits.masked_fill(~(legal&~positive),-1e6)
+    worst_source_for_target=incorrect.max(dim=1).values
+    worst_target_for_source=incorrect.max(dim=2).values
+    source_margin=F.relu(
+        S44_WRONG_SOURCE_PAIR_MARGIN
+        +worst_source_for_target.unsqueeze(1)-logits)
+    recipient_margin=F.relu(
+        S44_WRONG_RECIPIENT_PAIR_MARGIN
+        +worst_target_for_source.unsqueeze(2)-logits)
+    require(bool(torch.isfinite(source_margin[positive]).all())
+            and bool(torch.isfinite(recipient_margin[positive]).all()),
+            "no finite source/recipient counterfactual TRAIN contrasts")
+    return (source_margin[positive].mean()
+            +recipient_margin[positive].mean())
 
 def fit_s44(train_rows,fold):
     require(len(train_rows) in (112,120),
