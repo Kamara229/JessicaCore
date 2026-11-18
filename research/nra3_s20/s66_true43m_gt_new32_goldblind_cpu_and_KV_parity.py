@@ -436,6 +436,42 @@ def main():
         raise AssertionError("S51 physically persisted real 43M read-only fractional word339 changed")
     s51_derived_sha=sha_file(s51_derived_feature_path)
 
+    if len(s66_layer8_KV_parity)!=len(SUBSET):
+        raise AssertionError("S66 source-only original GT parity not attempted for all 8")
+    parity_file=out/"NRA3_S66_ORIGINAL43M_GT_NATIVE_PREFIX_KV_PARITY_AUDIT.json"
+    measurement_count=sum(not z["parity_probe_skipped_fail_closed"]
+                          for z in s66_layer8_KV_parity)
+    pref_bad=sum(
+        z["prefill_hidden320_at_strict_word_end"]["max_abs"]>1.e-3
+        for z in s66_layer8_KV_parity
+        if not z["parity_probe_skipped_fail_closed"])
+    kv_bad=sum(
+        z["KV_cache_incremental_hidden320_next2"]["max_abs"]>1.e-3
+        for z in s66_layer8_KV_parity
+        if not z["parity_probe_skipped_fail_closed"])
+    parity_file.write_text(json.dumps({
+        "stage":"NRA3_S66_TRUE_ORIGINAL43M_GT_SOURCE_ONLY_H8_PREFIX_AND_KV_NEXT2",
+        "reproduced_616_original_protected_J7_BEFORE_new_reads":True,
+        "original_model_weights_and_GT_unchanged":True,
+        "original_native_BPE_token_IDS_not_rewritten":True,
+        "fixed_original_full_prompt_S93_conditioning_may_encode_future":True,
+        "even_parity_does_NOT_certify_original_streaming_causality":True,
+        "no_S66_gold_imported_or_predictions_used_in_probe":True,
+        "num_source_only_attempted":len(SUBSET),
+        "num_native_BPE_safe_measured":measurement_count,
+        "num_true_GT_H8_native_prefix_maxabs_gt_1e_3":pref_bad,
+        "num_true_GT_H8_original_KV_next2_maxabs_gt_1e_3":kv_bad,
+        "per_row_source_only_falsification":s66_layer8_KV_parity,
+        "output_gate":0,"candidate_accepted":False,
+        "activation_allowed":False,
+    },ensure_ascii=False,sort_keys=True,indent=2)+"\n",encoding="utf-8")
+    print("S66_ORIGINAL43M_GT_TRUE_H8_NATIVE_PREFIX_KV_SOURCE_ONLY",
+          json.dumps({"attempted":len(SUBSET),
+                      "measured":measurement_count,
+                      "prefix_maxabs_gt_1e_3":pref_bad,
+                      "KV_next2_maxabs_gt_1e_3":kv_bad,
+                      "gate":0},sort_keys=True),flush=True)
+
     if len(s66_prefix_audits)!=32:
         raise AssertionError('S66 source-only prefix audit must cover all 32')
     prefix_audit_path=out/'NRA3_S66_ORIGINAL_NATIVE_BPE_PREFIX_STABILITY_AUDIT.json'
@@ -474,6 +510,8 @@ def main():
        "new_BPE_fractional_ambiguous_rows":new_unsafe_rows,
        "new_BPE_fractional_shared_native_piece_count":native_shared_count,
        "S66_source_only_native_prefix_audit_filename":prefix_audit_path.name,
+       "S66_original43M_GT_H8_native_prefix_KV_audit_file":parity_file.name,
+       "S66_original43M_GT_H8_native_prefix_KV_audit_SHA256":sha_file(parity_file),
        "S66_source_only_native_prefix_audit_SHA256":sha_file(prefix_audit_path),
        "S66_source_only_prefix_mismatch_rows":sum(
            z['prefix_token_identifier_mismatch_words']>0
@@ -541,6 +579,8 @@ def main():
         "S51_ambiguous_causally_unsafe_rows":new_unsafe_rows,
         "S51_shared_native_BPE_piece_count":native_shared_count,
         "S66_original_BPE_prefix_audit_filename":prefix_audit_path.name,
+        "S66_original43M_GT_H8_native_prefix_KV_audit_file":parity_file.name,
+        "S66_original43M_GT_H8_native_prefix_KV_audit_SHA256":sha_file(parity_file),
         "S66_original_BPE_prefix_audit_SHA256":sha_file(prefix_audit_path),
         "S66_original_BPE_prefix_mismatch_rows":sum(
             z['prefix_token_identifier_mismatch_words']>0
