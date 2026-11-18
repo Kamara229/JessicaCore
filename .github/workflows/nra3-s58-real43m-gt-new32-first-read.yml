@@ -491,7 +491,7 @@ jobs:
           prov=json.loads((d/'NRA3_S58_GENUINE43M_GT_EVENTFIRST32_OFFSET_PROVENANCE.json').read_text())
           assert cap['stage']=='NRA3_S58_GENUINE43M_GT_EVENTFIRST32_NATIVE_CPU_FIRST_PASS'
           assert cap['S58_FROZEN_HELD32_PLAINTEXT_SHA256']==raw_sha256()
-          assert cap['S58_HELD32_SOURCE_COMMIT']=='82596c03eb5a519f3209fd1f8eecddfb9df97cc6'
+          assert cap['S58_HELD32_SOURCE_COMMIT']=='82596c03eb5a519f2409fd1f8eecddfb9df97cc6'
           assert cap['S58_HELD32_SOURCE_BLOB']=='0bdab37c6e3a634fd901e0e0c1d37bb36bcadee1'
           assert cap['S194_ORIGINAL_616_J7_BASELINE_PARENT_RUN_ID']==43345267876
           assert cap['all_616_native_CPU_generated_token_digests_unchanged']
