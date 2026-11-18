@@ -1,0 +1,141 @@
+name: NRA3 S37 original43M GT label-blind past/future source-verb rejection gate eightfold
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s36-fold34-fp-predicate-pair-diagnostics-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s37-43m-verb-source-scope-no-gold-eightfold
+  cancel-in-progress: true
+jobs:
+  actual_original43m_train_side_joint_role_rejected_margin:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '320256'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require original frozen43M+GT 616 J7, sealed S22c raw/gold, original S26 and canonical S30
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 44189114971 44189739539 44191302703 44192186916 44196720655 44200775382 44201326575 44202675198 44203704916 44204827220 44207183539 44208569216 44210352020 44211688841; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          echo S37_FROZEN_ORIGINAL43M_GT_AND_S35_S36_REAL_TRAINONLY_PROVENANCE_LOCKED
+      - name: Install CPU PyTorch and original paid FP16 physical libraries
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Test TRAIN-only joint loss directions, hard negatives, no gold forward, no independent EVAL
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s31_joint_rejected_role_margin_contract research.nra3_s20.test_s32_precision_margin_trainonly research.nra3_s20.test_s33_headonly_preserve_relation_contract research.nra3_s20.test_s34_trainonly_teacher_margin_anticollapse research.nra3_s20.test_s35_local_neg_dative_trainonly research.nra3_s20.test_s37_source_verb_scope_trainonly
+      - name: Download only genuine S22c original43M GT raw338 features and separately SHA-sealed synthetic TRAIN256 gold
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s22c-TRUE43M-GT-256-TRAIN-raw338-and-gold-separated-40fold
+          run-id: 44191302703
+          github-token: ${{ github.token }}
+          path: inputs/s22c
+      - name: Download SHA-pinned frozen original S19d 9332 FP16 grammar/context
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s19d-TRUE43M-GT-9332paidFP16-context-event-TRAIN96-internalCV-no-EVAL
+          run-id: 44128707585
+          github-token: ${{ github.token }}
+          path: inputs/s19d
+      - name: Download original real S22d 12381 FP16 archive solely for SHA integrity
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s22d-REAL43M-GT-256TRAIN-40fold-12381FP16-5heads-noEVAL
+          run-id: 44192186916
+          github-token: ${{ github.token }}
+          path: inputs/s22d
+      - name: Download original real S26 12384 FP16 archive and original completed 40fold metrics
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s26-REAL43M-GT-TRAIN256-40fold-12384FP16-event-inversion-ablation-noEVAL
+          run-id: 44196720655
+          github-token: ${{ github.token }}
+          path: inputs/s26
+      - name: Load original S35 genuine43M GT eightfold TRAIN-only physical metrics (development comparator)
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s35-43M-GT-raw338-ne-dative-scope-8fold-TRAIN-only-noEVAL
+          run-id: 44210352020
+          github-token: ${{ github.token }}
+          path: inputs/s35
+      - name: Real frozen43M GT original raw338 eightfold S34 refit, compare S35 against label-blind source-verb eligibility
+        run: |
+          python -m research.nra3_s20.s37_real43m_source_verb_scope_trainonly \
+            --features inputs/s22c/S22C_REAL43M_GT_NEW256_RAWONLY_WORD338.safetensors \
+            --gold inputs/s22c/S22C_256_SYNTHETIC_EVENT_GRAPH_TARGETS_TRAIN_ONLY.safetensors \
+            --manifest inputs/s22c/S22C_REAL43M_GT_NEW256_RAWONLY_AND_TRAIN_GOLD_SEPARATE_REPORT.json \
+            --s19d-parent inputs/s19d/NRA3_S19D_TRUE43M_GT_CONTEXT_SCOPE_GRAMMAR_AND_EVENT_TRAINONLY_FP16.n3s19d \
+            --s22d-model inputs/s22d/NRA3_S22D_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12381_FP16.n3s22d \
+            --s26-model inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26 \
+            --baseline-s35-report inputs/s35/NRA3_S35_GENUINE43M_GT_TRAIN256_LOCAL_NEGATION_DECODE_ABLATION.json \
+            --out results/nra3_s37
+      - name: Validate original source and canonical paid model SHA, label blind rule, 8fold metric invariants, inactive output gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path("results/nra3_s37/NRA3_S37_REAL43M_GT_TRAIN256_8FOLD_SOURCE_VERB_GATE.json")
+          d=json.loads(path.read_text(encoding="utf-8"))
+          assert d["stage"]=="NRA3_S37_TRUE43M_GT_RAW18_SOURCE_VERB_ELIGIBILITY_REJECTED_TRAIN8FOLD"
+          assert d["original_real43M_GT_s22c_TRAIN256_SHA256"]=="8963e2e8758b1c6a6fbd28eb597a77be1a454d732d0ecac93df6f5a753f6a361"
+          assert d["S35_completed_original_8fold_run"]==44210352020
+          assert d["S36_completed_original_pair_audit_run"]==44211688841
+          assert d["rule_predeclared"]=="source_has_raw18_past_or_finite_future_verb_shape"
+          assert d["source_morphological_cues_only_not_predicted_or_gold_event_type"]
+          assert d["not_blacklisting_connector_NO_or_construction26"]
+          assert d["same_original_12384_paid_FP16_params_preserved"]
+          assert d["all_eight_PREVIOUSLY_EXAMINED_synthetic_TRAIN_folds"]==[32,33,34,35,36,15,24,30]
+          assert len(d["folds"])==8
+          assert all(x["only_original_raw18_source_verb_shape_used_at_inference"]
+              and x["no_model_FP16_or_protected_graph_logits_changed"]
+              and x["source_labels_only_for_offline_report"]
+              and x["TRAIN_side_rows"]==248
+              and x["held_synthetic_TRAIN_only_rows"]==8
+              and len(x["S34_fresh_FP16_numeric_sha256"])==64
+              for x in d["folds"])
+          assert all(x["S35_same_run_5heads"][metric]==x["S37_verb_scope_5heads"][metric]
+                     for x in d["folds"]
+                     for metric in ("event","directed_role","coreference","event_relation"))
+          assert d["all_event_role_coref_relation_logits_bitwise_unchanged"]
+          assert d["label_blind_model_and_decoder"]
+          assert d["not_generalized_Russian_PoS_morphology"]
+          assert d["not_independent_EVAL_or_candidate_validation"]
+          assert d["original_616J7_bpp_CB59_not_tested"]
+          assert d["output_gate"]==0 and not d["candidate_accepted"] and not d["activation_allowed"]
+          assert d["LIVE_Render_Supabase_Jessica_APK_unchanged"]
+          print("S37_REAL43M_GT_SOURCE_VERB_SCOPE_TRAINONLY_VERIFIED",
+             json.dumps({"S35":d["rare_four_folds_S35_same_run"],
+                         "S37":d["rare_four_folds_S37_verb_scope"],
+                         "fold26_FP_S35":d["construction26_before_FP"],
+                         "fold26_FP_S37":d["construction26_after_FP"],
+                         "TP_preserved":d["new_scope_keeps_all_earlier_synthetic_TRAIN_true_REJECTED"],
+                         "FP_reduced":d["new_scope_reduces_synthetic_TRAIN_FP"]},
+                        sort_keys=True),flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s37-original43M-GT-8fold-raw-verb-source-TRAINonly-noEVAL
+          path: results/nra3_s37/
+          if-no-files-found: error
+          retention-days: 30
