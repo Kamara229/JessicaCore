@@ -444,6 +444,7 @@ def main():
       "fresh_S31_relation_head_and_shared_trunk_bitwise_preserved":True,
       "original_S31_fold_checkpoint_not_archived_cross_run_numeric_nonidentity_possible":True,
       "matched_S32_completed_action":44204827220,
+      "synthetic_development_only_no_candidate_selection":True,
       "preregistered_fixed_loss_margin":MARGIN,
       "preregistered_fixed_hardnegative_margin":HARD_NEGATIVE_MARGIN,
       "preregistered_positive_coefficient":TRAIN_POSITIVE_COEFF,
@@ -469,7 +470,7 @@ def main():
       "output_gate":0,"candidate_accepted":False,"activation_allowed":False,
     }
     args.out.mkdir(parents=True,exist_ok=False)
-    destination=args.out/"NRA3_S33_REAL43M_GT_TRAIN256_FIXED8FOLD_HEAD_ONLY_PRECISION_VS_S31_S32.json.json"
+    destination=args.out/"NRA3_S33_REAL43M_GT_TRAIN256_FIXED8FOLD_HEAD_ONLY_PRECISION_VS_S31_S32.json"
     destination.write_text(
       json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+"\n",encoding="utf-8")
     print("S33_REAL43M_PAIRED_PREPOSED",
