@@ -96,8 +96,7 @@ jobs:
                      f["gold_never_used_in_neural_forward"] and
                      len(f["fresh_model_weights_sha256"])==64 and
                      len(f["S40_prior_archived_numeric_fingerprint"])==64 and
-                     f["fresh_model_weights_sha256"]==
-                          f["fresh_model_weights_sha256"] and
+                     isinstance(f["S40_same_run_numeric_matches_archived"],bool) and
                      f["output_gate"]==0
                      for f in x["all18_strict_synthetic_TRAIN_grouped_folds"])
           assert set(x["fixed_passive_infinitive_construction_diagnostics"])=={
