@@ -33,7 +33,7 @@ jobs:
           set -euo pipefail
           test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/44212710547 --jq .conclusion)" = success
           test "$(git hash-object research/nra3_s20/s38_novel_russian_structure_challenge_source.py)" = d1c5be4402fb456adab896a828e742f5f34c48dd
-          test "$(git show 61ee235ea9e7ebfe4d19ba13be0dd0516afba231:research/nra3_s20/s38_novel_russian_structure_challenge_source.py | git hash-object --stdin)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          test "$(gh api "repos/$GITHUB_REPOSITORY/contents/research/nra3_s20/s38_novel_russian_structure_challenge_source.py?ref=61ee235ea9e7ebfe4d19ba13be0dd0516afba231" --jq .sha)" = d1c5be4402fb456adab896a828e742f5f34c48dd
           echo S38_CHALLENGE_PRECOMMITTED_BEFORE_SCORE_AND_IMMUTABLE
       - name: Install pinned CPU-only tensors; never download real43M model weights or independent eval
         run: |
