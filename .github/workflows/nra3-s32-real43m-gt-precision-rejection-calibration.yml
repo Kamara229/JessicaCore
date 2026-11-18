@@ -96,8 +96,8 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import json
-          m=json.loads(Path("results/nra3_s32/NRA3_S32_REAL43M_GT_TRAIN256_FIXED8FOLD_RARE_PAIR_MARGIN_ABLATION.json").read_text())
-          assert m["stage"]=="NRA3_S32_TRAIN_ONLY_RARE_PAIR_JOINT_MARGIN_SEMANTIC_FP16_ABLATION"
+          m=json.loads(Path("results/nra3_s32/NRA3_S32_REAL43M_GT_FIXED8FOLD_PRECISION_MARGIN_CALIBRATION.json").read_text())
+          assert m["stage"]=="NRA3_S32_TRAIN_ONLY_ACCEPTED_RECIPIENT_PRECISION_MARGIN_ABLATION"
           assert m["original_genuine_frozen43M_GT_source_S22c_sha256"]=="8963e2e8758b1c6a6fbd28eb597a77be1a454d732d0ecac93df6f5a753f6a361"
           assert m["original_S22d_archived_canonical_sha256"]=="35102946886b9f35d86f57f791b6ab6001b813e4f79397cff8e4d25c04e7a538"
           assert m["original_S26_archived_canonical_sha256"]=="02d4403ffbce01632d54d66349a01c3f10b81650d26d9540bb86f495cac62807"
@@ -127,6 +127,7 @@ jobs:
           p=m["preposed_rejected_TRAIN_only_8_fold33"]
           print("S32_ACTUAL_ORIGINAL43M_GT_PAIRED_TRAIN_ONLY_PREPOSED",json.dumps({
               "S26_rejected_recall":p["S26_held_REJECTED"]["recall"],
+              "S31_rejected_recall":p["S31_held_REJECTED"]["recall"],
               "S32_rejected_recall":p["S32_held_REJECTED"]["recall"],
               "S32_rejected_FP":p["S32_held_REJECTED"]["FP"],
               "S32_correct_RECIPIENT":p["S32_held_role_rejection_joint"]["correct_RECIPIENT_at_gold_rejected_pairs"],
