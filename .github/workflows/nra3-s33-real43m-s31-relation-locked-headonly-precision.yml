@@ -118,17 +118,19 @@ jobs:
           assert m["stage2_only_role_polarity_3_residual_train_steps"]==64
           assert m["stage2_head_only_lr"]==0.003
           assert m["S31_is_prior_development_data_NOT_independent"]
-          assert m["S32_accepted_RECIPIENT_precision_coefficient"]==0.45
-          assert m["S32_top_false_pair_precision_coefficient"]==0.05
-          assert m["S32_top_false_pairs_per_sentence"]==2
-          assert m["actual_paid_original_S26_total_FP16"]==m["actual_paid_new_S32_total_FP16"]==12384
+          assert m["S33_accepted_RECIPIENT_precision_coefficient"]==0.45
+          assert m["S33_top_false_pair_precision_coefficient"]==0.05
+          assert m["S33_top_false_pairs_per_sentence"]==2
+          assert m["actual_paid_original_S26_total_FP16"]==m["actual_paid_new_S33_total_FP16"]==12384
           assert m["same_train256_only_four_REJECTED_and_four_control_folds"]==[32,33,34,35,36,15,24,30]
           assert len(m["per_fold_8_rows_synthetic_TRAIN_internal_NOT_independent"])==8
           assert all(f["fixed_steps"]==240 and f["actual_training_side"]==248 and f["held_synthetic_TRAIN_rows"]==8
                      and f["gold_roles_NEVER_passed_to_neural_forward"] and
                      "S31_held_REJECTED" in f and "S32_held_REJECTED" in f and
-                     f["S32_train_loss_diagnostic"]["TRAIN_accepted_recipient_pairs"]>0 and
-                     len(f["canonical_S32_paid_FP16_numeric_SHA256"])==64
+                     f["S33_train_loss_diagnostic"]["TRAIN_accepted_recipient_pairs"]>0 and
+                     f["unaffected_S31_event_coreference_relation_logits_exact_equal"] and
+                     len(f["S31_replayed_numerical_FP16_SHA256"])==64 and
+                     len(f["canonical_S33_paid_FP16_numeric_SHA256"])==64
                      for f in m["per_fold_8_rows_synthetic_TRAIN_internal_NOT_independent"])
           assert m["preposed_rejected_TRAIN_only_8_fold33"]["fold"]==33
           assert m["preposed_rejected_TRAIN_only_8_fold33"]["S26_held_REJECTED"]["TP"]==0
@@ -140,6 +142,7 @@ jobs:
               for head in ("event","coreference","event_relation")
           ), "same-run fresh S31 event/coreference/relation MUST remain bitwise unchanged"
           assert m["preposed_rejected_TRAIN_only_8_fold33"]["S32_held_REJECTED"]["held_REJECTED_positive_support"]==8
+          assert m["preposed_rejected_TRAIN_only_8_fold33"]["S33_held_REJECTED"]["held_REJECTED_positive_support"]==8
           assert m["no_hyperparameter_or_checkpoint_selection_using_held_data"]
           assert m["original_616_J7_and_independent_EVAL_never_touched"]
           assert m["frozen_43M_GT_S19d_parent_no_grad"]
