@@ -143,6 +143,80 @@ def main():
                             raise AssertionError("S50 original43M CPU raw36 prefill drift")
                         del result
                         clear(sources)
+            # This gold-blind S66 probe is performed strictly AFTER the
+            # original protected 616 BASELINE J7 and AFTER the original
+            # full-context read port captures the current genuine GT state.
+            # Same full source-conditioned S93 route on both; future
+            # prompt-vector conditioning may leak future text: even
+            # exact parity is NOT a proof of causal online streaming.
+            if row_idx in SUBSET:
+                frac=align_s66_fractional_native(tok,q,expected_ids=ids)
+                try:
+                    selected=stable_native_prefix_cut(frac.raw_words,ids)
+                except ValueError as exc:
+                    s66_layer8_KV_parity.append({
+                        "row_index":row_idx,
+                        "raw_source_sha256":hashlib.sha256(
+                            q.encode("utf-8")).hexdigest(),
+                        "parity_probe_skipped_fail_closed":True,
+                        "reason":str(exc)[:200],
+                        "output_gate":0,"candidate_accepted":False,
+                    })
+                else:
+                    cut=selected["cut"]
+                    full_key=hashlib.sha256(q.encode("utf-8")).hexdigest()
+                    full_sample=collector.samples[full_key]
+                    if list(full_sample.token_ids)!=ids:
+                        raise AssertionError("S66 genuine full GT native ids changed")
+                    pre_tag="S66_PROBE_NATIVE_PREFILL_"+q
+                    kv_tag="S66_PROBE_NATIVE_KV2_"+q
+                    with (torch.inference_mode(),
+                          expansion.prefill_only(model),
+                          s160.prefill_only_tunnel(model,full)):
+                        with s160.frozen_cpu_phase_scope(
+                                model,bridge,"S93",prompt_vec,
+                                phase="prefill_only"):
+                            with parity_collector.capture(
+                                    model,pre_tag,list(ids[:cut])):
+                                clear(sources)
+                                pre=model(
+                                    input_ids=torch.tensor([ids[:cut]],
+                                                           dtype=torch.long),
+                                    past_key_values=None,use_cache=True,
+                                    output_hidden_states=True)
+                                prefix_cache=pre.past_key_values
+                                if prefix_cache is None:
+                                    raise AssertionError(
+                                        "S66 original cache missing on prefix")
+                                del pre
+                                clear(sources)
+                            with parity_collector.capture(
+                                    model,kv_tag,list(ids[cut:cut+2])):
+                                clear(sources)
+                                nxt=model(
+                                    input_ids=torch.tensor(
+                                        [ids[cut:cut+2]],dtype=torch.long),
+                                    past_key_values=prefix_cache,
+                                    use_cache=True,output_hidden_states=True)
+                                if nxt.past_key_values is None:
+                                    raise AssertionError(
+                                        "S66 original S101 KV incremental failed")
+                                del nxt,prefix_cache
+                                clear(sources)
+                    prefix_sample=parity_collector.samples[
+                        hashlib.sha256(pre_tag.encode("utf-8")).hexdigest()]
+                    increment=parity_collector.samples[
+                        hashlib.sha256(kv_tag.encode("utf-8")).hexdigest()]
+                    measured=compare_real_native(
+                        full_sample.hidden320_fp16,
+                        prefix_sample.hidden320_fp16,
+                        increment.hidden320_fp16,cut)
+                    s66_layer8_KV_parity.append({
+                        "row_index":row_idx,
+                        **forensic_source_row(
+                            "T%02d"%(row_idx+1),q,selected,measured),
+                        "parity_probe_skipped_fail_closed":False,
+                    })
             capture_count+=1
 
     s112.load_cpu_original=load_original_with_read_only_port
