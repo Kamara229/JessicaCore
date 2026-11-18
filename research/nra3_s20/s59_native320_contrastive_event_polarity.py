@@ -215,9 +215,6 @@ def fit_only_PREVIOUSLY_INSPECTED_real43m_cases(
                 transfer[i,idx],has.float())
             pos=torch.where(has)[0]
             gold_dst=rec[pos,idx[pos]].float().argmax(-1)
-            reject_logits=model.rejected_logit(
-                inp.semantic,idx[pos],
-                old_rej[pos],gold_dst) if False else None
             # Index selected subset correctly; no gold enters model forward.
             rej_logits=old_rej[pos,idx[pos],gold_dst]+(
                 inp.semantic[pos,idx[pos]]@model.reject)+model.reject_bias
