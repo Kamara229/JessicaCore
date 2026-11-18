@@ -1,0 +1,105 @@
+name: NRA3 S44 TRAIN128 matched S43 quote calibration and predicate-pair contrast
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s43-joint-predicate-event-source-NEW128-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s44-train128-quote-calibration-source-contrast-24fold
+  cancel-in-progress: true
+jobs:
+  s44_train128_s43_paired_quote_and_event_scope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '431118'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify prior S43 successful and S38 held challenge and NEW128 TRAIN source unmodified
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/44247621131 --jq .conclusion)" = success
+          test "$(git hash-object research/nra3_s20/s38_novel_russian_structure_challenge_source.py)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          test "$(git hash-object research/nra3_s20/s39_new80_trainonly_scope_graph_source.py)" = 0126bfc7e9dd53fe9f94debc187a7ca9b71da0ed
+          test "$(git hash-object research/nra3_s20/s43_new128_multi_event_trainonly_source.py)" = 891f3f081fa974cce92b9be37561f10b48e4a3d7
+          echo S44_PRESERVED_S38_S39_S43_TRAIN_SOURCES
+      - name: Pinned CPU PyTorch training dependencies, no original 43M FP16 weights
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Test quote-source contrast, multiple true recipients and model gold-blindness
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s43_joint_source_trainonly_contract research.nra3_s20.test_s44_quote_source_contrast_trainonly
+      - name: Physically train original S43 and fixed contrastive S44 on 24 matching TRAIN-only folds
+        run: |
+          python -m research.nra3_s20.s44_train128_quote_calibrated_source_contrast_24fold --out results/nra3_s44
+      - name: Verify 24 physical paired held TRAIN-only group results and no S38 or EVAL promotion
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("results/nra3_s44/NRA3_S44_TRAIN128_MATCHED_S43_S44_QUOTE_SOURCE_CONTRAST_24FOLD.json").read_text(encoding="utf-8"))
+          assert d["stage"]=="NRA3_S44_TRAIN128_QUOTE_CALIBRATION_DIRECTED_SOURCE_CONTRAST_24FOLD"
+          assert d["previous_true_S43_completed_run_for_provenance"]==44247621131
+          assert len(d["same_source_new128_SHA256"])==64
+          params=d["precommitted_hyperparams"]
+          assert params["quote_negative_weight"]==2.0
+          assert params["quote_loss_coefficient"]==.8
+          assert params["event_negative_weight"]==1.0
+          assert params["wrong_source_margin"]==1.0
+          assert params["wrong_recipient_margin"]==1.0
+          assert params["pair_ranking_coefficient"]==.6
+          assert params["steps"]==120 and params["lr"]==.012
+          assert d["paired_CPU_training_two_models_per_each_of_24_folds"]
+          assert d["fixed_SOURCE128_not_updated_with_stage_S44_experiment"]
+          assert d["source_derived_only_from_original_Russian_plaintext_at_inference"]
+          assert d["no_gold_in_original_S43_or_S44_model_forward"]
+          assert d["no_output_side_one_to_one_matching_or_rule_link_floor"]
+          assert d["S40_explicit_handcoded_grammar_priors_still_present"]
+          assert d["S38_adversarial_32_NOT_train_eval_or_tuning"]
+          assert len(d["all_24_ALREADY_INSPECTED_synthetic_TRAIN_development_folds"])==24
+          assert set(d["TRAIN_only_paired_summary"])=={"LEXICAL","CONSTRUCTION"}
+          assert set(d["predefined_multi_event_passive_quote_scope_group_diagnostics"])=={
+            "short_passive_local","short_passive_fronted",
+            "infinitive_complement_local","infinitive_fronted",
+            "one_predicate_two_rejected_recipients","two_events_two_recipients",
+            "passive_and_finite_two_events","infinitive_and_finite_two_events",
+            "quoted_mention_plus_real_rejected","only_quoted_negative_mention",
+            "quoted_mention_after_true_event"}
+          assert all(x["TRAIN_held_disjoint"] and
+                     x["gold_labels_only_for_TRAIN_loss_or_OFFLINE_held_metrics"] and
+                     x["S38_source_never_imported_used_or_tuned"] and
+                     x["no_one_to_one_or_forced_positive_at_inference"] and
+                     x["TRAIN_rows"] in (112,120) and x["held_TRAIN_internal_rows"] in (8,16) and
+                     len(x["original_S43_CPU_weights_SHA256"])==64 and
+                     len(x["S44_CPU_weights_SHA256"])==64 and
+                     x["output_gate"]==0
+                     for x in d["all_24_ALREADY_INSPECTED_synthetic_TRAIN_development_folds"])
+          assert d["not_independent_model_generalization_or_original_43M_GT_NRA2"]
+          assert d["protected_616J7_EVAL128_EVAL32_bpp_CB59_not_touched"]
+          assert d["LIVE_Render_Supabase_Jessica_APK_unchanged"]
+          assert d["output_gate"]==0 and not d["candidate_accepted"] and not d["activation_allowed"]
+          print("S44_TRAIN128_COHERENT_QUOTE_EVENT_HEAD_PAIRED",json.dumps(d["TRAIN_only_paired_summary"],sort_keys=True),flush=True)
+          print("S44_EXPERIMENTAL_SHADOW_NO_ORIGINAL43M_GT_OR_S38_EVAL",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s44-NEW128-S43-vs-quote-calibrated-source-contrast-24fold-noEVAL
+          path: results/nra3_s44/
+          if-no-files-found: error
+          retention-days: 30
