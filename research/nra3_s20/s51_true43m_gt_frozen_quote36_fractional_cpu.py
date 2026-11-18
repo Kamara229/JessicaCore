@@ -248,6 +248,18 @@ def main():
     # A remaining unalignable text is NOT silently used to train a
     # future active adapter. We keep it in a read-only audit.
     recovered=[i for i,m in enumerate(fractional_map) if m is not None]
+    print("S51_FIRST_PASS_NATIVE_OVERLAP_COVERAGE",
+          json.dumps({"previous_strict":len(supported),
+                      "new_fractional":len(recovered),
+                      "recovered_old_failures":recovered_old_fail,
+                      "failures":fractional_failures,
+                      "duplicate_native_unicode_chars":sum(
+                          m.original_duplicate_native_offset_characters
+                          for m in fractional_map if m is not None),
+                      "template_boundary_crossing_BPE_tokens":sum(
+                          len(m.original_template_crossing_native_token_positions)
+                          for m in fractional_map if m is not None),
+                      },sort_keys=True),flush=True)
     if len(recovered)<len(supported):
         raise AssertionError("S51 offset pooling lost previous S50 strict native text coverage")
     for i in supported:
@@ -285,6 +297,8 @@ def main():
             "shared_BPE_tokens_count":len(m.shared_native_token_ids),
             "causally_unsafe_raw_word_indices":list(m.ambiguous_raw_word_ids),
             "shared_original_native_token_positions":list(m.shared_native_token_ids),
+            "duplicate_bytelevel_unicode_offset_chars":m.original_duplicate_native_offset_characters,
+            "template_crossing_native_positions":list(m.original_template_crossing_native_token_positions),
             "causal_token_training_allowed":False,
             "offset_fraction_sum_per_word_one":True,
         })
@@ -344,6 +358,12 @@ def main():
        "new_BPE_fractional_remaining_failed":fractional_failures,
        "new_BPE_fractional_ambiguous_rows":new_unsafe_rows,
        "new_BPE_fractional_shared_native_piece_count":native_shared_count,
+       "new_BPE_fractional_duplicate_offset_unicode_char_count":sum(
+           m.original_duplicate_native_offset_characters
+           for m in fractional_map if m is not None),
+       "new_BPE_fractional_template_boundary_crossing_token_count":sum(
+           len(m.original_template_crossing_native_token_positions)
+           for m in fractional_map if m is not None),
        "new_BPE_fractional_unsafe_raw_word_count":sum(
            len(fractional_map[i].ambiguous_raw_word_ids) for i in recovered),
        "original_CPU_GT_S48_quote_word_count":s51_quotes,
@@ -398,6 +418,12 @@ def main():
         "S51_originally_unmapped_S50_rows":unsupported,
         "S51_ambiguous_causally_unsafe_rows":new_unsafe_rows,
         "S51_shared_native_BPE_piece_count":native_shared_count,
+        "S51_native_duplicate_offset_unicode_chars":sum(
+            m.original_duplicate_native_offset_characters
+            for m in fractional_map if m is not None),
+        "S51_native_template_boundary_crossing_token_count":sum(
+            len(m.original_template_crossing_native_token_positions)
+            for m in fractional_map if m is not None),
         "S51_quote_word_count_after_fractional":s51_quotes,
         "S51_causal_token_training_allowed":False,
         "S51_fractional_report_file":s51_map_report.name,
