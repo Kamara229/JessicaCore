@@ -95,14 +95,14 @@ class S61NativePairNull(nn.Module):
         # prevents arbitrary scale/offset from making NONE unreachable.
         centered=old_pair-valid_for_max.max(-1,keepdim=True).values
         candidate=(old_transfer[bi,source,None]+centered+
-                   F.linear(combined,self.pair,self.pair_bias))
+                   (combined@self.pair+self.pair_bias))
         candidate=candidate.masked_fill(~safe,-1e9)
-        null=F.linear(x.fused[bi,source],self.null,self.null_bias)
+        null=(x.fused[bi,source]@self.null+self.null_bias)
         joined=torch.cat((candidate,null[:,None]),dim=-1)
         # Frozen S59 source-local negation correction + old S57 pair local.
         s59_rej=(sem[bi,source]@old59.reject+
                  old59.reject_bias).unsqueeze(-1)
-        polar=old_rej+s59_rej+F.linear(combined,self.polar,self.polar_bias)
+        polar=old_rej+s59_rej+(combined@self.polar+self.polar_bias)
         require(joined.shape==(b,w+1) and polar.shape==(b,w)
                 and bool(torch.isfinite(joined).all())
                 and bool(torch.isfinite(polar).all()),
