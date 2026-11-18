@@ -64,7 +64,15 @@ def plain_scope_features(text):
             between=lower[min(i,j)+1:max(i,j)]
             quote_target=q[j]>0.
             quote_source=q[i]>0.
-            clause_break=any(punct[k] for k in range(min(i,j)+1,max(i,j)))
+            # Coordinate 'но' may introduce an explicitly rejected
+            # alternate recipient in the SAME directed event scope.
+            # Other punctuation separates clauses (heuristic only).
+            clause_break=any(
+                punct[k] and not (
+                    tok[k].form=="," and k+1<max(i,j)
+                    and lower[k+1] in CONNECTORS)
+                for k in range(min(i,j)+1,max(i,j))
+            )
             # Scope may contain an adverb, but neither cross another
             # predicate nor turn "НЕ [predicate]" into rejected-recipient.
             near_ne=False
