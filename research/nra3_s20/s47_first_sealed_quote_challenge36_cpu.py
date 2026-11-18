@@ -150,7 +150,7 @@ def main():
             "frozen source identity mismatch")
     manual=challenge36()
     require(len(manual)==36 and
-            not {r.text for r in manual}&{z.text for z in origin+list(curriculum)},
+            not {r.text for r in manual}&{z.text for z in [*origin,*curriculum]},
             "manual challenge leaked into OLD or NEW TRAIN samples")
     record=[evaluate_case(row,frozen_s45,calibration) for row in manual]
     require(model_weights_digest(frozen_s45)==sha,
