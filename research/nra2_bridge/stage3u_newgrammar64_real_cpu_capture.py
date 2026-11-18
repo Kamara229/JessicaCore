@@ -235,6 +235,39 @@ def main():
         or not torch.equal(qmask.node_order,torch.tensor(
             [query_char_offsets(q)["text_order_nodes"] for q in prompts],dtype=torch.long))):
         raise AssertionError("S3U native tokenizer S3O novel query mention ABI drift")
+    # Independently attest BOTH frozen S3T query mentions, not only tensor shapes.
+    # No graph gold, candidate logits or score is consulted in this check.
+    for i,(question,a) in enumerate(zip(prompts,aligned)):
+        declared=prior["query_char_offsets"][i]
+        observed=query_char_offsets(question)
+        if declared!=observed:
+            raise AssertionError("S3U S3T query char-offset commitment drift")
+        query_mentions=[m for m in a["mentions"]
+                        if observed["clause"][0]<=m.char_start
+                        and m.char_end<=observed["clause"][1]-1]
+        if (len(query_mentions)!=2
+            or [[m.char_start,m.char_end] for m in query_mentions]!=observed["mention_spans"]
+            or [m.node for m in query_mentions]!=observed["text_order_nodes"]):
+            raise AssertionError("S3U two literal query mentions not independently aligned")
+        per_mention=[]
+        for k,m in enumerate(query_mentions):
+            positions=set(m.token_positions)
+            if (not positions or min(positions)<0
+                or max(positions)>=int(token_lengths[i])
+                or not all(bool(token_mask[i,t]) and bool(qmask.query_mask[i,t])
+                           for t in positions)):
+                raise AssertionError("S3U empty/out-of-range query mention token span")
+            actual=set(torch.where(qmask.anchor_mask[i,k])[0].tolist())
+            if actual!=positions:
+                raise AssertionError("S3U S3O query anchor differs from native tokenizer")
+            per_mention.append(positions)
+        if (per_mention[0] & per_mention[1]
+            or set(torch.where(qmask.anchor_mask[i].any(dim=0))[0].tolist())
+               !=(per_mention[0] | per_mention[1])
+            or not torch.equal(qmask.node_order[i],
+                               torch.tensor(observed["text_order_nodes"],dtype=torch.long))
+            or bool((qmask.query_mask[i] & ~token_mask[i]).any())):
+            raise AssertionError("S3U reversed-order/union/nonpadding query ABI drift")
     # Gold labels are created only after real CPU, J7 and query-token alignment.
     targets=make_targets(rows)
     out.mkdir(parents=True,exist_ok=True)
