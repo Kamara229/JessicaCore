@@ -95,7 +95,8 @@ jobs:
           assert 0<d["eligible_directed_pair_candidates_no_gold"]<d["raw_all_directed_nonself_pair_count"]
           assert len(d["S52_36_case_offline_description"])==36
           assert d["S26_old_original_five_heads_bitwise_equal_masked_observer"]
-          assert d["S26_old_12384_physical_FP16_bytes_identical_pre_post"]
+          assert d["S26_old_12384_loaded_parameter_tensors_identical_pre_post"]
+          assert d["original_S26_physical_file_SHA256_pinned_unmodified"]
           assert d["S51_true_original43M_GT_native_hidden_and_masks_identical_pre_post"]
           assert d["S48_quote_signals_not_passed_into_original_S26_incompatible338D_model"]
           assert d["original_S26_PARENT_context_uses_both_word_directions_NO_CAUSAL_CERTIFICATION"]
