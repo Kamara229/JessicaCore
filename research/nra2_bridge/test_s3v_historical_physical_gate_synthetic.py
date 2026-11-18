@@ -117,6 +117,23 @@ class HistoricalPhysicalGateTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     verify_physical_gate(raw, json.dumps(manifest).encode(), zipped)
 
+    def test_windows_drive_rooted_paths_rejected(self):
+        for path in ("C:/result.json", "D:relative.json"):
+            with self.subTest(member=path):
+                with self.assertRaises(ValueError):
+                    verify_physical_gate(*fixture(member=path))
+            with self.subTest(auxiliary=path):
+                raw, manifest_raw, _ = fixture()
+                buf = io.BytesIO()
+                with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
+                    archive.writestr("result.json", raw)
+                    archive.writestr(path, b"unused")
+                zipped = buf.getvalue()
+                manifest = json.loads(manifest_raw)
+                manifest["zip_sha256"] = sha(zipped)
+                with self.assertRaises(ValueError):
+                    verify_physical_gate(raw, json.dumps(manifest).encode(), zipped)
+
     def test_nonfinite_json_constant_rejected(self):
         raw = b'{"output_gate":0.0,"candidate_accepted":false,"x":NaN}'
         with self.assertRaises(ValueError):
