@@ -79,6 +79,13 @@ def verify_physical_gate(producer_bytes, manifest_bytes, artifact_zip_bytes=None
             members = archive.infolist()
             if len(members) > 1000 or len({m.filename for m in members}) != len(members):
                 raise ValueError("FAIL CLOSED: duplicate or excessive ZIP members")
+            # Validate all entries, not only the selected JSON.
+            for entry in members:
+                name = entry.filename
+                if (not name or name.startswith("/") or chr(92) in name
+                        or any(part in ("", ".", "..") for part in name.rstrip("/").split("/"))
+                        or (entry.create_system == 3 and ((entry.external_attr >> 16) & 0o170000) == 0o120000)):
+                    raise ValueError("FAIL CLOSED: unsafe ZIP entry")
             matches = [m for m in members if m.filename == member_path]
             if len(matches) != 1 or matches[0].is_dir() or matches[0].flag_bits & 1:
                 raise ValueError("FAIL CLOSED: missing, directory, or encrypted JSON member")
