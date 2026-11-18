@@ -82,6 +82,11 @@ def make_row(f:Lex,family:int,pattern:int)->TrainGraph:
     """Labels are explicit TRAIN annotations; no inference uses them."""
     events=[]
     edges=[]
+    feminine=family in (0,2,4,6)
+    decide="решила" if feminine else "решил"
+    want="хотела" if feminine else "хотел"
+    read="прочитала" if feminine else "прочитал"
+    say="произнесла" if feminine else "произнёс"
     if pattern==0:
         text=f"{f.agent} {f.past} {f.document} не {f.person_a}."
         events=[f.past]
@@ -99,12 +104,12 @@ def make_row(f:Lex,family:int,pattern:int)->TrainGraph:
         events=[f.passive]
         edges=[(f.passive,f.person_a)]
     elif pattern==4:
-        text=f"{f.agent} решил {f.infinitive} {f.document} не {f.person_a}."
-        events=["решил",f.infinitive]
+        text=f"{f.agent} {decide} {f.infinitive} {f.document} не {f.person_a}."
+        events=[decide,f.infinitive]
         edges=[(f.infinitive,f.person_a)]
     elif pattern==5:
         text=f"Не {f.person_a} {f.agent} хотел {f.infinitive} {f.document}."
-        events=["хотел",f.infinitive]
+        events=[want,f.infinitive]
         edges=[(f.infinitive,f.person_a)]
     elif pattern==6:
         text=f"{f.agent} {f.past} {f.document} не {f.person_a} и не {f.person_b}."
@@ -119,16 +124,16 @@ def make_row(f:Lex,family:int,pattern:int)->TrainGraph:
         events=[f.passive,f.other_past]
         edges=[(f.passive,f.person_a),(f.other_past,f.person_b)]
     elif pattern==9:
-        text=f"{f.agent} решил {f.infinitive} {f.document} не {f.person_a}, а {f.other_agent} {f.other_past} {f.other_document} не {f.person_b}."
+        text=f"{f.agent} {decide} {f.infinitive} {f.document} не {f.person_a}, а {f.other_agent} {f.other_past} {f.other_document} не {f.person_b}."
         events=["решил",f.infinitive,f.other_past]
         edges=[(f.infinitive,f.person_a),(f.other_past,f.person_b)]
     elif pattern==10:
-        text=f"{f.agent} прочитал фразу «не {f.person_b}» и {f.past} {f.document} не {f.person_a}."
-        events=["прочитал",f.past]
+        text=f"{f.agent} {read} фразу «не {f.person_b}» и {f.past} {f.document} не {f.person_a}."
+        events=[read,f.past]
         edges=[(f.past,f.person_a)]
     elif pattern==11:
-        text=f"{f.agent} произнёс выражение «не {f.person_a}»."
-        events=["произнёс"]
+        text=f"{f.agent} {say} выражение «не {f.person_a}»."
+        events=[say]
         edges=[]
     elif pattern==12:
         text=f"Никому из отдела {f.agent} не {f.past} {f.document}."
@@ -143,8 +148,8 @@ def make_row(f:Lex,family:int,pattern:int)->TrainGraph:
         events=[f.past]
         edges=[(f.past,f.person_b)]
     elif pattern==15:
-        text=f"{f.agent} {f.past} {f.document} не {f.person_a} и произнёс фразу «не {f.person_b}»."
-        events=[f.past,"произнёс"]
+        text=f"{f.agent} {f.past} {f.document} не {f.person_a} и {say} фразу «не {f.person_b}»."
+        events=[f.past,say]
         edges=[(f.past,f.person_a)]
     else: raise ValueError("unsupported S43 construction")
 
