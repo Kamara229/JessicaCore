@@ -1,0 +1,95 @@
+name: NRA3 S43 new128 TRAIN-only learned predicate source and multi-event directed scope 24fold
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s42-structured-source-target-matching-train80-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s43-new128-joint-event-source-24fold
+  cancel-in-progress: true
+jobs:
+  s43_train_new128_joint_source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '431118'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Lock prior frozen S38 adversarial source and newly created S43 TRAIN-only bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/44246124526 --jq .conclusion)" = success
+          test "$(git hash-object research/nra3_s20/s38_novel_russian_structure_challenge_source.py)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          test "$(git hash-object research/nra3_s20/s39_new80_trainonly_scope_graph_source.py)" = 0126bfc7e9dd53fe9f94debc187a7ca9b71da0ed
+          test "$(git hash-object research/nra3_s20/s43_new128_multi_event_trainonly_source.py)" = 278b66307ed812cbffe20fb2a677a13d01b9301f
+          echo S43_SHA_PINNED_NEW_TRAIN128_S38_RESERVED
+      - name: Pinned CPU PyTorch; do not download original Calibri43M+GT FP16 weights
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Validate S43 TRAIN128 source, gold-blind forward, multi-recipient graph and real gradient heads
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s43_joint_source_trainonly_contract
+      - name: Physically train S40 and S43 on exact NEW128 grouped 24fold
+        run: |
+          python -m research.nra3_s20.s43_train128_joint_predicate_source_24fold --out results/nra3_s43
+      - name: Certify immutable S38, 24 held TRAIN folds, learned event head, protected model and controls
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("results/nra3_s43/NRA3_S43_NEW128_JOINT_PREDICATE_SOURCE_CONSISTENCY_24FOLD.json").read_text(encoding="utf-8"))
+          assert d["stage"]=="NRA3_S43_NEW128_TRAIN_ONLY_JOINT_LEARNED_PREDICATE_SOURCE_24FOLD"
+          assert d["NEW128_source"]["count"]==128
+          assert d["NEW128_source"]["grouped_folds"]==24
+          assert d["NEW128_source"]["TRAIN_two_rejected_edges_per_sentence"]==32
+          assert d["NEW128_source"]["TRAIN_zero_rejected_edges_per_sentence"]==16
+          assert d["NEW128_source_sha256"]==d["NEW128_source"]["source_sha256"]
+          assert d["original_S39_TRAIN80_and_256_not_reused"]
+          assert d["original_S38_held32_control_NOT_loaded_or_used"]
+          assert d["physically_trained_two_models_per_fold"]
+          assert d["fixed_TRAIN_steps"]==120 and d["fixed_TRAIN_lr"]==.012
+          assert d["joint_TRAIN_event_loss_coefficient"]==2.
+          assert d["joint_TRAIN_link_source_consistency_coefficient"]==.65
+          assert d["real_trained_source_head_not_heuristically_recovered_from_links"]
+          assert d["original_S40_handcoded_eligibility_prior_still_inherited"]
+          assert d["S42_one_to_one_greedy_matching_NOT_used"]
+          assert d["S42_eligible_link_floor_NOT_used"]
+          assert len(d["all_24_synthetic_TRAIN_only_grouped_folds"])==24
+          assert set(d["TRAIN_internal_PAIRED_metrics"])=={"LEXICAL","CONSTRUCTION"}
+          assert all(x["TRAIN_held_disjoint"] and x["model_forward_is_gold_blind"] and
+                     x["no_S42_one_to_one_or_admissible_edge_floor"] and
+                     x["no_S38_control_example_in_train_or_held"] and
+                     x["TRAIN_rows"] in (112,120) and x["held_TRAIN_rows"] in (8,16) and
+                     len(x["baseline_S40_physical_sha256"])==64 and
+                     len(x["new_S43_physical_sha256"])==64 and
+                     x["model_output_gate"]==0 for x in d["all_24_synthetic_TRAIN_only_grouped_folds"])
+          assert d["not_statistically_blind_independent_EVAL"]
+          assert d["not_original_real43M_GT_hidden320_or_NRA2_weight_integration"]
+          assert d["protected_original_616J7_EVAL32_128_bpp_CB59_not_touched"]
+          assert d["LIVE_Render_Supabase_Jessica_APK_unchanged"]
+          assert d["output_gate"]==0 and not d["candidate_accepted"] and not d["activation_allowed"]
+          print("S43_NEW128_PAIRED_REAL_CPU_TRAINONLY",json.dumps(d["TRAIN_internal_PAIRED_metrics"],sort_keys=True),flush=True)
+          print("S43_NOT_REAL43M_OR_INDEPENDENT_EVAL",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s43-new128-joint-learned-event-source-multiedge-TRAIN24-noEVAL
+          path: results/nra3_s43/
+          if-no-files-found: error
+          retention-days: 30
