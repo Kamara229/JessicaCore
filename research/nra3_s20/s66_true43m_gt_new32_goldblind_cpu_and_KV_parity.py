@@ -30,6 +30,9 @@ from research.nra3_s20.s64_native_prefix_causal_boundary_audit import (
 from research.nra3_s20.s66_original_gt_token_prefix_kv_parity import (
     SUBSET,stable_native_prefix_cut,compare_real_native,forensic_source_row,
 )
+from research.nra3_s20.s67_original_cache_phase_isolation import (
+    MODES as S67_MODES, measured_native_triplet, diagnostic_result,
+)
 from research.nra3_s20.s49_real43m_gt_quote_sidecar_zero_gate import (
     Frozen43MGreenTunnelQuotePort, frozen_native_manifest_digest,
 )
@@ -84,6 +87,7 @@ def main():
     align_failed=[]
     s66_prefix_audits=[]
     s66_layer8_KV_parity=[]
+    s67_physical_rows=[]  # only previously spent S66 source, NO human GOLD
     parity_collector=FrozenLayer8ReadPort()
 
     def load_original_with_read_only_port(*args,**kwargs):
@@ -216,6 +220,14 @@ def main():
                         **forensic_source_row(
                             "T%02d"%(row_idx+1),q,selected,measured),
                         "parity_probe_skipped_fail_closed":False,
+                    })
+                    # S67 separate read-only A/B: no J7/model/adapter update.
+                    # Run AFTER frozen S66 original-source parity, BEFORE gold.
+                    s67_physical_rows.append({
+                        phase:measured_native_triplet(
+                            model,sources,bridge,expansion,full,prompt_vec,
+                            ids,cut,phase)
+                        for phase in S67_MODES
                     })
             capture_count+=1
 
@@ -465,6 +477,25 @@ def main():
         "output_gate":0,"candidate_accepted":False,
         "activation_allowed":False,
     },ensure_ascii=False,sort_keys=True,indent=2)+"\n",encoding="utf-8")
+    s67_result=diagnostic_result(s67_physical_rows,protected_616=True)
+    s67_out=out/"NRA3_S67_ORIGINAL43M_CORE_VS_GT_REAL_KV_PHASE_ISOLATION.json"
+    s67_out.write_text(json.dumps(s67_result,ensure_ascii=False,
+                     indent=2,sort_keys=True)+"\n",encoding="utf-8")
+    print("S67_ORIGINAL43M_CORE_GT_H8_KV_PHASE_ABLATION",
+          json.dumps({
+              "source_rows":len(s67_physical_rows),
+              "modes":list(S67_MODES),
+              "core_KV_next2_mismatch_gt_1e3":sum(
+                  r["core_only_gt_disabled"]["full_vs_KV2_H8_next2"]["max_abs"]>1.e-3
+                  for r in s67_physical_rows),
+              "prefill_only_KV_next2_mismatch_gt_1e3":sum(
+                  r["s93_original_prefill_only"]["full_vs_KV2_H8_next2"]["max_abs"]>1.e-3
+                  for r in s67_physical_rows),
+              "bridge_all_KV_next2_mismatch_gt_1e3":sum(
+                  r["s93_bridge_all_steps_tunnel_prefill_only"]["full_vs_KV2_H8_next2"]["max_abs"]>1.e-3
+                  for r in s67_physical_rows),
+              "output_gate":0,
+          },sort_keys=True),flush=True)
     print("S66_ORIGINAL43M_GT_TRUE_H8_NATIVE_PREFIX_KV_SOURCE_ONLY",
           json.dumps({"attempted":len(SUBSET),
                       "measured":measurement_count,
