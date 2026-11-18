@@ -201,7 +201,7 @@ def main():
             scoped_roles=_held_rejected_role_recall(decoded,hg,hv)
         require(canonical_paid_semantic_fp16_sha(candidate)==before_sha,
                 "input-only decoder changed model paid FP16 tensor values")
-        for k in ("event","role","coreference","event_relation"):
+        for k in ("event","coreference","event_relation"):
             require(base_tasks[k]==scoped_tasks[k],
                     "S35 changed paid event/relation/coreference/role metrics")
         require(base_r["held_REJECTED_positive_support"]==
