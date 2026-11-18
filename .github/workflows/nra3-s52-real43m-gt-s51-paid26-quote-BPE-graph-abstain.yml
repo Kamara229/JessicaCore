@@ -110,8 +110,8 @@ jobs:
           assert d["active_candidate_616J7_bpp_CB59_NOT_CERTIFIED"]
           assert d["LIVE_Render_Supabase_Jessica_APK_unchanged"]
           assert d["output_gate"]==0 and not d["candidate_accepted"] and not d["activation_allowed"]
-          assert len(d["original_paid_S26_five_head_prediction_counts_NOT_accuracy"])==5
-          for k,v in d["original_paid_S26_five_head_prediction_counts_NOT_accuracy"].items():
+          assert len(d["original_trained_S26_five_head_prediction_counts_NOT_accuracy"])==5
+          for k,v in d["original_trained_S26_five_head_prediction_counts_NOT_accuracy"].items():
               assert v["original_frozen_S26_argmax_nonNONE_unvalidated"]>=v["structurally_eligible_unvalidated"]
               assert v["abstained_due_to_quote_BPE_or_punctuation"]==(
                   v["original_frozen_S26_argmax_nonNONE_unvalidated"]-v["structurally_eligible_unvalidated"])
