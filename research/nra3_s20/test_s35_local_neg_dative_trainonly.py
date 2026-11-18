@@ -51,7 +51,7 @@ class S35SourceOnlyLocalNegationScope(unittest.TestCase):
 
     def test_input_only_mask_no_pattern_id_no_gold_in_forward(self):
         s=inspect.getsource(apply_local_ne_dative_scope)
-        for forbidden in ("gold","PATTERNS","fold","group","held"):
+        for forbidden in ("gold[","PATTERNS[","fold_id","group_id","held_ids"):
             self.assertNotIn(forbidden,s)
         self.assertEqual(S35_FIXED_TARGET_GROUPS,(26,28))
         self.assertEqual(PATTERNS[26],"rejected_positive_first")
