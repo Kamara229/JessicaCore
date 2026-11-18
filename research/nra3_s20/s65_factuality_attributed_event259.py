@@ -156,12 +156,12 @@ class S65FactualityJoint(nn.Module):
         # All are SOURCE-only predictions; no manual labels/teacher
         # forcing is needed anywhere in actual S65 inference.
         transfer=torch.logsumexp(classes[:,:,1:],dim=-1)
-        target=y[:,:,:w]+ev.unsqueeze(-1)+pair.unsqueeze(-1)+transfer.unsqueeze(-1)
+        target=(y[:,:,:w]+ev.unsqueeze(-1)+pair.unsqueeze(-1)+
+                transfer.unsqueeze(-1)).masked_fill(
+            ~x.older.original.target_safe,-1e9)
         null=y[:,:,-1]+ev+none+classes[:,:,0]
         out=torch.cat((target,null.unsqueeze(-1)),dim=-1)
         out=out.masked_fill(~x.older.original.allowed.unsqueeze(-1),-1e9)
-        out[:,:,:w]=out[:,:,:w].masked_fill(
-            ~x.older.original.target_safe,-1e9)
         negative=p+pol.unsqueeze(-1)+(
             classes[:,:,2]-classes[:,:,1]).unsqueeze(-1)
         require(out.shape==(b,k,w1) and negative.shape==(b,k,w)
