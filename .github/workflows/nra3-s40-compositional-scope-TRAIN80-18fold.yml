@@ -56,7 +56,7 @@ jobs:
           python -m unittest -v research.nra3_s20.test_s39_train80_shadow_grammar research.nra3_s20.test_s40_compositional_graph_trainonly
       - name: Physically optimize independent S40 compositional three-head grammar on S39 NEW80 strict grouped18 and compare S39 archived
         run: |
-          python -m research.nra3_s20.s40_fit_train80_compositional_graph_18fold --baseline-s39-report inputs/s39/NRA3_S40_TRAIN80_COMPOSITIONAL_GRAPH_18FOLD_AGAINST_S39.json --out results/nra3_s40
+          python -m research.nra3_s20.s40_fit_train80_compositional_graph_18fold --baseline-s39-report inputs/s39/NRA3_S39_TRAIN80_RAW_RUSSIAN_GRAPH_SHADOW_18FOLD.json --out results/nra3_s40
       - name: Verify independently frozen S38, trained S39, no Calibri/NRA2/LIVE writes or independent EVAL
         run: |
           python - <<'PY'
