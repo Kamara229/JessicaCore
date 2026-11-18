@@ -1,0 +1,179 @@
+name: NRA3 S66 frozen original43M GT first-read from SHA-pinned protected616J7+KV source-only artifact
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s65-reported-event-factuality-scope-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s66-fast-score-existing-physical-native
+  cancel-in-progress: true
+jobs:
+  s66_first_new32_physical_frozen_result:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s66-original43m-gt-causal-parity-and-naturalistic-held-20261118'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install read-only ORIGINAL GT semantic decoder dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Fetch physical S66 actual original43M GT protected616J7 CPU native320 + KV H8 source ONLY
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s66-real43M-GT-protected616J7-NEW32-H8-native-KV-goldblind
+          run-id: 44394321202
+          github-token: ${{ github.token }}
+          path: inputs/s66native
+      - name: Read-only original paid S26
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s26-REAL43M-GT-TRAIN256-40fold-12384FP16-event-inversion-ablation-noEVAL
+          run-id: 44196720655
+          github-token: ${{ github.token }}
+          path: inputs/s26
+      - name: Read-only prior S57 paid231 fitted on old96
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s57-original43M-GT-96spent-only-eventfirst231-FP16-before-HELD24
+          run-id: 44312765248
+          github-token: ${{ github.token }}
+          path: inputs/s57_paid
+      - name: Read-only S59 trained ORIGINAL43M GT native320 semantic2046 frozen BEFORE NEW32
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s59-REAL43M-GT-OLD152-NATIVE320-PAID2046-FP16-frozen-before-HELD
+          run-id: 44357767214
+          github-token: ${{ github.token }}
+          path: inputs/s59paid
+      - name: Read-only S60 physically fitted 2776 FP16, only genuine old184 TRAIN
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s60-ORIGINAL43M-GT-OLD184-JOINT3-PAID2776-FP16-before-new32
+          run-id: 44362042174
+          github-token: ${{ github.token }}
+          path: inputs/s60_paid
+      - name: Read-only S61 trained NEW2752 FP16 original GT pair-NONE from spent216 only
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s61-GENUINE43M-GT-SPENT216-PAIR-NULL-POLAR2752FP16-frozen
+          run-id: 44366319006
+          github-token: ${{ github.token }}
+          path: inputs/s61paid
+      - name: Read-only S62 new JOINT event-target 2166 FP16 from completed old248 TRAIN
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s62-real43M-GT-SPENT248-event-target2166-FP16-frozen
+          run-id: 44371962358
+          github-token: ${{ github.token }}
+          path: inputs/s62paid
+      - name: Read-only S63 true43M GT 471FP16 quote-aware STRICT BPE from old spent280
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s63-REAL43M-GT-SPENT280-QUOTE471-frozen-before-NEW32
+          run-id: 44377346422
+          github-token: ${{ github.token }}
+          path: inputs/s63paid
+      - name: Read-only NEW S65 ORIGINAL43M GT OLD344 genuine 259FP16 physical readout
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s65-REAL43M-GT-OLD344-FACTUALITY3WAY259-FP16-before-NEW32
+          run-id: 44389438490
+          github-token: ${{ github.token }}
+          path: inputs/s65paid
+      - name: Verify exact S66 source-only artifact + 616 BASELINE J7 + original H8/KV parity NEVER human GOLD
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/44390233514 --jq .conclusion)" = success
+          test "$(git hash-object research/nra3_s20/s66_frozen_new32_raw_only_DO_NOT_TRAIN.py)" = 1d344cbc67bf85f81917009dbec0a5b146ac3961
+          test "$(gh api 'repos/'"$GITHUB_REPOSITORY"'/contents/research/nra3_s20/s66_frozen_new32_raw_only_DO_NOT_TRAIN.py?ref=ff5079fc51630bec3f9964b89d87e117f18b04b5' --jq .sha)" = 1d344cbc67bf85f81917009dbec0a5b146ac3961
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          d=Path('inputs/s66native')
+          cap=json.loads((d/'NRA3_S66_GENUINE43M_GT_EVENTFIRST32_NATIVE_J7_REPORT.json').read_text())
+          prov=json.loads((d/'NRA3_S66_GENUINE43M_GT_EVENTFIRST32_OFFSET_PROVENANCE.json').read_text())
+          par=d/'NRA3_S66_ORIGINAL43M_GT_NATIVE_PREFIX_KV_PARITY_AUDIT.json'
+          p=json.loads(par.read_text())
+          assert cap['all_616_native_CPU_generated_token_digests_unchanged']
+          assert cap['actual_43M_CPU_12_transformer_layers']
+          assert cap['GT_residuals_before_readport_in_same_active_S93_scope']
+          assert cap['S66_HELD_manual_gold_NOT_IMPORTED_into_model_capture']
+          assert p['num_source_only_attempted']==p['num_native_BPE_safe_measured']==8
+          assert p['num_true_GT_H8_native_prefix_maxabs_gt_1e_3']==0
+          assert p['num_true_GT_H8_original_KV_next2_maxabs_gt_1e_3']==8
+          assert p['even_parity_does_NOT_certify_original_streaming_causality']
+          assert hashlib.sha256(par.read_bytes()).hexdigest()==cap['S66_original43M_GT_H8_native_prefix_KV_audit_SHA256']
+          assert prov['S66_original43M_GT_H8_native_prefix_KV_audit_SHA256']==cap['S66_original43M_GT_H8_native_prefix_KV_audit_SHA256']
+          assert prov['S66_HUMAN_GOLD_NOT_IMPORTED_DURING_ANY_CAPTURE_STEP']
+          print('S66_PREVIOUS_GENUINE43M_GT_616J7_H8_KV_SOURCE_ONLY_GOLD_UNSEEN',flush=True)
+          PY
+      - name: FIRST NEW32 S66 43MGT frozen old S62/S63/S65 paired strict BPE + original KV parity then human GOLD
+        run: |
+          python -m research.nra3_s20.s66_first_new32_original43m_gt_KV_parity_eval \
+            --native inputs/s66native/NRA3_S66_GENUINE43M_GT_EVENTFIRST32_WORD339_AND_UNSAFE.safetensors \
+            --prov inputs/s66native/NRA3_S66_GENUINE43M_GT_EVENTFIRST32_OFFSET_PROVENANCE.json \
+            --capture inputs/s66native/NRA3_S66_GENUINE43M_GT_EVENTFIRST32_NATIVE_J7_REPORT.json \
+            --prefix inputs/s66native/NRA3_S66_ORIGINAL_NATIVE_BPE_PREFIX_STABILITY_AUDIT.json \
+            --parity inputs/s66native/NRA3_S66_ORIGINAL43M_GT_NATIVE_PREFIX_KV_PARITY_AUDIT.json \
+            --s26 inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26 \
+            --s57 inputs/s57_paid/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors \
+            --s59 inputs/s59paid/NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors \
+            --s60 inputs/s60_paid/NRA3_S60_ORIGINAL43M_GT_OLD184_TRICLASS2776_FP16.safetensors \
+            --s61 inputs/s61paid/NRA3_S61_REAL43M_GT_SPENT216_PAID2752_PAIR_NONE.safetensors \
+            --s62 inputs/s62paid/NRA3_S62_REAL43M_GT_SPENT248_JOINT_EVENT_TARGET2166_FP16.safetensors \
+            --s63 inputs/s63paid/NRA3_S63_REAL43M_GT_SPENT280_QUOTE_OUTER_BPE471_FP16.safetensors \
+            --fit63 inputs/s63paid/NRA3_S63_SPENT280_QUOTE471_TRAIN_MANIFEST.json \
+            --s65 inputs/s65paid/NRA3_S65_REAL43M_GT_SPENT344_REPORTED3WAY259_FP16.safetensors \
+            --fit65 inputs/s65paid/NRA3_S65_REAL43M_GT_SPENT344_FACTUALITY259_MANIFEST.json \
+            --out results/nra3_s66_new32_firstread
+      - name: Verify immutable separately committed S66 GOLD only AFTER original GT parity + frozen forward
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git hash-object research/nra3_s20/s66_new32_separate_gold_NEVER_MODEL_FORWARD.py)" = f06711a7baf4ff60a3730c690d30a65116df588b
+          test "$(gh api 'repos/'"$GITHUB_REPOSITORY"'/contents/research/nra3_s20/s66_new32_separate_gold_NEVER_MODEL_FORWARD.py?ref=08dce9e7486d41b0271c68343963b9ff73a5d49c' --jq .sha)" = f06711a7baf4ff60a3730c690d30a65116df588b
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('results/nra3_s66_new32_firstread/NRA3_S66_REAL43M_GT_NEW32_FIRSTREAD_AND_KV_PARITY_AUDIT.json').read_text())
+          assert d['stage']=='NRA3_S66_TRUE_ORIGINAL43M_GT_NEW32_ORIGINAL_KV_CAUSAL_PARITY_AND_GENERALIZATION'
+          assert d['S66_KV_prefix_original_GT_attempted']==8
+          assert d['S66_KV_probe_only_falsification_NOT_online_causality_certified']
+          assert d['original_12layer_43M_GT_real_CPU_616J7_BASELINE_replayed_before_new32']
+          assert d['original616_BASE_ONLY_not_S65_integrated_J7']
+          assert d['all_original_weights_and_paid_frozen_unmodified']
+          assert d['human_gold_imported_ONLY_AFTER_ALL_preexisting_frozen_forwards']
+          assert d['first_READ_NEW32_now_PERMANENTLY_spent']
+          assert d['author_created_contrast_NOT_multi_author_or_population_independent']
+          assert d['S65_NEW_3way_gold_inference_forbidden']
+          assert d['protected_EVAL128_EVAL32_S38_S47_S48_untouched']
+          assert len(d['first_READ_row_diagnostics'])==32
+          assert len(d['first_READ_by_four_challenge_strata'])==4
+          assert d['output_gate']==0 and not d['candidate_accepted'] and not d['activation_allowed']
+          print('S66_REAL43M_GT_FROZEN_S62_S63_S65_FIRSTREAD_AND_H8_KV',
+                json.dumps(d['first_READ_all_frozen_S57_to_S65_and_matched_conservative_gate'],sort_keys=True),flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s66-real43M-GT-NEW32-s65-vs-s63-KV-firstread-notAccepted
+          path: results/nra3_s66_new32_firstread/
+          retention-days: 30
+          if-no-files-found: error
