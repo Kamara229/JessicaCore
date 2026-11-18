@@ -309,7 +309,7 @@ def main():
         "physical_graph_labels_sha256":sha_file(labels_file),
         "frozen_independent_NRA_sha256":sha_file(learned),
         "read_only_NRA":True,"calibri_and_green_tunnel_unchanged":True,
-        "nra_output_gate":0.0,
+        "nra_output_gate":0,
         "physical_reload_bitwise_equal":True,
         "labels_materialized_after_native_CPU":True,
         "control_groups_scored":False,
