@@ -543,6 +543,26 @@ jobs:
           assert not r["frozen_soft_and_hard_candidate_scored"]
           assert type(r["nra_output_gate"]) is int and r["nra_output_gate"] == 0 and r["candidate_accepted"] is False
           assert all(not (type(v) is int and v == 0) for v in (0.0, False, "0", None)), "S3U gate type regression"
+          import hashlib
+          from safetensors.torch import load_file
+          base=p.parent
+          files={
+              "full_token_fp16_sha256":"NRA2_S3U_REAL_CPU_GRAPH64_ALL_TOKENS_FP16.safetensors",
+              "physical_feature_fp16_sha256":"NRA2_S3U_REAL_43M_GRAPH64_HIDDEN320_FP16.safetensors",
+              "physical_graph_labels_sha256":"NRA2_S3U_GRAPH64_STRUCTURAL_LABELS.safetensors",
+          }
+          for field,name in files.items():
+              raw=(base/name).read_bytes()
+              assert hashlib.sha256(raw).hexdigest()==r[field], f"S3U physical {field} mismatch"
+          t=load_file(str(base/files["full_token_fp16_sha256"]),device="cpu")
+          assert list(t["token_hidden320"].shape)==r["full_token_feature_shape"]
+          assert t["token_hidden320"].shape[0]==64 and t["token_hidden320"].shape[-1]==320
+          assert str(t["token_hidden320"].dtype)=="torch.float16"
+          assert t["token_mask"].shape==t["token_hidden320"].shape[:2]
+          assert t["token_lengths"].tolist()==r["token_lengths"]
+          assert all(0<int(n)<=t["token_hidden320"].shape[1] for n in r["token_lengths"])
+          assert r["native_tokenizer_S3O_query_alignment_verified"] is True
+          print("S3U_INDEPENDENT_WORKFLOW_FP16_SHA_RELOAD_AND_TOKEN_SHAPE_PASS",flush=True)
           print("S3U_S3T_64_REAL_FROZEN_CPU_NO_SCORING_OR_TRAINING_J7_PROTECTED")
           PY
       - name: Preserve S3U independent64 genuine CPU FP16 and pinned S194 616 J7
