@@ -107,7 +107,15 @@ def main():
                                 "coreference","event_relation")),
                 "S26 original paid five-head graph was altered by native quote/BPE safety mask")
         features=pair_features_gold_blind(native,observed)
-    require(features.shape[:3]==observed.eligible_directed_pair_mask.shape
+    # PyTorch tensors born under inference_mode cannot be saved for
+    # autograd backward even with requires_grad=False. S54 TRAIN must
+    # materialize separate NORMAL (non-inference) detached copies before
+    # training the new 36 weights. Old 43M/S26 source stays immutable.
+    features=features.detach().clone()
+    train_pair_mask=observed.eligible_directed_pair_mask.detach().clone()
+    require(not features.is_inference() and not train_pair_mask.is_inference(),
+            "S54 train-only feature/mask cloned outside inference_mode")
+    require(features.shape[:3]==train_pair_mask.shape
             and features.shape[-1]==len(FEATURE_NAMES),
             "S54 genuine original GT/S26 feature ABI changed")
     # S53 has ALREADY been scored (S53 first run 44274389010);
@@ -122,7 +130,7 @@ def main():
     require(len(SOURCE_ROWS)==len(text_only_inputs())==len(gold)==24
             and len(text_sha256())==len(gold_sha256())==64,
             "S53 previously scored manual TRAIN source no longer frozen")
-    targets=torch.zeros_like(observed.eligible_directed_pair_mask)
+    targets=torch.zeros_like(train_pair_mask)
     rejected=torch.zeros_like(targets)
     for i,(row,g) in enumerate(zip(SOURCE_ROWS,gold)):
         require(row[0]==g.row_id,"S53 TRAIN source/gold row order drift")
@@ -131,7 +139,7 @@ def main():
         if g.recipient is None:continue
         source_word=word_id(toks,g.predicate)
         destination_word=word_id(toks,g.recipient)
-        require(bool(observed.eligible_directed_pair_mask[i,source_word,destination_word]),
+        require(bool(train_pair_mask[i,source_word,destination_word]),
                 "S54 S53 TRAIN human true link was excluded by raw quote/BPE safety gate")
         targets[i,source_word,destination_word]=True
         if g.recipient_polarity=="REJECTED":
@@ -139,7 +147,7 @@ def main():
     require(int(targets.sum())==18 and int(rejected.sum())==12,
             "S54 previously scored S53 actual original GT gold counts differ")
     model,physical,diagnostics=train_on_previously_scored_S53_only(
-        features,observed.eligible_directed_pair_mask,targets,rejected)
+        features,train_pair_mask,targets,rejected)
     require(physical.shape==(2,len(FEATURE_NAMES)) and physical.dtype==torch.float16
             and physical.numel()==PAID_READOUT==36
             and bool(torch.isfinite(physical).all())
