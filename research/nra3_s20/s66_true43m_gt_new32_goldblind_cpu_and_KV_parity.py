@@ -27,6 +27,9 @@ from research.nra3_s20.s66_frozen_new32_raw_only_DO_NOT_TRAIN import (
 from research.nra3_s20.s64_native_prefix_causal_boundary_audit import (
     source_only_prefix_audit,
 )
+from research.nra3_s20.s66_original_gt_token_prefix_kv_parity import (
+    SUBSET,stable_native_prefix_cut,compare_real_native,forensic_source_row,
+)
 from research.nra3_s20.s49_real43m_gt_quote_sidecar_zero_gate import (
     Frozen43MGreenTunnelQuotePort, frozen_native_manifest_digest,
 )
@@ -80,6 +83,8 @@ def main():
     real_tokenizer=[]
     align_failed=[]
     s66_prefix_audits=[]
+    s66_layer8_KV_parity=[]
+    parity_collector=FrozenLayer8ReadPort()
 
     def load_original_with_read_only_port(*args,**kwargs):
         cpu=original_load(*args,**kwargs)
@@ -106,7 +111,7 @@ def main():
         real_tokenizer.append(tok)
         model,sources,*_=cpu
         s160.apply_profile(sources,cpu[6],"S93",bank,cpu[7],cpu[8])
-        for q in texts:
+        for row_idx,q in enumerate(texts):
             # Do not supply any graph, gold, predicate anchors or annotations.
             ids=list(s160.prompt_tokens(tok,q))
             try:
