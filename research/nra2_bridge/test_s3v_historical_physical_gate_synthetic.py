@@ -68,5 +68,46 @@ class HistoricalPhysicalGateTests(unittest.TestCase):
             verify_physical_gate(*fixture(b'{"output_gate":0,"candidate_accepted":false}'))
 
 
+    def test_manifest_review_flag_cannot_be_omitted(self):
+        raw, manifest_raw, zipped = fixture()
+        manifest = json.loads(manifest_raw)
+        for value in (False, None, "true", 1):
+            with self.subTest(value=value):
+                manifest["manifest_reviewed"] = value
+                with self.assertRaises(ValueError):
+                    verify_physical_gate(raw, json.dumps(manifest).encode(), zipped)
+
+    def test_boolean_identifiers_rejected(self):
+        raw, manifest_raw, zipped = fixture()
+        for key in ("run_id", "run_attempt", "artifact_id"):
+            with self.subTest(key=key):
+                manifest = json.loads(manifest_raw)
+                manifest[key] = True
+                with self.assertRaises(ValueError):
+                    verify_physical_gate(raw, json.dumps(manifest).encode(), zipped)
+
+    def test_zip_hash_mismatch_rejected(self):
+        raw, manifest, zipped = fixture()
+        with self.assertRaises(ValueError):
+            verify_physical_gate(raw, manifest, zipped + b"tampered")
+
+    def test_missing_or_wrong_zip_member_rejected(self):
+        raw, manifest_raw, zipped = fixture()
+        manifest = json.loads(manifest_raw)
+        manifest["json_member_path"] = "other.json"
+        with self.assertRaises(ValueError):
+            verify_physical_gate(raw, json.dumps(manifest).encode(), zipped)
+
+    def test_candidate_accepted_true_rejected(self):
+        raw = b'{"output_gate":0.0,"candidate_accepted":true}'
+        with self.assertRaises(ValueError):
+            verify_physical_gate(*fixture(raw))
+
+    def test_nonfinite_json_constant_rejected(self):
+        raw = b'{"output_gate":0.0,"candidate_accepted":false,"x":NaN}'
+        with self.assertRaises(ValueError):
+            verify_physical_gate(*fixture(raw))
+
+
 if __name__ == "__main__":
     unittest.main()
