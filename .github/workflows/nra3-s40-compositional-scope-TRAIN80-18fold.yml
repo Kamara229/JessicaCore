@@ -62,7 +62,7 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          p=Path("results/nra3_s39/NRA3_S39_TRAIN80_RAW_RUSSIAN_GRAPH_SHADOW_18FOLD.json")
+          p=Path("results/nra3_s40/NRA3_S40_TRAIN80_COMPOSITIONAL_GRAPH_18FOLD_AGAINST_S39.json")
           x=json.loads(p.read_text(encoding="utf-8"))
           assert x["stage"]=="NRA3_S40_COMPOSITIONAL_S39_TRAIN80_SYNTHETIC_18FOLD_NO_EVAL"
           assert x["original_archived_S39_completed_run"]==44215938499
