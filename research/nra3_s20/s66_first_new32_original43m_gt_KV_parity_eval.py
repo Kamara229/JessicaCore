@@ -116,7 +116,7 @@ def main():
         and prov["derived_REAL43M_WORD339_SHA256"]==sha(a.native)
         and prov["original_616_J7_replayed_before_read_only_quotes"]
         and prov["new_BPE_fractional_aligned_count"]==32
-        and prov["S65_HUMAN_GOLD_NOT_IMPORTED_DURING_ANY_CAPTURE_STEP"],
+        and prov["S66_HUMAN_GOLD_NOT_IMPORTED_DURING_ANY_CAPTURE_STEP"],
         "true ORIGINAL43M GT protected616 J7 CPU or new32 source-only SHA")
     require(
         prefix["stage"]=="NRA3_S66_TRUE_ORIGINAL43M_GT_NEW32_GOLDBLIND_BPE_PREFIX_AUDIT"
@@ -125,7 +125,7 @@ def main():
         and prefix["same_full_original_model_prompt_BPE_IDs_verified"]
         and prefix["all_616_original_J7_replayed_BEFORE_audit"]
         and prefix["does_NOT_certify_full_context_original_GT_online_causality"]
-        and prefix["source_ONLY_never_imported_S65_gold_or_EVAL"]
+        and prefix["source_ONLY_never_imported_S66_gold_or_EVAL"]
         and prov["S66_source_only_native_prefix_audit_SHA256"]==sha(a.prefix)
         and cpu["S66_original_BPE_prefix_audit_SHA256"]==sha(a.prefix),
         "S65 native original tokenizer word prefix stability report altered")
@@ -392,9 +392,9 @@ def main():
     (a.out/REPORT).write_text(
         json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+"\n",
         encoding="utf-8")
-    print("S65_REAL43M_GT_HELD32_FIRST_GENERALIZATION_MATCHED_GATE",
+    print("S66_REAL43M_GT_HELD32_FIRST_GENERALIZATION_MATCHED_GATE",
           json.dumps(results,sort_keys=True),flush=True)
-    print("S65_REAL43M_GT_NATIVE_BPE_PREFIX_SAFETY_DIAGNOSTIC",
+    print("S66_REAL43M_GT_NATIVE_BPE_PREFIX_SAFETY_DIAGNOSTIC",
           json.dumps({"strict_abstain_rows":int(overlay.unsafe_row.sum()),
                       "prefix_risk_rows":int(prefix_risk.sum()),
                       "combined":int(combined_risk.sum()),
@@ -402,6 +402,6 @@ def main():
                       "frozen_S59_beam_gold_coverage":
                         result["frozen_top8_TRUE_event_coverage"],
                       "gate":0},sort_keys=True),flush=True)
-    print("S65_NEW32_NOW_SPENT_RESEARCH_ONLY_NOT_ACCEPTED",flush=True)
+    print("S66_NEW32_NOW_SPENT_RESEARCH_ONLY_NOT_ACCEPTED",flush=True)
 
 if __name__=="__main__":main()
