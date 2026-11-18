@@ -251,7 +251,7 @@ def main():
     print("S51_FIRST_PASS_NATIVE_OVERLAP_COVERAGE",
           json.dumps({"previous_strict":len(supported),
                       "new_fractional":len(recovered),
-                      "recovered_old_failures":recovered_old_fail,
+                      "recovered_old_failures":[i for i in unsupported if fractional_map[i] is not None],
                       "failures":fractional_failures,
                       "duplicate_native_unicode_chars":sum(
                           m.original_duplicate_native_offset_characters
