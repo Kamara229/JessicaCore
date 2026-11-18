@@ -309,6 +309,28 @@ def main():
                      if fractional_map[i].ambiguous_raw_word_ids]
     native_shared_count=sum(len(m.shared_native_token_ids)
                             for m in fractional_map if m is not None)
+    s51_unsafe_word_mask=torch.zeros_like(s51_valid)
+    for row_idx,source_row_idx in enumerate(recovered):
+        s51_unsafe_word_mask[row_idx,
+            list(fractional_map[source_row_idx].ambiguous_raw_word_ids)]=True
+    if not torch.equal(s51_unsafe_word_mask&~s51_valid,
+                       torch.zeros_like(s51_unsafe_word_mask)):
+        raise AssertionError("S51 causal unsafe flag outside valid original BPE words")
+    s51_derived_feature_path=out/"NRA3_S51_DERIVED_REAL43M_GT_WORD339_QUOTE_AND_UNSAFE.safetensors"
+    derived={
+        "original_real43m_gt_word339_READONLY":extended.contiguous().detach(),
+        "original_native_word_valid_mask":s51_valid.contiguous().detach(),
+        "native_BPE_causally_unsafe_word_mask":s51_unsafe_word_mask.contiguous().detach(),
+        "source_row_indices_in_frozen_S48_TRAIN36":torch.tensor(
+            recovered,dtype=torch.int32),
+    }
+    save_file(derived,str(s51_derived_feature_path))
+    reread=load_file(str(s51_derived_feature_path),device="cpu")
+    if set(reread)!=set(derived) or any(
+        not torch.equal(reread[key],v) for key,v in derived.items()):
+        raise AssertionError("S51 physically persisted real 43M read-only fractional word339 changed")
+    s51_derived_sha=sha_file(s51_derived_feature_path)
+
     s51_map_report=out/"NRA3_S51_ORIGINAL_GT_QUOTE36_BPE_FRACTIONAL_CHAR_OVERLAP_AUDIT.json"
     s51_map_report.write_text(json.dumps({
        "stage":"NRA3_S51_REAL43M_GT_BPE_MANY_TO_MANY_RAW_OFFSET_AUDIT",
@@ -327,6 +349,8 @@ def main():
        "original_CPU_GT_S48_quote_word_count":s51_quotes,
        "original_CPU_GT_S48_quoted_outer_pairs":sum(sidecar_words.per_row_matched_pairs),
        "native_real_word338_read_only_sha256":pool_sha,
+       "derived_REAL43M_WORD339_filename":s51_derived_feature_path.name,
+       "derived_REAL43M_WORD339_SHA256":s51_derived_sha,
        "original_CPU_word338_zero_gate_unchanged":True,
        "original_CPU_layer8_hidden320_unchanged":True,
        "pooled_overlaps_NOT_causally_safe_for_tokenwise_training":True,
@@ -336,7 +360,7 @@ def main():
        "616J7_new_active_candidate_bpp_CB59_not_measured":True,
        "output_gate":0,"candidate_accepted":False,"activation_allowed":False,
        "all_36_per_row_offset_fractions_READONLY":overlap_maps,
-    },ensure_ascii=False,sort_keys=True,indent=2)+"\\n",encoding="utf-8")
+    },ensure_ascii=False,sort_keys=True,indent=2)+"\n",encoding="utf-8")
     print("S51_REAL43M_GT_FRACTIONAL_OVERLAP_NATIVES",
           json.dumps({"S50_strict":len(supported),
                       "S51_fractional":len(recovered),
@@ -377,6 +401,8 @@ def main():
         "S51_quote_word_count_after_fractional":s51_quotes,
         "S51_causal_token_training_allowed":False,
         "S51_fractional_report_file":s51_map_report.name,
+        "S51_derived_REAL43M_word339_file":s51_derived_feature_path.name,
+        "S51_derived_REAL43M_word339_sha256":s51_derived_sha,
         "S51_fractional_report_SHA256":sha_file(s51_map_report),
         "actual_genuine_43M_CPU_quote36_TRAIN_prefills":capture_count,
         "real_tokenizer_chat_offsets_verified":len(supported)>0,
