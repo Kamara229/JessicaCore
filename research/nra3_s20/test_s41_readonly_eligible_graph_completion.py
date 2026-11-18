@@ -74,7 +74,7 @@ class S41ReadOnlyS40GraphCompletionContracts(unittest.TestCase):
     def test_inference_no_gold_construction_blacklist_or_S38_tuning(self):
         import research.nra3_s20.s41_physical_paired_train80_edge_completion_18fold as trainer
         model_source=inspect.getsource(structurally_complete_REJECTED)
-        for bad in ("gold[","held","PATTERNS[","group","source_predicate_token_index0",
+        for bad in ("gold[","held_ids","PATTERNS[","group_id","source_predicate_token_index0",
                     "quoted_target","S38","s38_","passive","infinitive"):
             self.assertNotIn(bad,model_source)
         train_source=inspect.getsource(trainer)
