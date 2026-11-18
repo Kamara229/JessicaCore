@@ -103,6 +103,20 @@ class HistoricalPhysicalGateTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             verify_physical_gate(*fixture(raw))
 
+    def test_unsafe_auxiliary_zip_entries_rejected(self):
+        for auxiliary in ("../escape.txt", "/absolute.txt", "folder\\\\escape.txt"):
+            with self.subTest(auxiliary=auxiliary):
+                raw = b'{"output_gate":0.0,"candidate_accepted":false}'
+                buf = io.BytesIO()
+                with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
+                    archive.writestr("result.json", raw)
+                    archive.writestr(auxiliary, b"unused")
+                zipped = buf.getvalue()
+                manifest = json.loads(fixture()[1])
+                manifest["zip_sha256"] = sha(zipped)
+                with self.assertRaises(ValueError):
+                    verify_physical_gate(raw, json.dumps(manifest).encode(), zipped)
+
     def test_nonfinite_json_constant_rejected(self):
         raw = b'{"output_gate":0.0,"candidate_accepted":false,"x":NaN}'
         with self.assertRaises(ValueError):
