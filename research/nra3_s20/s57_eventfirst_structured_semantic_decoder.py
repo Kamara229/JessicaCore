@@ -290,12 +290,9 @@ def train_fixed_on_previously_inspected_96_only(
                 pos_weight=torch.tensor(.60))
             source_rl=rl[i,event_idx]
             with_rec=torch.where(has_rec)[0]
-            destinations=recipient_truth[with_rec].float().argmax(dim=2).argmax(dim=1)
-            # Select the target by explicit gold source and target only
-            # inside the TRAIN loss. Decoder never sees event gold.
+            # Select the target by explicit gold source/target ONLY in
+            # OLD TRAIN supervised loss. Decoder never sees event gold.
             targets=recipient_truth[with_rec,event_idx[with_rec]].float().argmax(-1)
-            require(torch.equal(destinations,targets) or True,
-                    "S57 original supervised pair destination only in loss")
             pr=source_rl[with_rec]
             pm=data.valid_pair[with_rec,event_idx[with_rec]]
             require(bool(pm[torch.arange(len(with_rec)),targets].all()),
