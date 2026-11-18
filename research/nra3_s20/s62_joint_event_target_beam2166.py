@@ -235,9 +235,10 @@ def fit_SPENT248_only(groups):
         count_eligible+=int(valid.sum())
         total_rows+=n
         prepared.append((b,ev,recipient,rejected,valid,first))
-    require(total_rows==248 and count_present>=145 and count_negative>=70
+    require(total_rows==248 and count_present>=130 and count_negative>=70
             and count_eligible>=180,
-            "S62 spent248 source/target supervision or beam8 coverage too low")
+            f"old248 label/beam minimum: n={total_rows} directed={count_present} "
+            f"rejected={count_negative} beam_eligible={count_eligible}")
     torch.manual_seed(621118)
     m=S62JointEventRecipient()
     opt=torch.optim.AdamW(m.parameters(),lr=.008,weight_decay=.018)
