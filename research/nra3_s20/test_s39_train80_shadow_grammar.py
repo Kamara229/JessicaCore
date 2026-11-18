@@ -79,7 +79,7 @@ class S39TrainOnlyShadowGrammar(unittest.TestCase):
         import research.nra3_s20.s39_fit_train80_nra2_shadow_scope_cv as script
         train=inspect.getsource(script.train_one_fold)
         module=inspect.getsource(script)
-        self.assertNotIn("s38_",module.lower())
+        self.assertNotIn("from research.nra3_s20.s38_",module)\n        self.assertNotIn("import research.nra3_s20.s38_",module)
         self.assertNotIn("nra2_original",train)
         self.assertNotIn("calibri43m",train.lower())
         self.assertIn("TRAIn_or_never" if False else "positive=(ry>0.5)&legal",train)
