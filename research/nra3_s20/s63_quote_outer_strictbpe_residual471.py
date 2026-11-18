@@ -165,15 +165,12 @@ class S63QuoteOuterSafe(nn.Module):
         source_delta=x.source_quote@self.event+self.event_bias
         pair_delta=x.pair_quote@self.pair+self.pair_bias
         null_delta=x.source_quote@self.none+self.none_bias
-        pair=base[:,:,:w]+pair_delta+source_delta.unsqueeze(-1)
+        pair=(base[:,:,:w]+pair_delta+source_delta.unsqueeze(-1)).masked_fill(
+            ~x.original.target_safe,-1e9)
         null=base[:,:,-1]+null_delta+source_delta
         out=torch.cat((pair,null.unsqueeze(-1)),dim=-1)
-        out=out.masked_fill(~x.original.target_safe.new_ones(
-            (b,k,w+1),dtype=torch.bool),float("-inf")) if False else out
-        out[:,:,:w]=out[:,:,:w].masked_fill(
-            ~x.original.target_safe,-1e9)
         out=out.masked_fill(~x.original.allowed.unsqueeze(-1),-1e9)
-        negative=old_polar+x.source_quote@self.reject[...,None] if False else old_polar+(x.source_quote@self.reject+self.reject_bias).unsqueeze(-1)
+        negative=old_polar+(x.source_quote@self.reject+self.reject_bias).unsqueeze(-1)
         require(out.shape==(b,k,w1) and negative.shape==(b,k,w)
                 and bool(torch.isfinite(out).all())
                 and bool(torch.isfinite(negative).all()),
