@@ -1,0 +1,101 @@
+name: NRA3 S58 real43M GT frozen S57 SPENT24 DEV only - not new HELD
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s57-eventfirst-spent96-newheld24-real43m-gt-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s58-spent57-real43m-dev24-only
+  cancel-in-progress: true
+jobs:
+  s58_spent_s57_real_native_dev24:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s58-selective-abstention-spent57-research-20261118'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '1290129'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU PyTorch, original dependency ABI
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Compile and run S58 synthetic safety tests
+        run: |
+          python -m compileall -q research/nra3_s20/s58_eventfirst_selective_abstention.py research/nra3_s20/s58_spent_s57_real43m_gt_dev24_audit.py
+          python -m unittest -v research.nra3_s20.test_s58_eventfirst_selective_abstention
+      - name: Confirm original genuine43M GT S57 physical run and S26 run succeeded
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/44312765248 --jq .conclusion)" = success
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/44196720655 --jq .conclusion)" = success
+          echo "S58_DEV_ONLY_PREVIOUS_S57_HELD_EXPLICITLY_SPENT"
+      - name: Read-only S57 original43M GT native gold-blind source (already spent)
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s57-original43M-GT-616J7-NEW24-held-goldblind-native
+          run-id: 44312765248
+          github-token: ${{ github.token }}
+          path: inputs/s57_native
+      - name: Read-only S57 old96-trained 231 FP16 (do NOT refit)
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s57-original43M-GT-96spent-only-eventfirst231-FP16-before-HELD24
+          run-id: 44312765248
+          github-token: ${{ github.token }}
+          path: inputs/s57_paid
+      - name: Read-only unchanged S26 paid 12384 FP16 original real43M GT
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s26-REAL43M-GT-TRAIN256-40fold-12384FP16-event-inversion-ablation-noEVAL
+          run-id: 44196720655
+          github-token: ${{ github.token }}
+          path: inputs/s26
+      - name: S58 real frozen source SPENT S57 24 DEV audit - NOT INDEPENDENT EVAL
+        run: |
+          python -m research.nra3_s20.s58_spent_s57_real43m_gt_dev24_audit \
+            --native inputs/s57_native/NRA3_S57_GENUINE43M_GT_EVENTFIRST24_WORD339_AND_UNSAFE.safetensors \
+            --provenance inputs/s57_native/NRA3_S57_GENUINE43M_GT_EVENTFIRST24_OFFSET_PROVENANCE.json \
+            --capture inputs/s57_native/NRA3_S57_GENUINE43M_GT_EVENTFIRST24_NATIVE_J7_REPORT.json \
+            --s26 inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26 \
+            --s57 inputs/s57_paid/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors \
+            --fit inputs/s57_paid/NRA3_S57_EVENTFIRST_SPENT96_231FP16_TRAIN_REPORT.json \
+            --out results/s58_spent_dev24
+      - name: Fail-closed report flags, always report ALL TP/FP/FN without quality threshold
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('results/s58_spent_dev24/NRA3_S58_SPENT_S57_DEV24_RESEARCH_REPORT.json').read_text())
+          assert d['stage']=='NRA3_S58_SPENT_S57_24_REAL43M_GT_DEV_ONLY_NOT_HELD'
+          assert d['SPENT24_dev_ONLY_no_independent_eval']
+          assert d['source_S57_previous_FIRST_HELD_now_PERMANENTLY_SPENT']
+          assert d['S58_new_CPU_616J7_NOT_tested']
+          assert d['S58_new_original_43M_GT_CPU_PREFILL_NOT_run']
+          assert d['S58_frozen_input_and_paid_models_unchanged']
+          assert len(d['rows_SPENT_dev24'])==24
+          assert len(d['per_family_SPENT_dev24'])==4
+          assert d['output_gate']==0 and not d['candidate_accepted']
+          assert not d['activation_allowed'] and not d['causal_certified']
+          print("S58_SPENT_DEV24_UNBIASED_EVAL_NOT_CLAIMED",json.dumps(d['results_SPENT_dev24'],sort_keys=True),flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s58-spent-s57-original43M-GT-dev24-diagnostics-not-eval
+          path: results/s58_spent_dev24/
+          retention-days: 30
+          if-no-files-found: error
