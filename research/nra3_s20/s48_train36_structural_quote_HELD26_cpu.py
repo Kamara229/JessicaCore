@@ -158,7 +158,7 @@ def fit_train36_readout(frozen,rows):
               +TRAIN_L2*sum(p.square() for p in readout.parameters()))
         require(bool(torch.isfinite(loss)),"nonfinite TRAIN36 quote objective")
         loss.backward()
-        require(all(p.grad is not None and bool(torch.isfinite(p.grad)).all()
+        require(all(p.grad is not None and bool(torch.isfinite(p.grad).all())
                     for p in readout.parameters()),
                 "missing finite gradients in small S48 readout")
         optimizer.step()
