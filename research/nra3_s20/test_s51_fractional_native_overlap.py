@@ -39,6 +39,8 @@ class S51FractionalNativeBPEOffsets(unittest.TestCase):
                             for w in mapping.raw_words))
         self.assertFalse(mapping.causal_token_training_allowed)
         self.assertFalse(mapping.source_gold_loaded)
+        self.assertEqual(mapping.original_duplicate_native_offset_characters,0)
+        self.assertEqual(mapping.original_template_crossing_native_token_positions,())
 
     def test_native_bpe_crosses_opening_quote_and_first_word(self):
         text="Анна сказала «готово» вчера."
@@ -89,7 +91,7 @@ class S51FractionalNativeBPEOffsets(unittest.TestCase):
         self.assertEqual(m.words_recovered,len(toks))
         self.assertTrue(m.original_token_ids_unchanged)
 
-    def test_missing_char_coverage_and_double_coverage_fail_closed(self):
+    def test_missing_char_coverage_rejected_duplicate_byte_offsets_mass_preserved(self):
         text="Он отметил «всё» вчера."
         tokens,ids,spans=fixture(text)
         faulty=list(spans)
@@ -98,8 +100,36 @@ class S51FractionalNativeBPEOffsets(unittest.TestCase):
             align_offsets_from_raw_text(text,ids,tuple(faulty),0,len(text))
         faulty=list(spans)
         faulty[1]=(faulty[0][1]-1,faulty[1][1])
-        with self.assertRaisesRegex(ValueError,"twice"):
-            align_offsets_from_raw_text(text,ids,tuple(faulty),0,len(text))
+        # Original byte-level BPE offsets may cover a Unicode character
+        # twice. It is accepted only when every character's unit mass
+        # is redistributed among all native token pieces.
+        pooled=align_offsets_from_raw_text(text,ids,tuple(faulty),0,len(text))
+        self.assertGreater(pooled.original_duplicate_native_offset_characters,0)
+        self.assertTrue(all(abs(sum(w.native_token_overlap_weights)-1)<1e-8
+                            for w in pooled.raw_words))
+
+    def test_unicode_duplicate_native_offsets_and_template_cross_mark_unsafe(self):
+        text="“да” сегодня."
+        words,ids,orig=fixture(text)
+        # Fast tokenizer byte-level encoding may return two pieces with
+        # the exact same offset of the opening Unicode curly quote.
+        offsets=[orig[0],orig[0],*orig[1:]]
+        ids=tuple(range(900,900+len(offsets)))
+        mapping=align_offsets_from_raw_text(text,ids,tuple(offsets),0,len(text))
+        self.assertGreater(mapping.original_duplicate_native_offset_characters,0)
+        self.assertAlmostEqual(mapping.raw_words[0].native_token_overlap_weights[0],0.5)
+        self.assertAlmostEqual(mapping.raw_words[0].native_token_overlap_weights[1],0.5)
+        self.assertTrue(mapping.raw_words[0].causally_safe)
+        # Original chat template prefix may be merged into first quote
+        # BPE token; it is represented but declared causally unsafe.
+        beginning=10
+        shifted=[(a+beginning,b+beginning) for a,b in orig]
+        shifted[0]=(beginning-2,shifted[0][1])
+        m=align_offsets_from_raw_text(text,tuple(range(700,700+len(shifted))),
+                                      tuple(shifted),beginning,beginning+len(text)+8)
+        self.assertEqual(m.original_template_crossing_native_token_positions,(0,))
+        self.assertIn(0,m.ambiguous_raw_word_ids)
+        self.assertFalse(m.raw_words[0].causally_safe)
 
     def test_no_gold_no_unsafe_weight_or_injected_gradient(self):
         text="Надпись «да» осталась."
