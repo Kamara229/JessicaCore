@@ -26,17 +26,22 @@ from research.nra3_s20.s57_eventfirst_structured_semantic_decoder import (
 from research.nra3_s20.s58_eventfirst_selective_abstention import (
     bridge_frozen_s57, selective_abstain,
 )
+from research.nra3_s20.s58_trainonly_event_transfer_residual83 import (
+    S58EventTransferResidual,
+)
 from research.nra3_s20.s57_frozen_eventfirst_held24_plain import (
     SOURCE_ROWS, FAMILIES, text_only_inputs, text_sha256,
 )
 
-STAGE="NRA3_S58_SPENT_S57_24_REAL43M_GT_DEV_ONLY_NOT_HELD"
+STAGE="NRA3_S58_TRAIN96_PAID83_SPENT_S57_24_REAL43M_GT_DEV_NOT_HELD"
 NATIVE="NRA3_S57_GENUINE43M_GT_EVENTFIRST24_WORD339_AND_UNSAFE.safetensors"
 PROV="NRA3_S57_GENUINE43M_GT_EVENTFIRST24_OFFSET_PROVENANCE.json"
 CAP="NRA3_S57_GENUINE43M_GT_EVENTFIRST24_NATIVE_J7_REPORT.json"
 S26="NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26"
 S57="NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors"
 FIT="NRA3_S57_EVENTFIRST_SPENT96_231FP16_TRAIN_REPORT.json"
+S58="NRA3_S58_OLD96_TRAIN_ONLY_EVENT_TRANSFER_RESIDUAL83_FP16.safetensors"
+FIT58="NRA3_S58_TRAIN_ONLY_OLD96_RESIDUAL83_MANIFEST.json"
 
 
 def require(ok,msg):
@@ -60,21 +65,31 @@ def counts(pred,gold):
 
 def main():
     p=argparse.ArgumentParser()
-    for name in ("native","provenance","capture","s26","s57","fit","out"):
+    for name in ("native","provenance","capture","s26","s57","fit","s58","s58-fit","out"):
         p.add_argument("--"+name,required=True,type=Path)
     args=p.parse_args()
     require(not args.out.exists(),"cannot overwrite a spent-data report")
     require(all(x.is_file() for x in (
-        args.native,args.provenance,args.capture,args.s26,args.s57,args.fit)),
+        args.native,args.provenance,args.capture,args.s26,args.s57,args.fit,args.s58,args.s58_fit)),
         "missing physically archived frozen model source")
     require((args.native.name,args.provenance.name,args.capture.name,
-             args.s26.name,args.s57.name,args.fit.name)==
-            (NATIVE,PROV,CAP,S26,S57,FIT),"unexpected archive name")
+             args.s26.name,args.s57.name,args.fit.name,args.s58.name,args.s58_fit.name)==
+            (NATIVE,PROV,CAP,S26,S57,FIT,S58,FIT58),"unexpected archive name")
     torch.set_num_threads(1)
     torch.use_deterministic_algorithms(True)
     provenance=json.loads(args.provenance.read_text())
     capture=json.loads(args.capture.read_text())
     fit=json.loads(args.fit.read_text())
+    fit58=json.loads(args.s58_fit.read_text())
+    require(fit58["stage"]=="NRA3_S58_OLD96_REAL43M_GT_TRAIN_ONLY_EVENT_TRANSFER83"
+            and fit58["new_S58_paid83_SHA256"]==sha(args.s58)
+            and fit58["original_S26_FP16_SHA256"]==sha(args.s26)
+            and fit58["old_original_S57_paid231_SHA256"]==sha(args.s57)
+            and fit58["new_S58_parameters"]==83
+            and fit58["new_S58_32_RAW_AND_GOLD_NEVER_IMPORTED"]
+            and fit58["S57_spent24_dev_NOT_IMPORTED_IN_TRAIN"]
+            and fit58["output_gate"]==0 and not fit58["candidate_accepted"],
+            "S58 physically frozen old96-only model provenance failed")
     require(provenance["derived_REAL43M_WORD339_SHA256"]==sha(args.native)
             and provenance["frozen_S57_HELD24_raw_source_sha256"]==text_sha256()
             and provenance["original_616_J7_replayed_before_read_only_quotes"]
@@ -102,19 +117,29 @@ def main():
     old26=EventGroundedInversionGraph.from_physical(args.s26.read_bytes())
     old57=S57EventFirstRecipient.from_physical_fp16(
         load_file(str(args.s57),device="cpu")["S57_EVENTFIRST_PAID231_FP16"])
-    require(not any(p.requires_grad for model in (old26,old57)
+    new83=S58EventTransferResidual.from_fp16(
+        load_file(str(args.s58),device="cpu")["S58_EVENT_TRANSFER_RESIDUAL83_FP16"])
+    require(not any(p.requires_grad for model in (old26,old57,new83)
                     for p in model.parameters()),"old paid parameters unexpectedly unfrozen")
     model_sha=tensor_sha(*(p.detach() for p in old57.parameters()))
+    new_sha=tensor_sha(*(p.detach() for p in new83.parameters()))
     with torch.inference_mode():
         obs=S52QuoteAwareFrozenPaidGraphBridge(old26).observe(x,valid,unsafe)
         features=gold_blind_eventfirst_features(x,obs,text_only_inputs())
         old=old57.decode(features)
         new=selective_abstain(bridge_frozen_s57(old57,features))
+        new83_pred=new83.decode(features,tuple(z.detach() for z in old57(features)))
         base_unmodified=(base_sha==tensor_sha(x,valid,unsafe))
         weights_unmodified=(model_sha==tensor_sha(*(p.detach() for p in old57.parameters())))
-    require(base_unmodified and weights_unmodified and old57.output_gate==0
+    require(base_unmodified and weights_unmodified
+            and new_sha==tensor_sha(*(p.detach() for p in new83.parameters()))
+            and old57.output_gate==0 and new83.output_gate==0
             and new["output_gate"]==0 and not new["candidate_accepted"]
             and not new["activation_allowed"],"read-only guard modified a frozen model")
+    require(int(new83_pred["directed_recipient"].sum())<=24
+            and not bool((new83_pred["directed_rejected"]&
+                          ~new83_pred["directed_recipient"]).any()),
+            "new paid83 model emitted unsafe directed pairs")
     require(int(new["directed_recipient"].sum())<=24
             and not bool((new["directed_rejected"]&~new["directed_recipient"]).any()),
             "S58 emitted unsafe or too many directed links")
@@ -145,6 +170,8 @@ def main():
             "S58_rec":int(new["directed_recipient"][k].sum()),
             "old_rej":int(old["directed_rejected"][k].sum()),
             "S58_rej":int(new["directed_rejected"][k].sum()),
+            "S58_paid83_rec":int(new83_pred["directed_recipient"][k].sum()),
+            "S58_paid83_rej":int(new83_pred["directed_rejected"][k].sum()),
             "predicted_event_index":int(new["chosen_event_minus1_on_abstain"][k])
         })
     require(int(rec_truth.sum())==12 and int(rej_truth.sum())==6,
@@ -154,6 +181,8 @@ def main():
         "S58_guard_recipient":counts(new["directed_recipient"],rec_truth),
         "S57_old_rejected":counts(old["directed_rejected"],rej_truth),
         "S58_guard_rejected":counts(new["directed_rejected"],rej_truth),
+        "S58_paid83_recipient":counts(new83_pred["directed_recipient"],rec_truth),
+        "S58_paid83_rejected":counts(new83_pred["directed_rejected"],rej_truth),
     }
     families={}
     for family in FAMILIES:
@@ -164,6 +193,8 @@ def main():
             "S58_recipient":counts(new["directed_recipient"][ix],rec_truth[ix]),
             "S57_rejected":counts(old["directed_rejected"][ix],rej_truth[ix]),
             "S58_rejected":counts(new["directed_rejected"][ix],rej_truth[ix]),
+            "S58_paid83_recipient":counts(new83_pred["directed_recipient"][ix],rec_truth[ix]),
+            "S58_paid83_rejected":counts(new83_pred["directed_rejected"][ix],rej_truth[ix]),
         }
     report={
         "stage":STAGE,
@@ -171,6 +202,7 @@ def main():
         "SPENT24_dev_ONLY_no_independent_eval":True,
         "source_S57_original43M_GT_native_SHA256":sha(args.native),
         "source_S57_paid231_safetensors_SHA256":sha(args.s57),
+        "new_S58_old96_trainonly_paid83_safetensors_SHA256":sha(args.s58),
         "source_S26_paid_archive_SHA256":sha(args.s26),
         "original_616_J7_from_PREVIOUS_S57_run_not_replayed_S58":True,
         "S58_new_CPU_616J7_NOT_tested":True,
@@ -178,6 +210,8 @@ def main():
         "S58_frozen_input_and_paid_models_unchanged":base_unmodified and weights_unmodified,
         "S58_structural_abstention_reasons":new["reasons"],
         "S58_syntactic_heuristics_can_reduce_recall":True,
+        "S58_new83_never_train_on_S57_dev24":True,
+        "S58_new32_raw_and_gold_NOT_READ":True,
         "results_SPENT_dev24":totals,"per_family_SPENT_dev24":families,
         "rows_SPENT_dev24":rows,
         "output_gate":0,"candidate_accepted":False,
