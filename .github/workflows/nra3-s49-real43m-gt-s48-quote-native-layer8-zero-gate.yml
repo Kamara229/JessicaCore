@@ -1,0 +1,126 @@
+name: NRA3 S49 real Calibri43M GT native layer8 S48 quote zero-gate sidecar CPU
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s48-structural-quote-graph-TRAIN-held-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s49-true43m-gt-native320-quote-zero-gate
+  cancel-in-progress: true
+jobs:
+  actual_real43m_gt_native_quote_bridge_zero_gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '320256'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require actual original43M+GT S22b after 616J7, S22c native CPU 338, and S48 completed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 43345267876 44189739539 44191302703 44259167542; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          test "$(git hash-object research/nra3_s20/s48_matched_unicode_quote_graph.py)" = bdd67d8a76aa11f5de9218c15692ec19317af772
+          test "$(git hash-object research/nra3_s20/s38_novel_russian_structure_challenge_source.py)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          test "$(git hash-object research/nra3_s20/s22_new256_counterfactual_train_graph_source.py)" != ''
+          test "$(git hash-object research/nra3_s20/s48_frozen_manual_held26_source.py)" = 98812ce767720857817f3ecceeb36cb5d5408cff
+          echo S49_ORIGINAL_TRUE43M_12LAYER_GT_NATIVE_SOURCE_PRIOR_J7_AND_S48_SHA_LOCKED
+      - name: Install CPU libraries only, no original43M weights downloaded
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Test zero-gate original338 and appended text-only S48 quote graph
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s49_real43m_gt_quote_port
+      - name: Fetch original real CPU Calibri43M+GT native S22c raw338 bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s22c-TRUE43M-GT-256-TRAIN-raw338-and-gold-separated-40fold
+          run-id: 44191302703
+          github-token: ${{ github.token }}
+          path: inputs/s22c
+      - name: Immediately remove bundled separately sealed human synthetic TRAIN gold before running any S49 code
+        run: |
+          set -euo pipefail
+          test -s inputs/s22c/S22C_REAL43M_GT_NEW256_RAWONLY_WORD338.safetensors
+          test -s inputs/s22c/S22C_REAL43M_GT_NEW256_RAWONLY_AND_TRAIN_GOLD_SEPARATE_REPORT.json
+          test -s inputs/s22c/S22C_256_SYNTHETIC_EVENT_GRAPH_TARGETS_TRAIN_ONLY.safetensors
+          rm -f inputs/s22c/S22C_256_SYNTHETIC_EVENT_GRAPH_TARGETS_TRAIN_ONLY.safetensors
+          test ! -e inputs/s22c/S22C_256_SYNTHETIC_EVENT_GRAPH_TARGETS_TRAIN_ONLY.safetensors
+          echo S49_ONLY_RAW338_AND_PROVENANCE_REMAIN_NO_GOLD
+      - name: Physically inspect genuine frozen original43M GT layer8 raw338 and append isolated S48 quote bit, gate0 only
+        run: |
+          python -m research.nra3_s20.s49_true43m_gt_quote_sidecar_native256_cpu \
+            --features inputs/s22c/S22C_REAL43M_GT_NEW256_RAWONLY_WORD338.safetensors \
+            --manifest inputs/s22c/S22C_REAL43M_GT_NEW256_RAWONLY_AND_TRAIN_GOLD_SEPARATE_REPORT.json \
+            --out results/nra3_s49
+      - name: Assert original REAL43M CPU hidden320+raw18 identical, new 339 sidecar isolated and no candidate acceptance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra3_s49/NRA3_S49_REAL43M_GT_S48_QUOTE_ZERO_GATE_NATIVE_LAYER8_BRIDGE.json")
+          d=json.loads(p.read_text(encoding="utf-8"))
+          assert d["stage"]=="NRA3_S49_REAL_ORIGINAL43M_GT_ARCHIVED_LAYER8_NATIVE_256_ZERO_GATE_S48_QUOTE_SIDE_CAR"
+          assert d["original_TRUE43M_12layer_GreenTunnel_native_S22b_CPU_parent_run"]==44189739539
+          assert d["original_TRUE43M_GT_SHA_sealed_S22c_raw338_parent_run"]==44191302703
+          assert d["S48_typographic_quote_graph_prior_TRAIN36_HELD26_CPU_run"]==44259167542
+          assert d["original_real43M_source_train256_canonical_sha256"]=="8963e2e8758b1c6a6fbd28eb597a77be1a454d732d0ecac93df6f5a753f6a361"
+          assert d["original_TRUE43M_word_vectors_256_synthetic_TRAIN_rows"]==256
+          assert d["original_TRUE43M_word_vectors_total"]>256
+          assert d["original_S22b_CPU_layer8_hidden320_FP16_parent_sha256"]
+          assert len(d["original_REAL43M_word338_tensor_sha256_before_after"])==64
+          assert len(d["original_REAL43M_layer8_hidden320_tensor_sha256_before_after"])==64
+          assert len(d["original_REAL43M_raw18_tensor_sha256_before_after"])==64
+          assert d["true_original_CPU_12layers_GT_verified_BY_S22b_parent_not_rerun_here"]
+          assert d["original_protected_616_J7_verified_BY_S22b_parent_NOT_rerun_in_S49"]
+          assert d["new_original43m_616J7_retention_did_NOT_run"]
+          assert d["original43M_weights_checkpoint_NOT_loaded_nor_modified"]
+          assert d["original43M_runtime_hook_NOT_installed"]
+          assert d["original338_output_same_Python_object_AND_data_ptr"]
+          assert d["original_hidden320_and_raw18_bitwise_and_SHA_unchanged"]
+          assert d["research_only_339D_augmented_adapter_channel_separate_not_injected_into_model"]
+          assert d["nonzero_quote_gate_explicitly_rejected"]
+          assert d["learned_S48_four_parameter_shadow_NOT_assumed_compatible_with_REAL43M"]
+          assert d["S22c_bundle_gold_shard_deleted_before_s49_and_never_loaded"]
+          assert d["no_gold_in_quote_parser_or_sidecar_forward"]
+          assert d["original_S38_protected32_not_accessed"]
+          assert d["previously_examined_S47_challenge36_not_accessed_or_tuned"]
+          assert d["no_S48_HELD26_scored_or_tuned"]
+          assert d["no_independent_EVAL32_or_EVAL128_used"]
+          assert d["616J7_bpp_CB59_active_candidate_not_measured"]
+          assert d["LIVE_Render_Supabase_Jessica_APK_unchanged"]
+          assert d["output_gate"]==0 and not d["candidate_accepted"] and not d["activation_allowed"]
+          print("S49_REAL43M_GT_ZEROGATE_PHYSICAL_SIDECAR",
+              json.dumps({k:d[k] for k in (
+                "original_TRUE43M_word_vectors_total",
+                "rows_S48_quote_parser_supported",
+                "S48_quote_words_in_sealed_S22_SYNTHETIC_TRAIN256",
+                "S48_quote_pair_completed_count",
+                "original338_output_same_Python_object_AND_data_ptr",
+                "original_hidden320_and_raw18_bitwise_and_SHA_unchanged"
+              )},sort_keys=True),flush=True)
+          print("S49_ONLY_OFFLINE_TRUE43M_NATIVE_POST_GT_BRIDGE_NO_TRUE_RUNTIME_ACTIVATION",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s49-real43m-GT-layer8-S48-quote-sidecar-256-zero-gate-noEVAL
+          path: results/nra3_s49/
+          if-no-files-found: error
+          retention-days: 30
