@@ -223,12 +223,12 @@ def main():
         raise AssertionError('S50 actual original43M+GT quote-bearing native vectors absent')
     report = {
         "stage":"NRA3_S50_GENUINE_ORIGINAL43M_GT_616J7_PLUS_S48_QUOTE_TRAIN36_NATIVE_LAYER8_CPU",
-        "S50_NEW36_TRAIN_GRAPH_SOURCE_SHA36":source_sha,
+        "S50_NEW_S48_QUOTE_TRAIN36_SOURCE_SHA256":source_sha,
         "S48_TRAIN36_SOURCE_COMMIT":"95592557e95965b149ee9b7780ceba164f93a7ff",
         "S48_TRAIN36_SOURCE_SHA256":source_sha,
         "S48_TRAIN36_SOURCE_BLOB":"ed6a76001aa1b593ddf2e7877af9ac9cbb59c416",
         "S194_ORIGINAL_616_J7_BASELINE_PARENT_RUN_ID":43345267876,
-        "S194_ORIGINAL_CHECKPOINT_SHA36":fp16_src,
+        "S194_ORIGINAL_CHECKPOINT_SHA256":fp16_src,
         "S194_ORIGINAL_584_GENERATED_TOKEN_DIGEST":source_cert["protected_584_generation_digest"],
         "S194_ORIGINAL_32_NEW_GENERATED_TOKEN_DIGEST":source_cert["train32_generation_digest"],
         "all_616_native_CPU_generated_token_digests_unchanged":True,
@@ -243,7 +243,7 @@ def main():
         "activation_allowed":False,
         "quote36_TRAIN_rows":len(texts),
         "actual_genuine_43M_CPU_quote36_TRAIN_prefills":capture_count,
-        "real_tokenizer_chat_offsets_verified":True,
+        "real_tokenizer_chat_offsets_verified":len(supported)>0,
         "true_real_Calibri_token_alignment_all_36":len(supported)==36,
         "real_BPE_aligned_quote_rows":len(supported),
         "real_BPE_unaligned_quote_row_ids":unsupported,
