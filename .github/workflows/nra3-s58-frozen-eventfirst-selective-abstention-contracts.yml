@@ -1,0 +1,31 @@
+name: NRA3 S58 research-only frozen S57 structural abstention contracts (no HELD, no activation)
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s57-eventfirst-spent96-newheld24-real43m-gt-20261118
+permissions:
+  contents: read
+concurrency:
+  group: nra3-s58-synthetic-contracts-only
+  cancel-in-progress: true
+jobs:
+  s58_frozen_s57_abstention_synthetic_contracts:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s58-selective-abstention-spent57-research-20261118'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CPU-only research dependency
+        run: python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Compile S58 model-free guard (no original model weights)
+        run: python -m compileall -q research/nra3_s20/s58_eventfirst_selective_abstention.py research/nra3_s20/test_s58_eventfirst_selective_abstention.py
+      - name: Six source-only tests, no S57 spent HELD/616 J7/real CPU claim
+        env:
+          PYTHONPATH: .
+        run: python -m unittest -v research.nra3_s20.test_s58_eventfirst_selective_abstention
