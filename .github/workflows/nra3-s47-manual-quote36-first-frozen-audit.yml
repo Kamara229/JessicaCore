@@ -1,0 +1,92 @@
+name: NRA3 S47 precommitted manual quote challenge36 untouched CPU audit
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s46-quote-boundary-train-calibration-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s47-precommitted-quote-manual36-first-audit
+  cancel-in-progress: true
+jobs:
+  s47_first_frozen_challenge36:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '431118'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Freeze source from separate earlier S47 commit, original S38 and S43/S45 unchanged
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/44255891674 --jq .conclusion)" = success
+          test "$(git hash-object research/nra3_s20/s47_frozen_manual_quote_challenge36.py)" = e46c88b14acd9c95b9dced410a69b36e3b5dff64
+          test "$(gh api "repos/$GITHUB_REPOSITORY/contents/research/nra3_s20/s47_frozen_manual_quote_challenge36.py?ref=3f997d2af82ac75cd2aa0310a9af6aa208dbbb7f" --jq .sha)" = e46c88b14acd9c95b9dced410a69b36e3b5dff64
+          test "$(git hash-object research/nra3_s20/s38_novel_russian_structure_challenge_source.py)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          test "$(git hash-object research/nra3_s20/s39_new80_trainonly_scope_graph_source.py)" = 0126bfc7e9dd53fe9f94debc187a7ca9b71da0ed
+          test "$(git hash-object research/nra3_s20/s43_new128_multi_event_trainonly_source.py)" = 891f3f081fa974cce92b9be37561f10b48e4a3d7
+          test "$(git hash-object research/nra3_s20/s45_separately_frozen_new64_scope_curriculum.py)" = 3cc3ed61a9798e78dffbbad0692dd6f8789c59b8
+          echo S47_SEPARATE_MANUAL_SOURCE_FROZEN_BEFORE_AUDITOR
+      - name: Install small research CPU dependencies only
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Confirm structural source annotation and disjointness, do not score manual data in tests
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s47_manual_quote_challenge36
+      - name: Fit frozen S45 fold3, fit frozen S46 TRAIN-only calibrator, only then import and score S47 manual36
+        run: |
+          python -m research.nra3_s20.s47_first_sealed_quote_challenge36_cpu --out results/nra3_s47
+      - name: Guard first audit complete, no tuning or independent quality promotion
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra3_s47/NRA3_S47_FIRST_FROZEN_MANUAL_QUOTE_CHALLENGE36.json")
+          d=json.loads(p.read_text(encoding="utf-8"))
+          assert d["stage"]=="NRA3_S47_SEALED_MANUAL_QUOTE_BOUNDARY_FIRST_UNTUNED_PHYSICAL_CPU_DIAGNOSTIC"
+          assert d["separately_committed_manual_source_commit"]=="3f997d2af82ac75cd2aa0310a9af6aa208dbbb7f"
+          assert d["separately_committed_manual_source_blob"]=="e46c88b14acd9c95b9dced410a69b36e3b5dff64"
+          assert len(d["challenge_gold_sha256"])==64
+          assert d["S46_predecessor_CI_SUCCESS"]==44255891674
+          assert d["manual_cases_count"]==36 and d["S45_fixed_training_fold"]==3
+          assert d["known_original_S46_development_fold3_repro_45"]=={"TP":6,"FP":17,"FN":0}
+          assert d["known_original_S46_development_fold3_repro_46"]=={"TP":6,"FP":0,"FN":0}
+          assert len(d["S45_model_frozen_weights_sha256"])==64
+          assert len(d["all_36_individual_challenge_diagnostics"])==36
+          assert d["gold_annotated_by_manual_markers_not_model_raw_quote_parser"]
+          assert d["S47_challenge_read_only_after_frozen_model_and_scalar"]
+          assert d["S47_challenge_intentionally_adversarial_NOT_unbiased_external_EVAL"]
+          assert d["no_fitting_or_threshold_tuning_on_S47_manual_36"]
+          assert d["no_real43M_GreenTunnel_NRA2_loaded_or_tested"]
+          assert d["S38_protected32_not_imported_scored_or_tuned"]
+          assert d["616J7_EVAL32_EVAL128_bpp_CB59_not_touched"]
+          assert d["LIVE_Render_Supabase_Jessica_APK_unchanged"]
+          assert d["output_gate"]==0 and not d["candidate_accepted"] and not d["activation_allowed"]
+          assert all(z["no_gold_in_forward"] and z["none_of_this_case_ever_used_for_training"]
+                     for z in d["all_36_individual_challenge_diagnostics"])
+          print("S47_FROZEN_MANUAL_QUOTE_CHALLENGE36",
+                json.dumps(d["first_UNTUNED_frozen_adversarial_manual_quote_scores"],sort_keys=True))
+          print("S47_ERRORS_COUNT",len(d["wrong_case_breakdown"]))
+          print("S47_PROTECTED_EVAL_UNTOUCHED_NOT_ACCEPTED",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s47-first-untuned-manual-quote36-noS38-noEVAL
+          path: results/nra3_s47/
+          if-no-files-found: error
+          retention-days: 30
