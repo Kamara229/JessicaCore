@@ -6,6 +6,7 @@ does not fetch artifacts, score, train, or expose labels. No runtime side effect
 import hashlib
 import json
 import io
+import math
 import zipfile
 
 
@@ -22,10 +23,17 @@ def _reject_constant(value):
     raise ValueError("FAIL CLOSED: nonfinite JSON number")
 
 
+def _finite_float(token):
+    value = float(token)
+    if not math.isfinite(value):
+        raise ValueError("FAIL CLOSED: nonfinite JSON numeric overflow")
+    return value
+
+
 def _load(raw):
     return json.loads(raw, object_pairs_hook=_pairs_unique,
                       parse_constant=_reject_constant,
-                      parse_float=lambda s: float(s))
+                      parse_float=_finite_float)
 
 
 def _sha(raw):
@@ -48,7 +56,9 @@ def verify_physical_gate(producer_bytes, manifest_bytes, artifact_zip_bytes=None
         raise ValueError("FAIL CLOSED: missing artifact provenance")
     if type(manifest["run_id"]) is not int or type(manifest["run_attempt"]) is not int:
         raise ValueError("FAIL CLOSED: invalid run identifiers")
-    if type(manifest["artifact_id"]) is not int:
+    if manifest["run_id"] <= 0 or manifest["run_attempt"] <= 0:
+        raise ValueError("FAIL CLOSED: nonpositive run identifiers")
+    if type(manifest["artifact_id"]) is not int or manifest["artifact_id"] <= 0:
         raise ValueError("FAIL CLOSED: invalid artifact identifier")
     for key in ("head_sha", "zip_sha256", "json_sha256"):
         length = 40 if key == "head_sha" else 64
@@ -61,7 +71,7 @@ def verify_physical_gate(producer_bytes, manifest_bytes, artifact_zip_bytes=None
         raise ValueError("FAIL CLOSED: ZIP physical SHA mismatch")
     member_path = manifest["json_member_path"]
     if (not isinstance(member_path, str) or not member_path
-            or member_path.startswith("/") or "\\\\" in member_path
+            or member_path.startswith("/") or "\\" in member_path
             or any(p in ("", ".", "..") for p in member_path.split("/"))):
         raise ValueError("FAIL CLOSED: unsafe JSON member path")
     try:
