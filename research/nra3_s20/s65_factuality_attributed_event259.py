@@ -1,7 +1,7 @@
 """NRA3 S65: source-only attributed-vs-factual joint event/target 3-way readout.
 
 Original Calibri43M/Green Tunnel, old S26/S57/S59/S61/S62/S63 frozen.
-New 259 FP16 trained ONLY on previously scored SPENT312 (S53..S64).
+New 259 FP16 trained ONLY on previously scored SPENT344 (S53..S64).
 Sixteen new source-only discourse, clause and local-negation features
 supplement prior S63 raw quote20. S65 learns explicitly 3 factuality
 classes NONE, ASSERTED, REJECTED for gold old TRAIN event and jointly
@@ -228,15 +228,15 @@ class S65FactualityJoint(nn.Module):
                 "S65 physical FP16 read back changed")
         return model.eval().requires_grad_(False)
 
-def fit_SPENT312_only(groups,old62,old63):
+def fit_SPENT344_only(groups,old62,old63):
     """Ten? Actually 11 old groups: S53..S64 =24x5 +32x6 =312.
 
     Source-only frozen beam and older model predictions. Training labels
     enter the loss only; no S65 NEW32 source/gold is ever imported.
     """
-    expected=[24]*5+[32]*6
-    require(len(groups)==11 and [len(z[1]) for z in groups]==expected,
-            "S65 strictly old312 true Calibri43M GT scored S53..S64")
+    expected=[24]*5+[32]*7
+    require(len(groups)==12 and [len(z[1]) for z in groups]==expected,
+            "S65 strictly old344 true Calibri43M GT scored S53..S64")
     npos=nrej=ncovered=nunsafe=0;prepared=[]
     for x,event,rec,rejected in groups:
         n,k=x.older.original.sources.shape
@@ -246,7 +246,7 @@ def fit_SPENT312_only(groups,old62,old63):
                 and rejected.dtype==torch.bool
                 and bool(((rec>=0)&(rec<=w)).all())
                 and bool((~rejected|(rec!=w)).all()),
-                "S65 old312 gold ABI source-only")
+                "S65 old344 gold ABI source-only")
         slots=(x.older.original.sources==event[:,None])&x.older.original.allowed
         slot=slots.float().argmax(-1)
         possible=slots.any(-1)
@@ -255,12 +255,12 @@ def fit_SPENT312_only(groups,old62,old63):
         sel=torch.where(safe&has)[0]
         if len(sel):
             require(bool(x.older.original.target_safe[sel,slot[sel],rec[sel]].all()),
-                    "old312 safe supervised positive transfer invalid")
+                    "old344 safe supervised positive transfer invalid")
         prepared.append((x,event,rec,rejected,slot,safe))
         npos+=int(has.sum());nrej+=int(rejected.sum())
         ncovered+=int(possible.sum());nunsafe+=int(x.strict_native_or_quote_unsafe.sum())
-    require(npos>=150 and nrej>=70 and ncovered>=245 and nunsafe<=90,
-            f"old312 source labels/beam coverage invalid positives={npos} rejected={nrej} covered={ncovered} unsafe={nunsafe}")
+    require(npos>=170 and nrej>=75 and ncovered>=270 and nunsafe<=100,
+            f"old344 source labels/beam coverage invalid positives={npos} rejected={nrej} covered={ncovered} unsafe={nunsafe}")
     torch.manual_seed(651118)
     model=S65FactualityJoint()
     old62.eval().requires_grad_(False)
@@ -285,7 +285,7 @@ def fit_SPENT312_only(groups,old62,old63):
             pol_loss=F.binary_cross_entropy_with_logits(
                 polar[pos,slot[pos],rec[pos]],rejected[pos].float()) if len(pos) else 0.
             loss=(1.65*pair_loss+.5*event_loss+.65*class_loss+
-                  .95*pol_loss)*(len(rows)/312.)
+                  .95*pol_loss)*(len(rows)/344.)
             total=loss if total is None else total+loss
         require(total is not None,"S65 no genuine safe older source")
         total=total+.001*sum(p.square().sum() for p in model.parameters())
