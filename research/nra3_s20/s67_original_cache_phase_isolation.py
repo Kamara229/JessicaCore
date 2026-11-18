@@ -62,13 +62,18 @@ def _phase(model,bridge,expansion,tunnel,prompt_vec,mode):
 
 
 def measured_native_triplet(model,sources,bridge,expansion,tunnel,
-                            prompt_vec,token_ids,cut,mode):
+                            prompt_vec,token_ids,cut,mode,*,phase_handler=None):
     """Compare full, full-prefix→KV2, and full-prefix→KV1→KV1.
 
     All three use the SAME immutable original native IDs. KV sequence lengths
     and H8/logits are read, not altered. No human labels or adapter outputs.
     """
-    require(mode in MODES and len(model.model.layers)==12
+    if phase_handler is None:
+        require(mode in MODES, "unknown S67 frozen mode")
+        phase_handler=_phase
+    else:
+        require(callable(phase_handler), "S69 custom frozen phase requires function")
+    require(len(model.model.layers)==12
             and not model.training and next(model.parameters()).device.type=="cpu",
             "12-layer original frozen CPU ABI")
     require(type(cut) is int and 4<=cut<=len(token_ids)-3
@@ -96,14 +101,14 @@ def measured_native_triplet(model,sources,bridge,expansion,tunnel,
         return out
     try:
         with torch.inference_mode():
-            with _phase(model,bridge,expansion,tunnel,prompt_vec,mode):
+            with phase_handler(model,bridge,expansion,tunnel,prompt_vec,mode):
                 full=run(token_ids,None)
                 full_logits=full.logits[0,cut:cut+2].detach().clone()
                 full_at_cut_minus_1=full.logits[0,cut-1].detach().clone()
                 require(cache_length(full.past_key_values)==len(token_ids),
                         "full forward cache length")
                 del full
-            with _phase(model,bridge,expansion,tunnel,prompt_vec,mode):
+            with phase_handler(model,bridge,expansion,tunnel,prompt_vec,mode):
                 pre=run(token_ids[:cut],None)
                 first_logits=pre.logits[0,-1].detach().clone()
                 cache=pre.past_key_values
@@ -115,7 +120,7 @@ def measured_native_triplet(model,sources,bridge,expansion,tunnel,
                 after_kv2=cache_length(two.past_key_values)
                 require(after_kv2==cut+2, "KV2 cache position")
                 del two,cache
-            with _phase(model,bridge,expansion,tunnel,prompt_vec,mode):
+            with phase_handler(model,bridge,expansion,tunnel,prompt_vec,mode):
                 pre_again=run(token_ids[:cut],None)
                 cache=pre_again.past_key_values
                 require(cache_length(cache)==cut,"second-prefix position")

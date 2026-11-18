@@ -33,6 +33,9 @@ from research.nra3_s20.s66_original_gt_token_prefix_kv_parity import (
 from research.nra3_s20.s67_original_cache_phase_isolation import (
     MODES as S67_MODES, measured_native_triplet, diagnostic_result,
 )
+from research.nra3_s20.s69_original_43m_gt_expansion_phase_matrix import (
+    MODES as S69_MODES, physical_spent_row, final_audit,
+)
 from research.nra3_s20.s49_real43m_gt_quote_sidecar_zero_gate import (
     Frozen43MGreenTunnelQuotePort, frozen_native_manifest_digest,
 )
@@ -88,6 +91,7 @@ def main():
     s66_prefix_audits=[]
     s66_layer8_KV_parity=[]
     s67_physical_rows=[]  # only previously spent S66 source, NO human GOLD
+    s69_physical_rows=[]  # 3 original nontrainable phase toggles × same 8 rows
     parity_collector=FrozenLayer8ReadPort()
 
     def load_original_with_read_only_port(*args,**kwargs):
@@ -229,6 +233,9 @@ def main():
                             ids,cut,phase)
                         for phase in S67_MODES
                     })
+                    s69_physical_rows.append(physical_spent_row(
+                        model,sources,bridge,expansion,full,prompt_vec,
+                        ids,cut))
             capture_count+=1
 
     s112.load_cpu_original=load_original_with_read_only_port
@@ -481,6 +488,17 @@ def main():
     s67_out=out/"NRA3_S67_ORIGINAL43M_CORE_VS_GT_REAL_KV_PHASE_ISOLATION.json"
     s67_out.write_text(json.dumps(s67_result,ensure_ascii=False,
                      indent=2,sort_keys=True)+"\n",encoding="utf-8")
+    s69_result=final_audit(s69_physical_rows)
+    s69_out=out/"NRA3_S69_GENUINE_ORIGINAL43M_GT_S132_KV_PHASE_FACTOR_ABLATION.json"
+    s69_out.write_text(json.dumps(s69_result,ensure_ascii=False,
+                    sort_keys=True,indent=2)+"\n",encoding="utf-8")
+    print("S69_ORIGINAL43M_GT_S132_KV_DECODE_PHASE_FACTOR",
+          json.dumps({
+              "rows":len(s69_physical_rows),
+              "H8_errors":s69_result["mode_h8_KV2_mismatch_gt_1e3"],
+              "logits_errors":s69_result["mode_logits_KV2_mismatch_gt_1e3"],
+              "gate":0,
+          },sort_keys=True),flush=True)
     print("S67_ORIGINAL43M_CORE_GT_H8_KV_PHASE_ABLATION",
           json.dumps({
               "source_rows":len(s67_physical_rows),
