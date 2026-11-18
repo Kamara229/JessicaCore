@@ -35,7 +35,7 @@ class S38StructureAdversarialPolicies(unittest.TestCase):
         self.assertEqual(len(all_candidate_upper_bound(*valid.shape).argument_polarity.shape),4)
         # The source annotations are referenced only AFTER both decoders.
         src=inspect.getsource(score_policy)
-        first=src.index("s35=apply_local_ne_dative_scope")
+        first=src.index("scope35=apply_local_ne_dative_scope")
         second=src.index("scope37=apply_raw_source_verb_scope")
         offline=src.index("for i,r in enumerate(rows):")
         self.assertLess(first,second)
