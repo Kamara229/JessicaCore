@@ -36,7 +36,7 @@ from research.nra3_s20.s34_trainonly_teacher_rejected_anti_collapse import (
     fixed_train_S34,FOLDS,
 )
 from research.nra3_s20.s35_real43m_local_negation_scope_trainonly import (
-    apply_local_ne_dative_scope,verify_logits_unmodified,_sum_metrics,
+    apply_local_ne_dative_scope,verify_logits_unmodified,_sum_metrics,_sum_metrics,
 )
 from research.nra3_s20.s28_real43m_trainonly_determinism_probe import (
     canonical_paid_semantic_fp16_sha,
