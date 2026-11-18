@@ -1,0 +1,110 @@
+name: NRA3 S45 NEW64 additional TRAIN curriculum compared to S44 same-run 24fold
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s44-quote-calibration-source-contrast-TRAIN128-20261118
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s45-add64-TRAINonly-scope-control-24fold
+  cancel-in-progress: true
+jobs:
+  s45_new64_train_addition_original_s44_paired:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      PYTHONHASHSEED: '431118'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Lock S38, original S43/S44 TRAIN128 and separately precommitted S45 extra64
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/44249892263 --jq .conclusion)" = success
+          test "$(git hash-object research/nra3_s20/s38_novel_russian_structure_challenge_source.py)" = d1c5be4402fb456adab896a828e742f5f34c48dd
+          test "$(git hash-object research/nra3_s20/s39_new80_trainonly_scope_graph_source.py)" = 0126bfc7e9dd53fe9f94debc187a7ca9b71da0ed
+          test "$(git hash-object research/nra3_s20/s43_new128_multi_event_trainonly_source.py)" = 891f3f081fa974cce92b9be37561f10b48e4a3d7
+          test "$(git hash-object research/nra3_s20/s45_separately_frozen_new64_scope_curriculum.py)" = 3cc3ed61a9798e78dffbbad0692dd6f8789c59b8
+          test "$(gh api "repos/$GITHUB_REPOSITORY/contents/research/nra3_s20/s45_separately_frozen_new64_scope_curriculum.py?ref=8f1e139c4a8c433b1545aebcfb03cdf00dea426a" --jq .sha)" = 3cc3ed61a9798e78dffbbad0692dd6f8789c59b8
+          echo S45_SEPARATELY_COMMITTED_NEW64_UNCHANGED_BEFORE_S45_EVALUATOR
+      - name: Install CPU torch and deterministic grammar parsers, no original Calibri 43M weights
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'safetensors==0.4.5'
+      - name: Verify S45 NEW64 annotation integrity, no original or S38 overlap and unchanged optimizer
+        run: |
+          python -m compileall -q research/nra3_s20
+          python -m unittest -v research.nra3_s20.test_s45_disjoint64_scope_curriculum
+      - name: Download completed immutable S44 physical 24fold provenance report read-only
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s44-NEW128-S43-vs-quote-calibrated-source-contrast-24fold-noEVAL
+          run-id: 44249892263
+          github-token: ${{ github.token }}
+          path: inputs/s44
+      - name: Physically train same S44 baseline and S44 plus extra64 scope TRAIN examples on 24 paired folds
+        run: |
+          python -m research.nra3_s20.s45_compare_s44_plus_new64_train_curriculum_24fold \
+            --previous-s44-report inputs/s44/NRA3_S44_TRAIN128_MATCHED_S43_S44_QUOTE_SOURCE_CONTRAST_24FOLD.json \
+            --out results/nra3_s45
+      - name: Guard source SHA, exact prior fold splits, no independent EVAL and report same-run TP FP FN
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nra3_s45/NRA3_S45_SAME_S44_WITH_DISJOINT64_ADDITIONAL_SCOPE_TRAIN_24FOLD.json")
+          d=json.loads(p.read_text(encoding="utf-8"))
+          assert d["stage"]=="NRA3_S45_DISJOINT64_ADDITIONAL_TRAIN_CURRICULUM_PAIRED_S44_24FOLD"
+          assert d["S44_previous_successful_CI_run"]==44249892263
+          assert d["S45_NEW64_source_precommitted_git_blob_SHA"]=="3cc3ed61a9798e78dffbbad0692dd6f8789c59b8"
+          assert d["S45_NEW64_source_precommitted_commit"]=="8f1e139c4a8c433b1545aebcfb03cdf00dea426a"
+          assert d["S45_NEW64_TRAIN_source"]["TRAIN_only_rows"]==64
+          assert d["S45_NEW64_TRAIN_source"]["positive_directed_training_links"]==80
+          assert len(d["S45_NEW64_TRAIN_source"]["source_sha256"])==64
+          assert len(d["original_S43_NEW128_source_sha256"])==64
+          assert d["S45_total_TRAIN_rows_per_fold"]==[176,184]
+          assert len(d["all_24_same_old_S43_SYNTHETIC_TRAIN_development_folds"])==24
+          assert set(d["matched_F1_and_FP_ON_SYNTHETIC_TRAIN_dev"])=={"LEXICAL","CONSTRUCTION"}
+          assert d["one_precommitted_difference_only_extra_64_TRAIN_examples"]
+          assert d["unchanged_S44_optimizer_objective_seed_steps_lr_inference"]
+          assert d["same_120_TRAIN_steps"]==120 and d["same_optimizer_lr"]==.012
+          assert d["original_training_fold_and_held_disjoint_with_new64"]
+          assert d["S38_adversarial_control_unseen_NOT_trained_scored_or_tuned"]
+          assert d["S45_not_independent_validation_old_held_labels_already_examined"]
+          assert d["S40_previously_handcrafted_russian_structure_priors_still_present"]
+          assert d["original_Calibri43M_GT_NRA2_model_NOT_loaded_or_trained"]
+          assert d["original_616J7_EVAL32_EVAL128_bpp_CB59_NOT_tested"]
+          assert d["no_LIVE_Render_Supabase_Jessica_APK_changes"]
+          assert d["output_gate"]==0 and not d["candidate_accepted"] and not d["activation_allowed"]
+          assert all(z["held_disjoint_from_ALL_curriculum_training"]
+                     and z["original_S38_control_NEVER_scored_or_trained"]
+                     and z["S45_no_forward_gold_or_output_side_matching"]
+                     and z["extra_NEW64_TRAIN_rows"]==64
+                     and z["original_TRAIN128_rows"] in (112,120)
+                     and z["held_original_S43_synthetic_TRAIN_dev_rows"] in (8,16)
+                     and len(z["S44_CPU_weights_SHA256"])==64
+                     and len(z["S45_CPU_weights_SHA256"])==64
+                     and z["output_gate"]==0
+                     for z in d["all_24_same_old_S43_SYNTHETIC_TRAIN_development_folds"])
+          print("S45_EXTRA_TRAIN64_PAIRED_RAW_SHADOW_FOLDS",
+                json.dumps(d["matched_F1_and_FP_ON_SYNTHETIC_TRAIN_dev"],sort_keys=True),flush=True)
+          print("S45_NO_S38_EVAL_NO_ORIGINAL43M_NRA2_NO_MODEL_PROMOTION",flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s45-NEW64-extra-TRAIN-S44-same-24fold-old-dev-noEVAL
+          path: results/nra3_s45/
+          if-no-files-found: error
+          retention-days: 30

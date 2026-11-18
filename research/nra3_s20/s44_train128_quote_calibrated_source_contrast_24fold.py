@@ -80,9 +80,13 @@ def directed_source_recipient_contrast(logits,reference,legal):
     return (source_margin[positive].mean()
             +recipient_margin[positive].mean())
 
-def fit_s44(train_rows,fold):
-    require(len(train_rows) in (112,120),
-            "S44 only 112/120 NEW128 train fold rows")
+def fit_s44(train_rows,fold,allow_S45_new64=False):
+    # In S45 descendant research ONLY: same immutable S44 training
+    # objective/seed/optimizer, but permit an explicit 64-row additional
+    # TRAIN curriculum. Prior original S44 branch remains immutable.
+    expected=(176,184) if allow_S45_new64 else (112,120)
+    require(len(train_rows) in expected,
+            "exact original S43 TRAIN fold size or sealed NEW64 addition required")
     torch.manual_seed(S43_SEED+fold)
     model=JointLearnedPredicateSourceS43()
     require(model.output_gate==0 and not model.candidate_accepted
