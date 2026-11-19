@@ -1,0 +1,138 @@
+name: NRA3 S108 NEW official Russian GSD TRAIN256 SHA-locked source-vs-GOLD no old dev
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s107-structural-competition-inweights-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri-nra3-s108-new-GSD256-sourcegold-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  s108_official_gsd256_source_separate_teacher_GOLD:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s108-new-GSD-train256-sourcegold-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      PYTHONPATH: .:research
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU-only neural symbol and source parser dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4'
+          python -m compileall -q research/calibri_nra3/s108_new_GSD_TRAIN256_multiverb_source_gold_wall.py research/calibri_nra3/test_s108_new_GSD256_source_gold_contract.py
+          python -m unittest -v research.calibri_nra3.test_s108_new_GSD256_source_gold_contract
+      - name: Pin physically successful S107 neural true12 source before new independent corpus preparation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44613224161 44608972425 44610664804 44611638768; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          echo NRA3_S108_REQUIRE_ORIGINAL_CALIBRI12_53743_NEURAL_ARCHITECTURE_SUCCESS_AND_GATE0
+      - name: Download NEW official Russian GSD only exact immutable original TRAIN Git blob and license
+        run: |
+          set -euo pipefail
+          mkdir -p inputs/official_GSD
+          curl --fail --location --silent --show-error --retry 3 \
+            https://raw.githubusercontent.com/UniversalDependencies/UD_Russian-GSD/71b92ce4c8da2b779450b0297abada721796425f/ru_gsd-ud-train.conllu \
+            -o inputs/official_GSD/ru_gsd-ud-train.conllu
+          test "$(git hash-object inputs/official_GSD/ru_gsd-ud-train.conllu)" = de392eb8d1a92fe1d12bc2e49c21cb717ae89859
+          curl --fail --location --silent --show-error --retry 3 \
+            https://raw.githubusercontent.com/UniversalDependencies/UD_Russian-GSD/71b92ce4c8da2b779450b0297abada721796425f/LICENSE.txt \
+            -o inputs/official_GSD/LICENSE.txt
+          test "$(git hash-object inputs/official_GSD/LICENSE.txt)" = 9af2e0b2f73cf29fe1f60cb6376b176d9c2ba846
+          grep -q 'Attribution-ShareAlike 4.0 International' inputs/official_GSD/LICENSE.txt
+          echo NRA3_S108_NEW_REAL_OFFICIAL_RUSSIAN_GSD_LICENSED_SOURCE_TRAIN_BLOB_PINNED
+      - name: Deterministic NEW source/GOLD hard split on 4x64 morphology classes, all observed VERB edges
+        run: |
+          set -euo pipefail
+          python -m research.calibri_nra3.s108_new_GSD_TRAIN256_multiverb_source_gold_wall \
+            --gsd-train inputs/official_GSD/ru_gsd-ud-train.conllu \
+            --out results/nra3_s108_NEW_OFFICIAL_GSD_TRAIN256_SOURCE_GOLD_separate
+      - name: Verify NEW GSD corpus never used old Taiga TRAIN-e labels/dev and 256 source-only texts separate GOLD SHA
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from research.calibri_nra3.s108_new_GSD_TRAIN256_multiverb_source_gold_wall import (
+              STAGE,TRAIN_GIT_BLOB,SOURCE_FILE,GOLD_FILE,MANIFEST_FILE,UPSTREAM_COMMIT)
+          from research.calibri_nra3.s94_ud_taiga_trainonly_grammatical_source_gold_WALL import sha256_serialized
+          d=Path('results/nra3_s108_NEW_OFFICIAL_GSD_TRAIN256_SOURCE_GOLD_separate')
+          src=json.loads((d/SOURCE_FILE).read_text())
+          gold=json.loads((d/GOLD_FILE).read_text())
+          m=json.loads((d/MANIFEST_FILE).read_text())
+          assert m['stage']==STAGE and UPSTREAM_COMMIT=='71b92ce4c8da2b779450b0297abada721796425f'
+          assert m['immutable_real_Russian_GSD_TRAIN_git_blob']==TRAIN_GIT_BLOB
+          assert m['source_upstream']=='UniversalDependencies/UD_Russian-GSD'
+          assert m['license']=='CC BY-SA 4.0'
+          assert m['ONLY_upstream_GSD_train_USED_no_GSD_dev_test_or_Taiga_data']
+          assert m['S96_S99_S102_S105_developer_results_SPENT_not_used_for_training_selection']
+          assert m['old_S79_S86_firstread48_SPENT_not_used']
+          assert m['Taiga_TRAIN_c_REMAINS_RESERVED_unopened_for_future_firstread']
+          assert len(src)==len(gold)==m['n_new_GSD_train_source_rows']==256
+          assert m['source_only_SHA256']==sha256_serialized(src)
+          assert m['offline_all_verbs_morph_multiedge_GOLD_SHA256']==sha256_serialized(gold)
+          assert set(x['text'] for x in src) and len({x['text'] for x in src})==256
+          assert all(set(z)=={'row_id','text'} for z in src)
+          assert all(a['row_id']==b['row_id'] for a,b in zip(src,gold))
+          assert m['fixed_stratification_counts']=={'active_transitive':64,'passive':64,'negated':64,'other_intransitive':64}
+          assert m['n_offline_UD_all_verb_events']>=256
+          assert m['n_offline_UD_multi_argument_role_edges']>=300
+          assert m['source_ONLY_does_not_contain_any_UD_labels']
+          assert m['offline_ud_labels_NEVER_allowed_at_runtime']
+          assert m['gold_only_after_source_original_Calibri_BPE_SHA_pinned']
+          assert m['new_inmodel_NRA3_training_steps']==0
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          print('NRA3_S108_NEW_OFFICIAL_RUSSIAN_GSD_256_SOURCE_GOLD_LOCKED',
+               {'source_sha':m['source_only_SHA256'],
+                'GOLD_sha':m['offline_all_verbs_morph_multiedge_GOLD_SHA256'],
+                'all_verbs':m['n_offline_UD_all_verb_events'],
+                'all_edges':m['n_offline_UD_multi_argument_role_edges'],
+                'morph':m['n_offline_UD_word_morph_tags'],
+                'gate':0},flush=True)
+          PY
+      - name: Audit source-text ZERO overlap with earlier Taiga TRAIN-e, never use old GOLD to select new GSD
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s103-original-licensed-UD-TaigaTRAINE256-MORPHREL-allVERB-source-GOLD-precommitted-TRAIN-only
+          run-id: 44607338592
+          github-token: ${{ github.token }}
+          path: inputs/S103_previous_Taiga_to_purge_NO_GOLD_READ
+      - name: Delete all old Taiga GOLD before validating GSD source only zero overlap
+        run: |
+          set -euo pipefail
+          find inputs/S103_previous_Taiga_to_purge_NO_GOLD_READ -type f ! -name 'NRA3_S103_TAIGA_TRAINE256_SOURCE_ONLY_NO_GOLD.json' -delete
+          test "$(find inputs/S103_previous_Taiga_to_purge_NO_GOLD_READ -type f | wc -l)" -eq 1
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from research.calibri_nra3.s108_new_GSD_TRAIN256_multiverb_source_gold_wall import SOURCE_FILE
+          gsd=json.loads((Path('results/nra3_s108_NEW_OFFICIAL_GSD_TRAIN256_SOURCE_GOLD_separate')/SOURCE_FILE).read_text())
+          old=json.loads(Path('inputs/S103_previous_Taiga_to_purge_NO_GOLD_READ/NRA3_S103_TAIGA_TRAINE256_SOURCE_ONLY_NO_GOLD.json').read_text())
+          assert len(gsd)==len(old)==256
+          assert not ({x['text'] for x in gsd}&{x['text'] for x in old})
+          print('NRA3_S108_OFFICIAL_GSD_NEW_SOURCE_HAS_ZERO_OVERLAP_WITH_OLD_TAIGA_TRAIN_E')
+          PY
+          rm -rf inputs/S103_previous_Taiga_to_purge_NO_GOLD_READ
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s108-new-licensed-RussianGSD-TRAIN256-multiverb-source-GOLD-SHA-precommitted-only
+          path: results/nra3_s108_NEW_OFFICIAL_GSD_TRAIN256_SOURCE_GOLD_separate/
+          retention-days: 30
+          if-no-files-found: error
