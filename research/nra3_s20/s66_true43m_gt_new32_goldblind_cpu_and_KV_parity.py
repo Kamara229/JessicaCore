@@ -44,9 +44,9 @@ from research.nra3_s20.s75_original43m_gt_newtrain120_native_h8 import (
     capture_S74_new_train120_original43m_cpu_source_only as s75_capture,
     physical_source_only_commit as s75_save_after_616J7,
 )
-from research.nra3_s20.s84_real43m_diverse72_rawonly_native_H8 import (
-    capture_new_diverse72_original43m_GT_native_only as s84_new_diverse72_sourceonly,
-    persist_source_only_AFTER_original_J7_verified as s84_save_after_original616,
+from research.nra3_s20.s87_REAL43M_GT_S86_NOVEL48_SOURCEONLY_H8 import (
+    capture_new_novel48_original43m_GT_native_only as s87_new_novel48_sourceonly,
+    persist_source_only_AFTER_original_J7_verified as s87_save_after_original616,
 )
 from research.nra3_s20.s49_real43m_gt_quote_sidecar_zero_gate import (
     Frozen43MGreenTunnelQuotePort, frozen_native_manifest_digest,
@@ -106,7 +106,7 @@ def main():
     s69_physical_rows=[]  # 3 original nontrainable phase toggles × same 8 rows
     s70_native_s95_rows=[]  # source-only S95 prefix native BPE A/B
     s75_newtrain120_capture=[]  # unlabelled new S74 TRAIN source, no GOLD
-    s84_new_train72_original_H8=[]  # new diverse S83 TRAIN source, NO gold/S79/S82
+    s87_new_novel48_original_H8=[]  # fresh S86 FIRSTREAD SOURCE, no gold/S85
     parity_collector=FrozenLayer8ReadPort()
 
     def load_original_with_read_only_port(*args,**kwargs):
@@ -139,9 +139,9 @@ def main():
         # can enter this code or the frozen Calibri H8 forward.
         s75_newtrain120_capture.append(s75_capture(
             model,sources,tok,bridge,full,expansion))
-        # S84 first source-only physical H8 read on S83 NEW TRAIN72
-        # after original 616 J7, NO S83 labels, NO S79 spent tests.
-        s84_new_train72_original_H8.append(s84_new_diverse72_sourceonly(
+        # S87 ONLY fresh S86 NOVEL48 source first read; no first-read
+        # gold/S85 weights, preserved original 616 J7 verified later.
+        s87_new_novel48_original_H8.append(s87_new_novel48_sourceonly(
             model,sources,tok,bridge,full,expansion))
         for row_idx,q in enumerate(texts):
             # Do not supply any graph, gold, predicate anchors or annotations.
@@ -297,9 +297,9 @@ def main():
     # posthoc verification above. Thus an altered J7 cannot ever yield
     # a saved physical S75 research artifact.
     s75_newtrain_tensors,s75_newtrain_report=s75_newtrain120_capture[0]
-    if len(s84_new_train72_original_H8)!=1:
-        raise ValueError("S84 exactly one TRAIN72 genuine Calibri H8 source capture")
-    s84_train_tensors,s84_train_report=s84_new_train72_original_H8[0]
+    if len(s87_new_novel48_original_H8)!=1:
+        raise ValueError("S87 exactly one FIRSTREAD48 original Calibri H8 capture")
+    s87_new_tensors,s87_new_report=s87_new_novel48_original_H8[0]
     token_batch=collector.frozen_batch(texts)
     tok=real_tokenizer[0]
     alignments=[]
@@ -322,19 +322,19 @@ def main():
     out.mkdir(parents=True,exist_ok=True)
     s75_source_file=s75_save_after_616J7(
         out,s75_newtrain_tensors,s75_newtrain_report)
-    s84_source_file=s84_save_after_original616(
-        out,s84_train_tensors,s84_train_report)
-    print("S84_ORIGINAL43M_GT_DIVERSE72_GOLDBLIND_TRAIN_NATIVE_H8",
+    s87_source_file=s87_save_after_original616(
+        out,s87_new_tensors,s87_new_report)
+    print("S87_ORIGINAL43M_GT_NOVEL48_GOLDBLIND_FIRSTREAD_NATIVE_H8",
           json.dumps({
-              "new_train_source72":s84_train_report["n_diverse_train_only_input_rows"],
-              "original_BPE_tokens":s84_train_report["n_original_native_BPE_tokens"],
-              "max_raw_words":s84_train_report["max_native_raw_source_words"],
-              "quote_words":s84_train_report["n_quote_marked_original_raw_words"],
-              "unsafe_shared_words":s84_train_report["n_shared_native_BPE_unsafe_word_positions"],
-              "physical_source_SHA":sha_file(s84_source_file),
+              "new_firstread_source48":s87_new_report["n_novel_syntax_firstread_input_rows"],
+              "original_BPE_tokens":s87_new_report["n_original_native_BPE_tokens"],
+              "max_raw_words":s87_new_report["max_native_raw_source_words"],
+              "quote_words":s87_new_report["n_quote_marked_original_raw_words"],
+              "unsafe_shared_words":s87_new_report["n_shared_native_BPE_unsafe_word_positions"],
+              "physical_source_SHA":sha_file(s87_source_file),
               "original_616_J7_baseline_preserved":True,
-              "S83_constructed_gold_not_loaded":True,
-              "S82_weight_not_loaded":True,
+              "S86_constructed_gold_not_loaded":True,
+              "S85_weights_not_loaded":True,
               "output_gate":0,
           },sort_keys=True),flush=True)
     print("S75_ORIGINAL43M_GT_NEWTRAIN120_GOLDBLIND_NATIVE_H8",
