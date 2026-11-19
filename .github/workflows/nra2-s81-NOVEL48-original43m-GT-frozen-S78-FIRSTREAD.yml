@@ -38,7 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m compileall -q research/nra3_s20/s76_s74_newtrain120_event_relative_gold_TRAIN_LOSS_ONLY.py research/nra3_s20/s77_real43m_gt_mentionhood_vs_asserted_candidate_audit.py research/nra3_s20/s78_train_true43m_quote_mention_8_specialists.py research/nra3_s20/s81_frozen_S78_firstread_S79_novel48_once.py
-          python -m unittest -v research.nra3_s20.test_s72_nra2_situation_microareas research.nra3_s20.test_s74_newtrain120_compositional_contrastive_contracts research.nra3_s20.test_s76_newtrain120_event_router_source_gold_contracts research.nra3_s20.test_s77_mentionhood_sourceonly_quoted_event_mask research.nra3_s20.test_s78_true43m_quote_mention_specialists research.nra3_s20.test_s79_novel48_firstread_freeze_contracts research.nra3_s20.test_s80_true43m_novel48_sourceonly_before_S78 research.nra3_s20.test_s81_one_time_frozen_S78_NOVEL48_firstread_contracts
+          python -m unittest -v research.nra3_s20.test_s72_nra2_situation_microareas research.nra3_s20.test_s74_newtrain120_compositional_contrastive_contracts research.nra3_s20.test_s76_newtrain120_event_router_source_gold_contracts research.nra3_s20.test_s77_mentionhood_sourceonly_quoted_event_mask research.nra3_s20.test_s78_true43m_quote_mention_specialists research.nra3_s20.test_s79_novel48_firstread_freeze_contracts research.nra3_s20.test_s81_one_time_frozen_S78_NOVEL48_firstread_contracts
       - name: Verify S79 PRECOMMIT 48 labels/source + S80 original J7/H8 and S78 7496 weights success BEFORE one-shot first-read
         env:
           GH_TOKEN: ${{ github.token }}
