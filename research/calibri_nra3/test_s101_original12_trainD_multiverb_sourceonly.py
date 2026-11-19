@@ -73,9 +73,9 @@ class TestS101SourceOnlyTrueCalibricModel(unittest.TestCase):
                              for v in imported))
         self.assertTrue(any("s97_in_calibri_morphological" in v for v in imported))
         wrapper=WRAPPER.read_text(encoding="utf8")
-        self.assertIn("nra3_s98_capture(",wrapper)
+        self.assertIn("nra3_s101_capture(",wrapper)
         self.assertIn('os.environ["NRA3_S101_TAIGA_D_SOURCE_ONLY_JSON"]',wrapper)
-        self.assertIn("nra3_s98_save(",wrapper)
+        self.assertIn("nra3_s101_save(",wrapper)
         self.assertNotIn("nra3_s95_capture(",wrapper)
 
 
