@@ -45,9 +45,9 @@ from research.nra3_s20.s75_original43m_gt_newtrain120_native_h8 import (
     capture_S74_new_train120_original43m_cpu_source_only as s75_capture,
     physical_source_only_commit as s75_save_after_616J7,
 )
-from research.calibri_nra3.s95_taiga256_genuine43mGT_all12_sourceonly import (
-    real_all12_source_capture_AFTER_original_616 as nra3_s95_capture,
-    save_only_AFTER_original616_digest_verified as nra3_s95_save,
+from research.calibri_nra3.s98_newTaigaB256_true12_morph_inmodel_goldblind_CPU import (
+    real_all12_source_capture_AFTER_original_616 as nra3_s98_capture,
+    save_only_AFTER_original616_digest_verified as nra3_s98_save,
 )
 from research.nra3_s20.s49_real43m_gt_quote_sidecar_zero_gate import (
     Frozen43MGreenTunnelQuotePort, frozen_native_manifest_digest,
@@ -107,7 +107,7 @@ def main():
     s69_physical_rows=[]  # 3 original nontrainable phase toggles × same 8 rows
     s70_native_s95_rows=[]  # source-only S95 prefix native BPE A/B
     s75_newtrain120_capture=[]  # unlabelled new S74 TRAIN source, no GOLD
-    nra3_s95_all12_TAIGA_TRAIN=[]  # S94 licensed Taiga SOURCE only, no corpus UD gold
+    nra3_s98_all12_TAIGA_TRAINB=[]  # S97 licensed separate TRAIN-b SOURCE ONLY, no morphology gold
     parity_collector=FrozenLayer8ReadPort()
 
     def load_original_with_read_only_port(*args,**kwargs):
@@ -143,9 +143,9 @@ def main():
         # NRA3 S92 physical original 12-layer Calibri + GreenTunnel:
         # attach 22,311 new weights INSIDE this RESEARCH model only,
         # AFTER original protected 616 J7. S79/S86 spent sets excluded.
-        nra3_s95_all12_TAIGA_TRAIN.append(nra3_s95_capture(
+        nra3_s98_all12_TAIGA_TRAINB.append(nra3_s98_capture(
             model,sources,tok,bridge,full,expansion,
-            Path(os.environ["NRA3_S95_TAIGA_SOURCE_ONLY_JSON"])))
+            Path(os.environ["NRA3_S98_TAIGA_B_SOURCE_ONLY_JSON"])))
         for row_idx,q in enumerate(texts):
             # Do not supply any graph, gold, predicate anchors or annotations.
             ids=list(s160.prompt_tokens(tok,q))
@@ -300,9 +300,9 @@ def main():
     # posthoc verification above. Thus an altered J7 cannot ever yield
     # a saved physical S75 research artifact.
     s75_newtrain_tensors,s75_newtrain_report=s75_newtrain120_capture[0]
-    if len(nra3_s95_all12_TAIGA_TRAIN)!=1:
-        raise ValueError("NRA3 S95 exactly one gold-free all12 original CPU licensed TRAIN read")
-    s95_tensors,s95_child_weights,s95_report=nra3_s95_all12_TAIGA_TRAIN[0]
+    if len(nra3_s98_all12_TAIGA_TRAINB)!=1:
+        raise ValueError("NRA3 S98 exactly one gold-free all12 original CPU licensed TRAIN-b read")
+    s98_tensors,s98_child_weights,s98_report=nra3_s98_all12_TAIGA_TRAINB[0]
     token_batch=collector.frozen_batch(texts)
     tok=real_tokenizer[0]
     alignments=[]
@@ -325,18 +325,18 @@ def main():
     out.mkdir(parents=True,exist_ok=True)
     s75_source_file=s75_save_after_616J7(
         out,s75_newtrain_tensors,s75_newtrain_report)
-    s95_source_file=nra3_s95_save(
-        out,s95_tensors,s95_child_weights,s95_report)
-    print("NRA3_S95_ORIGINAL43MGT_TAIGA_TRAIN_ALL12_UNANNOTATED_NATIVE_BPE",
+    s98_source_file=nra3_s98_save(
+        out,s98_tensors,s98_child_weights,s98_report)
+    print("NRA3_S98_ORIGINAL43MGT_TAIGA_TRAIN_B_ALL12_UNANNOTATED_MORPH_NATIVE_BPE",
           json.dumps({
-              "source_total":s95_report["n_pinned_source_only_rows"],
-              "accepted":s95_report["n_accepted_source_only_BPE_rows"],
-              "excluded":s95_report["n_excluded_due_to_input_BPE_preflight"],
-              "original_BPE_tokens":s95_report["n_genuine_original_native_BPE_tokens"],
-              "all12_source_SHA":sha_file(s95_source_file),
-              "embedded_child_SHA":s95_report["IN_CALIBRI_22311_NEW_FP16_WEIGHTS_SHA256"],
+              "source_total":s98_report["n_pinned_source_only_rows"],
+              "accepted":s98_report["n_accepted_source_only_BPE_rows"],
+              "excluded":s98_report["n_excluded_due_to_input_BPE_preflight"],
+              "original_BPE_tokens":s98_report["n_genuine_original_native_BPE_tokens"],
+              "all12_source_SHA":sha_file(s98_source_file),
+              "embedded_child_SHA":s98_report["IN_CALIBRI_28887_MORPH_FP16_WEIGHTS_SHA256"],
               "original_616_J7_retained":True,
-              "no_UD_GOLD_in_CPU":True,
+              "no_UD_TRAIN_B_GOLD_in_CPU":True,
               "output_gate":0,
           },sort_keys=True),flush=True)
     print("S75_ORIGINAL43M_GT_NEWTRAIN120_GOLDBLIND_NATIVE_H8",
