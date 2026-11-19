@@ -1,0 +1,137 @@
+name: NRA3 S116 NEW untouched SynTagRus TRAIN-B NONCOMMERCIAL FIRSTREAD dataset source-GOLD SHA preregistration no scoring
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s115-SynTagRusNC-eight-trust-neural-TRAIN-20261120
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri-nra3-s116-NC-SynTagRusB256-PROSPECTIVE-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  s116_noncommercial_unseen_trainB_source_GOLD_PRECOMMIT_NO_MODEL_EVAL:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s116-SynTagRusB-ONCE-NC-sourceGOLD-precommit-20261120'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      PYTHONPATH: .:research
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU python neural source schema test dependencies NO model inference
+        run: |
+          set -euo pipefail
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4'
+          python -m compileall -q research/calibri_nra3/s116_SynTagRusB256_NC_ONESHOT_source_GOLD_precommit.py research/calibri_nra3/test_s116_new_SynTagRus_B_NC_firstread_sourcewall.py
+          python -m unittest -v research.calibri_nra3.test_s116_new_SynTagRus_B_NC_firstread_sourcewall
+      - name: Require independent new SynTagRus TRAIN-A original source/GOLD SHA sealed before any prospective TRAIN-B source preparation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44620446642 44619230913 44621504675; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          echo NRA3_S116_PROSPECTIVE_BUT_NO_MODEL_RESULT_NOR_TRAIN_SCORING
+      - name: Download EXACT immutable official SynTagRus TRAIN-B not train-A, plus explicit noncommercial LICENSE
+        run: |
+          set -euo pipefail
+          mkdir -p inputs/official_syntagrus_trainB
+          curl --fail --location --silent --show-error --retry 3 \
+            https://raw.githubusercontent.com/UniversalDependencies/UD_Russian-SynTagRus/8b32a94d090be3f023c0c7bbd30804c84efe5f96/ru_syntagrus-ud-train-b.conllu \
+            -o inputs/official_syntagrus_trainB/ru_syntagrus-ud-train-b.conllu
+          test "$(git hash-object inputs/official_syntagrus_trainB/ru_syntagrus-ud-train-b.conllu)" = 416fcb93e223869e2718be30629dad9fadd4c290
+          curl --fail --location --silent --show-error --retry 3 \
+            https://raw.githubusercontent.com/UniversalDependencies/UD_Russian-SynTagRus/8b32a94d090be3f023c0c7bbd30804c84efe5f96/LICENSE.txt \
+            -o inputs/official_syntagrus_trainB/LICENSE.txt
+          test "$(git hash-object inputs/official_syntagrus_trainB/LICENSE.txt)" = 2c19e1b9c8249671d92d464b9678391b0c3cca19
+          grep -q 'Attribution-NonCommercial-ShareAlike 4.0' inputs/official_syntagrus_trainB/LICENSE.txt
+          echo NRA3_S116_OFFICIAL_NONCOMMERCIAL_UNSEEN_SYNTAGRUS_TRAINB_PINNED
+      - name: Preregister independent heldout 4x64 SynTagRus TRAIN-B raw source and separate role GOLD with no model metrics
+        run: |
+          set -euo pipefail
+          python -m research.calibri_nra3.s116_SynTagRusB256_NC_ONESHOT_source_GOLD_precommit \
+            --syntag-train inputs/official_syntagrus_trainB/ru_syntagrus-ud-train-b.conllu \
+            --out results/nra3_s116_NEW_SYNTAGRUS_TRAINB256_NC_source_GOLD_separate_NO_SCORING
+      - name: Verify new source, gold and NC license SHA preregistered as untouched one-shot external target, no scores
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from research.calibri_nra3.s94_ud_taiga_trainonly_grammatical_source_gold_WALL import sha256_serialized
+          from research.calibri_nra3.s116_SynTagRusB256_NC_ONESHOT_source_GOLD_precommit import (
+              STAGE,SOURCE_FILE,GOLD_FILE,MANIFEST_FILE,TRAIN_GIT_BLOB)
+          d=Path('results/nra3_s116_NEW_SYNTAGRUS_TRAINB256_NC_source_GOLD_separate_NO_SCORING')
+          raw=json.loads((d/SOURCE_FILE).read_text())
+          gold=json.loads((d/GOLD_FILE).read_text())
+          m=json.loads((d/MANIFEST_FILE).read_text())
+          assert m['stage']==STAGE
+          assert m['immutable_real_Russian_SYNTAGRUS_TRAIN_git_blob']==TRAIN_GIT_BLOB
+          assert m['immutable_upstream_license_git_blob']=='2c19e1b9c8249671d92d464b9678391b0c3cca19'
+          assert m['license']=='CC BY-NC-SA 4.0'
+          assert m['license_noncommercial_use_only_explicitly_required']
+          assert m['NO_training_tuning_model_selection_on_train_b']
+          assert m['PROSPECTIVE_ONESHOT_intermodeled_checkpoint_must_be_PINNED_BEFORE_first_score']
+          assert m['train_a_was_separately_precommitted_AND_GOLD_never_reused']
+          assert m['only_new_SynTagRus_TRAINb_used_no_dev_test']
+          assert len(raw)==len(gold)==256
+          assert len({x['text'] for x in raw})==256
+          assert all(set(z)=={'row_id','text'} for z in raw)
+          assert all(a['row_id']==b['row_id'] for a,b in zip(raw,gold))
+          assert m['source_only_SHA256']==sha256_serialized(raw)
+          assert m['offline_all_verbs_morph_multiedge_GOLD_SHA256']==sha256_serialized(gold)
+          assert m['fixed_stratification_counts']=={'active_transitive':64,'passive':64,'negated':64,'other_intransitive':64}
+          assert m['n_offline_UD_all_verb_events']>=256
+          assert m['n_offline_UD_multi_argument_role_edges']>=300
+          assert m['source_ONLY_does_not_contain_any_UD_labels']
+          assert m['new_inmodel_NRA3_training_steps']==0
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          print('NRA3_S116_PRECOMMIT_UNSEEN_NC_SYNTAGRUS_TRAINB_WITHOUT_EVALUATION',
+                {'raw_source_SHA':m['source_only_SHA256'],
+                 'GOLD_SHA':m['offline_all_verbs_morph_multiedge_GOLD_SHA256'],
+                 'UD_events':m['n_offline_UD_all_verb_events'],
+                 'relation_edges':m['n_offline_UD_multi_argument_role_edges']},flush=True)
+          PY
+      - name: Fetch previous SynTagRus TRAIN-A source only, never old teacher GOLD
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s113-new-SynTagRusA-NONCOMMERCIAL-TRAIN256-source-GOLD-SHA-precommitted-only
+          run-id: 44620446642
+          github-token: ${{ github.token }}
+          path: inputs/S113_TRAIN_A_PRIOR_SOURCE_ONLY
+      - name: Ensure independent new TRAIN-B has ZERO text overlap with previous TRAIN-A; DELETE previous gold
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=Path('inputs/S113_TRAIN_A_PRIOR_SOURCE_ONLY')
+          keep='NRA3_S113_SYNTAGRUS_TRAIN256_SOURCE_ONLY_NO_GOLD.json'
+          for p in d.rglob('*'):
+            if p.is_file() and p.name!=keep:p.unlink()
+          assert {p.name for p in d.rglob('*') if p.is_file()}=={keep}
+          old=json.loads((d/keep).read_text())
+          new=json.loads(Path('results/nra3_s116_NEW_SYNTAGRUS_TRAINB256_NC_source_GOLD_separate_NO_SCORING/NRA3_S116_SYNTAGRUS_TRAINB256_SOURCE_ONLY_NO_GOLD.json').read_text())
+          assert len(old)==len(new)==256
+          assert not ({x['text'] for x in old}&{x['text'] for x in new})
+          print('NRA3_S116_NEW_SYNTAGRUS_TRAINB_ZERO_EXACT_RAW_TEXT_OVERLAP_WITH_TRAIN_A')
+          PY
+          rm -rf inputs/S113_TRAIN_A_PRIOR_SOURCE_ONLY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s116-NONCOMMERCIAL-SynTagRusB256-PROSPECTIVE-ONESHOT-GOLD-SHA-precommitted-NOEVAL
+          path: results/nra3_s116_NEW_SYNTAGRUS_TRAINB256_NC_source_GOLD_separate_NO_SCORING/
+          retention-days: 30
+          if-no-files-found: error
