@@ -34,6 +34,11 @@ S117_MANIFEST="NRA3_S117_REAL43MGT_SYNTAGRUS_TRAINB256_ALLVERBS_SOURCE_PROVENANC
 S112_BASE="NRA3_S112_ORIGINAL12_BOUNDED_53751_IN_CALIBRI_ZERO_TRUST_FP16.safetensors"
 S115_TRAINED="NRA3_S117_IN_CALIBRI_TRAINED_TRUST_53751_FP16.safetensors"
 S112_MANIFEST="NRA3_S112_BOUNDED_ORIGINAL12_GSD_SOURCEONLY_NEURAL_ABI.json"
+# Immutable physical source and trained FP16 child verified by S117 original CPU
+# GitHub Actions #44625178799 SUCCESS 76/76, NO B teacher GOLD opened.
+PRECOMMITTED_S117_TRUE12_SOURCE_SHA="74c43db51b7bf357fa09f1af6b318bfd018f7df2b66f227ffb9de5ae0ef216ac"
+PRECOMMITTED_S115_TRAINED_53751_CHILD_SHA="42e0bb4e81cb4ea199e4ee8b5fccd939ab4550b7c6269af44ede6a77462d795c"
+
 SEED=11820261120
 BOOT=4000
 
@@ -89,9 +94,8 @@ def firstread(source12,source_manifest,s112_child,s112_report,
             and s112_child.name==S112_BASE
             and s112_report.name==S112_MANIFEST and s115_child.name==S115_TRAINED,
             "ONLY precommitted ORIGINAL Calibri12 source + S112 and S115 FROZEN FP16 weights")
-    require(len(expected_source_sha)==64 and all(c in "0123456789abcdef" for c in expected_source_sha)
-            and expected_source_sha!="0"*64,
-            "literal original S117 SOURCE SHA must be pinned BEFORE GOLD")
+    require(expected_source_sha==PRECOMMITTED_S117_TRUE12_SOURCE_SHA,
+            "MUST use GitHub-verified LITERAL S117 true12 SHA before B GOLD, not dynamic caller-selected SHA")
     source_info=json.loads(source_manifest.read_text(encoding="utf8"))
     baseline_info=json.loads(s112_report.read_text(encoding="utf8"))
     require(source_info["stage"]==
@@ -118,7 +122,8 @@ def firstread(source12,source_manifest,s112_child,s112_report,
             and baseline_info["new_neural_8_role_trust_params_UNTRAINED"]
             and baseline_info["output_gate"]==0 and not baseline_info["candidate_accepted"],
             "the S112 baseline MUST be physically committed BEFORE prospective B firstread")
-    require(sha(s115_child)==source_info["S115_trained_53751_in_model_child_FP16_SHA256"]
+    require(sha(s115_child)==PRECOMMITTED_S115_TRAINED_53751_CHILD_SHA
+            and sha(s115_child)==source_info["S115_trained_53751_in_model_child_FP16_SHA256"]
             and sha(s115_child)==source_info["IN_CALIBRI_53751_MORPH_FP16_WEIGHTS_SHA256"],
             "S115 trained child immutable, physically attached in S117 original Calibri before B GOLD")
     old=load_file(str(s112_child),device="cpu")
