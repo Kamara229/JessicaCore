@@ -1,0 +1,110 @@
+name: Calibri NRA3 S103 ONE-SHOT preregistered Taiga TRAIN-c source-vs-UD-gold frozen BEFORE original firstread
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s102-TAIGAD-multiverb-real12-trained-28887-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s103-prospective-TaigaC-one-shot-precommit-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  preregister_NEVER_TRAIN_ON_TAIGA_C_holdout:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s103-precommit-one-shot-TaigaC-firstread-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install only CPU torch to validate separate source/UD GOLD parser ABI, not train
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Verify physical S99 and S102 were already frozen before any Taiga TRAIN-c data opened, NO TRAIN
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44575467933 44605190903; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          echo S103_S99_S102_CHECKPOINTS_FROZEN_AND_OLD_DIAGNOSTICS_SPENT
+      - name: Inspect no prospective test data leaks or event oracle in live Calibri neural forward
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s103_precommit_ONE_SHOT_TaigaC_source_gold_WALL.py research/calibri_nra3/test_s103_precommitted_one_shot_TaigaC_firstread.py
+          python -m unittest -v research.calibri_nra3.test_s103_precommitted_one_shot_TaigaC_firstread
+      - name: Download immutable third-party ORIGINAL UD-Taiga train-c (SEPARATE from upstream train-a b d dev test) and license
+        run: |
+          set -euo pipefail
+          mkdir -p inputs/taiga_train_C_test_ONCE
+          curl --fail --location --show-error --silent --retry 3 --max-time 360 \
+            https://raw.githubusercontent.com/UniversalDependencies/UD_Russian-Taiga/445ea57e47a3adae3146d0a42d2a8876214f2d20/ru_taiga-ud-train-c.conllu \
+            -o inputs/taiga_train_C_test_ONCE/ru_taiga-ud-train-c.conllu
+          test "$(git hash-object inputs/taiga_train_C_test_ONCE/ru_taiga-ud-train-c.conllu)" = 16ddc9c25dc1ab56d809c4b155f4eb18942b0e8f
+          curl --fail --location --show-error --silent --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/UniversalDependencies/UD_Russian-Taiga/445ea57e47a3adae3146d0a42d2a8876214f2d20/LICENSE.txt \
+            -o inputs/taiga_train_C_test_ONCE/LICENSE.txt
+          test "$(git hash-object inputs/taiga_train_C_test_ONCE/LICENSE.txt)" = 9af2e0b2f73cf29fe1f60cb6376b176d9c2ba846
+          grep -q 'Attribution-ShareAlike 4.0 International' inputs/taiga_train_C_test_ONCE/LICENSE.txt
+      - name: PRECOMMIT only, NEVER train; 256 one-time future FIRSTREAD source-only texts and SEPARATE original licensed UD multi-event GOLD
+        run: |
+          set -euo pipefail
+          python -m research.calibri_nra3.s103_precommit_ONE_SHOT_TaigaC_source_gold_WALL \
+            --taiga-train-c inputs/taiga_train_C_test_ONCE/ru_taiga-ud-train-c.conllu \
+            --out results/nra3_s103_FIRSTREAD_C256_precommitted_source_and_separate_GOLD
+      - name: Assert source vs GOLD SHA, frozen S99 and S102 original FP16 checkpoints and no diagnostic reuse; permanently reserve as one-shot
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from research.calibri_nra3.s103_precommit_ONE_SHOT_TaigaC_source_gold_WALL import (
+            SOURCE_FILE,GOLD_FILE,MANIFEST_FILE,STAGE,TRAIN_GIT_BLOB,
+          )
+          from research.calibri_nra3.s94_ud_taiga_trainonly_grammatical_source_gold_WALL import sha256_serialized
+          d=Path('results/nra3_s103_FIRSTREAD_C256_precommitted_source_and_separate_GOLD')
+          p=json.loads((d/MANIFEST_FILE).read_text())
+          s=json.loads((d/SOURCE_FILE).read_text())
+          g=json.loads((d/GOLD_FILE).read_text())
+          assert p['stage']==STAGE
+          assert p['immutable_real_Taiga_TRAINC_git_blob']==TRAIN_GIT_BLOB
+          assert p['ONLY_upstream_train_c_USED_no_train_a_b_d_dev_test']
+          assert p['Taiga_TRAIN_c_firstread_burned_after_ONE_log_and_NEVER_train']
+          assert p['train_c_gold_must_NEVER_enter_training']
+          assert p['no_model_selection_or_hparam_tuning_from_one_shot_firstread']
+          assert p['FROZEN_S99_child_FP16_SHA']=='c77a6964ae4e02cb3aac98d69978a25cec2b491a9624cc9668b3b307699bff8a'
+          assert p['FROZEN_S102_child_FP16_SHA']=='f40dddbc03282a6c45c4f807746275d76a4ba776aa613247e73fbdf7f43329df'
+          assert p['n_prospective_firstread_c_source_rows']==len(s)==len(g)==256
+          assert p['fixed_stratification_counts']=={'active_transitive':64,'passive':64,'negated':64,'other_intransitive':64}
+          assert p['source_only_SHA256']==sha256_serialized(s)
+          assert p['offline_all_verbs_morph_multiedge_GOLD_SHA256']==sha256_serialized(g)
+          assert all(set(z)=={'row_id','text'} for z in s)
+          assert p['license']=='CC BY-SA 4.0'
+          assert p['attribution_and_sharealike_license_review_before_any_commercial_use']
+          assert p['output_gate']==0 and not p['candidate_accepted'] and not p['activation_allowed']
+          print('NRA3_S103_S99_S102_FROZEN_ONE_SHOT_NEW_TAIGA_C_SHAS',
+            json.dumps({'SOURCE':p['source_only_SHA256'],
+                        'SEALED_UD_GOLD':p['offline_all_verbs_morph_multiedge_GOLD_SHA256'],
+                        'S99_SHA':p['FROZEN_S99_child_FP16_SHA'],
+                        'S102_SHA':p['FROZEN_S102_child_FP16_SHA'],
+                        'n_prospective_rows':256,
+                        'test_reuse_FORBIDDEN':True,
+                        'activation':False},sort_keys=True),flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s103-ONE-SHOT-UD-Taiga-TRAINc256-SOURCE-and-SEPARATE-GOLD-preregistered-noTrain
+          path: results/nra3_s103_FIRSTREAD_C256_precommitted_source_and_separate_GOLD/
+          retention-days: 30
+          if-no-files-found: error
