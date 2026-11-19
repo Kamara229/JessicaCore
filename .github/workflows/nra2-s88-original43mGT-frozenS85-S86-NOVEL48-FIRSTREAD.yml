@@ -127,7 +127,7 @@ jobs:
           physical=Path('inputs/s87/NRA2_S87_GENUINE43M_GT_NOVEL48_WORD339_NO_GOLD.safetensors')
           report=json.loads(Path('inputs/s87/NRA2_S87_GENUINE43M_GT_NOVEL48_GOLD_BLIND_SOURCE_PROVENANCE.json').read_text())
           checkpoint=Path('inputs/s85/NRA2_S85_TRUE43M_GT_S82_EVENT_LOCAL8264_FP16.safetensors')
-          assert hashlib.sha256(physical.read_bytes()).hexdigest()=='S87_PHYSICAL_SHA_TO_BE_PINNED'
+          assert hashlib.sha256(physical.read_bytes()).hexdigest()=='7ae7954d229338a0c4bd14f700f217e5d9437fa1be3f4a4e1bbabca4240b1893'
           assert report['genuine_source_tensor_file_SHA256']==hashlib.sha256(physical.read_bytes()).hexdigest()
           assert report['original_Calibri43M_protected_616J7_physically_replayed_BEFORE_firstread']
           assert report['S86_CONSTRUCTION_GOLD_NEVER_IMPORTED_BY_REAL_H8_CPU']
