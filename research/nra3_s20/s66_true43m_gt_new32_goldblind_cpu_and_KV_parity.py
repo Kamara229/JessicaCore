@@ -40,6 +40,9 @@ from research.nra3_s20.s70_true43m_native_s95_source_prefix_counterfactual impor
     audited_source_row as s70_native_s95_row,
     audit_rows as s70_native_s95_audit,
 )
+from research.nra3_s20.s71_S132_allstep_phase_original_oldtrain32_J7 import (
+    read_only_alternate_allstep_original32 as s71_oldtrain32_check,
+)
 from research.nra3_s20.s49_real43m_gt_quote_sidecar_zero_gate import (
     Frozen43MGreenTunnelQuotePort, frozen_native_manifest_digest,
 )
@@ -98,6 +101,11 @@ def main():
     s69_physical_rows=[]  # 3 original nontrainable phase toggles × same 8 rows
     s70_native_s95_rows=[]  # source-only S95 prefix native BPE A/B
     parity_collector=FrozenLayer8ReadPort()
+    # Store original S160 decoder before S194 independently wraps it
+    # to capture and protect all 616 source J7 outputs. This variable
+    # is never reassigned; no monkeypatch or baseline change occurs.
+    original_s160_cpu_decoder=s160.cached_full_cpu_parallel
+    s71_frozen_oldtrain_result=[]
 
     def load_original_with_read_only_port(*args,**kwargs):
         cpu=original_load(*args,**kwargs)
@@ -124,6 +132,12 @@ def main():
         real_tokenizer.append(tok)
         model,sources,*_=cpu
         s160.apply_profile(sources,cpu[6],"S93",bank,cpu[7],cpu[8])
+        # S71 is AFTER original 616 J7 and old S190 native TRAIN32
+        # generated tokens. S194 capture wrapper remains unchanged.
+        # No labels, no held S66 source, no model/training mutations.
+        s71_frozen_oldtrain_result.append(s71_oldtrain32_check(
+            cpu,tok,bridge,full,expansion,copy_net,head,
+            original_s160_cpu_decoder))
         for row_idx,q in enumerate(texts):
             # Do not supply any graph, gold, predicate anchors or annotations.
             ids=list(s160.prompt_tokens(tok,q))
@@ -505,6 +519,19 @@ def main():
     s70_out=out/"NRA3_S70_REAL43M_NATIVE_S95_PREFIX_FUTURE_ABLATION.json"
     s70_out.write_text(json.dumps(s70_result,ensure_ascii=False,
                     indent=2,sort_keys=True)+"\n",encoding="utf-8")
+    if len(s71_frozen_oldtrain_result)!=1:
+        raise ValueError("S71 old original generated32 source comparison absent")
+    s71_result=s71_frozen_oldtrain_result[0]
+    s71_out=out/"NRA3_S71_ORIGINAL_S132_ALLSTEP_OLD_TRAIN32_J7_DRIFT.json"
+    s71_out.write_text(json.dumps(s71_result,ensure_ascii=False,
+                    sort_keys=True,indent=2)+"\n",encoding="utf-8")
+    print("S71_ORIGINAL_S132_ALLSTEP_TRAIN32_J7_DRIFT",
+          json.dumps({key:s71_result[key] for key in (
+              "n_previous_TRAIN32",
+              "n_exact_original32_J7_outputs_unchanged",
+              "n_rows_with_real_incremental_calls",
+              "real_original_decoding_subcalls_incremental_total",
+              "output_gate")},sort_keys=True),flush=True)
     print("S70_REAL43M_NATIVE_S95_TRUE_PREFIX_FIXED_TOKENS",
           json.dumps({
               "rows":len(s70_native_s95_rows),
