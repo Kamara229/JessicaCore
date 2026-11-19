@@ -1,0 +1,175 @@
+name: NRA2 S85 genuine original43M GT new72 TRAIN56 S82 event centered 8264 FP16 learning only
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s84-real43m-diverse72-trainonly-H8-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s85-true43m-S82-groupTRAIN56-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  true_original43M_GT_readonly_new_S82_head_TRAIN56:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s85-diverse72-event-fields-TRAIN56-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      PYTHONHASHSEED: '851119'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Tensor-only frozen OLD real43M paid parent CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Verify original S82 clause scope source ABI and NEW TRAIN72 source/label wall (no old NOVEL48 testing)
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/nra3_s20/s82_predicate_centered_situation_fields.py research/nra3_s20/s85_true43mGT_S82_event_scope_train_new72.py
+          python -m unittest -v research.nra3_s20.test_s82_predicate_centered_situation_fields research.nra3_s20.test_s83_newDiverse72_train_only_source_gold_freeze research.nra3_s20.test_s85_sourceonly_new72_S82_originalGT_abi
+      - name: Require original frozen protected616 J7 real physical 72 TRAIN source and prereg SHAs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44513403685 44514452404 44515391251 44196720655 44312765248 44357767214 44366319006 44371962358 44377346422 44389438490; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          test "$(git hash-object research/nra3_s20/s83_NEW_DIVERSE72_source_ONLY_never_use_S79_spent.py)" = ec459b8b80d097b9a5620294d491002714dc7fbb
+          test "$(git hash-object research/nra3_s20/s83_NEW_DIVERSE72_gold_TRAIN_LOSS_ONLY.py)" = c492441ef6acc7a734a1d083921567eb58206aed
+          echo S85_GENUINE_FROZEN_ORIGINAL616_J7_H8_S83_NEW72_SOURCE_GOLD_PROVENANCE
+      - name: Read-only proven original original43M GT physical paid ancestor s84 or source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-s84-original43M-GT-newDIVERSE72-TRAIN-only-sourceH8-after616J7
+          run-id: 44515391251
+          github-token: ${{ github.token }}
+          path: inputs/s84
+      - name: Read-only proven original original43M GT physical paid ancestor s26 or source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s26-REAL43M-GT-TRAIN256-40fold-12384FP16-event-inversion-ablation-noEVAL
+          run-id: 44196720655
+          github-token: ${{ github.token }}
+          path: inputs/s26
+      - name: Read-only proven original original43M GT physical paid ancestor s57 or source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s57-original43M-GT-96spent-only-eventfirst231-FP16-before-HELD24
+          run-id: 44312765248
+          github-token: ${{ github.token }}
+          path: inputs/s57
+      - name: Read-only proven original original43M GT physical paid ancestor s59 or source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s59-REAL43M-GT-OLD152-NATIVE320-PAID2046-FP16-frozen-before-HELD
+          run-id: 44357767214
+          github-token: ${{ github.token }}
+          path: inputs/s59
+      - name: Read-only proven original original43M GT physical paid ancestor s61 or source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s61-GENUINE43M-GT-SPENT216-PAIR-NULL-POLAR2752FP16-frozen
+          run-id: 44366319006
+          github-token: ${{ github.token }}
+          path: inputs/s61
+      - name: Read-only proven original original43M GT physical paid ancestor s62 or source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s62-real43M-GT-SPENT248-event-target2166-FP16-frozen
+          run-id: 44371962358
+          github-token: ${{ github.token }}
+          path: inputs/s62
+      - name: Read-only proven original original43M GT physical paid ancestor s63 or source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s63-REAL43M-GT-SPENT280-QUOTE471-frozen-before-NEW32
+          run-id: 44377346422
+          github-token: ${{ github.token }}
+          path: inputs/s63
+      - name: Read-only proven original original43M GT physical paid ancestor s65 or source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s65-REAL43M-GT-OLD344-FACTUALITY3WAY259-FP16-before-NEW32
+          run-id: 44389438490
+          github-token: ${{ github.token }}
+          path: inputs/s65
+      - name: Train NEW S82 8264 independent fields/area FP16 ONLY on 56 of 72 true frozen original43M GT source words (no S79 training)
+        run: |
+          set -euo pipefail
+          python -m research.nra3_s20.s85_true43mGT_S82_event_scope_train_new72 \
+            --s84 inputs/s84/NRA2_S84_GENUINE43M_GT_DIVERSE72_WORD339_NO_GOLD.safetensors \
+            --s84-report inputs/s84/NRA2_S84_GENUINE43M_GT_DIVERSE72_GOLD_BLIND_SOURCE_PROVENANCE.json \
+            --s26 inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26 \
+            --s57-paid inputs/s57/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors \
+            --s59-paid inputs/s59/NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors \
+            --s61-paid inputs/s61/NRA3_S61_REAL43M_GT_SPENT216_PAID2752_PAIR_NONE.safetensors \
+            --s62-paid inputs/s62/NRA3_S62_REAL43M_GT_SPENT248_JOINT_EVENT_TARGET2166_FP16.safetensors \
+            --s63-paid inputs/s63/NRA3_S63_REAL43M_GT_SPENT280_QUOTE_OUTER_BPE471_FP16.safetensors \
+            --s65 inputs/s65/NRA3_S65_REAL43M_GT_SPENT344_REPORTED3WAY259_FP16.safetensors \
+            --s65-manifest inputs/s65/NRA3_S65_REAL43M_GT_SPENT344_FACTUALITY259_MANIFEST.json \
+            --out results/nra2_s85_true43mGT_S82_newTRAIN56
+      - name: Physically verify all 8264 new FP16, one grouped synthetic diagnostic, no original model changes or acceptance
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json,math
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('results/nra2_s85_true43mGT_S82_newTRAIN56')
+          p=d/'NRA2_S85_TRUE43M_GT_S82_EVENT_LOCAL8264_FP16.safetensors'
+          m=json.loads((d/'NRA2_S85_TRUE43M_GT_DIVERSE72_S82_8AREA_TRAINONLY_REPORT.json').read_text())
+          assert m['stage']=='NRA2_S85_REAL43M_GT_S83_DIVERSE72_S82_EVENT_SCOPE_8264_TRAIN_ONLY'
+          assert m['source_S83_SHA256']=='285475efb25a1310ce87fa5ffc9e8ec99dd5f129d147b0edf4afa7195f43a62a'
+          assert m['true_real43M_GT_S84_native_H8_SHA256']=='25c2cf61a3b3c331cd80b3c5e979eeb1badca3c3d2c8fd5125b7fc0de3fe35c4'
+          assert m['new_S82_event_centered_8areas_S85_FP16_SHA256']==hashlib.sha256(p.read_bytes()).hexdigest()
+          assert m['new_8264_trainable_FP16_params']==8264
+          assert sum(z.numel() for z in load_file(str(p)).values())==8264
+          assert m['new_8_expert_64BIT_training_does_NOT_touch_original_weight']
+          assert m['original_616_J7_protected_parent_replayed_before_S84_H8']
+          assert m['all_original_S26_S57_S59_S61_S62_S63_S65_weights_unchanged']
+          assert m['source_only_candidates_computed_before_S83_constructed_gold_open']
+          assert m['S83_diverse_72_source_only_before_train_loss_labels']
+          assert m['S79_spent48_NOVEL_TEST_NEVER_train_reused_or_retuned']
+          assert m['synthetic_diagnostic_group_NOT_independent_or_prospective_EVAL']
+          assert m['full_new_candidate_616_J7_NOT_measured']
+          assert m['all_in_bpp_and_CPU_NOT_measured']
+          assert m['online_causal_generation_NOT_certified']
+          assert m['not_end_to_end_factuality_or_recipient_evaluation']
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          y=m['training_and_diagnostics']
+          assert y['only_new_s83_SOURCE72_labels_used_for_training']
+          assert y['not_old_S79_NOVEL48_gold_or_text']
+          assert y['n_precommitted_new_train_rows']==56
+          assert y['n_grouped_synthetic_diagnostic_rows']==16
+          for key,count in (('new_train56_teacher_anchored',56),
+                            ('synthetic_diag16_teacher_anchored',16),
+                            ('synthetic_diag16_ZERO_H8_ablation',16)):
+              z=y[key]
+              assert z['n_group_input']==count
+              assert z['n_event_anchor_MISSING']+z['n_event_anchor_IN_source_only_MENTION_top8']==count
+              assert 0<=z['micro_F1']<=1 and math.isfinite(z['micro_F1'])
+          print('S85_REAL43MGT_NEW_S82_TRAINONLY_FACTORS_NOT_ACCEPTED',
+                'TRAIN',y['new_train56_teacher_anchored']['micro_F1'],
+                'OLD_SYNTHETIC_DIAG',y['synthetic_diag16_teacher_anchored']['micro_F1'],
+                'NO_H8',y['synthetic_diag16_ZERO_H8_ablation']['micro_F1'],
+                'gate0',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra2-s85-true43M-GT-S82-8264-TRAIN56-groupedDIAG16-shadow-noEVAL
+          path: results/nra2_s85_true43mGT_S82_newTRAIN56/
+          retention-days: 30
+          if-no-files-found: error
