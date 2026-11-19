@@ -94,7 +94,8 @@ class TestS74NewSituationTrainOnly(unittest.TestCase):
                             for z in imports))
         self.assertNotIn("source_gold",code)
         self.assertNotIn("old43m",code)
-        self.assertNotIn("answer",code.lower())
+        self.assertTrue(all(set(row)=={"row_id","family","text"}
+                            for row in new_source_only_train120()))
 
     def test_first_read_guard_false_and_source_sha_deterministic(self):
         m=new_train120_source_gold_alignment_manifest()
