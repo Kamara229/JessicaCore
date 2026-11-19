@@ -1,0 +1,1021 @@
+name: Calibri NRA3 S117 true CB59GT original12 protected616 prospective new SynTagRus-B NC256 53751 trained trust GOLD-BLIND
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s116-SynTagRusB-ONCE-NC-sourceGOLD-precommit-20261120
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri-nra3-s117-physical-SYNTAGRUS-allverb-original12
+  cancel-in-progress: true
+jobs:
+  nra3_s117_true_original_Calibri_GT_after616_SYNTAGRUS_allverb_goldblind:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s117-SynTagRusB-ONCE-original12-53751-NC-20261120'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      S175_S168_JSON: inputs/s175_s168/S168_NOVEL_TRAIN_FRAMES_64_GENERALIZATION.json
+      S175_S172_DIR: inputs/s175_s172
+      S175_S174_DIR: inputs/s175_s174
+      PYTHONPATH: .:research:research/calibri
+      NRA3_S117_SYNTAGRUS_B_SOURCE_ONLY_JSON: inputs/s117-source-only/NRA3_S116_SYNTAGRUS_TRAINB256_SOURCE_ONLY_NO_GOLD.json
+      NRA3_S117_S115_CHILD_FP16: inputs/s115-neural-source/NRA3_S115_SYNTAGRUS_NC_NEW8_BOUNDED_TRUST_53751_IN_CALIBRI_FP16.safetensors
+      NRA3_S117_S115_CHILD_MANIFEST_JSON: inputs/s115-neural-source/NRA3_S115_SYNTAGRUS_NC_NEW8_TRAIN_ONLY_NO_DEV_REPORT.json
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '1290129'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Require a successful research-only S132 five-cycle source before stage2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43257556388 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43232585090 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43229009394 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43224518304 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43217644760 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43211904296 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43033928428 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43034900927 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43033538739 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43060902677 --jq .conclusion)" = "success"
+          echo "S142_RESEARCH_ONLY_S141_ZERO_GAIN_ROLLBACK_AND_S139_GPU_CPU_PREREQUISITES_PASS"
+          s132_id='42974251804'
+          test "$s132_id" != ''
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"$s132_id" --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"$s132_id" --jq .head_branch)" = "research/calibri2-s132-five-cycle-progressive-core-20261111"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42966148755 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42961256468 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42958386675 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42921857272 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42900014855 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42911103838 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42914085372 --jq .conclusion)" = "success"
+          for n in $(seq 1 100); do
+            status=$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42901958611 --jq .status)
+            if [ "$status" = "completed" ]; then
+              test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42901958611 --jq .conclusion)" = "success"
+              echo "S123_IMMUTABLE_S101_456_AND_S122_NEW128_TRAIN_SOURCE_SUCCESS"
+              break
+            fi
+            sleep 30
+          done
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/42901958611 --jq .conclusion)" = "success"
+      - name: Install exact S101 experiment Python dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify S135 stage2 43M MPS trainer, guarded identity and rollback before touching weights
+        run: |
+          python -m compileall -q research/calibri2/s144 research/calibri2/s143 research/calibri2/s142 research/calibri2/s140 research/calibri2/s139 research/calibri2/s135 research/calibri2/s134 research/calibri2/s133 research/calibri2/s132 research/calibri2/s131 research/calibri2/s130 research/calibri2/s129 research/calibri2/s127 research/calibri2/s125 research/calibri2/s126 research/calibri2/s122 research/calibri2/s111
+          python -m unittest -v calibri2.s144.test_continuation_contract calibri2.s143.test_gain_reporting calibri2.s142.test_s142_protection_contract calibri2.s142.test_dual_cone_adam calibri2.s140.test_single_real_j7_contract calibri2.s139.test_optimizer_aware_protection calibri2.s135.test_stage2_five_cycles calibri2.s134.test_stage2_bootstrap calibri2.s133.test_verify_stage2_entry calibri2.s132.test_growth_schedule calibri2.s131.test_protected_gradients calibri2.s130.test_route_protected_expansion calibri2.s129.test_additive_core_expansion calibri2.s125.test_j7_atomic_physical_retention calibri2.s127.test_q2_prefill_gate_control
+          if grep -RE '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85|s256|s100|s118)' research/calibri2/s135/*.py; then exit 1; fi
+      - name: Original S99 physical source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s99-unaccepted-full456-physical-neural-noun-copy-CPU
+          path: inputs/s99
+          run-id: 42705657584
+          github-token: ${{ github.token }}
+      - name: Original S101 KV baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s101-unaccepted-456-full-EOS-KV-cache-CPU-parity-and-speed
+          path: inputs/s101
+          run-id: 42710297657
+          github-token: ${{ github.token }}
+      - name: Physically validated S126-Q exact ZERO-GATE archive 456+128 0.69989 and CPU 98.62%
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s126q-packed-2bit-rank4-GT12-456-128-CPU-research-only
+          path: inputs/s126q
+          run-id: 42911103838
+          github-token: ${{ github.token }}
+      - name: Verify S126Q record before allowing MPS
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('inputs/s126q/S126Q_REAL_S101_FULL456_ZERO_GT12_REPORT.json').read_text())
+          assert p["zero_stage_eligible_for_future_training"] and p["model_accepted"] is False
+          assert p["physical_bpp_with_full_runtime"]<=.7
+          assert p["CPU_48_alternating"]["ratio"]>=.9
+          assert p["real_original_S101_456_all_token_exact_parity"] is True
+          assert p["real_new_S122_128_exact_parity"] is True
+          print("S129_PHYSICAL_S126Q_PREREQUISITE_VERIFIED",flush=True)
+          PY
+      - name: S111 prompt-conditioned actual physical 456 zero-gain prerequisite
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s111-prompt-conditioned-dual-GT-456-CPU-zero-parity
+          path: inputs/s111
+          run-id: 42882001296
+          github-token: ${{ github.token }}
+      - name: Previously rejected S115 original TRAIN 7 forgotten identities for rehearsal only
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s115-unaccepted-prompt-conditioned-340-FP16-MPS-456-CPU-retention
+          path: inputs/s115
+          run-id: 42882671306
+          github-token: ${{ github.token }}
+      - name: Previously verified new S122 cross color TRAIN only original tokenizer and source digest
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s122-precommitted-64-pair-128-question-original-TRAIN-augmentation-only
+          path: inputs/s122
+          run-id: 42900014855
+          github-token: ${{ github.token }}
+      - name: Frozen neural second token policy
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s98-unaccepted-MPS-neural-second-token-owner-copy-feasibility
+          path: inputs/s98
+          run-id: 42704076897
+          github-token: ${{ github.token }}
+      - name: Frozen numeric profile router
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s95-unaccepted-prompt-only-router-456-strict-CPU
+          path: inputs/s95
+          run-id: 42698707784
+          github-token: ${{ github.token }}
+      - name: Frozen exact bank
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s94-unaccepted-lossless-three-profile-bank-456-TRAIN-feasibility
+          path: inputs/s94
+          run-id: 42697267843
+          github-token: ${{ github.token }}
+      - name: Frozen S93 compressed weights and existing tunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          path: inputs/s93
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Frozen S87 authorized TRAIN gold and prior profiles
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          path: inputs/s87_full
+          run-id: 42659248083
+          github-token: ${{ github.token }}
+      - name: Frozen S91 full 456 TRAIN
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s91-full-456-strict-EOS-quality-no-forgetting-and-CPU
+          path: inputs/s91_full
+          run-id: 42674413574
+          github-token: ${{ github.token }}
+      - name: Verified S131 research +5 no-forgetting source weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s131-39m-core-protected-gradients-J7-physical456plus128-no-QA
+          path: inputs/s131
+          run-id: 42966148755
+          github-token: ${{ github.token }}
+      - name: Successful S132 all-five-cycle physically grown 43.26M source archive
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s132-5cycles-39m-to-43m-physical-J7-new128-no-QA
+          path: inputs/s132
+          run-id: ${{ inputs.s132_run_id || '42974251804' }}
+          github-token: ${{ github.token }}
+      - name: Verify S132 J7 five protected cycles and physical 43.26M stage2 entry
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from calibri2.s133.verify_stage2_entry import verified_s132_stage2_entry
+          info=verified_s132_stage2_entry(
+              Path('inputs/s132/S132_NEXT_STAGE_43M_PHYSICAL_GROWTH_REPORT.json'),
+              Path('inputs/s132/S132_GROWN_43M_ZERO_NEW_CHANNELS.safetensors'),
+              Path('inputs/s131/S131_UNACCEPTED_block1_check1.safetensors'))
+          assert info['completed_s132_j7_cycles']==5
+          assert info['stage2_architecture_params']==43_261_760
+          assert info['previous_39M_full_456']>=358
+          assert info['min_paired_cpu_ratio']>=.9
+          assert info['max_physical_bpp']<=.7
+          assert info['trained_new_growth_channels']==0
+          print('S135_REAL_S132_PHYSICAL_J7_STAGE2_SOURCE_VERIFIED',flush=True)
+          PY
+      - name: Frozen S93 full 456 TRAIN
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-full-456-strict-union-no-forgetting-and-CPU
+          path: inputs/s93_full
+          run-id: 42681768394
+          github-token: ${{ github.token }}
+      - name: Physically committed S142 J7 43M parent FP16 and CPU guard
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          path: inputs/s142
+          run-id: 43078895081
+          github-token: ${{ github.token }}
+      - name: Pin immutable real S142 parent ZIP and physically persisted FP16 before GPU
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python research/calibri2/s144/source_pin.py
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          m=json.loads(Path("research/calibri2/s144/source_manifest.json").read_text())
+          cp=Path("inputs/s142")/m["checkpoint_name"]
+          guard=json.loads((Path("inputs/s142")/m["physical_guard_name"]).read_text())
+          assert hashlib.sha256(cp.read_bytes()).hexdigest()==m["checkpoint_sha256"]
+          assert guard["physical_FP16_sha256"]==m["checkpoint_sha256"]
+          assert guard["old_456_full"]==362 and guard["S122_128_full"]==17
+          assert guard["committed_gain_no_forgetting"] and guard["physical_FP16_reload_pass"]
+          assert guard["model_accepted"] is False and guard["no_QA_no_LIVE"]
+          print("S144 EXACT S142 COMMITTED FP16 SOURCE SAFE; NO QA OR LIVE",flush=True)
+          PY
+      - name: S161 native CPU FP16 physical checkpoint reload smoke (no MPS needed)
+        run: |
+          python - <<'PY'
+          import torch
+          from calibri2.s132.progressive_core import (
+              IDS_KEY, WEIGHTS_KEY, ProgressiveRouteCore, initial_active_indices)
+          assert not torch.backends.mps.is_available()
+          core = ProgressiveRouteCore(rank=896).to('cpu')
+          ids = initial_active_indices(896)
+          payload = torch.zeros((12, 320, len(ids)), dtype=torch.float16)
+          payload[0, 0, 0] = .03125
+          payload[0, 0, 24] = .015625
+          core.load_active_fp16({
+              IDS_KEY: torch.tensor(ids, dtype=torch.int32),
+              WEIGHTS_KEY: payload,
+          })
+          assert torch.equal(core.export_active_fp16()[WEIGHTS_KEY], payload)
+          core.assert_inactive_zero()
+          print("S161_CPU_PHYSICAL_FP16_RELOAD_PASS", flush=True)
+          PY
+      - name: Validate S145 and S158 S93 scope + S152 CPU contracts before any real S142 training
+        run: |
+          python -m compileall -q research/calibri2/s145 research/calibri2/s148 research/calibri2/s149 research/calibri2/s151 research/calibri2/s152 research/calibri2/s158 research/calibri2/s159 research/calibri2/s160 research/calibri2/s161 research/calibri2/s162 research/calibri2/s163 research/calibri2/s164 research/calibri2/s165
+          python -m unittest -v calibri2.s145.test_neural_skill_blocks calibri2.s146.test_real_skill_contract calibri2.s151.test_parallel_real_guards calibri2.s152.test_memory_safe_contract calibri2.s154.test_profile_isolation calibri2.s159.test_parallel_slot_binding
+      - name: Immutable rejected S157 real full456+new128 physical audit
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s157-diverse-s122-s82-replay-real-s142-456-128
+          path: inputs/s157
+          run-id: 43229009394
+          github-token: ${{ github.token }}
+      - name: Verify exact rejected S157 original TRAIN identities before S158 GPU
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("inputs/s157/S157_REAL_NEURAL_SKILL_456_128_AUDIT.json").read_text())
+          a=r["full456_and_new128"]
+          assert a["lost_old_full_ids"]==["S30/5026/right","S82_new/82023/left"]
+          assert a["lost_new_first_ids"]==["S122/122052/left"]
+          assert a["old_full_before"]==362 and a["new_full_before"]==17
+          assert a["new_full_after"]==19 and r["J7_guarded_skill_rollback_verified"]
+          assert r["model_accepted"] is False and r["independent_heldout_QA_never_run"]
+          print("S158_REJECTED_S157_ORIGINAL_TRAIN_FORGETTING_PINNED",flush=True)
+          PY
+      - name: Import immutable rejected S160 MPS FP16 neural slot head and actual TRAIN/J7 audit
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s160-real-parallel-slot-binding-s142-456-128
+          path: inputs/s160
+          run-id: 43263202587
+          github-token: ${{ github.token }}
+      - name: Validate S160 real GPU MPS 120-step run success and rollback
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43263202587 --jq .conclusion)" = "success"
+          test -s inputs/s160/S160_REAL_PARALLEL_SLOT_FP16.safetensors
+          test -s inputs/s160/S160_REAL_PARALLEL_456_128_J7_AUDIT.json
+      - name: Verify immutable successful S161 parent CI before novel probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43272112284 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43272112284 --jq .head_sha)" = "ebb15507a3ee5f2c79d64decc846bf31829d6056"
+      - name: Download frozen S168 original novel 64 TRAIN prompts
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s168-novel-train-frames-J7
+          run-id: 43289943629
+          github-token: ${{ github.token }}
+          path: inputs/s175_s168
+      - name: Download S172 frozen accepted routing J7 baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s172-confident-owner-J7
+          run-id: 43295694441
+          github-token: ${{ github.token }}
+          path: inputs/s175_s172
+      - name: Download S174 frozen source-only 64+64 negative controls
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s174-negation-conjunction-64plus64
+          run-id: 43297991290
+          github-token: ${{ github.token }}
+          path: inputs/s175_s174
+      - name: Read-only download S177 successful REAL CPU J7 shadow vote archive
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s177-5x10-consensus-shadow-real-J7
+          path: inputs/s178_s177
+          run-id: 43312279029
+          github-token: ${{ github.token }}
+      - name: Download immutable successful S179 label-free frozen real J7 456 baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s179-original456-real-second-token-eos-trace-only
+          path: inputs/s179
+          run-id: 43323981995
+          github-token: ${{ github.token }}
+      - name: "S194 immutable real CPU source J7 with S193 one-step physical FP16 tests"
+        run: |
+          python -m compileall -q research/calibri2/s181 research/calibri2/s182 research/calibri2/s186 research/calibri2/s187 research/calibri2/s188 research/calibri2/s189 research/calibri2/s190 research/calibri2/s193 research/calibri2/s194
+          python -m unittest -v calibri2.s181.test_source_grammar_shadow calibri2.s181.test_source_128_frozen_456_posthoc calibri2.s181.test_full_456_tokenized_shadow_replay calibri2.s182.test_real_cpu_j7_shadow_guard calibri2.s186.test_history_s69_source_shadow calibri2.s187.test_real_cpu_j7_history_s69_guard calibri2.s190.test_real_cpu_new_train_paraphrase_probe calibri2.s193.test_atomic_one_step_584 calibri2.s194.test_actual_cpu_j7_bridge
+      - name: Pin S193 one-step rollback preflight and original S190 full real CPU J7 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43343676818 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43340296813 --jq .conclusion)" = "success"
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/43342581672 --jq .conclusion)" = "success"
+      - name: Immutable S193 physical bpp and 584+32 Adam rollback contract
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s193-atomic-584plus32-j7-rollback-preflight-no-weights
+          path: inputs/s193
+          run-id: 43343676818
+          github-token: ${{ github.token }}
+      - name: Pin S194 protected 616 J7 and frozen S22 NEW256 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/43345267876 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44189114971 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44187234478 --jq .conclusion)" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/44136205007 --jq .conclusion)" = success
+      - name: Read-only download original S194 CPU checkpoint and protected 616 answers
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s194-actual-real-cpu-J7-584plus32-FP16-baseline-adapter
+          path: inputs/s194
+          run-id: 43345267876
+          github-token: ${{ github.token }}
+      - name: Source SHA and original model provenance pin (raw only, no new32 gold)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 44312765248 44317848483 44196720655 44357767214 44362042174 44366319006 44371962358 44377346422 44377911954 44384939546 44389438490 44390233514; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          test "$(git hash-object research/nra3_s20/s66_frozen_new32_raw_only_DO_NOT_TRAIN.py)" = 1d344cbc67bf85f81917009dbec0a5b146ac3961
+          test "$(gh api 'repos/'"$GITHUB_REPOSITORY"'/contents/research/nra3_s20/s66_frozen_new32_raw_only_DO_NOT_TRAIN.py?ref=ff5079fc51630bec3f9964b89d87e117f18b04b5' --jq .sha)" = 1d344cbc67bf85f81917009dbec0a5b146ac3961
+          python -m compileall -q research/nra3_s20/s66_held32_original43m_native_offsets.py research/nra3_s20/s66_true43m_gt_new32_goldblind_cpu_and_KV_parity.py research/nra3_s20/s66_first_new32_original43m_gt_KV_parity_eval.py research/nra3_s20/s66_original_gt_token_prefix_kv_parity.py
+          python -m unittest -v research.nra3_s20.test_s66_original_gt_kv_parity_contracts research.nra3_s20.test_s67_original_cache_phase_isolation research.nra3_s20.test_s69_original_43m_gt_expansion_phase_matrix research.nra3_s20.test_s70_true43m_native_s95_source_prefix_counterfactual research.nra3_s20.test_s75_true43m_gt_newtrain120_native_h8_source_only research.calibri_nra3.test_s91_in_calibri_neural_12layer_event_graph research.calibri_nra3.test_s92_real43m_all12_sourceonly_contracts
+          python - <<'PY'
+          from research.nra3_s20.s66_frozen_new32_raw_only_DO_NOT_TRAIN import raw_only_inputs,SOURCE_ROWS,FAMILIES
+          from research.nra3_s20.s53_precommitted_negation_quote24_plain import text_only_inputs as s53
+          from research.nra3_s20.s54_frozen_new_held24_plain_source import text_only_inputs as s54
+          from research.nra3_s20.s55_frozen_structural_shift_held24_plain import text_only_inputs as s55
+          from research.nra3_s20.s56_frozen_new_scope24_plain import text_only_inputs as s56
+          from research.nra3_s20.s57_frozen_eventfirst_held24_plain import text_only_inputs as s57
+          from research.nra3_s20.s58_new32_preregistered_raw_only_do_not_train import raw_only_inputs as s58
+          from research.nra3_s20.s59_new32_first_frozen_raw_only_NEVER_TRAIN import raw_only_inputs as s59
+          from research.nra3_s20.s60_new32_precommitted_raw_only import raw_only_inputs as s60
+          from research.nra3_s20.s61_new32_raw_only_preregistered import raw_only_inputs as s61
+          from research.nra3_s20.s62_new32_preregistered_raw_only import raw_only_inputs as s62
+          from research.nra3_s20.s63_new32_raw_only_precommitted import raw_only_inputs as s63
+          from research.nra3_s20.s64_new32_raw_only_preregistered import raw_only_inputs as s64
+          from research.nra3_s20.s65_new32_raw_only_frozen_before_train import raw_only_inputs as s65
+          t=raw_only_inputs()
+          assert len(t)==len(set(t))==32
+          assert all(set(t).isdisjoint(z()) for z in (s53,s54,s55,s56,s57,s58,s59,s60,s61,s62,s63,s64,s65))
+          assert [sum(r[1]==f for r in SOURCE_ROWS) for f in FAMILIES]==[8]*4
+          print('S66_NEW32_PREREG_SOURCE_SHA_NO_GOLD',flush=True)
+          PY
+      - name: Read-only original paid S26
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s26-REAL43M-GT-TRAIN256-40fold-12384FP16-event-inversion-ablation-noEVAL
+          run-id: 44196720655
+          github-token: ${{ github.token }}
+          path: inputs/s26
+      - name: Read-only prior S57 paid231 fitted on old96
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s57-original43M-GT-96spent-only-eventfirst231-FP16-before-HELD24
+          run-id: 44312765248
+          github-token: ${{ github.token }}
+          path: inputs/s57_paid
+      - name: Read-only S58 paid83 fitted ONLY on old96 before NEW32
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s58-old96-real43M-GT-train83-FP16-no-HELD
+          run-id: 44317848483
+          github-token: ${{ github.token }}
+          path: inputs/s58_paid
+      - name: Physical SHA-freeze original paid S26 and frozen S57/S58 before NEW32 CPU
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('inputs/s58_paid')
+          m=json.loads((d/'NRA3_S58_TRAIN_ONLY_OLD96_RESIDUAL83_MANIFEST.json').read_text())
+          s58=d/'NRA3_S58_OLD96_TRAIN_ONLY_EVENT_TRANSFER_RESIDUAL83_FP16.safetensors'
+          s57=Path('inputs/s57_paid/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors')
+          s26=Path('inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26')
+          sha=lambda x:hashlib.sha256(x.read_bytes()).hexdigest()
+          assert m['stage']=='NRA3_S58_OLD96_REAL43M_GT_TRAIN_ONLY_EVENT_TRANSFER83'
+          assert sha(s58)==m['new_S58_paid83_SHA256']=='b5fd98d6f0ad3e7ab7b69e3fefa0e371f1881e40741371281c1e1015123a1ff3'
+          assert sha(s57)==m['old_original_S57_paid231_SHA256']
+          assert sha(s26)==m['original_S26_FP16_SHA256']
+          assert m['train_statistics']['training_rows']==96 and m['new_S58_parameters']==83
+          assert m['new_S58_32_RAW_AND_GOLD_NEVER_IMPORTED'] and m['S57_spent24_dev_NOT_IMPORTED_IN_TRAIN']
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          assert load_file(str(s58))['S58_EVENT_TRANSFER_RESIDUAL83_FP16'].shape==(83,)
+          print('S58_PAID83_OLD96_TRAIN_ONLY_SHA_FROZEN_BEFORE_NEW32',flush=True)
+          PY
+      - name: Read-only S59 trained ORIGINAL43M GT native320 semantic2046 frozen BEFORE NEW32
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s59-REAL43M-GT-OLD152-NATIVE320-PAID2046-FP16-frozen-before-HELD
+          run-id: 44357767214
+          github-token: ${{ github.token }}
+          path: inputs/s59paid
+      - name: Pin S59 paid2046 actual FP16 + S26/S57 unchanged SHA before first NEW32
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('inputs/s59paid')
+          m=json.loads((d/'NRA3_S59_OLD152_TRAIN_NATIVE2046_FP16_MANIFEST.json').read_text())
+          p=d/'NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors'
+          sha=lambda z:hashlib.sha256(z.read_bytes()).hexdigest()
+          assert m['stage']=='NRA3_S59_FROZEN_ORIGINAL43M_GT_OLD152_NATIVE320_TRAIN2046_FP16'
+          assert m['new_semantic_FP16_parameters']==2046
+          assert m['never_imported_S59_new32_RAW_or_GOLD_into_training']
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          assert sha(p)==m['new_S59_semantic_paid2046_sha256']=='da4c92d229e8b8a8307ab7752381d3605a942212d5da25a31062b21b1a330ec7'
+          assert load_file(str(p))['S59_NATIVE320_SEMANTIC2046_FP16'].shape==(2046,)
+          assert sha(Path('inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26'))==m['original_physical_S26_archive_SHA256']
+          assert sha(Path('inputs/s57_paid/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors'))==m['old_S57_paid231_archive_SHA256']
+          print('S59_PAID2046_SHA_LOCKED_BEFORE_FIRST_NEW32_GOLD_BLIND_CPU',flush=True)
+          PY
+      - name: Read-only S60 physically fitted 2776 FP16, only genuine old184 TRAIN
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s60-ORIGINAL43M-GT-OLD184-JOINT3-PAID2776-FP16-before-new32
+          run-id: 44362042174
+          github-token: ${{ github.token }}
+          path: inputs/s60_paid
+      - name: Verify unchanged original S26 S57 S59 and S60 paid2776 physical SHA BEFORE new32
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('inputs/s60_paid')
+          m=json.loads((d/'NRA3_S60_OLD184_TRAIN_TRICLASS2776_MANIFEST.json').read_text())
+          weights=d/'NRA3_S60_ORIGINAL43M_GT_OLD184_TRICLASS2776_FP16.safetensors'
+          h=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+          assert m['stage']=='NRA3_S60_FROZEN_ORIGINAL43M_GT_SPENT184_NATIVE_3WAY2776_FP16'
+          assert m['new_S60_FP16_parameters']==2776
+          assert m['new_S60_paid2776_sha256']==h(weights)=='32244e67fe35ba313bab067bc7cebe874952c8ca1faec2366de74fbaba4c95c0'
+          assert m['new_S60_RAW32_and_GOLD32_never_imported_into_OLD184_TRAIN']
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          assert h(Path('inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26'))==m['original_S26_paid12384_sha256']
+          assert h(Path('inputs/s57_paid/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors'))==m['frozen_S57_paid231_sha256']
+          assert h(Path('inputs/s59paid/NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors'))==m['frozen_S59_paid2046_sha256']
+          assert load_file(str(weights))['S60_SOURCE_LOCAL_TRICLASS2776_FP16'].shape==(2776,)
+          print('S60_OLD184_PAID2776_SHA_LOCKED_BEFORE_NEW32_CPU',flush=True)
+          PY
+      - name: Read-only S61 trained NEW2752 FP16 original GT pair-NONE from spent216 only
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s61-GENUINE43M-GT-SPENT216-PAIR-NULL-POLAR2752FP16-frozen
+          run-id: 44366319006
+          github-token: ${{ github.token }}
+          path: inputs/s61paid
+      - name: Lock S61 pair2752 SHA with frozen original S26 S57 S59 BEFORE NEW32
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('inputs/s61paid')
+          m=json.loads((d/'NRA3_S61_SPENT216_PAIR_NONE2752_TRAIN_MANIFEST.json').read_text())
+          z=d/'NRA3_S61_REAL43M_GT_SPENT216_PAID2752_PAIR_NONE.safetensors'
+          sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+          assert m['stage']=='NRA3_S61_OLD216_REAL43M_GT_SOURCE_TARGET2752_TRAIN_ONLY'
+          assert m['new_S61_paid_FP16_count']==2752
+          assert m['new_S61_paid2752_SHA256']==sha(z)=='657077e28722ac5ec4612df3bb85e1c7027b42a2ad9102369460f1ddf4ba16ff'
+          assert m['S61_NEW32_raw_and_gold_never_imported_in_spent216_fitting']
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          assert sha(Path('inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26'))==m['original_S26_SHA256']
+          assert sha(Path('inputs/s57_paid/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors'))==m['old_S57_paid231_SHA256']
+          assert sha(Path('inputs/s59paid/NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors'))==m['old_S59_paid2046_SHA256']
+          assert load_file(str(z))['S61_REAL43M_GT_PAIR_NULL_POLAR2752_FP16'].shape==(2752,)
+          print('S61_FIXED_NATIVE43M_PAIR_NULL2752_SHA_BEFORE_NEW32_FIRST',flush=True)
+          PY
+      - name: Read-only S62 new JOINT event-target 2166 FP16 from completed old248 TRAIN
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s62-real43M-GT-SPENT248-event-target2166-FP16-frozen
+          run-id: 44371962358
+          github-token: ${{ github.token }}
+          path: inputs/s62paid
+      - name: Physically pin immutable new S62 FP16 SHA before ORIGINAL 616 J7 and new32
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('inputs/s62paid')
+          m=json.loads((d/'NRA3_S62_OLD248_JOINT2166_TRAIN_MANIFEST.json').read_text())
+          p=d/'NRA3_S62_REAL43M_GT_SPENT248_JOINT_EVENT_TARGET2166_FP16.safetensors'
+          sha=lambda f:hashlib.sha256(f.read_bytes()).hexdigest()
+          assert m['stage']=='NRA3_S62_GENUINE43M_GT_SPENT248_JOINT_EVENT_TARGET_BEAM2166_TRAIN'
+          assert m['new_S62_paid_fp16_parameters']==2166
+          assert m['new_S62_joint2166_FP16_SHA256']==sha(p)=='f9b4475953a7365b90f0878e8352b6f82dd4f03e9a005b823ac2703c3655eb1f'
+          assert m['fit']['old_spent248_source_rows']==248
+          assert m['fit']['frozen_S59_beam8_contains_true_outer_event']==248
+          assert m['S62_NEW32_RAW_AND_GOLD_NOT_IMPORTED_IN_TRAIN']
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          assert sha(Path('inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26'))==m['original_S26_PAID12384_SHA256']
+          assert sha(Path('inputs/s57_paid/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors'))==m['frozen_S57_PAID231_SHA256']
+          assert sha(Path('inputs/s59paid/NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors'))==m['frozen_S59_PAID2046_SHA256']
+          assert sha(Path('inputs/s61paid/NRA3_S61_REAL43M_GT_SPENT216_PAID2752_PAIR_NONE.safetensors'))==m['frozen_S61_PAID2752_SHA256']
+          assert load_file(str(p))['S62_JOINT_EVENT_TARGET2166_FP16'].shape==(2166,)
+          print('S62_NEW_JOINT2166_FROZEN_BEFORE_FIRST_NEW32_REAL43M_GT',flush=True)
+          PY
+      - name: Read-only S63 true43M GT 471FP16 quote-aware STRICT BPE from old spent280
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s63-REAL43M-GT-SPENT280-QUOTE471-frozen-before-NEW32
+          run-id: 44377346422
+          github-token: ${{ github.token }}
+          path: inputs/s63paid
+      - name: Pin S63 physical FP16 SHA and previously frozen original paid ancestry before NEW32
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('inputs/s63paid')
+          m=json.loads((d/'NRA3_S63_SPENT280_QUOTE471_TRAIN_MANIFEST.json').read_text())
+          p=d/'NRA3_S63_REAL43M_GT_SPENT280_QUOTE_OUTER_BPE471_FP16.safetensors'
+          sh=lambda z:hashlib.sha256(z.read_bytes()).hexdigest()
+          assert m['stage']=='NRA3_S63_GENUINE43M_GT_SPENT280_QUOTE_OUTER_STRICT_BPE471FP16'
+          assert m['new_S63_FP16_parameters']==471
+          assert m['new_S63_PAID471_SHA256']==sh(p)=='b5ebedad3ca545203821b7f513542e557d9c9811028ce6d74c856eadba522d30'
+          assert m['new_S63_NEW32_raw_gold_NEVER_IMPORTED_TO_OLD280_TRAIN']
+          assert m['training']['old_source_rows']==280
+          assert m['training']['old_causal_unsafe_rows_excluded_from_new_adapter_loss']==7
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          assert sh(Path('inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26'))==m['original_S26_PAID12384_SHA256']
+          assert sh(Path('inputs/s57_paid/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors'))==m['old_S57_PAID231_SHA256']
+          assert sh(Path('inputs/s59paid/NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors'))==m['old_S59_PAID2046_SHA256']
+          assert sh(Path('inputs/s61paid/NRA3_S61_REAL43M_GT_SPENT216_PAID2752_PAIR_NONE.safetensors'))==m['old_S61_PAID2752_SHA256']
+          assert sh(Path('inputs/s62paid/NRA3_S62_REAL43M_GT_SPENT248_JOINT_EVENT_TARGET2166_FP16.safetensors'))==m['old_S62_PAID2166_SHA256']
+          assert load_file(str(p))['S63_QUOTE_OUTER_STRICTBPE471_FP16'].shape==(471,)
+          print('S63_PAID471_ORIGINAL43M_GT_SHA_FROZEN_PRE_NEW32',flush=True)
+          PY
+      - name: Read-only NEW S65 ORIGINAL43M GT OLD344 genuine 259FP16 physical readout
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s65-REAL43M-GT-OLD344-FACTUALITY3WAY259-FP16-before-NEW32
+          run-id: 44389438490
+          github-token: ${{ github.token }}
+          path: inputs/s65paid
+      - name: Verify physical SHA-locked genuine GT frozen 259FP16 and ancestor S26 S57 S59 S61 S62 S63 before NEW32
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('inputs/s65paid')
+          m=json.loads((d/'NRA3_S65_REAL43M_GT_SPENT344_FACTUALITY259_MANIFEST.json').read_text())
+          z=d/'NRA3_S65_REAL43M_GT_SPENT344_REPORTED3WAY259_FP16.safetensors'
+          sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+          assert m['stage']=='NRA3_S65_REAL43M_GT_SPENT344_REPORTED_FACTUALITY3WAY259_FP16_TRAIN'
+          assert m['new_S65_physically_fitted259FP16_SHA256']==sha(z)=='4de84bf5ffcffc08c815f13c376b17cf66901370b2c96816d12c92e5bdefc35a'
+          assert m['training']['old_344_SOURCE_rows']==344
+          assert m['training']['old_gold_directed_recipient']==205
+          assert m['training']['old_gold_directed_REJECTED']==93
+          assert m['new_S65_NEW32_raw_and_gold_NEVER_IMPORTED_IN_OLD344_fitting']
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          assert sha(Path('inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26'))==m['frozen_S26_paid_SHA256']
+          assert sha(Path('inputs/s57_paid/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors'))==m['frozen_S57_paid_SHA256']
+          assert sha(Path('inputs/s59paid/NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors'))==m['frozen_S59_paid_SHA256']
+          assert sha(Path('inputs/s61paid/NRA3_S61_REAL43M_GT_SPENT216_PAID2752_PAIR_NONE.safetensors'))==m['frozen_S61_paid_SHA256']
+          assert sha(Path('inputs/s62paid/NRA3_S62_REAL43M_GT_SPENT248_JOINT_EVENT_TARGET2166_FP16.safetensors'))==m['frozen_S62_paid_SHA256']
+          assert sha(Path('inputs/s63paid/NRA3_S63_REAL43M_GT_SPENT280_QUOTE_OUTER_BPE471_FP16.safetensors'))==m['frozen_S63_paid_SHA256']
+          assert load_file(str(z))['S65_ATTRIBUTED_3WAY259_FP16'].shape==(259,)
+          print('S65_PRECOMMITTED_TRUE_43MGT_259FP16_LOCKED_BEFORE_GOLDBLIND_NEW32',flush=True)
+          PY
+      - name: REQUIRE B prospective unused NC source S116 PRECOMMIT and trained S115 frozen neural checkpoint before original CPU source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44623172941 44622479810 44621504675 44619230913; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          echo NRA3_S117_FROZEN_MODEL_BEFORE_INDEPENDENT_B_SOURCE_GOLD_BLIND
+      - name: Download B prospective official source and offline teacher as separately precommitted files
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s116-NONCOMMERCIAL-SynTagRusB256-PROSPECTIVE-ONESHOT-GOLD-SHA-precommitted-NOEVAL
+          run-id: 44623172941
+          github-token: ${{ github.token }}
+          path: inputs/S116_PROSPECTIVE_B_GOLD_TO_PURGE_BEFORE_MODEL
+      - name: Validate never-seen B raw source+GOLD SHAs then physically DESTROY GOLD before original Calibri forward
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          from research.calibri_nra3.s117_true_original12_SynTagRusB_NC_sourceonly_53751 import SOURCE_SHA,serialized_source_sha
+          d=Path('inputs/S116_PROSPECTIVE_B_GOLD_TO_PURGE_BEFORE_MODEL')
+          src=json.loads((d/'NRA3_S116_SYNTAGRUS_TRAINB256_SOURCE_ONLY_NO_GOLD.json').read_text())
+          gold=json.loads((d/'NRA3_S116_SYNTAGRUS_TRAINB256_ALL_VERBS_MULTIEDGE_OFFLINE_UD_GOLD.json').read_text())
+          m=json.loads((d/'NRA3_S116_SYNTAGRUS_TRAINB256_MULTIEVENT_SOURCE_GOLD_PROVENANCE.json').read_text())
+          assert m['stage']=='CALIBRI_NRA3_S116_NEW_SYNTAGRUS_TRAINB256_MULTIVERB_SOURCE_GOLD_PRECOMMITTED'
+          assert m['source_only_SHA256']==serialized_source_sha(src)==SOURCE_SHA=='f687b1f677a3795ba4c4dbf3b5246e1105cf19f236f023e4d9c4d18b5418f9bf'
+          assert m['offline_all_verbs_morph_multiedge_GOLD_SHA256']==serialized_source_sha(gold)=='fca74d9f7b83cc93374dab774d30dc0d881b62c9a5dcef00a9b113598b4c21d3'
+          assert m['immutable_real_Russian_SYNTAGRUS_TRAIN_git_blob']=='416fcb93e223869e2718be30629dad9fadd4c290'
+          assert m['immutable_upstream_license_git_blob']=='2c19e1b9c8249671d92d464b9678391b0c3cca19'
+          assert m['license']=='CC BY-NC-SA 4.0' and m['license_noncommercial_use_only_explicitly_required']
+          assert m['NO_training_tuning_model_selection_on_train_b']
+          assert m['PROSPECTIVE_ONESHOT_intermodeled_checkpoint_must_be_PINNED_BEFORE_first_score']
+          assert m['n_offline_UD_all_verb_events']==426 and m['n_offline_UD_multi_argument_role_edges']==690
+          assert m['only_new_SynTagRus_TRAINb_used_no_dev_test']
+          assert len(src)==len(gold)==256
+          assert all(set(z)=={'row_id','text'} for z in src)
+          p=Path('inputs/s117-source-only/NRA3_S116_SYNTAGRUS_TRAINB256_SOURCE_ONLY_NO_GOLD.json')
+          p.parent.mkdir(parents=True,exist_ok=False)
+          p.write_text(json.dumps(src,ensure_ascii=False,sort_keys=True,indent=2)+'\n')
+          assert serialized_source_sha(json.loads(p.read_text()))==SOURCE_SHA
+          print('NRA3_S117_INDEPENDENT_B_SOURCE_PINNED_NO_SCORING',SOURCE_SHA)
+          PY
+          rm -rf inputs/S116_PROSPECTIVE_B_GOLD_TO_PURGE_BEFORE_MODEL
+          test ! -e inputs/S116_PROSPECTIVE_B_GOLD_TO_PURGE_BEFORE_MODEL
+          test "$(find inputs/s117-source-only -type f | wc -l)" -eq 1
+      - name: Download EXACT pinned S115 trained neural 53751 checkpoint+SHA manifest, NO B GOLD or A internal developer
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s115-original12-SynTagRusNC-ONLY8-trust-53751-inmodel-neural-TRAIN-DEVUNREAD
+          run-id: 44622479810
+          github-token: ${{ github.token }}
+          path: inputs/s115-neural-source
+      - name: SHA lock S115 COMPLETE in-Calibri neural checkpoint and NC license before S117 original decoder source
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,hashlib,torch
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('inputs/s115-neural-source')
+          w=d/'NRA3_S115_SYNTAGRUS_NC_NEW8_BOUNDED_TRUST_53751_IN_CALIBRI_FP16.safetensors'
+          p=d/'NRA3_S115_SYNTAGRUS_NC_NEW8_TRAIN_ONLY_NO_DEV_REPORT.json'
+          m=json.loads(p.read_text())
+          assert m['stage']=='CALIBRI_NRA3_S115_NC_SYNTAGRUS_A_NEW8_BOUNDED_NEURAL_TRUST_TRAIN_ONLY_GATE0'
+          assert m['S115_trained_IN_CALIBRI_53751_FP16_child_SHA256']==hashlib.sha256(w.read_bytes()).hexdigest()
+          assert m['SynTagRus_INTERNAL_16per64_NEVER_SCORED_OR_TUNED']
+          assert m['ALL_PREVIOUS_53743_NRA2_mini8_memory16_router12_structural_FP16_EXACT']
+          assert m['maximum_native_BPE_logit_residual_PER_candidate']==1.
+          assert m['NONCOMMERCIAL_research_only_NO_model_licensing_commercial_use']
+          assert m['S115_ONLY_NEW_EIGHT_neural_trust_weights_trained']
+          assert m['original_616_J7_CB59_GT_source_protected']
+          assert m['output_gate']==0 and not m['activation_allowed']
+          s=load_file(str(w))
+          assert sum(z.numel() for z in s.values())==53751
+          assert torch.count_nonzero(s['model.nra3_neural_weights.structural_trust_gate'])>0
+          print('NRA3_S117_FIXED_FROZEN_S115_CHECKPOINT_HASH_BEFORE_B_FIRSTREAD',m['S115_trained_IN_CALIBRI_53751_FP16_child_SHA256'])
+          keep={w.name,p.name}
+          for x in d.rglob('*'):
+            if x.is_file() and x.name not in keep:x.unlink()
+          assert {x.name for x in d.rglob('*') if x.is_file()}==keep
+          PY
+          python -m unittest -v research.calibri_nra3.test_s117_original12_SynTagRusB_NC_goldblind
+      - name: Replay original Calibri43M GT 616 J7 physical CPU, then new S66 HELD32 raw-only native BPE
+        run: |
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S66_REAL_ORIGINAL43M_GT_J7_AND_NEW32_HELD_RAW_ONLY",flush=True)
+          PY
+          python -m research.nra3_s20.s66_true43m_gt_new32_goldblind_cpu_and_KV_parity \
+            inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
+            inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
+            inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            inputs/s94/S94_ALTERNATE_EXACT_CORE_TUNNEL_BANK.bin \
+            inputs/s94/S94_PROFILE_BANK_FEASIBILITY_REPORT.json \
+            inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s99/S99_ALL456_NEW_NEURAL_COPY_PHYSICAL_TRAIN_AUDIT.json \
+            inputs/s101/S101_KV_CACHE_EXACT_S99_456_TRAIN_CPU_GUARD.json \
+            inputs/s122/S122_TRAIN_ONLY_CROSS_BINDING_CURRICULUM_REPORT.json \
+            inputs/s115/S115_MPS_GAIN_ONLY_456_CPU_GUARD_REPORT.json \
+            inputs/s126q/S126Q_UNACCEPTED_ZERO_GT12_REAL_Q2_PHYSICAL.safetensors \
+            inputs/s126q/S126Q_REAL_S101_FULL456_ZERO_GT12_REPORT.json \
+            inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s91_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s93_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s132/S132_GROWN_43M_ZERO_NEW_CHANNELS.safetensors \
+            inputs/s132/S132_NEXT_STAGE_43M_PHYSICAL_GROWTH_REPORT.json \
+            inputs/s131/S131_UNACCEPTED_block1_check1.safetensors \
+            inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            inputs/s142/S142_ONE_J7_ACTUAL_PHYSICAL_GUARD.json \
+            inputs/s160/S160_REAL_PARALLEL_SLOT_FP16.safetensors \
+            inputs/s160/S160_REAL_PARALLEL_456_128_J7_AUDIT.json \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/nra3_s66_new32_held_native
+      - name: Verify original Calibri43M GT protected 616 J7 and S66 new HELD32 physical native gold-blind
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from safetensors.torch import load_file
+          from research.nra3_s20.s66_frozen_new32_raw_only_DO_NOT_TRAIN import raw_sha256
+          d=Path('results/nra3_s66_new32_held_native')
+          cap=json.loads((d/'NRA3_S66_GENUINE43M_GT_EVENTFIRST32_NATIVE_J7_REPORT.json').read_text())
+          prov=json.loads((d/'NRA3_S66_GENUINE43M_GT_EVENTFIRST32_OFFSET_PROVENANCE.json').read_text())
+          assert cap['stage']=='NRA3_S66_GENUINE43M_GT_EVENTFIRST32_NATIVE_CPU_FIRST_PASS'
+          assert cap['S66_FROZEN_HELD32_PLAINTEXT_SHA256']==raw_sha256()
+          assert cap['S66_HELD32_SOURCE_COMMIT']=='ff5079fc51630bec3f9964b89d87e117f18b04b5'
+          assert cap['S66_HELD32_SOURCE_BLOB']=='1d344cbc67bf85f81917009dbec0a5b146ac3961'
+          assert cap['S194_ORIGINAL_616_J7_BASELINE_PARENT_RUN_ID']==43345267876
+          assert cap['all_616_native_CPU_generated_token_digests_unchanged']
+          assert cap['original_456_full_EOS']==456 and cap['original_new128_full_EOS']==128
+          assert cap['original_new32_full_EOS']==0
+          assert cap['actual_43M_CPU_12_transformer_layers']
+          assert cap['observed_layer_index_zero_based']==7
+          assert cap['GT_residuals_before_readport_in_same_active_S93_scope']
+          assert cap['actual_genuine_43M_CPU_new_HELD32_prefills']==32
+          assert cap['S66_HELD_manual_gold_NOT_IMPORTED_into_model_capture']
+          assert cap['S51_fractional_BPE_words_recovered']==32
+          assert cap['NRA3_output_gate']==0 and not cap['NRA3_candidate_accepted'] and not cap['activation_allowed']
+          assert prov['stage']=='NRA3_S66_GENUINE43M_GT_EVENTFIRST32_BPE_SOURCE_ONLY'
+          assert prov['frozen_S66_HELD32_raw_source_sha256']==raw_sha256()
+          assert prov['S66_HUMAN_GOLD_NOT_IMPORTED_DURING_ANY_CAPTURE_STEP']
+          file=d/'NRA3_S66_GENUINE43M_GT_EVENTFIRST32_WORD339_AND_UNSAFE.safetensors'
+          assert hashlib.sha256(file.read_bytes()).hexdigest()==prov['derived_REAL43M_WORD339_SHA256']
+          t=load_file(str(file))
+          assert t['original_real43m_gt_word339_READONLY'].shape[0]==32
+          assert t['original_real43m_gt_word339_READONLY'].shape[-1]==339
+          assert t['source_row_indices_in_frozen_S66_HELD32'].tolist()==list(range(32))
+          print('S66_REAL_ORIGINAL43M_GT_PROTECTED_616_J7_AND_NEW_HELD32_NATIVE_GOLD_BLIND',flush=True)
+          PY
+      - name: Verify ALL NEW S74 source120 physically captured with untouched original43M+GT after protected 616 J7
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          import torch
+          from safetensors.torch import load_file
+          from research.nra3_s20.s74_newtrain120_source_ONLY import source_sha256
+          from research.nra3_s20.s75_original43m_gt_newtrain120_native_h8 import (
+              STAGE,EXPECTED_S74_SOURCE_SHA,TENSOR_NAME,REPORT_NAME)
+          out=Path('results/nra3_s66_new32_held_native')
+          p=out/TENSOR_NAME
+          r=json.loads((out/REPORT_NAME).read_text(encoding='utf-8'))
+          t=load_file(str(p),device='cpu')
+          assert r['stage']==STAGE
+          assert r['S74_SOURCE_ONLY_SHA256']==source_sha256()==EXPECTED_S74_SOURCE_SHA
+          assert r['original_protected_616_real_J7_replayed_before_new_S74_capture']
+          assert r['no_S74_construction_labels_imported_or_used_during_any_native_H8']
+          assert r['no_S66_spent32_gold_EVAL32_EVAL128_imported']
+          assert r['genuine_43m_native_BPE_token_IDS_unchanged']
+          assert r['all_12_original_layers_and_original_GT_prefill_S93_profile']
+          assert r['original_model_weights_original_GT_expansion_adapters_untouched']
+          assert r['source_only_original_BPE_fractional_word_pool_no_gold']
+          assert r['n_new_S74_TRAIN_source_rows']==120
+          assert r['n_S74_grouped_train_source']==90
+          assert r['n_S74_grouped_old_dev_source']==30
+          assert r['n_genuine_original_native_tokens']>1200
+          assert r['max_raw_source_words']<=40
+          assert r['n_new_model_training_steps']==0
+          assert r['original_full_source_S95_and_S132_prefill_only_NOT_online_causal_safety']
+          assert r['no_candidate_quality_or_new_accuracy_measured']
+          assert r['output_gate']==0 and not r['candidate_accepted'] and not r['activation_allowed']
+          assert r['physical_source_tensor_SHA256']==hashlib.sha256(p.read_bytes()).hexdigest()
+          assert set(t)=={'original_real43m_gt_word339_READONLY',
+                 'original_native_word_valid_mask',
+                 'native_BPE_causally_unsafe_word_mask',
+                 'source_row_indices_in_frozen_S74_NEW_TRAIN120'}
+          x=t['original_real43m_gt_word339_READONLY']
+          v=t['original_native_word_valid_mask']
+          u=t['native_BPE_causally_unsafe_word_mask']
+          assert x.shape[0]==120 and x.shape[-1]==339
+          assert v.shape==u.shape==x.shape[:2]
+          assert torch.isfinite(x).all()
+          assert not (u&~v).any()
+          assert t['source_row_indices_in_frozen_S74_NEW_TRAIN120'].tolist()==list(range(120))
+          print('S75_REAL43M_GT_NEWTRAIN120_SOURCEONLY_NATIVE_H8_AFTER_616_J7',
+                json.dumps({k:r[k] for k in
+                  ('n_new_S74_TRAIN_source_rows',
+                   'n_genuine_original_native_tokens',
+                   'n_causally_unsafe_shared_BPE_words',
+                   'n_original_quote_marks','output_gate')},
+                  sort_keys=True),flush=True)
+          PY
+      - name: Validate genuine ORIGINAL CB59GT 12layer protected616 prospective B source, still NO TEACHER
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,hashlib,torch
+          from pathlib import Path
+          from safetensors.torch import load_file
+          p=Path('results/nra3_s66_new32_held_native')
+          hfile=p/'NRA3_S117_SYNTAGRUS_TRAINB256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors'
+          child=p/'NRA3_S117_IN_CALIBRI_TRAINED_TRUST_53751_FP16.safetensors'
+          m=json.loads((p/'NRA3_S117_REAL43MGT_SYNTAGRUS_TRAINB256_ALLVERBS_SOURCE_PROVENANCE.json').read_text())
+          assert m['stage']=='CALIBRI_NRA3_S117_REAL43MGT_ALL12_SYNTAGRUS_TRAINB256_ALLVERBS_SOURCE_ONLY_AFTER616'
+          assert m['S116_SYNTAGRUS_TRAIN_PINNED_SOURCE256_SHA256']=='f687b1f677a3795ba4c4dbf3b5246e1105cf19f236f023e4d9c4d18b5418f9bf'
+          assert m['S116_SYNTAGRUS_TRAIN_original_git_blob']=='416fcb93e223869e2718be30629dad9fadd4c290'
+          assert m['third_party_data_license']=='CC BY-NC-SA 4.0'
+          assert m['noncommercial_research_only_CC_BY_NC_SA_4_license']
+          assert m['new_SynTagRus_TRAINB_firstread_RAW_ONLY_NO_PERFORMANCE_SCORED']
+          assert m['S115_trainA_INTERNAL_dev_remains_UNSCORED']
+          assert m['no_commercial_or_production_use_before_legal_review']
+          assert m['S115_trained_53751_in_model_child_FP16_SHA256']==hashlib.sha256(child.read_bytes()).hexdigest()
+          assert m['prior_S110_53743_and_S115_new_8_trust_exactly_restored_from_S115']
+          assert m['n_pinned_source_only_rows']==256
+          assert m['n_accepted_source_only_BPE_rows']>=96
+          assert sum(m['accepted_n_per_fixed_SYNTAGRUS_64row_source_stratum'])==m['n_accepted_source_only_BPE_rows']
+          assert min(m['accepted_n_per_fixed_SYNTAGRUS_64row_source_stratum'])>=12
+          assert m['n_excluded_due_to_input_BPE_preflight']+m['n_accepted_source_only_BPE_rows']==256
+          assert m['old_616_J7_physically_replayed_BEFORE_NRA3_hooks']
+          assert m['genuine_12layer_original43M_GT_S93_prefill_after_protected616_J7']
+          assert m['original_S5_H8_port_exactly_matches_all12_H8_for_all_accepted']
+          assert len(m['all_original_43M_GT_CB59_params_sha_pre_and_post_identical'])==64
+          assert m['original_S8_logical_core_params']==36380480 and m['original_85_paid_CB59_operators_present']
+          assert m['NRA3_bounded_structural_neural_53751_weights_REGISTERED_INSIDE_actual_Calibri_model']
+          assert m['eight_original_NRA2_neural_miniareas_still_embedded']
+          assert m['source_ONLY_no_S116_SYNTAGRUS_UD_GOLD_loaded_in_original_CPU']
+          assert m['new_NRA3_train_steps']==0 and m['output_gate']==0
+          assert not m['candidate_accepted'] and not m['activation_allowed']
+          assert m['ALL12_CPU_SAFETENSORS_SHA256']==hashlib.sha256(hfile.read_bytes()).hexdigest()
+          assert m['IN_CALIBRI_53751_MORPH_FP16_WEIGHTS_SHA256']==hashlib.sha256(child.read_bytes()).hexdigest()
+          tensors=load_file(str(hfile));w=load_file(str(child))
+          hidden=tensors['original_Calibri43M_GT_ALL12_native_H320_FP16_READONLY']
+          valid=tensors['native_BPE_source_valid_mask']
+          ix=tensors['source_row_indices_in_PINNED_SYNTAGRUS_TRAINB256']
+          assert hidden.shape[:2]==(m['n_accepted_source_only_BPE_rows'],12)
+          assert hidden.shape[-1]==320 and hidden.dtype==torch.float16
+          assert int(valid.sum())==m['n_genuine_original_native_BPE_tokens']
+          assert ix.tolist()==sorted(set(ix.tolist()))
+          assert sum(x.numel() for x in w.values())==53751
+          assert torch.count_nonzero(w['model.nra3_neural_weights.structural_trust_gate'])>0
+          print('NRA3_S117_PROSPECTIVE_B_TRUE_ORIGINAL12_NEURAL_SOURCE_ONLY_NO_GOLD',
+                {'source_rows':m['n_accepted_source_only_BPE_rows'],
+                 'original_BPE_tokens':m['n_genuine_original_native_BPE_tokens'],
+                 'neural_weights':53751,'protected616':True,'NC_only':True,
+                 'prospective_B_UD_GOLD_sealed':True,'activation_gate':0},flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s117-original12-SynTagRusB256-NC-PROSPECTIVE-sourceonly-S115-53751-neural-after616
+          path: results/nra3_s66_new32_held_native/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Verify source-only original real43M GT postH8 full-prefix and KV-next2 causal falsification SHA, NO GOLD
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          d=Path('results/nra3_s66_new32_held_native')
+          q=d/'NRA3_S66_ORIGINAL43M_GT_NATIVE_PREFIX_KV_PARITY_AUDIT.json'
+          cap=json.loads((d/'NRA3_S66_GENUINE43M_GT_EVENTFIRST32_NATIVE_J7_REPORT.json').read_text())
+          prov=json.loads((d/'NRA3_S66_GENUINE43M_GT_EVENTFIRST32_OFFSET_PROVENANCE.json').read_text())
+          report=json.loads(q.read_text())
+          sha=hashlib.sha256(q.read_bytes()).hexdigest()
+          assert report['stage']=='NRA3_S66_TRUE_ORIGINAL43M_GT_SOURCE_ONLY_H8_PREFIX_AND_KV_NEXT2'
+          assert report['num_source_only_attempted']==8
+          assert report['reproduced_616_original_protected_J7_BEFORE_new_reads']
+          assert report['original_model_weights_and_GT_unchanged']
+          assert report['no_S66_gold_imported_or_predictions_used_in_probe']
+          assert report['even_parity_does_NOT_certify_original_streaming_causality']
+          assert cap['S66_original43M_GT_H8_native_prefix_KV_audit_SHA256']==sha
+          assert prov['S66_original43M_GT_H8_native_prefix_KV_audit_SHA256']==sha
+          print('S66_NATIVE_H8_KV_PARITY_FALSIFICATION_SOURCE_ONLY',
+                json.dumps({k:v for k,v in report.items()
+                            if k.startswith('num_')},sort_keys=True),flush=True)
+          PY
+      - name: S67 source-only original real43M CPU phase ablation, preserve no-GOLD research gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from research.nra3_s20.s67_original_cache_phase_isolation import MODES
+          q=Path('results/nra3_s66_new32_held_native/NRA3_S67_ORIGINAL43M_CORE_VS_GT_REAL_KV_PHASE_ISOLATION.json')
+          d=json.loads(q.read_text())
+          assert d['stage']=='NRA3_S67_GENUINE_ORIGINAL43M_GT_H8_KV_PHASE_ABLATION'
+          assert d['616_original_baseline_J7_verified_BEFORE_capture']
+          assert d['on_previously_spent_s66_raw_only']
+          assert d['no_new_adapter_parameters']
+          assert d['online_causality_not_certified']
+          assert d['output_gate']==0 and not d['candidate_accepted'] and not d['activation_allowed']
+          assert len(d['rows'])==8
+          for row in d['rows']:
+              assert set(row)==set(MODES)
+              for mode,measurement in row.items():
+                  assert measurement['cache_position_trace']==[
+                      measurement['cut'],measurement['cut']+2,
+                      measurement['cut'],measurement['cut']+1,measurement['cut']+2]
+                  assert measurement['no_gradient_or_adapter_or_gold_or_generation_activation']
+                  assert not measurement['normal_online_generation_certified']
+                  for key in ('full_vs_KV2_H8_next2','KV2_vs_KV1plus1_H8_next2',
+                              'full_vs_KV2_logits_next2'):
+                      assert measurement[key]['max_abs'] >= 0
+          print('S67_REAL_ORIGINAL43M_CORE_AND_GT_CACHE_POSITION_PHASE_FORENSIC',
+                {k:sum(z[k]['full_vs_KV2_H8_next2']['max_abs']>1.e-3 for z in d['rows'])
+                 for k in MODES},flush=True)
+          PY
+      - name: Verify 3 × 8 original Calibri43M GT×S132 expansion immutable CPU phase matrix before GOLD
+        run: |
+          python - <<'PY'
+          import json,math
+          from pathlib import Path
+          from research.nra3_s20.s69_original_43m_gt_expansion_phase_matrix import MODES
+          d=Path('results/nra3_s66_new32_held_native')
+          p=d/'NRA3_S69_GENUINE_ORIGINAL43M_GT_S132_KV_PHASE_FACTOR_ABLATION.json'
+          m=json.loads(p.read_text())
+          assert m['stage']=='NRA3_S69_REAL43M_GENUINE_GT_S132_EXPANSION_KV_DECODE_PHASE_FACTOR_MATRIX'
+          assert m['original_model_and_GT_and_expansion_weights_unchanged']
+          assert m['original_616_baseline_J7_physically_replayed_first']
+          assert m['only_S66_previously_spent_native_inputs_no_gold']
+          assert m['S95_full_source_features_still_not_causal_prefix_safe']
+          assert m['s67_bare_core_also_disabled_progressive_expansion_so_not_sole_GT_attribution']
+          assert m['n_rows']==8
+          assert not m['online_causality_certified']
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          for r in m['rows']:
+              assert set(r)==set(MODES)
+              for mode,row in r.items():
+                  assert row['cache_position_trace']==[
+                      row['cut'],row['cut']+2,row['cut'],row['cut']+1,row['cut']+2]
+                  assert row['no_gradient_or_adapter_or_gold_or_generation_activation']
+                  assert not row['normal_online_generation_certified']
+                  for key in ('full_vs_KV2_H8_next2','full_vs_KV2_logits_next2',
+                              'KV2_vs_KV1plus1_H8_next2','KV2_vs_KV1plus1_logits_next2'):
+                      assert math.isfinite(row[key]['max_abs'])
+          print('S69_ORIGINAL_GT_S132_43M_TRUE_FACTOR_MATRIX_NO_GOLD_NO_ACTIVATION',
+                m['mode_h8_KV2_mismatch_gt_1e3'],m['mode_logits_KV2_mismatch_gt_1e3'],flush=True)
+          PY
+      - name: S70 verify true frozen original 43M physical native S95 full-vs-prefix causal-feature read with same IDs
+        run: |
+          python - <<'PY'
+          import json,math
+          from pathlib import Path
+          d=Path('results/nra3_s66_new32_held_native')
+          p=d/'NRA3_S70_REAL43M_NATIVE_S95_PREFIX_FUTURE_ABLATION.json'
+          x=json.loads(p.read_text())
+          assert x['stage']=='NRA3_S70_ORIGINAL43M_REAL_NATIVE_S95_FULLVS_PREFIX_AND_SUFFIX_COUNTERFACTUAL'
+          assert x['original_616_J7_BASELINE_replayed_before_capture']
+          assert x['frozen_43M_S95_GT_S132_weights_unchanged']
+          assert x['original_native_BPE_same_prefix_inputs_in_all_three_forwards']
+          assert x['S66_previously_spent_raw_only_no_GOLD']
+          assert x['real_H8_source_feature_conditioning_diagnostic_NOT_online_causality']
+          assert not x['online_causal_safety_certified']
+          assert x['output_gate']==0 and not x['candidate_accepted'] and not x['activation_allowed']
+          assert len(x['rows'])==8
+          for row in x['rows']:
+              assert row['true_original_native_BPE_not_byte_surrogate']
+              assert row['original_native_ids_prefix_reused_bit_identical']
+              assert row['output_gate']==0 and not row['candidate_accepted'] and not row['activation_allowed']
+              for name in ('features_original_full_vs_prefix','features_prefix_vs_new_suffix',
+                           'same_native_prefix_H8_full_vs_prefix','same_native_prefix_H8_prefix_vs_suffix',
+                           'same_native_prefix_logits_full_vs_prefix','same_native_prefix_logits_prefix_vs_suffix'):
+                  assert math.isfinite(row[name]['max_abs'])
+              assert not row['normal_generation_safety_or_root_cause_proven']
+          print('S70_ORIGINAL43M_NATIVE_BPE_S95_FIXED_PREFIX_FUTURE_DIAGNOSTIC_NO_GOLD',
+                {k:x[k] for k in ('source_feature_full_vs_prefix_changed',
+                  'same_native_H8_full_vs_prefix_changed',
+                  'same_native_logits_full_vs_prefix_changed')},flush=True)
+          PY
