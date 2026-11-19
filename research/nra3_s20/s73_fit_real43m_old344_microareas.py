@@ -126,8 +126,11 @@ def original_frozen_paid(args):
                 ("s63","frozen_S63_paid_SHA256"))]==[True]*6,
             "original physical SHA-pinned S65 43M paid ancestry")
     parents=(old26,old57,old59,old61,old62,old63,old65)
-    require(all(not p.requires_grad for m in parents for p in m.parameters())
-            and all(not m.training for m in parents),
+    require(all(not p.requires_grad for m in parents for p in m.parameters()),
+            "original physically reloaded parents may never train")
+    for m in parents:
+        m.eval()
+    require(all(not m.training for m in parents),
             "entire original paid parent modules frozen eval")
     identity=[tensor_sha(*(p.detach() for p in m.parameters()))
               for m in parents]
