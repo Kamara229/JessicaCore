@@ -302,9 +302,10 @@ def real_all12_source_capture_AFTER_original_616(
 def save_only_AFTER_original616_digest_verified(out,tensors,weights,report):
     require(out.is_dir() and not (out/TENSOR).exists()
             and not (out/WEIGHTS).exists() and not (out/REPORT).exists()
-            and report["original_616_J7_physically_replayed_before_any_NRA3_hook"]
-            and report["new_NRA3_training_steps"]==0
-            and report["S83_CONSTRUCTED_GOLD_not_imported_in_original_source_H8"]
+            and report["old_616_J7_physically_replayed_BEFORE_NRA3_hooks"]
+            and report["new_NRA3_train_steps"]==0
+            and report["source_only_no_Taiga_UD_gold_loaded_during_original_CPU"]
+            and report["no_commercial_or_production_use_before_legal_review"]
             and report["old_S79_and_S86_spent_firstreads_NEVER_reused"]
             and report["output_gate"]==0 and not report["candidate_accepted"],
             "save only if previous original protected616 token digests succeeded")
