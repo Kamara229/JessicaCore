@@ -1,0 +1,122 @@
+name: Calibri NRA3 S97 new in-model neural morphology and pinned UD-Taiga TRAIN-b separate source vs gold
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s96-taiga256-nativeBPE-grammatical-TRAIN-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s97-new-morphology-taigaB-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  morphology_neural_IN_calibri_and_licensed_UD_Taiga_train_B_source_gold_wall:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s97-neural-morphology-UDtrainB-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CPU torch for new IN-Calibri neural morphology ABI (original Calibri weights not loaded)
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Require previous REAL original twelve Calibri+GT protected616 S95 and S96 trained but unaccepted, no S96 development reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44563816334 44566200888; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          echo 'NRA3_S97_PRIOR_REAL12_PHYSICAL_616_PROTECTED_AND_S96_FAILING_GENERALIZATION_DIAGNOSTIC_SPENT'
+      - name: Verify all 12 routing streams, eight preserved NRA2 mini-areas, in-Calibri morphological UPOS Case Number Voice heads, old outputs identity, no UD runtime parser
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s97_in_calibri_morphological_12layer_neural_graph.py research/calibri_nra3/s97_pin_Taiga_TRAINb_morph_source_vs_labels.py research/calibri_nra3/test_s97_morphology_in_calibri_and_trainB_contracts.py
+          python -m unittest -v research.calibri_nra3.test_s91_in_calibri_neural_12layer_event_graph research.calibri_nra3.test_s97_morphology_in_calibri_and_trainB_contracts
+      - name: Download ONLY original CC BY-SA Russian Taiga TRAIN-b at precommitted Git blob (not train-a S96 dev nor upstream dev/test)
+        run: |
+          set -euo pipefail
+          mkdir -p inputs/ud_taiga_train_B
+          curl --fail --location --show-error --silent --retry 3 --max-time 360 \
+            https://raw.githubusercontent.com/UniversalDependencies/UD_Russian-Taiga/445ea57e47a3adae3146d0a42d2a8876214f2d20/ru_taiga-ud-train-b.conllu \
+            -o inputs/ud_taiga_train_B/ru_taiga-ud-train-b.conllu
+          test "$(git hash-object inputs/ud_taiga_train_B/ru_taiga-ud-train-b.conllu)" = 3b0f6947bd0d6ac022d91d5fb17269450a876bb3
+          curl --fail --location --show-error --silent --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/UniversalDependencies/UD_Russian-Taiga/445ea57e47a3adae3146d0a42d2a8876214f2d20/LICENSE.txt \
+            -o inputs/ud_taiga_train_B/LICENSE.txt
+          test "$(git hash-object inputs/ud_taiga_train_B/LICENSE.txt)" = 9af2e0b2f73cf29fe1f60cb6376b176d9c2ba846
+          grep -q 'Attribution-ShareAlike 4.0 International' inputs/ud_taiga_train_B/LICENSE.txt
+          echo 'NRA3_S97_REAL_RUSSIAN_UD_TAIGA_TRAIN_B_CC_BY_SA_PINNED'
+      - name: Deterministically prepare 256 entirely NEW Taiga TRAIN-b sources and physically separate UD event/role/morphological labels without original Calibri inference
+        run: |
+          set -euo pipefail
+          python -m research.calibri_nra3.s97_pin_Taiga_TRAINb_morph_source_vs_labels \
+            --taiga-train-b inputs/ud_taiga_train_B/ru_taiga-ud-train-b.conllu \
+            --out results/nra3_s97_licensed_Taiga_B256_morphology_training_ONLY
+      - name: Verify morphological teacher label coverage, hard SHA source/gold separation, all eight mini-areas, no commercial use and zero gate
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          from research.calibri_nra3.s97_pin_Taiga_TRAINb_morph_source_vs_labels import (
+              SOURCE_FILE,GOLD_FILE,REPORT_FILE,STAGE,TRAIN_B_BLOB_SHA)
+          from research.calibri_nra3.s94_ud_taiga_trainonly_grammatical_source_gold_WALL import sha256_serialized
+          from research.calibri_nra3.s97_in_calibri_morphological_12layer_neural_graph import NRA3MorphologyInCalibriWeights
+          d=Path('results/nra3_s97_licensed_Taiga_B256_morphology_training_ONLY')
+          src=json.loads((d/SOURCE_FILE).read_text())
+          gold=json.loads((d/GOLD_FILE).read_text())
+          p=json.loads((d/REPORT_FILE).read_text())
+          assert p['stage']==STAGE and p['TRAIN_B_genuine_pinned_git_blob_sha']==TRAIN_B_BLOB_SHA
+          assert p['license']=='CC BY-SA 4.0'
+          assert p['attribution_and_share_alike_mandatory_for_derivatives']
+          assert p['commercial_production_use_forbidden_until_legal_review']
+          assert p['ONLY_original_Taiga_TRAIN_b_no_train_a_dev_test']
+          assert p['S96_old_Taiga_TRAIN_a_internal_dev_NEVER_reused']
+          assert p['S79_S86_old_firstread_TEST48_NEVER_reused']
+          assert p['full_SOURCE_has_only_raw_rowIDs_and_text_no_UD_gold']
+          assert p['no_external_UD_parser_at_inference']
+          assert p['n_training_rows']==len(src)==len(gold)==256
+          assert p['stratification_counts']=={'active_transitive':64,'passive':64,'negated':64,'other_intransitive':64}
+          assert p['strict_SOURCE_only_sha256']==sha256_serialized(src)
+          assert p['strict_separate_offline_MORPH_and_role_GOLD_sha256']==sha256_serialized(gold)
+          assert len({z['text'] for z in src})==256
+          assert all(set(z)=={'row_id','text'} for z in src)
+          for m in p['n_valid_UD_word_morph_labels_by_feature'].values():
+              assert m>0
+          assert p['new_train_steps']==0 and p['output_gate']==0
+          assert not p['candidate_accepted'] and not p['activation_allowed']
+          m=NRA3MorphologyInCalibriWeights()
+          b=m.budget()
+          assert 22311<b['new_neural_parameters']<40000
+          assert b['all_12_original_calibri_layers']==12
+          assert b['NRA2_independent_mini_areas_preserved']==8
+          assert b['trainable_in_model_memory_slots']==16
+          assert b['external_inference_UD_parser_required']==False
+          assert m.output_gate==0 and not m.is_trained
+          print('NRA3_S97_REAL_PINNED_TAIGA_TRAIN_B256_AND_IN_CALIBRI_MORPHOLOGY_ARCHITECTURE',
+                json.dumps({'source_SHA':p['strict_SOURCE_only_sha256'],
+                            'gold_SHA':p['strict_separate_offline_MORPH_and_role_GOLD_sha256'],
+                            'morph_supervision':p['n_valid_UD_word_morph_labels_by_feature'],
+                            'NRA3_in_calibri_new_neural_params':b['new_neural_parameters'],
+                            'old_S91_neural_miniareas':8,'gate':0},
+                           ensure_ascii=False,sort_keys=True),flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s97-REAL-UD-Taiga-TRAINb256-new-MORPH-source-and-separate-GOLD-CC-BY-SA-RESEARCH-only
+          path: results/nra3_s97_licensed_Taiga_B256_morphology_training_ONLY/
+          retention-days: 30
+          if-no-files-found: error
