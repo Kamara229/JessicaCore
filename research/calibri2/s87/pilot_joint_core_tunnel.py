@@ -146,8 +146,43 @@ def main():
         else:
             examples = [(row["question"], row["answer"])
                         for row in old_rows + new_rows]
+        # Transactional TRAIN-only preflight: validate the actual repacked
+        # CB59 candidate on CPU after EACH MPS update, before accepting Adam.
+        # This guards eight pilot identities only. The independent 456-TRAIN
+        # replay is still required before any scientific acceptance.
+        def pilot_post_step_guard():
+            from v176.operators import clear
+            clear(sources)
+            candidate, _ = replace_discrete(CB59(raw), sources, strict=False)
+            if len(candidate) != SOURCE_BYTES or CB59(candidate).hash() != sha(candidate):
+                raise AssertionError("Transactional CB59 candidate integrity failed")
+            cpu_probe, probe_sources = create_small_paid_model(
+                CB59(candidate), build_config(MODEL_SPEC))
+            cpu_probe.eval().requires_grad_(False)
+            probe_inner = IntegratedGreenTunnel(
+                layers=TUNNEL_LAYERS, rank=TUNNEL_RANK).eval()
+            probe_inner.load_state_dict({k: v.detach().cpu().contiguous()
+                                         for k, v in inner.state_dict().items()},
+                                        strict=True)
+            probe_inner.install(cpu_probe)
+            try:
+                for i, row in enumerate(old_rows + new_rows):
+                    gold = tok.encode(row["answer"], add_special_tokens=False) + [tok.eos_token_id]
+                    previous = before[i]
+                    actual = _original_cpu(cpu_probe, probe_sources, weights,
+                                           tok, row["question"], ptr)
+                    if (previous == gold and actual != gold) or (
+                        previous and previous[0] == gold[0] and
+                        (not actual or actual[0] != gold[0])
+                    ):
+                        raise AssertionError(
+                            f"Transactional pilot TRAIN identity regression at row {i}")
+            finally:
+                probe_inner.uninstall()
+                del cpu_probe, probe_sources
         report = joint_train_step(student, sources, inner, paid_core, tok,
-                                  examples, optimizer)
+                                  examples, optimizer,
+                                  post_step_guard=pilot_post_step_guard)
         # The zero-init output matrices should unblock gradients to the
         # down and gate matrices on the SECOND backward pass. Fail closed.
         if step == 1:
