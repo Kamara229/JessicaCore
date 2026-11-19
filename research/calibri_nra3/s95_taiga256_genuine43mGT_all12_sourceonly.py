@@ -306,7 +306,7 @@ def save_only_AFTER_original616_digest_verified(out,tensors,weights,report):
             and report["new_NRA3_train_steps"]==0
             and report["source_only_no_Taiga_UD_gold_loaded_during_original_CPU"]
             and report["no_commercial_or_production_use_before_legal_review"]
-            and report["old_S79_and_S86_spent_firstreads_NEVER_reused"]
+            and report["old_S79_S86_spent_firstreads_NEVER_reused"]
             and report["output_gate"]==0 and not report["candidate_accepted"],
             "save only if previous original protected616 token digests succeeded")
     for filename,payload in ((TENSOR,tensors),(WEIGHTS,weights)):
