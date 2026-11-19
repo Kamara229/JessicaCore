@@ -11,7 +11,7 @@ exact same hidden vectors, ensuring BPE and hook identity.
 
 Original 43M model parameters unchanged before/after; NO S103 all-verb multiargument UD GOLD or S96/S99 internal dev or
 old S79/S86 SPENT test/labels imported; no neural fitting, semantic
-correctness or active decoder J7 claimed. New neural morphology weights 28,887
+correctness or active decoder J7 claimed. New morphology-and-relational neural weights 37,087
 params attached, gate0, DO NOT activate or deploy.
 """
 from __future__ import annotations
@@ -106,7 +106,7 @@ def real_all12_source_capture_AFTER_original_616(
         model,sources,tok,bridge,tunnel,expansion,source_json_path):
     """Gold-free source-only original 12-layer capture, licensed TRAIN only.
 
-    Source is externally SHA-frozen S103 Taiga TRAIN-e, gold physically
+    Source is independently SHA-frozen S103 Taiga TRAIN-e, gold physically
     absent from this CPU job. Source-only exact original BPE word
     alignment preflight may exclude ambiguous texts WITHOUT reading
     any corpus grammar targets. Reports entire exclusion map.
