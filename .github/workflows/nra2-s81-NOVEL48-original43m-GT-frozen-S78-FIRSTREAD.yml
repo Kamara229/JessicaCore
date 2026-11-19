@@ -59,7 +59,7 @@ jobs:
       - name: Frozen S78 genuine43M GT 7496 FP16 eight DIFFERENT previously TRAINED miniheads immutable SHA
         uses: actions/download-artifact@v4
         with:
-          name: nra2-s81-ONE-SHOT-FROZEN-S78-GT-S79-NOVEL48-FIRSTREAD-no-training-noEVAL
+          name: nra2-s78-real43M-GT-S74-TRAIN90-8-independent-mention-specialists-shadow-noEVAL
           run-id: 44470550326
           github-token: ${{ github.token }}
           path: inputs/s78
@@ -191,7 +191,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: nra2-s78-real43M-GT-S74-TRAIN90-8-independent-mention-specialists-shadow-noEVAL
+          name: nra2-s81-ONE-SHOT-FROZEN-S78-GT-S79-NOVEL48-FIRSTREAD-no-training-noEVAL
           path: results/nra2_s81_NOVEL48_frozenS78_firstread/
           retention-days: 30
           if-no-files-found: error
