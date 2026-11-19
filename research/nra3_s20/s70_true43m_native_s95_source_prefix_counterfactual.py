@@ -20,6 +20,7 @@ import hashlib
 import torch
 from calibri2.s160 import real_parallel_slots_j7 as s160
 from v176.operators import clear
+from research.nra3_s18.s18c3_raw_russian_grammar_cues import raw_surface_grammar
 from research.nra3_s20.s67_original_cache_phase_isolation import (
     delta, require,
 )
@@ -35,8 +36,17 @@ def source_prefix_from_safe_cut(original_source,raw_words,word_index,token_ids,c
             and not getattr(word,"shared_native_tokens",())
             and max(int(x) for x in word.native_token_positions)+1==cut,
             "S70 original BPE-safe word boundary consistency")
-    end=int(word.end)
-    require(4<=end<len(original_source)-2 and original_source[:end].strip(),
+    # S51 NativeOverlapWord deliberately has NO textual end field.
+    # Its index is an offset into the independently reconstructed S19
+    # source-token sequence, which shares the exact S18 Unicode scanner.
+    original_raw=raw_surface_grammar(original_source)
+    require(len(original_raw)==len(raw_words)
+            and all(int(w.index)==i for i,w in enumerate(raw_words)),
+            "S70 native-to-raw word order or count diverged")
+    end=int(original_raw[word_index].end)
+    require(4<=end<len(original_source)-2 and original_source[:end].strip()
+            and original_source[original_raw[word_index].start:end]
+                 ==original_raw[word_index].form,
             "S70 original raw UTF8 prefix outside source")
     return original_source[:end]
 
