@@ -1,0 +1,57 @@
+name: Calibri NRA3 S105 prospective ONCE Taiga-C frozen S99 vs S102 UD scoring ABI ONLY (no firstread)
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s104-TaigaC-oneshot-original12-sourceONLY-20261119
+permissions:
+  contents: read
+  actions: read
+jobs:
+  preregister_TaigaC_ONE_SHOT_frozen_comparison_ABI_without_UD_gold:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s105-TAIGAC-once-S99-vs-S102-originalBPE-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CPU PyTorch only for source-only SYNTHETIC fixed frozen S99 vs S102 one-time UD metric contracts
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'safetensors==0.4.5' 'numpy==1.26.4'
+      - name: Require S103 prospective ORIGINAL TaigaC 256 source and separate UD gold SHA PRECOMMITTED BEFORE eval, never load labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/44607520541 --jq .conclusion)" = success
+          echo S105_GOLDBLIND_TESTS_ONLY_NO_C_FIRSTREAD_UD_LABELS_OPENED
+      - name: Compile and run static + synthetic original BPE mapping and paired sentence bootstrap immutable S99-S102 SHA contracts
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s105_TaigaC_ONE_TIME_teacher_labels_AFTER_true12_SHA.py research/calibri_nra3/s105_ONE_TIME_TaigaC_S99_vs_S102_true12_firstread_eval.py research/calibri_nra3/test_s105_ONE_TIME_TaigaC_frozen_UD_metric_ABI.py
+          python -m unittest -v research.calibri_nra3.test_s103_precommitted_one_shot_TaigaC_firstread research.calibri_nra3.test_s105_ONE_TIME_TaigaC_frozen_UD_metric_ABI
+      - name: One-time prospective comparison stage is PREDECLARED only, cannot run evaluation before S104 original all12 success
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from research.calibri_nra3.s105_ONE_TIME_TaigaC_S99_vs_S102_true12_firstread_eval import EXPECTED,STAGE,BOOTSTRAP_REPLICATES,N_PARAMS
+          from research.calibri_nra3.s105_TaigaC_ONE_TIME_teacher_labels_AFTER_true12_SHA import SOURCE_SHA,GOLD_SHA
+          assert STAGE=='CALIBRI_NRA3_S105_PROSPECTIVE_ONE_SHOT_TAIGA_C_S99_VS_S102_FROZEN_NO_TRAIN'
+          assert EXPECTED=={
+            'S99':'c77a6964ae4e02cb3aac98d69978a25cec2b491a9624cc9668b3b307699bff8a',
+            'S102':'f40dddbc03282a6c45c4f807746275d76a4ba776aa613247e73fbdf7f43329df'}
+          assert SOURCE_SHA=='7c960fd28b14449cfb9fa3611576aa21a88dbd6afccbbde4e2a02d015707bcdb'
+          assert GOLD_SHA=='e039c3c6a8ac2221cea774895c09da5838b3d50e7d71079c9ff3ca0d285827eb'
+          assert N_PARAMS==28887 and BOOTSTRAP_REPLICATES==1000
+          print('S105_FROZEN_FIRSTREAD_PROTOCOL_VERIFIED_NO_UD_GOLD_OR_SOURCE_SCORED_YET')
+          PY
