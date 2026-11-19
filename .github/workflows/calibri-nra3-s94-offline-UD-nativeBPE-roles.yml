@@ -1,0 +1,69 @@
+name: Calibri NRA3 S94 OFFLINE UD native original BPE role grammar TRAIN mapping without runtime parser
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s93-inmodel-ud-relation-train-objective-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s94-offline-conllu-nativeBPE-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  offline_UD_roles_train_only_no_external_model_at_inference:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s94-UD-nativeBPE-role-annotation-adapter-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install only CPU torch; no real original model/UD teacher/held test imports
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Require actual 12-layer original frozen Calibri GT H8 S92B and 8-head supervised loss S93 CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44552168504 44552990383; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          echo NRA3_S94_REAL_12LAYER_IN_CALIBRI_NEURAL_GRAMMAR_TRAINING_TEACHER_ONLY
+      - name: Compile strict CoNLL-U original source native-BPE event-role adapter
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s94_OFFLINE_UD_conllu_to_real_native_BPE_train_only.py research/calibri_nra3/test_s94_offline_UD_original_BPE_grammar_roles.py
+      - name: Verify native BPE exact offsets, passive actor/patient, negation scope, recipients and no UNKNOWN false labels
+        run: |
+          set -euo pipefail
+          python -m unittest -v research.calibri_nra3.test_s93_offline_dependency_loss_native_BPE research.calibri_nra3.test_s94_offline_UD_original_BPE_grammar_roles
+      - name: Assert NRA3 training-only CoNLL-U parser is NOT in neural forward and no activation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from research.calibri_nra3.s94_OFFLINE_UD_conllu_to_real_native_BPE_train_only import STAGE,ROLE_MAP
+          from research.calibri_nra3.s91_neural_multilayer_event_graph import NRA3InCalibriNeuralWeights
+          assert STAGE=='CALIBRI_NRA3_S94_OFFLINE_UD_CONLLU_NATIVE_BPE_EVENT_ROLE_TRAIN_LABELS'
+          assert ROLE_MAP['nsubj']=='actor' and ROLE_MAP['nsubj:pass']=='patient'
+          assert ROLE_MAP['iobj']=='recipient' and ROLE_MAP['obl:agent']=='actor'
+          m=NRA3InCalibriNeuralWeights()
+          b=m.budget()
+          assert b['new_neural_parameters']==22311
+          assert b['NRA2_independent_mini_areas_preserved']==8
+          assert b['grammatical_event_argument_role_heads']==8
+          assert b['all_12_original_calibri_layers']==12
+          assert not b['external_runtime_parser_required']
+          assert not m.is_trained and m.output_gate==0
+          assert not m.candidate_accepted and not m.activation_allowed
+          print('NRA3_S94_OFFLINE_ORIGINAL_BPE_ROLE_ANCHORS_ARE_TRAIN_LABELS_ONLY_NOT_PRODUCTION_QUALITY')
+          PY
