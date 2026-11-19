@@ -74,6 +74,10 @@ class PartialLedgerTests(unittest.TestCase):
             "source_correct": True, "target_correct": True,
             "prompt_sha256": "f" * 64, "family": ["chain"], "gold_yes": True,
         }]
+        # Keep producer aggregates consistent so the malformed family reaches
+        # the intended metadata gate rather than failing an earlier count gate.
+        for key in ("all", "true_yes", "family_chain", "family_chain_yes"):
+            payload["all_and_family_yes_no_accuracy"][key]["soft_correct"] -= 1
         with self.assertRaisesRegex(ValueError, "FAIL CLOSED: sparse family/truth metadata missing"):
             checked(payload)
 
