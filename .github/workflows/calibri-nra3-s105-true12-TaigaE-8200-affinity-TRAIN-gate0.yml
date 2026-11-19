@@ -1,0 +1,180 @@
+name: Calibri NRA3 S105 REAL original12 Taiga TRAIN-e 8200 morph-role affinity neural-only fixed TRAIN research
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s104-true12-TaigaE37087-sourceonly-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri-nra3-s105-TaigaE-8200-TRAIN-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  nra3_s105_REAL12_Taiga_E_only_8200_structural_gradients:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s105-TaigaE37087-structural-neural-train-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    env:
+      PYTHONPATH: .:research
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONHASHSEED: '1051119'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU only exact Torch and only needed neural test dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: S105 synthetic neural TRAIN-only isolation and old 28887 frozen; NO UD GOLD or prospective TRAIN-c
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s105_original12_TaigaE_UD_gold_after_S104_SHA.py research/calibri_nra3/s105_TaigaE_S104_real12_only_8200_affinity_train.py research/calibri_nra3/test_s105_true12_TaigaE_8200_trainonly.py
+          python -m unittest -v research.calibri_nra3.test_s105_true12_TaigaE_8200_trainonly research.calibri_nra3.test_s103_neural_morphosyntactic_affinity_TaigaE
+      - name: Require SUCCESS protected616 REAL S104 ORIGINAL source with original12 37087 in-model child BEFORE downloading any teacher GOLD
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44607338592 44605190903 44603662741; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          success=''
+          for i in $(seq 1 240); do
+            c="$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/44608972425 --jq .conclusion)"
+            if [ "${c}" = success ]; then success=1; break; fi
+            if [ "${c}" = failure ] || [ "${c}" = cancelled ]; then exit 2; fi
+            sleep 10
+          done
+          test "${success}" = 1
+          echo NRA3_S105_GENUINE_ORIGINAL12_S104_AFTER616_AND_ZERO_GATE_CONFIRMED
+      - name: Download physically protected ORIGINAL Calibri GT 12layer Taiga E 37087 source-only from S104
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s104-true43MGT-TaigaTRAINE256-allVERB-sourceonly-all12-37087-neural-after616
+          run-id: 44608972425
+          github-token: ${{ github.token }}
+          path: inputs/s104_true12_orig43mGT_source_ONLY
+      - name: Pin physical original12 GOLD-BLIND source and S104 37087 child SHA BEFORE any offline teacher download
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib,torch
+          from safetensors.torch import load_file
+          d=Path('inputs/s104_true12_orig43mGT_source_ONLY')
+          h=d/'NRA3_S104_TAIGA_TRAINE256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors'
+          w=d/'NRA3_S104_IN_CALIBRI_UNTRAINED_37087_FP16.safetensors'
+          m=json.loads((d/'NRA3_S104_REAL43MGT_TAIGA_TRAINE256_ALLVERBS_SOURCE_PROVENANCE.json').read_text())
+          assert m['stage']=='CALIBRI_NRA3_S104_REAL43MGT_ALL12_TAIGA_TRAINE256_ALLVERBS_SOURCE_ONLY_AFTER616'
+          assert m['S103_TAIGA_TRAIN_E_PINNED_SOURCE256_SHA256']=='5fa1c234cf2bd53aee62eb8c4faba9a8ec116c0e70f7b8c5e2b13a11f4d574fc'
+          assert m['S103_TAIGA_TRAIN_E_original_git_blob']=='8df5a8b13b934576aa50b7fb55f8a16cb0151003'
+          assert m['ALL12_CPU_SAFETENSORS_SHA256']==hashlib.sha256(h.read_bytes()).hexdigest()
+          assert m['IN_CALIBRI_37087_MORPH_FP16_WEIGHTS_SHA256']==hashlib.sha256(w.read_bytes()).hexdigest()
+          assert m['old_616_J7_physically_replayed_BEFORE_NRA3_hooks']
+          assert m['all_original_43M_GT_CB59_params_sha_pre_and_post_identical']
+          assert m['original_S5_H8_port_exactly_matches_all12_H8_for_all_accepted']
+          assert m['NRA3_morph_neural_37087_weights_REGISTERED_INSIDE_actual_Calibri_model']
+          assert m['source_ONLY_no_S103_ALL_VERBS_UD_morph_multiedge_gold_loaded_in_original_CPU']
+          assert m['S79_S86_S96_S99_S102_spent_diagnostics_NEVER_reused']
+          assert m['n_pinned_source_only_rows']==256
+          assert m['new_NRA3_train_steps']==0 and m['output_gate']==0
+          assert not m['candidate_accepted'] and not m['activation_allowed']
+          t=load_file(str(h));weights=load_file(str(w))
+          original=t['original_Calibri43M_GT_ALL12_native_H320_FP16_READONLY']
+          assert original.shape[:2]==(m['n_accepted_source_only_BPE_rows'],12)
+          assert original.shape[-1]==320 and original.dtype==torch.float16
+          assert sum(q.numel() for q in weights.values())==37087
+          assert all(q.startswith('model.nra3_neural_weights.') for q in weights)
+          assert any('role_morph_affinity_gate' in q for q in weights)
+          print('NRA3_S105_REAL_SOURCE_SHA_LOCKED_BEFORE_UD_GOLD', m['ALL12_CPU_SAFETENSORS_SHA256'],flush=True)
+          PY
+      - name: Download already frozen S102 pretrained 28887 neural weights, NO old internal diagnostic used for tuning
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s102-original43MGT-TaigaD-allVERB-multipositive-28887-inmodel-neural-TRAIN-SHADOW
+          run-id: 44605190903
+          github-token: ${{ github.token }}
+          path: inputs/S102_prior_neural_child_ONLY
+      - name: Require exact original SHA trained S102 child and DELETE older spent TRAIN-d labels/diagnostics before training
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          p=Path('inputs/S102_prior_neural_child_ONLY/NRA3_S102_TAIGA_D_IN_CALIBRI_ALLVERB_ROLE_28887_TRAINED_FP16.safetensors')
+          assert hashlib.sha256(p.read_bytes()).hexdigest()=='f40dddbc03282a6c45c4f807746275d76a4ba776aa613247e73fbdf7f43329df'
+          print('NRA3_S105_PRETRAINED_S102_28887_SHA_LOCKED_ONLY')
+          PY
+          find inputs/S102_prior_neural_child_ONLY -type f ! -name 'NRA3_S102_TAIGA_D_IN_CALIBRI_ALLVERB_ROLE_28887_TRAINED_FP16.safetensors' -delete
+          test "$(find inputs/S102_prior_neural_child_ONLY -type f | wc -l)" -eq 1
+      - name: ONLY NOW download precommitted official CC BY-SA Taiga TRAIN-e separate offline GOLD for S105 train
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s103-original-licensed-UD-TaigaTRAINE256-MORPHREL-allVERB-source-GOLD-precommitted-TRAIN-only
+          run-id: 44607338592
+          github-token: ${{ github.token }}
+          path: inputs/S103_separate_Taiga_E_offline_GOLD_AFTER_S104_sourceSHA
+      - name: Train ONLY 8200 new morphology-conditioned neural role parameters, frozen prior 28887 in Calibri shadow
+        run: |
+          set -euo pipefail
+          python -m research.calibri_nra3.s105_TaigaE_S104_real12_only_8200_affinity_train \
+            --source12 inputs/s104_true12_orig43mGT_source_ONLY/NRA3_S104_TAIGA_TRAINE256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors \
+            --source-report inputs/s104_true12_orig43mGT_source_ONLY/NRA3_S104_REAL43MGT_TAIGA_TRAINE256_ALLVERBS_SOURCE_PROVENANCE.json \
+            --s104-child inputs/s104_true12_orig43mGT_source_ONLY/NRA3_S104_IN_CALIBRI_UNTRAINED_37087_FP16.safetensors \
+            --s102-child inputs/S102_prior_neural_child_ONLY/NRA3_S102_TAIGA_D_IN_CALIBRI_ALLVERB_ROLE_28887_TRAINED_FP16.safetensors \
+            --s103-gold-folder inputs/S103_separate_Taiga_E_offline_GOLD_AFTER_S104_sourceSHA \
+            --out results/nra3_s105_true12_Taiga_E_8200_AFFINITY_SHADOW
+      - name: Publish final S105 same-corpus INTERNAL diagnostics with no acceptance threshold, preserve gate0
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib,math
+          from safetensors.torch import load_file
+          p=Path('results/nra3_s105_true12_Taiga_E_8200_AFFINITY_SHADOW')
+          w=p/'NRA3_S105_TAIGA_E_STRUCTURAL_AFFINITY_37087_IN_CALIBRI_FP16.safetensors'
+          x=json.loads((p/'NRA3_S105_TAIGA_E_STRUCTURAL_TRAIN_SHADOW_DIAGNOSTICS.json').read_text())
+          assert x['stage']=='CALIBRI_NRA3_S105_TAIGA_E_REAL12_8200_AFFINITY_ONLY_INMODEL_NEURAL_TRAIN_GATE0'
+          assert x['S105_trained_37087_in_calibri_child_SHA']==hashlib.sha256(w.read_bytes()).hexdigest()
+          assert x['S102_prior_trained_28887_child_SHA']=='f40dddbc03282a6c45c4f807746275d76a4ba776aa613247e73fbdf7f43329df'
+          assert x['only_new_8200_neural_affinity_parameters_trained']
+          assert x['all_prior_28887_neural_weights_remained_FP16_exact']
+          assert x['original_616_J7_replayed_before_S104']
+          assert x['S103_offline_gold_opened_ONLY_after_physical_S104_source_SHA_verified']
+          assert x['prospective_Taiga_TRAIN_c_RESERVED_UNOPENED']
+          assert x['fixed_train48_internal16_per64_no_dev_tuning']
+          assert x['CC_BY_SA_4_attribution_and_commercial_legal_review_required']
+          assert x['not_all_in_bpp_le07_CPU_ge90_CB59_certified']
+          assert x['not_new_active_616J7_or_online_causal_generation_validation']
+          assert x['train_parameters_locked_before_all_dev_scoring']['epochs']==24
+          assert x['output_gate']==0 and not x['candidate_accepted'] and not x['activation_allowed']
+          assert sum(p.numel() for p in load_file(str(w)).values())==37087
+          for key in ('S102_pretrained_frozen_on_NEW_Taiga_E_same_corpus_internal_diag',
+                      'S105_new_8200_Taiga_E_same_corpus_internal_diag',
+                      'S105_Taiga_E_TRAIN_only'):
+            z=x[key]
+            for d in z['morphology_original_native_BPE'].values():
+              if d['support']:
+                assert 0<=d['accuracy']<=1 and math.isfinite(d['accuracy'])
+          print('NRA3_S105_ONLY_NEW_8200_STRUCTURAL_ORIGINAL12_RESEARCH',
+                'BEFORE=',x['S102_pretrained_frozen_on_NEW_Taiga_E_same_corpus_internal_diag'],
+                'AFTER=',x['S105_new_8200_Taiga_E_same_corpus_internal_diag'],
+                'TRAIN=',x['S105_Taiga_E_TRAIN_only'],
+                'GATE_0_NO_ACCEPTANCE',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s105-original43MGT-TaigaE-8200affinity-only-37087-inmodel-neural-TRAIN-SHADOW
+          path: results/nra3_s105_true12_Taiga_E_8200_AFFINITY_SHADOW/
+          retention-days: 30
+          if-no-files-found: error
