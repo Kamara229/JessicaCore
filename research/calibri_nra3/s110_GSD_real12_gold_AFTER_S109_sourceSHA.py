@@ -1,14 +1,14 @@
-"""NRA3 S110: STRICT original Calibri BPE source-first Taiga TRAIN-GSD all-VERB UD target mapping.
+"""NRA3 S110: STRICT original Calibri BPE source-first Russian GSD TRAIN all-VERB UD target mapping.
 
 S109 must physically replay original 616 J7 and SHA-lock genuine
 Calibri CB59+GT ALL12 native BPE source first. ONLY THEN open the
-separate S108 original Taiga TRAIN-GSD UD multi-event/multi-argument
+separate S108 original Russian GSD TRAIN UD multi-event/multi-argument
 gold and morphology. No gold passed to actual frozen original model
 or in-Calibri NRA3 forward.
 
-S108 selected 256 *NEW* CC BY-SA 4.0 UD-Taiga TRAIN-GSD sources;
+S108 selected 256 *NEW* CC BY-SA 4.0 UD-Russian GSD TRAIN sources;
 TRAIN-a internal S96, TRAIN-b internal S99, S79/S86 firstreads and
-entire TRAIN-c reserved prospective corpus may NEVER enter here.
+Taiga TRAIN-c prospective first-read is ALREADY SPENT and must NEVER enter here.
 Fixed source index 0..47/64 TRAIN, 48..63/64 internal developer.
 No developing on these held samples in the same stage.
 
@@ -223,7 +223,7 @@ def load_source_VERIFY_sha_THEN_OPEN_gold(
             and bool(report["all_original_43M_GT_CB59_params_sha_pre_and_post_identical"])
             and report["source_ONLY_no_S108_GSD_UD_GOLD_loaded_in_original_CPU"]
             and report["NRA3_structural_neural_53743_weights_REGISTERED_INSIDE_actual_Calibri_model"]
-            and report["S79_S86_S96_S99_S102_S110_spent_diagnostics_NEVER_reused"]
+            and report["S79_S86_S96_S99_S102_S105_spent_diagnostics_NEVER_reused"]
             and report["output_gate"]==0
             and report["new_NRA3_train_steps"]==0
             and not report["candidate_accepted"],
