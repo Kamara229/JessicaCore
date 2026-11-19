@@ -36,7 +36,7 @@ def make_synthetic_256(n=4):
             "row_id":s["row_id"],
             "predicate_UD_word_zero_index_TRAIN_ONLY":1,
             "role_argument_UD_word_zero_indices_TRAIN_ONLY":roles,
-            "word_surface_start_end_char_offsets_TRAIN_ONLY":word_spans,
+            "word_surface_start_end_char_offsets_TRAIN_ONLY":[list(z) for z in word_spans],
             "UD_voice_passive_TRAIN_ONLY":64<=i<128,
             "UD_negation_particle_link_present_TRAIN_ONLY":128<=i<192,
             "not_yet_original_native_BPE_coordinates":True,
