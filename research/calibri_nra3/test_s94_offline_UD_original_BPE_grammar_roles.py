@@ -106,7 +106,7 @@ class TestS94OfflineUDNotRuntime(unittest.TestCase):
 
     def test_strict_native_BPE_UD_word_mismatch_rejected(self):
         docs,align,t,v=prepare()
-        bad=TRAIN_CASES[0].replace("передал","отослал")
+        bad=TRAIN_CASES[0].replace("\tпередал\t","\tотослал\t")
         with self.assertRaisesRegex(ValueError,"reconstruct"):
             read_one_strict_conllu(bad)
         doc=docs[0]
