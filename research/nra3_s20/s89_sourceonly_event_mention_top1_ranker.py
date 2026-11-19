@@ -144,8 +144,9 @@ class S89MainEventMentionTop1(nn.Module):
                         centered.abs().amax(1,keepdim=True).clamp_min(1.)).unsqueeze(-1)
         rank=(torch.arange(k,device=h.device,dtype=h.dtype)
               .view(1,k,1).expand(b,k,1)/max(k-1,1))
-        relative_word=(ci.float()/
-                       word_valid.sum(1,keepdim=True).clamp_min(1)).unsqueeze(-1)
+        # A later unrelated appended sentence must NOT change an earlier
+        # candidate's token-position feature (avoid full-length ratio).
+        relative_word=(ci.float()/(ci.float()+8.)).unsqueeze(-1)
         features=torch.cat((
             self.event_proj(event),self.left_proj(left),self.right_proj(right),
             self.field_proj(fields),relative_score,rank,relative_word
