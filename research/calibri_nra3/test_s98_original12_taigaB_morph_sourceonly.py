@@ -54,7 +54,7 @@ class TestS98SourceOnlyTrueCalibricModel(unittest.TestCase):
             "SOURCE_PARAMS==36_380_480",
             "PAID_OPERATORS==85",
             "all_original_43M_GT_CB59_params_sha_pre_and_post_identical",
-            "S97_TAIGA_B_PINNED",
+            "S97_TAIGA_TRAIN_B_PINNED_SOURCE256_SHA256",
             "3b0f6947bd0d6ac022d91d5fb17269450a876bb3",
             "no_commercial_or_production_use_before_legal_review",
             "source_only_no_Taiga_TRAIN_B_UD_morph_or_role_GOLD_loaded_during_CPU",
