@@ -1,0 +1,54 @@
+name: NRA2 S89 source-only independent 5725 MENTION top1 selector shadow ABI
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s88-frozen-S85-TRUE43m-S86-NEW48-firstread-20261119
+permissions:
+  contents: read
+concurrency:
+  group: nra2-s89-sourceonly-selector-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  untrained_source_only_selection_ABI_contracts:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s89-mention-top1-predicate-selector-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Only CPU torch; no original43M weights/model/old firstread sets
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Architectural source-only ranking and original model isolation contracts
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/nra3_s20/s89_sourceonly_event_mention_top1_ranker.py research/nra3_s20/test_s89_sourceonly_event_top1_architecture.py
+          python -m unittest -v research.nra3_s20.test_s89_sourceonly_event_top1_architecture
+      - name: Exactly 5725 FP16 new params and no production activation or trained quality claim
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from research.nra3_s20.s89_sourceonly_event_mention_top1_ranker import S89MainEventMentionTop1,STAGE,PAID
+          m=S89MainEventMentionTop1()
+          b=m.budget()
+          assert STAGE=='NRA2_S89_SOURCE_ONLY_MENTION_TOP1_EVENT_SELECTOR_SHADOW'
+          assert PAID==5725 and b['new_trainable_parameters']==5725
+          assert b['new_FP16_weight_bytes']==11450
+          assert b['same_clause_source_relative_features']
+          assert b['original_S59_parent_and_asserted_S65_unchanged']
+          assert b['not_event_factuality_or_recipient_detection']
+          assert b['no_real_43m_J7_candidate_test_or_CPU_bpp_certificate']
+          assert b['output_gate']==0 and not b['candidate_accepted'] and not b['activation_allowed']
+          assert not m.is_trained and not m.online_causal_certified
+          print('NRA2_S89_SOURCE_ONLY_TOP1_SELECTOR_CONTRACTS_NO_ORIGINAL_MODEL_OR_S86_TEST',PAID,'GATE0',flush=True)
+          PY
