@@ -119,10 +119,24 @@ def main():
     integrated_cpu = IntegratedGreenTunnel(layers=TUNNEL_LAYERS,
                                             rank=TUNNEL_RANK).eval()
     integrated_cpu.install(cpu)
-    unchanged = {i: _original_cpu(cpu, cpu_src, weights, tok, r["question"], ptr)
-                 for i, r in enumerate(old_rows+new_rows)}
+    # Count actual adapter forward invocations, not just identical outputs from
+    # an accidentally bypassed inference path. Every target layer must run.
+    zero_forward_calls = {layer: 0 for layer in TUNNEL_LAYERS}
+    zero_handles = []
+    for layer in TUNNEL_LAYERS:
+        def count_zero(_module, _inputs, _output, *, layer_id=layer):
+            zero_forward_calls[layer_id] += 1
+        zero_handles.append(integrated_cpu.blocks[str(layer)].register_forward_hook(count_zero))
+    try:
+        unchanged = {i: _original_cpu(cpu, cpu_src, weights, tok, r["question"], ptr)
+                     for i, r in enumerate(old_rows+new_rows)}
+    finally:
+        for handle in zero_handles:
+            handle.remove()
     if before != unchanged:
         raise AssertionError("Zero-initialized internal tunnel modified old S82 outputs")
+    if any(count == 0 for count in zero_forward_calls.values()):
+        raise AssertionError(f"Integrated Green Tunnel was bypassed: {zero_forward_calls}")
     integrated_cpu.uninstall()
     del cpu, cpu_src
 
@@ -276,6 +290,7 @@ def main():
         "trainable_paid_core_operators":list(paid_core),
         "trainable_internal_tunnel_parameters":inner.unique_parameter_count(),
         "original_8_train_outputs_identical_at_zero_initialization":True,
+        "zero_init_integrated_forward_calls_by_layer":zero_forward_calls,
         "only_previously_authorized_TRAIN":True,
         "all_previous_inspected_QA_permanently_embargoed":True,
         "never_promote_unchecked_candidate":True,
