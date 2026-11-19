@@ -40,6 +40,10 @@ from research.nra3_s20.s70_true43m_native_s95_source_prefix_counterfactual impor
     audited_source_row as s70_native_s95_row,
     audit_rows as s70_native_s95_audit,
 )
+from research.nra3_s20.s75_original43m_gt_newtrain120_native_h8 import (
+    capture_S74_new_train120_original43m_cpu_source_only as s75_capture,
+    physical_source_only_commit as s75_save_after_616J7,
+)
 from research.nra3_s20.s49_real43m_gt_quote_sidecar_zero_gate import (
     Frozen43MGreenTunnelQuotePort, frozen_native_manifest_digest,
 )
@@ -97,6 +101,7 @@ def main():
     s67_physical_rows=[]  # only previously spent S66 source, NO human GOLD
     s69_physical_rows=[]  # 3 original nontrainable phase toggles × same 8 rows
     s70_native_s95_rows=[]  # source-only S95 prefix native BPE A/B
+    s75_newtrain120_capture=[]  # unlabelled new S74 TRAIN source, no GOLD
     parity_collector=FrozenLayer8ReadPort()
 
     def load_original_with_read_only_port(*args,**kwargs):
@@ -124,6 +129,11 @@ def main():
         real_tokenizer.append(tok)
         model,sources,*_=cpu
         s160.apply_profile(sources,cpu[6],"S93",bank,cpu[7],cpu[8])
+        # S75 new TRAIN ONLY: original 616J7 outputs must have physically
+        # been captured by the original_probe above. No target module
+        # can enter this code or the frozen Calibri H8 forward.
+        s75_newtrain120_capture.append(s75_capture(
+            model,sources,tok,bridge,full,expansion))
         for row_idx,q in enumerate(texts):
             # Do not supply any graph, gold, predicate anchors or annotations.
             ids=list(s160.prompt_tokens(tok,q))
@@ -272,6 +282,12 @@ def main():
             or output_digest(novel)!=source_cert["train32_generation_digest"]
             or fp16_src!=s194["checkpoint_fingerprint_sha256"]):
         raise AssertionError("S50 original 43M/GT CPU protected 616 J7 checkpoint drift")
+    if len(s75_newtrain120_capture)!=1:
+        raise ValueError("S75 one and only one new TRAIN120 original43M source capture")
+    # Executed AFTER the original S194 protected 616 J7 SHA/digest
+    # posthoc verification above. Thus an altered J7 cannot ever yield
+    # a saved physical S75 research artifact.
+    s75_newtrain_tensors,s75_newtrain_report=s75_newtrain120_capture[0]
     token_batch=collector.frozen_batch(texts)
     tok=real_tokenizer[0]
     alignments=[]
@@ -292,6 +308,18 @@ def main():
     # Only after original J7 and native CPU prefills: store ACTUAL hidden
     # features, lengths and subtoken offsets; NEVER export gold labels.
     out.mkdir(parents=True,exist_ok=True)
+    s75_source_file=s75_save_after_616J7(
+        out,s75_newtrain_tensors,s75_newtrain_report)
+    print("S75_ORIGINAL43M_GT_NEWTRAIN120_GOLDBLIND_NATIVE_H8",
+          json.dumps({
+              "n_source_rows":s75_newtrain_report["n_new_S74_TRAIN_source_rows"],
+              "n_native_tokens":s75_newtrain_report["n_genuine_original_native_tokens"],
+              "max_words":s75_newtrain_report["max_raw_source_words"],
+              "unsafe_words":s75_newtrain_report["n_causally_unsafe_shared_BPE_words"],
+              "physical_sha":sha_file(s75_source_file),
+              "J7_protected":True,
+              "output_gate":0,
+          },sort_keys=True),flush=True)
     feature_file=out/"NRA3_S66_GENUINE43M_GT_EVENTFIRST32_NATIVE_320_READONLY.safetensors"
     save_file(token_batch,str(feature_file))
     saved=load_file(str(feature_file),device="cpu")
