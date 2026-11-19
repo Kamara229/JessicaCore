@@ -1,0 +1,55 @@
+name: NRA2 S72 8 situation micro-areas frozen-parent shadow-only unit contracts
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s70-native-s95-prefix-future-vector-20261119
+permissions:
+  contents: read
+concurrency:
+  group: nra2-s72-situation-shadow-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  source_only_microarea_architecture:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s72-situation-microareas-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install only CPU PyTorch - never load original model or held gold
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install 'torch==2.5.1+cpu' --index-url https://download.pytorch.org/whl/cpu
+      - name: Test old logits zero-delta parity, independent sparse routing and OLD TRAIN-only auxiliary supervision
+        run: |
+          set -euo pipefail
+          python -m unittest -v research.nra3_s20.test_s72_nra2_situation_microareas
+      - name: Verify new trainable research microcells count and unchanged old J7 / LIVE gate
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from research.nra3_s20.s72_nra2_situation_microareas import (
+              SituationMicroAreas,AREAS,MAX_ACTIVE)
+          m=SituationMicroAreas()
+          r=m.parameter_budget()
+          assert len(AREAS)==8 and MAX_ACTIVE==4
+          assert r['new_architecture_parameters'] < 15000
+          assert not r['original43M_or_GT_weights_touched']
+          assert r['physical_all_in_bpp_and_CPU_speed_NOT_certified']
+          assert r['output_gate']==0 and not r['candidate_accepted']
+          assert m.activation_allowed is False and m.online_causal_certified is False
+          assert all(x.event.weight.abs().sum().item()==0 and
+                     x.pair.weight.abs().sum().item()==0 for x in m.areas)
+          print("NRA2_S72_8_COMPOSABLE_MICROAREAS_SHADOW_ONLY",
+                r["new_architecture_parameters"],r["new_FP16_weight_bytes_if_fully_serialized"],
+                "NO_TRAIN_NO_MODEL_NO_HELD_GOLD_NO_ACTIVATION",flush=True)
+          PY
