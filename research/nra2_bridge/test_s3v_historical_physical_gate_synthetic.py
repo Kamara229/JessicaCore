@@ -140,5 +140,33 @@ class HistoricalPhysicalGateTests(unittest.TestCase):
             verify_physical_gate(*fixture(raw))
 
 
+    def test_duplicate_zip_member_names_rejected(self):
+        import warnings
+        raw, manifest_raw, _ = fixture()
+        buf = io.BytesIO()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
+                archive.writestr("result.json", raw)
+                archive.writestr("result.json", raw)
+        zipped = buf.getvalue()
+        manifest = json.loads(manifest_raw)
+        manifest["zip_sha256"] = sha(zipped)
+        with self.assertRaisesRegex(ValueError, "duplicate or excessive ZIP members"):
+            verify_physical_gate(raw, json.dumps(manifest).encode(), zipped)
+
+    def test_oversized_auxiliary_member_rejected(self):
+        raw, manifest_raw, _ = fixture()
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("result.json", raw)
+            archive.writestr("padding.bin", b"x" * (16 * 1024 * 1024 + 1))
+        zipped = buf.getvalue()
+        manifest = json.loads(manifest_raw)
+        manifest["zip_sha256"] = sha(zipped)
+        with self.assertRaisesRegex(ValueError, "excessive ZIP uncompressed size"):
+            verify_physical_gate(raw, json.dumps(manifest).encode(), zipped)
+
+
 if __name__ == "__main__":
     unittest.main()
