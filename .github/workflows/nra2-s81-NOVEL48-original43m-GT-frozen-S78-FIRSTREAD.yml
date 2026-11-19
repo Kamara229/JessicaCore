@@ -1,0 +1,197 @@
+name: NRA2 S81 ONE-SHOT frozen S78 FIRST READ of 48 preregistered NOVEL syntax cases genuine43M GT
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s80-novel48-real43m-H8-firstread-capture-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s81-NOVEL48-firstread-frozenS78-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  one_time_firstread_frozenS78_newsyntax48_NOtrain:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s81-NOVEL48-frozen-S78-one-shot-generalization-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      PYTHONHASHSEED: '761119'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CPU tensor-only dependencies (NO Calibri original model reload)
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Test sealed S79 48 firstread source+gold and S78 B120 padding invariant BEFORE physically scoring
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/nra3_s20/s76_s74_newtrain120_event_relative_gold_TRAIN_LOSS_ONLY.py research/nra3_s20/s77_real43m_gt_mentionhood_vs_asserted_candidate_audit.py research/nra3_s20/s78_train_true43m_quote_mention_8_specialists.py research/nra3_s20/s81_frozen_S78_firstread_S79_novel48_once.py
+          python -m unittest -v research.nra3_s20.test_s72_nra2_situation_microareas research.nra3_s20.test_s74_newtrain120_compositional_contrastive_contracts research.nra3_s20.test_s76_newtrain120_event_router_source_gold_contracts research.nra3_s20.test_s77_mentionhood_sourceonly_quoted_event_mask research.nra3_s20.test_s78_true43m_quote_mention_specialists research.nra3_s20.test_s79_novel48_firstread_freeze_contracts research.nra3_s20.test_s81_one_time_frozen_S78_NOVEL48_firstread_contracts
+      - name: Verify S79 PRECOMMIT 48 labels/source + S80 original J7/H8 and S78 7496 weights success BEFORE one-shot first-read
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 44196720655 44312765248 44357767214 44366319006 44371962358 44377346422 44389438490 44466537576 44470550326 44507334853 44508020335 44468308611 44469736256; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          test "$(git hash-object research/nra3_s20/s74_newtrain120_source_ONLY.py)" = c39bd34cbc21319c4c3433c3927f01877af1c4ee
+          echo S76_ORIGINAL43M_GT_S75_616J7_AND_S65_FROZEN_REAL_SOURCE_PROVENANCE
+      - name: S80 real original43M GT protected616 J7 NOVEL48 genuine source-only first H8 (S78 not yet read)
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-s80-real43M-GT-novel48-sourceonly-firstread-after-protected616J7
+          run-id: 44508020335
+          github-token: ${{ github.token }}
+          path: inputs/s80
+      - name: Frozen S78 genuine43M GT 7496 FP16 eight DIFFERENT previously TRAINED miniheads immutable SHA
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-s78-real43M-GT-S74-TRAIN90-8-independent-mention-specialists-shadow-noEVAL
+          run-id: 44470550326
+          github-token: ${{ github.token }}
+          path: inputs/s78
+      - name: Original S26 paid 12384, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s26-REAL43M-GT-TRAIN256-40fold-12384FP16-event-inversion-ablation-noEVAL
+          run-id: 44196720655
+          github-token: ${{ github.token }}
+          path: inputs/s26
+      - name: Original S57 paid 231, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s57-original43M-GT-96spent-only-eventfirst231-FP16-before-HELD24
+          run-id: 44312765248
+          github-token: ${{ github.token }}
+          path: inputs/s57
+      - name: Original S59 paid 2046, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s59-REAL43M-GT-OLD152-NATIVE320-PAID2046-FP16-frozen-before-HELD
+          run-id: 44357767214
+          github-token: ${{ github.token }}
+          path: inputs/s59
+      - name: Original S61 paid 2752, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s61-GENUINE43M-GT-SPENT216-PAIR-NULL-POLAR2752FP16-frozen
+          run-id: 44366319006
+          github-token: ${{ github.token }}
+          path: inputs/s61
+      - name: Original S62 paid 2166, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s62-real43M-GT-SPENT248-event-target2166-FP16-frozen
+          run-id: 44371962358
+          github-token: ${{ github.token }}
+          path: inputs/s62
+      - name: Original S63 paid 471, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s63-REAL43M-GT-SPENT280-QUOTE471-frozen-before-NEW32
+          run-id: 44377346422
+          github-token: ${{ github.token }}
+          path: inputs/s63
+      - name: Original S65 paid 259, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s65-REAL43M-GT-OLD344-FACTUALITY3WAY259-FP16-before-NEW32
+          run-id: 44389438490
+          github-token: ${{ github.token }}
+          path: inputs/s65
+      - name: Strictly verify immutable S79 source/labels & S81 frozen comparator Git blobs BEFORE first-run score
+        run: |
+          set -euo pipefail
+          test "$(git hash-object research/nra3_s20/s79_NEW_NOVEL48_SOURCE_ONLY_locked_before_S78_firstread.py)" = d3c0b7f3a5e0ef01bc1a76b81231b9ec4dea345a
+          test "$(git hash-object research/nra3_s20/s79_NEW_NOVEL48_LABELS_POSTHOC_ONLY_never_in_forward.py)" = b5405138af9cc6f9607b966a2ac21b86d7014b03
+          test "$(git hash-object research/nra3_s20/s81_frozen_S78_firstread_S79_novel48_once.py)" = e13c496958dca03be9d1cd4275e189305d147730
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          p=Path('inputs/s78/NRA2_S78_TRUE43M_GT_MENTION8_SITUATION_SPECIALISTS_7496_FP16.safetensors')
+          assert hashlib.sha256(p.read_bytes()).hexdigest()=='7e642eb3e5a9eecef75c07d7ff16bc6065760f1d1fa93f0abaebe254a5ea5749'
+          print('S81_FROZEN_S78_7496FP16_WEIGHTS_AND_S79_NEW48_SOURCE_GOLD_SHA_AND_SCORER_LOCKED_BEFORE_FIRSTREAD')
+          PY
+      - name: S81 ONE-TIME genuine43M GT sourceONLY original ranks + immutable pretrained S78 FIRST READ logits persisted BEFORE constructed label open
+        run: |
+          set -euo pipefail
+          python -m research.nra3_s20.s81_frozen_S78_firstread_S79_novel48_once \
+            --s80 inputs/s80/NRA2_S80_GENUINE43M_GT_NOVEL48_WORD339_NO_GOLD.safetensors \
+            --s80-report inputs/s80/NRA2_S80_GENUINE43M_GT_NOVEL48_GOLD_BLIND_SOURCE_PROVENANCE.json \
+            --s78 inputs/s78/NRA2_S78_TRUE43M_GT_MENTION8_SITUATION_SPECIALISTS_7496_FP16.safetensors \
+            --s26 inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26 \
+            --s57-paid inputs/s57/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors \
+            --s59-paid inputs/s59/NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors \
+            --s61-paid inputs/s61/NRA3_S61_REAL43M_GT_SPENT216_PAID2752_PAIR_NONE.safetensors \
+            --s62-paid inputs/s62/NRA3_S62_REAL43M_GT_SPENT248_JOINT_EVENT_TARGET2166_FP16.safetensors \
+            --s63-paid inputs/s63/NRA3_S63_REAL43M_GT_SPENT280_QUOTE_OUTER_BPE471_FP16.safetensors \
+            --s65 inputs/s65/NRA3_S65_REAL43M_GT_SPENT344_REPORTED3WAY259_FP16.safetensors \
+            --s65-manifest inputs/s65/NRA3_S65_REAL43M_GT_SPENT344_FACTUALITY259_MANIFEST.json \
+            --out results/nra2_s81_NOVEL48_frozenS78_firstread
+      - name: Verify one-time quality reported EVEN WHEN IT IS BAD; no retuning, no acceptance
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json,math
+          from pathlib import Path
+          from safetensors.torch import load_file
+          root=Path('results/nra2_s81_NOVEL48_frozenS78_firstread')
+          pre=root/'NRA2_S81_PRE_GOLD_FROZEN_S78_FIRST_READ_LOGITS_AND_SOURCE_RANKS.safetensors'
+          final=root/'NRA2_S81_FROZEN_S78_NOVEL48_FIRSTREAD_POSTHOC_REPORT.json'
+          z=load_file(str(pre));r=json.loads(final.read_text())
+          assert r['stage']=='NRA2_S81_FIRST_READ_FROZEN_S78_TRUE43M_GT_NOVEL48_SYNTAX_SHIFT_STRESS'
+          assert r['PREREGISTRATION_S79_original_source_AND_separate_gold_locked_before_S78_read']
+          assert r['S79_precommit_run_44507334853_SUCCESS']
+          assert r['S80_first_real_original43M_GT_48_sourceonly_H8_after_616_J7']
+          assert r['sourceONLY_pred_logits_and_original_top8_SAVED_BEFORE_targets_opened']
+          assert r['same_unmodified_S78_7496_FP16_weights_sha256']=='7e642eb3e5a9eecef75c07d7ff16bc6065760f1d1fa93f0abaebe254a5ea5749'
+          assert r['original_43M_GT_S26_S57_S59_S61_S62_S63_S65_unchanged']
+          assert r['synthetic_author_targets_NOT_independently_human_adjudicated']
+          assert r['NO_S78_parameter_update_NO_threshold_change_NO_reselection']
+          assert r['new_syntax_NOVEL48_not_seen_in_S78_TRAIN90_or_synthetic_diag30']
+          assert r['n_preregistered_novel_syntax_cases']==48
+          assert 0<=r['n_sourceonly_mention_gold_anchor_in_top8']<=48
+          assert 0<=r['n_original_asserted_S65_anchor_in_top8']<=48
+          assert 0<=r['n_sourceonly_top1_mention_anchor_correct']<=48
+          assert 0<=r['n_mention_covered_AND_all8factors_exact']<=48
+          assert r['source_only_autoMENTION_top8_NOT_factual_assertion']
+          assert r['only_constructed_author_labels_NOT_independent_human_test']
+          assert r['no_autonomous_factual_transfer_or_recipient_quality_claim']
+          assert r['unanchored_mention_FALSE_POSITIVE_rate_NOT_measured']
+          assert r['original_616_J7_NEW_ACTIVE_candidate_NOT_tested']
+          assert r['all_in_bpp_le07_CPU_ge90pct_NOT_certified']
+          assert r['streaming_causal_safety_NOT_certified']
+          assert r['output_gate']==0 and not r['candidate_accepted'] and not r['activation_allowed']
+          assert hashlib.sha256(pre.read_bytes()).hexdigest()==r['S78_frozen_raw_unlabeled_firstread_predictions_SHA256']
+          assert z['original_S78_frozen_FIRSTREAD_factor8_logits'].shape==(48,8,8)
+          assert len(r['per_miniarea_firstread_teacher_anchored'])==8
+          assert len(r['per_novel_syntax_group_posthoc'])==8
+          assert math.isfinite(r['micro_and_exact_ONLY_teacher_anchored_on_sourceonly_top8_covered']['micro_f1'])
+          print('S81_FROZEN_S78_FIRST_READ_NEW_SYNTAX48_RESULTS_NO_TUNING',
+                {k:r[k] for k in (
+                    'n_sourceonly_mention_gold_anchor_in_top8',
+                    'n_sourceonly_top1_mention_anchor_correct',
+                    'n_mention_covered_AND_all8factors_exact',
+                    'n_sourceonly_top1_AND_8factors_correct')},
+                'microF1',r['micro_and_exact_ONLY_teacher_anchored_on_sourceonly_top8_covered']['micro_f1'],
+                'GATE0',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra2-s81-ONE-SHOT-FROZEN-S78-GT-S79-NOVEL48-FIRSTREAD-no-training-noEVAL
+          path: results/nra2_s81_NOVEL48_frozenS78_firstread/
+          retention-days: 30
+          if-no-files-found: error
