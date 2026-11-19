@@ -21,7 +21,7 @@ class TestS101SourceOnlyTrueCalibricModel(unittest.TestCase):
         self.assertEqual(SOURCE_SHA,
             "bc12818689e147f9fd167838bd22e220fd9a28b46bf51ccd750fa61ed4ddafc3")
         self.assertEqual(STAGE,
-            "CALIBRI_NRA3_S101_REAL43MGT_ALL12_TAIGA_TRAINB256_MORPH_SOURCE_ONLY_AFTER616")
+            "CALIBRI_NRA3_S101_REAL43MGT_ALL12_TAIGA_TRAIND256_ALLVERBS_SOURCE_ONLY_AFTER616")
         self.assertEqual(TENSOR,
             "NRA3_S101_TAIGA_TRAIND256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors")
         self.assertEqual(WEIGHTS,
