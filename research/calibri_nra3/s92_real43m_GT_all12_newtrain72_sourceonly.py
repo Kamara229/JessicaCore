@@ -24,6 +24,7 @@ import torch
 from safetensors.torch import load_file,save_file
 
 from calibri2.s160 import real_parallel_slots_j7 as s160
+from calibri2.s8.broad_replay import SOURCE_PARAMS,PAID_OPERATORS,MODEL_SPEC
 from v176.operators import clear
 from research.calibri_nra3.s91_neural_multilayer_event_graph import (
     NRA3InCalibriNeuralWeights,STAGE as S91_STAGE,N_LAYERS,HIDDEN,
@@ -69,14 +70,26 @@ def old_calibri_parameter_sha(model):
         h.update(p.detach().contiguous().cpu().numpy().tobytes())
         old+=p.numel()
         count+=1
-    # The published ~43M Calibri+GreenTunnel experiment spans separately
-    # loaded banks, bridges and checkpoints; the HF core nn.Module alone
-    # need not contain 40M params. Compare exact full OLD core digest
-    # before/after attachment instead of inventing a core-only count.
-    require(old>=1_000_000 and count>=12,
-            "expected populated genuine 12layer original frozen neural core")
-    print("NRA3_S92_ACTUAL_FROZEN_BASE_CORE_PARAMETER_COUNT",old,
-          "N_PARAM_TENSORS",count,flush=True)
+    # CB59 originals are trained with *compressed TrainWeight centroids*.
+    # Logical uncompressed core = SOURCE_PARAMS=36,380,480. PyTorch
+    # named_parameters() instead counts the much smaller real physical
+    # centroid/log-scale operators, so arbitrary dense cutoffs (40M, 1M)
+    # are invalid. Trust the exact original architectural geometry and
+    # 85 frozen PAID original operators; use full physical pre/post SHA.
+    cfg=model.config
+    require(SOURCE_PARAMS==36_380_480 and PAID_OPERATORS==85
+            and MODEL_SPEC[1:4]==(320,1536,12)
+            and int(cfg.num_hidden_layers)==12
+            and int(cfg.hidden_size)==320
+            and int(cfg.intermediate_size)==1536
+            and old>0 and count>0
+            and len(model.model.layers)==12,
+            "requires exact original S8 CB59 compressed 36,380,480 logical 12layer core")
+    print("NRA3_S92_ORIGINAL_CB59_LOGICAL_AND_PHYSICAL_COUNTS",
+          {"logical_original":SOURCE_PARAMS,
+           "compressed_parameter_elements":old,
+           "physical_parameter_tensors":count,
+           "paid_operator_count":PAID_OPERATORS},flush=True)
     return h.hexdigest(),old
 
 
@@ -91,6 +104,10 @@ def real_all12_source_capture_AFTER_original_616(
             and not expansion._active and not tunnel._active
             and not torch.cuda.is_available(),
             "real original model must be inactive 12layer CPU after616 J7")
+    require(isinstance(sources,dict) and len(sources)==PAID_OPERATORS
+            and "model.embed_tokens.weight" in sources
+            and "model.layers.0.self_attn.q_proj.weight" in sources,
+            "CB59 original 85 physical operator sources must remain full and frozen")
     old_digest,old_params=old_calibri_parameter_sha(model)
     child=NRA3InCalibriNeuralWeights()
     child.attach_to_RESEARCH_calibri(model)
@@ -199,7 +216,10 @@ def real_all12_source_capture_AFTER_original_616(
         "original_source_fractional_BPE_unsafe_raw_words":offset_unsafe,
         "original_layer8_S5_read_port_EQ_NRA3_all12_layer8_all72":True,
         "all_old_Calibri43M_weights_unchanged_sha256":old_digest,
-        "n_original_Calibri_params_bit_identical":old_params,
+        "n_original_compressed_CB59_parameter_elements_bit_identical":old_params,
+        "original_S8_logical_core_parameter_count":SOURCE_PARAMS,
+        "original_S8_paid_operator_count":PAID_OPERATORS,
+        "original_S8_architecture":list(MODEL_SPEC),
         "NRA3_nnModule_REGISTERED_INSIDE_model_model":True,
         "NRA3_all_22311_new_params_belong_to_original_model_state_dict":True,
         "NRA2_8_neural_microareas_are_trainable_inside_Calibri":True,
