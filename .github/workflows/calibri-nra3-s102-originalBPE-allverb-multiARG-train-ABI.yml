@@ -1,0 +1,65 @@
+name: Calibri NRA3 S102 original12 multiVERB original-BPE all-args train-only neural contract
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s101-TaigaTRAINd-allverb-real12-CPU-sourceonly-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s102-original12-nativeBPE-multiVERB-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  S102_offline_originalBPE_multi_verbs_neural_roles_AND_8_miniareas:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s102-TAIGAD-multiverb-real12-trained-28887-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CPU torch and safetensors for TRAIN-only source-first original BPE contracts, never original live model
+        run: |
+          set -euo pipefail
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'safetensors==0.4.5' 'numpy==1.26.4'
+      - name: Require precommitted licensed NEW UD-Taiga TRAIN-d S100 all 381 verb events and 606 distinct role edges; no train-c/dev/test used
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/44577310342 --jq .conclusion)" = success
+      - name: Compile and run 8 strict source-first original-native-BPE multi-predicate/multi-positive UD labels and in-Calibri child gradients
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s102_real12_TaigaTRAINd_multiverb_gold_AFTER_sourceSHA.py research/calibri_nra3/s102_TaigaD_real12_multiverb_28887_neural_train.py research/calibri_nra3/test_s102_native_BPE_ALL_VERB_multi_positive.py
+          python -m unittest -v research.calibri_nra3.test_s100_multi_VERB_OFFLINE_TaigaD_native_BPE_relation research.calibri_nra3.test_s102_native_BPE_ALL_VERB_multi_positive
+      - name: Fail closed new neural child remains part Calibri and all old constraints respected
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from research.calibri_nra3.s102_TaigaD_real12_multiverb_28887_neural_train import STAGE,PAID,SEED,EPOCHS
+          from research.calibri_nra3.s102_real12_TaigaTRAINd_multiverb_gold_AFTER_sourceSHA import SOURCE_SHA,GOLD_SHA
+          from research.calibri_nra3.s97_in_calibri_morphological_12layer_neural_graph import NRA3MorphologyInCalibriWeights
+          m=NRA3MorphologyInCalibriWeights()
+          assert STAGE=='CALIBRI_NRA3_S102_TAIGA_TRAIND_REAL12_ALLVERB_IN_CALIBRI_28887_TRAIN_GATE0'
+          assert (PAID,SEED,EPOCHS)==(28887,1021119,26)
+          assert SOURCE_SHA=='bc12818689e147f9fd167838bd22e220fd9a28b46bf51ccd750fa61ed4ddafc3'
+          assert GOLD_SHA=='c96f5ef54982c5ed486d725eb0de19f1f3b81bde1b080ad12a6208e6eaa090c7'
+          b=m.budget()
+          assert b['new_neural_parameters']==28887
+          assert b['NRA2_independent_mini_areas_preserved']==8
+          assert b['all_12_original_calibri_layers']==12
+          assert not b['external_inference_UD_parser_required']
+          assert m.output_gate==0 and not m.candidate_accepted and not m.activation_allowed
+          print('NRA3_S102_ORIGINAL_BPE_ALLVERB_MULTI_POSITIVE_OFFLINE_NEURAL_TRAIN_ABI_PASS_NOT_YET_QUALITY',flush=True)
+          PY
