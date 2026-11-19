@@ -66,7 +66,7 @@ class TestS82PredicateCenteredFields(unittest.TestCase):
         self.assertEqual(v[1,0,f["inside_literal_quote"]].item(),1)
         self.assertEqual(v[2,0,f["left_immediate_negator"]].item(),1)
         self.assertEqual(v[0,0,f["left_immediate_negator"]].item(),0)
-        self.assertEqual(v[3,0,f["dream_counterfactual_same_clause"]].item(),1)
+        self.assertEqual(v[3,0,f["dream_counterfactual_same_or_previous_clause"]].item(),1)
 
     def test_negation_in_other_clause_does_not_negate_current_event(self):
         text="Мастер заменил деталь, однако механик не отключил питание."
