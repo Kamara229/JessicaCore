@@ -107,7 +107,7 @@ def main():
     s69_physical_rows=[]  # 3 original nontrainable phase toggles × same 8 rows
     s70_native_s95_rows=[]  # source-only S95 prefix native BPE A/B
     s75_newtrain120_capture=[]  # unlabelled new S74 TRAIN source, no GOLD
-    nra3_s109_all12_GSD_GSD_TRAIN=[]  # S103 separately pinned licensed Russian GSD TRAIN source-only, ALL verb UD gold absent
+    nra3_s109_all12_GSD=[]  # S103 separately pinned licensed Russian GSD TRAIN source-only, ALL verb UD gold absent
     parity_collector=FrozenLayer8ReadPort()
 
     def load_original_with_read_only_port(*args,**kwargs):
@@ -143,7 +143,7 @@ def main():
         # NRA3 S92 physical original 12-layer Calibri + GreenTunnel:
         # attach 53,743 new weights INSIDE this RESEARCH model only,
         # AFTER original protected 616 J7. S79/S86 spent sets excluded.
-        nra3_s109_all12_GSD_GSD_TRAIN.append(nra3_s109_capture(
+        nra3_s109_all12_GSD.append(nra3_s109_capture(
             model,sources,tok,bridge,full,expansion,
             Path(os.environ["NRA3_S109_GSD_SOURCE_ONLY_JSON"])))
         for row_idx,q in enumerate(texts):
@@ -300,9 +300,9 @@ def main():
     # posthoc verification above. Thus an altered J7 cannot ever yield
     # a saved physical S75 research artifact.
     s75_newtrain_tensors,s75_newtrain_report=s75_newtrain120_capture[0]
-    if len(nra3_s109_all12_GSD_GSD_TRAIN)!=1:
+    if len(nra3_s109_all12_GSD)!=1:
         raise ValueError("NRA3 S109 exactly one gold-free all12 original CPU licensed TRAIN-e read")
-    s101_tensors,s101_child_weights,s101_report=nra3_s109_all12_GSD_GSD_TRAIN[0]
+    s101_tensors,s101_child_weights,s101_report=nra3_s109_all12_GSD[0]
     token_batch=collector.frozen_batch(texts)
     tok=real_tokenizer[0]
     alignments=[]
