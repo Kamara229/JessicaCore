@@ -1,0 +1,209 @@
+name: NRA2 S88 frozen S85 ONE-SHOT firstread novel48 source-only original43M GT S86 hidden before labels
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s87-REAL43M-gt-S86-novel48-sourcefirst-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s88-FIRSTREAD-frozenS85-S86-new48-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  one_time_original43mGT_S85_48_unseen_syntax_frozen_inference_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s88-frozen-S85-TRUE43m-S86-NEW48-firstread-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      PYTHONHASHSEED: '881119'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Frozen tensor CPU dependencies only (NO original43M redecode or new model training)
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Test original S82 32 event-specific source fields and S88 source gold AST isolation; DO NOT open constructed S86 target labels
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/nra3_s20/s88_S85_FROZEN_REAL43M_S86_new48_FIRSTREAD.py
+          python -m unittest -v research.nra3_s20.test_s82_predicate_centered_situation_fields research.nra3_s20.test_s88_frozen_S85_one_time_newSyntax48
+      - name: Require all successful previous pristine real43M/GT S87 616J7 and frozen original S85 CI plus sealed NEW S86 SHA BEFORE firstread
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44536178198 44536894883 44517161307 44196720655 44312765248 44357767214 44366319006 44371962358 44377346422 44389438490; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          test "$(git hash-object research/nra3_s20/s86_newSYNTHETIC48_SOURCEONLY_never_train.py)" = 6e24dc8ed8fc70b9db5d202f24f315d7958b1bcf
+          test "$(git hash-object research/nra3_s20/s86_NOVEL48_GOLD_SEPARATE_POSTHOC_ONLY.py)" = f905691b2dde4204fec297f1e37106b9c1b54f38
+          python - <<'PY'
+          from research.nra3_s20.s86_newSYNTHETIC48_SOURCEONLY_never_train import S86_novel48_source_sha256
+          assert S86_novel48_source_sha256()=='60790a13127614af91cfd748bf503067fcaf0b37d2278ac3efef5e2942add867'
+          print('S88_SOURCE_AND_AUTHOR_GOLD_ALREADY_FROZEN_BEFORE_ONE_S85_FIRSTREAD_NO_LABELS_IN_MODEL_FORWARD')
+          PY
+      - name: Download immutable read-only s87 original ancestor
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-s87-original43M-GT-S86-NOVEL48-nativeH8-FIRSTREAD-NOGOLD-after616J7
+          run-id: 44536894883
+          github-token: ${{ github.token }}
+          path: inputs/s87
+      - name: Download immutable read-only s85 original ancestor
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-s85-true43M-GT-S82-8264-TRAIN56-groupedDIAG16-shadow-noEVAL
+          run-id: 44517161307
+          github-token: ${{ github.token }}
+          path: inputs/s85
+      - name: Download immutable read-only s26 original ancestor
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s26-REAL43M-GT-TRAIN256-40fold-12384FP16-event-inversion-ablation-noEVAL
+          run-id: 44196720655
+          github-token: ${{ github.token }}
+          path: inputs/s26
+      - name: Download immutable read-only s57 original ancestor
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s57-original43M-GT-96spent-only-eventfirst231-FP16-before-HELD24
+          run-id: 44312765248
+          github-token: ${{ github.token }}
+          path: inputs/s57
+      - name: Download immutable read-only s59 original ancestor
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s59-REAL43M-GT-OLD152-NATIVE320-PAID2046-FP16-frozen-before-HELD
+          run-id: 44357767214
+          github-token: ${{ github.token }}
+          path: inputs/s59
+      - name: Download immutable read-only s61 original ancestor
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s61-GENUINE43M-GT-SPENT216-PAIR-NULL-POLAR2752FP16-frozen
+          run-id: 44366319006
+          github-token: ${{ github.token }}
+          path: inputs/s61
+      - name: Download immutable read-only s62 original ancestor
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s62-real43M-GT-SPENT248-event-target2166-FP16-frozen
+          run-id: 44371962358
+          github-token: ${{ github.token }}
+          path: inputs/s62
+      - name: Download immutable read-only s63 original ancestor
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s63-REAL43M-GT-SPENT280-QUOTE471-frozen-before-NEW32
+          run-id: 44377346422
+          github-token: ${{ github.token }}
+          path: inputs/s63
+      - name: Download immutable read-only s65 original ancestor
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s65-REAL43M-GT-OLD344-FACTUALITY3WAY259-FP16-before-NEW32
+          run-id: 44389438490
+          github-token: ${{ github.token }}
+          path: inputs/s65
+      - name: Verify true S87 original43M H8 and S85 frozen FP16 physical SHA and read ONLY source raw before any independent S86 gold open
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from safetensors.torch import load_file
+          physical=Path('inputs/s87/NRA2_S87_GENUINE43M_GT_NOVEL48_WORD339_NO_GOLD.safetensors')
+          report=json.loads(Path('inputs/s87/NRA2_S87_GENUINE43M_GT_NOVEL48_GOLD_BLIND_SOURCE_PROVENANCE.json').read_text())
+          checkpoint=Path('inputs/s85/NRA2_S85_TRUE43M_GT_S82_EVENT_LOCAL8264_FP16.safetensors')
+          assert hashlib.sha256(physical.read_bytes()).hexdigest()=='7ae7954d229338a0c4bd14f700f217e5d9437fa1be3f4a4e1bbabca4240b1893'
+          assert report['genuine_source_tensor_file_SHA256']==hashlib.sha256(physical.read_bytes()).hexdigest()
+          assert report['original_Calibri43M_protected_616J7_physically_replayed_BEFORE_firstread']
+          assert report['S86_CONSTRUCTION_GOLD_NEVER_IMPORTED_BY_REAL_H8_CPU']
+          assert report['S85_frozen_trained_weights_NEVER_LOADED_BY_SOURCE_H8_CAPTURE']
+          assert report['n_novel_syntax_firstread_input_rows']==48
+          assert hashlib.sha256(checkpoint.read_bytes()).hexdigest()=='45997dca99a91c820e285536d5b1ce90c3567db1a58e244c6d26072380e06eaf'
+          assert sum(x.numel() for x in load_file(str(checkpoint)).values())==8264
+          print('S88_FROZEN_ORIGINAL_NATIVE_H8_AND_PRETRAINED_8264_FP16_LOCKED_FIRST_READ',flush=True)
+          PY
+      - name: ONE-SHOT original S59 source-only MENTION top8 then pretrained frozen S85 raw logits saved BEFORE any S86 annotations read, score ONCE no tuning
+        run: |
+          set -euo pipefail
+          python -m research.nra3_s20.s88_S85_FROZEN_REAL43M_S86_new48_FIRSTREAD \
+            --s87 inputs/s87/NRA2_S87_GENUINE43M_GT_NOVEL48_WORD339_NO_GOLD.safetensors \
+            --s87-report inputs/s87/NRA2_S87_GENUINE43M_GT_NOVEL48_GOLD_BLIND_SOURCE_PROVENANCE.json \
+            --s85 inputs/s85/NRA2_S85_TRUE43M_GT_S82_EVENT_LOCAL8264_FP16.safetensors \
+            --s26 inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26 \
+            --s57-paid inputs/s57/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors \
+            --s59-paid inputs/s59/NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors \
+            --s61-paid inputs/s61/NRA3_S61_REAL43M_GT_SPENT216_PAID2752_PAIR_NONE.safetensors \
+            --s62-paid inputs/s62/NRA3_S62_REAL43M_GT_SPENT248_JOINT_EVENT_TARGET2166_FP16.safetensors \
+            --s63-paid inputs/s63/NRA3_S63_REAL43M_GT_SPENT280_QUOTE_OUTER_BPE471_FP16.safetensors \
+            --s65 inputs/s65/NRA3_S65_REAL43M_GT_SPENT344_REPORTED3WAY259_FP16.safetensors \
+            --s65-manifest inputs/s65/NRA3_S65_REAL43M_GT_SPENT344_FACTUALITY259_MANIFEST.json \
+            --out results/nra2_s88_true43mgt_S85_48novel_firstread
+      - name: Report ANY result, including bad performance; verify zero checkpoint selection, original parent protection and no acceptance
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib,math
+          from safetensors.torch import load_file
+          root=Path('results/nra2_s88_true43mgt_S85_48novel_firstread')
+          pres=root/'NRA2_S88_FROZEN_S85_NOVEL48_PHYSICAL_FIRST_LOGITS_BEFORE_GOLD.safetensors'
+          rep=root/'NRA2_S88_ONE_SHOT_S86_NOVEL48_POSTHOC_FROZEN_S85_REPORT.json'
+          r=json.loads(rep.read_text())
+          t=load_file(str(pres))
+          assert r['stage']=='NRA2_S88_FROZEN_S85_NEW_S86_NOVEL48_REAL43M_GT_ONE_SHOT_FIRSTREAD'
+          assert r['S86_SOURCE_AND_SEPARATE_CONSTRUCTED_GOLD_PREREGISTERED_BEFORE_MODEL_READ']
+          assert r['S86_PRECOMMIT_RUN_ID']==44536178198
+          assert r['S87_original43M_GT_CPU_H8_after_protected_original616J7']
+          assert r['gold_opened_ONLY_after_physical_logits_source_only_serialized']
+          assert r['same_frozen_S85_FP16_SHA256']=='45997dca99a91c820e285536d5b1ce90c3567db1a58e244c6d26072380e06eaf'
+          assert r['model_source_only_FIRSTREAD_logits_SHA256']==hashlib.sha256(pres.read_bytes()).hexdigest()
+          assert r['no_S85_retraining_or_threshold_change_or_model_reselection']
+          assert r['original_S26_S57_S59_S61_S62_S63_S65_and_Calibri43M_GT_unchanged']
+          assert r['original_asserted_S65_quote_exclusion_preserved']
+          assert r['new_S86_48_lexical_syntax_text_NEVER_seen_during_S85_TRAIN56']
+          assert r['synthetic_author_anchors_AND_factors_not_independently_human_verified']
+          assert r['no_old_spent_S79_gold_retrained_or_rescored']
+          assert r['not_autonomous_event_discovery_quality_or_recipient_or_factuality']
+          assert r['unanchored_mention_false_positive_precision_NOT_measured']
+          assert r['original616J7_new_CANDIDATE_not_run']
+          assert r['all_in_bpp_and_cpu_NOT_measured']
+          assert r['online_decoding_causal_safety_NOT_certified']
+          assert r['output_gate']==0 and not r['candidate_accepted'] and not r['activation_allowed']
+          assert t['S85_firstread_frozen_eight_factor_logits_48x8x8'].shape==(48,8,8)
+          assert len(r['per_area_teacher_anchored_firstread_synthetic'])==8
+          assert len(r['per_syntax_group_firstread_synthetic'])==8
+          assert 0<=r['n_author_gold_event_in_source_only_mention_top8']<=48
+          assert 0<=r['n_author_gold_event_in_old_asserted_S65_top8']<=48
+          assert 0<=r['n_source_only_mention_top1_gold_event']<=48
+          assert 0<=r['n_source_only_top1_AND_all8_exact']<=48
+          assert 0<=r['n_teacher_anchored_top8_covered_AND_all8_exact']<=48
+          x=r['micro_and_exact_TEACHER_ANCHORED_ON_COVERED_only']
+          assert 0<=x['micro_F1']<=1 and math.isfinite(x['micro_F1'])
+          print('S88_NEW_SYNTAX48_FIRSTREAD_WITHOUT_TRAIN_OR_TUNING',
+                'COVERED',r['n_author_gold_event_in_source_only_mention_top8'],
+                'TOP1',r['n_source_only_mention_top1_gold_event'],
+                'TEACHER_F1',x['micro_F1'],
+                'AUTONOMOUS_TOP1_AND_ALL8',r['n_source_only_top1_AND_all8_exact'],
+                'GATE0',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra2-s88-ONE-SHOT-frozenS85-real43MGT-S86-novel48-firstread-NO-REFIT
+          path: results/nra2_s88_true43mgt_S85_48novel_firstread/
+          retention-days: 30
+          if-no-files-found: error
