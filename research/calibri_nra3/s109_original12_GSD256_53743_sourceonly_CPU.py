@@ -11,7 +11,7 @@ exact same hidden vectors, ensuring BPE and hook identity.
 
 Original 43M model parameters unchanged before/after; NO S108 all-verb multiargument UD GOLD or S96/S99 internal dev or
 old S79/S86 SPENT test/labels imported; no neural fitting, semantic
-correctness or active decoder J7 claimed. New morphology-and-relational neural weights 37,087
+correctness or active decoder J7 claimed. New morphology-and-structural neural weights 53,743
 params attached, gate0, DO NOT activate or deploy.
 """
 from __future__ import annotations
@@ -41,7 +41,7 @@ from research.nra3_s19.graph_schema import raw_model_input
 STAGE="CALIBRI_NRA3_S109_REAL43MGT_ALL12_GSD_TRAIN256_ALLVERBS_SOURCE_ONLY_AFTER616"
 SOURCE_SHA="4078f408f2355c55c29bca18504355379e2a42ef2144c9113dda9448b086de14"
 TENSOR="NRA3_S109_GSD_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors"
-WEIGHTS="NRA3_S109_IN_CALIBRI_UNGSDD_53743_FP16.safetensors"
+WEIGHTS="NRA3_S109_IN_CALIBRI_UNTRAINED_53743_FP16.safetensors"
 REPORT="NRA3_S109_REAL43MGT_GSD_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json"
 
 
@@ -276,7 +276,7 @@ def real_all12_source_capture_AFTER_original_616(
         "original_Calibri43M_GT_ALL12_native_H320_FP16_READONLY":hidden.contiguous(),
         "original_native_BPE_token_ids":ids_tensor.contiguous(),
         "native_BPE_source_valid_mask":valid.contiguous(),
-        "source_row_indices_in_PINNED_TAIGA_TRAIN256":row_indices.contiguous(),
+        "source_row_indices_in_PINNED_GSD_TRAIN256":row_indices.contiguous(),
         "source_raw_word_char_start":raw_start.contiguous(),
         "source_raw_word_char_end":raw_end.contiguous(),
         "source_raw_word_last_native_BPE":last_BPE.contiguous(),
