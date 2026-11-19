@@ -1,0 +1,58 @@
+name: NRA2 S82 eight event-local clause and quote situation fields new research architecture no training
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s81-NOVEL48-frozen-S78-one-shot-generalization-20261119
+permissions:
+  contents: read
+concurrency:
+  group: nra2-s82-structural-fields-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  pure_source_only_syntax_fields_untrained:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s82-predicate-centered-situation-fields-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Original-only context unit prerequisites, no Calibri CPU model loaded
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: S82 quote/negation/competing-clause and suffix independence SHADOW tests
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/nra3_s20/s82_predicate_centered_situation_fields.py research/nra3_s20/test_s82_predicate_centered_situation_fields.py
+          python -m unittest -v research.nra3_s20.test_s82_predicate_centered_situation_fields
+      - name: Verify exact small 8264 parameter budget and no original model connector/learned skill
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from research.nra3_s20.s82_predicate_centered_situation_fields import (
+              S82PredicateCenteredMiniAreas,FIELDS,AREAS,STAGE)
+          m=S82PredicateCenteredMiniAreas()
+          b=m.budget()
+          assert STAGE=='NRA2_S82_SOURCE_ONLY_PREDICATE_CENTERED_CLAUSE_QUOTE_FIELD_8SPECIALISTS'
+          assert len(FIELDS)==32 and len(AREAS)==8
+          assert b['new_neural_parameters']==8264
+          assert b['standalone_FP16_bytes']==16528
+          assert b['within_10000_new_params_budget']
+          assert b['original43m_GT_S65_weights_changed']==False
+          assert b['train_or_J7_proof']==False
+          assert b['bpp_and_cpu_NOT_CERTIFIED']
+          assert b['output_gate']==0 and not b['candidate_accepted'] and not b['activation_allowed']
+          assert not m.is_trained and not m.online_causal_certified
+          print('NRA2_S82_8_INDEPENDENT_NEURAL_EXPERTS_32_SOURCE_FIELD_ABI',
+                '8264_PARAMS', 'NO_DATA_TRAINED', 'SHADOW_GATED_OFF',flush=True)
+          PY
