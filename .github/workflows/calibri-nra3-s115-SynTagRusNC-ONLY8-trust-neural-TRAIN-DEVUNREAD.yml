@@ -1,0 +1,167 @@
+name: Calibri NRA3 S115 research ONLY SynTagRus NONCOMMERCIAL TRAIN-only eight bounded neural trust weights old 53743 frozen
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s114-SynTagRusA-original12-53751-NC-20261120
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s115-syntagrusNC-eight-trust-TRAIN-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  s115_true_original12_nc_syntagrus_new8_trust_TRAIN_only:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s115-SynTagRusNC-eight-trust-neural-TRAIN-20261120'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 95
+    env:
+      PYTHONPATH: .:research
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONHASHSEED: '1151120'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU torch and all S115 new eight-neural trust contracts, no external parser
+        run: |
+          set -euo pipefail
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+          python -m compileall -q research/calibri_nra3/s115_SynTagRusNC_original12_GOLD_AFTER_S114_SHA.py research/calibri_nra3/s115_original12_SynTagRusNC_ONLY8_trust_neural_TRAIN.py research/calibri_nra3/test_s115_only8_SynTagRus_NC_TRAIN_noDEV.py
+          python -m unittest -v research.calibri_nra3.test_s115_only8_SynTagRus_NC_TRAIN_noDEV research.calibri_nra3.test_s112_bounded_neural_trust_53751
+      - name: S115 require real protected616 S114 source-only and S113 SHA-locked independent NONCOMMERCIAL SynTagRus NC GOLD
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44620446642 44619230913 44615421828 44616432203; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          positive=''
+          for i in $(seq 1 240); do
+            c="$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/44621504675 --jq .conclusion)"
+            if [ "${c}" = success ]; then positive=1; break; fi
+            if [ "${c}" = failure ] || [ "${c}" = cancelled ]; then exit 3; fi
+            sleep 10
+          done
+          test "${positive}" = 1
+          echo NRA3_S115_REQUIRE_TRUE_S114_CALIBRI_SOURCE_ONLY_GOLD_BLIND_AND_NC_LICENSE
+      - name: Download S114 true original12 CB59GT SynTagRus NC256 all12 source-after616 and neural child, NEVER teacher
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s114-true-original12-CB59GT-SynTagRusA-NC256-sourceonly-53751-zeroTrust-after616
+          run-id: 44621504675
+          github-token: ${{ github.token }}
+          path: inputs/S114_REAL_CB59_GT_SynTagRus_NC_source
+      - name: SHA-lock actual S114 ORIGINAL12 real CB59GT source+53751 child+license BEFORE downloading new SynTagRus UD GOLD
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json,torch
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('inputs/S114_REAL_CB59_GT_SynTagRus_NC_source')
+          h=d/'NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors'
+          w=d/'NRA3_S114_IN_CALIBRI_ZERO_TRUST_53751_FP16.safetensors'
+          m=json.loads((d/'NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json').read_text())
+          assert m['stage']=='CALIBRI_NRA3_S114_REAL43MGT_ALL12_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_ONLY_AFTER616'
+          assert m['S113_SYNTAGRUS_TRAIN_PINNED_SOURCE256_SHA256']=='e9972e4f2204887cd1a507289dc0e4936f18c9f8ec9e18a0a2630e1009a1f209'
+          assert m['S113_SYNTAGRUS_TRAIN_original_git_blob']=='eb7638bf3680414e49123412962e511b998a3b01'
+          assert m['third_party_data_license']=='CC BY-NC-SA 4.0'
+          assert m['noncommercial_research_only_CC_BY_NC_SA_4_license']
+          assert m['no_commercial_or_production_use_before_legal_review']
+          assert m['old_616_J7_physically_replayed_BEFORE_NRA3_hooks']
+          assert m['source_ONLY_no_S113_SYNTAGRUS_UD_GOLD_loaded_in_original_CPU']
+          assert m['original_S5_H8_port_exactly_matches_all12_H8_for_all_accepted']
+          assert m['NRA3_bounded_structural_neural_53751_weights_REGISTERED_INSIDE_actual_Calibri_model']
+          assert m['prior_S110_53743_and_new_8_zero_trust_exactly_restored_from_S112']
+          assert m['n_pinned_source_only_rows']==256 and m['n_accepted_source_only_BPE_rows']>=96
+          assert m['ALL12_CPU_SAFETENSORS_SHA256']==hashlib.sha256(h.read_bytes()).hexdigest()
+          assert m['IN_CALIBRI_53751_MORPH_FP16_WEIGHTS_SHA256']==hashlib.sha256(w.read_bytes()).hexdigest()
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          a=load_file(str(h));v=load_file(str(w))
+          x=a['original_Calibri43M_GT_ALL12_native_H320_FP16_READONLY']
+          assert x.shape[:2]==(m['n_accepted_source_only_BPE_rows'],12) and x.shape[-1]==320
+          assert x.dtype==torch.float16
+          assert sum(z.numel() for z in v.values())==53751
+          assert torch.count_nonzero(v['model.nra3_neural_weights.structural_trust_gate'])==0
+          print('NRA3_S115_TRUE_ORIGINAL12_SYNTAGRUS_NC_SHA_VERIFIED_BEFORE_ANY_UD_GOLD',
+                m['ALL12_CPU_SAFETENSORS_SHA256'],flush=True)
+          PY
+      - name: Physically purge unrelated protected old CPU sources/diagnostic files; keep ONLY genuine S114 source/child/provenance
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          d=Path('inputs/S114_REAL_CB59_GT_SynTagRus_NC_source')
+          keep={'NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors',
+                'NRA3_S114_IN_CALIBRI_ZERO_TRUST_53751_FP16.safetensors',
+                'NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json'}
+          for p in d.rglob('*'):
+            if p.is_file() and p.name not in keep:p.unlink()
+          assert {p.name for p in d.rglob('*') if p.is_file()}==keep
+          print('NRA3_S115_ONLY_GENUINE_REAL12_SOURCE_CHILD_PROVENANCE_SURVIVED')
+          PY
+      - name: ONLY NOW download separately precommitted SynTagRus NC THIRD PARTY GOLD to TRAIN the new eight neural trust weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s113-new-SynTagRusA-NONCOMMERCIAL-TRAIN256-source-GOLD-SHA-precommitted-only
+          run-id: 44620446642
+          github-token: ${{ github.token }}
+          path: inputs/S113_SEPARATE_NONCOMMERCIAL_SynTagRus_A_TRAIN_GOLD_AFTER_SHA
+      - name: TRAIN ONLY eight new bounded-trust in-Calibri neural weights; leave all original 53,743 FP16 intact and DEV UNREAD
+        run: |
+          set -euo pipefail
+          python -m research.calibri_nra3.s115_original12_SynTagRusNC_ONLY8_trust_neural_TRAIN \
+            --source12 inputs/S114_REAL_CB59_GT_SynTagRus_NC_source/NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors \
+            --source-manifest inputs/S114_REAL_CB59_GT_SynTagRus_NC_source/NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json \
+            --old-s114 inputs/S114_REAL_CB59_GT_SynTagRus_NC_source/NRA3_S114_IN_CALIBRI_ZERO_TRUST_53751_FP16.safetensors \
+            --s113-gold-folder inputs/S113_SEPARATE_NONCOMMERCIAL_SynTagRus_A_TRAIN_GOLD_AFTER_SHA \
+            --out results/nra3_s115_NC_ONLY8_new_trust_original12_TRAIN_ONLY
+      - name: Verify new exact 53751 in-Calibri neural child and only eight gradient weights changed, NO dev/firstread used
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json,torch
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('results/nra3_s115_NC_ONLY8_new_trust_original12_TRAIN_ONLY')
+          f=d/'NRA3_S115_SYNTAGRUS_NC_NEW8_BOUNDED_TRUST_53751_IN_CALIBRI_FP16.safetensors'
+          j=json.loads((d/'NRA3_S115_SYNTAGRUS_NC_NEW8_TRAIN_ONLY_NO_DEV_REPORT.json').read_text())
+          assert j['stage']=='CALIBRI_NRA3_S115_NC_SYNTAGRUS_A_NEW8_BOUNDED_NEURAL_TRUST_TRAIN_ONLY_GATE0'
+          assert j['S115_trained_IN_CALIBRI_53751_FP16_child_SHA256']==hashlib.sha256(f.read_bytes()).hexdigest()
+          assert j['original_616_J7_CB59_GT_source_protected']
+          assert j['S113_teacher_gold_opened_ONLY_AFTER_S114_original12_source_SHA']
+          assert j['S115_ONLY_NEW_EIGHT_neural_trust_weights_trained']
+          assert j['ALL_PREVIOUS_53743_NRA2_mini8_memory16_router12_structural_FP16_EXACT']
+          assert j['maximum_native_BPE_logit_residual_PER_candidate']==1.
+          assert j['original_SynTagRus_TRAINa_NC_LICENSE']=='CC BY-NC-SA 4.0'
+          assert j['NONCOMMERCIAL_research_only_NO_model_licensing_commercial_use']
+          assert j['SynTagRus_INTERNAL_16per64_NEVER_SCORED_OR_TUNED']
+          assert j['TaigaC_one_shot_firstread_ALREADY_BURNED_NOT_USED']
+          assert j['S110_GSD_internal_dev_SPENT_not_loaded']
+          assert j['fixed_training']['epochs']==24
+          assert j['fixed_training']['neural_trainable_params']==8
+          assert j['fixed_training']['other_in_calibri_frozen_params']==53743
+          assert j['output_gate']==0 and not j['candidate_accepted'] and not j['activation_allowed']
+          x=load_file(str(f));assert sum(v.numel() for v in x.values())==53751
+          assert torch.count_nonzero(x['model.nra3_neural_weights.structural_trust_gate'])>0
+          print('NRA3_S115_SUCCESS_ONLY_EIGHT_NEURAL_TRUST_FP16_NONCOMMERCIAL_TRAIN',
+                'TRAIN_ONLY_BASE=',j['frozen_S112_BASELINE_on_THIS_TRAIN_only'],
+                'TRAIN_ONLY_NEW=',j['S115_EIGHT_NEURAL_TRUST_on_THIS_TRAIN_only'],
+                'SynTagRus_internal_DEV=UNOPENED',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s115-original12-SynTagRusNC-ONLY8-trust-53751-inmodel-neural-TRAIN-DEVUNREAD
+          path: results/nra3_s115_NC_ONLY8_new_trust_original12_TRAIN_ONLY/
+          retention-days: 30
+          if-no-files-found: error
