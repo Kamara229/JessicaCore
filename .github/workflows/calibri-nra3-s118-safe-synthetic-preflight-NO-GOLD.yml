@@ -1,0 +1,43 @@
+name: NRA3 S118 safe synthetic NO-GOLD preflight paired independent firstread contracts
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s117-SynTagRusB-ONCE-original12-53751-NC-20261120
+permissions:
+  contents: read
+jobs:
+  synthetic_NO_B_GOLD_invariant_preflight:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s118-SynTagRusB-ONESHOT-trust-firstread-NC-20261120'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:research
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU dependencies only, zero external corpora or original model downloaded
+        run: |
+          set -euo pipefail
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+          python -m compileall -q research/calibri_nra3/s118_SynTagRusB_NC_GOLD_AFTER_S117_AND_weightsSHA.py research/calibri_nra3/s118_ONE_SHOT_SynTagRusB_NC_paired_trust_external_firstread.py research/calibri_nra3/test_s118_new_SynTagRusB_ONESHOT_paired_noGOLD.py
+          python -m unittest -v research.calibri_nra3.test_s118_new_SynTagRusB_ONESHOT_paired_noGOLD research.calibri_nra3.test_s112_bounded_neural_trust_53751
+      - name: Affirm test did not download SynTagRus B real UD GOLD and cannot consume spent dev
+        run: |
+          set -euo pipefail
+          test ! -e inputs/S116_HIDDEN_B_GOLD
+          test ! -e inputs/S117_REAL12_B_SOURCE
+          test ! -e results/nra3_s118_ONESHOT_B_gold_burned
+          if [ -d inputs ]; then
+            test "$(find inputs -type f -name 'NRA3_S116_SYNTAGRUS_TRAINB256_ALL_VERBS_MULTIEDGE_OFFLINE_UD_GOLD.json' | wc -l)" -eq 0
+          fi
+          echo NRA3_S118_SYNTHETIC_PRECONDITIONS_ONLY_NO_REAL_FIRSTREAD_GOLD_TOUCHED
