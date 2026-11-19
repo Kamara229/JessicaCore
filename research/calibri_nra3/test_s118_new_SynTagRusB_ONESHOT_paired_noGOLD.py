@@ -76,7 +76,7 @@ class TestS118ProspectiveBNoLeak(unittest.TestCase):
 
     def test_raw_source_and_B_GOLD_only_after_PINNED_S112_S115_neural_weights(self):
         src=Path('research/calibri_nra3/s118_ONE_SHOT_SynTagRusB_NC_paired_trust_external_firstread.py').read_text()
-        self.assertLess(src.index('require(sha(s115_child)==source_info['),
+        self.assertLess(src.index('require(sha(s115_child)==PRECOMMITTED_S115_TRAINED_53751_CHILD_SHA'),
                         src.index('original,aligned,audit=load_source_VERIFY_sha_THEN_OPEN_gold('))
         self.assertLess(src.index('require(set(old)==set(new)'),
                         src.index('original,aligned,audit=load_source_VERIFY_sha_THEN_OPEN_gold('))
