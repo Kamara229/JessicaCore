@@ -180,14 +180,20 @@ class SituationMicroAreas(nn.Module):
         pr=torch.stack(pair_deltas,dim=3)   # B,K,W,8,2
         correction_event=(ev*gated[:,:,:,None]).sum(2)
         correction_pair=(pr*gated[:,:,None,:,None]).sum(3)
-        corrected_edges=(old_target_or_none[:,:,:w] +
-                         correction_event[:,:,0,None] +
-                         correction_pair[:,:,:,0])
-        corrected_edges=corrected_edges.masked_fill(
-            ~target_safe | ~event_allowed[:,:,None],NEG_INF)
-        corrected_none=(old_target_or_none[:,:,w] +
-                        correction_event[:,:,1]).masked_fill(
-                            ~event_allowed,NEG_INF)
+        # Preserve exact old S65 masked logits even when its original
+        # mask sentinel is NOT -1e9. Gate OFF and zero-initialized
+        # heads must be *bitwise* parent-identical including invalid
+        # positions; never replace an old masked parent's value with
+        # a different manually chosen sentinel.
+        corrected_edges=torch.where(
+            target_safe & event_allowed[:,:,None],
+            old_target_or_none[:,:,:w] +
+            correction_event[:,:,0,None] + correction_pair[:,:,:,0],
+            old_target_or_none[:,:,:w])
+        corrected_none=torch.where(
+            event_allowed,
+            old_target_or_none[:,:,w]+correction_event[:,:,1],
+            old_target_or_none[:,:,w])
         corrected_joint=torch.cat((
             corrected_edges,corrected_none[:,:,None]),dim=-1)
         corrected_polar=(old_rejected+correction_pair[:,:,:,1])
