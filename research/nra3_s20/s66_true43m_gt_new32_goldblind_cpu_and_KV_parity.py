@@ -45,9 +45,9 @@ from research.nra3_s20.s75_original43m_gt_newtrain120_native_h8 import (
     capture_S74_new_train120_original43m_cpu_source_only as s75_capture,
     physical_source_only_commit as s75_save_after_616J7,
 )
-from research.calibri_nra3.s109_original12_GSD256_53743_sourceonly_CPU import (
-    real_all12_source_capture_AFTER_original_616 as nra3_s109_capture,
-    save_only_AFTER_original616_digest_verified as nra3_s109_save,
+from research.calibri_nra3.s114_original12_SynTagRusA_53751_NC_sourceonly_CPU import (
+    real_all12_source_capture_AFTER_original_616 as nra3_s114_capture,
+    save_only_AFTER_original616_digest_verified as nra3_s114_save,
 )
 from research.nra3_s20.s49_real43m_gt_quote_sidecar_zero_gate import (
     Frozen43MGreenTunnelQuotePort, frozen_native_manifest_digest,
@@ -107,7 +107,7 @@ def main():
     s69_physical_rows=[]  # 3 original nontrainable phase toggles × same 8 rows
     s70_native_s95_rows=[]  # source-only S95 prefix native BPE A/B
     s75_newtrain120_capture=[]  # unlabelled new S74 TRAIN source, no GOLD
-    nra3_s109_all12_GSD_TRAIN=[]  # S103 separately pinned licensed Taiga TRAIN-GSD source-only, ALL verb UD gold absent
+    nra3_s114_all12_SYNTAGRUS_TRAIN=[]  # S103 separately pinned licensed Taiga TRAIN-SYNTAGRUS source-only, ALL verb UD gold absent
     parity_collector=FrozenLayer8ReadPort()
 
     def load_original_with_read_only_port(*args,**kwargs):
@@ -143,10 +143,11 @@ def main():
         # NRA3 S92 physical original 12-layer Calibri + GreenTunnel:
         # attach 53,743 new weights INSIDE this RESEARCH model only,
         # AFTER original protected 616 J7. S79/S86 spent sets excluded.
-        nra3_s109_all12_GSD_TRAIN.append(nra3_s109_capture(
+        nra3_s114_all12_SYNTAGRUS_TRAIN.append(nra3_s114_capture(
             model,sources,tok,bridge,full,expansion,
-            Path(os.environ["NRA3_S109_GSD_SOURCE_ONLY_JSON"]),
-            Path(os.environ["NRA3_S109_S107_CHILD_FP16"])))
+            Path(os.environ["NRA3_S114_SYNTAGRUS_SOURCE_ONLY_JSON"]),
+            Path(os.environ["NRA3_S114_S112_CHILD_FP16"]),
+            Path(os.environ["NRA3_S114_S112_CHILD_MANIFEST_JSON"])))
         for row_idx,q in enumerate(texts):
             # Do not supply any graph, gold, predicate anchors or annotations.
             ids=list(s160.prompt_tokens(tok,q))
@@ -301,9 +302,9 @@ def main():
     # posthoc verification above. Thus an altered J7 cannot ever yield
     # a saved physical S75 research artifact.
     s75_newtrain_tensors,s75_newtrain_report=s75_newtrain120_capture[0]
-    if len(nra3_s109_all12_GSD_TRAIN)!=1:
-        raise ValueError("NRA3 S104 exactly one gold-free all12 original CPU licensed TRAIN-GSD read")
-    s101_tensors,s101_child_weights,s101_report=nra3_s109_all12_GSD_TRAIN[0]
+    if len(nra3_s114_all12_SYNTAGRUS_TRAIN)!=1:
+        raise ValueError("NRA3 S104 exactly one gold-free all12 original CPU licensed TRAIN-SYNTAGRUS read")
+    s101_tensors,s101_child_weights,s101_report=nra3_s114_all12_SYNTAGRUS_TRAIN[0]
     token_batch=collector.frozen_batch(texts)
     tok=real_tokenizer[0]
     alignments=[]
@@ -326,18 +327,18 @@ def main():
     out.mkdir(parents=True,exist_ok=True)
     s75_source_file=s75_save_after_616J7(
         out,s75_newtrain_tensors,s75_newtrain_report)
-    s101_source_file=nra3_s109_save(
+    s101_source_file=nra3_s114_save(
         out,s101_tensors,s101_child_weights,s101_report)
-    print("NRA3_S109_ORIGINAL43MGT_GSD_TRAIN_ALL12_ALLVERB_SOURCE_ONLY_NATIVE_BPE",
+    print("NRA3_S114_ORIGINAL43MGT_SYNTAGRUS_TRAIN_ALL12_ALLVERB_SOURCE_ONLY_NATIVE_BPE",
           json.dumps({
               "source_total":s101_report["n_pinned_source_only_rows"],
               "accepted":s101_report["n_accepted_source_only_BPE_rows"],
               "excluded":s101_report["n_excluded_due_to_input_BPE_preflight"],
               "original_BPE_tokens":s101_report["n_genuine_original_native_BPE_tokens"],
               "all12_source_SHA":sha_file(s101_source_file),
-              "embedded_child_SHA":s101_report["IN_CALIBRI_53743_MORPH_FP16_WEIGHTS_SHA256"],
+              "embedded_child_SHA":s101_report["IN_CALIBRI_53751_MORPH_FP16_WEIGHTS_SHA256"],
               "original_616_J7_retained":True,
-              "no_ALLVERBS_TRAIN_GSD_GOLD_in_CPU":True,
+              "no_ALLVERBS_TRAIN_SYNTAGRUS_GOLD_in_CPU":True,
               "output_gate":0,
           },sort_keys=True),flush=True)
     print("S75_ORIGINAL43M_GT_NEWTRAIN120_GOLDBLIND_NATIVE_H8",
