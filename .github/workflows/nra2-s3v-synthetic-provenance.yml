@@ -1,0 +1,42 @@
+name: NRA2 S3V synthetic provenance gate (research-only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'research/nra2_bridge/s3v_historical_physical_gate.py'
+      - 'research/nra2_bridge/s3v_partial_ledger_audit.py'
+      - 'research/nra2_bridge/test_s3v_historical_physical_gate_synthetic.py'
+      - 'research/nra2_bridge/test_s3v_partial_ledger_audit.py'
+      - '.github/workflows/nra2-s3v-synthetic-provenance.yml'
+permissions:
+  contents: read
+concurrency:
+  group: nra2-s3v-synthetic-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  synthetic-only:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'research/calibri2-nra2-s3x-') &&
+      github.event.pull_request.draft == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run only synthetic fail-closed tests (no model or artifacts)
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: |
+          python -m unittest -v \
+            research.nra2_bridge.test_s3v_historical_physical_gate_synthetic \
+            research.nra2_bridge.test_s3v_partial_ledger_audit
+      - name: Preserve research output gate
+        run: |
+          echo 'output_gate=0'
+          echo 'candidate_accepted=false'
