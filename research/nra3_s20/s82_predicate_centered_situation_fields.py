@@ -163,8 +163,9 @@ def source_only_event_fields(texts:Sequence[str],word_valid:torch.Tensor,
                 "exact unchanged source/tokenizer original Russian word order")
         clause,quote=_raw_only_clauses_and_quotes(tokens)
         raw=[z.form.casefold() for z in tokens]
-        all_c=set(clause)
-        clause_count=len(all_c)
+        # Only clauses up to the proposed event may affect the
+        # structural field; a later *unrelated* sentence must not
+        # change the earlier event's factors.
         for j in range(k):
             if not bool(candidate_allowed[i,j]):continue
             p=int(candidate_word_indices[i,j])
@@ -174,7 +175,7 @@ def source_only_event_fields(texts:Sequence[str],word_valid:torch.Tensor,
             left=[t for t in range(p) if clause[t]==c and tokens[t].form not in OPENQUOTE]
             right=[t for t in range(p+1,n) if clause[t]==c and tokens[t].form not in CLOSEQUOTE]
             earlier=[t for t in range(p) if clause[t]==c-1]
-            elsewhere=[t for t in range(n) if clause[t]!=c]
+            elsewhere=[t for t in range(p) if clause[t]!=c]
             prev=left[-5:];nxt=right[:5]
             w0=raw[p]
             # Fully source-only, fallible morphological cues.
@@ -216,7 +217,7 @@ def source_only_event_fields(texts:Sequence[str],word_valid:torch.Tensor,
                 bool(tokens[p].features[14]),
                 any(raw[t].endswith(INSTRUMENT_SUFFIX)
                     for t in prev+nxt if len(raw[t])>3),
-                clause_count>1,
+                c>0,
                 p>0 and clause[p-1]!=c,
                 p+1<n and clause[p+1]!=c,
                 bool(left),
@@ -234,7 +235,7 @@ def source_only_event_fields(texts:Sequence[str],word_valid:torch.Tensor,
 class _AreaHead(nn.Module):
     def __init__(self,dim):
         super().__init__()
-        self.net=nn.Sequential(nn.Linear(dim,12),nn.GELU(),nn.Linear(12,1))
+        self.net=nn.Sequential(nn.Linear(dim,6),nn.GELU(),nn.Linear(6,1))
 
     def forward(self,x):
         return self.net(x).squeeze(-1)
@@ -244,10 +245,10 @@ class S82PredicateCenteredMiniAreas(nn.Module):
     """Neural H8 lexical context + frozen raw clause geometry; SHADOW only."""
     def __init__(self):
         super().__init__()
-        self.event_proj=nn.Linear(320,12,bias=False)
-        self.left_proj=nn.Linear(320,12,bias=False)
-        self.right_proj=nn.Linear(320,12,bias=False)
-        self.areas=nn.ModuleList([_AreaHead(68) for _ in AREAS])
+        self.event_proj=nn.Linear(320,6,bias=False)
+        self.left_proj=nn.Linear(320,6,bias=False)
+        self.right_proj=nn.Linear(320,6,bias=False)
+        self.areas=nn.ModuleList([_AreaHead(50) for _ in AREAS])
         self.output_gate=0
         self.candidate_accepted=False
         self.activation_allowed=False
@@ -274,16 +275,25 @@ class S82PredicateCenteredMiniAreas(nn.Module):
             source_only_candidate_indices,source_candidate_allowed).to(h.device)
         safe=word_valid & ~original_bpe_unsafe
         indices=source_only_candidate_indices
-        # Only event-centered clause-local H8 may influence the head,
-        # never a pooled future *whole sentence* global vector.
+        clauses=[]
+        for i,text in enumerate(raw_source_texts):
+            raw=raw_surface_grammar(text)
+            cids,_=_raw_only_clauses_and_quotes(raw)
+            require(len(cids)<=w,"original source word count <= padded width")
+            clauses.append(cids+[-100]*(w-len(cids)))
+        clause_tensor=torch.tensor(clauses,dtype=torch.long,device=h.device)
+        event_clause=clause_tensor.gather(1,indices)
+        # Clause-local H8 context, not global future-sentence mean.
         ev=h.gather(1,indices[:,:,None].expand(b,k,320))
         left=torch.zeros_like(ev)
         right=torch.zeros_like(ev)
         for d in (1,2,3,4):
             lid=(indices-d).clamp(min=0)
             rid=(indices+d).clamp(max=w-1)
-            left_valid=(indices>=d)&safe.gather(1,lid)
-            right_valid=(indices+d<w)&safe.gather(1,rid)
+            left_valid=((indices>=d)&safe.gather(1,lid)
+                        &(clause_tensor.gather(1,lid)==event_clause))
+            right_valid=((indices+d<w)&safe.gather(1,rid)
+                         &(clause_tensor.gather(1,rid)==event_clause))
             left+=h.gather(1,lid[:,:,None].expand(b,k,320))*left_valid[:,:,None]
             right+=h.gather(1,rid[:,:,None].expand(b,k,320))*right_valid[:,:,None]
         left=left/4.
@@ -291,7 +301,7 @@ class S82PredicateCenteredMiniAreas(nn.Module):
         merged=torch.cat(
             (self.event_proj(ev),self.left_proj(left),
              self.right_proj(right),fields),dim=-1)
-        require(merged.shape==(b,k,68),"S82 3x12 H8 fields +32 literal geometry")
+        require(merged.shape==(b,k,50),"S82 3x6 H8 fields +32 literal geometry")
         logits=torch.stack([a(merged) for a in self.areas],dim=-1)
         logits=logits.masked_fill(~source_candidate_allowed[:,:,None],-1.e5)
         require(logits.shape==(b,k,len(AREAS))
@@ -303,6 +313,7 @@ class S82PredicateCenteredMiniAreas(nn.Module):
         total=sum(p.numel() for p in self.parameters())
         return {
             "new_neural_parameters":total,
+            "within_10000_new_params_budget":total<=10000,
             "standalone_FP16_bytes":total*2,
             "n_event_relative_structural_fields":WIDTH,
             "eight_independent_expert_modules":len(self.areas),
