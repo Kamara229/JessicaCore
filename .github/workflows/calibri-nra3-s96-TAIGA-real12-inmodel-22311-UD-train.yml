@@ -1,0 +1,153 @@
+name: Calibri NRA3 S96 TRUE original12 frozen GT Taiga UD in-Calibri 22311 FP16 grammar TRAIN-only shadow
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s95-taiga256-real-all12-CPU-source-only-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s96-real12-UD-frozen-original-grammar-train-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  train_ONLY_22311_embedded_NRA3_child_on_licensed_Taiga_TRAIN:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s96-taiga256-nativeBPE-grammatical-TRAIN-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      PYTHONPATH: .:research
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONHASHSEED: '961119'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CPU torch ONLY new embedded neural child TRAIN, original Calibri GT frozen physical tensors
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Verify strict UD source→native original BPE source hash, role head labels, 8 NRA2 mini area UNKNOWN and old S93 loss
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s96_taiga_originalBPE_offline_UD_targets.py research/calibri_nra3/s96_train_real12_taiga_UD_22311_neural_CHILD.py
+          python -m unittest -v research.calibri_nra3.test_s93_offline_dependency_loss_native_BPE research.calibri_nra3.test_s96_true_original_BPE_licensed_UD_mapping
+      - name: Require genuine original Calibri S95 physically protected original616 + Taiga source-only 12 layers, separate S94 licensed labels SHA, no old spent tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44563816334 44555052271 44552990383 44547241126; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          echo S96_PINNED_LICENSED_TAIGA_UD_TRAIN_REAL_CALIBRI12_ORIGINAL616_BASELINE_PRESERVED
+      - name: Download genuine original Calibri+GT S95 first SOURCE-only ALL12 native BPE physical tensors and untrained child 22311
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s95-true43MGT-Taiga256-TRAIN-sourceonly-all12-embedded-22311-after616
+          run-id: 44563816334
+          github-token: ${{ github.token }}
+          path: inputs/s95_original_frozen
+      - name: Verify original ALL12 frozen S95 source physical SHA and old protected 616 BEFORE Taiga separate offline label accessed
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('inputs/s95_original_frozen')
+          p=d/'NRA3_S95_REAL43M_GT_TAIGA_TRAIN_NATIVE_ALL12_H320_NO_GOLD.safetensors'
+          child=d/'NRA3_S95_IN_CALIBRI_UNTRAINED_22311_NEURAL_WEIGHTS_FP16.safetensors'
+          r=json.loads((d/'NRA3_S95_REAL43M_GT_TAIGA_SOURCE_ONLY_ALIGNMENT_PROVENANCE.json').read_text())
+          assert r['stage']=='CALIBRI_NRA3_S95_REAL43M_GT_ALL12_UD_TAIGA_TRAIN_SOURCE_ONLY_AFTER616'
+          assert r['ALL12_CPU_SAFETENSORS_SHA256']==hashlib.sha256(p.read_bytes()).hexdigest()
+          assert r['ALL12_CPU_SAFETENSORS_SHA256']=='246d701a2f79223ccd13da641ad44159222aabb7debbaf591a6d41dc09b46aee'
+          assert r['IN_CALIBRI_22311_NEW_FP16_WEIGHTS_SHA256']==hashlib.sha256(child.read_bytes()).hexdigest()
+          assert r['IN_CALIBRI_22311_NEW_FP16_WEIGHTS_SHA256']=='d6c15543076aa06d24f3f09ee95ac5a514253febb86511141e2c15d3cbb4db55'
+          assert r['S94_TAIGA_PINNED_TRAIN_SOURCE256_SHA256']=='257fcc7518debb81e779c1419c34fdd9e565ad7e5ed9b04d08e55484fddba917'
+          assert r['n_accepted_source_only_BPE_rows']==256 and r['n_excluded_due_to_input_BPE_preflight']==0
+          assert r['n_genuine_original_native_BPE_tokens']==23102
+          assert r['old_616_J7_physically_replayed_BEFORE_NRA3_hooks']
+          assert r['NRA3_neural_22311_weights_REGISTERED_INSIDE_actual_Calibri_model']
+          assert r['source_only_no_Taiga_UD_gold_loaded_during_original_CPU']
+          assert r['new_NRA3_train_steps']==0 and r['output_gate']==0
+          assert not r['candidate_accepted'] and not r['activation_allowed']
+          assert sum(t.numel() for t in load_file(str(child)).values())==22311
+          print('S96_PINNED_12LAYER_CALIBRI_S95_SOURCE_SHA_AND_22311_EMBEDDED_WEIGHTS_BEFORE_UD_GOLD')
+          PY
+      - name: Download S94 separately precommitted licensed UD-Taiga TRAIN-a word-index grammar gold ONLY after S95 frozen source SHA
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s94-REAL-RUSSIAN-UD-TAIGA-TRAIN256-grammatical-labels-CC-BY-SA-not-for-production
+          run-id: 44555052271
+          github-token: ${{ github.token }}
+          path: inputs/s94_licensed_TRAIN_gold_after_original_source
+      - name: Train ONLY the 22311 NEW NRA3 in-Calibri child weights for 28 fixed epochs on true original12-layer UD Taiga TRAIN192; fixed SAME CORPUS internal 64 development only
+        run: |
+          set -euo pipefail
+          python -m research.calibri_nra3.s96_train_real12_taiga_UD_22311_neural_CHILD \
+            --s95-source inputs/s95_original_frozen/NRA3_S95_REAL43M_GT_TAIGA_TRAIN_NATIVE_ALL12_H320_NO_GOLD.safetensors \
+            --s95-report inputs/s95_original_frozen/NRA3_S95_REAL43M_GT_TAIGA_SOURCE_ONLY_ALIGNMENT_PROVENANCE.json \
+            --s95-child inputs/s95_original_frozen/NRA3_S95_IN_CALIBRI_UNTRAINED_22311_NEURAL_WEIGHTS_FP16.safetensors \
+            --s94 inputs/s94_licensed_TRAIN_gold_after_original_source \
+            --out results/calibri_nra3_s96_Taiga_real12_ud_22311_shadow
+      - name: Verify physical REAL trained in-Calibri new weights FP16, original616 and old CB59 untouched; print any internal diagnostic result including regressions
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,hashlib,math
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('results/calibri_nra3_s96_Taiga_real12_ud_22311_shadow')
+          p=d/'NRA3_S96_TAIGA_UD_TRAINED_IN_CALIBRI_22311_FP16.safetensors'
+          r=json.loads((d/'NRA3_S96_TAIGA_UD_TRAINED_RELATIONS_INTERNAL_DIAG.json').read_text())
+          assert r['stage']=='CALIBRI_NRA3_S96_TAIGA_UD_ORIGINAL12_NEW22311_FP16_TRAIN_SHADOW'
+          assert r['S95_frozen_original12_native_H_SHA']=='246d701a2f79223ccd13da641ad44159222aabb7debbaf591a6d41dc09b46aee'
+          assert r['S95_original_untrained_in_model_child_SHA']=='d6c15543076aa06d24f3f09ee95ac5a514253febb86511141e2c15d3cbb4db55'
+          assert r['S96_trained_in_model_child_SHA']==hashlib.sha256(p.read_bytes()).hexdigest()
+          assert r['new_trainable_NRA3_neural_parameters']==22311
+          assert r['new_nominal_FP16_weight_bytes']==44622
+          z=load_file(str(p))
+          assert sum(w.numel() for w in z.values())==22311
+          assert all(k.startswith('model.nra3_neural_weights.') for k in z)
+          assert r['only_NEURAL_CHILD_inscribed_in_Calibri_weights_trained']
+          assert r['all_base_Calibri_GT_S59_S65_neural_weights_UNCHANGED']
+          assert r['protected_original_616_J7_replayed_before_S95_source']
+          assert r['eight_separate_NRA2_neural_miniareas_preserved']
+          assert r['four_learned_routes_over_original12_layers']
+          assert r['UD_label_only_after_real12_original_source_forward']
+          assert r['one_FIXED_48_16_source_stratum_split_before_metrics']
+          assert r['same_corpus_internal_dev_NOT_blind_firstread']
+          assert r['TRAIN_only_model_no_tuner_or_checkpoint_selection']
+          assert r['unlabelled_event_mentions_and_role_bits_NOT_assumed_negative']
+          assert r['original_S79_S86_firstread48_NOT_used']
+          assert r['no_616_candidate_or_bpp_CPU_online_causal_proof']
+          assert r['licensed_CC_BY_SA_4_0_no_commercial_production_without_review']
+          assert r['output_gate']==0 and not r['candidate_accepted'] and not r['activation_allowed']
+          for k in ('untrained_S95_same_Taiga_internal_development_UD_roles',
+                    'trained_S96_same_Taiga_internal_development_UD_roles',
+                    'trained_S96_Taiga_TRAIN_roles'):
+              m=r[k]
+              assert m['annotated_teacher_event_role_edges']>0
+              assert 0<=m['teacher_anchored_native_BPE_role_top1_accuracy']<=1
+              assert math.isfinite(m['teacher_anchored_native_BPE_role_top1_accuracy'])
+          print('S96_REAL_CALIBRI_TAIGA_TRAIN_ONLY_GRAMMATICAL_NEURAL_CHILD',
+                'untrained_internal',
+                r['untrained_S95_same_Taiga_internal_development_UD_roles']['teacher_anchored_native_BPE_role_top1_accuracy'],
+                'trained_internal',
+                r['trained_S96_same_Taiga_internal_development_UD_roles']['teacher_anchored_native_BPE_role_top1_accuracy'],
+                'TRAIN_ONLY, NOT FIRSTREAD/NOT_ACCEPTED, 616 PROTECTED, GATE0',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s96-Taiga-real12-UD-22311-FP16-neural-IN-model-TRAINshadow-not-production
+          path: results/calibri_nra3_s96_Taiga_real12_ud_22311_shadow/
+          retention-days: 30
+          if-no-files-found: error
