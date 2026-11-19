@@ -1,0 +1,267 @@
+name: NRA2 S73 real43M GT OLD344 compositional situation microareas bootstrap shadow fit
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s72-situation-microareas-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s73-real43m-gt-old344-microareas-train-only
+  cancel-in-progress: true
+jobs:
+  s73_true43m_gt_old344_microareas_SHADOW_fit:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s73-actual43m-old344-shadow-fit-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '591118'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned original S57/S58 CPU semantic stack
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Test original S65 plus new NRA2 S72/S73 shadow-only sources and OLD TRAIN32 group contracts
+        run: |
+          python -m compileall -q research/nra3_s20/s65_factuality_attributed_event259.py research/nra3_s20/s73_fit_real43m_old344_microareas.py research/nra3_s20/s72_nra2_situation_microareas.py
+          python -m unittest -v research.nra3_s20.test_s65_factuality259_contracts research.nra3_s20.test_s72_nra2_situation_microareas research.nra3_s20.test_s73_real43m_old344_microarea_fit_contracts
+      - name: Require all previous genuine frozen original43M sources successful, no new S59 HELD access
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 44274389010 44279445613 44282672013 44308286512 44312765248 44324723824 44358677983 44357767214 44362903794 44367429326 44366319006 44372464249 44371962358 44377346422 44377911954 44384939546 44196720655; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          test "$(git hash-object research/nra3_s20/s65_new32_raw_only_frozen_before_train.py)" = 0da8f0f1253a5e81137ec5f93df75c696db009c0
+          test "$(git hash-object research/nra3_s20/s65_new32_separate_manual_gold_NEVER_TRAIN.py)" = 40f09d4e94fb39676d1824b62db55acf252026c9
+          echo 'S65_NEW32_RAW_AND_GOLD_PRECOMMITTED_NOT_IMPORTED_IN_OLD344_TRAIN'
+      - name: Frozen S53 true43M GT native OLD TRAIN24
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s53-original43M-GT-protected616J7-NEW24-RAW-native-only-before-gold
+          run-id: 44274389010
+          github-token: ${{ github.token }}
+          path: inputs/s53
+      - name: Frozen S54 true43M GT native OLD TRAIN24
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s54-original43M-GT-616J7-HELD24-goldblind-native-raw-capture
+          run-id: 44279445613
+          github-token: ${{ github.token }}
+          path: inputs/s54
+      - name: Frozen S55 true43M GT native OLD TRAIN24
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s55-real43M-GT-J7-structural24-new-native-no-gold
+          run-id: 44282672013
+          github-token: ${{ github.token }}
+          path: inputs/s55
+      - name: Frozen S56 true43M GT native OLD TRAIN24
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s56-original43M-GT-protected616J7-NEW24-held-goldblind
+          run-id: 44308286512
+          github-token: ${{ github.token }}
+          path: inputs/s56
+      - name: Frozen S57 true43M GT native SPENT TRAIN24
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s57-original43M-GT-616J7-NEW24-held-goldblind-native
+          run-id: 44312765248
+          github-token: ${{ github.token }}
+          path: inputs/s57native
+      - name: Frozen S58 true43M GT native SPENT TRAIN32
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s58-original43M-GT-616J7-NEW32-held-goldblind-native
+          run-id: 44324723824
+          github-token: ${{ github.token }}
+          path: inputs/s58native
+      - name: S26 original GT native 12384FP16 frozen semantic
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s26-REAL43M-GT-TRAIN256-40fold-12384FP16-event-inversion-ablation-noEVAL
+          run-id: 44196720655
+          github-token: ${{ github.token }}
+          path: inputs/s26
+      - name: S57 old96-trained 231FP16 frozen event-first source
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s57-original43M-GT-96spent-only-eventfirst231-FP16-before-HELD24
+          run-id: 44312765248
+          github-token: ${{ github.token }}
+          path: inputs/s57paid
+      - name: Frozen S59 genuine original43M GT post616J7 native SPENT TRAIN32
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s58-original43M-GT-616J7-NEW32-held-goldblind-native
+          run-id: 44358677983
+          github-token: ${{ github.token }}
+          path: inputs/s59native
+      - name: Frozen S59 old152-trained native semantic2046 FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s59-REAL43M-GT-OLD152-NATIVE320-PAID2046-FP16-frozen-before-HELD
+          run-id: 44357767214
+          github-token: ${{ github.token }}
+          path: inputs/s59paid
+      - name: Frozen S60 real original43M GT NEW32 prior scored native (now OLD SPENT)
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s58-original43M-GT-616J7-NEW32-held-goldblind-native
+          run-id: 44362903794
+          github-token: ${{ github.token }}
+          path: inputs/s60native
+      - name: Frozen S61 real original43M GT OLD SPENT32 native post 616 J7
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s61-real43M-GT-protected616J7-NEW32-native-goldblind
+          run-id: 44367429326
+          github-token: ${{ github.token }}
+          path: inputs/s61native
+      - name: Frozen S61 source-target FP16 old216 paid2752 for joint re-ranking
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s61-GENUINE43M-GT-SPENT216-PAIR-NULL-POLAR2752FP16-frozen
+          run-id: 44366319006
+          github-token: ${{ github.token }}
+          path: inputs/s61paid
+      - name: Frozen S62 genuine 43M GT original protected 616 J7 and SPENT32 native
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s62-real43M-GT-protected616J7-NEW32-native-goldblind
+          run-id: 44372464249
+          github-token: ${{ github.token }}
+          path: inputs/s62native
+      - name: Frozen original S62 JOINT2166 FP16 fitted on old248
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s62-real43M-GT-SPENT248-event-target2166-FP16-frozen
+          run-id: 44371962358
+          github-token: ${{ github.token }}
+          path: inputs/s62paid
+      - name: Frozen S63 TRUE original43M GT previous NEW32 now SPENT32 native339
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s63-real43M-GT-protected616J7-NEW32-native-goldblind
+          run-id: 44377911954
+          github-token: ${{ github.token }}
+          path: inputs/s63native
+      - name: Frozen S64 TRUE original43M GT novel NEW32 now OLD SPENT32 native339
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s64-real43M-GT-protected616J7-NEW32-native-goldblind
+          run-id: 44384939546
+          github-token: ${{ github.token }}
+          path: inputs/s64native
+      - name: Frozen S63 quote outer 471FP16 physical paid only, no training
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s63-REAL43M-GT-SPENT280-QUOTE471-frozen-before-NEW32
+          run-id: 44377346422
+          github-token: ${{ github.token }}
+          path: inputs/s63paid
+      - name: Read-only previously fitted S65 original43M GT old344 paid259 (no refit)
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s65-REAL43M-GT-OLD344-FACTUALITY3WAY259-FP16-before-NEW32
+          run-id: 44389438490
+          github-token: ${{ github.token }}
+          path: inputs/s65paid
+      - name: Verify unchanged frozen S65 physical SHA and ALL old original43M paid ancestors
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          d=Path('inputs/s65paid')
+          m=json.loads((d/'NRA3_S65_REAL43M_GT_SPENT344_FACTUALITY259_MANIFEST.json').read_text())
+          p=d/'NRA3_S65_REAL43M_GT_SPENT344_REPORTED3WAY259_FP16.safetensors'
+          sha=lambda x:hashlib.sha256(x.read_bytes()).hexdigest()
+          assert m['new_S65_physically_fitted259FP16_SHA256']==sha(p)=='4de84bf5ffcffc08c815f13c376b17cf66901370b2c96816d12c92e5bdefc35a'
+          assert m['training']['old_344_SOURCE_rows']==344
+          assert m['new_S65_NEW32_raw_and_gold_NEVER_IMPORTED_IN_OLD344_fitting']
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          parents={
+           'frozen_S26_paid_SHA256':Path('inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26'),
+           'frozen_S57_paid_SHA256':Path('inputs/s57paid/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors'),
+           'frozen_S59_paid_SHA256':Path('inputs/s59paid/NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors'),
+           'frozen_S61_paid_SHA256':Path('inputs/s61paid/NRA3_S61_REAL43M_GT_SPENT216_PAID2752_PAIR_NONE.safetensors'),
+           'frozen_S62_paid_SHA256':Path('inputs/s62paid/NRA3_S62_REAL43M_GT_SPENT248_JOINT_EVENT_TARGET2166_FP16.safetensors'),
+           'frozen_S63_paid_SHA256':Path('inputs/s63paid/NRA3_S63_REAL43M_GT_SPENT280_QUOTE_OUTER_BPE471_FP16.safetensors')}
+          for key,v in parents.items():assert m[key]==sha(v)
+          print('S73_OLD344_FROZEN_S65_AND_ALL_PAID_PARENT_SHA_LOCKED')
+          PY
+      - name: Physically fit 9920 microarea params on OLD original43M GT 248 TRAIN only; OLD96 diagnostic (NOT independent)
+        run: |
+          set -euo pipefail
+          python -m research.nra3_s20.s73_fit_real43m_old344_microareas \
+            --s53 inputs/s53/NRA3_S53_GENUINE43M_GT_NEGATION24_WORD339_AND_UNSAFE.safetensors \
+            --s54 inputs/s54/NRA3_S54_GENUINE43M_GT_HELD24_WORD339_AND_UNSAFE.safetensors \
+            --s55 inputs/s55/NRA3_S55_GENUINE43M_GT_STRUCTURAL24_WORD339_AND_UNSAFE.safetensors \
+            --s56 inputs/s56/NRA3_S56_GENUINE43M_GT_SCOPE24_WORD339_AND_UNSAFE.safetensors \
+            --s57 inputs/s57native/NRA3_S57_GENUINE43M_GT_EVENTFIRST24_WORD339_AND_UNSAFE.safetensors \
+            --s58 inputs/s58native/NRA3_S58_GENUINE43M_GT_EVENTFIRST32_WORD339_AND_UNSAFE.safetensors \
+            --s59 inputs/s59native/NRA3_S59_GENUINE43M_GT_EVENTFIRST32_WORD339_AND_UNSAFE.safetensors \
+            --s60 inputs/s60native/NRA3_S60_GENUINE43M_GT_EVENTFIRST32_WORD339_AND_UNSAFE.safetensors \
+            --s61 inputs/s61native/NRA3_S61_GENUINE43M_GT_EVENTFIRST32_WORD339_AND_UNSAFE.safetensors \
+            --s62 inputs/s62native/NRA3_S62_GENUINE43M_GT_EVENTFIRST32_WORD339_AND_UNSAFE.safetensors \
+            --s63 inputs/s63native/NRA3_S63_GENUINE43M_GT_EVENTFIRST32_WORD339_AND_UNSAFE.safetensors \
+            --s64 inputs/s64native/NRA3_S64_GENUINE43M_GT_EVENTFIRST32_WORD339_AND_UNSAFE.safetensors \
+            --s26 inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26 \
+            --s57-paid inputs/s57paid/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors \
+            --s59-paid inputs/s59paid/NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors \
+            --s61-paid inputs/s61paid/NRA3_S61_REAL43M_GT_SPENT216_PAID2752_PAIR_NONE.safetensors \
+            --s62-paid inputs/s62paid/NRA3_S62_REAL43M_GT_SPENT248_JOINT_EVENT_TARGET2166_FP16.safetensors \
+            --s63-paid inputs/s63paid/NRA3_S63_REAL43M_GT_SPENT280_QUOTE_OUTER_BPE471_FP16.safetensors \
+            --s65 inputs/s65paid/NRA3_S65_REAL43M_GT_SPENT344_REPORTED3WAY259_FP16.safetensors \
+            --s65-manifest inputs/s65paid/NRA3_S65_REAL43M_GT_SPENT344_FACTUALITY259_MANIFEST.json \
+            --out results/nra2_s73_old344_real43m_shadow
+      - name: Verify physical S73 9920FP16 on genuine old native original43M GT, shadow gate0 and no new held
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('results/nra2_s73_old344_real43m_shadow')
+          p=d/'NRA2_S73_REAL43M_GT_OLD344_SITUATION_MICROAREA9920_FP16.safetensors'
+          r=json.loads((d/'NRA2_S73_REAL43M_GT_OLD344_SITUATION_MICROAREA9920_MANIFEST.json').read_text())
+          assert r['stage']=='NRA2_S73_REAL_ORIGINAL43M_GT_FROZEN_S65_OLD344_SITUATION_MICROAREAS_BOOTSTRAP_TRAIN'
+          assert r['n_old_physically_captured_training_sources']==344
+          assert r['prior_S65_fit_ALL_old344_and_NEW_S66_spent_NO_REUSE']
+          assert r['S72_diagnostics']['old_group_TRAIN_rows']==248
+          assert r['S72_diagnostics']['old_group_DIAGNOSTIC_rows']==96
+          assert r['S72_diagnostics']['prior_S65_had_seen_ALL_old344_before_S73']
+          assert r['S72_diagnostics']['named_area_specialization_NOT_CERTIFIED']
+          assert r['new_trainable_parameters_exact']==9920
+          weights=load_file(str(p))
+          assert sum(x.numel() for x in weights.values())==9920
+          assert hashlib.sha256(p.read_bytes()).hexdigest()==r['physical_fp16_SHA256']
+          assert r['not_independent_held_or_prospective_EVAL']
+          assert r['true_J7_integrated_candidate_NOT_measured']
+          assert r['combined_all_in_bpp_and_CPU_NOT_measured']
+          assert r['online_causal_generation_NOT_CERTIFIED']
+          assert r['output_gate']==0 and not r['candidate_accepted'] and not r['activation_allowed']
+          print('S73_REAL43M_GT_OLD344_MICROAREAS_TRAINONLY_SHADOW_NOLIVE',r['S72_diagnostics']['old_dev_S72_shadow_bootstrap']['recipient'])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra2-s73-real43M-GT-OLD344-S65-frozen-9920FP16-shadow-noEVAL
+          path: results/nra2_s73_old344_real43m_shadow/
+          retention-days: 30
+          if-no-files-found: error
