@@ -89,8 +89,9 @@ def sources_and_gold_only_prior_spent():
 def original_frozen_paid(args):
     files={
         "s26":(S26,EventGroundedInversionGraph.from_physical),
-        "s57":(S57,None),"s59":(S59,None),"s61":(S61,None),
-        "s62":(S62,None),"s63":(S63,None),"s65":(S65_WEIGHT,None),
+        "s57_paid":(S57,None),"s59_paid":(S59,None),
+        "s61_paid":(S61,None),"s62_paid":(S62,None),
+        "s63_paid":(S63,None),"s65":(S65_WEIGHT,None),
     }
     for label,(filename,_) in files.items():
         p=getattr(args,label)
@@ -102,11 +103,11 @@ def original_frozen_paid(args):
         require(set(a)=={key}, "unchanged ancestor physical FP16 keys "+label)
         return cls.from_fp16(a[key])
     old57=S57EventFirstRecipient.from_physical_fp16(load_file(
-        str(args.s57),device="cpu")["S57_EVENTFIRST_PAID231_FP16"])
-    old59=fp("s59","S59_NATIVE320_SEMANTIC2046_FP16",S59NativeEventSemantic)
-    old61=fp("s61","S61_REAL43M_GT_PAIR_NULL_POLAR2752_FP16",S61NativePairNull)
-    old62=fp("s62","S62_JOINT_EVENT_TARGET2166_FP16",S62JointEventRecipient)
-    old63=fp("s63","S63_QUOTE_OUTER_STRICTBPE471_FP16",S63QuoteOuterSafe)
+        str(args.s57_paid),device="cpu")["S57_EVENTFIRST_PAID231_FP16"])
+    old59=fp("s59_paid","S59_NATIVE320_SEMANTIC2046_FP16",S59NativeEventSemantic)
+    old61=fp("s61_paid","S61_REAL43M_GT_PAIR_NULL_POLAR2752_FP16",S61NativePairNull)
+    old62=fp("s62_paid","S62_JOINT_EVENT_TARGET2166_FP16",S62JointEventRecipient)
+    old63=fp("s63_paid","S63_QUOTE_OUTER_STRICTBPE471_FP16",S63QuoteOuterSafe)
     paid=load_file(str(args.s65),device="cpu")
     require(sha(args.s65)==S65_SHA
             and set(paid)=={"S65_ATTRIBUTED_3WAY259_FP16"}
@@ -119,11 +120,11 @@ def original_frozen_paid(args):
             and manifest["new_S65_NEW32_raw_and_gold_NEVER_IMPORTED_IN_OLD344_fitting"]
             and [manifest[k]==sha(getattr(args,name)) for name,k in (
                 ("s26","frozen_S26_paid_SHA256"),
-                ("s57","frozen_S57_paid_SHA256"),
-                ("s59","frozen_S59_paid_SHA256"),
-                ("s61","frozen_S61_paid_SHA256"),
-                ("s62","frozen_S62_paid_SHA256"),
-                ("s63","frozen_S63_paid_SHA256"))]==[True]*6,
+                ("s57_paid","frozen_S57_paid_SHA256"),
+                ("s59_paid","frozen_S59_paid_SHA256"),
+                ("s61_paid","frozen_S61_paid_SHA256"),
+                ("s62_paid","frozen_S62_paid_SHA256"),
+                ("s63_paid","frozen_S63_paid_SHA256"))]==[True]*6,
             "original physical SHA-pinned S65 43M paid ancestry")
     parents=(old26,old57,old59,old61,old62,old63,old65)
     require(all(not p.requires_grad for m in parents for p in m.parameters()),
@@ -382,7 +383,8 @@ def fit(net,groups):
 def main():
     p=argparse.ArgumentParser()
     for name in [s[0].lower() for s in FILES]+[
-        "s26","s57","s59","s61","s62","s63","s65","s65_manifest","out"]:
+        "s26","s57_paid","s59_paid","s61_paid","s62_paid","s63_paid",
+        "s65","s65_manifest","out"]:
         p.add_argument("--"+name.replace("_","-"),type=Path,required=True)
     a=p.parse_args()
     require(not a.out.exists(),"never overwrite previous S73 archive")
@@ -420,7 +422,8 @@ def main():
             g["group"]:g["source_physical_sha256"] for g in grouped},
         "frozen_real43M_GT_parent_paid_SHA256":{
             x:sha(getattr(a,x)) for x in (
-                "s26","s57","s59","s61","s62","s63","s65")},
+                "s26","s57_paid","s59_paid","s61_paid","s62_paid",
+                "s63_paid","s65")},
         "prior_S65_fit_ALL_old344_and_NEW_S66_spent_NO_REUSE":True,
         "S72_diagnostics":stats,
         "micro_areas":list(AREAS),
