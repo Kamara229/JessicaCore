@@ -1,0 +1,151 @@
+name: NRA3 S113 NEW disjoint SynTagRus TRAIN-a256 research ONLY CC BY-NC-SA separate GOLD precommit
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s112-bounded-structural-trustgate-inweights-20261120
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s113-SynTagRusA256-noncommercial-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  s113_new_licensed_NC_syntagrus_train_a256_offline:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s113-new-SynTagRusA256-NC-sealed-20261120'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: .:research
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install research CPU-only neural-contract test dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4'
+          python -m compileall -q research/calibri_nra3/s113_new_SynTagRus_TRAINa256_source_GOLD_NC_wall.py research/calibri_nra3/test_s113_new_SynTagRus_TRAINa_NC_gold_wall.py
+          python -m unittest -v research.calibri_nra3.test_s113_new_SynTagRus_TRAINa_NC_gold_wall
+      - name: Require S112 53751 in-Calibri bounded trust physical and original616, no activation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44619230913 44617857519 44615421828 44616432203; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          echo NRA3_S113_REAL_S112_BOUNDED_INCALIBRI_NEURAL_ARCHITECTURE_SUCCESS_GATE0
+      - name: Download EXACT immutable official NEW SynTagRus TRAIN-A plus explicit NONCOMMERCIAL license (NO dev/test)
+        run: |
+          set -euo pipefail
+          mkdir -p inputs/official_SynTagRus_trainA
+          curl --fail --location --silent --show-error --retry 3 \
+            https://raw.githubusercontent.com/UniversalDependencies/UD_Russian-SynTagRus/8b32a94d090be3f023c0c7bbd30804c84efe5f96/ru_syntagrus-ud-train-a.conllu \
+            -o inputs/official_SynTagRus_trainA/ru_syntagrus-ud-train-a.conllu
+          test "$(git hash-object inputs/official_SynTagRus_trainA/ru_syntagrus-ud-train-a.conllu)" = eb7638bf3680414e49123412962e511b998a3b01
+          curl --fail --location --silent --show-error --retry 3 \
+            https://raw.githubusercontent.com/UniversalDependencies/UD_Russian-SynTagRus/8b32a94d090be3f023c0c7bbd30804c84efe5f96/LICENSE.txt \
+            -o inputs/official_SynTagRus_trainA/LICENSE.txt
+          test "$(git hash-object inputs/official_SynTagRus_trainA/LICENSE.txt)" = 2c19e1b9c8249671d92d464b9678391b0c3cca19
+          grep -q 'Attribution-NonCommercial-ShareAlike 4.0' inputs/official_SynTagRus_trainA/LICENSE.txt
+          echo NRA3_S113_NEW_OFFICIAL_RUSSIAN_SYNTAGRUS_TRAIN_A_NONCOMMERCIAL_SOURCE_LOCKED
+      - name: Build strictly raw text+separate GOLD 4x64 multi-verb train-only new SynTagRus source with no existing diagnostics
+        run: |
+          set -euo pipefail
+          python -m research.calibri_nra3.s113_new_SynTagRus_TRAINa256_source_GOLD_NC_wall \
+            --syntag-train inputs/official_SynTagRus_trainA/ru_syntagrus-ud-train-a.conllu \
+            --out results/nra3_s113_NEW_OFFICIAL_SynTagRusA_TRAIN256_SOURCE_GOLD_separate
+      - name: Verify one immutable NC licensed source and GOLD SHA, 256 distinct text-only original sentences
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from research.calibri_nra3.s113_new_SynTagRus_TRAINa256_source_GOLD_NC_wall import (
+              STAGE,SOURCE_FILE,GOLD_FILE,MANIFEST_FILE,UPSTREAM_COMMIT,TRAIN_GIT_BLOB)
+          from research.calibri_nra3.s94_ud_taiga_trainonly_grammatical_source_gold_WALL import sha256_serialized
+          d=Path('results/nra3_s113_NEW_OFFICIAL_SynTagRusA_TRAIN256_SOURCE_GOLD_separate')
+          src=json.loads((d/SOURCE_FILE).read_text())
+          gold=json.loads((d/GOLD_FILE).read_text())
+          m=json.loads((d/MANIFEST_FILE).read_text())
+          assert m['stage']==STAGE
+          assert m['immutable_upstream_commit']=='8b32a94d090be3f023c0c7bbd30804c84efe5f96'
+          assert m['immutable_real_Russian_SYNTAGRUS_TRAIN_git_blob']==TRAIN_GIT_BLOB
+          assert m['immutable_upstream_license_git_blob']=='2c19e1b9c8249671d92d464b9678391b0c3cca19'
+          assert m['license']=='CC BY-NC-SA 4.0'
+          assert m['license_noncommercial_use_only_explicitly_required']
+          assert m['never_activated_or_integrated_into_commercial_model']
+          assert m['only_new_SynTagRus_TRAINa_used_no_dev_test']
+          assert m['Taiga_TRAIN_c_FIRSTREAD_ALREADY_BURNED_never_reuse']
+          assert m['GSD_S110_INTERNAL_DEV_SPENT_never_used']
+          assert len(src)==len(gold)==m['n_new_SYNTAGRUS_train_source_rows']==256
+          assert len({x['text'] for x in src})==256
+          assert all(set(x)=={'row_id','text'} for x in src)
+          assert all(a['row_id']==b['row_id'] for a,b in zip(src,gold))
+          assert m['source_only_SHA256']==sha256_serialized(src)
+          assert m['offline_all_verbs_morph_multiedge_GOLD_SHA256']==sha256_serialized(gold)
+          assert m['fixed_stratification_counts']=={'active_transitive':64,'passive':64,'negated':64,'other_intransitive':64}
+          assert m['n_offline_UD_all_verb_events']>=256
+          assert m['n_offline_UD_multi_argument_role_edges']>=300
+          assert m['source_ONLY_does_not_contain_any_UD_labels']
+          assert m['offline_ud_labels_NEVER_allowed_at_runtime']
+          assert m['gold_only_after_source_original_Calibri_BPE_SHA_pinned']
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          print('NRA3_S113_ORIGINAL_SYNTAGRUS_NC_NEW_SOURCE_AND_OFFLINE_GOLD_SHA_PRECOMMITTED',
+                {'source_SHA':m['source_only_SHA256'],'GOLD_SHA':m['offline_all_verbs_morph_multiedge_GOLD_SHA256'],
+                 'events':m['n_offline_UD_all_verb_events'],
+                 'edges':m['n_offline_UD_multi_argument_role_edges'],'licensed_NC':True},flush=True)
+          PY
+      - name: Download PRIOR Taiga source, DELETE GOLD BEFORE zero-overlap source-only audit
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s103-original-licensed-UD-TaigaTRAINE256-MORPHREL-allVERB-source-GOLD-precommitted-TRAIN-only
+          run-id: 44607338592
+          github-token: ${{ github.token }}
+          path: inputs/S103_OLD_Taiga_source_only
+      - name: Download PRIOR GSD source, DELETE GOLD BEFORE zero-overlap source-only audit
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s108-new-licensed-RussianGSD-TRAIN256-multiverb-source-GOLD-SHA-precommitted-only
+          run-id: 44614522853
+          github-token: ${{ github.token }}
+          path: inputs/S108_OLD_GSD_source_only
+      - name: Prove zero raw-text overlap NEW SynTagRus vs prior GSD and Taiga TRAIN with NO prior GOLD
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('results/nra3_s113_NEW_OFFICIAL_SynTagRusA_TRAIN256_SOURCE_GOLD_separate')
+          fresh=json.loads((root/'NRA3_S113_SYNTAGRUS_TRAIN256_SOURCE_ONLY_NO_GOLD.json').read_text())
+          old_dirs=[
+            (Path('inputs/S103_OLD_Taiga_source_only'),'NRA3_S103_TAIGA_TRAINE256_SOURCE_ONLY_NO_GOLD.json'),
+            (Path('inputs/S108_OLD_GSD_source_only'),'NRA3_S108_GSD_TRAIN256_SOURCE_ONLY_NO_GOLD.json'),
+          ]
+          new={z['text'] for z in fresh}
+          assert len(new)==256
+          for d,keep in old_dirs:
+            for p in d.rglob('*'):
+              if p.is_file() and p.name!=keep: p.unlink()
+            assert {p.name for p in d.rglob('*') if p.is_file()}=={keep}
+            old=json.loads((d/keep).read_text())
+            assert len(old)==256
+            assert not (new&{z['text'] for z in old}), 'MUST BE SOURCE-DISJOINT'
+          print('NRA3_S113_NEW_SYNTAGRUS_TRAIN256_ZERO_RAW_TEXT_OVERLAP_WITH_OLD_TAIGA_GSD')
+          PY
+          rm -rf inputs/S103_OLD_Taiga_source_only inputs/S108_OLD_GSD_source_only
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s113-new-SynTagRusA-NONCOMMERCIAL-TRAIN256-source-GOLD-SHA-precommitted-only
+          path: results/nra3_s113_NEW_OFFICIAL_SynTagRusA_TRAIN256_SOURCE_GOLD_separate/
+          retention-days: 30
+          if-no-files-found: error
