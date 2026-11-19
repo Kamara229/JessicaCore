@@ -221,8 +221,10 @@ class NRA3InCalibriNeuralWeights(nn.Module):
                     all_hidden=torch.stack([captured[i] for i in range(N_LAYERS)],1)
                     mask=torch.ones((all_hidden.shape[0],all_hidden.shape[2]),
                                     device=all_hidden.device,dtype=torch.bool)
-                    self.latest_source_hidden=all_hidden.detach().clone()
-                    self.latest_source_graph=self.forward(all_hidden.detach(),mask)
+                    self.latest_source_hidden=all_hidden.detach().to(torch.float16).contiguous().clone()
+                    # Original 43M/GT often runs FP16; neural child CPU
+                    # research weights are FP32 until final export.
+                    self.latest_source_graph=self.forward(all_hidden.detach().float(),mask)
                     self.capture_count+=1
                 return None  # preserves actual original residual object
             return observe
