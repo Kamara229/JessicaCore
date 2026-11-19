@@ -197,8 +197,13 @@ def map_UD_word_labels_ONLY_AFTER_source_features(
                         continue
                     pos=native_by_span[span]
                     row_morph[label].append((pos,classes[label].index(value)))
-            # Labels are assigned ONLY after every validation of THIS row,
-            # so failing rows do not contaminate outputs.
+            # Validate every mapped morph label BEFORE writing any row
+            # target. Duplicate native BPE positions are ambiguous.
+            for label,pairs in row_morph.items():
+                positions=[pos for pos,_ in pairs]
+                require(len(set(positions))==len(positions),
+                        "multiple UD words cannot share original native BPE")
+            # Labels are assigned ONLY after full row validation.
             for label,pairs in row_morph.items():
                 for pos,value in pairs:
                     require(morph[label][batch,pos]==IGNORE,
@@ -254,7 +259,7 @@ def physical_source_then_separate_gold(path_s95:Path,path_report_s95:Path,
     require(r["stage"]=="CALIBRI_NRA3_S98_REAL43MGT_ALL12_TAIGA_TRAINB256_MORPH_SOURCE_ONLY_AFTER616"
             and r["S97_TAIGA_TRAIN_B_PINNED_SOURCE256_SHA256"]==S94_SOURCE_SHA
             and r["old_616_J7_physically_replayed_BEFORE_NRA3_hooks"]
-            and r["source_only_no_Taiga_UD_gold_loaded_during_original_CPU"]
+            and r["source_only_no_Taiga_TRAIN_B_UD_morph_or_role_GOLD_loaded_during_CPU"]
             and r["NRA3_morph_neural_28887_weights_REGISTERED_INSIDE_actual_Calibri_model"]
             and r["all_original_43M_GT_CB59_params_sha_pre_and_post_identical"]
             and r["new_NRA3_train_steps"]==0
