@@ -1,0 +1,69 @@
+name: NRA2 S74 new TRAIN120 source-only contrastive eight-area situation gold isolation
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s73-actual43m-old344-shadow-fit-20261119
+permissions:
+  contents: read
+concurrency:
+  group: nra2-s74-newtrain120-source-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  freeze_new_train120_source_before_any_original43m_CPU:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s74-newtrain-situation-contrastive-groups-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Precommit exact NEW TRAIN120 source-only blob before any model or gold read
+        run: |
+          set -euo pipefail
+          test "$(git hash-object research/nra3_s20/s74_newtrain120_source_ONLY.py)" = "c39bd34cbc21319c4c3433c3927f01877af1c4ee"
+          python -m compileall -q research/nra3_s20/s74_newtrain120_source_ONLY.py research/nra3_s20/s74_newtrain120_gold_CONSTRUCTION_ONLY_never_in_forward.py
+      - name: Verify 12 grouped lexical scenario families x 10 cases, label isolation, 8 situation overlap and no EVAL
+        run: |
+          python -m unittest -v research.nra3_s20.test_s74_newtrain120_compositional_contrastive_contracts
+      - name: Freeze immutable source only JSON and separately constructed TRAIN-only annotation manifest
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          from research.nra3_s20.s74_newtrain120_source_ONLY import (
+              new_source_only_train120,source_sha256,GROUP_TRAIN,GROUP_DIAG)
+          from research.nra3_s20.s74_newtrain120_gold_CONSTRUCTION_ONLY_never_in_forward import (
+              new_train120_source_gold_alignment_manifest)
+          root=Path('results/nra2_s74_train120_source_LOCKED')
+          assert not root.exists()
+          root.mkdir(parents=True)
+          rows=new_source_only_train120()
+          sha=source_sha256()
+          m=new_train120_source_gold_alignment_manifest()
+          assert len(rows)==120 and sha==m['source_sha256']
+          assert m['h8_tokenizer_source_rows_contain_only_id_family_text']
+          assert m['labels_not_independently_human_reviewed']
+          assert not m['candidate_accepted'] and not m['activation_allowed']
+          a=root/'NRA2_S74_NEW_TRAIN120_SOURCE_ONLY_NO_GOLD.json'
+          b=root/'NRA2_S74_NEW_TRAIN120_GROUPED_CONSTRUCTED_LABELS_MANIFEST.json'
+          a.write_text(json.dumps(rows,ensure_ascii=False,indent=2)+"\n",encoding='utf-8')
+          b.write_text(json.dumps(m,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding='utf-8')
+          print('S74_NEWTRAIN_SOURCE120_FROZEN_BEFORE_ANY_REAL43M_NATIVE_READ',
+                sha,'TRAIN',len(GROUP_TRAIN)*10,'OLD_DEV_DIAGNOSTIC',len(GROUP_DIAG)*10,
+                'NO_MODEL_NO_GOLD_IN_FORWARD',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra2-s74-newtrain120-source-only-locked-before-native-noGOLD
+          path: results/nra2_s74_train120_source_LOCKED/
+          retention-days: 30
+          if-no-files-found: error
