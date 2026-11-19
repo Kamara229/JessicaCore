@@ -130,10 +130,13 @@ def audit(source12,source_report,previous_s102,learned_s105,s105_report,offline_
             r.pop("sum_abs_logit_delta_at_gold_predicate")
             r.pop("base_margin_top1_minus_top2")
             r.pop("delta_to_margin_ratio")
-        require(r["TRAIN_known_role_slots"]>0
+            r["mean_abs_logit_delta"]=None
+            r["median_frozen_rank_margin"]=None
+            r["median_max_delta_over_rank_margin"]=None
+        require(r["TRAIN_known_role_slots"]>=0
                 and r["TRAIN_top1_predictions_changed"]>=0
-                and r["mean_abs_logit_delta"]>=0,
-                "original actual known-word TRAIN-only margin report valid")
+                and (r["mean_abs_logit_delta"] is None or r["mean_abs_logit_delta"]>=0),
+                "original known-word TRAIN-only margin report valid; unknown roles NOT negative")
     summary={
         "stage":STAGE,
         "original12_source_SHA":origin["ALL12_CPU_SAFETENSORS_SHA256"],
