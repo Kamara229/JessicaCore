@@ -92,6 +92,10 @@ def verify_physical_gate(producer_bytes, manifest_bytes, artifact_zip_bytes=None
             members = archive.infolist()
             if len(members) > 1000 or len({m.filename for m in members}) != len(members):
                 raise ValueError("FAIL CLOSED: duplicate or excessive ZIP members")
+            # Bound the entire archive, including auxiliary members, before extraction.
+            # An otherwise valid selected JSON must not hide oversized payloads.
+            if any(m.file_size > 16 * 1024 * 1024 for m in members) or sum(m.file_size for m in members) > 32 * 1024 * 1024:
+                raise ValueError("FAIL CLOSED: excessive ZIP uncompressed size")
             # Validate all entries, not only the selected JSON.
             for entry in members:
                 name = entry.filename
