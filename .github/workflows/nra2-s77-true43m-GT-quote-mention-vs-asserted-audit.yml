@@ -1,0 +1,168 @@
+name: NRA2 S77 genuine Calibri43M GT mentionhood quote vs asserted S65 beam8 old/new 120 TRAIN audit
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s76-original43m-newtrain120-area-router-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s77-mentionhood-S75-frozen-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  real43m_gt_old_S65_quote_vs_mention_sourceonly_forensic:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s77-mentionhood-before-factuality-sourceonly-audit-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      PYTHONHASHSEED: '761119'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CPU tensor-only dependencies (NO Calibri original model reload)
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Test read-only source-only quote inclusive mention mask/old negation, no label during original forward
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/nra3_s20/s76_s74_newtrain120_event_relative_gold_TRAIN_LOSS_ONLY.py research/nra3_s20/s77_real43m_gt_mentionhood_vs_asserted_candidate_audit.py
+          python -m unittest -v research.nra3_s20.test_s72_nra2_situation_microareas research.nra3_s20.test_s74_newtrain120_compositional_contrastive_contracts research.nra3_s20.test_s76_newtrain120_event_router_source_gold_contracts research.nra3_s20.test_s77_mentionhood_sourceonly_quoted_event_mask
+      - name: Require immutable successful real43M CPU 616J7 original FIRST-read S75 and old S65 parents
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 44196720655 44312765248 44357767214 44366319006 44371962358 44377346422 44389438490 44465058843 44466537576; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          test "$(git hash-object research/nra3_s20/s74_newtrain120_source_ONLY.py)" = c39bd34cbc21319c4c3433c3927f01877af1c4ee
+          echo S76_ORIGINAL43M_GT_S75_616J7_AND_S65_FROZEN_REAL_SOURCE_PROVENANCE
+      - name: S75 real Calibri43M GT FIRST-read NEW120 9,235 native BPE postH8 source-only
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-s75-real43M-GT-newtrain120-native-BPE-H8-after-616J7-noGOLD
+          run-id: 44466537576
+          github-token: ${{ github.token }}
+          path: inputs/s75
+      - name: Original S26 paid 12384, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s26-REAL43M-GT-TRAIN256-40fold-12384FP16-event-inversion-ablation-noEVAL
+          run-id: 44196720655
+          github-token: ${{ github.token }}
+          path: inputs/s26
+      - name: Original S57 paid 231, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s57-original43M-GT-96spent-only-eventfirst231-FP16-before-HELD24
+          run-id: 44312765248
+          github-token: ${{ github.token }}
+          path: inputs/s57
+      - name: Original S59 paid 2046, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s59-REAL43M-GT-OLD152-NATIVE320-PAID2046-FP16-frozen-before-HELD
+          run-id: 44357767214
+          github-token: ${{ github.token }}
+          path: inputs/s59
+      - name: Original S61 paid 2752, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s61-GENUINE43M-GT-SPENT216-PAIR-NULL-POLAR2752FP16-frozen
+          run-id: 44366319006
+          github-token: ${{ github.token }}
+          path: inputs/s61
+      - name: Original S62 paid 2166, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s62-real43M-GT-SPENT248-event-target2166-FP16-frozen
+          run-id: 44371962358
+          github-token: ${{ github.token }}
+          path: inputs/s62
+      - name: Original S63 paid 471, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s63-REAL43M-GT-SPENT280-QUOTE471-frozen-before-NEW32
+          run-id: 44377346422
+          github-token: ${{ github.token }}
+          path: inputs/s63
+      - name: Original S65 paid 259, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s65-REAL43M-GT-OLD344-FACTUALITY3WAY259-FP16-before-NEW32
+          run-id: 44389438490
+          github-token: ${{ github.token }}
+          path: inputs/s65
+      - name: Audit OLD S52/S57 quote-excluding asserted beam8 versus NEW separate quote-inclusive MENTION source-only pool
+        run: |
+          set -euo pipefail
+          python -m research.nra3_s20.s77_real43m_gt_mentionhood_vs_asserted_candidate_audit \
+            --s75 inputs/s75/NRA2_S75_GENUINE43M_GT_NEWTRAIN120_WORD339_AND_UNSAFE.safetensors \
+            --s75-report inputs/s75/NRA2_S75_GENUINE43M_GT_NEWTRAIN120_SOURCE_PROVENANCE.json \
+            --s26 inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26 \
+            --s57-paid inputs/s57/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors \
+            --s59-paid inputs/s59/NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors \
+            --s61-paid inputs/s61/NRA3_S61_REAL43M_GT_SPENT216_PAID2752_PAIR_NONE.safetensors \
+            --s62-paid inputs/s62/NRA3_S62_REAL43M_GT_SPENT248_JOINT_EVENT_TARGET2166_FP16.safetensors \
+            --s63-paid inputs/s63/NRA3_S63_REAL43M_GT_SPENT280_QUOTE_OUTER_BPE471_FP16.safetensors \
+            --s65 inputs/s65/NRA3_S65_REAL43M_GT_SPENT344_REPORTED3WAY259_FP16.safetensors \
+            --s65-manifest inputs/s65/NRA3_S65_REAL43M_GT_SPENT344_FACTUALITY259_MANIFEST.json \
+            --out results/nra2_s77_real43mGT_mention_forensic
+      - name: Verify source-only original model never changed, compare only posthoc OLD TRAIN120; new mention NOT asserted
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          r=json.loads(Path('results/nra2_s77_real43mGT_mention_forensic/NRA2_S77_TRUE43M_GT_NEWTRAIN120_QUOTED_MENTION_COVERAGE_REPORT.json').read_text())
+          assert r["stage"]=="NRA2_S77_REAL43M_GT_NEWTRAIN120_QUOTE_INCLUSIVE_MENTION_VS_ASSERTED_PROPOSAL_AUDIT"
+          assert r["S74_NEW_TRAIN120_SOURCE_SHA256"]=="5ff7f5681b0130d4c230fe5b3513038e4d6f3487a3b71964a7ad79e53f50b351"
+          assert r["original_616_J7_protected_baseline_previously_replayed"]
+          assert r["real_original_model_and_old_S26_S57_S59_S61_S62_S63_S65_unchanged"]
+          assert r["S77_mention_masks_computed_source_only_before_train_gold_open"]
+          assert r["original_ASSERTED_gate_remains_quote_EXCLUDING"]
+          assert r["new_MENTION_gate_includes_quoted_text_but_NEVER_asserts"]
+          assert r["NRA2_only_shadow_diagnostic_no_weights_trained"]
+          assert r["n_predeclared_synthetic_NEW_TRAIN"]==120
+          assert r["n_original_S65_main_event_in_8beam"]==96
+          assert r["n_original_S65_main_event_MISSING_in_8beam"]==24
+          assert r["n_new_mention_candidate_tokens"]>=r["n_original_asserted_candidate_tokens"]
+          assert r["source_only_topK_has_no_TRAIN_gold_rerank"]
+          assert r["new_mention_pool_has_unmeasured_false_positive_risk"]
+          assert r["not_end_to_end_factuality_or_recipient_improvement"]
+          assert r["no_independent_first_read_or_original_active_616_candidate"]
+          assert r["all_in_bpp_and_CPU_not_measured"]
+          assert not r["old_S65_32nd_or_held_reuse"]
+          assert r["output_gate"]==0 and not r["candidate_accepted"] and not r["activation_allowed"]
+          assert len(r["per_situation_variant_TRAINONLY"])==10
+          assert len(r["per_row_POSTHOC_TRAINONLY"])==120
+          assert sum(v["n"] for v in r["per_situation_variant_TRAINONLY"].values())==120
+          assert sum(v["old_beam8_hits"] for v in r["per_situation_variant_TRAINONLY"].values())==96
+          assert r["n_new_quote_inclusive_mention_top8_gold"]<=r["n_new_quote_inclusive_mention_top12_gold"]<=r["n_new_quote_inclusive_mention_top16_gold"]<=r["n_new_quote_inclusive_mention_gold_eligible"] 
+          print('S77_ACTUAL43M_GT_MENTION_VS_ASSERTED_POSTHOC_TRAINONLY',
+                {k:r[k] for k in (
+                    "n_original_S65_main_event_MISSING_in_8beam",
+                    "n_missing_due_to_quote_mask",
+                    "n_new_quote_inclusive_mention_top8_gold",
+                    "n_new_quote_inclusive_mention_top12_gold",
+                    "n_new_quote_inclusive_mention_top16_gold",
+                    "n_new_mention_candidate_tokens")},flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra2-s77-real43M-GT-newTRAIN120-mentionhood-sourceonly-quote-AUDIT
+          path: results/nra2_s77_real43mGT_mention_forensic/
+          retention-days: 30
+          if-no-files-found: error
