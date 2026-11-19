@@ -251,7 +251,7 @@ def load_source_VERIFY_sha_THEN_OPEN_gold(
     aligned=map_UD_after_original_source_sha(
         source=source,gold=labels,
         valid=source_tensor["native_BPE_source_valid_mask"],
-        original_indices=source_tensor["source_row_indices_in_PINNED_Russian GSD_TRAIN256"].long(),
+        original_indices=source_tensor["source_row_indices_in_PINNED_GSD_TRAIN256"].long(),
         raw_start=source_tensor["source_raw_word_char_start"],
         raw_end=source_tensor["source_raw_word_char_end"],
         raw_final_BPE=source_tensor["source_raw_word_last_native_BPE"],
