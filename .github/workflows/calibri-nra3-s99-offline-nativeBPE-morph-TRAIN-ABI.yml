@@ -41,8 +41,8 @@ jobs:
       - name: Compile and test 8 morphology/role aligned original BPE fail-closed and zero-leak offline loss contracts
         run: |
           set -euo pipefail
-          python -m compileall -q research/calibri_nra3/s97_in_calibri_morphological_12layer_neural_graph.py research/calibri_nra3/s99_nativeBPE_UD_morphology_labels_AFTER_frozen_original.py research/calibri_nra3/s99_offline_morphology_native_BPE_TRAIN_loss.py research/calibri_nra3/test_s99_source_SHA_then_offline_native_BPE_morphology.py
-          python -m unittest -v research.calibri_nra3.test_s97_morphology_in_calibri_and_trainB_contracts research.calibri_nra3.test_s99_source_SHA_then_offline_native_BPE_morphology
+          python -m compileall -q research/calibri_nra3/s97_in_calibri_morphological_12layer_neural_graph.py research/calibri_nra3/s99_nativeBPE_UD_morphology_labels_AFTER_frozen_original.py research/calibri_nra3/s99_offline_morphology_native_BPE_TRAIN_loss.py research/calibri_nra3/test_s99_source_SHA_then_offline_native_BPE_morphology.py research/calibri_nra3/s99_REAL12_Taiga_B_morph_pretrain_then_role_28887_ONLY.py research/calibri_nra3/test_s99_FIXED_morph_pretrain_vs_role_only_original12.py
+          python -m unittest -v research.calibri_nra3.test_s97_morphology_in_calibri_and_trainB_contracts research.calibri_nra3.test_s99_source_SHA_then_offline_native_BPE_morphology research.calibri_nra3.test_s99_FIXED_morph_pretrain_vs_role_only_original12
       - name: Confirm new in-Calibri neural morphological grammar train-only modules and no runtime UD teacher/production gate
         run: |
           set -euo pipefail
