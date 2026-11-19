@@ -1,13 +1,13 @@
-"""NRA3 S110: STRICT original Calibri BPE source-first GSD GSD all-VERB UD target mapping.
+"""NRA3 S110: STRICT original Calibri BPE source-first Russian-GSD TRAIN all-VERB UD target mapping.
 
 S109 must physically replay original 616 J7 and SHA-lock genuine
 Calibri CB59+GT ALL12 native BPE source first. ONLY THEN open the
-separate S108 original GSD GSD UD multi-event/multi-argument
+separate S108 original Russian-GSD TRAIN UD multi-event/multi-argument
 gold and morphology. No gold passed to actual frozen original model
 or in-Calibri NRA3 forward.
 
-S108 selected 256 *NEW* CC BY-SA 4.0 UD-GSD GSD sources;
-TRAIN-a internal S96, TRAIN-b internal S99, S79/S86 firstreads and
+S108 selected 256 *NEW* CC BY-SA 4.0 UD-Russian-GSD TRAIN sources;
+Taiga train-a internal S96, train-b internal S99 and S79/S86 firstreads and
 entire TRAIN-c reserved prospective corpus may NEVER enter here.
 Fixed source index 0..47/64 TRAIN, 48..63/64 internal developer.
 No developing on these held samples in the same stage.
@@ -242,8 +242,8 @@ def load_source_VERIFY_sha_THEN_OPEN_gold(
             and upstream["new_original_GSD_source_only_SHA256"]==SOURCE_SHA
             and upstream["new_offline_GSD_allVERB_morph_GOLD_SHA256"]==GOLD_SHA
             and upstream["immutable_UD_GSD_TRAIN_git_blob"]==UPSTREAM_BLOB
-            and upstream["ONLY_upstream_GSD_TRAIN_used_not_GSD_or_GSD_dev_test"]
-            and upstream["GSD_TRAIN_c_REMAINS_RESERVED_unopened_for_future_firstread"]
+            and upstream["ONLY_upstream_GSD_TRAIN_used_not_Taiga_or_GSD_dev_test"]
+            and upstream["original_Taiga_TRAIN_c_reserved_UNOPENED"]
             and upstream["known_UD_VERB_events"]==433
             and upstream["known_positive_UD_predicate_argument_links"]==690
             and upstream["license"]=="CC BY-SA 4.0",
@@ -273,10 +273,10 @@ def load_source_VERIFY_sha_THEN_OPEN_gold(
         "physical_original12_S109_SHA":report["ALL12_CPU_SAFETENSORS_SHA256"],
         "original_S108_source_sha":SOURCE_SHA,
         "separate_S108_all_verbs_GOLD_sha":GOLD_SHA,
-        "new_GSD_GSD_original_git_blob":UPSTREAM_BLOB,
+        "new_Russian_GSD_original_git_blob":UPSTREAM_BLOB,
         "source_first_no_teacher_in_actual_calibri":True,
         "original616_protected":True,
-        "new_NRA3_morph_in_CALIBRI_neural_child_37087":True,
+        "new_NRA3_structural_in_CALIBRI_neural_child_53743":True,
         "eight_NRA2_mini_areas_preserved":True,
         "all12_layer_original_Calibri_GT_hidden_frozen":True,
         "per_original_source_stratum":{
