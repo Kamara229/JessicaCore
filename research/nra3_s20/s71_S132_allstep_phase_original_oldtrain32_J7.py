@@ -122,7 +122,7 @@ def read_only_alternate_allstep_original32(cpu,tok,bridge,tunnel,expansion,
         })
     require({r["source_sha256"] for r in probe_rows}==set(base),
             "S71 frozen 32 original J7 comparison incomplete")
-    return final_audit(probe_rows,len(all_decoder_calls) if False else all_decoder_calls)
+    return final_audit(probe_rows,all_decoder_calls)
 
 
 def final_audit(rows,incremental_total):
