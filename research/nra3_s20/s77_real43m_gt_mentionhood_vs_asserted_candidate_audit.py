@@ -50,12 +50,6 @@ from research.nra3_s18.s18c3_raw_russian_grammar_cues import (
 from research.nra3_s20.s76_train_newtrain120_true43m_8area_factor_router import (
     source_only_original_parent_features,
 )
-from research.nra3_s20.s76_s74_newtrain120_event_relative_gold_TRAIN_LOSS_ONLY import (
-    template_constructed_OLDTRAIN_event_area_gold120_for_loss_only,
-)
-from research.nra3_s20.s75_original43m_gt_newtrain120_native_h8 import (
-    TENSOR_NAME,
-)
 # No import original S75 CPU tokenizer/model runner, all weights immutable.
 STAGE="NRA2_S77_REAL43M_GT_NEWTRAIN120_QUOTE_INCLUSIVE_MENTION_VS_ASSERTED_PROPOSAL_AUDIT"
 REPORT="NRA2_S77_TRUE43M_GT_NEWTRAIN120_QUOTED_MENTION_COVERAGE_REPORT.json"
@@ -63,6 +57,27 @@ REPORT="NRA2_S77_TRUE43M_GT_NEWTRAIN120_QUOTED_MENTION_COVERAGE_REPORT.json"
 
 def require(x,reason):
     if not bool(x): raise ValueError("NRA2 S77 mentionhood forensic: "+reason)
+
+
+def mention_only_source_mask(valid,unsafe,punct,texts):
+    """Broad quote-inclusive pool for mentions, never factuality assertions.
+
+    No case-id, correct answer, template-derived label or output token enters.
+    """
+    require(valid.shape==unsafe.shape==punct.shape
+            and valid.dtype==unsafe.dtype==punct.dtype==torch.bool
+            and len(texts)==valid.shape[0],
+            "S77 source-only native BPE masks")
+    lexical_omit=torch.zeros_like(valid)
+    for i,text in enumerate(texts):
+        words=raw_surface_grammar(text)
+        require(len(words)==int(valid[i].sum()),
+                "S77 same genuine BPE raw word count")
+        for j,t in enumerate(words):
+            lexical_omit[i,j]=(
+                t.form.casefold() in NEG
+                or t.form.casefold() in PREPOSITIONS)
+    return valid & ~unsafe & ~punct & ~lexical_omit
 
 
 def source_only_event_proposals(args):
@@ -93,14 +108,7 @@ def source_only_event_proposals(args):
     # Independent MENTION pool. It does not assert any event occurred.
     # Exact bare negation markers and prepositions remain excluded, but
     # quoted verbs are allowed as hypothetical MENTIONS.
-    lexical_omit=torch.zeros_like(native_safe)
-    for i,text in enumerate(texts):
-        words=raw_surface_grammar(text)
-        require(len(words)==int(valid[i].sum()),
-                "S77 same genuine BPE raw word count")
-        for j,t in enumerate(words):
-            lexical_omit[i,j]=t.form.casefold() in NEG or t.form.casefold() in PREPOSITIONS
-    mention_candidate=native_safe&~lexical_omit
+    mention_candidate=mention_only_source_mask(valid,unsafe,punct,texts)
     require(mention_candidate.dtype==torch.bool
             and not bool((mention_candidate&unsafe).any())
             and not bool((mention_candidate&~valid).any())
@@ -137,6 +145,11 @@ def source_only_event_proposals(args):
 
 def posthoc_train_only_coverage(obs):
     """No model forward in this function; only TRAIN label comparison."""
+    # TRAIN labels are dynamically imported ONLY here, after all
+    # immutable original model/parent source-only forwards are finished.
+    from research.nra3_s20.s76_s74_newtrain120_event_relative_gold_TRAIN_LOSS_ONLY import (
+        template_constructed_OLDTRAIN_event_area_gold120_for_loss_only,
+    )
     train_gold=template_constructed_OLDTRAIN_event_area_gold120_for_loss_only()
     rows=obs["texts"]
     require(len(train_gold)==len(rows)==120
