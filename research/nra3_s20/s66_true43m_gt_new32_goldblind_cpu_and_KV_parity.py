@@ -45,9 +45,9 @@ from research.nra3_s20.s75_original43m_gt_newtrain120_native_h8 import (
     capture_S74_new_train120_original43m_cpu_source_only as s75_capture,
     physical_source_only_commit as s75_save_after_616J7,
 )
-from research.calibri_nra3.s101_orig_calibri_GT_all12_trainD_multiverb_sourceonly import (
-    real_all12_source_capture_AFTER_original_616 as nra3_s101_capture,
-    save_only_AFTER_original616_digest_verified as nra3_s101_save,
+from research.calibri_nra3.s104_TRUE43MGT_firstread_TaigaC_all12_goldblind import (
+    real_all12_source_capture_AFTER_original_616 as nra3_s104_capture,
+    save_only_AFTER_original616_digest_verified as nra3_s104_save,
 )
 from research.nra3_s20.s49_real43m_gt_quote_sidecar_zero_gate import (
     Frozen43MGreenTunnelQuotePort, frozen_native_manifest_digest,
@@ -107,7 +107,7 @@ def main():
     s69_physical_rows=[]  # 3 original nontrainable phase toggles × same 8 rows
     s70_native_s95_rows=[]  # source-only S95 prefix native BPE A/B
     s75_newtrain120_capture=[]  # unlabelled new S74 TRAIN source, no GOLD
-    nra3_s101_all12_TAIGA_TRAIND=[]  # S100 separately pinned licensed Taiga TRAIN-d source-only, ALL verb UD gold absent
+    nra3_s104_all12_TAIGA_TRAIND=[]  # S103 prospectively pinned Taiga train-c SOURCE-ONLY, new UD test gold physically absent
     parity_collector=FrozenLayer8ReadPort()
 
     def load_original_with_read_only_port(*args,**kwargs):
@@ -143,9 +143,9 @@ def main():
         # NRA3 S92 physical original 12-layer Calibri + GreenTunnel:
         # attach 22,311 new weights INSIDE this RESEARCH model only,
         # AFTER original protected 616 J7. S79/S86 spent sets excluded.
-        nra3_s101_all12_TAIGA_TRAIND.append(nra3_s101_capture(
+        nra3_s104_all12_TAIGA_TRAIND.append(nra3_s104_capture(
             model,sources,tok,bridge,full,expansion,
-            Path(os.environ["NRA3_S101_TAIGA_D_SOURCE_ONLY_JSON"])))
+            Path(os.environ["NRA3_S104_TAIGA_C_FIRSTREAD_SOURCE_ONLY_JSON"])))
         for row_idx,q in enumerate(texts):
             # Do not supply any graph, gold, predicate anchors or annotations.
             ids=list(s160.prompt_tokens(tok,q))
@@ -300,9 +300,9 @@ def main():
     # posthoc verification above. Thus an altered J7 cannot ever yield
     # a saved physical S75 research artifact.
     s75_newtrain_tensors,s75_newtrain_report=s75_newtrain120_capture[0]
-    if len(nra3_s101_all12_TAIGA_TRAIND)!=1:
-        raise ValueError("NRA3 S101 exactly one gold-free all12 original CPU licensed TRAIN-b read")
-    s101_tensors,s101_child_weights,s101_report=nra3_s101_all12_TAIGA_TRAIND[0]
+    if len(nra3_s104_all12_TAIGA_TRAIND)!=1:
+        raise ValueError("NRA3 S104 exactly one prospective Taiga-C original12 CPU source-only after old616")
+    s104_tensors,s104_child_weights,s104_report=nra3_s104_all12_TAIGA_TRAIND[0]
     token_batch=collector.frozen_batch(texts)
     tok=real_tokenizer[0]
     alignments=[]
@@ -325,18 +325,18 @@ def main():
     out.mkdir(parents=True,exist_ok=True)
     s75_source_file=s75_save_after_616J7(
         out,s75_newtrain_tensors,s75_newtrain_report)
-    s101_source_file=nra3_s101_save(
-        out,s101_tensors,s101_child_weights,s101_report)
-    print("NRA3_S101_ORIGINAL43MGT_TAIGA_TRAIN_D_ALL12_ALLVERB_SOURCE_ONLY_NATIVE_BPE",
+    s104_source_file=nra3_s104_save(
+        out,s104_tensors,s104_child_weights,s104_report)
+    print("NRA3_S104_ORIGINAL43MGT_TAIGA_C_PROSPECTIVE_ALL12_SOURCE_ONLY",
           json.dumps({
-              "source_total":s101_report["n_pinned_source_only_rows"],
-              "accepted":s101_report["n_accepted_source_only_BPE_rows"],
-              "excluded":s101_report["n_excluded_due_to_input_BPE_preflight"],
-              "original_BPE_tokens":s101_report["n_genuine_original_native_BPE_tokens"],
-              "all12_source_SHA":sha_file(s101_source_file),
-              "embedded_child_SHA":s101_report["IN_CALIBRI_28887_MORPH_FP16_WEIGHTS_SHA256"],
+              "source_total":s104_report["n_pinned_source_only_rows"],
+              "accepted":s104_report["n_accepted_source_only_BPE_rows"],
+              "excluded":s104_report["n_excluded_due_to_input_BPE_preflight"],
+              "original_BPE_tokens":s104_report["n_genuine_original_native_BPE_tokens"],
+              "all12_source_SHA":sha_file(s104_source_file),
+              "embedded_child_SHA":s104_report["IN_CALIBRI_28887_MORPH_FP16_WEIGHTS_SHA256"],
               "original_616_J7_retained":True,
-              "no_ALLVERBS_TRAIN_D_GOLD_in_CPU":True,
+              "no_PROSPECTIVE_TAIGA_C_GOLD_in_CPU":True,
               "output_gate":0,
           },sort_keys=True),flush=True)
     print("S75_ORIGINAL43M_GT_NEWTRAIN120_GOLDBLIND_NATIVE_H8",
