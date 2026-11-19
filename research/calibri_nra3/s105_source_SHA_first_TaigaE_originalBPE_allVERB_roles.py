@@ -2,11 +2,11 @@
 
 S104 must physically replay original 616 J7 and SHA-lock genuine
 Calibri CB59+GT ALL12 native BPE source first. ONLY THEN open the
-separate S100 original Taiga TRAIN-e UD multi-event/multi-argument
+separate S103 original Taiga TRAIN-e UD multi-event/multi-argument
 gold and morphology. No gold passed to actual frozen original model
 or in-Calibri NRA3 forward.
 
-S100 selected 256 *NEW* CC BY-SA 4.0 UD-Taiga TRAIN-e sources;
+S103 selected 256 *NEW* CC BY-SA 4.0 UD-Taiga TRAIN-e sources;
 TRAIN-a internal S96, TRAIN-b internal S99, S79/S86 firstreads and
 entire TRAIN-c reserved prospective corpus may NEVER enter here.
 Fixed source index 0..47/64 TRAIN, 48..63/64 internal developer.
@@ -83,7 +83,7 @@ def map_UD_after_original_source_sha(*,source:list,gold:list,
             and sha256_serialized(source)==SOURCE_SHA
             and sha256_serialized(gold)==GOLD_SHA
             and all(set(z)=={"row_id","text"} for z in source),
-            "S100 SHA-frozen NEW TRAIN-e source and separate all-verb teacher gold")
+            "S103 SHA-frozen NEW TRAIN-e source and separate all-verb teacher gold")
     require(valid.dtype==torch.bool and valid.ndim==2,
             "exact source tokenizer native BPE bool valid")
     n,t=valid.shape
@@ -108,7 +108,7 @@ def map_UD_after_original_source_sha(*,source:list,gold:list,
                     and g["multiple_distinct_arguments_PER_role_NOT_collapsed"]
                     and g["original_Calibri_BPE_alignment_NOT_YET_known"]
                     and g["reported_speech_factuality_coreference_not_adjudicated_UNKNOWN"],
-                    "S100 source→gold row ID/known-unknown audit")
+                    "S103 source→gold row ID/known-unknown audit")
             spans=[tuple(z) for z in
                    g["complete_original_source_UD_word_start_end_chars_TRAIN_ONLY"]]
             require(len(spans)>=4 and
@@ -160,7 +160,7 @@ def map_UD_after_original_source_sha(*,source:list,gold:list,
             for name,(field,classes) in MORPH.items():
                 tags=g[field]
                 require(isinstance(tags,list) and len(tags)==len(spans),
-                        "complete S100 original word morphology list")
+                        "complete S103 original word morphology list")
                 vals=[]
                 for word,tag in enumerate(tags):
                     if tag is None:
@@ -209,7 +209,7 @@ def map_UD_after_original_source_sha(*,source:list,gold:list,
 
 def load_source_VERIFY_sha_THEN_OPEN_gold(
         true12_source:Path,source_report:Path,
-        separate_S100_gold_folder:Path):
+        separate_S103_gold_folder:Path):
     """Order enforced: protected true12 source SHA BEFORE gold open."""
     require(true12_source.name==S104_SOURCE and
             source_report.name==S104_REPORT,
@@ -233,21 +233,21 @@ def load_source_VERIFY_sha_THEN_OPEN_gold(
             "true original12 CB59+GT native source SHA MUST match BEFORE UD gold read")
     source_tensor=load_file(str(true12_source),device="cpu")
     # No gold was touched above; only AFTER this point open separate
-    # licensed S100 TRAIN-e UD grammar/morphology teacher.
-    source=json.loads((separate_S100_gold_folder/SOURCE_FILE).read_text())
-    labels=json.loads((separate_S100_gold_folder/GOLD_FILE).read_text())
-    upstream=json.loads((separate_S100_gold_folder/MANIFEST_FILE).read_text())
+    # licensed S103 TRAIN-e UD grammar/morphology teacher.
+    source=json.loads((separate_S103_gold_folder/SOURCE_FILE).read_text())
+    labels=json.loads((separate_S103_gold_folder/GOLD_FILE).read_text())
+    upstream=json.loads((separate_S103_gold_folder/MANIFEST_FILE).read_text())
     require(upstream["stage"]==
                 "CALIBRI_NRA3_S103_ALL_UD_VERBS_MULTI_EDGE_TAIGA_TRAIN_E_PRECOMMITTED"
             and upstream["source_only_SHA256"]==SOURCE_SHA
             and upstream["offline_all_verbs_morph_multiedge_GOLD_SHA256"]==GOLD_SHA
-            and upstream["immutable_real_Taiga_TRAIND_git_blob"]==UPSTREAM_BLOB
+            and upstream["immutable_real_Taiga_TRAINE_git_blob"]==UPSTREAM_BLOB
             and upstream["ONLY_upstream_train_e_USED_no_train_a_b_c_d_dev_test"]
             and upstream["Taiga_TRAIN_c_REMAINS_RESERVED_unopened_for_future_firstread"]
             and upstream["n_offline_UD_all_verb_events"]==361
             and upstream["n_offline_UD_multi_argument_role_edges"]==600
             and upstream["license"]=="CC BY-SA 4.0",
-            "pinned licensed S100 gold SHA and reserved prospective TRAIN-c")
+            "pinned licensed S103 gold SHA and reserved prospective TRAIN-c")
     aligned=map_UD_after_original_source_sha(
         source=source,gold=labels,
         valid=source_tensor["native_BPE_source_valid_mask"],
