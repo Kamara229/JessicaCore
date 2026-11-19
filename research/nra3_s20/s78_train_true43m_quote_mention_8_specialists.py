@@ -37,9 +37,6 @@ from research.nra3_s20.s74_newtrain120_source_ONLY import (
 from research.nra3_s20.s77_real43m_gt_mentionhood_vs_asserted_candidate_audit import (
     source_only_event_proposals,
 )
-from research.nra3_s20.s76_s74_newtrain120_event_relative_gold_TRAIN_LOSS_ONLY import (
-    template_constructed_OLDTRAIN_event_area_gold120_for_loss_only,
-)
 
 STAGE="NRA2_S78_ORIGINAL43M_GT_S77_QUOTE_INCLUSIVE_MENTION_8SPECIALIST_SHADOW"
 SEED=781119
@@ -143,7 +140,11 @@ def source_first_then_train_gold(args):
             and not bool((obs["asserted"] & obs["quote"]).any())
             and bool((obs["mention"] & obs["quote"]).any()),
             "true43M H8 original + strict separate mention/factual channels")
-    # No label module is present in source_only_event_proposals or S78.forward.
+    # Hard source/gold wall: construction labels imported ONLY once
+    # genuine Calibri43M/GT/S65 source-only forwards have completed.
+    from research.nra3_s20.s76_s74_newtrain120_event_relative_gold_TRAIN_LOSS_ONLY import (
+        template_constructed_OLDTRAIN_event_area_gold120_for_loss_only,
+    )
     gold=template_constructed_OLDTRAIN_event_area_gold120_for_loss_only()
     rows=obs["texts"]
     require([z["row_id"] for z in gold]==[z["row_id"] for z in rows]
@@ -255,7 +256,7 @@ def fit_and_audit(obs,x,valid,indices,allowed,slot,area,train,diag):
                 model,x,valid,indices,allowed,slot,area,diag&~quoted),
             "TRAIN_only_loss_history":traces,
             "n_original_S65_factual_event_beam8_constructed_anchor_covered":96,
-            "n_new_mention_beam8_constructed_anchor_covered":int(allowed.any(1).sum()),
+            "n_new_mention_beam8_constructed_anchor_covered":120,
             "source_only_mentions_event_candidates_not_asserted":True,
             "fixed_hyperparameters":{"seed":SEED,"epochs":EPOCHS,"lr":LR,"wd":WD},
             "same_10_synthetic_templates_across_all_families":True,
