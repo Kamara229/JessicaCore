@@ -19,7 +19,7 @@ def fixture(raw=b'{"output_gate":0.0,"candidate_accepted":false}', member="resul
     zipped = buffer.getvalue()
     manifest = {
         "manifest_reviewed": True,  # synthetic flag, NOT independent attestation
-        "run_id": 1, "run_attempt": 1, "workflow_path": "research-only.yml",
+        "run_id": 1, "run_attempt": 1, "workflow_path": ".github/workflows/research-only.yml",
         "head_sha": "a" * 40, "artifact_id": 1, "artifact_name": "synthetic",
         "zip_sha256": sha(zipped), "json_member_path": member,
         "json_sha256": sha(raw),
