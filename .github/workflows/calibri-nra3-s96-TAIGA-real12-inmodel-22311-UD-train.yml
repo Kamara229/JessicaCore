@@ -38,7 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m compileall -q research/calibri_nra3/s96_taiga_originalBPE_offline_UD_targets.py research/calibri_nra3/s96_train_real12_taiga_UD_22311_neural_CHILD.py
-          python -m unittest -v research.calibri_nra3.test_s93_offline_dependency_loss_native_BPE research.calibri_nra3.test_s96_true_original_BPE_licensed_UD_mapping
+          python -m unittest -v research.calibri_nra3.test_s93_offline_event_dependency_neural_training research.calibri_nra3.test_s96_true_original_BPE_licensed_UD_mapping
       - name: Require genuine original Calibri S95 physically protected original616 + Taiga source-only 12 layers, separate S94 licensed labels SHA, no old spent tests
         env:
           GH_TOKEN: ${{ github.token }}
