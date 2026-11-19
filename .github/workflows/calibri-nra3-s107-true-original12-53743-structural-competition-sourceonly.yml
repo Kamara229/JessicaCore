@@ -1,0 +1,143 @@
+name: Calibri NRA3 S107 REAL 12layer goldblind 53743 structural role competition exact zero gate
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s106-TaigaE-TRAINonly-affinity-margin-audit-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri-nra3-s107-53743-original12-sourceonly-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  s107_true_original12_neural_53743_sourceonly_after616:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s107-structural-competition-inweights-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: .:research
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONHASHSEED: '1071119'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU-only torch for frozen Calibri all12 source
+        run: |
+          set -euo pipefail
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Check zero-gate old logits identity, 16656 new structural parameters, gradient, per-role competition, no external GOLD
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s107_in_calibri_structural_role_competition_53743.py research/calibri_nra3/test_s107_structural_competition_in_calibri_53743.py research/calibri_nra3/s107_original12_source_only_shadow_53743.py
+          python -m unittest -v research.calibri_nra3.test_s107_structural_competition_in_calibri_53743 research.calibri_nra3.test_s103_neural_morphosyntactic_affinity_TaigaE
+      - name: Require S104 original protected616 true12 CPU and S105 true 8200 neural TRAIN success, S106 TRAIN-only audit success
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44608972425 44610664804 44611638768 44607338592; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          echo NRA3_S107_REQUIRES_ORIGINAL_CALIBRI_GT12_616_J7_AND_53743_ZERO_GATE
+      - name: Download ONLY frozen original S104 genuine Calibri+GT all12 native source without UD GOLD
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s104-true43MGT-TaigaTRAINE256-allVERB-sourceonly-all12-37087-neural-after616
+          run-id: 44608972425
+          github-token: ${{ github.token }}
+          path: inputs/S104_GENUINE_original12_NO_GOLD
+      - name: Verify old S104 original12 true native BPE SHA + protected original616, no training GOLD before neural use
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json,torch
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('inputs/S104_GENUINE_original12_NO_GOLD')
+          p=d/'NRA3_S104_TAIGA_TRAINE256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors'
+          r=json.loads((d/'NRA3_S104_REAL43MGT_TAIGA_TRAINE256_ALLVERBS_SOURCE_PROVENANCE.json').read_text())
+          assert hashlib.sha256(p.read_bytes()).hexdigest()==r['ALL12_CPU_SAFETENSORS_SHA256']=='c46e236072a6b39eb7a0e02fdc20c622c8b391785b7c2b21b99a416b8d902a2e'
+          assert r['S103_TAIGA_TRAIN_E_PINNED_SOURCE256_SHA256']=='5fa1c234cf2bd53aee62eb8c4faba9a8ec116c0e70f7b8c5e2b13a11f4d574fc'
+          assert r['old_616_J7_physically_replayed_BEFORE_NRA3_hooks']
+          assert r['original_S5_H8_port_exactly_matches_all12_H8_for_all_accepted']
+          assert r['all_original_43M_GT_CB59_params_sha_pre_and_post_identical']
+          assert r['source_ONLY_no_S103_ALL_VERBS_UD_morph_multiedge_gold_loaded_in_original_CPU']
+          assert r['n_genuine_original_native_BPE_tokens']==18096
+          assert r['output_gate']==0 and not r['candidate_accepted'] and not r['activation_allowed']
+          src=load_file(str(p),device='cpu')
+          assert src['original_Calibri43M_GT_ALL12_native_H320_FP16_READONLY'].shape[1]==12
+          assert src['original_Calibri43M_GT_ALL12_native_H320_FP16_READONLY'].dtype==torch.float16
+          print('NRA3_S107_PINNED_REAL_ORIGINAL12_NO_UD_GOLD_SHA_VERIFIED')
+          PY
+      - name: Download ONLY already trained S105 37087 in-Calibri neural weight archive; never inspect spent diagnosis
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s105-original43MGT-TaigaE-8200affinity-only-37087-inmodel-neural-TRAIN-SHADOW
+          run-id: 44610664804
+          github-token: ${{ github.token }}
+          path: inputs/S105_PRIOR_NEURAL_ONLY
+      - name: Physically DELETE old S105 spent internal diagnostics/labels; preserve strictly frozen 37087 neural weights
+        run: |
+          set -euo pipefail
+          find inputs/S105_PRIOR_NEURAL_ONLY -type f ! -name 'NRA3_S105_TAIGA_E_STRUCTURAL_AFFINITY_37087_IN_CALIBRI_FP16.safetensors' -delete
+          test "$(find inputs/S105_PRIOR_NEURAL_ONLY -type f | wc -l)" -eq 1
+          echo NRA3_S107_NEVER_ACCESS_S105_SPENT_INTERNAL_DEVELOPER_RESULTS
+      - name: Register all 53743 neural weights INSIDE frozen original12 Calibri CHILD and verify EXACT old S105 source-only logits under zero gate
+        run: |
+          set -euo pipefail
+          python -m research.calibri_nra3.s107_original12_source_only_shadow_53743 \
+            --source inputs/S104_GENUINE_original12_NO_GOLD/NRA3_S104_TAIGA_TRAINE256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors \
+            --source-report inputs/S104_GENUINE_original12_NO_GOLD/NRA3_S104_REAL43MGT_TAIGA_TRAINE256_ALLVERBS_SOURCE_PROVENANCE.json \
+            --previous-s105 inputs/S105_PRIOR_NEURAL_ONLY/NRA3_S105_TAIGA_E_STRUCTURAL_AFFINITY_37087_IN_CALIBRI_FP16.safetensors \
+            --out results/nra3_s107_frozen_original12_calibriGT_neural_53743_sourceonly
+      - name: Check genuine 12-layer original Calibri+GreenTunnel SHADOW, 53743 weights, old616 and all output gates off
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json,torch
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('results/nra3_s107_frozen_original12_calibriGT_neural_53743_sourceonly')
+          w=d/'NRA3_S107_ORIGINAL12_53743_IN_CALIBRI_NEURAL_UNTRAINED_GATE0_FP16.safetensors'
+          p=d/'NRA3_S107_ORIGINAL12_SOURCE_ONLY_NEURAL_53743_IDENTITY_MANIFEST.json'
+          m=json.loads(p.read_text())
+          assert m['stage']=='CALIBRI_NRA3_S107_PHYSICAL_ORIGINAL12_S104_SOURCE_ONLY_53743_SHADOW_AFTER616'
+          assert m['original_CB59_GT_ALL12_source_SHA']=='c46e236072a6b39eb7a0e02fdc20c622c8b391785b7c2b21b99a416b8d902a2e'
+          assert m['new_S107_53743_in_Calibri_neural_FP16_SHA']==hashlib.sha256(w.read_bytes()).hexdigest()
+          assert m['old_616_J7_physically_replayed_by_S104']
+          assert m['old_S105_in_Calibri_params']==37087 and m['new_structural_params']==16656
+          assert m['new_in_Calibri_neural_params']==53743
+          assert m['original_model_and_GreenTunnel_NOT_retrained_or_modified']
+          assert m['eight_original_NRA2_mini_areas_preserved']
+          assert m['original_all12_learned_layer_router_preserved']
+          assert m['original_16_in_weight_memory_slots_preserved']
+          assert m['no_original_Taiga_DEV_TEST_or_reserved_TRAIN_c_access']
+          assert m['old_S96_S99_S102_S105_internal_devs_SPENT_not_accessed']
+          assert m['no_new_NRA3_training_or_quality_or_factuality_claim']
+          assert len(m['neural_gold_free_full12_original_native_BPE_tests'])==2
+          assert all(q['all10_neural_logits_BIT_IDENTICAL']
+                     for q in m['neural_gold_free_full12_original_native_BPE_tests'])
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          x=load_file(str(w))
+          assert sum(t.numel() for t in x.values())==53743
+          assert all(k.startswith('model.nra3_neural_weights.') for k in x)
+          assert 'model.nra3_neural_weights.structural_competition_gate' in x
+          assert torch.equal(x['model.nra3_neural_weights.structural_competition_gate'],torch.zeros(8,dtype=torch.float16))
+          print('NRA3_S107_REAL12_53743_NEURAL_GOLD_BLIND_GATE0_PASS',m['new_S107_53743_in_Calibri_neural_FP16_SHA'])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s107-true-original12-53743-inmodel-structural-competition-zero-GATE-sourceonly
+          path: results/nra3_s107_frozen_original12_calibriGT_neural_53743_sourceonly/
+          retention-days: 30
+          if-no-files-found: error
