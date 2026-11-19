@@ -1,0 +1,114 @@
+name: Calibri NRA3 S100 ALL-VERB multi-edge UD-Taiga TRAIN-d source/GOLD wall, not a first-read
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s99-morphology-pretrain-real12-UDtrainB-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s100-licensed-multiverb-traind-precommit-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  precommit_NEW_multiverb_Ud_Taiga_TRAIN_D_and_in_calibri_neural_loss:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s100-multiverb-UD-TaigaTRAINd-sourcegold-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install ONLY CPU torch for new in-Calibri multiverb graph loss synthetic tests
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Require genuine original12+GT S99 physical 28,887 neural child TRAIN result, role generalization failure NOT reusable developer split
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/44575467933 --jq .conclusion)" = success
+          test "$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/44572723983 --jq .conclusion)" = success
+          echo NRA3_S100_S99_ROLE_GENERALIZATION_FAILED_16_PERCENT_DEV_DO_NOT_TUNE_OR_REREAD
+      - name: Test exact all-verb UD event edges including multiple same-role arguments, negation passive and in-Calibri graph multigoal loss
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s100_newTRAINd_all_VERB_dependencies_multiedge_SOURCE_GOLD_wall.py research/calibri_nra3/s100_offline_allverb_multiargument_nativeBPE_train_loss.py research/calibri_nra3/test_s100_multi_VERB_OFFLINE_TaigaD_native_BPE_relation.py
+          python -m unittest -v research.calibri_nra3.test_s100_multi_VERB_OFFLINE_TaigaD_native_BPE_relation
+      - name: Download ONLY original new licensed Russian UD Taiga TRAIN-d pinned immutable blob, reserve TRAIN-c unopened
+        run: |
+          set -euo pipefail
+          mkdir -p inputs/taiga_d
+          curl --fail --location --show-error --silent --retry 3 --max-time 360 \
+            https://raw.githubusercontent.com/UniversalDependencies/UD_Russian-Taiga/445ea57e47a3adae3146d0a42d2a8876214f2d20/ru_taiga-ud-train-d.conllu \
+            -o inputs/taiga_d/ru_taiga-ud-train-d.conllu
+          test "$(git hash-object inputs/taiga_d/ru_taiga-ud-train-d.conllu)" = 9a0ac9cdf49a7e2feefd492f43b88715a1fc37d3
+          curl --fail --location --show-error --silent --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/UniversalDependencies/UD_Russian-Taiga/445ea57e47a3adae3146d0a42d2a8876214f2d20/LICENSE.txt \
+            -o inputs/taiga_d/LICENSE.txt
+          test "$(git hash-object inputs/taiga_d/LICENSE.txt)" = 9af2e0b2f73cf29fe1f60cb6376b176d9c2ba846
+          grep -q 'Attribution-ShareAlike 4.0 International' inputs/taiga_d/LICENSE.txt
+      - name: Deterministic SHA PRECOMMIT new original Taiga TRAIN-d 256 SOURCE rows separately from ALL-verb multiarg UD GOLD
+        run: |
+          set -euo pipefail
+          python -m research.calibri_nra3.s100_newTRAINd_all_VERB_dependencies_multiedge_SOURCE_GOLD_wall \
+            --taiga-train-d inputs/taiga_d/ru_taiga-ud-train-d.conllu \
+            --out results/nra3_s100_TaigaD_NEW_ONLY_256_MULTIVERB_source_gold_separated
+      - name: Audit upstream TRAIN-d only, ALL UD verbs source→multiarg role link coverage and separate immutable SHA, license gate0
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from research.calibri_nra3.s100_newTRAINd_all_VERB_dependencies_multiedge_SOURCE_GOLD_wall import (
+              SOURCE_FILE,GOLD_FILE,MANIFEST_FILE,STAGE,TRAIN_GIT_BLOB)
+          from research.calibri_nra3.s94_ud_taiga_trainonly_grammatical_source_gold_WALL import sha256_serialized
+          d=Path('results/nra3_s100_TaigaD_NEW_ONLY_256_MULTIVERB_source_gold_separated')
+          src=json.loads((d/SOURCE_FILE).read_text())
+          gold=json.loads((d/GOLD_FILE).read_text())
+          r=json.loads((d/MANIFEST_FILE).read_text())
+          assert r['stage']==STAGE
+          assert r['immutable_real_Taiga_TRAIND_git_blob']==TRAIN_GIT_BLOB
+          assert r['license']=='CC BY-SA 4.0'
+          assert r['ONLY_upstream_train_d_USED_no_train_a_b_c_dev_test']
+          assert r['S96_S99_developer_results_SPENT_not_used_for_training_selection']
+          assert r['old_S79_S86_firstread48_SPENT_not_used']
+          assert r['Taiga_TRAIN_c_REMAINS_RESERVED_unopened_for_future_firstread']
+          assert r['source_only_SHA256']==sha256_serialized(src)
+          assert r['offline_all_verbs_morph_multiedge_GOLD_SHA256']==sha256_serialized(gold)
+          assert r['n_new_train_d_source_rows']==len(src)==len(gold)==256
+          assert r['fixed_stratification_counts']=={'active_transitive':64,'passive':64,'negated':64,'other_intransitive':64}
+          assert r['n_offline_UD_all_verb_events']>=256
+          assert r['n_offline_UD_multi_argument_role_edges']>=300
+          assert all(set(z)=={'row_id','text'} for z in src)
+          assert len({z['text'] for z in src})==256
+          assert all(a['row_id']==b['row_id'] for a,b in zip(src,gold))
+          assert r['source_ONLY_does_not_contain_any_UD_labels']
+          assert r['offline_ud_labels_NEVER_allowed_at_runtime']
+          assert r['gold_only_after_source_original_Calibri_BPE_SHA_pinned']
+          assert r['attribution_and_sharealike_license_review_before_any_commercial_use']
+          assert r['new_inmodel_NRA3_training_steps']==0 and r['output_gate']==0
+          assert not r['candidate_accepted'] and not r['activation_allowed']
+          print('NRA3_S100_REAL_NEW_TAIGA_D_ALLVERB_MULTIEDGE',
+                {'source_sha':r['source_only_SHA256'],
+                 'gold_sha':r['offline_all_verbs_morph_multiedge_GOLD_SHA256'],
+                 'events':r['n_offline_UD_all_verb_events'],
+                 'edges':r['n_offline_UD_multi_argument_role_edges'],
+                 'morph':r['n_offline_UD_word_morph_tags'],
+                 'TRAINc_reserved':True,
+                 'gate':0},flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s100-original-licensed-UD-TaigaTRAIND256-MULTIVERB-multiarg-source-GOLD-precommitted-research-only
+          path: results/nra3_s100_TaigaD_NEW_ONLY_256_MULTIVERB_source_gold_separated/
+          retention-days: 30
+          if-no-files-found: error
