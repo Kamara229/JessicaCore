@@ -1,0 +1,61 @@
+name: NRA3 S93 offline ONLY grammatical teacher target and in-Calibri 12layer event graph loss ABI
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s92b-cb59-physical-core-guard-20261119
+permissions:
+  contents: read
+concurrency:
+  group: nra3-s93-offline-native-bpe-roles-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  strict_offline_teacher_loss_neural_module_8_NRA2_mini_areas:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s93-inmodel-ud-relation-train-objective-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Tensor-only CPU original-Calibri child ABI, no external runtime UD parser or original model
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: S93 test actor/patient role arcs, explicit mention annotations, negation/passive state and eight neural NRA2 areas; unknown not negatives
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s91_neural_multilayer_event_graph.py research/calibri_nra3/s93_offline_ud_grammatical_role_train_loss_ONLY.py research/calibri_nra3/test_s93_offline_event_dependency_neural_training.py
+          python -m unittest -v research.calibri_nra3.test_s91_in_calibri_neural_12layer_event_graph research.calibri_nra3.test_s93_offline_event_dependency_neural_training
+      - name: Confirm S93 GOLD never enters original12 forward, only loss path and gate0
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          from research.calibri_nra3.s91_neural_multilayer_event_graph import NRA3InCalibriNeuralWeights
+          from research.calibri_nra3.s93_offline_ud_grammatical_role_train_loss_ONLY import (
+              STAGE,IGNORE,UNKNOWN)
+          s=Path('research/calibri_nra3/s91_neural_multilayer_event_graph.py').read_text()
+          tree=ast.parse(s)
+          imports=[n.module or '' for n in tree.body if isinstance(n,ast.ImportFrom)]
+          assert not any('s93_offline' in z or 'stanza' in z or 'udpipe' in z for z in imports)
+          assert STAGE=='CALIBRI_NRA3_S93_OFFLINE_TEACHER_EVENT_DEPENDENCY_TRAIN_ONLY'
+          assert IGNORE==-100 and UNKNOWN==-1
+          m=NRA3InCalibriNeuralWeights()
+          b=m.budget()
+          assert b['new_neural_parameters']==22311
+          assert b['NRA2_independent_mini_areas_preserved']==8
+          assert b['all_12_original_calibri_layers']==12
+          assert b['trainable_in_model_memory_slots']==16
+          assert b['output_gate']==0 and not b['candidate_accepted'] and not b['activation_allowed']
+          assert not m.is_trained
+          print('NRA3_S93_NEURAL_IN_CALIBRI_GRAMMATICAL_ROLE_SUPERVISION_ABI_ONLY_0_GRAMMAR_QUALITY_CLAIMS',flush=True)
+          PY
