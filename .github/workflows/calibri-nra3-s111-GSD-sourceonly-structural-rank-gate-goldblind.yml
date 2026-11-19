@@ -1,0 +1,133 @@
+name: Calibri NRA3 S111 GSD original12 GOLD-BLIND frozen TRAIN-source ONLY structural logits and rank audit
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s110-GSD256-16656-structural-TRAINonly-20261120
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: calibri-nra3-s111-GSD-goldblind-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  s111_TRUE12_train_source_only_no_old_devs_no_GOLD:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s111-GSD-goldblind-rankgate-audit-20261120'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    env:
+      PYTHONPATH: .:research
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU neural inference tools and source-only compile
+        run: |
+          set -euo pipefail
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+          python -m compileall -q research/calibri_nra3/s111_GSD_sourceONLY_structural_gate_rank_audit.py
+      - name: Require original616 physical S109 true Calibri CB59GT source, successful S110 frozen model; never read burned internal developer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44615421828 44616432203 44613224161 44614522853; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          echo S111_GSD_GOLD_BLIND_ONLY_READ_FROZEN_NEURAL_SOURCE_CHECKPOINTS
+      - name: Download frozen S109 TRUE original12 all256-GSD source + baseline in-Calibri child, NO UD GOLD
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s109-true-original12-CB59GT-GSD256-sourceonly-53743-inmodel-after616
+          run-id: 44615421828
+          github-token: ${{ github.token }}
+          path: inputs/s109-real12-sourceonly
+      - name: Physically delete all unrelated original S66 source/metadata; retain ONLY S109 no-GOLD source and physical child
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          d=Path('inputs/s109-real12-sourceonly')
+          allow={'NRA3_S109_GSD_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors',
+                 'NRA3_S109_REAL43MGT_GSD_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json',
+                 'NRA3_S109_IN_CALIBRI_UNTRAINED_53743_FP16.safetensors'}
+          files=list(d.rglob('*'))
+          for p in files:
+            if p.is_file() and p.name not in allow:
+              p.unlink()
+          found={p.name for p in d.rglob('*') if p.is_file()}
+          assert found==allow, (found,allow)
+          print('NRA3_S111_ONLY_THREE_GOLDBLIND_REAL12_ARTIFACTS_RETAINED')
+          PY
+      - name: Download physically trained S110 FP16 child, NEVER use its spent same-GSD INTERNAL diagnostic result
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s110-original12-GSD256-16656structural-inmodel-53743-TRAINonly-shadow
+          run-id: 44616432203
+          github-token: ${{ github.token }}
+          path: inputs/s110-trained-weights
+      - name: Physically DELETE S110 spent same-GSD diagnostic before any code import or inference
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          d=Path('inputs/s110-trained-weights')
+          allow={'NRA3_S110_GSD_ORIGINAL12_NEW16656_STRUCTURAL_53743_IN_CALIBRI_FP16.safetensors'}
+          for p in d.rglob('*'):
+            if p.is_file() and p.name not in allow:
+              p.unlink()
+          found={p.name for p in d.rglob('*') if p.is_file()}
+          assert found==allow,found
+          print('NRA3_S111_ALL_SPENT_GSD_INTERNAL_DEV_REPORT_FILES_PURGED')
+          PY
+      - name: Read-only 64 maximum actual GSD TRAIN-source original Calibri12 role gate and argmax JS divergence audit NO GOLD
+        run: |
+          set -euo pipefail
+          python -m research.calibri_nra3.s111_GSD_sourceONLY_structural_gate_rank_audit \
+            --source-path inputs/s109-real12-sourceonly/NRA3_S109_GSD_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors \
+            --manifest-path inputs/s109-real12-sourceonly/NRA3_S109_REAL43MGT_GSD_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json \
+            --pre-s109 inputs/s109-real12-sourceonly/NRA3_S109_IN_CALIBRI_UNTRAINED_53743_FP16.safetensors \
+            --post-s110 inputs/s110-trained-weights/NRA3_S110_GSD_ORIGINAL12_NEW16656_STRUCTURAL_53743_IN_CALIBRI_FP16.safetensors \
+            --out results/nra3_s111_goldblind_TRAIN_sourceonly_rank_audit
+      - name: Verify source-only no-GOLD old mini-areas bit-exact and S110 role gate diagnostics finite, candidate blocked
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,math
+          from pathlib import Path
+          p=Path('results/nra3_s111_goldblind_TRAIN_sourceonly_rank_audit/NRA3_S111_GSD_SOURCE_ONLY_GOLDBLIND_STRUCTURAL_RANK_GATE_AUDIT.json')
+          r=json.loads(p.read_text())
+          assert r['stage']=='CALIBRI_NRA3_S111_REAL12_GSD_GOLDBLIND_TRAIN_SOURCE_ONLY_STRUCTURAL_GATE_RANK_AUDIT'
+          assert r['genuine_original12_S109_CB59_GT_physical_source_SHA256']=='5880ea08df06587a8a75a628dd4c55d94c89da9f1f2fa3aa6ab10c6ebd40f6b4'
+          assert 32<=r['n_fixed_source_only_rows']<=64
+          assert r['n_supervision_UD_gold_or_teacher_labels_loaded']==0
+          assert r['no_S110_spent_INTERNAL_developer_report_or_labels_downloaded_for_use']
+          assert r['only_first16of64_GSD_TRAIN_source_rows_examined']
+          assert r['zero_structural_gate_exactly_recovers_previous_inmodel_role_logits']
+          assert r['old_37087_NRA2_router_memory_morphology_FP16_exact']
+          assert r['new_16656_structural_params_physically_learned']
+          assert r['original616_J7_physically_protected']
+          assert r['only_unlabeled_predictions_no_accuracy_or_gain_proof']
+          assert r['output_gate']==0 and not r['candidate_accepted'] and not r['activation_allowed']
+          assert len(r['learned_tanh_structural_role_gate'])==8
+          for d in r['source_ONLY_unlabeled_rank_geometry_per_role'].values():
+            assert 0<=d['changed_fraction_no_accuracy_implication']<=1
+            assert all(math.isfinite(d[k]) for k in ('mean_baseline_top1_margin','mean_abs_logit_delta',
+                                                   'mean_Jensen_Shannon_divergence'))
+          print('NRA3_S111_SAFE_GOLD_FREE_NEURAL_ROLE_STRUCTURAL_COMPETITION_AUDIT',r['learned_tanh_structural_role_gate'])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s111-original12-GSD-TRAIN-sourceonly-S110-structural-neural-argmax-JS-gate-NOGOLD
+          path: results/nra3_s111_goldblind_TRAIN_sourceonly_rank_audit/
+          retention-days: 30
+          if-no-files-found: error
