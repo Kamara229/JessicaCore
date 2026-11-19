@@ -1,0 +1,92 @@
+name: Calibri NRA3 S94 pinned licensed Russian UD-Taiga TRAIN-only grammar source/gold separation
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s93-inmodel-ud-relation-train-objective-20261119
+permissions:
+  contents: read
+concurrency:
+  group: nra3-s94-licensed-ud-taiga-TRAIN-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  pin_real_Russian_Ud_Taiga_TRAIN_a_source_and_grammar_labels:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s94-ud-taiga-TRAIN-only-structured-grammar-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate no external parser/teacher inside Calibri inference, tiny synthetic CoNLL-U grammar mapping and CC BY-SA source/gold boundary
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s94_ud_taiga_trainonly_grammatical_source_gold_WALL.py research/calibri_nra3/test_s94_ud_taiga_trainonly_parser_and_license.py
+          python -m unittest -v research.calibri_nra3.test_s94_ud_taiga_trainonly_parser_and_license
+      - name: Download ONLY pinned upstream Russian Taiga TRAIN-a (no dev/test); physically check exact Git blob and license provenance
+        run: |
+          set -euo pipefail
+          mkdir -p inputs/ud_taiga_train_only
+          curl --fail --location --show-error --silent --retry 3 --max-time 360 \
+            https://raw.githubusercontent.com/UniversalDependencies/UD_Russian-Taiga/445ea57e47a3adae3146d0a42d2a8876214f2d20/ru_taiga-ud-train-a.conllu \
+            -o inputs/ud_taiga_train_only/ru_taiga-ud-train-a.conllu
+          test "$(git hash-object inputs/ud_taiga_train_only/ru_taiga-ud-train-a.conllu)" = c63aa8de90f2260e9681fde49d56d2c933366ef0
+          curl --fail --location --show-error --silent --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/UniversalDependencies/UD_Russian-Taiga/445ea57e47a3adae3146d0a42d2a8876214f2d20/LICENSE.txt \
+            -o inputs/ud_taiga_train_only/LICENSE.txt
+          test "$(git hash-object inputs/ud_taiga_train_only/LICENSE.txt)" = 9af2e0b2f73cf29fe1f60cb6376b176d9c2ba846
+          grep -q 'Attribution-ShareAlike 4.0 International' inputs/ud_taiga_train_only/LICENSE.txt
+          echo NRA3_S94_LICENSED_TAIGA_TRAIN_ONLY_CC_BY_SA_PINNED_NO_COMMERCIAL
+      - name: Deterministically build 256 native Russian UD source-only TRAIN texts and SEPARATE human-reviewed-or-UD dependency word-index TRAIN labels, no original Calibri invoked
+        run: |
+          set -euo pipefail
+          python -m research.calibri_nra3.s94_ud_taiga_trainonly_grammatical_source_gold_WALL \
+            --taiga-train-a inputs/ud_taiga_train_only/ru_taiga-ud-train-a.conllu \
+            --out results/nra3_s94_pinned_ud_taiga_offline_TRAIN256
+      - name: Confirm 64x4 grammar strata, separate SHA-pinned source and offline labels, license review, no held tests or model fitting
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          from research.calibri_nra3.s94_ud_taiga_trainonly_grammatical_source_gold_WALL import (
+              STAGE,TRAIN_BLOB_SHA,LICENSE,sha256_serialized)
+          p=Path('results/nra3_s94_pinned_ud_taiga_offline_TRAIN256')
+          source=json.loads((p/'NRA3_S94_TAIGA_TRAIN256_SOURCE_ONLY_NO_GOLD.json').read_text())
+          gold=json.loads((p/'NRA3_S94_TAIGA_TRAIN256_OFFLINE_UD_GOLD_WORDINDEX_ONLY.json').read_text())
+          report=json.loads((p/'NRA3_S94_TAIGA_TRAIN256_LICENSE_PROVENANCE.json').read_text())
+          assert report['stage']==STAGE
+          assert report['license']==LICENSE=='CC BY-SA 4.0'
+          assert report['training_only_original_git_blob']==TRAIN_BLOB_SHA
+          assert report['n_training_rows']==len(source)==len(gold)==256
+          assert report['stratification_counts']=={
+              'active_transitive':64,'passive':64,'negated':64,'other_intransitive':64}
+          assert all(set(x)=={'row_id','text'} for x in source)
+          assert len({x['text'] for x in source})==256
+          assert [x['row_id'] for x in source]==[z['row_id'] for z in gold]
+          assert all(z['not_yet_original_native_BPE_coordinates'] for z in gold)
+          assert report['source_only_sha256']==sha256_serialized(source)
+          assert report['separately_supervised_only_gold_sha256']==sha256_serialized(gold)
+          assert report['only_upstream_TRAIN_a_used_NO_upstream_dev_or_test']
+          assert report['no_production_or_commercial_use_until_license_review']
+          assert report['share_alike_requirements_review_before_downstream_use']
+          assert report['external_stanza_udpipe_not_required_by_NRA3_Calibri_inference']
+          assert report['new_NRA3_training_steps']==0
+          assert report['output_gate']==0 and not report['candidate_accepted'] and not report['activation_allowed']
+          print('NRA3_S94_TRUE_LICENSED_UD_RUSSIAN_TAIGA_TRAIN256',
+                report['stratification_counts'],report['source_only_sha256'],
+                'NO_INFERENCE_TEACHER_NO_MODEL_TRAIN',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra3-s94-REAL-RUSSIAN-UD-TAIGA-TRAIN256-grammatical-labels-CC-BY-SA-not-for-production
+          path: results/nra3_s94_pinned_ud_taiga_offline_TRAIN256/
+          retention-days: 30
+          if-no-files-found: error
