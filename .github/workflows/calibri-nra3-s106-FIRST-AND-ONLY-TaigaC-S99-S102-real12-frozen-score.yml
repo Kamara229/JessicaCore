@@ -1,0 +1,166 @@
+name: Calibri NRA3 S106 ONE-SHOT prospective Taiga C frozen S99 versus S102 original12 BPE gold-after-source (NEVER rerun)
+'on':
+  pull_request:
+    types: [opened]
+    branches:
+      - research/calibri2-nra3-s105-TAIGAC-once-S99-vs-S102-originalBPE-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s106-FIRST-AND-ONLY-original-TaigaC-frozen-S99-S102
+  cancel-in-progress: false
+jobs:
+  prospective_ONE_SHOT_TaigaC_UD_S99_vs_S102_no_training_NO_rerun:
+    if: github.run_attempt == 1 && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s106-oneONCE-TaigaC-S99-S102-frozen-firstread-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '1052026'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU-only safe frozen neural inference, NO external UD runtime teacher or optimizer
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'safetensors==0.4.5' 'numpy==1.26.4'
+      - name: Hard gate successful prospective precommit S103, physically protected old616+true source S104 and synthetic-only S105 ABI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "${{ github.run_attempt }}" = "1"
+          for id in 44607520541 44608646708 44609977679 44575467933 44605190903; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          python -m unittest -v research.calibri_nra3.test_s105_ONE_TIME_TaigaC_frozen_UD_metric_ABI
+          echo 'NRA3_S106_FIRST_AND_LAST_UNSEEN_TAIGAC_S99_S102_PHYSICAL_SOURCE_AND_WEIGHTS_FROZEN_BEFORE_UD_GOLD'
+      - name: Fetch ONLY genuine original CB59+GT S104 all12 source from Taiga C with protected original616, NOT gold
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s104-TRUE-original43MGT-TaigaC256-ONESHOT-firstread-goldblind-all12-after616
+          run-id: 44608646708
+          github-token: ${{ github.token }}
+          path: inputs/s104_C_true12_NO_UD_gold
+      - name: Fetch frozen S99 TRAIN-b neural child checkpoint (untouched, separate training dataset)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s99-TRUE-CB59-GT-12layer-TaigaB-morph-28887-FP16-inmodel-TRAINshadow-noProd
+          run-id: 44575468012
+          github-token: ${{ github.token }}
+          path: inputs/s99_original_checkpoint_frozen
+      - name: Fetch frozen S102 TRAIN-d ALL VERB neural child checkpoint (untouched, separate training dataset)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s102-original43MGT-TaigaD-allVERB-multipositive-28887-inmodel-neural-TRAIN-SHADOW
+          run-id: 44605190903
+          github-token: ${{ github.token }}
+          path: inputs/s102_original_checkpoint_frozen
+      - name: Verify all original source-only first-read S104 SHA/old616 and BOTH candidate frozen source-independent SHAs BEFORE allowing Taiga C gold download
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json,torch
+          from safetensors.torch import load_file
+          d=Path('inputs/s104_C_true12_NO_UD_gold')
+          source=d/'NRA3_S104_TAIGA_TRAINC256_FIRSTREAD_ALL12_ORIGINAL_H320_NO_GOLD.safetensors'
+          report=json.loads((d/'NRA3_S104_REAL43MGT_TAIGA_TRAINC256_ONESHOT_SOURCE_ONLY_PROVENANCE.json').read_text())
+          assert report['stage']=='CALIBRI_NRA3_S104_TRUE43MGT_ALL12_TAIGA_TRAINC256_ONESHOT_SOURCE_ONLY_AFTER616'
+          assert report['S103_TAIGA_C_PROSPECTIVE_PINNED_SOURCE256_SHA256']=='7c960fd28b14449cfb9fa3611576aa21a88dbd6afccbbde4e2a02d015707bcdb'
+          assert report['S103_TAIGA_C_PROSPECTIVE_original_git_blob']=='16ddc9c25dc1ab56d809c4b155f4eb18942b0e8f'
+          assert report['old_616_J7_physically_replayed_BEFORE_NRA3_hooks']
+          assert report['original_S5_H8_port_exactly_matches_all12_H8_for_all_accepted']
+          assert report['all_original_43M_GT_CB59_params_sha_pre_and_post_identical']
+          assert report['source_ONLY_no_S103_PROSPECTIVE_C_UD_gold_loaded_in_original_CPU']
+          assert report['ONLY_UD_TAIGA_TRAIN_C_PROSPECTIVE_NOT_TRAIN_a_b_d_or_dev_test']
+          assert report['prospective_one_shot_source_never_training_and_no_candidate_fit']
+          assert report['frozen_S99_child_sha_precommitted']=='c77a6964ae4e02cb3aac98d69978a25cec2b491a9624cc9668b3b307699bff8a'
+          assert report['frozen_S102_child_sha_precommitted']=='f40dddbc03282a6c45c4f807746275d76a4ba776aa613247e73fbdf7f43329df'
+          assert report['ALL12_CPU_SAFETENSORS_SHA256']==hashlib.sha256(source.read_bytes()).hexdigest()
+          assert report['n_accepted_source_only_BPE_rows']>=128
+          assert report['new_NRA3_train_steps']==0
+          assert report['output_gate']==0 and not report['candidate_accepted'] and not report['activation_allowed']
+          h=load_file(str(source))
+          hidden=h['original_Calibri43M_GT_ALL12_native_H320_FP16_READONLY']
+          assert hidden.shape[0]==report['n_accepted_source_only_BPE_rows']
+          assert hidden.shape[1]==12 and hidden.shape[3]==320 and hidden.dtype==torch.float16
+          assert torch.isfinite(hidden).all()
+          models={
+            'S99':('inputs/s99_original_checkpoint_frozen/NRA3_S99_TAIGA_B_IN_CALIBRI_TRAINED_MORPH_RELATION_28887_FP16.safetensors',
+                   'c77a6964ae4e02cb3aac98d69978a25cec2b491a9624cc9668b3b307699bff8a'),
+            'S102':('inputs/s102_original_checkpoint_frozen/NRA3_S102_TAIGA_D_IN_CALIBRI_ALLVERB_ROLE_28887_TRAINED_FP16.safetensors',
+                    'f40dddbc03282a6c45c4f807746275d76a4ba776aa613247e73fbdf7f43329df'),
+          }
+          for name,(p,digest) in models.items():
+            z=Path(p)
+            assert hashlib.sha256(z.read_bytes()).hexdigest()==digest,(name,'checkpoint SHA')
+            layers=load_file(str(z))
+            assert sum(x.numel() for x in layers.values())==28887
+            assert all(k.startswith('model.nra3_neural_weights.') for k in layers)
+          print('NRA3_S106_ORIGINAL_CALIBRI12_SHA_616_AND_BOTH_FROZEN_CHILDREN_VERIFIED_BEFORE_TAIGA_C_FIRSTREAD_GOLD',
+                {'original_source_SHA':report['ALL12_CPU_SAFETENSORS_SHA256'],
+                 'n_original_source':report['n_accepted_source_only_BPE_rows'],
+                 'n_original_BPE':report['n_genuine_original_native_BPE_tokens'],
+                 'S99_S102_chosen_before_C':True,'output_gate':0},flush=True)
+          PY
+      - name: LAST step before irrevocable ONE-SHOT FIRSTREAD — download separately precommitted S103 ORIGINAL Taiga C UD GOLD only NOW
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s103-ONE-SHOT-UD-Taiga-TRAINc256-SOURCE-and-SEPARATE-GOLD-preregistered-noTrain
+          run-id: 44607520541
+          github-token: ${{ github.token }}
+          path: inputs/s103_FIRSTREAD_C_GOLD_OPEN_ONCE
+      - name: ONE-TIME score BOTH frozen S99 and S102 on ORIGINAL 12 Calibri source with teacher roles only in metric, permanently burn TaigaC (NEVER rerun)
+        run: |
+          set -euo pipefail
+          python -m research.calibri_nra3.s105_ONE_TIME_TaigaC_S99_vs_S102_true12_firstread_eval \
+            --source inputs/s104_C_true12_NO_UD_gold/NRA3_S104_TAIGA_TRAINC256_FIRSTREAD_ALL12_ORIGINAL_H320_NO_GOLD.safetensors \
+            --source-report inputs/s104_C_true12_NO_UD_gold/NRA3_S104_REAL43MGT_TAIGA_TRAINC256_ONESHOT_SOURCE_ONLY_PROVENANCE.json \
+            --teacher inputs/s103_FIRSTREAD_C_GOLD_OPEN_ONCE \
+            --s99 inputs/s99_original_checkpoint_frozen/NRA3_S99_TAIGA_B_IN_CALIBRI_TRAINED_MORPH_RELATION_28887_FP16.safetensors \
+            --s102 inputs/s102_original_checkpoint_frozen/NRA3_S102_TAIGA_D_IN_CALIBRI_ALLVERB_ROLE_28887_TRAINED_FP16.safetensors \
+            --out results/NRA3_S105_ONE_SHOT_TAIGA_C_S99_VS_S102_FROZEN_FIRSTREAD_METRICS.json
+      - name: Fail closed — audit single prospective frozen test, no retraining and no activated model
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('results/NRA3_S105_ONE_SHOT_TAIGA_C_S99_VS_S102_FROZEN_FIRSTREAD_METRICS.json')
+          s=json.loads(p.read_text())
+          assert s['stage']=='CALIBRI_NRA3_S105_PROSPECTIVE_ONE_SHOT_TAIGA_C_S99_VS_S102_FROZEN_NO_TRAIN'
+          assert s['S103_precommitted_prospective_source_SHA']=='7c960fd28b14449cfb9fa3611576aa21a88dbd6afccbbde4e2a02d015707bcdb'
+          assert s['S103_precommitted_prospective_gold_SHA']=='e039c3c6a8ac2221cea774895c09da5838b3d50e7d71079c9ff3ca0d285827eb'
+          assert s['frozen_FP16_neural_child_SHAs_precommitted_BEFORE_firstread']=={
+            'S99':'c77a6964ae4e02cb3aac98d69978a25cec2b491a9624cc9668b3b307699bff8a',
+            'S102':'f40dddbc03282a6c45c4f807746275d76a4ba776aa613247e73fbdf7f43329df'}
+          assert s['Taiga_C_prospective_FIRSTREAD_BURNED_never_retrain_retune_rerun']
+          assert s['no_model_update_optimizer_training_or_selection_in_this_stage']
+          assert s['source_all12_forward_completely_goldblind']
+          assert s['teacher_event_anchor_ONLY_in_metrics_not_in_neural_forward']
+          assert s['no_claim_new_candidate_616_J7_all_in_bpp_CPU_or_causal_generation']
+          assert s['output_gate']==0 and not s['candidate_accepted'] and not s['activation_allowed']
+          for k in ('frozen_S99_firstread_UD_metrics','frozen_S102_firstread_UD_metrics'):
+            x=s[k];assert x['n_eligible_source_rows']>=128
+            z=x['teacher_anchored_role_slots'];assert z['support']>=200
+            assert 0<=z['top1']<=1 and 0<=z['top3']<=1
+            assert z['top3']>=z['top1']
+          print('NRA3_S106_TAIGA_C_FIRSTREAD_S99_VS_S102_COMPLETE_ONLY_ONCE_AND_BURNED',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s106-PROSPECTIVE-ONCE-UD-TaigaC-S99-vs-S102-frozen-firstread-BURNED-never-train
+          path: results/NRA3_S105_ONE_SHOT_TAIGA_C_S99_VS_S102_FROZEN_FIRSTREAD_METRICS.json
+          retention-days: 90
+          if-no-files-found: error
