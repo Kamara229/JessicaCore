@@ -115,7 +115,7 @@ jobs:
             --s57-paid inputs/s57/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors \
             --s59-paid inputs/s59/NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors \
             --s61-paid inputs/s61/NRA3_S61_REAL43M_GT_SPENT216_PAID2752_PAIR_NONE.safetensors \
-            --s62-paid inputs/s62/NRA3_S62_REAL43M_GT_SPENT248_JOINT2166_FP16.safetensors \
+            --s62-paid inputs/s62/NRA3_S62_REAL43M_GT_SPENT248_JOINT_EVENT_TARGET2166_FP16.safetensors \
             --s63-paid inputs/s63/NRA3_S63_REAL43M_GT_SPENT280_QUOTE_OUTER_BPE471_FP16.safetensors \
             --s65 inputs/s65/NRA3_S65_REAL43M_GT_SPENT344_REPORTED3WAY259_FP16.safetensors \
             --s65-manifest inputs/s65/NRA3_S65_REAL43M_GT_SPENT344_FACTUALITY259_MANIFEST.json \
