@@ -1,0 +1,67 @@
+name: Calibri NRA3 S99 exact original native BPE offline UD morphology mapping and TRAIN-only loss ABI
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s98-real12-TaigaB256-morphology-sourceonly-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s99-morphology-ud-native-bpe-ABI-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  new_inmodel_neural_morphology_only_OFFLINE_training_ABI:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s99-morphology-pretrain-real12-UDtrainB-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Only CPU torch for OFFLINE BPE morphology targets and in-Calibri neural child gradient ABI, original Calibri weights never loaded here
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'safetensors==0.4.5' 'numpy==1.26.4'
+      - name: Verify previous S97 real licensed TRAIN-b source/GOLD source SHA wall and in-Calibri morphology heads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/44569179069 --jq .conclusion)" = success
+          echo NRA3_S99_PREVIOUS_S97_TAIGA_B_SHA_PINNED_SOURCE_ONLY_NO_TRAIN_A_S96_DIAGNOSTIC
+      - name: Compile and test 8 morphology/role aligned original BPE fail-closed and zero-leak offline loss contracts
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s97_in_calibri_morphological_12layer_neural_graph.py research/calibri_nra3/s99_nativeBPE_UD_morphology_labels_AFTER_frozen_original.py research/calibri_nra3/s99_offline_morphology_native_BPE_TRAIN_loss.py research/calibri_nra3/test_s99_source_SHA_then_offline_native_BPE_morphology.py research/calibri_nra3/s99_REAL12_Taiga_B_morph_pretrain_then_role_28887_ONLY.py research/calibri_nra3/test_s99_FIXED_morph_pretrain_vs_role_only_original12.py
+          python -m unittest -v research.calibri_nra3.test_s97_morphology_in_calibri_and_trainB_contracts research.calibri_nra3.test_s99_source_SHA_then_offline_native_BPE_morphology research.calibri_nra3.test_s99_FIXED_morph_pretrain_vs_role_only_original12
+      - name: Confirm new in-Calibri neural morphological grammar train-only modules and no runtime UD teacher/production gate
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from research.calibri_nra3.s97_in_calibri_morphological_12layer_neural_graph import NRA3MorphologyInCalibriWeights
+          from research.calibri_nra3.s99_nativeBPE_UD_morphology_labels_AFTER_frozen_original import STAGE,S94_SOURCE_SHA,S95_SOURCE_TENSOR
+          from research.calibri_nra3.s99_offline_morphology_native_BPE_TRAIN_loss import STAGE as TRAIN_STAGE
+          m=NRA3MorphologyInCalibriWeights()
+          b=m.budget()
+          assert b['new_neural_parameters']==28887
+          assert b['NRA2_independent_mini_areas_preserved']==8
+          assert b['all_12_original_calibri_layers']==12
+          assert b['learned_layer_streams']==4
+          assert not b['external_inference_UD_parser_required']
+          assert STAGE=='CALIBRI_NRA3_S99_STRICT_REAL12_TAIGA_TRAIN_B_ALLWORD_MORPH_AND_UD_ROLE_MAPPING'
+          assert S94_SOURCE_SHA=='437b6d62564e4cda6c58975910ccc98221c3e81938bda22429418f16700b1dad'
+          assert S95_SOURCE_TENSOR=='NRA3_S98_TAIGA_TRAINB256_REAL12_ORIGINAL_H320_NO_UD_GOLD.safetensors'
+          assert TRAIN_STAGE=='CALIBRI_NRA3_S99_OFFLINE_NATIVE_BPE_MORPHOLOGY_TRAIN_LOSS_ONLY'
+          assert m.output_gate==0 and not m.candidate_accepted and not m.activation_allowed
+          assert not m.is_trained
+          print('NRA3_S99_NEW_REAL12_NATIVE_BPE_TRAIN_ONLY_UD_MORPHOLOGY_MAPPING_ABI_ZERO_GATE_NO_GRAMMAR_QUALITY_CLAIM')
+          PY
