@@ -87,8 +87,8 @@ class NRA3BoundedStructuralTrustInCalibriWeights(NRA3StructuralCompetitionInCali
         require(combined.shape==prior.shape and bool(torch.isfinite(combined).all()),
                 "bounded corrected role logits remain finite with masked BPE")
         # All native pairwise logit corrections (valid candidates) <=1.
-        require(not bool(((combined-prior).abs()>
-                          MAX_LOGIT_CORRECTION+1.e-5)&pair).any(),
+        require(not bool((((combined-prior).abs()>
+                          MAX_LOGIT_CORRECTION+1.e-5)&pair).any()),
                 "strict bounded S112 residual cannot override large old margins")
         return combined
 
