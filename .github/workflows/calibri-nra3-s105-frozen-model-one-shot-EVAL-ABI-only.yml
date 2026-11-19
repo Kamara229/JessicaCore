@@ -1,0 +1,49 @@
+name: Calibri NRA3 S105 one-shot evaluation PROTOCOL ABI ONLY without opening prospective Taiga-C GOLD
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s104-prospective-TaigaC-original12-source-FIRST-20261119
+permissions:
+  contents: read
+concurrency:
+  group: nra3-s105-ABI-no-TaiC-gold-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  prospective_S99_S102_frozen_model_SHA_and_statistic_unit_tests_NO_NEW_GOLD:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s105-one-shot-S99-vs-S102-TaigaC-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CPU-only torch and safetensors for frozen-model source-first protocol tests with FAKE labels
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'safetensors==0.4.5' 'numpy==1.26.4'
+      - name: Static firstread frozen S99/S102 exact SHA + source/GOLD precommit, no retrain or diagnostic use + Wilson/paired bootstrap math
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s105_prospective_TaigaC_offline_gold_AFTER_original12_SHA.py research/calibri_nra3/s105_compare_frozen_S99_S102_ONCE_TaigaC_original12.py research/calibri_nra3/test_s105_one_time_TaigaC_original12_frozen_checkpoint.py
+          python -m unittest -v research.calibri_nra3.test_s105_one_time_TaigaC_original12_frozen_checkpoint
+      - name: Explicitly forbid any Taiga C source or test gold download in this ABI job, no scores
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from research.calibri_nra3 import s105_compare_frozen_S99_S102_ONCE_TaigaC_original12 as z
+          assert z.STAGE=='CALIBRI_NRA3_S105_PROSPECTIVE_ONE_SHOT_TAIGA_C_COMPARE_S99_S102_GATE0'
+          assert z.S99_SHA=='c77a6964ae4e02cb3aac98d69978a25cec2b491a9624cc9668b3b307699bff8a'
+          assert z.S102_SHA=='f40dddbc03282a6c45c4f807746275d76a4ba776aa613247e73fbdf7f43329df'
+          assert z.BOOTSTRAP_DRAWS==2000 and z.BOOTSTRAP_SEED==1051119
+          assert z.EXPECTED_PAID==28887
+          print('S105_PREDECLARED_ONLY_NO_PROSPECTIVE_HELD_DATA_OPENED_NO_SCORE')
+          PY
