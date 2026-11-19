@@ -1,0 +1,154 @@
+name: Calibri NRA3 S110 TRUE ORIGINAL12 GSD256 structural QK 16656 in-Calibri neural TRAIN-only after S109 protected616
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s109-GSD256-original12-53743-sourceonly-20261120
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s110-GSD256-structural-16656-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  nra3_s110_original12_GSD_trainONLY_16656_in_Calibri_neural_grad:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s110-GSD256-16656-structural-TRAINonly-20261120'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    env:
+      PYTHONPATH: .:research
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONHASHSEED: '1101120'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install frozen CPU torch and neural dependencies, never load original Calibri again here
+        run: |
+          set -euo pipefail
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+          python -m compileall -q research/calibri_nra3/s110_GSD_real12_gold_AFTER_S109_sourceSHA.py research/calibri_nra3/s110_true12_GSD_16656_structural_train.py research/calibri_nra3/test_s110_true12_GSD_structural_TRAIN_only.py
+          python -m unittest -v research.calibri_nra3.test_s110_true12_GSD_structural_TRAIN_only research.calibri_nra3.test_s107_structural_competition_in_calibri_53743
+      - name: Require physical original Calibri616 true GSD source SHA + S107 neural 53743 architecture and S108 new GSD sealed gold
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 44614522853 44613224161 44608972425 44610664804; do
+            test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/"${id}" --jq .conclusion)" = success
+          done
+          successful=''
+          for i in $(seq 1 220); do
+            result="$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/44615421828 --jq .conclusion)"
+            if [ "${result}" = success ]; then successful=1; break; fi
+            if [ "${result}" = failure ] || [ "${result}" = cancelled ]; then exit 3; fi
+            sleep 10
+          done
+          test "${successful}" = 1
+          echo NRA3_S110_GSD256_REQUIRE_ORIGINAL_CB59_GT_PROTECTED_616_J7_S109_SUCCESS
+      - name: Read-only download S109 source-only ORIGINAL 12x320 CB59 GT and 53743 neural weights, NO UD GOLD
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s109-true-original12-CB59GT-GSD256-sourceonly-53743-inmodel-after616
+          run-id: 44615421828
+          github-token: ${{ github.token }}
+          path: inputs/S109_REAL_original12_GSD_source_only
+      - name: SHA lock original12 physical source + full in-Calibri 53743 child before opening ANY GSD UD GOLD
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json,torch
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('inputs/S109_REAL_original12_GSD_source_only')
+          h=d/'NRA3_S109_GSD_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors'
+          w=d/'NRA3_S109_IN_CALIBRI_UNTRAINED_53743_FP16.safetensors'
+          p=json.loads((d/'NRA3_S109_REAL43MGT_GSD_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json').read_text())
+          assert p['stage']=='CALIBRI_NRA3_S109_REAL43MGT_ALL12_GSD_TRAIN256_ALLVERBS_SOURCE_ONLY_AFTER616'
+          assert p['S108_GSD_TRAIN_PINNED_SOURCE256_SHA256']=='4078f408f2355c55c29bca18504355379e2a42ef2144c9113dda9448b086de14'
+          assert p['S108_GSD_TRAIN_original_git_blob']=='de392eb8d1a92fe1d12bc2e49c21cb717ae89859'
+          assert p['original_S5_H8_port_exactly_matches_all12_H8_for_all_accepted']
+          assert p['old_616_J7_physically_replayed_BEFORE_NRA3_hooks']
+          assert p['source_ONLY_no_S108_GSD_UD_GOLD_loaded_in_original_CPU']
+          assert p['NRA3_structural_neural_53743_weights_REGISTERED_INSIDE_actual_Calibri_model']
+          assert p['S107_pretrained_53743_in_model_child_FP16_SHA256']=='46ca9d5c946168332b4d6d1108d442d38c9628fe7bd4afb338693f1d56e27cee'
+          assert p['prior_37087_and_new_16656_state_exactly_restored_from_S107']
+          assert p['n_pinned_source_only_rows']==256 and p['n_accepted_source_only_BPE_rows']>=96
+          assert p['ALL12_CPU_SAFETENSORS_SHA256']==hashlib.sha256(h.read_bytes()).hexdigest()
+          assert p['IN_CALIBRI_53743_MORPH_FP16_WEIGHTS_SHA256']==hashlib.sha256(w.read_bytes()).hexdigest()
+          assert p['output_gate']==0 and not p['candidate_accepted'] and not p['activation_allowed']
+          a=load_file(str(h));v=load_file(str(w))
+          x=a['original_Calibri43M_GT_ALL12_native_H320_FP16_READONLY']
+          assert x.shape[:2]==(p['n_accepted_source_only_BPE_rows'],12)
+          assert x.shape[-1]==320 and x.dtype==torch.float16
+          assert sum(z.numel() for z in v.values())==53743
+          assert all(z.startswith('model.nra3_neural_weights.') for z in v)
+          print('NRA3_S110_ORIGINAL12_GSD_GOLDBLIND_SHA_VERIFIED_BEFORE_ANY_GOLD',
+                p['ALL12_CPU_SAFETENSORS_SHA256'],flush=True)
+          PY
+      - name: ONLY after source SHA verification, download NEW licensed GSD offline teacher not TaigaC or old developer
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s108-new-licensed-RussianGSD-TRAIN256-multiverb-source-GOLD-SHA-precommitted-only
+          run-id: 44614522853
+          github-token: ${{ github.token }}
+          path: inputs/S108_offline_GSD_GOLD_only_after_S109_sourceSHA
+      - name: Train ONLY 16656 NEW in-Calibri neural QK role bilinear native BPE distance/competition, freeze prior 37087
+        run: |
+          set -euo pipefail
+          python -m research.calibri_nra3.s110_true12_GSD_16656_structural_train \
+            --source12 inputs/S109_REAL_original12_GSD_source_only/NRA3_S109_GSD_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors \
+            --source-report inputs/S109_REAL_original12_GSD_source_only/NRA3_S109_REAL43MGT_GSD_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json \
+            --s109-child inputs/S109_REAL_original12_GSD_source_only/NRA3_S109_IN_CALIBRI_UNTRAINED_53743_FP16.safetensors \
+            --s108-gold-folder inputs/S108_offline_GSD_GOLD_only_after_S109_sourceSHA \
+            --out results/nra3_s110_original12_GSD_16656_new_structural_neural_shadow
+      - name: Verify S110 53,743 FP16 full neural child, 37087 unchanged, internal diag one-time and safe research gate0
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib,math
+          from safetensors.torch import load_file
+          d=Path('results/nra3_s110_original12_GSD_16656_new_structural_neural_shadow')
+          w=d/'NRA3_S110_GSD_ORIGINAL12_NEW16656_STRUCTURAL_53743_IN_CALIBRI_FP16.safetensors'
+          r=json.loads((d/'NRA3_S110_GSD_ORIGINAL12_STRUCTURAL_TRAIN_ONLY_DIAGNOSTICS.json').read_text())
+          assert r['stage']=='CALIBRI_NRA3_S110_ORIGINAL12_GSD_NEW16656_STRUCTURAL_IN_CALIBRI_TRAINONLY_GATE0'
+          assert r['S110_trained_in_Calibri_neural_53743_FP16_SHA']==hashlib.sha256(w.read_bytes()).hexdigest()
+          assert r['GOLD_opened_ONLY_AFTER_original_S109_source_SHA']
+          assert r['original_CB59_GT_616_J7_unchanged']
+          assert r['only_new_16656_structural_neural_params_trained']
+          assert r['old_37087_in_Calibri_params_FP16_identical']
+          assert r['NRA2_8_mini_areas_original12_router_16_weight_memory_preserved']
+          assert r['S96_S99_S102_S105_internal_devs_SPENT_not_used']
+          assert r['TaigaC_one_shot_firstread_BURNED_NOT_USED']
+          assert r['GSD_internal_diag_scored_ONCE_after_fixed_epochs_no_tuning']
+          assert r['CC_BY_SA_4_license_legal_review_before_commercial']
+          assert r['no_new_live_or_main_or_merged_or_CPU_BPP_or_causal_certificate']
+          assert r['fixed_training']['epochs']==24
+          assert r['output_gate']==0 and not r['candidate_accepted'] and not r['activation_allowed']
+          assert sum(v.numel() for v in load_file(str(w)).values())==53743
+          for key in ('previous_frozen_S105_on_new_GSD_internal',
+                      'new_S110_on_new_GSD_internal','new_S110_GSD_TRAIN_ONLY'):
+            diag=r[key]
+            for item in diag['morphology_original_native_BPE'].values():
+              if item['support']:
+                assert 0<=item['accuracy']<=1 and math.isfinite(item['accuracy'])
+          print('NRA3_S110_GSD_STRUCTURAL_ONLY_RESEARCH_BASELINE_VS_NEW',
+                'BASE=',r['previous_frozen_S105_on_new_GSD_internal'],
+                'AFTER=',r['new_S110_on_new_GSD_internal'],
+                'TRAIN=',r['new_S110_GSD_TRAIN_ONLY'],flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s110-original12-GSD256-16656structural-inmodel-53743-TRAINonly-shadow
+          path: results/nra3_s110_original12_GSD_16656_new_structural_neural_shadow/
+          retention-days: 30
+          if-no-files-found: error
