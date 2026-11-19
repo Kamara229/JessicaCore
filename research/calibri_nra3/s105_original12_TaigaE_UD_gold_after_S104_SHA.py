@@ -223,7 +223,7 @@ def load_source_VERIFY_sha_THEN_OPEN_gold(
             and bool(report["all_original_43M_GT_CB59_params_sha_pre_and_post_identical"])
             and report["source_ONLY_no_S103_ALL_VERBS_UD_morph_multiedge_gold_loaded_in_original_CPU"]
             and report["NRA3_morph_neural_37087_weights_REGISTERED_INSIDE_actual_Calibri_model"]
-            and report["S79_S86_S96_S99_S105_spent_diagnostics_NEVER_reused"]
+            and report["S79_S86_S96_S99_S102_spent_diagnostics_NEVER_reused"]
             and report["output_gate"]==0
             and report["new_NRA3_train_steps"]==0
             and not report["candidate_accepted"],
