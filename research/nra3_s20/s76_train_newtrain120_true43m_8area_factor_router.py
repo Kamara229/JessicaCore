@@ -50,9 +50,13 @@ from research.nra3_s20.s72_nra2_situation_microareas import SituationMicroAreas,
 from research.nra3_s20.s74_newtrain120_source_ONLY import (
     new_source_only_train120,source_sha256,GROUP_TRAIN,GROUP_DIAG,
 )
-from research.nra3_s20.s75_original43m_gt_newtrain120_native_h8 import (
-    STAGE as S75_STAGE,EXPECTED_S74_SOURCE_SHA,TENSOR_NAME,REPORT_NAME,
-)
+# Re-declare exact immutable S75 physical ABI strings rather than import
+# its CPU model-capture implementation (which imports transformers and may
+# otherwise couple the TRAIN-only reader to original model runtime).
+S75_STAGE="NRA2_S75_REAL_ORIGINAL43M_GT_PROTECTED616J7_NEW_TRAIN120_NATIVE_BPE_H8_SOURCE_ONLY"
+EXPECTED_S74_SOURCE_SHA="5ff7f5681b0130d4c230fe5b3513038e4d6f3487a3b71964a7ad79e53f50b351"
+TENSOR_NAME="NRA2_S75_GENUINE43M_GT_NEWTRAIN120_WORD339_AND_UNSAFE.safetensors"
+REPORT_NAME="NRA2_S75_GENUINE43M_GT_NEWTRAIN120_SOURCE_PROVENANCE.json"
 
 STAGE="NRA2_S76_TRUE43M_GT_S74_NEW_TRAIN90_EVENT_RELATIVE_SITUATION_ROUTER"
 SOURCE75_SHA="83c1da7b6e79afcfad339c498dcf0f4937411fbbfb081d500d5ca59ea4798900"
