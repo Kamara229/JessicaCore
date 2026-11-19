@@ -66,6 +66,18 @@ def verify_physical_gate(producer_bytes, manifest_bytes, artifact_zip_bytes=None
         value = manifest[key]
         if not isinstance(value, str) or len(value) != length or any(c not in "0123456789abcdef" for c in value):
             raise ValueError("FAIL CLOSED: malformed immutable hash")
+    # Provenance identifiers must be well-formed before any ZIP is trusted.
+    for key in ("workflow_path", "artifact_name"):
+        value = manifest[key]
+        if (not isinstance(value, str) or not value.strip() or value != value.strip()
+                or any(ord(ch) < 32 or ord(ch) == 127 for ch in value)):
+            raise ValueError("FAIL CLOSED: invalid provenance text field")
+    workflow = manifest["workflow_path"]
+    if (workflow.startswith("/") or "\\" in workflow
+            or not workflow.startswith(".github/workflows/")
+            or any(part in ("", ".", "..") for part in workflow.split("/"))
+            or not workflow.endswith((".yml", ".yaml"))):
+        raise ValueError("FAIL CLOSED: invalid workflow path")
     if artifact_zip_bytes is None:
         raise ValueError("FAIL CLOSED: original ZIP bytes required")
     if _sha(artifact_zip_bytes) != manifest["zip_sha256"]:
