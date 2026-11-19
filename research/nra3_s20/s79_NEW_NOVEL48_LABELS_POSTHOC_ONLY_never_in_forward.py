@@ -44,7 +44,7 @@ LABELS=(
 
 def frozen_novel48_labels_for_ONE_FINAL_READ_only():
     source=new_novel48_source_only()
-    if len(LABELS)!=len(source)!=48:
+    if len(LABELS)!=48 or len(source)!=48:
         raise ValueError("S79 frozen48 literal annotation size")
     result=[]
     for row,(word,occ,factors) in zip(source,LABELS):
