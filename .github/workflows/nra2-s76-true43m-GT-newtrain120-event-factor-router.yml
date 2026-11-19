@@ -1,0 +1,172 @@
+name: NRA2 S76 physical 43M GT S75 H8 new90 TRAIN event-specific 8area router
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s75-true43m-newtrain120-native-H8-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra2-s76-true43mGT-S74-newtrain-router-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  physical_research_newtrain90_event_areas_router_ONLY:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s76-original43m-newtrain120-area-router-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      PYTHONHASHSEED: '761119'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CPU tensor-only dependencies (NO Calibri original model reload)
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Synthetic source/label separation and event-level negation-contract tests
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/nra3_s20/s76_s74_newtrain120_event_relative_gold_TRAIN_LOSS_ONLY.py research/nra3_s20/s76_train_newtrain120_true43m_8area_factor_router.py
+          python -m unittest -v research.nra3_s20.test_s72_nra2_situation_microareas research.nra3_s20.test_s74_newtrain120_compositional_contrastive_contracts research.nra3_s20.test_s76_newtrain120_event_router_source_gold_contracts
+      - name: Require immutable successful real43M CPU 616J7 original FIRST-read S75 and old S65 parents
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run in 44196720655 44312765248 44357767214 44366319006 44371962358 44377346422 44389438490 44465058843 44466537576; do
+            test "$(gh api repos/"$GITHUB_REPOSITORY"/actions/runs/"$run" --jq .conclusion)" = success
+          done
+          test "$(git hash-object research/nra3_s20/s74_newtrain120_source_ONLY.py)" = c39bd34cbc21319c4c3433c3927f01877af1c4ee
+          echo S76_ORIGINAL43M_GT_S75_616J7_AND_S65_FROZEN_REAL_SOURCE_PROVENANCE
+      - name: S75 real Calibri43M GT FIRST-read NEW120 9,235 native BPE postH8 source-only
+        uses: actions/download-artifact@v4
+        with:
+          name: nra2-s75-real43M-GT-newtrain120-native-BPE-H8-after-616J7-noGOLD
+          run-id: 44466537576
+          github-token: ${{ github.token }}
+          path: inputs/s75
+      - name: Original S26 paid 12384, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s26-REAL43M-GT-TRAIN256-40fold-12384FP16-event-inversion-ablation-noEVAL
+          run-id: 44196720655
+          github-token: ${{ github.token }}
+          path: inputs/s26
+      - name: Original S57 paid 231, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s57-original43M-GT-96spent-only-eventfirst231-FP16-before-HELD24
+          run-id: 44312765248
+          github-token: ${{ github.token }}
+          path: inputs/s57
+      - name: Original S59 paid 2046, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s59-REAL43M-GT-OLD152-NATIVE320-PAID2046-FP16-frozen-before-HELD
+          run-id: 44357767214
+          github-token: ${{ github.token }}
+          path: inputs/s59
+      - name: Original S61 paid 2752, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s61-GENUINE43M-GT-SPENT216-PAIR-NULL-POLAR2752FP16-frozen
+          run-id: 44366319006
+          github-token: ${{ github.token }}
+          path: inputs/s61
+      - name: Original S62 paid 2166, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s62-real43M-GT-SPENT248-event-target2166-FP16-frozen
+          run-id: 44371962358
+          github-token: ${{ github.token }}
+          path: inputs/s62
+      - name: Original S63 paid 471, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s63-REAL43M-GT-SPENT280-QUOTE471-frozen-before-NEW32
+          run-id: 44377346422
+          github-token: ${{ github.token }}
+          path: inputs/s63
+      - name: Original S65 paid 259, completely frozen
+        uses: actions/download-artifact@v4
+        with:
+          name: nra3-s65-REAL43M-GT-OLD344-FACTUALITY3WAY259-FP16-before-NEW32
+          run-id: 44389438490
+          github-token: ${{ github.token }}
+          path: inputs/s65
+      - name: Train ONLY new 4232 router/projection weights on S74 90 new TRAIN, score 30 grouped constructed TRAIN diagnostics ONCE
+        run: |
+          set -euo pipefail
+          python -m research.nra3_s20.s76_train_newtrain120_true43m_8area_factor_router \
+            --s75 inputs/s75/NRA2_S75_GENUINE43M_GT_NEWTRAIN120_WORD339_AND_UNSAFE.safetensors \
+            --s75-report inputs/s75/NRA2_S75_GENUINE43M_GT_NEWTRAIN120_SOURCE_PROVENANCE.json \
+            --s26 inputs/s26/NRA3_S26_TRUE43M_GT_TRAIN256_GROUPED40_EVENT_GRAPH_12384_FP16.n3s26 \
+            --s57-paid inputs/s57/NRA3_S57_EVENTFIRST_SPENT96_ONLY_231FP16_UNACCEPTED.safetensors \
+            --s59-paid inputs/s59/NRA3_S59_REAL43M_GT_OLD152_NATIVE320_SEMANTIC2046_FP16.safetensors \
+            --s61-paid inputs/s61/NRA3_S61_REAL43M_GT_SPENT216_PAID2752_PAIR_NONE.safetensors \
+            --s62-paid inputs/s62/NRA3_S62_REAL43M_GT_SPENT248_JOINT_EVENT_TARGET2166_FP16.safetensors \
+            --s63-paid inputs/s63/NRA3_S63_REAL43M_GT_SPENT280_QUOTE_OUTER_BPE471_FP16.safetensors \
+            --s65 inputs/s65/NRA3_S65_REAL43M_GT_SPENT344_REPORTED3WAY259_FP16.safetensors \
+            --s65-manifest inputs/s65/NRA3_S65_REAL43M_GT_SPENT344_FACTUALITY259_MANIFEST.json \
+            --out results/nra2_s76_newtrain90_real43m_factor
+      - name: Verify 8 area router NEW TRAIN-only FP16 physical, source parent bit identity and no independent quality claim
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,hashlib,math
+          from pathlib import Path
+          from safetensors.torch import load_file
+          d=Path('results/nra2_s76_newtrain90_real43m_factor')
+          a=d/'NRA2_S76_TRUE43M_GT_NEWTRAIN90_8AREA_ROUTER9920_FP16.safetensors'
+          m=json.loads((d/'NRA2_S76_NEWTRAIN120_GROUPED8AREA_ROUTER_MANIFEST.json').read_text())
+          assert m['stage']=='NRA2_S76_TRUE43M_GT_S74_NEW_TRAIN90_EVENT_RELATIVE_SITUATION_ROUTER'
+          assert m['S74_source_only_SHA']=='5ff7f5681b0130d4c230fe5b3513038e4d6f3487a3b71964a7ad79e53f50b351'
+          assert m['S75_true43M_native_H8_SHA']=='83c1da7b6e79afcfad339c498dcf0f4937411fbbfb081d500d5ca59ea4798900'
+          assert m['S76_new_9920_FP16_SHA']==hashlib.sha256(a.read_bytes()).hexdigest()
+          assert m['new_constructed_EVENT_gold_only_training_loss_not_source_forward']
+          assert m['no_original_Calibri43M_GT_or_old_S65_weights_changed']
+          assert m['S72_router_training_ONLY_no_expert_correction_effects']
+          assert m['old_S65_model_outputs_bit_identical_after_S76']
+          assert m['no_EVAL128_EVAL32_no_S66_SPENT32_gold']
+          assert m['not_full_616_J7_S76_candidate_acceptance']
+          assert m['no_all_in_bpp_CPU_certification']
+          assert m['not_online_causality_certified']
+          assert not m['S76_new_synthetic_target_human_independent_verification']
+          assert m['output_gate']==0 and not m['candidate_accepted'] and not m['activation_allowed']
+          x=m['diagnostics']
+          assert x['trainable_router_and_originalH8_projection_parameters']==4232
+          assert x['all_new_serialized_microarea_parameters']==9920
+          assert x['train_event_missing_from_S65_candidate_beam']+x['train_teacher_event_covered']==90
+          assert x['dev_event_missing_from_S65_candidate_beam']+x['dev_teacher_event_covered']==30
+          assert x['diagnostic_teacher_forced_event_NOT_end_to_end']
+          assert x['diagnostic_synthetic_family_holdout_NOT_prospective_EVAL']
+          assert x['original_S65_joint_rejected_factuality_bit_identical']
+          assert x['old_hypothesis_expert_corrections_unchanged_zero']
+          z=load_file(str(a))
+          assert sum(t.numel() for t in z.values())==9920
+          assert all(math.isfinite(x[label]['micro_f1'])
+                     for label in ('train_router_multilabel',
+                                   'old_dev_router_multilabel')
+                     for x in [m['diagnostics']])
+          print('S76_ORIGINAL43M_GT_NEWTRAIN90_ROUTER_FROZEN_PARENT_SHADOW',
+                {k:x[k] for k in ('train_teacher_event_covered','dev_teacher_event_covered')},
+                'OLD_TRAIN_DIAGNOSTIC_F1',x['old_dev_router_multilabel']['micro_f1'],
+                'GATE_OFF',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra2-s76-true43M-GT-S74-newtrain90-8area-router-shadow-noEVAL
+          path: results/nra2_s76_newtrain90_real43m_factor/
+          retention-days: 30
+          if-no-files-found: error
