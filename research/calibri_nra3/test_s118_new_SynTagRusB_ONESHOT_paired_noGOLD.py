@@ -6,6 +6,7 @@ import torch
 
 from research.calibri_nra3.s118_ONE_SHOT_SynTagRusB_NC_paired_trust_external_firstread import (
     STAGE,SEED,BOOT,REPORT,bootstrap_paired_rows,
+    PRECOMMITTED_S117_TRUE12_SOURCE_SHA,PRECOMMITTED_S115_TRAINED_53751_CHILD_SHA,
     S117_SOURCE,S117_MANIFEST,S112_BASE,S115_TRAINED,S112_MANIFEST,
 )
 from research.calibri_nra3.s118_SynTagRusB_NC_GOLD_AFTER_S117_AND_weightsSHA import (
@@ -27,6 +28,17 @@ class TestS118ProspectiveBNoLeak(unittest.TestCase):
         self.assertEqual(S115_TRAINED,'NRA3_S117_IN_CALIBRI_TRAINED_TRUST_53751_FP16.safetensors')
         self.assertTrue(REPORT.endswith('.json'))
         self.assertEqual(BOOT,4000)
+
+    def test_physically_verified_S117_source_SHA_and_S115_child_frozen_before_one_shot(self):
+        self.assertEqual(PRECOMMITTED_S117_TRUE12_SOURCE_SHA,
+                         '74c43db51b7bf357fa09f1af6b318bfd018f7df2b66f227ffb9de5ae0ef216ac')
+        self.assertEqual(PRECOMMITTED_S115_TRAINED_53751_CHILD_SHA,
+                         '42e0bb4e81cb4ea199e4ee8b5fccd939ab4550b7c6269af44ede6a77462d795c')
+        p=Path('research/calibri_nra3/s118_ONE_SHOT_SynTagRusB_NC_paired_trust_external_firstread.py').read_text()
+        self.assertIn('require(expected_source_sha==PRECOMMITTED_S117_TRUE12_SOURCE_SHA',p)
+        self.assertIn('require(sha(s115_child)==PRECOMMITTED_S115_TRAINED_53751_CHILD_SHA',p)
+        self.assertLess(p.index('require(expected_source_sha==PRECOMMITTED_S117_TRUE12_SOURCE_SHA'),
+                        p.index('original,aligned,audit=load_source_VERIFY_sha_THEN_OPEN_gold('))
 
     def test_paired_sentence_bootstrap_no_unit_as_arg_edges(self):
         # Same accuracy can hide large paired variance. Sample intact sentences.
