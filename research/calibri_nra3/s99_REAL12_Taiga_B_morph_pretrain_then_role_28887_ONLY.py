@@ -30,8 +30,9 @@ from torch import nn
 from safetensors.torch import load_file,save_file
 
 from research.calibri_nra3.s97_in_calibri_morphological_12layer_neural_graph import (
-    NRA3MorphologyInCalibriWeights,ROLE_NAMES,
+    NRA3MorphologyInCalibriWeights,
 )
+from research.calibri_nra3.s91_neural_multilayer_event_graph import ROLE_NAMES
 from research.calibri_nra3.s93_offline_ud_grammatical_role_train_loss_ONLY import (
     NRA3TrainOnlyTargets,graph_train_only_loss,IGNORE,
 )
