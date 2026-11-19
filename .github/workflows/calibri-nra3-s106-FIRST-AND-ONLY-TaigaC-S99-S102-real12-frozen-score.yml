@@ -88,7 +88,12 @@ jobs:
           assert report['frozen_S99_child_sha_precommitted']=='c77a6964ae4e02cb3aac98d69978a25cec2b491a9624cc9668b3b307699bff8a'
           assert report['frozen_S102_child_sha_precommitted']=='f40dddbc03282a6c45c4f807746275d76a4ba776aa613247e73fbdf7f43329df'
           assert report['ALL12_CPU_SAFETENSORS_SHA256']==hashlib.sha256(source.read_bytes()).hexdigest()
-          assert report['n_accepted_source_only_BPE_rows']>=128
+          # S104 physical original CB59+GT all12 source HASH & count frozen
+          # BEFORE any prospective Taiga-C offline UD GOLD was opened.
+          assert report['ALL12_CPU_SAFETENSORS_SHA256']=='0b36b23319dc217621edcaf0994794ba95d8a54643f9ea99334f05b9ca8572c3'
+          assert report['IN_CALIBRI_28887_MORPH_FP16_WEIGHTS_SHA256']=='5d1ab1a238a8f4a52aaaa32495ccf9cb25eca7e5327e8435b72d620cbda48478'
+          assert report['n_accepted_source_only_BPE_rows']==256
+          assert report['n_genuine_original_native_BPE_tokens']==24724
           assert report['new_NRA3_train_steps']==0
           assert report['output_gate']==0 and not report['candidate_accepted'] and not report['activation_allowed']
           h=load_file(str(source))
