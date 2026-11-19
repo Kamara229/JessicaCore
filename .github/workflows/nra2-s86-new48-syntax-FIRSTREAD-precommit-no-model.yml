@@ -1,0 +1,76 @@
+name: NRA2 S86 new firstread syntactic 48 source+constructed labels PRECOMMIT BEFORE real43M or S85 model read
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s85-diverse72-event-fields-TRAIN56-20261119
+permissions:
+  contents: read
+concurrency:
+  group: nra2-s86-novel48-firstread-precommit-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  freeze_S86_novel48_SOURCE_and_separate_one_shot_authored_GOLD:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s86-novel48-structural-firstread-precommit-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Lock S86 separately authored source/gold Git blobs BEFORE any original43M or frozen S85 first model read
+        run: |
+          set -euo pipefail
+          test "$(git hash-object research/nra3_s20/s86_newSYNTHETIC48_SOURCEONLY_never_train.py)" = 6e24dc8ed8fc70b9db5d202f24f315d7958b1bcf
+          test "$(git hash-object research/nra3_s20/s86_NOVEL48_GOLD_SEPARATE_POSTHOC_ONLY.py)" = f905691b2dde4204fec297f1e37106b9c1b54f38
+          echo S86_UNSEEN_SOURCE_AND_AUTHOR_GOLD_BLOBS_LOCKED_BEFORE_REAL43M_FIRSTREAD
+      - name: Install tensor-only CPU schema prerequisites (NO original weights or 43M inference)
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Verify 48 syntactic original Unicode anchors and 8 situation labels, S79 S83 disjoint and zero source GOLD
+        run: |
+          set -euo pipefail
+          python -m unittest -v research.nra3_s20.test_s86_new_novel48_precommit_source_gold
+      - name: Physically archive source-only new FIRSTREAD48 + separate prereg protocol BEFORE any model score
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          from research.nra3_s20.s86_newSYNTHETIC48_SOURCEONLY_never_train import (
+              S86_novel48_source_only,S86_novel48_source_sha256)
+          from research.nra3_s20.s86_NOVEL48_GOLD_SEPARATE_POSTHOC_ONLY import (
+              preregistered_S86_firstread_manifest)
+          out=Path('results/nra2_s86_NEW_NOVEL48_FIRSTREAD_PRECOMMIT')
+          assert not out.exists()
+          out.mkdir(parents=True)
+          raw=S86_novel48_source_only()
+          r=preregistered_S86_firstread_manifest()
+          assert len(raw)==r['n_new_syntactic_firstread_cases']==48
+          assert r['new_source_only_SHA256']==S86_novel48_source_sha256()
+          assert r['original_S85_8264_pretrained_FP16_weights_must_BE_frozen_before_firstread']
+          assert r['no_old_S79_NOVEL48_retrain_or_rescore']
+          assert r['S85_source_only_logits_PHYSICALLY_SAVED_BEFORE_gold_open']
+          assert r['no_checkpoint_selection_no_threshold_search_no_training_after_firstread']
+          assert r['synthetic_author_labels_not_independent_human_truth']
+          assert r['output_gate']==0 and not r['candidate_accepted'] and not r['activation_allowed']
+          (out/'NRA2_S86_NEW_NOVEL48_SOURCE_ONLY_NO_GOLD.json').write_text(
+              json.dumps(raw,ensure_ascii=False,sort_keys=True,indent=2)+'\n',encoding='utf8')
+          (out/'NRA2_S86_SOURCE_AND_SEPARATE_GOLD_PRECOMMIT_PROTOCOL.json').write_text(
+              json.dumps(r,ensure_ascii=False,sort_keys=True,indent=2)+'\n',encoding='utf8')
+          print('S86_NEW_NOVEL48_FIRSTREAD_SOURCE_SHA_LOCKED',
+                S86_novel48_source_sha256(),'NO_43M_OR_S85_READ',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra2-s86-NOVEL48-newsyntax-one-shot-firstread-PRECOMMIT-sourceonly-and-protocol
+          path: results/nra2_s86_NEW_NOVEL48_FIRSTREAD_PRECOMMIT/
+          retention-days: 30
+          if-no-files-found: error
