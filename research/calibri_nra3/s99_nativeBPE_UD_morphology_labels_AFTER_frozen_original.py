@@ -1,13 +1,13 @@
-"""NRA3 S96: separate OFFLINE TRAIN UD word offsets -> ORIGINAL Calibri BPE.
+"""NRA3 S99: separate NEW Taiga TRAIN-b morph+UD labels after S98 source -> ORIGINAL Calibri BPE.
 
-S95 already physically ran protected original 616 J7 and captured all
+S98 must physically replay protected original 616 J7 and captured all
 12 genuine Calibri+GT layers for source-only licensed UD-Taiga TRAIN-a.
-Only AFTER immutable S95 source tensor and checksum verification do
+Only AFTER immutable S98 source tensor and checksum verification do
 we open original S94 separate UD annotations here. No labels enter
 the original Calibri forward or the embedded NRA3 model.forward.
 
 UD word (character start/end) indices are mapped ONLY to exactly
-matching RAW S95 original-language character spans, then to LAST
+matching RAW S98 original-language character spans, then to LAST
 causally safe ORIGINAL Calibri BPE index. Ambiguous, unaligned, shared
 BPE or multi-argument repeated same role => row excluded with reason,
 never silently reindexed. There are no pseudo-negative EVENT or
@@ -100,7 +100,7 @@ def map_UD_word_labels_ONLY_AFTER_source_features(
             and raw_causal_safe.dtype==torch.bool
             and source_row_ids.tolist()==sorted(set(source_row_ids.tolist()))
             and all(0<=int(x)<256 for x in source_row_ids),
-            "real S95 original BPE source index order and raw offsets")
+            "real S98 original BPE source index order and raw offsets")
     mention=torch.full((n,t),IGNORE,dtype=torch.long)
     role=torch.full((n,N_ROLES,t),IGNORE,dtype=torch.long)
     state=torch.full((n,t,N_STATES),float(UNKNOWN),dtype=torch.float32)
@@ -245,11 +245,11 @@ def map_UD_word_labels_ONLY_AFTER_source_features(
 
 
 def physical_source_then_separate_gold(path_s95:Path,path_report_s95:Path,
-                                       s94_dir:Path) -> tuple[dict,AlignedS96,dict]:
+                                       s94_dir:Path) -> tuple[dict,AlignedS99,dict]:
     import hashlib
     require(path_s95.name==S95_SOURCE_TENSOR and
             path_report_s95.name==S95_REPORT,
-            "physical genuine frozen S95 source artifact paths only")
+            "physical genuine frozen S98 NEW Taiga TRAIN-b source artifact paths only")
     r=json.loads(path_report_s95.read_text())
     require(r["stage"]=="CALIBRI_NRA3_S98_REAL43MGT_ALL12_TAIGA_TRAINB256_MORPH_SOURCE_ONLY_AFTER616"
             and r["S97_TAIGA_TRAIN_B_PINNED_SOURCE256_SHA256"]==S94_SOURCE_SHA
