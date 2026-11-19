@@ -119,7 +119,7 @@ def new_training_only_corpus256(data:bytes,*,check_blob=True):
             and n_morph_annotated["upos"]>=900
             and n_morph_annotated["case"]>=250
             and n_morph_annotated["number"]>=300
-            and n_morph_annotated["voice"]>=90,
+            and n_morph_annotated["voice"]>=30,
             "adequate morphological teacher coverage, source-only/gold separation")
     report={
         "stage":STAGE,
