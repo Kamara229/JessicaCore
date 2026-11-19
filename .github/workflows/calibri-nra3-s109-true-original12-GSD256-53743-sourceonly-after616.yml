@@ -848,7 +848,7 @@ jobs:
           a=load_file(str(hfile));w=load_file(str(wfile))
           h=a['original_Calibri43M_GT_ALL12_native_H320_FP16_READONLY']
           ids=a['original_native_BPE_token_ids']; valid=a['native_BPE_source_valid_mask']
-          ix=a['source_row_indices_in_PINNED_Russian GSD_TRAIN256']
+          ix=a['source_row_indices_in_PINNED_GSD_TRAIN256']
           assert h.shape[:2]==(r['n_accepted_source_only_BPE_rows'],12)
           assert h.shape[-1]==320 and h.dtype==torch.float16
           assert ids.shape==valid.shape==h.shape[0:1]+h.shape[2:3]
