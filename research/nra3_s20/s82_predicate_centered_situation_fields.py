@@ -50,7 +50,7 @@ FIELDS=(
     "negator_away_outside_clause",
     "conditional_trigger_same_clause",
     "conditional_trigger_previous_clause",
-    "dream_counterfactual_same_clause",
+    "dream_counterfactual_same_or_previous_clause",
     "reported_claim_same_clause",
     "report_previous_clause",
     "passive_ending_event_word",
@@ -79,7 +79,7 @@ WIDTH=len(FIELDS)
 assert WIDTH==32 and len(AREAS)==8
 NEG=frozenset(("не","ни","нет","никогда","вовсе","отнюдь","ничуть"))
 COND=frozenset(("если","когда","при","условии","допустим","предположим","пусть","пускай"))
-DREAM=frozenset(("сон","сне","снилось","приснилось","вообразил","представил","будто","якобы","мечтал","грезил","предположим","допустим","бы"))
+DREAM=frozenset(("сон","сне","снилось","приснилось","вообразил","представил","будто","якобы","мечтал","грезил","предположим","предположил","предположила","допустим","бы"))
 REPORT=frozenset(("сказал","сказала","утверждал","утверждала","сообщили","сообщил",
                   "рассказал","пересказал","написал","говорят","говорил",
                   "цитировал","процитировал","цитата","слух","слова","якобы",
@@ -198,7 +198,7 @@ def source_only_event_fields(texts:Sequence[str],word_valid:torch.Tensor,
                 any(raw[t] in NEG for t in elsewhere),
                 any(raw[t] in COND for t in left+right),
                 any(raw[t] in COND for t in earlier),
-                any(raw[t] in DREAM for t in left+right),
+                any(raw[t] in DREAM for t in left+right+earlier),
                 any(raw[t] in REPORT for t in left+right),
                 any(raw[t] in REPORT for t in earlier),
                 source_passive,
