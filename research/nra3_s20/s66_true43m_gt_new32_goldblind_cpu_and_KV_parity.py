@@ -44,9 +44,9 @@ from research.nra3_s20.s75_original43m_gt_newtrain120_native_h8 import (
     capture_S74_new_train120_original43m_cpu_source_only as s75_capture,
     physical_source_only_commit as s75_save_after_616J7,
 )
-from research.nra3_s20.s87_REAL43M_GT_S86_NOVEL48_SOURCEONLY_H8 import (
-    capture_new_novel48_original43m_GT_native_only as s87_new_novel48_sourceonly,
-    persist_source_only_AFTER_original_J7_verified as s87_save_after_original616,
+from research.calibri_nra3.s92_real43m_GT_all12_newtrain72_sourceonly import (
+    real_all12_source_capture_AFTER_original_616 as nra3_s92_capture,
+    save_only_AFTER_original616_digest_verified as nra3_s92_save,
 )
 from research.nra3_s20.s49_real43m_gt_quote_sidecar_zero_gate import (
     Frozen43MGreenTunnelQuotePort, frozen_native_manifest_digest,
@@ -106,7 +106,7 @@ def main():
     s69_physical_rows=[]  # 3 original nontrainable phase toggles × same 8 rows
     s70_native_s95_rows=[]  # source-only S95 prefix native BPE A/B
     s75_newtrain120_capture=[]  # unlabelled new S74 TRAIN source, no GOLD
-    s87_new_novel48_original_H8=[]  # fresh S86 FIRSTREAD SOURCE, no gold/S85
+    nra3_s92_all12_newTRAIN72=[]  # original S83 TRAIN-only all12, NO GOLD or spent firstreads
     parity_collector=FrozenLayer8ReadPort()
 
     def load_original_with_read_only_port(*args,**kwargs):
@@ -139,9 +139,10 @@ def main():
         # can enter this code or the frozen Calibri H8 forward.
         s75_newtrain120_capture.append(s75_capture(
             model,sources,tok,bridge,full,expansion))
-        # S87 ONLY fresh S86 NOVEL48 source first read; no first-read
-        # gold/S85 weights, preserved original 616 J7 verified later.
-        s87_new_novel48_original_H8.append(s87_new_novel48_sourceonly(
+        # NRA3 S92 physical original 12-layer Calibri + GreenTunnel:
+        # attach 22,311 new weights INSIDE this RESEARCH model only,
+        # AFTER original protected 616 J7. S79/S86 spent sets excluded.
+        nra3_s92_all12_newTRAIN72.append(nra3_s92_capture(
             model,sources,tok,bridge,full,expansion))
         for row_idx,q in enumerate(texts):
             # Do not supply any graph, gold, predicate anchors or annotations.
@@ -297,9 +298,9 @@ def main():
     # posthoc verification above. Thus an altered J7 cannot ever yield
     # a saved physical S75 research artifact.
     s75_newtrain_tensors,s75_newtrain_report=s75_newtrain120_capture[0]
-    if len(s87_new_novel48_original_H8)!=1:
-        raise ValueError("S87 exactly one FIRSTREAD48 original Calibri H8 capture")
-    s87_new_tensors,s87_new_report=s87_new_novel48_original_H8[0]
+    if len(nra3_s92_all12_newTRAIN72)!=1:
+        raise ValueError("NRA3 S92 exactly one all12 original43M training read")
+    s92_tensors,s92_child_weights,s92_report=nra3_s92_all12_newTRAIN72[0]
     token_batch=collector.frozen_batch(texts)
     tok=real_tokenizer[0]
     alignments=[]
@@ -322,19 +323,18 @@ def main():
     out.mkdir(parents=True,exist_ok=True)
     s75_source_file=s75_save_after_616J7(
         out,s75_newtrain_tensors,s75_newtrain_report)
-    s87_source_file=s87_save_after_original616(
-        out,s87_new_tensors,s87_new_report)
-    print("S87_ORIGINAL43M_GT_NOVEL48_GOLDBLIND_FIRSTREAD_NATIVE_H8",
+    s92_source_file=nra3_s92_save(
+        out,s92_tensors,s92_child_weights,s92_report)
+    print("NRA3_S92_ORIGINAL43M_GT_ALL12_REAL_NATIVE_TRAIN72_IN_CALIBRI_WEIGHTS",
           json.dumps({
-              "new_firstread_source48":s87_new_report["n_novel_syntax_firstread_input_rows"],
-              "original_BPE_tokens":s87_new_report["n_original_native_BPE_tokens"],
-              "max_raw_words":s87_new_report["max_native_raw_source_words"],
-              "quote_words":s87_new_report["n_quote_marked_original_raw_words"],
-              "unsafe_shared_words":s87_new_report["n_shared_native_BPE_unsafe_word_positions"],
-              "physical_source_SHA":sha_file(s87_source_file),
+              "new_training_source72":s92_report["n_new_train_only_sources"],
+              "original_BPE_tokens":s92_report["n_genuine_original_BPE_tokens"],
+              "max_BPE_per_prompt":s92_report["max_native_BPE_tokens_per_source"],
+              "all12_hidden_source_SHA":sha_file(s92_source_file),
+              "new_NRA3_child_weight_SHA":s92_report["IN_CALIBRI_22311_NEW_FP16_WEIGHTS_SHA256"],
+              "original_43m_SHA_intact":True,
               "original_616_J7_baseline_preserved":True,
-              "S86_constructed_gold_not_loaded":True,
-              "S85_weights_not_loaded":True,
+              "old_spent_S79_S86_never_reused":True,
               "output_gate":0,
           },sort_keys=True),flush=True)
     print("S75_ORIGINAL43M_GT_NEWTRAIN120_GOLDBLIND_NATIVE_H8",
