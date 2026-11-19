@@ -1,5 +1,5 @@
 """NRA2 S84: FIRST physical original Calibri43M+GreenTunnel H8 read
-of S83 SHA-locked NEW, never-training 72 novel-syntax Russian sentences.
+of S83 SHA-locked NEW, TRAIN-only 72 newly authored diverse Russian sentences.
 
 HARD WALL: this module does NOT import S83 constructed target annotations
 or S82 model/weights, has no event labels, no target classes, no fitting
@@ -51,7 +51,7 @@ def capture_new_diverse72_original43m_GT_native_only(model,sources,tok,
     require(len(texts)==72
             and source_only_new72_sha256()==EXPECTED_SOURCE_SHA
             and all(set(r)=={"row_id","group","text"} for r in texts),
-            "pre-registered S83 unseen 72 SOURCE-only identity SHA frozen")
+            "pre-registered S83 NEW TRAIN-only 72 SOURCE-only identity SHA frozen")
     require(len(model.model.layers)==12 and not model.training
             and next(model.parameters()).device.type=="cpu"
             and not expansion._active and not tunnel._active
@@ -148,7 +148,7 @@ def capture_new_diverse72_original43m_GT_native_only(model,sources,tok,
         "stage":STAGE,
         "original_Calibri43M_protected_616J7_physically_replayed_BEFORE_training_source":True,
         "S83_new_diverse72_SOURCE_ONLY_SHA256":source_only_new72_sha256(),
-        "S83_PRECOMMIT_SUCCESS_WORKFLOW_RUN_ID":44507334853,
+        "S83_PRECOMMIT_SUCCESS_WORKFLOW_RUN_ID":44514452404,
         "S83_CONSTRUCTION_GOLD_NEVER_IMPORTED_BY_REAL_H8_CPU":True,
         "S82_architecture_weights_NEVER_LOADED_BY_SOURCE_H8_CAPTURE":True,
         "original_43M_real_frozen_BPE_IDs_AND_offset_mapping_unchanged":True,
@@ -172,10 +172,10 @@ def capture_new_diverse72_original43m_GT_native_only(model,sources,tok,
 def persist_source_only_AFTER_original_J7_verified(out:Path,tensors,report):
     require(out.is_dir() and not (out/TENSOR_NAME).exists()
             and not (out/REPORT_NAME).exists()
-            and report["n_novel_shift_input_rows"]==72
+            and report["n_diverse_train_only_input_rows"]==72
             and report["S83_CONSTRUCTION_GOLD_NEVER_IMPORTED_BY_REAL_H8_CPU"]
-            and report["S82_trained_weights_NEVER_LOADED_BY_SOURCE_H8_CAPTURE"]
-            and report["original_Calibri43M_protected_616J7_physically_replayed_BEFORE_firstread"]
+            and report["S82_architecture_weights_NEVER_LOADED_BY_SOURCE_H8_CAPTURE"]
+            and report["original_Calibri43M_protected_616J7_physically_replayed_BEFORE_training_source"]
             and report["output_gate"]==0
             and not report["candidate_accepted"]
             and not report["activation_allowed"],
