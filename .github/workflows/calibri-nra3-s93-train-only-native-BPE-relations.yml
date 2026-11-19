@@ -1,0 +1,68 @@
+name: Calibri NRA3 S93 strict offline grammatical event roles native-BPE TRAIN only, neural in-model heads
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s92b-cb59-physical-core-guard-20261119
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nra3-s93-offline-native-grammatical-roles-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  in_Calibri_nra3_source_only_train_loss_ABI:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s93-inmodel-ud-relation-train-objective-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Only CPU torch for new TRAIN-only role loss ABI, no external inference parser
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Require actual 43M GreenTunnel all12 pretrained SOURCE CPU / original 616 J7 safeguarded S92B was successful
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/"${GITHUB_REPOSITORY}"/actions/runs/44552168504 --jq .conclusion)" = success
+          echo 'S93_RUSSIAN_UD_SUPERVISION_TRAIN_ONLY_ORIGINAL_CALIBRI616_PROTECTED_S92B'
+      - name: Strict source-only neural graph and supervised native-BPE mention, event-role, states, eight NRA2 areas, memory
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s93_offline_ud_grammatical_role_train_loss_ONLY.py research/calibri_nra3/test_s93_offline_dependency_loss_native_BPE.py
+          python -m unittest -v research.calibri_nra3.test_s91_in_calibri_neural_12layer_event_graph research.calibri_nra3.test_s92_real43m_all12_sourceonly_contracts research.calibri_nra3.test_s93_offline_dependency_loss_native_BPE
+      - name: No external grammar parser at inference, no trained grammar transfer or knowledge retention claims
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from research.calibri_nra3.s93_offline_ud_grammatical_role_train_loss_ONLY import (
+             STAGE,ROLE_WEIGHT,IGNORE,UNKNOWN)
+          from research.calibri_nra3.s91_neural_multilayer_event_graph import (
+             NRA3InCalibriNeuralWeights)
+          m=NRA3InCalibriNeuralWeights()
+          b=m.budget()
+          assert STAGE=='CALIBRI_NRA3_S93_OFFLINE_TEACHER_EVENT_DEPENDENCY_TRAIN_ONLY'
+          assert IGNORE==-100 and UNKNOWN==-1 and ROLE_WEIGHT==2.
+          assert b['new_neural_parameters']==22311
+          assert b['NRA2_independent_mini_areas_preserved']==8
+          assert b['grammatical_event_argument_role_heads']==8
+          assert b['all_12_original_calibri_layers']==12
+          assert not b['external_runtime_parser_required']
+          assert b['original_calibri_GT_weights_modified']==False
+          assert b['output_gate']==0 and not b['candidate_accepted']
+          assert not b['activation_allowed']
+          assert not m.is_trained and not m.protected_616_candidate_certified
+          print('NRA3_S93_OFFLINE_NATIVE_BPE_EVENT_ROLE_TRAIN_OBJECTIVE_ABI_SUCCESS_NOT_TRAINED')
+          PY
