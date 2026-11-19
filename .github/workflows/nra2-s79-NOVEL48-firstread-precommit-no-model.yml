@@ -1,0 +1,72 @@
+name: NRA2 S79 one-time novel48 source and independent annotation PRE-FREEZE before model read
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s78-quote-aware-specialist-miniareas-20261119
+permissions:
+  contents: read
+concurrency:
+  group: nra2-s79-novel48-synthetic-firstread-precommit-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  precommit_source_and_gold_BEFORE_any_real43M_or_S78_read:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s79-novel48-firstread-source-only-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin BOTH original new author source and first-read label source Git blobs before ANY test read
+        run: |
+          set -euo pipefail
+          test "$(git hash-object research/nra3_s20/s79_NEW_NOVEL48_SOURCE_ONLY_locked_before_S78_firstread.py)" = d3c0b7f3a5e0ef01bc1a76b81231b9ec4dea345a
+          test "$(git hash-object research/nra3_s20/s79_NEW_NOVEL48_LABELS_POSTHOC_ONLY_never_in_forward.py)" = b5405138af9cc6f9607b966a2ac21b86d7014b03
+          echo S79_NEW48_AUTHOR_SOURCE_AND_GOLD_SHA_LOCKED_BEFORE_ANY_MODEL_EVALUATION
+      - name: Install CPU torch ONLY for S72 factor schema; no model weights or training
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Validate all 48 verb anchors and 8 domain labels BEFORE first frozen S78 read
+        run: |
+          set -euo pipefail
+          python -m unittest -v research.nra3_s20.test_s79_novel48_firstread_freeze_contracts
+      - name: Persist source-only 48 new stress sentences & separately protocol metadata, NO model inference
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from research.nra3_s20.s79_NEW_NOVEL48_SOURCE_ONLY_locked_before_S78_firstread import (
+              new_novel48_source_only,new_novel48_source_sha256)
+          from research.nra3_s20.s79_NEW_NOVEL48_LABELS_POSTHOC_ONLY_never_in_forward import (
+              preregistered_manifest)
+          d=Path('results/nra2_s79_novel48_firstread_PRECOMMITTED')
+          assert not d.exists()
+          d.mkdir(parents=True)
+          x=new_novel48_source_only()
+          m=preregistered_manifest()
+          assert len(x)==m['n_new_syntactic_shift_probes']==48
+          assert m['raw_only_source_sha256']==new_novel48_source_sha256()
+          assert m['one_time_score_no_new_S78_fitting_or_hparam_selection']
+          assert not m['candidate_accepted'] and not m['activation_allowed']
+          (d/'NRA2_S79_NOVEL48_SOURCE_ONLY_NO_LABELS.json').write_text(
+              json.dumps(x,ensure_ascii=False,sort_keys=True,indent=2)+'\n',encoding='utf8')
+          (d/'NRA2_S79_NOVEL48_FIRSTREAD_PRECOMMIT_MANIFEST.json').write_text(
+              json.dumps(m,ensure_ascii=False,sort_keys=True,indent=2)+'\n',encoding='utf8')
+          print('S79_NEW48_SOURCE_ONLY_PREINFERENCE_SHA256',new_novel48_source_sha256(),
+                'NO_MODEL_READ_NO_TRAIN_NO_OLD_HELD_GOLD',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra2-s79-NOVEL48-preregistered-SOURCE-ONLY-and-protocol-before-S78-firstread
+          path: results/nra2_s79_novel48_firstread_PRECOMMITTED/
+          retention-days: 30
+          if-no-files-found: error
