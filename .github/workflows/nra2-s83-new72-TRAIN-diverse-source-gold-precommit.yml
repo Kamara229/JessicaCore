@@ -1,0 +1,73 @@
+name: NRA2 S83 new diverse72 TRAIN raw/gold hard wall precommit before any original43M H8
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s82-predicate-centered-situation-fields-20261119
+permissions:
+  contents: read
+concurrency:
+  group: nra2-s83-new72-training-precommit-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  freeze_new_train72_source_and_separate_constructed_labels:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s83-diverse72-TRAIN-only-source-precommit-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: PRECOMMIT immutable source-only and separately authored TRAIN-only constructed 72 annotations
+        run: |
+          set -euo pipefail
+          test "$(git hash-object research/nra3_s20/s83_NEW_DIVERSE72_source_ONLY_never_use_S79_spent.py)" = ec459b8b80d097b9a5620294d491002714dc7fbb
+          test "$(git hash-object research/nra3_s20/s83_NEW_DIVERSE72_gold_TRAIN_LOSS_ONLY.py)" = c492441ef6acc7a734a1d083921567eb58206aed
+          echo S83_BOTH_SOURCE_AND_GOLD_SHA_LOCKED_BEFORE_REAL43M_MODEL_READ
+      - name: Install torch for original S82 named source schema only; no optimizer or original weights
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Source/gold isolation 72 new diverse TRAIN only, 56 train 16 constructed diagnostic, never S79 test
+        run: |
+          set -euo pipefail
+          python -m unittest -v research.nra3_s20.test_s83_newDiverse72_train_only_source_gold_freeze
+      - name: Persist SHA-locked source-only new TRAIN72 raw JSON; separate constructed-target PROTOCOL only
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from research.nra3_s20.s83_NEW_DIVERSE72_source_ONLY_never_use_S79_spent import (
+              source_only_new72,source_only_new72_sha256)
+          from research.nra3_s20.s83_NEW_DIVERSE72_gold_TRAIN_LOSS_ONLY import precommit_manifest
+          out=Path('results/nra2_s83_new_different_syntax_RAW_TRAIN72_precommit')
+          assert not out.exists()
+          out.mkdir(parents=True)
+          raw=source_only_new72()
+          report=precommit_manifest()
+          assert len(raw)==72 and report['n_train_rows']==56 and report['n_synthetic_diag_rows']==16
+          assert source_only_new72_sha256()==report['source_only_sha256']
+          assert all(set(z)=={'row_id','group','text'} for z in raw)
+          assert report['S79_48_one_time_spent_test_NEVER_imported']
+          assert report['independent_prospective_new_first_read_NOT_created']
+          assert report['output_gate']==0 and not report['candidate_accepted'] and not report['activation_allowed']
+          (out/'NRA2_S83_NEW_DIVERSE72_RAW_ONLY_NO_GOLD.json').write_text(
+              json.dumps(raw,sort_keys=True,ensure_ascii=False,indent=2)+'\n',encoding='utf8')
+          (out/'NRA2_S83_NEW_DIVERSE72_PRECOMMIT_MANIFEST.json').write_text(
+              json.dumps(report,sort_keys=True,ensure_ascii=False,indent=2)+'\n',encoding='utf8')
+          print('S83_NEW_DIVERSE72_SOURCE_ONLY_SHA_FROZEN',report['source_only_sha256'],
+                'TRAIN56_OLD_SYNTHETIC_DIAG16','NO_NATIVE_MODEL_INFERENCE',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nra2-s83-new72-diverse-TRAIN56-DIAG16-rawonly-precommit-no-model
+          path: results/nra2_s83_new_different_syntax_RAW_TRAIN72_precommit/
+          retention-days: 30
+          if-no-files-found: error
