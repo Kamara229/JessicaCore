@@ -32,7 +32,7 @@ class TestS104SourceOnlyTrueCalibricModel(unittest.TestCase):
     def test_same_actual_12layer_calibri_new_morphology_IN_model_child(self):
         s=CAPTURE.read_text(encoding="utf8")
         for marker in (
-            "NRA3MorphologyInCalibriWeights()",
+            "NRA3RelationalMorphologyInCalibriWeights()",
             "child.attach_to_RESEARCH_calibri(model)",
             "child.read_only_all12_source_scope(model)",
             "layer8.capture(model,text,ids)",
@@ -71,7 +71,7 @@ class TestS104SourceOnlyTrueCalibricModel(unittest.TestCase):
                              or "s79_" in v.lower()
                              or "s86_" in v.lower()
                              for v in imported))
-        self.assertTrue(any("s97_in_calibri_morphological" in v for v in imported))
+        self.assertTrue(any("s103_in_calibri_morphosyntactic_affinity" in v for v in imported))
         wrapper=WRAPPER.read_text(encoding="utf8")
         self.assertIn("nra3_s104_capture(",wrapper)
         self.assertIn('os.environ["NRA3_S104_TAIGA_E_SOURCE_ONLY_JSON"]',wrapper)
