@@ -1,0 +1,73 @@
+name: Calibri NRA3 S91 true embedded neural 12-layer grammar graph weights ABI, zero gate
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra2-s90-real43m-mention-top1-TRAIN56-20261119
+permissions:
+  contents: read
+concurrency:
+  group: calibri-nra3-s91-neural-module-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  nra3_in_calibri_neural_weight_graph_ABI_shadow:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s91-neural-multilayer-event-graph-20261119'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: .:research
+      PYTHONDONTWRITEBYTECODE: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Only CPU PyTorch for untrained in-Calibri neural child ABI, no protected original 43M checkpoint loaded
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: S91 all12 original layer access, neural predicate role arcs, eight mini-areas, in-Calibri weights and original output unchanged
+        run: |
+          set -euo pipefail
+          python -m compileall -q research/calibri_nra3/s91_neural_multilayer_event_graph.py research/calibri_nra3/test_s91_in_calibri_neural_12layer_event_graph.py
+          python -m unittest -v research.calibri_nra3.test_s91_in_calibri_neural_12layer_event_graph
+      - name: Verify 22311 new neural params actually belong to Calibri research state_dict, no external service, no acceptance
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import torch
+          from torch import nn
+          from research.calibri_nra3.s91_neural_multilayer_event_graph import NRA3InCalibriNeuralWeights,STAGE
+          assert STAGE=='CALIBRI_NRA3_S91_NEURAL_12LAYER_RELATIONAL_EVENT_GRAPH_RESEARCH_ONLY'
+          class ResearchCalibri(nn.Module):
+              def __init__(self):
+                  super().__init__()
+                  self.model=nn.Module()
+                  self.model.layers=nn.ModuleList([nn.Identity() for _ in range(12)])
+          original=ResearchCalibri()
+          old_keys=set(original.state_dict())
+          child=NRA3InCalibriNeuralWeights()
+          child.attach_to_RESEARCH_calibri(original)
+          new_keys=set(original.state_dict())
+          assert new_keys-old_keys
+          assert all(z.startswith('model.nra3_neural_weights.') for z in new_keys-old_keys)
+          budget=child.budget()
+          assert budget['new_neural_parameters']==22311
+          assert budget['nominal_FP16_weight_bytes']==44622
+          assert budget['all_12_original_calibri_layers']==12
+          assert budget['learned_layer_streams']==4
+          assert budget['grammatical_event_argument_role_heads']==8
+          assert budget['NRA2_independent_mini_areas_preserved']==8
+          assert budget['trainable_in_model_memory_slots']==16
+          assert not budget['external_runtime_parser_required']
+          assert budget['original_calibri_GT_weights_modified']==False
+          assert budget['new_616_J7_not_certified'] and budget['all_in_bpp_and_CPU_not_certified']
+          assert budget['output_gate']==0 and budget['candidate_accepted']==False
+          assert budget['activation_allowed']==False
+          assert not child.is_trained and not child.online_causal_certified
+          print('NRA3_S91_CALIBRI_CHILD_WEIGHT_CHECKPOINT_12LAYER_ROLE_ARCS_8_MINIAREAS_22311_PARAMS_GATE0',flush=True)
+          PY
