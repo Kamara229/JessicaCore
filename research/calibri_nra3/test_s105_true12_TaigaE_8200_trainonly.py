@@ -46,7 +46,7 @@ class TestS105TrainOnlyGoldWallAndOldWeightProtection(unittest.TestCase):
         self.assertEqual(len(batches),24)
         selected=torch.cat(batches)
         self.assertTrue(all((int(v)%64)<48 for v in selected))
-        self.assertEqual(len(selected),96)
+        self.assertEqual(len(selected),192)
 
     def test_no_teacher_forward_no_heldout_and_physical_SHA_before_gold(self):
         mapper=(ROOT/'s105_original12_TaigaE_UD_gold_after_S104_SHA.py').read_text()
