@@ -1,4 +1,4 @@
-"""S101 gold-blind REAL original Calibri+GT 12-layer GSD TRAIN-b source contracts.
+"""S109 gold-blind REAL original Calibri+GT 12-layer independent GSD TRAIN source contracts.
 
 No morphology gold or original frozen model loaded in these tests.
 Original protected616 J7 replay and in-model S97 morphology physical
@@ -16,8 +16,8 @@ CAPTURE=Path("research/calibri_nra3/s109_original12_GSD256_53743_goldblind_cpu.p
 WRAPPER=Path("research/nra3_s20/s66_true43m_gt_new32_goldblind_cpu_and_KV_parity.py")
 
 
-class TestS101SourceOnlyTrueCalibricModel(unittest.TestCase):
-    def test_new_GSD_E256_source_precommitted_before_original_CPU(self):
+class TestS109SourceOnlyTrueCalibricModel(unittest.TestCase):
+    def test_new_GSD256_source_precommitted_before_original_CPU(self):
         self.assertEqual(SOURCE_SHA,
             "4078f408f2355c55c29bca18504355379e2a42ef2144c9113dda9448b086de14")
         self.assertEqual(STAGE,
@@ -25,7 +25,7 @@ class TestS101SourceOnlyTrueCalibricModel(unittest.TestCase):
         self.assertEqual(TENSOR,
             "NRA3_S109_GSD_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors")
         self.assertEqual(WEIGHTS,
-            "NRA3_S109_IN_CALIBRI_UNGSD_TRAIND_53743_FP16.safetensors")
+            "NRA3_S109_IN_CALIBRI_UNTRAINED_53743_FP16.safetensors")
         self.assertEqual(REPORT,
             "NRA3_S109_REAL43MGT_GSD_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json")
 
