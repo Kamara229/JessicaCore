@@ -8,7 +8,7 @@ corpus developer) but EVENT-ARGUMENT arcs overfit (86% TRAIN vs
 
 S108: DO NOT tune on S105/S102/S99/S96 already spent developer,
 S79/S86 original firstreads. A new original TRAIN-only upstream file
-UD_Russian-Taiga train-e (NOT train-a/b/c/d/dev/test) supplies a wider
+UD_Russian-GSD official TRAIN (NOT Taiga train-a/b/c/d/e or GSD dev/test) supplies a wider
 teacher: ALL VERB predicates and ALL unambiguous UD predicate→
 argument arcs in each eligible sentence, not just ONE selected event.
 Multiple argument words of the same role are retained separately.
@@ -135,7 +135,7 @@ def precommit_real_gsd_train256(data:bytes):
             "immutable official Russian GSD TRAIN Git blob SHA mismatch")
     source0,chosen_first,source_manifest=select_locked_UD_train256(
         data,require_pinned_blob=False)
-    # The source selection is predetermined by source+UD TRAIN-only
+    # The source selection is predetermined by new GSD source+UD TRAIN-only
     # grammatical strata, NOT by any S99 diagnostic performance.
     source_to_node={}
     for sent_id,text,nodes in parse_conllu(data.decode("utf8")):
@@ -193,7 +193,7 @@ def precommit_real_gsd_train256(data:bytes):
             and dict(counts)=={k:64 for k in STRATA}
             and total_events>=256 and total_edges>=300
             and all(tag_counts[k]>=30 for k in morphology),
-            "strict balanced 256 real new TRAIN-e multi-event source+separate GOLD")
+            "strict balanced 256 real NEW GSD multi-event source+separate GOLD")
     manifest={
         "stage":STAGE,
         "license":LICENSE,
@@ -232,7 +232,7 @@ def main():
     ap.add_argument("--out",type=Path,required=True)
     args=ap.parse_args()
     require(args.gsd_train.is_file() and not args.out.exists(),
-            "must use freshly downloaded pinned licensed ORIGINAL TRAIN-e")
+            "must use freshly downloaded pinned licensed ORIGINAL Russian GSD TRAIN")
     src,gold,manifest=precommit_real_gsd_train256(args.gsd_train.read_bytes())
     args.out.mkdir(parents=True,exist_ok=False)
     for name,obj in ((SOURCE_FILE,src),(GOLD_FILE,gold),
@@ -240,7 +240,7 @@ def main():
         (args.out/name).write_text(
             json.dumps(obj,ensure_ascii=False,sort_keys=True,indent=2)+"\n",
             encoding="utf8")
-    print("NRA3_S103_REAL_TAIGA_TRAIN_E_MULTIVERB_UD_SOURCE_GOLD_PRECOMMIT",
+    print("NRA3_S108_REAL_RUSSIAN_GSD_TRAIN_MULTIVERB_UD_SOURCE_GOLD_PRECOMMIT",
           json.dumps({"source_SHA":manifest["source_only_SHA256"],
                       "gold_SHA":manifest["offline_all_verbs_morph_multiedge_GOLD_SHA256"],
                       "events":manifest["n_offline_UD_all_verb_events"],
