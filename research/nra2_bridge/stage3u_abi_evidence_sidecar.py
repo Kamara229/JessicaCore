@@ -99,6 +99,7 @@ def write_abi_evidence(
             spans[i,k] = torch.tensor((pos[0],pos[-1]+1))
         if (set(map(id, matched)) != set(map(id, query_mentions))
                 or torch.any(anchor[i,0] & anchor[i,1])
+                or any(not isinstance(m.char_start, int) or not isinstance(m.char_end, int) or m.char_start < 0 or m.char_end <= m.char_start for m in matched)
                 or len({(m.char_start,m.char_end) for m in matched}) != 2
                 or [m.node for m in matched] != order[i].tolist()
                 or not matched[0].char_start < matched[1].char_start):
