@@ -68,10 +68,19 @@ def write_abi_evidence(
             raise AssertionError("Query or anchor outside nonpadding query")
         # Exactly two native query mentions must account for both anchors.
         # Additional mentions are not silently ignored or inferred from gold.
-        query_mentions = [m for m in a["mentions"]
-                          if m.token_positions and all(
-                              0 <= p < length and bool(query[i,p])
-                              for p in m.token_positions)]
+        # A mention touching the query boundary must never disappear from
+        # accounting merely because another token lies outside the query.
+        query_mentions = []
+        for m in a["mentions"]:
+            positions = list(m.token_positions)
+            if not positions:
+                continue
+            if any(not isinstance(p, int) or p < 0 or p >= length for p in positions):
+                raise AssertionError("Invalid native mention token positions")
+            if any(bool(query[i, p]) for p in positions):
+                if not all(bool(query[i, p]) for p in positions):
+                    raise AssertionError("Native mention crosses query boundary")
+                query_mentions.append(m)
         if len(query_mentions) != 2:
             raise AssertionError("Expected exactly two aligned query mentions")
         # Select anchors by their exact token positions; do not infer from gold.
