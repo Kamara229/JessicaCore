@@ -67,7 +67,7 @@ def test_roundtrip_synthetic_only():
 @pytest.mark.parametrize("mutation", [
     "j7", "prereg", "anchor_overlap", "missing_anchor", "extra_query_mention",
     "wrong_order", "bad_padding", "duplicate_prompt", "bad_commitment",
-    "malformed_zip_sha", "cross_boundary_mention",
+    "malformed_zip_sha", "cross_boundary_mention", "duplicate_native_tokens", "reversed_native_tokens",
 ])
 def test_fail_closed_synthetic_only(mutation):
     args = fixture()
@@ -83,6 +83,10 @@ def test_fail_closed_synthetic_only(mutation):
         args["aligned"][0]["mentions"].append(Mention([3], 3, 40, 41))
     elif mutation == "cross_boundary_mention":
         args["aligned"][0]["mentions"].append(Mention([2, 3], 3, 40, 41))
+    elif mutation == "duplicate_native_tokens":
+        args["aligned"][0]["mentions"][1].token_positions = [3, 3, 4]
+    elif mutation == "reversed_native_tokens":
+        args["aligned"][0]["mentions"][1].token_positions = [4, 3]
     elif mutation == "wrong_order":
         args["qmask"].node_order[0] = torch.tensor([2, 1])
     elif mutation == "bad_padding":
