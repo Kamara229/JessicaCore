@@ -1,0 +1,27 @@
+name: NRA3 S119a hard four-goal preflight (synthetic only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hard-constraints-synthetic-no-gold:
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'research/calibri2-nra3-s119a-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout only this research commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python stdlib preflight (no weights, no teacher, no B GOLD)
+        shell: bash
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119a_hard_four_goals
+      - name: Explicit limitation (no physical performance has been certified)
+        run: |
+          echo 'S119a only validates fail-closed hard-gate contracts.'
+          echo 'No Calibri model forward, CPU speed, 616 J7 replay, bpp physical bundle, quality scoring or activation performed.'
