@@ -67,7 +67,7 @@ def test_roundtrip_synthetic_only():
 @pytest.mark.parametrize("mutation", [
     "j7", "prereg", "anchor_overlap", "missing_anchor", "extra_query_mention",
     "wrong_order", "bad_padding", "duplicate_prompt", "bad_commitment",
-    "malformed_zip_sha",
+    "malformed_zip_sha", "cross_boundary_mention",
 ])
 def test_fail_closed_synthetic_only(mutation):
     args = fixture()
@@ -81,6 +81,8 @@ def test_fail_closed_synthetic_only(mutation):
         args["qmask"].anchor_mask[0, 1, 5:7] = False
     elif mutation == "extra_query_mention":
         args["aligned"][0]["mentions"].append(Mention([3], 3, 40, 41))
+    elif mutation == "cross_boundary_mention":
+        args["aligned"][0]["mentions"].append(Mention([2, 3], 3, 40, 41))
     elif mutation == "wrong_order":
         args["qmask"].node_order[0] = torch.tensor([2, 1])
     elif mutation == "bad_padding":
