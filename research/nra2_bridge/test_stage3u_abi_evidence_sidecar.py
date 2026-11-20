@@ -67,6 +67,7 @@ def test_roundtrip_synthetic_only():
 @pytest.mark.parametrize("mutation", [
     "j7", "prereg", "anchor_overlap", "missing_anchor", "extra_query_mention",
     "wrong_order", "bad_padding", "duplicate_prompt", "bad_commitment",
+    "malformed_zip_sha",
 ])
 def test_fail_closed_synthetic_only(mutation):
     args = fixture()
@@ -88,6 +89,8 @@ def test_fail_closed_synthetic_only(mutation):
         args["prompt_sha256"][1] = args["prompt_sha256"][0]
     elif mutation == "bad_commitment":
         args["provenance"]["s3t_commitment_sha256"] = "0" * 64
+    elif mutation == "malformed_zip_sha":
+        args["provenance"]["s3t_zip_sha256"] = "not-a-physical-sha"
     with TemporaryDirectory() as directory:
         with pytest.raises((AssertionError, ValueError)):
             write_abi_evidence(Path(directory), **args)
