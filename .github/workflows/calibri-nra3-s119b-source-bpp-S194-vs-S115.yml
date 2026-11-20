@@ -1,0 +1,66 @@
+name: NRA3 S119b authentic S194 parent + S115 FP16 budget audit (NO B GOLD)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s119a-hard-four-gates-budget-j7-cpu-quality-20261121
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  physical-prior-budget-readonly:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s119b-source-bpp-reconciliation-20261121'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout immutable research head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify synthetic hard gates without weights or GOLD
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119a_hard_four_goals research.calibri_nra3.test_s119b_S194_S115_bpp
+      - name: Download ORIGINAL frozen S194 physical CPU J7-616 report ONLY (no GOLD)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s194-actual-real-cpu-J7-584plus32-FP16-baseline-adapter
+          run-id: 43345267876
+          path: inputs/s194
+          github-token: ${{ github.token }}
+      - name: Download trained physical FULL S115 in-model FP16 child (NO B GOLD)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s115-original12-SynTagRusNC-ONLY8-trust-53751-inmodel-neural-TRAIN-DEVUNREAD
+          run-id: 44622479810
+          path: inputs/s115
+          github-token: ${{ github.token }}
+      - name: Validate inputs are only allowed artifacts, no B GOLD
+        run: |
+          set -euo pipefail
+          test -f inputs/s194/S194_ACTUAL_REAL_CPU_J7_584_PLUS32_GATE.json
+          test -f inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_BOUNDED_TRUST_53751_IN_CALIBRI_FP16.safetensors
+          test -f inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_TRAIN_ONLY_NO_DEV_REPORT.json
+          if find inputs -type f | grep -E 'S116|S117|S118|GOLD|gold|teacher|SynTagRusB'; then
+             echo 'PROSPECTIVE B GOLD must never enter S119b' && exit 1
+          fi
+      - name: Compute fully SHA-pinned S115 child bytes and reconcile S194 historical denominator
+        run: |
+          python -m research.calibri_nra3.s119b_S194_parent_S115_child_physical_budget \
+            --s194 inputs/s194/S194_ACTUAL_REAL_CPU_J7_584_PLUS32_GATE.json \
+            --s115 inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_BOUNDED_TRUST_53751_IN_CALIBRI_FP16.safetensors \
+            --s115-report inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_TRAIN_ONLY_NO_DEV_REPORT.json \
+            --out results/NRA3_S119B_PARENT_ACCOUNTING_AND_PHYSICAL_S115_HEADROOM.json
+      - name: Upload read-only evidence; no model accepted
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s119b-real-S194-historical-bpp-vs-S115-physical-FP16-headroom-NO-GOLD
+          path: results/NRA3_S119B_PARENT_ACCOUNTING_AND_PHYSICAL_S115_HEADROOM.json
+          if-no-files-found: error
+          retention-days: 45
