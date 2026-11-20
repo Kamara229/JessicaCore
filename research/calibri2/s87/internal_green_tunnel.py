@@ -139,6 +139,8 @@ def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
         raise RuntimeError("Real MPS GPU is required")
     if not examples:
         raise ValueError("TRAIN examples are required")
+    if not callable(post_step_guard):
+        raise ValueError("Transactional post-step TRAIN guard is mandatory")
     if any(p.device.type != "mps" for p in tunnel.parameters()):
         raise AssertionError("Internal Green Tunnel is not on MPS GPU")
     if any(s.centroids.device.type != "mps" for s in selected_codebooks.values()):
@@ -191,8 +193,7 @@ def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
                     raise AssertionError("Nonfinite joint parameter after optimizer step")
             # A guard may serialize the compact candidate and replay protected
             # TRAIN identities. Its rejection must roll back Adam moments too.
-            if post_step_guard is not None:
-                post_step_guard()
+            post_step_guard()
         except Exception:
             with torch.no_grad():
                 for p, old in zip(core + side, snapshot):
