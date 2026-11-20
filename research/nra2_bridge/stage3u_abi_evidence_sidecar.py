@@ -102,7 +102,7 @@ def write_abi_evidence(
                 or any(not isinstance(m.char_start, int) or not isinstance(m.char_end, int) or m.char_start < 0 or m.char_end <= m.char_start for m in matched)
                 or len({(m.char_start,m.char_end) for m in matched}) != 2
                 or [m.node for m in matched] != order[i].tolist()
-                or not matched[0].char_start < matched[1].char_start):
+                or not matched[0].char_end <= matched[1].char_start):
             raise AssertionError("Mention order, identity or overlap drift")
     tensors = {
         "query_mask":query.contiguous(), "anchor_mask":anchor.contiguous(),
