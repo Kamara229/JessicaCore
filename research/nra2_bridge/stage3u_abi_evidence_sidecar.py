@@ -34,6 +34,10 @@ def write_abi_evidence(
     if any(not isinstance(provenance.get(k), str) or not provenance[k]
            for k in required):
         raise AssertionError("Missing pinned source provenance")
+    for key in ("s3t_zip_sha256", "s3t_inner_json_sha256", "s3t_commitment_sha256", "s3u_token_fp16_sha256"):
+        value = provenance[key]
+        if len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
+            raise AssertionError(f"Invalid physical SHA256 provenance: {key}")
     if provenance["s3t_commitment_sha256"] != "034ebd6e1cf6f20ad04ccd00e70c6bc07ee08a46f47da843121524f1d7f0faf3":
         raise AssertionError("S3T prereg commitment drift")
     n = len(aligned)
