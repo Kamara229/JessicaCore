@@ -64,7 +64,11 @@ def write_abi_evidence(
             raise AssertionError("Query or anchor outside nonpadding query")
         # Exactly two native query mentions must account for both anchors.
         # Additional mentions are not silently ignored or inferred from gold.
-        if len(a["mentions"]) != 2:
+        query_mentions = [m for m in a["mentions"]
+                          if m.token_positions and all(
+                              0 <= p < length and bool(query[i,p])
+                              for p in m.token_positions)]
+        if len(query_mentions) != 2:
             raise AssertionError("Expected exactly two aligned query mentions")
         # Select anchors by their exact token positions; do not infer from gold.
         matched = []
@@ -72,13 +76,13 @@ def write_abi_evidence(
             pos = sorted(set(torch.where(anchor[i,k])[0].tolist()))
             if not pos or pos != list(range(pos[0],pos[-1]+1)):
                 raise AssertionError("Empty or noncontiguous mention span")
-            candidates = [m for m in a["mentions"]
+            candidates = [m for m in query_mentions
                           if sorted(set(m.token_positions)) == pos]
             if len(candidates) != 1:
                 raise AssertionError("Ambiguous native mention alignment")
             matched.append(candidates[0])
             spans[i,k] = torch.tensor((pos[0],pos[-1]+1))
-        if (set(map(id, matched)) != set(map(id, a["mentions"]))
+        if (set(map(id, matched)) != set(map(id, query_mentions))
                 or torch.any(anchor[i,0] & anchor[i,1])
                 or len({(m.char_start,m.char_end) for m in matched}) != 2
                 or [m.node for m in matched] != order[i].tolist()
