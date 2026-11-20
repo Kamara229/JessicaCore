@@ -77,6 +77,8 @@ def write_abi_evidence(
                 continue
             if any(not isinstance(p, int) or p < 0 or p >= length for p in positions):
                 raise AssertionError("Invalid native mention token positions")
+            if len(set(positions)) != len(positions) or positions != list(range(positions[0], positions[0] + len(positions))):
+                raise AssertionError("Duplicate, unsorted or noncontiguous native mention positions")
             if any(bool(query[i, p]) for p in positions):
                 if not all(bool(query[i, p]) for p in positions):
                     raise AssertionError("Native mention crosses query boundary")
