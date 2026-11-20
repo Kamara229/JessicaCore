@@ -62,9 +62,10 @@ def write_abi_evidence(
             raise AssertionError("Non-contiguous CPU padding")
         if torch.any(query[i] & ~token_mask[i]) or torch.any(anchor[i] & ~query[i]):
             raise AssertionError("Query or anchor outside nonpadding query")
-        mentions = [m for m in a["mentions"]
-                    if m.token_positions and set(m.token_positions) ==
-                    set(torch.where(anchor[i,0] | anchor[i,1])[0].tolist())]
+        # Exactly two native query mentions must account for both anchors.
+        # Additional mentions are not silently ignored or inferred from gold.
+        if len(a["mentions"]) != 2:
+            raise AssertionError("Expected exactly two aligned query mentions")
         # Select anchors by their exact token positions; do not infer from gold.
         matched = []
         for k in range(2):
@@ -77,7 +78,8 @@ def write_abi_evidence(
                 raise AssertionError("Ambiguous native mention alignment")
             matched.append(candidates[0])
             spans[i,k] = torch.tensor((pos[0],pos[-1]+1))
-        if (torch.any(anchor[i,0] & anchor[i,1])
+        if (set(map(id, matched)) != set(map(id, a["mentions"]))
+                or torch.any(anchor[i,0] & anchor[i,1])
                 or len({(m.char_start,m.char_end) for m in matched}) != 2
                 or [m.node for m in matched] != order[i].tolist()
                 or not matched[0].char_start < matched[1].char_start):
