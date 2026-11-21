@@ -66,7 +66,7 @@ jobs:
           test -f inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_TRAIN_ONLY_NO_DEV_REPORT.json
           test -f inputs/s114/NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors
           test -f inputs/s114/NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json
-          if find inputs -type f | grep -Ei 'S116|S117|S118|GOLD|teacher|SynTagRusB'; then
+          if find inputs -type f | grep -Ei 'S116|S117|S118|_UD_GOLD|GOLD_LABEL|teacher|SynTagRusB'; then
             echo 'S119d only old TRAIN-A all12 H320 + S115 frozen child + S194 certificate' && exit 1
           fi
       - name: True original12 TRAIN-A graph in-weight ablation 8 source rows + exact 8 mini retention
