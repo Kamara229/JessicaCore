@@ -37,6 +37,7 @@ def fixture():
         }
         candidate = {
             **baseline,
+            "generated_native_token_ids": native_ids[:],
             "real_onpath_second_decoder_calls": size,
             "additional_strict_zero_gate_control_calls": 1,
             "actual_native_steps": [dict(step) for step in trace],
