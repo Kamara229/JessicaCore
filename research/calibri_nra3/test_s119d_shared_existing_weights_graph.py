@@ -52,6 +52,7 @@ class SharedInWeightGraphContract(unittest.TestCase):
         model=NRA3BoundedStructuralTrustInCalibriWeights().eval()
         weights={k:v.detach().half() for k,v in model.state_dict().items()}
         full={PREFIX+k:v for k,v in weights.items()}
+        model.load_state_dict({k:v.float() for k,v in weights.items()},strict=True)
         old,_=partition_full_state(full)
         shared=NRA3RelationalMorphologyInCalibriWeights().eval()
         shared.load_state_dict({k:v.float() for k,v in old.items()},strict=True)
