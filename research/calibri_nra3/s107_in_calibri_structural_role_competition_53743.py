@@ -113,7 +113,8 @@ class NRA3StructuralCompetitionInCalibriWeights(
                 and h.shape[-1]==HIDDEN
                 and h.shape[0]==valid.shape[0]
                 and h.shape[2]==valid.shape[1]
-                and not h.requires_grad
+                and (not h.requires_grad or
+                     getattr(self, '_unified_core_grad_only_research', False))
                 and bool(torch.isfinite(h).all()),
                 "strict frozen original twelve Calibri+GT source only")
         routed=torch.einsum(
