@@ -227,11 +227,16 @@ def synthetic_joint_training(mock,unified):
     old={k:v.detach().half().clone()
          for k,v in unified.nra3_neural_weights.state_dict().items()}
     with torch.inference_mode():
-        baseline=mock.unmodified_logits(x)
+        # S119g already physically learned a nonzero rank-4 core residual:
+        # R/T must preserve THAT precise immediate parent pipeline, not an
+        # incorrect no-growth original mock core. Never claim 616 parity.
+        parent12=mock.encode12(mock.input_embeddings(x))
+        parent_core=unified.core_growth(parent12)
+        baseline=mock.output_embeddings(parent_core[:,-1])
         prior,g,_,p=model_logits(mock,unified,x)
         check(torch.equal(prior,baseline)
               and torch.equal(prior.argmax(-1),baseline.argmax(-1)),
-              "both latent areas must have EXACT zero-initialization identity")
+              "R/T zero initialized must exactly preserve inherited S119g growth pipeline")
     opt=torch.optim.Adam(
         [*mock.parameters(),*unified.new_joint_trainables()],
         lr=0.0003)
@@ -319,7 +324,8 @@ def run(prior:Path,prior_report:Path,out:Path):
         "four_latent_math_slots_per_token":SLOTS,
         "residual_identity_preserves_full_h320_input":True,
         "synthetic_math_only_joint_train_trace":gradients,
-        "old_model_output_identical_before_training_on_mock":True,
+        "S119g_inherited_nonzero_growth_pipeline_logits_unchanged_by_R_T_at_init_on_mock":True,
+        "old_original_Calibri_616_parity_NOT_MEASURED":True,
         "real_original_calibri43m_cb59_gt_forward_NOT_USED":True,
         "original_616_generated_tokens_not_retested":True,
         "independent_natural_language_quality_NOT_PROVEN":True,
