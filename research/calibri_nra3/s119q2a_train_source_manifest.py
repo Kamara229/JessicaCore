@@ -69,7 +69,7 @@ SPENT_S119N_PROMPTS = (
     "Как иначе сказать: «Миша купил велосипед»?",
 )
 EXPECTED_COUNTS = {"TRAIN": 72, "CALIBRATION": 18}
-EXPECTED_MANIFEST_SHA256 = None  # Freeze to literal SHA after first real CI.
+EXPECTED_MANIFEST_SHA256 = "1a9bf7f4d1564d27d0ab752186ed97dfccc28f41ac9870761fe1e1374ea4a17e"  # first real CI #44954874290
 EVIDENCE_ONLY = True
 
 
