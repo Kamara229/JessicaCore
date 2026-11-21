@@ -54,7 +54,7 @@ jobs:
       - name: Download genuine original 12-layer S114 TRAIN-A SOURCE ONLY (no GOLD)
         uses: actions/download-artifact@v4
         with:
-          name: calibri-nra3-s114-original12-CB59GT-SynTagRusA-NC256-sourceonly-53751-zeroTrust-after616
+          name: calibri-nra3-s114-true-original12-CB59GT-SynTagRusA-NC256-sourceonly-53751-zeroTrust-after616
           run-id: 44621504675
           path: inputs/s114
           github-token: ${{ github.token }}
