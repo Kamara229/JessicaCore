@@ -82,7 +82,7 @@ def first_token_metrics(base, variants, components, gates):
     """Actual native LM-head A/B with pure tensor validity and margin math."""
     check(base.ndim == 2 and base.shape[0] == 1 and base.shape[1] >= 3
           and set(variants) == set(MASKS)
-          and all(x.shape == base for x in variants.values())
+          and all(x.shape == base.shape for x in variants.values())
           and components.shape == (1, 3, 320) and gates.shape == (3,),
           "same full native logits and three physical H320 components")
     check(bool(torch.isfinite(base).all())
