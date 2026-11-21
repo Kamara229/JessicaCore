@@ -1,0 +1,45 @@
+# CALIBRI 2.0 — one-model research plan after S119o (2026-11-22)
+
+**Scope:** ONE jointly developed compressed Core12 + GreenTunnel + NRA3 semantic/relational mini-regions + NPA1 planning/action + trainable mathematical representations. Not several separate assistants or post-hoc answer repairs. Original 43M and S115 old 53,751 FP16 neural weights are immutable references during diagnostics. No production activation.
+
+## Known evidence — separate observation from capability
+
+| Stage | Verified observation | What it CANNOT establish |
+|---|---|---|
+| S119m / PR #913 | Real derivative from 49,152-way original native head through decoder layers 6–11 into in-core NRA3/structured/NPA1; 2 reused TRAIN-A probe positions had original CE 12.139535, contextual 12.123398, equal-param local 12.124789. | No independent QA, generalization, no proof of good output. Only 2 TRAIN positions and two epochs. Original 43M and GT frozen. |
+| S119n / PR #915 | Six source-only author prompts, 54 true original full 12-layer CPU forwards, **0/6 native emitted sequences changed**; actual generated text often unhelpful. | Raw generation without original full S101/J7 answer controller; not full legacy functionality or 616 preservation assessment. |
+| S119o / PR #916 | 16/16 generated decisions guaranteed unchanged for this run by strict baseline top1–top2 margin > 2×max absolute entire-vocab logit shift. Largest observed shift 0.01811 vs minimum baseline margin 0.12457. | Does NOT prove causal mechanism for all tasks or that bigger perturbation would be beneficial. |
+
+**Most important interpretation:** Differentiable paths and lower loss in two teacher-forced TRAIN examples demonstrate integration feasibility, not intelligence. S119n revealed no observable generated-token intervention. The core issue now is not whether to add a fifth neural region; it is whether the existing **unified** neural system can learn features that help out-of-sample real language reasoning while preserving baseline skills, all-in bytes and CPU runtime.
+
+## Diagnostic hypotheses and falsification
+
+- **H1 gate bottleneck:** learned tanh gates are too small compared with the original top-1 logit margin; test *unchanged frozen gates only*, record per-component H320 norms and native full-head shifts.
+- **H2 cancellation / weak coupling:** learned core-growth, structured NRA3, NPA1 additions cancel or affect the same unhelpful direction; inspect signed residual norm vs sum component norms and actual leave-one-out full-native logits, not a post-hoc fixed answer selector.
+- **H3 representation mismatch:** S119m uses first-layer structured state and all12 previous-pass sources before injecting after layer5. It may emphasize lexical signals rather than actual roles/negation/planning; need explicit tasks and causally available features at hook location.
+- **H4 training starvation / overfit:** just two repeated original TRAIN-A positions, 2 epochs; require genuinely disjoint legal TRAIN-only examples and a frozen independent final blind test with no leakage.
+- **H5 unusable inference shape:** current full-original-prefix first pass + second full-original-prefix model forward (no KV reuse), so even working accuracy would not satisfy CPU >=0.90x. Eventually use a *single* causal prefix pass and only earlier decoder activations as the neural interface, or explicitly reject architecture.
+- **H6 physical bits:** 0.7 bpp limit uses 36,380,480 truly unique trained baseline weights, NOT inflated 43M; need physical packed, loader-complete inventory incl GT/NRA3/NPA1/metadata; no near-zero "paper" budget claims.
+
+## Immediate sequence — tiny fail-closed blocks
+
+### S119p — DONE IN SOURCE / physical test required
+Frozen, physically authentic original 43M+GT, same six original S119n unlabeled source prompts, first native token only. No train/optimization/gate amplification. Run original; trained FULL; 3 pre-registered leave-one-out masks (core, structured NRA3, NPA1); and zero. For every physical 49,152-class original native head, measure token ID, margin, logit L∞, residual 320D norms, cancellation. Verify original ZERO parity, S119n first-token reproduction, immutable SHA-pinned ancestors, old FP16 identity and no leaked hooks. Archive source-only JSON. **Decision:** identify dominant bottleneck; do NOT accept on qualitative impression.
+
+### S119q1 — controlled causal *early-state* prototype (next only after S119p)
+Create one-pass pre-layer5 neural interface using **ONLY activations already causally available up to layer5** plus current-prefix input embeddings. Reuse NRA3 mini-regions/NPA1 and existing parameters where possible. Compare it against the two-pass all12 S119m reference with the SAME teacher-forced original native next-token cross-entropy on legal TRAIN-only material. Confirm no future token leakage, no widened vocabulary proxy, zero-gate exact original native logits, no original weights changed. No protected B GOLD.
+
+### S119q2 — wider permitted TRAIN, no model selection on protected test
+Prepare immutable legal and provenance-logged source-only TRAIN/CALIBRATION split with multiple grammar/agent/recipient/negation/comparison/time/arithmetic/paraphrase groups; check exact strings, IDs, SHA, train/dev/heldout non-overlap and license. Freeze target/metric before training. Train unified core/NRA3/NPA1 with true original vocabulary native CE plus *predeclared* structured auxiliary loss where labels are permitted; compare equal-param local/token-only, missing-NRA3, missing-NPA1, and frozen original controls. Monitor training curves; stop for forgetfulness or degradation. Do not use S119n six authored observations to tune hidden gates.
+
+### S119r — one-pass integration and genuine behavioral evaluation
+Replace two-pass replay with single causal interface only when q1/q2 show generalization. Physically rerun native own-token greedy generation with multiple SEPARATE, not trained-on, unanswered prompts and **independently scored** relation/grammar/negation/arithmetic QA. Also compare pairwise content changes, not just whether output token changed. If no gain over equal-cost matched local baseline, reject candidate. No task-specialized answer hardcoding.
+
+### S119s — immutable acceptance matrix, not a pass-by-fixture
+On a candidate only: (A) **complete loader-inventory packed <=0.700 bpp** with exactly 36,380,480 unique original trained-weight denominator (or independently justified future physical baseline, never fixed zero padding); (B) **matched CPU native full-generation >=0.90x target**, <=15% slowdown absolute minimum >=0.85x, equivalent KV caching and native EOS; (C) **616/616 J7 exact native output including EOS**, no previous skill loss; (D) genuine positive independent source-blind and answer-blind sentence-paired comprehension gain over unchanged original and matched-ablation baselines, uncertainty recorded. If ANY fails, keep gate=0, candidate_accepted=false, never merge to production.
+
+## Research hygiene
+No Jessica chat tests (HTTP 429). NO LIVE, Render, Supabase, APK, main merges, model deployment, secrets, protected S118/SynTagRus-B GOLD, historical used EVAL128/DEV for selection. Existing SynTagRus-A derivative research has CC BY-NC-SA 4.0 **noncommercial** scope. Keep all steps as separate stacked draft PRs against research parents, smallest possible source review, SHA-pinned genuine physical artifact lineage. Numeric proxies and simulation-unit-tests never count as end-to-end model acceptance.
+
+## Stop conditions
+Do not optimize to change tokens solely for the sake of changed tokens; if increasing an output perturbation breaks protected skills, abandon it. Do not solve >0.7 bpp by counting untrained/zero extra dimensions as truly trained denominator. Do not hide two-pass decoder runtime in a CPU speed metric. Do not treat the raw original no-controller decoder as a full substitute for S101/J7.
