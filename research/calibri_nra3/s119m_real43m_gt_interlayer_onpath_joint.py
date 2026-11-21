@@ -258,8 +258,8 @@ def train_variant(model,sources,bridge,full,expansion,tokenizer,
                        adapter.shadow.unified.reasoning_role_gate.grad,
                     "structured_context":
                        adapter.shadow.unified.structured_interface.fuse.weight.grad,
-                    "NPA1_planning":
-                       adapter.shadow.unified.planning_action_area.pred_next_event.weight.grad,
+                    "NPA1_actual_recurrent_state":
+                       adapter.shadow.unified.planning_action_area.state_update.weight_ih.grad,
                 }
                 for key,grad in checks.items():
                     check(grad is not None and bool(torch.isfinite(grad).all())
