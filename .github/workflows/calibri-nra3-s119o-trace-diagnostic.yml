@@ -1,0 +1,62 @@
+name: Calibri NRA3 S119o SOURCE-ONLY S119n native margin audit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119n-real43m-gt-onpath-autoregressive-sixprompt-20261122
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  s119o-readonly-s119n-native-rank-margin-audit:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119o-onpath-nochange-margin-audit-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: .
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout only isolated research PR SHA; no merge or deploy
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Python stdlib only (no model, PyTorch, gold or training dependencies)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Ten independent synthetic fail-closed math/provenance contracts
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119o_onpath_nochange_margin_audit
+      - name: Download ONLY exact already completed original real S119n gate0 report
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119n-REAL43M-GT-onpath-trainedNRA3-NPA1-sixnewRussian-prompts-gate0-NOGOLD
+          run-id: 44949896712
+          path: inputs/s119n
+          github-token: ${{ github.token }}
+      - name: Freeze scope; disallow protected GOLD, model weights and spent evaluations
+        run: |
+          set -euo pipefail
+          test "$(find inputs -type f | wc -l)" -eq 1
+          test -f inputs/s119n/S119N_REAL43M_GT_NATIVE_ONPATH_GENERATED_SIX_SOURCE_PROMPTS.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|GOLD_LABEL|_UD_GOLD|SynTagRusB|EVAL128|\\.safetensors$|\\.s61$'; then
+            echo "Unexpected protected/training material" && exit 1
+          fi
+      - name: Execute SHA-bound exact original S119n diagnostic only
+        run: |
+          python -m research.calibri_nra3.s119o_onpath_nochange_margin_audit \\
+            --parent-report inputs/s119n/S119N_REAL43M_GT_NATIVE_ONPATH_GENERATED_SIX_SOURCE_PROMPTS.json \\
+            --expected-forwards 54 \\
+            --out results/s119o_native_nochange_margin_audit
+      - name: Upload no-weights, no-GOLD mathematical diagnostic JSON only
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119o-original-S119n-native-rank-stability-only-gate0
+          path: results/s119o_native_nochange_margin_audit/
+          retention-days: 30
+          if-no-files-found: error
