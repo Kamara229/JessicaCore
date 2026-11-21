@@ -44,6 +44,9 @@ class UnifiedCalibri(nn.Module):
         super().__init__()
         self.core_growth=SharedCore12()
         self.nra3_neural_weights=NRA3BoundedStructuralTrustInCalibriWeights()
+        # Opt-in confined to THIS research-only child: original frozen CB59
+        # source itself remains detached, only NEW core residual has grad.
+        self.nra3_neural_weights._unified_core_grad_only_research=True
         self.reasoning_role_gate=nn.Parameter(torch.zeros(8))
         self.output_gate=0
         self.candidate_accepted=False
