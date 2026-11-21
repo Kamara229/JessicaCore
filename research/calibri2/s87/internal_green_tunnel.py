@@ -129,7 +129,8 @@ def teacher_forced_train_loss(model, tok, question: str, answer: str,
 
 
 def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
-                     selected_codebooks, tok, examples, optimizer, *, post_step_guard=None) -> JointStep:
+                     selected_codebooks, tok, examples, optimizer, *, post_step_guard=None,
+                     require_deep_tunnel_gradients=False) -> JointStep:
     """One MPS joint gradient step through CB59 dictionaries AND internal tunnel.
 
     No physical acceptance is performed here: a separate guarded, replayed
@@ -175,6 +176,12 @@ def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
                          if name.endswith(".up.weight"))
         if nonzero_core != len(core) or any(name in zero_tunnel for name in up_names):
             raise AssertionError("No real joint gradient in paid core or tunnel up")
+        if require_deep_tunnel_gradients:
+            missing = [name for name in zero_tunnel if name.endswith(
+                (".down.weight", ".gate.weight", ".gate.bias"))]
+            if missing:
+                raise AssertionError(
+                    f"Deep internal tunnel gradients absent before Adam step: {missing}")
         core_norm = float(torch.nn.utils.clip_grad_norm_(core, 1.0))
         tunnel_norm = float(torch.nn.utils.clip_grad_norm_(side, 1.0))
         # The optimizer mutates both parameters and Adam moments. A failed
