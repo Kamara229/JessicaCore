@@ -97,6 +97,10 @@ def train_joint(c,h,valid):
               "initial rank4 zero UP and graph gate must equal ALL old S115 outputs")
         target=two_hop_parameter_free_event_relation_graph(baseline,valid)
         target=(target/target.sum(-1,keepdim=True).clamp_min(1.e-9)).detach()
+    # CPU inference_mode tensors cannot be saved by autograd; clone into
+    # ordinary detached tensors BEFORE the joint differentiable train step.
+    target=target.clone()
+    frozen_mini=baseline.mini_area_logits.clone()
     opt=torch.optim.Adam(c.new_joint_trainables(),lr=.001)
     losses=[]
     for step in range(2):
@@ -104,7 +108,7 @@ def train_joint(c,h,valid):
         g,p=c(h,valid)
         l=-(target*F.log_softmax(p,-1)).sum(-1)[valid].mean()
         l=l+0.01*(g.mini_area_logits[valid]-
-                   baseline.mini_area_logits.detach()[valid]).square().mean()
+                   frozen_mini[valid]).square().mean()
         check(bool(torch.isfinite(l)),"nonfinite unified source-only proxy loss")
         l.backward()
         u=c.core_growth.up.grad
