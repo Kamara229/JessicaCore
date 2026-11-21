@@ -113,7 +113,8 @@ class NRA3InCalibriNeuralWeights(nn.Module):
         h=original_layer_hidden;valid=source_native_token_valid
         require(h.ndim==4 and h.shape[1]==N_LAYERS
                 and h.shape[-1]==HIDDEN and h.shape[0]>=1
-                and h.shape[2]>=2 and not h.requires_grad
+                and h.shape[2]>=2 and (not h.requires_grad or
+                     getattr(self, '_unified_core_grad_only_research', False))
                 and valid.shape==(h.shape[0],h.shape[2])
                 and valid.dtype==torch.bool
                 and bool(valid.any(-1).all())
