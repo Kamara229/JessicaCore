@@ -1,0 +1,88 @@
+name: NRA3 S119d shared in-weight QK/mini8 graph on TRUE original12 TRAIN-A (NO GOLD)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s119c-S115-lossless-neural-tensor-audit-20261121
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  nra3-s119d-frozen-old-real12-train-A:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s119d-inweight-shared-graph-reuse-20261121'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '119119'
+      PYTHONPATH: .
+    steps:
+      - name: Checkout pinned research-only head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Python 3.12 CPU
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned CPU torch and safetensors, no teacher or pretrained downloads
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'safetensors==0.4.5' 'numpy==1.26.4'
+      - name: Synthetic strict protected objectives and shared-weights invariants
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119a_hard_four_goals research.calibri_nra3.test_s119b_S194_S115_bpp research.calibri_nra3.test_s119c_lossless_s115_entropy research.calibri_nra3.test_s119d_shared_existing_weights_graph
+      - name: Download immutable S194 original 616 source proof ONLY
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s194-actual-real-cpu-J7-584plus32-FP16-baseline-adapter
+          run-id: 43345267876
+          path: inputs/s194
+          github-token: ${{ github.token }}
+      - name: Download real S115 trained full 53751 FP16 child (no GOLD)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s115-original12-SynTagRusNC-ONLY8-trust-53751-inmodel-neural-TRAIN-DEVUNREAD
+          run-id: 44622479810
+          path: inputs/s115
+          github-token: ${{ github.token }}
+      - name: Download genuine original 12-layer S114 TRAIN-A SOURCE ONLY (no GOLD)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s114-true-original12-CB59GT-SynTagRusA-NC256-sourceonly-53751-zeroTrust-after616
+          run-id: 44621504675
+          path: inputs/s114
+          github-token: ${{ github.token }}
+      - name: Reject any prospective SynTagRus-B, GOLD, teacher or prior dev labels
+        run: |
+          set -euo pipefail
+          test -f inputs/s194/S194_ACTUAL_REAL_CPU_J7_584_PLUS32_GATE.json
+          test -f inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_BOUNDED_TRUST_53751_IN_CALIBRI_FP16.safetensors
+          test -f inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_TRAIN_ONLY_NO_DEV_REPORT.json
+          test -f inputs/s114/NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors
+          test -f inputs/s114/NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|_UD_GOLD|GOLD_LABEL|teacher|SynTagRusB'; then
+            echo 'S119d only old TRAIN-A all12 H320 + S115 frozen child + S194 certificate' && exit 1
+          fi
+      - name: True original12 TRAIN-A graph in-weight ablation 8 source rows + exact 8 mini retention
+        run: |
+          python -m research.calibri_nra3.s119d_reuse_old37087_true12_inweight_eventgraph \
+            --s194 inputs/s194/S194_ACTUAL_REAL_CPU_J7_584_PLUS32_GATE.json \
+            --s115 inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_BOUNDED_TRUST_53751_IN_CALIBRI_FP16.safetensors \
+            --s115-report inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_TRAIN_ONLY_NO_DEV_REPORT.json \
+            --source inputs/s114/NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors \
+            --source-report inputs/s114/NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json \
+            --out results/s119d_shared_old37087 \
+            --rows 8
+      - name: Publish only trained OLD37k derived shadow and report (not accepted)
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s119d-original12-SynTagRusA-OLD37087-paramfree-2hop-8mini-SHADOW-NOGOLD
+          path: results/s119d_shared_old37087/
+          retention-days: 30
+          if-no-files-found: error
