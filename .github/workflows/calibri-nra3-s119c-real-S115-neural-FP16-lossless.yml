@@ -1,0 +1,66 @@
+name: NRA3 S119c real S115 FP16 lossless tensor entropy (NO GOLD)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s119b-source-bpp-reconciliation-20261121
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  nra3-s119c-entropy-readonly:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s119c-S115-lossless-neural-tensor-audit-20261121'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout pinned research-only code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Python stdlib 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic contracts only, no GOLD
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119a_hard_four_goals research.calibri_nra3.test_s119b_S194_S115_bpp research.calibri_nra3.test_s119c_lossless_s115_entropy
+      - name: Download old actual S194 physical CPU protected 616 report ONLY
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s194-actual-real-cpu-J7-584plus32-FP16-baseline-adapter
+          run-id: 43345267876
+          path: inputs/s194
+          github-token: ${{ github.token }}
+      - name: Download frozen trained S115 complete 53,751 FP16 in-Calibri neural child ONLY
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s115-original12-SynTagRusNC-ONLY8-trust-53751-inmodel-neural-TRAIN-DEVUNREAD
+          run-id: 44622479810
+          path: inputs/s115
+          github-token: ${{ github.token }}
+      - name: Require no SynTagRus-B GOLD, S118 or external teacher evaluation
+        run: |
+          set -euo pipefail
+          test -f inputs/s194/S194_ACTUAL_REAL_CPU_J7_584_PLUS32_GATE.json
+          test -f inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_BOUNDED_TRUST_53751_IN_CALIBRI_FP16.safetensors
+          test -f inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_TRAIN_ONLY_NO_DEV_REPORT.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|GOLD|teacher|SynTagRusB'; then
+            echo 'S119c never reads any prospective SynTagRus-B GOLD' && exit 1
+          fi
+      - name: Real complete original checkpoint reversible lossless compression ablation
+        run: |
+          python -m research.calibri_nra3.s119c_real_S115_FP16_reversible_weight_entropy \
+            --s194 inputs/s194/S194_ACTUAL_REAL_CPU_J7_584_PLUS32_GATE.json \
+            --s115 inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_BOUNDED_TRUST_53751_IN_CALIBRI_FP16.safetensors \
+            --s115-report inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_TRAIN_ONLY_NO_DEV_REPORT.json \
+            --out results/NRA3_S119C_REAL_NEURAL_FP16_RECONSTRUCTION_PHYSICAL_BUDGET.json
+      - name: Preserve source-only report but never inference codec or candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s119c-real-S115-FP16-neural-lossless-entropy-NO-GOLD-gate0
+          path: results/NRA3_S119C_REAL_NEURAL_FP16_RECONSTRUCTION_PHYSICAL_BUDGET.json
+          if-no-files-found: error
+          retention-days: 45
