@@ -291,6 +291,7 @@ def run(s93,side,s142,parent,parent_report,out):
     original_digest=old_original_param_digest(model)
     model.model.add_module("nra3_s119m_onpath",adapter)
     model.eval()
+    original_layer5_hook_ids=set(model.model.layers[5]._forward_hooks)
     check(old_original_param_digest(model)==original_digest
           and len(model.model.layers)==12
           and adapter.output_gate==0 and not adapter.candidate_accepted,
@@ -322,8 +323,8 @@ def run(s93,side,s142,parent,parent_report,out):
               "all S115 53751 original trained FP16 weights byte identical")
     check(adapter.output_gate==0 and not adapter.candidate_accepted
           and not adapter.activation_allowed
-          and not model.model.layers[5]._forward_hooks
-          .get(-1,False), "do not leave research onpath hooks after decode")
+          and set(model.model.layers[5]._forward_hooks)==original_layer5_hook_ids,
+          "temporary research onpath hook must ALWAYS be removed after decode")
     out.mkdir(parents=True)
     result={
         "stage":STAGE,
