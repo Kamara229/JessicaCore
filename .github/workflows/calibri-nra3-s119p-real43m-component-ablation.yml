@@ -1,0 +1,104 @@
+name: Calibri NRA3 S119p REAL43M-GT causal component on-path audit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119o-onpath-nochange-margin-audit-20261122
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  s119p-physical-original-model-onpath-component-ablation:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119p-true-onpath-component-causal-ablation-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '119128'
+    steps:
+      - name: Checkout ONLY isolated research PR SHA (no merge, no deploy)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Exact original CPU torch and tokenizer dependencies
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Hard four-goal contracts; S119m-n-o-p negative controls
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119m_real43m_gt_interlayer_onpath_joint \
+            research.calibri_nra3.test_s119n_real43m_onpath_autoregressive_sixprompts \
+            research.calibri_nra3.test_s119o_onpath_nochange_margin_audit \
+            research.calibri_nra3.test_s119p_real43m_onpath_component_ablation
+      - name: Immutable original S93 compressed CB59 and GreenTunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          run-id: 42681768394
+          path: inputs/s93
+          github-token: ${{ github.token }}
+      - name: Immutable S142 original physical 43M neural weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          run-id: 43078895081
+          path: inputs/s142
+          github-token: ${{ github.token }}
+      - name: Original physically TRAINED S119m gate0 research NRA3 NPA1 component
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119m-original43m-GT-real-onpath-layer5-NRA3-NPA1-RS-TRAINonly-fullVocab-gate0
+          run-id: 44949299494
+          path: inputs/s119m
+          github-token: ${{ github.token }}
+      - name: Read-only original six unlabeled REAL S119n native generation report
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119n-REAL43M-GT-onpath-trainedNRA3-NPA1-sixnewRussian-prompts-gate0-NOGOLD
+          run-id: 44949896712
+          path: inputs/s119n
+          github-token: ${{ github.token }}
+      - name: Fail closed on missing originals, unexpected GOLD, spent evaluations
+        run: |
+          set -euo pipefail
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors
+          test -f inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors
+          test -f inputs/s119m/S119M_REAL_ONPATH_CORE_NRA3_NPA1_TRAINONLY_FP16_UNACCEPTED.safetensors
+          test -f inputs/s119m/S119M_REAL_ONPATH_NATIVE_FULL_VOCAB_ABLATION_AND_FROZEN_43M_REPORT.json
+          test -f inputs/s119n/S119N_REAL43M_GT_NATIVE_ONPATH_GENERATED_SIX_SOURCE_PROMPTS.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|GOLD_LABEL|_UD_GOLD|SynTagRusB|EVAL128'; then
+            echo 'No protected gold or spent eval may be loaded' && exit 1
+          fi
+      - name: REAL original 12-layer 43M plus GT native 49k first-token component leave-one-out
+        run: |
+          python -m research.calibri_nra3.s119p_real43m_onpath_component_ablation \
+            --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            --side inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            --s142 inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            --parent inputs/s119m/S119M_REAL_ONPATH_CORE_NRA3_NPA1_TRAINONLY_FP16_UNACCEPTED.safetensors \
+            --parent-report inputs/s119m/S119M_REAL_ONPATH_NATIVE_FULL_VOCAB_ABLATION_AND_FROZEN_43M_REPORT.json \
+            --s119n-report inputs/s119n/S119N_REAL43M_GT_NATIVE_ONPATH_GENERATED_SIX_SOURCE_PROMPTS.json \
+            --out results/s119p_original43m_gt_first_token_component_ablation
+      - name: Archive only SHA-bound numerical causal diagnostic JSON, NOT trained weights
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119p-real-original43m-onpath-nra3-npa1-component-ablations-gate0
+          path: results/s119p_original43m_gt_first_token_component_ablation/
+          retention-days: 30
+          if-no-files-found: error
