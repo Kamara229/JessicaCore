@@ -166,13 +166,19 @@ class UnifiedCalibriWithNPA1(UnifiedCalibri):
                   "only physically trained unified S119f checkpoint")
             k=name[len(PREFIX):]
             raw[k]=value.float()
-        expected=super().state_dict()
+        expected={k:v for k,v in self.state_dict().items()
+                  if not k.startswith("planning_action_area.")}
         check(set(raw)==set(expected)
               and sum(v.numel() for v in raw.values())==84_479,
               "parent must include trained core + full old NRA3 + graph gate")
         # Do not materialize a separate second model; load S119f directly
         # into current instance's inherited param namespaces.
-        self.load_state_dict(raw,strict=False)
+        loaded=self.load_state_dict(raw,strict=False)
+        check(not loaded.unexpected_keys and
+              set(loaded.missing_keys)=={
+                  k for k in self.state_dict()
+                  if k.startswith("planning_action_area.")},
+              "only NEW NPA1 trainable values may be initialized")
         for p in self.nra3_neural_weights.parameters():
             p.requires_grad_(False)
         check(not any(p.requires_grad for p in
