@@ -196,16 +196,8 @@ def main():
                 del cpu_probe, probe_sources
         report = joint_train_step(student, sources, inner, paid_core, tok,
                                   examples, optimizer,
-                                  post_step_guard=pilot_post_step_guard)
-        # The zero-init output matrices should unblock gradients to the
-        # down and gate matrices on the SECOND backward pass. Fail closed.
-        if step == 1:
-            missing = [name for name in report.zero_tunnel_gradient_tensors
-                       if name.endswith((".down.weight", ".gate.weight",
-                                         ".gate.bias"))]
-            if missing:
-                raise AssertionError(
-                    f"Second MPS step did not reach internal matrices: {missing}")
+                                  post_step_guard=pilot_post_step_guard,
+                                  require_deep_tunnel_gradients=(step == 1))
         steps.append(report.__dict__)
         print(json.dumps({"event":"S87_REAL_MPS_JOINT_TRAIN_STEP",
                           "step":step+1, "train_replay_rows":len(examples),
