@@ -30,9 +30,11 @@ from research.calibri_nra3.s119a_hard_four_goals import (
 from research.calibri_nra3.s119b_S194_parent_S115_child_physical_budget import (
     S194_REFERENCE_DENOM, historical_projection, S115_EXPECTED_SHA256,
 )
-from research.calibri_nra3.s119d_reuse_old37087_true12_inweight_eventgraph import (
-    REPORT as S119D_REPORT, DERIVED_WEIGHTS as S119D_CHILD, PARENT_H_SHA,
-)
+# Independent SHA pins: S119e is intentionally stdlib-only; importing the
+# S119d torch module would expand the runtime and potentially open labels.
+S119D_REPORT = "NRA3_S119D_REAL12_TRAIN_A_NRA2_MINI8_SHARED_GRAPH_AND_BUDGET.json"
+S119D_CHILD = "NRA3_S119D_SHARED_EXISTING_37087_FP16_NO_NEW_MATRIX_UNACCEPTED.safetensors"
+PARENT_H_SHA = "e5b91042eae7311226b693222c557898caca27d6a3ec6f029574714a27f6d7ec"
 
 STAGE="NRA3_S119E_AUDITED_REAL_S119D_PARENT_GENUINE_CORE_GROWTH_BPP_LEDGER_RESEARCH_ONLY"
 REPORT="NRA3_S119E_REAL_S119D_PARENT_GENUINE_CORE_GROWTH_SCENARIOS_NOT_ACCEPTED.json"
