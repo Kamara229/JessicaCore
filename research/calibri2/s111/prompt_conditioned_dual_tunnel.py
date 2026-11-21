@@ -133,8 +133,17 @@ class PromptConditionedDualTunnel(nn.Module):
                 if h.device!=self.coefficients.device:
                     raise AssertionError("Layer and bridge on different devices")
                 local=self.coefficients[:,index,:] @ self._features
-                if (not torch.is_grad_enabled()
-                        and not bool(torch.count_nonzero(local.detach()).item())):
+                # S119m research-only differentiable downstream path:
+                # the original S111 bridge is FROZEN at exact ZERO weights.
+                # Inference already skips this zero-gain branch. When the
+                # original 43M is frozen but a NEW midlayer research area
+                # carries gradients, retain EXACT same zero bridge no-op,
+                # without touching the weakref donor that is not owned by
+                # the physical original model. If bridge is trainable,
+                # we MUST evaluate donor even at zero to train coefficients.
+                if (not bool(torch.count_nonzero(local.detach()).item())
+                        and (not torch.is_grad_enabled()
+                             or not self.coefficients.requires_grad)):
                     return output
                 gates=local.tanh()
                 updated=h
