@@ -47,6 +47,8 @@ jobs:
           assert x.grad is not None and x.grad.device.type=='mps'
           print('S87_REAL_APPLE_METAL_GPU_GRADIENT_PROVEN',flush=True)
           PY
+      - name: Force rejected Adam step and verify exact MPS state rollback
+        run: python research/calibri2/s87/test_adam_forced_rollback_mps.py
       - name: Immutable 36M original packed CB59 source
         uses: actions/download-artifact@v4
         with:
