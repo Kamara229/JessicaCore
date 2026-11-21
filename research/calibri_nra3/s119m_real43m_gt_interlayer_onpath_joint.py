@@ -279,7 +279,10 @@ def train_variant(model,sources,bridge,full,expansion,tokenizer,
 def probe(model,sources,bridge,full,expansion,tokenizer,
           adapter,probe_rows,*,contextual):
     scores=[]
-    with torch.no_grad():
+    # The on-path injection is a learnable tensor even during a read-only
+    # probe; torch.no_grad would invalidate the hook's requires_grad ABI.
+    # No optimizer/backward occurs in this probe.
+    with torch.enable_grad():
         for item in probe_rows:
             loss,logits=full_native_CE(
                 model,sources,bridge,full,expansion,tokenizer,
