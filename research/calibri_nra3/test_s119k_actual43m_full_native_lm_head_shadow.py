@@ -83,6 +83,6 @@ class S119KFullNativeVocabularyShadowTests(unittest.TestCase):
         self.assertEqual(set(a.state_dict()),set(b.state_dict()))
         self.assertEqual(sum(v.numel() for v in a.state_dict().values()),
                          sum(v.numel() for v in b.state_dict().values()))
-        self.assertEqual(a.logit_residual_gates.shape,(3,))
+        self.assertEqual(a.readout_gates.shape,(3,))
 
 if __name__=="__main__":unittest.main()
