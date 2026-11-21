@@ -206,8 +206,13 @@ def validate_rows(rows: list[dict]):
         by_split[row["split"]]+=1
     demand(dict(by_split)==EXPECTED_COUNTS,
            "fixed TRAIN/calibration distribution")
-    train_roots = {m[0] for m in TRAIN_MALE} | {f[0] for f in TRAIN_FEMALE}
-    cal_roots = {m[0] for m in CAL_MALE} | {f[0] for f in CAL_FEMALE}
+    # Compare complete morphological name forms and strip punctuation rather
+    # than matching whitespace tokens (e.g. «Артём or Артём. are valid).
+    import re
+    train_roots = {form for item in (*TRAIN_MALE, *TRAIN_FEMALE)
+                   for form in item}
+    cal_roots = {form for item in (*CAL_MALE, *CAL_FEMALE)
+                 for form in item}
     demand(not train_roots & cal_roots and
            not set(TRAIN_EVENTS)&set(CAL_EVENTS) and
            not set(TRAIN_PARAPHRASE_OBJECTS)&set(CAL_PARAPHRASE_OBJECTS),
@@ -215,11 +220,11 @@ def validate_rows(rows: list[dict]):
     for row in rows:
         own_roots = train_roots if row["split"]=="TRAIN" else cal_roots
         other_roots = cal_roots if row["split"]=="TRAIN" else train_roots
-        demand(not any(t in row["prompt"].split() for t in other_roots),
-               "wrong-split named entity leaked")
+        words=set(re.findall(r"[А-Яа-яЁё]+",row["prompt"]))
+        demand(not words & other_roots,"wrong-split named entity leaked")
         if row["kind"] in ("roles_word_order","negation",
                            "transitive_comparison","paraphrase"):
-            demand(any(t in row["prompt"].split() for t in own_roots),
+            demand(bool(words & own_roots),
                    "role/source prompts must contain only authorized bank")
     return {"rows_total":len(rows),"split_counts":dict(by_split),
             "per_task_train":12,"per_task_calibration":3,
