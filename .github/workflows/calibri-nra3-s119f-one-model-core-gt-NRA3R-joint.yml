@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: \${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -41,21 +41,21 @@ jobs:
           name: calibri-s194-actual-real-cpu-J7-584plus32-FP16-baseline-adapter
           run-id: 43345267876
           path: inputs/s194
-          github-token: \${{ github.token }}
+          github-token: ${{ github.token }}
       - name: Original FULL 53,751 physically trained S115 neural child
         uses: actions/download-artifact@v4
         with:
           name: calibri-nra3-s115-original12-SynTagRusNC-ONLY8-trust-53751-inmodel-neural-TRAIN-DEVUNREAD
           run-id: 44622479810
           path: inputs/s115
-          github-token: \${{ github.token }}
+          github-token: ${{ github.token }}
       - name: Real original CB59+Green Tunnel ALL12 S114 TRAIN-A SOURCE ONLY
         uses: actions/download-artifact@v4
         with:
           name: calibri-nra3-s114-true-original12-CB59GT-SynTagRusA-NC256-sourceonly-53751-zeroTrust-after616
           run-id: 44621504675
           path: inputs/s114
-          github-token: \${{ github.token }}
+          github-token: ${{ github.token }}
       - name: Reject independent GOLD, S117-B, S118, spent EVAL
         run: |
           set -euo pipefail
