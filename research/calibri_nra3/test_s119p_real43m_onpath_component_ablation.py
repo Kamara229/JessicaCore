@@ -182,7 +182,7 @@ class S119PResearchControls(unittest.TestCase):
 
     def test_10_argmax_margin_small_is_not_a_failure_if_still_equal(self):
         base, variants, components, gates = sample()
-        base[0,1] = 4.97
+        base[0,1] = 4.985
         variants["zero_exact_original"] = base.clone()
         variants["trained_full"] = base + torch.tensor(
             [[.01,-.01,0.,0.,0.]])
