@@ -1,0 +1,103 @@
+name: Calibri S119k ACTUAL S142 43M GT native full LM head frozen CPU
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119j-real-native-bpe-training-contextual-vs-local-20261121
+permissions:
+  contents: read
+  actions: read
+jobs:
+  actual-original43m-gt-s142-12layer-real-full-native-vocabulary:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s119k-real43m-gt-native-full-vocab-shadow-20261121'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '119124'
+    steps:
+      - name: Checkout EXACT isolated research original forward source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact original S114 true CPU backend dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Hard four goals and S119a/f/g/i/j/k new full-vocabulary shadow contracts
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119f_unified_core_gt_reasoning_joint \
+            research.calibri_nra3.test_s119g_unified_planning_internal_action_neural_area \
+            research.calibri_nra3.test_s119i_real12_contextual_structured_operator_ablation \
+            research.calibri_nra3.test_s119j_real_native_bpe_target_context_ablation \
+            research.calibri_nra3.test_s119k_actual43m_full_native_lm_head_shadow
+      - name: Frozen original genuine compressed S93 CB61 and original GT paid source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          run-id: 42681768394
+          path: inputs/s93
+          github-token: ${{ github.token }}
+      - name: SHA-pinned exact trained S142 enlarged 43M physical FP16 sidecar
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          run-id: 43078895081
+          path: inputs/s142
+          github-token: ${{ github.token }}
+      - name: Real original CB59+GT source-only all12 H320, ORIGINAL native BPE IDs
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s114-true-original12-CB59GT-SynTagRusA-NC256-sourceonly-53751-zeroTrust-after616
+          run-id: 44621504675
+          path: inputs/s114
+          github-token: ${{ github.token }}
+      - name: Full S119j inherited old 53751 + trained core NPA structured research child
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119j-REAL-original12-GT-next-native-BPE-restricted-vocab-context-vs-local-TRAIN-A-gate0-NOGOLD
+          run-id: 44884395394
+          path: inputs/s119j
+          github-token: ${{ github.token }}
+      - name: Fail closed no S118-B independent GOLD, only original TRAIN-A
+        run: |
+          set -euo pipefail
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors
+          test -f inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors
+          test -f inputs/s114/NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors
+          test -f inputs/s114/NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json
+          test -f inputs/s119j/CALIBRI_S119J_CONTEXTUAL_REAL_NATIVE_BPE_TRAINONLY_NOT_ACCEPTED.safetensors
+          test -f inputs/s119j/CALIBRI_S119J_REAL_NATIVE_NEXT_BPE_CONTEXT_VS_LOCAL_PROBE_ONLY.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|GOLD_LABEL|_UD_GOLD|SynTagRusB|EVAL128'; then
+            echo 'Original independent GOLD or spent evaluation forbidden' && exit 1
+          fi
+      - name: Actual original compressed S142 43M+GT PREFILL 4 true prefix and native FULL vocabulary score
+        run: |
+          python -m research.calibri_nra3.s119k_actual43m_full_native_lm_head_shadow \
+            --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            --s93-side inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            --s142 inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            --source inputs/s114/NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors \
+            --source-report inputs/s114/NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json \
+            --prior inputs/s119j/CALIBRI_S119J_CONTEXTUAL_REAL_NATIVE_BPE_TRAINONLY_NOT_ACCEPTED.safetensors \
+            --prior-report inputs/s119j/CALIBRI_S119J_REAL_NATIVE_NEXT_BPE_CONTEXT_VS_LOCAL_PROBE_ONLY.json \
+            --out results/s119k_true_original43m_gt_full_vocab
+      - name: Persist research-only original GT native FULL Vocab report and neural child gate0
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119k-ACTUAL-original-S142-43m-gt-full-native-vocab-TRAINonly-core-NRA3-NPA-shadow-GATE0
+          path: results/s119k_true_original43m_gt_full_vocab/
+          retention-days: 30
+          if-no-files-found: error
