@@ -1,0 +1,55 @@
+name: Calibri S119q2a SOURCE-only authored TRAIN split and provenance
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q1-onepass-earlycausal-native-20261122
+permissions:
+  contents: read
+  actions: read
+jobs:
+  authored-train-only-provenance-no-gold-or-model:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2a-synthetic-train-provenance-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: .
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONHASHSEED: '119130'
+    steps:
+      - name: Checkout ONLY research PR SHA with no push credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fifteen pure-stdlib synthetic original-source fail-close checks
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2a_train_source_manifest
+      - name: Generate only TRAIN and read-only CALIBRATION from authored rule banks
+        run: |
+          python -m research.calibri_nra3.s119q2a_train_source_manifest \
+            --out results/s119q2a_source_split
+      - name: Verify exact files and avoid GOLD or unreviewed third-party inputs
+        run: |
+          set -euo pipefail
+          test "$(find results/s119q2a_source_split -type f | wc -l)" -eq 3
+          test -f results/s119q2a_source_split/S119Q2A_TRAIN.jsonl
+          test -f results/s119q2a_source_split/S119Q2A_CALIBRATION.jsonl
+          test -f results/s119q2a_source_split/S119Q2A_MANIFEST.json
+          test "$(wc -l < results/s119q2a_source_split/S119Q2A_TRAIN.jsonl)" -eq 72
+          test "$(wc -l < results/s119q2a_source_split/S119Q2A_CALIBRATION.jsonl)" -eq 18
+          if find results/s119q2a_source_split -type f | grep -Ei 'S116|S117|S118|SynTagRusB|GOLD_LABEL|_UD_GOLD|EVAL128|APK|safetensors'; then
+            echo "Protected old GOLD / model files forbidden" && exit 1
+          fi
+      - name: Upload tiny generated text plus proof, NEVER trained weights
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2a-authored-72train-18calib-provenance-only-gate0
+          path: results/s119q2a_source_split/
+          retention-days: 30
+          if-no-files-found: error
