@@ -1,0 +1,79 @@
+name: Calibri S119g unified CORE GT NRA3 NPA1 neural action one-loss real TRAIN-A
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s119f-unified-core-gt-reasoning-first-joint-step-20261121
+permissions:
+  contents: read
+  actions: read
+jobs:
+  calibri-unified-core12-nra3-npa1-neural-internal-actions:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s119g-unified-core-gt-nra3-action-planning-area-20261121'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '119119'
+      PYTHONPATH: .
+    steps:
+      - name: SHA-pinned candidate research branch, no release, no prod
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CPU-only dependencies, no external action/tool runtime
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Gates + parent joint behavior + new neural causal action area tests
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119f_unified_core_gt_reasoning_joint \
+            research.calibri_nra3.test_s119g_unified_planning_internal_action_neural_area
+      - name: Real persisted S119f one-model core plus full 53,751 NRA3
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s119f-JOINT-real-original12-CORE-rank4-NRA3R-full53751-TRAIN-A-gate0-NOGOLD
+          run-id: 44878808479
+          path: inputs/s119f
+          github-token: ${{ github.token }}
+      - name: Real original 12-layer CB59+Green Tunnel TRAIN-A source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s114-true-original12-CB59GT-SynTagRusA-NC256-sourceonly-53751-zeroTrust-after616
+          run-id: 44621504675
+          path: inputs/s114
+          github-token: ${{ github.token }}
+      - name: Physical source allowlist; never open B/GOLD or previous evaluations
+        run: |
+          set -euo pipefail
+          test -f inputs/s119f/NRA3_S119F_UNIFIED_CORE_AND_NRA3R_84479_FP16_RESEARCH_SHADOW.safetensors
+          test -f inputs/s119f/NRA3_S119F_REAL12_TRAIN_A_JOINT_GRADIENT_ABI_REPORT.json
+          test -f inputs/s114/NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors
+          test -f inputs/s114/NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json
+          test "$(find inputs -type f | wc -l)" -eq 4
+          if find inputs -type f | grep -Ei 'S116|S117|S118|GOLD_LABEL|_UD_GOLD|teacher|SynTagRusB|EVAL128'; then
+            echo 'Protected GOLD, spent dev and unrelated files are forbidden' && exit 1
+          fi
+      - name: Continue actual S119f unified model into NPA1 SAME optimizer CPU TRAIN-A
+        run: |
+          python -m research.calibri_nra3.s119g_unified_planning_internal_action_neural_area \
+            --prior-s119f inputs/s119f/NRA3_S119F_UNIFIED_CORE_AND_NRA3R_84479_FP16_RESEARCH_SHADOW.safetensors \
+            --prior-report inputs/s119f/NRA3_S119F_REAL12_TRAIN_A_JOINT_GRADIENT_ABI_REPORT.json \
+            --source inputs/s114/NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors \
+            --source-report inputs/s114/NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json \
+            --out results/s119g_one_unified_model
+      - name: Preserve one physical in-model child full S115 plus NPA1; gate zero
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119g-unified-original12-core-nra3-NPA1-recurrent-internal-actions-TRAIN-A-NOGOLD-GATE0
+          path: results/s119g_one_unified_model/
+          if-no-files-found: error
+          retention-days: 30
