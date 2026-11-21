@@ -45,36 +45,43 @@ class S119LRealNativeAutoregressiveContracts(unittest.TestCase):
     def test_02_baseline_native_GREEDY_reenters_real_original_next_forward(self):
         t=TinyNativeTokenizer()
         child=NativeFullHeadShadow()
+        seen_prefixes=[]
+        def observe(*args):
+            seen_prefixes.append(list(args[6]))
+            return dummy_next_logits(*args)
         with patch(
             "research.calibri_nra3.s119l_real_native_autoregressive_shadow_generation.strict_chat_source_ids",
             return_value=[1,2,3]), patch(
             "research.calibri_nra3.s119l_real_native_autoregressive_shadow_generation.s160.prompt_only_vector",
             return_value=torch.zeros(512)), patch(
             "research.calibri_nra3.s119l_real_native_autoregressive_shadow_generation.true_fullprefix_step",
-            side_effect=dummy_next_logits) as fn:
+            side_effect=observe) as fn:
             r=autoregressive_stream(t,None,None,None,None,None,
                                     child,"source only",candidate=False)
         self.assertEqual(r["new_generated_token_ids"],[4,6,8])
         self.assertEqual(r["n_forward_actual_original43m_calls"],3)
         self.assertTrue(r["eos_generated"])
-        prefixes=[call.args[6] for call in fn.call_args_list]
-        self.assertEqual(prefixes,[[1,2,3],[1,2,3,4],[1,2,3,4,6]])
+        self.assertEqual(seen_prefixes,[[1,2,3],[1,2,3,4],[1,2,3,4,6]])
 
     def test_03_shadow_chosen_tokens_feed_back_not_baseline(self):
         t=TinyNativeTokenizer()
         child=NativeFullHeadShadow()
+        seen_prefixes=[]
+        def observe(*args):
+            seen_prefixes.append(list(args[6]))
+            return dummy_next_logits(*args)
         with patch(
             "research.calibri_nra3.s119l_real_native_autoregressive_shadow_generation.strict_chat_source_ids",
             return_value=[1,2,3]), patch(
             "research.calibri_nra3.s119l_real_native_autoregressive_shadow_generation.s160.prompt_only_vector",
             return_value=torch.zeros(512)), patch(
             "research.calibri_nra3.s119l_real_native_autoregressive_shadow_generation.true_fullprefix_step",
-            side_effect=dummy_next_logits) as fn:
+            side_effect=observe) as fn:
             r=autoregressive_stream(t,None,None,None,None,None,
                                     child,"source only",candidate=True)
         self.assertEqual(r["new_generated_token_ids"],[5,7,8])
         self.assertEqual(r["n_forward_actual_original43m_calls"],3)
-        self.assertEqual([call.args[6] for call in fn.call_args_list],
+        self.assertEqual(seen_prefixes,
                          [[1,2,3],[1,2,3,5],[1,2,3,5,7]])
 
     def test_04_initial_question_route_held_fixed_during_generation(self):
