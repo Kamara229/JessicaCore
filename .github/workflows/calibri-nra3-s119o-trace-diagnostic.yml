@@ -44,14 +44,14 @@ jobs:
           set -euo pipefail
           test "$(find inputs -type f | wc -l)" -eq 1
           test -f inputs/s119n/S119N_REAL43M_GT_NATIVE_ONPATH_GENERATED_SIX_SOURCE_PROMPTS.json
-          if find inputs -type f | grep -Ei 'S116|S117|S118|GOLD_LABEL|_UD_GOLD|SynTagRusB|EVAL128|\\.safetensors$|\\.s61$'; then
+          if find inputs -type f | grep -Ei 'S116|S117|S118|GOLD_LABEL|_UD_GOLD|SynTagRusB|EVAL128|\.safetensors$|\.s61$'; then
             echo "Unexpected protected/training material" && exit 1
           fi
       - name: Execute SHA-bound exact original S119n diagnostic only
         run: |
-          python -m research.calibri_nra3.s119o_onpath_nochange_margin_audit \\
-            --parent-report inputs/s119n/S119N_REAL43M_GT_NATIVE_ONPATH_GENERATED_SIX_SOURCE_PROMPTS.json \\
-            --expected-forwards 54 \\
+          python -m research.calibri_nra3.s119o_onpath_nochange_margin_audit \
+            --parent-report inputs/s119n/S119N_REAL43M_GT_NATIVE_ONPATH_GENERATED_SIX_SOURCE_PROMPTS.json \
+            --expected-forwards 54 \
             --out results/s119o_native_nochange_margin_audit
       - name: Upload no-weights, no-GOLD mathematical diagnostic JSON only
         uses: actions/upload-artifact@v4
