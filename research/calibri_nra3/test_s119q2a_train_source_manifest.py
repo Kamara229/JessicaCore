@@ -6,7 +6,8 @@ import unittest
 from collections import Counter
 
 from research.calibri_nra3.s119q2a_train_source_manifest import (
-    VERSION, KINDS, SPLITS, SPENT_S119N_PROMPTS, EXPECTED_COUNTS,\n    EXPECTED_MANIFEST_SHA256,
+    VERSION, KINDS, SPLITS, SPENT_S119N_PROMPTS, EXPECTED_COUNTS,
+    EXPECTED_MANIFEST_SHA256,
     TRAIN_MALE, CAL_MALE, TRAIN_FEMALE, CAL_FEMALE, authored_row,
     build_rows, validate_rows, build_manifest, canonical_bytes, sha,
 )
@@ -59,7 +60,8 @@ class S119Q2AAuthorCreatedTrainingSource(unittest.TestCase):
         first=build_manifest(self.rows)
         second=build_manifest(build_rows())
         self.assertEqual(first,second)
-        self.assertEqual(len(first["synthetic_rows_SHA256"]),64)\n        self.assertEqual(first["synthetic_rows_SHA256"],EXPECTED_MANIFEST_SHA256)
+        self.assertEqual(len(first["synthetic_rows_SHA256"]),64)
+        self.assertEqual(first["synthetic_rows_SHA256"],EXPECTED_MANIFEST_SHA256)
         self.assertEqual(first["synthetic_rows_SHA256"],
                          sha(b"".join(canonical_bytes(r) for r in self.rows)))
         self.assertEqual(first["split_SHA256"]["TRAIN"],
