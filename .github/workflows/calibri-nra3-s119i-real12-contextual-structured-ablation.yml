@@ -1,0 +1,79 @@
+name: Calibri S119i real original12 structured representations VS matched token local
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119g-unified-core-gt-nra3-action-planning-area-20261121
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original12-causal-neural-relations-and-matched-local-ablation:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s119i-contextual-structured-operator-real12-ablation-20261121'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '119121'
+      PYTHONPATH: .
+    steps:
+      - name: Checkout EXACT research-only branch commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU only test dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Hard quality gates + unified parent neural tests + new structured representation tests
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119f_unified_core_gt_reasoning_joint \
+            research.calibri_nra3.test_s119g_unified_planning_internal_action_neural_area \
+            research.calibri_nra3.test_s119i_real12_contextual_structured_operator_ablation
+      - name: Physically frozen S119g unified old NRA3 core NPA1 model
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119g-unified-original12-core-nra3-NPA1-recurrent-internal-actions-TRAIN-A-NOGOLD-GATE0
+          run-id: 44881304043
+          path: inputs/s119g
+          github-token: ${{ github.token }}
+      - name: Actual original compressed CB59+GT 12-layer TRAIN-A hidden
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s114-true-original12-CB59GT-SynTagRusA-NC256-sourceonly-53751-zeroTrust-after616
+          run-id: 44621504675
+          path: inputs/s114
+          github-token: ${{ github.token }}
+      - name: Verify exact original source artifacts and forbid ALL B GOLD evaluations
+        run: |
+          set -euo pipefail
+          test -f inputs/s119g/CALIBRI_S119G_CORE_NRA3_NPA1_UNIFIED_TRAINONLY_FP16_SHADOW.safetensors
+          test -f inputs/s119g/CALIBRI_S119G_TRAIN_A_REAL12_NEW_NPA1_SINGLE_JOINT_LOSS_NO_GOLD.json
+          test -f inputs/s114/NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors
+          test -f inputs/s114/NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|GOLD_LABEL|_UD_GOLD|SynTagRusB|EVAL128'; then
+            echo 'S119i cannot open protected independent GOLD/spent dev data' && exit 1
+          fi
+      - name: TRUE original12 native BPE source small TRAIN-only ablation
+        run: |
+          python -m research.calibri_nra3.s119i_real12_contextual_structured_operator_ablation \
+            --prior inputs/s119g/CALIBRI_S119G_CORE_NRA3_NPA1_UNIFIED_TRAINONLY_FP16_SHADOW.safetensors \
+            --prior-report inputs/s119g/CALIBRI_S119G_TRAIN_A_REAL12_NEW_NPA1_SINGLE_JOINT_LOSS_NO_GOLD.json \
+            --source inputs/s114/NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors \
+            --source-report inputs/s114/NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json \
+            --out results/s119i_contextual_real12
+      - name: Archive full one-model true-source shadow report; no deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119i-real12-NRA3-role-context-VS-same-params-local-next-state-proxy-TRAIN-A-NOGOLD-GATE0
+          path: results/s119i_contextual_real12/
+          if-no-files-found: error
+          retention-days: 30
