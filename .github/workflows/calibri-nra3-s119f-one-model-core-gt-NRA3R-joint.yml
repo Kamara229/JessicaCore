@@ -1,0 +1,85 @@
+name: Calibri NRA3 S119f ONE unified core12 GT NRA3R joint gradient on real TRAIN-A
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s119e-genuine-core-growth-bpp-ledger-20261121
+permissions:
+  contents: read
+  actions: read
+jobs:
+  unified-calibri-core12-nra3r-one-real-source-step:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s119f-unified-core-gt-reasoning-first-joint-step-20261121'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '119119'
+      PYTHONPATH: .
+    steps:
+      - name: Check out EXACT research-only candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: \${{ github.event.pull_request.head.sha }}
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned CPU torch, numpy, safetensors only
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Synthetic immutable-four-goals and ONE unified neural trainability tests
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119a_hard_four_goals research.calibri_nra3.test_s119f_unified_core_gt_reasoning_joint
+      - name: Frozen S194 true original 616 J7 source attest ONLY
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s194-actual-real-cpu-J7-584plus32-FP16-baseline-adapter
+          run-id: 43345267876
+          path: inputs/s194
+          github-token: \${{ github.token }}
+      - name: Original FULL 53,751 physically trained S115 neural child
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s115-original12-SynTagRusNC-ONLY8-trust-53751-inmodel-neural-TRAIN-DEVUNREAD
+          run-id: 44622479810
+          path: inputs/s115
+          github-token: \${{ github.token }}
+      - name: Real original CB59+Green Tunnel ALL12 S114 TRAIN-A SOURCE ONLY
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s114-true-original12-CB59GT-SynTagRusA-NC256-sourceonly-53751-zeroTrust-after616
+          run-id: 44621504675
+          path: inputs/s114
+          github-token: \${{ github.token }}
+      - name: Reject independent GOLD, S117-B, S118, spent EVAL
+        run: |
+          set -euo pipefail
+          test -f inputs/s194/S194_ACTUAL_REAL_CPU_J7_584_PLUS32_GATE.json
+          test -f inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_BOUNDED_TRUST_53751_IN_CALIBRI_FP16.safetensors
+          test -f inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_TRAIN_ONLY_NO_DEV_REPORT.json
+          test -f inputs/s114/NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors
+          test -f inputs/s114/NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|GOLD_LABEL|_UD_GOLD|teacher|SynTagRusB|EVAL128'; then
+            echo 'S119f forbids prospective GOLD and previous spent firstreads' && exit 1
+          fi
+      - name: True 12-layer source + ONE joint loss core growth & NRA3R 2-hop learning
+        run: |
+          python -m research.calibri_nra3.s119f_unified_core_gt_reasoning_joint \
+            --s194 inputs/s194/S194_ACTUAL_REAL_CPU_J7_584_PLUS32_GATE.json \
+            --s115 inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_BOUNDED_TRUST_53751_IN_CALIBRI_FP16.safetensors \
+            --s115-report inputs/s115/NRA3_S115_SYNTAGRUS_NC_NEW8_TRAIN_ONLY_NO_DEV_REPORT.json \
+            --source inputs/s114/NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors \
+            --source-report inputs/s114/NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json \
+            --out results/nra3_s119f_joint
+      - name: Upload one FULL old 53751 + newly trained core 30720 + reasoning8 in same model
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s119f-JOINT-real-original12-CORE-rank4-NRA3R-full53751-TRAIN-A-gate0-NOGOLD
+          path: results/nra3_s119f_joint/
+          retention-days: 30
+          if-no-files-found: error
