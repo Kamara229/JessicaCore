@@ -1,0 +1,80 @@
+name: Calibri S119j actual original next BPE token target vs contextual/local
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119i-contextual-structured-operator-real12-ablation-20261121
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real-source-original-native-bpe-teacher-forced-comparative:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s119j-real-native-bpe-training-contextual-vs-local-20261121'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      PYTHONHASHSEED: '119123'
+      PYTHONPATH: .
+    steps:
+      - name: Checkout exact research branch commit; no original writes
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CPU-only pinned torch/safetensors
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Hard four acceptance gates and unified neural/native BPE tests
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119f_unified_core_gt_reasoning_joint \
+            research.calibri_nra3.test_s119g_unified_planning_internal_action_neural_area \
+            research.calibri_nra3.test_s119i_real12_contextual_structured_operator_ablation \
+            research.calibri_nra3.test_s119j_real_native_bpe_target_context_ablation
+      - name: Physically saved S119g unified neural Calibri core/NRA3/NPA1
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119g-unified-original12-core-nra3-NPA1-recurrent-internal-actions-TRAIN-A-NOGOLD-GATE0
+          run-id: 44881304043
+          path: inputs/s119g
+          github-token: ${{ github.token }}
+      - name: Physically captured original CB59+GT ALL12 native TRAIN-A token IDs
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s114-true-original12-CB59GT-SynTagRusA-NC256-sourceonly-53751-zeroTrust-after616
+          run-id: 44621504675
+          path: inputs/s114
+          github-token: ${{ github.token }}
+      - name: Fail closed no S118/SynTagRusB independent GOLD or spent EVAL
+        run: |
+          set -euo pipefail
+          test -f inputs/s119g/CALIBRI_S119G_CORE_NRA3_NPA1_UNIFIED_TRAINONLY_FP16_SHADOW.safetensors
+          test -f inputs/s119g/CALIBRI_S119G_TRAIN_A_REAL12_NEW_NPA1_SINGLE_JOINT_LOSS_NO_GOLD.json
+          test -f inputs/s114/NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors
+          test -f inputs/s114/NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|GOLD_LABEL|_UD_GOLD|SynTagRusB|EVAL128'; then
+            echo 'Protected independent GOLD, spent EVAL or forbidden source found' && exit 1
+          fi
+      - name: Train joint core+NRA3+NPA1+structured with TRUE native original BPE next token labels
+        run: |
+          python -m research.calibri_nra3.s119j_real_native_bpe_target_context_ablation \
+            --prior inputs/s119g/CALIBRI_S119G_CORE_NRA3_NPA1_UNIFIED_TRAINONLY_FP16_SHADOW.safetensors \
+            --prior-report inputs/s119g/CALIBRI_S119G_TRAIN_A_REAL12_NEW_NPA1_SINGLE_JOINT_LOSS_NO_GOLD.json \
+            --source inputs/s114/NRA3_S114_SYNTAGRUS_TRAIN256_ALL12_ORIGINAL_H320_NO_GOLD.safetensors \
+            --source-report inputs/s114/NRA3_S114_REAL43MGT_SYNTAGRUS_TRAIN256_ALLVERBS_SOURCE_PROVENANCE.json \
+            --out results/s119j_real_native_bpe
+      - name: Archive ONLY research output weights/train lexicon and honest probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119j-REAL-original12-GT-next-native-BPE-restricted-vocab-context-vs-local-TRAIN-A-gate0-NOGOLD
+          path: results/s119j_real_native_bpe/
+          retention-days: 30
+          if-no-files-found: error
