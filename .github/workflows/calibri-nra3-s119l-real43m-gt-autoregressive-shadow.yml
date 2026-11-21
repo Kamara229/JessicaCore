@@ -1,0 +1,93 @@
+name: Calibri S119l REAL original 43M+GT autoregressive shadow token feedback
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119k-real43m-gt-native-full-vocab-shadow-20261121
+permissions:
+  contents: read
+  actions: read
+jobs:
+  actual-native-original-cb59-gt-shadow-closed-loop-three-chat-prompts:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s119l-real43m-gt-autoregressive-shadow-smoke-20261121'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '119125'
+    steps:
+      - name: Checkout exactly one isolated research PR commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Original real CB59 GT CPU decoder dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Original four hard gates and S119k/l autoregressive feedback protections
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119f_unified_core_gt_reasoning_joint \
+            research.calibri_nra3.test_s119g_unified_planning_internal_action_neural_area \
+            research.calibri_nra3.test_s119i_real12_contextual_structured_operator_ablation \
+            research.calibri_nra3.test_s119j_real_native_bpe_target_context_ablation \
+            research.calibri_nra3.test_s119k_actual43m_full_native_lm_head_shadow \
+            research.calibri_nra3.test_s119l_real_native_autoregressive_shadow_generation
+      - name: Freeze original compressed S93 CB61 and paid GT source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          run-id: 42681768394
+          path: inputs/s93
+          github-token: ${{ github.token }}
+      - name: Freeze original enlarged trained S142 model FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          run-id: 43078895081
+          path: inputs/s142
+          github-token: ${{ github.token }}
+      - name: Proven S119k physically trained full-NRA3 NPA1 structured real native head research shadow
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119k-ACTUAL-original-S142-43m-gt-full-native-vocab-TRAINonly-core-NRA3-NPA-shadow-GATE0
+          run-id: 44926835474
+          path: inputs/s119k
+          github-token: ${{ github.token }}
+      - name: Fail closed on prior source and never import GOLD, spent EVAL or answers
+        run: |
+          set -euo pipefail
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors
+          test -f inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors
+          test -f inputs/s119k/S119K_ORIGINAL43M_GT_TRUE_FULL_NATIVE_HEAD_UNIFIED_SHADOW.safetensors
+          test -f inputs/s119k/S119K_TRUE_NATIVE_FULL_VOCAB_SOURCE_TRAIN_ONLY_REPORT.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|GOLD_LABEL|_UD_GOLD|SynTagRusB|EVAL128'; then
+            echo 'No protected independent GOLD, spent eval, or answers' && exit 1
+          fi
+      - name: ORIGINAL trained 43M+GT real native BPE autoregressive shadow A/B on three source-only chat prompts
+        run: |
+          python -m research.calibri_nra3.s119l_real_native_autoregressive_shadow_generation \
+            --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            --side inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            --s142 inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            --parent inputs/s119k/S119K_ORIGINAL43M_GT_TRUE_FULL_NATIVE_HEAD_UNIFIED_SHADOW.safetensors \
+            --parent-report inputs/s119k/S119K_TRUE_NATIVE_FULL_VOCAB_SOURCE_TRAIN_ONLY_REPORT.json \
+            --out results/s119l_autoregressive_shadow
+      - name: Archive actual generated native tokens and no-quality-claim original+shadow report
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119l-real-original43m-gt-autoregressive-native-shadow-3unlabeled-smoke-GATE0
+          path: results/s119l_autoregressive_shadow/
+          retention-days: 30
+          if-no-files-found: error
