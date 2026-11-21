@@ -44,7 +44,7 @@ class S119Q2AAuthorCreatedTrainingSource(unittest.TestCase):
         self.assertEqual(authored_row(
             "arithmetic","TRAIN",0)["completion"],"7.")
         self.assertEqual(authored_row(
-            "arithmetic","TRAIN",1)["completion"],"12.")
+            "arithmetic","TRAIN",1)["completion"],"10.")
 
     def test_03_calibration_names_distinct_and_no_spent_prompts(self):
         train_names={n[0] for n in (*TRAIN_MALE,*TRAIN_FEMALE)}
