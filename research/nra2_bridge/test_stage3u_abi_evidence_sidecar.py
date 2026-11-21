@@ -68,7 +68,7 @@ def test_roundtrip_synthetic_only():
     "j7", "prereg", "anchor_overlap", "missing_anchor", "extra_query_mention",
     "wrong_order", "bad_padding", "duplicate_prompt", "bad_commitment",
     "malformed_zip_sha", "cross_boundary_mention", "duplicate_native_tokens", "reversed_native_tokens", "empty_char_span", "overlapping_char_spans", "empty_native_tokens",
-    "out_of_range_native_token", "anchor_outside_query",
+    "out_of_range_native_token", "anchor_outside_query", "noncontiguous_anchor",
 ])
 def test_fail_closed_synthetic_only(mutation):
     args = fixture()
@@ -98,6 +98,8 @@ def test_fail_closed_synthetic_only(mutation):
         args["aligned"][0]["mentions"][1].token_positions = [8]
     elif mutation == "anchor_outside_query":
         args["qmask"].anchor_mask[0, 0, 2] = True
+    elif mutation == "noncontiguous_anchor":
+        args["qmask"].anchor_mask[0, 0, 4] = False
     elif mutation == "wrong_order":
         args["qmask"].node_order[0] = torch.tensor([2, 1])
     elif mutation == "bad_padding":
