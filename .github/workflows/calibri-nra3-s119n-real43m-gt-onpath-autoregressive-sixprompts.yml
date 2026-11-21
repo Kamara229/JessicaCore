@@ -1,0 +1,95 @@
+name: Calibri S119n ACTUAL original43M-GT ONPATH autoregressive six prompts
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119m-true-onpath-interlayer-nra3-npa1-training-20261121
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real-original-43m-GT-trained-NRA3-NPA1-onpath-two-greedy-streams:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s119n-real43m-gt-onpath-autoregressive-sixprompt-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '119127'
+    steps:
+      - name: Checkout only exact research PR commit, no main/deploy
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact original compressed S142/GT CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Strict 4 final goals preflight and all REAL native S119f through S119n contracts
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119f_unified_core_gt_reasoning_joint \
+            research.calibri_nra3.test_s119g_unified_planning_internal_action_neural_area \
+            research.calibri_nra3.test_s119i_real12_contextual_structured_operator_ablation \
+            research.calibri_nra3.test_s119j_real_native_bpe_target_context_ablation \
+            research.calibri_nra3.test_s119k_actual43m_full_native_lm_head_shadow \
+            research.calibri_nra3.test_s119l_real_native_autoregressive_shadow_generation \
+            research.calibri_nra3.test_s119m_real43m_gt_interlayer_onpath_joint \
+            research.calibri_nra3.test_s119n_real43m_onpath_autoregressive_sixprompts
+      - name: Only frozen original compressed S93 CB61+GreenTunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          run-id: 42681768394
+          path: inputs/s93
+          github-token: ${{ github.token }}
+      - name: Only original trained S142 authentic FP16 43M
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          run-id: 43078895081
+          path: inputs/s142
+          github-token: ${{ github.token }}
+      - name: Trained physical S119m FULL original NRA3+NPA1 neural ONPATH research child gate0
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119m-original43m-GT-real-onpath-layer5-NRA3-NPA1-RS-TRAINonly-fullVocab-gate0
+          run-id: 44949299494
+          path: inputs/s119m
+          github-token: ${{ github.token }}
+      - name: Strict physical originals exist; deny independent gold and spent evaluations
+        run: |
+          set -euo pipefail
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors
+          test -f inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors
+          test -f inputs/s119m/S119M_REAL_ONPATH_CORE_NRA3_NPA1_TRAINONLY_FP16_UNACCEPTED.safetensors
+          test -f inputs/s119m/S119M_REAL_ONPATH_NATIVE_FULL_VOCAB_ABLATION_AND_FROZEN_43M_REPORT.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|GOLD_LABEL|_UD_GOLD|SynTagRusB|EVAL128'; then
+            echo 'Protected independently heldout GOLD/spent EVAL forbidden' && exit 1
+          fi
+      - name: Physically generate 6 unlabeled native Russian requests with separate ORIGINAL vs trained ONPATH 12-layer greedy feedback
+        run: |
+          python -m research.calibri_nra3.s119n_real43m_onpath_autoregressive_sixprompts \
+            --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            --side inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            --s142 inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            --parent inputs/s119m/S119M_REAL_ONPATH_CORE_NRA3_NPA1_TRAINONLY_FP16_UNACCEPTED.safetensors \
+            --parent-report inputs/s119m/S119M_REAL_ONPATH_NATIVE_FULL_VOCAB_ABLATION_AND_FROZEN_43M_REPORT.json \
+            --out results/s119n_real_onpath_autoregressive
+      - name: Archive only research generated text/IDs and negative controls, not candidate deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119n-REAL43M-GT-onpath-trainedNRA3-NPA1-sixnewRussian-prompts-gate0-NOGOLD
+          path: results/s119n_real_onpath_autoregressive/
+          retention-days: 30
+          if-no-files-found: error
