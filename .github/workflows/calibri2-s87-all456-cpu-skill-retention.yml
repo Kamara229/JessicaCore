@@ -1,0 +1,111 @@
+name: CALIBRI S87 independent 456 full TRAIN CPU no-forgetting and paid bpp audit
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - research/calibri2-s82-gpu-neural-context-copy-pointers-20261109
+permissions:
+  contents: read
+  actions: read
+jobs:
+  s87_all456_cpu_source_sidecar_replay:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s87-joint-core-green-tunnel-20261109'
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '870087'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: arm64
+      - name: Compile S87 verifier and reject inspected QA imports
+        run: |
+          python -m compileall -q research/calibri2/s87/
+          if grep -E '^(from|import) calibri2\.(s26|s29|s53|s55|s57|s68|s72|s79|s85)' research/calibri2/s87/*.py; then exit 1; fi
+      - name: Install exact CPU model stack
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Original sealed S45 CB59 source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri2-s45-real-physical-36M-CB59-if-accepted
+          path: inputs/s45
+          run-id: 42502640523
+          github-token: ${{ github.token }}
+      - name: Immutable accepted S82 controller
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s82-real-GPU-contextual-token-pointer-TRAIN-only-protected
+          path: inputs/s82
+          run-id: 42569548659
+          github-token: ${{ github.token }}
+      - name: Resolve successful MPS artifact from exactly this PR HEAD
+        id: mps
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.payload.pull_request.head.sha;
+            // The MPS and CPU workflows start together on synchronize.
+            // Wait for the exact-HEAD producer rather than consuming an older artifact.
+            let runs = [];
+            for (let attempt = 0; attempt < 40; attempt++) {
+              const {data} = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner, repo: context.repo.repo,
+                workflow_id: 'calibri2-s87-joint-core-internal-green-tunnel-MPS.yml',
+                head_sha: sha, event: 'pull_request', per_page: 100
+              });
+              runs = data.workflow_runs.filter(r => r.head_sha === sha &&
+                r.head_branch === 'research/calibri2-s87-joint-core-green-tunnel-20261109');
+              const successful = runs.filter(r => r.status === 'completed' && r.conclusion === 'success');
+              if (successful.length > 1) {
+                core.setFailed('FAIL CLOSED: multiple successful MPS runs for HEAD SHA '+sha);
+                return;
+              }
+              if (successful.length === 1) {
+                core.setOutput('run_id', String(successful[0].id));
+                core.setOutput('head_sha', sha);
+                return;
+              }
+              if (runs.length && runs.every(r => r.status === 'completed')) {
+                core.setFailed('FAIL CLOSED: all matching MPS runs completed without success');
+                return;
+              }
+              if (attempt < 39) await new Promise(resolve => setTimeout(resolve, 30000));
+            }
+            core.setFailed('FAIL CLOSED: no successful matching MPS artifact after bounded 20-minute wait');
+            return;
+      - name: S87 actual MPS-trained but UNACCEPTED compressed-source prototype
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s87-unaccepted-joint-core-internal-tunnel-feasibility
+          path: inputs/s87
+          run-id: ${{ steps.mps.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Audit all 456 full TRAIN identities and measured reconstructed CPU speed
+        run: |
+          python research/calibri2/s87/guard_all_456_full_cpu.py \
+            inputs/s45/CALIBRI2_S45_FIRST_COLOR_GUARDED_NOUN_PAID.cb59 \
+            inputs/s82/S82_REAL_GPU_GENERAL_TOKEN_POINTER_PAID_TRAIN_CANDIDATE.safetensors \
+            inputs/s87/S87_UNACCEPTED_NEW_SOURCE_CB61.s61 \
+            inputs/s87/S87_UNACCEPTED_JOINT_PROTOTYPE.safetensors \
+            inputs/s87/S87_UNACCEPTED_JOINT_PHYSICAL_PROTOTYPE_REPORT.json \
+            results/s87_456
+      - name: Preserve ALL negative regressions and exact IDs even if the audit fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s87-456-native-source-PyTorch-CPU-TRAIN-protected-audit
+          path: results/s87_456/
+          retention-days: 90
+          if-no-files-found: warn
