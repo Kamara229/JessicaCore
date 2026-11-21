@@ -1,0 +1,61 @@
+name: NRA3 S119e real S119d growth bpp ledger - no denominator padding / no GOLD
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-nra3-s119d-inweight-shared-graph-reuse-20261121
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  s119e-genuine-growth-accounting-no-gold:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra3-s119e-genuine-core-growth-bpp-ledger-20261121'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Pinned research-only code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: NO MODEL, NO GOLD; rigorously test bpp counting, training, old S132 denominator
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119b_S194_S115_bpp \
+            research.calibri_nra3.test_s119c_lossless_s115_entropy \
+            research.calibri_nra3.test_s119e_genuine_trained_core_growth_budget
+      - name: Download actual SHA-pinned S119d TRAIN-A old37087 physical SHADOW only
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-nra3-s119d-original12-SynTagRusA-OLD37087-paramfree-2hop-8mini-SHADOW-NOGOLD
+          run-id: 44874750657
+          path: inputs/s119d
+          github-token: ${{ github.token }}
+      - name: Verify downloaded archive is ONLY expected old TRAIN-A record + real FP16
+        run: |
+          set -euo pipefail
+          test -f inputs/s119d/NRA3_S119D_SHARED_EXISTING_37087_FP16_NO_NEW_MATRIX_UNACCEPTED.safetensors
+          test -f inputs/s119d/NRA3_S119D_REAL12_TRAIN_A_NRA2_MINI8_SHARED_GRAPH_AND_BUDGET.json
+          test "$(find inputs/s119d -type f | wc -l)" -eq 2
+          if find inputs -type f | grep -Ei 'S116|S117|S118|UD_GOLD|teacher|SynTagRusB|EVAL128'; then
+             echo "Protected prospective GOLD is FORBIDDEN in S119e" && exit 1
+          fi
+      - name: Actual historical source+FP16 child SHA and mathematically necessary new core size
+        run: |
+          python -m research.calibri_nra3.s119e_genuine_trained_core_growth_budget \
+            --s119d-report inputs/s119d/NRA3_S119D_REAL12_TRAIN_A_NRA2_MINI8_SHARED_GRAPH_AND_BUDGET.json \
+            --s119d-child inputs/s119d/NRA3_S119D_SHARED_EXISTING_37087_FP16_NO_NEW_MATRIX_UNACCEPTED.safetensors \
+            --out results/NRA3_S119E_REAL_S119D_PARENT_GENUINE_CORE_GROWTH_SCENARIOS_NOT_ACCEPTED.json
+      - name: Publish accounting evidence only, never model activation
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-nra3-s119e-real-S119d-37k-CORE-GROWTH-trainability-bpp-noFakeDenom-NOGOLD
+          path: results/NRA3_S119E_REAL_S119D_PARENT_GENUINE_CORE_GROWTH_SCENARIOS_NOT_ACCEPTED.json
+          if-no-files-found: error
+          retention-days: 30
