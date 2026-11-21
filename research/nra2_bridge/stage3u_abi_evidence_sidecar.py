@@ -74,7 +74,7 @@ def write_abi_evidence(
         for m in a["mentions"]:
             positions = list(m.token_positions)
             if not positions:
-                continue
+                raise AssertionError("Empty native mention token positions")
             if any(not isinstance(p, int) or p < 0 or p >= length for p in positions):
                 raise AssertionError("Invalid native mention token positions")
             if len(set(positions)) != len(positions) or positions != list(range(positions[0], positions[0] + len(positions))):
