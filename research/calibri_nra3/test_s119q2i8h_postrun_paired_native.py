@@ -1,7 +1,7 @@
 """S119q2i8h unit-only fail-closed native paired outcome audit."""
 import unittest
 from research.calibri_nra3.s119q2i8h_paired_native_postrun_audit import (
-    analyse,wilson_95,paired_ab,score_records,OBS,
+    analyse,wilson_95,paired_ab,paired_native_sequences,score_records,OBS,
 )
 
 def one(*,full=False,valid=True):
@@ -39,6 +39,22 @@ class TestPairedNativeAudit(unittest.TestCase):
         self.assertEqual(d["CE_only_pass_KL_fail"],1)
         self.assertEqual(d["CE_only_fail_KL_pass"],1)
         self.assertTrue(d["no_hypothesis_or_promotion_from_tiny_visible_internal_DEV"])
+    def test_05_native_identical_outputs_distinguished_from_same_aggregate(self):
+        a=[{**one(full=False),"source_id":"example-a",
+            "generated_own_native_BPE_ids":[155,202,2]}]
+        b=[{**one(full=False),"source_id":"example-a",
+            "generated_own_native_BPE_ids":[155,203,2]}]
+        diff=paired_native_sequences(a,b)
+        self.assertEqual(diff["identical_greedy_native_BPE_sequences"],0)
+        self.assertEqual(diff["different_greedy_native_BPE_sequences"],1)
+        self.assertEqual(diff["first_pairwise_disagreement_positions_1based"],[2])
+        self.assertEqual(diff["different_first_generated_token"],0)
+    def test_06_identical_full_greedy_trace(self):
+        a=[{**one(full=False),"source_id":"example-a",
+            "generated_own_native_BPE_ids":[155,202,2]}]
+        same=paired_native_sequences(a,a)
+        self.assertEqual(same["identical_greedy_native_BPE_sequences"],1)
+        self.assertEqual(same["different_greedy_native_BPE_sequences"],0)
     def test_05_invalid_boolean_cannot_be_reported_as_measured(self):
         broken=one()
         broken["native_EOS"]="False"
