@@ -58,7 +58,7 @@ EXAMPLES=(
   "Замени глагол «взглянул» одним словом-синонимом.",
   "Посмотрел."),
 )
-EXPECTED_SOURCE_SHA256=None  # frozen after first actual successful source verification
+EXPECTED_SOURCE_SHA256="541b8ed12e149f194fdd286d3b8badca62bf18ca89286da2386cbc7425c7666a"  # pinned after physical Actions #45020021121
 
 
 def check_source(ok,reason):
