@@ -11,7 +11,7 @@ jobs:
   physical-original43m-reversible-native-head-gain-only:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8n-early23-native-rank-20261122'
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8o-native-head-gain-0p25-vs1p0-20261122'
     runs-on: ubuntu-24.04
     timeout-minutes: 85
     env:
