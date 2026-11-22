@@ -175,17 +175,17 @@ class S119Q2C1CounterfactualControls(unittest.TestCase):
         self.assertEqual(len(split(self.records)[0])*EPOCHS,24)
 
     def test_16_first_shared_BPE_prefix_teacher_forced_without_future_target(self):
-        # Fake character-level native tokenizer deliberately makes original
-        # author answers with common FIRST token, e.g. 'Павел/Приступил'.
+        # Synthetic tokenizer deliberately prepends a shared native marker
+        # to all answer strings to TEST the first-token COLLISION logic.
         class ToyNativeTokenizer:
             vocab_size=49152
             def apply_chat_template(self,messages,tokenize=False,
                                     add_generation_prompt=True):
                 return "<user>"+messages[0]["content"]+"</user><assistant>"
             def encode(self,txt,add_special_tokens=False):
-                return [ord(c) for c in txt]
+                return [1]+[ord(c) for c in txt]
             def decode(self,ids,skip_special_tokens=False):
-                return "".join(chr(i) for i in ids)
+                return "".join(chr(i) for i in ids if i != 1)
         tok=ToyNativeTokenizer()
         probe=split(self.records)[1]
         transformed=prepared_source(tok,probe)
