@@ -171,9 +171,13 @@ def native_train_weights(tok,answer_native_with_eos,*,continuation_weight=CONTIN
 def train_true_joint(model,sources,bridge,full,expansion,child,train,tok,
                      *,condition,continuation_weight=CONTINUATION_WEIGHT,
                      expected_total=TOTAL_TRAIN,expected_new=NEW_TRAIN,
-                     new_id_prefix="S119Q2I6_",rounds=ROUNDS):
+                     new_id_prefix="S119Q2I6_",rounds=ROUNDS,
+                     teacher_135m=None,teacher_KL_weight=0.0):
     check(continuation_weight in (1.0,3.0) and condition in CONDITIONS and
-          rounds in (2,3) and expected_new>=NEW_TRAIN and
+          ((teacher_135m is None and teacher_KL_weight==0.0) or
+           (teacher_135m is not None and teacher_KL_weight==0.25 and
+            all(not p.requires_grad for p in teacher_135m.parameters()))) and
+          rounds in (1,2,3) and expected_new>=NEW_TRAIN and
           expected_total>=expected_new and
           len(train)==expected_total and
           Counter(x["split"] for x in train)=={"TRAIN":expected_total}
@@ -210,6 +214,7 @@ def train_true_joint(model,sources,bridge,full,expansion,child,train,tok,
     protected={k:v.detach().cpu().half().clone() for k,v in
         child.child.child.shadow.unified.nra3_neural_weights.state_dict().items()}
     epoch_reports=[];steps=0;forwards=0;continuation_targets=0
+    physical_teacher_forwards=0;teacher_KL_values=[]
     for epoch in range(rounds):
         all_ce=[];all_cont_ce=[];all_eos_ce=[];epoch_forwards=0
         for row in train:
@@ -234,6 +239,25 @@ def train_true_joint(model,sources,bridge,full,expansion,child,train,tok,
                     loss=F.cross_entropy(
                         logits,torch.tensor([int(target)],dtype=torch.long))
                     weighted=weights[t]*loss/sum(weights)
+                    # PRE-DECLARED optional S119q2i8d SAME physical 49k native
+                    # teacher-logit distillation ONLY following an INCOMPLETE
+                    # gold UTF8 prefix. EOS stays human-target CE-only.
+                    if (teacher_135m is not None and
+                        statuses[t]=="INCOMPLETE_UTF8_NEEDS_CONTINUATION"):
+                        check(int(target)!=tok.eos_token_id,
+                              "NEVER teacher-distill EOS or teacher-generated QA")
+                        from research.calibri_nra3.s119q2i8b_source135m_vs_original43m_native import source_teacher_step
+                        soft=source_teacher_step(teacher_135m,prefix)
+                        check(soft.shape==logits.shape==(1,VOCAB_SIZE),
+                              "source135m and student43m actual native 49152 logits")
+                        teacher_p=F.softmax(soft.detach().float()/2.0,dim=-1)
+                        student_log=F.log_softmax(logits/2.0,dim=-1)
+                        KL=F.kl_div(student_log,teacher_p,reduction="sum")*(2.0**2)
+                        check(bool(torch.isfinite(KL)) and float(KL.detach())>=-0.00005,
+                              "T2 full original native softteacher KL nonnegative")
+                        weighted=weighted+teacher_KL_weight*KL/sum(weights)
+                        physical_teacher_forwards+=1
+                        teacher_KL_values.append(float(KL.detach()))
                     check(bool(torch.isfinite(weighted)),
                           "finite continuation-weighted real original native loss")
                     weighted.backward()
@@ -296,6 +320,11 @@ def train_true_joint(model,sources,bridge,full,expansion,child,train,tok,
         "real_all_neural_and_gt_Adam_updates":steps,
         "actual_gt12_core_NRA3_NPA1_native_head_change_l2":changed,
         "trainable_parameter_count":TOTAL_EXPECTED_TRAINABLE,
+        "source135m_teacher_KL_fixed_T2_continuation_only":teacher_KL_weight,
+        "physical_SOURCE135M_native_forward_calls_at_incomplete_prefix_only":physical_teacher_forwards,
+        "mean_source135m_T2_4xKL_at_train_continuation":(
+            sum(teacher_KL_values)/len(teacher_KL_values) if teacher_KL_values else None),
+        "all_teacher_logits_softlabels_only_and_never_EOS":True,
         "actual_registered_new_TRAIN_rows":expected_new,
         "actual_registered_total_TRAIN_rows":expected_total,
         "actual_joint_epochs":rounds,
