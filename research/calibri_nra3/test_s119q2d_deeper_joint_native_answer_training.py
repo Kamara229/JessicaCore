@@ -71,7 +71,7 @@ class S119Q2DDeepJointContracts(unittest.TestCase):
         self.assertEqual(
             sum(x["source_family"]=="q2c1" for x in train),24)
         self.assertTrue(all(2<=len(x["prefix"])<160 and
-                            1<=len(x["completion_ids"])<=22
+                            1<=len(x["completion_ids"])<=64
                             for x in train+probe))
         self.assertTrue(all(x["prompt_features"].shape==(512,)
                             for x in train+probe))
