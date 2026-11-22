@@ -46,8 +46,7 @@ class S119Q2C1CounterfactualControls(unittest.TestCase):
         digest=sha(raw)
         self.assertEqual(digest,validate(self.records)["source_sha256"])
         self.assertEqual(len(digest),64)
-        if EXPECTED_SOURCE_SHA256 is not None:
-            self.assertEqual(digest,EXPECTED_SOURCE_SHA256)
+        self.assertEqual(digest,EXPECTED_SOURCE_SHA256)
         self.assertEqual(raw,b"".join(canonical_bytes(x) for x in rows()))
 
     def test_03_causal_flip_always_changes_explicit_answer(self):
