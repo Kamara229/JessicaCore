@@ -1,0 +1,61 @@
+name: Calibri S119q2i8m compare REAL saved FP16 CE vs 135M KL on second/third native BPE trained neural and GT12 deltas
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8l-early23-own-native-paired-audit-20261122
+permissions:
+  contents: read
+  actions: read
+jobs:
+  physical-FP16-CE-vs-KL-delta-research:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8m-early23-fp16-gradient-audit-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact isolated research PR, no write credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Minimal physical FP16 decoder dependencies, NO full models
+        run: |
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Run original physical FP16 delta source-only unit gates
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8m_fp16_early23_delta
+      - name: Download only successful full physical S119q2i8g FP16 research A/B and reports
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8k-original43m-next21-TRAIN-early23-135mKL-14newDEV-gate0
+          run-id: 45054353996
+          path: inputs/s119q2i8k
+          github-token: ${{ github.token }}
+      - name: Compare SHA-pinned 421793 each research FP16 saved tensors + 12 GT gates ONLY
+        run: |
+          python -m research.calibri_nra3.s119q2i8m_fp16_early23_delta_forensics \
+            --input inputs/s119q2i8k/S119Q2I8K_REAL43M_EARLY23BPE_TEACHERKL_VS_CEONLY_REPORT.json \
+            --artifact-dir inputs/s119q2i8k \
+            --output results/S119Q2I8M_REAL43M_EARLY23_FP16_KLVSCE_DELTA_G0.json
+      - name: Save no-tensor delta metrics and native-own sequence A/B comparisons
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2i8m-physical-early23KL-vs-CE-fp16-delta-gate0
+          path: results/S119Q2I8M_REAL43M_EARLY23_FP16_KLVSCE_DELTA_G0.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Fail if any original model or production files changed
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/changed
+          if grep -Ev '^(research/calibri_nra3/s119q2i8m_fp16_early23_delta_forensics.py|research/calibri_nra3/test_s119q2i8m_fp16_early23_delta.py|\.github/workflows/calibri-nra3-s119q2i8m-early23-fp16-delta.yml)$' /tmp/changed; then
+            echo 'Unauthorized change outside bounded source-only research block' >&2
+            exit 1
+          fi
