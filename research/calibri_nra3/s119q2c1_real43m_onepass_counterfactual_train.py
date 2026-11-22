@@ -70,24 +70,25 @@ def prepared_source(tok,records):
     )
     prepared=[]
     for row in records:
-        prefix=strict_chat_source_ids(tok,row["prompt"])
-        completion=list(tok.encode(row["completion"],add_special_tokens=False))
-        check(1 <= len(completion) < 30
-              and all(type(v) is int and 0<=v<VOCAB_SIZE for v in completion)
-              and tok.decode(completion,skip_special_tokens=True).strip()==
+        question_prefix=strict_chat_source_ids(tok,row["prompt"])
+        answer_ids=list(tok.encode(row["completion"],add_special_tokens=False))
+        check(1 <= len(answer_ids) < 30
+              and all(type(v) is int and 0<=v<VOCAB_SIZE for v in answer_ids)
+              and tok.decode(answer_ids,skip_special_tokens=True).strip()==
                   row["completion"].strip(),
-              "source-native first BPE target exact original token roundtrip")
-        check(len(prefix)<160 and len(prefix)>=2,
-              "genuine native original prompt only, no answer in prefix")
+              "source answer BPE exact original tokenizer roundtrip")
+        check(len(question_prefix)<160 and len(question_prefix)>=2,
+              "genuine native original prompt only, no future target in input")
         prepared.append({
             "source_id":row["id"],"kind":row["kind"],"use":row["use"],
             "pair_index":row["pair_index"],"side":row["side"],
             "prompt_sha256":hashlib.sha256(
                 row["prompt"].encode("utf8")).hexdigest(),
-            "prefix":prefix,
+            "prefix":question_prefix,
+            "original_question_prefix_length":len(question_prefix),
             "prompt_features":prompt_features(tok,row["prompt"]),
-            "native_target":int(completion[0]),
-            "completion_native_tokens":len(completion),
+            "full_authored_answer_native_ids":answer_ids,
+            "completion_native_tokens":len(answer_ids),
         })
     lookup={(r["kind"],r["pair_index"],r["side"]):r
             for r in prepared}
@@ -95,12 +96,32 @@ def prepared_source(tok,records):
           "no paired contrast aliases or repetition")
     for item in prepared:
         other=lookup[(item["kind"],item["pair_index"],1-item["side"])]
-        check(item["use"]==other["use"] and
-              item["native_target"]!=other["native_target"],
-              "strict opposite answer must differ in FIRST true native BPE id")
-        item["opposing_native_first_token"]=other["native_target"]
+        a=item["full_authored_answer_native_ids"]
+        b=other["full_authored_answer_native_ids"]
+        first_difference=0
+        while (first_difference<min(len(a),len(b)) and
+               a[first_difference]==b[first_difference]):
+            first_difference+=1
+        check(item["use"]==other["use"]
+              and first_difference<min(len(a),len(b)),
+              "counterfactual answer must differ BEFORE one complete answer is a token prefix")
+        # For Cyrillic BPE, the FIRST answer token can be identical for two
+        # *different* words. Train/evaluate the FIRST DISTINGUISHING token;
+        # only the COMMON preceding answer tokens (legitimate causal
+        # teacher forcing) may be appended to the question prefix.
+        common=a[:first_difference]
+        check(common==b[:first_difference] and
+              a[first_difference]!=b[first_difference],
+              "only shared teacher-forced prefix before opposing native targets")
+        item["prefix"]=item["prefix"]+common
+        item["teacher_forced_shared_answer_native_ids"]=common
+        item["teacher_forced_shared_answer_prefix_tokens"]=len(common)
+        item["native_target"]=int(a[first_difference])
+        item["opposing_native_distinct_token"]=int(b[first_difference])
+        check(len(item["prefix"])<160 and
+              item["native_target"]!=item["opposing_native_distinct_token"],
+              "one original causal prefix, first discriminating next BPE only")
     return prepared
-
 
 def paired_instant_metrics(logits,correct: int,opposing: int):
     check(logits.shape==(1,VOCAB_SIZE) and
@@ -111,11 +132,11 @@ def paired_instant_metrics(logits,correct: int,opposing: int):
     delta=logits[0,correct]-logits[0,opposing]
     check(bool(torch.isfinite(delta)),"native answer log odds finite")
     return {
-        "native_first_CE":float(F.cross_entropy(
+        "native_distinguishing_BPE_CE":float(F.cross_entropy(
             logits,torch.tensor([correct],dtype=torch.long)).detach()),
-        "native_first_truth_minus_counterfactual_logit":float(delta.detach()),
+        "native_distinguishing_truth_minus_counterfactual_logit":float(delta.detach()),
         "correct_ranked_over_opposing":bool(delta.detach()>0),
-        "native_first_greedy_correct":
+        "native_distinguishing_BPE_greedy_correct":
             int(logits.detach().argmax(-1))==correct,
     }
 
@@ -126,7 +147,7 @@ def paired_native_loss(model,sources,bridge,full,expansion,adapter,ex,
         model,sources,bridge,full,expansion,adapter,
         ex["prefix"],ex["prompt_features"],contextual=contextual)
     correct=ex["native_target"]
-    wrong=ex["opposing_native_first_token"]
+    wrong=ex["opposing_native_distinct_token"]
     stats=paired_instant_metrics(logits,correct,wrong)
     ce=F.cross_entropy(
         logits,torch.tensor([correct],dtype=torch.long))
@@ -215,15 +236,15 @@ def summarize_probe(records):
     scores=[r["stats"] for r in records]
     return {
         "count_source_only_probe_prompts":12,
-        "mean_first_native_token_CE":
-            sum(x["native_first_CE"] for x in scores)/len(scores),
+        "mean_distinguishing_native_BPE_CE":
+            sum(x["native_distinguishing_BPE_CE"] for x in scores)/len(scores),
         "mean_truth_minus_opposing_logit":
-            sum(x["native_first_truth_minus_counterfactual_logit"]
+            sum(x["native_distinguishing_truth_minus_counterfactual_logit"]
                 for x in scores)/len(scores),
         "correct_first_token_ranks_over_opposing":
             sum(x["correct_ranked_over_opposing"] for x in scores),
-        "greedy_first_token_exact_matches":
-            sum(x["native_first_greedy_correct"] for x in scores),
+        "greedy_distinguishing_BPE_exact_matches":
+            sum(x["native_distinguishing_BPE_greedy_correct"] for x in scores),
         "source_counterfactual_pairs_both_sides_correct":sum(
             all(z["stats"]["correct_ranked_over_opposing"] for z in records
                 if z["kind"]==kind)
@@ -287,7 +308,7 @@ def run(s93:Path,side:Path,s142:Path,parent:Path,
             original,sources,bridge,full,expansion,
             ex["prefix"],ex["prompt_features"])
         metrics=paired_instant_metrics(
-            orig,ex["native_target"],ex["opposing_native_first_token"])
+            orig,ex["native_target"],ex["opposing_native_distinct_token"])
         baseline.append({k:ex[k] for k in (
             "kind","use","pair_index","side","source_id")}|{"stats":metrics})
         del early_unused
@@ -346,12 +367,12 @@ def run(s93:Path,side:Path,s142:Path,parent:Path,
         "one_original_decoder_forward_per_candidate_TRAIN_or_PROBE":True,
         "one_old_original_reference_forward_per_probe":True,
         "no_virtual_later_state_claim":True,
-        "native_first_BPE_ONLY_not_multitoken_full_answer":True,
+        "first_distinguishing_answer_BPE_teacher_forced_ONLY_not_multitoken_full_answer":True,
         "predefined_contrast_weight":CONTRAST_WEIGHT,
         "predefined_one_epoch_learning_rate":LR,
         "exact_same_initial_child_weights_and_param_count":True,
         "train_24_rows_disjoint_probe_12_rows":True,
-        "source_probes_not_independent_heldout_or_blind":True,
+        "source_probes_not_independent_heldout_or_blind":True,\n        "teacher_forced_common_answer_native_BPE_prefix_ONLY_before_target":True,\n        "training_targets_first_distinct_native_BPE_not_first_answer_BPE":True,\n        "source_probe_shared_answer_prefix_token_counts":[\n            r["teacher_forced_shared_answer_prefix_tokens"] for r in probe],\n        "source_train_shared_answer_prefix_token_counts":[\n            r["teacher_forced_shared_answer_prefix_tokens"] for r in train],
         "source_probe_never_used_to_select_hyperparameters":True,
         "old_q2a_calibration_never_in_optimizer_or_scores":True,
         "q2b_old_six_sources_never_in_optimizer_or_scores":True,
@@ -363,11 +384,11 @@ def run(s93:Path,side:Path,s142:Path,parent:Path,
         "contextual_source_probe":score_ctx,
         "matched_param_local_source_probe":score_local,
         "contextual_minus_local_source_probe_CE":
-            score_ctx["mean_first_native_token_CE"]-
-            score_local["mean_first_native_token_CE"],
+            score_ctx["mean_distinguishing_native_BPE_CE"]-
+            score_local["mean_distinguishing_native_BPE_CE"],
         "contextual_better_on_source_probe_only":
-            score_ctx["mean_first_native_token_CE"]<
-            score_local["mean_first_native_token_CE"],
+            score_ctx["mean_distinguishing_native_BPE_CE"]<
+            score_local["mean_distinguishing_native_BPE_CE"],
         "contextual_source_only_pair_discrimination_minus_local":
             score_ctx["source_counterfactual_pairs_both_sides_correct"]-
             score_local["source_counterfactual_pairs_both_sides_correct"],
@@ -387,11 +408,11 @@ def run(s93:Path,side:Path,s142:Path,parent:Path,
         json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+"\n",
         encoding="utf8")
     print("S119Q2C1_TRUE_ORIGINAL43M_GT_PAIRED_NATIVE "+json.dumps({
-        "real_CPU_forwards":result["total_original_CPU_decoder_forward_calls"],
+        "real_CPU_forwards":result["total_original_CPU_decoder_forward_calls"],\n        "teacher_forced_shared_answer_prefix_max_tokens":max(\n            r["teacher_forced_shared_answer_prefix_tokens"]\n            for r in train+probe),
         "train_steps_each":24,"new_source_24train_12probe":True,
-        "contextual_source_probe_CE":score_ctx["mean_first_native_token_CE"],
-        "local_source_probe_CE":score_local["mean_first_native_token_CE"],
-        "baseline_source_probe_CE":score_original["mean_first_native_token_CE"],
+        "contextual_source_probe_CE":score_ctx["mean_distinguishing_native_BPE_CE"],
+        "local_source_probe_CE":score_local["mean_distinguishing_native_BPE_CE"],
+        "baseline_source_probe_CE":score_original["mean_distinguishing_native_BPE_CE"],
         "contextual_complete_pairs":
             score_ctx["source_counterfactual_pairs_both_sides_correct"],
         "local_complete_pairs":
