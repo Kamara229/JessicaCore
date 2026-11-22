@@ -131,7 +131,7 @@ jobs:
           run-id: 45032710580
           path: inputs/s119q2i8a
           github-token: ${{ github.token }}
-      - name: Preflight REAL source135M 49152 native BPE exact 24-token new DEV capacity before loading models
+      - name: Preflight REAL 49152 native 40-token multiword DEV within original 160-token context
         run: |
           python - <<'PY'
           from transformers import AutoTokenizer
@@ -145,9 +145,9 @@ jobs:
               clean=dict(r)
               clean["origin"]="original_newly_authored_examples_no_third_party_corpus"
               p=verified_native_answer(tok,clean)
-              actual.append((r["id"],len(p["answer_native_with_eos"])))
+              actual.append((r["id"],len(p["answer_native_with_eos"]),len(p["prefix"])))
           print("S119Q2I8G_TRUE_NATIVE_NEW14_DEV_ANSWER_PLUS_EOS_LENGTHS",actual,flush=True)
-          assert all(n<=24 for _,n in actual),"FAIL CLOSED: no meaningful exact whole-answer score if required native BPE > 24 cap"
+          assert all(n<=40 and prefix+39<160 for _,n,prefix in actual),"FAIL CLOSED: full multiword answer or own-generation context exceeds 40/160"
           meta=audit_tokenizer(tok)
           assert meta["pass_original_decoder_limits"]==70
           assert len(meta["selected_balanced_21_TRAIN_IDS"])==21
