@@ -176,6 +176,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: calibri-s119q2i8c-135m43m-softteacherKL-UTF8-continuations-7oldDEV-gate0
-          path: results/s119q2i8b_source135m_vs_original43m_ru/
+          path: results/s119q2i8c_135m43m_full_goldprefix_native_teacherKL/
           retention-days: 30
           if-no-files-found: error
