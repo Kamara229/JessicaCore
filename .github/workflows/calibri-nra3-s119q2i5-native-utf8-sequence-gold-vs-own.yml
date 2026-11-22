@@ -139,6 +139,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: calibri-s119q2i5-original43m-GT12-native-UTF8-gold-vs-own-6oldDEV-gate0
-          path: results/s119q2i4_native_byte_readout_attribution/
+          path: results/s119q2i5_real_native_gold_vs_self_sequence/
           retention-days: 30
           if-no-files-found: error
