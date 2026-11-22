@@ -140,6 +140,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: calibri-s119q2i6-original43m-UTF8-continuation-18TRAIN-6oldrehearsal-6newDEV-3round-gate0
-          path: results/s119q2i5_real_native_gold_vs_self_sequence/
+          path: results/s119q2i6_true43M_new_ru_UTF8_three_rounds/
           retention-days: 30
           if-no-files-found: error
