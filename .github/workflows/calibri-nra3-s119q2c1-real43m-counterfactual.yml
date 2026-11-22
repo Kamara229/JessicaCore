@@ -1,0 +1,108 @@
+name: Calibri S119q2c1 REAL43M-GT paired semantic TRAIN native onepass
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2b-true-native-onepass-train-matched-20261122
+permissions:
+  contents: read
+  actions: read
+jobs:
+  train-true-native-distinguishing-BPE-contrast-vs-equal-param-local:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2c1-balanced-counterfactual-native-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '119132'
+    steps:
+      - name: Exact research PR SHA only; never checkout deploy branches
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Frozen original CPU physical S142 decoder dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Hard bpp CPU J7 and original onepass matched controls plus 16 new negatives
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119m_real43m_gt_interlayer_onpath_joint \
+            research.calibri_nra3.test_s119n_real43m_onpath_autoregressive_sixprompts \
+            research.calibri_nra3.test_s119o_onpath_nochange_margin_audit \
+            research.calibri_nra3.test_s119p_real43m_onpath_component_ablation \
+            research.calibri_nra3.test_s119q1_real43m_onepass_causal_early \
+            research.calibri_nra3.test_s119q2a_train_source_manifest \
+            research.calibri_nra3.test_s119q2b_real43m_onepass_native_train \
+            research.calibri_nra3.test_s119q2c1_counterfactual_native
+      - name: Immutable original compressed CB59 plus S93 GreenTunnel source
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          run-id: 42681768394
+          path: inputs/s93
+          github-token: ${{ github.token }}
+      - name: Original S142 trained 43M 12layer native LM with GreenTunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          run-id: 43078895081
+          path: inputs/s142
+          github-token: ${{ github.token }}
+      - name: Original immutable S119m trained NRA3 NPA1 FP16 neural child
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119m-original43m-GT-real-onpath-layer5-NRA3-NPA1-RS-TRAINonly-fullVocab-gate0
+          run-id: 44949299494
+          path: inputs/s119m
+          github-token: ${{ github.token }}
+      - name: Previous source-only S119q2a SHA-pinned authored split for provenance
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2a-authored-72train-18calib-provenance-only-gate0
+          run-id: 44954979903
+          path: inputs/s119q2a
+          github-token: ${{ github.token }}
+      - name: Fail-closed exact frozen files and forbid old gold/eval datasets
+        run: |
+          set -euo pipefail
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors
+          test -f inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors
+          test -f inputs/s119m/S119M_REAL_ONPATH_CORE_NRA3_NPA1_TRAINONLY_FP16_UNACCEPTED.safetensors
+          test -f inputs/s119m/S119M_REAL_ONPATH_NATIVE_FULL_VOCAB_ABLATION_AND_FROZEN_43M_REPORT.json
+          test -f inputs/s119q2a/S119Q2A_TRAIN.jsonl
+          test -f inputs/s119q2a/S119Q2A_CALIBRATION.jsonl
+          test -f inputs/s119q2a/S119Q2A_MANIFEST.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|SynTagRusB|GOLD_LABEL|_UD_GOLD|EVAL128|DEV|APK'; then
+            echo "Sealed GOLD, spent EVAL or deploy artifact must not be loaded" && exit 1
+          fi
+      - name: Physical source-only original 43M-GT 24 TRAIN and 12 untouched first-DISTINGUISHING-BPE source probes
+        run: |
+          python -m research.calibri_nra3.s119q2c1_real43m_onepass_counterfactual_train \
+            --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            --side inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            --s142 inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            --parent inputs/s119m/S119M_REAL_ONPATH_CORE_NRA3_NPA1_TRAINONLY_FP16_UNACCEPTED.safetensors \
+            --parent-report inputs/s119m/S119M_REAL_ONPATH_NATIVE_FULL_VOCAB_ABLATION_AND_FROZEN_43M_REPORT.json \
+            --q2a-source-dir inputs/s119q2a \
+            --out results/s119q2c1_real43m_gt_paired_24TRAIN12SOURCEPROBE
+      - name: Upload unaccepted research FP16 A-B and numerical report only
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2c1-real43m-onepass-24pairedTRAIN-12SOURCEPROBE-gate0
+          path: results/s119q2c1_real43m_gt_paired_24TRAIN12SOURCEPROBE/
+          retention-days: 30
+          if-no-files-found: error
