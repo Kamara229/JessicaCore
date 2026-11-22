@@ -83,8 +83,8 @@ def train_true_joint_early23(model,sources,bridge,full,expansion,child,train,tok
                         logits,torch.tensor([int(target)],dtype=torch.long))
                     weighted=weights[t]*loss/sum(weights)
                     # PRE-DECLARED optional S119q2i8d SAME physical 49k native
-                    # teacher-logit distillation ONLY following an INCOMPLETE
-                    # gold UTF8 prefix. EOS stays human-target CE-only.
+                    # teacher-logit distillation ONLY at second and third
+                    # native gold BPE positions. EOS stays human-target CE-only.
                     if (teacher_135m is not None and
                         t in (1,2) and t<len(gold)-1):
                         check(int(target)!=tok.eos_token_id,
@@ -135,6 +135,8 @@ def train_true_joint_early23(model,sources,bridge,full,expansion,child,train,tok
             "continuation_target_count":len(all_cont_ce),
             "identical_full_native_49152_head_and_3x_CE_weights":True,
         })
+    check(physical_teacher_forwards==(expected_total*2*rounds if teacher_135m is not None else 0),
+          'exact two physical frozen 135M teacher forwards at gold second/third per TRAIN item')
     changed={}
     after={
         "GT12":full.gates,
@@ -168,6 +170,7 @@ def train_true_joint_early23(model,sources,bridge,full,expansion,child,train,tok
         "mean_source135m_T2_4xKL_at_gold_secondthird_BPE":(
             sum(teacher_KL_values)/len(teacher_KL_values) if teacher_KL_values else None),
         "all_teacher_logits_softlabels_only_and_never_EOS":True,
+        "source_135M_KL_ONLY_at_gold_secondthird_and_NEVER_EOS":True,
         "actual_registered_new_TRAIN_rows":expected_new,
         "actual_registered_total_TRAIN_rows":expected_total,
         "actual_joint_epochs":rounds,
