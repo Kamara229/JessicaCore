@@ -84,6 +84,13 @@ from research.calibri_nra3.s119q2i8a_real43m_broader_russian_joint import (
 from research.calibri_nra3.s119q2i8b_source135m_vs_original43m_native import (
     physical_q2i8a_fitted_child,physical_q2i8a_gates,
 )
+from research.calibri_nra3.s119q2i8g_real43m_multiword_native_joint_ab import (
+    STAGE as Q2I8G_PREV_STAGE,REPORT as Q2I8G_PREV_REPORT,
+    CE_FP16 as Q2I8G_PREV_CE_FP16,CE_GATES as Q2I8G_PREV_CE_GATES,
+)
+from research.calibri_nra3.s119q2i8j_original43m_native_goldsecond_rank import (
+    full_saved_child,full_saved_gt,
+)
 from research.calibri_nra3.s119q2i8k_new_ru_multiword_dev_source import (
     STAGE as D_SOURCE_STAGE,ORIGIN as D_ORIGIN,
     rows as new_holdout,verify as holdout_verify,
@@ -254,7 +261,7 @@ def scores_for_one(tok,model,sources,bridge,full,expansion,child,
             "NEW_DEV_scores":score(new),"OLD_DEV_scores":score(old_rows)}
 
 
-def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,q2i8d_dir,q2i8f_report,out):
+def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,q2i8d_dir,q2i8f_report,q2i8g_dir,out):
     check(not out.exists(),"new isolated research weights; never overwrite")
     torch.manual_seed(SEED)
     torch.set_num_threads(2)
@@ -302,11 +309,20 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,q2i8d
           and readiness["TRAIN_source_SHA256"]==source["TRAIN_sha256"]
           and len(readiness["selected_balanced_21_TRAIN_IDS"])==ORIGINAL_NEW_TRAIN,
           "exact previously successful read-only pinned original native tokenizer audit")
-    selected=set(readiness["selected_balanced_21_TRAIN_IDS"])
-    train_new=[native_new_train(tok,x) for x in previously_registered_rows()
+    already_trained_g=set(readiness["selected_balanced_21_TRAIN_IDS"])
+    registered=previously_registered_rows()
+    remaining={kind:[x for x in registered if x["kind"]==kind
+                     and x["id"] not in already_trained_g] for kind in KINDS}
+    selected=set(x["id"] for kind in KINDS for x in remaining[kind][:3])
+    check(len(selected)==ORIGINAL_NEW_TRAIN
+          and selected.isdisjoint(already_trained_g)
+          and all(len(remaining[kind])==7 for kind in KINDS),
+          "use ONLY NEXT unused 3x7 original TRAIN, no previous g TRAIN")
+    train_new=[native_new_train(tok,x) for x in registered
                if x["id"] in selected]
-    check(len(train_new)==ORIGINAL_NEW_TRAIN,
-          "native-safe 21 TRAIN selected by source-only tokenizer before model weights")
+    check(len(train_new)==ORIGINAL_NEW_TRAIN
+          and Counter(x["kind"] for x in train_new)=={k:3 for k in KINDS},
+          "exact balanced 21 NEW never-previously-optimized 43M TRAIN")
     train_old=[verified_native_answer(tok,x) for x in old_rehearsal]
     train=train_new+train_old
     newdev=[pack_new_author_dev(tok,x) for x in new_holdout()]
@@ -520,11 +536,11 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,q2i8d
 def main():
     p=argparse.ArgumentParser()
     for key in ("s93","side","s142","q2d_dir","q2f_dir","q2i1_dir",
-                "q2i3_dir","q2i7_dir","q2i8a_dir","q2i8d_dir","q2i8f_report","out"):
+                "q2i3_dir","q2i7_dir","q2i8a_dir","q2i8d_dir","q2i8f_report","q2i8g_dir","out"):
         p.add_argument("--"+key.replace("_","-"),type=Path,required=True)
     a=p.parse_args()
     run(a.s93,a.side,a.s142,a.q2d_dir,a.q2f_dir,
-        a.q2i1_dir,a.q2i3_dir,a.q2i7_dir,a.q2i8a_dir,a.q2i8d_dir,a.q2i8f_report,a.out)
+        a.q2i1_dir,a.q2i3_dir,a.q2i7_dir,a.q2i8a_dir,a.q2i8d_dir,a.q2i8f_report,a.q2i8g_dir,a.out)
 
 
 if __name__=="__main__":
