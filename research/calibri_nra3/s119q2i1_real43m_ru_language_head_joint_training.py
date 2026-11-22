@@ -92,8 +92,8 @@ EPOCHS=2
 LOWRANK=4
 HEAD_LEARNING_RATE=0.018
 CHILD_LEARNING_RATE=0.0003
-MAX_ANSWER_NATIVE=16
-DEV_MAX_GEN_NATIVE=12
+MAX_ANSWER_NATIVE=48
+DEV_MAX_GEN_NATIVE=16
 HEAD_PARAMETER_COUNT=320*LOWRANK+LOWRANK*VOCAB_SIZE+VOCAB_SIZE
 
 
@@ -518,7 +518,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,out):
         "real_original_decoder_forward_calls_DEV_own_token":
             dev_decoder_calls,
         "no_old_S118_B_GOLD_or_EVAL128_J7":True,
-        "SEALED_EVAL_never_opened_or_scored":True,
+        "reserved_EVAL_not_used_in_optimization_or_DEV_scoring":True,
         "source_handwritten_synthetic_DEV_not_blind":True,
         "original_Core12_GreenTunnel_and_original_native_LM_head_unchanged":True,
         "old_S115_53751_FP16_unchanged":True,
