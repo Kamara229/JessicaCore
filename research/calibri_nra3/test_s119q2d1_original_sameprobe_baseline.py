@@ -59,11 +59,11 @@ class S119Q2D1FrozenOriginalNativeControls(unittest.TestCase):
 
     def test_03_fails_wrong_probe_counts(self):
         bad=fake_source_records()[:-1]
-        with self.assertRaisesRegex(GateFailure,"ONLY 18 CAL"):
+        with self.assertRaisesRegex(GateFailure,"(?i)only 18 CAL"):
             summarize_original(bad)
         bad=fake_source_records()
         bad[0]["source_split"]="TRAIN"
-        with self.assertRaisesRegex(GateFailure,"ONLY 18 CAL"):
+        with self.assertRaisesRegex(GateFailure,"(?i)only 18 CAL"):
             summarize_original(bad)
 
     def test_04_fails_missing_domain_even_with_30_rows(self):
