@@ -97,11 +97,11 @@ from research.calibri_nra3.s119q2i8k_new_ru_multiword_dev_source import (
 )
 
 STAGE="CALIBRI_S119Q2I8K_REAL43M_FRESH_NEXT21_MULTIWORD_CE_VS_SOURCE135M_KL_2ND3RD_BPE"
-REPORT="S119Q2I8K_REAL43M_NATIVE_BPE_TEACHERKL_UTF8_VS_CEONLY_REPORT.json"
+REPORT="S119Q2I8K_REAL43M_EARLY23BPE_TEACHERKL_VS_CEONLY_REPORT.json"
 CE_FP16="S119Q2I8K_CE_ONLY_ORIGINAL43M_JOINT_NEURAL_FP16_G0.safetensors"
-KL_FP16="S119Q2I8K_SOFT135M_UTF8KL_ORIGINAL43M_JOINT_NEURAL_FP16_G0.safetensors"
+KL_FP16="S119Q2I8K_SOFT135M_EARLY23KL_ORIGINAL43M_JOINT_NEURAL_FP16_G0.safetensors"
 CE_GATES="S119Q2I8K_CE_ONLY_ORIGINAL43M_GT12_FP16_G0.safetensors"
-KL_GATES="S119Q2I8K_SOFT135M_UTF8KL_ORIGINAL43M_GT12_FP16_G0.safetensors"
+KL_GATES="S119Q2I8K_SOFT135M_EARLY23KL_ORIGINAL43M_GT12_FP16_G0.safetensors"
 SEED=119153
 ROUNDS=1
 ORIGINAL_NEW_TRAIN=21
@@ -442,7 +442,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,q2i8d
               and training["CE_ONLY"][
                 "physical_SOURCE135M_native_forward_calls_at_gold_secondthird_BPE_ONLY"]==0
               and training["SOURCE135M_SECONDTHIRD_BPE_KL"][
-                "physical_SOURCE135M_native_forward_calls_at_gold_secondthird_BPE_ONLY"]>0,
+                "physical_SOURCE135M_native_forward_calls_at_gold_secondthird_BPE_ONLY"]==TRAIN_ROWS*2,
               "ONLY second/third gold BPE KL uses frozen 135M teacher with same 43M budget")
         saved={
             "CE_ONLY_neural":persist_half(ce,out/CE_FP16),
@@ -491,6 +491,9 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,q2i8d
         "registered_70_new_multisentence_TRAIN_source_sha":source["TRAIN_sha256"],
         "readiness_native_49152_pinned_report_SHA256":sha(q2i8f_report),
         "previous_physical_Q2I8d_parent_report_SHA256":sha(q2i8d_dir/PREV_REPORT),
+        "previous_physical_Q2I8g_parent_report_SHA256":sha(q2i8g_dir/Q2I8G_PREV_REPORT),
+        "never_previously_trained_NEXT21_ids":sorted(selected),
+        "previously_train_used_21_ids_excluded":sorted(already_trained_g),
         "registered_new_14_original_author_DEV_SHA":holdout["sha256"],
         "all_trained_rows_are_SOURCE_UNUSED_NEXT21_NEW_TRAIN_plus_6_old_TRAIN":True,
         "initial_research_child_Q2I8g_CE_ONLY_warmstart":True,
@@ -502,6 +505,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,q2i8d
         "teacher_full_native_49152_KL_weight_at_gold_secondthird_BPE_ONLY":
             TEACHER_KL_CONT_WEIGHT,
         "SOURCE135M_SOFT_KL_only_at_gold_secondthird_BPE_NOT_EOS":True,
+        "source135m_KL_teacher_2nd3rd_BPE_each_gold_ROW":True,
         "original_43M_real_native_forward_train_calls":train_phys,
         "original_135M_real_native_teacher_forward_calls":teacher_phys,
         "original_43M_OWN_autoregressive_new_and_old_DEV_forward_calls":dev_phys,
@@ -518,6 +522,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,q2i8d
         "source_teacher_KL_never_on_native_EOS":True,
         "new_DEV_is_small_VISIBLE_internal_NOT_external_blind":True,
         "new_DEV_14_source_disjoint_new_training_multiword_prompts":True,
+        "original_old_g_DEV14_is_not_reused_for_model_selection":True,
         "no_full_protected_616_J7_EOS_or_all_in_packed_bpp_KV_CPU":True,
         "no_S118_GOLD_EVAL128_J7_answers_or_Jessica_chat":True,
         "no_LIVE_main_Render_Supabase_APK_or_secrets":True,
