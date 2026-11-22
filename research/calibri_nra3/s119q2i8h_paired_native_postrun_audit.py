@@ -85,6 +85,41 @@ def paired_ab(a,b,key):
         "no_hypothesis_or_promotion_from_tiny_visible_internal_DEV":True,
     }
 
+def paired_native_sequences(a,b):
+    """Compare actual generated OWN native BPE IDs, never gold prefixes."""
+    require(len(a)==len(b),"paired native sequences must use same source IDs")
+    counts={"identical_greedy_native_BPE_sequences":0,
+            "different_greedy_native_BPE_sequences":0,
+            "different_first_generated_token":0,
+            "different_generated_length":0,
+            "different_EOS":0,
+            "changed_example_source_IDs":[],
+            "first_pairwise_disagreement_positions_1based":[]}
+    for x,y in zip(a,b):
+        require(x["source_id"]==y["source_id"],"paired source sample order changed")
+        u=x["generated_own_native_BPE_ids"]
+        v=y["generated_own_native_BPE_ids"]
+        require(type(u)==list and type(v)==list and u and v,
+                "empty/incorrect real native self-generation")
+        if u==v:
+            counts["identical_greedy_native_BPE_sequences"]+=1
+            continue
+        counts["different_greedy_native_BPE_sequences"]+=1
+        counts["changed_example_source_IDs"].append(x["source_id"])
+        if u[0]!=v[0]:
+            counts["different_first_generated_token"]+=1
+        if len(u)!=len(v):
+            counts["different_generated_length"]+=1
+        if bool(x["native_EOS"])!=bool(y["native_EOS"]):
+            counts["different_EOS"]+=1
+        first=next((i+1 for i,(a0,b0) in enumerate(zip(u,v)) if a0!=b0),
+                   min(len(u),len(v))+1)
+        counts["first_pairwise_disagreement_positions_1based"].append(first)
+    require(counts["identical_greedy_native_BPE_sequences"]+
+            counts["different_greedy_native_BPE_sequences"]==len(a),
+            "paired native sequence totals incorrect")
+    return counts
+
 def analyse(report):
     from research.calibri_nra3.s119q2i8e_new_ru_multiword_train_source import verify as train_source
     from research.calibri_nra3.s119q2i8g_new_ru_multiword_dev_source import (
@@ -130,7 +165,7 @@ def analyse(report):
     }
     require(len(expected["NEW_DEV"])==14 and len(expected["OLD_DEV"])==6,
             "DEV provenance mismatch")
-    totals={};paired={}
+    totals={};paired={};greedy={}
     for split,n in SPLITS:
         records={label:ev[label][split] for label in ARMS}
         for label,rs in records.items():
@@ -165,6 +200,12 @@ def analyse(report):
             for metric in ("full_correct","valid_utf8","native_eos",
                            "gold_first_correct","text_exact_no_eos_requirement")
         }
+        greedy[split]={
+            "CE_vs_source135M_KL":paired_native_sequences(aa,bb),
+            "frozen_parent_vs_CE":paired_native_sequences(
+                [dict((r["source_id"],r) for r in records[BASE])[k]
+                 for k in sorted(expected[split])],aa),
+        }
     return {
         "stage":STAGE,
         "source_stage":EXPECTED_STAGE,
@@ -176,6 +217,7 @@ def analyse(report):
             second["physical_SOURCE135M_native_forward_calls_at_incomplete_prefix_only"],
         "metrics":totals,
         "paired_controlled_outcomes":paired,
+        "actual_greedy_49152_native_token_sequence_pairing":greedy,
         "interpretation":"descriptive paired internal source-disjoint DEV only; sample too small to prove general language competence",
         "DEV_already_spent_do_not_adapt_or_repeat_tune":True,
         "strict_full_616_J7_retention_not_tested":True,
@@ -202,6 +244,7 @@ def main():
     print("S119Q2I8H_PAIRED_NATIVE_REPORT "+json.dumps({
         "new14":result["metrics"]["NEW_DEV"],
         "paired_new14":result["paired_controlled_outcomes"]["NEW_DEV"],
+        "actual_own_greedy_new14":result["actual_greedy_49152_native_token_sequence_pairing"]["NEW_DEV"],
         "decision":result["decision"],
     },ensure_ascii=False,sort_keys=True),flush=True)
 
