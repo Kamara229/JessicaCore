@@ -80,7 +80,7 @@ PAIR_BANK = {
           "Устранил.")),
     ),
 }
-EXPECTED_SOURCE_SHA256 = None  # Pin after first physical CI preflight.
+EXPECTED_SOURCE_SHA256 = "7052b503e4c734ccc05d9f97fd572913449975f755b6cd18815becc501c7fc60"  # pinned physical Actions #45012677814
 
 
 def demand(ok: bool, reason: str):
