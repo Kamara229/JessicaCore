@@ -1,0 +1,70 @@
+name: Calibri S119q2i8p real original43m native 49152 head EOS output bias physical FP16 audit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8o-native-head-gain-0p25-vs1p0-20261122
+permissions:
+  contents: read
+  actions: read
+jobs:
+  true-physical-FP16-head-EOS-bias-no-weights-modified:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8p-real-fp16-EOS-head-bias-forensics-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Exact research-only SHA checkout no persisted credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: No pretrained libraries, only physical FP16 inspection dependencies
+        run: |
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Unit-test full original native head 49152 rank4 output bias and EOS gate
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8p_fp16_native_head_eos_bias
+      - name: EXACT original S119q2i8g physically verified 43M full 49152 FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8g-original43m-21multiword-CEvsKL-14newDEV-gate0
+          run-id: 45051305134
+          path: inputs/g
+          github-token: ${{ github.token }}
+      - name: EXACT original S119q2i8k next21 second-third BPE 135M KL full 43M FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8k-original43m-next21-TRAIN-early23-135mKL-14newDEV-gate0
+          run-id: 45054353996
+          path: inputs/k
+          github-token: ${{ github.token }}
+      - name: Fail-closed physical original saved FP16 original rank4 language output bias only
+        run: |
+          set -euo pipefail
+          test -f inputs/g/S119Q2I8G_REAL43M_NATIVE_BPE_TEACHERKL_UTF8_VS_CEONLY_REPORT.json
+          test -f inputs/k/S119Q2I8K_REAL43M_EARLY23BPE_TEACHERKL_VS_CEONLY_REPORT.json
+          python -m research.calibri_nra3.s119q2i8p_fp16_native_head_eos_bias \
+            --q2i8g-dir inputs/g \
+            --q2i8k-dir inputs/k \
+            --out results/S119Q2I8P_REAL_FP16_NATIVE_HEAD_EOS_BIAS_G0.json
+      - name: Only summary JSON without model weights or source text
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2i8p-physical-rank4-native-EOS-head-bias-only-gate0
+          path: results/S119Q2I8P_REAL_FP16_NATIVE_HEAD_EOS_BIAS_G0.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: No source modifications outside two research-only scripts and workflow
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} >/tmp/changed
+          if grep -Ev '^(research/calibri_nra3/s119q2i8p_fp16_native_head_eos_bias.py|research/calibri_nra3/test_s119q2i8p_fp16_native_head_eos_bias.py|\.github/workflows/calibri-nra3-s119q2i8p-physical-native-EOS-bias.yml)$' /tmp/changed; then
+            echo 'Non-research file changed, fail-closed' >&2
+            exit 1
+          fi
