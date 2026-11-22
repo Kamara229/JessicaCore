@@ -7,7 +7,7 @@ neural FP16 + physical 12 original Green Tunnel gate scalars.
 A full native 49152 BPE + author EOS cross entropy; B exactly same
 optimizer/data/params/epochs plus 0.25*T² T=2 source135M KL ONLY following
 gold incomplete Cyrillic UTF8 byte prefixes, NEVER at native EOS.
-NEW source-disjoint 14 author-created multiword DEV own-token generation,
+NEW source-disjoint 14 author-created multiword DEV own-token generation (40 native steps),
 plus six OLD scored DEV regression-only. NOT independently blinded.
 No original pretrained weight update, no protected 616 J7 or bpp/CPU pass,
 no LIVE/main/Render/Supabase/Jessica agent. candidate_accepted=False.
@@ -70,7 +70,8 @@ from research.calibri_nra3.s119q2i8d_real43m_source_softkl_joint_train import (
 )
 from research.calibri_nra3.s119q2d_deeper_joint_native_answer_training import OLD_PREFIX
 from safetensors.torch import load_file
-from research.calibri_nra3.s119q2i2_gt12_recurrence_connectivity import own_token_dev
+from research.calibri_nra3.s119q2g_fresh_own_token_source import normalized
+from research.calibri_nra3.s119q2i1_real43m_ru_language_head_joint_training import real_joint_native
 from research.calibri_nra3.s119q2i5_real43m_own_vs_gold_utf8_sequence import (
     native_bytelevel_full_utf8_status,first_divergence,
 )
@@ -123,6 +124,46 @@ def pack_new_author_dev(tok,row):
     return item
 
 
+def own_token_dev_long(model,sources,bridge,full,expansion,child,example,*,condition,
+                       max_generate=40):
+    # Same genuine original 43M full 49k LM-head OWN-token decoder as
+    # older q2i2, but correct cap for complete multiword gold up to 40 BPE.
+    check(example["split"]=="DEV" and condition=="GT_RECURRENT"
+          and max_generate==40
+          and len(example["prefix"])+max_generate-1<160,
+          "40 native self-token steps fit true ORIGINAL 160-token context")
+    ids=[];prefix=list(example["prefix"]);eos=False
+    for _ in range(max_generate):
+        check(prefix==example["prefix"]+ids and len(prefix)<160,
+              "no gold DEV answer or future token enters physical decoder")
+        logits=real_joint_native(
+            model,sources,bridge,full,expansion,child,prefix,
+            example["prompt_features"],contextual=True)
+        check(logits.shape==(1,NATIVE_VOCAB)
+              and full.last_forward_coverage==tuple(range(12))
+              and not full._active and full._carry is None,
+              "physical ORIGINAL Core12 GT12 NRA3 NPA1 native 49k forward")
+        predicted=int(torch.argmax(logits.detach(),dim=-1))
+        ids.append(predicted);prefix.append(predicted)
+        del logits
+        if predicted==example["eos_native_id"]:
+            eos=True
+            break
+    decoded=example["tokenizer"].decode(ids,skip_special_tokens=True)
+    exact=normalized(decoded)==normalized(example["gold_answer_for_scoring_ONLY"])
+    return {
+        "source_id":example["id"],"domain":example["kind"],
+        "variant":condition,"original_full_decoder_calls":len(ids),
+        "generated_own_native_BPE_ids":ids,"decoded_text":decoded,
+        "native_EOS":eos,"truncated_without_eos":not eos,
+        "text_exact_even_if_not_finished":exact,
+        "strict_finished_full_answer_exact":exact and eos,
+        "teacher_forcing_in_DEV":False,
+        "all_core_NRA3_NPA1_language_head_child_weights_FROZEN":True,
+        "maximum_generation_native":max_generate,
+    }
+
+
 def one_own_dev(tok,model,sources,bridge,full,expansion,child,items,
                 *,condition):
     check(condition=="GT_RECURRENT" and len(items) in (NEW_HELDOUT_DEV,OLD_SPENT_DEV)
@@ -131,8 +172,8 @@ def one_own_dev(tok,model,sources,bridge,full,expansion,child,items,
     out=[]
     for x in items:
         with scoped_reduced_native_head_gain(child.language_head) as native_hook_count:
-            got=own_token_dev(model,sources,bridge,full,expansion,
-                              child,x,condition=condition,max_generate=24)
+            got=own_token_dev_long(model,sources,bridge,full,expansion,
+                              child,x,condition=condition,max_generate=40)
         check(native_hook_count[0]==got["original_full_decoder_calls"],
               "full native 49k forward once per OWN generated BPE only")
         raw=got["generated_own_native_BPE_ids"]
@@ -279,7 +320,8 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,q2i8d
           and all(x["split"]=="DEV" for x in newdev+olddev)
           and {x["prompt_sha256"] for x in train}.isdisjoint(
                x["prompt_sha256"] for x in newdev+olddev)
-          and max(len(x["answer_native_with_eos"]) for x in newdev+olddev)<=24,
+          and max(len(x["answer_native_with_eos"]) for x in newdev+olddev)<=40
+          and max(len(x["prefix"])+39 for x in newdev+olddev)<160,
           "strict source-disjoint DEV never enters any 43M optimizer")
     d,old_child=load_q2d_trained_child(
         q2d_dir/Q2D_CTX,evidence["new_research_checkpoint_contextual"])
