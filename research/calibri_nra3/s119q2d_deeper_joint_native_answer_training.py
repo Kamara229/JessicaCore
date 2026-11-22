@@ -173,7 +173,7 @@ def pack_sources(tok,train,probe):
     for entry in train+probe:
         prefix=strict_chat_source_ids(tok,entry["prompt"])
         completion=list(tok.encode(entry["answer"],add_special_tokens=False))
-        check(1<=len(completion)<=22 and
+        check(1<=len(completion)<=64 and
               all(type(token) is int and 0<=token<VOCAB_SIZE
                   for token in completion) and
               tok.decode(completion,skip_special_tokens=True).strip()==
