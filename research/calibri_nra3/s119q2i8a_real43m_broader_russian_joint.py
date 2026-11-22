@@ -238,7 +238,7 @@ def score(records):
         "per_kind_complete_answers":{
             k:sum(x["true_native_full_EOS_correct"]
                   for x in records if x["domain"]==k)
-            for k in sorted({x["domain"] for x in records}),
+            for k in sorted({x["domain"] for x in records})
         },
     }
 
