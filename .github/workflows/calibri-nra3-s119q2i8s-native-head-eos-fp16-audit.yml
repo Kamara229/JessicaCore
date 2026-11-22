@@ -1,0 +1,70 @@
+name: Calibri S119q2i8s real43M rank4 head-only FP16 EOS margin vs CE physical paired audit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8r-trainonly-native-eos-margin-head-20261122
+permissions:
+  contents: read
+  actions: read
+jobs:
+  exact-physical-saved-FP16-readonly-head-only:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8s-real-head-fp16-paired-eos-forensics-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: SHA-pinned draft PR checkout with no persistent credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Only numpy and FP16 safetensors, NO original model or decoder
+        run: |
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Unit tests on true physical head49k FP16 + exact paired OWN native BPE
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8s_head_fp16_paired_forensics
+      - name: Download strict prior S119q2i8k 43M fitted KL neural original FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8k-original43m-next21-TRAIN-early23-135mKL-14newDEV-gate0
+          run-id: 45054353996
+          path: inputs/s119q2i8k
+          github-token: ${{ github.token }}
+      - name: Download strict SUCCESS S119q2i8r CE vs supervised EOS ranking trained 43M head only A/B
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8r-actual43m-headOnly-last28TRAIN-plus6-EOSmargin-14newDEV-gate0
+          run-id: 45061138855
+          path: inputs/s119q2i8r
+          github-token: ${{ github.token }}
+      - name: Fail closed exact parent and A/B physically saved FP16 native49k head deltas and old EOS result
+        run: |
+          set -euo pipefail
+          test -f inputs/s119q2i8r/S119Q2I8R_REAL43M_RANK4_HEAD_ONLY_GAIN1_EOS_CE_VS_MARGIN_G0.json
+          test -f inputs/s119q2i8k/S119Q2I8K_REAL43M_EARLY23BPE_TEACHERKL_VS_CEONLY_REPORT.json
+          python -m research.calibri_nra3.s119q2i8s_head_fp16_eos_paired_forensics \
+            --parent-dir inputs/s119q2i8k \
+            --trained-dir inputs/s119q2i8r \
+            --out results/S119Q2I8S_REAL43M_RANK4_HEAD_FP16_EOS_CAUSAL_DELTA_G0.json
+      - name: Upload JSON-only previous physical native EOS paired forensic, no model weights
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2i8s-physical-43m-rank4-head-EOSmargin-fp16-paired-gate0
+          path: results/S119Q2I8S_REAL43M_RANK4_HEAD_FP16_EOS_CAUSAL_DELTA_G0.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: No original, protected or LIVE production changes allowed
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} >/tmp/changed
+          if grep -Ev '^(research/calibri_nra3/s119q2i8s_head_fp16_eos_paired_forensics.py|research/calibri_nra3/test_s119q2i8s_head_fp16_paired_forensics.py|\.github/workflows/calibri-nra3-s119q2i8s-native-head-eos-fp16-audit.yml)$' /tmp/changed; then
+            echo 'RESEARCH-ONLY FILE SCOPE VIOLATION' >&2
+            exit 1
+          fi
