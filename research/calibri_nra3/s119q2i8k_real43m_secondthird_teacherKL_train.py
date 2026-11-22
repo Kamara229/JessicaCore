@@ -15,7 +15,7 @@ def teacher_kl_only_secondthird_gold_target(t,target,gold,eos):
     """Predicate is TRAIN-only, never teacher on first native BPE or EOS."""
     check(type(t) is int and type(target) is int
           and type(eos) is int and isinstance(gold,list)
-          and len(gold)>=4 and gold[-1]==eos
+          and len(gold)>=2 and gold[-1]==eos
           and 0<=t<len(gold) and target==gold[t],
           "explicit native train gold BPE+EOS target gate")
     return t in (1,2) and t<len(gold)-1 and target!=eos
@@ -145,8 +145,14 @@ def train_true_joint_early23(model,sources,bridge,full,expansion,child,train,tok
             "continuation_target_count":len(all_cont_ce),
             "identical_full_native_49152_head_and_3x_CE_weights":True,
         })
-    check(physical_teacher_forwards==(expected_total*2*rounds if teacher_135m is not None else 0),
-          'exact two physical frozen 135M teacher forwards at gold second/third per TRAIN item')
+    valid_early_teacher_positions=sum(
+        teacher_kl_only_secondthird_gold_target(t,target,row["answer_native_with_eos"],
+                                                tok.eos_token_id)
+        for row in train
+        for t,target in enumerate(row["answer_native_with_eos"]))
+    check(physical_teacher_forwards==(
+          valid_early_teacher_positions*rounds if teacher_135m is not None else 0),
+          "exact physical teacher forward count on gold BPE #2/#3; no EOS on short rehearsal")
     changed={}
     after={
         "GT12":full.gates,
@@ -181,6 +187,7 @@ def train_true_joint_early23(model,sources,bridge,full,expansion,child,train,tok
             sum(teacher_KL_values)/len(teacher_KL_values) if teacher_KL_values else None),
         "all_teacher_logits_softlabels_only_and_never_EOS":True,
         "source_135M_KL_ONLY_at_gold_secondthird_and_NEVER_EOS":True,
+        "expected_per_epoch_early23_teacher_eligible_native_BPE":valid_early_teacher_positions,
         "actual_registered_new_TRAIN_rows":expected_new,
         "actual_registered_total_TRAIN_rows":expected_total,
         "actual_joint_epochs":rounds,
