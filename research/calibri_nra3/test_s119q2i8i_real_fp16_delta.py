@@ -17,7 +17,7 @@ class TestActualHalfDelta(unittest.TestCase):
         d=quantized_diff(a,b)
         self.assertEqual(d["changed_fp16_params"],1)
         self.assertEqual(d["delta_L2"],.5)
-        self.assertEqual(d["regions"]["native_49152_readout"]["changed_fp16_params"],1)
+        self.assertEqual(d["regions"]["native_49152_readout"]["parameters_different"],1)
     def test_03_invalid_no_checkpoint_or_wrong_shape_rejected(self):
         with self.assertRaises(ValueError):
             quantized_diff({"x":np.ones(2,dtype=np.float16)},
