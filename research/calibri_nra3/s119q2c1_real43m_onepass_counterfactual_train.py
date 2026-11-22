@@ -372,7 +372,13 @@ def run(s93:Path,side:Path,s142:Path,parent:Path,
         "predefined_one_epoch_learning_rate":LR,
         "exact_same_initial_child_weights_and_param_count":True,
         "train_24_rows_disjoint_probe_12_rows":True,
-        "source_probes_not_independent_heldout_or_blind":True,\n        "teacher_forced_common_answer_native_BPE_prefix_ONLY_before_target":True,\n        "training_targets_first_distinct_native_BPE_not_first_answer_BPE":True,\n        "source_probe_shared_answer_prefix_token_counts":[\n            r["teacher_forced_shared_answer_prefix_tokens"] for r in probe],\n        "source_train_shared_answer_prefix_token_counts":[\n            r["teacher_forced_shared_answer_prefix_tokens"] for r in train],
+        "source_probes_not_independent_heldout_or_blind":True,
+        "teacher_forced_common_answer_native_BPE_prefix_ONLY_before_target":True,
+        "training_targets_first_distinct_native_BPE_not_first_answer_BPE":True,
+        "source_probe_shared_answer_prefix_token_counts":[
+            r["teacher_forced_shared_answer_prefix_tokens"] for r in probe],
+        "source_train_shared_answer_prefix_token_counts":[
+            r["teacher_forced_shared_answer_prefix_tokens"] for r in train],
         "source_probe_never_used_to_select_hyperparameters":True,
         "old_q2a_calibration_never_in_optimizer_or_scores":True,
         "q2b_old_six_sources_never_in_optimizer_or_scores":True,
@@ -408,7 +414,10 @@ def run(s93:Path,side:Path,s142:Path,parent:Path,
         json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+"\n",
         encoding="utf8")
     print("S119Q2C1_TRUE_ORIGINAL43M_GT_PAIRED_NATIVE "+json.dumps({
-        "real_CPU_forwards":result["total_original_CPU_decoder_forward_calls"],\n        "teacher_forced_shared_answer_prefix_max_tokens":max(\n            r["teacher_forced_shared_answer_prefix_tokens"]\n            for r in train+probe),
+        "real_CPU_forwards":result["total_original_CPU_decoder_forward_calls"],
+        "teacher_forced_shared_answer_prefix_max_tokens":max(
+            r["teacher_forced_shared_answer_prefix_tokens"]
+            for r in train+probe),
         "train_steps_each":24,"new_source_24train_12probe":True,
         "contextual_source_probe_CE":score_ctx["mean_distinguishing_native_BPE_CE"],
         "local_source_probe_CE":score_local["mean_distinguishing_native_BPE_CE"],
