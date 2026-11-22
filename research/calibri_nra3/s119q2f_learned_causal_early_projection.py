@@ -419,8 +419,7 @@ def run(s93,side,s142,q2a_dir,q2d_dir,reference,out):
         "decision":"LEARNED_CAUSAL_PROJECTOR_SOURCE_TRAIN_MECHANICAL_ONLY_NOT_ACCEPTED",
     }
     (out/REPORT).write_text(
-        json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+"
-",
+        json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+"\n",
         encoding="utf8")
     print("S119Q2F_ORIGINAL43M_GT_LEARNED_CAUSAL_PROJECTOR "+
           json.dumps({
