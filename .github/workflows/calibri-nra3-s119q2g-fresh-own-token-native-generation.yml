@@ -1,0 +1,125 @@
+name: Calibri S119q2g REAL original 43M native own-token fresh 12 generation
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2f1-projector-onoff-causal-ablation-20261122
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original-full-native-own-token-autoregressive-source-only:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2g-fresh-own-token-native-generation-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '119138'
+    steps:
+      - name: Checkout EXACT research PR SHA no write credentials or deploy
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install genuine S142 43M original decoder full native BPE CPU deps
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: All previous hard native safety contracts and new free generation source controls
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119m_real43m_gt_interlayer_onpath_joint \
+            research.calibri_nra3.test_s119n_real43m_onpath_autoregressive_sixprompts \
+            research.calibri_nra3.test_s119o_onpath_nochange_margin_audit \
+            research.calibri_nra3.test_s119p_real43m_onpath_component_ablation \
+            research.calibri_nra3.test_s119q1_real43m_onepass_causal_early \
+            research.calibri_nra3.test_s119q2a_train_source_manifest \
+            research.calibri_nra3.test_s119q2b_real43m_onepass_native_train \
+            research.calibri_nra3.test_s119q2c1_counterfactual_native \
+            research.calibri_nra3.test_s119q2d_deeper_joint_native_answer_training \
+            research.calibri_nra3.test_s119q2d1_original_sameprobe_baseline \
+            research.calibri_nra3.test_s119q2e_causal_early_view_diagnostic \
+            research.calibri_nra3.test_s119q2f_learned_causal_projection \
+            research.calibri_nra3.test_s119q2f1_physical_projector_onoff \
+            research.calibri_nra3.test_s119q2g_own_token_generation
+      - name: Download original READONLY S93 compact core and GT weights
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          run-id: 42681768394
+          path: inputs/s93
+          github-token: ${{ github.token }}
+      - name: Download immutable original S142 43M 12layer full native decoder
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          run-id: 43078895081
+          path: inputs/s142
+          github-token: ${{ github.token }}
+      - name: Download old SHA-pinned source just to PROVE newly authored source is disjoint
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2a-authored-72train-18calib-provenance-only-gate0
+          run-id: 44954979903
+          path: inputs/s119q2a
+          github-token: ${{ github.token }}
+      - name: Download actually TRAINED original q2d NRA3 NPA1 parents
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2d-deeper-joint-native-96train-4epochs-original43m-GT-gate0
+          run-id: 45014239436
+          path: inputs/s119q2d
+          github-token: ${{ github.token }}
+      - name: Download actual previous q2f physical learned causal projection models A-B
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2f-real43m-learned-causal-rank8-projector-96TRAIN2EPOCH-gate0
+          run-id: 45016558435
+          path: inputs/s119q2f
+          github-token: ${{ github.token }}
+      - name: Exact original artifacts only NO gold, spent eval, protected J7 or production
+        run: |
+          set -euo pipefail
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors
+          test -f inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors
+          test -f inputs/s119q2a/S119Q2A_TRAIN.jsonl
+          test -f inputs/s119q2a/S119Q2A_CALIBRATION.jsonl
+          test -f inputs/s119q2a/S119Q2A_MANIFEST.json
+          test -f inputs/s119q2d/S119Q2D_DEEPER_REAL43M_GT_96TRAIN4EPOCH_NATIVE_POSITION_ABLATION.json
+          test -f inputs/s119q2d/S119Q2D_DEEPER_CONTEXTUAL_NATIVE_96TRAIN4EPOCH_GATE0_FP16.safetensors
+          test -f inputs/s119q2d/S119Q2D_DEEPER_LOCAL_NATIVE_96TRAIN4EPOCH_GATE0_FP16.safetensors
+          test -f inputs/s119q2f/S119Q2F_LEARNED_CAUSAL_PROJECTOR_NATIVE_JOINT_A_B_REPORT.json
+          test -f inputs/s119q2f/S119Q2F_CONTEXTUAL_CAUSAL_PROJECTOR_FP16_UNACCEPTED.safetensors
+          test -f inputs/s119q2f/S119Q2F_LOCAL_MATCHED_CAUSAL_PROJECTOR_FP16_UNACCEPTED.safetensors
+          if find inputs -type f | grep -Ei 'S116|S117|S118|SynTagRusB|GOLD_LABEL|_UD_GOLD|EVAL128|DEV|APK'; then
+            echo "PROTECTED GOLD and spent evaluation or deployment inputs forbidden" && exit 1
+          fi
+      - name: REAL original full native 49152 greedy feedback 12 new prompts across baseline and two trained candidates
+        run: |
+          python -m research.calibri_nra3.s119q2g_physical_own_token_generation \
+            --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            --side inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            --s142 inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            --q2a-dir inputs/s119q2a \
+            --q2d-dir inputs/s119q2d \
+            --q2f-dir inputs/s119q2f \
+            --out results/s119q2g_fresh_own_native_12x3
+      - name: Artifact only numerical generation evidence; never weights, production or main
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2g-real43m-fresh12-own-native-greedy-original-vs-context-local-gate0
+          path: results/s119q2g_fresh_own_native_12x3/
+          retention-days: 30
+          if-no-files-found: error
