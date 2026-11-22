@@ -25,9 +25,9 @@ class TestZ2CompletedPair(unittest.TestCase):
         with self.assertRaises(ValueError):paired_own(a,b,"NEW_DEV",1)
     def test_03_full49k_paired_rank_reject_bad(self):
         def rows(rank):
-            return {"source_rows":[{"source_id":str(i),
-                "gold_second_rank_full49152":rank,
-                "gold_previous_native_BPE_teacherforced_diagnostic_not_OWN":True}
+            return {"per_source_read_only_teacherforced_previous_gold_BPE":[{"source_id":str(i),
+                "correct_gold_second_native_rank_full49152":rank,
+                "given_gold_first_BPE_ONLY_for_readonly_diagnostic":True}
                 for i in range(14)]}
         r=paired_gold_second(rows(20),rows(15))
         self.assertEqual(r["margin_B_better_lower_gold_rank_than_A"],14)
