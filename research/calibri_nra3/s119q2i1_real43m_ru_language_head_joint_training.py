@@ -499,7 +499,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,out):
             "per_domain_strict_correct_count":{
                 kind:sum(x["strict_full_short_answer_exact_WITH_EOS"]
                          for x in trace if x["kind"]==kind)
-                for kind in KINDS,
+                for kind in KINDS
             },
         } for variant,trace in scored.items()
     }
