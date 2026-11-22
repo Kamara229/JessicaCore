@@ -14,7 +14,7 @@ from research.calibri_nra3.s119a_hard_four_goals import GateFailure
 from research.calibri_nra3.s119q2a_train_source_manifest import build_rows
 from research.calibri_nra3.s119q2d_deeper_joint_native_answer_training import (
     source_inventory,pack_sources,scheduled_position,
-    EPOCHS,EXAMPLES_PER_EPOCH,ACCUMULATION,LR,CONTRAST_WEIGHT,VOCAB_SIZE,
+    EPOCHS,EXAMPLES_PER_EPOCH,ACCUMULATION,LR,CONTRAST_WEIGHT,VOCAB_SIZE,PROBE_COUNTS,
 )
 
 
@@ -48,6 +48,8 @@ class S119Q2DDeepJointContracts(unittest.TestCase):
         self.assertEqual(len(self.probe),30)
         self.assertEqual(Counter(x["source_split"] for x in self.probe),
                          {"CALIBRATION":18,"SOURCE_PROBE":12})
+        self.assertEqual(Counter(x["source_split"] for x in self.probe),
+                         PROBE_COUNTS)
         self.assertTrue(all(x["source_split"]=="TRAIN" for x in self.train))
         self.assertFalse({x["id"] for x in self.train}&
                          {x["id"] for x in self.probe})
