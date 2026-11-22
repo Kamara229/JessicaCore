@@ -150,14 +150,14 @@ class S119Q2HFullNativeFirstTokenAuditContracts(TestCase):
         tok=FakeNative()
         logits=torch.zeros(1,VOCAB_SIZE)
         logits[0,0]=float("nan")
-        with self.assertRaisesRegex(GateFailure,"native 49,152"):
+        with self.assertRaisesRegex(GateFailure,"49,152-class"):
             physical_rank(tok,logits,89,89)
 
     def test_12_reject_partial_vocab_or_wrong_gold(self):
         tok=FakeNative()
-        with self.assertRaisesRegex(GateFailure,"native 49,152"):
+        with self.assertRaisesRegex(GateFailure,"49,152-class"):
             physical_rank(tok,torch.zeros(1,32),1,1)
-        with self.assertRaisesRegex(GateFailure,"native 49,152"):
+        with self.assertRaisesRegex(GateFailure,"49,152-class"):
             physical_rank(tok,torch.zeros(1,VOCAB_SIZE),49152,0)
 
     def test_13_spent_source_script_ranking_summary_not_accuracy(self):
