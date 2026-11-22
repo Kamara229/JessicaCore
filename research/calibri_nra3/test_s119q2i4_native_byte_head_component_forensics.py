@@ -168,7 +168,8 @@ class S119Q2I4NativeByteReadoutCausalContracts(TestCase):
                 pass
 
     def test_11_exact_full_native_49k_head_logits_required(self):
-        a=synthetic_native(155)
+        a=synthetic_native(155,baseline=-5.0)
+        a[0,201]=6.0  # rank2 and explicitly in top12, never rely on 49k ties
         result=inspect_native(FakeNative(),a,201)
         self.assertEqual(result["native_top1_id"],155)
         self.assertEqual(result["correct_first_native_rank_49152"],2)
@@ -176,12 +177,12 @@ class S119Q2I4NativeByteReadoutCausalContracts(TestCase):
         self.assertEqual(result["native_top1_tokenizer_raw"],"<0x9B>")
 
     def test_12_native_gold_out_of_vocab_or_NaN_fails_closed(self):
-        with self.assertRaisesRegex(GateFailure,"49k"):
+        with self.assertRaisesRegex(GateFailure,"full49152"):
             inspect_native(FakeNative(),torch.zeros(1,1234),1)
-        with self.assertRaisesRegex(GateFailure,"49k"):
+        with self.assertRaisesRegex(GateFailure,"full49152"):
             inspect_native(FakeNative(),torch.zeros(1,49152),49152)
         x=synthetic_native(155);x[0,0]=float("nan")
-        with self.assertRaisesRegex(GateFailure,"49k"):
+        with self.assertRaisesRegex(GateFailure,"full49152"):
             inspect_native(FakeNative(),x,201)
 
     def test_13_additive_counterfactual_parity_detects_wrong_logits(self):
