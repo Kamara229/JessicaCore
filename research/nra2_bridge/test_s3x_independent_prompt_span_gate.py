@@ -97,3 +97,19 @@ def test_independent_retokenization_rejects_forged_self_consistent_offsets():
         return [(a, a + 5), (b, b + 4)]
     with pytest.raises(AssertionError, match="Independent tokenizer offset mismatch"):
         verify_with_retokenization(p, h, m, o, tokenizer)
+
+
+def test_physical_prereg_rejects_recomputed_candidate_digest():
+    from research.nra2_bridge.s3x_independent_prompt_span_gate import verify_s3t_prereg_bytes
+    candidate = b"synthetic-not-the-physical-S3T-artifact"
+    with pytest.raises(AssertionError, match="SHA mismatch"):
+        verify_s3t_prereg_bytes(candidate)
+    # A self-derived SHA is not an acceptable replacement for the frozen pin.
+    with pytest.raises(AssertionError, match="Pinned S3T"):
+        verify_s3t_prereg_bytes(candidate, hashlib.sha256(candidate).hexdigest())
+
+
+def test_physical_prereg_rejects_nonbytes():
+    from research.nra2_bridge.s3x_independent_prompt_span_gate import verify_s3t_prereg_bytes
+    with pytest.raises(AssertionError, match="Pinned S3T"):
+        verify_s3t_prereg_bytes("synthetic")
