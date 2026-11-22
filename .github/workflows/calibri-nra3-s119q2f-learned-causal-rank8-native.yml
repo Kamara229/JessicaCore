@@ -1,0 +1,121 @@
+name: Calibri S119q2f REAL43M-GT trainable causal rank8 h0-h5 projector A-B
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2e-causal-h0h5-view-diagnostic-20261122
+permissions:
+  contents: read
+  actions: read
+jobs:
+  train-physical-early-causal-lowrank-projection-with-exact-matched-native-control:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2f-learned-causal-projection-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '119136'
+    steps:
+      - name: Checkout only isolated research candidate without push credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Real physical S142 original 43M Core12 GT CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: All previous 134 and 14 new causal-h0h5 trainability contract tests
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119m_real43m_gt_interlayer_onpath_joint \
+            research.calibri_nra3.test_s119n_real43m_onpath_autoregressive_sixprompts \
+            research.calibri_nra3.test_s119o_onpath_nochange_margin_audit \
+            research.calibri_nra3.test_s119p_real43m_onpath_component_ablation \
+            research.calibri_nra3.test_s119q1_real43m_onepass_causal_early \
+            research.calibri_nra3.test_s119q2a_train_source_manifest \
+            research.calibri_nra3.test_s119q2b_real43m_onepass_native_train \
+            research.calibri_nra3.test_s119q2c1_counterfactual_native \
+            research.calibri_nra3.test_s119q2d_deeper_joint_native_answer_training \
+            research.calibri_nra3.test_s119q2d1_original_sameprobe_baseline \
+            research.calibri_nra3.test_s119q2e_causal_early_view_diagnostic \
+            research.calibri_nra3.test_s119q2f_learned_causal_projection
+      - name: Original frozen S93 compact Core12 plus GreenTunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          run-id: 42681768394
+          path: inputs/s93
+          github-token: ${{ github.token }}
+      - name: Immutable S142 original 43M FP16 full native BPE
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          run-id: 43078895081
+          path: inputs/s142
+          github-token: ${{ github.token }}
+      - name: Existing SHA-pinned 72 original synthetic TRAIN plus 18 untouched CAL
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2a-authored-72train-18calib-provenance-only-gate0
+          run-id: 44954979903
+          path: inputs/s119q2a
+          github-token: ${{ github.token }}
+      - name: Actual previous q2d deep original physical trained child A-B and evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2d-deeper-joint-native-96train-4epochs-original43m-GT-gate0
+          run-id: 45014239436
+          path: inputs/s119q2d
+          github-token: ${{ github.token }}
+      - name: Actual original read-only q2d1 native same-source baseline SHA proof
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2d1-frozen-original-30native-source-match-gate0
+          run-id: 45015042950
+          path: inputs/s119q2d1
+          github-token: ${{ github.token }}
+      - name: Strictly reject protected GOLD, spent evaluation and unknown input data
+        run: |
+          set -euo pipefail
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors
+          test -f inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors
+          test -f inputs/s119q2a/S119Q2A_TRAIN.jsonl
+          test -f inputs/s119q2a/S119Q2A_CALIBRATION.jsonl
+          test -f inputs/s119q2a/S119Q2A_MANIFEST.json
+          test -f inputs/s119q2d/S119Q2D_DEEPER_REAL43M_GT_96TRAIN4EPOCH_NATIVE_POSITION_ABLATION.json
+          test -f inputs/s119q2d/S119Q2D_DEEPER_CONTEXTUAL_NATIVE_96TRAIN4EPOCH_GATE0_FP16.safetensors
+          test -f inputs/s119q2d/S119Q2D_DEEPER_LOCAL_NATIVE_96TRAIN4EPOCH_GATE0_FP16.safetensors
+          test -f inputs/s119q2d1/S119Q2D1_ORIGINAL_FROZEN_CORE43M_GT_30_NATIVE_SOURCE_PROBES.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|SynTagRusB|GOLD_LABEL|_UD_GOLD|EVAL128|DEV|APK'; then
+            echo "No old sealed GOLD, old evaluation or deployment files allowed" && exit 1
+          fi
+      - name: Train genuine original Core12 GT rank8 causal h0h5 projector NRA3 NPA1 96 x2 A-B
+        run: |
+          python -m research.calibri_nra3.s119q2f_learned_causal_early_projection \
+            --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            --side inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            --s142 inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            --q2a-dir inputs/s119q2a \
+            --q2d-dir inputs/s119q2d \
+            --reference inputs/s119q2d1/S119Q2D1_ORIGINAL_FROZEN_CORE43M_GT_30_NATIVE_SOURCE_PROBES.json \
+            --out results/s119q2f_real43m_gt_learned_causal_h0h5_projector
+      - name: Archive ONLY trained research FP16 A-B and SHA numerical report, never promote
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2f-real43m-learned-causal-rank8-projector-96TRAIN2EPOCH-gate0
+          path: results/s119q2f_real43m_gt_learned_causal_h0h5_projector/
+          retention-days: 30
+          if-no-files-found: error
