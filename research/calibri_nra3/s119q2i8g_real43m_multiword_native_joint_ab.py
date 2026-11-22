@@ -49,7 +49,7 @@ from research.calibri_nra3.s119q2i2_gt12_recurrence_connectivity import (
 )
 from research.calibri_nra3.s119q2i3_real_joint_gt_nra3_npa1_head import (
     STAGE as Q2I3_STAGE,REPORT as Q2I3_REPORT,
-    RECURRENT_CKPT,TOTAL_EXPECTED_TRAINABLE,
+    RECURRENT_CKPT,TOTAL_EXPECTED_TRAINABLE,scoped_reduced_native_head_gain,
 )
 from research.calibri_nra3.s119q2i4_native_byte_head_component_forensics import check_trained_joint
 from research.calibri_nra3.s119q2i6_true43m_ru_utf8_joint_train import train_true_joint
