@@ -493,8 +493,10 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,out):
           "must load real pinned 135M pretrained instruct source, not 43M proxy")
 
     measure=[];physical=0
-    with torch.inference_mode():
-        # No original frozen neural weights or Q2I8a child may update.
+    with torch.enable_grad():
+        # Source teacher is separately inference-only; the existing true 43M
+        # physical on-path native training implementation REQUIRES grad-enabled
+        # final logits even though optimizer is never called in this audit.
         try:
             for source in examples:
                 gold=list(source["answer_native_with_eos"])
