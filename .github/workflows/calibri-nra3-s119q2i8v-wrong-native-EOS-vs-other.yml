@@ -1,0 +1,66 @@
+name: Calibri S119q2i8v read-only physical true43M native49k BPE2and3 wrong EOS-vs-other
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8u-physical43m-goldBPE2BPE3-rank-postjoint-20261122
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original-43M-native-49152-second-third-wrong-eos-versus-nonEOS:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8v-spent43m-secondBPE-EOS-vs-other-wrong-forensics-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: SHA exact research only source no GitHub write credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Strict standard-library-only saved full49152 rank diagnostics unit tests
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8v_native_wrong_secondBPE
+      - name: EXACT completed TRUE 43M full native 84 gold2and3 BPE original K vs fulljoint T report
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8u-real43m-K-vs-Tfulljoint-goldBPE2and3-native-ranks-gate0
+          run-id: 45064867605
+          path: inputs/u
+          github-token: ${{ github.token }}
+      - name: EXACT completed actual original43M GT12 Core NRA3 NPA1 full-joint train T report provenance
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8t-original43m-fulljoint-27TRAIN-CEvsEOSmargin-14freshDEV-gate0
+          run-id: 45063421507
+          path: inputs/t
+          github-token: ${{ github.token }}
+      - name: SHA-verified read-only previous gold second-third K/CE/margin native top1 EOS vs other
+        run: |
+          set -euo pipefail
+          test -f inputs/u/S119Q2I8U_TRUE43M_T_CE_VS_EOSMARGIN_GOLD_2ND3RD_BPE_NATIVE49K_G0.json
+          test -f inputs/t/S119Q2I8T_REAL43M_FULL_JOINT_27TRAIN_CE_VS_EOS_MARGIN_G025.json
+          python -m research.calibri_nra3.s119q2i8v_native_wrong_secondBPE_eos_vs_other \
+            --u-dir inputs/u --t-dir inputs/t \
+            --out results/S119Q2I8V_REAL43M_NATIVE_BPE2AND3_EOS_VS_OTHER_G0.json
+      - name: Upload JSON only of already scored gold BPE2-3 top1 native real EOS vs wrong nonEOS
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2i8v-original43m-goldBPE2and3-wrong-EOS-vs-other-gate0
+          path: results/S119Q2I8V_REAL43M_NATIVE_BPE2AND3_EOS_VS_OTHER_G0.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Bounded only two research scripts and this workflow no sealed evaluation or production changed
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/diffnames
+          if grep -Ev '^(research/calibri_nra3/s119q2i8v_native_wrong_secondBPE_eos_vs_other.py|research/calibri_nra3/test_s119q2i8v_native_wrong_secondBPE.py|\.github/workflows/calibri-nra3-s119q2i8v-wrong-native-EOS-vs-other.yml)$' /tmp/diffnames; then
+            echo 'Protected or production code changed' >&2
+            exit 1
+          fi
