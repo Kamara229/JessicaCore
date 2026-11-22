@@ -98,6 +98,7 @@ class LearnedCausalEarlyProjector(nn.Module):
         self.candidate_accepted=False
         self.activation_allowed=False
         self.last_projected_H320_norm=None
+        self.projection_enabled=True  # read-only S119q2f1 scoped causal ablation
         check(not self.child.candidate_accepted and
               not self.child.activation_allowed and
               self.child.output_gate==0,
@@ -112,6 +113,11 @@ class LearnedCausalEarlyProjector(nn.Module):
         h5=physical12[:,5:6]
         check(torch.equal(physical12[:,6:],h5.expand_as(physical12[:,6:])),
               "NO hidden future h6-11 or replacing physical causal h5 prior")
+        check(type(self.projection_enabled) is bool,
+              "controlled research-only causal ON/OFF state")
+        if not self.projection_enabled:
+            self.last_projected_H320_norm=0.0
+            return physical12
         source=(early if contextual else h5.expand_as(early))
         # Learnable layer mixing on original early h0..h5 for six virtual
         # source slots. Token-local control only uses copies of actual h5.
@@ -413,7 +419,8 @@ def run(s93,side,s142,q2a_dir,q2d_dir,reference,out):
         "decision":"LEARNED_CAUSAL_PROJECTOR_SOURCE_TRAIN_MECHANICAL_ONLY_NOT_ACCEPTED",
     }
     (out/REPORT).write_text(
-        json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+"\n",
+        json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+"
+",
         encoding="utf8")
     print("S119Q2F_ORIGINAL43M_GT_LEARNED_CAUSAL_PROJECTOR "+
           json.dumps({
