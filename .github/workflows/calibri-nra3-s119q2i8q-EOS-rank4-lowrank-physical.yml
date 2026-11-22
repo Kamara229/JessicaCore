@@ -1,0 +1,264 @@
+name: Calibri S119q2i8q physical original43M EOS first BPE static bias versus contextual rank4 causal attribution
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8p-real-fp16-EOS-head-bias-forensics-20261122
+permissions:
+  contents: read
+  actions: read
+jobs:
+  genuine-original43m-first-native-EOS-vs-gold-learned-lowrank-components:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8q-eos-vs-gold-rank4-component-causal-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '119156'
+    steps:
+      - name: Checkout exact draft RESEARCH PR SHA never deploy
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install original 43M GT12 CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Run previous hard-gate native tests and new full rank 49k source-only tests
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119m_real43m_gt_interlayer_onpath_joint \
+            research.calibri_nra3.test_s119n_real43m_onpath_autoregressive_sixprompts \
+            research.calibri_nra3.test_s119o_onpath_nochange_margin_audit \
+            research.calibri_nra3.test_s119p_real43m_onpath_component_ablation \
+            research.calibri_nra3.test_s119q1_real43m_onepass_causal_early \
+            research.calibri_nra3.test_s119q2a_train_source_manifest \
+            research.calibri_nra3.test_s119q2b_real43m_onepass_native_train \
+            research.calibri_nra3.test_s119q2c1_counterfactual_native \
+            research.calibri_nra3.test_s119q2d_deeper_joint_native_answer_training \
+            research.calibri_nra3.test_s119q2d1_original_sameprobe_baseline \
+            research.calibri_nra3.test_s119q2e_causal_early_view_diagnostic \
+            research.calibri_nra3.test_s119q2f_learned_causal_projection \
+            research.calibri_nra3.test_s119q2f1_physical_projector_onoff \
+            research.calibri_nra3.test_s119q2g_own_token_generation \
+            research.calibri_nra3.test_s119q2h_native_language_logits \
+            research.calibri_nra3.test_s119q2i1_ru_fullanswer_joint \
+            research.calibri_nra3.test_s119q2i2_gt12_recurrence_connectivity \
+            research.calibri_nra3.test_s119q2i3_full_joint_gt_nra3_npa1 \
+            research.calibri_nra3.test_s119q2i4_native_byte_head_component_forensics \
+            research.calibri_nra3.test_s119q2i5_native_utf8_sequence \
+            research.calibri_nra3.test_s119q2i6_utf8_continuation_joint_training \
+            research.calibri_nra3.test_s119q2i7_utf8_weight_causal_ablation \
+            research.calibri_nra3.test_s119q2i8a_broader_russian_native_joint \
+            research.calibri_nra3.test_s119q2i8b_source135m_native_teacher \
+            research.calibri_nra3.test_s119q2i8c_teacher_goldprefix_utf8 \
+            research.calibri_nra3.test_s119q2i8d_teacher_softkl_joint \
+            research.calibri_nra3.test_s119q2i8e_ru_multiword_source \
+            research.calibri_nra3.test_s119q2i8f_native_bpe_readiness \
+            research.calibri_nra3.test_s119q2i8g_multiword_dev_source \
+            research.calibri_nra3.test_s119q2i8j_original_gold2_3_rank \
+            research.calibri_nra3.test_s119q2i8n_original_early23_native_rank \
+            research.calibri_nra3.test_s119q2i8o_native_gain_ablation \
+            research.calibri_nra3.test_s119q2i8q_true43m_EOS_rank4_decomp
+      - name: Original S93 immutable compact Core12 43M and GreenTunnel donors
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          run-id: 42681768394
+          path: inputs/s93
+          github-token: ${{ github.token }}
+      - name: Original physically pretrained S142 43M plus zero-gate GT12
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          run-id: 43078895081
+          path: inputs/s142
+          github-token: ${{ github.token }}
+      - name: Genuine q2d original neural Core NRA3 NPA1 trained FP16 parent
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2d-deeper-joint-native-96train-4epochs-original43m-GT-gate0
+          run-id: 45014239436
+          path: inputs/s119q2d
+          github-token: ${{ github.token }}
+      - name: Genuine q2f learned 6-layer causal projector joint FP16 parent
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2f-real43m-learned-causal-rank8-projector-96TRAIN2EPOCH-gate0
+          run-id: 45016558435
+          path: inputs/s119q2f
+          github-token: ${{ github.token }}
+      - name: PREVIOUS truly learned q2i1 complete Russian native+BPE+EOS FP16 child
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i1-real43m-Russian-fullanswer-nativeEOS-joint-train-DEV-gate0
+          run-id: 45021955235
+          path: inputs/s119q2i1
+          github-token: ${{ github.token }}
+      - name: Download real S119q2i3 previously trained full joint original43M GT12 recurrent/local physical A-B
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i3-original43m-joint-gt12-core-nra3-npa1-nativehead-3rounds-12TRAIN-12oldDEV-gate0
+          run-id: 45025930494
+          path: inputs/s119q2i3
+          github-token: ${{ github.token }}
+      - name: Load EXACT previously trained 3x Russian UTF8 recurrent FP16 child + GT12 original research state
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i6-original43m-UTF8-continuation-18TRAIN-6oldrehearsal-6newDEV-3round-gate0
+          run-id: 45029861943
+          path: inputs/s119q2i6
+          github-token: ${{ github.token }}
+      - name: Exact previously fitted Q2I7 1x full neural native child and GT12 12 scalar gates
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i7-original43m-UTF8-1x-vs-3x-causal-native-gate0
+          run-id: 45031056458
+          path: inputs/s119q2i7
+          github-token: ${{ github.token }}
+      - name: SHA-verified earlier physical Q2I8a two-epoch fitted neural FP16 child and original 12 GT gates
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8a-original43m-70newTRAIN-14newDEV-7domain-2epochs-gate0
+          run-id: 45032710580
+          path: inputs/s119q2i8a
+          github-token: ${{ github.token }}
+      - name: Preflight REAL 49152 native 40-token multiword DEV within original 160-token context
+        run: |
+          python - <<'PY'
+          from transformers import AutoTokenizer
+          from research.calibri_nra3.s119q2i8f_native_bpe_readiness import MODEL,REV,audit_tokenizer
+          from research.calibri_nra3.s119q2i8g_new_ru_multiword_dev_source import rows,verify
+          from research.calibri_nra3.s119q2i1_real43m_ru_language_head_joint_training import verified_native_answer
+          tok=AutoTokenizer.from_pretrained(MODEL,revision=REV)
+          assert verify()["original_new_author_heldout_DEV_count"]==14
+          actual=[]
+          for r in rows():
+              clean=dict(r)
+              clean["origin"]="original_newly_authored_examples_no_third_party_corpus"
+              p=verified_native_answer(tok,clean)
+              actual.append((r["id"],len(p["answer_native_with_eos"]),len(p["prefix"])))
+          print("S119Q2I8G_TRUE_NATIVE_NEW14_DEV_ANSWER_PLUS_EOS_LENGTHS",actual,flush=True)
+          assert all(n<=40 and prefix+39<160 for _,n,prefix in actual),"FAIL CLOSED: full multiword answer or own-generation context exceeds 40/160"
+          meta=audit_tokenizer(tok)
+          assert meta["pass_original_decoder_limits"]==70
+          assert len(meta["selected_balanced_21_TRAIN_IDS"])==21
+          PY
+      - name: Exact previous physically fitted S119q2i8d research CE child and 12 GT12 scalars
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8d-original43m-CE-vs-135mKL-utf8continuations-14newDEV-gate0
+          run-id: 45041388106
+          path: inputs/s119q2i8d
+          github-token: ${{ github.token }}
+      - name: Prior actual S119q2i8f pinned source-only 49152 tokenizer audit
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8f-70newTRAIN-native49152-readiness-no-model-gate0
+          run-id: 45050748148
+          path: inputs/s119q2i8f
+          github-token: ${{ github.token }}
+      - name: Exact true original43M completed Q2I8g CE and 135M-KL trained FP16 plus 12 GT gates
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8g-original43m-21multiword-CEvsKL-14newDEV-gate0
+          run-id: 45051305134
+          path: inputs/s119q2i8g
+          github-token: ${{ github.token }}
+      - name: EXACT completed original43M next21 unused TRAIN early23-135M-KL and new14 DEV physical FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8k-original43m-next21-TRAIN-early23-135mKL-14newDEV-gate0
+          run-id: 45054353996
+          path: inputs/s119q2i8k
+          github-token: ${{ github.token }}
+      - name: Deny any sealed GOLD or historical evaluation / production files
+        run: |
+          set -euo pipefail
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors
+          test -f inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors
+          test -f inputs/s119q2d/S119Q2D_DEEPER_REAL43M_GT_96TRAIN4EPOCH_NATIVE_POSITION_ABLATION.json
+          test -f inputs/s119q2d/S119Q2D_DEEPER_CONTEXTUAL_NATIVE_96TRAIN4EPOCH_GATE0_FP16.safetensors
+          test -f inputs/s119q2d/S119Q2D_DEEPER_LOCAL_NATIVE_96TRAIN4EPOCH_GATE0_FP16.safetensors
+          test -f inputs/s119q2f/S119Q2F_LEARNED_CAUSAL_PROJECTOR_NATIVE_JOINT_A_B_REPORT.json
+          test -f inputs/s119q2f/S119Q2F_CONTEXTUAL_CAUSAL_PROJECTOR_FP16_UNACCEPTED.safetensors
+          test -f inputs/s119q2f/S119Q2F_LOCAL_MATCHED_CAUSAL_PROJECTOR_FP16_UNACCEPTED.safetensors
+          test -f inputs/s119q2i1/S119Q2I1_REAL43M_RU_NATIVE_EOS_TRAIN_FREE_DEV_REPORT.json
+          test -f inputs/s119q2i1/S119Q2I1_CONTEXTUAL_CORE_NRA3_NPA1_HEAD_FP16_G0.safetensors
+          test -f inputs/s119q2i1/S119Q2I1_TOKEN_LOCAL_CORE_NRA3_NPA1_HEAD_FP16_G0.safetensors
+          test -f inputs/s119q2i3/S119Q2I3_GT12_NRA3_NPA1_NATIVEHEAD_3ROUNDS_OLDDEV_REPORT.json
+          test -f inputs/s119q2i3/S119Q2I3_RECURRENT_GT12_CORE_NRA3_NPA1_NATIVE_HEAD_FP16_G0.safetensors
+          test -f inputs/s119q2i3/S119Q2I3_LOCAL_GT12_CORE_NRA3_NPA1_NATIVE_HEAD_FP16_G0.safetensors
+          test -f inputs/s119q2i3/S119Q2I3_RECURRENT_GT12_12GATES_FP16_G0.safetensors
+          test -f inputs/s119q2i3/S119Q2I3_LOCAL_GT12_12GATES_FP16_G0.safetensors
+          test -f inputs/s119q2i6/S119Q2I6_REAL43M_FULL_NATIVE_UTF8_3ROUNDS_NEWDEV_OLDDEV_G0.json
+          test -f inputs/s119q2i6/S119Q2I6_GT12_RECURRENT_JOINT_UTF8_FP16_G0.safetensors
+          test -f inputs/s119q2i6/S119Q2I6_GT12_RECURRENT_UTF8_GATES_FP16_G0.safetensors
+          test -f inputs/s119q2i7/S119Q2I7_TRUE_ORIGINAL43M_BYTE_CONTINUATION_UNIFORM_vs_UPWEIGHTED.json
+          test -f inputs/s119q2i7/S119Q2I7_UNIFORM1X_GT12_NRA3_NPA1_NATIVEHEAD_FP16_G0.safetensors
+          test -f inputs/s119q2i7/S119Q2I7_UNIFORM1X_GT12_RECURRENT_GATES_FP16_G0.safetensors
+          test -f inputs/s119q2i8a/S119Q2I8A_ORIGINAL43M_RU70_FULL_NATIVE_EOS_GT12_JOINT_AB_REPORT.json
+          test -f inputs/s119q2i8a/S119Q2I8A_RECURRENT_GT12_CORE_NRA3_NPA1_NATIVE_FP16_G0.safetensors
+          test -f inputs/s119q2i8a/S119Q2I8A_RECURRENT_GT12_12GATES_FP16_G0.safetensors
+          test -f inputs/s119q2i8d/S119Q2I8D_REAL43M_NATIVE_BPE_TEACHERKL_UTF8_VS_CEONLY_REPORT.json
+          test -f inputs/s119q2i8d/S119Q2I8D_CE_ONLY_ORIGINAL43M_JOINT_NEURAL_FP16_G0.safetensors
+          test -f inputs/s119q2i8d/S119Q2I8D_CE_ONLY_ORIGINAL43M_GT12_FP16_G0.safetensors
+          test -f inputs/s119q2i8f/S119Q2I8F_ORIGINAL49152_TOKENIZER_READINESS_TRAINONLY_G0.json
+          test -f inputs/s119q2i8g/S119Q2I8G_REAL43M_NATIVE_BPE_TEACHERKL_UTF8_VS_CEONLY_REPORT.json
+          test -f inputs/s119q2i8g/S119Q2I8G_CE_ONLY_ORIGINAL43M_JOINT_NEURAL_FP16_G0.safetensors
+          test -f inputs/s119q2i8g/S119Q2I8G_SOFT135M_UTF8KL_ORIGINAL43M_JOINT_NEURAL_FP16_G0.safetensors
+          test -f inputs/s119q2i8g/S119Q2I8G_CE_ONLY_ORIGINAL43M_GT12_FP16_G0.safetensors
+          test -f inputs/s119q2i8g/S119Q2I8G_SOFT135M_UTF8KL_ORIGINAL43M_GT12_FP16_G0.safetensors
+          test -f inputs/s119q2i8k/S119Q2I8K_REAL43M_EARLY23BPE_TEACHERKL_VS_CEONLY_REPORT.json
+          test -f inputs/s119q2i8k/S119Q2I8K_CE_ONLY_ORIGINAL43M_JOINT_NEURAL_FP16_G0.safetensors
+          test -f inputs/s119q2i8k/S119Q2I8K_SOFT135M_EARLY23KL_ORIGINAL43M_JOINT_NEURAL_FP16_G0.safetensors
+          test -f inputs/s119q2i8k/S119Q2I8K_CE_ONLY_ORIGINAL43M_GT12_FP16_G0.safetensors
+          test -f inputs/s119q2i8k/S119Q2I8K_SOFT135M_EARLY23KL_ORIGINAL43M_GT12_FP16_G0.safetensors
+          if find inputs -type f | grep -Ei 'S116|S117|S118|SynTagRusB|GOLD_LABEL|_UD_GOLD|EVAL128|DEV_PROMPTS|APK'; then
+            echo "Protected GOLD/spent evaluation and production inputs forbidden" && exit 1
+          fi
+      - name: PHYSICAL actual original43M rank4 native EOS-vs-gold first-token static bias versus contextual U-D causal attribution 14 spent DEV
+        run: |
+          python -m research.calibri_nra3.s119q2i8q_true43m_EOS_vs_gold_head_lowrank_causal \
+            --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            --side inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            --s142 inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            --q2d-dir inputs/s119q2d \
+            --q2f-dir inputs/s119q2f \
+            --q2i1-dir inputs/s119q2i1 \
+            --q2i3-dir inputs/s119q2i3 \
+            --q2i7-dir inputs/s119q2i7 \
+            --q2i8a-dir inputs/s119q2i8a \
+            --q2i8d-dir inputs/s119q2i8d \
+            --q2i8g-dir inputs/s119q2i8g \
+            --q2i8k-dir inputs/s119q2i8k \
+            --out results/s119q2i8q_physical_firstBPE_EOS_rank4_context_decomposition
+      - name: Save JSON-only real 43M rank4 native first-EOS sourceBPE causal component attribution, no weights
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2i8q-real43m-EOS-vs-gold-bias-vs-lowrank-context-native-gate0
+          path: results/s119q2i8q_physical_firstBPE_EOS_rank4_context_decomposition/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Strict source-only research PR bounded changes
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} >/tmp/calibri_changed
+          if grep -Ev '^(research/calibri_nra3/s119q2i8q_true43m_EOS_vs_gold_head_lowrank_causal.py|research/calibri_nra3/test_s119q2i8q_true43m_EOS_rank4_decomp.py|\.github/workflows/calibri-nra3-s119q2i8q-EOS-rank4-lowrank-physical.yml)$' /tmp/calibri_changed; then
+            echo 'RESEARCH-only scope violation' >&2
+            exit 1
+          fi
