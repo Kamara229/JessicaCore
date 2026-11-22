@@ -379,8 +379,195 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
           and original_fitted.output_gate==0
           and original_fitted.candidate_accepted is False,
           "both X arms continue from same W physically saved x3 true43M source")
-    # S119q2i8z read-only true original43M models: body injected below.
-    # PLACEHOLDER_Z_ACTUAL_FULL_NATIVE_CONTEXT_CAUSAL_STUDY
+    # Precommit completed physical X original43M neural child, original 12GT
+    # and every synthetic X14 prompt was already scored in #960.
+    x_path=q2i8x_dir/X_REPORT
+    x_report=json.loads(x_path.read_text(encoding="utf8"))
+    check(x_report["stage"]==X_STAGE and
+          x_report["candidate_accepted"] is False and
+          x_report["output_gate"]==0 and
+          x_report["completed_W_original43M_fulljoint_report_sha256"]==
+              sha(q2i8w_dir/W_REPORT) and
+          x_report["completed_W_421793_full_neural_FP16_sha256"]==
+              sha(q2i8w_dir/W_EARLY_FP16) and
+          x_report["completed_W_12GT_trained_FP16_sha256"]==
+              sha(q2i8w_dir/W_EARLY_GATES) and
+          x_report["new_X21_TRAIN_source_sha256"]==x_source["X21_TRAIN_sha256"] and
+          x_report["new_X14_DEV_source_sha256"]==x_source["X14_DEV_sha256"] and
+          x_report["original_S142_43M_sha256"]==sha(s142) and
+          x_report["original_S93_GT_sha256"]==sha(s93) and
+          x_report["matched_true43M_all_joint_368051_A_B_from_identical_W_FP16_and_GT12"] is True and
+          x_report["actual_original_S142_43M_12GT_native_49152_training_forwards"]==1350 and
+          x_report["actual_original_S142_43M_12GT_native_49152_OWN_forwards"]==1355 and
+          x_report["prior_protected_S115_53751_unchanged"] is True,
+          "exact completed research X full original43M/GT12 actual parent and X synthetic DEV SHA")
+    meta=x_report["persisted_A_B_original43M_FULL_neural_and_12GT_FP16_gate0"]
+    check(set(meta)=={"CE_EARLY23_X3_joint_FP16",
+                       "EARLY23_X3_HARDNEG_joint_FP16",
+                       "CE_EARLY23_X3_GT12",
+                       "EARLY23_X3_HARDNEG_GT12"},
+          "exact A/B original trained FP16 421793 and 12 GT scalars X gate0")
+    ce=full_saved_child(q2i8x_dir/X_CE_FP16,
+                         meta["CE_EARLY23_X3_joint_FP16"],original_fitted)
+    hard=full_saved_child(q2i8x_dir/X_HARDNEG_FP16,
+                           meta["EARLY23_X3_HARDNEG_joint_FP16"],original_fitted)
+    gt_ce=full_saved_gt(q2i8x_dir/X_CE_GATES,meta["CE_EARLY23_X3_GT12"])
+    gt_hard=full_saved_gt(q2i8x_dir/X_HARDNEG_GATES,
+                           meta["EARLY23_X3_HARDNEG_GT12"])
+    check(gt.shape==gt_ce.shape==gt_hard.shape==(12,) and
+          all(child.output_gate==0 and child.candidate_accepted is False
+              for child in (original_fitted,ce,hard)),
+          "3 exact physical research full FP16 native models and GT12 sidecars gate0")
+    arms={
+        MODELS[0]:(original_fitted,gt),
+        MODELS[1]:(ce,gt_ce),
+        MODELS[2]:(hard,gt_hard),
+    }
+    scored=x_report["fresh_14X_INTERNAL_DEV_plus6_old_FULL_OWN_native_autoregressive"]
+    check(set(arms)==set(MODELS) and
+          len(newdev)==NEW_HELDOUT_DEV and
+          set(z["id"] for z in newdev)==set(
+              r["source_id"] for r in scored[MODELS[1]]["NEW_DEV"]["OWN_samples"]),
+          "only same 14 X DEV already scored as own native BPE in successful 43M X")
+    model,sources,bridge,full,expansion=load_actual_original(s93,side,s142)
+    model.model.add_module("nra3_s119m_onpath",ce)
+    model.eval()
+    initial_original_digest=old_original_param_digest(model)
+    full_start={k:v.detach().cpu().clone() for k,v in full.state_dict().items()}
+    children_start={
+        name:{k:v.detach().cpu().clone() for k,v in child.state_dict().items()}
+        for name,(child,_) in arms.items()
+    }
+    start_regions={
+        name:child.child.child.midlayer_gates.detach().clone()
+        for name,(child,_) in arms.items()
+    }
+    native_full_gt_gate_contract(full,bridge)
+    check(all(v.shape==(3,) and bool(torch.isfinite(v).all())
+              for v in start_regions.values()),
+          "existing CORE NRA3 NPA1 midlayer original three gates present")
+    check(all(not p.requires_grad for name,p in model.named_parameters()
+              if "nra3_s119m_onpath" not in name),
+          "TRUE original 43M frozen and research-only X native child loaded")
+    records=[]
+    try:
+        for arm,(child,saved_gates) in arms.items():
+            check(saved_gates.shape==(12,) and
+                  bool(torch.isfinite(saved_gates).all()),
+                  "original GT12 full saved physical gates loaded")
+            for example in newdev:
+                gold=example["answer_native_with_eos"]
+                target=int(gold[1])
+                check(example["split"]=="DEV" and
+                      example["id"].startswith("S119Q2I8X_") and
+                      len(gold)>=4 and target!=tok.eos_token_id and
+                      len(example["prefix"])+1<160,
+                      "same already spent 14 X synthetic RU DEV gold second position only")
+                prefix=example["prefix"]+gold[:1]
+                baseline=None
+                for label in CONDITIONS:
+                    route,gt_scale,gain,mask=config(label)
+                    set_gt_route(full,route,saved_gates*gt_scale)
+                    with temporary_gate_mask(child.child.child,mask):
+                        with scoped_exact_native_gain(child.language_head,float(gain)) as counted:
+                            logits=real_joint_native(
+                                model,sources,bridge,full,expansion,child,prefix,
+                                example["prompt_features"],contextual=True)
+                    check(counted[0]==1 and
+                          full.last_forward_coverage==tuple(range(12)) and
+                          not full._active and full._carry is None and
+                          logits.shape==(1,NATIVE_VOCAB),
+                          "TRUE one physical 43M 12GT all-region 49152 native BPE pass")
+                    vec=logits.detach().float().cpu().reshape(-1)
+                    check(bool(torch.isfinite(vec).all()),
+                          "actual 49,152 native logits finite without posthoc masking")
+                    result=real_native_rank(logits,target)
+                    if label==FULL:
+                        baseline=vec.clone()
+                    check(baseline is not None and baseline.shape==(NATIVE_VOCAB,),
+                          "same-model and same-X-synthetic-prompt full baseline precedes toggles")
+                    linf=float((vec-baseline).abs().max().item())
+                    records.append({
+                        "model":arm,
+                        "source_id":example["id"],
+                        "source_prompt_SHA256":example["prompt_sha256"],
+                        "condition":label,
+                        "GT_route":route,
+                        "GT_gate_scale":gt_scale,
+                        "native_rank4_head_gain":gain,
+                        "predeclared_Core_NRA3_NPA1_gate_mask":list(mask),
+                        "gold_BPE_target_native_id":target,
+                        "gold_49152_BPE_rank":result[
+                            "correct_gold_native_rank_full49152"],
+                        "gold_49152_BPE_NLL":-result[
+                            "gold_log_probability_native_49152"],
+                        "gold_top1":result["gold_native_top1"],
+                        "gold_top5":result["correct_gold_rank_top5"],
+                        "predicted_BPE_id":result["greedy_original_native_id"],
+                        "winner_is_EOS":result["greedy_original_native_id"]==int(tok.eos_token_id),
+                        "original_full49152_logit_Linf_delta_vs_FULL":linf,
+                        "source_is_ALREADY_SPENT_synthetic_DEV":True,
+                        "teacher_forced_PREVIOUS_gold_BPE_not_own":True,
+                    })
+                    del logits,vec,result
+    finally:
+        with torch.no_grad():
+            for k,v in full_start.items():
+                full.state_dict()[k].copy_(v)
+        for p in full.parameters():
+            p.requires_grad_(False)
+    check(old_original_param_digest(model)==initial_original_digest and
+          all(torch.equal(full.state_dict()[k].detach().cpu(),v)
+              for k,v in full_start.items()) and
+          all(torch.equal(child.state_dict()[k].detach().cpu(),value)
+              for name,(child,_) in arms.items()
+              for k,value in children_start[name].items()) and
+          all(torch.equal(start_regions[name],child.child.child.midlayer_gates.detach())
+              for name,(child,_) in arms.items()),
+          "all S142 43M, full GT12 original donor and W/X complete trained child params bitwise restored")
+    check(len(records)==EXPECTED_REAL_ORIGINAL_43M_FORWARDS==336,
+          "exact 336 real original 43M 12GT native49152 second-BPE forwards")
+    aggregate_results=aggregate(records)
+    out.mkdir(parents=True)
+    report={
+        "stage":STAGE,
+        "completed_X_real_original43M_report_SHA256":sha(x_path),
+        "completed_W_original43M_parent_report_SHA256":sha(q2i8w_dir/W_REPORT),
+        "new_X14_now_SPENT_source_SHA256":x_source["X14_DEV_sha256"],
+        "original_S142_43M_sha256":sha(s142),
+        "original_S93_GT_sha256":sha(s93),
+        "original_frozen43M_and_all_three_research_FP16_model_and_GT12_weights_preserved":True,
+        "three_completed_original43M_FULL_421793FP16_neural_and_real12GT_gates_verified":True,
+        "original43M_GT12_layer_coverage_all12_each_forward":True,
+        "real_original43M_full_native49152_gold_second_prefix_actual_physical_forwards":len(records),
+        "registered_8_component_and_native_readout_conditions":list(CONDITIONS),
+        "X14_synthetic_AUTHOR_DEV_already_spent_teacherforced_gold_PREVIOUS_BPE_NOT_OWN":True,
+        "gain0_only_removes_learned_output_delta_NOT_internal_onpath_regions":True,
+        "original_Core_NRA3_NPA1_existing_three_gates_reversible":True,
+        "full_native49152_original43M_context_CE_rank_top1_and_ablation_deltas":aggregate_results,
+        "per_source_14x3x8_actual_original43M_logit_rank_and_ce_records":records,
+        "NO_optimizer_training_backward_or_new_135M_teacher":True,
+        "NO_protected_616J7_EVAL128_GOLD_bpp_CPU_verified":True,
+        "NO_LIVE_Render_Supabase_APK_main_Jessica_chat":True,
+        "candidate_accepted":False,
+        "output_gate":0,
+        "decision":"CAUSAL_GT12_REGION_NATIVE_HEAD_SECOND_BPE_DIAG_ONLY_NO_PROMOTION",
+    }
+    (out/REPORT).write_text(json.dumps(
+        report,sort_keys=True,ensure_ascii=False,indent=2)+"\n",encoding="utf8")
+    print("S119Q2I8Z_TRUE43M_336_GOLD_SECOND_NATIVE_CONTEXT_CAUSAL "+json.dumps({
+        "original43M_native49152_actual_forwards":len(records),
+        "actual_three_trained_FP16_and_8_reversible_causal_controls":{
+            name:{control:{k:vals[k] for k in (
+                "gold_second_BPE_top1","gold_second_BPE_top5",
+                "mean_gold_second_native_rank","mean_gold_second_NLL_nats",
+                "wrong_gold_second_native_EOS_pred",
+                "top1_winner_CHANGED_vs_FULL_same_source",
+                "mean_abs_native_logit_Linf_CHANGE_vs_FULL")}
+                for control,vals in state.items()}
+            for name,state in aggregate_results.items()},
+        "candidate_accepted":False,
+    },sort_keys=True,ensure_ascii=False),flush=True)
 
 
 def main():
