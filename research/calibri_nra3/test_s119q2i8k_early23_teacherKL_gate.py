@@ -19,8 +19,8 @@ class TestTrueReal43mEarlyTeacherKL(unittest.TestCase):
         gold=[155,100,201,2]
         with self.assertRaises(Exception):
             teacher_kl_only_secondthird_gold_target(1,999,gold,2)
-        with self.assertRaises(Exception):
-            teacher_kl_only_secondthird_gold_target(2,2,[155,100,2],2)
+        self.assertFalse(teacher_kl_only_secondthird_gold_target(2,2,[155,100,2],2))
+        self.assertTrue(teacher_kl_only_secondthird_gold_target(1,100,[155,100,2],2))
     def test_05_source_only_no_accidental_loss_of_native_eos(self):
         gold=[155,100,201,202,2]
         self.assertEqual([i for i,x in enumerate(gold)
