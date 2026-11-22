@@ -138,12 +138,14 @@ def prepare_new(tok,row):
     return result
 
 
-def native_train_weights(tok,answer_native_with_eos):
+def native_train_weights(tok,answer_native_with_eos,*,continuation_weight=CONTINUATION_WEIGHT):
     """Upweight ONLY the gold *next* BPE after an incomplete UTF8 prefix."""
     check(type(answer_native_with_eos) is list
           and len(answer_native_with_eos)>=2
           and answer_native_with_eos[-1]==tok.eos_token_id,
           "complete correct original native BPE including terminal EOS")
+    check(continuation_weight in (1.0,3.0),
+          "controlled q2i7 continuation weight 1x/3x only")
     weights=[];statuses=[]
     for t in range(len(answer_native_with_eos)):
         prior=answer_native_with_eos[:t]  # past gold ONLY
@@ -153,22 +155,22 @@ def native_train_weights(tok,answer_native_with_eos):
             "VALID_COMPLETE_UTF8",
             "INCOMPLETE_UTF8_NEEDS_CONTINUATION",
         ),"correct target BPE must never have INVALID UTF8 earlier prefix")
-        weight=(CONTINUATION_WEIGHT
+        weight=(continuation_weight
                 if state=="INCOMPLETE_UTF8_NEEDS_CONTINUATION" else 1.0)
         if t==len(answer_native_with_eos)-1:
             check(state=="VALID_COMPLETE_UTF8",
                   "native EOS cannot follow incomplete Russian multi-byte character")
         weights.append(weight)
         statuses.append(state)
-    check(all(x in (1.,CONTINUATION_WEIGHT) for x in weights)
+    check(all(x in (1.,continuation_weight) for x in weights)
           and len(weights)==len(answer_native_with_eos),
           "fixed predeclared weighting on previous gold native UTF8 only")
     return weights,statuses
 
 
 def train_true_joint(model,sources,bridge,full,expansion,child,train,tok,
-                     *,condition):
-    check(condition in CONDITIONS and
+                     *,condition,continuation_weight=CONTINUATION_WEIGHT):
+    check(continuation_weight in (1.0,3.0) and condition in CONDITIONS and
           len(train)==TOTAL_TRAIN and
           Counter(x["split"] for x in train)=={"TRAIN":TOTAL_TRAIN}
           and sum(x["id"].startswith("S119Q2I6_") for x in train)==NEW_TRAIN,
@@ -208,7 +210,8 @@ def train_true_joint(model,sources,bridge,full,expansion,child,train,tok,
         all_ce=[];all_cont_ce=[];all_eos_ce=[];epoch_forwards=0
         for row in train:
             gold=row["answer_native_with_eos"]
-            weights,statuses=native_train_weights(tok,gold)
+            weights,statuses=native_train_weights(tok,gold,
+                continuation_weight=continuation_weight)
             opt.zero_grad(set_to_none=True)
             with scoped_reduced_native_head_gain(head) as witness:
                 for t,target in enumerate(gold):
@@ -283,7 +286,7 @@ def train_true_joint(model,sources,bridge,full,expansion,child,train,tok,
         "condition":condition,
         "rounds":epoch_reports,
         "trained_original_decoder_calls":forwards,
-        "native_byte_continuation_weight":CONTINUATION_WEIGHT,
+        "native_byte_continuation_weight":continuation_weight,
         "count_weighted_native_byte_continuation_targets_across_all_epochs":
             continuation_targets,
         "real_all_neural_and_gt_Adam_updates":steps,
