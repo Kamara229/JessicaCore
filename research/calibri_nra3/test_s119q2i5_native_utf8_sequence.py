@@ -12,7 +12,7 @@ import torch
 
 from research.calibri_nra3.s119a_hard_four_goals import GateFailure
 from research.calibri_nra3.s119q2i5_real43m_own_vs_gold_utf8_sequence import (
-    utf8_byte_tail_status,first_divergence,decode_step_metrics,
+    utf8_byte_tail_status,native_bytelevel_full_utf8_status,first_divergence,decode_step_metrics,
     summarize_sequences,STAGE,SOURCE_COUNT,MAX_SELF_TOKENS,
     MAX_GOLD_TARGET_TOKENS,MODELS,BYTE_PIECE_PATTERN,
     VOCAB_SIZE,
@@ -194,6 +194,69 @@ class S119Q2I5NativeUtf8CausalAuditContracts(TestCase):
         self.assertIn("FIRST_DIVERGENCE",STAGE)
         self.assertEqual(SOURCE_COUNT,6)
         self.assertEqual(VOCAB_SIZE,49152)
+
+
+    def test_20_original_bytelevel_raw_D0_not_literal_hex_piece_is_incomplete(self):
+        class RealBytelevel(TinyNative):
+            def convert_ids_to_tokens(self,x):
+                return {155:"Ð",201:"Ĳ",247:"Ŀ",32547:"ÐµÑĤ",
+                        30:".",2:"<|im_end|>"}.get(
+                    x,super().convert_ids_to_tokens(x))
+        tok=RealBytelevel()
+        s=native_bytelevel_full_utf8_status(tok,[155])
+        self.assertEqual(s["original_reconstructed_byte_prefix_hex"],"D0")
+        self.assertEqual(
+            s["entire_original_native_BPE_prefix_UTF8_status"],
+            "INCOMPLETE_UTF8_NEEDS_CONTINUATION")
+
+    def test_21_original_bytelevel_second_real_piece_completes_Russian(self):
+        class RealBytelevel(TinyNative):
+            def convert_ids_to_tokens(self,x):
+                return {155:"Ð",201:"Ĳ",247:"Ŀ",32547:"ÐµÑĤ",
+                        30:".",2:"<|im_end|>"}.get(
+                    x,super().convert_ids_to_tokens(x))
+        tok=RealBytelevel()
+        a=native_bytelevel_full_utf8_status(tok,[155,201])
+        self.assertEqual(a["original_reconstructed_byte_prefix_hex"],"D090")
+        self.assertEqual(
+            a["entire_original_native_BPE_prefix_UTF8_status"],
+            "VALID_COMPLETE_UTF8")
+        b=native_bytelevel_full_utf8_status(tok,[155,247,32547,30,2])
+        self.assertEqual(
+            bytes.fromhex(b["original_reconstructed_byte_prefix_hex"]).decode(
+                "utf8"),"Нет.")
+        self.assertEqual(
+            b["entire_original_native_BPE_prefix_UTF8_status"],
+            "VALID_COMPLETE_UTF8")
+
+    def test_22_original_bytelevel_repeated_D0_first_bytes_are_INVALID(self):
+        class RealBytelevel(TinyNative):
+            def convert_ids_to_tokens(self,x):
+                return {155:"Ð",30:"."}.get(
+                    x,super().convert_ids_to_tokens(x))
+        tok=RealBytelevel()
+        a=native_bytelevel_full_utf8_status(tok,[155,155])
+        self.assertEqual(
+            a["entire_original_native_BPE_prefix_UTF8_status"],
+            "INVALID_UTF8_SEQUENCE")
+        b=native_bytelevel_full_utf8_status(tok,[155,30])
+        self.assertEqual(
+            b["entire_original_native_BPE_prefix_UTF8_status"],
+            "INVALID_UTF8_SEQUENCE")
+
+    def test_23_original_bytelevel_space_and_punctuation_are_full_UTF8(self):
+        class RealBytelevel(TinyNative):
+            def convert_ids_to_tokens(self,x):
+                return {30:".",90:"Ġ",91:"A"}.get(
+                    x,super().convert_ids_to_tokens(x))
+        tok=RealBytelevel()
+        s=native_bytelevel_full_utf8_status(tok,[90,91,30])
+        self.assertEqual(
+            bytes.fromhex(s["original_reconstructed_byte_prefix_hex"]),
+            b" A.")
+        self.assertEqual(
+            s["entire_original_native_BPE_prefix_UTF8_status"],
+            "VALID_COMPLETE_UTF8")
 
 
 if __name__=="__main__":
