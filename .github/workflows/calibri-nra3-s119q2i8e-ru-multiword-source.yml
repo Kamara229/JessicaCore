@@ -1,0 +1,36 @@
+name: Calibri S119q2i8e new Russian multiword TRAIN provenance (no models)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8d-original43m-softteacher-utf8-continue-20261122
+permissions:
+  contents: read
+jobs:
+  new-original-Russian-70-TRAIN-source-contract:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8e-fresh-multiword-ru-train-contract-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact research PR head (no deploy)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate source and fail-closed split and overlap tests (standard library)
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8e_ru_multiword_source
+          python -m research.calibri_nra3.s119q2i8e_new_ru_multiword_train_source
+      - name: Verify no model weights, service or external evaluation access
+        run: |
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | tee /tmp/changed.txt
+          if grep -Ev '^(research/calibri_nra3/s119q2i8e_new_ru_multiword_train_source.py|research/calibri_nra3/test_s119q2i8e_ru_multiword_source.py|.github/workflows/calibri-nra3-s119q2i8e-ru-multiword-source.yml)$' /tmp/changed.txt; then
+            echo 'Forbidden file change detected' >&2
+            exit 1
+          fi
