@@ -1,18 +1,16 @@
-"""S119q2i8d actual original43M joint-language training: CE vs CE+135M KL.
-
-Two ORIGINAL physical 43M full-BPE native 49,152-candidate models
-starting from EXACT same q2i8a fitted Core/NRA3/NPA1/GT12 FP16 weights
-and native 12 GT12 gates. NO additional neural mini areas introduced.
-A= CE-only; B= same CE + fixed 0.25*T² KL(source135M||student43M)
-ONLY at teacher-forced TRAIN native BPE positions following an
-INCOMPLETE UTF-8 byte prefix, NEVER at native EOS. Teacher is real
-pinned SmolLM2-135M-Instruct frozen and never semantic QA oracle.
-Train 70 Q2I8a original authored TRAIN + six q2i1 old TRAIN ONLY,
-ONE epoch and exactly matched optimizer, native EOS, learning rates,
-368051 trainable child neural+GT12 gates, no original 43M training.
-New heldout is 14 wholly new authored DEV from Q2I8d; tiny internal
-and visible (NOT independent blind), plus 6 previously spent old DEV
-regression-only. No DEV ever participates in optimizer or KL.
+"""S119q2i8g physical original 43M / GT12 / Core / NRA3 / NPA1 research.
+One bounded 21 NEW S119q2i8e originally authored Russian 3+-word TRAIN
+subround selected by precommitted pinned 49152 native-tokenizer S119q2i8f
+source-only readiness gate, plus exactly 6 earlier TRAIN rehearsal.
+Both arms start from EXACT same SHA-verified completed S119q2i8d CE_ONLY
+neural FP16 + physical 12 original Green Tunnel gate scalars.
+A full native 49152 BPE + author EOS cross entropy; B exactly same
+optimizer/data/params/epochs plus 0.25*T² T=2 source135M KL ONLY following
+gold incomplete Cyrillic UTF8 byte prefixes, NEVER at native EOS.
+NEW source-disjoint 14 author-created multiword DEV own-token generation,
+plus six OLD scored DEV regression-only. NOT independently blinded.
+No original pretrained weight update, no protected 616 J7 or bpp/CPU pass,
+no LIVE/main/Render/Supabase/Jessica agent. candidate_accepted=False.
 """
 from __future__ import annotations
 import argparse
@@ -353,7 +351,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,q2i8d
                 model,sources,bridge,full,expansion,child,train,tok,
                 condition="GT_RECURRENT",continuation_weight=1.0,
                 expected_total=TRAIN_ROWS,expected_new=ORIGINAL_NEW_TRAIN,
-                new_id_prefix="S119Q2I8A_",rounds=ROUNDS,
+                new_id_prefix="S119Q2I8E_",rounds=ROUNDS,
                 teacher_135m=teacher_for_arm,teacher_KL_weight=kl_weight)
             new_gates[label]=full.gates.detach().clone()
             check(training[label]["real_all_neural_and_gt_Adam_updates"]==TRAIN_ROWS
@@ -417,6 +415,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,q2i8d
         "previous_physical_Q2I8d_parent_report_SHA256":sha(q2i8d_dir/PREV_REPORT),
         "registered_new_14_original_author_DEV_SHA":holdout["source_new_DEV_sha256"],
         "all_trained_rows_are_SOURCE_SELECTED_21_NEW_TRAIN_plus_6_old_TRAIN":True,
+        "initial_research_child_Q2I8d_CE_ONLY_warmstart_not_prior_q2i8a":True,
         "no_original_q2i8a_or_other_previous_DEV_in_teacher_or_Adam":True,
         "two_matched_368051_param_GT12_Core_NRA3_NPA1_languagehead_optimizer_arms":True,
         "matched_current_architecture_NO_new_neural_areas":True,
@@ -438,6 +437,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,q2i8d
         "original_S142_and_teacher135m_UNCHANGED":True,
         "previous_q2i8a_parent_neural_FP16_UNCHANGED":True,
         "source_teacher_IS_NOT_correct_QA_answer_ORACLE":True,
+        "source_teacher_KL_never_on_native_EOS":True,
         "new_DEV_is_small_VISIBLE_internal_NOT_external_blind":True,
         "new_DEV_14_source_disjoint_new_training_multiword_prompts":True,
         "no_full_protected_616_J7_EOS_or_all_in_packed_bpp_KV_CPU":True,
