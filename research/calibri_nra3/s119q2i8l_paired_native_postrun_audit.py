@@ -15,14 +15,14 @@ from pathlib import Path
 
 STAGE="CALIBRI_S119Q2I8L_RESEARCH_ONLY_PAIRED_OWN_NATIVE_POSTRUN_AUDIT"
 EXPECTED_STAGE="CALIBRI_S119Q2I8K_REAL43M_FRESH_NEXT21_MULTIWORD_CE_VS_SOURCE135M_KL_2ND3RD_BPE"
-BASE="PRIOR_Q2I8G_CE_FROZEN_PARENT"  # historical key, physically S119q2i8d CE parent
+BASE="PRIOR_Q2I8G_CE_FROZEN_PARENT"  # exact physical completed prior S119q2i8g CE native child
 A="CE_ONLY"
 B="SOURCE135M_SECONDTHIRD_BPE_KL"
 ARMS=(BASE,A,B)
 SPLITS=(("NEW_DEV",14),("OLD_DEV",6))
 FLAGS=(
  "all_trained_rows_are_SOURCE_UNUSED_NEXT21_NEW_TRAIN_plus_6_old_TRAIN",
- "initial_research_child_Q2I8k_CE_ONLY_warmstart",
+ "initial_research_child_Q2I8g_CE_ONLY_warmstart",
  "no_previous_DEV_G_or_OTHER_in_teacher_or_Adam",
  "two_matched_368051_param_GT12_Core_NRA3_NPA1_languagehead_optimizer_arms",
  "matched_current_architecture_NO_new_neural_areas",
@@ -155,7 +155,11 @@ def analyse(report):
             second["trained_original_decoder_calls"]>27,
             "same physical ORIGINAL 43M full 49k passes")
     require(first["physical_SOURCE135M_native_forward_calls_at_gold_secondthird_BPE_ONLY"]==0
-            and second["physical_SOURCE135M_native_forward_calls_at_gold_secondthird_BPE_ONLY"]>0,
+            and second["physical_SOURCE135M_native_forward_calls_at_gold_secondthird_BPE_ONLY"]==
+            second["expected_per_epoch_early23_teacher_eligible_native_BPE"]
+            and first["expected_per_epoch_early23_teacher_eligible_native_BPE"]==
+                second["expected_per_epoch_early23_teacher_eligible_native_BPE"]
+            and 0 < second["expected_per_epoch_early23_teacher_eligible_native_BPE"] <= 54,
             "source 135M must be used only on KL arm")
     ev=report["physical_OWN_sixdomain_new_and_old_DEV"]
     require(set(ev)==set(ARMS),"require frozen parent + two trained paired children")
