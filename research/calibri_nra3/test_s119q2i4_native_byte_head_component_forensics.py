@@ -172,7 +172,7 @@ class S119Q2I4NativeByteReadoutCausalContracts(TestCase):
         result=inspect_native(FakeNative(),a,201)
         self.assertEqual(result["native_top1_id"],155)
         self.assertEqual(result["correct_first_native_rank_49152"],2)
-        self.assertFalse(result["correct_first_native_in_top12"])
+        self.assertTrue(result["correct_first_native_in_top12"])
         self.assertEqual(result["native_top1_tokenizer_raw"],"<0x9B>")
 
     def test_12_native_gold_out_of_vocab_or_NaN_fails_closed(self):
