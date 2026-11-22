@@ -18,13 +18,16 @@ import numpy as np
 from research.calibri_nra3.s119q2i8m_fp16_early23_delta_forensics import (
     quantized_diff,checked_safetensors,
 )
-from research.calibri_nra3.s119q2i8r_real43m_head_only_supervised_EOS_AB import (
-    STAGE as R_STAGE,REPORT as R_REPORT,
-    CE_FP16,MARGIN_FP16,ARMS as R_ARMS,
-)
-from research.calibri_nra3.s119q2i8k_real43m_secondthird_joint_train_ab import (
-    STAGE as K_STAGE,REPORT as K_REPORT,KL_FP16,
-)
+# Pin the *completed* research report ABI; do not import heavyweight
+# torch/transformers model-training modules in this read-only forensic.
+R_STAGE="CALIBRI_S119Q2I8R_REAL43M_34_UNUSED_TRAIN_RANK4_HEAD_EOS_MARGIN_CAUSAL_AB"
+R_REPORT="S119Q2I8R_REAL43M_RANK4_HEAD_ONLY_GAIN1_EOS_CE_VS_MARGIN_G0.json"
+CE_FP16="S119Q2I8R_REAL43M_NATIVE_HEAD_GAIN1_CE_ONLY_FP16_G0.safetensors"
+MARGIN_FP16="S119Q2I8R_REAL43M_NATIVE_HEAD_GAIN1_CE_PLUS_EOS_MARGIN_FP16_G0.safetensors"
+R_ARMS=("BASELINE_CE_ONLY","TRAIN_ONLY_SUPERVISED_EOS_MARGIN")
+K_STAGE="CALIBRI_S119Q2I8K_REAL43M_FRESH_NEXT21_MULTIWORD_CE_VS_SOURCE135M_KL_2ND3RD_BPE"
+K_REPORT="S119Q2I8K_REAL43M_EARLY23BPE_TEACHERKL_VS_CEONLY_REPORT.json"
+KL_FP16="S119Q2I8K_SOFT135M_EARLY23KL_ORIGINAL43M_JOINT_NEURAL_FP16_G0.safetensors"
 
 STAGE="CALIBRI_S119Q2I8S_TRUE_FP16_HEAD_ONLY_EOS_MARGIN_VS_CE_PAIRED_AUDIT"
 CHILD=421793
