@@ -1,0 +1,46 @@
+name: Calibri S119q2i8f real original ByteLevel 49152 native-token readiness only
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8e-fresh-multiword-ru-train-contract-20261122
+permissions:
+  contents: read
+jobs:
+  native-bpe-full-sentence-readiness:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8f-true-native-bpe-readiness-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research:research/calibri
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - name: Checkout immutable draft research SHA, no write credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact read-only tokenizer source prerequisites
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'tokenizers==0.20.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Registered original source contracts
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8e_ru_multiword_source research.calibri_nra3.test_s119q2i8f_native_bpe_readiness
+      - name: True native tokenizer full-answer +EOS feasibility and UTF8 audit
+        run: |
+          python -m research.calibri_nra3.s119q2i8f_native_bpe_readiness \
+            --out results/S119Q2I8F_ORIGINAL49152_TOKENIZER_READINESS_TRAINONLY_G0.json
+      - name: Save read-only provenance and native BPE+EOS report, no models
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2i8f-70newTRAIN-native49152-readiness-no-model-gate0
+          path: results/
+          retention-days: 30
+          if-no-files-found: error
