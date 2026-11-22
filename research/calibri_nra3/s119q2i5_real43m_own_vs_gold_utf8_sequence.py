@@ -90,6 +90,61 @@ BYTE_PIECE_PATTERN=re.compile(r"<0x([0-9A-Fa-f]{2})>")
 EXPECTED_TRAINED_PARENT_FORWARDS=988
 
 
+def native_bytelevel_full_utf8_status(tokenizer,token_ids):
+    """Reconstruct actual GPT2/ByteLevel raw token bytes, across ALL BPEs.
+
+    Original tokenizer raw pieces are e.g. 'Ð' (actual byte D0), 'Ŀ'
+    (actual byte 9D), 'Ñģ' (actual D1 81), NOT necessarily '<0xD0>'.
+    A single 'Ð' is an EXPECTED incomplete Russian first-byte prefix.
+    Using per-piece tok.decode() alone produces transient replacement
+    glyphs, not proof of an incorrectly emitted token.
+    """
+    bs=list(range(ord("!"),ord("~")+1))+list(
+        range(ord("¡"),ord("¬")+1))+list(
+        range(ord("®"),ord("ÿ")+1))
+    cs=list(bs);n=0
+    for b in range(256):
+        if b not in bs:
+            bs.append(b);cs.append(256+n);n+=1
+    reverse={chr(c):b for b,c in zip(bs,cs)}
+    stream=bytearray()
+    unknown=[]
+    rawpieces=[str(tokenizer.convert_ids_to_tokens(int(i)))
+               for i in token_ids]
+    special_ids=set(getattr(tokenizer,"all_special_ids",[]))
+    for native_id,rawpiece in zip(token_ids,rawpieces):
+        if int(native_id) in special_ids or (
+            rawpiece.startswith("<|") and rawpiece.endswith("|>")):
+            continue
+        m=BYTE_PIECE_PATTERN.fullmatch(rawpiece)
+        if m is not None:
+            stream.append(int(m.group(1),16))
+            continue
+        for char in rawpiece:
+            if char not in reverse:
+                unknown.append(char)
+                continue
+            stream.append(reverse[char])
+    status="VALID_COMPLETE_UTF8"
+    if unknown:
+        status="UNRECOGNIZED_TOKENIZER_RAW_GLYPHS"
+    else:
+        try:
+            bytes(stream).decode("utf-8",errors="strict")
+        except UnicodeDecodeError as exc:
+            status=("INCOMPLETE_UTF8_NEEDS_CONTINUATION"
+                    if exc.reason=="unexpected end of data"
+                    else "INVALID_UTF8_SEQUENCE")
+    return {
+        "original_native_raw_BPE_pieces":rawpieces,
+        "original_reconstructed_byte_prefix_hex":stream.hex().upper(),
+        "entire_original_native_BPE_prefix_UTF8_status":status,
+        "unrecognized_raw_glyphs":unknown,
+        "raw_single_byte_D0_is_legitimate_Russian_prefix":True,
+        "decoder_replacement_character_alone_not_quality_proof":True,
+    }
+
+
 def utf8_byte_tail_status(tokenizer,token_ids):
     """Evidence about contiguous trailing raw byte tokens; NOT all text."""
     pieces=[str(tokenizer.convert_ids_to_tokens(int(i)))
@@ -121,6 +176,8 @@ def utf8_byte_tail_status(tokenizer,token_ids):
         "replacement_UFFFD_visible_if_rendered_NOW":"\uFFFD" in decoded,
         "incomplete_byte_token_MAY_be_correct_native_prefix":True,
         "not_language_or_semantic_classification":True,
+        "full_native_GPT2_BYTELEVEL_utf8_status":
+            native_bytelevel_full_utf8_status(tokenizer,token_ids),
     }
 
 
