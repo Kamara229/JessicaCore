@@ -19,6 +19,11 @@ class TestWrongSecondBPE(unittest.TestCase):
             choice_category({"gold_native_id":2,"greedy_original_native_id":5})
         with self.assertRaises(ValueError):
             choice_category({"gold_native_id":10,"greedy_original_native_id":49152})
-    def test_03_reject_noncompleted_sources(self):
+    def test_03_reject_boolean_native_ID_and_out_of_vocab(self):
+        for gold,guess in ((10,True),(False,3),(10,-1),(49152,3)):
+            with self.assertRaises(ValueError):
+                choice_category({"gold_native_id":gold,
+                                 "greedy_original_native_id":guess})
+    def test_04_reject_noncompleted_sources(self):
         with self.assertRaises(Exception):analyze({}, {})
 if __name__=="__main__":unittest.main()
