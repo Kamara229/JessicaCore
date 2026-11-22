@@ -332,8 +332,7 @@ def run(s93:Path,side:Path,s142:Path,parent:Path,parent_report:Path,
     }
     out.mkdir(parents=True)
     (out/REPORT).write_text(json.dumps(
-        result,sort_keys=True,ensure_ascii=False,indent=2)+"
-",encoding="utf8")
+        result,sort_keys=True,ensure_ascii=False,indent=2)+"\n",encoding="utf8")
     print("S119Q1_ONEPASS_PHYSICAL_ORIGINAL_NATIVE "+json.dumps(
         result["summary"]|{"native_gate_gradient_norm":gate_grad_norm,
                            "accepted":False},sort_keys=True),flush=True)
