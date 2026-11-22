@@ -165,12 +165,10 @@ def run(previous_report,previous_dir,report,artifact_dir):
                 ("CE_ONLY","EOS_MARGIN")):
         z=quantized_diff(tensors[a],tensors[b])
         h=z["regions"].get("native_49152_readout")
-        check(z["all_saved_params"]==CHILD and h["total_fp16_parameters"]==HEAD
-              and h["parameters_different"]>0
-              and sum(t["parameters_different"] for name,t in z["regions"].items()
-                      if name!="native_49152_readout")==0
-              and h["changed_fp16_params"] if False else True,
-              "all physically different weights must be ONLY original 247040 rank4 head")
+        check(z["all_saved_params"]==CHILD and h is not None
+              and h["total_fp16_parameters"]==HEAD
+              and h["parameters_different"]>0,
+              "all physical FP16 changes must originate in the existing 247040-param rank4 head")
         check(sum(t["parameters_different"] for name,t in z["regions"].items()
                   if name!="native_49152_readout")==0
               and z["changed_fp16_params"]==h["parameters_different"],
