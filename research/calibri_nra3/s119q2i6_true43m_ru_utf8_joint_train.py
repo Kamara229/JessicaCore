@@ -169,12 +169,16 @@ def native_train_weights(tok,answer_native_with_eos,*,continuation_weight=CONTIN
 
 
 def train_true_joint(model,sources,bridge,full,expansion,child,train,tok,
-                     *,condition,continuation_weight=CONTINUATION_WEIGHT):
+                     *,condition,continuation_weight=CONTINUATION_WEIGHT,
+                     expected_total=TOTAL_TRAIN,expected_new=NEW_TRAIN,
+                     new_id_prefix="S119Q2I6_",rounds=ROUNDS):
     check(continuation_weight in (1.0,3.0) and condition in CONDITIONS and
-          len(train)==TOTAL_TRAIN and
-          Counter(x["split"] for x in train)=={"TRAIN":TOTAL_TRAIN}
-          and sum(x["id"].startswith("S119Q2I6_") for x in train)==NEW_TRAIN,
-          "ONLY 18 new and 6 previous TRAIN, never new or old DEV labels")
+          rounds in (2,3) and expected_new>=NEW_TRAIN and
+          expected_total>=expected_new and
+          len(train)==expected_total and
+          Counter(x["split"] for x in train)=={"TRAIN":expected_total}
+          and sum(x["id"].startswith(new_id_prefix) for x in train)==expected_new,
+          "ONLY registered fresh new and old TRAIN, never scored DEV labels")
     selected=make_joint_trainable(child)
     check(sum(p.numel() for p in selected)==TOTAL_EXPECTED_TRAINABLE-GATES,
           "original q2i3 region+head full 368039 trainables")
@@ -206,7 +210,7 @@ def train_true_joint(model,sources,bridge,full,expansion,child,train,tok,
     protected={k:v.detach().cpu().half().clone() for k,v in
         child.child.child.shadow.unified.nra3_neural_weights.state_dict().items()}
     epoch_reports=[];steps=0;forwards=0;continuation_targets=0
-    for epoch in range(ROUNDS):
+    for epoch in range(rounds):
         all_ce=[];all_cont_ce=[];all_eos_ce=[];epoch_forwards=0
         for row in train:
             gold=row["answer_native_with_eos"]
@@ -249,12 +253,12 @@ def train_true_joint(model,sources,bridge,full,expansion,child,train,tok,
                   and all(bool(torch.isfinite(x).all()) for x in selected)
                   and float(full.gates.detach().abs().max())<.5,
                   "true GT12 and full neural weights remain finite/contained")
-        check(all_cont_ce and len(all_eos_ce)==TOTAL_TRAIN,
+        check(all_cont_ce and len(all_eos_ce)==expected_total,
               "actual trained Russian multibyte continuation and EOS targets")
         epoch_reports.append({
             "round":epoch+1,
             "actual_original_full_native_43M_decoder_calls":epoch_forwards,
-            "optimizer_updates":TOTAL_TRAIN,
+            "optimizer_updates":expected_total,
             "train_mean_native_CE_ALL_target_BPE_EOS":
                 sum(all_ce)/len(all_ce),
             "train_mean_native_CE_UTF8_continuation_target":
@@ -280,7 +284,7 @@ def train_true_joint(model,sources,bridge,full,expansion,child,train,tok,
               "ALL GreenTunnel/NRA3/NPA1/CORE/rank8/head must learn: "+key)
     check(all(torch.equal(v.detach().cpu().half(),protected[k])
               for k,v in child.child.child.shadow.unified.nra3_neural_weights.state_dict().items())
-          and steps==TOTAL_TRAIN*ROUNDS,
+          and steps==expected_total*rounds,
           "prior S115 53,751 original neural FP16 unchanged, 3 true rounds")
     return {
         "condition":condition,
@@ -292,6 +296,9 @@ def train_true_joint(model,sources,bridge,full,expansion,child,train,tok,
         "real_all_neural_and_gt_Adam_updates":steps,
         "actual_gt12_core_NRA3_NPA1_native_head_change_l2":changed,
         "trainable_parameter_count":TOTAL_EXPECTED_TRAINABLE,
+        "actual_registered_new_TRAIN_rows":expected_new,
+        "actual_registered_total_TRAIN_rows":expected_total,
+        "actual_joint_epochs":rounds,
         "no_original_or_protected_weights_modified":True,
     }
 
