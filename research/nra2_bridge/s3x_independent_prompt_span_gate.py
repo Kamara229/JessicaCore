@@ -57,3 +57,28 @@ def verify_prompt_spans(prompts, expected_sha256, mentions, token_offsets):
                     raise AssertionError(f"Unaccounted overlapping token at {i}")
             previous_end = end
     return True
+
+
+def verify_with_retokenization(prompts, expected_sha256, mentions,
+                               supplied_offsets, tokenizer_offsets_fn):
+    """Reject caller-forged offset arrays by independently retokenizing all 64.
+
+    tokenizer_offsets_fn must be a separately pinned native S194 tokenizer
+    implementation returning complete offset_mapping for one prompt. This
+    function cannot attest that the callable really is that tokenizer.
+    """
+    if not callable(tokenizer_offsets_fn):
+        raise AssertionError("Independent tokenizer callable required")
+    if len(prompts) != 64 or len(supplied_offsets) != 64:
+        raise AssertionError("Expected exactly 64 ordered records")
+    recomputed = []
+    for i, prompt in enumerate(prompts):
+        try:
+            actual = tokenizer_offsets_fn(prompt)
+            actual = [tuple(pair) for pair in actual]
+        except Exception as exc:
+            raise AssertionError(f"Tokenizer offset capture failed at {i}") from exc
+        if actual != [tuple(pair) for pair in supplied_offsets[i]]:
+            raise AssertionError(f"Independent tokenizer offset mismatch at {i}")
+        recomputed.append(actual)
+    return verify_prompt_spans(prompts, expected_sha256, mentions, recomputed)
