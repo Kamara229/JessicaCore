@@ -141,7 +141,7 @@ class S119Q2ECausalMappingContract(unittest.TestCase):
                     model,child,view_mapping=mapping):
                     out=model(src)
             self.assertTrue(torch.equal(out.detach(),original.detach()))
-        self.assertEqual(float(child.midlayer_gates[0]),0.1)
+        self.assertAlmostEqual(float(child.midlayer_gates[0]),0.1,places=6)
 
     def test_09_temporary_component_masks_restore_learned_weights(self):
         child=Adapter()
