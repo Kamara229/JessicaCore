@@ -181,7 +181,7 @@ CASES={
 
 def rows(split):
     if split not in ("TRAIN","DEV"):
-        raise ValueError("Only original X TRAIN and internal synthetic DEV, not EVAL/J7")
+        raise ValueError("Only original Z2 TRAIN and internal synthetic DEV, not EVAL/J7")
     return [
         {"id":f"S119Q2I8Z2_{kind}_{j:02d}",
          "kind":kind,"split":split,"origin":ORIGIN,
@@ -212,14 +212,14 @@ def verify():
             and all(r["origin"]==ORIGIN and r["completion"].endswith(".")
                     and len(r["completion"].split())>=3
                     and len(r["prompt"])>=18 for r in train+dev)):
-        raise ValueError("X exact NEW author 21 TRAIN & 14 synthetic DEV disjointness")
+        raise ValueError("Z2 exact NEW author 21 TRAIN & 14 synthetic DEV disjointness")
     return {
         "stage":STAGE,
         "fresh_Z2_TRAIN_rows":21,
         "fresh_Z2_DEV_rows":14,
         "Z2_21_TRAIN_sha256":digest(train),
         "Z2_14_DEV_sha256":digest(dev),
-        "all_X_prompts_disjoint_prior_E_G_K_R_T_W_X":True,
+        "all_Z2_prompts_disjoint_prior_E_G_K_R_T_W_X":True,
         "DEV_is_small_synthetic_AND_not_independent_blind":True,
         "protected_616J7_EVAL128_GOLD_inaccessible":True,
     }
