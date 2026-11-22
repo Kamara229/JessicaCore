@@ -1,0 +1,111 @@
+name: Calibri S119q2d DEEPER joint Core12-GT NRA3 NPA1 native 96x4
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2c1-balanced-counterfactual-native-20261122
+permissions:
+  contents: read
+  actions: read
+jobs:
+  continue-actual-native-joint-training-on-96-train-source-examples:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2d-deeper-joint-multitoken-train-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '119133'
+    steps:
+      - name: Checkout isolated research PR only; no main or LIVE deployment
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact frozen original S142 43M Core12 GT CPU packages
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Enforce original S119a gates and all existing real native source contracts
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119m_real43m_gt_interlayer_onpath_joint \
+            research.calibri_nra3.test_s119n_real43m_onpath_autoregressive_sixprompts \
+            research.calibri_nra3.test_s119o_onpath_nochange_margin_audit \
+            research.calibri_nra3.test_s119p_real43m_onpath_component_ablation \
+            research.calibri_nra3.test_s119q1_real43m_onepass_causal_early \
+            research.calibri_nra3.test_s119q2a_train_source_manifest \
+            research.calibri_nra3.test_s119q2b_real43m_onepass_native_train \
+            research.calibri_nra3.test_s119q2c1_counterfactual_native \
+            research.calibri_nra3.test_s119q2d_deeper_joint_native_answer_training
+      - name: Original frozen S93 compressed 12layer and dual GreenTunnel
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          run-id: 42681768394
+          path: inputs/s93
+          github-token: ${{ github.token }}
+      - name: Original S142 43M native S93+GT FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          run-id: 43078895081
+          path: inputs/s142
+          github-token: ${{ github.token }}
+      - name: Original SHA-pinned 72 TRAIN plus 18 untouched synthetic CAL
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2a-authored-72train-18calib-provenance-only-gate0
+          run-id: 44954979903
+          path: inputs/s119q2a
+          github-token: ${{ github.token }}
+      - name: Physical previous q2c1 independently trained contextual and matched-local FP16 children
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2c1-real43m-onepass-24pairedTRAIN-12SOURCEPROBE-gate0
+          run-id: 45012954670
+          path: inputs/s119q2c1
+          github-token: ${{ github.token }}
+      - name: Fail closed if any GOLD/EVAL/J7 or unknown checkpoints slipped into inputs
+        run: |
+          set -euo pipefail
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors
+          test -f inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors
+          test -f inputs/s119q2a/S119Q2A_TRAIN.jsonl
+          test -f inputs/s119q2a/S119Q2A_CALIBRATION.jsonl
+          test -f inputs/s119q2a/S119Q2A_MANIFEST.json
+          test -f inputs/s119q2c1/S119Q2C1_CONTEXTUAL_24PAIRSOURCE_TRAIN_ONLY_FP16_UNACCEPTED.safetensors
+          test -f inputs/s119q2c1/S119Q2C1_LOCAL_MATCHED_24PAIRSOURCE_TRAIN_ONLY_FP16_UNACCEPTED.safetensors
+          test -f inputs/s119q2c1/S119Q2C1_REAL43M_GT_PAIRED_SOURCE_ONLY_TRAIN_ABLATION.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|SynTagRusB|GOLD_LABEL|_UD_GOLD|EVAL128|DEV|APK'; then
+            echo "Protected previously spent GOLD or nonresearch file forbidden" && exit 1
+          fi
+      - name: Actually continue joint original Core GT NRA3 NPA1 TRAIN 96 x 4 epochs vs equal-param local
+        run: |
+          python -m research.calibri_nra3.s119q2d_deeper_joint_native_answer_training \
+            --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            --side inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            --s142 inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            --q2a-dir inputs/s119q2a \
+            --parent-ctx inputs/s119q2c1/S119Q2C1_CONTEXTUAL_24PAIRSOURCE_TRAIN_ONLY_FP16_UNACCEPTED.safetensors \
+            --parent-local inputs/s119q2c1/S119Q2C1_LOCAL_MATCHED_24PAIRSOURCE_TRAIN_ONLY_FP16_UNACCEPTED.safetensors \
+            --parent-report inputs/s119q2c1/S119Q2C1_REAL43M_GT_PAIRED_SOURCE_ONLY_TRAIN_ABLATION.json \
+            --out results/s119q2d_deeper_original43m_gt_96TRAIN4EPOCH
+      - name: Save exact unaccepted physical learned FP16 children and diagnostic evidence only
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2d-deeper-joint-native-96train-4epochs-original43m-GT-gate0
+          path: results/s119q2d_deeper_original43m_gt_96TRAIN4EPOCH/
+          retention-days: 30
+          if-no-files-found: error
