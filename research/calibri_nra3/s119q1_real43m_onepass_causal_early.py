@@ -53,8 +53,12 @@ PLACEHOLDER_MAPPING = (0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 5, 5)
 SEED = 119129
 
 
-def build_early_causal_view(recorded: dict[int, torch.Tensor]):
+def build_early_causal_view(recorded: dict[int, torch.Tensor], *, mapping=PLACEHOLDER_MAPPING):
     """Adapt immutable 12-slot ABI using ONLY original layers <=5 in THIS pass."""
+    check(type(mapping) is tuple and len(mapping)==12 and
+          mapping[:6]==EARLY_LAYERS and
+          all(type(v) is int and v in EARLY_LAYERS for v in mapping),
+          "only actual CAUSALLY EXECUTED early original layers, no future")
     check(set(recorded) == set(EARLY_LAYERS),
           "exact early original layers 0..5 must exist before injection")
     states = [recorded[idx].detach() for idx in EARLY_LAYERS]
@@ -64,16 +68,17 @@ def build_early_causal_view(recorded: dict[int, torch.Tensor]):
           and all(s.shape == shape and bool(torch.isfinite(s).all())
                   for s in states),
           "physical causal early h320 same current prefix only")
-    reused = [recorded[i].detach() for i in PLACEHOLDER_MAPPING]
+    reused = [recorded[i].detach() for i in mapping]
     x = torch.stack(reused, dim=1)
     check(x.shape == (1,12,shape[1],320)
-          and torch.equal(x[:,5],x[:,11]),
+          and torch.equal(x[:,11],recorded[mapping[11]].detach()),
           "source-only repeated early h5, NO imagined real layers6..11")
     return x
 
 
 @contextmanager
-def single_pass_early_intervention(model, adapter, *, contextual=True):
+def single_pass_early_intervention(model, adapter, *, contextual=True,
+                                   view_mapping=PLACEHOLDER_MAPPING):
     """Temporary original decoder hook; one complete forward, never replay.
 
     Early states and layer5 must be produced by exactly one SAME call.
@@ -92,7 +97,7 @@ def single_pass_early_intervention(model, adapter, *, contextual=True):
     witness = {"candidate_forward_calls": 0,
                "early_layer_calls": {},
                "adapter_delta_H320": None,
-               "placeholder_mapping": list(PLACEHOLDER_MAPPING)}
+               "placeholder_mapping": list(view_mapping)}
     handles = []
     completed = False
 
@@ -118,7 +123,7 @@ def single_pass_early_intervention(model, adapter, *, contextual=True):
               "real original layer5 returned H320")
         seen[5] = hidden.detach()
         witness["early_layer_calls"][5] = 1
-        x = build_early_causal_view(seen)
+        x = build_early_causal_view(seen,mapping=view_mapping)
         delta = adapter(x,contextual=contextual)
         check(delta.shape == (1,320)
               and delta.requires_grad and bool(torch.isfinite(delta).all()),
@@ -154,7 +159,8 @@ def single_pass_early_intervention(model, adapter, *, contextual=True):
 
 
 def onepass_full_native_logits(model,sources,bridge,full,expansion,adapter,
-                               native_prefix,features,*,contextual=True):
+                               native_prefix,features,*,contextual=True,
+                               view_mapping=PLACEHOLDER_MAPPING):
     """One real frozen S142+GT forward only; adapter builds delta at layer5."""
     check(isinstance(native_prefix,list) and 2 <= len(native_prefix) < 160
           and features.shape == (512,)
@@ -164,7 +170,8 @@ def onepass_full_native_logits(model,sources,bridge,full,expansion,adapter,
     with torch.enable_grad(),expansion.prefill_only(model), \
          s160.prefill_only_tunnel(model,full), \
          bridge.prompt_scope("S93",features), \
-         single_pass_early_intervention(model,adapter,contextual=contextual) as witness:
+         single_pass_early_intervention(model,adapter,contextual=contextual,
+                                        view_mapping=view_mapping) as witness:
         clear(sources)
         out = model(input_ids=ids,past_key_values=None,
                     use_cache=True,output_hidden_states=False)
