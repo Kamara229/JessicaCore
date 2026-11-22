@@ -8,7 +8,7 @@ permissions:
   contents: read
   actions: read
 jobs:
-  train-true-native-first-BPE-contrast-pairs-vs-equal-param-local:
+  train-true-native-distinguishing-BPE-contrast-vs-equal-param-local:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'research/calibri2-s119q2c1-balanced-counterfactual-native-20261122'
@@ -89,7 +89,7 @@ jobs:
           if find inputs -type f | grep -Ei 'S116|S117|S118|SynTagRusB|GOLD_LABEL|_UD_GOLD|EVAL128|DEV|APK'; then
             echo "Sealed GOLD, spent EVAL or deploy artifact must not be loaded" && exit 1
           fi
-      - name: Physical source-only original 43M-GT 24 TRAIN and 12 untouched contrast source probes
+      - name: Physical source-only original 43M-GT 24 TRAIN and 12 untouched first-DISTINGUISHING-BPE source probes
         run: |
           python -m research.calibri_nra3.s119q2c1_real43m_onepass_counterfactual_train \
             --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
