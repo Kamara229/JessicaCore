@@ -1,0 +1,58 @@
+name: Calibri S119q2i8z1 paired source-wise read-only 43M CORE GT12 NRA3 NPA1 native causal NLL
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z-real43m-gt12-vs-nativehead-context-ablation-20261123
+permissions:
+  contents: read
+  actions: read
+jobs:
+  paired-14-spent-X-original43m-native49k-causal-signed-NLL:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z1-true43m-causal-paired-signs-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Exact read-only research SHA checkout never production
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Standard library only strict source original 336 true43M full native BPE causal paired tests
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z1_causal_paired_loss_signs
+      - name: Read already completed successful SHA original 43M 336 GT Core NRA3 NPA1 read-only actual native49k report
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8z-true43m-336-spentX-goldsecond-GT12-CORE-NRA3-NPA1-nativehead-ablation-gate0
+          run-id: 45070979319
+          path: inputs/z
+          github-token: ${{ github.token }}
+      - name: Exact 336 true original43M paired source gold-second full 49152 loss rank and 7-domain audit no model
+        run: |
+          set -euo pipefail
+          test -f inputs/z/S119Q2I8Z_TRUE43M_GOLD_SECOND_NATIVE49K_CONTEXT_CAUSAL_336_PROBES_G0.json
+          python -m research.calibri_nra3.s119q2i8z1_causal_paired_loss_signs \
+            --z-dir inputs/z \
+            --out results/S119Q2I8Z1_ORIGINAL43M_SAME_SOURCE_14DEV_CAUSAL_PAIRED_NLL_SIGN_COUNTS_G0.json
+      - name: Save only original 43M X source actual 336 physical paired JSON research gate0
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2i8z1-original43m-336-causal-paired14-domain-signs-gate0
+          path: results/S119Q2I8Z1_ORIGINAL43M_SAME_SOURCE_14DEV_CAUSAL_PAIRED_NLL_SIGN_COUNTS_G0.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Reject all protected and production changes outside this exact 2 script + CI research-only scope
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} >/tmp/changed
+          if grep -Ev '^(research/calibri_nra3/s119q2i8z1_causal_paired_loss_signs.py|research/calibri_nra3/test_s119q2i8z1_causal_paired_loss_signs.py|\.github/workflows/calibri-nra3-s119q2i8z1-paired-causal-signs.yml)$' /tmp/changed; then
+            echo 'Protected original model or production touched' >&2
+            exit 1
+          fi
