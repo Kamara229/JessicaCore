@@ -1,0 +1,120 @@
+name: Calibri S119q2e PHYSICAL causal h0-h5 view and NRA3/NPA1 gate diagnostics
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2d1-frozen-original-source-baseline-20261122
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnose-real-original-43m-early-causal-views-and-three-components:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2e-causal-h0h5-view-diagnostic-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '119135'
+    steps:
+      - name: Checkout RESEARCH PR SHA only and never deploy
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Frozen actual S142 Core12 plus GreenTunnel CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Test exact old four-goal and all native onepass gates plus early h0-h5 maps
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119m_real43m_gt_interlayer_onpath_joint \
+            research.calibri_nra3.test_s119n_real43m_onpath_autoregressive_sixprompts \
+            research.calibri_nra3.test_s119o_onpath_nochange_margin_audit \
+            research.calibri_nra3.test_s119p_real43m_onpath_component_ablation \
+            research.calibri_nra3.test_s119q1_real43m_onepass_causal_early \
+            research.calibri_nra3.test_s119q2a_train_source_manifest \
+            research.calibri_nra3.test_s119q2b_real43m_onepass_native_train \
+            research.calibri_nra3.test_s119q2c1_counterfactual_native \
+            research.calibri_nra3.test_s119q2d_deeper_joint_native_answer_training \
+            research.calibri_nra3.test_s119q2d1_original_sameprobe_baseline \
+            research.calibri_nra3.test_s119q2e_causal_early_view_diagnostic
+      - name: Original protected S93 compressed 12layer and GT
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          run-id: 42681768394
+          path: inputs/s93
+          github-token: ${{ github.token }}
+      - name: Original S142 genuine 43M native Core12+GT
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          run-id: 43078895081
+          path: inputs/s142
+          github-token: ${{ github.token }}
+      - name: Existing q2a SHA-locked 72 TRAIN and 18 old synthetic CAL
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2a-authored-72train-18calib-provenance-only-gate0
+          run-id: 44954979903
+          path: inputs/s119q2a
+          github-token: ${{ github.token }}
+      - name: True trained q2d Contextual NRA3 NPA1 and matched LOCAL children
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2d-deeper-joint-native-96train-4epochs-original43m-GT-gate0
+          run-id: 45014239436
+          path: inputs/s119q2d
+          github-token: ${{ github.token }}
+      - name: Physical original q2d1 30-source baseline report evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2d1-frozen-original-30native-source-match-gate0
+          run-id: 45015042950
+          path: inputs/s119q2d1
+          github-token: ${{ github.token }}
+      - name: Fail closed no sealed GOLD, historical evaluation or unknown inputs
+        run: |
+          set -euo pipefail
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors
+          test -f inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors
+          test -f inputs/s119q2a/S119Q2A_TRAIN.jsonl
+          test -f inputs/s119q2a/S119Q2A_CALIBRATION.jsonl
+          test -f inputs/s119q2a/S119Q2A_MANIFEST.json
+          test -f inputs/s119q2d/S119Q2D_DEEPER_REAL43M_GT_96TRAIN4EPOCH_NATIVE_POSITION_ABLATION.json
+          test -f inputs/s119q2d/S119Q2D_DEEPER_CONTEXTUAL_NATIVE_96TRAIN4EPOCH_GATE0_FP16.safetensors
+          test -f inputs/s119q2d/S119Q2D_DEEPER_LOCAL_NATIVE_96TRAIN4EPOCH_GATE0_FP16.safetensors
+          test -f inputs/s119q2d1/S119Q2D1_ORIGINAL_FROZEN_CORE43M_GT_30_NATIVE_SOURCE_PROBES.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|SynTagRusB|GOLD_LABEL|_UD_GOLD|EVAL128|DEV|APK'; then
+            echo "Sealed GOLD, historical spent EVAL or production APK forbidden" && exit 1
+          fi
+      - name: Physically evaluate 158 genuine original Core12+GT decoder forwards (source diagnostic ONLY)
+        run: |
+          python -m research.calibri_nra3.s119q2e_causal_early_view_diagnostic \
+            --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            --side inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            --s142 inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            --q2a-dir inputs/s119q2a \
+            --q2d-dir inputs/s119q2d \
+            --reference inputs/s119q2d1/S119Q2D1_ORIGINAL_FROZEN_CORE43M_GT_30_NATIVE_SOURCE_PROBES.json \
+            --out results/s119q2e_causal_early_view_diag
+      - name: Upload read-only numerical source diagnosis; NO new weights, no activation
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2e-real43m-causal-early-views-3areas-source-only-gate0
+          path: results/s119q2e_causal_early_view_diag/
+          retention-days: 30
+          if-no-files-found: error
