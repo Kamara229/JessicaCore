@@ -1,0 +1,135 @@
+name: Calibri S119q2h REAL43M native BPE language-head rank forensic 12x3
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2g-fresh-own-token-native-generation-20261122
+permissions:
+  contents: read
+  actions: read
+jobs:
+  true-original-native-language-first-token-forensics:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2h-native-language-logit-audit-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONHASHSEED: '119139'
+    steps:
+      - name: Checkout exact SOURCE-only RESEARCH PR no write credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Original S142 physical 43M GT native CPU deps
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: All original hard-gate source and native QA plus 16 new logit ranks
+        run: |
+          python -m unittest -v \
+            research.calibri_nra3.test_s119a_hard_four_goals \
+            research.calibri_nra3.test_s119m_real43m_gt_interlayer_onpath_joint \
+            research.calibri_nra3.test_s119n_real43m_onpath_autoregressive_sixprompts \
+            research.calibri_nra3.test_s119o_onpath_nochange_margin_audit \
+            research.calibri_nra3.test_s119p_real43m_onpath_component_ablation \
+            research.calibri_nra3.test_s119q1_real43m_onepass_causal_early \
+            research.calibri_nra3.test_s119q2a_train_source_manifest \
+            research.calibri_nra3.test_s119q2b_real43m_onepass_native_train \
+            research.calibri_nra3.test_s119q2c1_counterfactual_native \
+            research.calibri_nra3.test_s119q2d_deeper_joint_native_answer_training \
+            research.calibri_nra3.test_s119q2d1_original_sameprobe_baseline \
+            research.calibri_nra3.test_s119q2e_causal_early_view_diagnostic \
+            research.calibri_nra3.test_s119q2f_learned_causal_projection \
+            research.calibri_nra3.test_s119q2f1_physical_projector_onoff \
+            research.calibri_nra3.test_s119q2g_own_token_generation \
+            research.calibri_nra3.test_s119q2h_native_language_logits
+      - name: Protected original S93 compressed decoder and GreenTunnel side
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s92-unaccepted-real-MPS-protected-core-and-tunnel
+          run-id: 42681768394
+          path: inputs/s93
+          github-token: ${{ github.token }}
+      - name: Original S142 43M Core12 full native 49,152 decoder
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s142-one-j7-43m-dual-cone-456-128-no-QA
+          run-id: 43078895081
+          path: inputs/s142
+          github-token: ${{ github.token }}
+      - name: Old original SHA-pinned source provenance ONLY (not gradients)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2a-authored-72train-18calib-provenance-only-gate0
+          run-id: 44954979903
+          path: inputs/s119q2a
+          github-token: ${{ github.token }}
+      - name: Original physically trained deep q2d NRA3 NPA1 parent child FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2d-deeper-joint-native-96train-4epochs-original43m-GT-gate0
+          run-id: 45014239436
+          path: inputs/s119q2d
+          github-token: ${{ github.token }}
+      - name: Original physically trained q2f causal rank8 projector A-B FP16
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2f-real43m-learned-causal-rank8-projector-96TRAIN2EPOCH-gate0
+          run-id: 45016558435
+          path: inputs/s119q2f
+          github-token: ${{ github.token }}
+      - name: Prior completed 12 own-token native autoregressive evidence SHA
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2g-real43m-fresh12-own-native-greedy-original-vs-context-local-gate0
+          run-id: 45020262273
+          path: inputs/s119q2g
+          github-token: ${{ github.token }}
+      - name: Deny sealed GOLD, old EVAL128/J7 answer files and unknown sources
+        run: |
+          set -euo pipefail
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61
+          test -f inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors
+          test -f inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors
+          test -f inputs/s119q2a/S119Q2A_MANIFEST.json
+          test -f inputs/s119q2a/S119Q2A_TRAIN.jsonl
+          test -f inputs/s119q2a/S119Q2A_CALIBRATION.jsonl
+          test -f inputs/s119q2d/S119Q2D_DEEPER_REAL43M_GT_96TRAIN4EPOCH_NATIVE_POSITION_ABLATION.json
+          test -f inputs/s119q2d/S119Q2D_DEEPER_CONTEXTUAL_NATIVE_96TRAIN4EPOCH_GATE0_FP16.safetensors
+          test -f inputs/s119q2d/S119Q2D_DEEPER_LOCAL_NATIVE_96TRAIN4EPOCH_GATE0_FP16.safetensors
+          test -f inputs/s119q2f/S119Q2F_LEARNED_CAUSAL_PROJECTOR_NATIVE_JOINT_A_B_REPORT.json
+          test -f inputs/s119q2f/S119Q2F_CONTEXTUAL_CAUSAL_PROJECTOR_FP16_UNACCEPTED.safetensors
+          test -f inputs/s119q2f/S119Q2F_LOCAL_MATCHED_CAUSAL_PROJECTOR_FP16_UNACCEPTED.safetensors
+          test -f inputs/s119q2g/S119Q2G_FRESH_12_PROMPTS_REAL_NATIVE_OWN_TOKEN_GREEDY.json
+          if find inputs -type f | grep -Ei 'S116|S117|S118|SynTagRusB|GOLD_LABEL|_UD_GOLD|EVAL128|DEV|APK'; then
+            echo "Sealed GOLD, spent EVAL and production inputs prohibited" && exit 1
+          fi
+      - name: Physically audit 36 original Core12 GT first-BPE head ranks vs previous genuine q2g generated native tokens
+        run: |
+          python -m research.calibri_nra3.s119q2h_native_language_logits \
+            --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            --side inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            --s142 inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            --q2a-dir inputs/s119q2a \
+            --q2d-dir inputs/s119q2d \
+            --q2f-dir inputs/s119q2f \
+            --q2g-dir inputs/s119q2g \
+            --out results/s119q2h_real_original_native_head_first_token_language_audit
+      - name: Archive ONLY read-only raw logit language-source evidence; NO updated weights
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2h-real43m-native-36fullhead-spent12-Russian-tokenrank-gate0
+          path: results/s119q2h_real_original_native_head_first_token_language_audit/
+          retention-days: 30
+          if-no-files-found: error
