@@ -442,7 +442,10 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,q2i8d
               and training["CE_ONLY"][
                 "physical_SOURCE135M_native_forward_calls_at_gold_secondthird_BPE_ONLY"]==0
               and training["SOURCE135M_SECONDTHIRD_BPE_KL"][
-                "physical_SOURCE135M_native_forward_calls_at_gold_secondthird_BPE_ONLY"]==TRAIN_ROWS*2,
+                "physical_SOURCE135M_native_forward_calls_at_gold_secondthird_BPE_ONLY"]==
+                training["CE_ONLY"]["expected_per_epoch_early23_teacher_eligible_native_BPE"]
+              and training["SOURCE135M_SECONDTHIRD_BPE_KL"]["expected_per_epoch_early23_teacher_eligible_native_BPE"]==
+                  training["CE_ONLY"]["expected_per_epoch_early23_teacher_eligible_native_BPE"],
               "ONLY second/third gold BPE KL uses frozen 135M teacher with same 43M budget")
         saved={
             "CE_ONLY_neural":persist_half(ce,out/CE_FP16),
