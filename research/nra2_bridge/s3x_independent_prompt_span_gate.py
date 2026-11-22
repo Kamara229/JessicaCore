@@ -82,3 +82,24 @@ def verify_with_retokenization(prompts, expected_sha256, mentions,
             raise AssertionError(f"Independent tokenizer offset mismatch at {i}")
         recomputed.append(actual)
     return verify_prompt_spans(prompts, expected_sha256, mentions, recomputed)
+
+
+# Physical source prerequisite; the expected digest is from the frozen S3T
+# preregistration, never derived from the candidate bytes being checked.
+S3T_PREREG_SHA256 = "034ebd6e1cf6f20ad04ccd00e70c6bc07ee08a46f47da843121524f1d7f0faf3"
+
+
+def verify_s3t_prereg_bytes(source_bytes, expected_sha256=S3T_PREREG_SHA256):
+    """Fail closed on missing/drifted physical S3T preregistration bytes.
+
+    The caller must supply the EXACT byte sequence whose SHA was preregistered;
+    this function does not assume ZIP/JSON format, extract prompts, or attest
+    that the bytes came from GitHub Actions. Never substitute a reserialized
+    JSON or a derived prompt manifest for the pinned physical artifact.
+    """
+    if type(source_bytes) is not bytes or expected_sha256 != S3T_PREREG_SHA256:
+        raise AssertionError("Pinned S3T preregistration bytes and SHA required")
+    actual = hashlib.sha256(source_bytes).hexdigest()
+    if actual != S3T_PREREG_SHA256:
+        raise AssertionError("Physical S3T preregistration SHA mismatch")
+    return True
