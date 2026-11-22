@@ -137,7 +137,7 @@ jobs:
       - name: Save ONLY byte155/dot30 read-only original native 49k-head numerical causal attribution
         uses: actions/upload-artifact@v4
         with:
-          name: calibri-s119q2i3-original43m-joint-gt12-core-nra3-npa1-nativehead-3rounds-12TRAIN-12oldDEV-gate0
+          name: calibri-s119q2i4-original43m-GT12-144native-byte155-dot30-bias-lowrank-gate0
           path: results/s119q2i4_native_byte_readout_attribution/
           retention-days: 30
           if-no-files-found: error
