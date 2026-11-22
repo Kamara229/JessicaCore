@@ -228,7 +228,7 @@ class S119Q2GFreshNativeGreedyContracts(TestCase):
                 variant="frozen_original",max_new=MAX_NEW_NATIVE+1)
 
     def test_16_this_stage_explicitly_source_only_not_quality_certified(self):
-        self.assertIn("FRESH_SOURCE",SOURCE_STAGE)
+        self.assertIn("FRESH_AUTHOR_12_OWN_TOKEN_GENERATION_SOURCE",SOURCE_STAGE)
         self.assertTrue(all(
             "original_author_constructed_untrained_not_blind"==r["provenance"]
             for r in rows()))
