@@ -93,7 +93,7 @@ def head_only_train(model,sources,bridge,full,expansion,child,train,tok,
     # 6x6 projector mix tensor as a *gradient-only* autograd anchor:
     # NO optimizer ever references it. Verify exact immutable weights.
     anchor=child.child.mix_logits
-    check(anchor.numel()==36 and anchor not in params,
+    check(anchor.numel()==36 and all(id(anchor)!=id(p) for p in params),
           "only existing old six-slot causal projector anchor")
     anchor.requires_grad_(True)
     check(sum(p.numel() for p in child.parameters() if p.requires_grad)==
