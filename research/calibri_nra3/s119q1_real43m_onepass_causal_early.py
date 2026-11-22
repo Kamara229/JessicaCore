@@ -73,7 +73,7 @@ def build_early_causal_view(recorded: dict[int, torch.Tensor]):
 
 
 @contextmanager
-def single_pass_early_intervention(model, adapter):
+def single_pass_early_intervention(model, adapter, *, contextual=True):
     """Temporary original decoder hook; one complete forward, never replay.
 
     Early states and layer5 must be produced by exactly one SAME call.
@@ -119,7 +119,7 @@ def single_pass_early_intervention(model, adapter):
         seen[5] = hidden.detach()
         witness["early_layer_calls"][5] = 1
         x = build_early_causal_view(seen)
-        delta = adapter(x,contextual=True)
+        delta = adapter(x,contextual=contextual)
         check(delta.shape == (1,320)
               and delta.requires_grad and bool(torch.isfinite(delta).all()),
               "original native later layers see differentiable onepass child")
@@ -154,7 +154,7 @@ def single_pass_early_intervention(model, adapter):
 
 
 def onepass_full_native_logits(model,sources,bridge,full,expansion,adapter,
-                               native_prefix,features):
+                               native_prefix,features,*,contextual=True):
     """One real frozen S142+GT forward only; adapter builds delta at layer5."""
     check(isinstance(native_prefix,list) and 2 <= len(native_prefix) < 160
           and features.shape == (512,)
@@ -164,7 +164,7 @@ def onepass_full_native_logits(model,sources,bridge,full,expansion,adapter,
     with torch.enable_grad(),expansion.prefill_only(model), \
          s160.prefill_only_tunnel(model,full), \
          bridge.prompt_scope("S93",features), \
-         single_pass_early_intervention(model,adapter) as witness:
+         single_pass_early_intervention(model,adapter,contextual=contextual) as witness:
         clear(sources)
         out = model(input_ids=ids,past_key_values=None,
                     use_cache=True,output_hidden_states=False)
