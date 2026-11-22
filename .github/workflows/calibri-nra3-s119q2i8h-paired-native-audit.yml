@@ -6,6 +6,7 @@ on:
       - research/calibri2-s119q2i8g-first21-multiword-native-joint-train-20261122
 permissions:
   contents: read
+  actions: read
 jobs:
   paired-sample-outcome-report-hard-gates:
     if: >-
@@ -27,6 +28,27 @@ jobs:
       - name: Run unit contract tests, no model downloads or pretrained weights
         run: |
           python -m unittest -v research.calibri_nra3.test_s119q2i8h_postrun_paired_native
+      - name: Download ONLY successful pinned Q2I8g original43M training JSON and paired own-native DEV report
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8g-original43m-21multiword-CEvsKL-14newDEV-gate0
+          run-id: 45051305134
+          path: inputs/s119q2i8g
+          github-token: ${{ github.token }}
+      - name: Audit physical report without loading FP16 weights or model libraries
+        run: |
+          set -euo pipefail
+          test -f inputs/s119q2i8g/S119Q2I8G_REAL43M_NATIVE_BPE_TEACHERKL_UTF8_VS_CEONLY_REPORT.json
+          python -m research.calibri_nra3.s119q2i8h_paired_native_postrun_audit \
+            --input inputs/s119q2i8g/S119Q2I8G_REAL43M_NATIVE_BPE_TEACHERKL_UTF8_VS_CEONLY_REPORT.json \
+            --output results/S119Q2I8H_POSTRUN_PAIRED_AB_NATIVE_AUDIT_NO_PROMOTION.json
+      - name: Persist paired descriptive read-only audit report without model tensors
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2i8h-paired-native-AB-14newDEV-6oldDEV-gate0
+          path: results/S119Q2I8H_POSTRUN_PAIRED_AB_NATIVE_AUDIT_NO_PROMOTION.json
+          retention-days: 30
+          if-no-files-found: error
       - name: Hard fail if modifications outside two report scripts and this workflow
         run: |
           set -euo pipefail
