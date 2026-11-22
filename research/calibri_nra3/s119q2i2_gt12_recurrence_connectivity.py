@@ -258,13 +258,14 @@ def train_gate_rounds(model,sources,bridge,full,expansion,
     }
 
 
-def own_token_dev(model,sources,bridge,full,expansion,child,example,*,condition):
+def own_token_dev(model,sources,bridge,full,expansion,child,example,*,
+                  condition,max_generate=MAX_OWN_NATIVE):
     check(example["split"]=="DEV" and condition in CONDITIONS
-          and MAX_OWN_NATIVE<=16,
+          and 1<=max_generate<=24,
           "old known source q2i1 DEV only, never used in optimization")
     ids=[];prefix=list(example["prefix"]);emitted_eos=False
     from transformers import AutoTokenizer
-    for _ in range(MAX_OWN_NATIVE):
+    for _ in range(max_generate):
         check(prefix==example["prefix"]+ids
               and len(prefix)<160,
               "each physical GT native model prefill uses only its OWN emitted tokens")
