@@ -369,9 +369,29 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,q2i8d
           and prev["previous_fitted_parent_q2i8a_sha256"]==sha(p8)
           and not prev["candidate_accepted"] and prev["output_gate"]==0,
           "exact physical prior completed Q2I8d provenance before new 21 TRAIN")
-    parent,gates=physical_q2i8d_CE_warmstart(q2i8a_parent,q2i8d_dir,prev)
-    check(previous_gates.shape==gates.shape==(12,),
-          "no GT12 architectural changes")
+    old_q2i8d_parent,old_q2i8d_gates=physical_q2i8d_CE_warmstart(
+        q2i8a_parent,q2i8d_dir,prev)
+    r8gpath=q2i8g_dir/Q2I8G_PREV_REPORT
+    r8g=json.loads(r8gpath.read_text(encoding="utf8"))
+    check(r8g["stage"]==Q2I8G_PREV_STAGE
+          and r8g["candidate_accepted"] is False
+          and r8g["output_gate"]==0
+          and r8g["original_S93_GT_sha256"]==sha(s93)
+          and r8g["original_S142_43M_sha256"]==sha(s142)
+          and r8g["registered_70_new_multisentence_TRAIN_source_sha"]==source["TRAIN_sha256"]
+          and r8g["readiness_native_49152_pinned_report_SHA256"]==sha(q2i8f_report)
+          and r8g["previous_physical_Q2I8d_parent_report_SHA256"]==sha(q2i8d_dir/PREV_REPORT)
+          and r8g["all_trained_rows_are_SOURCE_SELECTED_21_NEW_TRAIN_plus_6_old_TRAIN"],
+          "physical completed previous 21 TRAIN parent SHA and provenance")
+    from_saved=r8g["saved_full_joints_and_native_gt_gate_sidecars_FP16_gate0"]
+    parent=full_saved_child(
+        q2i8g_dir/Q2I8G_PREV_CE_FP16,from_saved["CE_ONLY_neural"],
+        old_q2i8d_parent)
+    gates=full_saved_gt(
+        q2i8g_dir/Q2I8G_PREV_CE_GATES,from_saved["CE_ONLY_GT12"])
+    check(previous_gates.shape==old_q2i8d_gates.shape==gates.shape==(12,)
+          and all(abs(float(x))<.5 for x in gates),
+          "same original 43M full GT12 physically fitted architecture")
     ce=copy.deepcopy(parent)
     soft=copy.deepcopy(parent)
     check(all(torch.equal(a,b) and torch.equal(a,c)
