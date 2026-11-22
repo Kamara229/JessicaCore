@@ -1,0 +1,61 @@
+name: Calibri S119q2i8z3 original43M Z2 Core gate train-only L2 vs CE real FP16 12GT own native49k paired
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z2-core-gate-trainonly-regularization-20261123
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original-43M-Z2-core-shrink-real-FP16-A-vs-B-native49152:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z3-core-gate-physical-fp16-own-paired-audit-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact isolated research SHA without stored GitHub credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Only NumPy + safetensors for physical FP16 forensic no torch models
+        run: |
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Strict original49k native full OWN paired and FP16 source-only unit tests
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z3_core_gate_fp16_own_paired
+      - name: Download only SUCCESSFUL real original S142 43M full joint X complete FP16 A/B +12GT physical evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8z2-original43m-fulljoint-21TRAIN-COREgate-L2-vsCE-14freshDEV-gate0
+          run-id: 45074908702
+          path: inputs/z2
+          github-token: ${{ github.token }}
+      - name: SHA-verified all421793 physical full child and 12 GT12 plus real 14+6 native self BPE pairing
+        run: |
+          set -euo pipefail
+          test -f inputs/z2/S119Q2I8Z2_TRUE43M_FULLJOINT_27TRAIN_NATIVE_CE_EARLY23_X3_VS_CORE_GATE_L2_G025.json
+          python -m research.calibri_nra3.s119q2i8z3_core_gate_fp16_own_paired_audit \
+            --z2-artifact-dir inputs/z2 \
+            --out results/S119Q2I8Z3_TRUE43M_REAL_FP16_CE_VS_COREGATE_L2_OWN_NATIVE_PAIRED_G0.json
+      - name: Upload JSON-only source-verified completed X true neural weight and self-token paired metrics gate0
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2i8z3-true43m-Z2-COREgateL2-vsCE-fp16-OWN-paired-gate0
+          path: results/S119Q2I8Z3_TRUE43M_REAL_FP16_CE_VS_COREGATE_L2_OWN_NATIVE_PAIRED_G0.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Fail closed any changed file outside exactly two research-only audit files + CI
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/changed
+          if grep -Ev '^(research/calibri_nra3/s119q2i8z3_core_gate_fp16_own_paired_audit.py|research/calibri_nra3/test_s119q2i8z3_core_gate_fp16_own_paired.py|\.github/workflows/calibri-nra3-s119q2i8z3-coregate-fp16-own-paired.yml)$' /tmp/changed; then
+            echo 'Production or protected changed, no acceptance' >&2
+            exit 1
+          fi
