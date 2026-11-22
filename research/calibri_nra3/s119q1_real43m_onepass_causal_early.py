@@ -55,7 +55,11 @@ SEED = 119129
 
 def build_early_causal_view(recorded: dict[int, torch.Tensor], *, mapping=PLACEHOLDER_MAPPING):
     """Adapt immutable 12-slot ABI using ONLY original layers <=5 in THIS pass."""
-    check(type(mapping) is tuple and len(mapping)==12 and\n          mapping[:6]==EARLY_LAYERS and\n          all(type(v) is int and v in EARLY_LAYERS for v in mapping),\n          "only actual CAUSALLY EXECUTED early original layers, no future")\n    check(set(recorded) == set(EARLY_LAYERS),
+    check(type(mapping) is tuple and len(mapping)==12 and
+          mapping[:6]==EARLY_LAYERS and
+          all(type(v) is int and v in EARLY_LAYERS for v in mapping),
+          "only actual CAUSALLY EXECUTED early original layers, no future")
+    check(set(recorded) == set(EARLY_LAYERS),
           "exact early original layers 0..5 must exist before injection")
     states = [recorded[idx].detach() for idx in EARLY_LAYERS]
     shape = states[0].shape
@@ -73,7 +77,8 @@ def build_early_causal_view(recorded: dict[int, torch.Tensor], *, mapping=PLACEH
 
 
 @contextmanager
-def single_pass_early_intervention(model, adapter, *, contextual=True,\n                                   view_mapping=PLACEHOLDER_MAPPING):
+def single_pass_early_intervention(model, adapter, *, contextual=True,
+                                   view_mapping=PLACEHOLDER_MAPPING):
     """Temporary original decoder hook; one complete forward, never replay.
 
     Early states and layer5 must be produced by exactly one SAME call.
@@ -154,7 +159,8 @@ def single_pass_early_intervention(model, adapter, *, contextual=True,\n        
 
 
 def onepass_full_native_logits(model,sources,bridge,full,expansion,adapter,
-                               native_prefix,features,*,contextual=True,\n                               view_mapping=PLACEHOLDER_MAPPING):
+                               native_prefix,features,*,contextual=True,
+                               view_mapping=PLACEHOLDER_MAPPING):
     """One real frozen S142+GT forward only; adapter builds delta at layer5."""
     check(isinstance(native_prefix,list) and 2 <= len(native_prefix) < 160
           and features.shape == (512,)
@@ -164,7 +170,8 @@ def onepass_full_native_logits(model,sources,bridge,full,expansion,adapter,
     with torch.enable_grad(),expansion.prefill_only(model), \
          s160.prefill_only_tunnel(model,full), \
          bridge.prompt_scope("S93",features), \
-         single_pass_early_intervention(model,adapter,contextual=contextual,\n                                        view_mapping=view_mapping) as witness:
+         single_pass_early_intervention(model,adapter,contextual=contextual,
+                                        view_mapping=view_mapping) as witness:
         clear(sources)
         out = model(input_ids=ids,past_key_values=None,
                     use_cache=True,output_hidden_states=False)
@@ -325,7 +332,8 @@ def run(s93:Path,side:Path,s142:Path,parent:Path,parent_report:Path,
     }
     out.mkdir(parents=True)
     (out/REPORT).write_text(json.dumps(
-        result,sort_keys=True,ensure_ascii=False,indent=2)+"\n",encoding="utf8")
+        result,sort_keys=True,ensure_ascii=False,indent=2)+"
+",encoding="utf8")
     print("S119Q1_ONEPASS_PHYSICAL_ORIGINAL_NATIVE "+json.dumps(
         result["summary"]|{"native_gate_gradient_norm":gate_grad_norm,
                            "accepted":False},sort_keys=True),flush=True)
