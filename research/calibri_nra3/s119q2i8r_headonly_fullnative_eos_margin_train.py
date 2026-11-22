@@ -176,7 +176,13 @@ def head_only_train(model,sources,bridge,full,expansion,child,train,tok,
           "all previous 43M, GT12, core/NRA3/NPA1/protected 53k weights unchanged")
     child.eval()
     head.requires_grad_(False)
-    anchor.requires_grad_(False)
+    # The physical onepass causal hook REQUIRES an autograd-attached
+    # early-layer delta also for honest OWN-token evaluation. Keep the
+    # old 36-value mixer as gradient-enabled ONLY until that read-only
+    # evaluation; it is explicitly excluded from ALL optimizer groups,
+    # never updated and its immutable value is verified below.
+    check(anchor.requires_grad and all(not p.requires_grad for p in params),
+          "head updates finished; only frozen-value old mixer remains a grad anchor")
     check(torch.equal(anchor.detach().cpu(),immutable["child.mix_logits"]),
           "old 36-param 6slot projection anchor used for autograd ONLY, never updated")
     return {
