@@ -11,7 +11,7 @@ jobs:
   physical-FP16-CE-vs-KL-delta-research:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8m-fp16-softkl-delta-forensics-20261122'
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8m-early23-fp16-gradient-audit-20261122'
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
