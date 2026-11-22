@@ -75,7 +75,7 @@ class S119Q2D1FrozenOriginalNativeControls(unittest.TestCase):
         with self.assertRaisesRegex(GateFailure,"six domains"):
             summarize_original(bad)
 
-    def test_05_source_never_included_as_new TRAIN(self):
+    def test_05_source_never_included_as_new_TRAIN(self):
         tr,pr=source_inventory(build_rows())
         self.assertEqual(len(tr),96)
         self.assertEqual(len(pr),30)
