@@ -1,0 +1,37 @@
+name: Calibri S119q2i8h paired original-native A/B research report guard (no models)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8g-first21-multiword-native-joint-train-20261122
+permissions:
+  contents: read
+jobs:
+  paired-sample-outcome-report-hard-gates:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8h-paired-native-outcome-audit-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact research SHA read-only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run unit contract tests, no model downloads or pretrained weights
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8h_postrun_paired_native
+      - name: Hard fail if modifications outside two report scripts and this workflow
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/diff_files
+          if grep -Ev '^(research/calibri_nra3/s119q2i8h_paired_native_postrun_audit.py|research/calibri_nra3/test_s119q2i8h_postrun_paired_native.py|\.github/workflows/calibri-nra3-s119q2i8h-paired-native-audit.yml)$' /tmp/diff_files; then
+            echo "Non-research file changed" >&2
+            exit 1
+          fi
