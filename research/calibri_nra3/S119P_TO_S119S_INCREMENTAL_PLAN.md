@@ -174,6 +174,28 @@ Prepare immutable legal and provenance-logged source-only TRAIN/CALIBRATION spli
 - **Research decision:** STOP repeating small-source CE training or adding GT mini-areas to fix this. Next S119q2i8c should (1) audit **true teacher-forced full native SOURCE 135M vs compressed S142 43M target BPE rank/CE specifically for GOLD continuation after Cyrillic first byte** on ALREADY SPENT source-only DEV (read-only) and (2) preregister a genuinely larger, provenance-cleared Russian general-language TRAIN with original full native BPE, use ORIGINAL frozen teacher full native logits only as **soft distribution/continuation distillation**, not as independent correct QA labels (because source 135M often echoes prompts). Compare with matched 43M supervised CE-only and no-GT or no-carry controls, free-generated *whole* answers and genuine UTF-8 validity; NEVER optimize on these now-spent Q2I8a DEV. This is a **small seven-source diagnosis only**; external/blind independent evaluation, original full protected 616 J7+EOS, packed all-in <=0.7bpp and matched KV CPU>=90% remain completely UNVERIFIED. output_gate0, candidate_accepted=false, no LIVE/main/Render/Supabase/Jessica chat/APK or S118 GOLD/spent EVAL128/J7 labels.
 
 
+
+### S119q2i8c — physically verified full-native frozen source135M softlogits vs original/fitted S14243M on CORRECT previous Russian bytes
+
+**Actions #45036673349 SUCCESS; 381/381 original-source/GT/native +20 new hard tests PASS.** Exactly **138 REAL** frozen physical full 49,152-native-output decoder forwards: **46 true original author-authored native target BPE+real EOS positions**, each from **7 previously used and scored Q2I8a DEV prompts**, processed identically on 3 actual models: immutable pinned upstream SmolLM2-135M-Instruct **134,515,008 parameters** at exact revision SHA, original frozen physical S142 43M 12layer Core12+GreenTunnel with 12 GT12 gates ZERO, and physically prior Q2I8a fitted true S142 43M + GT12 Core/NRA3/NPA1/causal projection + learned native 49,152 head FP16. All neural tensors protected old S115 53,751 and original S142 GT12 unchanged/restored, no gradient updates/optimizer. **This is a gold-PREFIX conditional diagnostic ONLY, not own-token free-running answer quality or blind independent EVAL.**
+
+**Most decision-useful actual measured causal contrast (full original 49152-vocab next-BPE at identical gold PREVIOUS prefix):**
+
+| True target next native BPE positions | Upstream SOURCE 135M | Original compact S142 43M | Fitted compact Q2I8a 43M |
+|---|---:|---:|---:|
+| **Cyrillic UTF-8 CONTINUATION after correct incomplete byte**, correct top1 out of **6** | **2/6** | 0/6 | 0/6 |
+| Same, mean correct-target rank among full 49,152 native BPE | **4.33** | **31,442.17** | **15,216.67** |
+| Same, mean gold native CE (lower better) | **2.35866** | **13.25662** | **11.18954** |
+| Same, mean teacher-source KL(T=2) | self | **5.34018** | **3.68806** |
+| Noncontinuation, nonEOS correct top1 out of **33** | **25/33** | 0/33 | 6/33 |
+| Native EOS after all true correct BPE, correct top1 out of **7** | **0/7** | **5/7** | **5/7** |
+| Native EOS conditional mean CE | **18.67784** | **3.41738** | **1.89583** |
+
+**Interpretation:** The original 135M absolutely has substantially stronger conditional correct native Cyrillic continuation/word token distribution than the compressed 43M original and even the fitted GT12/NRA3/NPA1 child, but **135M itself is BAD at ending the requested short answer** (EOS 0/7 when given complete gold answer prefix, CE18.68). Therefore **blind FULL-spectrum teacher soft-logit distillation on all native positions could make EOS calibration WORSE** even if it improves Cyrillic transitions. The source teacher was also **0/7 fully correct prior independently greedy QA answers** on the same previously scored source prompts and should NOT be a semantic answer oracle. These are just **6 continuation targets**, a narrow diagnostic, not proof of external generalization. It is NOT defensible to replace original compressed model with teacher weights or claim recovered Russian competence.
+
+**Bounded next S119q2i8d:** keep existing architecture EXACT (43M+GT12+NRA3+NPA1+native head, no new areas). On **fresh original-authored or documented-rights-cleared TRAIN only**, compare exactly matched **CE-only** and **CE + T2 teacher 135M soft-target continuation distillation ONLY after an actually incomplete native UTF-8 prefix**; explicitly STOP/zero teacher KL on EOS and on any other position where teacher would merely echo instead of answering. Supervise real original EOS from author-provided target, not teacher's implicit EOS. Predefine fixed α and T BEFORE any new DEV scoring, measure gold-prefix conditional BPE ranks/real EOS and full own-native complete/byte-valid answer on **new untouched, strictly disjoint independent source**, with baseline frozen teacher and no-carry matched control; no tuning on these now-SPENT DEV. Preserve full original 616 J7+EOS, packed all-in bpp<=0.7 and real paired CPU KV>=90% gates before any promotion, no LIVE/main/Render/Supabase/Jessica chat/APK/secrets.
+
+
 ### S119r — one-pass integration and genuine behavioral evaluation
 Replace two-pass replay with single causal interface only when q1/q2 show generalization. Physically rerun native own-token greedy generation with multiple SEPARATE, not trained-on, unanswered prompts and **independently scored** relation/grammar/negation/arithmetic QA. Also compare pairwise content changes, not just whether output token changed. If no gain over equal-cost matched local baseline, reject candidate. No task-specialized answer hardcoding.
 
