@@ -11,6 +11,16 @@ from research.calibri_nra3.s119q2i1_real43m_ru_language_head_joint_training impo
 from research.calibri_nra3.s119q2i3_real_joint_gt_nra3_npa1_head import make_joint_trainable,TOTAL_EXPECTED_TRAINABLE,scoped_reduced_native_head_gain
 from research.calibri_nra3.s119q2i6_true43m_ru_utf8_joint_train import CONTINUATION_WEIGHT,TOTAL_TRAIN,NEW_TRAIN,ROUNDS,CONDITIONS,GATES,GT_GATE_LR,REGION_LR,PROJECTION_LR,HEAD_BIAS_LR,CLIP,native_train_weights,VOCAB_SIZE
 
+def teacher_kl_only_secondthird_gold_target(t,target,gold,eos):
+    """Predicate is TRAIN-only, never teacher on first native BPE or EOS."""
+    check(type(t) is int and type(target) is int
+          and type(eos) is int and isinstance(gold,list)
+          and len(gold)>=4 and gold[-1]==eos
+          and 0<=t<len(gold) and target==gold[t],
+          "explicit native train gold BPE+EOS target gate")
+    return t in (1,2) and t<len(gold)-1 and target!=eos
+
+
 def train_true_joint_early23(model,sources,bridge,full,expansion,child,train,tok,
                      *,condition,continuation_weight=CONTINUATION_WEIGHT,
                      expected_total=TOTAL_TRAIN,expected_new=NEW_TRAIN,
@@ -86,7 +96,7 @@ def train_true_joint_early23(model,sources,bridge,full,expansion,child,train,tok
                     # teacher-logit distillation ONLY at second and third
                     # native gold BPE positions. EOS stays human-target CE-only.
                     if (teacher_135m is not None and
-                        t in (1,2) and t<len(gold)-1):
+                        teacher_kl_only_secondthird_gold_target(t,target,gold,tok.eos_token_id)):
                         check(int(target)!=tok.eos_token_id,
                               "NEVER teacher-distill EOS or teacher-generated QA")
                         from research.calibri_nra3.s119q2i8b_source135m_vs_original43m_native import source_teacher_step
