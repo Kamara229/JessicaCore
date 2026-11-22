@@ -89,8 +89,8 @@ def real_native_rank(logits,gold):
           and bool(torch.isfinite(x).all())
           and type(gold) is int and 0<=gold<NATIVE_VOCAB,
           "full original 49152 native finite logits, no vocabulary masking")
-    sorted_ids=torch.argsort(x,descending=True,stable=True)
-    pred=int(sorted_ids[0].item())
+    top_ids=torch.topk(x,5,largest=True,sorted=True).indices
+    pred=int(top_ids[0].item())
     rank=1+int((x>x[gold]).sum().item())
     logp=float((x[gold]-torch.logsumexp(x,dim=0)).item())
     return {
@@ -101,7 +101,7 @@ def real_native_rank(logits,gold):
         "wrong_top1_minus_gold_logit_gap":round(float(x[pred]-x[gold]),7),
         "greedy_original_native_id":pred,
         "gold_native_id":gold,
-        "top5_native_ids":[int(i) for i in sorted_ids[:5].tolist()],
+        "top5_native_ids":[int(i) for i in top_ids.tolist()],
     }
 
 
@@ -326,9 +326,10 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,
     check(old_original_param_digest(model)==frozen_orig
           and all(torch.equal(full.state_dict()[k],v)
                   for k,v in frozen_full.items())
-          and all(torch.equal(child.state_dict()[k][kk],value)
-                  for kk,value in unchanged[label].items())
-          for label,child in all_children.items(),
+          and all(
+              torch.equal(child.state_dict()[kk],value)
+              for label,child in all_children.items()
+              for kk,value in unchanged[label].items()),
           "original 43M + GT12 and all physical children FROZEN no optimizer")
     check(physical43m==14*len(POSITIONS)*len(all_children)==84
           and teacher_calls==14*len(POSITIONS)==28,
