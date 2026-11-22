@@ -83,7 +83,7 @@ CONTRAST_WEIGHT=0.2
 VOCAB_SIZE=49152
 OLD_PREFIX="model.nra3_calibri_joint.s119q2b."
 SOURCE_COUNTS={kind:16 for kind in KINDS}
-PROBE_COUNTS={"Q2A_CALIBRATION":18,"Q2C1_SOURCE_PROBE":12}
+PROBE_COUNTS={"CALIBRATION":18,"SOURCE_PROBE":12}
 
 
 def read_parent(context_file,local_file,report_file,s93,s142):
