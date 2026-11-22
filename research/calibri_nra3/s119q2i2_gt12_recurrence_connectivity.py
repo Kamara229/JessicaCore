@@ -462,7 +462,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,out):
             "answers_by_domain":{
                 k:sum(x["strict_finished_full_answer_exact"]
                       for x in trace if x["domain"]==k)
-                for k in KINDS,
+                for k in KINDS
             },
         }
     report={
