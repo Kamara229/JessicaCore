@@ -146,8 +146,8 @@ class S119Q2I1NativeLanguageTrainingContracts(TestCase):
         self.assertEqual(EPOCHS,2)
         self.assertEqual(HEAD_LEARNING_RATE,0.018)
         self.assertEqual(CHILD_LEARNING_RATE,0.0003)
-        self.assertEqual(DEV_MAX_GEN_NATIVE,12)
-        self.assertEqual(MAX_ANSWER_NATIVE,16)
+        self.assertEqual(DEV_MAX_GEN_NATIVE,16)
+        self.assertEqual(MAX_ANSWER_NATIVE,48)
 
     def test_13_teacher_forced_gold_answer_has_explicit_REAL_eos(self):
         tok=ToyNative()
