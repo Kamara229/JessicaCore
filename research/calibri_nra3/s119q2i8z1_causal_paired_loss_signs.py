@@ -43,7 +43,7 @@ def paired_stats(report):
           and report["real_original43M_full_native49152_gold_second_prefix_actual_physical_forwards"]==
               EXPECTED_REAL_ORIGINAL_43M_FORWARDS==336
           and report["original_frozen43M_and_all_three_research_FP16_model_and_GT12_weights_preserved"] is True
-          and report["already_spent_X14_author_internal_DEV_gold_PREVIOUS_BPE_only"] is True
+          and report["X14_synthetic_AUTHOR_DEV_already_spent_teacherforced_gold_PREVIOUS_BPE_NOT_OWN"] is True
           and report["new_X14_now_SPENT_source_SHA256"]==src["X14_DEV_sha256"]
           and report["registered_8_component_and_native_readout_conditions"]==list(CONDITIONS),
           "immutable valid SHA-identified completed original43M actual Z 336 native49k")
