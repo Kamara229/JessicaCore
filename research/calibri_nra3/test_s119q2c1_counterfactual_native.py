@@ -18,7 +18,7 @@ from research.calibri_nra3.s119q2c1_author_counterfactual_pairs import (
 )
 from research.calibri_nra3.s119q2c1_real43m_onepass_counterfactual_train import (
     CONTRAST_WEIGHT,EPOCHS,LR,VOCAB_SIZE,
-    paired_instant_metrics,summarize_probe,
+    paired_instant_metrics,summarize_probe,prepared_source,
 )
 
 
@@ -121,13 +121,13 @@ class S119Q2C1CounterfactualControls(unittest.TestCase):
         bad=paired_instant_metrics(logits,17,11)
         self.assertTrue(good["correct_ranked_over_opposing"])
         self.assertFalse(bad["correct_ranked_over_opposing"])
-        self.assertTrue(good["native_first_greedy_correct"])
-        self.assertFalse(bad["native_first_greedy_correct"])
+        self.assertTrue(good["native_distinguishing_BPE_greedy_correct"])
+        self.assertFalse(bad["native_distinguishing_BPE_greedy_correct"])
         self.assertAlmostEqual(
-            good["native_first_truth_minus_counterfactual_logit"],4.)
+            good["native_distinguishing_truth_minus_counterfactual_logit"],4.)
         self.assertAlmostEqual(
-            bad["native_first_truth_minus_counterfactual_logit"],-4.)
-        self.assertLess(good["native_first_CE"],bad["native_first_CE"])
+            bad["native_distinguishing_truth_minus_counterfactual_logit"],-4.)
+        self.assertLess(good["native_distinguishing_BPE_CE"],bad["native_distinguishing_BPE_CE"])
 
     def test_12_reject_same_wrong_token_or_nan_full_vocab(self):
         logits=torch.zeros(1,VOCAB_SIZE)
@@ -145,18 +145,18 @@ class S119Q2C1CounterfactualControls(unittest.TestCase):
                     "kind":kind,"pair_index":2,"side":side,
                     "use":"SOURCE_PROBE",
                     "stats":{
-                        "native_first_CE":3. if side==0 else 5.,
-                        "native_first_truth_minus_counterfactual_logit":
+                        "native_distinguishing_BPE_CE":3. if side==0 else 5.,
+                        "native_distinguishing_truth_minus_counterfactual_logit":
                             1. if side==0 else -1.,
                         "correct_ranked_over_opposing":side==0,
-                        "native_first_greedy_correct":False,
+                        "native_distinguishing_BPE_greedy_correct":False,
                     }
                 })
         s=summarize_probe(fake)
         self.assertEqual(s["count_source_only_probe_prompts"],12)
         self.assertEqual(s["correct_first_token_ranks_over_opposing"],6)
         self.assertEqual(s["source_counterfactual_pairs_both_sides_correct"],0)
-        self.assertAlmostEqual(s["mean_first_native_token_CE"],4.)
+        self.assertAlmostEqual(s["mean_distinguishing_native_BPE_CE"],4.)
         self.assertTrue(s["same_author_source_ONLY_not_independent_quality"])
 
     def test_14_source_probe_cannot_be_miscounted_as_train(self):
@@ -174,7 +174,42 @@ class S119Q2C1CounterfactualControls(unittest.TestCase):
         self.assertEqual(VOCAB_SIZE,49152)
         self.assertEqual(len(split(self.records)[0])*EPOCHS,24)
 
-    def test_16_paired_softplus_is_finite_and_protects_truth_direction(self):
+    def test_16_first_shared_BPE_prefix_teacher_forced_without_future_target(self):
+        # Fake character-level native tokenizer deliberately makes original
+        # author answers with common FIRST token, e.g. 'Павел/Приступил'.
+        class ToyNativeTokenizer:
+            vocab_size=49152
+            def apply_chat_template(self,messages,tokenize=False,
+                                    add_generation_prompt=True):
+                return "<user>"+messages[0]["content"]+"</user><assistant>"
+            def encode(self,txt,add_special_tokens=False):
+                return [ord(c) for c in txt]
+            def decode(self,ids,skip_special_tokens=False):
+                return "".join(chr(i) for i in ids)
+        tok=ToyNativeTokenizer()
+        probe=split(self.records)[1]
+        transformed=prepared_source(tok,probe)
+        self.assertEqual(len(transformed),12)
+        self.assertGreater(max(x["teacher_forced_shared_answer_prefix_tokens"]
+                               for x in transformed),0)
+        for x in transformed:
+            self.assertEqual(
+                len(x["prefix"]),
+                x["original_question_prefix_length"]+
+                x["teacher_forced_shared_answer_prefix_tokens"])
+            self.assertNotEqual(
+                x["native_target"],x["opposing_native_distinct_token"])
+            self.assertEqual(
+                x["prefix"][-x["teacher_forced_shared_answer_prefix_tokens"]:]
+                if x["teacher_forced_shared_answer_prefix_tokens"] else [],
+                x["teacher_forced_shared_answer_native_ids"])
+        by={(x["kind"],x["pair_index"],x["side"]):x for x in transformed}
+        for x in transformed:
+            other=by[(x["kind"],x["pair_index"],1-x["side"])]
+            self.assertEqual(x["teacher_forced_shared_answer_native_ids"],
+                             other["teacher_forced_shared_answer_native_ids"])
+
+    def test_17_paired_softplus_is_finite_and_protects_truth_direction(self):
         logits=torch.zeros(1,VOCAB_SIZE,requires_grad=True)
         loss=torch.nn.functional.cross_entropy(
             logits,torch.tensor([9])) +CONTRAST_WEIGHT*torch.nn.functional.softplus(
