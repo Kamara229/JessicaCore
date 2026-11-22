@@ -26,13 +26,17 @@ from pathlib import Path
 
 import torch
 from torch.nn import functional as F
+from safetensors.torch import load_file
 
 from research.calibri_nra3.s119a_hard_four_goals import check
 from research.calibri_nra3.s119k_actual43m_full_native_lm_head_shadow import (
     load_actual_original,sha,
 )
 from research.calibri_nra3.s119m_real43m_gt_interlayer_onpath_joint import (
-    old_original_param_digest,
+    old_original_param_digest,LearnedOnPathInterlayer,
+)
+from research.calibri_nra3.s119k_actual43m_full_native_lm_head_shadow import (
+    NativeFullHeadShadow,
 )
 from research.calibri_nra3.s119q1_real43m_onepass_causal_early import (
     onepass_full_native_logits, PLACEHOLDER_MAPPING,
@@ -44,7 +48,7 @@ from research.calibri_nra3.s119q2b_real43m_onepass_native_train import (
     verify_q2a_artifact,
 )
 from research.calibri_nra3.s119q2d_deeper_joint_native_answer_training import (
-    read_parent,source_inventory,pack_sources,VOCAB_SIZE,PROBE_COUNTS,
+    OLD_PREFIX,source_inventory,pack_sources,VOCAB_SIZE,PROBE_COUNTS,
     REPORT as Q2D_REPORT,CONTEXT_CKPT,LOCAL_CKPT,
 )
 from research.calibri_nra3.s119q2d1_real_original_sameprobe_baseline import (
@@ -61,6 +65,29 @@ MAPS={
 SOURCE_COUNT=30
 COMPONENT_PROMPTS=12
 EXPECTED_REAL_DECODER_CALLS=30*2*2 + 12*3 + 2
+
+
+def load_q2d_trained_child(file_path:Path,metadata):
+    """Real verified DEEP q2d FP16, NOT q2c1 earlier intermediate ABI."""
+    check(file_path.name in (CONTEXT_CKPT,LOCAL_CKPT)
+          and file_path.stat().st_size==metadata["file_bytes"]
+          and sha(file_path)==metadata["sha256"],
+          "actual previous q2d trained native child exact file and SHA")
+    raw=load_file(str(file_path),device="cpu")
+    check(raw and all(k.startswith(OLD_PREFIX) and
+                      v.dtype==torch.float16 for k,v in raw.items()),
+          "all stored original q2d neural weights are FP16")
+    child=LearnedOnPathInterlayer(NativeFullHeadShadow()).eval()
+    state={k[len(OLD_PREFIX):]:v.float() for k,v in raw.items()}
+    check(set(child.state_dict())==set(state),
+          "trained full original q2d core NRA3 NPA1 parameter keys intact")
+    child.load_state_dict(state,strict=True)
+    check(sum(p.numel() for p in
+              child.shadow.unified.nra3_neural_weights.parameters())==53751
+          and child.output_gate==0 and not child.candidate_accepted
+          and not child.activation_allowed,
+          "old 53751 FP16 frozen and q2d child permanently unaccepted")
+    return child,raw
 
 
 def source_probes(tok,q2a_rows):
@@ -174,12 +201,12 @@ def run(s93,side,s142,q2a_dir,q2d_dir,reference,out):
     check(physical_report["q2a_source_SHA256"]==
           manifest["synthetic_rows_SHA256"],
           "exact SHA-bound previous original source and trained evidence")
-    (parent,(ctx,raw_ctx),(local,raw_local))=read_parent(
-        q2d_dir/CONTEXT_CKPT,q2d_dir/LOCAL_CKPT,q2d_dir/Q2D_REPORT,
-        s93,s142)
-    check(parent==physical_report and
-          set(ctx.state_dict())==set(local.state_dict()),
-          "exact two physical trained A/B joint child states")
+    ctx,raw_ctx=load_q2d_trained_child(
+        q2d_dir/CONTEXT_CKPT,physical_report["new_research_checkpoint_contextual"])
+    local,raw_local=load_q2d_trained_child(
+        q2d_dir/LOCAL_CKPT,physical_report["new_research_checkpoint_local"])
+    check(set(ctx.state_dict())==set(local.state_dict()),
+          "exact two physical already-DEEP-trained A/B neural child states")
     from transformers import AutoTokenizer
     from binary_geometry_v64 import MODEL,MODEL_SHA
     tok=AutoTokenizer.from_pretrained(MODEL,revision=MODEL_SHA)
