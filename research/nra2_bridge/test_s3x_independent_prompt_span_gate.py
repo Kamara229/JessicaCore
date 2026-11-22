@@ -72,3 +72,28 @@ def test_forged_but_self_consistent_offsets_are_not_attested():
     assert verify_prompt_spans(p, h, m, o) is True
     # No independent tokenizer capture is performed here; physical S3U remains
     # BLOCKED regardless of this passing synthetic example.
+
+
+def test_independent_retokenization_accepts_matching_offsets():
+    from research.nra2_bridge.s3x_independent_prompt_span_gate import verify_with_retokenization
+    p, h, m, o = fixture()
+    def tokenizer(text):
+        a, b = text.index("alpha"), text.index("beta")
+        return [(a, a + 5), (b, b + 4)]
+    assert verify_with_retokenization(p, h, m, o, tokenizer) is True
+
+
+def test_independent_retokenization_rejects_forged_self_consistent_offsets():
+    from research.nra2_bridge.s3x_independent_prompt_span_gate import verify_with_retokenization
+    p, h, m, o = fixture()
+    # Caller changes both mention and offset to a wrong but matching substring.
+    m[0][0]["start"] += 1
+    m[0][0]["end"] += 1
+    m[0][0]["text"] = p[0][m[0][0]["start"]:m[0][0]["end"]]
+    o[0][0] = (m[0][0]["start"], m[0][0]["end"])
+    assert verify_prompt_spans(p, h, m, o) is True
+    def tokenizer(text):
+        a, b = text.index("alpha"), text.index("beta")
+        return [(a, a + 5), (b, b + 4)]
+    with pytest.raises(AssertionError, match="Independent tokenizer offset mismatch"):
+        verify_with_retokenization(p, h, m, o, tokenizer)
