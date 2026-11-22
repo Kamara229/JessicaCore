@@ -16,7 +16,14 @@ class TestSource(unittest.TestCase):
         self.assertEqual(Counter(x["kind"] for x in rows("DEV")),{k:2 for k in KINDS})
         self.assertTrue(set(x["id"] for x in rows("TRAIN")).isdisjoint(
                         x["id"] for x in rows("DEV")))
-    def test_03_protected_not_accessible(self):
+    def test_03_train_dev_prompt_source_sha_is_frozen(self):
+        report=verify()
+        self.assertNotEqual(report["original_21_TRAIN_SHA256"],
+                            report["original_14_DEV_SHA256"])
+        self.assertTrue(report["source_disjoint_prior_E70_G_K_R"])
+        self.assertTrue(all(x["id"].startswith("S119Q2I8T_")
+                            for x in rows("TRAIN")+rows("DEV")))
+    def test_04_protected_not_accessible(self):
         for split in ("GOLD","EVAL","EVAL128","J7","616","TEST"):
             with self.assertRaises(ValueError):rows(split)
 if __name__=="__main__":unittest.main()
