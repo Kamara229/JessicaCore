@@ -472,153 +472,147 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
             train_cache=[]
             with torch.no_grad():
                 for row in fresh_train:
-                    with scoped_exact_native_gain(
-                            child.language_head,.25) as witnessed:
+                    with scoped_exact_native_gain(child.language_head,.25) as witnessed:
                         first_logits=real_joint_native(
                             model,sources,bridge,full,expansion,child,
                             row["prefix"],row["prompt_features"],contextual=True)
                         check(first_logits.shape==(1,NATIVE_VOCAB)
                               and full.last_forward_coverage==tuple(range(12)),
-                              "true original43M actual first-native OWN logit")
-                        own_first=int(torch.argmax(first_logits[0]).item())
-                        # Attach prehook to EXISTING native lm_head, not a
-                        # second model forward; full h320 covers GT/NRA3/NPA1.
-                        with capture_existing_full43m_hidden(model) as h:
-                            second_logits=real_joint_native(
-                                model,sources,bridge,full,expansion,child,
-                                row["prefix"]+[own_first],row["prompt_features"],
-                                contextual=True)
-                        check(len(h)==1 and h[0].shape==(1,HIDDEN)
+                              "actual original43M all12GT first native OWN BPE")
+                        own_first=int(first_logits[0].argmax().item())
+                        with capture_original_selected_layers(model) as layers:
+                            with capture_existing_full43m_hidden(model) as h:
+                                second_logits=real_joint_native(
+                                    model,sources,bridge,full,expansion,child,
+                                    row["prefix"]+[own_first],row["prompt_features"],
+                                    contextual=True)
+                        check(len(h)==1 and set(layers)=={2,6,10}
                               and second_logits.shape==(1,NATIVE_VOCAB)
                               and full.last_forward_coverage==tuple(range(12)),
-                              "actual original43M h320 and full49k BPE2 same paid pass")
+                              "actual original L3/L7/L11 and final h320 SAME full pass")
+                        mixed=fixed_multi_layer_h320(layers,h[0])
                     check(witnessed[0]==2,
-                          "two physical original43M native forwards per TRAIN row")
+                          "exact two full original S142 native TRAIN forwards")
                     gold=row["answer_native_with_eos"]
                     train_cache.append({
                         "source_id":row["id"],"split":"TRAIN",
                         "logits":second_logits.detach().float().cpu().clone(),
-                        "hidden":h[0].detach().float().cpu().clone(),
+                        "hidden_final":h[0].detach().float().cpu().clone(),
+                        "hidden_multilayer":mixed.detach().float().cpu().clone(),
                         "target_native_BPE2":int(gold[1]),
                         "own_first_correct":bool(own_first==gold[0]),
                     })
             check(len(train_cache)==28 and
-                  all(r["split"]=="TRAIN" for r in train_cache),
-                  "28 actual original43M TRAIN-only native BPE2 cached readouts")
-
-            # All 25 fixed optimizer epochs affect ONLY separate
-            # 1,280-param NEW shadow ranking weights. Neither original
-            # model nor any DEV row is involved in training.
-            reranker, train_record=exact_fixed_trainonly_reranker(
+                  len({r["source_id"] for r in train_cache})==28,
+                  "matched new Z18 28 human TRAIN and unique actual 43M sources")
+            rankers,train_results=train_matched_shadow_rerankers(
                 train_cache,native_embedding)
-            reranker.eval()
-            check(train_record["TRAIN_only_eligible_original_TOP64_gold_second"]>=2
-                  and train_record["original_model_gradient_steps"]==0
-                  and train_record["reranker_trainable_params"]==1280,
-                  "new28 real original TRAIN top64 only, fixed budget")
-            old_trainable_model_count=368051
+            check(set(rankers)=={BASELINE,ALTERNATE},
+                  "two separate matched 1280-param shadow readouts only")
             observed=[]
             with torch.no_grad():
                 for row in fresh_dev:
-                    with scoped_exact_native_gain(
-                            child.language_head,.25) as witnessed:
+                    with scoped_exact_native_gain(child.language_head,.25) as witnessed:
                         first_logits=real_joint_native(
                             model,sources,bridge,full,expansion,child,
                             row["prefix"],row["prompt_features"],contextual=True)
                         check(first_logits.shape==(1,NATIVE_VOCAB)
                               and full.last_forward_coverage==tuple(range(12)),
-                              "true original43M first native OWN under original gates")
-                        own_first=int(torch.argmax(first_logits[0]).item())
-                        with capture_existing_full43m_hidden(model) as h:
-                            second_logits=real_joint_native(
-                                model,sources,bridge,full,expansion,child,
-                                row["prefix"]+[own_first],
-                                row["prompt_features"],contextual=True)
-                        check(len(h)==1 and h[0].shape==(1,HIDDEN)
+                              "actual original43M first OWN under original GT")
+                        own_first=int(first_logits[0].argmax().item())
+                        with capture_original_selected_layers(model) as layers:
+                            with capture_existing_full43m_hidden(model) as h:
+                                second_logits=real_joint_native(
+                                    model,sources,bridge,full,expansion,child,
+                                    row["prefix"]+[own_first],row["prompt_features"],
+                                    contextual=True)
+                        check(len(h)==1 and set(layers)=={2,6,10}
                               and second_logits.shape==(1,NATIVE_VOCAB)
                               and full.last_forward_coverage==tuple(range(12)),
-                              "original43M output & captured same h320 GT12")
+                              "same original forward native49152 logits/12layers/final h320")
+                        mixed=fixed_multi_layer_h320(layers,h[0])
                     check(witnessed[0]==2,
-                          "two real original43M native49k per DEV, no candidates")
-                    # NO gold in candidate scoring or original shortlist.
-                    ids,scores=reranker(
-                        second_logits.detach(),h[0],native_embedding)
-                    greedy=int(torch.argmax(second_logits[0]).item())
-                    selected=int(ids[int(torch.argmax(scores).item())].item())
+                          "two real full original43M forwards per NEW unseen DEV")
+                    greedy=int(second_logits[0].argmax().item())
+                    top64=torch.topk(second_logits.detach()[0],K).indices
                     target=row["answer_native_with_eos"]
-                    first_match=bool(own_first==target[0])
-                    present=bool((ids==target[1]).any())
+                    first_ok=bool(own_first==target[0])
+                    present=bool((top64==target[1]).any())
+                    choices={}
+                    for mode in MODES:
+                        features=h[0] if mode==BASELINE else mixed
+                        ids,scores=rankers[mode](
+                            second_logits.detach(),features,native_embedding)
+                        check(torch.equal(ids,top64),
+                              "same ORIGINAL native top64 for both matched h320")
+                        choice=int(ids[int(scores.argmax().item())].item())
+                        choices[mode]={
+                            "second_native_id":choice,
+                            "correct":bool(first_ok and choice==target[1]),
+                            "changed_original_greedy":choice!=greedy,
+                            "premature_EOS":choice==2,
+                        }
                     observed.append({
                         "source_id":row["id"],"kind":row["kind"],
-                        "prompt_sha256":row["prompt_sha256"],
-                        "own_first_native_correct":first_match,
-                        "greedy_second_native_correct":
-                            first_match and greedy==target[1],
-                        "reranked_second_native_correct":
-                            first_match and selected==target[1],
-                        "gold_second_already_in_frozen_top64":
-                            first_match and present,
-                        "reranker_changed_second_native":selected!=greedy,
-                        "actual_greedy_native_BPE2_ID":greedy,
-                        "actual_reranked_native_BPE2_ID":selected,
-                        "greedy_is_premature_native_EOS":greedy==2,
-                        "reranked_is_premature_native_EOS":selected==2,
-                        "candidate_native_top64_includes_EOS":bool((ids==2).any()),
-                        "original_full43M_native_forwards":2,
-                        "true_original_native_vocab_size":NATIVE_VOCAB,
-                        "source_internal_DEV_NOW_SPENT_not_independent_blind":True,
-                        "gold_only_posthoc_after_ranker_selection":True,
+                        "prompt_SHA256":row["prompt_sha256"],
+                        "own_FIRST_correct":first_ok,
+                        "gold_SECOND_reachable_in_original_top64":first_ok and present,
+                        "original_greedy_SECOND_correct":first_ok and greedy==target[1],
+                        "original_greedy_SECOND_id":greedy,
+                        "choices":choices,
+                        "real_original43M_full_native_forwards":2,
+                        "new_Z18_DEV_now_SPENT_not_independent":True,
+                        "gold_only_posthoc_never_in_candidate_or_ranker_selection":True,
                     })
             check(len(observed)==14 and
-                  len({r["prompt_sha256"] for r in observed})==14,
-                  "ALL unseen Z16 DEV14 scored only after fixed TRAIN")
-            stat={
-                "n_NEW_Z16_DEV":14,
-                "own_first_correct":sum(x["own_first_native_correct"] for x in observed),
-                "correct_gold_second_in_native_top64":sum(
-                    x["gold_second_already_in_frozen_top64"] for x in observed),
-                "greedy_correct_second":sum(
-                    x["greedy_second_native_correct"] for x in observed),
-                "reranked_correct_second":sum(
-                    x["reranked_second_native_correct"] for x in observed),
-                "reranker_changed_second":sum(
-                    x["reranker_changed_second_native"] for x in observed),
-                "EOS_among_top64":sum(
-                    x["candidate_native_top64_includes_EOS"] for x in observed),
-                "greedy_premature_native_EOS":sum(
-                    x["greedy_is_premature_native_EOS"] for x in observed),
-                "reranked_premature_native_EOS":sum(
-                    x["reranked_is_premature_native_EOS"] for x in observed),
-                "unique_greedy_native_BPE2_IDs":len(set(
-                    x["actual_greedy_native_BPE2_ID"] for x in observed)),
-                "unique_reranked_native_BPE2_IDs":len(set(
-                    x["actual_reranked_native_BPE2_ID"] for x in observed)),
-                "true_original43M_full_native49k_forwards":84,
-                "ranker_extra_original43M_forwards_per_sample":0,
-                "saved_shadow_params":1280,
+                  len({r["prompt_SHA256"] for r in observed})==14,
+                  "all NEW Z18 DEV14 scored once AFTER completely matched TRAIN")
+            scores={
+                "DEV14":14,
+                "own_FIRST_correct":sum(r["own_FIRST_correct"] for r in observed),
+                "gold_SECOND_in_original_top64":sum(
+                    r["gold_SECOND_reachable_in_original_top64"] for r in observed),
+                "original_greedy_SECOND_correct":sum(
+                    r["original_greedy_SECOND_correct"] for r in observed),
+                "same_source_matched_modes":{
+                    mode:{
+                        "correct_SECOND":sum(r["choices"][mode]["correct"]
+                                             for r in observed),
+                        "changed_original_greedy":sum(
+                            r["choices"][mode]["changed_original_greedy"]
+                            for r in observed),
+                        "premature_EOS":sum(r["choices"][mode]["premature_EOS"]
+                                             for r in observed),
+                        "distinct_selected_second_BPE_ids":len(set(
+                            r["choices"][mode]["second_native_id"]
+                            for r in observed)),
+                    } for mode in MODES,
+                },
+                "real_original43M_all12GT_native49152_forwards":84,
+                "extra_original43M_forwards_for_multilayer_consensus":0,
             }
             tag="CE" if name.endswith("_CE") else "CONTEXT_TOP8"
-            path=out/("S119Q2I8Z17_SHADOW_NATIVE64_RANK2_"+tag+"_G0.safetensors")
-            save_file({
-                key:v.detach().cpu().half().contiguous()
-                for key,v in reranker.state_dict().items()
-            },str(path))
-            check(path.is_file() and path.stat().st_size>2000,
-                  "physical fitted 1280 shadow-only FP16, no pretrained edits")
+            saved_rankers={}
+            for mode in MODES:
+                label="FINAL" if mode==BASELINE else "MULTILAYER"
+                out_file=out/("S119Q2I8Z19_NATIVE64_"+tag+"_"+label+"_FP16_G0.safetensors")
+                save_file({key:v.detach().cpu().half().contiguous()
+                    for key,v in rankers[mode].state_dict().items()},str(out_file))
+                check(out_file.is_file() and out_file.stat().st_size>2000,
+                      "tiny true fitted 1280-param shadow only, no original weights")
+                saved_rankers[mode]={
+                    "file":out_file.name,
+                    "sha256":sha(out_file),
+                    "bytes":out_file.stat().st_size,
+                    "params":1280,"output_gate":0,"candidate_accepted":False,
+                }
             outcomes[name]={
-                "train_only":train_record,
-                "DEV_after_training_once":stat,
-                "DEV_paired_source_details":observed,
-                "fitted_SHADOW_rank2_FP16":{
-                    "file":path.name,
-                    "sha256":sha(path),
-                    "bytes":path.stat().st_size,
-                    "trainable_params":1280,
-                    "candidate_accepted":False,
-                    "output_gate":0,
-                },
-                "rough_uncontrolled_CPU_training_and_probe_seconds":
-                    round(time.monotonic()-started,3),
+                "TRAIN_only_per_mode":train_results,
+                "new_DEV14_after_training_once":scores,
+                "new_DEV14_per_source":observed,
+                "fitted_tiny_shadow_only_FP16":saved_rankers,
+                "rough_uncontrolled_CPU_elapsed_s":round(
+                    time.monotonic()-started,3),
             }
 
     finally:
