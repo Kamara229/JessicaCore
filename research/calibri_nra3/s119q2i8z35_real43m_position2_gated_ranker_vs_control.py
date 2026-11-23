@@ -550,17 +550,26 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                                       and full.last_forward_coverage==tuple(range(12)),
                                       "autonomous next BPE full S142 original43M all12GT")
                                 greedy=int(native[0].argmax().item())
-                                if mode=="ORIGINAL_NATIVE_GREEDY":
+                                # STRICT BPE2 POSITION GATE: first BPE
+                                # is always the native original S142 own
+                                # greedy, later BPE3..6 use entirely the
+                                # ORIGINAL S142 greedy distribution on
+                                # self-generated prefix. Ranker can affect
+                                # ONLY native BPE2, never later readouts.
+                                if mode=="ORIGINAL_NATIVE_GREEDY" or next_index!=1:
                                     actual_next=greedy
                                     changed=False
                                     within=True
                                 else:
+                                    previous_native=continuation[0]
+                                    prev_emb=native_embedding[previous_native].view(1,-1)
                                     ids,scores,residual=rankers[mode](
-                                        native.detach(),h[0],native_embedding)
+                                        native.detach(),h[0].detach(),prev_emb,
+                                        native_embedding,native_bpe_position=2)
                                     check(ids.numel()==TOP_K
                                           and torch.isfinite(scores).all()
-                                          and float(residual.abs().max())<=3.00001,
-                                          "bounded anchored native64 target-blind residual on real full readout")
+                                          and float(residual.abs().max())<=1.50001,
+                                          "bounded original49k native top64 ONLY at second BPE no gold mask")
                                     actual_next=int(ids[int(scores.argmax().item())].item())
                                     changed=actual_next!=greedy
                                     within=bool((ids==actual_next).any())
@@ -580,12 +589,13 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                                     break
                                 contiguous+=1
                             candidates[mode]={
-                                "autonomous_first_four_native_ids":continuation,
+                                "autonomous_first_six_native_ids":continuation,
                                 "correct_prefix_contiguous_BPE":contiguous,
                                 "first_native_correct":contiguous>=1,
                                 "first_two_native_correct":contiguous>=2,
                                 "first_three_native_correct":contiguous>=3,
                                 "first_four_native_correct":contiguous>=4,
+                                "first_six_native_correct":contiguous>=6,
                                 "true_full_S142_native_forwards":
                                     1+len(step_meta),
                                 "did_emit_EOS_early":2 in continuation[:4],
@@ -625,6 +635,8 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                     "correct_FIRST_THREE":sum(x[
                         "auto_generated_modes_no_teacher_forcing"][mode][
                         "first_three_native_correct"] for x in observed),
+                    "correct_FIRST_SIX":sum(x["auto_generated_modes_no_teacher_forcing"][mode][
+                        "first_six_native_correct"] for x in observed),
                     "correct_FIRST_FOUR":sum(x[
                         "auto_generated_modes_no_teacher_forcing"][mode][
                         "first_four_native_correct"] for x in observed),
@@ -636,41 +648,42 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                         "did_emit_EOS_early"] for x in observed),
                     "distinct_second_native_BPE_ids":len(set(
                         x["auto_generated_modes_no_teacher_forcing"][mode][
-                            "autonomous_first_four_native_ids"][1]
+                            "autonomous_first_six_native_ids"][1]
                         for x in observed if len(x[
                             "auto_generated_modes_no_teacher_forcing"][mode][
-                                "autonomous_first_four_native_ids"])>1)),
+                                "autonomous_first_six_native_ids"])>1)),
                 }
             score={
                 "brand_NEW_synthetic_DEV14":14,
                 "previous_legal_TRAIN_only_sources":84,
                 "original_first_native_correct":mode_score[
                     "ORIGINAL_NATIVE_GREEDY"]["correct_FIRST"],
-                "matched_autonomous_first4_native_generated":mode_score,
+                "matched_autonomous_first6_native_generated":mode_score,
                 "original43M_real_native_TRAIN_forwards":168,
                 "original43M_real_native_DEV_forwards":sum(
                     r["actual_original43M_full_native_forwards"] for r in observed),
                 "original43M_extra_decoder_forward_per_candidate":0,
+                "only_SECOND_native_BPE_output_can_be_reranked":True,
                 "no_DEV_teacher_forcing":True,
             }
             tag="CE" if name.endswith("_CE") else "CONTEXT_TOP8"
             fitted={}
             for mode in MODES:
-                label="HUMAN_HARDNEG" if mode==MODES[0] else "WRONG_OFFSET13_CONTROL"
-                outfile=out/("S119Q2I8Z26_NATIVE64_"+tag+"_"+label+"_FP16_G0.safetensors")
+                label="HUMAN_BPE2_RANK32" if mode==MODES[0] else "WRONG_OFFSET17_CONTROL"
+                outfile=out/("S119Q2I8Z35_BPE2_ONLY_NATIVE64_"+tag+"_"+label+"_FP16_G0.safetensors")
                 save_file({key:val.detach().cpu().half().contiguous()
                     for key,val in rankers[mode].state_dict().items()},str(outfile))
                 check(outfile.is_file() and outfile.stat().st_size>20000,
-                      "store only separate trained 10240param neural shadow FP16")
+                      "store only two trained 30720param shadow-only FP16 with no full original weights")
                 fitted[mode]={
                     "filename":outfile.name,"sha256":sha(outfile),
-                    "bytes":outfile.stat().st_size,"params":10240,
+                    "bytes":outfile.stat().st_size,"params":SHADOW_PARAMS,
                     "candidate_accepted":False,"output_gate":0,
                 }
             outcomes[name]={
                 "TRAIN_only_shadow_optimizer":train_meta,
-                "NEW_DEV14_full_autonomous_first4_native":score,
-                "NEW_DEV14_per_prompt_first4":observed,
+                "NEW_DEV14_full_autonomous_first6_native":score,
+                "NEW_DEV14_per_prompt_first6":observed,
                 "fitted_shadow_only_FP16_sha":fitted,
                 "rough_uncontrolled_CPU_elapsed_seconds":round(
                     time.monotonic()-started,3),
@@ -689,9 +702,9 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                   for k,v in child_frozen[tag].items()),
           "original S142/12GT donor and all saved Z10 A/B fitted params preserved")
     check(len(outcomes)==2
-          and all(v["NEW_DEV14_full_autonomous_first4_native"][
+          and all(v["NEW_DEV14_full_autonomous_first6_native"][
                       "original43M_real_native_TRAIN_forwards"]==168
-                  and v["NEW_DEV14_full_autonomous_first4_native"][
+                  and v["NEW_DEV14_full_autonomous_first6_native"][
                       "brand_NEW_synthetic_DEV14"]==14
                   and set(v["TRAIN_only_shadow_optimizer"])==set(MODES)
                   and all(v["TRAIN_only_shadow_optimizer"][m][
@@ -700,9 +713,9 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                   for v in outcomes.values()),
           "only real original S142 A/B 84 historical TRAIN and new 14 DEV first4")
     actual_forwards=sum(
-        v["NEW_DEV14_full_autonomous_first4_native"][
+        v["NEW_DEV14_full_autonomous_first6_native"][
             "original43M_real_native_TRAIN_forwards"]+
-        v["NEW_DEV14_full_autonomous_first4_native"][
+        v["NEW_DEV14_full_autonomous_first6_native"][
             "original43M_real_native_DEV_forwards"]
         for v in outcomes.values())
     check(350<=actual_forwards<=616,
@@ -738,7 +751,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
         "NEW_DEV14_SHA256":fresh["DEV_SHA256"],
         "real_original43M_native_forwards":actual_forwards,
         "A_B":{"A" if key.endswith("_CE") else "B":{
-            "first4":v["NEW_DEV14_full_autonomous_first4_native"],
+            "first4":v["NEW_DEV14_full_autonomous_first6_native"],
             "shadow_trainonly":v["TRAIN_only_shadow_optimizer"],
             "fitted_shadow_FP16_SHA256":{
                 m:meta["sha256"] for m,meta in
