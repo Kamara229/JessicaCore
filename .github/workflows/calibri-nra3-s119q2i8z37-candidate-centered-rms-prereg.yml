@@ -1,0 +1,42 @@
+name: Calibri S119q2i8z37 source prereg candidate-centered RMS rank32 BPE2 only 84 LEGAL TRAIN + 14 fresh DEV
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z36-physical-native-bpe2-logit-gap-spent14-20261123
+permissions:
+  contents: read
+jobs:
+  source-only-rms-centered-native-BPE2-contrast-contract:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z37-prereg-centered-rms-native-bpe2-14dev-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Native49152 CPU tensor torch only no model weights
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Python compile and strict second-native-only targetblind source and gradient train checks
+        run: |
+          python -m py_compile research/calibri_nra3/s119q2i8z37_new14dev_candidate_centered_rms_source.py research/calibri_nra3/s119q2i8z37_native_BPE2_centered_RMS_reranker.py research/calibri_nra3/test_s119q2i8z37_centered_native_BPE2_source.py
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z37_centered_native_BPE2_source
+      - name: Exactly new Z37 source, contrast reader, tests and workflow only
+        run: |
+          set -euo pipefail
+          base="origin/research/calibri2-s119q2i8z36-physical-native-bpe2-logit-gap-spent14-20261123"
+          git rev-parse --verify "${base}^{commit}" >/dev/null
+          git diff --name-only "${base}" HEAD >/tmp/z37scope
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z37_new14dev_candidate_centered_rms_source.py' -e 'research/calibri_nra3/s119q2i8z37_native_BPE2_centered_RMS_reranker.py' -e 'research/calibri_nra3/test_s119q2i8z37_centered_native_BPE2_source.py' -e '.github/workflows/calibri-nra3-s119q2i8z37-candidate-centered-rms-prereg.yml' /tmp/z37scope; then
+            echo 'No original S142 weights, GT/NRA3, spent data or LIVE modifications' >&2
+            exit 1
+          fi
+          test $(wc -l < /tmp/z37scope) -eq 4
