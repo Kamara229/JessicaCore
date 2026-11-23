@@ -6,6 +6,7 @@ run 43527496158 artifact 14085702245. This script does not attest ZIP origin.
 """
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 import importlib
@@ -32,6 +33,29 @@ def strict_pairs(pairs):
 
 def canonical_bytes(obj):
     return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def independent_query_offsets(question):
+    """Re-derive literal query spans without calling the S3T generator helper."""
+    q_end = question.find("?")
+    if q_end < 0 or question.find("?", q_end + 1) != -1:
+        raise ValueError("ambiguous S3T question boundary")
+    delimiter = question.rfind(". ", 0, q_end)
+    if delimiter < 0:
+        raise ValueError("missing S3T query delimiter")
+    start = delimiter + 2
+    hits = list(re.finditer(r"(?<![A-Za-z0-9_])R([0-5])(?![A-Za-z0-9_])", question[start:q_end]))
+    if len(hits) != 2 or hits[0].group(1) == hits[1].group(1):
+        raise ValueError("S3T query must have two distinct node mentions")
+    spans = [[start + m.start(), start + m.end()] for m in hits]
+    for span, match in zip(spans, hits):
+        if question[span[0]:span[1]] != match.group(0):
+            raise ValueError("S3T literal span slice mismatch")
+    return {
+        "clause": [start, q_end + 1],
+        "mention_spans": spans,
+        "text_order_nodes": [int(m.group(1)) for m in hits],
+    }
 
 
 def verify(artifact_bytes):
@@ -95,7 +119,7 @@ def verify(artifact_bytes):
     physical_prompt_sha = [
         hashlib.sha256(row.question.encode("utf-8")).hexdigest() for row in rows
     ]
-    physical_offsets = [generator_module.query_char_offsets(row.question) for row in rows]
+    physical_offsets = [independent_query_offsets(row.question) for row in rows]
     generated = generator_module.commitment(rows)
     if generated.get("question_sha256") != physical_prompt_sha:
         raise ValueError("S3T regenerated prompt text SHA mismatch")
