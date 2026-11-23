@@ -306,7 +306,18 @@ jobs:
       - name: Only Z32 physical runner test and workflow, fail closed original main and protected model
         run: |
           set -euo pipefail
-          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/z32scope
+          # The prereg branch advanced for BPE-length/source and tensor-shape
+          # preflight fixes before any original S142 held-out model forward.
+          # GitHub's PR base.sha can be the *old* SHA at PR creation time.
+          # Compare EXACT current origin/base branch and prove we never
+          # altered a prior prereg source or training contract.
+          baseline="origin/research/calibri2-s119q2i8z31-precommit-bound-head-trustregion-84train14dev-20261123"
+          git rev-parse --verify "${baseline}^{commit}" >/dev/null
+          git diff --quiet "${baseline}" HEAD -- \
+            research/calibri_nra3/s119q2i8z31_84legaltrain_new14dev_bounded_context_source.py \
+            research/calibri_nra3/s119q2i8z31_bounded_contextual_head_trust_contract.py \
+            research/calibri_nra3/test_s119q2i8z31_native_trust_source_contract.py
+          git diff --name-only "${baseline}" HEAD > /tmp/z32scope
           if grep -Fvx -e 'research/calibri_nra3/s119q2i8z32_real43m_bounded_native_contextual_train_first6.py' -e 'research/calibri_nra3/test_s119q2i8z32_physical_native_trust.py' -e '.github/workflows/calibri-nra3-s119q2i8z32-physical-bounded-native-KL.yml' /tmp/z32scope; then
             echo 'No original FP16, old DEV, J7/EVAL/GOLD, LIVE, Render or other source edits' >&2
             exit 1
