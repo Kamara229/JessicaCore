@@ -10,6 +10,11 @@ import sys
 from pathlib import Path
 import importlib
 
+PINNED_DEPENDENCY_GIT_BLOB_SHA1 = {
+    "stage3m_role_balanced_graph_data.py": "468bf5bf1e09e61c00822f70230593d3efc3eac7",
+    "stage3g_factorized_graph_controls.py": "ac4866d18820661887863e3febfa9c931acbdf20",
+    "stage3q_independent_soft_hard_prereg.py": "3111609c99069f320d0eff6bf68ae5e47e3ca7e1",
+}
 PINNED_GENERATOR_GIT_BLOB_SHA1 = "26dd55bcdd61aaf855750ac0d35d9deaef10706b"
 PINNED_COMMITMENT = "034ebd6e1cf6f20ad04ccd00e70c6bc07ee08a46f47da843121524f1d7f0faf3"
 EXPECTED_RUN = 43527496158
@@ -39,6 +44,16 @@ def verify(artifact_bytes):
     git_blob = hashlib.sha1(b"blob " + str(len(source)).encode("ascii") + b"\0" + source).hexdigest()
     if git_blob != PINNED_GENERATOR_GIT_BLOB_SHA1:
         raise ValueError("S3T generator source differs from pinned GitHub blob")
+    # Fail closed before import: transitive research source files can execute
+    # Python during import. Pin their physical Git blobs, not just the generator.
+    for filename, expected_blob in PINNED_DEPENDENCY_GIT_BLOB_SHA1.items():
+        dependency_path = source_path.with_name(filename)
+        dependency = dependency_path.read_bytes()
+        actual_blob = hashlib.sha1(
+            b"blob " + str(len(dependency)).encode("ascii") + b"\0" + dependency
+        ).hexdigest()
+        if actual_blob != expected_blob:
+            raise ValueError("S3T dependency source differs from pinned GitHub blob: " + filename)
     generator_module = importlib.import_module("research.nra2_bridge.stage3t_unseen_wording_prereg")
     if Path(generator_module.__file__).resolve() != source_path:
         raise ValueError("S3T generator resolved to unexpected module path")
