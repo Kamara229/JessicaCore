@@ -55,7 +55,7 @@ class TestZ31FrozenTrustRegion(unittest.TestCase):
         new=NativeHeadShape()
         new.load_state_dict(old.state_dict())
         params=frozen_new_head_params(new,old)
-        h=torch.randn(1,1,HIDDEN)
+        h=torch.randn(1,5,HIDDEN)
         with bounded_frozen_original_native_delta(new,old) as cap:
             zero=new(h)
         self.assertEqual(len(cap),1)
@@ -69,15 +69,15 @@ class TestZ31FrozenTrustRegion(unittest.TestCase):
         self.assertEqual(len(cap),1)
         self.assertLessEqual(float(cap[0]["bounded_contextual_difference"].abs().max()),2.000001)
         self.assertTrue(torch.isfinite(delta).all())
-        native_input_base=torch.randn(1,1,VOCAB)
-        paid_native_logits=(native_input_base+NATIVE_HEAD_GAIN*delta)[0]
+        native_input_base=torch.randn(1,5,VOCAB)
+        paid_native_logits=(native_input_base+NATIVE_HEAD_GAIN*delta)[:,-1,:]
         loss,meta=trust_kl_after_same_paid_forward(paid_native_logits,cap[0],old,new)
         self.assertGreater(meta["full49152_exact_reference_KL"],0.)
         self.assertEqual(meta["new_original_S142_model_forwards_for_reference"],0)
         self.assertTrue(meta["all_correct_native_token_candidates_unmasked"])
         # Reconstruction should recover exact old native result from SAME forward.
-        reference=paid_native_logits.detach()-.25*cap[0]["bounded_contextual_difference"].detach()[0]
-        exact_old=native_input_base[0]+.25*old(h).detach()[0]
+        reference=paid_native_logits.detach()-.25*cap[0]["bounded_contextual_difference"].detach()[:,-1,:]
+        exact_old=native_input_base[:,-1,:]+.25*old(h).detach()[:,-1,:]
         self.assertTrue(torch.allclose(reference,exact_old,atol=2e-6))
         loss.backward()
         self.assertGreater(float(new.up.weight.grad.abs().sum()),0.)
