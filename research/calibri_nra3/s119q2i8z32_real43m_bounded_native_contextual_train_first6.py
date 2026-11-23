@@ -512,6 +512,8 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                 ce_by_position={str(x):[] for x in (0,1,2,3,-1)}
                 repeat_terms=[]
                 eos_terms=[]
+                reference_kl=[]
+                bounded_abs=[]
                 for row in fresh_train:
                     check(row["split"]=="TRAIN"
                           and row["id"].startswith("S119Q2I8Z28_LEGAL_"),
@@ -530,19 +532,32 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                               and len(history)<160
                               and (idx==0 or history[-1]==gold[idx-1]),
                               "teacher-forced TRAIN causal only, never use target in own prefix")
-                        with scoped_exact_native_gain(
-                                new_head_child.language_head,HEAD_GAIN) as witnessed:
-                            logits=real_joint_native(
-                                model,sources,bridge,full,expansion,
-                                new_head_child,history,
-                                row["prompt_features"],contextual=True)
-                        check(witnessed[0]==1
+                        with bounded_frozen_original_native_delta(
+                                new_head_child.language_head,
+                                original_child.language_head) as native_caps:
+                            with scoped_exact_native_gain(
+                                    new_head_child.language_head,HEAD_GAIN) as witnessed:
+                                logits=real_joint_native(
+                                    model,sources,bridge,full,expansion,
+                                    new_head_child,history,
+                                    row["prompt_features"],contextual=True)
+                        check(witnessed[0]==1 and len(native_caps)==1
                               and logits.shape==(1,NATIVE_VOCAB)
                               and full.last_forward_coverage==tuple(range(12)),
-                              "one real physical original S142 all12GT full49152 TRAIN per target")
-                        loss,log=full_native_trainonly_pos_loss(
+                              "one real S142 all12GT fullnative49152 per human TRAIN target and SAME paid original reference h320")
+                        ce,log=full_native_trainonly_pos_loss(
                             logits,gold,idx,weight,split="TRAIN")
+                        trust,tmeta=trust_kl_after_same_paid_forward(
+                            logits,native_caps[0],original_child.language_head,
+                            new_head_child.language_head)
+                        loss=ce+trust/sum((2.,1.,1.,1.,2.))
+                        check(torch.isfinite(loss) and loss.requires_grad
+                              and tmeta["max_abs_bounded_native_delta_before_gain"]<=2.000001
+                              and tmeta["new_original_S142_model_forwards_for_reference"]==0,
+                              "bounded contextual native readout KL trust source only, no extra S142 full model")
                         loss.backward()
+                        reference_kl.append(tmeta["full49152_exact_reference_KL"])
+                        bounded_abs.append(tmeta["max_abs_bounded_native_delta_before_gain"])
                         train_phys+=1
                         sample_loss+=log["weighted_summed_loss"]
                         key="-1" if idx==len(gold)-1 else str(idx)
@@ -550,10 +565,10 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                         repeat_terms.append(log["echo_margin"])
                         eos_terms.append(log["premature_EOS_margin"])
                     check(all(p.grad is not None and torch.isfinite(p.grad).all()
-                              for p in new_head_child.language_head.parameters()),
+                              for p in learn_params),
                           "full49152 true CE must reach EVERY copied rank4 native head tensor")
                     grad_norm=torch.nn.utils.clip_grad_norm_(
-                        list(new_head_child.language_head.parameters()),1.)
+                        learn_params,1.)
                     check(torch.isfinite(grad_norm)
                           and float(grad_norm)>1e-12,
                           "nonzero true gradient from ORIGINAL native49152 human BPE1-4 and EOS")
@@ -561,7 +576,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                     updates+=1
                     epoch_loss.append(sample_loss)
                     check(all(torch.isfinite(p).all()
-                              for p in new_head_child.language_head.parameters()),
+                              for p in learn_params),
                           "only copied trainable native rank4 head finite after step")
                 epoch_reports.append({
                     "epoch":epoch+1,
@@ -577,6 +592,10 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                         sum(repeat_terms)/len(repeat_terms),6),
                     "mean_anti_premature_EOS_margin":round(
                         sum(eos_terms)/len(eos_terms),6),
+                    "mean_KL_to_exact_frozen_Z10_native49152":round(
+                        sum(reference_kl)/len(reference_kl),6),
+                    "mean_max_abs_native_contextual_delta_before_gain":round(
+                        sum(bounded_abs)/len(bounded_abs),6),
                     "correct_human_EOS_supervised_rows":84,
                 })
             check(train_phys==840 and updates==168
