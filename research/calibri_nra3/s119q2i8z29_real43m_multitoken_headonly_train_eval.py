@@ -486,6 +486,16 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
             # identical (bitwise verified after all 168 optimizer steps).
             for p in new_head_child.child.parameters():
                 p.requires_grad_(True)
+            # Previous Z10 A/B trained checkpoints are inference-frozen.
+            # Deepcopy inherits requires_grad=False on their native head.
+            # Explicitly enable gradients on ONLY the new COPIED head;
+            # without this no head gradient reaches AdamW (Z29 failure).
+            for p in new_head_child.language_head.parameters():
+                p.requires_grad_(True)
+            check(all(p.requires_grad for p in new_head_child.language_head.parameters())
+                  and sum(p.numel() for p in new_head_child.language_head.parameters())==
+                      HEAD_TOTAL_PARAMS,
+                  "new copied head must truly participate in full native CE gradient")
             pretrain_head={k:v.detach().cpu().clone()
                 for k,v in new_head_child.language_head.state_dict().items()}
             freeze_full_child={k:v.detach().cpu().clone()
@@ -538,6 +548,9 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                         ce_by_position[key].append(log["base_native_full49152_CE"])
                         repeat_terms.append(log["echo_margin"])
                         eos_terms.append(log["premature_EOS_margin"])
+                    check(all(p.grad is not None and torch.isfinite(p.grad).all()
+                              for p in new_head_child.language_head.parameters()),
+                          "full49152 true CE must reach EVERY copied rank4 native head tensor")
                     grad_norm=torch.nn.utils.clip_grad_norm_(
                         list(new_head_child.language_head.parameters()),1.)
                     check(torch.isfinite(grad_norm)
