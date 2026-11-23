@@ -455,140 +455,233 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
               and not native_embedding.requires_grad
               and torch.isfinite(native_embedding).all(),
               "read-only original compressed native49152 embedding table h320")
-        # Physical Z26 already trained on valid historical TRAIN and
-        # first evaluated these author DEV14. This stage is a spent-data
-        # CAUSAL ABLATION only. All previous Z26 observations pinned and
-        # the head=.25 path MUST reproduce byte-identical predictions.
-        z26_path=z26_dir/PREV_Z26_REPORT
-        z26=json.loads(z26_path.read_text(encoding="utf8"))
-        check(z26["stage"]==PREV_Z26_STAGE
-              and z26["Z25_PRECOMMITTED_84_HISTORICAL_LEGITIMATE_TRAIN_SHA256"]==
-                  fresh["TRAIN_SHA256"]
-              and z26["Z25_PRECOMMITTED_14_NEW_DEV_SHA256"]==
-                  fresh["DEV_SHA256"]
-              and z26["Z25_new_DEV_NOW_SPENT_not_independent_blind"] is True
-              and z26["candidate_accepted"] is False
-              and z26["output_gate"]==0
-              and set(z26["true_original43M_A_B_HUMAN_vs_WRONG_CONTROL_first4"])==
-                  {"Z10_FULLJOINT_EARLY23_X3_CE",
-                   "Z10_FULLJOINT_EARLY23_X3_CONTEXT_TOP8_BPE2"},
-              "source evidence must be ACTUAL archived Z26 spent14/gate0")
-        modes={
-            "ORIGINAL_S142_PRETRAINED_NO_NRA3_CHILD":None,
-            "FULL_CHILD_NO_LEARNED_NATIVE_HEAD":0.0,
-            "FULL_CHILD_EXACT_PREVIOUS_GAIN_025":0.25,
-            "FULL_CHILD_GAIN_1":1.0,
+        # All model logits are TRUE original S142 native49152 paid
+        # physical passes. Previous Z32 success holds true original
+        # A/B fitted heads and only 2 trained 247040 native head
+        # shadows. Gold next native BPE target is used ONLY AFTER
+        # the target-blind native forward to measure counterfactual
+        # score/rank. Never train on spent Z31 DEV14.
+        old_report=z32_dir/PREV_Z32_REPORT
+        z32=json.loads(old_report.read_text(encoding="utf8"))
+        TRAIN_SHA="60e34552397bdf22cc393d08aadad12dfc006f1a476fc358c5c8a29f947d3887"
+        DEV_SHA="6ea446dbd90c32598d3e1fba87b986fd1238c7b01cccbf24c6a5505983b76f14"
+        frozen_fp16_sha={
+            "Z10_FULLJOINT_EARLY23_X3_CE":
+                "313d368a805ad6269604612fde6221b2e83efed8cb5b46eece1442481e91f13e",
+            "Z10_FULLJOINT_EARLY23_X3_CONTEXT_TOP8_BPE2":
+                "a917e137b0354d3feec35717d854a2bb08f8450164a54ee56b472a9e1dacdbcc",
         }
-        for arm,child,gates in (
+        check(fresh["TRAIN_SHA256"]==TRAIN_SHA
+              and fresh["NEW_DEV_SHA256"]==DEV_SHA
+              and z32["stage"]==PREV_Z32_STAGE
+              and z32["Z28_84_previously_legal_TRAIN_SHA256"]==TRAIN_SHA
+              and z32["Z31_brandNEW_author14DEV_SHA256"]==DEV_SHA
+              and z32["new_Z31_14DEV_NOW_SPENT_internal_not_independently_blind"] is True
+              and z32["true_original_S142_43M_all12GT_real_native49152_FORWARDS"]==2010
+              and z32["candidate_accepted"] is False and z32["output_gate"]==0
+              and set(z32["NEW_copied_head_only_TRAIN_and_first6_autonomous_DEV_A_B"])==
+                  set(frozen_fp16_sha),
+              "completed real physical Z32 S142 source and 84 legal TRAIN plus spent14 DEV exact SHA")
+        MODES=("ORIGINAL_Z10_FITTED_NATIVE_HEAD",
+               "NEW_CONTEXT_LOWRANK_BOUND2_KL1_BIAS_FROZEN")
+        for arm,old_child,gates in (
             ("Z10_FULLJOINT_EARLY23_X3_CE",child_a,gt_a),
             ("Z10_FULLJOINT_EARLY23_X3_CONTEXT_TOP8_BPE2",child_b,gt_b),
         ):
-            start=time.monotonic()
+            started=time.monotonic()
             set_gt_route(full,"GT_RECURRENT",gates)
-            previous=z26["true_original43M_A_B_HUMAN_vs_WRONG_CONTROL_first4"][arm]
-            pinned={x["source_id"]:x for x in previous["NEW_DEV14_per_prompt_first4"]}
-            check(len(pinned)==14,
-                  "exact archived Z26 real physically generated original native first4")
-            seen=[]
-            for row in fresh_dev:
-                original=row["prefix"]
-                actual={}
-                for mode,gain in modes.items():
-                    own=[]
-                    for pos in range(ANSWER_EVAL_FIRST_NATIVE_BPE_COUNT):
-                        if own and own[-1]==2:break
-                        if gain is None:
-                            logits,old_12=first_original_pass(
-                                model,sources,bridge,full,expansion,
-                                original+own,row["prompt_features"])
-                            check(logits.shape==(1,NATIVE_VOCAB)
-                                  and old_12.shape[1]==12,
-                                  "genuine unmodified S142 pretrained full49152 all12")
-                        else:
-                            with scoped_exact_native_gain(
-                                    child.language_head,float(gain)) as witness:
-                                logits=real_joint_native(
-                                    model,sources,bridge,full,expansion,child,
-                                    original+own,row["prompt_features"],
-                                    contextual=True)
-                            check(witness[0]==1
-                                  and logits.shape==(1,NATIVE_VOCAB)
-                                  and full.last_forward_coverage==tuple(range(12)),
-                                  "one real S142+Core/NRA3/NPA1/GT all12 native pass")
-                        own.append(int(logits[0].argmax().item()))
-                    gold=row["answer_native_with_eos"]
-                    n_correct=0
-                    for actual_token,truth in zip(own,gold):
-                        if actual_token!=truth:break
-                        n_correct+=1
-                    repeated=bool(len(own)>=4 and
-                                  own[1]==own[2]==own[3])
-                    actual[mode]={
-                        "real_autoregressive_first4_native_BPE":own,
-                        "human_correct_contiguous_prefix_first4_POSTHOC":n_correct,
-                        "correct_FIRST_BPE":n_correct>=1,
-                        "correct_FIRST_TWO_BPE":n_correct>=2,
-                        "correct_FIRST_THREE_BPE":n_correct>=3,
-                        "correct_FIRST_FOUR_BPE":n_correct>=4,
-                        "second_third_fourth_identical_native_BPE":repeated,
-                        "repeated_native_BPE2_ID_when_stutter":
-                            int(own[1]) if repeated else None,
-                        "emitted_EOS_within_first4":2 in own,
-                        "real_S142_original_full49152_decoder_forwards":len(own),
-                        "gain":gain,
-                    }
-                check(row["id"] in pinned
-                      and pinned[row["id"]]["prompt_SHA256"]==
-                          row["prompt_sha256"]
-                      and actual["FULL_CHILD_EXACT_PREVIOUS_GAIN_025"][
-                          "real_autoregressive_first4_native_BPE"]==
-                          pinned[row["id"]][
-                              "auto_generated_modes_no_teacher_forcing"][
-                              "ORIGINAL_NATIVE_GREEDY"][
-                              "autonomous_first_four_native_ids"],
-                      "CRITICAL: gain.25 MUST precisely replay archived actual Z26 first4")
-                seen.append({
-                    "source_id":row["id"],"kind":row["kind"],
-                    "prompt_SHA256":row["prompt_sha256"],
-                    "per_physical_model_path":actual,
-                    "same_source_previous_real_Z26_gain025_first4_parity":True,
-                    "old_Z25_DEV_SPENT_no_new_training":True,
-                    "gold_human_first4_only_after_autonomous_model_choices":True,
-                })
-            check(len(seen)==14 and
-                  len({x["prompt_SHA256"] for x in seen})==14,
-                  "exact already SPENT 14 original S142 repeated-token source probes")
+            prior=z32["NEW_copied_head_only_TRAIN_and_first6_autonomous_DEV_A_B"][arm]
+            old_source={x["source_id"]:x for x in prior["NEW_DEV14_own_native_autoregressive_source"]}
+            check(len(old_source)==14,
+                  "previously frozen actual S142 autoregression 14 source prompts")
+            tag="CE" if arm.endswith("_CE") else "CONTEXT_TOP8"
+            saved=prior["saved_only_copied_native_language_head_FP16"]
+            fp=z32_dir/("S119Q2I8Z32_SHADOW_"+tag+
+                "_CONTEXT_LOWRANK197888_BIAS_FROZEN_FP16_G0.safetensors")
+            check(fp.is_file() and saved["filename"]==fp.name
+                  and sha(fp)==saved["sha256"]==frozen_fp16_sha[arm]
+                  and saved["params"]==247040
+                  and saved["output_gate"]==0
+                  and saved["candidate_accepted"] is False,
+                  "Z32 actual physically fitted rank4 native head SHA before any consumed DEV")
+            saved_weights=load_file(str(fp),device="cpu")
+            new_child=copy.deepcopy(old_child)
+            for p in new_child.child.parameters():
+                p.requires_grad_(True)
+            for p in new_child.language_head.parameters():
+                p.requires_grad_(False)
+            check(set(saved_weights)==set(new_child.language_head.state_dict())==
+                  {"down.weight","up.weight","output_bias"}
+                  and all(saved_weights[k].shape==
+                          new_child.language_head.state_dict()[k].shape
+                          for k in saved_weights),
+                  "only original Z32 247040 native head FP16, no pretrained core")
+            new_child.language_head.load_state_dict(saved_weights,strict=True)
+            new_child.eval()
+            check(new_child.output_gate==0 and
+                  new_child.candidate_accepted is False and
+                  torch.equal(new_child.language_head.output_bias.detach().cpu(),
+                              old_child.language_head.output_bias.detach().cpu()),
+                  "frozen original Z10 49152 global output bias bitwise identical")
+
+            paired=[]
+            total_arm_native=0
+            with torch.no_grad():
+                for row in fresh_dev:
+                    src=old_source.get(row["id"])
+                    check(src is not None
+                          and src["source_prompt_SHA256"]==row["prompt_sha256"]
+                          and src["human_gold_first6_POSTHOC_only"]==
+                              row["answer_native_with_eos"][:6]
+                          and set(src["modes"])==set(MODES),
+                          "same previous Z32 source, real OWN autoregressive native ids, exact human Z31 gold")
+                    human=row["answer_native_with_eos"]
+                    mode_observed={}
+                    for mode,child in (
+                        (MODES[0],old_child),(MODES[1],new_child),
+                    ):
+                        prior_ids=src["modes"][mode]["autonomous_first6_native_BPE_ids"]
+                        check(len(prior_ids)>=2 and prior_ids[0]==human[0],
+                              "Z32 actual physically scored OWN first BPE correct on same source")
+                        positions=[]
+                        for i in (1,2,3):
+                            if len(prior_ids)<=i or 2 in prior_ids[:i]:
+                                positions.append({
+                                    "next_native_position_1based":i+1,
+                                    "own_prefix_stopped_at_EOS":True,
+                                })
+                                continue
+                            gold_next=int(human[i])
+                            contexts=(
+                                ("TEACHER_HUMAN_CORRECT_PREFIX",row["prefix"]+human[:i]),
+                                ("ON_POLICY_Z32_OWN_GREEDY_PREFIX",row["prefix"]+prior_ids[:i]),
+                            )
+                            evaluated={}
+                            for context_label,prefix in contexts:
+                                if mode==MODES[1]:
+                                    with bounded_frozen_original_native_delta(
+                                            new_child.language_head,
+                                            old_child.language_head) as captures:
+                                        with scoped_exact_native_gain(
+                                                child.language_head,.25) as witnessed:
+                                            logits=real_joint_native(
+                                                model,sources,bridge,full,expansion,
+                                                child,prefix,row["prompt_features"],
+                                                contextual=True)
+                                    check(len(captures)==1
+                                          and captures[0]["original43M_extra_decoder_calls"]==0,
+                                          "new Z32 inference uses original native SAME paid forward bounded contextual h320")
+                                else:
+                                    with scoped_exact_native_gain(
+                                            child.language_head,.25) as witnessed:
+                                        logits=real_joint_native(
+                                            model,sources,bridge,full,expansion,
+                                            child,prefix,row["prompt_features"],
+                                            contextual=True)
+                                check(witnessed[0]==1 and
+                                      logits.shape==(1,NATIVE_VOCAB)
+                                      and full.last_forward_coverage==tuple(range(12)),
+                                      "one actual original 43M S142 49152-native full forward on true prefix")
+                                actual=logits[0].detach().float().cpu().clone()
+                                top1=int(actual.argmax().item())
+                                correct_rank=int((actual>actual[gold_next]).sum().item())+1
+                                top64=bool(correct_rank<=64)
+                                repeat_prev=int(prefix[-1])
+                                evaluated[context_label]={
+                                    "native_gold_BPE_counterfactual_rank":correct_rank,
+                                    "human_gold_current_BPE_in_top64":top64,
+                                    "top1_native_id":top1,
+                                    "gold_next_native_BPE_was_top1":top1==gold_next,
+                                    "native_gold_minus_top1_logit":round(float(
+                                        actual[gold_next]-actual.max()),6),
+                                    "top1_unchanged_as_repetition_of_last_context_BPE":
+                                        top1==repeat_prev,
+                                    "physical_original_S142_43M_decoder_forwards":1,
+                                }
+                                total_arm_native+=1
+                            own_context_equal_teacher=(
+                                human[:i]==prior_ids[:i])
+                            # Verify archived physical own-prefix behavior:
+                            # at each i, actual next native top1 = saved
+                            # original greedy step from the ORIGINAL
+                            # evaluated 43M model. Only FP16 checkpoint
+                            # conversion may differ at extremely close
+                            # decision margins; a mismatch must FAIL.
+                            check(evaluated["ON_POLICY_Z32_OWN_GREEDY_PREFIX"][
+                                    "top1_native_id"]==prior_ids[i],
+                                  "EXACT archived Z32 native49152 own continuation parity at each real model prefix")
+                            if own_context_equal_teacher:
+                                check(evaluated["TEACHER_HUMAN_CORRECT_PREFIX"][
+                                        "top1_native_id"]==
+                                      evaluated["ON_POLICY_Z32_OWN_GREEDY_PREFIX"][
+                                        "top1_native_id"],
+                                      "identical teacher/own contexts must generate same true model BPE")
+                            positions.append({
+                                "next_native_position_1based":i+1,
+                                "own_prefix_identical_to_human_teacher":own_context_equal_teacher,
+                                "own_prefix_ALREADY_diverged_from_human_before_this_token":
+                                    not own_context_equal_teacher,
+                                "old_prior_Z32_own_first6_token":prior_ids[i],
+                                "human_next_gold_native_token_POSTHOC":gold_next,
+                                "same_physical_model_H320_inference_paths":evaluated,
+                            })
+                        mode_observed[mode]=positions
+                    paired.append({
+                        "source_id":row["id"],"source_prompt_SHA256":row["prompt_sha256"],
+                        "seven_domain_kind":row["kind"],
+                        "both_old_Z10_and_new_Z32_real_43M_native_BPE2to4":mode_observed,
+                        "previous_Z31_DEV_ALREADY_SPENT_no_NEW_training":True,
+                        "teacher_after_own_wrong_token_gold_is_counterfactual_NOT_training":True,
+                    })
+            check(len(paired)==14
+                  and len({x["source_prompt_SHA256"] for x in paired})==14
+                  and 28<=total_arm_native<=168,
+                  "all spent14 source, A or B true original native paid teacher+own BPE2,3,4 forwards")
             metrics={}
-            for mode in modes:
-                metrics[mode]={
-                    "correct_first_BPE":sum(x["per_physical_model_path"][mode][
-                        "correct_FIRST_BPE"] for x in seen),
-                    "correct_first_two_BPE":sum(x["per_physical_model_path"][mode][
-                        "correct_FIRST_TWO_BPE"] for x in seen),
-                    "correct_first_three_BPE":sum(x["per_physical_model_path"][mode][
-                        "correct_FIRST_THREE_BPE"] for x in seen),
-                    "correct_first_four_BPE":sum(x["per_physical_model_path"][mode][
-                        "correct_FIRST_FOUR_BPE"] for x in seen),
-                    "bad_native_self_repeat_BPE2_equals_BPE3_equals_BPE4":sum(x[
-                        "per_physical_model_path"][mode][
-                        "second_third_fourth_identical_native_BPE"] for x in seen),
-                    "early_EOS_first4":sum(x["per_physical_model_path"][mode][
-                        "emitted_EOS_within_first4"] for x in seen),
-                    "true_original_S142_fullnative49152_forwards":sum(x[
-                        "per_physical_model_path"][mode][
-                        "real_S142_original_full49152_decoder_forwards"] for x in seen),
-                }
-            check(metrics["FULL_CHILD_EXACT_PREVIOUS_GAIN_025"][
-                "correct_first_two_BPE"]==
-                previous["NEW_DEV14_full_autonomous_first4_native"][
-                    "matched_autonomous_first4_native_generated"][
-                    "ORIGINAL_NATIVE_GREEDY"]["correct_FIRST_TWO"],
-                "same actual archived gain0.25 original greedy score")
+            for mode in MODES:
+                vals=[x["both_old_Z10_and_new_Z32_real_43M_native_BPE2to4"][mode]
+                      for x in paired]
+                per_pos={}
+                for i in (1,2,3):
+                    z=[row[i-1] for row in vals if not row[i-1].get("own_prefix_stopped_at_EOS")]
+                    pairs=[r for r in z if r["own_prefix_ALREADY_diverged_FROM_human_before_this_token"]] if False else [
+                        r for r in z if r["own_prefix_ALREADY_diverged_from_human_before_this_token"]]
+                    pairs_up=[]
+                    for item in pairs:
+                        a=item["same_physical_model_H320_inference_paths"]["TEACHER_HUMAN_CORRECT_PREFIX"]
+                        b=item["same_physical_model_H320_inference_paths"]["ON_POLICY_Z32_OWN_GREEDY_PREFIX"]
+                        pairs_up.append((a,b))
+                    per_pos[f"BPE{i+1}"]={
+                        "valid_sources_before_autonomous_EOS":len(z),
+                        "own_and_teacher_have_identical_history":sum(
+                            r["own_prefix_identical_to_human_teacher"] for r in z),
+                        "after_own_wrong_prefix_source_count":len(pairs_up),
+                        "teacher_gold_top1_POSTHOC_after_divergence":sum(
+                            a["gold_next_native_BPE_was_top1"] for a,b in pairs_up),
+                        "own_gold_top1_COUNTERFACTUAL_after_divergence":sum(
+                            b["gold_next_native_BPE_was_top1"] for a,b in pairs_up),
+                        "teacher_gold_top64_POSTHOC_after_divergence":sum(
+                            a["human_gold_current_BPE_in_top64"] for a,b in pairs_up),
+                        "own_gold_top64_COUNTERFACTUAL_after_divergence":sum(
+                            b["human_gold_current_BPE_in_top64"] for a,b in pairs_up),
+                        "teacher_better_gold_rank":sum(
+                            a["native_gold_BPE_counterfactual_rank"]<
+                            b["native_gold_BPE_counterfactual_rank"] for a,b in pairs_up),
+                        "own_better_gold_rank":sum(
+                            b["native_gold_BPE_counterfactual_rank"]<
+                            a["native_gold_BPE_counterfactual_rank"] for a,b in pairs_up),
+                        "same_gold_rank":sum(
+                            a["native_gold_BPE_counterfactual_rank"]==
+                            b["native_gold_BPE_counterfactual_rank"] for a,b in pairs_up),
+                    }
+                metrics[mode]=per_pos
             outcomes[arm]={
-                "all_four_same_sources_spent14_real_A_B_ablation":metrics,
-                "real_same_source_native_first4_paired":seen,
-                "frozen_Z26_source_SHA256":sha(z26_path),
-                "wall_uncontrolled_CPU_seconds":round(time.monotonic()-start,3),
+                "prior_source_Z32_complete_real_43M_SHA256":sha(old_report),
+                "trained_Z32_native_FP16_sha256":frozen_fp16_sha[arm],
+                "spent14_per_real_model_teacher_vs_own_context_source":paired,
+                "metrics_BY_target_position_gold_counterfactual":metrics,
+                "read_only_true_S142_43M_native49152_decoder_forwards":total_arm_native,
+                "wall_uncontrolled_CPU_seconds":round(time.monotonic()-started,3),
             }
 
     finally:
