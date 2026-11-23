@@ -1,0 +1,62 @@
+name: Calibri S119q2i8z11 actual original43M fitted FP16 and OWN native49k matched A/B source audit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z10-matched43m-contexttop8-vs-ce-20261123
+permissions:
+  contents: read
+  actions: read
+jobs:
+  completed-z10-original43M-sourceonly-neural-gt12-own-pairs:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z11-real-fp16-own-paired-forensics-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact research SHA with no stored credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CPU-only NumPy and safetensors; no torch, no model, no GPU
+        run: |
+          python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
+      - name: Source-only native BPE strict unit tests (no model forwards)
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z11_real_fp16_own_paired_audit
+      - name: Download ONLY successful Z10 real original43M joint neural FP16 and GT12 research artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8z10-original43m-fulljoint-21TRAIN-ContextTop8-BPE2-vsCE-14freshDEV-gate0
+          run-id: 45115966394
+          path: inputs/z10
+          github-token: ${{ github.token }}
+      - name: Verify physical A/B SHA 421793 FP16 plus 12GT, true exact same own native49k source pairing
+        run: |
+          set -euo pipefail
+          test -f inputs/z10/S119Q2I8Z10_TRUE43M_FULLJOINT_27TRAIN_NATIVE_CE_EARLY23_X3_VS_CONTEXT_TOP8_BPE2_G025.json
+          python -m research.calibri_nra3.s119q2i8z11_real_fp16_own_paired_audit \
+            --z10-artifact-dir inputs/z10 \
+            --out results/S119Q2I8Z11_TRUE_ORIGINAL43M_FP16_GT12_OWN_NATIVE49K_A_VS_B_PAIRED_G0.json
+      - name: Upload JSON-only actual source-verified no forward retrospective report
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2i8z11-actual43m-fp16-gt12-native49k-own-paired-no-forward-gate0
+          path: results/S119Q2I8Z11_TRUE_ORIGINAL43M_FP16_GT12_OWN_NATIVE49K_A_VS_B_PAIRED_G0.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Block any modifications to production or protected source
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/s119z11_changed
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z11_real_fp16_own_paired_audit.py' -e 'research/calibri_nra3/test_s119q2i8z11_real_fp16_own_paired_audit.py' -e '.github/workflows/calibri-nra3-s119q2i8z11-real-own-fp16-paired.yml' /tmp/s119z11_changed; then
+            echo 'Protected/LIVE/nonresearch changes forbidden' >&2
+            exit 1
+          fi
+          test $(wc -l < /tmp/s119z11_changed) -eq 3
