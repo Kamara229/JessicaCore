@@ -54,6 +54,13 @@ def verify(artifact_bytes):
         ).hexdigest()
         if actual_blob != expected_blob:
             raise ValueError("S3T dependency source differs from pinned GitHub blob: " + filename)
+    # Refuse cached modules: importlib otherwise reuses unverified code.
+    pinned_module_names = [
+        "research.nra2_bridge." + name[:-3]
+        for name in PINNED_DEPENDENCY_GIT_BLOB_SHA1
+    ] + ["research.nra2_bridge.stage3t_unseen_wording_prereg"]
+    if any(name in sys.modules for name in pinned_module_names):
+        raise ValueError("pinned S3T module already loaded before verified import")
     generator_module = importlib.import_module("research.nra2_bridge.stage3t_unseen_wording_prereg")
     if Path(generator_module.__file__).resolve() != source_path:
         raise ValueError("S3T generator resolved to unexpected module path")
