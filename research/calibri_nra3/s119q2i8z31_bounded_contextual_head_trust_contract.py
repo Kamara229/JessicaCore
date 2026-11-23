@@ -41,7 +41,6 @@ def frozen_new_head_params(learned,original):
           and learned.activation_allowed is original.activation_allowed is False,
           "both copied and original Z10 native readout are research-only")
     nd=list(learned.down.parameters())+list(learned.up.parameters())
-    nb=list(learned.output_bias.reshape(-1))
     check(sum(p.numel() for p in nd)==TRAINABLE_DOWN_UP==197888
           and learned.output_bias.numel()==FIXED_VOCAB_OUTPUT_BIAS==49152
           and sum(p.numel() for p in learned.parameters())==247040
