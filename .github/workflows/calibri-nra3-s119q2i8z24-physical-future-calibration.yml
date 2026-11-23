@@ -316,7 +316,7 @@ jobs:
       - name: Save ONLY Z24 read-only 28 DEV native future calibration JSON, no new weights or training
         uses: actions/upload-artifact@v4
         with:
-          name: calibri-s119q2i8z22-original43m-new28train14dev-future16-vs-shuffle-four-shadows-gate0
+          name: calibri-s119q2i8z24-original43m-28freshDEV-frozenZ22-fourscale-margin-JSON-gate0
           path: results/s119q2i8z24_frozen_future_28newdev_scale_diagnostics/S119Q2I8Z24_TRUE43M_28NEWDEV_FROZEN_FUTURE_NATIVE_BPE2_SCALE_MARGIN_G0.json
           retention-days: 30
           if-no-files-found: error
