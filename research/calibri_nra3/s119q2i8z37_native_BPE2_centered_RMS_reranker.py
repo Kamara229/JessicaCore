@@ -81,8 +81,12 @@ class Position2NativeCandidateComparator(nn.Module):
         # original ordering regardless of learned labels.
         raw_candidate_logits=candidate_emb@query[0]
         raw_contrast=raw_candidate_logits-raw_candidate_logits.mean()
-        slate_rms=raw_contrast.square().mean().sqrt().clamp_min(
-            CENTERED_CANDIDATE_RMS_FLOOR)
+        # Clamp variance BEFORE square root: sqrt(0) has infinite
+        # reverse derivative even when later clamped (0 * Inf -> NaN).
+        # Identical forward max(RMS,.10), but gradient at zero init
+        # stays finite, and centered candidate contrast is trainable.
+        slate_rms=raw_contrast.square().mean().clamp_min(
+            CENTERED_CANDIDATE_RMS_FLOOR**2).sqrt()
         unsaturated=(raw_contrast/slate_rms)/CENTERED_PRE_TANH_DIVISOR
         bounded_tanh=torch.tanh(unsaturated)
         centered_bounded=bounded_tanh-bounded_tanh.mean()
