@@ -1,0 +1,60 @@
+name: Calibri S119q2i8z7 original43M fullnative49152 contextual rank4 vs global vocab bias wrong-token margin audit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z6-physical-head-bias-vs-context-20261123
+permissions:
+  contents: read
+  actions: read
+jobs:
+  source-only-actual43M-84readout-wrong-winner-margins:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z7-contextual-rank4-wrong-winner-margin-paired-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '119167'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Source-only strict true original43M readout margin unit tests
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z7_context_wrong_gold_margin_audit
+      - name: Get ONLY completed and verified 84 true original S142 43M 12GT head bias vs rank4 fullnative49152 report
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8z6-original43m-native49k-84real-336virtual-bias-vs-contextual-rank4-gate0
+          run-id: 45112400356
+          path: inputs/z6
+          github-token: ${{ github.token }}
+      - name: Reverify all 84 physical 336 original49k same-source readout vectors then decompose full wrong-gold margin context vs bias
+        run: |
+          set -euo pipefail
+          test -f inputs/z6/S119Q2I8Z6_TRUE43M_NATIVE49152_LEARNED_BIAS_VS_CONTEXT_RANK4_84REAL_336VIRTUAL_G0.json
+          python -m research.calibri_nra3.s119q2i8z7_context_wrong_gold_margin_audit \
+            --z6-dir inputs/z6 \
+            --out results/S119Q2I8Z7_REAL_ORIGINAL43M_CONTEXT_RANK4_VS_BIAS_WRONG_GOLD_MARGIN_SIGNS_G0.json
+      - name: Upload only source-cited fullnative49152 read-only competing token logit margin signed causal report
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2i8z7-original43m-84real-head-context-vs-bias-wronggold-margin-gate0
+          path: results/S119Q2I8Z7_REAL_ORIGINAL43M_CONTEXT_RANK4_VS_BIAS_WRONG_GOLD_MARGIN_SIGNS_G0.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: No change outside research scripts and source-only workflow
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/changed
+          if grep -Ev '^(research/calibri_nra3/s119q2i8z7_context_wrong_gold_margin_audit.py|research/calibri_nra3/test_s119q2i8z7_context_wrong_gold_margin_audit.py|\.github/workflows/calibri-nra3-s119q2i8z7-context-wrong-gold-margin-sourceonly.yml)$' /tmp/changed; then
+            echo 'Out-of-scope files changed' >&2
+            exit 1
+          fi
