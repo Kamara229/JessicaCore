@@ -1,0 +1,39 @@
+name: Calibri S119q2i8z23 lock NEW 28 RU DEV and frozen Z22 predictive state scale calibration
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z22-physical-native-futurestate-vs-shuffle-20261123
+permissions:
+  contents: read
+jobs:
+  prereg-fresh28-no-physical-original43m:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z23-prereg-fresh28dev-frozenfuture-calibration-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install tensor math only, no model weights or training
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Verify NEW 28 prompts, frozen original Z22 SHA x4, scale0-2-8-16 target-blind native49152
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z23_fresh28_frozen_calibration
+      - name: Fail-closed four isolated source-only files
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} >/tmp/z23scope
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z23_new28dev_frozen_future_calibration_source.py' -e 'research/calibri_nra3/s119q2i8z23_targetblind_native_calibration_contract.py' -e 'research/calibri_nra3/test_s119q2i8z23_fresh28_frozen_calibration.py' -e '.github/workflows/calibri-nra3-s119q2i8z23-fresh28-calibration-prereg.yml' /tmp/z23scope; then
+            echo 'Any trained original, protected, or LIVE change forbidden' >&2
+            exit 1
+          fi
+          test $(wc -l < /tmp/z23scope) -eq 4
