@@ -1,21 +1,27 @@
-"""S119q2i8z34 prereg after Z33 primary native BPE2 first failure.
+"""Z34 original model native BPE2-only position-gated neural comparator.
 
-Older genuine Z29 84 legal TRAIN x 5 positions decreased CE, yet
-rank4 contextual down/up caused 2-token mode collapse, not native
-output_bias. New experiment freezes bias and trains only 197888
-lowrank contextual neural parameters within bounded ±2 pre-gain
-residual to frozen Z10 rank4 head, KL(original native logits ||
-new logits) 1.0; original native logits reconstructed from SAME paid
-S142 native49152 forward, no duplicate 43M pass required.
-Original pretrained 43M, GT12, Core/NRA3/NPA1 and original fitted
-Z10 all frozen. Only previous legal84 human TRAIN Z16/Z18/Z21.
-NEW author14 DEV seven domains x2, disjoint ALL prior old
-E/G/K/R/T/W/X/Z2/Z9/Z12/Z14/Z16/Z18/Z21/Z23/Z25/Z28.
-Precommitted 2 epochs, lr .004, position CE BPE1-4+EOS and
-margins, same as previous. No DEV target in training/inference,
-no protected 616J7/EVAL128/GOLD, bpp or CPU CB59 acceptance.
-Draft research only, output_gate0, no LIVE.
+Physical Z33 showed ALL 14/14 previous SPENT Z31 DEV own FIRST native
+BPE was correct, but native BPE2 correct ONLY 2/14; the first
+error thus occurs BEFORE any teacher-versus-own history divergence.
+Its actual next native BPE target generally remains in pretrained
+native top64, including after wrong OWN histories. Do NOT train
+a made-up human-gold suffix on wrong OWN prefix.
+
+Precommit 84 previously legally labelled original-author TRAIN only
+Z16/Z18/Z21, plus 14 NEW synthetic Russian author DEV disjoint all
+previously SPENT up through Z31. Exact original native49152 top64
+hard-negative training after OWN model first BPE, condition on
+same-pass frozen last h320 + preceding own original native
+embedding320; train small 640x32x320=30720param neural readout,
+with native delta ±1.5, original shortlist KL0.08 and hard
+greedy-vs-gold margin. Wrong-offset17 label control trained same
+budget; no gold injection or EOS masking. At inference activate
+only native BPE position2: ORIGINAL native first and all later
+steps unchanged, except propagated own prefix from BPE2.
+Strict no old DEV optimisation and no 616J7/EVAL128/GOLD,
+packed bpp/CPU CB59 claims. Gate0 only; no LIVE.
 """
+
 from __future__ import annotations
 import json,hashlib
 from collections import Counter
