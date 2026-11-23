@@ -87,19 +87,38 @@ def verify_with_retokenization(prompts, expected_sha256, mentions,
 # Physical source prerequisite; the expected digest is from the frozen S3T
 # preregistration, never derived from the candidate bytes being checked.
 S3T_PREREG_SHA256 = "034ebd6e1cf6f20ad04ccd00e70c6bc07ee08a46f47da843121524f1d7f0faf3"
+S3T_PHYSICAL_JSON_SHA256 = "537d0470912c1dbd1c630f3488661464a3aa42ed643349e00fb58db8391919f9"
 
 
 def verify_s3t_prereg_bytes(source_bytes, expected_sha256=S3T_PREREG_SHA256):
-    """Fail closed on missing/drifted physical S3T preregistration bytes.
+    """Verify exact pinned S3T JSON bytes AND canonical commitment.
 
-    The caller must supply the EXACT byte sequence whose SHA was preregistered;
-    this function does not assume ZIP/JSON format, extract prompts, or attest
-    that the bytes came from GitHub Actions. Never substitute a reserialized
-    JSON or a derived prompt manifest for the pinned physical artifact.
+    Commitment is SHA256 of canonical unsigned JSON, NOT of the full JSON.
+    ZIP origin is a separate prerequisite in s3x_s3t_zip_replay_gate.
     """
+    import json
+
     if type(source_bytes) is not bytes or expected_sha256 != S3T_PREREG_SHA256:
         raise AssertionError("Pinned S3T preregistration bytes and SHA required")
-    actual = hashlib.sha256(source_bytes).hexdigest()
-    if actual != S3T_PREREG_SHA256:
+    if hashlib.sha256(source_bytes).hexdigest() != S3T_PHYSICAL_JSON_SHA256:
         raise AssertionError("Physical S3T preregistration SHA mismatch")
+
+    def no_duplicate_keys(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise AssertionError("Duplicate S3T JSON key")
+            result[key] = value
+        return result
+
+    try:
+        obj = json.loads(source_bytes.decode("utf-8"), object_pairs_hook=no_duplicate_keys)
+    except (UnicodeError, ValueError) as exc:
+        raise AssertionError("Invalid S3T JSON") from exc
+    if not isinstance(obj, dict) or obj.get("commitment_sha256") != S3T_PREREG_SHA256:
+        raise AssertionError("Pinned S3T canonical commitment field mismatch")
+    unsigned = {key: value for key, value in obj.items() if key != "commitment_sha256"}
+    canonical = json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    if hashlib.sha256(canonical).hexdigest() != S3T_PREREG_SHA256:
+        raise AssertionError("Pinned S3T canonical commitment mismatch")
     return True
