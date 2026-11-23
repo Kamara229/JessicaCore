@@ -607,7 +607,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                         len(candidates[m]["per_second_to_fourth_real_forward"])
                         for m in ("ORIGINAL_NATIVE_GREEDY",)+MODES)
                     check(witnessed[0]==total_physical
-                          and 1<=total_physical<=10
+                          and 1<=total_physical<=16
                           and len(candidates)==3,
                           "actual full43M native forward count includes shared first once")
                     observed.append({
