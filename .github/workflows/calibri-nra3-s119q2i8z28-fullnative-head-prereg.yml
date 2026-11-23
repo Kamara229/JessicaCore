@@ -1,0 +1,40 @@
+name: Calibri S119q2i8z28 native full49152 rank4 HEAD-ONLY multi-BPE1-4 EOS anti-stutter prereg
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z27-physical-original-vs-headgain-repeat-ablation-20261123
+permissions:
+  contents: read
+jobs:
+  new14dev-historical84TRAIN-fullnative-headonly-multistep-contract:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z28-prereg-84train14dev-head-fullnative-multiposition-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install only CPU tensor math, not S142 original model weights
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Verify new Z28 14 synthetic DEV, historical legal 84 TRAIN and real native49152 BPE1-4 EOS objective
+        run: |
+          python -m py_compile research/calibri_nra3/s119q2i8z28_precommit_84train14fresh_native_head_multistep.py research/calibri_nra3/s119q2i8z28_fullnative_trainonly_multitoken_head_loss.py
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z28_fullnative_head_multistep_prereg
+      - name: Strict only 4 new isolated precommit source files
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} >/tmp/z28source
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z28_precommit_84train14fresh_native_head_multistep.py' -e 'research/calibri_nra3/s119q2i8z28_fullnative_trainonly_multitoken_head_loss.py' -e 'research/calibri_nra3/test_s119q2i8z28_fullnative_head_multistep_prereg.py' -e '.github/workflows/calibri-nra3-s119q2i8z28-fullnative-head-prereg.yml' /tmp/z28source; then
+            echo 'Protected original, old DEV, LIVE or saved head modified' >&2
+            exit 1
+          fi
+          test $(wc -l < /tmp/z28source) -eq 4
