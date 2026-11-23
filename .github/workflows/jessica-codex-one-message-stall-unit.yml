@@ -1,0 +1,62 @@
+name: Jessica Codex one-message markerless-stall regression (unit only, no APK)
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexReplyStallPolicy.kt'
+      - 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexIncomingTurn.kt'
+      - 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexStopReason.kt'
+      - 'app/src/main/java/com/jessica/core/modules/codex/relay/RelayProtocol.kt'
+      - 'app/src/test/java/com/jessica/core/modules/codex/CodexReplyStallPolicyTest.kt'
+      - 'app/src/test/java/com/jessica/core/modules/codex/CodexStopReasonTest.kt'
+      - 'app/src/test/java/com/jessica/core/modules/codex/RelayProtocolTest.kt'
+      - '.github/workflows/jessica-codex-one-message-stall-unit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  markerless-reply-fail-visible-no-repeat:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/jessica-codex-unmarked-reply-stall-watchdog-20261123'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact research fix SHA, no stored write credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+
+      - name: Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Android unit tests: no-marker 2min, no END 3min, stream 10min, offline safe, no duplicate
+        run: |
+          gradle --no-daemon testDebugUnitTest \
+            --tests 'com.jessica.core.modules.codex.CodexReplyStallPolicyTest' \
+            --tests 'com.jessica.core.modules.codex.CodexStopReasonTest' \
+            --tests 'com.jessica.core.modules.codex.CodexReplyProgressTest' \
+            --tests 'com.jessica.core.modules.codex.RelayProtocolTest' \
+            --tests 'com.jessica.core.modules.codex.ChatAutomationTest'
+
+      - name: Ensure Android source-only bounded guard, no LIVE backend APK or secrets edits
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/codex_stall_changed
+          if grep -Ev '^(app/src/main/java/com/jessica/core/modules/codex/chat/(CodexReplyStallPolicy.kt|CodexIncomingTurn.kt|CodexStopReason.kt)|app/src/main/java/com/jessica/core/modules/codex/relay/RelayProtocol.kt|app/src/test/java/com/jessica/core/modules/codex/(CodexReplyStallPolicyTest.kt|CodexStopReasonTest.kt|RelayProtocolTest.kt)|\.github/workflows/jessica-codex-one-message-stall-unit.yml)$' /tmp/codex_stall_changed; then
+            echo 'Backend, main production, APK signing, or unapproved source changed' >&2
+            exit 1
+          fi

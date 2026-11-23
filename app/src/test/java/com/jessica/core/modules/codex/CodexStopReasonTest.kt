@@ -11,5 +11,9 @@ class CodexStopReasonTest {
         assertEquals("send_guard",CodexStopReason.classify("Нажатие не подтверждено"))
         assertEquals("unhandled_error",CodexStopReason.classify("Кодекс приостановлен: HTTP 502"))
         assertEquals("service_disconnected",CodexStopReason.classify("Android отключил службу"))
+        assertEquals("reply_protocol_stall",CodexStopReason.classify(
+            "Кодекс остановил ожидание: нет JESSICA_REPLY и JESSICA_END"))
+        assertEquals("reply_generation_stall",CodexStopReason.classify(
+            "Кодекс остановил ожидание: ChatGPT слишком долго показывает формирование ответа"))
     }
 }

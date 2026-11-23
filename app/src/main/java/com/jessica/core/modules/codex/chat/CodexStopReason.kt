@@ -13,6 +13,10 @@ internal object CodexStopReason {
             x.contains("предел длины") -> "chat_limit"
             x.contains("предел сообщений") || x.contains("время сессии") -> "session_limit"
             x.contains("отключил службу") -> "service_disconnected"
+            x.contains("jessica_reply") || x.contains("jessica_end") ->
+                "reply_protocol_stall"
+            x.contains("слишком долго показывает") ->
+                "reply_generation_stall"
             x.contains("черновик") || x.contains("ввод") || x.contains("отправ") ||
                 x.contains("нажатие") -> "send_guard"
             x.contains("ошиб") || x.contains("приостановлен") -> "unhandled_error"

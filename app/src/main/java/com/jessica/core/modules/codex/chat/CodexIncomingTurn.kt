@@ -41,6 +41,27 @@ internal fun CodexChatCoordinator.observeIncoming(
         return accepted
     }
 
+    // When ChatGPT returns ordinary prose instead of the nonce-matched
+    // JESSICA_REPLY / JESSICA_END pair, the old relay could poll for almost
+    // 24 hours after the FIRST message and seem frozen. Do not accept
+    // unmarked text as a reply or retry any send/test automatically.
+    // Offline, locked phone and hidden windows have separate recovery
+    // guards; genuinely streaming answers get a longer bounded deadline.
+    val stall = CodexReplyStallPolicy.classify(
+        waiting = state.waiting,
+        selectedChatVisible = true,
+        connected = !CodexNetworkObserver.offline(service),
+        generating = window.generating,
+        startMarkerObserved = replyCollector.hasStarted(launch.replyId),
+        completed = completed != null,
+        elapsedSinceSendMs = now - state.sendAt
+    )
+    if (stall != CodexReplyStallPolicy.Failure.NONE) {
+        reportPhase("reply_protocol_stalled")
+        finish(CodexReplyStallPolicy.message(stall))
+        return null
+    }
+
     // Safety lock: never navigate or scroll the interface while waiting.
     // Missing reply markers are not evidence that a new chat should be opened.
     if (completed == null && ChatReplyExtraction.hasStandaloneEnd(window.content, launch.replyId)
