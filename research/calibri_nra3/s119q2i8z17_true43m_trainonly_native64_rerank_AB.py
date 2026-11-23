@@ -436,11 +436,27 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
     outcomes={}
     out.mkdir(parents=True)
     try:
-        native_embedding=model.get_input_embeddings().weight.detach().cpu().float()
+        # S142's compressed model exposes a custom TrainEmbedding, not
+        # a bare nn.Embedding.weight. Read the REAL original table through
+        # its frozen input-embedding forward, in native-ID chunks. This
+        # does NOT run any decoder layers or train/change that module.
+        embed_module=model.get_input_embeddings()
+        native_pieces=[]
+        with torch.no_grad():
+            for i in range(0,NATIVE_VOCAB,1024):
+                native_ids=torch.arange(i,min(i+1024,NATIVE_VOCAB),
+                                        dtype=torch.long).view(1,-1)
+                chunk=embed_module(native_ids)
+                check(isinstance(chunk,torch.Tensor)
+                      and tuple(chunk.shape)==(1,native_ids.numel(),HIDDEN)
+                      and torch.isfinite(chunk).all(),
+                      "original TRAINED compressed TrainEmbedding original49152 ID lookup")
+                native_pieces.append(chunk[0].detach().float().cpu().clone())
+        native_embedding=torch.cat(native_pieces,dim=0)
         check(native_embedding.shape==(NATIVE_VOCAB,HIDDEN)
               and not native_embedding.requires_grad
               and torch.isfinite(native_embedding).all(),
-              "original S142 frozen 49k x320 native token embeddings, no train")
+              "read-only original compressed native49152 embedding table h320")
         for name,child,gates in (
             ("Z10_FULLJOINT_EARLY23_X3_CE",child_a,gt_a),
             ("Z10_FULLJOINT_EARLY23_X3_CONTEXT_TOP8_BPE2",child_b,gt_b),
