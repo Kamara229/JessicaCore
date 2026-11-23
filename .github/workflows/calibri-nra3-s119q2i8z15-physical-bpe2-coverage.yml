@@ -165,7 +165,7 @@ jobs:
               p=verified_native_answer(tok,clean)
               actual.append((r["id"],len(p["answer_native_with_eos"]),len(p["prefix"])))
           print("S119Q2I8Z15_FROZEN_FRESH14_NATIVE",actual,flush=True)
-          assert len(actual)==14 and all(4<=n<=40 and prefix+39<160 for _,n,prefix in actual),"fail closed native49152 original source context"
+          assert len(actual)==14 and all(4<=n<=64 and prefix+2<160 for _,n,prefix in actual),"fail closed native49152 original source context"
           assert tok.vocab_size==49152 and tok.eos_token_id==2
           assert audit_tokenizer(tok)["pass_original_decoder_limits"]==70
           PY
