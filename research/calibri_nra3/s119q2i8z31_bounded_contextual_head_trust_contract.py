@@ -104,7 +104,7 @@ def trust_kl_after_same_paid_forward(new_native_logits,cap,old_head,new_head):
           and cap["original43M_extra_decoder_calls"]==0
           and GAIN==NATIVE_HEAD_GAIN==.25,
           "actual model full49152 new logit, same-pass reference from old Z10 head")
-    bounded=cap["bounded_contextual_difference"].reshape_as(new_native_logits)
+    bounded=cap["bounded_contextual_difference"][:,-1,:].reshape_as(new_native_logits)
     # The native S142 logits and normal learned Z10 head are in same
     # physical original lm_head hook. Remove ONLY the learned bounded
     # deviation to recover exactly old Z10 logits as reference.
