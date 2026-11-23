@@ -553,6 +553,10 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                         "gold_second_already_in_frozen_top64":
                             first_match and present,
                         "reranker_changed_second_native":selected!=greedy,
+                        "actual_greedy_native_BPE2_ID":greedy,
+                        "actual_reranked_native_BPE2_ID":selected,
+                        "greedy_is_premature_native_EOS":greedy==2,
+                        "reranked_is_premature_native_EOS":selected==2,
                         "candidate_native_top64_includes_EOS":bool((ids==2).any()),
                         "original_full43M_native_forwards":2,
                         "true_original_native_vocab_size":NATIVE_VOCAB,
@@ -575,6 +579,14 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                     x["reranker_changed_second_native"] for x in observed),
                 "EOS_among_top64":sum(
                     x["candidate_native_top64_includes_EOS"] for x in observed),
+                "greedy_premature_native_EOS":sum(
+                    x["greedy_is_premature_native_EOS"] for x in observed),
+                "reranked_premature_native_EOS":sum(
+                    x["reranked_is_premature_native_EOS"] for x in observed),
+                "unique_greedy_native_BPE2_IDs":len(set(
+                    x["actual_greedy_native_BPE2_ID"] for x in observed)),
+                "unique_reranked_native_BPE2_IDs":len(set(
+                    x["actual_reranked_native_BPE2_ID"] for x in observed)),
                 "true_original43M_full_native49k_forwards":84,
                 "ranker_extra_original43M_forwards_per_sample":0,
                 "saved_shadow_params":1280,
