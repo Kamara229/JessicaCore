@@ -12,7 +12,6 @@ import sys
 import zipfile
 from pathlib import Path
 
-from research.nra2_bridge.s3x_s3t_commitment_replay_gate import verify
 
 PINNED_ZIP_SHA256 = "41c3c67966d14443bd1011521b6d197e9dc22839b8581561a68f4cb6a1932cb1"
 PINNED_JSON_SHA256 = "537d0470912c1dbd1c630f3488661464a3aa42ed643349e00fb58db8391919f9"  # full physical JSON byte digest
@@ -54,14 +53,13 @@ def verify_zip_preflight(raw):
 
 
 def verify_zip(raw):
-    """Internal replay: caller must first independently attest fresh 616 J7."""
-    preflight = verify_zip_preflight(raw)
-    with zipfile.ZipFile(io.BytesIO(raw)) as z:
-        data = z.read(z.infolist()[0])
-    result = verify(data)
-    result.update(preflight)
-    result["replay_executed"] = True
-    return result
+    """Fail closed until an independently verified J7 attestation gate exists.
+
+    No caller-supplied boolean is accepted as evidence; never import or execute
+    the S3T generator (which accesses oracle/gold) through this entry point.
+    """
+    verify_zip_preflight(raw)
+    raise RuntimeError("S3T replay blocked: fresh native 616 J7 attestation is not implemented")
 
 
 def main():
