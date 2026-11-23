@@ -277,7 +277,7 @@ jobs:
       - name: Download PHYSICAL completed Z35 real S142 43M native BPE2-only fit A/B human vs wrong17 shadow and spent14 sources
         uses: actions/download-artifact@v4
         with:
-          name: calibri-s119q2i8z36-real43m-native-BPE2-logitgap-vs-frozen-rank32-residual-spent14-JSON-gate0
+          name: calibri-s119q2i8z35-original43m-BPE2ONLY-rank32-newDEV14-first6-control-shadows-gate0
           run-id: 45259912788
           path: inputs/s119q2i8z35_completed
           github-token: ${{ github.token }}
@@ -317,7 +317,7 @@ jobs:
       - name: Save ONLY Z36 source14 forensic native BPE2 original logit gap versus actual saved ranker residual JSON, NO trained weights
         uses: actions/upload-artifact@v4
         with:
-          name: calibri-s119q2i8z35-original43m-BPE2ONLY-rank32-newDEV14-first6-control-shadows-gate0
+          name: calibri-s119q2i8z36-real43m-native-BPE2-logitgap-vs-frozen-rank32-residual-spent14-JSON-gate0
           path: results/s119q2i8z36_spent_Z34_BPE2_native_gold_gap_rank32/S119Q2I8Z36_TRUE43M_SPENT14_BPE2_GREEDY_LOGIT_GAP_VS_BOUNDED_RANK32_RESIDUAL_G0.json
           retention-days: 30
           if-no-files-found: error
