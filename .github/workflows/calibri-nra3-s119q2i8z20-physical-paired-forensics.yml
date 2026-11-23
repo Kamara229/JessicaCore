@@ -1,0 +1,70 @@
+name: Calibri S119q2i8z20 actual original43M Z19 paired consistency read-only forensic
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z19-physical-s142-multilayer-vs-final-20261123
+permissions:
+  contents: read
+  actions: read
+jobs:
+  archived-physical-Z19-paired-forensics-JSON-only:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z20-physical-paired-consensus-forensics-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run source-only contract suite with standard Python only, NO torch
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z20_paired_consensus_readonly
+      - name: Download exact previously COMPLETED S142 physical Z19 source evidence JSON and 4 tiny shadows
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8z19-actual43m-new28train14dev-L3L7L11-vs-final-4rankers-gate0
+          run-id: 45216554800
+          path: inputs/completed_z19_original43m
+          github-token: ${{ github.token }}
+      - name: Verify exact Z19 physical JSON exists and no future labels leak
+        run: |
+          test -s inputs/completed_z19_original43m/S119Q2I8Z19_ORIGINAL43M_L3_L7_L11_FINAL_VS_LAST_28TRAIN14DEV_G0.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("inputs/completed_z19_original43m/S119Q2I8Z19_ORIGINAL43M_L3_L7_L11_FINAL_VS_LAST_28TRAIN14DEV_G0.json")
+          x=json.loads(p.read_text(encoding="utf8"))
+          assert x["original43M_A_B_real_full_native_forwards"]==168
+          assert x["candidate_accepted"] is False and x["output_gate"]==0
+          assert x["DEV14_NOW_SPENT_not_independently_blind"] is True
+          assert len(x["TRUE_matched_A_B_SHADOW_FINAL_VS_MULTILAYER"])==2
+          print("Z20_ORIGINAL_COMPLETED_S142_Z19_SOURCE_JSON_SHA_PIN_READY",p.stat().st_size,flush=True)
+          PY
+      - name: Compute only new paired error agreements and oracle limits on SAME 14 already SPENT
+        run: |
+          python -m research.calibri_nra3.s119q2i8z20_paired_consensus_readonly_forensics \
+            --z19-report inputs/completed_z19_original43m/S119Q2I8Z19_ORIGINAL43M_L3_L7_L11_FINAL_VS_LAST_28TRAIN14DEV_G0.json \
+            --out results/S119Q2I8Z20_JSON_ONLY_PAIRWISE_SPENT14_GATE0
+      - name: Save only paired read-only physical Z19 provenance and forensic JSON, no model weights
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2i8z20-actual-Z19-43m-paired-multilayer-final-14spentDEV-forensic-JSON-gate0
+          path: results/S119Q2I8Z20_JSON_ONLY_PAIRWISE_SPENT14_GATE0/S119Q2I8Z20_ACTUAL43M_FINAL_VS_MULTI_PAIRED_ERROR_CONSENSUS_G0.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Fail closed no original model protected J7 EVAL GOLD or live file changes
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/z20_exact_source_only
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z20_paired_consensus_readonly_forensics.py' -e 'research/calibri_nra3/test_s119q2i8z20_paired_consensus_readonly.py' -e '.github/workflows/calibri-nra3-s119q2i8z20-physical-paired-forensics.yml' /tmp/z20_exact_source_only; then
+            echo 'Refuse modification of original, sealed, production or prior experiments' >&2
+            exit 1
+          fi
+          test $(wc -l < /tmp/z20_exact_source_only) -eq 3
