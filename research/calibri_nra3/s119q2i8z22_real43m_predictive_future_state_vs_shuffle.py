@@ -94,7 +94,7 @@ from research.calibri_nra3.s119q2i8k_new_ru_multiword_dev_source import (
 
 from research.calibri_nra3.s119q2i8z21_fresh28train14dev_future_state_source import (
     STAGE as NEW_SOURCE_STAGE,ORIGIN as NEW_SOURCE_ORIGIN,
-    rows as fresh_new_rows,verify as fresh_new_verify,TOP_K,LATENT_DIM,
+    rows as fresh_new_rows,verify as fresh_new_verify,TOP_K,LATENT_DIM,TRAIN_EPOCHS,
 )
 from research.calibri_nra3.s119q2i8z16_trainonly_lowrank_native64_reranker import (
     capture_existing_full43m_hidden,NativeBPE2CandidateReranker,
