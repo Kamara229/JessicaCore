@@ -32,7 +32,7 @@ class TestZ35TrueOriginalBPE2Only(unittest.TestCase):
             "full.last_forward_coverage==tuple(range(12))",
             "old_original_param_digest(model)==original_digest",
             "strict_ONLY_second_native_BPE_candidate_decoding_intervention",
-            "new_Z34_synthetic_DEV_now_SPENT",
+            "Z34_brandNEW_author_DEV14_NOW_SPENT_not_independently_blind",
         ):
             with self.subTest(s=s):self.assertIn(s,c)
     def test_real_train_then_brand_new_DEV_no_gold_teacher_on_DEV(self):
