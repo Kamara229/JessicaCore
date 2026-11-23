@@ -1,15 +1,13 @@
-"""S119q2i8z10: TRUE original S142 43M 12GT/Core/NRA3/NPA1/native49k
-matched A/B 27 new Z10 TRAIN joint updates from SAME completed W
-early23×3 FP16 neural 421793 + fitted 12 Green Tunnel gates.
-A: full native human all-BPE CE (second+third x3), normal EOS.
-B: same plus differentiable 2.0*tanh(existing Core onpath gate)^2
-once per TRAIN answer ONLY, no inference-time CORE mask or change.
-New14 author Z10 internal synthetic DEV PRECOMMITTED and never in
-optimizer, genuine real 43M OWN greedy 40 BPE and separate teacherforced
-human previous gold BPE2 ranks AFTER training; 6 old spent DEV.
-The existing Core component is NOT removed and is still learnable
-alongside NRA3/NPA1/GT12/rank4 native readout 368051 current params.
-No LIVE/main/Render/Supabase/APK/Jessica, no J7/EVAL128/GOLD.
+"""Z13 physical READ-ONLY 43M native49152 logical-parallel BPE2×BPE3 probe.
+
+Exactly pre-registered NEW Z12 synthetic DEV14 (7 domains ×2);
+same W-parent previous completed Z10 trained A/B 421793 FP16 + 12 GT.
+Uses TRUE self-generated first token for each sample, then independent
+top8 second alternatives with up to top2 future third continuations.
+Compares fixed deterministic average joint logprob against native greedy
+on same logits, no gold before decision. This is logically branching,
+physically sequential CPU forwards (NO CPU acceleration demonstrated).
+NO training, protected J7/EVAL128/GOLD, model changes or promotion.
 """
 from __future__ import annotations
 import argparse
