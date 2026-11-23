@@ -321,7 +321,7 @@ jobs:
           path: results/s119q2i8z36_spent_Z34_BPE2_native_gold_gap_rank32/S119Q2I8Z36_TRUE43M_SPENT14_BPE2_GREEDY_LOGIT_GAP_VS_BOUNDED_RANK32_RESIDUAL_G0.json
           retention-days: 30
           if-no-files-found: error
-      - name: No mutation: exactly three new Z36 read-only files vs current stable Z35
+      - name: Ensure only three new Z36 read-only research files vs stable Z35
         run: |
           set -euo pipefail
           base="origin/research/calibri2-s119q2i8z35-physical-gated-BPE2-ranker-vs-control-20261123"
