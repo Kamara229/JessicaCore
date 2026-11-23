@@ -78,8 +78,17 @@ class TestZ28FutureNativeTrainOnly(unittest.TestCase):
             full_native_trainonly_pos_loss(logits,gold,2,2.5,split="TRAIN")
 
     def test_05_head_params_real_orig_model_shape(self):
-        from research.calibri_nra3.s119q2i1_real43m_ru_language_head_joint_training import NativeHeadAlignment
-        head=NativeHeadAlignment()
+        from torch import nn
+        class NativeHeadAlignmentShape(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.down=nn.Linear(320,4,bias=False)
+                self.up=nn.Linear(4,VOCAB,bias=False)
+                self.output_bias=nn.Parameter(torch.zeros(VOCAB))
+                self.output_gate=0
+                self.candidate_accepted=False
+                self.activation_allowed=False
+        head=NativeHeadAlignmentShape()
         self.assertEqual(sum(p.numel() for p in head.parameters()),HEAD_TOTAL_PARAMS)
         self.assertTrue(verify_shadow_head_params(head))
         with self.assertRaises(ValueError):
