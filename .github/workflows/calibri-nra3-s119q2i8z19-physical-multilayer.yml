@@ -288,7 +288,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: calibri-s119q2i8z19-actual43m-new28train14dev-L3L7L11-vs-final-4rankers-gate0
-          path: results/s119q2i8z17_physical_frozen43m_rank2_shadow_28train14dev/
+          path: results/s119q2i8z19_frozen43m_L3_L7_L11_vs_final_28train14dev/
           retention-days: 30
           if-no-files-found: error
       - name: Fail-closed exactly 3 new original43M research-only files
