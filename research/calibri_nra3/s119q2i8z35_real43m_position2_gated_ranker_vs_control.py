@@ -703,60 +703,60 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
           "original S142/12GT donor and all saved Z10 A/B fitted params preserved")
     check(len(outcomes)==2
           and all(v["NEW_DEV14_full_autonomous_first6_native"][
-                      "original43M_real_native_TRAIN_forwards"]==168
+                        "original43M_real_native_TRAIN_forwards"]==168
                   and v["NEW_DEV14_full_autonomous_first6_native"][
-                      "brand_NEW_synthetic_DEV14"]==14
+                        "brand_NEW_synthetic_DEV14"]==14
                   and set(v["TRAIN_only_shadow_optimizer"])==set(MODES)
-                  and all(v["TRAIN_only_shadow_optimizer"][m][
-                      "previously_legal_human_TRAIN_only_sources"]==84
-                      for m in MODES)
+                  and all(v["TRAIN_only_shadow_optimizer"][m]["legal_TRAIN84"]==84
+                          and v["TRAIN_only_shadow_optimizer"][m]["shadow_rank32_params"]==30720
+                          for m in MODES)
+                  and len(v["NEW_DEV14_per_prompt_first6"])==14
                   for v in outcomes.values()),
-          "only real original S142 A/B 84 historical TRAIN and new 14 DEV first4")
-    actual_forwards=sum(
+          "real original S142 A/B native49152 BPE2-only rank32 with legal84 source only")
+    total_forwards=sum(
         v["NEW_DEV14_full_autonomous_first6_native"][
             "original43M_real_native_TRAIN_forwards"]+
         v["NEW_DEV14_full_autonomous_first6_native"][
             "original43M_real_native_DEV_forwards"]
         for v in outcomes.values())
-    check(350<=actual_forwards<=616,
-          "accurate actual original43M decoder calls with early native EOS")
+    check(350<=total_forwards<=900,
+          "exact original S142 43M true native49152 two real full forwards per TRAIN and own first6 per DEV arm and mode")
     report={
         "stage":STAGE,
-        "Z25_PRECOMMITTED_84_HISTORICAL_LEGITIMATE_TRAIN_SHA256":fresh["TRAIN_SHA256"],
-        "Z25_PRECOMMITTED_14_NEW_DEV_SHA256":fresh["DEV_SHA256"],
-        "Z25_new_DEV_NOW_SPENT_not_independent_blind":True,
-        "Z25_training_epoch_fixed":TRAIN_EPOCHS,
-        "Z25_top64_native49152_bound_logit_anchored_rank16":True,
-        "Z25_first4_autonomous_native_BPE_output_not_teacher_forced":True,
-        "real_original43M_A_B_total_native49152_forwards":actual_forwards,
-        "completed_original_Z10_parent_SHA256":sha(prev_path),
-        "original_Z10_421793_FP16_and_12GT_SHA256":{
-            key:value["sha256"] for key,value in saved.items()},
+        "Z34_PRECOMMITTED_84_LEGAL_TRAIN_SHA256":fresh["TRAIN_SHA256"],
+        "Z34_PRECOMMITTED_14_BRANDNEW_DEV_SHA256":fresh["NEW_DEV_SHA256"],
+        "Z34_brandNEW_author_DEV14_NOW_SPENT_not_independently_blind":True,
+        "fixed_rank32_candidate_K64_bound1_5_correct_vs_wrong_control_epoch25":True,
+        "strict_ONLY_second_native_BPE_candidate_decoding_intervention":True,
+        "original43M_49k_native_FORWARDS":total_forwards,
+        "original_Z10_fitted_parent_SHA256":sha(prev_path),
+        "saved_original_Z10_A_B_FPF16_and_12GT_SHA256":{
+            k:v["sha256"] for k,v in saved.items()},
         "original_S142_43M_SHA256":sha(s142),
         "original_S93_GT_SHA256":sha(s93),
-        "true_original43M_A_B_HUMAN_vs_WRONG_CONTROL_first4":outcomes,
-        "no_DEV_gradient_or_gold_in_candidate_selection":True,
-        "no_old_spent_DEV_labels_used_for_any_training":True,
-        "only_TWO_10240_param_shadow_models_per_arm_updated":True,
-        "original43M_all12GT_Core_NRA3_NPA1_native_head_unchanged":True,
-        "no_616J7_EVAL128_GOLD_bpp_CPU_CB59_certification":True,
-        "no_main_LIVE_Render_Supabase_APK_Jessica_changes":True,
+        "actual_original43M_A_B_real_native49k_BPE2_only_rank32":outcomes,
+        "no_gold_in_candidate_selection_on_new_DEV":True,
+        "no_previous_SPENT_DEV_used_in_TRAIN":True,
+        "only_two_30720param_BPE2_gated_shadows_updated_per_arm":True,
+        "original_S142_43M_GT12_Core_NRA3_NPA1_and_Z10_A_B_unchanged":True,
+        "no_616J7_EVAL128_GOLD_bpp_CB59_CPU_certification":True,
+        "no_MAIN_LIVE_Render_Supabase_APK_Jessica_changes":True,
         "candidate_accepted":False,"output_gate":0,
-        "decision":"REAL_NATIVE49152_OWN_FIRST4_ANCHORED_HARDNEG_RESEARCH_ONLY_NO_PROMOTION",
+        "decision":"SECOND_NATIVE_BPE_ONLY_POSITION_GATED_TARGETBLIND_TOP64_RANK32_RESEARCH_NO_PROMOTION",
     }
     (out/REPORT).write_text(json.dumps(report,ensure_ascii=False,
-                            sort_keys=True,indent=2)+"\n",encoding="utf8")
-    print("S119Q2I8Z26_PHYSICAL_ORIGINAL43M_HARDNEG_FIRST4 "+json.dumps({
-        "TRAIN84_SHA256":fresh["TRAIN_SHA256"],
-        "NEW_DEV14_SHA256":fresh["DEV_SHA256"],
-        "real_original43M_native_forwards":actual_forwards,
-        "A_B":{"A" if key.endswith("_CE") else "B":{
-            "first4":v["NEW_DEV14_full_autonomous_first6_native"],
-            "shadow_trainonly":v["TRAIN_only_shadow_optimizer"],
-            "fitted_shadow_FP16_SHA256":{
-                m:meta["sha256"] for m,meta in
+                           sort_keys=True,indent=2)+"\n",encoding="utf8")
+    print("S119Q2I8Z35_TRUE43M_NATIVE_BPE2_ONLY_RANK32_DEV_FIRST6 "+json.dumps({
+        "Z34_TRAIN84_SHA256":fresh["TRAIN_SHA256"],
+        "Z34_NEW_DEV14_SHA256":fresh["NEW_DEV_SHA256"],
+        "REAL_original43M_fullnative49152_forwards":total_forwards,
+        "A_B":{"A" if arm.endswith("_CE") else "B":{
+            "DEV_first6":v["NEW_DEV14_full_autonomous_first6_native"],
+            "fitted_TRAIN_only":v["TRAIN_only_shadow_optimizer"],
+            "FP16_only_shadow_SHA256":{
+                mode:rec["sha256"] for mode,rec in
                 v["fitted_shadow_only_FP16_sha"].items()},
-        } for key,v in outcomes.items()},
+        } for arm,v in outcomes.items()},
         "candidate_accepted":False,"output_gate":0,
     },sort_keys=True,ensure_ascii=False),flush=True)
 
