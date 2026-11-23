@@ -8,8 +8,10 @@ on:
       - 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexReplyStallPolicy.kt'
       - 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexIncomingTurn.kt'
       - 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexStopReason.kt'
+      - 'app/src/main/java/com/jessica/core/modules/codex/relay/RelayProtocol.kt'
       - 'app/src/test/java/com/jessica/core/modules/codex/CodexReplyStallPolicyTest.kt'
       - 'app/src/test/java/com/jessica/core/modules/codex/CodexStopReasonTest.kt'
+      - 'app/src/test/java/com/jessica/core/modules/codex/RelayProtocolTest.kt'
       - '.github/workflows/jessica-codex-one-message-stall-unit.yml'
 
 permissions:
@@ -47,13 +49,14 @@ jobs:
             --tests 'com.jessica.core.modules.codex.CodexReplyStallPolicyTest' \
             --tests 'com.jessica.core.modules.codex.CodexStopReasonTest' \
             --tests 'com.jessica.core.modules.codex.CodexReplyProgressTest' \
+            --tests 'com.jessica.core.modules.codex.RelayProtocolTest' \
             --tests 'com.jessica.core.modules.codex.ChatAutomationTest'
 
       - name: Ensure Android source-only bounded guard, no LIVE backend APK or secrets edits
         run: |
           set -euo pipefail
           git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/codex_stall_changed
-          if grep -Ev '^(app/src/main/java/com/jessica/core/modules/codex/chat/(CodexReplyStallPolicy.kt|CodexIncomingTurn.kt|CodexStopReason.kt)|app/src/test/java/com/jessica/core/modules/codex/(CodexReplyStallPolicyTest.kt|CodexStopReasonTest.kt)|\.github/workflows/jessica-codex-one-message-stall-unit.yml)$' /tmp/codex_stall_changed; then
+          if grep -Ev '^(app/src/main/java/com/jessica/core/modules/codex/chat/(CodexReplyStallPolicy.kt|CodexIncomingTurn.kt|CodexStopReason.kt)|app/src/main/java/com/jessica/core/modules/codex/relay/RelayProtocol.kt|app/src/test/java/com/jessica/core/modules/codex/(CodexReplyStallPolicyTest.kt|CodexStopReasonTest.kt|RelayProtocolTest.kt)|\.github/workflows/jessica-codex-one-message-stall-unit.yml)$' /tmp/codex_stall_changed; then
             echo 'Backend, main production, APK signing, or unapproved source changed' >&2
             exit 1
           fi
