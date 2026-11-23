@@ -14,7 +14,7 @@ from pathlib import Path
 from research.nra2_bridge.s3x_s3t_commitment_replay_gate import verify
 
 PINNED_ZIP_SHA256 = "41c3c67966d14443bd1011521b6d197e9dc22839b8581561a68f4cb6a1932cb1"
-PINNED_JSON_SHA256 = "537d0470"  # prefix only: secondary check, never an attestation by itself
+PINNED_JSON_SHA256 = "537d0470912c1dbd1c630f3488661464a3aa42ed643349e00fb58db8391919f9"  # full physical JSON byte digest
 PINNED_RUN = 43527496158
 PINNED_ARTIFACT_ID = 14085702245
 PINNED_SOURCE_HEAD = "c7c8b84d1247ee6939d7c5d894f364eea40d0f2e"
@@ -36,8 +36,8 @@ def verify_zip(raw):
                 or info.compress_size > 1_000_000):
             raise ValueError("unsafe S3T ZIP member")
         data = z.read(info)
-    if not hashlib.sha256(data).hexdigest().startswith(PINNED_JSON_SHA256):
-        raise ValueError("S3T JSON secondary digest prefix mismatch")
+    if hashlib.sha256(data).hexdigest() != PINNED_JSON_SHA256:
+        raise ValueError("S3T JSON full physical SHA256 mismatch")
     result = verify(data)
     result.update({
         "physical_zip_sha256_verified": True,
