@@ -249,11 +249,10 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
           and source["new_TRAIN_only"]==70
           and z9_source["stage"]==Z9_SOURCE_STAGE
           and fresh["stage"]==NEW_SOURCE_STAGE
-          and fresh["historical_previously_consumed_TRAIN_count"]==84
-          and fresh["brand_new_author_synthetic_DEV_count"]==14
-          and fresh["params"]["candidate_topK"]==64
-          and fresh["params"]["rank"]==16
-          and fresh["params"]["first_auto_native_BPE_eval_count"]==4
+          and fresh["prior_legal_TRAIN84"]==84
+          and fresh["brandNEW_author_synthetic_DEV14"]==14
+          and fresh["fixed_contextual_rank4_trust"]["reference_fullnative49152_KL"]==1.0
+          and fresh["fixed_contextual_rank4_trust"]["first_autonomous_DEV_native_BPE"]==6
           and HEAD_GAIN==.25,
           "preregistered Z12 original author 14 synthetic DEV only")
     evidence=load_q2d_proof(q2d_dir/Q2D_REPORT,
