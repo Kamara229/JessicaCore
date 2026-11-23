@@ -82,7 +82,7 @@ def native_lookahead_second_third(
                             "second_native_id":second})
     check(len(options)==WIDTH*THIRD_WIDTH-(THIRD_WIDTH-1)*sum(x[0]==EOS for x in t2)
           and calls==1+sum(x[0]!=EOS for x in t2)
-          and greedy_second==EOS or greedy_third is not None,
+          and (greedy_second==EOS or greedy_third is not None),
           "strict 8 second branches, 2 continuation probes each, EOS unmasked")
     # Pre-registered deterministic two-token average negative log-likelihood
     # per actual token. This is a heuristic, NOT verified or learned quality.
