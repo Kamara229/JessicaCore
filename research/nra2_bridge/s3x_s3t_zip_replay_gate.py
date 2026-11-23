@@ -1,6 +1,7 @@
 """Fail-closed physical S3T ZIP -> canonical prereg replay, research-only.
 
 Usage: python -m research.nra2_bridge.s3x_s3t_zip_replay_gate original.zip
+CLI performs physical preflight ONLY; replay requires fresh J7 attestation.
 No model, gold, training, or filesystem writes. Does not independently attest
 the GitHub Actions download channel or original tokenizer identity.
 """
@@ -20,7 +21,7 @@ PINNED_ARTIFACT_ID = 14085702245
 PINNED_SOURCE_HEAD = "c7c8b84d1247ee6939d7c5d894f364eea40d0f2e"
 
 
-def verify_zip(raw):
+def verify_zip_preflight(raw):
     if hashlib.sha256(raw).hexdigest() != PINNED_ZIP_SHA256:
         raise ValueError("original S3T ZIP physical SHA256 mismatch")
     with zipfile.ZipFile(io.BytesIO(raw)) as z:
@@ -38,8 +39,8 @@ def verify_zip(raw):
         data = z.read(info)
     if hashlib.sha256(data).hexdigest() != PINNED_JSON_SHA256:
         raise ValueError("S3T JSON full physical SHA256 mismatch")
-    result = verify(data)
-    result.update({
+    return {
+        "physical_json_sha256_verified": True,
         "physical_zip_sha256_verified": True,
         "pinned_run_id": PINNED_RUN,
         "pinned_artifact_id": PINNED_ARTIFACT_ID,
@@ -47,14 +48,26 @@ def verify_zip(raw):
         "github_origin_independently_attested": False,
         "output_gate": 0,
         "candidate_accepted": False,
-    })
+        "replay_executed": False,
+        "original_616_j7_verified": False,
+    }
+
+
+def verify_zip(raw):
+    """Internal replay: caller must first independently attest fresh 616 J7."""
+    preflight = verify_zip_preflight(raw)
+    with zipfile.ZipFile(io.BytesIO(raw)) as z:
+        data = z.read(z.infolist()[0])
+    result = verify(data)
+    result.update(preflight)
+    result["replay_executed"] = True
     return result
 
 
 def main():
     if len(sys.argv) != 2:
         raise SystemExit("usage: python -m research.nra2_bridge.s3x_s3t_zip_replay_gate S3T.zip")
-    print(json.dumps(verify_zip(Path(sys.argv[1]).read_bytes()), sort_keys=True))
+    print(json.dumps(verify_zip_preflight(Path(sys.argv[1]).read_bytes()), sort_keys=True))
 
 
 if __name__ == "__main__":
