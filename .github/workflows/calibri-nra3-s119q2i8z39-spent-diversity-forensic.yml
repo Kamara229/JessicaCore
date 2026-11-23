@@ -1,0 +1,64 @@
+name: Calibri Z39 read-only pinned Z38 native BPE2 diversity and third-token audit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z38-physical-centered-rms-nativeBPE2-14dev-20261123
+permissions:
+  contents: read
+  actions: read
+jobs:
+  spent14-immutable-readonly-diagnostics:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z39-readonly-BPE2-diversity-thirdtoken-audit-20261124'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Stdlib-only fail closed metrics and archival control tests
+        env:
+          PYTHONPATH: .
+        run: python -m unittest -v research.calibri_nra3.test_s119q2i8z39_spent14_diversity_replay
+      - name: Download ONLY previous successful ORIGINAL 43M Z38 research artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8z38-original43m-BPE2ONLY-centeredRMS-rank32-newDEV14-first6-control-shadows-gate0
+          run-id: 45264708258
+          path: inputs/z38
+          github-token: ${{ github.token }}
+      - name: Recompute strict source pinned metrics from SPENT14 physical JSON only
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m research.calibri_nra3.s119q2i8z39_spent14_native_diversity_forensics \
+            --input inputs/z38/S119Q2I8Z38_REAL43M_CENTERED_RMS_BPE2_ONLY_RANK32_84TRAIN14FRESH_DEV_FP16_G0.json \
+            --out results/S119Q2I8Z39_SPENT14_READONLY_NATIVE_BPE2_THIRD_ERROR_DIVERSITY_G0.json
+      - name: Publish only derived JSON, never a pretrained or fitted checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-z39-readonly-spent14-bpe2-diversity-third-token-decomposition-gate0
+          path: results/S119Q2I8Z39_SPENT14_READONLY_NATIVE_BPE2_THIRD_ERROR_DIVERSITY_G0.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Strictly prohibit original model, code path, and production changes
+        run: |
+          set -euo pipefail
+          base=origin/research/calibri2-s119q2i8z38-physical-centered-rms-nativeBPE2-14dev-20261123
+          git rev-parse --verify "${base}^{commit}" >/dev/null
+          git diff --name-only "${base}" HEAD >/tmp/z39files
+          if grep -Fvx \
+            -e 'research/calibri_nra3/s119q2i8z39_spent14_native_diversity_forensics.py' \
+            -e 'research/calibri_nra3/test_s119q2i8z39_spent14_diversity_replay.py' \
+            -e '.github/workflows/calibri-nra3-s119q2i8z39-spent-diversity-forensic.yml' /tmp/z39files; then
+              echo 'Unsafe modification beyond three isolated Z39 research files' >&2
+              exit 1
+          fi
+          test "$(wc -l </tmp/z39files)" -eq 3
