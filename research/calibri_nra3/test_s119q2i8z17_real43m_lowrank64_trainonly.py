@@ -27,7 +27,9 @@ class TestZ17NoLeakage(unittest.TestCase):
         code=inspect.getsource(physical.run)
         self.assertIn("capture_existing_full43m_hidden(model)",code)
         self.assertIn("real_joint_native(",code)
-        self.assertIn("native_embedding=model.get_input_embeddings().weight.detach()",code)
+        self.assertIn("embed_module=model.get_input_embeddings()",code)
+        self.assertIn("chunk=embed_module(native_ids)",code)
+        self.assertNotIn("get_input_embeddings().weight",code)
         self.assertIn("scoped_exact_native_gain(",code)
         self.assertIn("old_original_param_digest(model)",code)
     def test_new_human_28_training_ONLY_then_14_dev(self):
