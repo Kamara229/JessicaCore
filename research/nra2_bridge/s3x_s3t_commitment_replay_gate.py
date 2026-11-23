@@ -61,6 +61,11 @@ def independent_query_offsets(question):
 def verify(artifact_bytes):
     # Reject untrusted/malformed artifacts before importing any research modules.
     # This preflight has no model access and does not inspect candidate labels.
+    # Pin physical JSON bytes independently of its self-declared commitment.
+    # A different serialization with the same canonical payload is NOT the
+    # original Actions artifact and must not pass the provenance gate.
+    if hashlib.sha256(artifact_bytes).hexdigest() != "537d0470912c1dbd1c630f3488661464a3aa42ed643349e00fb58db8391919f9":
+        raise ValueError("S3T physical JSON byte SHA mismatch")
     supplied = json.loads(artifact_bytes.decode("utf-8"), object_pairs_hook=strict_pairs)
     if not isinstance(supplied, dict):
         raise ValueError("S3T artifact must be a JSON object")
