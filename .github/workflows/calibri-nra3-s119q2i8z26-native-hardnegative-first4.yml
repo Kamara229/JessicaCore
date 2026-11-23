@@ -295,7 +295,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: calibri-s119q2i8z26-original43m-84TRAIN14freshDEV-anchoredhardnegative-first4-4shadows-gate0
-          path: results/s119q2i8z22_real43m_future16_vs_shuffled_28train14dev/
+          path: results/s119q2i8z26_native64_anchored_first4_prev84train_new14dev/
           retention-days: 30
           if-no-files-found: error
       - name: Exact research-only 3-file source scope no pretrained, sealed or LIVE edits
