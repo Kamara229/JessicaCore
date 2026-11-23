@@ -600,7 +600,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                             sum(x["modes"][state_name][
                                 "future_BPE2_3_4_embedding_cosine_POSTHOC"]
                                 for x in observed)/14,6),
-                    } for state_name in STATES,
+                    } for state_name in STATES
                 },
                 "true_original43M_all12GT_native49152_forwards":84,
                 "extra_original43M_native_forwards_for_state":0,
