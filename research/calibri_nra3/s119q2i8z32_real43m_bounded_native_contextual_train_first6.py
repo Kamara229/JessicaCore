@@ -621,12 +621,12 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                     generated={}
                     for mode,active_child in (
                         ("ORIGINAL_Z10_FITTED_NATIVE_HEAD",original_child),
-                        ("NEW_MULTIPOSITION_TRAINED_HEAD_ONLY_COPY",new_head_child),
+                        ("NEW_CONTEXT_LOWRANK_BOUND2_KL1_BIAS_FROZEN",new_head_child),
                     ):
                         own=[]
                         for pos in range(EVAL_NATIVE_FIRST_K):
                             if own and own[-1]==2:break
-                            if mode=="NEW_MULTIPOSITION_TRAINED_HEAD_ONLY_COPY":
+                            if mode=="NEW_CONTEXT_LOWRANK_BOUND2_KL1_BIAS_FROZEN":
                                 with bounded_frozen_original_native_delta(
                                         active_child.language_head,
                                         original_child.language_head) as native_caps:
@@ -685,12 +685,12 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                   and len({x["source_prompt_SHA256"] for x in observed})==14
                   and all(set(x["modes"])=={
                       "ORIGINAL_Z10_FITTED_NATIVE_HEAD",
-                      "NEW_MULTIPOSITION_TRAINED_HEAD_ONLY_COPY"}
+                      "NEW_CONTEXT_LOWRANK_BOUND2_KL1_BIAS_FROZEN"}
                       for x in observed),
                   "two true native generating models on ALL 14 previously unseen Z28 DEV")
             by_mode={}
             for mode in ("ORIGINAL_Z10_FITTED_NATIVE_HEAD",
-                         "NEW_MULTIPOSITION_TRAINED_HEAD_ONLY_COPY"):
+                         "NEW_CONTEXT_LOWRANK_BOUND2_KL1_BIAS_FROZEN"):
                 rows=[x["modes"][mode] for x in observed]
                 by_mode[mode]={
                     "first1_correct":sum(x["correct_first_native"] for x in rows),
@@ -713,7 +713,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                         for x in rows if len(x["autonomous_first6_native_BPE_ids"])>1)),
                 }
             tag="CE" if arm.endswith("_CE") else "CONTEXT_TOP8"
-            fp=out/("S119Q2I8Z29_SHADOW_"+tag+"_ONLY_NATIVE_RANK4_HEAD247040_FP16_G0.safetensors")
+            fp=out/("S119Q2I8Z32_SHADOW_"+tag+"_CONTEXT_LOWRANK197888_BIAS_FROZEN_FP16_G0.safetensors")
             save_file({key:v.detach().cpu().half().contiguous()
                       for key,v in new_head_child.language_head.state_dict().items()},str(fp))
             check(fp.is_file() and fp.stat().st_size>490000,
@@ -749,7 +749,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                   and len(v["NEW_DEV14_own_native_autoregressive_source"])==14
                   and set(v["NEW_DEV14_original_vs_head_only_first6"])=={
                       "ORIGINAL_Z10_FITTED_NATIVE_HEAD",
-                      "NEW_MULTIPOSITION_TRAINED_HEAD_ONLY_COPY"}
+                      "NEW_CONTEXT_LOWRANK_BOUND2_KL1_BIAS_FROZEN"}
                   for v in outcomes.values()),
           "real S142 original43M A/B, legal84 TRAIN×5×2 + NEW DEV14 first6")
     total_forwards=sum(
@@ -762,8 +762,8 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
     report={
         "stage":STAGE,
         "Z28_84_previously_legal_TRAIN_SHA256":fresh["TRAIN_SHA256"],
-        "Z28_brandNEW_author14DEV_SHA256":fresh["DEV_SHA256"],
-        "new_Z28_14DEV_NOW_SPENT_internal_not_independently_blind":True,
+        "Z31_brandNEW_author14DEV_SHA256":fresh["NEW_DEV_SHA256"],
+        "new_Z31_14DEV_NOW_SPENT_internal_not_independently_blind":True,
         "fixed_true_full49152_BPE1_2_3_4_EOS_position":True,
         "fixed_original_fitted_native_head_gain":HEAD_GAIN,
         "fixed_shadow_head_only_train_epochs":TRAIN_EPOCHS,
@@ -776,20 +776,22 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
         "original_S142_43M_SHA256":sha(s142),
         "original_S93_GT_SHA256":sha(s93),
         "NEW_copied_head_only_TRAIN_and_first6_autonomous_DEV_A_B":outcomes,
-        "only_new_copied_247040_params_native_head_updated_per_arm":True,
+        "only_197888_contextual_down_up_params_updated_per_arm":True,
+        "full_new_copied_247040_head_saved_FP16_including_immutable_49152_bias":True,
+        "bounded_pre_gain_correction_max2_and_exact_same_paid_reference_KL1":True,
         "previous_A_B_fitted_native_head_and_all_Core_NRA3_NPA1_12GT_unchanged":True,
         "no_previous_SPENT_DEV_labels_used_in_TRAIN":True,
         "zero_DEV_teacher_forcing_or_target_in_output_selection":True,
         "no_616J7_EVAL128_GOLD_packed_bpp_CPU_CB59_certification":True,
         "no_main_LIVE_Render_Supabase_APK_Jessica_changes":True,
         "candidate_accepted":False,"output_gate":0,
-        "decision":"TRUE43M_COPY_FULL_NATIVE_HEADONLY_BPE1_4_EOS_CAUSAL_TRAIN_RESEARCH_ONLY",
+        "decision":"TRUE43M_BOUNDED_CONTEXTUAL_RANK4_BIAS_FROZEN_CE_KL_RESEARCH_ONLY",
     }
     (out/REPORT).write_text(json.dumps(report,ensure_ascii=False,
                            sort_keys=True,indent=2)+"\n",encoding="utf8")
-    print("S119Q2I8Z29_TRUE43M_NATIVE_HEAD_MULTISTEP_TRAIN_AND_DEV "+json.dumps({
-        "Z28_prior_legitimate_TRAIN84_SHA256":fresh["TRAIN_SHA256"],
-        "Z28_NEW_DEV14_SHA256":fresh["DEV_SHA256"],
+    print("S119Q2I8Z32_TRUE43M_BOUNDED_LOW_RANK_CONTEXTUAL_REPAIR_TRAIN_DEV "+json.dumps({
+        "Z31_prior_legitimate_TRAIN84_SHA256":fresh["TRAIN_SHA256"],
+        "Z31_NEW_DEV14_SHA256":fresh["NEW_DEV_SHA256"],
         "true_original43M_fullnative49152_decoder_forwards":total_forwards,
         "A_B":{"A" if arm.endswith("_CE") else "B":{
             "epoch_TRAIN":v["new_head_only_true_full_native_BPE1_4_plus_EOS_TRAIN"],
