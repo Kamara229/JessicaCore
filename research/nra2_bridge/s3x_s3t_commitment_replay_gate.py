@@ -8,11 +8,7 @@ import hashlib
 import json
 import sys
 from pathlib import Path
-import inspect
 import importlib
-
-
-from research.nra2_bridge.stage3t_unseen_wording_prereg import build_rows, commitment
 
 PINNED_GENERATOR_GIT_BLOB_SHA1 = "26dd55bcdd61aaf855750ac0d35d9deaef10706b"
 PINNED_COMMITMENT = "034ebd6e1cf6f20ad04ccd00e70c6bc07ee08a46f47da843121524f1d7f0faf3"
@@ -36,15 +32,17 @@ def canonical_bytes(obj):
 def verify(artifact_bytes):
     # Independently regenerate the locked prompt texts using the pinned
     # source implementation; never infer the commitment from the ZIP hash.
-    generator_module = importlib.import_module("research.nra2_bridge.stage3t_unseen_wording_prereg")
-    source_path = inspect.getsourcefile(generator_module)
-    if source_path is None:
-        raise ValueError("S3T generator has no physical source file")
-    source = Path(source_path).read_bytes()
+    # Hash the source file BEFORE importing/executing the generator module.
+    # This gate is not a sandbox: execute only within a trusted research checkout.
+    source_path = Path(__file__).resolve().with_name("stage3t_unseen_wording_prereg.py")
+    source = source_path.read_bytes()
     git_blob = hashlib.sha1(b"blob " + str(len(source)).encode("ascii") + b"\0" + source).hexdigest()
     if git_blob != PINNED_GENERATOR_GIT_BLOB_SHA1:
         raise ValueError("S3T generator source differs from pinned GitHub blob")
-    generated = commitment(build_rows())
+    generator_module = importlib.import_module("research.nra2_bridge.stage3t_unseen_wording_prereg")
+    if Path(generator_module.__file__).resolve() != source_path:
+        raise ValueError("S3T generator resolved to unexpected module path")
+    generated = generator_module.commitment(generator_module.build_rows())
     if generated["commitment_sha256"] != PINNED_COMMITMENT:
         raise ValueError("pinned S3T generator/commitment mismatch")
     supplied = json.loads(artifact_bytes.decode("utf-8"), object_pairs_hook=strict_pairs)
