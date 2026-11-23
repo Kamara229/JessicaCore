@@ -673,52 +673,51 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                   for k,v in child_frozen[tag].items()),
           "original S142/12GT donor and all saved Z10 A/B fitted params preserved")
     check(len(outcomes)==2
-          and all(v["new_Z21_DEV14_once"][
-              "true_original43M_all12GT_native49152_forwards"]==84
-              and set(v["new_Z21_TRAIN_only_per_state"])==set(STATES)
-              and all(v["new_Z21_TRAIN_only_per_state"][state][
-                  "new_Z21_TRAIN_source_total"]==28 for state in STATES)
-              for v in outcomes.values()),
-          "same actual original S142 43M A/B 28TRAIN+14DEV and two matched states")
+          and all(v["fresh_Z23_new_DEV28_scales"][
+                     "actual_original_S142_43M_native49152_forwards"]==56
+                  and set(v["fresh_Z23_new_DEV28_scales"]["per_frozen_state"])==set(STATES)
+                  and v["fresh_Z23_new_DEV28_scales"]["new_Z23_synthetic_DEV28"]==28
+                  for v in outcomes.values()),
+          "physical real original43M A/B each 28 new source x2 native passes")
     report={
         "stage":STAGE,
-        "previously_preregistered_Z21_TRAIN28_SHA256":fresh["TRAIN_SHA256"],
-        "previously_preregistered_Z21_DEV14_SHA256":fresh["DEV_SHA256"],
-        "Z21_DEV14_NOW_SPENT_NOT_independent_blind":True,
-        "fixed_320_to16_to320_shadow_params":10240,
-        "fixed_future_BPE_positions":[1,2,3],
-        "fixed_native_top64_original49152":TOP_K,
-        "fixed_30_TRAIN_epochs":TRAIN_EPOCHS,
-        "original43M_A_B_total_real_native49152_forwards":168,
-        "source_completed_Z10_original43M_report_sha256":sha(prev_path),
-        "source_Z10_A_B_421793_FP16_and_12_GT_SHA256":{
+        "preregistered_NEW_Z23_28DEV_sha256":fresh["new_DEV_SHA256"],
+        "Z23_new_DEV_NOW_SPENT_not_independently_blind":True,
+        "frozen_prev_completed_Z22_report_sha256":sha(z22_report_path),
+        "completed_original_Z22_GitHub_run_id":BASE_PHYSICAL_RUN_ID,
+        "completed_original_Z22_artifact_id":BASE_ARTIFACT_ID,
+        "source_Z22_TRAIN_sha256":BASE_Z22_SOURCE_TRAIN_SHA,
+        "source_Z22_DEV_sha256":BASE_Z22_SOURCE_DEV_SHA,
+        "frozen_Z22_four_ranker_FP16_SHA256":BASE_FUTURE_FP16_SHA,
+        "original_native_vocab_size":NATIVE_VOCAB,
+        "original_native_topK":TOP_K,
+        "locked_diagnostic_scales":SCALES,
+        "true_original_S142_43M_all12GT_full_native49152_forwards":112,
+        "completed_Z10_parent_report_sha256":sha(prev_path),
+        "completed_Z10_421793_child_and_12GT_fitted_SHA256":{
             k:v["sha256"] for k,v in saved.items()},
         "original_S142_43M_SHA256":sha(s142),
         "original_S93_GT_SHA256":sha(s93),
-        "actual_original43M_ALIGNED_vs_PERMUTED_future_embedding_state":outcomes,
-        "no_DEV_gold_in_state_prediction_or_candidate_generation":True,
-        "only_new_Z21_TRAIN_human_BPE2_BPE3_BPE4_embedding_supervision":True,
-        "permuted_control_uses_ONLY_shuffled_Z21_TRAIN_targets":True,
-        "original43M_all12GT_Core_NRA3_NPA1_native_head_unchanged":True,
-        "no_claim_general_semantic_planning_or_full_sentences":True,
-        "no_616J7_EVAL128_GOLD_packed_bpp_CB59_CPU_acceptance":True,
+        "actual_S142_original43M_physical_A_B_on_NEW_Z23":outcomes,
+        "all_two_state_four_scale_native_choices_BEFORE_gold":True,
+        "no_original43M_extra_forwards_per_scale_or_candidate":True,
+        "zero_training_or_optimizer_steps_on_Z23_DEV":True,
+        "no_chosen_best_scale_from_DEV_or_deployable_oracle":True,
+        "all_four_Z22_predictive_shadows_AND_original_weights_UNCHANGED":True,
+        "no_J7_616_EVAL128_GOLD_bpp_or_CPU_CB59_certification":True,
         "no_main_LIVE_Render_Supabase_APK_Jessica_changes":True,
         "candidate_accepted":False,"output_gate":0,
-        "decision":"PREDICT_NEXT3_ORIGINAL_NATIVE_EMBEDDING_PROXY_RESEARCH_ONLY_GATE0",
+        "decision":"FROZEN_PREDICTIVE_BPE2_LOGIT_CALIBRATION_DIAGNOSTIC_ONLY_NO_PROMOTION",
     }
     (out/REPORT).write_text(json.dumps(report,ensure_ascii=False,
                            sort_keys=True,indent=2)+"\n",encoding="utf8")
-    print("S119Q2I8Z22_REAL_ORIGINAL43M_FUTURE_STATE_VS_SHUFFLE "+json.dumps({
-        "Z21_TRAIN28_SHA256":fresh["TRAIN_SHA256"],
-        "Z21_DEV14_SHA256":fresh["DEV_SHA256"],
-        "original43M_real_native49152_forwards":168,
-        "A_B":{"A" if arm.endswith("_CE") else "B":{
-            "DEV14":outcome["new_Z21_DEV14_once"],
-            "train_only":outcome["new_Z21_TRAIN_only_per_state"],
-            "shadow_SHA256":{
-                state:fp["sha256"] for state,fp in
-                outcome["only_shadow_lowrank16_FP16_files"].items()},
-        } for arm,outcome in outcomes.items()},
+    print("S119Q2I8Z24_TRUE43M_FROZEN_FUTURE_CALIBRATION_NEW28 "+json.dumps({
+        "NEW_DEV28_SHA256":fresh["new_DEV_SHA256"],
+        "original43M_real_native49152_forwards":112,
+        "actual_A_B":{"A" if arm.endswith("_CE") else "B":{
+            "DEV28":v["fresh_Z23_new_DEV28_scales"],
+            "all_frozen_shadow_FP16_SHA":v["frozen_Z22_shadow_sha256"],
+        } for arm,v in outcomes.items()},
         "candidate_accepted":False,"output_gate":0,
     },sort_keys=True,ensure_ascii=False),flush=True)
 
@@ -727,12 +726,12 @@ def main():
     p=argparse.ArgumentParser()
     for key in ("s93","side","s142","q2d_dir","q2f_dir","q2i1_dir",
                 "q2i3_dir","q2i7_dir","q2i8a_dir","q2i8d_dir",
-                "q2i8f_report","q2i8g_dir","q2i8k_dir","q2i8t_dir","q2i8w_dir","z10_dir","out"):
+                "q2i8f_report","q2i8g_dir","q2i8k_dir","q2i8t_dir","q2i8w_dir","z10_dir","z22_dir","out"):
         p.add_argument("--"+key.replace("_","-"),type=Path,required=True)
     a=p.parse_args()
     run(a.s93,a.side,a.s142,a.q2d_dir,a.q2f_dir,a.q2i1_dir,
         a.q2i3_dir,a.q2i7_dir,a.q2i8a_dir,a.q2i8d_dir,
-        a.q2i8f_report,a.q2i8g_dir,a.q2i8k_dir,a.q2i8t_dir,a.q2i8w_dir,a.z10_dir,a.out)
+        a.q2i8f_report,a.q2i8g_dir,a.q2i8k_dir,a.q2i8t_dir,a.q2i8w_dir,a.z10_dir,a.z22_dir,a.out)
 
 if __name__=="__main__":
     main()
