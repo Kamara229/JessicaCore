@@ -477,8 +477,15 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
             verify_shadow_head_params(
                 new_head_child.language_head,
                 original_old_head=original_child.language_head)
+            # The inherited REAL original43M single-pass hook has a
+            # strict differentiable-child ABI (delta.requires_grad).
+            # Keep copied child tensors autograd-enabled to satisfy it,
+            # but put ONLY the separately COPIED native language head
+            # parameters in the optimizer. Child grads are explicitly
+            # cleared each TRAIN source and child weights remain byte-
+            # identical (bitwise verified after all 168 optimizer steps).
             for p in new_head_child.child.parameters():
-                p.requires_grad_(False)
+                p.requires_grad_(True)
             pretrain_head={k:v.detach().cpu().clone()
                 for k,v in new_head_child.language_head.state_dict().items()}
             freeze_full_child={k:v.detach().cpu().clone()
@@ -504,6 +511,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                           and len(row["prefix"])+len(gold)<160,
                           "exact human TRAIN BPE1..4 plus final EOS all causal")
                     fit.zero_grad(set_to_none=True)
+                    new_head_child.child.zero_grad(set_to_none=True)
                     sample_loss=0.
                     for idx,weight in positions:
                         history=row["prefix"]+gold[:idx]
