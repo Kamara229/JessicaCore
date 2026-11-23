@@ -1,4 +1,4 @@
-"""Read-only S3T prereg commitment replay. No model, scoring, or gold output.
+"""Read-only S3T prereg physical verification. Generator replay is blocked.
 
 Usage: python -m research.nra2_bridge.s3x_s3t_commitment_replay_gate /path/to/original-S3T.json
 The supplied JSON MUST be extracted independently from pinned GitHub Actions
@@ -58,7 +58,7 @@ def independent_query_offsets(question):
     }
 
 
-def verify(artifact_bytes):
+def verify_physical_only(artifact_bytes):
     # Reject untrusted/malformed artifacts before importing any research modules.
     # This preflight has no model access and does not inspect candidate labels.
     # Pin physical JSON bytes independently of its self-declared commitment.
@@ -75,6 +75,21 @@ def verify(artifact_bytes):
     unsigned = {k: v for k, v in supplied.items() if k != "commitment_sha256"}
     if hashlib.sha256(canonical_bytes(unsigned)).hexdigest() != PINNED_COMMITMENT:
         raise ValueError("artifact canonical unsigned commitment mismatch")
+    return {
+        "physical_json_sha_verified": True,
+        "canonical_commitment_verified": True,
+        "source_generator_replay": False,
+        "physical_zip_origin_verified": False,
+        "native_tokenizer_abi_verified": False,
+        "original_616_j7_verified": False,
+        "output_gate": 0,
+        "candidate_accepted": False,
+    }
+
+
+def verify(artifact_bytes):
+    # Validate bytes without executing generator code or exposing labels.
+    verify_physical_only(artifact_bytes)
     # Fail closed: build_rows()/commitment() reach validate()/oracle().
     # A fresh native 616-J7 attestation is not implemented in this entry point.
     # Do not accept caller booleans or old run metadata as proof.
@@ -168,7 +183,7 @@ def main():
     if len(sys.argv) != 2:
         raise SystemExit("usage: python -m research.nra2_bridge.s3x_s3t_commitment_replay_gate S3T.json")
     # Only read the supplied file; do not load model weights or write results.
-    result = verify(Path(sys.argv[1]).read_bytes())
+    result = verify_physical_only(Path(sys.argv[1]).read_bytes())
     print(json.dumps(result, sort_keys=True))
 
 
