@@ -291,7 +291,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: calibri-s119q2i8z22-original43m-new28train14dev-future16-vs-shuffle-four-shadows-gate0
-          path: results/s119q2i8z17_physical_frozen43m_rank2_shadow_28train14dev/
+          path: results/s119q2i8z22_real43m_future16_vs_shuffled_28train14dev/
           retention-days: 30
           if-no-files-found: error
       - name: Fail closed exactly physical Z22 research-only files
