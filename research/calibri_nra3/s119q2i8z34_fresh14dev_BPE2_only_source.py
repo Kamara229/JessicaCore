@@ -40,21 +40,21 @@ from research.calibri_nra3.s119q2i8z28_precommit_84train14fresh_native_head_mult
 from research.calibri_nra3.s119q2i8z31_84legaltrain_new14dev_bounded_context_source import rows as z31_rows
 STAGE="CALIBRI_S119Q2I8Z34_PREREG_PRECISE_OWNFIRST_SECOND_NATIVE_BPE_GATED_RANKER_84TRAIN14NEWDEV"
 ORIGIN="author_internal_Z34_new14_20261123_native_BPE2_position_gated"
-EPOCHS=2
-NATIVE_HEAD_GAIN=.25
-TRAIN_LR=.004
-TRAIN_WD=.02
-NATIVE_REFERENCE_KL=1.0
-CONTEXT_PREGAIN_RESIDUAL_BOUND=2.0
-ORIGINAL_WEIGHT_L2=.02
-TRAINABLE_DOWN_UP=197888
-FIXED_VOCAB_OUTPUT_BIAS=49152
+TOP_K=64
+RANK=32
+HIDDEN_DIM=320
+INPUT_DIM=640
+TRAIN_EPOCHS=25
+LEARNING_RATE=.006
+WEIGHT_DECAY=.04
+LOGIT_RESIDUAL_BOUND=1.5
+ORIGINAL_TOP64_KL_WEIGHT=.08
+HARD_NEGATIVE_MARGIN=.25
+CORRECT_ORIGINAL_GREEDY_WEIGHT=2.
+WRONG_OFFSET17_CONTROL=17
+ACTIVATE_SECOND_BPE_ONLY=True
+TRAIN_ELIGIBLE_MIN=20
 EVAL_FIRST_NATIVE_BPE=6
-TRAIN_POSITIONS=(0,1,2,3,-1)
-TRAIN_POSITION_WEIGHTS=(2.,1.,1.,1.,2.)
-TRAIN_REPETITION_MARGIN=.25
-TRAIN_REPETITION_WEIGHT=.25
-TRAIN_PREMATURE_EOS_WEIGHT=.10
 DEV_CASES={
   "sentence_formulation": [
     [
@@ -167,7 +167,8 @@ def verify():
         z14_rows("DEV")+
         z23_rows("DEV")+
         z25_rows("DEV")+
-        z28_rows("DEV"))
+        z28_rows("DEV")+
+        z31_rows("DEV"))
     past_prompts={v["prompt"].casefold().strip() for v in past}
     train_prompts={v["prompt"].casefold().strip() for v in train}
     dev_prompts={v["prompt"].casefold().strip() for v in dev}
@@ -187,34 +188,39 @@ def verify():
          and all(v["origin"]==ORIGIN and v["completion"].endswith(".")
                  and len(v["completion"].split())>=5
                  and len(v["prompt"])>35 for v in dev)
-         and EPOCHS==2 and NATIVE_HEAD_GAIN==.25
-         and TRAIN_LR==.004 and TRAIN_WD==.02
-         and NATIVE_REFERENCE_KL==1.0
-         and CONTEXT_PREGAIN_RESIDUAL_BOUND==2.0
-         and ORIGINAL_WEIGHT_L2==.02
-         and TRAINABLE_DOWN_UP==197888
-         and FIXED_VOCAB_OUTPUT_BIAS==49152
-         and EVAL_FIRST_NATIVE_BPE==6
-         and TRAIN_POSITIONS==(0,1,2,3,-1)
-         and TRAIN_POSITION_WEIGHTS==(2.,1.,1.,1.,2.)
-         and TRAIN_REPETITION_MARGIN==.25
-         and TRAIN_REPETITION_WEIGHT==.25
-         and TRAIN_PREMATURE_EOS_WEIGHT==.10):
-        raise ValueError("Z31 frozen human original 84 previous legal TRAIN and new14 DEV / trust region constants failed")
+         and TOP_K==64 and RANK==32
+         and HIDDEN_DIM==320 and INPUT_DIM==640
+         and TRAIN_EPOCHS==25 and LEARNING_RATE==.006
+         and WEIGHT_DECAY==.04
+         and LOGIT_RESIDUAL_BOUND==1.5
+         and ORIGINAL_TOP64_KL_WEIGHT==.08
+         and HARD_NEGATIVE_MARGIN==.25
+         and CORRECT_ORIGINAL_GREEDY_WEIGHT==2.
+         and WRONG_OFFSET17_CONTROL==17
+         and ACTIVATE_SECOND_BPE_ONLY
+         and TRAIN_ELIGIBLE_MIN==20
+         and EVAL_FIRST_NATIVE_BPE==6):
+        raise ValueError("Z34 prereg legal human TRAIN84 and brand new synthetic DEV14, BPE2-only native top64 supervised gated control")
     return {"stage":STAGE,"prior_legal_TRAIN84":84,"brandNEW_author_synthetic_DEV14":14,
             "TRAIN_SHA256":digest(train),"NEW_DEV_SHA256":digest(dev),
             "new_DEV_disjoint_all_prior_spent_including_Z31":True,
             "no_previous_SPENT_DEV_in_TRAIN":True,
             "frozen_before_any_physical_new_DEV_forward":True,
-            "fixed_contextual_rank4_trust":{"epochs":EPOCHS,"lr":TRAIN_LR,
-              "wd":TRAIN_WD,"gain":NATIVE_HEAD_GAIN,
-              "reference_fullnative49152_KL":NATIVE_REFERENCE_KL,
-              "bound_pregain":CONTEXT_PREGAIN_RESIDUAL_BOUND,
-              "original_down_up_weight_L2":ORIGINAL_WEIGHT_L2,
-              "down_up_trainable_params":TRAINABLE_DOWN_UP,
-              "frozen_global_vocab_bias_params":FIXED_VOCAB_OUTPUT_BIAS,
-              "positions":TRAIN_POSITIONS,"weights":TRAIN_POSITION_WEIGHTS,
-              "first_autonomous_DEV_native_BPE":EVAL_FIRST_NATIVE_BPE},
+            "fixed_second_native_BPE_only":{
+                "native_full49152_candidate_topK":TOP_K,
+                "rank":RANK,"hidden":HIDDEN_DIM,
+                "input_h320_plus_preceding_gold_or_own_BPE_emb320":INPUT_DIM,
+                "train_epochs":TRAIN_EPOCHS,"train_lr":LEARNING_RATE,
+                "train_weight_decay":WEIGHT_DECAY,
+                "logit_delta_max":LOGIT_RESIDUAL_BOUND,
+                "KL(original_top64||candidate)":ORIGINAL_TOP64_KL_WEIGHT,
+                "human_gold_vs_original_greedy_margin":HARD_NEGATIVE_MARGIN,
+                "protect_original_correct_greedy_weight":CORRECT_ORIGINAL_GREEDY_WEIGHT,
+                "wrong_candidate_negative_control_offset":WRONG_OFFSET17_CONTROL,
+                "ONLY_BPE2_position_activation":ACTIVATE_SECOND_BPE_ONLY,
+                "min_legal_TRAIN_ownfirstcorrect_and_goldinside_top64":TRAIN_ELIGIBLE_MIN,
+                "autonomous_DEV_first_native_count":EVAL_FIRST_NATIVE_BPE,
+            },
             "new_internal_DEV_not_external_blind_and_spent_on_first_test":True,
             "no_J7_EVAL128_GOLD_or_bpp_CPU_acceptance":True,
             "output_gate":0}
