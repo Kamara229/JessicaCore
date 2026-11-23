@@ -516,7 +516,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                 bounded_abs=[]
                 for row in fresh_train:
                     check(row["split"]=="TRAIN"
-                          and row["id"].startswith("S119Q2I8Z28_LEGAL_"),
+                          and row["id"].startswith("S119Q2I8Z31_LEGAL_"),
                           "only the 84 pre-existing original author legal TRAIN sources")
                     gold=row["answer_native_with_eos"]
                     positions=select_train_positions(gold)
