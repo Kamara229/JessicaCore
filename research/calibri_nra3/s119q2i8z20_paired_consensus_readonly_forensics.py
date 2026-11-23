@@ -22,9 +22,10 @@ from pathlib import Path
 from research.calibri_nra3.s119q2i8z18_fresh28train14dev_multilayer_source import (
     BASELINE,ALTERNATE,STAGE as Z18_SOURCE_STAGE,verify,rows,
 )
-from research.calibri_nra3.s119q2i8z19_real43m_matched_multilayer_vs_final import (
-    STAGE as PHYSICAL_STAGE,REPORT as PHYSICAL_REPORT,
-)
+# Literal immutable stage/report IDs, so this read-only forensic does
+# NOT import torch, transformers, GitHub artifact model loader or original43M.
+PHYSICAL_STAGE="CALIBRI_S119Q2I8Z19_ORIGINAL43M_FIXED_MULTILAYER_H320_VS_FINAL_RANK2_NATIVE64"
+PHYSICAL_REPORT="S119Q2I8Z19_ORIGINAL43M_L3_L7_L11_FINAL_VS_LAST_28TRAIN14DEV_G0.json"
 
 STAGE="CALIBRI_S119Q2I8Z20_ACTUAL_Z19_GOLD_POSTHOC_PAIRED_CONSENSUS_FORENSICS"
 REPORT="S119Q2I8Z20_ACTUAL43M_FINAL_VS_MULTI_PAIRED_ERROR_CONSENSUS_G0.json"
