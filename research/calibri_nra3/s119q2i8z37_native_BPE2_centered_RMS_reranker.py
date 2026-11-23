@@ -140,7 +140,7 @@ def fit_two_trainonly_shadow_controls(records,native_emb):
     check(len(records)==84
           and len({r["source_id"] for r in records})==84
           and all(r["split"]=="TRAIN"
-                  and r["source_id"].startswith("S119Q2I8Z34_LEGAL_")
+                  and r["source_id"].startswith("S119Q2I8Z37_LEGAL_")
                   and type(r["own_first_correct"]) is bool
                   and type(r["gold_second"]) is int
                   and r["native_logits"].shape==(1,NATIVE_VOCAB)
