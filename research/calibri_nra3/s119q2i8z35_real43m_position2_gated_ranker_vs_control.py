@@ -309,7 +309,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
             check(authored["split"]==split
                   and authored["id"].startswith("S119Q2I8Z34_")
                   and (authored["origin"]==NEW_SOURCE_ORIGIN if split=="DEV"
-                       else authored["id"].startswith("S119Q2I8Z34_TRONLY_")),
+                       else authored["id"].startswith("S119Q2I8Z34_LEGAL_")),
                   "only 84 previous legal TRAIN or new14 original-author Z34 DEV")
             item=dict(authored)
             item["origin"]="original_newly_authored_examples_no_third_party_corpus"
@@ -317,13 +317,13 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
             check(prepared["split"]==split and
                   tok.decode(prepared["answer_native_without_eos"],
                       skip_special_tokens=True)==authored["completion"] and
-                  4<=len(prepared["answer_native_with_eos"])<=64 and
+                  4<=len(prepared["answer_native_with_eos"])<=48 and
                   len(prepared["prefix"])+2<160,
                   "true original native49152 source target and live context bounds")
             folder.append(prepared)
         check(len(folder)==expected and
               len({r["prompt_sha256"] for r in folder})==expected,
-              "strict preregistered 28 TRAIN or 14 DEV unique source SHA")
+              "strict preregistered 84 past TRAIN or 14 brand-new DEV unique source SHA")
     check({r["prompt_sha256"] for r in fresh_train}.isdisjoint(
             r["prompt_sha256"] for r in fresh_dev),
           "no new DEV source or human target used in earlier training")
@@ -498,19 +498,20 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                         "source_id":row["id"],"split":"TRAIN",
                         "native_logits":second_logits.detach().float().cpu().clone(),
                         "h320":h[0].detach().float().cpu().clone(),
-                        "target_BPE2":int(row["answer_native_with_eos"][1]),
+                        "gold_second":int(row["answer_native_with_eos"][1]),
+                        "prev_own_embed":native_embedding[own_first].detach().float().view(1,-1),
                         "own_first_correct":
                             bool(own_first==row["answer_native_with_eos"][0]),
                     })
             check(len(train_cache)==84
                   and len({r["source_id"] for r in train_cache})==84,
                   "exact 84 legal historical human TRAIN-only original43M examples")
-            rankers,train_meta=train_matched_control_on_historical_train(
+            rankers,train_meta=fit_two_trainonly_shadow_controls(
                 train_cache,native_embedding)
             check(set(rankers)==set(MODES)
-                  and all(s["previously_legal_human_TRAIN_only_sources"]==84
-                          and s["DEV_gradient_steps"]==0
-                          and s["shadow_neural_params"]==10240
+                  and all(s["legal_TRAIN84"]==84
+                          and s["zero_previous_SPENT_DEV_gradient"] is True
+                          and s["shadow_rank32_params"]==SHADOW_PARAMS==30720
                           for s in train_meta.values()),
                   "only two tiny TRAIN shadows fit; original/GT children remain frozen")
 
