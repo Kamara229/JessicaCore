@@ -1,0 +1,61 @@
+name: Calibri S119q2i8z5 original43M true native49k readout EOS competitor and rank-NLL source audit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z4-true43m-native-head-gain-secondthird-20261123
+permissions:
+  contents: read
+  actions: read
+jobs:
+  source-only-252-original43M-native-EOS-competition:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z5-native-competitor-collapse-source-audit-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: .:research:research/calibri
+      PYTHONHASHSEED: '119165'
+    steps:
+      - name: Checkout exact read-only researcher SHA with no stored GitHub write creds
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Strict standard-library no model load unverified source protection test
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z5_native_competitor_audit
+      - name: Download only verified SUCCESSFUL original 43M actual 252 native physical BPE2 BPE3 head gain report
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8z4-true43m-frozen-headgain-BPE2-BPE3-native49k-252-gate0
+          run-id: 45111320873
+          path: inputs/z4
+          github-token: ${{ github.token }}
+      - name: Recompute native49k 252 source exact original43M then count wrong top1 competitor and EOS
+        run: |
+          set -euo pipefail
+          test -f inputs/z4/S119Q2I8Z4_TRUE43M_NATIVE49152_HEADGAIN_SECOND_THIRD_ALL12GT_252_G0.json
+          python -m research.calibri_nra3.s119q2i8z5_native_competitor_audit \
+            --z4-dir inputs/z4 \
+            --out results/S119Q2I8Z5_TRUE43M_252_NATIVE_HEAD_GAIN_WRONG_COMPETITOR_AND_EOS_AUDIT_G0.json
+      - name: Upload ONLY research JSON source-cited wrong original49k native competitor stats gate0
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2i8z5-original43m-252-headgain-competing-native-EOS-audit-gate0
+          path: results/S119Q2I8Z5_TRUE43M_252_NATIVE_HEAD_GAIN_WRONG_COMPETITOR_AND_EOS_AUDIT_G0.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Fail-closed exact no production touched read-only two scripts and CI
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} >/tmp/changed_research_only
+          if grep -Ev '^(research/calibri_nra3/s119q2i8z5_native_competitor_audit.py|research/calibri_nra3/test_s119q2i8z5_native_competitor_audit.py|\.github/workflows/calibri-nra3-s119q2i8z5-source-only-competing-native-EOS.yml)$' /tmp/changed_research_only; then
+            echo 'Original model or non-research file touched' >&2
+            exit 1
+          fi
