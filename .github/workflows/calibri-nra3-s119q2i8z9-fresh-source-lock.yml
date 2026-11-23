@@ -1,0 +1,35 @@
+name: Calibri S119q2i8z9 fresh 21 RU TRAIN and 14 untouched synthetic DEV source lock
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z8-second-bpe-context-margin-contract-20261123
+permissions:
+  contents: read
+jobs:
+  preregister-fresh-z9-source-only:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z9-fresh-ru-source-21train14dev-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preregistration SHA and all seven domains strict source-only tests
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z9_new_ru_train_dev
+      - name: Only two synthetic source files and exact workflow may change
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/z9changes
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z9_new_ru_train_dev_source.py' -e 'research/calibri_nra3/test_s119q2i8z9_new_ru_train_dev.py' -e '.github/workflows/calibri-nra3-s119q2i8z9-fresh-source-lock.yml' /tmp/z9changes; then
+            echo "UNAUTHORIZED CHANGE" >&2; exit 1
+          fi
+          test $(wc -l < /tmp/z9changes) -eq 3
