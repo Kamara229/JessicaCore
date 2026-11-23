@@ -154,6 +154,7 @@ def inspect_arm(arm, label):
         require(d["empirical_cross_prompt_native_ID_diversity"]["2"]["distinct"]==
                 score[mode]["distinct_second_native_BPE_ids"],
                 "native BPE2 diversity parity physical")
+        output[mode]=d
         stats=d.pop("steps_by_position")
         d["per_position_actual_native_interventions"]={
             str(pos):{**{k:v for k,v in data.items() if k not in
