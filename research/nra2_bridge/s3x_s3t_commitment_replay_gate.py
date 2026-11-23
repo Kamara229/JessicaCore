@@ -64,6 +64,16 @@ def verify(artifact_bytes):
     generator_module = importlib.import_module("research.nra2_bridge.stage3t_unseen_wording_prereg")
     if Path(generator_module.__file__).resolve() != source_path:
         raise ValueError("S3T generator resolved to unexpected module path")
+    # Verify imported dependency provenance as well as on-disk bytes: a custom
+    # importer or altered search path must not substitute another module.
+    for filename in PINNED_DEPENDENCY_GIT_BLOB_SHA1:
+        module_name = "research.nra2_bridge." + filename[:-3]
+        loaded = sys.modules.get(module_name)
+        expected_path = source_path.with_name(filename)
+        if loaded is None or not getattr(loaded, "__file__", None):
+            raise ValueError("pinned dependency was not imported: " + module_name)
+        if Path(loaded.__file__).resolve() != expected_path:
+            raise ValueError("pinned dependency resolved to unexpected path: " + module_name)
     generated = generator_module.commitment(generator_module.build_rows())
     if generated["commitment_sha256"] != PINNED_COMMITMENT:
         raise ValueError("pinned S3T generator/commitment mismatch")
