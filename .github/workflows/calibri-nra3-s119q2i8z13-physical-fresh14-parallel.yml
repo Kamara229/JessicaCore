@@ -146,26 +146,26 @@ jobs:
           run-id: 45032710580
           path: inputs/s119q2i8a
           github-token: ${{ github.token }}
-      - name: Preflight REAL 49152 native 40-token multiword DEV within original 160-token context
+      - name: Preflight fourteen preregistered untouched Z12 native49152 authored DEV under original160 context
         run: |
           python - <<'PY'
           from transformers import AutoTokenizer
           from research.calibri_nra3.s119q2i8f_native_bpe_readiness import MODEL,REV,audit_tokenizer
-          from research.calibri_nra3.s119q2i8z9_new_ru_train_dev_source import rows,verify
+          from research.calibri_nra3.s119q2i8z12_parallel_native_new14_source import rows,verify
           from research.calibri_nra3.s119q2i1_real43m_ru_language_head_joint_training import verified_native_answer
           tok=AutoTokenizer.from_pretrained(MODEL,revision=REV)
-          assert verify()["fresh_Z9_DEV_rows"]==14 and verify()["fresh_Z9_TRAIN_rows"]==21
+          z=verify()
+          assert z["fresh_DEV_rows"]==14 and z["BRANCH_WIDTH"]==8 and z["THIRD_WIDTH"]==2
           actual=[]
-          for r in rows("TRAIN")+rows("DEV"):
+          for r in rows("DEV"):
               clean=dict(r)
               clean["origin"]="original_newly_authored_examples_no_third_party_corpus"
               p=verified_native_answer(tok,clean)
               actual.append((r["id"],len(p["answer_native_with_eos"]),len(p["prefix"])))
-          print("S119Q2I8Z10_TRUE_NATIVE_NEW21TRAIN_AND_NEW14_DEV_ANSWER_PLUS_EOS_LENGTHS",actual,flush=True)
-          assert len(actual)==35 and all(n<=40 and prefix+39<160 for _,n,prefix in actual),"FAIL CLOSED: full multiword answer or own-generation context exceeds 40/160"
-          meta=audit_tokenizer(tok)
-          assert meta["pass_original_decoder_limits"]==70
-          assert len(meta["selected_balanced_21_TRAIN_IDS"])==21
+          print("S119Q2I8Z13_FROZEN_FRESH14_NATIVE",actual,flush=True)
+          assert len(actual)==14 and all(4<=n<=40 and prefix+39<160 for _,n,prefix in actual),"fail closed native49152 original source context"
+          assert tok.vocab_size==49152 and tok.eos_token_id==2
+          assert audit_tokenizer(tok)["pass_original_decoder_limits"]==70
           PY
       - name: Exact previous physically fitted S119q2i8d research CE child and 12 GT12 scalars
         uses: actions/download-artifact@v4
