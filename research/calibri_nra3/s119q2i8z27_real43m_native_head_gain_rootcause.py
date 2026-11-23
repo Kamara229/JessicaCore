@@ -608,61 +608,37 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                   for k,v in child_frozen[tag].items()),
           "original S142/12GT donor and all saved Z10 A/B fitted params preserved")
     check(len(outcomes)==2
-          and all(v["NEW_DEV14_full_autonomous_first4_native"][
-                      "original43M_real_native_TRAIN_forwards"]==168
-                  and v["NEW_DEV14_full_autonomous_first4_native"][
-                      "brand_NEW_synthetic_DEV14"]==14
-                  and set(v["TRAIN_only_shadow_optimizer"])==set(MODES)
-                  and all(v["TRAIN_only_shadow_optimizer"][m][
-                      "previously_legal_human_TRAIN_only_sources"]==84
-                      for m in MODES)
-                  for v in outcomes.values()),
-          "only real original S142 A/B 84 historical TRAIN and new 14 DEV first4")
-    actual_forwards=sum(
-        v["NEW_DEV14_full_autonomous_first4_native"][
-            "original43M_real_native_TRAIN_forwards"]+
-        v["NEW_DEV14_full_autonomous_first4_native"][
-            "original43M_real_native_DEV_forwards"]
-        for v in outcomes.values())
-    check(350<=actual_forwards<=616,
-          "accurate actual original43M decoder calls with early native EOS")
+          and all(v["all_four_same_sources_spent14_real_A_B_ablation"][
+              "FULL_CHILD_EXACT_PREVIOUS_GAIN_025"]["correct_first_two_BPE"]==1
+              for v in outcomes.values()),
+          "original S142 A/B same spent14 with exact prior gain .25 parity")
+    total_forwards=sum(sum(vv["true_original_S142_fullnative49152_forwards"]
+                           for vv in v["all_four_same_sources_spent14_real_A_B_ablation"].values())
+                       for v in outcomes.values())
     report={
         "stage":STAGE,
-        "Z25_PRECOMMITTED_84_HISTORICAL_LEGITIMATE_TRAIN_SHA256":fresh["TRAIN_SHA256"],
-        "Z25_PRECOMMITTED_14_NEW_DEV_SHA256":fresh["DEV_SHA256"],
-        "Z25_new_DEV_NOW_SPENT_not_independent_blind":True,
-        "Z25_training_epoch_fixed":TRAIN_EPOCHS,
-        "Z25_top64_native49152_bound_logit_anchored_rank16":True,
-        "Z25_first4_autonomous_native_BPE_output_not_teacher_forced":True,
-        "real_original43M_A_B_total_native49152_forwards":actual_forwards,
-        "completed_original_Z10_parent_SHA256":sha(prev_path),
-        "original_Z10_421793_FP16_and_12GT_SHA256":{
-            key:value["sha256"] for key,value in saved.items()},
-        "original_S142_43M_SHA256":sha(s142),
-        "original_S93_GT_SHA256":sha(s93),
-        "true_original43M_A_B_HUMAN_vs_WRONG_CONTROL_first4":outcomes,
-        "no_DEV_gradient_or_gold_in_candidate_selection":True,
-        "no_old_spent_DEV_labels_used_for_any_training":True,
-        "only_TWO_10240_param_shadow_models_per_arm_updated":True,
-        "original43M_all12GT_Core_NRA3_NPA1_native_head_unchanged":True,
-        "no_616J7_EVAL128_GOLD_bpp_CPU_CB59_certification":True,
-        "no_main_LIVE_Render_Supabase_APK_Jessica_changes":True,
+        "actual_PREVIOUS_Z26_original_model_report_sha256":sha(z26_path),
+        "previously_SPENT_Z25_DEV14_sha256":fresh["DEV_SHA256"],
+        "old_historical_TRAIN84_sha256":fresh["TRAIN_SHA256"],
+        "same_source_previous_real_Z26_first4_parity":True,
+        "real_original_S142_native49152_decoder_forwards":total_forwards,
+        "same_ARCHIVED_SPENT14_original_vs_3_learned_head_gain_AB":outcomes,
+        "full_original_S142_43M_and_12GT_parent_Z10_A_B_unchanged":True,
+        "no_new_training_or_hyperparam_selection":True,
+        "no_NEW_independent_DEV_or_quality_claim":True,
+        "no_616J7_EVAL128_GOLD_packed_bpp_CPU_CB59_certification":True,
+        "no_MAIN_LIVE_Render_Supabase_APK_Jessica_changes":True,
         "candidate_accepted":False,"output_gate":0,
-        "decision":"REAL_NATIVE49152_OWN_FIRST4_ANCHORED_HARDNEG_RESEARCH_ONLY_NO_PROMOTION",
+        "decision":"CAUSAL_NATIVE_GENERATION_REPETITION_HEAD_GAIN_DIAGNOSTIC_SPENT_ONLY_GATE0",
     }
     (out/REPORT).write_text(json.dumps(report,ensure_ascii=False,
-                            sort_keys=True,indent=2)+"\n",encoding="utf8")
-    print("S119Q2I8Z26_PHYSICAL_ORIGINAL43M_HARDNEG_FIRST4 "+json.dumps({
-        "TRAIN84_SHA256":fresh["TRAIN_SHA256"],
-        "NEW_DEV14_SHA256":fresh["DEV_SHA256"],
-        "real_original43M_native_forwards":actual_forwards,
-        "A_B":{"A" if key.endswith("_CE") else "B":{
-            "first4":v["NEW_DEV14_full_autonomous_first4_native"],
-            "shadow_trainonly":v["TRAIN_only_shadow_optimizer"],
-            "fitted_shadow_FP16_SHA256":{
-                m:meta["sha256"] for m,meta in
-                v["fitted_shadow_only_FP16_sha"].items()},
-        } for key,v in outcomes.items()},
+                           sort_keys=True,indent=2)+"\n",encoding="utf8")
+    print("S119Q2I8Z27_TRUE43M_HEADGAIN_REPETITION_PHYSICAL "+json.dumps({
+        "Z25_SPENT_DEV_SHA256":fresh["DEV_SHA256"],
+        "total_native49152_original43M_forwards":total_forwards,
+        "A_B":{"A" if key.endswith("_CE") else "B":
+            v["all_four_same_sources_spent14_real_A_B_ablation"]
+            for key,v in outcomes.items()},
         "candidate_accepted":False,"output_gate":0,
     },sort_keys=True,ensure_ascii=False),flush=True)
 
@@ -671,12 +647,12 @@ def main():
     p=argparse.ArgumentParser()
     for key in ("s93","side","s142","q2d_dir","q2f_dir","q2i1_dir",
                 "q2i3_dir","q2i7_dir","q2i8a_dir","q2i8d_dir",
-                "q2i8f_report","q2i8g_dir","q2i8k_dir","q2i8t_dir","q2i8w_dir","z10_dir","out"):
+                "q2i8f_report","q2i8g_dir","q2i8k_dir","q2i8t_dir","q2i8w_dir","z10_dir","z26_dir","out"):
         p.add_argument("--"+key.replace("_","-"),type=Path,required=True)
     a=p.parse_args()
     run(a.s93,a.side,a.s142,a.q2d_dir,a.q2f_dir,a.q2i1_dir,
         a.q2i3_dir,a.q2i7_dir,a.q2i8a_dir,a.q2i8d_dir,
-        a.q2i8f_report,a.q2i8g_dir,a.q2i8k_dir,a.q2i8t_dir,a.q2i8w_dir,a.z10_dir,a.out)
+        a.q2i8f_report,a.q2i8g_dir,a.q2i8k_dir,a.q2i8t_dir,a.q2i8w_dir,a.z10_dir,a.z26_dir,a.out)
 
 if __name__=="__main__":
     main()
