@@ -74,6 +74,18 @@ def verify(artifact_bytes):
             raise ValueError("pinned dependency was not imported: " + module_name)
         if Path(loaded.__file__).resolve() != expected_path:
             raise ValueError("pinned dependency resolved to unexpected path: " + module_name)
+    # Rehash source bytes after import to detect import-time source mutation.
+    # This is a provenance guard, not a Python execution sandbox.
+    for filename, expected_blob in {
+        "stage3t_unseen_wording_prereg.py": PINNED_GENERATOR_GIT_BLOB_SHA1,
+        **PINNED_DEPENDENCY_GIT_BLOB_SHA1,
+    }.items():
+        current = source_path.with_name(filename).read_bytes()
+        current_blob = hashlib.sha1(
+            b"blob " + str(len(current)).encode("ascii") + b"\0" + current
+        ).hexdigest()
+        if current_blob != expected_blob:
+            raise ValueError("pinned source changed during import: " + filename)
     generated = generator_module.commitment(generator_module.build_rows())
     if generated["commitment_sha256"] != PINNED_COMMITMENT:
         raise ValueError("pinned S3T generator/commitment mismatch")
