@@ -580,7 +580,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                         "distinct_selected_second_BPE_ids":len(set(
                             r["choices"][mode]["second_native_id"]
                             for r in observed)),
-                    } for mode in MODES,
+                    } for mode in MODES
                 },
                 "real_original43M_all12GT_native49152_forwards":84,
                 "extra_original43M_forwards_for_multilayer_consensus":0,
