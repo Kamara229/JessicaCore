@@ -509,8 +509,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                         history=row["prefix"]+gold[:idx]
                         check(history==row["prefix"]+gold[:idx]
                               and len(history)<160
-                              and (idx==0 or history[-1]==gold[idx-1])
-,
+                              and (idx==0 or history[-1]==gold[idx-1]),
                               "teacher-forced TRAIN causal only, never use target in own prefix")
                         with scoped_exact_native_gain(
                                 new_head_child.language_head,HEAD_GAIN) as witnessed:
