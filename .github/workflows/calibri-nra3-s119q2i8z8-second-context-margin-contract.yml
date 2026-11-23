@@ -1,0 +1,40 @@
+name: Calibri S119q2i8z8 TRAIN-only native49152 smooth top8 second-token objective contract
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z7-contextual-rank4-wrong-winner-margin-paired-20261123
+permissions:
+  contents: read
+jobs:
+  second-bpe-context-margin-contract-no-training:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z8-second-bpe-context-margin-contract-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Read exact source-only draft research SHA, no credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU tensor math for unit tests only
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Run preregistered loss-only synthetic tensor tests, no model or dataset
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z8_trainonly_second_bpe_context_margin
+      - name: Ensure no pretrained, production, historical protected or data files changed
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/s119z8_changed
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z8_trainonly_second_bpe_context_margin.py' -e 'research/calibri_nra3/test_s119q2i8z8_trainonly_second_bpe_context_margin.py' -e '.github/workflows/calibri-nra3-s119q2i8z8-second-context-margin-contract.yml' /tmp/s119z8_changed; then
+            echo 'FAIL CLOSED: only two pure research files and this CI contract permitted' >&2
+            exit 1
+          fi
+          test $(wc -l < /tmp/s119z8_changed) -eq 3
