@@ -82,6 +82,6 @@ class TestZ21SourceAndTargetFreeFutureState(unittest.TestCase):
         self.assertIn('if r["own_first_correct"]',code)
         self.assertIn('target_future_embedding',code)
         self.assertIn('original43M_gradient_updates',code)
-        self.assertNotIn('DEV',code.split('def train_matched_aligned_vs_permuted',1)[-1].split('return models,summary')[0].replace('no DEV',''))
+        self.assertNotIn('split="DEV"',code)
 if __name__=="__main__":
     unittest.main()
