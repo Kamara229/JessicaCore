@@ -1,4 +1,4 @@
-name: Calibri S119q2i8z10 true43M all12GT Core train-only gate L2 vs matched early23 3X CE, new21/14
+name: Calibri S119q2i8z10 TRUE43M matched CE vs context-top8 second native BPE fresh21TRAIN14DEV
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -8,7 +8,7 @@ permissions:
   contents: read
   actions: read
 jobs:
-  original43M-Core-gate-TRAINONLY-L2-vs-early23x3-alljoint-12GT:
+  original43M-contexttop8-vs-CE-early23x3-alljoint12GT:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z10-matched43m-contexttop8-vs-ce-20261123'
@@ -152,7 +152,7 @@ jobs:
           from research.calibri_nra3.s119q2i8z9_new_ru_train_dev_source import rows,verify
           from research.calibri_nra3.s119q2i1_real43m_ru_language_head_joint_training import verified_native_answer
           tok=AutoTokenizer.from_pretrained(MODEL,revision=REV)
-          assert verify()["fresh_Z2_DEV_rows"]==14 and verify()["fresh_Z2_TRAIN_rows"]==21
+          assert verify()["fresh_Z9_DEV_rows"]==14 and verify()["fresh_Z9_TRAIN_rows"]==21
           actual=[]
           for r in rows("TRAIN")+rows("DEV"):
               clean=dict(r)
@@ -249,9 +249,9 @@ jobs:
           run-id: 45066404596
           path: inputs/s119q2i8w
           github-token: ${{ github.token }}
-      - name: PHYSICAL original43M 12GT Core NRA3 NPA1 new21 Z2 TRAIN A early23 3X CE vs B same + TRAINONLY existing Core gate L2, fresh14 OWN
+      - name: PHYSICAL original43M 12GT Core NRA3 NPA1 new21 Z9 TRAIN A 3X CE vs B same + TRAIN-only contextual top8 BPE2, fresh14 OWN
         run: |
-          python -m research.calibri_nra3.s119q2i8z10_true43m_27TRAIN_ContextTop8_AB \
+          python -m research.calibri_nra3.s119q2i8z10_true43m_27TRAIN_contexttop8_AB \
             --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
             --side inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
             --s142 inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
