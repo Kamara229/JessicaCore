@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/s119z8_changed
-          if grep -Ev '^(research/calibri_nra3/(s119q2i8z8_trainonly_second_bpe_context_margin.py|test_s119q2i8z8_trainonly_second_bpe_context_margin.py)|\\.github/workflows/calibri-nra3-s119q2i8z8-second-context-margin-contract.yml)$' /tmp/s119z8_changed; then
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z8_trainonly_second_bpe_context_margin.py' -e 'research/calibri_nra3/test_s119q2i8z8_trainonly_second_bpe_context_margin.py' -e '.github/workflows/calibri-nra3-s119q2i8z8-second-context-margin-contract.yml' /tmp/s119z8_changed; then
             echo 'FAIL CLOSED: only two pure research files and this CI contract permitted' >&2
             exit 1
           fi
