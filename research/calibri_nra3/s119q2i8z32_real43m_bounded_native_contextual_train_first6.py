@@ -483,34 +483,26 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
             # Explicit copy: original fitted Z10 and original S142 model
             # are NEVER trained. Optimize only 247040 copied native head.
             new_head_child=copy.deepcopy(original_child)
-            verify_shadow_head_params(
-                new_head_child.language_head,
-                original_old_head=original_child.language_head)
-            # The inherited REAL original43M single-pass hook has a
-            # strict differentiable-child ABI (delta.requires_grad).
-            # Keep copied child tensors autograd-enabled to satisfy it,
-            # but put ONLY the separately COPIED native language head
-            # parameters in the optimizer. Child grads are explicitly
-            # cleared each TRAIN source and child weights remain byte-
-            # identical (bitwise verified after all 168 optimizer steps).
+            # Root-cause Z30 isolated contextual rank4 down/up vs output_bias.
+            # Freeze entire old Z10 head; train only NEW copied down/up.
+            # The inherited original43M child requires gradient-enabled
+            # ABI but NO child parameters enter optimizer.
             for p in new_head_child.child.parameters():
                 p.requires_grad_(True)
-            # Previous Z10 A/B trained checkpoints are inference-frozen.
-            # Deepcopy inherits requires_grad=False on their native head.
-            # Explicitly enable gradients on ONLY the new COPIED head;
-            # without this no head gradient reaches AdamW (Z29 failure).
-            for p in new_head_child.language_head.parameters():
-                p.requires_grad_(True)
-            check(all(p.requires_grad for p in new_head_child.language_head.parameters())
-                  and sum(p.numel() for p in new_head_child.language_head.parameters())==
-                      HEAD_TOTAL_PARAMS,
-                  "new copied head must truly participate in full native CE gradient")
+            learn_params=frozen_new_head_params(
+                new_head_child.language_head,original_child.language_head)
+            check(sum(x.numel() for x in learn_params)==197888
+                  and not new_head_child.language_head.output_bias.requires_grad
+                  and torch.equal(
+                      new_head_child.language_head.output_bias.detach().cpu(),
+                      original_child.language_head.output_bias.detach().cpu()),
+                  "only NEW contextual lowrank 197888 trained, old native vocab bias immutable")
             pretrain_head={k:v.detach().cpu().clone()
                 for k,v in new_head_child.language_head.state_dict().items()}
             freeze_full_child={k:v.detach().cpu().clone()
                 for k,v in new_head_child.child.state_dict().items()}
             fit=torch.optim.AdamW(
-                new_head_child.language_head.parameters(),
+                learn_params,
                 lr=HEAD_LR,weight_decay=HEAD_WEIGHT_DECAY)
             train_phys=0
             updates=0
