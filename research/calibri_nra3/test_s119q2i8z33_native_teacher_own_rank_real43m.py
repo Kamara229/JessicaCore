@@ -26,7 +26,7 @@ class TestZ33TeacherOwnReal43MReadOnly(unittest.TestCase):
             '"ON_POLICY_Z32_OWN_GREEDY_PREFIX"',
             '"TEACHER_HUMAN_CORRECT_PREFIX"',
             "native_gold_BPE_counterfactual_rank",
-            "gold_next_native_token_POSTHOC",
+            "human_next_gold_native_token_POSTHOC",
             "old_original_param_digest(model)==original_digest",
         ):
             with self.subTest(term=term):self.assertIn(term,c)
