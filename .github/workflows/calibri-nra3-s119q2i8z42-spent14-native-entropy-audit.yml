@@ -1,0 +1,66 @@
+name: Calibri Z42 pinned Z41 physical own-prefix BPE2–4 entropy failure forensic
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z41-physical-native-BPE234-entropy-20261124
+permissions:
+  contents: read
+  actions: read
+jobs:
+  spent14-pinned-original43M-native-readonly-audit:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z42-readonly-ownprefix-entropy-failure-audit-20261124'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout research draft only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Source-only standard library contracts (no original models)
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z42_spent14_native_entropy_audit
+      - name: Download exact SUCCESS Z41 output (read ONLY JSON, not FP16 models)
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8z41-original43m-BPE234-entropy-guard-84train14dev-first6-shadow-gate0
+          run-id: 45269729059
+          path: inputs/z41
+          github-token: ${{ github.token }}
+      - name: Strict physical Z41 JSON replay with source and forward count pin
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m research.calibri_nra3.s119q2i8z42_z41_spent14_native_entropy_causal_audit \
+            --input inputs/z41/S119Q2I8Z41_TRUE43M_CAUSAL_BPE234_ENTROPY_GUARDED_84TRAIN14NEWDEV_G0.json \
+            --out results/S119Q2I8Z42_PINNED_Z41_SPENT14_BPE234_ENTROPY_CAUSAL_FORENSIC_G0.json
+      - name: Publish ONLY archived derived JSON, no weights
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-z42-original43m-readonly-spent14-native-BPE234-entropy-guard-audit-gate0
+          path: results/S119Q2I8Z42_PINNED_Z41_SPENT14_BPE234_ENTROPY_CAUSAL_FORENSIC_G0.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Strict three-file additive diff scope; no production modifications
+        run: |
+          set -euo pipefail
+          base=origin/research/calibri2-s119q2i8z41-physical-native-BPE234-entropy-20261124
+          git rev-parse --verify "${base}^{commit}" >/dev/null
+          git diff --name-only "${base}" HEAD >/tmp/z42scope
+          if grep -Fvx \
+            -e 'research/calibri_nra3/s119q2i8z42_z41_spent14_native_entropy_causal_audit.py' \
+            -e 'research/calibri_nra3/test_s119q2i8z42_spent14_native_entropy_audit.py' \
+            -e '.github/workflows/calibri-nra3-s119q2i8z42-spent14-native-entropy-audit.yml' /tmp/z42scope; then
+            echo 'Forbidden mutation beyond research Z42 files' >&2
+            exit 1
+          fi
+          test "$(wc -l </tmp/z42scope)" -eq 3
