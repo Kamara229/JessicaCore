@@ -1,0 +1,38 @@
+name: Calibri S119q2i8z12 preregister source14 and target-blind native49152 parallel 8x2 branch
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z11-real-fp16-own-paired-forensics-20261123
+permissions:
+  contents: read
+jobs:
+  pure-contract-no-model-forward:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z12-parallel-native-lookahead-prereg-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU PyTorch only, no model weights or teacher
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Preregister 14 NEW DEV and verify target-blind 8x2 native49152 search contracts
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z12_parallel_native_branch
+      - name: Fail closed exactly source/beam-contract/tests/workflow only
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/z12_scope
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z12_parallel_native_new14_source.py' -e 'research/calibri_nra3/s119q2i8z12_native_parallel_branch_contract.py' -e 'research/calibri_nra3/test_s119q2i8z12_parallel_native_branch.py' -e '.github/workflows/calibri-nra3-s119q2i8z12-parallel-source-contract.yml' /tmp/z12_scope; then
+            echo 'Forbidden protected, LIVE or production file in Z12' >&2; exit 1
+          fi
+          test $(wc -l < /tmp/z12_scope) -eq 4
