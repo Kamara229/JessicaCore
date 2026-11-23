@@ -580,7 +580,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
         "decision":"TRAIN_ONLY_CAUSAL_REACHABILITY_DIAGNOSTIC_NO_PROMOTION",
     }
     (out/REPORT).write_text(json.dumps(report,ensure_ascii=False,sort_keys=True,
-                          indent=2)+"\\n",encoding="utf8")
+                          indent=2)+"\n",encoding="utf8")
     print("S119Q2I8Z43_TRAIN84_ORIGINAL43M_ONPOLICY "+json.dumps({
         "real_original43M_native_forwards":original_forwards,
         "on_policy_first_exact":report["first_native_exact_on_84_TRAIN"],
