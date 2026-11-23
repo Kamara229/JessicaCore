@@ -382,186 +382,182 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
     check(gated.shape==gateg.shape==k_gt.shape==t_gt.shape==gt.shape==(12,)
           and original_fitted.output_gate==0
           and original_fitted.candidate_accepted is False,
-          "same exact completed W real original43M x3 CE fitted FP16/GT12 for Z10 matched arms")
-    ce=copy.deepcopy(original_fitted)
-    margin=copy.deepcopy(original_fitted)
-    check(all(torch.equal(a,b) and torch.equal(a,c)
-              for a,b,c in zip(original_fitted.state_dict().values(),
-                               ce.state_dict().values(),
-                               margin.state_dict().values())),
-          "matched identical 421793 FP16 original fitted A/B start")
+          "W true original43M+12GT parent with output gate0")
+    prev_path=z10_dir/Z10_PREV_REPORT
+    prev=json.loads(prev_path.read_text(encoding="utf8"))
+    check(prev["stage"]==Z10_PREV_STAGE and
+          prev["output_gate"]==0 and prev["candidate_accepted"] is False
+          and prev["original_S142_43M_sha256"]==sha(s142)
+          and prev["original_S93_GT_sha256"]==sha(s93)
+          and prev["completed_W_421793_fp16_source_sha256"]==
+              sha(q2i8w_dir/W_EARLY_FP16)
+          and prev["completed_W_12GT_fit_source_sha256"]==
+              sha(q2i8w_dir/W_EARLY_GATES)
+          and prev["new_Z9_21_TRAIN_sha256"]==z9_source["Z9_21_TRAIN_sha256"]
+          and prev["new_Z9_14_DEV_sha256"]==z9_source["Z9_14_DEV_sha256"]
+          and prev["true43M_49k_full_native_TRAIN_forwards"]==1346
+          and prev["true43M_49k_full_native_OWN_forwards"]==1707,
+          "only actual completed Z10 matched real original43M saved A/B from W")
+    saved=prev["neural_all421793_plus_separate12GT_FP16_saved"]
+    check(set(saved)=={"CE_EARLY23_X3_FP16","CONTEXT_TOP8_BPE2_FP16",
+                       "CE_EARLY23_X3_GT12","CONTEXT_TOP8_BPE2_GT12"},
+          "both original fitted neural421793 and 12 GT12 physical sidecars")
+    child_a=full_saved_child(
+        z10_dir/Z10_CE_FP16,saved["CE_EARLY23_X3_FP16"],original_fitted)
+    child_b=full_saved_child(
+        z10_dir/Z10_CONTEXT_FP16,saved["CONTEXT_TOP8_BPE2_FP16"],original_fitted)
+    gt_a=full_saved_gt(z10_dir/Z10_CE_GATES,saved["CE_EARLY23_X3_GT12"])
+    gt_b=full_saved_gt(z10_dir/Z10_CONTEXT_GATES,saved["CONTEXT_TOP8_BPE2_GT12"])
+    check(gt_a.shape==gt_b.shape==(12,)
+          and all(x.output_gate==0 and x.candidate_accepted is False
+                  for x in (child_a,child_b)),
+          "research gate0, completed true saved fit A/B only")
     model,sources,bridge,full,expansion=load_actual_original(s93,side,s142)
-    model.model.add_module("nra3_s119m_onpath",ce)
+    model.model.add_module("nra3_s119m_onpath",child_a)
     model.eval()
-    orig_digest=old_original_param_digest(model)
-    old_gt={k:v.detach().cpu().clone() for k,v in full.state_dict().items()}
-    initial_parent={k:v.detach().cpu().clone()
-                    for k,v in original_fitted.state_dict().items()}
+    original_digest=old_original_param_digest(model)
+    full_gt_donor={k:v.detach().cpu().clone() for k,v in full.state_dict().items()}
+    child_frozen={
+        key:{k:v.detach().cpu().clone() for k,v in child.state_dict().items()}
+        for key,child in (("A",child_a),("B",child_b))
+    }
     native_full_gt_gate_contract(full,bridge)
-    check(all(not p.requires_grad for name,p in model.named_parameters()
-              if "nra3_s119m_onpath" not in name),
-          "original43M and 12 physical GT layer donor weights NEVER train")
-    training={};gates={};saved={};own={};gold_ranks={}
+    outcomes={}
     out.mkdir(parents=True)
     try:
-        for label,child in (
-            (ARMS[0],ce),
-            (ARMS[1],margin),
+        for name,child,gates in (
+            ("Z10_FULLJOINT_EARLY23_X3_CE",child_a,gt_a),
+            ("Z10_FULLJOINT_EARLY23_X3_CONTEXT_TOP8_BPE2",child_b,gt_b),
         ):
-            set_gt_route(full,"GT_RECURRENT",gt)
-            training[label]=train_joint_true43m_context_top8_ab(
-                model,sources,bridge,full,expansion,child,train,tok,
-                condition="GT_RECURRENT",continuation_weight=1.0,
-                expected_total=TRAIN_ROWS,expected_new=NEW_TRAIN,
-                new_id_prefix="S119Q2I8Z9_",rounds=1,
-                teacher_135m=None,teacher_KL_weight=0.0,
-                objective=label)
-            gates[label]=full.gates.detach().clone()
-            check(old_original_param_digest(model)==orig_digest
-                  and training[label]["real_all_neural_and_gt_Adam_updates"]==27
-                  and training[label]["trainable_parameter_count"]==TOTAL_EXPECTED_TRAINABLE
-                  and training[label]["second_BPE_context_trainonly_margin_count"]==27,
-                  "27 actual one-pass true original43M 12GT Core/NRA3/NPA1+49k native all-joint Adam")
-        check(training[ARMS[0]]["trained_original_decoder_calls"]==
-              training[ARMS[1]]["trained_original_decoder_calls"]
-              and training[ARMS[0]]["context_top8_aux_weight_if_B"]==0.
-              and training[ARMS[1]]["context_top8_aux_weight_if_B"]==.20
-              and training[ARMS[0]]["train_only_true_SECOND_THIRD_native_gold_CE_weight"]==
-                  training[ARMS[1]]["train_only_true_SECOND_THIRD_native_gold_CE_weight"]==3.,
-              "matched real 43M 27 TRAIN, same native x3 human second third CE, only B existing Core gate L2")
-        saved={
-            "CE_EARLY23_X3_FP16":persist_half(ce,out/CE_FP16),
-            "CONTEXT_TOP8_BPE2_FP16":persist_half(margin,out/CONTEXT_FP16),
-            "CE_EARLY23_X3_GT12":safe_gt_gate_sidecar(
-                out/CE_GATES,gates[ARMS[0]],"GT_RECURRENT"),
-            "CONTEXT_TOP8_BPE2_GT12":safe_gt_gate_sidecar(
-                out/CONTEXT_GATES,gates[ARMS[1]],"GT_RECURRENT"),
-        }
-        arms={
-            "W_PREVIOUS_EARLY23_X3_FROZEN":(original_fitted,gt,.25),
-            "Z10_FULLJOINT_EARLY23_X3_CE":(ce,gates[ARMS[0]],.25),
-            "Z10_FULLJOINT_EARLY23_X3_CONTEXT_TOP8_BPE2":(
-                margin,gates[ARMS[1]],.25),
-        }
-        for label,(child,gt12,gain) in arms.items():
-            own[label]={
-                "NEW_DEV":eval_own_gain(
-                    tok,model,sources,bridge,full,expansion,
-                    child,gt12,newdev,gain=gain,arm=label),
-                "OLD_DEV":eval_own_gain(
-                    tok,model,sources,bridge,full,expansion,
-                    child,gt12,olddev,gain=gain,arm=label),
-            }
-        # Gold-PREVIOUS BPE2 diagnostics are AFTER both optimizations
-        # and separate from genuine self-native 40-token OWN generation.
-        from research.calibri_nra3.s119q2i8n_original43m_early23_goldrank import real_native_rank
-        from research.calibri_nra3.s119q2i1_real43m_ru_language_head_joint_training import real_joint_native
-        for label,(child,gt12,gain) in arms.items():
-            set_gt_route(full,"GT_RECURRENT",gt12)
-            records=[]
-            for ex in newdev:
-                target=int(ex["answer_native_with_eos"][1])
-                check(ex["split"]=="DEV"
-                      and ex["id"].startswith("S119Q2I8Z9_")
-                      and len(ex["answer_native_with_eos"])>=4
-                      and target!=tok.eos_token_id,
-                      "Z9 author DEV gold-second human BPE only; gradients complete")
-                prefix=ex["prefix"]+ex["answer_native_with_eos"][:1]
-                with scoped_exact_native_gain(child.language_head,.25) as witness:
-                    logits=real_joint_native(
-                        model,sources,bridge,full,expansion,
-                        child,prefix,ex["prompt_features"],contextual=True)
-                check(witness[0]==1 and logits.shape==(1,NATIVE_VOCAB)
-                      and full.last_forward_coverage==tuple(range(12)),
-                      "one true original43M 12GT all regions native49152 gold-second source only")
-                stat=real_native_rank(logits,target)
-                records.append({
-                    "source_id":ex["id"],"source_prompt_sha256":ex["prompt_sha256"],
-                    "correct_gold_second_native_rank_full49152":stat[
-                        "correct_gold_native_rank_full49152"],
-                    "gold_second_TOP1":stat["gold_native_top1"],
-                    "gold_second_TOP5":stat["correct_gold_rank_top5"],
-                    "gold_second_NLL_nats":-stat["gold_log_probability_native_49152"],
-                    "greedy_wrong_native_second_is_EOS":stat["greedy_original_native_id"]==2,
-                    "given_gold_first_BPE_ONLY_for_readonly_diagnostic":True,
+            set_gt_route(full,"GT_RECURRENT",gates)
+            observations=[]
+            started=time.monotonic()
+            for row in freshdev:
+                with torch.no_grad(),scoped_exact_native_gain(
+                        child.language_head,.25) as witnessed:
+                    first_logits=real_joint_native(
+                        model,sources,bridge,full,expansion,child,
+                        row["prefix"],row["prompt_features"],contextual=True)
+                    check(first_logits.shape==(1,NATIVE_VOCAB)
+                          and full.last_forward_coverage==tuple(range(12)),
+                          "physical true 43M first self-native BPE and all12 GT")
+                    first=int(torch.argmax(first_logits[0]).item())
+
+                    def forward(prefix):
+                        check(1<len(prefix)<160,
+                              "true S142 full-decoder context bound 160")
+                        raw=real_joint_native(
+                            model,sources,bridge,full,expansion,child,
+                            list(prefix),row["prompt_features"],
+                            contextual=True)
+                        check(full.last_forward_coverage==tuple(range(12)),
+                              "each logical parallel token branch actual full43M GT12")
+                        return raw
+
+                    selected=native_lookahead_second_third(
+                        forward,row["prefix"]+[first])
+                check(witnessed[0]==1+selected[
+                          "actual_original43M_native_forward_calls"],
+                      "one real source full43M forward per own and every branch")
+                gold=row["answer_native_with_eos"]
+                own_first_correct=first==gold[0]
+                greedy=selected["own_greedy_continuation_2native_BPE"]
+                beam=selected["lookahead_selected_continuation_2native_BPE"]
+                observations.append({
+                    "source_id":row["id"],"kind":row["kind"],
+                    "prompt_SHA256":row["prompt_sha256"],
+                    "own_FIRST_correct":own_first_correct,
+                    "gold_BPE2_in_own_top8":own_first_correct and
+                        gold[1] in selected["top8_second_native_ids"],
+                    "greedy_second_correct":own_first_correct and
+                        greedy[0]==gold[1],
+                    "beam_second_correct":own_first_correct and
+                        beam[0]==gold[1],
+                    "greedy_first_THREE_correct":own_first_correct and
+                        greedy==gold[1:3],
+                    "beam_first_THREE_correct":own_first_correct and
+                        beam==gold[1:3],
+                    "self_first_native_id":first,
+                    "greedy_two_BPE_continuation":greedy,
+                    "beam_two_BPE_continuation":beam,
+                    "beam_changes_second":beam[0]!=greedy[0],
+                    "beam_changes_second_or_third":beam!=greedy,
+                    "EOS_in_top8":2 in selected["top8_second_native_ids"],
+                    "real_native_model_calls":1+selected[
+                        "actual_original43M_native_forward_calls"],
+                    "actual_candidates_enumerated":selected[
+                        "actual_candidate_count"],
+                    "this_source_now_SPENT_no_independent_blind":True,
                 })
-            gold_ranks[label]={
-                "new14_now_spent_internal_Z10_author_DEV":14,
-                "correct_gold_second_top1":sum(x["gold_second_TOP1"] for x in records),
-                "correct_gold_second_top5":sum(x["gold_second_TOP5"] for x in records),
-                "mean_correct_gold_second_rank_full49152":
-                    sum(x["correct_gold_second_native_rank_full49152"] for x in records)/14,
-                "mean_gold_second_NLL_nats":sum(x["gold_second_NLL_nats"] for x in records)/14,
-                "wrong_second_is_EOS":sum(x["greedy_wrong_native_second_is_EOS"] for x in records),
-                "per_source_read_only_teacherforced_previous_gold_BPE":records,
+            elapsed=time.monotonic()-started
+            check(len(observations)==14 and
+                  len({o["prompt_SHA256"] for o in observations})==14,
+                  "all preregistered Z12 14 source native OWN read-only")
+            score_keys=("own_FIRST_correct","gold_BPE2_in_own_top8",
+                        "greedy_second_correct","beam_second_correct",
+                        "greedy_first_THREE_correct","beam_first_THREE_correct",
+                        "beam_changes_second","beam_changes_second_or_third",
+                        "EOS_in_top8")
+            outcomes[name]={
+                "scores":{k:sum(o[k] for o in observations) for k in score_keys},
+                "actual_original43M_native_49152_forward_count":
+                    sum(o["real_native_model_calls"] for o in observations),
+                "actual_candidate_count":
+                    sum(o["actual_candidates_enumerated"] for o in observations),
+                "rough_uncontrolled_CPU_wall_seconds":round(elapsed,3),
+                "source_details":observations,
             }
     finally:
         with torch.no_grad():
-            for k,v in old_gt.items():full.state_dict()[k].copy_(v)
+            for k,v in full_gt_donor.items():
+                full.state_dict()[k].copy_(v)
         for p in full.parameters():p.requires_grad_(False)
-    check(old_original_param_digest(model)==orig_digest
+    check(old_original_param_digest(model)==original_digest
           and all(torch.equal(full.state_dict()[k].detach().cpu(),v)
-                  for k,v in old_gt.items())
-          and all(torch.equal(original_fitted.state_dict()[k].detach().cpu(),v)
-                  for k,v in initial_parent.items()),
-          "original frozen S142 43M+GT12 donor, prior trained W 421793 FP16 source unchanged")
-    training_calls=sum(v["trained_original_decoder_calls"] for v in training.values())
-    own_calls=sum(x["scores"]["real_original43M_OWN_forwards"]
-                  for arm in own.values() for x in arm.values())
-    gold_calls=sum(r["new14_now_spent_internal_Z10_author_DEV"]
-                   for r in gold_ranks.values())
-    check(training_calls>TRAIN_ROWS*3*2 and own_calls>60
-          and gold_calls==NEW_HELDOUT_DEV*3==42,
-          "true source original43M 12GT 49k every TRAIN+OWN+gold BPE2 forensic")
+                  for k,v in full_gt_donor.items())
+          and all(torch.equal(child.state_dict()[k].detach().cpu(),v)
+                  for tag,child in (("A",child_a),("B",child_b))
+                  for k,v in child_frozen[tag].items()),
+          "original S142/12GT donor and all saved Z10 A/B fitted params preserved")
+    check(len(outcomes)==2 and
+          all(v["actual_original43M_native_49152_forward_count"]>=28
+              for v in outcomes.values()),
+          "both actual original43M models physically evaluated, never proxy")
     report={
         "stage":STAGE,
+        "fresh_Z12_new14_source_SHA256":fresh["DEV14_SHA256"],
+        "preregistered_source_stage":NEW_SOURCE_STAGE,
+        "completed_physical_Z10_original43M_report_sha256":sha(prev_path),
+        "source_Z10_FP16_neural_and_GT12_sidecar_SHA256":{
+            k:v["sha256"] for k,v in saved.items()},
         "original_S142_43M_sha256":sha(s142),
         "original_S93_GT_sha256":sha(s93),
-        "completed_W_fulljoint_43M_early23X3_source_report_sha256":
-            sha(q2i8w_dir/W_REPORT),
-        "completed_W_421793_fp16_source_sha256":sha(q2i8w_dir/W_EARLY_FP16),
-        "completed_W_12GT_fit_source_sha256":sha(q2i8w_dir/W_EARLY_GATES),
-        "new_Z9_21_TRAIN_sha256":z9_source["Z9_21_TRAIN_sha256"],
-        "new_Z9_14_DEV_sha256":z9_source["Z9_14_DEV_sha256"],
-        "matched_27_true43M_alljoint_neural_and_GT12_A_B_from_same_W_FP16":True,
-        "second_gold_BPE2_trainonly_contextual_top8_margin_weight":CONTEXT_TOP8_MARGIN_WEIGHT,
-        "same_human_BPE2andBPE3_CE3x_in_both_arms":True,
-        "no_inference_manual_CORE_gate_overrides":True,
-        "neural_all421793_plus_separate12GT_FP16_saved":saved,
-        "true43M_full_GT12_Core_NRA3_NPA1_native49152_27TRAIN_AB":training,
-        "true43M_SELF_OWN_newZ10_14DEV_plus_OLD6_each_three_states":own,
-        "true43M_gold_SECOND_BPE_original49k_rank_only_POSTHOC":gold_ranks,
-        "true43M_49k_full_native_TRAIN_forwards":training_calls,
-        "true43M_49k_full_native_OWN_forwards":own_calls,
-        "true43M_49k_gold_second_teacherforced_only_forwards":gold_calls,
-        "frozen_original43M_S115_protected_W_parent_unchanged":True,
-        "no_J7_616_EVAL128_GOLD_allin_bpp_CPU_tested":True,
-        "no_main_LIVE_Render_Supabase_APK_Jessica_chat":True,
+        "native_vocab_size":NATIVE_VOCAB,
+        "locked_second_topK":WIDTH,
+        "locked_third_topK":THIRD_WIDTH,
+        "locked_horizon_BPE":HORIZON,
+        "both_matched_frozen_A_B_greedy_vs_8x2_true_OWN_native":outcomes,
+        "gold_used_for_posthoc_evaluation_NOT_candidate_selection":True,
+        "CPU_sequential_branch_forwards_not_actual_hardware_parallel":True,
+        "new_DEV14_becomes_SPENT_once_scored_NOT_independent_blind":True,
+        "original_model_and_saved_fit_weights_unchanged":True,
+        "no_training_new_neural_areas_or_model_promotion":True,
+        "no_616J7_EVAL128_GOLD_allin_bpp_or_optimized_CPU_CB59_test":True,
+        "no_MAIN_LIVE_Render_Supabase_APK_Jessica":True,
         "candidate_accepted":False,"output_gate":0,
-        "decision":"RESEARCH_ONLY_MATCHED_TRUE43M_CONTEXT_TOP8_BPE2_TRAINONLY_VS_CE_NO_PROMOTION",
+        "decision":"SOURCE_ONLY_TRUE43M_LOGICAL_PARALLEL_BPE2_BPE3_NO_PROMOTION",
     }
     (out/REPORT).write_text(json.dumps(report,ensure_ascii=False,
                            sort_keys=True,indent=2)+"\n",encoding="utf8")
-    print("S119Q2I8Z10_REAL43M_CONTEXT_TOP8_TRAINONLY_AB "+json.dumps({
-        "true_original43M_train_forwards":training_calls,
-        "true_original43M_OWN_forwards":own_calls,
-        "true_original43M_posthoc_gold_second_forwards":gold_calls,
-        "full_joint_trainable_params":TOTAL_EXPECTED_TRAINABLE,
-        "TRAIN_only_learned_CORE_tanh_gate_per_arm":{
-            k:{
-                "before":v["learned_existing_CORE_component_tanh_GATE_before_27TRAIN"],
-                "after":v["learned_existing_CORE_component_tanh_GATE_after_27TRAIN"],
-                "lambda":v["context_top8_aux_weight_if_B"],
-            } for k,v in training.items()},
-        "new_Z9_14_actual_OWN":{
-            k:v["NEW_DEV"]["scores"] for k,v in own.items()},
-        "new_Z9_14_gold_second_posthoc_rank":{
-            k:{j:v[j] for j in (
-                "correct_gold_second_top1","correct_gold_second_top5",
-                "mean_correct_gold_second_rank_full49152",
-                "mean_gold_second_NLL_nats","wrong_second_is_EOS")}
-            for k,v in gold_ranks.items()},
-        "candidate_accepted":False,
+    print("S119Q2I8Z13_REAL_ORIGINAL43M_8x2_FRESH14 "+json.dumps({
+        "fresh_new14_source_sha":fresh["DEV14_SHA256"],
+        "physical_A_B_true_own_native_branch":{k:{
+            "scores":v["scores"],
+            "real_original43M_native49152_forwards":
+                v["actual_original43M_native_49152_forward_count"],
+            "candidates":v["actual_candidate_count"],
+        } for k,v in outcomes.items()},
+        "candidate_accepted":False,"output_gate":0,
     },ensure_ascii=False,sort_keys=True),flush=True)
 
 
