@@ -300,7 +300,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: calibri-s119q2i8z32-original43m-84legalTRAIN14freshDEV-boundednative-lowrankKL-biasfrozen-2shadow-gate0
-          path: results/s119q2i8z29_native49152_headonly_BPE1_4_EOS_84train14NEWdev/
+          path: results/s119q2i8z32_native49152_boundedcontext_KL_FROZENbias_84train14NEWdev/
           retention-days: 30
           if-no-files-found: error
       - name: Only Z32 physical runner test and workflow, fail closed original main and protected model
