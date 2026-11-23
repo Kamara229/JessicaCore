@@ -251,37 +251,46 @@ jobs:
           run-id: 45066404596
           path: inputs/s119q2i8w
           github-token: ${{ github.token }}
-      - name: PHYSICAL original43M 12GT Core NRA3 NPA1 new21 Z9 TRAIN A 3X CE vs B same + TRAIN-only contextual top8 BPE2, fresh14 OWN
-        run: |
-          python -m research.calibri_nra3.s119q2i8z10_true43m_27TRAIN_contexttop8_AB \
-            --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
-            --side inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
-            --s142 inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
-            --q2d-dir inputs/s119q2d \
-            --q2f-dir inputs/s119q2f \
-            --q2i1-dir inputs/s119q2i1 \
-            --q2i3-dir inputs/s119q2i3 \
-            --q2i7-dir inputs/s119q2i7 \
-            --q2i8a-dir inputs/s119q2i8a \
-            --q2i8d-dir inputs/s119q2i8d \
-            --q2i8f-report inputs/s119q2i8f/S119Q2I8F_ORIGINAL49152_TOKENIZER_READINESS_TRAINONLY_G0.json \
-            --q2i8g-dir inputs/s119q2i8g \
-            --q2i8k-dir inputs/s119q2i8k \
-            --q2i8t-dir inputs/s119q2i8t \
-            --q2i8w-dir inputs/s119q2i8w \
-            --out results/s119q2i8z10_real43m_GT12_Core_NRA3_NPA1_native_EARLY23X3_vs_top8_27TRAIN
-      - name: Save only true original43M paired full trained FP16 CE vs contextual second BPE top8 and 12GT + new14 OWN native scores
-        uses: actions/upload-artifact@v4
+      - name: Retrieve only completed Z10 actual43M A/B full 421793 FP16 with 12GT gates
+        uses: actions/download-artifact@v4
         with:
           name: calibri-s119q2i8z10-original43m-fulljoint-21TRAIN-ContextTop8-BPE2-vsCE-14freshDEV-gate0
-          path: results/s119q2i8z10_real43m_GT12_Core_NRA3_NPA1_native_EARLY23X3_vs_top8_27TRAIN/
+          run-id: 45115966394
+          path: inputs/s119q2i8z10
+          github-token: ${{ github.token }}
+      - name: PHYSICAL no-train actual original43M full12GT own-first greedy vs top8x2 logical parallel on 14 NEW
+        run: |
+          python -m research.calibri_nra3.s119q2i8z13_true43m_native8x2_parallel_own \
+          --s93 inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+          --side inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+          --s142 inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+          --q2d-dir inputs/s119q2d \
+          --q2f-dir inputs/s119q2f \
+          --q2i1-dir inputs/s119q2i1 \
+          --q2i3-dir inputs/s119q2i3 \
+          --q2i7-dir inputs/s119q2i7 \
+          --q2i8a-dir inputs/s119q2i8a \
+          --q2i8d-dir inputs/s119q2i8d \
+          --q2i8f-report inputs/s119q2i8f/S119Q2I8F_ORIGINAL49152_TOKENIZER_READINESS_TRAINONLY_G0.json \
+          --q2i8g-dir inputs/s119q2i8g \
+          --q2i8k-dir inputs/s119q2i8k \
+          --q2i8t-dir inputs/s119q2i8t \
+          --q2i8w-dir inputs/s119q2i8w \
+          --z10-dir inputs/s119q2i8z10 \
+          --out results/s119q2i8z13_true43m_14freshDEV_native49152_8x2_no_train
+      - name: Save JSON ONLY original43M 8x2 future branch and same-prefix greedy no weights
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-s119q2i8z13-actual43m-fresh14-native49152-own-parallel8x2-vs-greedy-gate0
+          path: results/s119q2i8z13_true43m_14freshDEV_native49152_8x2_no_train/S119Q2I8Z13_TRUE43M_PARALLEL_TOP8XTOP2_VS_GREEDY_FRESH14_G0.json
           retention-days: 30
           if-no-files-found: error
-      - name: Fail-closed exact Z10 research-only scope
+      - name: Fail closed any file outside exact Z13 source-only research scope
         run: |
           set -euo pipefail
-          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/s119z10_changed
-          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z10_true43m_joint_train_contexttop8.py' -e 'research/calibri_nra3/s119q2i8z10_true43m_27TRAIN_contexttop8_AB.py' -e 'research/calibri_nra3/test_s119q2i8z10_true43m_contexttop8_joint_train.py' -e '.github/workflows/calibri-nra3-s119q2i8z10-contexttop8-fulljoint.yml' /tmp/s119z10_changed; then
-            echo 'PROTECTED OR PROD FILE CHANGE' >&2; exit 1
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/z13scope
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z13_true43m_native8x2_parallel_own.py' -e 'research/calibri_nra3/test_s119q2i8z13_true43m_parallel_probe.py' -e '.github/workflows/calibri-nra3-s119q2i8z13-physical-fresh14-parallel.yml' /tmp/z13scope; then
+            echo 'Forbidden sealed, prod or prior model changes' >&2
+            exit 1
           fi
-          test $(wc -l < /tmp/s119z10_changed) -eq 4
+          test $(wc -l < /tmp/z13scope) -eq 3
