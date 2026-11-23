@@ -86,7 +86,21 @@ def verify(artifact_bytes):
         ).hexdigest()
         if current_blob != expected_blob:
             raise ValueError("pinned source changed during import: " + filename)
-    generated = generator_module.commitment(generator_module.build_rows())
+    # Recompute ordered prompt digests and literal offsets from the exact
+    # generated texts, independently of the generator's commitment builder.
+    # No model forward, scoring, or label disclosure is performed here.
+    rows = generator_module.build_rows()
+    if len(rows) != 64:
+        raise ValueError("S3T replay did not produce exactly 64 prompts")
+    physical_prompt_sha = [
+        hashlib.sha256(row.question.encode("utf-8")).hexdigest() for row in rows
+    ]
+    physical_offsets = [generator_module.query_char_offsets(row.question) for row in rows]
+    generated = generator_module.commitment(rows)
+    if generated.get("question_sha256") != physical_prompt_sha:
+        raise ValueError("S3T regenerated prompt text SHA mismatch")
+    if generated.get("query_char_offsets") != physical_offsets:
+        raise ValueError("S3T regenerated literal query offsets mismatch")
     if generated["commitment_sha256"] != PINNED_COMMITMENT:
         raise ValueError("pinned S3T generator/commitment mismatch")
     supplied = json.loads(artifact_bytes.decode("utf-8"), object_pairs_hook=strict_pairs)
