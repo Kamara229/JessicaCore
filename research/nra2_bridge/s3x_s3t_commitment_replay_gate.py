@@ -59,6 +59,17 @@ def independent_query_offsets(question):
 
 
 def verify(artifact_bytes):
+    # Reject untrusted/malformed artifacts before importing any research modules.
+    # This preflight has no model access and does not inspect candidate labels.
+    supplied = json.loads(artifact_bytes.decode("utf-8"), object_pairs_hook=strict_pairs)
+    if not isinstance(supplied, dict):
+        raise ValueError("S3T artifact must be a JSON object")
+    claimed = supplied.get("commitment_sha256")
+    if claimed != PINNED_COMMITMENT:
+        raise ValueError("artifact commitment field mismatch")
+    unsigned = {k: v for k, v in supplied.items() if k != "commitment_sha256"}
+    if hashlib.sha256(canonical_bytes(unsigned)).hexdigest() != PINNED_COMMITMENT:
+        raise ValueError("artifact canonical unsigned commitment mismatch")
     # Independently regenerate the locked prompt texts using the pinned
     # source implementation; never infer the commitment from the ZIP hash.
     # Hash the source file BEFORE importing/executing the generator module.
@@ -127,15 +138,6 @@ def verify(artifact_bytes):
         raise ValueError("S3T regenerated literal query offsets mismatch")
     if generated["commitment_sha256"] != PINNED_COMMITMENT:
         raise ValueError("pinned S3T generator/commitment mismatch")
-    supplied = json.loads(artifact_bytes.decode("utf-8"), object_pairs_hook=strict_pairs)
-    if not isinstance(supplied, dict):
-        raise ValueError("S3T artifact must be a JSON object")
-    claimed = supplied.get("commitment_sha256")
-    if claimed != PINNED_COMMITMENT:
-        raise ValueError("artifact commitment field mismatch")
-    unsigned = {k: v for k, v in supplied.items() if k != "commitment_sha256"}
-    if hashlib.sha256(canonical_bytes(unsigned)).hexdigest() != PINNED_COMMITMENT:
-        raise ValueError("artifact canonical unsigned commitment mismatch")
     if canonical_bytes(supplied) != canonical_bytes(generated):
         raise ValueError("artifact differs from pinned deterministic S3T generation")
     if len(generated["question_sha256"]) != 64 or len(generated["query_char_offsets"]) != 64:
