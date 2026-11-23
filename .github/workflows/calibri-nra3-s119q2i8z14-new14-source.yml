@@ -1,0 +1,36 @@
+name: Calibri S119q2i8z14 prereg 14 fresh RU DEV second-native candidate coverage budgets
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z13-true43m-parallel-native-8x2-own-probe-20261123
+permissions:
+  contents: read
+jobs:
+  fresh-source-only-immutable:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z14-fresh14-bpe2-coverage-prereg-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check frozen new fourteen linguistic domains and rank budget with zero model
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z14_fresh14_bpe2_source
+      - name: Fail closed exact source-only change
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/z14scope
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z14_fresh14_bpe2_coverage_source.py' -e 'research/calibri_nra3/test_s119q2i8z14_fresh14_bpe2_source.py' -e '.github/workflows/calibri-nra3-s119q2i8z14-new14-source.yml' /tmp/z14scope; then
+            echo 'Protected or production changes not allowed' >&2
+            exit 1
+          fi
+          test $(wc -l < /tmp/z14scope) -eq 3
