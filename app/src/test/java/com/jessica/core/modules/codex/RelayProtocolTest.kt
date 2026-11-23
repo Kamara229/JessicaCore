@@ -18,6 +18,8 @@ class RelayProtocolTest {
     @Test fun codexAsksForOneScreenAnswersSoMarkersStayVisibleWithoutScrolling() {
         val prompt = RelayProtocol.wrap(RelayProtocol.introduction,id)
         assertTrue(prompt.contains("не более 240 символов"))
+        assertTrue("Even passive Jessica requires nonce ACK or relay will wait", 
+            prompt.contains("Даже без теста ответь с метками"))
         assertTrue(prompt.contains("без отчётов"))
         assertTrue(prompt.length < 650)
     }
