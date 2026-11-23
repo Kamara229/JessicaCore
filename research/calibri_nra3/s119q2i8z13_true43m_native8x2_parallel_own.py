@@ -450,7 +450,11 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                             contextual=True)
                         check(full.last_forward_coverage==tuple(range(12)),
                               "each logical parallel token branch actual full43M GT12")
-                        return raw
+                        # real_joint_native has an old internal training
+                        # contract requiring requires_grad=True even in a
+                        # read-only caller. Detach at the causal scorer
+                        # boundary: NO backward graph leaks into search.
+                        return raw.detach()
 
                     selected=native_lookahead_second_third(
                         forward,row["prefix"]+[first])
