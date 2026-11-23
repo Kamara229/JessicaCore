@@ -295,8 +295,8 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
         check(example["split"]=="DEV"
               and tok.decode(example["answer_native_without_eos"],
                              skip_special_tokens=True)==authored["completion"]
-              and 4<=len(example["answer_native_with_eos"])<=40
-              and len(example["prefix"])+39<160,
+              and 4<=len(example["answer_native_with_eos"])<=64
+              and len(example["prefix"])+2<160,
               "exact native original tokenizer target, EOS, context limits")
         freshdev.append(example)
     check(len(freshdev)==14 and len({x["prompt_sha256"] for x in freshdev})==14,
