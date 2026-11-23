@@ -644,8 +644,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                 per_pos={}
                 for i in (1,2,3):
                     z=[row[i-1] for row in vals if not row[i-1].get("own_prefix_stopped_at_EOS")]
-                    pairs=[r for r in z if r["own_prefix_ALREADY_diverged_FROM_human_before_this_token"]] if False else [
-                        r for r in z if r["own_prefix_ALREADY_diverged_from_human_before_this_token"]]
+                    pairs=[r for r in z if r["own_prefix_ALREADY_diverged_from_human_before_this_token"]]
                     pairs_up=[]
                     for item in pairs:
                         a=item["same_physical_model_H320_inference_paths"]["TEACHER_HUMAN_CORRECT_PREFIX"]
@@ -697,37 +696,40 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                   for k,v in child_frozen[tag].items()),
           "original S142/12GT donor and all saved Z10 A/B fitted params preserved")
     check(len(outcomes)==2
-          and all(v["all_four_same_sources_spent14_real_A_B_ablation"][
-              "FULL_CHILD_EXACT_PREVIOUS_GAIN_025"]["correct_first_two_BPE"]==1
-              for v in outcomes.values()),
-          "original S142 A/B same spent14 with exact prior gain .25 parity")
-    total_forwards=sum(sum(vv["true_original_S142_fullnative49152_forwards"]
-                           for vv in v["all_four_same_sources_spent14_real_A_B_ablation"].values())
-                       for v in outcomes.values())
+          and all(len(v["spent14_per_real_model_teacher_vs_own_context_source"])==14
+                  and set(v["metrics_BY_target_position_gold_counterfactual"])==
+                     {"ORIGINAL_Z10_FITTED_NATIVE_HEAD",
+                      "NEW_CONTEXT_LOWRANK_BOUND2_KL1_BIAS_FROZEN"}
+                  for v in outcomes.values()),
+          "two ACTUAL A/B S142 43M frozen native original and Z32 FP16 14 already SPENT sources")
+    total=sum(v["read_only_true_S142_43M_native49152_decoder_forwards"]
+              for v in outcomes.values())
+    check(56<=total<=336,
+          "exact true original S142 43M native49152 gold/own decoder passes")
     report={
         "stage":STAGE,
-        "actual_PREVIOUS_Z26_original_model_report_sha256":sha(z26_path),
-        "previously_SPENT_Z25_DEV14_sha256":fresh["DEV_SHA256"],
-        "old_historical_TRAIN84_sha256":fresh["TRAIN_SHA256"],
-        "same_source_previous_real_Z26_first4_parity":True,
-        "real_original_S142_native49152_decoder_forwards":total_forwards,
-        "same_ARCHIVED_SPENT14_original_vs_3_learned_head_gain_AB":outcomes,
-        "full_original_S142_43M_and_12GT_parent_Z10_A_B_unchanged":True,
-        "no_new_training_or_hyperparam_selection":True,
-        "no_NEW_independent_DEV_or_quality_claim":True,
-        "no_616J7_EVAL128_GOLD_packed_bpp_CPU_CB59_certification":True,
+        "physical_completed_parent_Z32_report_SHA256":sha(old_report),
+        "previous_legal_TRAIN84_sha256":fresh["TRAIN_SHA256"],
+        "previously_SPENT_Z31_DEV14_sha256":fresh["NEW_DEV_SHA256"],
+        "already_trained_original_Z32_FP16_SHA256":frozen_fp16_sha,
+        "REAL_S142_original43M_native49152_teacher_vs_own_decoder_forwards":total,
+        "physical_original_Z10_A_B_and_bounded_Z32_teacher_vs_own":outcomes,
+        "teacher_after_own_wrong_prefix_human_gold_is_counterfactual_NOT_valid_supervised_target":True,
+        "original_S142_GT12_Core_NRA3_NPA1_Z10_Z32_FP16_UNCHANGED":True,
+        "no_training_no_new_DEV_no_optimisation_no_promotions":True,
+        "no_616J7_EVAL128_GOLD_packed_bpp_CB59_CPU_certification":True,
         "no_MAIN_LIVE_Render_Supabase_APK_Jessica_changes":True,
         "candidate_accepted":False,"output_gate":0,
-        "decision":"CAUSAL_NATIVE_GENERATION_REPETITION_HEAD_GAIN_DIAGNOSTIC_SPENT_ONLY_GATE0",
+        "decision":"READONLY_TRUE_S142_TEACHER_VS_OWN_PREFIX_ERROR_DISTRIBUTION_DIAGNOSTIC_SPENT_ONLY",
     }
     (out/REPORT).write_text(json.dumps(report,ensure_ascii=False,
                            sort_keys=True,indent=2)+"\n",encoding="utf8")
-    print("S119Q2I8Z27_TRUE43M_HEADGAIN_REPETITION_PHYSICAL "+json.dumps({
-        "Z25_SPENT_DEV_SHA256":fresh["DEV_SHA256"],
-        "total_native49152_original43M_forwards":total_forwards,
-        "A_B":{"A" if key.endswith("_CE") else "B":
-            v["all_four_same_sources_spent14_real_A_B_ablation"]
-            for key,v in outcomes.items()},
+    print("S119Q2I8Z33_REAL43M_TEACHER_VS_OWN_AFTER_ERROR_SPENT14 "+json.dumps({
+        "Z31_SPENT_DEV_SHA256":fresh["NEW_DEV_SHA256"],
+        "real_original_S142_43M_49152_native_forwards":total,
+        "A_B":{"A" if k.endswith("_CE") else "B":
+               v["metrics_BY_target_position_gold_counterfactual"]
+               for k,v in outcomes.items()},
         "candidate_accepted":False,"output_gate":0,
     },sort_keys=True,ensure_ascii=False),flush=True)
 
@@ -736,12 +738,12 @@ def main():
     p=argparse.ArgumentParser()
     for key in ("s93","side","s142","q2d_dir","q2f_dir","q2i1_dir",
                 "q2i3_dir","q2i7_dir","q2i8a_dir","q2i8d_dir",
-                "q2i8f_report","q2i8g_dir","q2i8k_dir","q2i8t_dir","q2i8w_dir","z10_dir","z26_dir","out"):
+                "q2i8f_report","q2i8g_dir","q2i8k_dir","q2i8t_dir","q2i8w_dir","z10_dir","z32_dir","out"):
         p.add_argument("--"+key.replace("_","-"),type=Path,required=True)
     a=p.parse_args()
     run(a.s93,a.side,a.s142,a.q2d_dir,a.q2f_dir,a.q2i1_dir,
         a.q2i3_dir,a.q2i7_dir,a.q2i8a_dir,a.q2i8d_dir,
-        a.q2i8f_report,a.q2i8g_dir,a.q2i8k_dir,a.q2i8t_dir,a.q2i8w_dir,a.z10_dir,a.z26_dir,a.out)
+        a.q2i8f_report,a.q2i8g_dir,a.q2i8k_dir,a.q2i8t_dir,a.q2i8w_dir,a.z10_dir,a.z32_dir,a.out)
 
 if __name__=="__main__":
     main()
