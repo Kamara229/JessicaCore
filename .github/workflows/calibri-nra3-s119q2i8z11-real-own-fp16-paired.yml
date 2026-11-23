@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: CPU-only NumPy and safetensors: NO torch, no model, no GPU
+      - name: CPU-only NumPy and safetensors; no torch, no model, no GPU
         run: |
           python -m pip install 'numpy==1.26.4' 'safetensors==0.4.5'
       - name: Source-only native BPE strict unit tests (no model forwards)
