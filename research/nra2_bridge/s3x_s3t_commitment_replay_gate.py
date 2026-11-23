@@ -75,6 +75,10 @@ def verify(artifact_bytes):
     unsigned = {k: v for k, v in supplied.items() if k != "commitment_sha256"}
     if hashlib.sha256(canonical_bytes(unsigned)).hexdigest() != PINNED_COMMITMENT:
         raise ValueError("artifact canonical unsigned commitment mismatch")
+    # Fail closed: build_rows()/commitment() reach validate()/oracle().
+    # A fresh native 616-J7 attestation is not implemented in this entry point.
+    # Do not accept caller booleans or old run metadata as proof.
+    raise RuntimeError("S3T generator replay blocked pending independent fresh native 616 J7 attestation")
     # Independently regenerate the locked prompt texts using the pinned
     # source implementation; never infer the commitment from the ZIP hash.
     # Hash the source file BEFORE importing/executing the generator module.
