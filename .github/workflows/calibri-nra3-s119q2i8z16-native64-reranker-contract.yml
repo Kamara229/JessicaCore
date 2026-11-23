@@ -1,0 +1,39 @@
+name: Calibri S119q2i8z16 new28TRAIN14DEV + cheap 1280-param lowrank native64 candidate ranker contract
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z15-physical-native49152-bpe2-topk-coverage-20261123
+permissions:
+  contents: read
+jobs:
+  trainonly-cheap-lowrank-contract-not-physical-training:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z16-preregister-cheap-candidate-reranker-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CPU-only original PyTorch arithmetic no model artifacts or original weights
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Verify NEW 28 TRAIN and 14 untouched DEV + candidate top64 and original hidden hook contracts
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z16_cheap_native64_reranker
+      - name: Reject mutations of actual model, existing source, protected or production code
+        run: |
+          set -euo pipefail
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > /tmp/z16only
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z16_fresh28train14dev_rerank_source.py' -e 'research/calibri_nra3/s119q2i8z16_trainonly_lowrank_native64_reranker.py' -e 'research/calibri_nra3/test_s119q2i8z16_cheap_native64_reranker.py' -e '.github/workflows/calibri-nra3-s119q2i8z16-native64-reranker-contract.yml' /tmp/z16only; then
+            echo "Unauthorized source or LIVE file changed" >&2
+            exit 1
+          fi
+          test $(wc -l < /tmp/z16only) -eq 4
