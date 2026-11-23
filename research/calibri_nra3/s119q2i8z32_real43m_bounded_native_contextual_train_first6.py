@@ -608,9 +608,12 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                   and any(not torch.equal(
                       new_head_child.language_head.state_dict()[k].detach().cpu(),v)
                       for k,v in pretrain_head.items())
-                  and sum(p.numel() for p in
-                          new_head_child.language_head.parameters())==247040,
-                  "only NEW copied rank4 fullnative head trained across legal84*5*2")
+                  and sum(p.numel() for p in learn_params)==197888
+                  and new_head_child.language_head.output_bias.grad is None
+                  and torch.equal(
+                      new_head_child.language_head.output_bias.detach().cpu(),
+                      original_child.language_head.output_bias.detach().cpu()),
+                  "only NEW 197888 lowrank contextual parameters updated; bias old Z10 immutable")
             new_head_child.eval()
             observed=[]
             with torch.no_grad():
@@ -623,12 +626,26 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                         own=[]
                         for pos in range(EVAL_NATIVE_FIRST_K):
                             if own and own[-1]==2:break
-                            with scoped_exact_native_gain(
-                                    active_child.language_head,HEAD_GAIN) as witnessed:
-                                logits=real_joint_native(
-                                    model,sources,bridge,full,expansion,
-                                    active_child,row["prefix"]+own,
-                                    row["prompt_features"],contextual=True)
+                            if mode=="NEW_MULTIPOSITION_TRAINED_HEAD_ONLY_COPY":
+                                with bounded_frozen_original_native_delta(
+                                        active_child.language_head,
+                                        original_child.language_head) as native_caps:
+                                    with scoped_exact_native_gain(
+                                            active_child.language_head,HEAD_GAIN) as witnessed:
+                                        logits=real_joint_native(
+                                            model,sources,bridge,full,expansion,
+                                            active_child,row["prefix"]+own,
+                                            row["prompt_features"],contextual=True)
+                                check(len(native_caps)==1 and
+                                      native_caps[0]["original43M_extra_decoder_calls"]==0,
+                                      "same bounded native contextual correction during real autonomous DEV")
+                            else:
+                                with scoped_exact_native_gain(
+                                        active_child.language_head,HEAD_GAIN) as witnessed:
+                                    logits=real_joint_native(
+                                        model,sources,bridge,full,expansion,
+                                        active_child,row["prefix"]+own,
+                                        row["prompt_features"],contextual=True)
                             check(witnessed[0]==1
                                   and logits.shape==(1,NATIVE_VOCAB)
                                   and full.last_forward_coverage==tuple(range(12)),
