@@ -284,7 +284,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: calibri-s119q2i8z15-actual43m-fresh14-native49152-second-topK-coverage-gate0
-          path: results/s119q2i8z13_true43m_14freshDEV_native49152_8x2_no_train/S119Q2I8Z15_TRUE43M_14FRESH_BPE2_TOPK_COVERAGE_G0.json
+          path: results/s119q2i8z15_actual43m_second_native_14fresh_topK_no_train/S119Q2I8Z15_TRUE43M_14FRESH_BPE2_TOPK_COVERAGE_G0.json
           retention-days: 30
           if-no-files-found: error
       - name: Fail-closed exact Z15 research-only four file scope
