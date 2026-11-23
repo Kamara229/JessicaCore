@@ -730,75 +730,55 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                   for k,v in child_frozen[tag].items()),
           "original S142/12GT donor and all saved Z10 A/B fitted params preserved")
     check(len(outcomes)==2
-          and all(v["NEW_DEV14_full_autonomous_first6_native"][
-                        "original43M_real_native_TRAIN_forwards"]==168
-                  and v["NEW_DEV14_full_autonomous_first6_native"][
-                        "brand_NEW_synthetic_DEV14"]==14
-                  and set(v["TRAIN_only_shadow_optimizer"])==set(MODES)
-                  and all(v["TRAIN_only_shadow_optimizer"][m]["legal_TRAIN84"]==84
-                          and v["TRAIN_only_shadow_optimizer"][m]["shadow_rank32_params"]==30720
-                          for m in MODES)
-                  and len(v["NEW_DEV14_per_prompt_first6"])==14
+          and all(len(v["previous_real_Z35_Z34_spent14_per_prompt_native_BPE2"])==14
+                  and v["full_original_S142_native49152_decoder_forwards"]==28
+                  and set(v["original_Z35_30720param_FP16_SHAs"])==set(MODES)
                   for v in outcomes.values()),
-          "real original S142 A/B native49152 BPE2-only rank32 with legal84 source only")
-    total_forwards=sum(
-        v["NEW_DEV14_full_autonomous_first6_native"][
-            "original43M_real_native_TRAIN_forwards"]+
-        v["NEW_DEV14_full_autonomous_first6_native"][
-            "original43M_real_native_DEV_forwards"]
-        for v in outcomes.values())
-    check(350<=total_forwards<=900,
-          "exact original S142 43M true native49152 two real full forwards per TRAIN and own first6 per DEV arm and mode")
+          "true original S142 A/B native49152 frozen learned shadows 14 spent author DEV")
+    physical_forwards=sum(v["full_original_S142_native49152_decoder_forwards"]
+                          for v in outcomes.values())
+    check(physical_forwards==56,
+          "exact 56 original43M native49152 source-only A/B×14×2 read-only real forwards")
     report={
         "stage":STAGE,
-        "Z34_PRECOMMITTED_84_LEGAL_TRAIN_SHA256":fresh["TRAIN_SHA256"],
-        "Z34_PRECOMMITTED_14_BRANDNEW_DEV_SHA256":fresh["NEW_DEV_SHA256"],
-        "Z34_brandNEW_author_DEV14_NOW_SPENT_not_independently_blind":True,
-        "fixed_rank32_candidate_K64_bound1_5_correct_vs_wrong_control_epoch25":True,
-        "strict_ONLY_second_native_BPE_candidate_decoding_intervention":True,
-        "original43M_49k_native_FORWARDS":total_forwards,
-        "original_Z10_fitted_parent_SHA256":sha(prev_path),
-        "saved_original_Z10_A_B_FPF16_and_12GT_SHA256":{
-            k:v["sha256"] for k,v in saved.items()},
-        "original_S142_43M_SHA256":sha(s142),
-        "original_S93_GT_SHA256":sha(s93),
-        "actual_original43M_A_B_real_native49k_BPE2_only_rank32":outcomes,
-        "no_gold_in_candidate_selection_on_new_DEV":True,
-        "no_previous_SPENT_DEV_used_in_TRAIN":True,
-        "only_two_30720param_BPE2_gated_shadows_updated_per_arm":True,
-        "original_S142_43M_GT12_Core_NRA3_NPA1_and_Z10_A_B_unchanged":True,
-        "no_616J7_EVAL128_GOLD_bpp_CB59_CPU_certification":True,
+        "real_successful_previous_Z35_report_SHA256":sha(prev_z35_path),
+        "previous_original_author_Z34_84_LEGALTRAIN_SHA256":fresh["TRAIN_SHA256"],
+        "previously_SPENT_Z34_14authorDEV_SHA256":fresh["NEW_DEV_SHA256"],
+        "real_original_S142_43M_fullnative49152_model_forwards":physical_forwards,
+        "original_43M_frozen_Z10_A_B_vs_exact_previous_trainonly_Z35_rerankers":outcomes,
+        "human_gold_second_valid_ONLY_after_correct_model_OWN_first_native_BPE":True,
+        "no_gold_in_candidate_selection":True,
+        "native_gold_BPE2_never_added_to_original_top64":True,
+        "physical_previous_original_greedy_and_Z35_shadow_BPE2_exact_replay":True,
+        "no_training_and_no_new_independent_DEV":True,
+        "original_S142_GT12_Core_NRA3_NPA1_Z10_A_B_and_Z35_all_saved_weights_UNCHANGED":True,
+        "no_616J7_EVAL128_GOLD_packed_bpp_CB59_CPU_certification":True,
         "no_MAIN_LIVE_Render_Supabase_APK_Jessica_changes":True,
         "candidate_accepted":False,"output_gate":0,
-        "decision":"SECOND_NATIVE_BPE_ONLY_POSITION_GATED_TARGETBLIND_TOP64_RANK32_RESEARCH_NO_PROMOTION",
+        "decision":"TRUE43M_FROZEN_NATIVE_BPE2_GREEDY_GOLD_GAP_VS_LEARNED_RANK32_BOUNDED_RESIDUAL_SPENT_ONLY",
     }
     (out/REPORT).write_text(json.dumps(report,ensure_ascii=False,
-                           sort_keys=True,indent=2)+"\n",encoding="utf8")
-    print("S119Q2I8Z35_TRUE43M_NATIVE_BPE2_ONLY_RANK32_DEV_FIRST6 "+json.dumps({
-        "Z34_TRAIN84_SHA256":fresh["TRAIN_SHA256"],
-        "Z34_NEW_DEV14_SHA256":fresh["NEW_DEV_SHA256"],
-        "REAL_original43M_fullnative49152_forwards":total_forwards,
-        "A_B":{"A" if arm.endswith("_CE") else "B":{
-            "DEV_first6":v["NEW_DEV14_full_autonomous_first6_native"],
-            "fitted_TRAIN_only":v["TRAIN_only_shadow_optimizer"],
-            "FP16_only_shadow_SHA256":{
-                mode:rec["sha256"] for mode,rec in
-                v["fitted_shadow_only_FP16_sha"].items()},
-        } for arm,v in outcomes.items()},
+                          sort_keys=True,indent=2)+"\n",encoding="utf8")
+    print("S119Q2I8Z36_REAL43M_FROZEN_BPE2_GAP_VS_LEARNED_RESIDUAL "+json.dumps({
+        "SPENT_Z34_DEV_SHA256":fresh["NEW_DEV_SHA256"],
+        "real_original43M_S142_native49152_forwards":physical_forwards,
+        "A_B":{"A" if arm.endswith("_CE") else "B":
+               row["physical_logit_gap_vs_native_rank32_bounded_score_causal_diagnostic"]
+               for arm,row in outcomes.items()},
         "candidate_accepted":False,"output_gate":0,
-    },sort_keys=True,ensure_ascii=False),flush=True)
+    },ensure_ascii=False,sort_keys=True),flush=True)
 
 
 def main():
     p=argparse.ArgumentParser()
     for key in ("s93","side","s142","q2d_dir","q2f_dir","q2i1_dir",
                 "q2i3_dir","q2i7_dir","q2i8a_dir","q2i8d_dir",
-                "q2i8f_report","q2i8g_dir","q2i8k_dir","q2i8t_dir","q2i8w_dir","z10_dir","out"):
+                "q2i8f_report","q2i8g_dir","q2i8k_dir","q2i8t_dir","q2i8w_dir","z10_dir","z35_dir","out"):
         p.add_argument("--"+key.replace("_","-"),type=Path,required=True)
     a=p.parse_args()
     run(a.s93,a.side,a.s142,a.q2d_dir,a.q2f_dir,a.q2i1_dir,
         a.q2i3_dir,a.q2i7_dir,a.q2i8a_dir,a.q2i8d_dir,
-        a.q2i8f_report,a.q2i8g_dir,a.q2i8k_dir,a.q2i8t_dir,a.q2i8w_dir,a.z10_dir,a.out)
+        a.q2i8f_report,a.q2i8g_dir,a.q2i8k_dir,a.q2i8t_dir,a.q2i8w_dir,a.z10_dir,a.z35_dir,a.out)
 
 if __name__=="__main__":
     main()
