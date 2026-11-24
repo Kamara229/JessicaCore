@@ -14,6 +14,35 @@ internal fun CodexChatCoordinator.observeIncoming(
     val now = SystemClock.elapsedRealtime()
     val completed = replyCollector.observe(window.content, launch.replyId)
     val accepted = state.acceptReply(completed, window.generating, now)
+    // Real Render telemetry showed reply_streaming -> awaiting_markers for
+    // hours after an ordinary ChatGPT answer without our unique envelope.
+    // The timeout is activated ONLY after the UI actually showed generation;
+    // it never guesses answer text and NEVER sends a recovery prompt or test.
+    if (accepted == null) {
+        when (missingEnvelopePolicy.observe(
+            now = now,
+            currentSendAt = state.sendAt,
+            generating = window.generating,
+            startedMarker = replyCollector.hasStarted(launch.replyId),
+            completedEnvelope = completed != null
+        )) {
+            CodexMissingEnvelopePolicy.Decision.STOP_UNMARKED -> {
+                reportPhase("reply_unmarked_timeout")
+                finish("ChatGPT сформировал ответ без проверяемых меток JESSICA_REPLY / " +
+                    "JESSICA_END. Безопасно завершаю переписку без повторной " +
+                    "отправки и без тестов. Исследование CALIBRI продолжается отдельно.")
+                return null
+            }
+            CodexMissingEnvelopePolicy.Decision.STOP_PARTIAL -> {
+                reportPhase("reply_partial_timeout")
+                finish("Ответ ChatGPT виден лишь частично: конечная метка не " +
+                    "подтверждена. Без прокрутки, повторной отправки и тестов " +
+                    "завершаю сессию с понятным статусом.")
+                return null
+            }
+            CodexMissingEnvelopePolicy.Decision.WAIT -> Unit
+        }
+    }
     val progress = CodexReplyProgressPolicy.classify(
         started = replyCollector.hasStarted(launch.replyId),
         completed = completed != null,
