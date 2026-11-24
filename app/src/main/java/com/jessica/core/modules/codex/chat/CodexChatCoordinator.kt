@@ -39,6 +39,7 @@ internal class CodexChatCoordinator(internal val service: ChatGptAccessibilitySe
     internal val sendPicker by lazy { SendTargetPicker(service) }
     internal var lastNotice = ""
     internal val replyCollector = ChatReplyCollector()
+    internal val missingEnvelopePolicy = CodexMissingEnvelopePolicy()
     internal var verifiedReplyId = ""
     internal var verifiedReplyAnchor = ""
     internal var invisibleSince = 0L
