@@ -1,7 +1,7 @@
 name: Calibri Z74 one-time physical Z65 paired42 evaluation
 on:
   pull_request:
-    types: [opened]
+    types: [synchronize]
     branches:
       - research/calibri2-s119q2i8z67-GPT-paired-eval-preflight-20261124
 permissions:
@@ -10,9 +10,9 @@ permissions:
 jobs:
   original43M-legal84-TRAIN-only-OWN-BPE2-seven-domain-crossfit:
     if: >-
-      github.run_attempt == 1 &&
+      github.run_attempt == '1' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z65-GPT-stable-gates-UTF8-AB-20261124'
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z74-GPT-Z65-fresh42-physical-20261124'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
