@@ -487,8 +487,23 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
     examples=[]
     for row in rows():
         prefix=strict_chat_source_ids(tok,row["prompt"])
-        check(len(prefix)+48<160,"full native cap fits each precommitted prompt")
+        check(2<=len(prefix)<159,"native prompt fits original physical limit")
         examples.append((row,prefix,prompt_features(tok,row["prompt"])))
+    # Before any scoring, use the same conservative token budget for ALL
+    # prompts and arms. No question or accepted-answer changes.
+    max_prefix=max(len(prefix) for _,prefix,_ in examples)
+    cap=min(48,159-max_prefix)
+    check(cap>=1,"positive common native generation cap")
+    print("Z74_PREFLIGHT_COMMON_CAP",cap,"max_prefix",max_prefix,flush=True)
+    def greedy_common(prefix,step):
+        generated=[]
+        for _ in range(cap):
+            x=step(list(prefix)+generated)
+            check(x.shape==(1,49152) and not x.requires_grad and bool(torch.isfinite(x).all()),
+                  "frozen full native logits")
+            generated.append(int(x.argmax()))
+            if generated[-1]==2:break
+        return generated
     fp32=AutoModelForCausalLM.from_pretrained(
         MODEL,revision=MODEL_SHA,torch_dtype=torch.float32
     ).eval().requires_grad_(False)
@@ -523,14 +538,14 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
                             check(full.last_forward_coverage==tuple(range(12)),
                                   "actual 43M full original GT12 forward")
                             return logits.detach().float().cpu()
-                        ids=greedy(prefix,step)
+                        ids=greedy_common(prefix,step)
                         check(witness[0]==len(ids),"exact one physical pass per generated token")
                     record(arm,row,ids)
             for row,prefix,_ in examples:
                 def baseline_step(p):
                     out=fp32(input_ids=torch.tensor([p],dtype=torch.long),use_cache=False)
                     return out.logits[:,-1,:].detach().float().cpu()
-                ids=greedy(prefix,baseline_step)
+                ids=greedy_common(prefix,baseline_step)
                 record(ARMS[3],row,ids)
     finally:
         model.model.nra3_s119m_onpath=child_a
@@ -547,7 +562,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
     check(all(calls[a]==sum(len(r["generated_ids"]) for r in results[a]) for a in ARMS),
           "reconciled actual paid native forward counts")
     report={"stage":STAGE,**summary,"per_case":results,"actual_forwards":calls,
-            "DEV_SHA256":DEV_SHA,"Z55_joint_SHA256":CHILD_SHA,"Z55_GT12_SHA256":GT_SHA,"Z65_explicit_pins":pins,
+            "DEV_SHA256":DEV_SHA,"common_native_generation_cap":cap,"max_native_prompt_length":max_prefix,"Z55_joint_SHA256":CHILD_SHA,"Z55_GT12_SHA256":GT_SHA,"Z65_explicit_pins":pins,
             "source135M_revision":MODEL_SHA,"source135M_parameters":fp32_params,
             "all_optimizer_steps":0,"FP32_training_calls":0,"fresh42_now_SPENT":True,
             "author_internal_not_external_blind":True,"no_J7_EVAL128_CPU_bpp_certification":True,
