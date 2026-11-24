@@ -8,6 +8,8 @@ internal object CodexStopReason {
     fun classify(message: String): String {
         val x = message.lowercase()
         return when {
+            x.contains("jessica_reply") && x.contains("jessica_end") -> "missing_reply_envelope"
+            x.contains("конечная метка") && x.contains("не подтверждена") -> "partial_reply_envelope"
             x.contains("пользовател") || x.contains("немедленно остановлен") -> "owner_stop"
             x.contains("переписка завершена") || x.contains("план заверш") -> "plan_finished"
             x.contains("предел длины") -> "chat_limit"

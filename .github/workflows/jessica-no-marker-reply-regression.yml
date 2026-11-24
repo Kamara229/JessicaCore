@@ -1,0 +1,89 @@
+name: Jessica relay no-marker fail-closed Android regression and signed candidate
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexMissingEnvelopePolicy.kt'
+      - 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexChatCoordinator.kt'
+      - 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexChatSession.kt'
+      - 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexIncomingTurn.kt'
+      - 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexStopReason.kt'
+      - 'app/src/test/java/com/jessica/core/modules/codex/CodexMissingEnvelopePolicyTest.kt'
+      - '.github/workflows/jessica-no-marker-reply-regression.yml'
+permissions:
+  contents: read
+jobs:
+  android-missing-markers-research-only:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/jessica-unmarked-chatgpt-reply-failclosed-20261124'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      JESSICA_APP_TOKEN: ${{ secrets.JESSICA_APP_TOKEN }}
+      JESSICA_KEYSTORE_BASE64: ${{ secrets.JESSICA_KEYSTORE_BASE64 }}
+      JESSICA_KEYSTORE_PASSWORD: ${{ secrets.JESSICA_KEYSTORE_PASSWORD }}
+      JESSICA_KEY_PASSWORD: ${{ secrets.JESSICA_KEY_PASSWORD }}
+      JESSICA_KEY_ALIAS: ${{ secrets.JESSICA_KEY_ALIAS }}
+      JESSICA_VERSION_CODE: '2584'
+      JESSICA_VERSION_NAME: '0.1.2584-rc1'
+    steps:
+      - name: Exact same-repository repair branch checkout, no deploy
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Strict Android-only seven-file repair scope
+        run: |
+          set -euo pipefail
+          git diff --name-only origin/main HEAD > /tmp/jessica-fix-files
+          if grep -Fvx \
+            -e 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexMissingEnvelopePolicy.kt' \
+            -e 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexChatCoordinator.kt' \
+            -e 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexChatSession.kt' \
+            -e 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexIncomingTurn.kt' \
+            -e 'app/src/main/java/com/jessica/core/modules/codex/chat/CodexStopReason.kt' \
+            -e 'app/src/test/java/com/jessica/core/modules/codex/CodexMissingEnvelopePolicyTest.kt' \
+            -e '.github/workflows/jessica-no-marker-reply-regression.yml' /tmp/jessica-fix-files; then
+            echo 'Forbidden production, backend, model or credentials modification' >&2
+            exit 1
+          fi
+          test "$(wc -l </tmp/jessica-fix-files)" -eq 7
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Run all Android debug unit regressions including no-marker watchdog
+        run: gradle :app:testDebugUnitTest --no-daemon
+      - name: Assert only same-key signed candidate can be built; never auto-install
+        run: |
+          test -n "$JESSICA_APP_TOKEN"
+          test -n "$JESSICA_KEYSTORE_BASE64"
+          test -n "$JESSICA_KEYSTORE_PASSWORD"
+          test -n "$JESSICA_KEY_PASSWORD"
+          test -n "$JESSICA_KEY_ALIAS"
+          printf '%s' "$JESSICA_KEYSTORE_BASE64" | base64 --decode > jessica-rc.keystore
+          test -s jessica-rc.keystore
+          keytool -list -keystore jessica-rc.keystore \
+            -storepass "$JESSICA_KEYSTORE_PASSWORD" -alias "$JESSICA_KEY_ALIAS" >/dev/null
+      - name: Build same-key signed repair release candidate, without GitHub Release or deployment
+        run: |
+          gradle :app:assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/jessica-rc.keystore" \
+            -Pandroid.injected.signing.store.password="$JESSICA_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$JESSICA_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$JESSICA_KEY_PASSWORD"
+          cp app/build/outputs/apk/release/app-release.apk JessicaCore-unmarked-reply-rc.apk
+          sha256sum JessicaCore-unmarked-reply-rc.apk > JessicaCore-unmarked-reply-rc.apk.sha256
+      - name: Upload signed APK candidate for optional owner-controlled installation
+        uses: actions/upload-artifact@v4
+        with:
+          name: JessicaCore-no-marker-safe-stop-signed-candidate
+          path: |
+            JessicaCore-unmarked-reply-rc.apk
+            JessicaCore-unmarked-reply-rc.apk.sha256
+          retention-days: 14
+          if-no-files-found: error
