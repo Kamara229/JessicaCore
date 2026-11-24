@@ -333,7 +333,7 @@ jobs:
       - name: Strict four-file additive research-only Z71 scope
         run: |
           set -euo pipefail
-          base=origin/research/calibri2-s119q2i8z70-GPT-cached-native-head-eight-epochs-20261124
+          base=83b402a429f27c61ce2fecec2e954988421abfe8
           git rev-parse --verify "${base}^{commit}" >/dev/null
           git diff --name-only "${base}" HEAD >/tmp/z71scope
           if grep -Fvx \
