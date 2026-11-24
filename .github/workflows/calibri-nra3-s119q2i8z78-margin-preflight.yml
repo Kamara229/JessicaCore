@@ -1,0 +1,40 @@
+name: Calibri Z78 training-only pending gold margin preflight
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z77-GPT-revived-byte-margin-20261124
+permissions:
+  contents: read
+jobs:
+  preflight:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z78-GPT-pending-gold-margin-20261124'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research:research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Strict three-file scope
+        run: |
+          set -euo pipefail
+          git diff --name-only 79bd60c0f9b4f6cc25e9a152dc993b157f9811c3 HEAD >/tmp/z78scope
+          test "$(wc -l </tmp/z78scope)" -eq 3
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z78_pending_gold_margin.py' -e 'research/calibri_nra3/test_s119q2i8z78_pending_gold_margin.py' -e '.github/workflows/calibri-nra3-s119q2i8z78-margin-preflight.yml' /tmp/z78scope; then exit 1; fi
+      - name: Install CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1'
+      - name: Test exact gradient direction, complete-state neutrality and manifest
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z78_pending_gold_margin
+          python -m research.calibri_nra3.s119q2i8z78_pending_gold_margin
