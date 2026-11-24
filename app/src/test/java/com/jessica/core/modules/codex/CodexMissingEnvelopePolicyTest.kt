@@ -3,6 +3,7 @@ package com.jessica.core.modules.codex
 import com.jessica.core.modules.codex.chat.CodexMissingEnvelopePolicy
 import com.jessica.core.modules.codex.chat.CodexMissingEnvelopePolicy.Decision
 import com.jessica.core.modules.codex.chat.ChatRunState
+import com.jessica.core.modules.codex.chat.CodexStopReason
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -78,6 +79,15 @@ class CodexMissingEnvelopePolicyTest {
             generating = false, startedMarker = false, completedEnvelope = false))
         assertEquals(Decision.STOP_UNMARKED, guard.observe(350_000L, id,
             generating = false, startedMarker = false, completedEnvelope = false))
+    }
+
+    @Test fun diagnosticStopReasonDoesNotMistakenlyReportAnUncertainSend() {
+        assertEquals("missing_reply_envelope", CodexStopReason.classify(
+            "ChatGPT сформировал ответ без проверяемых меток JESSICA_REPLY / JESSICA_END. " +
+                "Безопасно завершаю переписку без повторной отправки и без тестов."))
+        assertEquals("partial_reply_envelope", CodexStopReason.classify(
+            "Ответ ChatGPT виден лишь частично: конечная метка не подтверждена. " +
+                "Без прокрутки, повторной отправки и тестов завершаю сессию."))
     }
 
     @Test fun resettingSessionClearsEvidenceFromFormerTurn() {
