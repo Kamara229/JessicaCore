@@ -300,7 +300,7 @@ jobs:
       - name: Verify previous Z45 trained-on-legal84 LODO original43M physical result as read-only baseline
         uses: actions/download-artifact@v4
         with:
-          name: calibri-s119q2i8z49-real43m-84LEGALTRAIN-centered-promptBPE2-sevenfold-human-vs-wrong-gate0
+          name: calibri-s119q2i8z45-original43m-84LEGALTRAIN-onpolicy-BPE2-seven-domain-rank32-vs-wrong-gate0
           run-id: 45370051245
           path: inputs/s119q2i8z45
           github-token: ${{ github.token }}
@@ -330,7 +330,7 @@ jobs:
       - name: Save context-centered legal84 TRAIN source-only BPE2 shadow score, never neural weights
         uses: actions/upload-artifact@v4
         with:
-          name: calibri-s119q2i8z45-original43m-84LEGALTRAIN-onpolicy-BPE2-seven-domain-rank32-vs-wrong-gate0
+          name: calibri-s119q2i8z49-real43m-84LEGALTRAIN-centered-promptBPE2-sevenfold-human-vs-wrong-gate0
           path: results/s119q2i8z49_legalTRAIN84_ctxcentered_nativeBPE2_7fold/
           retention-days: 30
           if-no-files-found: error
