@@ -20,6 +20,7 @@ internal fun CodexChatCoordinator.startCodexSession() {
         sendPicker.close()
         lastNotice = ""
         replyCollector.reset()
+        missingEnvelopePolicy.reset()
         verifiedReplyId = ""
         verifiedReplyAnchor = ""
         invisibleSince = 0L
