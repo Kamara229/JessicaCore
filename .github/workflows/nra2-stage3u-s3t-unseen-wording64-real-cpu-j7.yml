@@ -1,18 +1,19 @@
-name: NRA2 S3U S3T novel grammar 64 genuine frozen 43M CPU original 616 J7
+name: NRA2 S3U S3T novel grammar frozen CPU and ABI-bound evidence
 'on':
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
       - research/calibri2-nra2-s3t-unseen-wording-prereg-20261114
+      - research/calibri2-nra2-s3u-newgrammar-real64-cpu-20261114
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: nra2-stage3u-frozen-s3t64-real-cpu-j7
+  group: nra2-stage3u-frozen-s3t64-real-cpu-j7-and-abi-bound
   cancel-in-progress: false
 jobs:
   nra2_true_cpu_s3t_independent64_all_tokens_frozen_layer12_616_j7:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3u-newgrammar-real64-cpu-20261114'
+    if: github.event.pull_request.head.repo.full_name == github.repository && (github.event.pull_request.head.ref == 'research/calibri2-nra2-s3u-newgrammar-real64-cpu-20261114' || github.event.pull_request.head.ref == 'research/calibri2-nra2-s3u-abi-bound-recapture-20261124')
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
@@ -482,6 +483,7 @@ jobs:
           run-id: '43527496158'
           github-token: ${{ github.token }}
       - name: "NRA2 S3U 64 unseen wording native CPU full tokens + 616 J7"
+        if: github.event.pull_request.head.ref == 'research/calibri2-nra2-s3u-newgrammar-real64-cpu-20261114'
         run: |
           python - <<'PY'
           import platform,torch
@@ -489,6 +491,44 @@ jobs:
           print("S161_NATIVE_CPU_NO_GPU_TRAINING",flush=True)
           PY
           python research/nra2_bridge/stage3u_newgrammar64_real_cpu_capture.py \
+            inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
+            inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
+            inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
+            inputs/s95/S95_PROMPT_ROUTER_STRICT_TRAIN_AUDIT.json \
+            inputs/s94/S94_ALTERNATE_EXACT_CORE_TUNNEL_BANK.bin \
+            inputs/s94/S94_PROFILE_BANK_FEASIBILITY_REPORT.json \
+            inputs/s93/S93_UNACCEPTED_SELECTED_CB61.s61 \
+            inputs/s93/S93_UNACCEPTED_SELECTED_JOINT.safetensors \
+            inputs/s99/S99_ALL456_NEW_NEURAL_COPY_PHYSICAL_TRAIN_AUDIT.json \
+            inputs/s101/S101_KV_CACHE_EXACT_S99_456_TRAIN_CPU_GUARD.json \
+            inputs/s122/S122_TRAIN_ONLY_CROSS_BINDING_CURRICULUM_REPORT.json \
+            inputs/s112/S112_MPS_GAIN_ONLY_456_CPU_GUARD_REPORT.json \
+            inputs/s126q/S126Q_UNACCEPTED_ZERO_GT12_REAL_Q2_PHYSICAL.safetensors \
+            inputs/s126q/S126Q_REAL_S101_FULL456_ZERO_GT12_REPORT.json \
+            inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s91_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s93_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            inputs/s132/S132_GROWN_43M_ZERO_NEW_CHANNELS.safetensors \
+            inputs/s132/S132_NEXT_STAGE_43M_PHYSICAL_GROWTH_REPORT.json \
+            inputs/s131/S131_UNACCEPTED_block1_check1.safetensors \
+            inputs/s142/S142_ACTUAL_43M_ONE_J7_FP16.safetensors \
+            inputs/s142/S142_ONE_J7_ACTUAL_PHYSICAL_GUARD.json \
+            inputs/s160/S160_REAL_PARALLEL_SLOT_FP16.safetensors \
+            inputs/s160/S160_REAL_PARALLEL_456_128_J7_AUDIT.json \
+            inputs/s179/S179_ORIGINAL456_SOURCE_ONLY_TRACES.json \
+            inputs/s87_full/S87_ALL_456_TRAIN_GUARD_REPORT.json \
+            results/nra2_stage3u_real64_tokens
+      - name: "NRA2 S3U ABI-bound native CPU capture with actual prefill IDs and S3O masks"
+        if: github.event.pull_request.head.ref == 'research/calibri2-nra2-s3u-abi-bound-recapture-20261124'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import platform,torch
+          assert platform.machine()=="x86_64" and not torch.cuda.is_available()
+          print("S161_NATIVE_CPU_NO_GPU_TRAINING",flush=True)
+          PY
+          python research/nra2_bridge/stage3u_abi_bound_capture.py \
             inputs/s98/S98_MPS_TRAINED_NUMERIC_OWNER_COPY_FP16.safetensors \
             inputs/s98/S98_MPS_NEURAL_COPY_FEASIBILITY_REPORT.json \
             inputs/s95/S95_PROMPT_ONLY_HASHED_NEURAL_ROUTER_FP16.safetensors \
@@ -565,11 +605,72 @@ jobs:
           print("S3U_INDEPENDENT_WORKFLOW_FP16_SHA_RELOAD_AND_TOKEN_SHAPE_PASS",flush=True)
           print("S3U_S3T_64_REAL_FROZEN_CPU_NO_SCORING_OR_TRAINING_J7_PROTECTED")
           PY
+      - name: Verify S3U actual prefill IDs, S3O masks and character-to-token spans
+        if: github.event.pull_request.head.ref == 'research/calibri2-nra2-s3u-abi-bound-recapture-20261124'
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          import torch
+          from safetensors.torch import load_file
+          base=Path("results/nra2_stage3u_real64_tokens")
+          report=json.loads((base/"NRA2_S3U_64_INDEPENDENT_REAL_CPU_AUDIT.json").read_text())
+          manifest=json.loads((base/"NRA2_S3U_QUERY_ABI_MANIFEST.json").read_text())
+          abi=load_file(str(base/"NRA2_S3U_QUERY_ABI_EVIDENCE.safetensors"),device="cpu")
+          token=load_file(str(base/"NRA2_S3U_REAL_CPU_GRAPH64_ALL_TOKENS_FP16.safetensors"),device="cpu")
+          prereg=json.loads(Path("inputs/nra2_stage3t/NRA2_S3T_NEW_GRAMMAR64_PRECOMMITTED_NO_SCORE.json").read_text())
+          prompts=json.loads((base/"NRA2_S3U_S3T_PROMPTS_EXACT_NO_LABELS.json").read_text())
+          audit=json.loads((base/"S3T_PHYSICAL_ARTIFACT_AUDIT.json").read_text())
+          sha=lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
+          assert report["all_616_token_digest_matches_S194"] is True
+          assert report["output_gate"]==0 and report["candidate_accepted"] is False
+          assert report["native_prefill_input_ids_bound_to_S3O_mask"] is True
+          assert manifest["candidate_scored"] is False and manifest["training_steps"]==0
+          assert audit["physical_zip_verified"] and audit["physical_json_verified"] and audit["canonical_commitment_verified"]
+          assert audit["s3t_zip_sha256"]=="41c3c67966d14443bd1011521b6d197e9dc22839b8581561a68f4cb6a1932cb1"
+          assert audit["s3t_inner_json_sha256"]=="537d0470912c1dbd1c630f3488661464a3aa42ed643349e00fb58db8391919f9"
+          assert prompts["prompt_sha256_in_order"]==prereg["question_sha256"]
+          assert len(prompts["prompts"])==64
+          assert [hashlib.sha256(q.encode("utf-8")).hexdigest() for q in prompts["prompts"]]==prereg["question_sha256"]
+          assert torch.equal(abi["input_ids"],token["input_ids"])
+          assert torch.equal(abi["input_id_mask"],token["input_id_mask"])
+          assert torch.equal(abi["input_id_mask"],token["token_mask"])
+          assert torch.equal(abi["token_lengths"].long(),token["token_lengths"].long())
+          assert abi["offset_mapping"].shape==(64,token["token_hidden320"].shape[1],2)
+          assert abi["query_mask"].shape==token["token_mask"].shape
+          assert abi["anchor_mask"].shape==(64,2,token["token_hidden320"].shape[1])
+          assert torch.equal(abi["node_order"],torch.tensor([x["text_order_nodes"] for x in prereg["query_char_offsets"]],dtype=torch.long))
+          for i in range(64):
+              content=int(abi["question_content_char_start"][i])
+              q0,q1=abi["query_clause_char_spans"][i].tolist()
+              offsets=abi["offset_mapping"][i].tolist()
+              expected_q=[j for j,(a,b) in enumerate(offsets) if a<content+q1 and b>content+q0]
+              assert expected_q==torch.where(abi["query_mask"][i])[0].tolist()
+              for k in range(2):
+                  c0,c1=abi["mention_char_spans"][i,k].tolist()
+                  s,e=abi["mention_token_start_end"][i,k].tolist()
+                  expected=[j for j,(a,b) in enumerate(offsets) if a<content+c1 and b>content+c0]
+                  assert expected==list(range(s,e))
+                  assert expected==torch.where(abi["anchor_mask"][i,k])[0].tolist()
+                  assert 0<=s<e<=int(token["token_lengths"][i])
+          assert report["query_abi_sidecar_sha256"]==sha(base/"NRA2_S3U_QUERY_ABI_EVIDENCE.safetensors")
+          assert report["query_abi_manifest_sha256"]==sha(base/"NRA2_S3U_QUERY_ABI_MANIFEST.json")
+          assert report["S3T_physical_audit_sha256"]==sha(base/"S3T_PHYSICAL_ARTIFACT_AUDIT.json")
+          print("S3U_ABI_BOUND_NATIVE_PREFILL_IDS_AND_S3O_OFFSETS_PASS",flush=True)
+          PY
       - name: Preserve S3U independent64 genuine CPU FP16 and pinned S194 616 J7
-        if: success()
+        if: success() && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3u-newgrammar-real64-cpu-20261114'
         uses: actions/upload-artifact@v4
         with:
           name: nra2-stage3u-real43M-s3t-novelgrammar64-tokens320-616J7
+          path: results/nra2_stage3u_real64_tokens/
+          retention-days: 90
+          if-no-files-found: error
+      - name: Preserve S3U ABI-bound actual prefill IDs and S3O masks with pinned S194 616 J7
+        if: success() && github.event.pull_request.head.ref == 'research/calibri2-nra2-s3u-abi-bound-recapture-20261124'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nra2-stage3u-abi-bound-real43M-s3t-novelgrammar64-tokenids-offsets-616J7
           path: results/nra2_stage3u_real64_tokens/
           retention-days: 90
           if-no-files-found: error
