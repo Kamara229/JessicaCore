@@ -1,0 +1,63 @@
+name: Calibri Z44 physical Z43 LEGAL84 training-only second BPE rank forensic
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z43-legalTRAIN84-onpolicy-nativecoverage-20261124
+permissions:
+  contents: read
+  actions: read
+jobs:
+  frozen-z43-report-only:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z44-pinned-TRAIN84-secondtoken-rank-audit-20261124'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pure stdlib source contracts, no original neural files
+        env:
+          PYTHONPATH: .
+        run: python -m unittest -v research.calibri_nra3.test_s119q2i8z44_train84_second_native_rank
+      - name: Load only immutable successful real 43M Z43 previous TRAIN84 JSON
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8z43-original43m-legalTRAIN84-ownprefix-vs-teacher-native-coverage-gate0
+          run-id: 45273912095
+          path: inputs/z43
+          github-token: ${{ github.token }}
+      - name: Recompute native BPE2/3/4 gold rank diagnostics from previous TRAIN only
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m research.calibri_nra3.s119q2i8z44_pinned_train84_second_native_rank_readonly \
+            --input inputs/z43/S119Q2I8Z43_REAL43M_LEGAL_TRAIN84_ONPOLICY_BPE2_3_4_VS_ARCHIVED_TEACHER_G0.json \
+            --out results/S119Q2I8Z44_SPENT_TRAIN84_SECOND_BPE_NATIVE_RANK_FORensics_G0.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-z44-readonly-previous-legalTRAIN84-native-secondBPE-rank-forensics-gate0
+          path: results/S119Q2I8Z44_SPENT_TRAIN84_SECOND_BPE_NATIVE_RANK_FORensics_G0.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: No original model, source or production modifications
+        run: |
+          set -euo pipefail
+          base=origin/research/calibri2-s119q2i8z43-legalTRAIN84-onpolicy-nativecoverage-20261124
+          git rev-parse --verify "${base}^{commit}" >/dev/null
+          git diff --name-only "${base}" HEAD >/tmp/z44scope
+          if grep -Fvx \
+            -e 'research/calibri_nra3/s119q2i8z44_pinned_train84_second_native_rank_readonly.py' \
+            -e 'research/calibri_nra3/test_s119q2i8z44_train84_second_native_rank.py' \
+            -e '.github/workflows/calibri-nra3-s119q2i8z44-rank-only.yml' /tmp/z44scope; then
+            echo 'Forbidden changes outside isolated Z44 research-only files' >&2
+            exit 1
+          fi
+          test "$(wc -l </tmp/z44scope)" -eq 3
