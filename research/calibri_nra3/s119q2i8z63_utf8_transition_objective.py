@@ -42,7 +42,12 @@ def advance(pending,piece):
     dec.setstate((pending,0))
     try:
         dec.decode(piece,final=False)
-        return dec.getstate()[0]
+        tail=dec.getstate()[0]
+        # CPython buffers ED A0..BF until a third byte, though no legal
+        # Unicode scalar can follow. Reject the irrecoverable surrogate prefix.
+        if len(tail)>=2 and tail[0]==0xED and tail[1]>=0xA0:
+            return None
+        return tail
     except UnicodeDecodeError:
         return None
 def allowed_mask(pieces,pending,eos):
