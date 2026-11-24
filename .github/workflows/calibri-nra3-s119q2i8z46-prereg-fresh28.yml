@@ -1,0 +1,54 @@
+name: Calibri Z46 prereg 28 new RU DEV source only no model or scoring
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z45-TRAIN84-onpolicy-domainholdout-bpe2-20261124
+permissions:
+  contents: read
+jobs:
+  precommit_new28_no_DEV_scoring:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z46-prereg-fresh28-native-BPE2-diversity-20261124'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Strict 3-file source-only prereg diff before any DEV physical action
+        run: |
+          set -euo pipefail
+          base=origin/research/calibri2-s119q2i8z45-TRAIN84-onpolicy-domainholdout-bpe2-20261124
+          git rev-parse --verify "${base}^{commit}" >/dev/null
+          git diff --name-only "${base}" HEAD >/tmp/z46scope
+          if grep -Fvx \
+            -e 'research/calibri_nra3/s119q2i8z46_fresh28_onpolicy_bpe2_preregister.py' \
+            -e 'research/calibri_nra3/test_s119q2i8z46_new28_prereg.py' \
+            -e '.github/workflows/calibri-nra3-s119q2i8z46-prereg-fresh28.yml' /tmp/z46scope; then
+            echo 'Only source-level new DEV prereg; no production or neural weights' >&2
+            exit 1
+          fi
+          test "$(wc -l </tmp/z46scope)" -eq 3
+      - name: Install minimal Python CPU dependencies for previous public source import
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'transformers==4.46.3' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3'
+      - name: Verify exact prereg disjointness, split lock, shadow config, entropy gate0
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z46_new28_prereg
+          python - <<'PY'
+          import json
+          from research.calibri_nra3.s119q2i8z46_fresh28_onpolicy_bpe2_preregister import verify
+          result=verify()
+          assert result["candidate_accepted"] is False and result["output_gate"]==0
+          print("S119Q2I8Z46_PRECOMMITTED_NEW28_SOURCE_ONLY",json.dumps(result,ensure_ascii=False,sort_keys=True),flush=True)
+          PY
