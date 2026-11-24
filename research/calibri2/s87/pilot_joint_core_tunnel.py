@@ -24,6 +24,7 @@ from binary_geometry_v64 import MODEL, MODEL_SHA
 from direct_codebook_v59 import CB59
 from calibri2.s0.bootstrap import build_config
 from calibri2.s0.train import create_small_paid_model
+from calibri2.s56 import paid_first_token_rank2_while_preserving_s54 as s56
 from calibri2.s8.broad_replay import SOURCE_BYTES, SOURCE_PARAMS, MODEL_SPEC
 from calibri2.s30 import matched_dense_fp32_train as s30
 from calibri2.s65 import train_only_new_rank116_and_guard_old as s65
