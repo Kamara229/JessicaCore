@@ -1,0 +1,46 @@
+name: Calibri Z106 read-only TRAIN48 word forensics
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z105-GPT-terminal-transfer-physical-20261125
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z106-GPT-train-word-forensics-20261125'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Strict additive scope and tests
+        run: |
+          set -euo pipefail
+          git diff --name-only 7570edc221071aadf95342830068e9c7365fd9c6 HEAD >/tmp/z106scope
+          test "$(wc -l </tmp/z106scope)" -eq 3
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z106_train_word_forensics.py' -e 'research/calibri_nra3/test_s119q2i8z106_train_word_forensics.py' -e '.github/workflows/calibri-nra3-s119q2i8z106-train-word-forensics.yml' /tmp/z106scope; then exit 1; fi
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z106_train_word_forensics
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8z103-GPT-terminal-balance-FP16-G0
+          run-id: 45486685533
+          path: inputs/z103
+          github-token: ${{ github.token }}
+      - name: Offline TRAIN48 only no decoder calls
+        run: python -m research.calibri_nra3.s119q2i8z106_train_word_forensics --input inputs/z103 --out results/z106/report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-z106-train-word-forensics-G0
+          path: results/z106/
+          if-no-files-found: error
+          retention-days: 30
