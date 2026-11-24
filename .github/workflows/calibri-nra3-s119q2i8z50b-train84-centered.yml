@@ -337,7 +337,7 @@ jobs:
       - name: Strict four-file additive isolated research-only Z50B scope
         run: |
           set -euo pipefail
-          base=origin/research/calibri2-s119q2i8z48-readonly-spent28-BPE2-diversity-failure-20261124
+          base=origin/research/calibri2-s119q2i8z49-train84-context-centered-BPE2-20261124
           git rev-parse --verify "${base}^{commit}" >/dev/null
           git diff --name-only "${base}" HEAD >/tmp/z50bscope
           if grep -Fvx \
