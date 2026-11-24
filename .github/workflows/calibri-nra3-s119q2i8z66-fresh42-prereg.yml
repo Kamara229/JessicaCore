@@ -1,0 +1,40 @@
+name: Calibri Z66 GPT paired fresh42 source-only preregistration
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z65-GPT-stable-gates-UTF8-AB-20261124
+permissions:
+  contents: read
+jobs:
+  prereg:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z66-GPT-fresh42-paired-prereg-20261124'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research:research/calibri
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Strict source-only scope
+        run: |
+          set -euo pipefail
+          git diff --name-only origin/research/calibri2-s119q2i8z65-GPT-stable-gates-UTF8-AB-20261124 HEAD >/tmp/z66scope
+          test "$(wc -l </tmp/z66scope)" -eq 3
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z66_gpt_paired_eval_prereg.py' -e 'research/calibri_nra3/test_s119q2i8z66_gpt_paired_eval_prereg.py' -e '.github/workflows/calibri-nra3-s119q2i8z66-fresh42-prereg.yml' /tmp/z66scope; then exit 1; fi
+      - name: Install source import dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'transformers==4.46.3' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3'
+      - name: Verify disjointness and preregister paired full-answer metrics
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z66_gpt_paired_eval_prereg
+          python -m research.calibri_nra3.s119q2i8z66_gpt_paired_eval_prereg
