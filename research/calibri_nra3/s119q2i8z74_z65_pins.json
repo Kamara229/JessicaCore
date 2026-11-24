@@ -1,0 +1,15 @@
+{
+  "run_id": 45435892186,
+  "conclusion": "success",
+  "head_sha": "b80cb13b4d056a716be3fb5f55c34a2cd82836ff",
+  "weights": {
+    "FULL_CE_PLUS_GPT_PAIR_EOS": {
+      "joint": "464cdafda5a4e2b82d477fef26b45f38f160421272627c740f92ba92eb9a69ec",
+      "GT12": "81814c9bac1d7779aca90689849b398d74ae7b4633c0f0521e89a0c770c2b642"
+    },
+    "FULL_CE_PLUS_GPT_PAIR_EOS_UTF8": {
+      "joint": "aa2e215bee0b388e275bf84a98959428995dc1d3009409acc18c88dafb24e908",
+      "GT12": "5f6d518991ce0e9fa6cf5ededd3cb0775288ac54b7c4d439cb0c00d838dec076"
+    }
+  }
+}
