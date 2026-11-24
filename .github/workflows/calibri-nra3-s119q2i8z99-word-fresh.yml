@@ -1,0 +1,41 @@
+name: Calibri Z99 fresh word transfer preregistration
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z98-GPT-micro-context-transfer-20261124
+permissions:
+  contents: read
+jobs:
+  preflight:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z99-GPT-word-fresh-prereg-20261124'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research:research/calibri
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Strict additive scope
+        run: |
+          set -euo pipefail
+          git diff --name-only 91415081507eeb7f98c23d464947ab050e180bc7 HEAD >/tmp/z99scope
+          test "$(wc -l </tmp/z99scope)" -eq 3
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z99_word_fresh_prereg.py' -e 'research/calibri_nra3/test_s119q2i8z99_word_fresh_prereg.py' -e '.github/workflows/calibri-nra3-s119q2i8z99-word-fresh.yml' /tmp/z99scope; then exit 1; fi
+      - name: Install tokenizer dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Verify source disjointness and native budget without model calls
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z99_word_fresh_prereg
+          python -m research.calibri_nra3.s119q2i8z99_word_fresh_prereg
