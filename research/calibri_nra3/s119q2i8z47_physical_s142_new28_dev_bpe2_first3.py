@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import hashlib
 from collections import Counter
 import time
 from pathlib import Path
@@ -72,6 +73,8 @@ from research.calibri_nra3.s119q2d_deeper_joint_native_answer_training import OL
 from safetensors.torch import load_file
 from research.calibri_nra3.s119q2g_fresh_own_token_source import normalized
 from research.calibri_nra3.s119q2i1_real43m_ru_language_head_joint_training import real_joint_native
+from research.calibri_nra3.s119l_real_native_autoregressive_shadow_generation import strict_chat_source_ids
+from research.calibri_nra3.s119n_real43m_onpath_autoregressive_sixprompts import prompt_features
 from research.calibri_nra3.s119q2i5_real43m_own_vs_gold_utf8_sequence import (
     native_bytelevel_full_utf8_status,first_divergence,
 )
@@ -187,6 +190,44 @@ def pack_z9_author_native(tok,row,*,split):
     item["tokenizer"]=tok
     item["eos_native_id"]=int(tok.eos_token_id)
     return item
+
+
+def pack_first3_native_dev(tok,row):
+    """Z46 source SHA stays fixed; score ONLY true native first3.
+
+    Historic full-answer training helper limits answers to 47 native BPE
+    because that helper TEACHER-FORCES EVERY answer and EOS. Here DEV
+    answers are NEVER inputs; we only read original native gold first3
+    POSTHOC. Therefore preserve the *whole authored answer* untruncated
+    for verification and scoring, without imposing train-only EOS limits.
+    """
+    check(row["split"]=="DEV" and row["origin"]==
+          "original_newly_authored_examples_no_third_party_corpus",
+          "only Z46 prereg new DEV no previous spent or TRAIN")
+    prefix=strict_chat_source_ids(tok,row["prompt"])
+    chat=tok.apply_chat_template(
+        [{"role":"user","content":row["prompt"]}],
+        tokenize=False,add_generation_prompt=True)
+    expected=tok.encode(chat+row["completion"],add_special_tokens=False)
+    check(expected[:len(prefix)]==prefix and len(expected)>len(prefix),
+          "original native chat causal prompt BPE exactly matches full answer")
+    gold=list(expected[len(prefix):])
+    check(len(gold)>=3 and all(type(x) is int and
+          0<=x<tok.vocab_size for x in gold) and
+          tok.eos_token_id not in gold and
+          len(prefix)+3<160 and
+          tok.decode(gold,skip_special_tokens=True).strip()==
+              row["completion"].strip(),
+          "full original 49152 native authored answer intact, first3 within 160 token context; no fabricated EOS")
+    return {
+        "id":row["id"],"kind":row["kind"],
+        "split":"DEV","prefix":prefix,
+        "prompt_sha256":hashlib.sha256(
+            row["prompt"].encode("utf8")).hexdigest(),
+        "answer_native_with_eos":gold+[int(tok.eos_token_id)],
+        "answer_native_without_eos":gold,
+        "prompt_features":prompt_features(tok,row["prompt"]),
+    }
 
 
 def eval_own_gain(tok,model,sources,bridge,full,expansion,child,gt,dev,
@@ -374,7 +415,7 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
               "Z46 prereg authored new28 only, no previously SPENT DEV")
         item=dict(authored)
         item["origin"]="original_newly_authored_examples_no_third_party_corpus"
-        row=verified_native_answer(tok,item)
+        row=pack_first3_native_dev(tok,item)
         check(row["split"]=="DEV"
               and tok.decode(row["answer_native_without_eos"],
                              skip_special_tokens=True)==authored["completion"]
