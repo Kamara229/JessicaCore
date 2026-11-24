@@ -347,12 +347,30 @@ def main():
         encoding="utf-8",
     )
 
-    token_data["input_ids"] = input_ids
-    token_data["input_id_mask"] = input_id_mask
-    save_file({k: v.contiguous() for k, v in token_data.items()}, str(token_file))
-    token_reloaded = load_file(str(token_file), device="cpu")
-    if any(not torch.equal(token_reloaded[k], v) for k, v in token_data.items()):
-        raise AssertionError("S3U token/ID physical reload mismatch")
+    # safetensors load_file may retain mmap-backed storage. Never truncate
+    # the source file while any of its tensors are still mapped.
+    original_token_file_sha256 = sha256_file(token_file)
+    token_data = {k: v.detach().cpu().contiguous().clone() for k, v in token_data.items()}
+    token_data["input_ids"] = input_ids.clone()
+    token_data["input_id_mask"] = input_id_mask.clone()
+    staged_token_file = token_file.with_suffix(".staged.safetensors")
+    save_file(token_data, str(staged_token_file))
+    token_reloaded = load_file(str(staged_token_file), device="cpu")
+    if set(token_reloaded) != set(token_data):
+        raise AssertionError("S3U token/ID physical reload key mismatch")
+    for k, v in token_data.items():
+        actual = token_reloaded[k]
+        if (actual.dtype != v.dtype or actual.shape != v.shape
+                or not torch.equal(actual, v)
+                or not torch.equal(actual.contiguous().reshape(-1).view(torch.uint8),
+                                   v.reshape(-1).view(torch.uint8))):
+            raise AssertionError(f"S3U token/ID physical reload mismatch: {k}")
+    if sha256_file(token_file) != original_token_file_sha256:
+        raise AssertionError("S3U original token file changed before atomic replacement")
+    staged_sha256 = sha256_file(staged_token_file)
+    os.replace(staged_token_file, token_file)
+    if sha256_file(token_file) != staged_sha256:
+        raise AssertionError("S3U atomic token file replacement SHA mismatch")
 
     abi_tensors = {
         "input_ids": input_ids.contiguous(),
@@ -399,6 +417,7 @@ def main():
         "tokenizer_backend_sha256": actual_tokenizer["backend_sha256"],
         "actual_prefill_ids_bound_to_native_tokenizer": True,
         "actual_prefill_ids_bound_to_S3O_mask": True,
+        "original_token_file_sha256": original_token_file_sha256,
         "token_file_sha256": sha256_file(token_file),
         "sidecar_sha256": sha256_file(sidecar_file),
         "tensor_schema": {
