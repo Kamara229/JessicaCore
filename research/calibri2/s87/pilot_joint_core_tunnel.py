@@ -116,6 +116,28 @@ def main():
     ptr = _pointer(weights)
     before = {i: _original_cpu(cpu, cpu_src, weights, tok, r["question"], ptr)
               for i, r in enumerate(old_rows+new_rows)}
+    # Establish immutable full-answer protection from the authorized cohort.
+    from calibri2.s87.guard_all_456_full_cpu import families
+    protected = {}
+    cohort_ids = set()
+    baseline_start = time.perf_counter()
+    for family, family_pairs in families(tok).items():
+        for pair in family_pairs:
+            for side in ("left", "right"):
+                row = pair[side]
+                identity = (family, pair["pair_id"], side)
+                if identity in cohort_ids:
+                    raise AssertionError("Duplicate TRAIN identity")
+                cohort_ids.add(identity)
+                gold = tok.encode(row["answer"], add_special_tokens=False) + [tok.eos_token_id]
+                actual = _original_cpu(cpu, cpu_src, weights, tok, row["question"], ptr)
+                if actual == gold:
+                    protected[identity] = (row["question"], gold)
+    if len(cohort_ids) != 456 or not protected:
+        raise AssertionError("Invalid protected TRAIN baseline")
+    print(json.dumps({"event":"S87_FULL_REPLAY_BASELINE", "identities":len(cohort_ids),
+                      "protected_full":len(protected),
+                      "seconds":time.perf_counter()-baseline_start}), flush=True)
     integrated_cpu = IntegratedGreenTunnel(layers=TUNNEL_LAYERS,
                                             rank=TUNNEL_RANK).eval()
     integrated_cpu.install(cpu)
@@ -162,8 +184,8 @@ def main():
                         for row in old_rows + new_rows]
         # Transactional TRAIN-only preflight: validate the actual repacked
         # CB59 candidate on CPU after EACH MPS update, before accepting Adam.
-        # This guards eight pilot identities only. The independent 456-TRAIN
-        # replay is still required before any scientific acceptance.
+        # Guard every baseline-correct full TRAIN identity plus pilot first tokens.
+        # The independent 456-TRAIN audit remains mandatory.
         def pilot_post_step_guard():
             from v176.operators import clear
             clear(sources)
@@ -191,6 +213,14 @@ def main():
                     ):
                         raise AssertionError(
                             f"Transactional pilot TRAIN identity regression at row {i}")
+                replay_start = time.perf_counter()
+                for identity, (question, gold) in protected.items():
+                    actual = _original_cpu(cpu_probe, probe_sources, weights, tok, question, ptr)
+                    if actual != gold:
+                        raise AssertionError(f"Protected full TRAIN regression: {identity}")
+                print(json.dumps({"event":"S87_TRANSACTION_FULL_REPLAY",
+                                  "protected_full":len(protected),
+                                  "seconds":time.perf_counter()-replay_start}), flush=True)
             finally:
                 probe_inner.uninstall()
                 del cpu_probe, probe_sources
