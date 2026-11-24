@@ -86,6 +86,9 @@ class JointStep:
     nonzero_core_gradient_tensors: int
     nonzero_tunnel_gradient_tensors: int
     zero_tunnel_gradient_tensors: tuple[str, ...]
+    supervised_example_count: int
+    protected_replay_count: int
+    protected_replay_weight: float
 
 
 def select_paid_core_codebooks(sources: dict, target_layers=(3, 9)):
@@ -129,7 +132,8 @@ def teacher_forced_train_loss(model, tok, question: str, answer: str,
 
 
 def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
-                     selected_codebooks, tok, examples, optimizer, *, post_step_guard=None,
+                     selected_codebooks, tok, examples, optimizer, *,
+                     replay_examples=(), replay_weight=0.5, post_step_guard=None,
                      require_deep_tunnel_gradients=False) -> JointStep:
     """One MPS joint gradient step through CB59 dictionaries AND internal tunnel.
 
@@ -138,8 +142,14 @@ def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
     """
     if not torch.backends.mps.is_available():
         raise RuntimeError("Real MPS GPU is required")
+    examples = list(examples)
+    replay_examples = list(replay_examples)
     if not examples:
-        raise ValueError("TRAIN examples are required")
+        raise ValueError("New ChatGPT-authored TRAIN examples are required")
+    if replay_examples and not 0.0 < replay_weight < 1.0:
+        raise ValueError("Protected replay weight must be strictly between zero and one")
+    if not replay_examples:
+        replay_weight = 0.0
     if not callable(post_step_guard):
         raise ValueError("Transactional post-step TRAIN guard is mandatory")
     if any(p.device.type != "mps" for p in tunnel.parameters()):
@@ -148,16 +158,31 @@ def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
         raise AssertionError("Selected core dictionaries are not on MPS GPU")
     clear(sources)
     optimizer.zero_grad(set_to_none=True)
-    losses = []
+    # Backpropagate each normalized example immediately. This is exact
+    # gradient accumulation for the weighted mean objective, while releasing
+    # every sequence graph before the next forward pass.
+    loss_terms = []
+    groups = (
+        [(examples, 1.0)] if not replay_examples else
+        [(examples, 1.0 - replay_weight), (replay_examples, replay_weight)]
+    )
     try:
-        for question, gold_answer in examples:
-            clear(sources)
-            losses.append(teacher_forced_train_loss(
-                model, tok, question, gold_answer))
-        loss = torch.stack(losses).mean()
-        if not torch.isfinite(loss):
-            raise AssertionError("Nonfinite joint objective")
-        loss.backward()
+        for group, group_weight in groups:
+            if not group:
+                continue
+            per_example_weight = group_weight / len(group)
+            for question, gold_answer in group:
+                clear(sources)
+                example_loss = teacher_forced_train_loss(
+                    model, tok, question, gold_answer)
+                if not bool(torch.isfinite(example_loss.detach()).all().item()):
+                    raise AssertionError("Nonfinite per-example joint objective")
+                loss_terms.append(example_loss.detach() * per_example_weight)
+                (example_loss * per_example_weight).backward()
+                del example_loss
+        loss = torch.stack(loss_terms).sum()
+        if not bool(torch.isfinite(loss).item()):
+            raise AssertionError("Nonfinite accumulated joint objective")
         core = [s.centroids for s in selected_codebooks.values()]
         side = list(tunnel.parameters())
         if any(p.grad is None for p in core + side):
@@ -207,8 +232,9 @@ def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
                     p.copy_(old)
             optimizer.load_state_dict(optimizer_snapshot)
             raise
-        return JointStep(float(loss.detach()), core_norm, tunnel_norm,
+        return JointStep(float(loss.detach().cpu()), core_norm, tunnel_norm,
                          len(selected_codebooks), nonzero_core, nonzero_tunnel,
-                         zero_tunnel)
+                         zero_tunnel, len(examples), len(replay_examples),
+                         float(replay_weight))
     finally:
         clear(sources)

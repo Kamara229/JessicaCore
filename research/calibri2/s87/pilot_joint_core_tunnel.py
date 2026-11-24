@@ -31,6 +31,7 @@ from calibri2.s78 import mps_36m_feature_cached_late_rank16_restoration as s78
 from calibri2.s82 import real_mps_generic_token_context_copy as s82
 from calibri2.s87.internal_green_tunnel import (
     IntegratedGreenTunnel, select_paid_core_codebooks, joint_train_step)
+from calibri2.s87.chatgpt_authored_train import build_chatgpt_train
 from v185.codec import replace_discrete
 
 SEED = 870087
@@ -132,12 +133,54 @@ def main():
                 gold = tok.encode(row["answer"], add_special_tokens=False) + [tok.eos_token_id]
                 actual = _original_cpu(cpu, cpu_src, weights, tok, row["question"], ptr)
                 if actual == gold:
-                    protected[identity] = (row["question"], gold)
+                    protected[identity] = {
+                        "question": row["question"],
+                        "answer": row["answer"],
+                        "gold_ids": gold,
+                    }
     if len(cohort_ids) != 456 or not protected:
         raise AssertionError("Invalid protected TRAIN baseline")
     print(json.dumps({"event":"S87_FULL_REPLAY_BASELINE", "identities":len(cohort_ids),
                       "protected_full":len(protected),
                       "seconds":time.perf_counter()-baseline_start}), flush=True)
+
+    # ChatGPT is the sole author/teacher for this new TRAIN-only material.
+    # No FP32-135M response, logit, probability, hidden state, score or
+    # pseudo-label enters this corpus or the objective.
+    chatgpt_train = build_chatgpt_train(tok, max_new_tokens=s56.MAX_NEW)
+    new_training_examples = [
+        (row["question"], row["answer"]) for row in chatgpt_train
+    ]
+    protected_replay_examples = [
+        (record["question"], record["answer"])
+        for _identity, record in sorted(protected.items())
+    ]
+    new_question_set = {row["question"] for row in chatgpt_train}
+    replay_question_set = {question for question, _answer in protected_replay_examples}
+    if len(new_training_examples) != 64 or len(protected_replay_examples) != len(protected):
+        raise AssertionError("S87 new TRAIN or protected replay cohort is incomplete")
+    if new_question_set & replay_question_set:
+        raise AssertionError("New ChatGPT TRAIN prompts overlap protected replay")
+    new_train_before = {}
+    for row in chatgpt_train:
+        new_train_before[row["train_id"]] = _original_cpu(
+            cpu, cpu_src, weights, tok, row["question"], ptr)
+    new_train_payload_sha = sha(json.dumps(
+        chatgpt_train, ensure_ascii=False, sort_keys=True,
+        separators=(",", ":")).encode("utf-8"))
+    protected_identity_sha = sha(json.dumps(
+        [list(identity) for identity in sorted(protected)],
+        ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+    print(json.dumps({
+        "event": "S87_CHATGPT_TRAIN_AND_PROTECTED_REPLAY_READY",
+        "new_chatgpt_full_response_rows": len(new_training_examples),
+        "new_tasks": len({row["task_id"] for row in chatgpt_train}),
+        "formulations_per_task": 4,
+        "protected_full_replay_rows": len(protected_replay_examples),
+        "protected_identity_sha256": protected_identity_sha,
+        "new_train_material_sha256": new_train_payload_sha,
+        "FP32_135M_teacher_used": False,
+    }), flush=True)
     integrated_cpu = IntegratedGreenTunnel(layers=TUNNEL_LAYERS,
                                             rank=TUNNEL_RANK).eval()
     integrated_cpu.install(cpu)
@@ -152,11 +195,17 @@ def main():
     try:
         unchanged = {i: _original_cpu(cpu, cpu_src, weights, tok, r["question"], ptr)
                      for i, r in enumerate(old_rows+new_rows)}
+        unchanged_new_train = {
+            row["train_id"]: _original_cpu(cpu, cpu_src, weights, tok, row["question"], ptr)
+            for row in chatgpt_train
+        }
     finally:
         for handle in zero_handles:
             handle.remove()
     if before != unchanged:
         raise AssertionError("Zero-initialized internal tunnel modified old S82 outputs")
+    if new_train_before != unchanged_new_train:
+        raise AssertionError("Zero-initialized internal tunnel changed ChatGPT TRAIN outputs")
     if any(count == 0 for count in zero_forward_calls.values()):
         raise AssertionError(f"Integrated Green Tunnel was bypassed: {zero_forward_calls}")
     integrated_cpu.uninstall()
@@ -170,22 +219,16 @@ def main():
     parameters = [src.centroids for src in paid_core.values()] + list(inner.parameters())
     optimizer = torch.optim.Adam(parameters, lr=0.0005)
     steps = []
+    rejected_steps = []
     for step in range(a.steps):
-        # Step 1 preserves the original bounded feasibility protocol.
-        # Step 2 replays ALL eight authorized pilot TRAIN rows rather than
-        # training on two fresh rows while silently forgetting step 1.
-        # This is NOT the full 456-identity protected replay required for
-        # scientific acceptance; the independent CPU guard remains mandatory.
-        if step == 0:
-            examples = [(old_rows[0]["question"], old_rows[0]["answer"]),
-                        (new_rows[0]["question"], new_rows[0]["answer"])]
-        else:
-            examples = [(row["question"], row["answer"])
-                        for row in old_rows + new_rows]
-        # Transactional TRAIN-only preflight: validate the actual repacked
-        # CB59 candidate on CPU after EACH MPS update, before accepting Adam.
-        # Guard every baseline-correct full TRAIN identity plus pilot first tokens.
-        # The independent 456-TRAIN audit remains mandatory.
+        # Every step sees all 64 ChatGPT-authored complete-sentence targets
+        # and the exact baseline-correct 456-TRAIN replay identities.
+        examples = new_training_examples
+        replay_examples = protected_replay_examples
+
+        # Repack and replay the actual compact CPU candidate after each update.
+        # Any identity regression rejects this Adam step and rolls back both
+        # the paid centroids and Adam moments.
         def pilot_post_step_guard():
             from v176.operators import clear
             clear(sources)
@@ -214,24 +257,53 @@ def main():
                         raise AssertionError(
                             f"Transactional pilot TRAIN identity regression at row {i}")
                 replay_start = time.perf_counter()
-                for identity, (question, gold) in protected.items():
-                    actual = _original_cpu(cpu_probe, probe_sources, weights, tok, question, ptr)
-                    if actual != gold:
+                for identity, record in protected.items():
+                    actual = _original_cpu(
+                        cpu_probe, probe_sources, weights, tok,
+                        record["question"], ptr)
+                    if actual != record["gold_ids"]:
                         raise AssertionError(f"Protected full TRAIN regression: {identity}")
                 print(json.dumps({"event":"S87_TRANSACTION_FULL_REPLAY",
                                   "protected_full":len(protected),
+                                  "protected_identity_sha256":protected_identity_sha,
                                   "seconds":time.perf_counter()-replay_start}), flush=True)
             finally:
                 probe_inner.uninstall()
                 del cpu_probe, probe_sources
-        report = joint_train_step(student, sources, inner, paid_core, tok,
-                                  examples, optimizer,
-                                  post_step_guard=pilot_post_step_guard,
-                                  require_deep_tunnel_gradients=(step == 1))
+
+        try:
+            report = joint_train_step(
+                student, sources, inner, paid_core, tok,
+                examples, optimizer,
+                replay_examples=replay_examples,
+                replay_weight=0.5,
+                post_step_guard=pilot_post_step_guard,
+                require_deep_tunnel_gradients=(step == 1))
+        except Exception as exc:
+            if not steps:
+                raise
+            rejection = {
+                "step": step + 1,
+                "reason": f"{type(exc).__name__}: {exc}",
+                "rolled_back_to_last_accepted_state": True,
+            }
+            rejected_steps.append(rejection)
+            print(json.dumps({
+                "event": "S87_STEP_REJECTED_KEEP_LAST_ACCEPTED",
+                **rejection,
+                "accepted_steps": len(steps),
+            }), flush=True)
+            break
         steps.append(report.__dict__)
-        print(json.dumps({"event":"S87_REAL_MPS_JOINT_TRAIN_STEP",
-                          "step":step+1, "train_replay_rows":len(examples),
-                          **report.__dict__}), flush=True)
+        print(json.dumps({
+            "event": "S87_REAL_MPS_JOINT_TRAIN_STEP",
+            "step": step + 1,
+            "new_chatgpt_train_rows": len(examples),
+            "protected_replay_rows": len(replay_examples),
+            **report.__dict__,
+        }), flush=True)
+    if not steps:
+        raise AssertionError("S87 produced no transactionally accepted MPS step")
     inner.uninstall()
     inner.to("cpu")
     student.to("cpu")
@@ -285,6 +357,46 @@ def main():
             "original_full": prior_full, "new_full": now_full,
             "original_first": prior_first, "new_first": now_first,
         }
+
+    chatgpt_train_results = []
+    for row in chatgpt_train:
+        generated = s82.full_cpu_generate(
+            cpu_joint, joint_sources, cpu_first, cpu_later, cpu_head,
+            tok, row["question"], ptr)
+        expected = tok.encode(row["answer"], add_special_tokens=False) + [tok.eos_token_id]
+        previous = new_train_before[row["train_id"]]
+        chatgpt_train_results.append({
+            "train_id": row["train_id"],
+            "task_id": row["task_id"],
+            "formulation": row["formulation"],
+            "question_sha256": sha(row["question"].encode("utf-8")),
+            "expected_ids_with_eos": expected,
+            "S82_before_ids": previous,
+            "joint_compressed_CPU_ids": generated,
+            "before_full_correct": previous == expected,
+            "after_full_correct": generated == expected,
+        })
+    chatgpt_train_summary = {
+        "rows": len(chatgpt_train_results),
+        "tasks": len({row["task_id"] for row in chatgpt_train_results}),
+        "formulations_per_task": 4,
+        "baseline_full_correct": sum(row["before_full_correct"] for row in chatgpt_train_results),
+        "candidate_full_correct": sum(row["after_full_correct"] for row in chatgpt_train_results),
+        "gained_full": sum(
+            row["after_full_correct"] and not row["before_full_correct"]
+            for row in chatgpt_train_results),
+        "lost_full": sum(
+            row["before_full_correct"] and not row["after_full_correct"]
+            for row in chatgpt_train_results),
+        "evaluation_split": "TRAIN_ONLY_NOT_INDEPENDENT_QA",
+        "fp32_135m_teacher_or_outputs_used": False,
+    }
+    (a.out/"S87_CHATGPT_TRAIN_FULL_TOKEN_RESULTS.json").write_text(
+        json.dumps({
+            "dataset_sha256": new_train_payload_sha,
+            "summary": chatgpt_train_summary,
+            "identities": chatgpt_train_results,
+        }, ensure_ascii=False, indent=2))
     joint_inner.uninstall()
     # Fail closed before publishing a prototype: per-identity pilot TRAIN
     # regressions are a rejection, not merely diagnostic report fields.
@@ -318,6 +430,20 @@ def main():
         "never_promote_unchecked_candidate":True,
         "GPU_training_real":True,
         "actual_gradients":steps,
+        "rejected_steps_after_last_accepted":rejected_steps,
+        "chatgpt_authored_new_train_material_sha256":new_train_payload_sha,
+        "chatgpt_authored_new_train_rows":len(chatgpt_train),
+        "chatgpt_authored_new_train_tasks":len({row["task_id"] for row in chatgpt_train}),
+        "chatgpt_authored_formulations_per_task":4,
+        "chatgpt_train_full_token_summary":chatgpt_train_summary,
+        "protected_full_train_replay_rows":len(protected_replay_examples),
+        "protected_full_train_identity_sha256":protected_identity_sha,
+        "joint_objective_uses_protected_replay":True,
+        "joint_objective_replay_weight":0.5,
+        "streaming_gradient_accumulation_without_retained_example_graphs":True,
+        "FP32_135M_teacher_used":False,
+        "FP32_135M_outputs_logits_probabilities_hidden_states_or_scores_used":False,
+        "historical_S82_weights_certified_free_of_prior_distillation":False,
         "small_8_TRAIN_actual_serialized_CPU_outputs":after_native,
         "pilot_8_TRAIN_lost_full_correct":protected_lost_full,
         "pilot_8_TRAIN_lost_first_correct":protected_lost_first,
