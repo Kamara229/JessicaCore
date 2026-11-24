@@ -1,0 +1,55 @@
+name: Calibri Z62 TRAIN42 byte-level error forensics existing artifact only
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z60-GPT-pair-native-objective-20261124
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z62-GPT-TRAIN42-UTF8-forensics-20261124'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research:research/calibri
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Strict source-only scope
+        run: |
+          set -euo pipefail
+          git diff --name-only origin/research/calibri2-s119q2i8z60-GPT-pair-native-objective-20261124 HEAD >/tmp/z62scope
+          test "$(wc -l </tmp/z62scope)" -eq 3
+          if grep -Fvx -e 'research/calibri_nra3/s119q2i8z62_utf8_train_forensics.py' -e 'research/calibri_nra3/test_s119q2i8z62_utf8_train_forensics.py' -e '.github/workflows/calibri-nra3-s119q2i8z62-utf8-train-forensics.yml' /tmp/z62scope; then exit 1; fi
+      - name: Install source/tokenizer dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - name: Download actual Z58 frozen TRAIN42 diagnostic only
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8z58-GPT-TRAIN42-loss-audit-G0
+          run-id: 45430648536
+          path: input
+          github-token: ${{ github.token }}
+      - name: Classify existing native predictions, never load a model
+        run: |
+          python -m unittest -v research.calibri_nra3.test_s119q2i8z62_utf8_train_forensics
+          python -m research.calibri_nra3.s119q2i8z62_utf8_train_forensics --report input/S119Q2I8Z58_GPT_TRAIN42_LEARNING_AUDIT.json --out results/Z62_TRAIN42_UTF8_FORENSICS.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-z62-train42-byte-forensics-G0
+          path: results/
+          retention-days: 30
+          if-no-files-found: error
