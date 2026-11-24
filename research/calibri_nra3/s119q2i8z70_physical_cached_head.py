@@ -510,6 +510,11 @@ def run(s93,side,s142,q2d_dir,q2f_dir,q2i1_dir,q2i3_dir,q2i7_dir,q2i8a_dir,
             fit=full_saved_child(child_path,saved[arm]["joint"],parent)
             gt=full_saved_gt(gt_path,saved[arm]["GT12"])
             check(torch.equal(gt,parent_gt) and saved[arm]["GT12"]["sha256"]==GT_SHA,"exact preserved physical GT12 sidecar")
+            # Reloaded head-only fit has its body requires_grad=False.
+            # Restore the standard differentiable forward contract only;
+            # read-only audit has no optimizer and no backward.
+            from research.calibri_nra3.s119q2i3_real_joint_gt_nra3_npa1_head import make_joint_trainable
+            make_joint_trainable(fit)
             fit_before={k:v.detach().cpu().clone() for k,v in fit.state_dict().items()}
             model.model.nra3_s119m_onpath=fit
             set_gt_route(full,"GT_RECURRENT",gt)
