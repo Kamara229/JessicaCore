@@ -15,9 +15,14 @@ GAIN=.25
 def cache_rows(model,sources,bridge,full,expansion,child,rows):
     # The raw LM head hook runs BEFORE temporary learned correction.
     # Cache actual frozen compressed-model hidden + native base logits.
-    for p in child.parameters():p.requires_grad_(False)
+    # Historical physical forward contract requires a differentiable
+    # one-pass child. Retain the standard research requires_grad flags
+    # only while capturing; never backpropagate or update during cache.
+    # All captured tensors are detached, and actual graph is discarded.
+    from research.calibri_nra3.s119q2i3_real_joint_gt_nra3_npa1_head import make_joint_trainable
+    selected=make_joint_trainable(child)
     for p in full.parameters():p.requires_grad_(False)
-    for p in child.language_head.parameters():p.requires_grad_(True)
+    check(sum(p.numel() for p in selected)==368039,"same historical differentiable child contract")
     count=0;max_error=0.;result=[]
     for row in rows:
         hidden=[];base=[]
@@ -43,10 +48,13 @@ def cache_rows(model,sources,bridge,full,expansion,child,rows):
                       and int(reconstructed.argmax())==int(actual.argmax()),
                       "exact cached native head forward parity")
                 max_error=max(max_error,e);hidden.append(h);base.append(b);count+=1
+                del actual,reconstructed
+                check(all(p.grad is None for p in selected),"capture only, no backward or weight updates")
             finally:hook.remove()
         result.append({"id":row["id"],"gold":row["answer_native_with_eos"],
                        "hidden":torch.cat(hidden,dim=0),"base":torch.cat(base,dim=0),
                        "masks":row["utf8_masks"]})
+    for p in child.parameters():p.requires_grad_(False)
     check(len(result)==98 and count==1618,"exact frozen TRAIN98 cache")
     return result,{"real_compressed_decoder_forwards":count,"max_reconstruction_abs_error":max_error,
                    "all_positions_top1_equal":True}
