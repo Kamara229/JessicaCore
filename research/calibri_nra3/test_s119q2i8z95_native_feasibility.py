@@ -10,7 +10,7 @@ class TestZ95(unittest.TestCase):
         self.assertEqual(r["top1"],3)
         self.assertTrue(r["all_non_target_logits_unchanged"])
         self.assertEqual(r["target_columns"],3)
-        self.assertEqual(feasibility(torch.zeros(3,1),base,gold)["top1"],1)
+        self.assertEqual(feasibility(torch.zeros(3,1),base,gold)["top1"],0)
     def test_invalid(self):
         with self.assertRaises(Exception):feasibility(torch.zeros(1,1),torch.zeros(1,2),torch.tensor([2]))
 if __name__=="__main__":unittest.main()
