@@ -1,0 +1,64 @@
+name: Calibri Z48 read-only physical Z47 spent28 collapse and early EOS forensics
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z47-physical-fresh28-BPE2-native-20261124
+permissions:
+  contents: read
+  actions: read
+jobs:
+  prior_completed_Z47_SPENTDEV28_only:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/calibri2-s119q2i8z48-readonly-z47-newDEV28-collapse-taxonomy-20261124'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run stdlib-only no-model forensic contract
+        env:
+          PYTHONPATH: .
+        run: python -m unittest -v research.calibri_nra3.test_s119q2i8z48_spent_z47_collapse_forensics
+      - name: Read only successful immutable physical Z47 spent newDEV28 JSON
+        uses: actions/download-artifact@v4
+        with:
+          name: calibri-s119q2i8z47-physical-original43m-new28-DEV-BPE2-human-vs-wrong-first3-gate0
+          run-id: 45372181111
+          path: inputs/z47
+          github-token: ${{ github.token }}
+      - name: Reconcile Z47 spent28 paired improvement, crossprompt collapse and EOS by domain
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m research.calibri_nra3.s119q2i8z48_pinned_z47_spent28_collapse_forensics \
+            --report inputs/z47/S119Q2I8Z47_REAL43M_FRESH28_DEV_BPE2_FIRST3_NATIVE_HUMAN_VS_WRONG_G0.json \
+            --out results/S119Q2I8Z48_READONLY_Z47_SPENTDEV28_BPE2_COLLAPSE_EOS_G0.json
+      - name: Archive audit only; this is NOT new DEV scoring
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibri-z48-readonly-z47-spentDEV28-BPE2-entropy-EOS-forensics-gate0
+          path: results/S119Q2I8Z48_READONLY_Z47_SPENTDEV28_BPE2_COLLAPSE_EOS_G0.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Assert strict three-file read-only research scope
+        run: |
+          set -euo pipefail
+          base=origin/research/calibri2-s119q2i8z47-physical-fresh28-BPE2-native-20261124
+          git rev-parse --verify "${base}^{commit}" >/dev/null
+          git diff --name-only "${base}" HEAD >/tmp/z48scope
+          if grep -Fvx \
+            -e 'research/calibri_nra3/s119q2i8z48_pinned_z47_spent28_collapse_forensics.py' \
+            -e 'research/calibri_nra3/test_s119q2i8z48_spent_z47_collapse_forensics.py' \
+            -e '.github/workflows/calibri-nra3-s119q2i8z48-readonly-spentdev.yml' /tmp/z48scope; then
+            echo 'Forbidden old DEV re-score, original weights, production or Jessica changes' >&2
+            exit 1
+          fi
+          test "$(wc -l </tmp/z48scope)" -eq 3
