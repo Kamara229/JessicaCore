@@ -2,7 +2,7 @@ name: Calibri Fusion Growth F11 broad integrated recovery
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [research/calibri2-fusion-growth-f11-broad-recovery-20261125]
+    branches: [research/calibri2-fusion-growth-f10-own-errors-20261125]
 permissions:
   contents: read
   actions: read
