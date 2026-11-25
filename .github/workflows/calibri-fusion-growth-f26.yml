@@ -1,0 +1,64 @@
+name: Calibri Fusion Growth F26 functional rate allocation
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-fusion-growth-f25-weighted-rate-20261125]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  f26:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-fusion-growth-f26-functional-rate-20261125'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Strict scope
+        run: |
+          git diff --name-only 82c1c5fdd5d4cd533c8db162604ed9423adb1b47 HEAD >/tmp/f26scope
+          test "$(wc -l </tmp/f26scope)" -eq 2
+          ! grep -Fvx -e 'research/calibri2/fusion_growth/f26_functional_rate.py' -e '.github/workflows/calibri-fusion-growth-f26.yml' /tmp/f26scope
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f01-physical-budget-G0
+          run-id: 45668506574
+          path: inputs/f01
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f08-runtime-budget-G0
+          run-id: 45671309936
+          path: inputs/f08
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f15-legacy-J7-G0
+          run-id: 45675368249
+          path: inputs/f15
+          github-token: ${{ github.token }}
+      - name: Freeze functional sensitivity layouts under physical cap then replay
+        run: python research/calibri2/fusion_growth/f26_functional_rate.py --f01 inputs/f01 --f08 inputs/f08 --f15 inputs/f15 --out results/f26
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-fusion-growth-f26-functional-rate-G0
+          path: results/f26/
+          retention-days: 30
+          if-no-files-found: error
