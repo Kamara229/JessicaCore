@@ -1,0 +1,58 @@
+name: Calibri Fusion Growth F34 existing parallel token head learning
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-fusion-growth-f33-component-attribution-20261125]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  f34:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-fusion-growth-f34-parallel-prefill-learning-20261125'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Strict scope
+        run: |
+          git diff --name-only f26a857e9d90e0b098397b75813c215bdd9f30f4 HEAD >/tmp/f34scope
+          test "$(wc -l </tmp/f34scope)" -eq 2
+          ! grep -Fvx -e 'research/calibri2/fusion_growth/f34_parallel_prefill_learning.py' -e '.github/workflows/calibri-fusion-growth-f34.yml' /tmp/f34scope
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f10-own-error-joint-G0
+          run-id: 45673224891
+          path: inputs/f10
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f08-runtime-budget-G0
+          run-id: 45671309936
+          path: inputs/f08
+          github-token: ${{ github.token }}
+      - name: Train existing parallel slot weights on single real prefill states
+        run: python research/calibri2/fusion_growth/f34_parallel_prefill_learning.py --f10 inputs/f10 --f08 inputs/f08 --out results/f34
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-fusion-growth-f34-parallel-prefill-G0
+          path: results/f34/
+          retention-days: 30
+          if-no-files-found: error
