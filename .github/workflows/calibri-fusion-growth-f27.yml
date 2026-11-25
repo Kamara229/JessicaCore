@@ -1,0 +1,70 @@
+name: Calibri Fusion Growth F27 retention path attribution
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-fusion-growth-f26-functional-rate-20261125]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  f27:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-fusion-growth-f27-retention-path-audit-20261125'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Strict scope
+        run: |
+          git diff --name-only 524a40c234c75d8c38fe1417ae166b7dac239e18 HEAD >/tmp/f27scope
+          test "$(wc -l </tmp/f27scope)" -eq 2
+          ! grep -Fvx -e 'research/calibri2/fusion_growth/f27_retention_path_audit.py' -e '.github/workflows/calibri-fusion-growth-f27.yml' /tmp/f27scope
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f01-physical-budget-G0
+          run-id: 45668506574
+          path: inputs/f01
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f08-runtime-budget-G0
+          run-id: 45671309936
+          path: inputs/f08
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f15-legacy-J7-G0
+          run-id: 45675368249
+          path: inputs/f15
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f25-weighted-rate-G0
+          run-id: 45679866014
+          path: inputs/f25
+          github-token: ${{ github.token }}
+      - name: Reproduce historical reference and attribute recorded drift by actual baseline decoder path
+        run: python research/calibri2/fusion_growth/f27_retention_path_audit.py --f01 inputs/f01 --f08 inputs/f08 --f15 inputs/f15 --f25 inputs/f25 --out results/f27
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-fusion-growth-f27-path-audit-G0
+          path: results/f27/
+          retention-days: 30
+          if-no-files-found: error
