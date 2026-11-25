@@ -83,7 +83,8 @@ def witness(state,tok):
     return np.stack(zz).astype(np.float64),np.stack(hh).astype(np.float64)
 
 def sensitivity(old,side,opts,groups,tok,inventory,extras):
-    j7.configure_original_selector()
+    # Calibration uses the causal model directly, not the legacy selector.
+    # Install the historical selector exactly once, only before replay.
     base=j7.model_state(old,side,extras,False)
     z,h=witness(base,tok);del base
     z=z-z.mean(-1,keepdims=True)
