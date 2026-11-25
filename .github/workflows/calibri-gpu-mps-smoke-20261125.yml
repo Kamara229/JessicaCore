@@ -1,0 +1,38 @@
+name: Calibri short physical GPU MPS smoke test
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - research/calibri2-s119q2i8z120-GPT-eos-dose-20261125
+permissions:
+  contents: read
+jobs:
+  mps-smoke:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-gpu-mps-smoke-20261125'
+    runs-on: macos-15
+    timeout-minutes: 10
+    env:
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Hardware identity
+        run: |
+          uname -m
+          system_profiler SPDisplaysDataType
+      - name: Install pinned PyTorch
+        run: python -m pip install 'torch==2.5.1' 'numpy<2'
+      - name: Actual MPS forward backward Adam and CPU parity
+        run: python research/calibri_nra3/gpu_mps_smoke_20261125.py
+      - name: Research-only scope
+        run: |
+          git fetch --no-tags origin research/calibri2-s119q2i8z120-GPT-eos-dose-20261125
+          git diff --name-only 1b2343994c9b2f618b64c684f142966010c38be3 HEAD >/tmp/gpuscope
+          test "$(wc -l </tmp/gpuscope)" -eq 2
+          if grep -Fvx -e 'research/calibri_nra3/gpu_mps_smoke_20261125.py' -e '.github/workflows/calibri-gpu-mps-smoke-20261125.yml' /tmp/gpuscope; then exit 1; fi
