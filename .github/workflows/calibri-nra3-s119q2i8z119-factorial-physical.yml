@@ -3,7 +3,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
-      - research/calibri2-s119q2i8z119-GPT-replay-guard-factorial-20261125
+      - research/calibri2-s119q2i8z118-GPT-replay-eos-utf8-20261125
 permissions:
   contents: read
   actions: read
