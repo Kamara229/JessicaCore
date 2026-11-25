@@ -1,0 +1,64 @@
+name: Calibri Fusion Growth F29 broad training fit audit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-fusion-growth-f28-autoregressive-rate-20261125]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  f29:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-fusion-growth-f29-broad-fit-audit-20261125'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Strict scope
+        run: |
+          git diff --name-only 4a56dca5a642fe728bd1812cd38a3e7cc54a810d HEAD >/tmp/f29scope
+          test "$(wc -l </tmp/f29scope)" -eq 2
+          ! grep -Fvx -e 'research/calibri2/fusion_growth/f29_broad_fit_audit.py' -e '.github/workflows/calibri-fusion-growth-f29.yml' /tmp/f29scope
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f06-integrated-recovery-G0
+          run-id: 45670574673
+          path: inputs/f06
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f11-broad-joint-G0
+          run-id: 45673821067
+          path: inputs/f11
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f08-runtime-budget-G0
+          run-id: 45671309936
+          path: inputs/f08
+          github-token: ${{ github.token }}
+      - name: Measure fit on fixed TRAIN subset and distinguish first-token and EOS collapse
+        run: python research/calibri2/fusion_growth/f29_broad_fit_audit.py --f06 inputs/f06 --f11 inputs/f11 --f08 inputs/f08 --out results/f29
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-fusion-growth-f29-broad-fit-audit-G0
+          path: results/f29/
+          retention-days: 30
+          if-no-files-found: error
