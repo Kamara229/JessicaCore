@@ -36,6 +36,9 @@ class TestZ12(unittest.TestCase):
         lp2=torch.full((1,NATIVE_VOCAB),-40.)
         lp2[0,10]=6.0
         lp2[0,11]=5.9
+        # Fix all remaining top-8 ranks explicitly: torch.topk tie ordering
+        # is backend-dependent, and EOS must be outside this non-EOS fixture.
+        lp2[0,20:26]=torch.tensor([-30.,-31.,-32.,-33.,-34.,-35.])
         # For greedy BPE2=10, future logits are flat => low third confidence.
         # For alternative 11, one third token is highly probable.
         lp3=torch.zeros((1,NATIVE_VOCAB))
@@ -54,6 +57,7 @@ class TestZ12(unittest.TestCase):
         lp2=torch.full((1,NATIVE_VOCAB),-40.)
         lp2[0,2]=10.
         lp2[0,17]=9.
+        lp2[0,20:26]=torch.tensor([-30.,-31.,-32.,-33.,-34.,-35.])
         f=NativeOracle(lp2,{})
         d=native_lookahead_second_third(f,(100,101,102,103))
         self.assertEqual(d["top8_second_native_ids"][0],2)

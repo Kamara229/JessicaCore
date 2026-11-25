@@ -340,7 +340,7 @@ jobs:
           path: results/gpu_real_head_train_20261125/
           retention-days: 30
           if-no-files-found: error
-      - name: Strict three-file additive research-only GPU parity scope
+      - name: Strict four-file research-only GPU parity scope (includes deterministic test fixture)
         run: |
           set -euo pipefail
           base=1d7a18a2fcf3a4eeebe3c28a56ba6c4b131113d6
@@ -349,8 +349,9 @@ jobs:
           if grep -Fvx \
             -e 'research/calibri_nra3/gpu_real_head_train_20261125.py' \
             -e 'research/calibri_nra3/gpu_real_head_physical_20261125.py' \
+            -e 'research/calibri_nra3/test_s119q2i8z12_parallel_native_branch.py' \
             -e '.github/workflows/calibri-gpu-real-head-parity-20261125.yml' /tmp/gpurealscope; then
             echo 'Forbidden production, original weights, data or Jessica modification' >&2
             exit 1
           fi
-          test "$(wc -l </tmp/gpurealscope)" -eq 3
+          test "$(wc -l </tmp/gpurealscope)" -eq 4
