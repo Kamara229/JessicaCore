@@ -1,0 +1,58 @@
+name: Calibri Fusion Growth F21 native CPU integration
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-fusion-growth-f20-state-diagnostic-20261125]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  f21:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-fusion-growth-f21-native-cpu-20261125'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Strict scope
+        run: |
+          git diff --name-only 7ce1f567f426cd12993c95a7c9d548c2526dfe6d HEAD >/tmp/f21scope
+          test "$(wc -l </tmp/f21scope)" -eq 2
+          ! grep -Fvx -e 'research/calibri2/fusion_growth/f21_native_cpu_integration.py' -e '.github/workflows/calibri-fusion-growth-f21.yml' /tmp/f21scope
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f10-own-error-joint-G0
+          run-id: 45673224891
+          path: inputs/f10
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f08-runtime-budget-G0
+          run-id: 45671309936
+          path: inputs/f08
+          github-token: ${{ github.token }}
+      - name: Compare full native generation with last-only and packed tied head
+        run: python research/calibri2/fusion_growth/f21_native_cpu_integration.py --f10 inputs/f10 --f08 inputs/f08 --out results/f21
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-fusion-growth-f21-native-cpu-G0
+          path: results/f21/
+          retention-days: 30
+          if-no-files-found: error
