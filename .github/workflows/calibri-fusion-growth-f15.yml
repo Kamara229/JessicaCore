@@ -1,0 +1,76 @@
+name: Calibri Fusion Growth F15 legacy J7 replay
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-fusion-growth-f14-direct-loader-20261125]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  f15:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-fusion-growth-f15-legacy-j7-20261125'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Strict scope
+        run: |
+          git diff --name-only f46ce062ccee5b44b28f199552db3b7b0bcf8a49 HEAD >/tmp/f15scope
+          test "$(wc -l </tmp/f15scope)" -eq 2
+          ! grep -Fvx -e 'research/calibri2/fusion_growth/f15_legacy_j7_replay.py' -e '.github/workflows/calibri-fusion-growth-f15.yml' /tmp/f15scope
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f01-physical-budget-G0
+          run-id: 45668506574
+          path: inputs/f01
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f06-integrated-recovery-G0
+          run-id: 45670574673
+          path: inputs/f06
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f08-runtime-budget-G0
+          run-id: 45671309936
+          path: inputs/f08
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f13-profile-rebase-G0
+          run-id: 45674636032
+          path: inputs/f13
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-s194-actual-real-cpu-J7-584plus32-FP16-baseline-adapter
+          run-id: 43345267876
+          path: inputs/s194
+          github-token: ${{ github.token }}
+      - name: Reproduce protected baseline and compare real legacy decoder candidates
+        run: python research/calibri2/fusion_growth/f15_legacy_j7_replay.py --f01 inputs/f01 --f06 inputs/f06 --f08 inputs/f08 --f13 inputs/f13 --s194 inputs/s194 --out results/f15
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-fusion-growth-f15-legacy-J7-G0
+          path: results/f15/
+          retention-days: 30
+          if-no-files-found: error
