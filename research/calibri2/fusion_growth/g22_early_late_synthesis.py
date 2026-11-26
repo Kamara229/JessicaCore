@@ -92,8 +92,29 @@ def install(st,model):
     try:yield
     finally:a.remove();b.remove();pending.clear()
 
+def rows(tok):
+    def read(split):
+        items=[]
+        for line in (g21.ROOT/(split+".jsonl")).read_text(encoding="utf8").splitlines():
+            r=json.loads(line);assert r["split"]==split
+            p,g=g21.native(tok,r["q"],r["answer"])
+            assert tok.decode(g[:-1],skip_special_tokens=True).strip()==r["answer"]
+            assert len(p)+len(g)<160
+            assert len(p)<159
+            items.append({**r,"p":p,"g":g,"features":g21.prompt_features(tok,r["q"]),"cohort":"G19"})
+        return items
+    tr19,dv19=read("TRAIN"),read("DEV")
+    tr16=[{**r,"cohort":"G16"} for v in g21.data(tok,"TRAIN").values() for r in v]
+    dv16=[{**r,"cohort":"G16"} for v in g21.data(tok,"DEV").values() for r in v]
+    tr=tr19+tr16;dv=dv19+dv16
+    assert len(tr)==336 and len(dv)==112
+    assert len({r["q"] for r in tr})==336
+    assert len({r["q"] for r in dv})==112
+    assert not {r["q"] for r in tr}&({r["q"] for r in dv}|{r["q"] for r in g21.suite()})
+    return tr,dv
+
 def select(tok):
-    tr,dv=g21.rows(tok)
+    tr,dv=rows(tok)
     # Keep complete contrast pairs; replay existing Russian word/context/
     # sentence data. Fixed selection, no outcome-dependent sampling.
     groups=defaultdict(list)
@@ -157,7 +178,7 @@ def audit(st,tok,dev,model,tag,out):
     with install(st,model),(out/(tag+".jsonl")).open("w",encoding="utf8") as f:
         for r in dev:
             ids=[]
-            for _ in range(32):
+            for _ in range(min(32,159-len(r["p"]))):
                 z=forward(st,r["p"]+ids,r["features"]).detach()
                 ids.append(int(z.argmax()))
                 if ids[-1]==2:break
