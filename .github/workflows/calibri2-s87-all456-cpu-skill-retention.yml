@@ -11,7 +11,7 @@ jobs:
   s87_all456_cpu_source_sidecar_replay:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-s87-joint-core-green-tunnel-20261109'
     runs-on: macos-15
-    timeout-minutes: 90
+    timeout-minutes: 150
     env:
       PYTHONPATH: research:research/calibri
       OMP_NUM_THREADS: '2'
@@ -59,7 +59,7 @@ jobs:
             // The MPS and CPU workflows start together on synchronize.
             // Wait for the exact-HEAD producer rather than consuming an older artifact.
             let runs = [];
-            for (let attempt = 0; attempt < 40; attempt++) {
+            for (let attempt = 0; attempt < 160; attempt++) {
               const {data} = await github.rest.actions.listWorkflowRuns({
                 owner: context.repo.owner, repo: context.repo.repo,
                 workflow_id: 'calibri2-s87-joint-core-internal-green-tunnel-MPS.yml',
@@ -81,9 +81,9 @@ jobs:
                 core.setFailed('FAIL CLOSED: all matching MPS runs completed without success');
                 return;
               }
-              if (attempt < 39) await new Promise(resolve => setTimeout(resolve, 30000));
+              if (attempt < 159) await new Promise(resolve => setTimeout(resolve, 30000));
             }
-            core.setFailed('FAIL CLOSED: no successful matching MPS artifact after bounded 20-minute wait');
+            core.setFailed('FAIL CLOSED: no successful matching MPS artifact after bounded 80-minute wait');
             return;
       - name: S87 actual MPS-trained but UNACCEPTED compressed-source prototype
         uses: actions/download-artifact@v4
