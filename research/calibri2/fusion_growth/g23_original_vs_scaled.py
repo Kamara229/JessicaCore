@@ -51,7 +51,7 @@ def generate(st,tok,row):
 def pair_probe(st,tok,rows):
     # Same object and same preceding answer tokens across a contrast pair
     # where possible; evaluate both directions, never train.
-    groups=defaultdict(list);res=[]
+    groups=defaultdict(list);res=[];excluded=[]
     for r in rows:
         if r.get("pair_id"):groups[r["pair_id"]].append(r)
     assert len(groups)==32
@@ -59,9 +59,25 @@ def pair_probe(st,tok,rows):
         assert len(rr)==2
         prompts=[];targets=[];states=[];logits=[]
         for r in rr:
-            p,g=native(tok,r["q"],r["accepted"][0]);prompts.append(p);targets.append(g)
+            p=strict_chat_source_ids(tok,r["q"])
+            chat=tok.apply_chat_template([{"role":"user","content":r["q"]}],tokenize=False,add_generation_prompt=True)
+            ids=tok.encode(chat+r["accepted"][0],add_special_tokens=False)
+            g=ids[len(p):]+[2]
+            # A diagnostic needs only the shared prefix before divergence,
+            # not the full reference answer within the native 160 cap.
+            if ids[:len(p)]!=p or len(ids)<=len(p) or 2 in g[:-1]:
+                break
+            prompts.append(p);targets.append(g)
+        if len(targets)!=2:
+            excluded.append({"pair_id":pair,"reason":"native_token_alignment"})
+            continue
         pos=next((i for i,(a,b) in enumerate(zip(*targets)) if a!=b),None)
-        if pos is None or 2 in (targets[0][pos],targets[1][pos]):continue
+        if pos is None or 2 in (targets[0][pos],targets[1][pos]):
+            excluded.append({"pair_id":pair,"reason":"no_non_EOS_divergence"})
+            continue
+        if any(len(p)+pos>=160 for p in prompts):
+            excluded.append({"pair_id":pair,"reason":"divergent_prefix_exceeds_native_budget"})
+            continue
         for i,r in enumerate(rr):
             hidden={};handles=[]
             def capture(j):
@@ -84,8 +100,8 @@ def pair_probe(st,tok,rows):
         res.append({"pair_id":pair,"family":rr[0]["family"],"divergence":pos,
                     "target_ids":[a,b],"gaps":gaps,"both_preferred":all(v>0 for v in gaps),
                     "relative_hidden_difference":d.tolist()})
-    return {"n":len(res),"both_preferred":sum(r["both_preferred"] for r in res),
-            "layer_median_relative_difference":np.median([r["relative_hidden_difference"] for r in res],axis=0).tolist(),
+    return {"n":len(res),"excluded":excluded,"both_preferred":sum(r["both_preferred"] for r in res),
+            "layer_median_relative_difference":np.median([r["relative_hidden_difference"] for r in res],axis=0).tolist() if res else None,
             "records":res}
 
 def run(f01,f10,g05,g18dir,f08,out):
