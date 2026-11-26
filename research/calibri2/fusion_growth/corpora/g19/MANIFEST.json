@@ -1,0 +1,30 @@
+{
+  "stage": "G19_RUSSIAN_CONTRAST_CORPUS",
+  "training_updates": 0,
+  "train_unique": 192,
+  "dev_unique": 64,
+  "train_pairs": 96,
+  "dev_pairs": 32,
+  "families": [
+    "location",
+    "ownership",
+    "negation",
+    "ordering",
+    "arithmetic",
+    "classification",
+    "context_fact",
+    "instruction"
+  ],
+  "per_family": {
+    "train": 24,
+    "dev": 8
+  },
+  "exact_prompt_overlap_train_dev": 0,
+  "source": "original authored templates and checked arithmetic/context",
+  "limitations": [
+    "Template-derived corpus; lexical pools are split, but templates are shared. DEV measures transfer within these families, not broad language competence.",
+    "Exact answer is only one acceptable formulation; score meaning, grammar and completeness.",
+    "No public-model teacher or G14 training inputs.",
+    "Native tokenization and physical training not yet executed."
+  ]
+}
