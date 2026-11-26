@@ -22,6 +22,7 @@ from research.calibri2.fusion_growth.g05_134m_joint import restore,G05
 from research.calibri2.fusion_growth.g06_causal_gradient import PIN
 from research.calibri2.fusion_growth.g02_attention_discrete import forward
 from research.calibri2.fusion_growth.g14_russian_ladder import normalize
+from research.calibri2.fusion_growth.f21_native_cpu_integration import strict_chat_source_ids
 from research.calibri2.fusion_growth import g18_early_context_readout as g18
 from research.calibri2.fusion_growth import g21_g18_context_attention as g21
 
@@ -93,47 +94,62 @@ def install(st,model):
     finally:a.remove();b.remove();pending.clear()
 
 def rows(tok):
+    # Preflight actual native tokenizer before choosing any training pair.
+    # Preserve the original G19 prompts/answers; do not truncate or rewrite.
+    # Ineligible pairs are excluded as a unit, before model loading.
+    rejected=[]
     def read(split):
-        items=[]
+        groups=defaultdict(list)
         for line in (g21.ROOT/(split+".jsonl")).read_text(encoding="utf8").splitlines():
             r=json.loads(line);assert r["split"]==split
-            p,g=g21.native(tok,r["q"],r["answer"])
-            assert tok.decode(g[:-1],skip_special_tokens=True).strip()==r["answer"]
-            assert len(p)+len(g)<160
-            assert len(p)<159
-            items.append({**r,"p":p,"g":g,"features":g21.prompt_features(tok,r["q"]),"cohort":"G19"})
+            groups[r["pair_id"]].append(r)
+        items=[]
+        for pair,rr in groups.items():
+            assert len(rr)==2
+            valid=[];errors=[]
+            for r in rr:
+                p=strict_chat_source_ids(tok,r["q"])
+                chat=tok.apply_chat_template([{"role":"user","content":r["q"]}],tokenize=False,add_generation_prompt=True)
+                ids=tok.encode(chat+r["answer"],add_special_tokens=False)
+                g=ids[len(p):]+[2]
+                if ids[:len(p)]!=p or len(ids)<=len(p) or 2 in g[:-1] or len(p)+len(g)>=160 or tok.decode(g[:-1],skip_special_tokens=True).strip()!=r["answer"]:
+                    errors.append({"id":r["id"],"prompt_tokens":len(p),"target_tokens":len(g),"reason":"native_prefix_length_or_roundtrip"})
+                    continue
+                valid.append({**r,"p":p,"g":g,"features":g21.prompt_features(tok,r["q"]),"cohort":"G19"})
+            if errors:
+                rejected.append({"split":split,"pair_id":pair,"ids":[r["id"] for r in rr],"errors":errors})
+            else:
+                assert len(valid)==2
+                items.extend(valid)
         return items
     tr19,dv19=read("TRAIN"),read("DEV")
     tr16=[{**r,"cohort":"G16"} for v in g21.data(tok,"TRAIN").values() for r in v]
     dv16=[{**r,"cohort":"G16"} for v in g21.data(tok,"DEV").values() for r in v]
     tr=tr19+tr16;dv=dv19+dv16
-    assert len(tr)==336 and len(dv)==112
-    assert len({r["q"] for r in tr})==336
-    assert len({r["q"] for r in dv})==112
+    assert len({r["q"] for r in tr})==len(tr)
+    assert len({r["q"] for r in dv})==len(dv)
     assert not {r["q"] for r in tr}&({r["q"] for r in dv}|{r["q"] for r in g21.suite()})
-    return tr,dv
+    print("G22_PREFLIGHT",json.dumps({"G19_TRAIN_eligible":len(tr19),"G19_DEV_eligible":len(dv19),"rejected":rejected},ensure_ascii=False),flush=True)
+    return tr,dv,rejected
 
 def select(tok):
-    tr,dv=rows(tok)
-    # Keep complete contrast pairs; replay existing Russian word/context/
-    # sentence data. Fixed selection, no outcome-dependent sampling.
+    tr,dv,rejected=rows(tok)
     groups=defaultdict(list)
     for r in tr:
         if r["cohort"]=="G19":groups[r["family"]].append(r)
     train=[]
     for k in sorted(groups):
-        v=groups[k];assert len(v)==24
+        v=groups[k];assert len(v)%2==0
         train.extend(v[:8])
     for k in ("copy","context","sentence"):
         v=[r for r in tr if r["cohort"]=="G16" and r["family"]==k]
-        # Spread across each full family rather than only first templates.
         train.extend(v[::2])
     dev=[r for r in dv if r["cohort"]=="G19"]
     for k in ("copy","context","sentence"):
         dev.extend([r for r in dv if r["cohort"]=="G16" and r["family"]==k][::2])
-    assert len(train)==136 and len(dev)==88
+    assert len(train)>=72 and len(dev)>=24
     assert not {r["q"] for r in train}&{r["q"] for r in dev}
-    return train,dev
+    return train,dev,rejected
 
 def paired_targets(train):
     groups=defaultdict(list);negative={}
@@ -151,7 +167,7 @@ def paired_targets(train):
         # Do not oppose EOS: G08 showed the risk of termination collapse.
         if a["g"][pos]!=2 and b["g"][pos]!=2:
             negative[i,pos]=b["g"][pos];negative[j,pos]=a["g"][pos]
-    assert len(negative)>0
+    print("G22_CONTRAST_ELIGIBLE",len(negative),flush=True)
     return negative
 
 def cache(st,train):
@@ -203,8 +219,8 @@ def audit(st,tok,dev,model,tag,out):
                 "unique_answers":len({normalize(x["answer"]) for x in rr})}
     result={k:stat(v) for k,v in groups.items()}
     result["ALL"]=stat([x for v in groups.values() for x in v])
-    assert len(pairs)==32 and all(len(v)==2 for v in pairs.values())
-    result["G19_pairs"]={"n":32,"both_exact_EOS":sum(all(x["exact"] and x["EOS"] for x in v) for v in pairs.values()),
+    assert all(len(v)==2 for v in pairs.values())
+    result["G19_pairs"]={"n":len(pairs),"both_exact_EOS":sum(all(x["exact"] and x["EOS"] for x in v) for v in pairs.values()),
                          "different_outputs":sum(normalize(v[0]["answer"])!=normalize(v[1]["answer"]) for v in pairs.values())}
     print("G22_AUDIT",tag,json.dumps(result,ensure_ascii=False,sort_keys=True),flush=True)
     return result
@@ -218,8 +234,9 @@ def run(g05,g18dir,f08,out):
     assert digest(old)==g21.G18_SHA==prior["arms"]["CENTERED_EARLY_L0"]["residual_sha256"] and prior["base_sha256"]==PIN
     from transformers import AutoTokenizer
     tok=AutoTokenizer.from_pretrained(f08/"tokenizer",local_files_only=True)
-    tr,dv=select(tok)
+    tr,dv,rejected=select(tok)
     out.mkdir(parents=True,exist_ok=False)
+    (out/"G22_PREFLIGHT_REJECTED.json").write_text(json.dumps(rejected,ensure_ascii=False,indent=2))
     (out/"G22_MANIFEST.json").write_text(json.dumps({k:[{j:r[j] for j in ("q","answer","cohort","family")} for r in v] for k,v in (("TRAIN",tr),("DEV",dv))},ensure_ascii=False,indent=2))
     st,*rest=restore(blobs[:6],blobs[6],blobs[7])
     base=Hybrid(g18.unpack(old),False,torch.zeros(320),torch.ones(()))
@@ -278,7 +295,7 @@ def run(g05,g18dir,f08,out):
         print("G22_ARM",arm,json.dumps(results[arm],ensure_ascii=False,sort_keys=True),flush=True)
         (out/"G22_REPORT.json").write_text(json.dumps({"stage":"G22_EARLY_LATE_SYNTHESIS","baseline":before,
             "arms":results,"TRAIN_unique":len(tr),"DEV_unique":len(dv),"parent_sha256":g21.G18_SHA,
-            "candidate_accepted":False,"teacher_calls":0,
+            "candidate_accepted":False,"teacher_calls":0,"token_budget_excluded_pairs":rejected,
             "limitations":["Two matched arms, same training contrast and schedules, architecture combined so early vs late effects not individually isolated.",
              "G05 core frozen, not joint core certification. G19 DEV template-based; G16 DEV already viewed.",
              "Actual physical Q8 residual and FP16 statistics reload. Known payload includes tokenizer, not executable/runtime RSS.",
