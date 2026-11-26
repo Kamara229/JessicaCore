@@ -1,0 +1,58 @@
+name: Calibri Fusion Growth G03 FFN Green Tunnel and neural region width
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-fusion-growth-g02-attention-discrete-20261126]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  g03:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-fusion-growth-g03-region-tunnel-width-20261126'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Strict scope
+        run: |
+          git diff --name-only b92e79f3c5365ff288cbe496a0006d4bec66a373 HEAD >/tmp/g03scope
+          test "$(wc -l </tmp/g03scope)" -eq 2
+          ! grep -Fvx -e 'research/calibri2/fusion_growth/g03_region_tunnel_width.py' -e '.github/workflows/calibri-fusion-growth-g03.yml' /tmp/g03scope
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-g02-attention-discrete-G0
+          run-id: 45762939523
+          path: inputs/g02
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f08-runtime-budget-G0
+          run-id: 45671309936
+          path: inputs/f08
+          github-token: ${{ github.token }}
+      - name: Compare matched 74M and 92M with expanded recurrent tunnel and regions
+        run: python research/calibri2/fusion_growth/g03_region_tunnel_width.py --g02 inputs/g02 --f08 inputs/f08 --out results/g03
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-fusion-growth-g03-region-width-G0
+          path: results/g03/
+          retention-days: 30
+          if-no-files-found: error
