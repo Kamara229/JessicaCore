@@ -217,8 +217,13 @@ def main():
     inner = IntegratedGreenTunnel(layers=TUNNEL_LAYERS, rank=TUNNEL_RANK).to("mps")
     inner.install(student)
     paid_core = select_paid_core_codebooks(sources, TUNNEL_LAYERS)
-    parameters = [src.centroids for src in paid_core.values()] + list(inner.parameters())
-    optimizer = torch.optim.Adam(parameters, lr=0.0005)
+    # Conservative joint step: shared codebook centroids affect many weights.
+    # Keep the tunnel learning rate unchanged and reduce core displacement.
+    core_lr, tunnel_lr = 0.00005, 0.0005
+    optimizer = torch.optim.Adam([
+        {"params": [src.centroids for src in paid_core.values()], "lr": core_lr},
+        {"params": list(inner.parameters()), "lr": tunnel_lr},
+    ])
     steps = []
     rejected_steps = []
     for step in range(a.steps):
@@ -402,6 +407,8 @@ def main():
     # Fail closed before publishing a prototype: per-identity pilot TRAIN
     # regressions are a rejection, not merely diagnostic report fields.
     # The independent 456-identity CPU audit remains mandatory as well.
+    if chatgpt_train_summary["lost_full"]:
+        raise AssertionError("S87 lost baseline-correct ChatGPT TRAIN identities")
     if protected_lost_full or protected_lost_first:
         raise AssertionError(
             f"S87 pilot TRAIN regression after physical CB59 serialization: "
@@ -441,6 +448,8 @@ def main():
         "protected_full_train_identity_sha256":protected_identity_sha,
         "joint_objective_uses_protected_replay":True,
         "joint_objective_replay_weight":0.5,
+        "core_learning_rate":core_lr,
+        "internal_tunnel_learning_rate":tunnel_lr,
         "streaming_gradient_accumulation_without_retained_example_graphs":True,
         "FP32_135M_teacher_used":False,
         "FP32_135M_outputs_logits_probabilities_hidden_states_or_scores_used":False,
