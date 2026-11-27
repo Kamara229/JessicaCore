@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install 'transformers==4.46.3' 'numpy==1.26.4'
+      - run: python -m pip install 'transformers==4.46.3' 'numpy==1.26.4' 'Jinja2==3.1.6'
       - uses: actions/download-artifact@v4
         with:
           name: calibri-fusion-growth-f08-runtime-budget-G0
