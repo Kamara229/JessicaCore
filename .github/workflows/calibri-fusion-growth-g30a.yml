@@ -1,0 +1,65 @@
+name: Calibri Fusion Growth G30a L6 parallel preflight
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-fusion-growth-g29-l6-byte-continuation-20261127]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  g30a:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-fusion-growth-g30-l6-parallel-20261127'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Strict scope
+        run: |
+          git diff --name-only e027413e64f64b2f59b94b0ba0a8d6fdf8729d8d HEAD >/tmp/g30scope
+          test "$(wc -l </tmp/g30scope)" -eq 2
+          ! grep -Fvx -e 'research/calibri2/fusion_growth/g30_l6_parallel_preflight.py' -e '.github/workflows/calibri-fusion-growth-g30a.yml' /tmp/g30scope
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned CPU dependencies
+        run: |
+          python -m pip install 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3'
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-g05-134m-G0
+          run-id: 45823877120
+          path: inputs/g05
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f08-runtime-budget-G0
+          run-id: 45671309936
+          path: inputs/f08
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-g28-utf8
+          run-id: 45937309879
+          path: inputs/l6
+          github-token: ${{ github.token }}
+      - name: Native parallel two-slot preflight
+        run: python research/calibri2/fusion_growth/g30_l6_parallel_preflight.py --g05 inputs/g05 --f08 inputs/f08 --parent inputs/l6 --out results/g30a
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-fusion-growth-g30a
+          path: results/g30a/
+          retention-days: 30
+          if-no-files-found: error
