@@ -1,0 +1,46 @@
+name: Calibri Fusion Growth G31a language foundation audit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-fusion-growth-g30b-mps-20261127]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  g31a:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-fusion-growth-g31-language-foundation-20261127'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: .:research:research/calibri
+      TOKENIZERS_PARALLELISM: 'false'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Strict scope
+        run: |
+          git diff --name-only 23949e2ffcd1518581b95577bb3fa547cf6789d6 HEAD >/tmp/g31scope
+          test "$(wc -l </tmp/g31scope)" -eq 2
+          ! grep -Fvx -e 'research/calibri2/fusion_growth/g31a_language_foundation.py' -e '.github/workflows/calibri-fusion-growth-g31a.yml' /tmp/g31scope
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'transformers==4.46.3' 'numpy==1.26.4' 'Jinja2==3.1.6'
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f08-runtime-budget-G0
+          run-id: 45671309936
+          path: inputs/f08
+          github-token: ${{ github.token }}
+      - name: Generate and audit Russian language corpus
+        run: python research/calibri2/fusion_growth/g31a_language_foundation.py --f08 inputs/f08 --out results/g31a
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calibri-fusion-growth-g31a
+          path: results/g31a/
+          retention-days: 30
+          if-no-files-found: error
