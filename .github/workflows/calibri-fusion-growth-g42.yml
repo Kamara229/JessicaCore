@@ -1,0 +1,70 @@
+name: Calibri Fusion Growth G42 two-letter native overfit gate
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri2-fusion-growth-g41-balanced-joint-20261127]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  g42:
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [balanced, control]
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri2-fusion-growth-g42-two-letter-overfit-20261128'
+    runs-on: macos-15
+    timeout-minutes: 240
+    env:
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Strict scope
+        run: |
+          git diff --name-only 7216f71c700068053a4fdd96b1e46d9c8aa15906 HEAD >/tmp/g42scope
+          test "$(wc -l </tmp/g42scope)" -eq 2
+          ! grep -Fvx -e 'research/calibri2/fusion_growth/g42_two_letter_overfit.py' -e '.github/workflows/calibri-fusion-growth-g42.yml' /tmp/g42scope
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Pinned ARM64 MPS dependencies
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3' 'Jinja2==3.1.6' 'wordfreq==3.1.1'
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-g05-134m-G0
+          run-id: 45823877120
+          path: inputs/g05
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f08-runtime-budget-G0
+          run-id: 45671309936
+          path: inputs/f08
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-g41-${{ matrix.arm }}
+          run-id: 46058124152
+          path: inputs/parent
+          github-token: ${{ github.token }}
+      - name: GPU two-letter native head capacity test
+        run: python research/calibri2/fusion_growth/g42_two_letter_overfit.py --g05 inputs/g05 --f08 inputs/f08 --parent inputs/parent --out results/g42 --arm ${{ matrix.arm }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri-fusion-growth-g42-${{ matrix.arm }}
+          path: results/g42/
+          retention-days: 30
+          if-no-files-found: error
