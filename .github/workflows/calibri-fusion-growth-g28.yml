@@ -59,7 +59,7 @@ jobs:
           path: inputs/l6
           github-token: ${{ github.token }}
       - name: Continue actual trained L6
-        run: python research/calibri2/fusion_growth/g27b_internal_residual_training.py --g05 inputs/g05 --f08 inputs/f08 --parent inputs/l6 --out results/g28 --arm ${{ matrix.arm }}
+        run: python research/calibri2/fusion_growth/g28_l6_continuation.py --g05 inputs/g05 --f08 inputs/f08 --parent inputs/l6 --out results/g28 --arm ${{ matrix.arm }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
