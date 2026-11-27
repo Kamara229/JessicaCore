@@ -16,6 +16,20 @@ from research.calibri_nra3.s119q2i1_real43m_ru_language_head_joint_training impo
 from calibri2.s160 import real_parallel_slots_j7 as s160
 from v176.operators import clear
 
+def native_device_mask(self,original12,*,contextual):
+    # Same S119m math; only allocate native validity on the input device.
+    assert self.output_gate==0 and not self.candidate_accepted and not self.activation_allowed
+    assert original12.ndim==4 and original12.shape[0]==1 and original12.shape[1]==12 and original12.shape[-1]==320 and original12.shape[2]>=2
+    valid=torch.ones((1,original12.shape[2]),dtype=torch.bool,device=original12.device)
+    graph,rel,plan,planned=self.shadow.unified(original12,valid,contextual=contextual)
+    graph_parent=self.shadow.unified.nra3_neural_weights(original12,valid)
+    adapted=self.shadow.unified.structured_interface(original12[:,0],graph_parent,valid,contextual=contextual)
+    structure_delta=adapted[:,-1]-original12[:,0,-1]
+    core_delta=self.shadow.unified.core_growth(original12)[:,-1,-1]-original12[:,-1,-1]
+    rel6=F.pad(rel[:,-1],(0,314))
+    assert structure_delta.shape==core_delta.shape==rel6.shape==planned.shape==(1,320)
+    return torch.stack([core_delta,structure_delta+0.01*rel6,planned],dim=1)
+
 def native(st,p,features,slot):
     model,sources,bridge,full,expansion,child,_=st
     device=next(model.parameters()).device
@@ -56,6 +70,13 @@ def run(g05,f08,g29,g32,out):
     r=encode(tok,"Напиши букву м.","м")
     with install(st,6,l6):
         cpu=[z.detach().clone() for z in native(st,r["p"],r["features"],slot)]
+    from types import MethodType
+    mid=child.child.child
+    assert hasattr(mid,"delta_components")
+    mid.delta_components=MethodType(native_device_mask,mid)
+    with install(st,6,l6):
+        patched=[z.detach() for z in native(st,r["p"],r["features"],slot)]
+    assert all(torch.equal(x,y) for x,y in zip(cpu,patched)),"CPU native validity patch changed logits"
     # Off-model GT/bridge/expansion modules and weak-referenced original donor
     # also need movement; module .to alone would miss some research hooks.
     donor=bridge._existing()
