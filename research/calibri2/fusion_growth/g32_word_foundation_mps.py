@@ -61,10 +61,19 @@ def corpus(tok,out):
     test+=balanced(dev,48)
     assert all(r is not None for r in test)
     pilot=letters+syll+balanced(train,96)
-    notice_files=importlib.metadata.distribution("wordfreq").files or []
-    notice=next((p for p in notice_files if Path(str(p)).name.lower()=="notice.md"),None)
-    assert notice is not None,"wordfreq attribution NOTICE missing"
-    source=importlib.metadata.distribution("wordfreq").locate_file(notice).read_text(encoding="utf8")
+    dist=importlib.metadata.distribution("wordfreq")
+    notice_files=dist.files or []
+    # Wheels need not contain repository NOTICE.md. Preserve every bundled
+    # attribution/license and complete package metadata, rather than skip it.
+    texts=[]
+    for p in notice_files:
+        name=Path(str(p)).name.lower()
+        if name.startswith(("notice","license","licence","copying","authors","copyright")) or name=="metadata":
+            f=dist.locate_file(p)
+            if f.is_file():
+                texts.append("### "+str(p)+"\n"+f.read_text(encoding="utf8",errors="replace"))
+    assert texts,"No bundled attribution or package metadata"
+    source="\n\n".join(texts)
     (out/"WORDFREQ_NOTICE.md").write_text("Filtered Russian word forms from wordfreq 3.1.1 (Robyn Speer), modified by regex, tokenizer eligibility, shuffle and split. Derived word-list data CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/ ; upstream https://github.com/rspeer/wordfreq .\n\n"+source,encoding="utf8")
     for name,rows in (("TRAIN_WORDS",train),("DEV_WORDS",dev),("PILOT_TRAIN",pilot),("PILOT_DEV",test)):
         (out/(name+".jsonl")).write_text("".join(json.dumps(r,ensure_ascii=False)+"\n" for r in rows),encoding="utf8")
