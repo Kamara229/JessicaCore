@@ -158,16 +158,19 @@ def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
         raise AssertionError("Selected core dictionaries are not on MPS GPU")
     clear(sources)
     optimizer.zero_grad(set_to_none=True)
-    # Backpropagate each normalized example immediately. This is exact
-    # gradient accumulation for the weighted mean objective, while releasing
-    # every sequence graph before the next forward pass.
+    # Stream each cohort separately, releasing each sequence graph.
+    # Project conflicting new gradients against protected replay before Adam.
     loss_terms = []
     groups = (
         [(examples, 1.0)] if not replay_examples else
         [(examples, 1.0 - replay_weight), (replay_examples, replay_weight)]
     )
+    core = [s.centroids for s in selected_codebooks.values()]
+    side = list(tunnel.parameters())
+    params = core + side
+    new_grads = None
     try:
-        for group, group_weight in groups:
+        for group_index, (group, group_weight) in enumerate(groups):
             if not group:
                 continue
             per_example_weight = group_weight / len(group)
@@ -180,6 +183,30 @@ def joint_train_step(model, sources, tunnel: IntegratedGreenTunnel,
                 loss_terms.append(example_loss.detach() * per_example_weight)
                 (example_loss * per_example_weight).backward()
                 del example_loss
+            if replay_examples and group_index == 0:
+                if any(p.grad is None for p in params):
+                    raise AssertionError("Missing new TRAIN gradients")
+                new_grads = [p.grad.detach().float().clone() for p in params]
+                optimizer.zero_grad(set_to_none=True)
+        if new_grads is not None:
+            # One-sided projection: protect replay, never project replay away.
+            # Compute separately for core and tunnel because they are clipped
+            # and optimized at different scales. The physical guard remains
+            # authoritative: Adam and FP16 rounding can still cause regression.
+            if any(p.grad is None for p in params):
+                raise AssertionError("Missing replay gradients")
+            replay_grads = [p.grad.detach().float().clone() for p in params]
+            for start, stop in ((0, len(core)), (len(core), len(params))):
+                dot = sum((new_grads[i] * replay_grads[i]).sum()
+                          for i in range(start, stop))
+                norm_sq = sum(replay_grads[i].square().sum()
+                              for i in range(start, stop))
+                if not bool(torch.isfinite(dot).item()) or not bool(torch.isfinite(norm_sq).item()):
+                    raise AssertionError("Nonfinite gradient projection")
+                coefficient = float(dot.item()) / float(norm_sq.item()) if float(dot.item()) < 0 and float(norm_sq.item()) > 0 else 0.0
+                for i in range(start, stop):
+                    combined = new_grads[i] - coefficient * replay_grads[i] + replay_grads[i]
+                    params[i].grad.copy_(combined.to(params[i].grad.dtype))
         loss = torch.stack(loss_terms).sum()
         if not bool(torch.isfinite(loss).item()):
             raise AssertionError("Nonfinite accumulated joint objective")
