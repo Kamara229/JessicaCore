@@ -262,6 +262,17 @@ def main():
                     ):
                         raise AssertionError(
                             f"Transactional pilot TRAIN identity regression at row {i}")
+                # Protect every baseline-correct new TRAIN answer within the
+                # same transaction, not only after the final accepted step.
+                for row in chatgpt_train:
+                    gold = tok.encode(row["answer"], add_special_tokens=False) + [tok.eos_token_id]
+                    if new_train_before[row["train_id"]] != gold:
+                        continue
+                    actual = _original_cpu(cpu_probe, probe_sources, weights,
+                                           tok, row["question"], ptr)
+                    if actual != gold:
+                        raise AssertionError(
+                            f"Protected ChatGPT TRAIN regression: {row['train_id']}")
                 replay_start = time.perf_counter()
                 for identity, record in protected.items():
                     actual = _original_cpu(
