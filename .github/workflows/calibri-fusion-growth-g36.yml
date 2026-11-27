@@ -55,7 +55,7 @@ jobs:
           github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
-          name: calibri-fusion-growth-g36-${{ matrix.arm }}
+          name: calibri-fusion-growth-g34-${{ matrix.arm }}
           run-id: 46029045474
           path: inputs/parent
           github-token: ${{ github.token }}
@@ -64,7 +64,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: calibri-fusion-growth-g34-${{ matrix.arm }}
+          name: calibri-fusion-growth-g36-${{ matrix.arm }}
           path: results/g36/
           retention-days: 30
           if-no-files-found: error
