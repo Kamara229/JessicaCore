@@ -71,7 +71,10 @@ def run(g05,f08,out):
     r=rows[0];ref=forward(st,r["p"],r["features"]).detach().clone()
     frozen=list({id(p):p for p in parameters(restored)}.values())
     assert frozen
-    for p in frozen:p.requires_grad_(False);p.grad=None
+    for p in frozen:p.grad=None
+    # Existing native path requires differentiable child. Preserve its flags;
+    # request gradients only for adapter, never update the existing parameters.
+    versions={id(p):p._version for p in frozen}
     report={}
     for layer in (6,12):
         torch.manual_seed(20270113);a=Residual();assert sum(p.numel() for p in a.parameters())==5120
@@ -80,14 +83,14 @@ def run(g05,f08,out):
             z=forward(st,r["p"],r["features"])
             err=float((z.detach()-ref).abs().max());assert err<1e-4,err
             opt.zero_grad(set_to_none=True)
-            F.cross_entropy(z,torch.tensor([r["g"][0]])).backward()
+            a.up.weight.grad, a.down.weight.grad = torch.autograd.grad(F.cross_entropy(z,torch.tensor([r["g"][0]])),(a.up.weight,a.down.weight))
             up=float(a.up.weight.grad.norm());assert up>0 and torch.isfinite(a.up.weight.grad).all()
             opt.step();opt.zero_grad(set_to_none=True)
             s=rows[1];j=min(1,len(s["g"])-1)
             z=forward(st,s["p"]+s["g"][:j],s["features"])
-            F.cross_entropy(z,torch.tensor([s["g"][j]])).backward()
+            a.up.weight.grad, a.down.weight.grad = torch.autograd.grad(F.cross_entropy(z,torch.tensor([s["g"][j]])),(a.up.weight,a.down.weight))
             down=float(a.down.weight.grad.norm());assert down>0 and torch.isfinite(a.down.weight.grad).all()
-            assert all(p.grad is None and not p.requires_grad for p in frozen)
+            assert all(p.grad is None and p._version==versions[id(p)] for p in frozen)
         report[str(layer)]={"identity_max_error":err,"up_grad_norm":up,"down_grad_norm_after_ephemeral_step":down,"frozen_parameters":len(frozen),"adapter_parameters":5120}
         print("G27_PREFLIGHT",json.dumps(report[str(layer)]),flush=True)
         (out/"G27_PREFLIGHT.json").write_text(json.dumps({"layers":report,"retained_training_updates":0,"candidate_accepted":False,"limitations":["Two TRAIN examples only, one discarded update per location; no generation quality, J7 or CPU certification."]},indent=2))
