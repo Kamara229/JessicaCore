@@ -39,13 +39,13 @@ def check_matrix(source,x,device):
     return report
 
 @contextmanager
-def replace_selected(sources):
+def replace_selected(sources,operator=compact_source):
     chosen={id(s) for s in sources};original=TrainLinear.forward
     counts={"compact_calls":0}
     def forward(self,x):
         if id(self.source) in chosen:
             counts["compact_calls"]+=1
-            return compact_source(x,self.source)
+            return operator(x,self.source)
         return original(self,x)
     TrainLinear.forward=forward
     try:yield counts
