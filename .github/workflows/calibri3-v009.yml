@@ -1,0 +1,73 @@
+name: CALIBRI 3.0 V009 512 prompt integrated learning
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [research/calibri3-v008-integrated-20261128]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  v009:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'research/calibri3-v009-512-learning-20261128'
+    runs-on: macos-15
+    timeout-minutes: 240
+    env:
+      PYTORCH_ENABLE_MPS_FALLBACK: '0'
+      PYTHONPATH: .:research:research/calibri
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Strict scope
+        run: |
+          git diff --name-only 28d143218755110a6422a7bc23c6f2b17e506d84 HEAD >/tmp/g44scope
+          test "$(wc -l </tmp/g44scope)" -eq 5
+          ! grep -Ev '^(research/calibri3/|\.github/workflows/calibri3-v009\.yml$)' /tmp/g44scope
+          python3 -m compileall -q research/calibri3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Pinned ARM64 MPS dependencies
+        run: |
+          python -m pip install 'torch==2.5.1'
+          python -m pip install 'numpy==1.26.4' 'scipy==1.14.1' 'transformers==4.46.3' 'datasets==2.21.0' 'pyarrow==17.0.0' 'pandas==2.2.3' 'python-dateutil==2.9.0.post0' 'safetensors==0.4.5' 'huggingface_hub==0.27.1' 'accelerate==1.1.1' 'protobuf==5.28.3' 'Jinja2==3.1.6' 'wordfreq==3.1.1'
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-g05-134m-G0
+          run-id: 45823877120
+          path: inputs/g05
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-f08-runtime-budget-G0
+          run-id: 45671309936
+          path: inputs/f08
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri-fusion-growth-g43-balanced
+          run-id: 46120770020
+          path: inputs/parent
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: calibri3-v008-integrated
+          run-id: 46141142209
+          path: inputs/previous
+          github-token: ${{ github.token }}
+      - name: Integrated MPS learning 512 TRAIN plus replay and physical CPU evaluation
+        run: python -m research.calibri3.v009 --g05 inputs/g05 --f08 inputs/f08 --parent inputs/parent --previous inputs/previous --out results/v009
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calibri3-v009-512-learning
+          path: results/v009/
+          retention-days: 30
+          if-no-files-found: error
