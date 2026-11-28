@@ -2,7 +2,6 @@
 import torch
 from safetensors.torch import load
 from ..weights.architecture import replace_selected
-from .last_head import last_position_head
 from research.calibri2.fusion_growth.g30_l6_parallel_preflight import install
 from research.calibri2.fusion_growth.g41_balanced_joint import balance_scope
 from research.calibri2.fusion_growth.g44_512_joint import evaluate
@@ -23,8 +22,9 @@ def score(st,l6,slot,balance,tok,sets):
     chosen=[sources[f"model.layers.{i}.{k}.weight"] for i in (5,6) for k in ("self_attn.v_proj","self_attn.o_proj","mlp.down_proj")]
     report={};records={}
     # V001 differentiable CPU reference. Do not mix inference-only C into
-    # historical gradient-required generation hooks.
-    with install(st,6,l6),balance_scope(st,l6,balance,"balanced"),replace_selected(chosen),last_position_head(model):
+    # historical gradient-required generation hooks. Preserve full-head shape
+    # for the original CPU forward ABI; V005 last-head is training only.
+    with install(st,6,l6),balance_scope(st,l6,balance,"balanced"),replace_selected(chosen):
         for name,rows in sets.items():
             report[name],records[name]=evaluate(st,tok,rows,slot)
             print("V009_SCORE",name,report[name],flush=True)
