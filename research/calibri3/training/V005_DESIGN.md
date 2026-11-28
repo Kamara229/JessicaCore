@@ -1,0 +1,10 @@
+# V005 preparation (not validated)
+ 
+V004 parity must pass before integration. Two distinct experiments:
+ 
+1. V005a eliminate full-prefix vocabulary projection. Native and native_batch consume final-position logits only, but original lm_head + correction compute B*T*49152 logits. Slice input of both readouts to final position through one pre-hook. Keep both parallel slots and exactly the same loss. Compare real model logits and gradients and readout projection positions against V004; no weights updated. The final slot already consumes one position. Check the hook is removed even on errors. This removes redundant projection, NOT repeated core passes.
+2. V005b shared early prefix. The historical NRA3 adds its correction only at the final position in L6; naively computing all causal labels in one forward would omit the correction for earlier targets or introduce it into later target context. Either changes the existing model's function. Need to establish exact sharing of L1-L6 representations across prefixes first, then branch at L6 for each target with its own last-only NRA3 correction, and carry matching Green Tunnel state into L7-L12. Attention mask/position IDs, detached states and gradient accumulation must match baseline. Measure cost and parity before changing the model; do not equate this with ordinary teacher-forced one-pass training.
+ 
+The exact-length scheduler groups existing target positions within an unchanged logical optimizer batch. It preserves duplicate replay occurrences and variable answer lengths. It does not combine DEV/FRESH or change denominator/optimizer steps. It requires real V004 B=2/4 parity and separate single-row fallback. For G44's 512 unique TRAIN + 64 replay exposures, all 1152 target positions must still be visited (assuming two target tokens per prompt); the actual number of calls depends on tokenized prefix lengths. No padded batching yet.
+ 
+Source code organization is a development rule, not a requirement on neural topology. No new trainable parameters, no architecture or model acceptance claims. 
