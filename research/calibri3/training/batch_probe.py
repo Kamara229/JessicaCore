@@ -3,6 +3,8 @@ import json
 from time import perf_counter
 from contextlib import nullcontext
 from .last_head import last_position_head
+from ..weights.active_table import ActiveTable
+from ..weights.compact import compact_source
 import torch
 from torch.nn import functional as F
 from v176.operators import TrainWeight
@@ -28,7 +30,7 @@ def objective(z,targets):
     wrong=z.scatter(1,y[:,None],-torch.inf).max(1).values
     return F.cross_entropy(z,y,reduction="none")+F.softplus(2.+wrong-gold)
 
-def run_probe(restored,l6,slot,balance,rows,head_experiment=False):
+def run_probe(restored,l6,slot,balance,rows,head_experiment=False,operator_experiment=False):
     st=restored[0];model,sources,_,full,_,child,_=st
     rows=select_rows(rows)
     keys=[f"model.layers.{i}.{k}.weight" for i in (5,6) for k in ("self_attn.v_proj","self_attn.o_proj","mlp.down_proj")]
@@ -59,12 +61,14 @@ def run_probe(restored,l6,slot,balance,rows,head_experiment=False):
         return torch.cat(logits),torch.cat(losses),grads,calls
     arms={};ref=None
     # All arms use the verified V003 freeze/cache policy; only batch changes.
-    with replace_selected(chosen) as counts,freeze_sources(allsrc,ps,True),frozen_cache(TrainWeight,allsrc) as stats:
+    active=ActiveTable();operator_counts={}
+    with freeze_sources(allsrc,ps,True),frozen_cache(TrainWeight,allsrc) as stats:
         variants=[(1,False),(4,False),(1,True),(4,True)] if head_experiment else [(1,False),(2,False),(4,False)]
-        for size,short in variants:
-            name=(str(size)+('_last' if short else '_full')) if head_experiment else str(size)
+        variants=[(1,True,False),(4,True,False),(1,True,True),(4,True,True)] if operator_experiment else [(s,h,False) for s,h in variants]
+        for size,short,fast in variants:
+            name=(str(size)+('_active' if fast else '_legacy')) if operator_experiment else ((str(size)+('_last' if short else '_full')) if head_experiment else str(size))
             seconds=[]
-            with (last_position_head(model) if short else nullcontext(None)) as head_counts:
+            with replace_selected(chosen,active if fast else compact_source) as counts, (last_position_head(model) if short else nullcontext(None)) as head_counts:
                 for trial in range(4):
                     torch.mps.synchronize();start=perf_counter()
                     a,b,c,calls=once(size)
@@ -78,11 +82,13 @@ def run_probe(restored,l6,slot,balance,rows,head_experiment=False):
                     "gradients":{k:error(x,y) for k,x,y in zip(selected,actual[2],ref[2])}}
             gate=parity["top1_equal"] and max(parity["logits"]["relative_l2"],parity["loss"]["relative_l2"],*(v["relative_l2"] for v in parity["gradients"].values()))<.002
             arms[name]={"seconds":seconds,"median_seconds":sorted(seconds)[1],"core_calls":calls,"parity":parity,"gate":gate,"last_head_counts":head_counts}
-            arms[name]["speed_ratio"]=arms["1_full" if head_experiment else "1"]["median_seconds"]/arms[name]["median_seconds"]
+            operator_counts[name]=counts["compact_calls"]
+            arms[name]["speed_ratio"]=arms["1_legacy" if operator_experiment else ("1_full" if head_experiment else "1")]["median_seconds"]/arms[name]["median_seconds"]
             if short:
                 assert head_counts["computed_positions"]<head_counts["input_positions"]
-                arms[name]["matched_head_speed_ratio"]=arms[str(size)+"_full"]["median_seconds"]/arms[name]["median_seconds"]
-            print("V005_ARM" if head_experiment else "V004_ARM",name,json.dumps(arms[name]),flush=True)
+                if not operator_experiment:arms[name]["matched_head_speed_ratio"]=arms[str(size)+"_full"]["median_seconds"]/arms[name]["median_seconds"]
+            if fast:arms[name]["matched_operator_speed_ratio"]=arms[str(size)+"_legacy"]["median_seconds"]/arms[name]["median_seconds"]
+            print("V006_ARM" if operator_experiment else ("V005_ARM" if head_experiment else "V004_ARM"),name,json.dumps(arms[name]),flush=True)
         snapshot=dict(stats)
     return {"arms":arms,"rows":[{"q":r["q"],"answer":r["answer"],"prefix_length":len(r["p"])} for r in rows],
-            "cache":snapshot,"compact_calls":counts["compact_calls"],"batch_gate":all(a["gate"] for a in arms.values())}
+            "cache":snapshot,"compact_calls":sum(operator_counts.values()),"operator_calls":operator_counts,"active_table":active.stats,"batch_gate":all(a["gate"] for a in arms.values())}
